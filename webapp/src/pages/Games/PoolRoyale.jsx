@@ -818,7 +818,7 @@ const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outwa
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.428; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.033; // round the middle jaws slightly more while keeping the corner match
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.12; // slim the middle jaws further from the cloth side while keeping the chrome fascia unchanged
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.88; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
@@ -833,9 +833,9 @@ const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome t
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.12; // thin the outer lips more aggressively while leaving the centre crown unchanged
 const POCKET_JAW_CENTER_TAPER_HOLD = 0.32; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
 const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.25; // smooth the taper curve so thickness falls away progressively instead of dropping late
-const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD; // keep the taper hold consistent so the middle jaw crown mirrors the corners
-const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE; // reuse the corner taper scale so edge thickness matches exactly
-const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // maintain the identical taper curve across all six jaws
+const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = 0.24; // start thinning earlier on middle jaws so their inner lips slim progressively toward the pocket
+const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE * 0.82; // taper the middle lips harder than the corners while keeping the chrome edge intact
+const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = 1.12; // soften the trim curve so the middle jaws feather out more gradually
 const POCKET_JAW_CENTER_THICKNESS_MIN = 0.42; // let the inner arc sit leaner while preserving the curved silhouette across the pocket
 const POCKET_JAW_CENTER_THICKNESS_MAX = 0.74; // keep a pronounced middle section while slimming the jaw before tapering toward the edges
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
@@ -844,9 +844,9 @@ const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward 
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144; // higher tessellation for crisper high-res pocket jaws
 const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42; // widen the chamfer so the corner jaw shoulders carry the same mass as the photographed reference
-const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
+const POCKET_JAW_SIDE_EDGE_FACTOR = 0.34; // thin the middle jaw edge to sharpen the inner taper while leaving the exterior fascia untouched
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
-const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
+const POCKET_JAW_SIDE_MIDDLE_FACTOR = 0.94; // keep the middle jaw crown close to current thickness while allowing a subtler slim-down near the inner edge
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.46; // trim the corner jaw reach so the entry width matches the visible bowl
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.26; // trim the middle jaw reach further so it finishes closer to the wood/cloth gap while keeping the jaw radius
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // relax the middle jaw arc radius slightly so side-pocket jaws read a touch wider
@@ -854,8 +854,8 @@ const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.02; // lift the middle jaws so their rims sit level with the cloth like the corner pockets
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.12; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // taper the middle jaw edges sooner so they finish where the rails stop
-const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.68; // taper the middle jaw edges sooner so they finish where the rails stop
+const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.12; // ease the trim curve so the middle lips slim smoothly toward the chrome
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -2350,12 +2350,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Gentle TV studio fill with reduced contrast for practice.',
     settings: {
       keyColor: 0xf5f7fb,
-      keyIntensity: 1.28,
+      keyIntensity: 1.18,
       fillColor: 0xf5f7fb,
-      fillIntensity: 0.76,
+      fillIntensity: 0.68,
       rimColor: 0xfafcff,
-      rimIntensity: 0.54,
-      ambientIntensity: 0.18
+      rimIntensity: 0.48,
+      ambientIntensity: 0.16
     }
   },
   {
@@ -2364,12 +2364,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Tour stadium key with crisp specular pickup.',
     settings: {
       keyColor: 0xf6f8ff,
-      keyIntensity: 1.64,
+      keyIntensity: 1.52,
       fillColor: 0xf6f8ff,
-      fillIntensity: 0.84,
+      fillIntensity: 0.76,
       rimColor: 0xffffff,
-      rimIntensity: 0.6,
-      ambientIntensity: 0.2
+      rimIntensity: 0.54,
+      ambientIntensity: 0.18
     }
   },
   {
@@ -2378,12 +2378,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'High-contrast stage look with tight rim control.',
     settings: {
       keyColor: 0xf2f5ff,
-      keyIntensity: 1.74,
+      keyIntensity: 1.58,
       fillColor: 0xf2f5ff,
-      fillIntensity: 0.62,
+      fillIntensity: 0.56,
       rimColor: 0xf7fbff,
-      rimIntensity: 0.78,
-      ambientIntensity: 0.16
+      rimIntensity: 0.72,
+      ambientIntensity: 0.15
     }
   },
   {
@@ -2392,12 +2392,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Cool broadcast grade with soft rim and wider beam.',
     settings: {
       keyColor: 0xeaf1ff,
-      keyIntensity: 1.42,
+      keyIntensity: 1.26,
       fillColor: 0xeaf1ff,
-      fillIntensity: 0.82,
+      fillIntensity: 0.72,
       rimColor: 0xf5f8ff,
-      rimIntensity: 0.5,
-      ambientIntensity: 0.18
+      rimIntensity: 0.46,
+      ambientIntensity: 0.16
     }
   }
 ]);
@@ -13937,25 +13937,25 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.08;
+        const lightSpreadBoost = 1.14;
         const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.1;
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
         const lightOffsetZ =
-          Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
-        const shadowHalfSpan = Math.max(roomWidth, roomDepth) * 0.65 + TABLE.THICK * 3.2;
+          Math.max(PLAY_H * 0.22, TABLE.THICK * 3.8) * lightSpreadBoost;
+        const shadowHalfSpan = Math.max(roomWidth, roomDepth) * 0.7 + TABLE.THICK * 3.4;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.32);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.28);
         lightingRig.add(ambient);
 
-        const key = new THREE.DirectionalLight(0xffffff, 1.82);
-        key.position.set(lightOffsetX * 0.3, lightRigHeight, lightOffsetZ * 0.24);
+        const key = new THREE.DirectionalLight(0xffffff, 1.68);
+        key.position.set(lightOffsetX * 0.36, lightRigHeight, lightOffsetZ * 0.32);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
-        key.shadow.mapSize.set(4096, 4096);
+        key.shadow.mapSize.set(3584, 3584);
         key.shadow.camera.near = 0.1;
         key.shadow.camera.far = shadowDepth;
         key.shadow.camera.left = -shadowHalfSpan;
@@ -13968,14 +13968,14 @@ const powerRef = useRef(hud.power);
         lightingRig.add(key);
         lightingRig.add(key.target);
 
-        const fill = new THREE.DirectionalLight(0xffffff, 0.9);
-        fill.position.set(-lightOffsetX * 0.34, lightRigHeight * 1.02, lightOffsetZ * 0.28);
+        const fill = new THREE.DirectionalLight(0xffffff, 0.78);
+        fill.position.set(-lightOffsetX * 0.44, lightRigHeight * 1.03, lightOffsetZ * 0.36);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
-        const rim = new THREE.DirectionalLight(0xffffff, 0.72);
-        rim.position.set(0, lightRigHeight * 1.06, -lightOffsetZ * 0.38);
+        const rim = new THREE.DirectionalLight(0xffffff, 0.64);
+        rim.position.set(0, lightRigHeight * 1.08, -lightOffsetZ * 0.46);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
@@ -14875,12 +14875,19 @@ const powerRef = useRef(hud.power);
         clampInHandPosition(
           new THREE.Vector2(0, allowFullTableInHand() ? 0 : baulkZ)
         );
-      const inHandDrag = {
+      const inHandState = {
         active: false,
         pointerId: null,
-        lastPos: null
+        candidate: null,
+        committed: false
       };
-      const updateCuePlacement = (pos) => {
+      const resetInHandState = () => {
+        inHandState.active = false;
+        inHandState.pointerId = null;
+        inHandState.candidate = null;
+        inHandState.committed = false;
+      };
+      const updateCuePlacementPreview = (pos) => {
         if (!cue || !pos) return;
         cue.mesh.visible = true;
         cue.pos.set(pos.x, pos.y);
@@ -14890,19 +14897,42 @@ const powerRef = useRef(hud.power);
         cue.pendingSpin?.set(0, 0);
         cue.spinMode = 'standard';
       };
-      const tryUpdatePlacement = (raw, commit = false) => {
+      const previewHandPlacement = (raw) => {
         const currentHud = hudRef.current;
-        if (!(currentHud?.inHand)) return false;
+        if (!(currentHud?.inHand)) return null;
         const clamped = clampInHandPosition(raw);
-        if (!clamped) return false;
-        if (!isSpotFree(clamped)) return false;
+        if (!clamped) return null;
+        if (!isSpotFree(clamped)) return null;
         cue.active = false;
-        updateCuePlacement(clamped);
-        inHandDrag.lastPos = clamped;
-        if (commit) {
+        updateCuePlacementPreview(clamped);
+        inHandState.candidate = clamped.clone ? clamped.clone() : clamped;
+        return inHandState.candidate;
+      };
+      const commitHandPlacement = (raw, { silentExit = false } = {}) => {
+        const candidate = raw ? previewHandPlacement(raw) : inHandState.candidate;
+        if (!candidate) return false;
+        cue.active = true;
+        updateCuePlacementPreview(candidate);
+        cueBallPlacedFromHandRef.current = true;
+        inHandState.committed = true;
+        if (!silentExit) {
+          inHandPlacementModeRef.current = false;
+          setInHandPlacementMode(false);
+        }
+        return true;
+      };
+      const primeHandPlacement = (pos, { commitInitial = true } = {}) => {
+        resetInHandState();
+        if (!pos) return false;
+        updateCuePlacementPreview(pos);
+        inHandState.candidate = pos.clone ? pos.clone() : pos;
+        if (commitInitial) {
           cue.active = true;
-          inHandDrag.lastPos = null;
           cueBallPlacedFromHandRef.current = true;
+          inHandState.committed = true;
+        } else {
+          cue.active = false;
+          cueBallPlacedFromHandRef.current = false;
         }
         return true;
       };
@@ -15074,13 +15104,24 @@ const powerRef = useRef(hud.power);
         if (!allStopped(balls)) return false;
         const pos = findAiInHandPlacement();
         if (!pos) return false;
-        cue.active = false;
-        updateCuePlacement(pos);
-        cue.active = true;
-        cue.mesh.visible = true;
-        cueBallPlacedFromHandRef.current = true;
+        primeHandPlacement(pos, { commitInitial: true });
         hudRef.current = { ...currentHud, inHand: false };
         setHud((prev) => ({ ...prev, inHand: false }));
+        return true;
+      };
+      const beginInHandDrag = (e, p) => {
+        if (!p) return false;
+        const placed = previewHandPlacement(p);
+        if (!placed) return false;
+        inHandState.active = true;
+        inHandState.pointerId = e?.pointerId ?? 'mouse';
+        inHandState.committed = false;
+        cueBallPlacedFromHandRef.current = false;
+        if (e?.pointerId != null && dom.setPointerCapture) {
+          try {
+            dom.setPointerCapture(e.pointerId);
+          } catch {}
+        }
         return true;
       };
       const handleInHandDown = (e) => {
@@ -15098,35 +15139,28 @@ const powerRef = useRef(hud.power);
           setInHandPlacementMode(true);
         }
         if (!inHandPlacementModeRef.current) return;
-        if (!tryUpdatePlacement(p, false)) return;
-        inHandDrag.active = true;
-        inHandDrag.pointerId = e.pointerId ?? 'mouse';
-        if (e.pointerId != null && dom.setPointerCapture) {
-          try {
-            dom.setPointerCapture(e.pointerId);
-          } catch {}
-        }
+        if (!beginInHandDrag(e, p)) return;
         e.preventDefault?.();
       };
       const handleInHandMove = (e) => {
-        if (!inHandDrag.active) return;
+        if (!inHandState.active) return;
         if (
-          inHandDrag.pointerId != null &&
+          inHandState.pointerId != null &&
           e.pointerId != null &&
-          e.pointerId !== inHandDrag.pointerId
+          e.pointerId !== inHandState.pointerId
         ) {
           return;
         }
         const p = project(e);
-        if (p) tryUpdatePlacement(p, false);
+        if (p) previewHandPlacement(p);
         e.preventDefault?.();
       };
       const endInHandDrag = (e) => {
-        if (!inHandDrag.active) return;
+        if (!inHandState.active) return;
         if (
-          inHandDrag.pointerId != null &&
+          inHandState.pointerId != null &&
           e.pointerId != null &&
-          e.pointerId !== inHandDrag.pointerId
+          e.pointerId !== inHandState.pointerId
         ) {
           return;
         }
@@ -15135,13 +15169,11 @@ const powerRef = useRef(hud.power);
             dom.releasePointerCapture(e.pointerId);
           } catch {}
         }
-        inHandDrag.active = false;
-        const pos = inHandDrag.lastPos;
-        if (pos) {
-          tryUpdatePlacement(pos, true);
-          setInHandPlacementMode(false);
+        inHandState.active = false;
+        if (commitHandPlacement(inHandState.candidate)) {
           autoAimRequestRef.current = true;
         }
+        inHandState.pointerId = null;
         e.preventDefault?.();
       };
       dom.addEventListener('pointerdown', handleInHandDown);
@@ -15152,10 +15184,7 @@ const powerRef = useRef(hud.power);
       if (hudRef.current?.inHand) {
         const startPos = defaultInHandPosition();
         if (startPos) {
-          cue.active = false;
-          updateCuePlacement(startPos);
-          cue.active = true;
-          cueBallPlacedFromHandRef.current = true;
+          primeHandPlacement(startPos, { commitInitial: true });
         }
         if (allowFullTableInHand()) {
           const focusStore = ensureOrbitFocus();
@@ -16858,7 +16887,7 @@ const powerRef = useRef(hud.power);
               pocketDropRef.current.delete(cue.id);
               const fallback = defaultInHandPosition();
               if (fallback) {
-                updateCuePlacement(fallback);
+                primeHandPlacement(fallback, { commitInitial: true });
               } else {
                 cue.mesh.visible = true;
               }

@@ -41,6 +41,32 @@ function addNoise(ctx, size, strength = 0.02, samples = 3600) {
   ctx.restore();
 }
 
+function addSquareHighlight(ctx, size, {
+  scale = 0.2,
+  intensity = 0.16,
+  falloff = 0.65,
+  angleDeg = -18
+} = {}) {
+  const side = size * scale;
+  const half = side / 2;
+  const cx = size * 0.32;
+  const cy = size * 0.26;
+  const angle = (angleDeg * Math.PI) / 180;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+  ctx.globalCompositeOperation = 'screen';
+
+  const grad = ctx.createLinearGradient(-half, -half, half, half);
+  grad.addColorStop(0, `rgba(255,255,255,${intensity})`);
+  grad.addColorStop(falloff, `rgba(255,255,255,${intensity * 0.4})`);
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(-half, -half, side, side);
+  ctx.restore();
+}
+
 function drawNumberBadge(ctx, size, number) {
   const radius = size * 0.132;
   const cx = size * 0.5;
@@ -129,6 +155,13 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
     const stripeY = (size - stripeHeight) / 2;
     ctx.fillRect(0, stripeY, size, stripeHeight);
   }
+
+  addSquareHighlight(ctx, size, {
+    scale: 0.24,
+    intensity: 0.14,
+    falloff: 0.7,
+    angleDeg: -12
+  });
 
   if (Number.isFinite(number)) {
     drawPoolNumberBadge(ctx, size, number);
@@ -303,13 +336,13 @@ export function getBallMaterial({
     color: 0xffffff,
     map,
     clearcoat: 1,
-    clearcoatRoughness: 0.015,
+    clearcoatRoughness: 0.022,
     metalness: 0.24,
-    roughness: 0.06,
+    roughness: 0.078,
     reflectivity: 1,
     sheen: 0.18,
     sheenColor: new THREE.Color(0xf8f9ff),
-    envMapIntensity: 1.18
+    envMapIntensity: 1.22
   });
   material.needsUpdate = true;
   BALL_MATERIAL_CACHE.set(cacheKey, material);
