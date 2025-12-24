@@ -5,6 +5,8 @@ import {
 } from '../config/chessBattleInventoryConfig.js';
 
 const STORAGE_KEY = 'chessBattleInventoryByAccount';
+let memoryInventories = {};
+let storageHealthy = true;
 
 const copyDefaults = () =>
   Object.entries(CHESS_BATTLE_DEFAULT_UNLOCKS).reduce((acc, [key, values]) => {
@@ -14,27 +16,45 @@ const copyDefaults = () =>
 
 const resolveAccountId = (accountId) => {
   if (accountId) return accountId;
-  if (typeof window !== 'undefined') {
-    const stored = window.localStorage.getItem('accountId');
-    if (stored) return stored;
+  if (typeof window !== 'undefined' && storageHealthy) {
+    try {
+      const stored = window.localStorage.getItem('accountId');
+      if (stored) return stored;
+    } catch (err) {
+      if (storageHealthy) {
+        console.warn('Chess inventory storage unavailable, falling back to guest account', err);
+        storageHealthy = false;
+      }
+    }
   }
   return 'guest';
 };
 
 const readAllInventories = () => {
-  if (typeof window === 'undefined') return {};
+  if (typeof window === 'undefined' || !storageHealthy) return memoryInventories;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
+    memoryInventories = raw ? JSON.parse(raw) : {};
+    storageHealthy = true;
   } catch (err) {
-    console.warn('Failed to read chess inventory, resetting', err);
-    return {};
+    if (storageHealthy) {
+      console.warn('Failed to read chess inventory, using in-memory cache', err);
+      storageHealthy = false;
+    }
   }
+  return memoryInventories;
 };
 
 const writeAllInventories = (payload) => {
+  memoryInventories = payload || {};
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  if (!storageHealthy) return;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(memoryInventories));
+  } catch (err) {
+    storageHealthy = false;
+    console.warn('Failed to persist chess inventory, caching in memory only', err);
+  }
 };
 
 const normalizeInventory = (rawInventory) => {
