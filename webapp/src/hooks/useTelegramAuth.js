@@ -1,35 +1,31 @@
 import { useEffect } from 'react';
 import { socket } from '../utils/socket.js';
-import { provisionAccount, getStoredAccount } from '../utils/account.js';
+import { createAccount } from '../utils/api.js';
 import { ensureAccountId } from '../utils/telegram.js';
 
 export default function useTelegramAuth() {
   useEffect(() => {
     const user = window?.Telegram?.WebApp?.initDataUnsafe?.user;
     const acc = localStorage.getItem('accountId');
-    const googleId = localStorage.getItem('googleId');
-    const fallbackAccountId = acc || getStoredAccount().accountId;
-    if (fallbackAccountId) {
-      socket.emit('register', { playerId: fallbackAccountId });
-    }
     if (user?.id) {
       localStorage.setItem('telegramId', user.id);
-      (async () => {
-        try {
-          const { accountId } = await provisionAccount({ telegramId: user.id, googleId });
-          if (accountId) {
-            socket.emit('register', { playerId: accountId });
-          }
-        } catch (err) {
-          console.error('Failed to create account', err);
-        }
-      })();
+      socket.emit('register', { playerId: acc || user.id });
+      createAccount(user.id).catch(err => {
+        console.error('Failed to create account', err);
+      });
     } else {
       (async () => {
         const accountId = acc || (await ensureAccountId());
         socket.emit('register', { playerId: accountId });
+        const googleId = localStorage.getItem('googleId');
         try {
-          await provisionAccount({ googleId, telegramId: undefined });
+          const res = await createAccount(undefined, googleId);
+          if (res?.accountId) {
+            localStorage.setItem('accountId', res.accountId);
+          }
+          if (res?.walletAddress) {
+            localStorage.setItem('walletAddress', res.walletAddress);
+          }
         } catch (err) {
           console.error('Failed to create account', err);
         }

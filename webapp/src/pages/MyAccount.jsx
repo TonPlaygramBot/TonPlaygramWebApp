@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getAccountInfo,
+  createAccount,
   updateProfile,
   fetchTelegramInfo,
   depositAccount,
@@ -14,6 +15,7 @@ import {
   getTelegramLastName,
   getTelegramPhotoUrl
 } from '../utils/telegram.js';
+import LoginOptions from '../components/LoginOptions.jsx';
 import { DEV_INFO } from '../utils/constants.js';
 import BalanceSummary from '../components/BalanceSummary.jsx';
 import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
@@ -36,7 +38,6 @@ import {
   getDefaultDominoRoyalLoadout,
   listOwnedDominoOptions
 } from '../utils/dominoRoyalInventory.js';
-import { provisionAccount, getStoredAccount } from '../utils/account.js';
 
 import { FiCopy } from 'react-icons/fi';
 
@@ -74,12 +75,16 @@ function formatValue(value, decimals = 2) {
 
 export default function MyAccount() {
   let telegramId = null;
+  let googleId = null;
 
   try {
     telegramId = getTelegramId();
   } catch {}
 
-  const googleId = telegramId ? null : localStorage.getItem('googleId');
+  if (!telegramId) {
+    googleId = localStorage.getItem('googleId');
+    if (!googleId) return <LoginOptions />;
+  }
 
   const [profile, setProfile] = useState(null);
   const [photoUrl, setPhotoUrl] = useState('');
@@ -144,34 +149,19 @@ export default function MyAccount() {
 
   useEffect(() => {
     async function load() {
-      let accountId = getStoredAccount().accountId;
-      try {
-        const acc = await provisionAccount({ telegramId, googleId });
-        accountId = acc?.accountId || accountId;
-      } catch (err) {
-        console.error('Failed to load account:', err);
-      }
-
-      if (!accountId) {
-        setProfile({
-          accountId: '',
-          firstName: 'Player',
-          lastName: '',
-          photo: ''
-        });
+      const acc = await createAccount(telegramId, googleId);
+      if (acc?.error) {
+        console.error('Failed to load account:', acc.error);
         return;
       }
-
-      const data = await getAccountInfo(accountId);
-      if (!data || data.error) {
-        setProfile({
-          accountId,
-          firstName: 'Player',
-          lastName: '',
-          photo: ''
-        });
-        return;
+      if (acc.accountId) {
+        localStorage.setItem('accountId', acc.accountId);
       }
+      if (acc.walletAddress) {
+        localStorage.setItem('walletAddress', acc.walletAddress);
+      }
+
+      const data = await getAccountInfo(acc.accountId);
       let finalProfile = data;
 
       if (telegramId && (!data.photo || !data.firstName || !data.lastName)) {
