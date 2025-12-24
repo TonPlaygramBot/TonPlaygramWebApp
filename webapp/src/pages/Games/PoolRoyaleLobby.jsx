@@ -395,10 +395,10 @@ export default function PoolRoyaleLobby() {
         <div className="space-y-2">
           <h3 className="font-semibold">Ball Colors</h3>
           <p className="text-xs text-subtext">
-            Keep UK yellow/red sets or switch to Solids & Stripes visuals with the same UK rules.
+            Keep UK yellow/red sets or switch to American billiards visuals with the same UK rules.
           </p>
           <div className="flex gap-2">
-            {[{ id: 'uk', label: 'Yellow & Red' }, { id: 'american', label: 'Solids & Stripes' }].map(
+            {[{ id: 'uk', label: 'Yellow & Red' }, { id: 'american', label: 'American Set' }].map(
               ({ id, label }) => (
                 <button
                   key={id}
