@@ -269,6 +269,27 @@ function detectCoarsePointer() {
   return false;
 }
 
+function shouldUseLightweightChessAssets(renderSettings = null) {
+  if (typeof window === 'undefined') return false;
+  const connection =
+    window.navigator?.connection ||
+    window.navigator?.mozConnection ||
+    window.navigator?.webkitConnection;
+  const saveDataMode = Boolean(connection?.saveData);
+  const deviceMemory = window.navigator?.deviceMemory;
+  const lowMemory = typeof deviceMemory === 'number' && deviceMemory > 0 && deviceMemory < 4;
+  const coarsePointer = detectCoarsePointer();
+  const renderScale = renderSettings?.renderResolutionScale ?? 1;
+  const pixelCap = renderSettings?.pixelRatioCap ?? DEFAULT_RENDER_PIXEL_RATIO_CAP;
+  return (
+    coarsePointer ||
+    saveDataMode ||
+    lowMemory ||
+    renderScale < 0.95 ||
+    pixelCap <= 1.1
+  );
+}
+
 function getDisplayMetrics() {
   if (typeof window === 'undefined') {
     return { width: 1920, height: 1080, dpr: 1 };
@@ -6016,7 +6037,14 @@ function Chess3D({
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
     const headPreset = palette.head ?? HEAD_PRESET_OPTIONS[0].preset;
-    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
+    const useLightweightAssets = shouldUseLightweightChessAssets(renderSettingsRef.current);
+    const pieceSetLoader = (size) => {
+      if (!useLightweightAssets) return resolveBeautifulGameAssets(size);
+      return resolveBeautifulGameTouchAssets(size).catch((error) => {
+        console.warn('Chess Battle Royal: touch assets failed, retrying full set', error);
+        return resolveBeautifulGameAssets(size);
+      });
+    };
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
 
     if (shapeOption) {
@@ -6233,6 +6261,7 @@ function Chess3D({
       };
       renderSettingsRef.current = renderSettings;
       const { targetFrameIntervalMs, renderResolutionScale, pixelRatioCap, pixelRatioScale } = renderSettings;
+      const preferTouchAssets = shouldUseLightweightChessAssets(renderSettings);
 
       const normalizedAppearance = normalizeAppearance(appearanceRef.current);
       const palette = createChessPalette(normalizedAppearance);
@@ -6242,7 +6271,13 @@ function Chess3D({
       const pieceSetOption =
         PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
       const initialPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
-      const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
+      const pieceSetLoader = (size) => {
+        if (!preferTouchAssets) return resolveBeautifulGameAssets(size);
+        return resolveBeautifulGameTouchAssets(size).catch((error) => {
+          console.warn('Chess Battle Royal: touch assets failed, retrying full set', error);
+          return resolveBeautifulGameAssets(size);
+        });
+      };
       const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
       const initialPlayerFlag =
         playerFlag ||
@@ -6297,9 +6332,9 @@ function Chess3D({
 
     // ----- Build scene -----
     renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: !preferTouchAssets,
       alpha: false,
-      powerPreference: 'high-performance'
+      powerPreference: preferTouchAssets ? 'low-power' : 'high-performance'
     });
     applyRendererSRGB(renderer);
     if (sharedKTX2Loader) {
@@ -6316,7 +6351,7 @@ function Chess3D({
     const pixelRatio = Math.max(MIN_RENDER_PIXEL_RATIO, Math.min(pixelRatioCap, scaledPixelRatio));
     renderer.setPixelRatio(pixelRatio);
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = preferTouchAssets ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
     // Ensure the canvas covers the entire host element so the board is centered
     renderer.domElement.style.position = 'absolute';
     renderer.domElement.style.top = '0';
