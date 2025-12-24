@@ -1085,6 +1085,14 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('chessSyncRequest', ({ tableId }) => {
+    if (!tableId) return;
+    const state = getChessState(tableId);
+    if (state) {
+      socket.emit('chessState', { tableId, ...state });
+    }
+  });
+
   socket.on('poolShot', ({ tableId, state, hud }) => {
     if (!tableId || !state) return;
     const payload = {
