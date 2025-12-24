@@ -6302,12 +6302,12 @@ function Table3D(
     mesh.material.needsUpdate = true;
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(orientedRailSurface);
-  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.05; // push the cushions further outward so they meet the wooden rails without a gap
-  const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.014; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
-  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
+  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.07; // push the cushions further outward so they meet the wooden rails without a gap
+  const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
+  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.26; // shorten the corner cushions more so the noses stay clear of the pocket openings
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.14; // trim the cushion tips near middle pockets slightly further while keeping their cut angle intact
-  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.042; // press the side cushions firmly into the rails without creating overlap
+  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
   const railsGroup = new THREE.Group();
@@ -9409,6 +9409,7 @@ function PoolRoyaleGame({
     return params.get('starter') === 'B' ? 'B' : 'A';
   }, [location.search]);
   const isOnlineMatch = mode === 'online';
+  const aiOpponentEnabled = !isOnlineMatch;
   const framePlayerAName = localSeat === 'A' ? playerLabel : opponentLabel;
   const framePlayerBName = localSeat === 'A' ? opponentLabel : playerLabel;
   const initialFrame = useMemo(() => {
@@ -9621,7 +9622,7 @@ const powerRef = useRef(hud.power);
   }, []);
   const recomputeAiShotState = useCallback(() => {
     const hudState = hudRef.current;
-    const aiTurn = hudState?.turn === 1;
+    const aiTurn = aiOpponentEnabled && hudState?.turn === 1;
     const previewing = Boolean(aiShotPreviewRef.current);
     const cueViewActive = Boolean(aiShotCueViewRef.current);
     const shooting = Boolean(shootingRef.current);
@@ -9630,7 +9631,7 @@ const powerRef = useRef(hud.power);
       previewing ||
       cueViewActive;
     setAiTakingShot(active);
-  }, []);
+  }, [aiOpponentEnabled]);
   const setAiShotPreviewActive = useCallback(
     (value) => {
       aiShotPreviewRef.current = value;
@@ -10335,15 +10336,43 @@ const powerRef = useRef(hud.power);
     const panels = panelsRef.current;
     if (!panels) return;
     const { A, B, C, D, logo, playerImg } = panels;
+    const opponentHudName = aiOpponentEnabled ? aiFlagLabel : opponentDisplayName;
+    const opponentHudAvatar = aiOpponentEnabled ? null : opponentDisplayAvatar;
     drawHudPanel(A.ctx, logo, playerImg, player.name, hud.A, timer);
     A.tex.needsUpdate = true;
-    drawHudPanel(B.ctx, logo, null, aiFlagLabel, hud.B, timer, aiFlag);
+    drawHudPanel(
+      B.ctx,
+      logo,
+      opponentHudAvatar,
+      opponentHudName,
+      hud.B,
+      timer,
+      aiOpponentEnabled ? aiFlag : null
+    );
     B.tex.needsUpdate = true;
     drawHudPanel(C.ctx, logo, playerImg, player.name, hud.A, timer);
     C.tex.needsUpdate = true;
-    drawHudPanel(D.ctx, logo, null, aiFlagLabel, hud.B, timer, aiFlag);
+    drawHudPanel(
+      D.ctx,
+      logo,
+      opponentHudAvatar,
+      opponentHudName,
+      hud.B,
+      timer,
+      aiOpponentEnabled ? aiFlag : null
+    );
     D.tex.needsUpdate = true;
-  }, [hud.A, hud.B, timer, player.name, aiFlag, aiFlagLabel]);
+  }, [
+    aiFlag,
+    aiFlagLabel,
+    aiOpponentEnabled,
+    hud.A,
+    hud.B,
+    opponentDisplayAvatar,
+    opponentDisplayName,
+    player.name,
+    timer
+  ]);
 
   useEffect(() => {
     updateHudPanels();
@@ -10352,6 +10381,10 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     const isSoloTraining = isTraining && trainingModeState === 'solo';
     if (hud.over || isSoloTraining) return undefined;
+    if (!aiOpponentEnabled && hud.turn === 1) {
+      // In online matches, the remote player drives turn changes; skip AI countdowns.
+      return undefined;
+    }
     const playerTurn = hud.turn;
     const duration = playerTurn === 0 ? 60 : 3;
     setTimer(duration);
@@ -10373,7 +10406,7 @@ const powerRef = useRef(hud.power);
           clearInterval(timerRef.current);
           if (playerTurn === 0) {
             setHud((s) => ({ ...s, turn: 1 - s.turn }));
-          } else {
+          } else if (aiOpponentEnabled) {
             aiShoot.current();
           }
           return 0;
@@ -10382,7 +10415,7 @@ const powerRef = useRef(hud.power);
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState, turnCycle]);
+  }, [aiOpponentEnabled, hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState, turnCycle]);
 
   useEffect(() => {
     if (hud.over) {
@@ -10391,7 +10424,7 @@ const powerRef = useRef(hud.power);
       aiPlanRef.current = null;
       return;
     }
-    if (hud.turn === 1) {
+    if (hud.turn === 1 && aiOpponentEnabled) {
       userSuggestionRef.current = null;
       userSuggestionPlanRef.current = null;
       suggestionAimKeyRef.current = null;
@@ -10406,7 +10439,7 @@ const powerRef = useRef(hud.power);
       autoAimRequestRef.current = true;
       startUserSuggestionRef.current?.();
     }
-  }, [hud.turn, hud.over]);
+  }, [aiOpponentEnabled, hud.turn, hud.over]);
 
   useEffect(() => {
     if (hud.over) return;
@@ -10419,10 +10452,10 @@ const powerRef = useRef(hud.power);
 
   useEffect(() => {
     if (hud.over) return;
-    if (hud.turn === 1) {
+    if (hud.turn === 1 && aiOpponentEnabled) {
       startAiThinkingRef.current?.();
     }
-  }, [frameState, hud.turn, hud.over]);
+  }, [aiOpponentEnabled, frameState, hud.turn, hud.over]);
 
   useEffect(() => {
     const sph = sphRef.current;
@@ -16519,6 +16552,7 @@ const powerRef = useRef(hud.power);
         startUserSuggestionRef.current = updateUserSuggestion;
 
         aiShoot.current = () => {
+          if (!aiOpponentEnabled) return;
           if (aiRetryTimeoutRef.current) {
             clearTimeout(aiRetryTimeoutRef.current);
             aiRetryTimeoutRef.current = null;
@@ -17116,7 +17150,7 @@ const powerRef = useRef(hud.power);
         // Aiming vizual
         const currentHud = hudRef.current;
         const isPlayerTurn = currentHud?.turn === 0;
-        const isAiTurn = currentHud?.turn === 1;
+        const isAiTurn = aiOpponentEnabled && currentHud?.turn === 1;
         const previewingAiShot = aiShotPreviewRef.current;
         if (isAiTurn) {
           autoPlaceAiCueBall();
