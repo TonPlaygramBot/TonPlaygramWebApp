@@ -9487,6 +9487,7 @@ const [hud, setHud] = useState({
 });
 const [turnCycle, setTurnCycle] = useState(0);
 const [pottedBySeat, setPottedBySeat] = useState({ A: [], B: [] });
+const lastPottedBySeatRef = useRef({ A: null, B: null });
 const lastAssignmentsRef = useRef({ A: null, B: null });
 const lastShotReminderRef = useRef({ A: 0, B: 0 });
 const [ruleToast, setRuleToast] = useState(null);
@@ -13936,19 +13937,22 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.8;
-        const lightOffsetX = Math.max(PLAY_W * 0.2, TABLE.THICK * 3.8);
-        const lightOffsetZ = Math.max(PLAY_H * 0.18, TABLE.THICK * 3.6);
+        const lightSpreadBoost = 1.08;
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.1;
+        const lightOffsetX =
+          Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
+        const lightOffsetZ =
+          Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
         const shadowHalfSpan = Math.max(roomWidth, roomDepth) * 0.65 + TABLE.THICK * 3.2;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.27);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.32);
         lightingRig.add(ambient);
 
-        const key = new THREE.DirectionalLight(0xffffff, 1.7);
-        key.position.set(lightOffsetX * 0.28, lightRigHeight, lightOffsetZ * 0.2);
+        const key = new THREE.DirectionalLight(0xffffff, 1.82);
+        key.position.set(lightOffsetX * 0.3, lightRigHeight, lightOffsetZ * 0.24);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
         key.shadow.mapSize.set(4096, 4096);
@@ -13964,14 +13968,14 @@ const powerRef = useRef(hud.power);
         lightingRig.add(key);
         lightingRig.add(key.target);
 
-        const fill = new THREE.DirectionalLight(0xffffff, 0.82);
-        fill.position.set(-lightOffsetX * 0.32, lightRigHeight * 0.98, lightOffsetZ * 0.24);
+        const fill = new THREE.DirectionalLight(0xffffff, 0.9);
+        fill.position.set(-lightOffsetX * 0.34, lightRigHeight * 1.02, lightOffsetZ * 0.28);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
-        const rim = new THREE.DirectionalLight(0xffffff, 0.62);
-        rim.position.set(0, lightRigHeight * 1.04, -lightOffsetZ * 0.34);
+        const rim = new THREE.DirectionalLight(0xffffff, 0.72);
+        rim.position.set(0, lightRigHeight * 1.06, -lightOffsetZ * 0.38);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
@@ -16303,17 +16307,42 @@ const powerRef = useRef(hud.power);
           );
           if (activeBalls.length === 0) return null;
 
+          const normalizeTargetId = (value) => {
+            if (typeof value === 'string') return value.toUpperCase();
+            return null;
+          };
+          const isBallTargetId = (id) =>
+            typeof id === 'string' &&
+            (/^BALL_(\d+)/.test(id) ||
+              ['RED', 'YELLOW', 'BLUE', 'BLACK', 'PINK', 'GREEN', 'BROWN', 'STRIPE', 'SOLID'].includes(
+                id
+              ));
           const legalTargetsRaw = frameSnapshot?.ballOn ?? [];
           const legalTargets = Array.isArray(legalTargetsRaw)
             ? legalTargetsRaw
-                .map((entry) =>
-                  typeof entry === 'string' ? entry.toUpperCase() : entry
-                )
-                .filter(Boolean)
+                .map((entry) => normalizeTargetId(entry))
+                .filter((entry) => entry && isBallTargetId(entry))
             : [];
           const activeVariantId =
             frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
           const metaState = frameSnapshot?.meta?.state ?? null;
+          const shooterSeat = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
+          const lastPotEntry =
+            shooterSeat && lastPottedBySeatRef.current
+              ? lastPottedBySeatRef.current[shooterSeat]
+              : null;
+          const lastPotId = normalizeTargetId(
+            lastPotEntry?.id ? toBallColorId(lastPotEntry.id) : lastPotEntry?.color
+          );
+          const targetPriority = [];
+          const pushTargetId = (id) => {
+            if (!id) return;
+            const normalized = normalizeTargetId(id);
+            if (!normalized || !isBallTargetId(normalized)) return;
+            if (!targetPriority.includes(normalized)) targetPriority.push(normalized);
+          };
+          legalTargets.forEach((entry) => pushTargetId(entry));
+          pushTargetId(lastPotId);
           const pickClosestBall = (candidates) =>
             candidates.reduce((best, ball) => {
               if (!best) return ball;
@@ -16353,6 +16382,7 @@ const powerRef = useRef(hud.power);
             if (preferredColours.length === 0 && legalTargets.length > 0) {
               preferredColours.push(...legalTargets);
             }
+            preferredColours.forEach((entry) => pushTargetId(entry));
             if (preferredColours.length > 0) {
               const ukTargets = activeBalls.filter((ball) =>
                 preferredColours.includes(toBallColorId(ball.id))
@@ -16377,6 +16407,7 @@ const powerRef = useRef(hud.power);
                   )
                   .filter(Boolean)
               : [];
+            normalizedNext.forEach((entry) => pushTargetId(entry));
             const pickFromList = (order) => {
               for (const targetId of order) {
                 const match = activeBalls.find(
@@ -16405,12 +16436,12 @@ const powerRef = useRef(hud.power);
             }
           }
 
-          if (!targetBall && legalTargets.length > 0) {
-            const legalBalls = activeBalls.filter((ball) =>
-              legalTargets.includes(toBallColorId(ball.id))
+          if (!targetBall && targetPriority.length > 0) {
+            const priorityBalls = activeBalls.filter((ball) =>
+              targetPriority.includes(toBallColorId(ball.id))
             );
-            if (legalBalls.length > 0) {
-              targetBall = pickClosestBall(legalBalls);
+            if (priorityBalls.length > 0) {
+              targetBall = pickClosestBall(priorityBalls);
             }
           }
 
@@ -16658,6 +16689,10 @@ const powerRef = useRef(hud.power);
             (entry) => entry && entry.color && entry.color !== 'CUE'
           );
           if (newPots.length) {
+            lastPottedBySeatRef.current = {
+              ...lastPottedBySeatRef.current,
+              [shooterSeat]: newPots[newPots.length - 1] ?? null
+            };
             setPottedBySeat((prev) => {
               const next = {
                 ...prev,
@@ -16678,7 +16713,17 @@ const powerRef = useRef(hud.power);
               });
               return next;
             });
+          } else {
+            lastPottedBySeatRef.current = {
+              ...lastPottedBySeatRef.current,
+              [shooterSeat]: null
+            };
           }
+        } else {
+          lastPottedBySeatRef.current = {
+            ...lastPottedBySeatRef.current,
+            [shooterSeat]: null
+          };
         }
         const metaState =
           safeState && typeof safeState.meta === 'object' ? safeState.meta.state : null;
@@ -18546,6 +18591,13 @@ const powerRef = useRef(hud.power);
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
+  const bottomHudScale = isPortrait ? uiScale * 0.94 : uiScale;
+  const bottomHudInsets = isPortrait
+    ? { left: 'max(2.75rem, 6vw)', right: 'max(4.5rem, 12vw)' }
+    : { left: 'max(4.5rem, 11vw)', right: 'max(8.5rem, 18vw)' };
+  const avatarSizeClass = isPortrait ? 'h-11 w-11' : 'h-12 w-12';
+  const nameWidthClass = isPortrait ? 'max-w-[7.75rem]' : 'max-w-[8.75rem]';
+  const hudGapClass = isPortrait ? 'gap-4' : 'gap-5';
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
@@ -19035,14 +19087,14 @@ const powerRef = useRef(hud.power);
           className={`absolute bottom-4 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive}
           style={{
-            left: 'max(4.5rem, 11vw)',
-            right: 'max(8.5rem, 18vw)'
+            left: bottomHudInsets.left,
+            right: bottomHudInsets.right
           }}
         >
           <div
-            className="pointer-events-auto flex min-h-[3.25rem] max-w-full items-center justify-center gap-5 rounded-full border border-emerald-400/40 bg-black/70 px-6 py-2.5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
+            className={`pointer-events-auto flex min-h-[3.25rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 px-6 py-2.5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
             style={{
-              transform: `scale(${uiScale})`,
+              transform: `scale(${bottomHudScale})`,
               transformOrigin: 'bottom center',
               maxWidth: 'min(30rem, 100%)'
             }}
@@ -19062,14 +19114,14 @@ const powerRef = useRef(hud.power);
               <img
                 src={player.avatar || '/assets/icons/profile.svg'}
                 alt="player avatar"
-                className={`h-12 w-12 rounded-full border-2 object-cover transition-all duration-150 ${
+                className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
                   isPlayerTurn
                     ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                     : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
                 }`}
               />
               <div className="flex min-w-0 flex-col">
-                <span className="max-w-[8.75rem] truncate text-sm font-semibold tracking-wide">
+                <span className={`${nameWidthClass} truncate text-sm font-semibold tracking-wide`}>
                   {player.name}
                 </span>
                 <div className="mt-1">{renderPottedRow(playerPotted)}</div>
@@ -19097,14 +19149,14 @@ const powerRef = useRef(hud.power);
                   <img
                     src={opponentDisplayAvatar}
                     alt="opponent avatar"
-                    className={`h-12 w-12 rounded-full border-2 object-cover transition-all duration-150 ${
+                    className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
                       isOpponentTurn
                         ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                         : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
                     }`}
                   />
                   <div className="flex min-w-0 flex-col">
-                    <span className="max-w-[8.75rem] truncate text-sm font-semibold tracking-wide">
+                    <span className={`${nameWidthClass} truncate text-sm font-semibold tracking-wide`}>
                       {opponentDisplayName}
                     </span>
                     <div className="mt-1">{renderPottedRow(opponentPotted)}</div>
