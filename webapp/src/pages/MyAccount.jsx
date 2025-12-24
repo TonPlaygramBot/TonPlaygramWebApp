@@ -27,6 +27,7 @@ import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import DevTasksModal from '../components/DevTasksModal.jsx';
 import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
+import { loadGoogleProfile } from '../utils/google.js';
 import {
   getDefaultPoolRoyalLoadout,
   getPoolRoyalInventory,
@@ -75,16 +76,13 @@ function formatValue(value, decimals = 2) {
 
 export default function MyAccount() {
   let telegramId = null;
-  let googleId = null;
 
   try {
     telegramId = getTelegramId();
   } catch {}
 
-  if (!telegramId) {
-    googleId = localStorage.getItem('googleId');
-    if (!googleId) return <LoginOptions />;
-  }
+  const [googleProfile, setGoogleProfile] = useState(() => (telegramId ? null : loadGoogleProfile()));
+  if (!telegramId && !googleProfile?.id) return <LoginOptions onAuthenticated={setGoogleProfile} />;
 
   const [profile, setProfile] = useState(null);
   const [photoUrl, setPhotoUrl] = useState('');
@@ -105,7 +103,7 @@ export default function MyAccount() {
   const [twitterError, setTwitterError] = useState('');
   const [twitterLink, setTwitterLink] = useState('');
   const [unread, setUnread] = useState(0);
-  const [googleLinked, setGoogleLinked] = useState(!!googleId);
+  const [googleLinked, setGoogleLinked] = useState(!!googleProfile?.id);
   const [poolAccountId, setPoolAccountId] = useState(poolRoyalAccountId());
   const [poolRoyaleInventory, setPoolRoyaleInventory] = useState(() =>
     listOwnedPoolRoyalOptions(poolRoyalAccountId())
@@ -149,7 +147,7 @@ export default function MyAccount() {
 
   useEffect(() => {
     async function load() {
-      const acc = await createAccount(telegramId, googleId);
+      const acc = await createAccount(telegramId, googleProfile);
       if (acc?.error) {
         console.error('Failed to load account:', acc.error);
         return;
@@ -223,7 +221,7 @@ export default function MyAccount() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [telegramId, googleId]);
+  }, [telegramId, googleProfile?.id]);
 
   useEffect(() => {
     if (!telegramId) return;

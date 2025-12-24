@@ -28,7 +28,14 @@ const router = Router();
 
 // Create or fetch account for a user
 router.post('/create', async (req, res) => {
-  const { telegramId, googleId } = req.body;
+  const {
+    telegramId,
+    googleId,
+    googleEmail,
+    firstName,
+    lastName,
+    photo
+  } = req.body;
   const useMemoryStore = shouldUseMemoryUserStore();
 
   try {
@@ -98,19 +105,18 @@ router.post('/create', async (req, res) => {
       user = await findUser({ googleId });
       if (!user) {
         const wallet = await generateWalletAddress();
-        user = useMemoryStore ? createMemoryUser({
+        const baseData = {
           googleId,
+          googleEmail: googleEmail || '',
           accountId: uuidv4(),
           referralCode: googleId,
           walletAddress: wallet.address,
-          walletPublicKey: wallet.publicKey
-        }) : new User({
-          googleId,
-          accountId: uuidv4(),
-          referralCode: googleId,
-          walletAddress: wallet.address,
-          walletPublicKey: wallet.publicKey
-        });
+          walletPublicKey: wallet.publicKey,
+          firstName: firstName || '',
+          lastName: lastName || '',
+          photo: photo || ''
+        };
+        user = useMemoryStore ? createMemoryUser(baseData) : new User(baseData);
         if (!useMemoryStore) await user.save();
       } else {
         let updated = false;
@@ -122,6 +128,22 @@ router.post('/create', async (req, res) => {
           const wallet = await generateWalletAddress();
           user.walletAddress = wallet.address;
           user.walletPublicKey = wallet.publicKey;
+          updated = true;
+        }
+        if (googleEmail && user.googleEmail !== googleEmail) {
+          user.googleEmail = googleEmail;
+          updated = true;
+        }
+        if (firstName && user.firstName !== firstName) {
+          user.firstName = firstName;
+          updated = true;
+        }
+        if (lastName && user.lastName !== lastName) {
+          user.lastName = lastName;
+          updated = true;
+        }
+        if (photo && user.photo !== photo) {
+          user.photo = photo;
           updated = true;
         }
         if (updated) await persistUser(user);
