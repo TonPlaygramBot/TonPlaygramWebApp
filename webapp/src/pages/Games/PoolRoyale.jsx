@@ -905,6 +905,7 @@ const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the reference layout
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.05; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
 const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.02; // gently bias the middle pocket centres and cuts back toward the playfield
+const SIDE_POCKET_CLOTH_INSET = TABLE.THICK * 0.045; // pull the middle cloth cutouts inward without changing jaw or chrome placement
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -1011,9 +1012,9 @@ const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails sta
 const SIDE_CAPTURE_RADIUS_SCALE = 0.88; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
 const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const PLYWOOD_THICKNESS = TABLE.THICK * 0.22; // thicken the plywood bed so the entire slab renders and casts contact shadows
-const PLYWOOD_GAP = TABLE.THICK * 0.025; // pull the plywood closer to the cloth so its presence reads on the felt
-const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.2; // keep the plywood dropped enough to sit behind the pocket bowls without disappearing
+const PLYWOOD_THICKNESS = 0; // remove the plywood bed entirely to expose the cloth and pocket bowls directly
+const PLYWOOD_GAP = 0; // no gap once plywood is removed
+const PLYWOOD_EXTRA_DROP = 0; // no additional offset for a non-existent plywood slab
 const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // fallback plywood tone when a finish color is unavailable
 const PLYWOOD_HOLE_SCALE = 1.05; // plywood pocket cutouts should be 5% larger than the pocket bowls for clearance
 const PLYWOOD_HOLE_R = POCKET_VIS_R * PLYWOOD_HOLE_SCALE * POCKET_VISUAL_EXPANSION;
@@ -1217,8 +1218,8 @@ const TOPSPIN_MULTIPLIER = 1.3;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
-// angle for cushion cuts guiding balls into corner pockets (tighten the trim to match the reference cut)
-const DEFAULT_CUSHION_CUT_ANGLE = 29;
+// angle for cushion cuts guiding balls into corner pockets (trimmed back slightly to open the mouth)
+const DEFAULT_CUSHION_CUT_ANGLE = 27.5;
 // middle pocket cushion cuts mirror the same trimmed angle for consistent pocket reveals
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -5947,9 +5948,15 @@ function Table3D(
   );
   const sidePocketCenterX = halfW + sidePocketShift;
   const pocketPositions = pocketCenters();
+  const clothPocketPositions = pocketPositions.map((center, index) => {
+    if (index < 4) return center.clone();
+    const direction = center.x >= 0 ? 1 : -1;
+    const inset = Math.min(Math.abs(center.x), SIDE_POCKET_CLOTH_INSET);
+    return new THREE.Vector2(center.x - direction * inset, center.y);
+  });
   const sideRadiusScale =
     POCKET_VIS_R > MICRO_EPS ? (SIDE_POCKET_RADIUS / POCKET_VIS_R) * SIDE_POCKET_CUT_SCALE : 1;
-  const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
+  const buildSurfaceShape = (holeRadius, centers = pocketPositions, edgeInset = 0) => {
     const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
     const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
 
@@ -6026,7 +6033,8 @@ function Table3D(
       return [[closeRing(ring)]];
     };
 
-    const pocketSectors = pocketPositions
+    const targetPocketPositions = Array.isArray(centers) ? centers : pocketPositions;
+    const pocketSectors = targetPocketPositions
       .map((center, index) => {
         const isSidePocket = index >= 4;
         const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
@@ -6054,7 +6062,7 @@ function Table3D(
     fallback.lineTo(insetHalfW, insetHalfH);
     fallback.lineTo(-insetHalfW, insetHalfH);
     fallback.lineTo(-insetHalfW, -insetHalfH);
-    pocketPositions.forEach((p, index) => {
+    targetPocketPositions.forEach((p, index) => {
       const hole = new THREE.Path();
       const isSidePocket = index >= 4;
       const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
@@ -6065,7 +6073,7 @@ function Table3D(
     return fallback;
   };
 
-  const clothShape = buildSurfaceShape(POCKET_HOLE_R);
+  const clothShape = buildSurfaceShape(POCKET_HOLE_R, clothPocketPositions);
   const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_EXTENDED_DEPTH,
     bevelEnabled: false,
@@ -6086,7 +6094,7 @@ function Table3D(
   const pocketCutStripes = addPocketCuts(
     table,
     cloth.position.y,
-    pocketPositions,
+    clothPocketPositions,
     clothEdgeMat,
     sideRadiusScale,
     pocketEdgeStopY
@@ -7997,7 +8005,7 @@ function Table3D(
   finishParts.frameMeshes.push(skirt);
 
   if (plywoodDepth > MICRO_EPS) {
-    const plywoodShape = buildSurfaceShape(PLYWOOD_HOLE_R, -baseOverhang);
+    const plywoodShape = buildSurfaceShape(PLYWOOD_HOLE_R, clothPocketPositions, -baseOverhang);
     const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
       depth: plywoodDepth,
       bevelEnabled: false,
@@ -9416,7 +9424,7 @@ function PoolRoyaleGame({
     aiPlanningRef.current = aiPlanning;
   }, [aiPlanning]);
   const userSuggestionPlanRef = useRef(null);
-    const shotContextRef = useRef({
+  const shotContextRef = useRef({
       placedFromHand: false,
       contactMade: false,
       cushionAfterContact: false
@@ -9425,6 +9433,8 @@ function PoolRoyaleGame({
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
+  const [ruleBanner, setRuleBanner] = useState(null);
+  const ruleBannerTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
@@ -9432,9 +9442,27 @@ function PoolRoyaleGame({
         clearTimeout(replayBannerTimeoutRef.current);
         replayBannerTimeoutRef.current = null;
       }
+      if (ruleBannerTimeoutRef.current) {
+        clearTimeout(ruleBannerTimeoutRef.current);
+      }
     },
     []
   );
+  const queueRuleBanner = useCallback((message) => {
+    if (ruleBannerTimeoutRef.current) {
+      clearTimeout(ruleBannerTimeoutRef.current);
+      ruleBannerTimeoutRef.current = null;
+    }
+    if (!message) {
+      setRuleBanner(null);
+      return;
+    }
+    setRuleBanner(message);
+    ruleBannerTimeoutRef.current = window.setTimeout(() => {
+      setRuleBanner(null);
+      ruleBannerTimeoutRef.current = null;
+    }, 3000);
+  }, []);
   const inHandPlacementModeRef = useRef(inHandPlacementMode);
   const gameOverHandledRef = useRef(false);
   const userSuggestionRef = useRef(null);
@@ -9458,12 +9486,89 @@ function PoolRoyaleGame({
     inHand: initialHudInHand,
     over: false
   });
+  const [pottedByPlayer, setPottedByPlayer] = useState({ A: [], B: [] });
   const powerRef = useRef(hud.power);
   const applyPower = useCallback((nextPower) => {
     const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
     powerRef.current = clampedPower;
     setHud((prev) => ({ ...prev, power: clampedPower }));
   }, []);
+  const badgePalette = useMemo(
+    () => ({
+      RED: { fill: '#ef4444', label: 'R' },
+      YELLOW: { fill: '#facc15', label: 'Y' },
+      BLUE: { fill: '#2563eb', label: 'B' },
+      GREEN: { fill: '#22c55e', label: 'G' },
+      BROWN: { fill: '#92400e', label: 'Br' },
+      PINK: { fill: '#ec4899', label: 'P' },
+      BLACK: { fill: '#111827', label: '8' },
+      STRIPE: { fill: '#e2e8f0', label: 'St' },
+      SOLID: { fill: '#cbd5e1', label: 'Sl' }
+    }),
+    []
+  );
+  const numericBadgePalette = useMemo(
+    () => ({
+      1: '#facc15',
+      2: '#2563eb',
+      3: '#dc2626',
+      4: '#7c3aed',
+      5: '#f97316',
+      6: '#16a34a',
+      7: '#991b1b',
+      8: '#111827',
+      9: '#facc15',
+      10: '#60a5fa',
+      11: '#fb7185',
+      12: '#a78bfa',
+      13: '#fb923c',
+      14: '#4ade80',
+      15: '#fbbf24'
+    }),
+    []
+  );
+  const formatPottedBadge = useCallback(
+    (rawId) => {
+      const normalized = toBallColorId(rawId);
+      if (!normalized || normalized === 'CUE') return null;
+      const numberMatch = /^BALL_(\d+)/.exec(normalized);
+      let label = normalized.replace(/^BALL_/, '');
+      let fill = badgePalette[normalized]?.fill ?? '#e5e7eb';
+      let striped = false;
+      if (numberMatch) {
+        const num = Number.parseInt(numberMatch[1], 10);
+        label = Number.isFinite(num) ? String(num) : label;
+        fill = numericBadgePalette[num] ?? fill;
+        striped = num >= 9;
+      } else if (badgePalette[normalized]) {
+        label = badgePalette[normalized].label;
+        fill = badgePalette[normalized].fill;
+      } else if (normalized === 'STRIPE' || normalized === 'SOLID') {
+        striped = normalized === 'STRIPE';
+        label = striped ? 'Stripe' : 'Solid';
+      } else {
+        label = normalized.charAt(0);
+      }
+      return { id: normalized, label, fill, striped };
+    },
+    [badgePalette, numericBadgePalette]
+  );
+  const addPottedForPlayer = useCallback(
+    (playerId, entries = []) => {
+      if (!playerId || !Array.isArray(entries) || entries.length === 0) return;
+      const tokens = entries
+        .map((entry) => formatPottedBadge(entry?.color ?? entry?.id ?? null))
+        .filter(Boolean);
+      if (!tokens.length) return;
+      setPottedByPlayer((prev) => {
+        const next = { ...prev };
+        const existing = Array.isArray(prev[playerId]) ? prev[playerId].slice() : [];
+        next[playerId] = [...existing, ...tokens].slice(-10);
+        return next;
+      });
+    },
+    [formatPottedBadge]
+  );
   useEffect(() => {
     inHandPlacementModeRef.current = inHandPlacementMode;
   }, [inHandPlacementMode]);
@@ -9481,6 +9586,7 @@ function PoolRoyaleGame({
   useEffect(() => {
     const nextInHand = deriveInHandFromFrame(initialFrame);
     cueBallPlacedFromHandRef.current = !nextInHand;
+    setPottedByPlayer({ A: [], B: [] });
     setHud((prev) => ({
       ...prev,
       A: 0,
@@ -10323,6 +10429,41 @@ function PoolRoyaleGame({
       startAiThinkingRef.current?.();
     }
   }, [frameState, hud.turn, hud.over]);
+  useEffect(() => {
+    aiPlanRef.current = null;
+    aiPlanningRef.current = null;
+    setAiPlanning(null);
+    aiTelemetryRef.current = { key: null, countdown: 0 };
+    if (!hudRef.current?.over && hudRef.current?.turn === 1) {
+      startAiThinkingRef.current?.();
+    }
+  }, [frameState]);
+  useEffect(() => {
+    if (hud.over || hud.turn !== 1) return undefined;
+    const ensureAiLoop = () => {
+      const hudState = hudRef.current;
+      if (hudState?.over || hudState?.turn !== 1) return;
+      if (shootingRef.current || inHandPlacementModeRef.current) return;
+      const planning = aiPlanningRef.current;
+      const hasPreview = aiShotPreviewRef.current || aiShotTimeoutRef.current;
+      const windowInfo = aiShotWindowRef.current;
+      const windowExpired =
+        windowInfo &&
+        performance.now() - (windowInfo.startedAt ?? 0) >
+          (windowInfo.duration ?? AI_MIN_SHOT_TIME_MS) + AI_MIN_AIM_PREVIEW_MS;
+      if (!planning && !hasPreview) {
+        startAiThinkingRef.current?.();
+      } else if (windowExpired) {
+        cancelAiShotPreview();
+        aiPlanRef.current = null;
+        setAiPlanning(null);
+        startAiThinkingRef.current?.();
+      }
+    };
+    const interval = window.setInterval(ensureAiLoop, 1200);
+    ensureAiLoop();
+    return () => window.clearInterval(interval);
+  }, [hud.over, hud.turn, cancelAiShotPreview]);
 
   useEffect(() => {
     const sph = sphRef.current;
@@ -16536,6 +16677,10 @@ function PoolRoyaleGame({
           });
         });
         const currentState = frameRef.current ?? frameState;
+        const shooterSeat = currentState.activePlayer === 'B' ? 'B' : 'A';
+        const shooterLabel = shooterSeat === localSeatRef.current ? 'You' : 'Opponent';
+        const previousMeta = currentState.meta;
+        let ruleMessage = null;
         const cueBallPotted =
           potted.some((entry) => entry.color === 'CUE') || !cue.active;
         const noCushionAfterContact =
@@ -16678,6 +16823,60 @@ function PoolRoyaleGame({
                 nextInHand = Boolean(nextMeta.state.mustPlayFromBaulk);
               }
             }
+            const pottedForShooter = potted.filter((entry) => entry.color !== 'CUE');
+            if (pottedForShooter.length > 0) {
+              addPottedForPlayer(shooterSeat, pottedForShooter);
+            }
+            const nextShooterSeat = safeState.activePlayer === 'B' ? 'B' : 'A';
+            const nextShooterLabel =
+              nextShooterSeat === localSeatRef.current ? 'You' : 'Opponent';
+            const prevUkState =
+              previousMeta &&
+              typeof previousMeta === 'object' &&
+              previousMeta.variant === 'uk'
+                ? previousMeta.state
+                : null;
+            if (safeState.foul) {
+              ruleMessage =
+                nextShooterSeat === shooterSeat
+                  ? `${nextShooterLabel} keep playing`
+                  : `${nextShooterLabel} ball in hand`;
+            } else if (nextMeta && typeof nextMeta === 'object') {
+              if (nextMeta.variant === 'uk' && nextMeta.state) {
+                const shotsRemaining = nextMeta.state.shotsRemaining;
+                const prevShotsRemaining =
+                  prevUkState && typeof prevUkState.shotsRemaining === 'number'
+                    ? prevUkState.shotsRemaining
+                    : null;
+                if (
+                  Number.isFinite(shotsRemaining) &&
+                  shotsRemaining > 1 &&
+                  shotsRemaining !== prevShotsRemaining
+                ) {
+                  ruleMessage = `${nextShooterLabel} have ${shotsRemaining} shots`;
+                }
+                const nextAssignment = nextMeta.state.assignments?.[nextShooterSeat];
+                const prevAssignment = prevUkState?.assignments?.[nextShooterSeat];
+                if (nextAssignment && nextAssignment !== prevAssignment) {
+                  const assignmentLabel =
+                    nextAssignment === 'blue'
+                      ? 'yellows'
+                      : nextAssignment === 'red'
+                        ? 'reds'
+                        : nextAssignment;
+                  ruleMessage = `${nextShooterLabel} ${
+                    nextShooterLabel === 'You' ? 'are' : 'is'
+                  } ${assignmentLabel}`;
+                }
+              } else if (!safeState.frameOver && Array.isArray(safeState.ballOn) && safeState.ballOn.length) {
+                const targetText = safeState.ballOn
+                  .map((entry) =>
+                    typeof entry === 'string' ? entry.toLowerCase() : String(entry)
+                  )
+                  .join(' / ');
+                ruleMessage = `${nextShooterLabel} play ${targetText}`;
+              }
+            }
           }
         } catch (err) {
           console.error('Pool Royale post-resolution update failed:', err);
@@ -16685,6 +16884,9 @@ function PoolRoyaleGame({
           frameRef.current = safeState;
           setFrameState(safeState);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
+          if (ruleMessage) {
+            queueRuleBanner(ruleMessage);
+          }
           if (isOnlineMatch && tableId) {
             socket.emit('poolShot', { tableId, state: safeState });
           }
@@ -18061,6 +18263,38 @@ function PoolRoyaleGame({
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
   const showPlayerControls = isPlayerTurn && !hud.over;
+  const renderPottedBadges = useCallback(
+    (badges = [], highlight = false) =>
+      badges.map((entry, idx) => {
+        const style = entry.striped
+          ? {
+              backgroundImage: `linear-gradient(90deg, ${entry.fill} 0%, ${entry.fill} 35%, #f8fafc 35%, #f8fafc 65%, ${entry.fill} 65%, ${entry.fill} 100%)`,
+              color: '#111827',
+              borderColor: entry.fill
+            }
+          : {
+              backgroundColor: entry.fill,
+              color: entry.fill === '#111827' ? '#f8fafc' : '#0f172a',
+              borderColor: entry.fill
+            };
+        return (
+          <span
+            key={`${entry.id}-${idx}`}
+            className={`flex h-5 min-w-[1.6rem] items-center justify-center rounded-full border text-[10px] font-semibold leading-none ${
+              highlight ? 'shadow-[0_0_10px_rgba(16,185,129,0.45)]' : ''
+            }`}
+            style={style}
+          >
+            {entry.label}
+          </span>
+        );
+      }),
+    []
+  );
+  const playerSeatId = localSeat === 'B' ? 'B' : 'A';
+  const opponentSeatId = playerSeatId === 'A' ? 'B' : 'A';
+  const playerPotted = pottedByPlayer[playerSeatId] ?? [];
+  const opponentPotted = pottedByPlayer[opponentSeatId] ?? [];
 
   // Spin controller interactions
   useEffect(() => {
@@ -18225,6 +18459,17 @@ function PoolRoyaleGame({
             aria-live="polite"
           >
             {replayBanner}
+          </div>
+        </div>
+      )}
+      {ruleBanner && (
+        <div className="pointer-events-none absolute top-28 left-1/2 z-50 -translate-x-1/2">
+          <div
+            className="rounded-full border border-emerald-300/50 bg-black/85 px-5 py-2 text-sm font-semibold uppercase tracking-[0.28em] text-white shadow-[0_14px_28px_rgba(0,0,0,0.45)]"
+            style={{ transform: `scale(${uiScale})`, transformOrigin: 'top center' }}
+            aria-live="polite"
+          >
+            {ruleBanner}
           </div>
         </div>
       )}
@@ -18699,7 +18944,7 @@ function PoolRoyaleGame({
           }}
         >
           <div
-            className="pointer-events-auto flex h-12 max-w-full items-center justify-center gap-4 rounded-full border border-emerald-400/40 bg-black/70 px-5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
+            className="pointer-events-auto flex min-h-[3.25rem] max-w-full items-center justify-center gap-4 rounded-full border border-emerald-400/40 bg-black/70 px-5 py-1.5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
             style={{
               transform: `scale(${uiScale})`,
               transformOrigin: 'bottom center',
@@ -18713,18 +18958,27 @@ function PoolRoyaleGame({
                   : 'text-white/80'
               }`}
             >
-              <img
-                src={player.avatar || '/assets/icons/profile.svg'}
-                alt="player avatar"
-                className={`h-9 w-9 rounded-full border object-cover transition-shadow ${
-                  isPlayerTurn
-                    ? 'border-emerald-300/80 shadow-[0_0_12px_rgba(16,185,129,0.45)]'
-                    : 'border-white/40'
-                }`}
-              />
-              <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
-                {player.name}
-              </span>
+              <div className="flex min-w-0 flex-col justify-center gap-1">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={player.avatar || '/assets/icons/profile.svg'}
+                    alt="player avatar"
+                    className={`h-9 w-9 rounded-full border object-cover transition-shadow ${
+                      isPlayerTurn
+                        ? 'border-emerald-300/80 shadow-[0_0_12px_rgba(16,185,129,0.45)]'
+                        : 'border-white/40'
+                    }`}
+                  />
+                  <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
+                    {player.name}
+                  </span>
+                </div>
+                {playerPotted.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {renderPottedBadges(playerPotted, isPlayerTurn)}
+                  </div>
+                ) : null}
+              </div>
             </div>
             <div className="flex h-full items-center gap-2 text-base font-semibold">
               <span className="text-amber-300">{hud.A}</span>
@@ -18738,29 +18992,38 @@ function PoolRoyaleGame({
                   : 'text-white/80'
               }`}
             >
-              {isOnlineMatch ? (
-                <>
-                  <img
-                    src={opponentDisplayAvatar}
-                    alt="opponent avatar"
-                    className={`h-9 w-9 rounded-full border object-cover transition-shadow ${
-                      isOpponentTurn
-                        ? 'border-emerald-300/80 shadow-[0_0_12px_rgba(16,185,129,0.45)]'
-                        : 'border-white/40'
-                    }`}
-                  />
-                  <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
-                    {opponentDisplayName}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="text-xl leading-none">{aiFlag}</span>
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
-                    AI
-                  </span>
-                </>
-              )}
+              <div className="flex min-w-0 flex-col justify-center gap-1">
+                <div className="flex items-center gap-3">
+                  {isOnlineMatch ? (
+                    <>
+                      <img
+                        src={opponentDisplayAvatar}
+                        alt="opponent avatar"
+                        className={`h-9 w-9 rounded-full border object-cover transition-shadow ${
+                          isOpponentTurn
+                            ? 'border-emerald-300/80 shadow-[0_0_12px_rgba(16,185,129,0.45)]'
+                            : 'border-white/40'
+                        }`}
+                      />
+                      <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
+                        {opponentDisplayName}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xl leading-none">{aiFlag}</span>
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
+                        AI
+                      </span>
+                    </>
+                  )}
+                </div>
+                {opponentPotted.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {renderPottedBadges(opponentPotted, isOpponentTurn)}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
