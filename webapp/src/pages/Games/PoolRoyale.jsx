@@ -10217,10 +10217,11 @@ const powerRef = useRef(hud.power);
   }, [frameState.frameOver, frameState.winner, goToLobby, isTraining]);
 
   const applyRemoteState = useCallback(({ state, hud: incomingHud, layout }) => {
-    if (!state) return;
-    frameRef.current = state;
-    setFrameState(state);
-    setTurnCycle((value) => value + 1);
+    if (state) {
+      frameRef.current = state;
+      setFrameState(state);
+      setTurnCycle((value) => value + 1);
+    }
     if (incomingHud) {
       setHud((prev) => ({ ...prev, ...incomingHud }));
     }
@@ -10240,14 +10241,20 @@ const powerRef = useRef(hud.power);
       if (payload.tableId && payload.tableId !== tableId) return;
       applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
+    const handlePoolFrame = (payload = {}) => {
+      if (payload.tableId && payload.tableId !== tableId) return;
+      applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
+    };
 
     socket.emit('register', { playerId: accountId });
     socket.emit('joinPoolTable', { tableId, accountId });
     socket.emit('poolSyncRequest', { tableId });
     socket.on('poolState', handlePoolState);
+    socket.on('poolFrame', handlePoolFrame);
 
     return () => {
       socket.off('poolState', handlePoolState);
+      socket.off('poolFrame', handlePoolFrame);
     };
   }, [accountId, applyRemoteState, isOnlineMatch, tableId]);
 
@@ -17044,16 +17051,17 @@ const powerRef = useRef(hud.power);
           }
           potted = [];
           firstHit = null;
-          lastShotPower = 0;
-        }
-      }
+      lastShotPower = 0;
+    }
+  }
 
-      // Loop
-      let lastStepTime = performance.now();
-      let lastReplayFrameAt = 0;
-      const step = (now) => {
-        if (disposed) return;
-        const playback = replayPlaybackRef.current;
+  // Loop
+  let lastStepTime = performance.now();
+  let lastReplayFrameAt = 0;
+  let lastLiveSyncSentAt = 0;
+  const step = (now) => {
+    if (disposed) return;
+    const playback = replayPlaybackRef.current;
         if (playback) {
           const frameTiming = frameTimingRef.current;
           const targetReplayFrameTime =
@@ -18218,6 +18226,26 @@ const powerRef = useRef(hud.power);
           }
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
+          const shouldStreamLayout =
+            isOnlineMatch &&
+            tableId &&
+            shooting &&
+            typeof captureBallSnapshot === 'function';
+          if (shouldStreamLayout) {
+            const intervalTarget = frameTiming?.targetMs ?? 1000 / 60;
+            const minInterval = Math.max(4, intervalTarget * 0.9);
+            if (!lastLiveSyncSentAt || now - lastLiveSyncSentAt >= minInterval) {
+              const layout = captureBallSnapshot();
+              socket.emit('poolFrame', {
+                tableId,
+                layout,
+                hud: hudRef.current,
+                frameTs: now,
+                playerId: accountIdRef.current || accountId || ''
+              });
+              lastLiveSyncSentAt = now;
+            }
+          }
           if (!disposed) {
             rafRef.current = requestAnimationFrame(step);
           }
