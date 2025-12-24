@@ -1127,6 +1127,26 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('poolFrame', ({ tableId, layout, hud, playerId, frameTs }) => {
+    if (!tableId || !Array.isArray(layout)) return;
+    const ts = Number.isFinite(frameTs) ? frameTs : Date.now();
+    const cached = poolStates.get(tableId) || {};
+    const payload = {
+      tableId,
+      layout,
+      hud: hud || cached.hud || null,
+      updatedAt: ts,
+      playerId: playerId || null
+    };
+    poolStates.set(tableId, {
+      state: cached.state || null,
+      hud: payload.hud,
+      layout,
+      ts
+    });
+    socket.to(tableId).emit('poolFrame', payload);
+  });
+
   socket.on('poolShot', ({ tableId, state, hud, layout }) => {
     if (!tableId || !state) return;
     const payload = {
