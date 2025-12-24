@@ -1223,7 +1223,7 @@ const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
-const DEFAULT_CUSHION_CUT_ANGLE = 32;
+const DEFAULT_CUSHION_CUT_ANGLE = 27;
 // middle pocket cushion cuts mirror the same trimmed angle for consistent pocket reveals
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -6303,7 +6303,7 @@ function Table3D(
     mesh.material.needsUpdate = true;
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(orientedRailSurface);
-  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.02; // push the cushions further outward so they meet the wooden rails without a gap
+  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.05; // push the cushions further outward so they meet the wooden rails without a gap
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.26; // shorten the corner cushions more so the noses stay clear of the pocket openings
