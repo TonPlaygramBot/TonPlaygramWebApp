@@ -559,7 +559,7 @@ function maybeStartGame(table) {
         (t) => t.id !== table.id
       );
       if (table.gameType === 'poolroyale') {
-        poolStates.set(table.id, { state: null, hud: null, layout: null, ts: Date.now() });
+        poolStates.set(table.id, { state: null, hud: null, ts: Date.now() });
       }
       table.startTimeout = null;
     }, 1000);
@@ -1107,7 +1107,6 @@ io.on('connection', (socket) => {
         tableId,
         state: cached.state,
         hud: cached.hud,
-        layout: cached.layout,
         updatedAt: cached.ts
       });
     }
@@ -1121,22 +1120,20 @@ io.on('connection', (socket) => {
         tableId,
         state: cached.state,
         hud: cached.hud,
-        layout: cached.layout,
         updatedAt: cached.ts
       });
     }
   });
 
-  socket.on('poolShot', ({ tableId, state, hud, layout }) => {
+  socket.on('poolShot', ({ tableId, state, hud }) => {
     if (!tableId || !state) return;
     const payload = {
       tableId,
       state,
       hud: hud || null,
-      layout: layout || null,
       updatedAt: Date.now()
     };
-    poolStates.set(tableId, { state, hud: hud || null, layout: layout || null, ts: payload.updatedAt });
+    poolStates.set(tableId, { state, hud: hud || null, ts: payload.updatedAt });
     socket.to(tableId).emit('poolState', payload);
   });
 

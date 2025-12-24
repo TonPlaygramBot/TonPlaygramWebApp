@@ -9467,39 +9467,39 @@ function PoolRoyaleGame({
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
-  const initialHudInHand = useMemo(
-    () => deriveInHandFromFrame(initialFrame),
-    [initialFrame]
-  );
-  const [hud, setHud] = useState({
-    power: 0.65,
-    A: 0,
-    B: 0,
-    turn: 0,
-    phase: 'reds',
-    next: 'red',
-    inHand: initialHudInHand,
-    over: false
-  });
-  const [turnCycle, setTurnCycle] = useState(0);
-  const [pottedBySeat, setPottedBySeat] = useState({ A: [], B: [] });
-  const lastPottedBySeatRef = useRef({ A: null, B: null });
-  const lastAssignmentsRef = useRef({ A: null, B: null });
-  const lastShotReminderRef = useRef({ A: 0, B: 0 });
-  const [ruleToast, setRuleToast] = useState(null);
-  const ruleToastTimeoutRef = useRef(null);
-  const showRuleToast = useCallback((message) => {
-    if (!message) return;
-    if (ruleToastTimeoutRef.current) {
-      clearTimeout(ruleToastTimeoutRef.current);
-      ruleToastTimeoutRef.current = null;
-    }
-    setRuleToast(message);
-    ruleToastTimeoutRef.current = window.setTimeout(() => {
-      setRuleToast(null);
-      ruleToastTimeoutRef.current = null;
-    }, 3000);
-  }, []);
+const initialHudInHand = useMemo(
+  () => deriveInHandFromFrame(initialFrame),
+  [initialFrame]
+);
+const [hud, setHud] = useState({
+  power: 0.65,
+  A: 0,
+  B: 0,
+  turn: 0,
+  phase: 'reds',
+  next: 'red',
+  inHand: initialHudInHand,
+  over: false
+});
+const [turnCycle, setTurnCycle] = useState(0);
+const [pottedBySeat, setPottedBySeat] = useState({ A: [], B: [] });
+const lastPottedBySeatRef = useRef({ A: null, B: null });
+const lastAssignmentsRef = useRef({ A: null, B: null });
+const lastShotReminderRef = useRef({ A: 0, B: 0 });
+const [ruleToast, setRuleToast] = useState(null);
+const ruleToastTimeoutRef = useRef(null);
+const showRuleToast = useCallback((message) => {
+  if (!message) return;
+  if (ruleToastTimeoutRef.current) {
+    clearTimeout(ruleToastTimeoutRef.current);
+    ruleToastTimeoutRef.current = null;
+  }
+  setRuleToast(message);
+  ruleToastTimeoutRef.current = window.setTimeout(() => {
+    setRuleToast(null);
+    ruleToastTimeoutRef.current = null;
+  }, 3000);
+}, []);
 const powerRef = useRef(hud.power);
   const applyPower = useCallback((nextPower) => {
     const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
@@ -9837,10 +9837,6 @@ const powerRef = useRef(hud.power);
   }, []);
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
-  const lastBallLayoutRef = useRef(null);
-  const applyBallLayoutRef = useRef(null);
-  const pendingBallLayoutRef = useRef(null);
-  const captureBallLayoutRef = useRef(null);
   const pocketDropRef = useRef(new Map());
   const audioContextRef = useRef(null);
   const audioBuffersRef = useRef({
@@ -10229,24 +10225,11 @@ const powerRef = useRef(hud.power);
     },
     []
   );
-  const applyRemoteLayout = useCallback((layout) => {
-    if (!layout) return;
-    lastBallLayoutRef.current = layout;
-    const applySnapshot = applyBallLayoutRef.current;
-    if (applySnapshot) {
-      applySnapshot(layout);
-    } else {
-      pendingBallLayoutRef.current = layout;
-    }
-  }, []);
 
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return undefined;
     const handlePoolState = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
-      if (payload.layout) {
-        applyRemoteLayout(payload.layout);
-      }
       applyRemoteState({ state: payload.state, hud: payload.hud });
     };
 
@@ -10258,15 +10241,13 @@ const powerRef = useRef(hud.power);
     return () => {
       socket.off('poolState', handlePoolState);
     };
-  }, [accountId, applyRemoteLayout, applyRemoteState, isOnlineMatch, tableId]);
+  }, [accountId, applyRemoteState, isOnlineMatch, tableId]);
 
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return;
     const state = frameRef.current;
-    const captureLayout = captureBallLayoutRef.current;
-    const layoutSnapshot = lastBallLayoutRef.current || captureLayout?.();
-    if (!state || !layoutSnapshot) return;
-    socket.emit('poolShot', { tableId, state, layout: layoutSnapshot, hud: hudRef.current });
+    if (!state) return;
+    socket.emit('poolShot', { tableId, state });
   }, [isOnlineMatch, tableId]);
 
   useEffect(() => {
@@ -14251,30 +14232,6 @@ const powerRef = useRef(hud.power);
 
       cueRef.current = cue;
       ballsRef.current = balls;
-      captureBallLayoutRef.current = () => {
-        const snapshot = captureBallSnapshot();
-        lastBallLayoutRef.current = snapshot;
-        return snapshot;
-      };
-      applyBallLayoutRef.current = (snapshot) => {
-        if (!snapshot) return;
-        applyBallSnapshot(snapshot);
-        lastBallLayoutRef.current = snapshot;
-      };
-      if (pendingBallLayoutRef.current) {
-        applyBallLayoutRef.current(pendingBallLayoutRef.current);
-        pendingBallLayoutRef.current = null;
-      } else {
-        lastBallLayoutRef.current = captureBallSnapshot();
-      }
-      if (isOnlineMatch && tableId && frameRef.current) {
-        socket.emit('poolShot', {
-          tableId,
-          state: frameRef.current,
-          layout: lastBallLayoutRef.current,
-          hud: hudRef.current
-        });
-      }
 
       // Aiming visuals
       const aimMat = new THREE.LineBasicMaterial({
@@ -16990,20 +16947,7 @@ const powerRef = useRef(hud.power);
           setTurnCycle((value) => value + 1);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
           if (isOnlineMatch && tableId) {
-            let layout = postShotSnapshot || null;
-            if (!layout && captureBallLayoutRef.current) {
-              layout = captureBallLayoutRef.current();
-            }
-            layout = layout || lastBallLayoutRef.current;
-            if (layout) {
-              lastBallLayoutRef.current = layout;
-            }
-            socket.emit('poolShot', {
-              tableId,
-              state: safeState,
-              layout,
-              hud: hudRef.current
-            });
+            socket.emit('poolShot', { tableId, state: safeState });
           }
           setShootingState(false);
           shotPrediction = null;
@@ -18286,10 +18230,6 @@ const powerRef = useRef(hud.power);
           applyWorldScaleRef.current = () => {};
           topViewControlsRef.current = { enter: () => {}, exit: () => {} };
           cameraUpdateRef.current = () => {};
-          captureBallLayoutRef.current = null;
-          applyBallLayoutRef.current = null;
-          pendingBallLayoutRef.current = null;
-          lastBallLayoutRef.current = null;
           cancelAnimationFrame(rafRef.current);
           window.removeEventListener('resize', onResize);
           updatePocketCameraState(false);
