@@ -713,14 +713,19 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     const onDisc = () => setConnectionLost(true);
-    const onRec = () => setConnectionLost(false);
+    const onRec = () => {
+      setConnectionLost(false);
+      if (isMultiplayer && tableId) {
+        socket.emit('snakeSyncRequest', { tableId });
+      }
+    };
     socket.on('disconnect', onDisc);
     socket.io.on('reconnect', onRec);
     return () => {
       socket.off('disconnect', onDisc);
       socket.io.off('reconnect', onRec);
     };
-  }, []);
+  }, [isMultiplayer, tableId]);
   const [pos, setPos] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
   const [trail, setTrail] = useState([]);
@@ -1324,6 +1329,36 @@ export default function SnakeAndLadder() {
       }
     };
 
+    const applyBoardPayload = (sn, lad, diceObj) => {
+      const limit = (obj = {}) => Object.fromEntries(Object.entries(obj).slice(0, 8));
+      const hasSnakes = sn != null;
+      const hasLadders = lad != null;
+      if (hasSnakes || hasLadders) {
+        const snakesLim = hasSnakes ? limit(sn || {}) : {};
+        const laddersLim = hasLadders ? limit(lad || {}) : {};
+        if (hasSnakes) {
+          setSnakes(snakesLim);
+          const snk = {};
+          Object.entries(snakesLim).forEach(([s, e]) => {
+            snk[s] = s - e;
+          });
+          setSnakeOffsets(snk);
+        }
+        if (hasLadders) {
+          setLadders(laddersLim);
+          const ladOff = {};
+          Object.entries(laddersLim).forEach(([s, e]) => {
+            const end = typeof e === 'object' ? e.end : e;
+            ladOff[s] = end - s;
+          });
+          setLadderOffsets(ladOff);
+        }
+      }
+      if (diceObj !== undefined) {
+        setDiceCells(normalizeDiceCells(diceObj || {}));
+      }
+    };
+
     const onJoined = ({ playerId, name: joinedName, avatar, maxPlayers }) => {
       handleCapacity(maxPlayers);
       const name = joinedName || `Player`;
@@ -1578,30 +1613,57 @@ export default function SnakeAndLadder() {
     socket.on('diceRolled', onRolled);
     socket.on('gameWon', onWon);
     socket.on('currentPlayers', onCurrentPlayers);
-    socket.on('boardData', ({ snakes: sn, ladders: lad, diceCells: diceObj }) => {
-      const limit = (obj) => Object.fromEntries(Object.entries(obj).slice(0, 8));
-      const snakesLim = limit(sn || {});
-      const laddersLim = limit(lad || {});
-      setSnakes(snakesLim);
-      setLadders(laddersLim);
-      const snk = {};
-      Object.entries(snakesLim).forEach(([s, e]) => {
-        snk[s] = s - e;
-      });
-      const ladOff = {};
-      Object.entries(laddersLim).forEach(([s, e]) => {
-        const end = typeof e === 'object' ? e.end : e;
-        ladOff[s] = end - s;
-      });
-      setSnakeOffsets(snk);
-      setLadderOffsets(ladOff);
-      if (diceObj) {
-        setDiceCells(normalizeDiceCells(diceObj));
+    const onSnakeState = (payload = {}) => {
+      if (!payload || payload.tableId !== tableId) return;
+      const capValue = payload.maxPlayers ?? payload.capacity;
+      handleCapacity(capValue);
+      let snapshotDiceCounts = null;
+      if (Array.isArray(payload.players)) {
+        const arr = payload.players.map((p, idx) => ({
+          id: p.playerId ?? p.id,
+          name: p.name || `Player ${idx + 1}`,
+          photoUrl: p.avatar || p.photoUrl || '/assets/icons/profile.svg',
+          position: p.position || 0
+        }));
+        updateMpPlayers(arr, capValue);
+        snapshotDiceCounts = payload.players.map((p) => Math.max(1, p.diceCount || 2));
+        setPlayerDiceCounts(snapshotDiceCounts);
       }
+
+      if (payload.status === 'playing') {
+        setSetupPhase(false);
+        setWaitingForPlayers(false);
+      } else if (payload.status === 'finished') {
+        setGameOver(true);
+      }
+
+      const turnFromId =
+        payload.turnPlayerId &&
+        (payload.players || playersRef.current || []).findIndex(
+          (p) => String(p.playerId ?? p.id) === String(payload.turnPlayerId)
+        );
+      const turnIdx = Number.isInteger(payload.currentTurn)
+        ? payload.currentTurn
+        : turnFromId;
+      if (Number.isInteger(turnIdx) && turnIdx >= 0) {
+        setCurrentTurn(turnIdx);
+        if (snapshotDiceCounts) setDiceCount(snapshotDiceCounts[turnIdx] ?? 2);
+      }
+
+      if (payload.snakes || payload.ladders || payload.diceCells) {
+        applyBoardPayload(payload.snakes, payload.ladders, payload.diceCells);
+      }
+    };
+
+    socket.on('boardData', ({ snakes: sn, ladders: lad, diceCells: diceObj }) => {
+      applyBoardPayload(sn, lad, diceObj);
     });
     socket.on('diceCellsUpdate', ({ diceCells: updated }) => {
       setDiceCells(normalizeDiceCells(updated || {}));
     });
+    socket.on('snakeState', onSnakeState);
+
+    socket.emit('snakeSyncRequest', { tableId });
 
     if (watchOnly) {
       socket.emit('watchRoom', { roomId: tableId });
@@ -1646,6 +1708,7 @@ export default function SnakeAndLadder() {
       socket.off('gameWon', onWon);
       socket.off('currentPlayers', onCurrentPlayers);
       socket.off('boardData');
+      socket.off('snakeState', onSnakeState);
       socket.off('diceCellsUpdate');
       if (watchOnly) {
         socket.emit('leaveWatch', { roomId: tableId });

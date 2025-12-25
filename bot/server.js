@@ -338,6 +338,14 @@ function ensureRegistered(socket, accountId) {
   return true;
 }
 
+function emitSnakeState(socket, tableId) {
+  if (!tableId) return;
+  const state = gameManager.getSnakeState(tableId);
+  if (state) {
+    socket.emit('snakeState', state);
+  }
+}
+
 function getAvailableTable(gameType, stake = 0, maxPlayers = 4, matchMeta = {}) {
   const normalizedMeta = normalizeMatchMeta(matchMeta);
   const key = `${gameType}-${maxPlayers}`;
@@ -1127,6 +1135,23 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('snakeSyncRequest', async ({ tableId }) => {
+    if (!tableId) return;
+    const cached = gameManager.getSnakeState(tableId);
+    if (cached) {
+      socket.emit('snakeState', cached);
+      return;
+    }
+    if (!gameManager.rooms.has(tableId) && !tableMap.has(tableId)) return;
+    try {
+      const room = await gameManager.getRoom(tableId);
+      const state = gameManager.getSnakeState(room?.id);
+      if (state) socket.emit('snakeState', state);
+    } catch (err) {
+      console.error('Failed to sync snake state:', err.message);
+    }
+  });
+
   socket.on('poolFrame', ({ tableId, layout, hud, playerId, frameTs }) => {
     if (!tableId || !Array.isArray(layout)) return;
     const ts = Number.isFinite(frameTs) ? frameTs : Date.now();
@@ -1192,6 +1217,7 @@ io.on('connection', (socket) => {
           ? { board: room.game.board }
           : null;
       if (board) socket.emit('boardData', board);
+      emitSnakeState(socket, roomId);
     } catch {}
     io.to(roomId).emit('watchCount', { roomId, count: set.size });
   });
