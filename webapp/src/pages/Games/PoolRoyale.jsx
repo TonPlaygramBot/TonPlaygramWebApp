@@ -9504,9 +9504,7 @@ function PoolRoyaleGame({
   const accountIdRef = useRef(accountId || '');
   const tgIdRef = useRef(tgId || '');
   const captureReplayCameraSnapshotRef = useRef(null);
-  const captureLiveCameraViewRef = useRef(null);
   const remoteAimRef = useRef(null);
-  const remoteCameraViewRef = useRef(null);
   const remoteShotActiveRef = useRef(false);
   const remoteShotUntilRef = useRef(0);
   const incomingRemoteShotRef = useRef(null);
@@ -10923,36 +10921,6 @@ const powerRef = useRef(hud.power);
     }
   }, []);
 
-  const normalizeCameraSnapshot = useCallback((snapshot = {}) => {
-    if (!snapshot || typeof snapshot !== 'object') return null;
-    const positionSource = snapshot.position || snapshot.pos || null;
-    const targetSource = snapshot.target || snapshot.focus || snapshot.lookAt || null;
-    const position =
-      positionSource &&
-      Number.isFinite(positionSource.x) &&
-      Number.isFinite(positionSource.y) &&
-      Number.isFinite(positionSource.z)
-        ? { x: positionSource.x, y: positionSource.y, z: positionSource.z }
-        : null;
-    const target =
-      targetSource &&
-      Number.isFinite(targetSource.x) &&
-      Number.isFinite(targetSource.y) &&
-      Number.isFinite(targetSource.z)
-        ? { x: targetSource.x, y: targetSource.y, z: targetSource.z }
-        : null;
-    const fov = Number.isFinite(snapshot.fov) ? snapshot.fov : null;
-    const minTargetY = Number.isFinite(snapshot.minTargetY) ? snapshot.minTargetY : null;
-    const blend = Number.isFinite(snapshot.blend)
-      ? THREE.MathUtils.clamp(snapshot.blend, 0, 1)
-      : null;
-    const topView = snapshot.topView === true;
-    if (!position && !target && fov == null && blend == null && minTargetY == null && !topView) {
-      return null;
-    }
-    return { position, target, fov, blend, minTargetY, topView };
-  }, []);
-
   const handleRemotePayload = useCallback(
     (payload = {}) => {
       if (!isOnlineMatch || !tableId) return;
@@ -10965,12 +10933,7 @@ const powerRef = useRef(hud.power);
       const isRemotePlayer = Boolean(senderId && senderId !== localId);
       const hasLayout = Array.isArray(payload.layout);
       const aimPayload = payload.aim;
-      const remoteCamera = normalizeCameraSnapshot(payload.camera);
       const now = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
-
-      if (isRemotePlayer && remoteCamera) {
-        remoteCameraViewRef.current = { ...remoteCamera, updatedAt: now, playerId: senderId };
-      }
 
       if (
         isRemotePlayer &&
@@ -11015,11 +10978,9 @@ const powerRef = useRef(hud.power);
           rec.frames.push({
             t: rel,
             balls: payload.layout,
-            camera:
-              remoteCamera ||
-              (captureReplayCameraSnapshotRef.current
-                ? captureReplayCameraSnapshotRef.current()
-                : null)
+            camera: captureReplayCameraSnapshotRef.current
+              ? captureReplayCameraSnapshotRef.current()
+              : null
           });
           const cueEntry = payload.layout.find((entry) => String(entry.id) === 'cue');
           const cuePos = cueEntry?.mesh?.position || cueEntry?.pos;
@@ -11052,7 +11013,7 @@ const powerRef = useRef(hud.power);
         remoteShotUntilRef.current = 0;
       }
     },
-    [accountId, isOnlineMatch, normalizeCameraSnapshot, tableId]
+    [accountId, isOnlineMatch, tableId]
   );
 
   useEffect(() => {
@@ -11087,11 +11048,7 @@ const powerRef = useRef(hud.power);
     const layout = captureBallSnapshotRef.current
       ? captureBallSnapshotRef.current()
       : null;
-    const camera =
-      typeof captureLiveCameraViewRef.current === 'function'
-        ? captureLiveCameraViewRef.current()
-        : null;
-    socket.emit('poolShot', { tableId, state, hud: hudRef.current, layout, camera });
+    socket.emit('poolShot', { tableId, state, hud: hudRef.current, layout });
   }, [isOnlineMatch, tableId]);
 
   useEffect(() => {
@@ -12790,68 +12747,8 @@ const powerRef = useRef(hud.power);
           if (broadcastSystem?.smoothing != null) {
             broadcastArgs.lerp = broadcastSystem.smoothing;
           }
-          const nowMs = getNow();
-          const hudState = hudRef.current;
-          const remoteCameraView = remoteCameraViewRef.current;
-          const remoteViewFresh =
-            remoteCameraView &&
-            Number.isFinite(remoteCameraView.updatedAt) &&
-            nowMs - remoteCameraView.updatedAt <= 4000;
-          const remoteSpectateActive =
-            !replayActive &&
-            remoteViewFresh &&
-            isOnlineMatch &&
-            !aiOpponentEnabled &&
-            hudState?.turn === 1;
           const galleryState = cueGalleryStateRef.current;
-          if (remoteSpectateActive) {
-            const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-            const minTargetYSnapshot = Number.isFinite(remoteCameraView.minTargetY)
-              ? remoteCameraView.minTargetY
-              : null;
-            const minTargetY = Math.max(
-              baseSurfaceWorldY,
-              BALL_CENTER_Y * scale,
-              minTargetYSnapshot ?? -Infinity
-            );
-            const targetSnapshot = remoteCameraView.target ?? null;
-            const positionSnapshot = remoteCameraView.position ?? null;
-            const resolvedTarget =
-              targetSnapshot && Number.isFinite(targetSnapshot.x)
-                ? new THREE.Vector3(
-                    targetSnapshot.x,
-                    Math.max(targetSnapshot.y ?? minTargetY, minTargetY),
-                    targetSnapshot.z
-                  )
-                : new THREE.Vector3(playerOffsetRef.current * scale, minTargetY, 0);
-            const resolvedPosition =
-              positionSnapshot && Number.isFinite(positionSnapshot.x)
-                ? new THREE.Vector3(
-                    positionSnapshot.x,
-                    Math.max(positionSnapshot.y ?? minTargetY, minTargetY),
-                    positionSnapshot.z
-                  )
-                : camera.position.clone();
-            if (Number.isFinite(remoteCameraView.fov) && camera.fov !== remoteCameraView.fov) {
-              camera.fov = remoteCameraView.fov;
-              camera.updateProjectionMatrix();
-            }
-            if (Number.isFinite(remoteCameraView.blend)) {
-              cameraBlendRef.current = THREE.MathUtils.clamp(remoteCameraView.blend, 0, 1);
-            }
-            if (remoteCameraView.topView != null) {
-              topViewRef.current = Boolean(remoteCameraView.topView);
-              topViewLockedRef.current = topViewRef.current;
-            }
-            lastCameraTargetRef.current.copy(resolvedTarget);
-            camera.position.copy(resolvedPosition);
-            camera.lookAt(resolvedTarget);
-            renderCamera = camera;
-            lookTarget = resolvedTarget;
-            broadcastArgs.focusWorld = resolvedTarget.clone();
-            broadcastArgs.targetWorld = resolvedTarget.clone();
-            broadcastArgs.lerp = 0.06;
-          } else if (replayActive) {
+          if (replayActive) {
             const storedReplayCamera = replayCameraRef.current;
             const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
             const replayCamera = resolveReplayCameraView(
@@ -14341,31 +14238,7 @@ const powerRef = useRef(hud.power);
           }
           return snapshot;
         };
-        const captureLiveCameraView = () => {
-          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-          const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-          const activeCamera = activeRenderCameraRef.current ?? camera;
-          const storedTarget =
-            lastCameraTargetRef.current?.clone() ??
-            new THREE.Vector3(playerOffsetRef.current * scale, minTargetY, 0);
-          storedTarget.y = Math.max(storedTarget.y ?? 0, minTargetY);
-          const storedPosition = activeCamera?.position?.clone?.() ?? camera.position.clone();
-          if (storedPosition.y < minTargetY) {
-            storedPosition.y = minTargetY;
-          }
-          const storedFov = Number.isFinite(activeCamera?.fov) ? activeCamera.fov : camera.fov;
-          const blend = Number.isFinite(cameraBlendRef.current) ? cameraBlendRef.current : null;
-          return {
-            position: serializeVector3Snapshot(storedPosition),
-            target: serializeVector3Snapshot(storedTarget),
-            fov: storedFov,
-            minTargetY,
-            blend,
-            topView: Boolean(topViewRef.current)
-          };
-        };
         captureReplayCameraSnapshotRef.current = captureReplayCameraSnapshot;
-        captureLiveCameraViewRef.current = captureLiveCameraView;
 
         const applyBallSnapshot = (snapshot) => {
           if (!Array.isArray(snapshot)) return;
@@ -18003,16 +17876,11 @@ const powerRef = useRef(hud.power);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
           if (isOnlineMatch && tableId) {
             const layout = captureBallSnapshot();
-            const camera =
-              typeof captureLiveCameraViewRef.current === 'function'
-                ? captureLiveCameraViewRef.current()
-                : null;
             socket.emit('poolShot', {
               tableId,
               state: safeState,
               hud: hudRef.current,
-              layout,
-              camera
+              layout
             });
           }
           setShootingState(false);
@@ -18162,14 +18030,6 @@ const powerRef = useRef(hud.power);
           nowMs - remoteAimRef.current.updatedAt > 3500
         ) {
           remoteAimRef.current = null;
-        }
-        const remoteCameraView = remoteCameraViewRef.current;
-        if (
-          remoteCameraView &&
-          Number.isFinite(remoteCameraView.updatedAt) &&
-          nowMs - remoteCameraView.updatedAt > 4000
-        ) {
-          remoteCameraViewRef.current = null;
         }
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
           const pending = pendingRemoteReplayRef.current;
@@ -19452,7 +19312,6 @@ const powerRef = useRef(hud.power);
                 hud: hudRef.current,
                 frameTs: now,
                 playerId: accountIdRef.current || accountId || '',
-                camera: captureLiveCameraView(),
                 aim: {
                   dir: { x: aimVec.x ?? 0, y: aimVec.y ?? 0 },
                   power: powerRef.current ?? 0,
@@ -19478,7 +19337,6 @@ const powerRef = useRef(hud.power);
                 layout,
                 hud: hudRef.current,
                 frameTs: now,
-                camera: captureLiveCameraView(),
                 playerId: accountIdRef.current || accountId || ''
               });
               lastLiveSyncSentAt = now;
@@ -19531,10 +19389,8 @@ const powerRef = useRef(hud.power);
           applyBallSnapshotRef.current = null;
           pendingLayoutRef.current = null;
           captureReplayCameraSnapshotRef.current = null;
-          captureLiveCameraViewRef.current = null;
           pendingRemoteReplayRef.current = null;
           incomingRemoteShotRef.current = null;
-          remoteCameraViewRef.current = null;
           remoteShotActiveRef.current = false;
           remoteShotUntilRef.current = 0;
           remoteAimRef.current = null;
