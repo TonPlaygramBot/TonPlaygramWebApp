@@ -14203,12 +14203,14 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.14; // widen the overhead footprint slightly
+        const lightSpreadBoost = 1.2; // slightly widen the overhead footprint so the fixtures feel larger
         const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.35; // lift the rig a touch higher for a broader throw
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
         const lightOffsetZ =
           Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
+        const lightLineX = lightOffsetX * 0.48; // keep the rig aligned along a single long rail
+        const lightLineZ = lightOffsetZ * 0.58; // spread the three heads along the long side in a straight line
         const shadowHalfSpan =
           Math.max(roomWidth, roomDepth) * 0.72 + TABLE.THICK * 3.5;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
@@ -14219,7 +14221,7 @@ const powerRef = useRef(hud.power);
         lightingRig.add(ambient);
 
         const key = new THREE.DirectionalLight(0xffffff, 1.82);
-        key.position.set(lightOffsetX * 0.3, lightRigHeight, lightOffsetZ * 0.24);
+        key.position.set(lightLineX, lightRigHeight, -lightLineZ);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
         key.shadow.mapSize.set(4096, 4096);
@@ -14236,13 +14238,13 @@ const powerRef = useRef(hud.power);
         lightingRig.add(key.target);
 
         const fill = new THREE.DirectionalLight(0xffffff, 0.9);
-        fill.position.set(-lightOffsetX * 0.34, lightRigHeight * 1.02, lightOffsetZ * 0.28);
+        fill.position.set(lightLineX, lightRigHeight * 1.02, 0);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
         const rim = new THREE.DirectionalLight(0xffffff, 0.72);
-        rim.position.set(0, lightRigHeight * 1.06, -lightOffsetZ * 0.38);
+        rim.position.set(lightLineX, lightRigHeight * 1.06, lightLineZ);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
@@ -16589,6 +16591,7 @@ const powerRef = useRef(hud.power);
                 .map((entry) => normalizeTargetId(entry))
                 .filter((entry) => entry && isBallTargetId(entry))
             : [];
+          const legalTargetSet = new Set(legalTargets);
           const activeVariantId =
             frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
           const metaState = frameSnapshot?.meta?.state ?? null;
@@ -16616,6 +16619,12 @@ const powerRef = useRef(hud.power);
               const dist = cuePos.distanceTo(ball.pos);
               return dist < bestDist ? ball : best;
             }, null);
+          const eligibleTargets =
+            legalTargetSet.size > 0
+              ? activeBalls.filter((ball) => legalTargetSet.has(toBallColorId(ball.id)))
+              : [];
+          const closestLegalBall =
+            eligibleTargets.length > 0 ? pickClosestBall(eligibleTargets) : null;
 
           const findRackApex = () =>
             activeBalls.reduce((best, ball) => {
@@ -16633,6 +16642,10 @@ const powerRef = useRef(hud.power);
           let targetBall = null;
           if ((frameSnapshot?.currentBreak ?? 0) === 0) {
             targetBall = findRackApex();
+          }
+
+          if (!targetBall && closestLegalBall) {
+            targetBall = closestLegalBall;
           }
 
           if (!targetBall && activeVariantId === 'uk') {
@@ -16742,11 +16755,11 @@ const powerRef = useRef(hud.power);
                 autoDir = manualDir.normalize();
               }
             }
-            autoAimRequestRef.current = false;
             suggestionAimKeyRef.current = null;
             if (autoDir && autoDir.lengthSq() > 1e-6) {
               aimDirRef.current.copy(autoDir);
               alignStandingCameraToAim(cue, autoDir);
+              autoAimRequestRef.current = false;
               return;
             }
           }
