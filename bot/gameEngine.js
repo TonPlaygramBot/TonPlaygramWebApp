@@ -98,32 +98,6 @@ function generateBoard() {
   return { snakes, ladders, diceCells };
 }
 
-function serializeSnakeState(room) {
-  if (!room || room.gameType !== 'snake') return null;
-  return {
-    tableId: room.id,
-    currentTurn: room.currentTurn,
-    maxPlayers: room.capacity,
-    status: room.status,
-    snakes: room.snakes,
-    ladders: room.ladders,
-    diceCells: room.diceCells,
-    players: room.players.map((p, idx) => ({
-      id: p.playerId || p.id,
-      playerId: p.playerId || p.id,
-      name: p.name,
-      position: p.position,
-      avatar: p.avatar || '',
-      disconnected: !!p.disconnected,
-      diceCount: p.diceCount,
-      isActive: !!p.isActive,
-      seatIndex: idx
-    })),
-    turnPlayerId: room.players[room.currentTurn]?.playerId || room.players[room.currentTurn]?.id || null,
-    updatedAt: Date.now()
-  };
-}
-
 export class GameRoom {
   constructor(id, io, capacity = 4, board = {}, gameType = 'snake') {
     this.id = id;
@@ -459,22 +433,6 @@ export class GameRoomManager {
   constructor(io) {
     this.io = io;
     this.rooms = new Map();
-    this.snakeStates = new Map();
-  }
-
-  cacheSnakeState(room) {
-    const state = serializeSnakeState(room);
-    if (state) {
-      this.snakeStates.set(room.id, state);
-    }
-  }
-
-  clearSnakeState(roomId) {
-    this.snakeStates.delete(roomId);
-  }
-
-  getSnakeState(roomId) {
-    return this.snakeStates.get(roomId) || null;
   }
 
   async loadRooms() {
@@ -493,7 +451,6 @@ export class GameRoomManager {
       room.currentTurn = doc.currentTurn;
       room.status = doc.status;
       this.rooms.set(room.id, room);
-      this.cacheSnakeState(room);
     }
   }
 
@@ -518,7 +475,6 @@ export class GameRoomManager {
     await GameRoomModel.findOneAndUpdate({ roomId: room.id }, doc, {
       upsert: true
     });
-    this.cacheSnakeState(room);
   }
 
   async getRoom(id, capacity = 4, board, gameType) {
@@ -561,7 +517,6 @@ export class GameRoomManager {
       }
       this.rooms.set(id, room);
     }
-    this.cacheSnakeState(room);
     return room;
   }
 
@@ -589,7 +544,6 @@ export class GameRoomManager {
       await this.saveRoom(room);
       if (room.players.every((p) => p.disconnected)) {
         this.rooms.delete(room.id);
-        this.clearSnakeState(room.id);
         await GameRoomModel.deleteOne({ roomId: room.id });
       }
     }
