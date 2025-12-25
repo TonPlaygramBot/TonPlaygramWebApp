@@ -8,6 +8,7 @@ import React, {
 import * as THREE from 'three';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -9720,7 +9721,9 @@ const powerRef = useRef(hud.power);
         key,
         fill,
         rim,
-        ambient
+        ambient,
+        panelLights,
+        panelMeshes
       } = rig;
 
       if (settings.keyColor && key) key.color.set(settings.keyColor);
@@ -9731,6 +9734,25 @@ const powerRef = useRef(hud.power);
       if (settings.rimIntensity && rim) rim.intensity = settings.rimIntensity;
       if (settings.ambientIntensity && ambient)
         ambient.intensity = settings.ambientIntensity;
+      const panelIntensity =
+        settings.panelIntensity ??
+        (settings.keyIntensity ? settings.keyIntensity * 0.42 : 0.7);
+      const panelColor = settings.keyColor ?? 0xffffff;
+      if (Array.isArray(panelLights)) {
+        panelLights.forEach((light) => {
+          light.color.set(panelColor);
+          light.intensity = panelIntensity;
+        });
+      }
+      if (Array.isArray(panelMeshes)) {
+        panelMeshes.forEach((mesh) => {
+          if (!mesh?.material) return;
+          if (mesh.material.color) mesh.material.color.set(panelColor);
+          if (typeof mesh.material.opacity === 'number') {
+            mesh.material.opacity = Math.min(0.6, 0.22 + panelIntensity * 0.08);
+          }
+        });
+      }
     },
     [lightingId]
   );
@@ -14200,27 +14222,59 @@ const powerRef = useRef(hud.power);
 
       // Lights
       const addMobileLighting = () => {
+        RectAreaLightUniformsLib.init();
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.14; // widen the overhead footprint slightly
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.35; // lift the rig a touch higher for a broader throw
-        const lightOffsetX =
-          Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
-        const lightOffsetZ =
-          Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
+        const lightSpreadBoost = 1.2; // widen the overhead footprint slightly
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.65; // lift the rig a touch higher for a broader throw
+        const lightOffsetX = Math.max(PLAY_W * 0.12, TABLE.THICK * 3.2) * lightSpreadBoost;
+        const lightOffsetZ = Math.max(PLAY_H * 0.32, TABLE.THICK * 4.2) * lightSpreadBoost;
         const shadowHalfSpan =
           Math.max(roomWidth, roomDepth) * 0.72 + TABLE.THICK * 3.5;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
+        const panelLights = [];
+        const panelMeshes = [];
+        const fixtureGroup = new THREE.Group();
+        const fixtureCount = 3;
+        const fixtureSize = Math.max(PLAY_W * 0.92, PLAY_H * 0.38);
+        const fixtureSpacing = (PLAY_H * 0.78) / Math.max(1, fixtureCount - 1);
+        const fixtureStart = -((fixtureCount - 1) * fixtureSpacing) / 2;
+        for (let i = 0; i < fixtureCount; i++) {
+          const zPos = fixtureStart + fixtureSpacing * i;
+          const areaLight = new THREE.RectAreaLight(0xffffff, 0.58, fixtureSize, fixtureSize);
+          areaLight.position.set(0, lightRigHeight * 1.02, zPos);
+          areaLight.lookAt(0, targetY, zPos);
+          panelLights.push(areaLight);
+          fixtureGroup.add(areaLight);
+
+          const panel = new THREE.Mesh(
+            new THREE.PlaneGeometry(fixtureSize * 0.92, fixtureSize * 0.92),
+            new THREE.MeshBasicMaterial({
+              color: 0xffffff,
+              transparent: true,
+              opacity: 0.32,
+              side: THREE.DoubleSide
+            })
+          );
+          panel.position.set(0, areaLight.position.y - TABLE.THICK * 0.08, zPos);
+          panel.rotation.x = -Math.PI / 2;
+          panel.castShadow = false;
+          panel.receiveShadow = false;
+          panelMeshes.push(panel);
+          fixtureGroup.add(panel);
+        }
+        lightingRig.add(fixtureGroup);
+
         const ambient = new THREE.AmbientLight(0xffffff, 0.32);
         lightingRig.add(ambient);
 
         const key = new THREE.DirectionalLight(0xffffff, 1.82);
-        key.position.set(lightOffsetX * 0.3, lightRigHeight, lightOffsetZ * 0.24);
-        key.target.position.set(0, targetY, 0);
+        key.position.set(lightOffsetX * 0.25, lightRigHeight, lightOffsetZ * 0.5);
+        key.target.position.set(0, targetY, lightOffsetZ * 0.08);
         key.castShadow = true;
         key.shadow.mapSize.set(4096, 4096);
         key.shadow.camera.near = 0.1;
@@ -14236,14 +14290,14 @@ const powerRef = useRef(hud.power);
         lightingRig.add(key.target);
 
         const fill = new THREE.DirectionalLight(0xffffff, 0.9);
-        fill.position.set(-lightOffsetX * 0.34, lightRigHeight * 1.02, lightOffsetZ * 0.28);
+        fill.position.set(-lightOffsetX * 0.18, lightRigHeight * 1.04, 0);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
         const rim = new THREE.DirectionalLight(0xffffff, 0.72);
-        rim.position.set(0, lightRigHeight * 1.06, -lightOffsetZ * 0.38);
-        rim.target.position.set(0, targetY, 0);
+        rim.position.set(0, lightRigHeight * 1.08, -lightOffsetZ * 0.52);
+        rim.target.position.set(0, targetY, -lightOffsetZ * 0.08);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
 
@@ -14252,7 +14306,9 @@ const powerRef = useRef(hud.power);
           key,
           fill,
           rim,
-          ambient
+          ambient,
+          panelLights,
+          panelMeshes
         };
         applyLightingPreset();
       };
@@ -16593,6 +16649,7 @@ const powerRef = useRef(hud.power);
             frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
           const metaState = frameSnapshot?.meta?.state ?? null;
           const shooterSeat = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
+          const shooterId = metaState?.currentPlayer ?? shooterSeat;
           const lastPotEntry =
             shooterSeat && lastPottedBySeatRef.current
               ? lastPottedBySeatRef.current[shooterSeat]
@@ -16609,6 +16666,15 @@ const powerRef = useRef(hud.power);
           };
           legalTargets.forEach((entry) => pushTargetId(entry));
           pushTargetId(lastPotId);
+          const assignments = metaState?.assignments ?? {};
+          const shooterAssignment = shooterId ? assignments[shooterId] : null;
+          const shooterOwnedTargets = [];
+          if (shooterAssignment === 'red') shooterOwnedTargets.push('RED');
+          if (shooterAssignment === 'blue' || shooterAssignment === 'yellow') {
+            shooterOwnedTargets.push('YELLOW', 'BLUE');
+          }
+          if (shooterAssignment === 'black') shooterOwnedTargets.push('BLACK');
+          shooterOwnedTargets.forEach((entry) => pushTargetId(entry));
           const pickClosestBall = (candidates) =>
             candidates.reduce((best, ball) => {
               if (!best) return ball;
@@ -16616,6 +16682,22 @@ const powerRef = useRef(hud.power);
               const dist = cuePos.distanceTo(ball.pos);
               return dist < bestDist ? ball : best;
             }, null);
+          const findNearestByIds = (ids = []) => {
+            if (!Array.isArray(ids) || ids.length === 0) return null;
+            const normalizedIds = [];
+            ids.forEach((entry) => {
+              const normalized = normalizeTargetId(entry);
+              if (normalized && isBallTargetId(normalized) && !normalizedIds.includes(normalized)) {
+                normalizedIds.push(normalized);
+              }
+            });
+            if (normalizedIds.length === 0) return null;
+            const candidates = activeBalls.filter((ball) =>
+              normalizedIds.includes(toBallColorId(ball.id))
+            );
+            if (candidates.length === 0) return null;
+            return pickClosestBall(candidates);
+          };
 
           const findRackApex = () =>
             activeBalls.reduce((best, ball) => {
@@ -16636,9 +16718,7 @@ const powerRef = useRef(hud.power);
           }
 
           if (!targetBall && activeVariantId === 'uk') {
-            const shooterId = metaState?.currentPlayer ?? null;
-            const assignments = metaState?.assignments ?? {};
-            const assignedColour = shooterId ? assignments[shooterId] : null;
+            const assignedColour = shooterAssignment;
             const preferredColours = [];
             if (assignedColour === 'red') preferredColours.push('RED');
             if (assignedColour === 'blue' || assignedColour === 'yellow') {
@@ -16650,12 +16730,7 @@ const powerRef = useRef(hud.power);
             }
             preferredColours.forEach((entry) => pushTargetId(entry));
             if (preferredColours.length > 0) {
-              const ukTargets = activeBalls.filter((ball) =>
-                preferredColours.includes(toBallColorId(ball.id))
-              );
-              if (ukTargets.length > 0) {
-                targetBall = pickClosestBall(ukTargets);
-              }
+              targetBall = findNearestByIds(preferredColours);
             }
           }
 
@@ -16674,16 +16749,7 @@ const powerRef = useRef(hud.power);
                   .filter(Boolean)
               : [];
             normalizedNext.forEach((entry) => pushTargetId(entry));
-            const pickFromList = (order) => {
-              for (const targetId of order) {
-                const match = activeBalls.find(
-                  (ball) => toBallColorId(ball.id) === targetId
-                );
-                if (match) return match;
-              }
-              return null;
-            };
-            const prioritized = pickFromList(normalizedNext);
+            const prioritized = findNearestByIds(normalizedNext);
             if (prioritized) {
               targetBall = prioritized;
             }
@@ -16695,9 +16761,10 @@ const powerRef = useRef(hud.power);
                   return match ? { ball, num: parseInt(match[1], 10) } : null;
                 })
                 .filter(Boolean)
-                .sort((a, b) => a.num - b.num);
+                .sort((a, b) => a.num - b.num)
+                .map((entry) => entry.ball);
               if (numbered.length > 0) {
-                targetBall = numbered[0].ball;
+                targetBall = pickClosestBall(numbered);
               }
             }
           }
@@ -16709,6 +16776,10 @@ const powerRef = useRef(hud.power);
             if (priorityBalls.length > 0) {
               targetBall = pickClosestBall(priorityBalls);
             }
+          }
+
+          if (!targetBall && shooterOwnedTargets.length > 0) {
+            targetBall = findNearestByIds(shooterOwnedTargets);
           }
 
           if (!targetBall) {
