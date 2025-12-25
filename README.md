@@ -4,6 +4,7 @@
 ### Game design notes
 
 - [Texas Hold'em game flow](docs/texas-holdem-game.md) – drejtimi clockwise i butonit/dealer-it dhe hapat bazë të një dueli duke përdorur logjikën në `lib/texasHoldem.js`.
+- [Pool Royal online mode](docs/pool-royal-online-mode.md) – arkitekturë për sinkronizim real-time të shkopit, kamerës dhe rifreskimeve pa humbje FPS.
 
 ## Installation
 
