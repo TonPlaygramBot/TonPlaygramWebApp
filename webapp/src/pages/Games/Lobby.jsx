@@ -19,12 +19,10 @@ import {
 import {
   getPlayerId,
   ensureAccountId,
-  getTelegramId,
-  getTelegramFirstName
+  getTelegramId
 } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { runSnakeOnlineFlow } from './snakeOnlineFlow.js';
 
 export default function Lobby() {
   const { game } = useParams();
@@ -51,17 +49,7 @@ export default function Lobby() {
   const [confirmed, setConfirmed] = useState(false);
   const [joinedTableId, setJoinedTableId] = useState(null);
   const [joinedCapacity, setJoinedCapacity] = useState(null);
-  const [matching, setMatching] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const [matchStatus, setMatchStatus] = useState('');
-  const [matchingError, setMatchingError] = useState('');
   const startedRef = useRef(false);
-  const accountIdRef = useRef(null);
-  const pendingTableRef = useRef('');
-  const cleanupRef = useRef(() => {});
-  const stakeDebitRef = useRef(null);
-  const matchTimeoutRef = useRef(null);
-  const seatTimeoutRef = useRef(null);
 
   useEffect(() => {
     startedRef.current = false;
@@ -80,7 +68,6 @@ export default function Lobby() {
         const id = getPlayerId();
         socket.emit('leaveLobby', { accountId: id, tableId: current });
       }
-      cleanupRef.current?.();
     };
   }, [joinedTableId]);
 
@@ -269,53 +256,37 @@ export default function Lobby() {
     }
 
     if (game === 'snake' && table && table.id !== 'single') {
-      await cleanupRef.current?.();
-      const flowResult = await runSnakeOnlineFlow({
-        table,
-        stake,
-        playerName,
-        playerAvatar,
-        deps: {
-          ensureAccountId,
-          getAccountBalance,
-          addTransaction,
-          getTelegramId,
-          getTelegramFirstName,
-          socket
+      const accountId = await ensureAccountId().catch(() => null);
+      if (!accountId) return;
+      socket.emit('register', { playerId: accountId });
+      socket.emit(
+        'seatTable',
+        {
+          accountId,
+          gameType: 'snake',
+          stake: stake.amount,
+          maxPlayers: table.capacity,
+          playerName,
+          tableId: table.id,
+          avatar: playerAvatar,
         },
-        state: {
-          setMatchingError,
-          setMatchStatus,
-          setMatching,
-          setIsSearching,
-          setPlayers,
-          setReadyList,
-          setConfirmed,
-          setJoinedTableId,
-          setJoinedCapacity,
-          setCurrentTurn
-        },
-        refs: {
-          accountIdRef,
-          pendingTableRef,
-          cleanupRef,
-          matchTimeoutRef,
-          seatTimeoutRef,
-          stakeDebitRef
-        },
-        onGameStart: ({ tableId }) => {
-          const params = new URLSearchParams();
-          params.set('table', tableId);
-          if (table.capacity) params.set('capacity', String(table.capacity));
-          if (stake.token) params.set('token', stake.token);
-          if (stake.amount) params.set('amount', stake.amount);
-          startedRef.current = true;
-          navigate(`/games/${game}?${params.toString()}`);
+        (res) => {
+          if (res && res.success) {
+            const resolvedTableId = res.tableId || table.id;
+            const resolvedCapacity = res.maxPlayers ?? table.capacity ?? null;
+            setPlayers(res.players || []);
+            setCurrentTurn(res.currentTurn);
+            setReadyList(res.ready || []);
+            setJoinedTableId(resolvedTableId);
+            setJoinedCapacity(resolvedCapacity);
+            if (resolvedTableId) {
+              localStorage.setItem('snakeCurrentTable', resolvedTableId);
+            }
+            socket.emit('confirmReady', { accountId, tableId: resolvedTableId });
+            setConfirmed(true);
+          }
         }
-      });
-      if (!flowResult?.success) {
-        return;
-      }
+      );
       return;
     } else if (game === 'snake' && table?.id === 'single') {
       localStorage.removeItem(`snakeGameState_${aiCount}`);
@@ -362,9 +333,7 @@ export default function Lobby() {
     (game === 'snake' &&
       table?.id === 'single' &&
       aiType === 'flags' &&
-      flags.length !== aiCount) ||
-    matching ||
-    isSearching;
+      flags.length !== aiCount);
 
   const flagPickerCount = game === 'snake' && table?.id === 'single' ? aiCount : Math.max(aiCount || 1, 1);
 
@@ -495,13 +464,6 @@ export default function Lobby() {
       >
         {game === 'snake' && table?.id !== 'single' ? (confirmed ? 'Waiting…' : 'Confirm') : 'Start Game'}
       </button>
-      {(matching || matchStatus || matchingError) && game === 'snake' && table?.id !== 'single' && (
-        <div className="text-center text-sm space-y-1">
-          {matchStatus && <p className="text-primary font-semibold">{matchStatus}</p>}
-          {matchingError && <p className="text-red-400">{matchingError}</p>}
-          {(matching || isSearching) && <p className="text-subtext">Connecting to the online arena…</p>}
-        </div>
-      )}
       <FlagPickerModal
         open={showFlagPicker}
         count={flagPickerCount}
