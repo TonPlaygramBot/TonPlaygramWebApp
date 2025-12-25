@@ -1011,8 +1011,6 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const REMOTE_SHOT_IDLE_TIMEOUT_MS = 1200; // drop remote shot flags if no frames arrive for a bit
-const AIM_SYNC_INTERVAL_MS = 120; // throttle pre-shot sync so the opponent sees aim adjustments without flooding the socket
 const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
@@ -9448,9 +9446,6 @@ function PoolRoyaleGame({
     });
   const shotReplayRef = useRef(null);
   const replayPlaybackRef = useRef(null);
-  const remoteShotRecordingRef = useRef(null);
-  const remoteShotActiveRef = useRef(false);
-  const remoteShotIdleTimeoutRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
@@ -9684,10 +9679,7 @@ const powerRef = useRef(hud.power);
     if (!slider) return;
     const hudState = hudRef.current;
     const shouldLock =
-      hudState?.turn !== 0 ||
-      hudState?.over ||
-      shootingRef.current ||
-      remoteShotActiveRef.current;
+      hudState?.turn !== 0 || hudState?.over || shootingRef.current;
     if (shouldLock) slider.lock();
     else slider.unlock();
   }, []);
@@ -9888,80 +9880,6 @@ const powerRef = useRef(hud.power);
       activeCrowdSoundRef.current = null;
     }
   }, []);
-
-  const recordRemoteShotFrame = useCallback(
-    (payload = {}, { finalize = false } = {}) => {
-      const layout = Array.isArray(payload.layout) ? payload.layout : null;
-      if (!layout) return;
-      const tsSource =
-        typeof payload.frameTs === 'number' && Number.isFinite(payload.frameTs)
-          ? payload.frameTs
-          : typeof performance !== 'undefined' && typeof performance.now === 'function'
-            ? performance.now()
-            : Date.now();
-      const shooterId = payload.playerId || payload.state?.activePlayer || null;
-      const isSelf =
-        shooterId &&
-        (shooterId === accountIdRef.current ||
-          shooterId === accountId ||
-          shooterId === playerName);
-      if (isSelf) return;
-      let recording = remoteShotRecordingRef.current;
-      if (
-        !recording ||
-        recording.tableId !== tableId ||
-        recording.playerId !== shooterId ||
-        recording.finalized
-      ) {
-        recording = {
-          playerId: shooterId,
-          tableId,
-          startTime: tsSource,
-          frames: [],
-          cuePath: [],
-          startState: layout,
-          lastTs: tsSource,
-          postState: null,
-          finalized: false
-        };
-        remoteShotRecordingRef.current = recording;
-      }
-      const relativeT = Math.max(0, tsSource - (recording.startTime ?? tsSource));
-      recording.frames.push({ t: relativeT, balls: layout });
-      const cueEntry = layout.find((ball) => String(ball?.id).toLowerCase() === 'cue');
-      const cuePos = cueEntry?.mesh?.position ?? cueEntry?.pos ?? null;
-      if (cuePos) {
-        const cueVec = new THREE.Vector3(
-          Number.isFinite(cuePos.x) ? cuePos.x : 0,
-          Number.isFinite(cuePos.y) ? cuePos.y : BALL_CENTER_Y,
-          Number.isFinite(cuePos.z)
-            ? cuePos.z
-            : Number.isFinite(cueEntry?.pos?.y)
-              ? cueEntry.pos.y
-              : 0
-        );
-        cueVec.y = REPLAY_TRAIL_HEIGHT;
-        const last = recording.cuePath[recording.cuePath.length - 1];
-        if (!last || last.pos.distanceTo(cueVec) > 1e-3) {
-          recording.cuePath.push({ t: relativeT, pos: cueVec });
-        }
-      }
-      recording.lastTs = tsSource;
-      remoteShotActiveRef.current = true;
-      if (finalize) {
-        recording.postState = layout;
-        recording.finalized = true;
-      }
-      if (remoteShotIdleTimeoutRef.current) {
-        clearTimeout(remoteShotIdleTimeoutRef.current);
-      }
-      remoteShotIdleTimeoutRef.current = window.setTimeout(() => {
-        remoteShotActiveRef.current = false;
-        remoteShotIdleTimeoutRef.current = null;
-      }, REMOTE_SHOT_IDLE_TIMEOUT_MS);
-    },
-    [accountId, playerName, tableId]
-  );
 
   const selectCueStyleFromMenu = useCallback(
     async (index) => {
@@ -10299,30 +10217,13 @@ const powerRef = useRef(hud.power);
   }, [frameState.frameOver, frameState.winner, goToLobby, isTraining]);
 
   const applyRemoteState = useCallback(({ state, hud: incomingHud, layout }) => {
-    const deriveTurnFromState = (nextState) => {
-      if (!nextState) return null;
-      const activeId = nextState.activePlayer === 'B' ? 'B' : 'A';
-      const localId = localSeatRef.current === 'B' ? 'B' : 'A';
-      return activeId === localId ? 0 : 1;
-    };
-    const deriveInHand = (nextState) => {
-      if (!nextState) return undefined;
-      return deriveInHandFromFrame(nextState);
-    };
     if (state) {
       frameRef.current = state;
       setFrameState(state);
       setTurnCycle((value) => value + 1);
     }
     if (incomingHud) {
-      const derivedTurn = deriveTurnFromState(state ?? frameRef.current);
-      const derivedInHand = deriveInHand(state ?? frameRef.current);
-      setHud((prev) => {
-        const next = { ...prev, ...incomingHud };
-        if (derivedTurn !== null && derivedTurn !== undefined) next.turn = derivedTurn;
-        if (derivedInHand !== undefined) next.inHand = derivedInHand;
-        return next;
-      });
+      setHud((prev) => ({ ...prev, ...incomingHud }));
     }
     if (Array.isArray(layout)) {
       const applySnapshot = applyBallSnapshotRef.current;
@@ -10338,20 +10239,10 @@ const powerRef = useRef(hud.power);
     if (!isOnlineMatch || !tableId) return undefined;
     const handlePoolState = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
-      if (payload.layout) {
-        recordRemoteShotFrame(payload, { finalize: true });
-      } else {
-        remoteShotActiveRef.current = false;
-      }
       applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
     const handlePoolFrame = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
-      if (payload.state?.frameOver && payload.layout) {
-        recordRemoteShotFrame(payload, { finalize: true });
-      } else {
-        recordRemoteShotFrame(payload);
-      }
       applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
 
@@ -10365,7 +10256,7 @@ const powerRef = useRef(hud.power);
       socket.off('poolState', handlePoolState);
       socket.off('poolFrame', handlePoolFrame);
     };
-  }, [accountId, applyRemoteState, isOnlineMatch, recordRemoteShotFrame, tableId]);
+  }, [accountId, applyRemoteState, isOnlineMatch, tableId]);
 
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return;
@@ -17234,43 +17125,6 @@ const powerRef = useRef(hud.power);
   let lastLiveSyncSentAt = 0;
   const step = (now) => {
     if (disposed) return;
-    if (
-      !shooting &&
-      !replayPlaybackRef.current &&
-      remoteShotRecordingRef.current &&
-      remoteShotRecordingRef.current.finalized
-    ) {
-      const remoteRecording = remoteShotRecordingRef.current;
-      if (remoteRecording.frames.length > 1) {
-        const clonedFrames = remoteRecording.frames.map((frame) => ({
-          ...frame,
-          balls: frame.balls
-        }));
-        const clonedCuePath = (remoteRecording.cuePath || []).map((entry) => ({
-          t: entry.t,
-          pos: entry.pos?.clone ? entry.pos.clone() : entry.pos
-        }));
-        shotRecording = {
-          ...remoteRecording,
-          frames: clonedFrames,
-          cuePath: clonedCuePath,
-          replayTags: remoteRecording.replayTags ?? [],
-          zoomOnly: false
-        };
-        shotReplayRef.current = shotRecording;
-        remoteShotRecordingRef.current = null;
-        remoteShotActiveRef.current = false;
-        const postState =
-          remoteRecording.postState ??
-          clonedFrames[clonedFrames.length - 1]?.balls ??
-          remoteRecording.startState ??
-          [];
-        startShotReplay(postState);
-      } else {
-        remoteShotRecordingRef.current = null;
-        remoteShotActiveRef.current = false;
-      }
-    }
     const playback = replayPlaybackRef.current;
         if (playback) {
           const frameTiming = frameTimingRef.current;
@@ -17400,9 +17254,7 @@ const powerRef = useRef(hud.power);
           autoPlaceAiCueBall();
         }
         const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
-        const shotInProgress = shooting || remoteShotActiveRef.current;
         const canShowCue =
-          !shotInProgress &&
           allStopped(balls) &&
           cue?.active &&
           !(currentHud?.over) &&
@@ -18438,27 +18290,14 @@ const powerRef = useRef(hud.power);
           }
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
-          const streamingAim =
-            isOnlineMatch &&
-            tableId &&
-            !shooting &&
-            typeof captureBallSnapshot === 'function' &&
-            hudRef.current?.turn === 0 &&
-            allStopped(balls) &&
-            !(inHandPlacementModeRef.current);
           const shouldStreamLayout =
             isOnlineMatch &&
             tableId &&
-            typeof captureBallSnapshot === 'function' &&
-            (shooting || streamingAim);
+            shooting &&
+            typeof captureBallSnapshot === 'function';
           if (shouldStreamLayout) {
-            const intervalTarget =
-              shooting && frameTiming?.targetMs
-                ? frameTiming.targetMs
-                : AIM_SYNC_INTERVAL_MS;
-            const minInterval = shooting
-              ? Math.max(4, intervalTarget * 0.9)
-              : AIM_SYNC_INTERVAL_MS;
+            const intervalTarget = frameTiming?.targetMs ?? 1000 / 60;
+            const minInterval = Math.max(4, intervalTarget * 0.9);
             if (!lastLiveSyncSentAt || now - lastLiveSyncSentAt >= minInterval) {
               const layout = captureBallSnapshot();
               socket.emit('poolFrame', {
@@ -18506,10 +18345,6 @@ const powerRef = useRef(hud.power);
 
         return () => {
           disposed = true;
-          if (remoteShotIdleTimeoutRef.current) {
-            clearTimeout(remoteShotIdleTimeoutRef.current);
-            remoteShotIdleTimeoutRef.current = null;
-          }
           applyWorldScaleRef.current = () => {};
           topViewControlsRef.current = { enter: () => {}, exit: () => {} };
           cameraUpdateRef.current = () => {};
