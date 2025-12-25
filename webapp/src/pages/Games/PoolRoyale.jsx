@@ -2411,10 +2411,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   freshGreen: Object.freeze({
     id: 'freshGreen',
     palette: {
-      shadow: 0x1c7d4e,
-      base: 0x35b26f,
-      accent: 0x5bce8a,
-      highlight: 0x85e7b0
+      shadow: 0x1d8048,
+      base: 0x3ab86e,
+      accent: 0x54cf88,
+      highlight: 0x7ef2af
     },
     sparkle: 1,
     stray: 1
@@ -2444,10 +2444,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   arcticBlue: Object.freeze({
     id: 'arcticBlue',
     palette: {
-      shadow: 0x2c6d98,
-      base: 0x49a7e8,
-      accent: 0x7ccfff,
-      highlight: 0xa8e4ff
+      shadow: 0x2a668a,
+      base: 0x3d9ed8,
+      accent: 0x7dcaf7,
+      highlight: 0xb4e5ff
     },
     sparkle: 1.05,
     stray: 1.12
@@ -3539,7 +3539,7 @@ const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
-const CLOTH_THREAD_PITCH = 12 * 1.6; // widen thread spacing further so the weave reads thicker when viewed close to the cloth
+const CLOTH_THREAD_PITCH = 12 * 1.32; // widen thread spacing (~10% more) for a coarser weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 
 const createClothTextures = (() => {
@@ -6410,38 +6410,38 @@ function Table3D(
   const clothPrimary = new THREE.Color(palette.cloth);
   const cushionPrimary = new THREE.Color(palette.cushion ?? palette.cloth);
   const clothHighlight = new THREE.Color(0xf6fff9);
-  const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.26);
-  const cushionColor = cushionPrimary.clone().lerp(clothHighlight, 0.18);
+  const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.32);
+  const cushionColor = cushionPrimary.clone().lerp(clothHighlight, 0.22);
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
-  const clothSheen = CLOTH_QUALITY.sheen * 0.18;
-  const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.35);
+  const clothSheen = CLOTH_QUALITY.sheen * 0.72;
+  const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.08);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.985,
+    roughness: 0.97,
     sheen: clothSheen,
     sheenColor,
     sheenRoughness: clothSheenRoughness,
     clearcoat: 0,
-    clearcoatRoughness: 0.94,
-    envMapIntensity: 0,
-    emissive: clothColor.clone().multiplyScalar(0.03),
-    emissiveIntensity: 0.26,
+    clearcoatRoughness: 0.86,
+    envMapIntensity: 0.02,
+    emissive: clothColor.clone().multiplyScalar(0.045),
+    emissiveIntensity: 0.38,
     metalness: 0
   });
   clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 12; // base density before global scaling adjustments
-  const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.12 * 1.38; // enlarge the thread pattern so the weave stays visible when the camera hugs the cloth
+  const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25 * 1.5; // double the thread pattern size for a looser, woollier weave
   const clothTextureScale =
-    0.032 * 1.35 * 1.56 * 1.08 * clothPatternUpscale; // stretch the weave while keeping the cloth visibly taut
+    0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping the cloth visibly taut
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
-  const repeatRatio = 3.28;
+  const repeatRatio = 3.45;
   const baseBumpScale =
-    (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.24) * CLOTH_QUALITY.bumpScaleMultiplier;
-  const flattenedBumpScale = baseBumpScale * 0.62;
+    (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) * CLOTH_QUALITY.bumpScaleMultiplier;
+  const flattenedBumpScale = baseBumpScale * 0.48;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
