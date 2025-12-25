@@ -448,11 +448,11 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // extend the side fascia span 
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // grow fascia reach so the middle pocket cuts are fully framed like the Pool Royale reference
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.62; // widen fascia span so the middle plates hug the pocket mouths exactly like the captures
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.22; // trim the outer fascia lip so the middle chrome no longer overhangs past the rail edge
-const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.954; // reduce fascia span on the outside edge while preserving the rounded pocket cut
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.68; // push fascia outward to cloak the wood up to the jaw line as seen on-device
+const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.986; // restore full middle fascia width while keeping the rounded cut and outer edge unchanged
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.28; // push the middle fascias outward so the rounded cut stays put while the exterior edge moves off the cloth
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.16; // keep the fascia centred over the pocket reveal so both chrome edges mirror Pool Royale
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the chrome corner cut to match the Pool Royale jaw reveal
 const CHROME_SIDE_POCKET_CUT_SCALE = CHROME_CORNER_POCKET_CUT_SCALE * 1.012; // widen and deepen the middle chrome arch so it matches the side-pocket captures
@@ -923,35 +923,12 @@ const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
-const ENABLE_BALL_FLOOR_SHADOWS = true;
-const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
-const BALL_SHADOW_OPACITY = 0.25;
-const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const BALL_SEGMENTS = Object.freeze({ width: 80, height: 60 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_R,
   BALL_SEGMENTS.width,
   BALL_SEGMENTS.height
 );
-const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
-const BALL_SHADOW_GEOMETRY = ENABLE_BALL_FLOOR_SHADOWS
-  ? new THREE.CircleGeometry(BALL_R * BALL_SHADOW_RADIUS_MULTIPLIER, 32)
-  : null;
-if (BALL_SHADOW_GEOMETRY) BALL_SHADOW_GEOMETRY.rotateX(-Math.PI / 2);
-const BALL_SHADOW_MATERIAL = ENABLE_BALL_FLOOR_SHADOWS
-  ? new THREE.MeshBasicMaterial({
-      color: 0x000000,
-      transparent: true,
-      opacity: BALL_SHADOW_OPACITY,
-      depthWrite: false,
-      side: THREE.DoubleSide
-    })
-  : null;
-if (BALL_SHADOW_MATERIAL) {
-  BALL_SHADOW_MATERIAL.polygonOffset = true;
-  BALL_SHADOW_MATERIAL.polygonOffsetFactor = -0.5;
-  BALL_SHADOW_MATERIAL.polygonOffsetUnits = -0.5;
-}
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 const FRICTION = 0.993;
 const DEFAULT_CUSHION_RESTITUTION = 0.99;
@@ -976,8 +953,8 @@ const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.088; // drop the cushion base a touch further so it matches the Pool Royale stance
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.238; // trim the cushion tops slightly more to sit level with the Pool Royale lip height
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.072; // lower the cushion base slightly so the lip sits closer to the cloth
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.226; // trim the cushion tops further so they sit a touch lower than before
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -5406,31 +5383,17 @@ function Guret(parent, id, color, x, y, options = {}) {
   });
   const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
   mesh.position.set(x, BALL_CENTER_Y, y);
-  mesh.castShadow = false;
+  mesh.castShadow = true;
   mesh.receiveShadow = true;
-  const shadow =
-    ENABLE_BALL_FLOOR_SHADOWS && BALL_SHADOW_GEOMETRY && BALL_SHADOW_MATERIAL
-      ? new THREE.Mesh(BALL_SHADOW_GEOMETRY, BALL_SHADOW_MATERIAL.clone())
-      : null;
-  if (shadow) {
-    shadow.position.set(x, BALL_SHADOW_Y, y);
-    shadow.renderOrder = (mesh.renderOrder ?? 0) - 0.5;
-    shadow.matrixAutoUpdate = true;
-    shadow.visible = true;
-    shadow.userData = shadow.userData || {};
-    shadow.userData.ballId = id;
-  }
   mesh.traverse((node) => {
     node.userData = node.userData || {};
     node.userData.ballId = id;
   });
   parent.add(mesh);
-  if (shadow) parent.add(shadow);
   return {
     id,
     color,
     mesh,
-    shadow,
     pos: new THREE.Vector2(x, y),
     vel: new THREE.Vector2(),
     spin: new THREE.Vector2(),
@@ -9388,31 +9351,25 @@ export function PoolRoyaleGame({
       const preset =
         LIGHTING_PRESET_MAP[presetId] ?? LIGHTING_PRESET_MAP[DEFAULT_LIGHTING_ID];
       const settings = preset?.settings ?? {};
-      const { key, fill, wash, rim, center, ambient } = rig;
-      const keyColor = settings.dirColor ?? settings.keyColor ?? 0xffffff;
-      const fillColor = settings.spotColor ?? settings.fillColor ?? keyColor;
-      const washColor = settings.washColor ?? fillColor;
-      const rimColor = settings.rimColor ?? keyColor;
-      const centerColor = settings.centerColor ?? washColor;
+      const { stripeKey, stripeFill, ambient } = rig;
+      const KEY_INTENSITY_SCALE = 0.9;
+      const FILL_INTENSITY_SCALE = 0.12;
 
       if (settings.hemiSky && ambient) ambient.color.set(settings.hemiSky);
-      if (key) key.color.set(keyColor);
-      if (fill) fill.color.set(fillColor);
-      if (wash) wash.color.set(washColor);
-      if (rim) rim.color.set(rimColor);
-      if (center) center.color.set(centerColor);
-
-      const keyBase = settings.dirIntensity ?? key?.userData?.baseIntensity ?? key?.intensity ?? 1;
-      const spotBase =
-        settings.spotIntensity ?? fill?.userData?.baseIntensity ?? fill?.intensity ?? 1;
-      const rimScale = settings.rimIntensity ?? 1;
-
-      if (key) key.intensity = keyBase;
-      if (fill) fill.intensity = spotBase * 0.64;
-      if (wash) wash.intensity = spotBase * 0.82;
-      if (center) center.intensity = spotBase * 0.7;
-      if (rim) rim.intensity = spotBase * 0.74 * rimScale;
-      if (settings.ambientIntensity != null && ambient) {
+      if (settings.dirColor && stripeKey) stripeKey.color.set(settings.dirColor);
+      if (stripeKey) {
+        const keyBase =
+          settings.dirIntensity ?? stripeKey.userData?.baseIntensity ?? stripeKey.intensity;
+        stripeKey.intensity = keyBase * KEY_INTENSITY_SCALE;
+      }
+      if (settings.spotColor && stripeFill) stripeFill.color.set(settings.spotColor);
+      if (stripeFill) {
+        const fillIntensity =
+          settings.spotIntensity ?? stripeFill.userData?.baseIntensity ?? stripeFill.intensity;
+        const rimScale = settings.rimIntensity ?? 1;
+        stripeFill.intensity = fillIntensity * FILL_INTENSITY_SCALE * rimScale;
+      }
+      if (settings.ambientIntensity && ambient) {
         ambient.intensity = settings.ambientIntensity;
       }
     },
@@ -10098,7 +10055,8 @@ export function PoolRoyaleGame({
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = false;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
       host.appendChild(renderer.domElement);
@@ -12681,24 +12639,6 @@ export function PoolRoyaleGame({
         let project;
         let replayTrail;
 
-        const syncBallShadow = (ball, { speed = 0, dropInProgress = false } = {}) => {
-          if (!ball?.shadow) return;
-          const meshVisible = ball.mesh?.visible ?? true;
-          const shadowVisible = meshVisible && ball.active && !dropInProgress;
-          ball.shadow.visible = shadowVisible;
-          if (!shadowVisible) return;
-          ball.shadow.position.set(ball.pos.x, BALL_SHADOW_Y, ball.pos.y);
-          const spread = 1 + THREE.MathUtils.clamp(speed * 0.08, 0, 0.35);
-          const baseScale = ball.mesh?.scale?.x ?? 1;
-          ball.shadow.scale.setScalar(spread * baseScale);
-          if (ball.shadow.material) {
-            const moving = speed > 0.01;
-            ball.shadow.material.opacity = moving
-              ? THREE.MathUtils.clamp(BALL_SHADOW_OPACITY + 0.12, 0, 1)
-              : BALL_SHADOW_OPACITY;
-          }
-        };
-
         const captureBallSnapshot = () =>
           balls.map((ball) => ({
             id: ball.id,
@@ -12737,9 +12677,6 @@ export function PoolRoyaleGame({
               if (scale) ball.mesh.scale.copy(scale);
               if (visible != null) ball.mesh.visible = visible;
             }
-            syncBallShadow(ball, {
-              dropInProgress: pocketDropRef.current?.has(ball.id)
-            });
           });
         };
 
@@ -12771,9 +12708,6 @@ export function PoolRoyaleGame({
             const aState = aMap.get(ball.id);
             if (!aState) return;
             const bState = bMap?.get(ball.id) ?? aState;
-            if (aState.active !== undefined) {
-              ball.active = aState.active;
-            }
             const posA = aState.pos ?? { x: ball.pos.x, y: ball.pos.y };
             const posB = bState?.pos ?? posA;
             const posX = THREE.MathUtils.lerp(posA.x, posB.x, alpha);
@@ -12817,9 +12751,6 @@ export function PoolRoyaleGame({
                 ball.mesh.visible = meshB.visible;
               }
             }
-            syncBallShadow(ball, {
-              dropInProgress: pocketDropRef.current?.has(ball.id)
-            });
           });
         };
 
@@ -13229,72 +13160,50 @@ export function PoolRoyaleGame({
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Reuse the Pool Royale five-point rig, adding a centered fixture to cover the larger snooker table.
+      // Use two elongated stripe lights to mirror the Pool Royale rig while keeping the pass lightweight.
       const addMobileLighting = () => {
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.6;
-        const previousLightRigHeight = tableSurfaceY + TABLE.THICK * 7.1;
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.05;
-        const brightnessCompensation =
-          ((lightRigHeight ** 2) / (previousLightRigHeight ** 2)) * 0.9;
-        const lightOffsetX =
-          Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
-        const lightOffsetZ =
-          Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
-        const lightLineX = lightOffsetX * 0.5;
-        const lightSpacing = lightOffsetZ * 0.6;
-        const lightPositionsZ = [-1.5, -0.5, 0, 0.5, 1.5].map((mult) => mult * lightSpacing);
-        const targetY = tableSurfaceY + TABLE.THICK * 0.2;
+        const stripeHeight = tableSurfaceY + TABLE.THICK * 6.4;
+        const stripeSeparation = Math.max(PLAY_W * 0.36, TABLE.THICK * 3.6);
+        const stripeHalfWidth = Math.max(PLAY_W * 0.22, TABLE.THICK * 2.4);
+        const stripeHalfLength = Math.max(PLAY_H * 0.72, TABLE.THICK * 8.8);
+        const targetY = tableSurfaceY + BALL_R * 0.08;
+        const shadowDepth = stripeHeight + Math.abs(stripeHeight - targetY) + TABLE.THICK * 10;
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.32);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.18);
         lightingRig.add(ambient);
 
-        const createDirectional = (intensity, position, target) => {
+        const createStripe = (sideSign, intensity = 1) => {
           const light = new THREE.DirectionalLight(0xffffff, intensity);
           light.userData = { ...(light.userData || {}), baseIntensity: intensity };
-          light.position.copy(position);
-          light.target.position.copy(target);
-          light.castShadow = false;
+          light.position.set(sideSign * stripeSeparation, stripeHeight, 0);
+          light.target.position.set(0, targetY, 0);
+          light.castShadow = intensity > 0.9;
+          light.shadow.mapSize.set(1024, 1024);
+          light.shadow.camera.near = 0.1;
+          light.shadow.camera.far = shadowDepth;
+          light.shadow.camera.left = -stripeHalfWidth;
+          light.shadow.camera.right = stripeHalfWidth;
+          light.shadow.camera.top = stripeHalfLength;
+          light.shadow.camera.bottom = -stripeHalfLength;
+          light.shadow.bias = -0.00005;
+          light.shadow.normalBias = 0.0012;
+          light.shadow.camera.updateProjectionMatrix();
           lightingRig.add(light);
           lightingRig.add(light.target);
           return light;
         };
 
-        const key = createDirectional(
-          1.78 * brightnessCompensation,
-          new THREE.Vector3(lightLineX, lightRigHeight, lightPositionsZ[0]),
-          new THREE.Vector3(0, targetY, 0)
-        );
-        const fill = createDirectional(
-          0.9 * brightnessCompensation,
-          new THREE.Vector3(-lightLineX, lightRigHeight * 1.01, lightPositionsZ[1]),
-          new THREE.Vector3(0, targetY, 0)
-        );
-        const center = createDirectional(
-          0.86 * brightnessCompensation,
-          new THREE.Vector3(0, lightRigHeight * 1.015, lightPositionsZ[2]),
-          new THREE.Vector3(0, targetY, 0)
-        );
-        const wash = createDirectional(
-          0.82 * brightnessCompensation,
-          new THREE.Vector3(lightLineX, lightRigHeight * 1.02, lightPositionsZ[3]),
-          new THREE.Vector3(0, targetY, 0)
-        );
-        const rim = createDirectional(
-          0.74 * brightnessCompensation,
-          new THREE.Vector3(-lightLineX, lightRigHeight * 1.03, lightPositionsZ[4]),
-          new THREE.Vector3(0, targetY, 0)
-        );
+        const stripeKey = createStripe(-1, 1.22);
+        const stripeFill = createStripe(1, 0.98);
+        stripeFill.castShadow = false;
 
         lightingRigRef.current = {
           group: lightingRig,
-          key,
-          fill,
-          wash,
-          rim,
-          center,
+          stripeKey,
+          stripeFill,
           ambient
         };
         applyLightingPreset();
@@ -16586,10 +16495,6 @@ export function PoolRoyaleGame({
               const angle = scaledSpeed / BALL_R;
               b.mesh.rotateOnWorldAxis(axis, angle);
             }
-            syncBallShadow(b, {
-              speed,
-              dropInProgress: pocketDropRef.current.has(b.id)
-            });
           });
           // Kolizione + regjistro firstHit
           for (let i = 0; i < balls.length; i++)
@@ -16878,11 +16783,6 @@ export function PoolRoyaleGame({
               b.spinMode = 'standard';
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
-              if (b.shadow) {
-                b.shadow.visible = false;
-                b.shadow.scale.set(1, 1, 1);
-                b.shadow.position.set(c.x, BALL_SHADOW_Y, c.y);
-              }
               const dropStart = performance.now();
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
