@@ -3,29 +3,42 @@ using UnityEngine;
 
 public class BilliardLighting : MonoBehaviour
 {
+    [SerializeField]
+    private float tableLightIntensityBudget = 6.75f; // same total brightness as before
+
+    [SerializeField]
+    private Color tableLightColor = Color.white; // keep colour consistent
+
+    [SerializeField]
+    private float tableLightHeight = 4.25f; // slightly closer for bigger reflections
+
     void Start()
     {
-        // Create three spot lights to highlight the D, blue and black spots on the table
+        // Create four omni lights so the table is lit evenly from all sides
         Vector3[] lightPositions =
         {
-            new Vector3(0f, 5f, -3.5f), // D spot at baulk end
-            new Vector3(0f, 5f, 0f),    // blue spot in the centre
-            new Vector3(0f, 5f, 3.5f)   // black spot at top end
+            new Vector3(0f, tableLightHeight, -3.75f), // near the baulk end
+            new Vector3(0f, tableLightHeight, -1.25f), // between baulk and centre
+            new Vector3(0f, tableLightHeight, 1.25f),  // between centre and top end
+            new Vector3(0f, tableLightHeight, 3.75f)   // near the top end
         };
+
+        float perLightIntensity = lightPositions.Length > 0
+            ? tableLightIntensityBudget / lightPositions.Length
+            : 0f;
 
         for (int i = 0; i < lightPositions.Length; i++)
         {
             GameObject lightObj = new GameObject("BilliardSpotLight_" + i);
             Light spotLight = lightObj.AddComponent<Light>();
-            spotLight.type = LightType.Spot;
-            spotLight.color = Color.white;
-            spotLight.intensity = 2.25f;       // brightness reduced by 10%
-            spotLight.range = 17f;             // slightly broader coverage
-            spotLight.spotAngle = 70f;         // wider cone for bigger pools of light
+            spotLight.type = LightType.Point;   // cast light on all sides
+            spotLight.color = tableLightColor;
+            spotLight.intensity = perLightIntensity; // keep overall brightness unchanged
+            spotLight.range = 15f;              // tight range to keep highlights focused
             spotLight.shadows = LightShadows.Soft;
 
             lightObj.transform.position = lightPositions[i];
-            lightObj.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            lightObj.transform.rotation = Quaternion.identity;
         }
 
         // Apply a shiny plastic (PBR) material to each ball while keeping its colour
