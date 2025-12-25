@@ -902,7 +902,7 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const ENABLE_BALL_FLOOR_SHADOWS = true;
+const ENABLE_BALL_FLOOR_SHADOWS = false;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
@@ -5459,8 +5459,8 @@ function Guret(parent, id, color, x, y, options = {}) {
   });
   const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
   mesh.position.set(x, BALL_CENTER_Y, y);
-  mesh.castShadow = false;
-  mesh.receiveShadow = false;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
   const shadow =
     ENABLE_BALL_FLOOR_SHADOWS && BALL_SHADOW_GEOMETRY && BALL_SHADOW_MATERIAL
       ? new THREE.Mesh(BALL_SHADOW_GEOMETRY, BALL_SHADOW_MATERIAL.clone())
@@ -5766,8 +5766,8 @@ function Table3D(
   const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.26);
   const cushionColor = cushionPrimary.clone().lerp(clothHighlight, 0.18);
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
-  const clothSheen = CLOTH_QUALITY.sheen * 0.18;
-  const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.35);
+  const clothSheen = CLOTH_QUALITY.sheen * 0.36;
+  const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.2);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
     roughness: 0.985,
@@ -13031,30 +13031,23 @@ const powerRef = useRef(hud.power);
           if (lookTarget && !broadcastArgs.orbitWorld) {
             broadcastArgs.orbitWorld = lookTarget.clone();
           }
-          if (clothMat) {
+          if (clothMat && lookTarget) {
+            const dist = renderCamera.position.distanceTo(lookTarget);
+            const fade = THREE.MathUtils.clamp((120 - dist) / 45, 0, 1);
+            const nearRepeat = clothMat.userData?.nearRepeat ?? 32;
+            const farRepeat = clothMat.userData?.farRepeat ?? 18;
             const ratio = clothMat.userData?.repeatRatio ?? 1;
-            const targetRepeat =
-              clothMat.userData?.farRepeat ??
-              clothMat.userData?.baseRepeat ??
-              clothMat.map?.repeat?.x ??
-              1;
+            const targetRepeat = THREE.MathUtils.lerp(farRepeat, nearRepeat, fade);
             const targetRepeatY = targetRepeat * ratio;
             if (clothMat.map) {
               clothMat.map.repeat.set(targetRepeat, targetRepeatY);
-              clothMat.map.needsUpdate = true;
             }
             if (clothMat.bumpMap) {
               clothMat.bumpMap.repeat.set(targetRepeat, targetRepeatY);
-              clothMat.bumpMap.needsUpdate = true;
             }
-            const baseBump =
-              clothMat.userData?.baseBumpScale ??
-              clothMat.userData?.bumpScale ??
-              clothMat.bumpScale;
-            const detailMultiplier = clothMat.userData?.detailBumpMultiplier ?? 1;
-            const lockedBump = baseBump * detailMultiplier * 0.55;
-            if (Number.isFinite(lockedBump)) {
-              clothMat.bumpScale = lockedBump;
+            if (Number.isFinite(clothMat.userData?.bumpScale)) {
+              const base = clothMat.userData.bumpScale;
+              clothMat.bumpScale = THREE.MathUtils.lerp(base * 0.55, base * 1.4, fade);
             }
           }
           updateBroadcastCameras(broadcastArgs);
