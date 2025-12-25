@@ -3,6 +3,8 @@ const REFRESH_FLAG_KEY = 'tonplaygram-sw-refreshed';
 
 function shouldRegisterForTelegram() {
   if (!('serviceWorker' in navigator)) return false;
+  const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  if (isLocalhost) return true;
   if (TELEGRAM_ONLY && !window.Telegram?.WebApp) return false;
   return true;
 }
@@ -48,6 +50,18 @@ function wireUpdateFlow(registration, shouldReload) {
   }
 }
 
+async function requestPersistentStorage() {
+  if (!navigator.storage?.persist) return;
+  try {
+    const alreadyPersisted = await navigator.storage.persisted();
+    if (!alreadyPersisted) {
+      await navigator.storage.persist();
+    }
+  } catch (err) {
+    // Persistence is best-effort; ignore errors
+  }
+}
+
 export async function registerTelegramServiceWorker() {
   if (!shouldRegisterForTelegram()) return;
 
@@ -59,6 +73,7 @@ export async function registerTelegramServiceWorker() {
 
     wireUpdateFlow(registration, hadController);
     registration.update();
+    requestPersistentStorage();
 
     // Refresh in-session to pick up any new build without prompting the user
     document.addEventListener('visibilitychange', () => {
@@ -70,4 +85,3 @@ export async function registerTelegramServiceWorker() {
     console.error('Service worker registration failed', err);
   }
 }
-

@@ -6,11 +6,13 @@ import { pingOnline } from '../utils/api.js';
 import { getPlayerId } from '../utils/telegram.js';
 import { isGameMuted, getGameVolume } from '../utils/sound.js';
 import { chatBeep as inviteBeep } from '../assets/soundData.js';
+import usePwaInstallPrompt from '../hooks/usePwaInstallPrompt.js';
 import InvitePopup from './InvitePopup.jsx';
 
 import Navbar from './Navbar.jsx';
 
 import Footer from './Footer.jsx';
+import PwaInstallBanner from './PwaInstallBanner.jsx';
 
 
 export default function Layout({ children }) {
@@ -18,6 +20,7 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const [invite, setInvite] = useState(null);
   const inviteSoundRef = useRef(null);
+  const { canInstall, promptToInstall, dismiss } = usePwaInstallPrompt();
 
   useEffect(() => {
     inviteSoundRef.current = new Audio(inviteBeep);
@@ -162,6 +165,12 @@ export default function Layout({ children }) {
           setInvite(null);
         }}
         onReject={() => setInvite(null)}
+      />
+
+      <PwaInstallBanner
+        canInstall={canInstall && showNavbar}
+        onInstall={promptToInstall}
+        onDismiss={dismiss}
       />
 
     </div>
