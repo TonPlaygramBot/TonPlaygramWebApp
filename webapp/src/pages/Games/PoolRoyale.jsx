@@ -2372,10 +2372,8 @@ const LIGHTING_OPTIONS = Object.freeze([
       keyIntensity: 1.28,
       fillColor: 0xf5f7fb,
       fillIntensity: 0.76,
-      washColor: 0xf8faff,
-      washIntensity: 0.7,
-      rimColor: 0xfafcff,
-      rimIntensity: 0.54,
+      rimColor: 0xf9fbff,
+      rimIntensity: 1.24,
       ambientIntensity: 0.18
     }
   },
@@ -2388,10 +2386,8 @@ const LIGHTING_OPTIONS = Object.freeze([
       keyIntensity: 1.64,
       fillColor: 0xf6f8ff,
       fillIntensity: 0.84,
-      washColor: 0xf8faff,
-      washIntensity: 0.74,
-      rimColor: 0xffffff,
-      rimIntensity: 0.6,
+      rimColor: 0xfbfcff,
+      rimIntensity: 1.34,
       ambientIntensity: 0.2
     }
   },
@@ -2404,10 +2400,8 @@ const LIGHTING_OPTIONS = Object.freeze([
       keyIntensity: 1.74,
       fillColor: 0xf2f5ff,
       fillIntensity: 0.62,
-      washColor: 0xf5f8ff,
-      washIntensity: 0.78,
-      rimColor: 0xf7fbff,
-      rimIntensity: 0.78,
+      rimColor: 0xf6faff,
+      rimIntensity: 1.56,
       ambientIntensity: 0.16
     }
   },
@@ -2420,10 +2414,8 @@ const LIGHTING_OPTIONS = Object.freeze([
       keyIntensity: 1.42,
       fillColor: 0xeaf1ff,
       fillIntensity: 0.82,
-      washColor: 0xf0f5ff,
-      washIntensity: 0.72,
-      rimColor: 0xf5f8ff,
-      rimIntensity: 0.5,
+      rimColor: 0xf2f6ff,
+      rimIntensity: 1.22,
       ambientIntensity: 0.18
     }
   }
@@ -9734,7 +9726,6 @@ const powerRef = useRef(hud.power);
         key,
         fill,
         rim,
-        wash,
         ambient
       } = rig;
 
@@ -9742,8 +9733,6 @@ const powerRef = useRef(hud.power);
       if (settings.keyIntensity && key) key.intensity = settings.keyIntensity;
       if (settings.fillColor && fill) fill.color.set(settings.fillColor);
       if (settings.fillIntensity && fill) fill.intensity = settings.fillIntensity;
-      if (settings.washColor && wash) wash.color.set(settings.washColor);
-      if (settings.washIntensity && wash) wash.intensity = settings.washIntensity;
       if (settings.rimColor && rim) rim.color.set(settings.rimColor);
       if (settings.rimIntensity && rim) rim.intensity = settings.rimIntensity;
       if (settings.ambientIntensity && ambient)
@@ -14219,6 +14208,8 @@ const powerRef = useRef(hud.power);
       const addMobileLighting = () => {
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
+        const defaultLighting =
+          LIGHTING_PRESET_MAP[DEFAULT_LIGHTING_ID]?.settings ?? {};
 
         const lightSpreadBoost = 1.68; // widen the overhead footprint so fixtures read larger on mobile and reach farther to the sides
         const lightRigHeight = tableSurfaceY + TABLE.THICK * 7.1; // lift the rig higher for a broader throw and wider coverage
@@ -14236,10 +14227,16 @@ const powerRef = useRef(hud.power);
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.32);
+        const ambient = new THREE.AmbientLight(
+          0xffffff,
+          defaultLighting.ambientIntensity ?? 0.2
+        );
         lightingRig.add(ambient);
 
-        const key = new THREE.DirectionalLight(0xffffff, 1.78);
+        const key = new THREE.DirectionalLight(
+          defaultLighting.keyColor ?? 0xffffff,
+          defaultLighting.keyIntensity ?? 1.64
+        );
         key.position.set(lightRowsX[0], lightRigHeight, lightPositionsZ[0]);
         key.target.position.set(lightRowsX[0], targetY, lightPositionsZ[0]);
         key.castShadow = true;
@@ -14256,21 +14253,24 @@ const powerRef = useRef(hud.power);
         lightingRig.add(key);
         lightingRig.add(key.target);
 
-        const fill = new THREE.DirectionalLight(0xffffff, 0.9);
+        const fill = new THREE.DirectionalLight(
+          defaultLighting.fillColor ?? 0xffffff,
+          defaultLighting.fillIntensity ?? 0.84
+        );
         fill.position.set(lightRowsX[0], lightRigHeight * 1.02, lightPositionsZ[1]);
         fill.target.position.set(lightRowsX[0], targetY, lightPositionsZ[1]);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
-        const wash = new THREE.DirectionalLight(0xffffff, 0.82);
-        wash.position.set(lightRowsX[1], lightRigHeight * 1.04, lightPositionsZ[0]);
-        wash.target.position.set(lightRowsX[1], targetY, lightPositionsZ[0]);
-        lightingRig.add(wash);
-        lightingRig.add(wash.target);
-
-        const rim = new THREE.DirectionalLight(0xffffff, 0.74);
-        rim.position.set(lightRowsX[1], lightRigHeight * 1.06, lightPositionsZ[1]);
-        rim.target.position.set(lightRowsX[1], targetY, lightPositionsZ[1]);
+        const rim = new THREE.DirectionalLight(
+          defaultLighting.rimColor ?? 0xffffff,
+          defaultLighting.rimIntensity ?? 1.34
+        );
+        // Combine the former wash + rim into one right-side fixture to keep the total output
+        // identical while returning to a three-light rig.
+        const rimZ = (lightPositionsZ[0] + lightPositionsZ[1]) / 2;
+        rim.position.set(lightRowsX[1], lightRigHeight * 1.05, rimZ);
+        rim.target.position.set(lightRowsX[1], targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
 
@@ -14278,7 +14278,6 @@ const powerRef = useRef(hud.power);
           group: lightingRig,
           key,
           fill,
-          wash,
           rim,
           ambient
         };
