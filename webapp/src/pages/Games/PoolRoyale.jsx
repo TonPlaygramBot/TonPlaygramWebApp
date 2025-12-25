@@ -1387,6 +1387,21 @@ function normalizeVariantKey(value) {
     .trim();
 }
 
+function normalizeBallSetKey(value) {
+  const normalized = normalizeVariantKey(value);
+  if (
+    normalized === 'american' ||
+    normalized === 'solidsstripes' ||
+    normalized === 'solidsandstripes' ||
+    normalized === 'solids' ||
+    normalized === 'stripes'
+  ) {
+    return 'american';
+  }
+  if (normalized === 'uk' || normalized === 'redyellow') return 'uk';
+  return normalized;
+}
+
 function resolvePoolVariant(variantId, ballSet = null) {
   const normalized = normalizeVariantKey(variantId);
   let key = normalized;
@@ -1402,7 +1417,7 @@ function resolvePoolVariant(variantId, ballSet = null) {
   }
   const base =
     POOL_VARIANT_COLOR_SETS[key] || POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
-  const ballSetKey = typeof ballSet === 'string' ? ballSet.toLowerCase() : '';
+  const ballSetKey = normalizeBallSetKey(ballSet);
   if (base.id === 'uk' && ballSetKey === 'american') {
     const american = POOL_VARIANT_COLOR_SETS.american;
     return {
@@ -14188,13 +14203,14 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.08;
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.1;
+        const lightSpreadBoost = 1.14; // widen the overhead footprint slightly
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.35; // lift the rig a touch higher for a broader throw
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
         const lightOffsetZ =
           Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
-        const shadowHalfSpan = Math.max(roomWidth, roomDepth) * 0.65 + TABLE.THICK * 3.2;
+        const shadowHalfSpan =
+          Math.max(roomWidth, roomDepth) * 0.72 + TABLE.THICK * 3.5;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
@@ -16218,7 +16234,8 @@ const powerRef = useRef(hud.power);
           if (!potShots.length && !safetyShots.length && fallbackPlan) {
             safetyShots.push(fallbackPlan);
           }
-          const bestPot = potShots[0] ?? null;
+          const bestDirectPot = potShots.find((plan) => !plan.viaCushion) ?? null;
+          const bestPot = bestDirectPot ?? potShots[0] ?? null;
           const bestSafety =
             activeVariantId === 'uk' && bestPot ? null : safetyShots[0] ?? null;
           return {
@@ -16713,17 +16730,27 @@ const powerRef = useRef(hud.power);
           userSuggestionPlanRef.current = plan;
           const summary = summarizePlan(plan);
           userSuggestionRef.current = summary;
-          if (autoAimRequestRef.current) {
-            const autoDir = resolveAutoAimDirection();
+          const preferAutoAim = autoAimRequestRef.current || plan?.viaCushion;
+          if (preferAutoAim) {
+            let autoDir = resolveAutoAimDirection();
+            if (!autoDir && plan?.targetBall && cue?.pos) {
+              const manualDir = new THREE.Vector2(
+                plan.targetBall.pos.x - cue.pos.x,
+                plan.targetBall.pos.y - cue.pos.y
+              );
+              if (manualDir.lengthSq() > 1e-6) {
+                autoDir = manualDir.normalize();
+              }
+            }
             autoAimRequestRef.current = false;
             suggestionAimKeyRef.current = null;
-            if (autoDir) {
+            if (autoDir && autoDir.lengthSq() > 1e-6) {
               aimDirRef.current.copy(autoDir);
               alignStandingCameraToAim(cue, autoDir);
               return;
             }
           }
-          if (plan?.aimDir) {
+          if (plan?.aimDir && !plan.viaCushion) {
             const dir = plan.aimDir.clone();
             if (dir.lengthSq() > 1e-6) {
               dir.normalize();
@@ -19809,7 +19836,8 @@ export default function PoolRoyale() {
   const ballSetKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('ballSet');
-    return requested ? requested.toLowerCase() : null;
+    const normalized = normalizeBallSetKey(requested);
+    return normalized || null;
   }, [location.search]);
   const tableSizeKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
