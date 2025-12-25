@@ -25,11 +25,8 @@ export async function runPoolRoyaleOnlineFlow({
   mode,
   tableSize,
   avatar,
-  gameKey = 'poolroyale-online',
-  gameType = 'poolroyale',
-  maxPlayers = 2,
   deps = {},
-  state = {},
+  state,
   refs,
   timeouts = {},
   onGameStart
@@ -49,10 +46,8 @@ export async function runPoolRoyaleOnlineFlow({
     setIsSearching,
     setMatchPlayers,
     setReadyList,
-    setSpinningPlayer,
-    setMatchTableId
+    setSpinningPlayer
   } = state;
-  const updateMatchTableId = typeof setMatchTableId === 'function' ? setMatchTableId : () => {};
   const {
     accountIdRef,
     matchPlayersRef,
@@ -79,8 +74,8 @@ export async function runPoolRoyaleOnlineFlow({
     const { telegramId: debitedTelegram, accountId: debitedAccount, amount } = stakeDebitRef.current;
     try {
       await addTransactionFn(debitedTelegram, amount, 'stake_refund', {
-        game: gameKey,
-        players: maxPlayers,
+        game: 'poolroyale-online',
+        players: 2,
         accountId: debitedAccount,
         reason,
         ...extra
@@ -133,8 +128,8 @@ export async function runPoolRoyaleOnlineFlow({
 
   try {
     await addTransactionFn(telegramId, -stake.amount, 'stake', {
-      game: gameKey,
-      players: maxPlayers,
+      game: 'poolroyale-online',
+      players: 2,
       accountId
     });
     stakeDebitRef.current = { telegramId, accountId, amount: stake.amount };
@@ -190,7 +185,6 @@ export async function runPoolRoyaleOnlineFlow({
     setMatching(false);
     setSpinningPlayer('');
     setIsSearching(false);
-    updateMatchTableId('');
     if (!keepError) setMatchingError('');
     if (refundReason || stakeDebitRef?.current) {
       await refundStake(refundReason || 'manual_cleanup', { account });
@@ -244,8 +238,8 @@ export async function runPoolRoyaleOnlineFlow({
       accountId,
       stake: stake.amount,
       token: stake.token,
-      gameType,
-      maxPlayers,
+      gameType: 'poolroyale',
+      maxPlayers: 2,
       mode,
       variant,
       ballSet,
@@ -266,7 +260,6 @@ export async function runPoolRoyaleOnlineFlow({
         return;
       }
       pendingTableRef.current = res.tableId;
-      updateMatchTableId(res.tableId);
       setMatchStatus('Waiting for another player…');
       const playersList = res.players || [];
       setMatchPlayers(playersList);
