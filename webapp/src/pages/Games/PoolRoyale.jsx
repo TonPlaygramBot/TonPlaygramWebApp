@@ -1011,6 +1011,7 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
+const REMOTE_CAMERA_FRAME_TTL_MS = 1400; // keep remote camera frames alive briefly between sync packets
 const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
@@ -8826,6 +8827,9 @@ function PoolRoyaleGame({
   const configButtonRef = useRef(null);
   const accountIdRef = useRef(accountId || '');
   const tgIdRef = useRef(tgId || '');
+  const remoteCameraFrameRef = useRef(null);
+  const remoteCameraPlayerRef = useRef(null);
+  const remoteCameraExpiryRef = useRef(0);
   const cueFeePaidRef = useRef(false);
   const cueFeePendingRef = useRef(false);
   useEffect(() => {
@@ -10216,7 +10220,7 @@ const powerRef = useRef(hud.power);
     window.setTimeout(goToLobby, 1200);
   }, [frameState.frameOver, frameState.winner, goToLobby, isTraining]);
 
-  const applyRemoteState = useCallback(({ state, hud: incomingHud, layout }) => {
+  const applyRemoteState = useCallback(({ state, hud: incomingHud, layout, camera, playerId }) => {
     if (state) {
       frameRef.current = state;
       setFrameState(state);
@@ -10233,17 +10237,38 @@ const powerRef = useRef(hud.power);
         pendingLayoutRef.current = layout;
       }
     }
+    if (camera && playerId && playerId !== accountIdRef.current) {
+      remoteCameraFrameRef.current = camera;
+      remoteCameraPlayerRef.current = playerId;
+      const now =
+        typeof performance !== 'undefined' && typeof performance.now === 'function'
+          ? performance.now()
+          : Date.now();
+      remoteCameraExpiryRef.current = now + REMOTE_CAMERA_FRAME_TTL_MS;
+    }
   }, []);
 
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return undefined;
     const handlePoolState = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
-      applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
+      applyRemoteState({
+        state: payload.state,
+        hud: payload.hud,
+        layout: payload.layout,
+        camera: payload.camera,
+        playerId: payload.playerId
+      });
     };
     const handlePoolFrame = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
-      applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
+      applyRemoteState({
+        state: payload.state,
+        hud: payload.hud,
+        layout: payload.layout,
+        camera: payload.camera,
+        playerId: payload.playerId
+      });
     };
 
     socket.emit('register', { playerId: accountId });
@@ -10265,7 +10290,14 @@ const powerRef = useRef(hud.power);
     const layout = captureBallSnapshotRef.current
       ? captureBallSnapshotRef.current()
       : null;
-    socket.emit('poolShot', { tableId, state, hud: hudRef.current, layout });
+    socket.emit('poolShot', {
+      tableId,
+      state,
+      hud: hudRef.current,
+      layout,
+      camera: captureLiveCameraSnapshot(),
+      playerId: accountIdRef.current || accountId || ''
+    });
   }, [isOnlineMatch, tableId]);
 
   useEffect(() => {
@@ -11949,6 +11981,47 @@ const powerRef = useRef(hud.power);
           return { position, target, fov: resolvedFov, minTargetY };
         };
 
+        const applyRemoteCameraSnapshot = (snapshot) => {
+          if (!snapshot) return null;
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const minTargetY = Math.max(
+            baseSurfaceWorldY,
+            Number.isFinite(snapshot.minTargetY) ? snapshot.minTargetY : BALL_CENTER_Y * scale
+          );
+          const targetSnapshot = normalizeVector3Snapshot(snapshot.target);
+          const positionSnapshot = normalizeVector3Snapshot(snapshot.position);
+          const target =
+            targetSnapshot && Number.isFinite(targetSnapshot.y)
+              ? new THREE.Vector3(
+                  targetSnapshot.x ?? 0,
+                  Math.max(targetSnapshot.y, minTargetY),
+                  targetSnapshot.z ?? 0
+                )
+              : lastCameraTargetRef.current?.clone?.() ??
+                new THREE.Vector3(playerOffsetRef.current * scale, minTargetY, 0);
+          const position =
+            positionSnapshot && Number.isFinite(positionSnapshot.y)
+              ? new THREE.Vector3(
+                  positionSnapshot.x ?? 0,
+                  Math.max(positionSnapshot.y, minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale),
+                  positionSnapshot.z ?? 0
+                )
+              : null;
+          const resolvedFov = Number.isFinite(snapshot.fov) ? snapshot.fov : camera.fov;
+          if (Number.isFinite(resolvedFov) && camera.fov !== resolvedFov) {
+            camera.fov = resolvedFov;
+            camera.updateProjectionMatrix();
+          }
+          if (position) {
+            camera.position.copy(position);
+          }
+          if (target) {
+            camera.lookAt(target);
+            lastCameraTargetRef.current.copy(target);
+          }
+          return { position: position ?? camera.position.clone(), target };
+        };
+
         const updateCamera = () => {
           const replayActive = Boolean(replayPlaybackRef.current);
           let renderCamera = camera;
@@ -11963,6 +12036,31 @@ const powerRef = useRef(hud.power);
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
           if (broadcastSystem?.smoothing != null) {
             broadcastArgs.lerp = broadcastSystem.smoothing;
+          }
+          const now = typeof performance !== 'undefined' && typeof performance.now === 'function'
+            ? performance.now()
+            : Date.now();
+          const remoteCameraActive =
+            isOnlineMatch &&
+            remoteCameraFrameRef.current &&
+            remoteCameraPlayerRef.current &&
+            remoteCameraPlayerRef.current !== accountIdRef.current &&
+            remoteCameraExpiryRef.current > now;
+          if (!remoteCameraActive && remoteCameraExpiryRef.current > 0 && remoteCameraExpiryRef.current <= now) {
+            remoteCameraFrameRef.current = null;
+            remoteCameraPlayerRef.current = null;
+            remoteCameraExpiryRef.current = 0;
+          }
+          if (remoteCameraActive) {
+            const appliedRemote = applyRemoteCameraSnapshot(remoteCameraFrameRef.current);
+            lookTarget = appliedRemote?.target ?? null;
+            broadcastArgs.focusWorld = appliedRemote?.target?.clone?.() ?? broadcastArgs.focusWorld;
+            broadcastArgs.targetWorld = appliedRemote?.target?.clone?.() ?? broadcastArgs.targetWorld;
+            broadcastArgs.orbitWorld = appliedRemote?.position?.clone?.() ?? broadcastArgs.orbitWorld;
+            broadcastArgs.lerp = 0.08;
+            updateBroadcastCameras(broadcastArgs);
+            activeRenderCameraRef.current = renderCamera;
+            return renderCamera;
           }
           const galleryState = cueGalleryStateRef.current;
           if (replayActive) {
@@ -13437,6 +13535,33 @@ const powerRef = useRef(hud.power);
             snapshot.minTargetY = overheadCamera.minTargetY;
           }
           return snapshot;
+        };
+
+        const captureLiveCameraSnapshot = () => {
+          const activeCamera = activeRenderCameraRef.current ?? camera;
+          if (!activeCamera) return null;
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+          const safeTarget =
+            lastCameraTargetRef.current?.clone?.() ??
+            new THREE.Vector3(playerOffsetRef.current * scale, minTargetY, 0);
+          safeTarget.y = Math.max(safeTarget.y, minTargetY);
+          const position = serializeVector3Snapshot(activeCamera.position, {
+            x: 0,
+            y: minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale,
+            z: 0
+          });
+          const target = serializeVector3Snapshot(safeTarget, {
+            x: safeTarget.x ?? 0,
+            y: safeTarget.y ?? minTargetY,
+            z: safeTarget.z ?? 0
+          });
+          return {
+            position,
+            target,
+            fov: Number.isFinite(activeCamera.fov) ? activeCamera.fov : camera.fov,
+            minTargetY
+          };
         };
 
         const applyBallSnapshot = (snapshot) => {
@@ -17043,7 +17168,9 @@ const powerRef = useRef(hud.power);
               tableId,
               state: safeState,
               hud: hudRef.current,
-              layout
+              layout,
+              camera: captureLiveCameraSnapshot(),
+              playerId: accountIdRef.current || accountId || ''
             });
           }
           setShootingState(false);
@@ -18304,6 +18431,7 @@ const powerRef = useRef(hud.power);
                 tableId,
                 layout,
                 hud: hudRef.current,
+                camera: captureLiveCameraSnapshot(),
                 frameTs: now,
                 playerId: accountIdRef.current || accountId || ''
               });
@@ -18356,6 +18484,9 @@ const powerRef = useRef(hud.power);
           captureBallSnapshotRef.current = null;
           applyBallSnapshotRef.current = null;
           pendingLayoutRef.current = null;
+          remoteCameraFrameRef.current = null;
+          remoteCameraPlayerRef.current = null;
+          remoteCameraExpiryRef.current = 0;
           lightingRigRef.current = null;
           worldRef.current = null;
           activeRenderCameraRef.current = null;
