@@ -211,41 +211,6 @@ function readGraphicsRendererString() {
   }
 }
 
-function trimReplayRecording(recording) {
-  const frames = recording?.frames ?? [];
-  const cuePath = recording?.cuePath ?? [];
-  if (frames.length === 0) return { frames, cuePath, duration: 0 };
-  const duration = frames[frames.length - 1]?.t ?? 0;
-  return { frames, cuePath, duration };
-}
-
-function serializeShotRecording(recording) {
-  if (!recording || typeof recording !== 'object') return null;
-  const trimmed = trimReplayRecording(recording);
-  return {
-    ...trimmed,
-    startState: Array.isArray(recording.startState) ? recording.startState : [],
-    replayTags: Array.isArray(recording.replayTags) ? recording.replayTags : [],
-    zoomOnly: Boolean(recording.zoomOnly),
-    longShot: Boolean(recording.longShot)
-  };
-}
-
-function normalizeIncomingRecording(recording) {
-  if (!recording || typeof recording !== 'object') return null;
-  const frames = Array.isArray(recording.frames) ? recording.frames : [];
-  const cuePath = Array.isArray(recording.cuePath) ? recording.cuePath : [];
-  if (frames.length === 0) return null;
-  return {
-    ...recording,
-    frames,
-    cuePath,
-    startState: Array.isArray(recording.startState) ? recording.startState : [],
-    replayTags: Array.isArray(recording.replayTags) ? recording.replayTags : [],
-    zoomOnly: Boolean(recording.zoomOnly)
-  };
-}
-
 function classifyRendererTier(rendererString) {
   if (typeof rendererString !== 'string' || rendererString.length === 0) {
     return 'unknown';
@@ -1044,7 +1009,6 @@ const STOP_FINAL_EPS = STOP_EPS * 0.45;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
-const LIVE_FRAME_STALE_MS = 1400;
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const POCKET_INTERIOR_CAPTURE_R =
@@ -9482,15 +9446,6 @@ function PoolRoyaleGame({
     });
   const shotReplayRef = useRef(null);
   const replayPlaybackRef = useRef(null);
-  const liveFrameMetaRef = useRef({
-    shooting: false,
-    aim: null,
-    playerId: null,
-    receivedAt: 0
-  });
-  const aimBroadcastRef = useRef(null);
-  const pendingRemoteReplayRef = useRef(null);
-  const lastRemoteReplayAtRef = useRef(0);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
@@ -10280,70 +10235,15 @@ const powerRef = useRef(hud.power);
     }
   }, []);
 
-  const normalizeLiveAim = useCallback((rawAim) => {
-    if (!rawAim || typeof rawAim !== 'object') return null;
-    const dirSource = rawAim.dir || rawAim.aimDir || rawAim.direction || rawAim;
-    const dirX = Number.isFinite(dirSource?.x) ? dirSource.x : 0;
-    const dirY = Number.isFinite(dirSource?.y) ? dirSource.y : 1;
-    const dir = new THREE.Vector2(dirX, dirY);
-    if (dir.lengthSq() < 1e-6) dir.set(0, 1);
-    else dir.normalize();
-    const power = THREE.MathUtils.clamp(
-      Number.isFinite(rawAim.power) ? rawAim.power : rawAim.strength ?? 0,
-      0,
-      1
-    );
-    const spinRaw = rawAim.spin || {};
-    const spin = {
-      x: THREE.MathUtils.clamp(Number.isFinite(spinRaw.x) ? spinRaw.x : 0, -1, 1),
-      y: THREE.MathUtils.clamp(Number.isFinite(spinRaw.y) ? spinRaw.y : 0, -1, 1)
-    };
-    return { dir, power, spin };
-  }, []);
-
-  const storeLiveFrameMeta = useCallback(
-    (payload = {}) => {
-      const nowTs =
-        typeof performance !== 'undefined' && typeof performance.now === 'function'
-          ? performance.now()
-          : Date.now();
-      liveFrameMetaRef.current = {
-        shooting: Boolean(payload.shooting || payload.phase === 'shooting'),
-        aim: normalizeLiveAim(payload.aim),
-        playerId: payload.playerId ? String(payload.playerId) : null,
-        receivedAt: nowTs
-      };
-    },
-    [normalizeLiveAim]
-  );
-
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return undefined;
-    const tryStartRemoteReplay = (recording, layout, updatedAt, shooterId) => {
-      const myId = accountIdRef.current || accountId || '';
-      if (shooterId && String(shooterId) === String(myId)) return;
-      const normalizedRecording = normalizeIncomingRecording(recording);
-      if (!normalizedRecording) return;
-      if (updatedAt && updatedAt === lastRemoteReplayAtRef.current) return;
-      lastRemoteReplayAtRef.current = updatedAt || Date.now();
-      pendingRemoteReplayRef.current = {
-        recording: normalizedRecording,
-        layout: layout || normalizedRecording.postState || null,
-        updatedAt
-      };
-    };
     const handlePoolState = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
       applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
-      storeLiveFrameMeta({ ...payload, shooting: false });
-      if (payload.recording) {
-        tryStartRemoteReplay(payload.recording, payload.layout, payload.updatedAt, payload.playerId);
-      }
     };
     const handlePoolFrame = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
       applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
-      storeLiveFrameMeta(payload);
     };
 
     socket.emit('register', { playerId: accountId });
@@ -10356,7 +10256,7 @@ const powerRef = useRef(hud.power);
       socket.off('poolState', handlePoolState);
       socket.off('poolFrame', handlePoolFrame);
     };
-  }, [accountId, applyRemoteState, isOnlineMatch, storeLiveFrameMeta, tableId]);
+  }, [accountId, applyRemoteState, isOnlineMatch, tableId]);
 
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return;
@@ -10670,9 +10570,6 @@ const powerRef = useRef(hud.power);
       const tmpReplayPos = new THREE.Vector3();
       const setShootingState = (value) => {
         if (shooting === value) return;
-        if (value) {
-          aimBroadcastRef.current = null;
-        }
         shooting = value;
         shotStartedAt = shooting ? getNow() : 0;
         if (shooting) {
@@ -13719,6 +13616,14 @@ const powerRef = useRef(hud.power);
           });
           replayTrail.geometry.setFromPoints(points);
           replayTrail.visible = true;
+        };
+
+        const trimReplayRecording = (recording) => {
+          const frames = recording?.frames ?? [];
+          const cuePath = recording?.cuePath ?? [];
+          if (frames.length === 0) return { frames, cuePath, duration: 0 };
+          const duration = frames[frames.length - 1]?.t ?? 0;
+          return { frames, cuePath, duration };
         };
 
         const storeReplayCameraFrame = () => {
@@ -17134,14 +17039,11 @@ const powerRef = useRef(hud.power);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
           if (isOnlineMatch && tableId) {
             const layout = captureBallSnapshot();
-            const broadcastRecording = serializeShotRecording(shotRecording);
             socket.emit('poolShot', {
               tableId,
               state: safeState,
               hud: hudRef.current,
-              layout,
-              recording: broadcastRecording,
-              playerId: accountIdRef.current || accountId || ''
+              layout
             });
           }
           setShootingState(false);
@@ -17223,13 +17125,6 @@ const powerRef = useRef(hud.power);
   let lastLiveSyncSentAt = 0;
   const step = (now) => {
     if (disposed) return;
-    if (!shooting && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
-      const pendingReplay = pendingRemoteReplayRef.current;
-      pendingRemoteReplayRef.current = null;
-      shotRecording = pendingReplay.recording;
-      shotReplayRef.current = pendingReplay.recording;
-      startShotReplay(pendingReplay.layout);
-    }
     const playback = replayPlaybackRef.current;
         if (playback) {
           const frameTiming = frameTimingRef.current;
@@ -17346,26 +17241,10 @@ const powerRef = useRef(hud.power);
         if (!lookModeRef.current) {
           aimDir.lerp(tmpAim, aimLerpFactor);
         }
-        const localAppliedSpin = applySpinConstraints(aimDir, true);
+        const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
-        const appliedSpin = remoteAimState?.spin ?? localAppliedSpin;
         const newCollisions = new Set();
         let shouldSlowAim = false;
-        const liveFrameMeta = liveFrameMetaRef.current;
-        const liveFrameFresh =
-          liveFrameMeta &&
-          Number.isFinite(liveFrameMeta.receivedAt) &&
-          now - liveFrameMeta.receivedAt <= LIVE_FRAME_STALE_MS;
-        const myAccountId = accountIdRef.current || accountId || '';
-        const remoteShooter =
-          liveFrameFresh &&
-          liveFrameMeta.playerId &&
-          String(liveFrameMeta.playerId) !== String(myAccountId);
-        const remoteShotActive = remoteShooter && Boolean(liveFrameMeta.shooting);
-        const remoteAimState =
-          remoteShooter && liveFrameFresh && !liveFrameMeta.shooting && liveFrameMeta.aim
-            ? liveFrameMeta.aim
-            : null;
         // Aiming vizual
         const currentHud = hudRef.current;
         const isPlayerTurn = currentHud?.turn === 0;
@@ -17379,20 +17258,18 @@ const powerRef = useRef(hud.power);
           allStopped(balls) &&
           cue?.active &&
           !(currentHud?.over) &&
-          !remoteShotActive &&
           !(inHandPlacementModeRef.current) &&
           (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current);
 
         sidePocketAimRef.current = false;
-        if (canShowCue && (isPlayerTurn || previewingAiShot || remoteAimState)) {
-          const aimSource = remoteAimState?.dir || aimDir;
-          const baseAimDir = new THREE.Vector3(aimSource.x, 0, aimSource.y);
+        if (canShowCue && (isPlayerTurn || previewingAiShot)) {
+          const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
           else baseAimDir.normalize();
           const basePerp = new THREE.Vector3(-baseAimDir.z, 0, baseAimDir.x);
           if (basePerp.lengthSq() > 1e-8) basePerp.normalize();
           const powerStrength = THREE.MathUtils.clamp(
-            remoteAimState?.power ?? powerRef.current ?? 0,
+            powerRef.current ?? 0,
             0,
             1
           );
@@ -17514,12 +17391,12 @@ const powerRef = useRef(hud.power);
             impactRing.scale.set(impactScale, impactScale, impactScale);
             if (impactRing.material) {
               impactRing.material.opacity = THREE.MathUtils.lerp(0.35, 0.85, powerStrength);
-            impactRing.material.needsUpdate = true;
+              impactRing.material.needsUpdate = true;
             }
           } else {
             impactRing.visible = false;
           }
-          const desiredPull = powerStrength * BALL_R * 10 * 0.65 * 1.2;
+          const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             aimDir2D.clone().multiplyScalar(-1),
@@ -17666,16 +17543,6 @@ const powerRef = useRef(hud.power);
           }
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
-          if (isPlayerTurn) {
-            aimBroadcastRef.current = {
-              dir: { x: aimDir2D.x, y: aimDir2D.y },
-              power: powerStrength,
-              spin: {
-                x: appliedSpin?.x ?? 0,
-                y: appliedSpin?.y ?? 0
-              }
-            };
-          }
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
             const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
@@ -17778,7 +17645,6 @@ const powerRef = useRef(hud.power);
           }
           cueStick.visible = true;
         } else {
-          aimBroadcastRef.current = null;
           aimFocusRef.current = null;
           aim.visible = false;
           tick.visible = false;
@@ -17796,10 +17662,6 @@ const powerRef = useRef(hud.power);
           }
           if (!cueAnimating) cueStick.visible = false;
           updateChalkVisibility(null);
-        }
-
-        if (!isPlayerTurn) {
-          aimBroadcastRef.current = null;
         }
 
         if (!shouldSlowAim) {
@@ -18431,29 +18293,18 @@ const powerRef = useRef(hud.power);
           const shouldStreamLayout =
             isOnlineMatch &&
             tableId &&
-            typeof captureBallSnapshot === 'function' &&
-            (shooting || (isPlayerTurn && aimBroadcastRef.current));
+            shooting &&
+            typeof captureBallSnapshot === 'function';
           if (shouldStreamLayout) {
             const intervalTarget = frameTiming?.targetMs ?? 1000 / 60;
-            const minInterval = shooting
-              ? Math.max(4, intervalTarget * 0.9)
-              : Math.max(32, intervalTarget * 1.2);
+            const minInterval = Math.max(4, intervalTarget * 0.9);
             if (!lastLiveSyncSentAt || now - lastLiveSyncSentAt >= minInterval) {
               const layout = captureBallSnapshot();
-              const aimPayload =
-                !shooting && isPlayerTurn && aimBroadcastRef.current
-                  ? {
-                      ...aimBroadcastRef.current
-                    }
-                  : null;
               socket.emit('poolFrame', {
                 tableId,
                 layout,
                 hud: hudRef.current,
                 frameTs: now,
-                shooting,
-                phase: shooting ? 'shooting' : aimPayload ? 'aiming' : null,
-                aim: aimPayload,
                 playerId: accountIdRef.current || accountId || ''
               });
               lastLiveSyncSentAt = now;
