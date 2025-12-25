@@ -9439,12 +9439,14 @@ function PoolRoyaleGame({
     aiPlanningRef.current = aiPlanning;
   }, [aiPlanning]);
   const userSuggestionPlanRef = useRef(null);
-    const shotContextRef = useRef({
-      placedFromHand: false,
-      contactMade: false,
-      cushionAfterContact: false
-    });
+  const shotContextRef = useRef({
+    placedFromHand: false,
+    contactMade: false,
+    cushionAfterContact: false
+  });
   const shotReplayRef = useRef(null);
+  const remoteShootingRef = useRef(null);
+  const pendingRemoteReplayRef = useRef(null);
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
@@ -10216,7 +10218,7 @@ const powerRef = useRef(hud.power);
     window.setTimeout(goToLobby, 1200);
   }, [frameState.frameOver, frameState.winner, goToLobby, isTraining]);
 
-  const applyRemoteState = useCallback(({ state, hud: incomingHud, layout }) => {
+  const applyRemoteState = useCallback(({ state, hud: incomingHud, layout, meta }) => {
     if (state) {
       frameRef.current = state;
       setFrameState(state);
@@ -10233,17 +10235,57 @@ const powerRef = useRef(hud.power);
         pendingLayoutRef.current = layout;
       }
     }
-  }, []);
+    if (meta && typeof meta === 'object') {
+      const localPlayerId = accountIdRef.current || accountId || '';
+      const isLocalPayload =
+        meta.playerId && typeof meta.playerId === 'string'
+          ? meta.playerId === localPlayerId
+          : false;
+      const isLocalTurn = (hudRef.current?.turn ?? 0) === 0;
+      if (!isLocalPayload && !isLocalTurn) {
+        if (meta.aim && typeof meta.aim === 'object') {
+          const aimDir = meta.aim.dir;
+          if (aimDir && typeof aimDir.x === 'number' && typeof aimDir.y === 'number') {
+            aimDirRef.current.set(aimDir.x, aimDir.y);
+          }
+          if (typeof meta.aim.power === 'number' && Number.isFinite(meta.aim.power)) {
+            const clampedPower = clamp(meta.aim.power, 0, 1);
+            powerRef.current = clampedPower;
+            setHud((prev) => ({ ...prev, power: clampedPower }));
+          }
+        }
+        if (typeof meta.shooting === 'boolean') {
+          remoteShootingRef.current = meta.shooting;
+        }
+        if (meta.replay && typeof meta.replay === 'object') {
+          pendingRemoteReplayRef.current = {
+            recording: meta.replay,
+            postLayout: layout ?? null
+          };
+        }
+      }
+    }
+  }, [accountId]);
 
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return undefined;
     const handlePoolState = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
-      applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
+      applyRemoteState({
+        state: payload.state,
+        hud: payload.hud,
+        layout: payload.layout,
+        meta: payload.meta ?? payload
+      });
     };
     const handlePoolFrame = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
-      applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
+      applyRemoteState({
+        state: payload.state,
+        hud: payload.hud,
+        layout: payload.layout,
+        meta: payload.meta ?? payload
+      });
     };
 
     socket.emit('register', { playerId: accountId });
@@ -10571,6 +10613,7 @@ const powerRef = useRef(hud.power);
       const setShootingState = (value) => {
         if (shooting === value) return;
         shooting = value;
+        shootingRef.current = value;
         shotStartedAt = shooting ? getNow() : 0;
         if (shooting) {
           preShotTopViewRef.current = topViewRef.current;
@@ -17037,13 +17080,26 @@ const powerRef = useRef(hud.power);
           setFrameState(safeState);
           setTurnCycle((value) => value + 1);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
+          const replayPayload =
+            shotRecording && shotRecording.frames?.length
+              ? {
+                  ...trimReplayRecording(shotRecording),
+                  startState: shotRecording.startState ?? [],
+                  replayTags: shotRecording.replayTags ?? [],
+                  zoomOnly: Boolean(shotRecording.zoomOnly),
+                  longShot: Boolean(shotRecording.longShot)
+                }
+              : null;
           if (isOnlineMatch && tableId) {
             const layout = captureBallSnapshot();
             socket.emit('poolShot', {
               tableId,
               state: safeState,
               hud: hudRef.current,
-              layout
+              layout,
+              playerId: accountIdRef.current || accountId || '',
+              shooting: false,
+              replay: replayPayload
             });
           }
           setShootingState(false);
@@ -17125,64 +17181,110 @@ const powerRef = useRef(hud.power);
   let lastLiveSyncSentAt = 0;
   const step = (now) => {
     if (disposed) return;
-    const playback = replayPlaybackRef.current;
-        if (playback) {
-          const frameTiming = frameTimingRef.current;
-          const targetReplayFrameTime =
-            frameTiming && Number.isFinite(frameTiming.targetMs)
-              ? frameTiming.targetMs
-              : 1000 / 60;
-          if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
-            rafRef.current = requestAnimationFrame(step);
-            return;
-          }
-          lastReplayFrameAt = now;
-          const scheduleNext = () => {
-            if (disposed) return;
-            rafRef.current = requestAnimationFrame(step);
-          };
-          const frames = playback.frames || [];
-          const duration = Number.isFinite(playback.duration) ? playback.duration : 0;
-          const elapsed = now - playback.startedAt;
-          if (frames.length === 0) {
-            finishReplayPlayback(playback);
-            scheduleNext();
-            return;
-          }
-          try {
-            const targetTime = Math.min(elapsed, duration);
-            let frameIndex = playback.lastIndex ?? 0;
-            while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
-              frameIndex += 1;
-            }
-            playback.lastIndex = frameIndex;
-            const frameA = frames[frameIndex];
-            const frameB = frames[Math.min(frameIndex + 1, frames.length - 1)] ?? null;
-            const span = frameB ? Math.max(frameB.t - frameA.t, 1e-6) : 1;
-            const alpha = frameB
-              ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
-              : 0;
-            applyReplayFrame(frameA, frameB, alpha);
-            updateReplayTrail(playback.cuePath, targetTime);
-            replayFrameCameraRef.current = {
-              frameA: frameA?.camera ?? null,
-              frameB: frameB?.camera ?? frameA?.camera ?? null,
-              alpha
-            };
-            const frameCamera = updateCamera();
-            renderer.render(scene, frameCamera ?? camera);
-            const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
-            if (finished) {
-              finishReplayPlayback(playback);
-            }
-          } catch (err) {
-            console.error('Pool Royale replay playback failed; skipping.', err);
-            finishReplayPlayback(playback);
-          }
-          scheduleNext();
-          return;
+    if (!replayPlaybackRef.current && remoteShootingRef.current != null) {
+      const hudState = hudRef.current;
+      if (hudState?.turn === 1) {
+        const desiredShotState = Boolean(remoteShootingRef.current);
+        remoteShootingRef.current = null;
+        if (shooting !== desiredShotState) {
+          setShootingState(desiredShotState);
         }
-        const frameTiming = frameTimingRef.current;
+      } else {
+        remoteShootingRef.current = null;
+      }
+    }
+    let playback = replayPlaybackRef.current;
+    if (!playback) {
+      const pendingReplay = pendingRemoteReplayRef.current;
+      const readyForReplay =
+        pendingReplay &&
+        !shooting &&
+        allStopped(balls);
+      if (readyForReplay) {
+        try {
+          const recording = pendingReplay.recording ?? {};
+          const frames = Array.isArray(recording.frames) ? recording.frames : [];
+          const cuePath = Array.isArray(recording.cuePath) ? recording.cuePath : [];
+          const startState =
+            Array.isArray(recording.startState) && recording.startState.length > 0
+              ? recording.startState
+              : pendingReplay.postLayout ?? captureBallSnapshot();
+          shotRecording = {
+            frames,
+            cuePath,
+            startState,
+            replayTags: Array.isArray(recording.replayTags) ? recording.replayTags : [],
+            zoomOnly: Boolean(recording.zoomOnly),
+            longShot: Boolean(recording.longShot),
+            startTime: performance.now()
+          };
+          shotReplayRef.current = shotRecording;
+          startShotReplay(pendingReplay.postLayout ?? startState);
+        } catch (err) {
+          console.warn('Pool Royale remote replay failed', err);
+        } finally {
+          pendingRemoteReplayRef.current = null;
+          playback = replayPlaybackRef.current;
+        }
+      }
+    }
+    if (playback) {
+      const frameTiming = frameTimingRef.current;
+      const targetReplayFrameTime =
+        frameTiming && Number.isFinite(frameTiming.targetMs)
+          ? frameTiming.targetMs
+          : 1000 / 60;
+      if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
+        rafRef.current = requestAnimationFrame(step);
+        return;
+      }
+      lastReplayFrameAt = now;
+      const scheduleNext = () => {
+        if (disposed) return;
+        rafRef.current = requestAnimationFrame(step);
+      };
+      const frames = playback.frames || [];
+      const duration = Number.isFinite(playback.duration) ? playback.duration : 0;
+      const elapsed = now - playback.startedAt;
+      if (frames.length === 0) {
+        finishReplayPlayback(playback);
+        scheduleNext();
+        return;
+      }
+      try {
+        const targetTime = Math.min(elapsed, duration);
+        let frameIndex = playback.lastIndex ?? 0;
+        while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
+          frameIndex += 1;
+        }
+        playback.lastIndex = frameIndex;
+        const frameA = frames[frameIndex];
+        const frameB = frames[Math.min(frameIndex + 1, frames.length - 1)] ?? null;
+        const span = frameB ? Math.max(frameB.t - frameA.t, 1e-6) : 1;
+        const alpha = frameB
+          ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
+          : 0;
+        applyReplayFrame(frameA, frameB, alpha);
+        updateReplayTrail(playback.cuePath, targetTime);
+        replayFrameCameraRef.current = {
+          frameA: frameA?.camera ?? null,
+          frameB: frameB?.camera ?? frameA?.camera ?? null,
+          alpha
+        };
+        const frameCamera = updateCamera();
+        renderer.render(scene, frameCamera ?? camera);
+        const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
+        if (finished) {
+          finishReplayPlayback(playback);
+        }
+      } catch (err) {
+        console.error('Pool Royale replay playback failed; skipping.', err);
+        finishReplayPlayback(playback);
+      }
+      scheduleNext();
+      return;
+    }
+    const frameTiming = frameTimingRef.current;
         const targetFrameTime =
           frameTiming && Number.isFinite(frameTiming.targetMs)
             ? frameTiming.targetMs
@@ -17255,6 +17357,7 @@ const powerRef = useRef(hud.power);
         }
         const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
         const canShowCue =
+          !shooting &&
           allStopped(balls) &&
           cue?.active &&
           !(currentHud?.over) &&
@@ -18290,22 +18393,37 @@ const powerRef = useRef(hud.power);
           }
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
+          const tableSettled = allStopped(balls);
           const shouldStreamLayout =
             isOnlineMatch &&
             tableId &&
-            shooting &&
-            typeof captureBallSnapshot === 'function';
+            typeof captureBallSnapshot === 'function' &&
+            (shooting || (isPlayerTurn && tableSettled && !(currentHud?.over)));
           if (shouldStreamLayout) {
             const intervalTarget = frameTiming?.targetMs ?? 1000 / 60;
-            const minInterval = Math.max(4, intervalTarget * 0.9);
+            const minInterval = shooting
+              ? Math.max(4, intervalTarget * 0.9)
+              : Math.max(50, intervalTarget * 1.5);
             if (!lastLiveSyncSentAt || now - lastLiveSyncSentAt >= minInterval) {
               const layout = captureBallSnapshot();
+              const aimDirSnapshot = aimDirRef.current
+                ? {
+                    x: Number.isFinite(aimDirRef.current.x) ? aimDirRef.current.x : 0,
+                    y: Number.isFinite(aimDirRef.current.y) ? aimDirRef.current.y : 1
+                  }
+                : { x: 0, y: 1 };
               socket.emit('poolFrame', {
                 tableId,
                 layout,
                 hud: hudRef.current,
                 frameTs: now,
-                playerId: accountIdRef.current || accountId || ''
+                playerId: accountIdRef.current || accountId || '',
+                shooting,
+                aim: {
+                  dir: aimDirSnapshot,
+                  power: powerRef.current ?? 0
+                },
+                camera: captureReplayCameraSnapshot()
               });
               lastLiveSyncSentAt = now;
             }
