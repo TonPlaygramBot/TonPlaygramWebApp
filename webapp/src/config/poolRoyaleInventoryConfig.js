@@ -26,7 +26,13 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
   clothColor: Object.freeze({
     freshGreen: 'Tour Green',
     graphite: 'Arcadia Graphite',
-    arcticBlue: 'Arctic Blue'
+    arcticBlue: 'Arctic Blue',
+    emeraldPulse: 'Emerald Pulse',
+    ivyDrift: 'Ivy Drift',
+    mintRadiance: 'Mint Radiance',
+    cobaltFrost: 'Cobalt Frost',
+    midnightWave: 'Midnight Wave',
+    neonAzure: 'Neon Azure'
   }),
   cueStyle: Object.freeze({
     'redwood-ember': 'Redwood Ember',
@@ -112,6 +118,54 @@ export const POOL_ROYALE_STORE_ITEMS = [
     name: 'Arctic Blue Cloth',
     price: 560,
     description: 'Cool arctic blue tournament cloth with crisp sheen.'
+  },
+  {
+    id: 'cloth-emeraldPulse',
+    type: 'clothColor',
+    optionId: 'emeraldPulse',
+    name: 'Emerald Pulse Cloth',
+    price: 590,
+    description: 'Glowing emerald cloth with a pulsing luxe nap.'
+  },
+  {
+    id: 'cloth-ivyDrift',
+    type: 'clothColor',
+    optionId: 'ivyDrift',
+    name: 'Ivy Drift Cloth',
+    price: 610,
+    description: 'Deep ivy cloth with shaded railside gradients.'
+  },
+  {
+    id: 'cloth-mintRadiance',
+    type: 'clothColor',
+    optionId: 'mintRadiance',
+    name: 'Mint Radiance Cloth',
+    price: 620,
+    description: 'Bright mint cloth that lifts ambient highlights.'
+  },
+  {
+    id: 'cloth-cobaltFrost',
+    type: 'clothColor',
+    optionId: 'cobaltFrost',
+    name: 'Cobalt Frost Cloth',
+    price: 630,
+    description: 'Frosted cobalt cloth with crisp cool reflections.'
+  },
+  {
+    id: 'cloth-midnightWave',
+    type: 'clothColor',
+    optionId: 'midnightWave',
+    name: 'Midnight Wave Cloth',
+    price: 640,
+    description: 'Midnight navy cloth with wavey sapphire sheen.'
+  },
+  {
+    id: 'cloth-neonAzure',
+    type: 'clothColor',
+    optionId: 'neonAzure',
+    name: 'Neon Azure Cloth',
+    price: 660,
+    description: 'Electric azure cloth with high-contrast glow.'
   },
   {
     id: 'cue-redwood',

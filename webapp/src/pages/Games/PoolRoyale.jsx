@@ -2270,6 +2270,72 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
     },
     sparkle: 1.05,
     stray: 1.12
+  }),
+  emeraldPulse: Object.freeze({
+    id: 'emeraldPulse',
+    palette: {
+      shadow: 0x0f5a38,
+      base: 0x1fa95f,
+      accent: 0x2fce7a,
+      highlight: 0x6ff3b1
+    },
+    sparkle: 1.08,
+    stray: 1.05
+  }),
+  ivyDrift: Object.freeze({
+    id: 'ivyDrift',
+    palette: {
+      shadow: 0x0e3b24,
+      base: 0x1f6a3d,
+      accent: 0x2f8f56,
+      highlight: 0x52c586
+    },
+    sparkle: 0.9,
+    stray: 0.92
+  }),
+  mintRadiance: Object.freeze({
+    id: 'mintRadiance',
+    palette: {
+      shadow: 0x0f7f6a,
+      base: 0x2fcfba,
+      accent: 0x66e9d3,
+      highlight: 0xb4fff3
+    },
+    sparkle: 1.12,
+    stray: 1.18
+  }),
+  cobaltFrost: Object.freeze({
+    id: 'cobaltFrost',
+    palette: {
+      shadow: 0x0d3c73,
+      base: 0x1f6ecf,
+      accent: 0x4da2ff,
+      highlight: 0x8fd3ff
+    },
+    sparkle: 1,
+    stray: 1.05
+  }),
+  midnightWave: Object.freeze({
+    id: 'midnightWave',
+    palette: {
+      shadow: 0x0b1b3d,
+      base: 0x133a73,
+      accent: 0x1f5aa4,
+      highlight: 0x3a7dd8
+    },
+    sparkle: 0.82,
+    stray: 0.88
+  }),
+  neonAzure: Object.freeze({
+    id: 'neonAzure',
+    palette: {
+      shadow: 0x0b3e5a,
+      base: 0x0fb3e0,
+      accent: 0x29d9ff,
+      highlight: 0x7ce9ff
+    },
+    sparkle: 1.18,
+    stray: 1.2
   })
 });
 
@@ -2308,6 +2374,76 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
       sheen: 0.64,
       sheenRoughness: 0.44,
       envMapIntensity: 0.16
+    }
+  },
+  {
+    id: 'emeraldPulse',
+    label: 'Emerald Pulse',
+    color: 0x2ac278,
+    textureKey: 'emeraldPulse',
+    detail: {
+      sheen: 0.62,
+      sheenRoughness: 0.48,
+      bumpMultiplier: 1.08,
+      emissiveIntensity: 0.4
+    }
+  },
+  {
+    id: 'ivyDrift',
+    label: 'Ivy Drift',
+    color: 0x1f6a3d,
+    textureKey: 'ivyDrift',
+    detail: {
+      roughness: 0.78,
+      bumpMultiplier: 0.96,
+      envMapIntensity: 0.12
+    }
+  },
+  {
+    id: 'mintRadiance',
+    label: 'Mint Radiance',
+    color: 0x56e8d4,
+    textureKey: 'mintRadiance',
+    detail: {
+      sheen: 0.7,
+      sheenRoughness: 0.42,
+      emissiveIntensity: 0.46,
+      envMapIntensity: 0.2
+    }
+  },
+  {
+    id: 'cobaltFrost',
+    label: 'Cobalt Frost',
+    color: 0x3388e0,
+    textureKey: 'cobaltFrost',
+    detail: {
+      sheen: 0.66,
+      sheenRoughness: 0.38,
+      bumpMultiplier: 1.02,
+      envMapIntensity: 0.22
+    }
+  },
+  {
+    id: 'midnightWave',
+    label: 'Midnight Wave',
+    color: 0x1f4da8,
+    textureKey: 'midnightWave',
+    detail: {
+      roughness: 0.82,
+      bumpMultiplier: 0.9,
+      emissiveIntensity: 0.3
+    }
+  },
+  {
+    id: 'neonAzure',
+    label: 'Neon Azure',
+    color: 0x1fc9f0,
+    textureKey: 'neonAzure',
+    detail: {
+      sheen: 0.78,
+      sheenRoughness: 0.34,
+      bumpMultiplier: 1.12,
+      emissiveIntensity: 0.5
     }
   }
 ]);
