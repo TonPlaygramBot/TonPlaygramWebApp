@@ -742,8 +742,8 @@ function addPocketCuts(
 // separate scales for table and balls
 // Dimensions tuned for an official 9ft pool table footprint while globally reduced
 // to fit comfortably inside the existing mobile arena presentation.
-const TABLE_SIZE_SHRINK = 0.92; // relax the shrink so the full table silhouette grows ~18% while keeping the cloth footprint undistorted
-const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy 16% trim plus the new shrink so the arena stays compact without distorting proportions
+const TABLE_SIZE_SHRINK = 0.85; // mirror the Pool Royale arena footprint so the snooker shell reuses the same components
+const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 0.88; // pull the entire table set ~12% closer so the arena feels more intimate without distorting proportions
@@ -754,47 +754,44 @@ const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
 const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
+const TABLE_ID_STORAGE_KEY = 'snookerClubTableId';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const TABLE_BASE_SCALE = 1.17;
-  const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
-  const OFFICIAL_SNOOKER_PLAYFIELD_SCALE = 3569 / 2540; // widen to an official snooker bed while keeping the ball/pocket scale anchored
-  const TABLE = {
-    W: 66 * TABLE_SCALE * OFFICIAL_SNOOKER_PLAYFIELD_SCALE,
-    H: 132 * TABLE_SCALE * OFFICIAL_SNOOKER_PLAYFIELD_SCALE,
-    THICK: 1.8 * TABLE_SCALE,
-    WALL:
-      2.6 *
-      TABLE_SCALE *
-      (OFFICIAL_SNOOKER_PLAYFIELD_SCALE * (66 / 72)) // widen rails to maintain Pool Royale proportions on the larger snooker bed
-  };
+const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
+const TABLE = {
+  W: 66 * TABLE_SCALE,
+  H: 132 * TABLE_SCALE,
+  THICK: 1.8 * TABLE_SCALE,
+  WALL: 2.6 * TABLE_SCALE
+};
 // Match Pool Royale's visible rail + cushion height so the cushion lip sits at the same
-// on-screen height despite the wider snooker footprint.
-const RAIL_HEIGHT = TABLE.THICK * 1.96;
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.02; // push the corner jaws outward so the fascia meets the enlarged chrome edge cleanly
+// on-screen height while reusing the Pool Royale fascia set.
+const RAIL_HEIGHT = TABLE.THICK * 1.82; // align to Pool Royale rail stance so chrome/cushions share identical components
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
-const POCKET_JAW_CORNER_INNER_SCALE = 1.42; // thicken the inner lip so the jaw leather reads fuller like the on-device capture
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match middle pocket jaw thickness to corner geometry
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.96; // preserve the playable mouth while matching the longer corner jaw fascia
+const POCKET_JAW_CORNER_INNER_SCALE = 1.46; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.02; // round the middle jaws slightly more while keeping the corner match
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.84; // preserve the playable mouth while letting the corner fascia run longer and slimmer
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
-const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.024; // flare the exterior jaw edge so the chrome-facing finish broadens without widening the mouth
+const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 1.08; // push the jaw bodies further down so the underside reaches the pocket floor
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.102; // lower the visible rim slightly more so the pocket lips sit nearer the cloth plane
+const POCKET_JAW_DEPTH_SCALE = 1.02; // push the jaw bodies further down so the underside reaches the pocket floor
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim slightly more so the pocket lips sit nearer the cloth plane
 const POCKET_JAW_BOTTOM_CLEARANCE = 0; // allow the jaw extrusion to run right down to the pocket base without a visible gap
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.12; // align the jaw underside to the same height as the pocket base plate
-const POCKET_JAW_EDGE_FLUSH_START = 0.26; // hold the thicker centre section longer before easing toward the chrome trim
+const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
-const POCKET_JAW_EDGE_TAPER_SCALE = 0.18; // draw the edge down to a finer, pointier profile while keeping the middle volume intact
-const POCKET_JAW_CENTER_TAPER_HOLD = 0.52; // hold the peak mass through more of the middle span before easing toward the chrome plates
-const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.6; // bias the taper toward a smooth rounded falloff that still finishes in a sharp tip
+const POCKET_JAW_EDGE_TAPER_SCALE = 0.12; // thin the outer lips more aggressively while leaving the centre crown unchanged
+const POCKET_JAW_CENTER_TAPER_HOLD = 0.28; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
+const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.25; // smooth the taper curve so thickness falls away progressively instead of dropping late
 const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD; // keep the taper hold consistent so the middle jaw crown mirrors the corners
 const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE; // reuse the corner taper scale so edge thickness matches exactly
 const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // maintain the identical taper curve across all six jaws
-const POCKET_JAW_CENTER_THICKNESS_MIN = 0.42; // let the inner arc sit leaner while preserving the curved silhouette across the pocket
-const POCKET_JAW_CENTER_THICKNESS_MAX = 0.78; // keep a pronounced middle section while slimming the jaw before tapering toward the edges
+const POCKET_JAW_CENTER_THICKNESS_MIN = 0.38; // let the inner arc sit leaner while preserving the curved silhouette across the pocket
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.7; // keep a pronounced middle section while slimming the jaw before tapering toward the edges
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
@@ -802,18 +799,17 @@ const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144; // higher tessellation for crisper high-res pocket jaws
 const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42; // widen the chamfer so the corner jaw shoulders carry the same mass as the photographed reference
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
-const POCKET_JAW_CORNER_MIDDLE_FACTOR = 1; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
+const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.92; // widen the middle jaw span so the wooden rail cut breathes like the corners
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.98; // relax the side jaw radius a touch so the middle pocket arc reads larger while still moving outward
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.22; // deepen the side jaw a bit more so it carries extra mass at the middle pockets
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.042; // lower the middle jaws slightly less so the fascia trims down from the top
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.006; // pull the middle pocket jaws inward so the lips sit closer to centre
-const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.68; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.8; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
-const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.32; // ease the taper into the trimmed ends for a smooth falloff
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.58; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.26; // trim the middle jaw reach further so it finishes closer to the wood/cloth gap while keeping the jaw radius
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // relax the middle jaw arc radius slightly so side-pocket jaws read a touch wider
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.02; // lift the middle jaws so their rims sit level with the cloth like the corner pockets
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.12; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
+const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // taper the middle jaw edges sooner so they finish where the rails stop
+const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -824,24 +820,24 @@ const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; //
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-  // Dimensions reflect WPBSA full-size snooker specifications (playing surface ~3569 mm × 1778 mm),
-  // scaled down onto the Pool Royale shell so the layout matches 1:1 while respecting the official ratios.
-  const WIDTH_REF = 3569;
-  const HEIGHT_REF = 1778;
-  const BALL_D_REF = 52.5; // official snooker ball diameter (52.5 mm)
-  const BAULK_FROM_BAULK_REF = 737; // official baulk line distance from the baulk cushion
-  const D_RADIUS_REF = 292;
-  const PINK_FROM_TOP_REF = 737; // pink spot distance from the top cushion on a full-size snooker table
-  const BLACK_FROM_TOP_REF = 324; // black spot distance from the top cushion on a full-size snooker table
-  const CORNER_MOUTH_REF = 86; // WPBSA corner pocket mouth between cushion noses
-  const SIDE_MOUTH_REF = 92; // WPBSA side pocket mouth between cushion noses
-  const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
-  const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
-  const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
-  const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
-  const END_RAIL_INNER_SCALE =
-    (TABLE.H - TARGET_RATIO * (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS)) /
-    (2 * TABLE.WALL);
+// Dimensions reflect WPBSA full-size snooker specifications (playing surface ~3569 mm × 1778 mm),
+// scaled down onto the Pool Royale shell so the layout matches 1:1 while respecting the official ratios.
+const WIDTH_REF = 3569;
+const HEIGHT_REF = 1778;
+const BALL_D_REF = 52.5; // official snooker ball diameter (52.5 mm)
+const BAULK_FROM_BAULK_REF = 737; // official baulk line distance from the baulk cushion
+const D_RADIUS_REF = 292;
+const PINK_FROM_TOP_REF = 737; // pink spot distance from the top cushion on a full-size snooker table
+const BLACK_FROM_TOP_REF = 324; // black spot distance from the top cushion on a full-size snooker table
+const CORNER_MOUTH_REF = 86; // WPBSA corner pocket mouth between cushion noses
+const SIDE_MOUTH_REF = 92; // WPBSA side pocket mouth between cushion noses
+const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
+const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
+const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
+const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
+const END_RAIL_INNER_SCALE =
+  (TABLE.H - TARGET_RATIO * (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS)) /
+  (2 * TABLE.WALL);
 const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
 const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
 const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
@@ -849,10 +845,10 @@ const PLAY_H = TABLE.H - 2 * END_RAIL_INNER_THICKNESS;
 const innerLong = Math.max(PLAY_W, PLAY_H);
 const innerShort = Math.min(PLAY_W, PLAY_H);
 const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
-  console.assert(
-    Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
-    'Snooker table inner ratio must match the 2:1 target after scaling.'
-  );
+console.assert(
+  Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
+  'Snooker table inner ratio must match the 2:1 target after scaling.'
+);
 const MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_SIZE_SCALE = 1; // preserve the official snooker ball diameter while letting the global table scale shrink the layout
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
@@ -17925,12 +17921,12 @@ export function PoolRoyale({ lobbyPath = '/games/poolroyale/lobby' }) {
     const incoming = params.get('tableId');
     if (incoming) {
       try {
-        window.sessionStorage?.setItem('poolRoyaleTableId', incoming);
+        window.sessionStorage?.setItem(TABLE_ID_STORAGE_KEY, incoming);
       } catch {}
       return incoming;
     }
     try {
-      return window.sessionStorage?.getItem('poolRoyaleTableId') || '';
+      return window.sessionStorage?.getItem(TABLE_ID_STORAGE_KEY) || '';
     } catch {
       return '';
     }
