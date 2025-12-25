@@ -1250,37 +1250,66 @@ export default function SnakeAndLadder() {
         }
       }
     }
-    const boardPromise = isMultiplayer
-      ? getSnakeBoard(table)
+  }, []);
+
+  const applyBoardData = useCallback(
+    (snakesObj = {}, laddersObj = {}, diceCellsObj = {}, preferServerDice = false) => {
+      const limit = (obj) => Object.fromEntries(Object.entries(obj || {}).slice(0, 8));
+      const snakesLim = limit(snakesObj);
+      const laddersLim = limit(laddersObj);
+      setSnakes(snakesLim);
+      setLadders(laddersLim);
+      const snk = {};
+      Object.entries(snakesLim).forEach(([s, e]) => {
+        snk[s] = s - e;
+      });
+      const lad = {};
+      Object.entries(laddersLim).forEach(([s, e]) => {
+        const end = typeof e === 'object' ? e.end : e;
+        lad[s] = end - s;
+      });
+      setSnakeOffsets(snk);
+      setLadderOffsets(lad);
+      const normalizedDice = normalizeDiceCells(diceCellsObj || {});
+      const diceSource =
+        Object.keys(normalizedDice).length || preferServerDice
+          ? normalizedDice
+          : generateDiceCellsLocal(snakesObj, laddersObj);
+      setDiceCells(diceSource);
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!tableId) return undefined;
+    let cancelled = false;
+    const preferServerDice = isMultiplayer || watchOnly;
+    const boardPromise = preferServerDice
+      ? getSnakeBoard(tableId)
       : Promise.resolve(generateBoardLocal());
     boardPromise
       .then(({ snakes: snakesObj = {}, ladders: laddersObj = {}, diceCells: diceCellsObj = {} }) => {
-        const limit = (obj) => {
-          return Object.fromEntries(Object.entries(obj).slice(0, 8));
-        };
-        const snakesLim = limit(snakesObj);
-        const laddersLim = limit(laddersObj);
-        setSnakes(snakesLim);
-        setLadders(laddersLim);
-        const snk = {};
-        Object.entries(snakesLim).forEach(([s, e]) => {
-          snk[s] = s - e;
-        });
-        const lad = {};
-        Object.entries(laddersLim).forEach(([s, e]) => {
-          const end = typeof e === "object" ? e.end : e;
-          lad[s] = end - s;
-        });
-        setSnakeOffsets(snk);
-        setLadderOffsets(lad);
-        const normalizedDice = normalizeDiceCells(diceCellsObj);
-        const diceSource = Object.keys(normalizedDice).length
-          ? normalizedDice
-          : generateDiceCellsLocal(snakesObj, laddersObj);
-        setDiceCells(diceSource);
+        if (cancelled) return;
+        applyBoardData(snakesObj, laddersObj, diceCellsObj, preferServerDice);
       })
-      .catch(() => {});
-  }, []);
+      .catch((error) => {
+        if (cancelled) return;
+        console.error('[SnakeBoard] Failed to load board', error);
+        if (preferServerDice) {
+          setSnakes({});
+          setLadders({});
+          setSnakeOffsets({});
+          setLadderOffsets({});
+          setDiceCells({});
+        } else {
+          const fallback = generateBoardLocal();
+          applyBoardData(fallback.snakes, fallback.ladders, fallback.diceCells, false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [applyBoardData, isMultiplayer, tableId, watchOnly]);
 
   useEffect(() => {
     tableCapacityRef.current = tableCapacity;
@@ -1655,7 +1684,20 @@ export default function SnakeAndLadder() {
         }
       }
     };
-  }, [accountId, applyTableCapacity, isMultiplayer, myName, photoUrl, refreshPlayersNeeded, tableId, updateMpPlayers, watchOnly]);
+  }, [
+    accountId,
+    applyTableCapacity,
+    isMultiplayer,
+    ladders,
+    myName,
+    muted,
+    photoUrl,
+    refreshPlayersNeeded,
+    snakes,
+    tableId,
+    updateMpPlayers,
+    watchOnly
+  ]);
 
   const fastForward = (elapsed, state) => {
     let p = state.pos ?? 0;
