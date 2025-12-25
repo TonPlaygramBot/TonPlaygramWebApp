@@ -8826,6 +8826,12 @@ function PoolRoyaleGame({
   const configButtonRef = useRef(null);
   const accountIdRef = useRef(accountId || '');
   const tgIdRef = useRef(tgId || '');
+  const captureReplayCameraSnapshotRef = useRef(null);
+  const remoteAimRef = useRef(null);
+  const remoteShotActiveRef = useRef(false);
+  const remoteShotUntilRef = useRef(0);
+  const incomingRemoteShotRef = useRef(null);
+  const pendingRemoteReplayRef = useRef(null);
   const cueFeePaidRef = useRef(false);
   const cueFeePendingRef = useRef(false);
   useEffect(() => {
@@ -10235,14 +10241,111 @@ const powerRef = useRef(hud.power);
     }
   }, []);
 
+  const handleRemotePayload = useCallback(
+    (payload = {}) => {
+      if (!isOnlineMatch || !tableId) return;
+      const senderId =
+        payload.playerId ||
+        payload.accountId ||
+        payload.player ||
+        null;
+      const localId = accountIdRef.current || accountId || '';
+      const isRemotePlayer = Boolean(senderId && senderId !== localId);
+      const hasLayout = Array.isArray(payload.layout);
+      const aimPayload = payload.aim;
+      const now = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+
+      if (
+        isRemotePlayer &&
+        aimPayload &&
+        Number.isFinite(aimPayload?.dir?.x) &&
+        Number.isFinite(aimPayload?.dir?.y)
+      ) {
+        const spinX = THREE.MathUtils.clamp(aimPayload?.spin?.x ?? 0, -1, 1);
+        const spinY = THREE.MathUtils.clamp(aimPayload?.spin?.y ?? 0, -1, 1);
+        remoteAimRef.current = {
+          dir: { x: aimPayload.dir.x, y: aimPayload.dir.y },
+          power: THREE.MathUtils.clamp(aimPayload.power ?? 0, 0, 1),
+          spin: { x: spinX, y: spinY },
+          cueBall: aimPayload.cueBall ?? null,
+          updatedAt: now,
+          playerId: senderId
+        };
+      }
+
+      if (isRemotePlayer && hasLayout) {
+        remoteShotActiveRef.current = true;
+        remoteShotUntilRef.current = now + 1200;
+        remoteAimRef.current = null;
+        const baseTime = Number.isFinite(payload.frameTs) ? payload.frameTs : now;
+        if (!incomingRemoteShotRef.current || incomingRemoteShotRef.current.playerId !== senderId) {
+          const startState = captureBallSnapshotRef.current
+            ? captureBallSnapshotRef.current()
+            : null;
+          incomingRemoteShotRef.current = {
+            playerId: senderId,
+            startState,
+            startTime: baseTime,
+            frames: [],
+            cuePath: [],
+            postState: null
+          };
+        }
+        const rec = incomingRemoteShotRef.current;
+        if (rec) {
+          const frameTime = Number.isFinite(payload.frameTs) ? payload.frameTs : now;
+          const rel = Math.max(0, frameTime - (rec.startTime ?? frameTime));
+          rec.frames.push({
+            t: rel,
+            balls: payload.layout,
+            camera: captureReplayCameraSnapshotRef.current
+              ? captureReplayCameraSnapshotRef.current()
+              : null
+          });
+          const cueEntry = payload.layout.find((entry) => String(entry.id) === 'cue');
+          const cuePos = cueEntry?.mesh?.position || cueEntry?.pos;
+          if (cuePos && Number.isFinite(cuePos.x) && Number.isFinite(cuePos.y)) {
+            const trailPos = new THREE.Vector3(
+              cuePos.x,
+              REPLAY_TRAIL_HEIGHT,
+              Number.isFinite(cuePos.z) ? cuePos.z : cuePos.y
+            );
+            const last = rec.cuePath[rec.cuePath.length - 1];
+            if (!last || !last.pos || last.pos.distanceTo(trailPos) > 1e-3) {
+              rec.cuePath.push({ t: rel, pos: trailPos });
+            }
+          }
+          rec.startState = rec.startState || captureBallSnapshotRef.current?.() || null;
+        }
+      }
+
+      const recording = incomingRemoteShotRef.current;
+      const hasState = Boolean(payload.state);
+      if (recording && (hasState || (payload.final && !hasLayout))) {
+        recording.postState =
+          payload.layout ??
+          (captureBallSnapshotRef.current ? captureBallSnapshotRef.current() : recording.frames?.[recording.frames.length - 1]?.balls ?? null);
+        recording.startState =
+          recording.startState || recording.frames?.[0]?.balls || null;
+        pendingRemoteReplayRef.current = { ...recording };
+        incomingRemoteShotRef.current = null;
+        remoteShotActiveRef.current = false;
+        remoteShotUntilRef.current = 0;
+      }
+    },
+    [accountId, isOnlineMatch, tableId]
+  );
+
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return undefined;
     const handlePoolState = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
+      handleRemotePayload(payload);
       applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
     const handlePoolFrame = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
+      handleRemotePayload(payload);
       applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
 
@@ -10256,7 +10359,7 @@ const powerRef = useRef(hud.power);
       socket.off('poolState', handlePoolState);
       socket.off('poolFrame', handlePoolFrame);
     };
-  }, [accountId, applyRemoteState, isOnlineMatch, tableId]);
+  }, [accountId, applyRemoteState, handleRemotePayload, isOnlineMatch, tableId]);
 
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return;
@@ -13438,6 +13541,7 @@ const powerRef = useRef(hud.power);
           }
           return snapshot;
         };
+        captureReplayCameraSnapshotRef.current = captureReplayCameraSnapshot;
 
         const applyBallSnapshot = (snapshot) => {
           if (!Array.isArray(snapshot)) return;
@@ -17123,6 +17227,7 @@ const powerRef = useRef(hud.power);
   let lastStepTime = performance.now();
   let lastReplayFrameAt = 0;
   let lastLiveSyncSentAt = 0;
+  let lastLiveAimSentAt = 0;
   const step = (now) => {
     if (disposed) return;
     const playback = replayPlaybackRef.current;
@@ -17181,6 +17286,33 @@ const powerRef = useRef(hud.power);
           }
           scheduleNext();
           return;
+        }
+        const nowMs = now;
+        if (remoteShotActiveRef.current && remoteShotUntilRef.current > 0 && nowMs > remoteShotUntilRef.current) {
+          remoteShotActiveRef.current = false;
+        }
+        if (
+          remoteAimRef.current &&
+          Number.isFinite(remoteAimRef.current.updatedAt) &&
+          nowMs - remoteAimRef.current.updatedAt > 3500
+        ) {
+          remoteAimRef.current = null;
+        }
+        if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
+          const pending = pendingRemoteReplayRef.current;
+          pendingRemoteReplayRef.current = null;
+          if (pending?.frames?.length > 1) {
+            shotRecording = {
+              ...pending,
+              startTime: pending.startTime ?? nowMs,
+              startState: pending.startState ?? captureBallSnapshot(),
+              zoomOnly: pending.zoomOnly ?? false,
+              replayTags: pending.replayTags ?? ['remote']
+            };
+            shotReplayRef.current = shotRecording;
+            const postState = pending.postState ?? captureBallSnapshot();
+            startShotReplay(postState);
+          }
         }
         const frameTiming = frameTimingRef.current;
         const targetFrameTime =
@@ -17250,6 +17382,9 @@ const powerRef = useRef(hud.power);
         const isPlayerTurn = currentHud?.turn === 0;
         const isAiTurn = aiOpponentEnabled && currentHud?.turn === 1;
         const previewingAiShot = aiShotPreviewRef.current;
+        const remoteShotActive =
+          currentHud?.turn === 1 && remoteShotActiveRef.current;
+        const remoteAimState = remoteAimRef.current;
         if (isAiTurn) {
           autoPlaceAiCueBall();
         }
@@ -17259,7 +17394,18 @@ const powerRef = useRef(hud.power);
           cue?.active &&
           !(currentHud?.over) &&
           !(inHandPlacementModeRef.current) &&
-          (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current);
+          (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current) &&
+          !remoteShotActive;
+        const remoteAimFresh =
+          remoteAimState &&
+          Number.isFinite(remoteAimState.updatedAt) &&
+          now - remoteAimState.updatedAt <= 3200;
+        const showingRemoteAim =
+          canShowCue &&
+          !aiOpponentEnabled &&
+          isOnlineMatch &&
+          currentHud?.turn === 1 &&
+          remoteAimFresh;
 
         sidePocketAimRef.current = false;
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
@@ -17550,6 +17696,133 @@ const powerRef = useRef(hud.power);
               tDir.normalize();
             } else {
               tDir.copy(dir);
+            }
+            const targetStart = new THREE.Vector3(
+              targetBall.pos.x,
+              BALL_CENTER_Y,
+              targetBall.pos.y
+            );
+            const distanceScale = travelScale;
+            const tEnd = targetStart
+              .clone()
+              .add(tDir.clone().multiplyScalar(distanceScale));
+            targetGeom.setFromPoints([targetStart, tEnd]);
+            target.material.color.setHex(0xffd166);
+            target.material.opacity = 0.65 + 0.3 * powerStrength;
+            target.visible = true;
+            target.computeLineDistances();
+          } else if (railNormal && cueDir) {
+            const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
+            const bounceLength = BALL_R * (12 + powerStrength * 18);
+            const bounceEnd = end
+              .clone()
+              .add(bounceDir.clone().multiplyScalar(bounceLength));
+            targetGeom.setFromPoints([end, bounceEnd]);
+            target.material.color.setHex(0x7ce7ff);
+            target.material.opacity = 0.35 + 0.25 * powerStrength;
+            target.visible = true;
+            target.computeLineDistances();
+          } else {
+            target.visible = false;
+          }
+        } else if (showingRemoteAim) {
+          aimFocusRef.current = null;
+          const remoteAimDir = new THREE.Vector2(
+            remoteAimState?.dir?.x ?? 0,
+            remoteAimState?.dir?.y ?? 0
+          );
+          if (remoteAimDir.lengthSq() < 1e-6) {
+            remoteAimDir.set(0, 1);
+          } else {
+            remoteAimDir.normalize();
+          }
+          const baseDir = new THREE.Vector3(remoteAimDir.x, 0, remoteAimDir.y);
+          const perp = new THREE.Vector3(-baseDir.z, 0, baseDir.x);
+          if (perp.lengthSq() > 1e-8) perp.normalize();
+          const powerStrength = THREE.MathUtils.clamp(remoteAimState?.power ?? 0, 0, 1);
+          const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
+            cue,
+            remoteAimDir,
+            balls
+          );
+          const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+          let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
+          if (start.distanceTo(end) < 1e-4) {
+            end = start.clone().add(baseDir.clone().multiplyScalar(BALL_R));
+          }
+          aimGeom.setFromPoints([start, end]);
+          aim.material.color.set(0x7ce7ff);
+          aim.material.opacity = 0.55 + 0.35 * powerStrength;
+          aim.visible = true;
+          tickGeom.setFromPoints([
+            end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
+            end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
+          ]);
+          tick.visible = true;
+          const cueFollowDir = cueDir
+            ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
+            : baseDir.clone();
+          const cueFollowLength = BALL_R * (12 + powerStrength * 18);
+          const followEnd = end
+            .clone()
+            .add(cueFollowDir.clone().multiplyScalar(cueFollowLength));
+          cueAfterGeom.setFromPoints([end, followEnd]);
+          cueAfter.visible = true;
+          cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
+          cueAfter.computeLineDistances();
+          impactRing.visible = false;
+          const desiredPull = powerStrength * BALL_R * 10 * 0.65 * 1.2;
+          const backInfo = calcTarget(
+            cue,
+            remoteAimDir.clone().multiplyScalar(-1),
+            balls
+          );
+          const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const pullTarget = Math.min(desiredPull, maxPull);
+          cuePullTargetRef.current = pullTarget;
+          const pull = THREE.MathUtils.lerp(
+            cuePullCurrentRef.current ?? 0,
+            pullTarget,
+            CUE_PULL_SMOOTHING
+          );
+          cuePullCurrentRef.current = pull;
+          const offsetSide = ranges.offsetSide ?? 0;
+          const offsetVertical = ranges.offsetVertical ?? 0;
+          const spinX = THREE.MathUtils.clamp(remoteAimState?.spin?.x ?? 0, -1, 1);
+          const spinY = THREE.MathUtils.clamp(remoteAimState?.spin?.y ?? 0, -1, 1);
+          let side = spinX * offsetSide;
+          let vert = -spinY * offsetVertical;
+          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
+          if (maxContactOffset > 1e-6) {
+            const combined = Math.hypot(side, vert);
+            if (combined > maxContactOffset) {
+              const scale = maxContactOffset / combined;
+              side *= scale;
+              vert *= scale;
+            }
+          }
+          const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
+          cueStick.position.set(
+            cue.pos.x - baseDir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
+            CUE_Y + spinWorld.y,
+            cue.pos.y - baseDir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
+          );
+          const tiltAmount = Math.abs(spinY);
+          const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
+          applyCueButtTilt(cueStick, extraTilt);
+          cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
+          if (tipGroupRef.current) {
+            tipGroupRef.current.position.set(0, 0, -cueLen / 2);
+          }
+          cueStick.visible = true;
+          updateChalkVisibility(null);
+          if (targetDir && targetBall) {
+            const travelScale = BALL_R * (14 + powerStrength * 22);
+            const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
+            if (tDir.lengthSq() > 1e-8) {
+              tDir.normalize();
+            } else {
+              tDir.copy(baseDir);
             }
             const targetStart = new THREE.Vector3(
               targetBall.pos.x,
@@ -18290,6 +18563,32 @@ const powerRef = useRef(hud.power);
           }
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
+          const shouldStreamAim =
+            isOnlineMatch &&
+            tableId &&
+            !shooting &&
+            hudRef.current?.turn === 0 &&
+            !(hudRef.current?.over);
+          if (shouldStreamAim) {
+            const intervalTarget = frameTiming?.targetMs ?? 1000 / 60;
+            const minInterval = Math.max(30, intervalTarget * 1.5);
+            if (!lastLiveAimSentAt || now - lastLiveAimSentAt >= minInterval) {
+              const aimVec = aimDirRef.current;
+              socket.emit('poolFrame', {
+                tableId,
+                hud: hudRef.current,
+                frameTs: now,
+                playerId: accountIdRef.current || accountId || '',
+                aim: {
+                  dir: { x: aimVec.x ?? 0, y: aimVec.y ?? 0 },
+                  power: powerRef.current ?? 0,
+                  spin: spinRef.current ?? { x: 0, y: 0 },
+                  cueBall: cue?.pos ? { x: cue.pos.x, y: cue.pos.y } : null
+                }
+              });
+              lastLiveAimSentAt = now;
+            }
+          }
           const shouldStreamLayout =
             isOnlineMatch &&
             tableId &&
@@ -18356,6 +18655,12 @@ const powerRef = useRef(hud.power);
           captureBallSnapshotRef.current = null;
           applyBallSnapshotRef.current = null;
           pendingLayoutRef.current = null;
+          captureReplayCameraSnapshotRef.current = null;
+          pendingRemoteReplayRef.current = null;
+          incomingRemoteShotRef.current = null;
+          remoteShotActiveRef.current = false;
+          remoteShotUntilRef.current = 0;
+          remoteAimRef.current = null;
           lightingRigRef.current = null;
           worldRef.current = null;
           activeRenderCameraRef.current = null;
