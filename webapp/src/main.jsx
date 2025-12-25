@@ -10,7 +10,11 @@ if (window.Telegram?.WebApp?.disableVerticalSwipes) {
 }
 
 // Register a Telegram-friendly service worker for instant updates
-registerTelegramServiceWorker();
+try {
+  registerTelegramServiceWorker();
+} catch (err) {
+  console.warn('Skipping service worker registration', err);
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
