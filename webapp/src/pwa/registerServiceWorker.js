@@ -1,11 +1,12 @@
-const TELEGRAM_ONLY = true;
+const TELEGRAM_ONLY = false;
 const REFRESH_FLAG_KEY = 'tonplaygram-sw-refreshed';
 
-function shouldRegisterForTelegram() {
+function shouldRegisterServiceWorker() {
   if (!('serviceWorker' in navigator)) return false;
   const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-  if (isLocalhost) return true;
-  if (TELEGRAM_ONLY && !window.Telegram?.WebApp) return false;
+  const inTelegram = Boolean(window.Telegram?.WebApp);
+  if (!isLocalhost && !window.isSecureContext) return false;
+  if (TELEGRAM_ONLY && !inTelegram) return false;
   return true;
 }
 
@@ -63,7 +64,9 @@ async function requestPersistentStorage() {
 }
 
 export async function registerTelegramServiceWorker() {
-  if (!shouldRegisterForTelegram()) return;
+  if (!shouldRegisterServiceWorker()) {
+    return;
+  }
 
   try {
     const hadController = Boolean(navigator.serviceWorker.controller);
