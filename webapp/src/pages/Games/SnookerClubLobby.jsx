@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import RoomSelector from '../../components/RoomSelector.jsx';
@@ -12,6 +12,7 @@ import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/snookerClubTables.js';
 import { socket } from '../../utils/socket.js';
+import { runPoolRoyaleOnlineFlow } from './poolRoyaleOnlineFlow.js';
 
 export default function SnookerClubLobby() {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ export default function SnookerClubLobby() {
     return requestedType === 'tournament' ? 'tournament' : 'regular';
   })();
 
+  const MAX_PLAYERS = 2;
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('ai');
   const [avatar, setAvatar] = useState('');
@@ -33,11 +35,20 @@ export default function SnookerClubLobby() {
   const [tableSize, setTableSize] = useState(() => resolveTableSize(searchParams.get('tableSize')).id);
   const [matching, setMatching] = useState(false);
   const [matchingError, setMatchingError] = useState('');
+  const [matchStatus, setMatchStatus] = useState('');
   const [matchPlayers, setMatchPlayers] = useState([]);
   const [matchTableId, setMatchTableId] = useState('');
   const [readyList, setReadyList] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [spinningPlayer, setSpinningPlayer] = useState('');
   const spinIntervalRef = useRef(null);
+  const accountIdRef = useRef(null);
+  const matchPlayersRef = useRef([]);
+  const pendingTableRef = useRef('');
+  const cleanupRef = useRef(() => {});
+  const stakeDebitRef = useRef(null);
+  const matchTimeoutRef = useRef(null);
+  const seatTimeoutRef = useRef(null);
 
   useEffect(() => {
     try {
@@ -68,85 +79,119 @@ export default function SnookerClubLobby() {
     alert('Change your Telegram profile photo to refresh your lobby portrait.');
   };
 
+  const navigateToSnooker = ({ tableId: startedId, roster = [], accountId, currentTurn }) => {
+    const selfId = accountId || accountIdRef.current;
+    const selfEntry = roster.find((p) => String(p.id) === String(selfId));
+    const opponentEntry = roster.find((p) => String(p.id) !== String(selfId));
+    const starterId = currentTurn || roster?.[0]?.id || null;
+    const selfIndex = roster.findIndex((p) => String(p.id) === String(selfId));
+    const seat = selfIndex === 1 ? 'B' : 'A';
+    const starterSeat = starterId && String(starterId) === String(selfId) ? seat : seat === 'A' ? 'B' : 'A';
+    const friendlyName =
+      selfEntry?.name ||
+      getTelegramFirstName() ||
+      getTelegramId() ||
+      (selfId ? `TPC ${selfId}` : 'Player');
+    const friendlyAvatar = selfEntry?.avatar || avatar;
+    const opponentName =
+      opponentEntry?.name ||
+      opponentEntry?.username ||
+      opponentEntry?.telegramName ||
+      (opponentEntry?.id ? `TPC ${opponentEntry.id}` : '');
+    const opponentAvatar = opponentEntry?.avatar || '';
+    cleanupRef.current?.({ account: accountId, skipRefReset: true });
+    const params = new URLSearchParams();
+    params.set('variant', variant);
+    params.set('type', playType);
+    params.set('mode', 'online');
+    params.set('tableId', startedId);
+    params.set('tableSize', tableSize);
+    if (stake.token) params.set('token', stake.token);
+    if (stake.amount) params.set('amount', stake.amount);
+    if (friendlyAvatar) params.set('avatar', friendlyAvatar);
+    const tgId = getTelegramId();
+    if (tgId) params.set('tgId', tgId);
+    const resolvedAccountId = accountIdRef.current;
+    if (resolvedAccountId) params.set('accountId', resolvedAccountId);
+    params.set('seat', seat);
+    params.set('starter', starterSeat);
+    const name = (friendlyName || '').trim();
+    if (name) params.set('name', name);
+    if (opponentName) params.set('opponent', opponentName);
+    if (opponentAvatar) params.set('opponentAvatar', opponentAvatar);
+    navigate(`/games/snookerclub?${params.toString()}`);
+  };
+
   const startGame = async () => {
     const isOnlineMatch = mode === 'online' && playType === 'regular';
+    if (matching && isOnlineMatch) return;
+    await cleanupRef.current?.();
+    setMatchStatus('');
+    setMatchingError('');
     let tgId;
     let accountId;
-    if (isOnlineMatch) {
-      try {
-        accountId = await ensureAccountId();
-        const balRes = await getAccountBalance(accountId);
-        if ((balRes.balance || 0) < stake.amount) {
-          alert('Insufficient balance');
-          return;
-        }
-        tgId = getTelegramId();
-        await addTransaction(tgId, -stake.amount, 'stake', {
-          game: 'snookerclub-online',
-          players: 2,
-          accountId
-        });
-      } catch {}
-    } else {
-      try {
-        tgId = getTelegramId();
-        accountId = await ensureAccountId();
-      } catch {}
-    }
 
     if (isOnlineMatch) {
-      setMatchingError('');
-      setIsSearching(true);
-      if (!accountId) {
-        setIsSearching(false);
-        setMatchingError('Unable to resolve your TPC account.');
+      const result = await runPoolRoyaleOnlineFlow({
+        stake,
+        variant,
+        ballSet: 'snooker',
+        playType,
+        mode,
+        tableSize,
+        avatar,
+        gameKey: 'snookerclub-online',
+        gameType: 'snookerclub',
+        maxPlayers: MAX_PLAYERS,
+        state: {
+          setMatchingError,
+          setMatchStatus,
+          setMatching,
+          setIsSearching,
+          setMatchPlayers,
+          setReadyList,
+          setMatchTableId,
+          setSpinningPlayer
+        },
+        refs: {
+          accountIdRef,
+          matchPlayersRef,
+          pendingTableRef,
+          cleanupRef,
+          spinIntervalRef,
+          stakeDebitRef,
+          matchTimeoutRef,
+          seatTimeoutRef
+        },
+        deps: { ensureAccountId, getAccountBalance, addTransaction, getTelegramId, socket },
+        onGameStart: navigateToSnooker
+      });
+      if (!result?.success) {
         return;
       }
-      socket.emit('register', { playerId: accountId, accountId });
-      socket.emit(
-        'seatTable',
-        {
-          accountId,
-          gameType: 'snookerclub',
-          stake: stake.amount,
-          maxPlayers: 2,
-          token: stake.token,
-          variant,
-          tableSize,
-          playType,
-          playerName: getTelegramFirstName() || `TPC ${accountId}`,
-          avatar
-        },
-        (res) => {
-          setIsSearching(false);
-          if (res?.success) {
-            setMatchTableId(res.tableId);
-            setMatchPlayers(res.players || []);
-            setReadyList(res.ready || []);
-            socket.emit('confirmReady', {
-              accountId,
-              tableId: res.tableId
-            });
-            setMatching(true);
-          } else {
-            setMatchingError(
-              res?.message || 'Failed to join the online arena. Please retry.'
-            );
-          }
-        }
-      );
       return;
     }
+
+    try {
+      tgId = getTelegramId();
+      accountId = await ensureAccountId();
+    } catch (error) {
+      const message = 'Unable to verify your TPC account. Please retry.';
+      setMatchingError(message);
+      try {
+        window?.Telegram?.WebApp?.showAlert?.(message);
+      } catch {}
+      console.error('[SnookerClubLobby] ensureAccountId failed', error);
+      return;
+    }
+
+    accountIdRef.current = accountId;
 
     const params = new URLSearchParams();
     params.set('variant', variant);
     params.set('tableSize', tableSize);
     params.set('type', playType);
     params.set('mode', mode);
-    if (isOnlineMatch) {
-      if (stake.token) params.set('token', stake.token);
-      if (stake.amount) params.set('amount', stake.amount);
-    }
     if (playType === 'tournament') params.set('players', players);
     const initData = window.Telegram?.WebApp?.initData;
     if (avatar) params.set('avatar', avatar);
@@ -166,12 +211,61 @@ export default function SnookerClubLobby() {
   };
 
   useEffect(() => {
-    return () => {
-      if (spinIntervalRef.current) {
-        clearInterval(spinIntervalRef.current);
-      }
-    };
+    return () => cleanupRef.current?.();
   }, []);
+
+  useEffect(() => {
+    if (matchPlayersRef.current !== matchPlayers) {
+      matchPlayersRef.current = matchPlayers;
+    }
+  }, [matchPlayers]);
+
+  useEffect(() => {
+    if (spinIntervalRef.current) {
+      clearInterval(spinIntervalRef.current);
+      spinIntervalRef.current = null;
+    }
+    if (!matching || matchPlayers.length === 0) return undefined;
+    setSpinningPlayer(matchPlayers[0]?.name || 'Searching…');
+    spinIntervalRef.current = setInterval(() => {
+      const pick = matchPlayers[Math.floor(Math.random() * matchPlayers.length)];
+      setSpinningPlayer(pick?.name || 'Searching…');
+    }, 500);
+    return () => {
+      if (spinIntervalRef.current) clearInterval(spinIntervalRef.current);
+    };
+  }, [matchPlayers, matching]);
+
+  useEffect(() => {
+    if (playType === 'tournament') {
+      setMode('ai');
+    }
+  }, [playType]);
+
+  useEffect(() => {
+    if (mode !== 'online' || playType !== 'regular') {
+      cleanupRef.current?.();
+      setMatching(false);
+      setMatchStatus('');
+      setMatchPlayers([]);
+      setReadyList([]);
+      setIsSearching(false);
+      setMatchTableId('');
+    }
+  }, [mode, playType]);
+
+  const readyIds = useMemo(
+    () => new Set((readyList || []).map((id) => String(id))),
+    [readyList]
+  );
+
+  useEffect(() => {
+    if (!matching) return;
+    const selfId = accountIdRef.current;
+    if (selfId && readyIds.has(String(selfId)) && readyIds.size >= MAX_PLAYERS) {
+      setMatchStatus('All players ready. Launching match…');
+    }
+  }, [matching, readyIds, MAX_PLAYERS]);
 
   return (
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
@@ -294,18 +388,35 @@ export default function SnookerClubLobby() {
       {matching && (
         <div className="p-3 rounded-lg bg-surface/70 border border-border space-y-2">
           <p className="text-sm font-semibold">Matching…</p>
+          {matchStatus && <p className="text-xs text-subtext">{matchStatus}</p>}
+          {spinningPlayer && (
+            <div className="lobby-tile w-full flex items-center justify-between text-sm">
+              <span>🎯 {spinningPlayer}</span>
+              <span className="text-xs text-subtext">Stake {stake.amount} {stake.token}</span>
+            </div>
+          )}
           <p className="text-xs text-subtext">
             Waiting for your opponent to confirm. Table {matchTableId || 'pending'}
           </p>
           {matchPlayers.length > 0 && (
-            <ul className="text-xs list-disc list-inside text-subtext">
+            <div className="space-y-1 text-xs text-subtext">
               {matchPlayers.map((p) => (
-                <li key={p.accountId || p.id}>{p.name || p.accountId}</li>
+                <div
+                  key={p.accountId || p.id}
+                  className="flex items-center justify-between rounded-lg border border-border bg-background/50 px-3 py-2"
+                >
+                  <span className="font-semibold">{p.name || p.accountId}</span>
+                  <span className={readyIds.has(String(p.id || p.accountId)) ? 'text-emerald-400' : 'text-subtext'}>
+                    {readyIds.has(String(p.id || p.accountId)) ? 'Ready' : 'Waiting'}
+                  </span>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
           {readyList.length > 0 && (
-            <p className="text-xs text-primary">Ready: {readyList.length}</p>
+            <p className="text-xs text-primary">
+              Ready: {readyList.length} / {MAX_PLAYERS}
+            </p>
           )}
         </div>
       )}
