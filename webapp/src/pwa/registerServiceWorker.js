@@ -1,23 +1,6 @@
 const TELEGRAM_ONLY = true;
 const REFRESH_FLAG_KEY = 'tonplaygram-sw-refreshed';
 
-function safeSetSession(key, value) {
-  try {
-    sessionStorage.setItem(key, value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function safeGetSession(key) {
-  try {
-    return sessionStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
 function shouldRegisterForTelegram() {
   if (!('serviceWorker' in navigator)) return false;
   const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -27,41 +10,17 @@ function shouldRegisterForTelegram() {
 }
 
 function markRefreshed() {
-  safeSetSession(REFRESH_FLAG_KEY, '1');
+  sessionStorage.setItem(REFRESH_FLAG_KEY, '1');
 }
 
 function hasRefreshedAlready() {
-  return safeGetSession(REFRESH_FLAG_KEY) === '1';
+  return sessionStorage.getItem(REFRESH_FLAG_KEY) === '1';
 }
 
 function forceReloadOnceReady() {
   if (hasRefreshedAlready()) return;
   markRefreshed();
   window.location.reload();
-}
-
-async function unregisterStaleServiceWorkers() {
-  if (!('serviceWorker' in navigator) || !navigator.serviceWorker?.getRegistrations) return;
-
-  try {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    if (!registrations.length) return;
-
-    await Promise.all(registrations.map(reg => reg.unregister()));
-    try {
-      const cacheNames = await caches.keys();
-      await Promise.all(cacheNames.map(name => caches.delete(name)));
-    } catch {
-      // Cache cleanup is best-effort
-    }
-
-    if (navigator.serviceWorker.controller && !hasRefreshedAlready()) {
-      markRefreshed();
-      window.location.reload();
-    }
-  } catch (err) {
-    console.warn('Service worker cleanup failed', err);
-  }
 }
 
 function wireUpdateFlow(registration, shouldReload) {
@@ -104,10 +63,7 @@ async function requestPersistentStorage() {
 }
 
 export async function registerTelegramServiceWorker() {
-  if (!shouldRegisterForTelegram()) {
-    unregisterStaleServiceWorkers();
-    return;
-  }
+  if (!shouldRegisterForTelegram()) return;
 
   try {
     const hadController = Boolean(navigator.serviceWorker.controller);
