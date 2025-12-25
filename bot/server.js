@@ -1108,6 +1108,9 @@ io.on('connection', (socket) => {
         state: cached.state,
         hud: cached.hud,
         layout: cached.layout,
+        aim: cached.aim || null,
+        replay: cached.replay || null,
+        shooting: Boolean(cached.shooting),
         updatedAt: cached.ts
       });
     }
@@ -1122,12 +1125,15 @@ io.on('connection', (socket) => {
         state: cached.state,
         hud: cached.hud,
         layout: cached.layout,
+        aim: cached.aim || null,
+        replay: cached.replay || null,
+        shooting: Boolean(cached.shooting),
         updatedAt: cached.ts
       });
     }
   });
 
-  socket.on('poolFrame', ({ tableId, layout, hud, playerId, frameTs }) => {
+  socket.on('poolFrame', ({ tableId, layout, hud, playerId, frameTs, aim, shooting }) => {
     if (!tableId || !Array.isArray(layout)) return;
     const ts = Number.isFinite(frameTs) ? frameTs : Date.now();
     const cached = poolStates.get(tableId) || {};
@@ -1135,6 +1141,8 @@ io.on('connection', (socket) => {
       tableId,
       layout,
       hud: hud || cached.hud || null,
+      aim: aim || null,
+      shooting: Boolean(shooting),
       updatedAt: ts,
       playerId: playerId || null
     };
@@ -1142,24 +1150,30 @@ io.on('connection', (socket) => {
       state: cached.state || null,
       hud: payload.hud,
       layout,
+      aim: payload.aim || null,
+      shooting: payload.shooting,
       ts
     });
     socket.to(tableId).emit('poolFrame', payload);
   });
 
-  socket.on('poolShot', ({ tableId, state, hud, layout }) => {
+  socket.on('poolShot', ({ tableId, state, hud, layout, replay, shooting }) => {
     if (!tableId || !state) return;
     const payload = {
       tableId,
       state,
       hud: hud || null,
       layout: layout || null,
+      replay: replay || null,
+      shooting: Boolean(shooting),
       updatedAt: Date.now()
     };
     poolStates.set(tableId, {
       state,
       hud: hud || null,
       layout: layout || null,
+      replay: replay || null,
+      shooting: payload.shooting,
       ts: payload.updatedAt
     });
     socket.to(tableId).emit('poolState', payload);
