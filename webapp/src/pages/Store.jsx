@@ -117,7 +117,8 @@ const TYPE_LABELS = {
   chromeColor: 'Chrome Fascias',
   railMarkerColor: 'Rail Markers',
   clothColor: 'Cloth Colors',
-  cueStyle: 'Cue Styles'
+  cueStyle: 'Cue Styles',
+  pocketLiner: 'Pocket Jaws'
 };
 
 const SNOOKER_TYPE_LABELS = {

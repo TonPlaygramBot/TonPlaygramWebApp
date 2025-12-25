@@ -3,7 +3,8 @@ export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   chromeColor: ['gold'],
   railMarkerColor: ['gold'],
   clothColor: ['freshGreen'],
-  cueStyle: ['birch-frost']
+  cueStyle: ['birch-frost'],
+  pocketLiner: ['blackPocket']
 });
 
 export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
@@ -12,7 +13,10 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     charredTimber: 'Charred Timber',
     plankStudio: 'Plank Studio',
     weatheredGrey: 'Weathered Grey',
-    jetBlackCarbon: 'Jet Black Carbon'
+    jetBlackCarbon: 'Jet Black Carbon',
+    frostedAsh: 'Frosted Ash',
+    amberWharf: 'Amber Wharf',
+    obsidianMist: 'Obsidian Mist'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -32,7 +36,13 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     mintRadiance: 'Mint Radiance',
     cobaltFrost: 'Cobalt Frost',
     midnightWave: 'Midnight Wave',
-    neonAzure: 'Neon Azure'
+    neonAzure: 'Neon Azure',
+    crimsonFlash: 'Crimson Flash',
+    rubyInferno: 'Ruby Inferno',
+    garnetVelvet: 'Garnet Velvet',
+    forestPrime: 'Forest Prime',
+    evergreenLuxe: 'Evergreen Luxe',
+    jadeCurrent: 'Jade Current'
   }),
   cueStyle: Object.freeze({
     'redwood-ember': 'Redwood Ember',
@@ -43,6 +53,15 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     'carbon-matrix': 'Carbon Matrix',
     'maple-horizon': 'Maple Horizon',
     'graphite-aurora': 'Graphite Aurora'
+  }),
+  pocketLiner: Object.freeze({
+    blackPocket: 'Black Pocket Jaws',
+    graphitePocket: 'Graphite Pocket Jaws',
+    titaniumPocket: 'Titanium Pocket Jaws',
+    copperPocket: 'Copper Pocket Jaws',
+    emeraldPocket: 'Emerald Pocket Jaws',
+    rubyPocket: 'Ruby Pocket Jaws',
+    pearlPocket: 'Pearl Pocket Jaws'
   })
 });
 
@@ -78,6 +97,30 @@ export const POOL_ROYALE_STORE_ITEMS = [
     name: 'Jet Black Carbon Finish',
     price: 1020,
     description: 'Carbon-inspired black rails with smoked metallic trim.'
+  },
+  {
+    id: 'finish-frostedAsh',
+    type: 'tableFinish',
+    optionId: 'frostedAsh',
+    name: 'Frosted Ash Finish',
+    price: 980,
+    description: 'Cool ash rails with satin silver trim and pale skirt.'
+  },
+  {
+    id: 'finish-amberWharf',
+    type: 'tableFinish',
+    optionId: 'amberWharf',
+    name: 'Amber Wharf Finish',
+    price: 990,
+    description: 'Warm amber planks with bronzed trim and deep grain.'
+  },
+  {
+    id: 'finish-obsidianMist',
+    type: 'tableFinish',
+    optionId: 'obsidianMist',
+    name: 'Obsidian Mist Finish',
+    price: 1050,
+    description: 'Smoked obsidian rails with misted graphite accents.'
   },
   {
     id: 'chrome-chrome',
@@ -168,6 +211,102 @@ export const POOL_ROYALE_STORE_ITEMS = [
     description: 'Electric azure cloth with high-contrast glow.'
   },
   {
+    id: 'cloth-crimsonFlash',
+    type: 'clothColor',
+    optionId: 'crimsonFlash',
+    name: 'Crimson Flash Cloth',
+    price: 670,
+    description: 'Deep crimson cloth with bright ruby sheen for bold arenas.'
+  },
+  {
+    id: 'cloth-rubyInferno',
+    type: 'clothColor',
+    optionId: 'rubyInferno',
+    name: 'Ruby Inferno Cloth',
+    price: 680,
+    description: 'Hot ruby felt with fiery highlights tuned for neon rigs.'
+  },
+  {
+    id: 'cloth-garnetVelvet',
+    type: 'clothColor',
+    optionId: 'garnetVelvet',
+    name: 'Garnet Velvet Cloth',
+    price: 690,
+    description: 'Velvet garnet nap with dark wine undertones.'
+  },
+  {
+    id: 'cloth-forestPrime',
+    type: 'clothColor',
+    optionId: 'forestPrime',
+    name: 'Forest Prime Cloth',
+    price: 620,
+    description: 'Deep forest tournament cloth with neutral grain.'
+  },
+  {
+    id: 'cloth-evergreenLuxe',
+    type: 'clothColor',
+    optionId: 'evergreenLuxe',
+    name: 'Evergreen Luxe Cloth',
+    price: 640,
+    description: 'Luxe evergreen felt with polished highlights.'
+  },
+  {
+    id: 'cloth-jadeCurrent',
+    type: 'clothColor',
+    optionId: 'jadeCurrent',
+    name: 'Jade Current Cloth',
+    price: 650,
+    description: 'Jade-tinted cloth with cool current-like sheen.'
+  },
+  {
+    id: 'pocket-graphite',
+    type: 'pocketLiner',
+    optionId: 'graphitePocket',
+    name: 'Graphite Pocket Jaws',
+    price: 520,
+    description: 'Matte graphite jaws that mirror the fascia chrome glow.'
+  },
+  {
+    id: 'pocket-titanium',
+    type: 'pocketLiner',
+    optionId: 'titaniumPocket',
+    name: 'Titanium Pocket Jaws',
+    price: 540,
+    description: 'Cool titanium pocket liners with sharp metallic edges.'
+  },
+  {
+    id: 'pocket-copper',
+    type: 'pocketLiner',
+    optionId: 'copperPocket',
+    name: 'Copper Pocket Jaws',
+    price: 560,
+    description: 'Burnished copper jaws for a warm contrast to the cloth.'
+  },
+  {
+    id: 'pocket-emerald',
+    type: 'pocketLiner',
+    optionId: 'emeraldPocket',
+    name: 'Emerald Pocket Jaws',
+    price: 580,
+    description: 'Emerald-infused liners that blend with rich green felts.'
+  },
+  {
+    id: 'pocket-ruby',
+    type: 'pocketLiner',
+    optionId: 'rubyPocket',
+    name: 'Ruby Pocket Jaws',
+    price: 590,
+    description: 'Ruby-toned jaws with a subtle gloss for red cloth pairings.'
+  },
+  {
+    id: 'pocket-pearl',
+    type: 'pocketLiner',
+    optionId: 'pearlPocket',
+    name: 'Pearl Pocket Jaws',
+    price: 600,
+    description: 'Pearlescent pocket liners with soft highlights.'
+  },
+  {
     id: 'cue-redwood',
     type: 'cueStyle',
     optionId: 'redwood-ember',
@@ -230,5 +369,6 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
   { type: 'chromeColor', optionId: 'gold', label: 'Gold Chrome Plates' },
   { type: 'railMarkerColor', optionId: 'gold', label: 'Gold Diamond Markers' },
   { type: 'clothColor', optionId: 'freshGreen', label: 'Tour Green Cloth' },
-  { type: 'cueStyle', optionId: 'birch-frost', label: 'Birch Frost Cue' }
+  { type: 'cueStyle', optionId: 'birch-frost', label: 'Birch Frost Cue' },
+  { type: 'pocketLiner', optionId: 'blackPocket', label: 'Black Pocket Jaws' }
 ];
