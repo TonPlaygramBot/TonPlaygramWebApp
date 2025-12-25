@@ -20,8 +20,8 @@ public class BilliardLighting : MonoBehaviour
             spotLight.type = LightType.Spot;
             spotLight.color = Color.white;
             spotLight.intensity = 2.25f;       // brightness reduced by 10%
-            spotLight.range = 15f;             // distance
-            spotLight.spotAngle = 60f;         // cone size
+            spotLight.range = 17f;             // slightly broader coverage
+            spotLight.spotAngle = 70f;         // wider cone for bigger pools of light
             spotLight.shadows = LightShadows.Soft;
 
             lightObj.transform.position = lightPositions[i];
@@ -78,7 +78,7 @@ public class BilliardLighting : MonoBehaviour
         Light spotLight = lightObj.AddComponent<Light>();
         spotLight.type = LightType.Spot;
         spotLight.cookie = Texture2D.whiteTexture; // square reflection
-        const float sizeMultiplier = 0.2f;          // 5x smaller highlight
+        const float sizeMultiplier = 0.25f;         // modestly larger highlight footprint
         spotLight.range = 2.5f * sizeMultiplier;
         spotLight.intensity = 3f;
         spotLight.spotAngle = 10f * sizeMultiplier;
