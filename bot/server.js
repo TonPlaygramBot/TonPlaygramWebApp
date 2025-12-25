@@ -1108,7 +1108,6 @@ io.on('connection', (socket) => {
         state: cached.state,
         hud: cached.hud,
         layout: cached.layout,
-        aim: cached.aim,
         updatedAt: cached.ts
       });
     }
@@ -1123,56 +1122,44 @@ io.on('connection', (socket) => {
         state: cached.state,
         hud: cached.hud,
         layout: cached.layout,
-        aim: cached.aim,
         updatedAt: cached.ts
       });
     }
   });
 
-  socket.on('poolFrame', ({ tableId, layout, hud, playerId, frameTs, aim, replay }) => {
-    if (!tableId) return;
-    const hasLayout = Array.isArray(layout);
-    const hasAim = aim && typeof aim === 'object';
-    const hasReplay = replay && typeof replay === 'object';
-    if (!hasLayout && !hasAim && !hasReplay) return;
+  socket.on('poolFrame', ({ tableId, layout, hud, playerId, frameTs }) => {
+    if (!tableId || !Array.isArray(layout)) return;
     const ts = Number.isFinite(frameTs) ? frameTs : Date.now();
     const cached = poolStates.get(tableId) || {};
-    const nextHud = hud || cached.hud || null;
     const payload = {
       tableId,
-      hud: nextHud,
+      layout,
+      hud: hud || cached.hud || null,
       updatedAt: ts,
       playerId: playerId || null
     };
-    if (hasLayout) payload.layout = layout;
-    if (hasAim) payload.aim = aim;
-    if (hasReplay) payload.replay = replay;
     poolStates.set(tableId, {
       state: cached.state || null,
-      hud: nextHud,
-      layout: hasLayout ? layout : cached.layout || null,
-      aim: hasAim ? aim : cached.aim || null,
+      hud: payload.hud,
+      layout,
       ts
     });
     socket.to(tableId).emit('poolFrame', payload);
   });
 
-  socket.on('poolShot', ({ tableId, state, hud, layout, replay, aim }) => {
+  socket.on('poolShot', ({ tableId, state, hud, layout }) => {
     if (!tableId || !state) return;
     const payload = {
       tableId,
       state,
       hud: hud || null,
       layout: layout || null,
-      replay: replay || null,
-      aim: aim || null,
       updatedAt: Date.now()
     };
     poolStates.set(tableId, {
       state,
       hud: hud || null,
       layout: layout || null,
-      aim: aim || null,
       ts: payload.updatedAt
     });
     socket.to(tableId).emit('poolState', payload);
