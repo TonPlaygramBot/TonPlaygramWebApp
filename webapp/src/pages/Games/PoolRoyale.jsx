@@ -2230,13 +2230,13 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   freshGreen: Object.freeze({
     id: 'freshGreen',
     palette: {
-      shadow: 0x1c5b35,
-      base: 0x2d7f4b,
-      accent: 0x3f9b60,
-      highlight: 0x59c57f
+      shadow: 0x1c7d4e,
+      base: 0x35b26f,
+      accent: 0x5bce8a,
+      highlight: 0x85e7b0
     },
-    sparkle: 0.9,
-    stray: 0.96
+    sparkle: 1,
+    stray: 1
   }),
   snookerGreen: Object.freeze({
     id: 'snookerGreen',
@@ -2279,7 +2279,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'freshGreen',
     label: 'Tour Green',
-    color: 0x2d7f4b,
+    color: 0x55cf93,
     textureKey: 'freshGreen',
     detail: {
       bumpMultiplier: 1,
@@ -5763,9 +5763,9 @@ function Table3D(
   const clothPrimary = new THREE.Color(palette.cloth);
   const cushionPrimary = new THREE.Color(palette.cushion ?? palette.cloth);
   const clothHighlight = new THREE.Color(0xf6fff9);
-  const clothColor = clothPrimary.clone();
-  const cushionColor = cushionPrimary.clone();
-  const sheenColor = clothPrimary.clone().lerp(clothHighlight, 0.14);
+  const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.26);
+  const cushionColor = cushionPrimary.clone().lerp(clothHighlight, 0.18);
+  const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
   const clothSheen = 0;
   const clothSheenRoughness = 1;
   const clothMat = new THREE.MeshPhysicalMaterial({
@@ -5781,7 +5781,6 @@ function Table3D(
     emissiveIntensity: 0.18,
     metalness: 0
   });
-  clothMat.toneMapped = false;
   clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
@@ -5823,7 +5822,6 @@ function Table3D(
   const cushionMat = clothMat.clone();
   cushionMat.color.copy(cushionColor);
   cushionMat.emissive.copy(cushionColor.clone().multiplyScalar(0.045));
-  cushionMat.toneMapped = false;
   cushionMat.side = THREE.DoubleSide;
   const clothEdgeMat = clothMat.clone();
   clothEdgeMat.color.copy(clothColor);
@@ -5841,7 +5839,6 @@ function Table3D(
   clothEdgeMat.sheen = 0;
   clothEdgeMat.reflectivity = 0;
   clothEdgeMat.needsUpdate = true;
-  clothEdgeMat.toneMapped = false;
   const clothBaseSettings = {
     roughness: clothMat.roughness,
     sheen: clothMat.sheen,
