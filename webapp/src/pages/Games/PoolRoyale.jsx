@@ -9439,12 +9439,20 @@ function PoolRoyaleGame({
     aiPlanningRef.current = aiPlanning;
   }, [aiPlanning]);
   const userSuggestionPlanRef = useRef(null);
-    const shotContextRef = useRef({
-      placedFromHand: false,
-      contactMade: false,
-      cushionAfterContact: false
-    });
+  const shotContextRef = useRef({
+    placedFromHand: false,
+    contactMade: false,
+    cushionAfterContact: false
+  });
   const shotReplayRef = useRef(null);
+  const incomingReplayHandlerRef = useRef(null);
+  const lastIncomingReplayIdRef = useRef(null);
+  const [opponentShotActive, setOpponentShotActive] = useState(false);
+  const opponentShotActiveRef = useRef(opponentShotActive);
+  const remoteShotSyncRef = useRef({ active: false, lastUpdate: 0 });
+  useEffect(() => {
+    opponentShotActiveRef.current = opponentShotActive;
+  }, [opponentShotActive]);
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
@@ -9458,6 +9466,21 @@ function PoolRoyaleGame({
     },
     []
   );
+  useEffect(() => {
+    if (!opponentShotActive) return undefined;
+    const interval = window.setInterval(() => {
+      const last = remoteShotSyncRef.current.lastUpdate || 0;
+      const nowTs =
+        typeof performance !== 'undefined' && typeof performance.now === 'function'
+          ? performance.now()
+          : Date.now();
+      if (last && nowTs - last > 2000) {
+        remoteShotSyncRef.current = { active: false, lastUpdate: 0 };
+        setOpponentShotActive(false);
+      }
+    }, 500);
+    return () => window.clearInterval(interval);
+  }, [opponentShotActive]);
   const inHandPlacementModeRef = useRef(inHandPlacementMode);
   const gameOverHandledRef = useRef(false);
   const userSuggestionRef = useRef(null);
@@ -10235,15 +10258,60 @@ const powerRef = useRef(hud.power);
     }
   }, []);
 
+  const handleIncomingShotFlag = useCallback(
+    (payload = {}) => {
+      const shooterId = payload.playerId || '';
+      const localId = accountIdRef.current || accountId || '';
+      if (shooterId && shooterId === localId) return;
+      if (payload.shooting === true) {
+        const nowTs =
+          typeof performance !== 'undefined' && typeof performance.now === 'function'
+            ? performance.now()
+            : Date.now();
+        remoteShotSyncRef.current = { active: true, lastUpdate: nowTs };
+        setOpponentShotActive(true);
+      } else if (payload.shooting === false) {
+        const nowTs =
+          typeof performance !== 'undefined' && typeof performance.now === 'function'
+            ? performance.now()
+            : Date.now();
+        remoteShotSyncRef.current = { active: false, lastUpdate: nowTs };
+        setOpponentShotActive(false);
+      }
+    },
+    [accountId]
+  );
+
+  const handleIncomingReplay = useCallback(
+    (payload = {}) => {
+      const replay = payload.replay;
+      if (!replay || !Array.isArray(replay.frames) || replay.frames.length === 0) return;
+      const shooterId = payload.playerId || '';
+      const localId = accountIdRef.current || accountId || '';
+      if (shooterId && shooterId === localId) return;
+      const replayKey =
+        replay.replayId ||
+        `${shooterId || 'remote'}:${replay.duration || replay.frames.length}`;
+      if (lastIncomingReplayIdRef.current === replayKey) return;
+      lastIncomingReplayIdRef.current = replayKey;
+      incomingReplayHandlerRef.current?.(replay, payload.layout ?? null, shooterId);
+    },
+    [accountId]
+  );
+
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return undefined;
     const handlePoolState = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
+      handleIncomingShotFlag(payload);
       applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
+      handleIncomingReplay(payload);
     };
     const handlePoolFrame = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
+      handleIncomingShotFlag(payload);
       applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
+      handleIncomingReplay(payload);
     };
 
     socket.emit('register', { playerId: accountId });
@@ -10256,7 +10324,14 @@ const powerRef = useRef(hud.power);
       socket.off('poolState', handlePoolState);
       socket.off('poolFrame', handlePoolFrame);
     };
-  }, [accountId, applyRemoteState, isOnlineMatch, tableId]);
+  }, [
+    accountId,
+    applyRemoteState,
+    handleIncomingReplay,
+    handleIncomingShotFlag,
+    isOnlineMatch,
+    tableId
+  ]);
 
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return;
@@ -13736,6 +13811,36 @@ const powerRef = useRef(hud.power);
           replayFrameCameraRef.current = null;
         };
 
+        incomingReplayHandlerRef.current = (
+          replayData,
+          postShotSnapshot,
+          sourcePlayerId = ''
+        ) => {
+          if (!replayData || !Array.isArray(replayData.frames) || replayData.frames.length === 0) {
+            return;
+          }
+          const localId = accountIdRef.current || accountId || '';
+          if (sourcePlayerId && sourcePlayerId === localId) return;
+          if (replayPlaybackRef.current) return;
+          const mergedRecording = {
+            ...replayData,
+            startTime:
+              typeof performance !== 'undefined' && typeof performance.now === 'function'
+                ? performance.now()
+                : Date.now(),
+            startState:
+              replayData.startState && Array.isArray(replayData.startState)
+                ? replayData.startState
+                : replayData.frames?.[0]?.balls ?? [],
+            cuePath: Array.isArray(replayData.cuePath) ? replayData.cuePath : [],
+            replayTags: Array.isArray(replayData.replayTags) ? replayData.replayTags : [],
+            zoomOnly: Boolean(replayData.zoomOnly)
+          };
+          shotRecording = mergedRecording;
+          shotReplayRef.current = mergedRecording;
+          startShotReplay(postShotSnapshot ?? replayData.postState ?? null);
+        };
+
         const enterTopView = (immediate = false) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
@@ -15470,6 +15575,10 @@ const powerRef = useRef(hud.power);
           const isPowerShot = clampedPower >= POWER_REPLAY_THRESHOLD;
           if (isPowerShot) replayTags.add('power');
           if (spinMagnitude >= SPIN_REPLAY_THRESHOLD) replayTags.add('spin');
+          const replayId =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
           const shouldRecordReplay = true;
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
@@ -15485,6 +15594,7 @@ const powerRef = useRef(hud.power);
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
             shotRecording = {
+              replayId,
               longShot: replayTags.has('long'),
               startTime: performance.now(),
               startState: captureBallSnapshot(),
@@ -17039,11 +17149,25 @@ const powerRef = useRef(hud.power);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
           if (isOnlineMatch && tableId) {
             const layout = captureBallSnapshot();
+            const replayPayload =
+              shotRecording && shouldStartReplay
+                ? {
+                    ...trimReplayRecording(shotRecording),
+                    startState: shotRecording.startState,
+                    replayId: shotRecording.replayId,
+                    replayTags: shotRecording.replayTags,
+                    zoomOnly: shotRecording.zoomOnly,
+                    postState: postShotSnapshot ?? layout
+                  }
+                : null;
             socket.emit('poolShot', {
               tableId,
               state: safeState,
               hud: hudRef.current,
-              layout
+              layout,
+              replay: replayPayload,
+              shooting: false,
+              playerId: accountIdRef.current || accountId || ''
             });
           }
           setShootingState(false);
@@ -17254,7 +17378,10 @@ const powerRef = useRef(hud.power);
           autoPlaceAiCueBall();
         }
         const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
+        const remoteShotActive = opponentShotActiveRef.current;
         const canShowCue =
+          !shooting &&
+          !remoteShotActive &&
           allStopped(balls) &&
           cue?.active &&
           !(currentHud?.over) &&
@@ -18290,11 +18417,19 @@ const powerRef = useRef(hud.power);
           }
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
+          const hudState = hudRef.current;
+          const allowAimingStream =
+            isOnlineMatch &&
+            tableId &&
+            !shooting &&
+            hudState?.turn === 0 &&
+            !hudState?.over &&
+            !replayPlaybackRef.current;
           const shouldStreamLayout =
             isOnlineMatch &&
             tableId &&
-            shooting &&
-            typeof captureBallSnapshot === 'function';
+            typeof captureBallSnapshot === 'function' &&
+            (shooting || allowAimingStream);
           if (shouldStreamLayout) {
             const intervalTarget = frameTiming?.targetMs ?? 1000 / 60;
             const minInterval = Math.max(4, intervalTarget * 0.9);
@@ -18305,7 +18440,8 @@ const powerRef = useRef(hud.power);
                 layout,
                 hud: hudRef.current,
                 frameTs: now,
-                playerId: accountIdRef.current || accountId || ''
+                playerId: accountIdRef.current || accountId || '',
+                shooting
               });
               lastLiveSyncSentAt = now;
             }
@@ -18417,6 +18553,7 @@ const powerRef = useRef(hud.power);
           cueGalleryStateRef.current.prev = null;
           cueGalleryStateRef.current.position?.set(0, 0, 0);
           cueGalleryStateRef.current.target?.set(0, 0, 0);
+          incomingReplayHandlerRef.current = null;
         };
       } catch (e) {
         console.error(e);
