@@ -28,7 +28,6 @@ import {
   getBallMaterial as getBilliardBallMaterial
 } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
-import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
 import { CUE_RACK_PALETTE, CUE_STYLE_PRESETS } from '../../config/cueStyles.js';
 import { socket } from '../../utils/socket.js';
@@ -2371,9 +2370,7 @@ const LIGHTING_OPTIONS = Object.freeze([
       fillIntensity: 0.76,
       rimColor: 0xfafcff,
       rimIntensity: 0.54,
-      ambientIntensity: 0.18,
-      panelColor: 0xf5f7fb,
-      panelIntensity: 11.5
+      ambientIntensity: 0.18
     }
   },
   {
@@ -2387,9 +2384,7 @@ const LIGHTING_OPTIONS = Object.freeze([
       fillIntensity: 0.84,
       rimColor: 0xffffff,
       rimIntensity: 0.6,
-      ambientIntensity: 0.2,
-      panelColor: 0xf6f8ff,
-      panelIntensity: 13
+      ambientIntensity: 0.2
     }
   },
   {
@@ -2403,9 +2398,7 @@ const LIGHTING_OPTIONS = Object.freeze([
       fillIntensity: 0.62,
       rimColor: 0xf7fbff,
       rimIntensity: 0.78,
-      ambientIntensity: 0.16,
-      panelColor: 0xf2f5ff,
-      panelIntensity: 12.5
+      ambientIntensity: 0.16
     }
   },
   {
@@ -2419,9 +2412,7 @@ const LIGHTING_OPTIONS = Object.freeze([
       fillIntensity: 0.82,
       rimColor: 0xf5f8ff,
       rimIntensity: 0.5,
-      ambientIntensity: 0.18,
-      panelColor: 0xeaf1ff,
-      panelIntensity: 12
+      ambientIntensity: 0.18
     }
   }
 ]);
@@ -9729,9 +9720,7 @@ const powerRef = useRef(hud.power);
         key,
         fill,
         rim,
-        ambient,
-        panelLights,
-        panelMaterial
+        ambient
       } = rig;
 
       if (settings.keyColor && key) key.color.set(settings.keyColor);
@@ -9742,22 +9731,6 @@ const powerRef = useRef(hud.power);
       if (settings.rimIntensity && rim) rim.intensity = settings.rimIntensity;
       if (settings.ambientIntensity && ambient)
         ambient.intensity = settings.ambientIntensity;
-      if (Array.isArray(panelLights) && panelLights.length > 0) {
-        panelLights.forEach((light) => {
-          if (!light) return;
-          if (settings.panelColor) light.color.set(settings.panelColor);
-          if (settings.panelIntensity) light.intensity = settings.panelIntensity;
-        });
-      }
-      if (panelMaterial) {
-        if (settings.panelColor) {
-          panelMaterial.color.set(settings.panelColor);
-          panelMaterial.emissive.set(settings.panelColor);
-        }
-        if (settings.panelIntensity) {
-          panelMaterial.emissiveIntensity = settings.panelIntensity * 0.12;
-        }
-      }
     },
     [lightingId]
   );
@@ -10673,7 +10646,6 @@ const powerRef = useRef(hud.power);
         alpha: false,
         powerPreference: 'high-performance'
       });
-      RectAreaLightUniformsLib.init();
       renderer.useLegacyLights = false;
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -14231,7 +14203,7 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.18; // widen the overhead footprint slightly
+        const lightSpreadBoost = 1.14; // widen the overhead footprint slightly
         const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.35; // lift the rig a touch higher for a broader throw
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
@@ -14275,45 +14247,12 @@ const powerRef = useRef(hud.power);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
 
-        const panelLights = [];
-        const panelMaterial = new THREE.MeshStandardMaterial({
-          color: 0xffffff,
-          emissive: 0xffffff,
-          emissiveIntensity: 1.3,
-          roughness: 0.24,
-          metalness: 0.08,
-          side: THREE.DoubleSide
-        });
-        const panelGroup = new THREE.Group();
-        panelGroup.position.y = lightRigHeight * 0.96;
-        lightingRig.add(panelGroup);
-        const panelSize = Math.max(PLAY_W, PLAY_H) * 0.66;
-        const panelSpacing = Math.max(PLAY_H * 0.28, TABLE.THICK * 5.2);
-        const panelGeometry = new THREE.PlaneGeometry(panelSize, panelSize);
-
-        [-panelSpacing, 0, panelSpacing].forEach((zOffset) => {
-          const rect = new THREE.RectAreaLight(0xffffff, 12, panelSize, panelSize);
-          rect.position.set(0, 0, zOffset);
-          rect.rotation.x = -Math.PI / 2;
-          panelGroup.add(rect);
-          panelLights.push(rect);
-
-          const panel = new THREE.Mesh(panelGeometry, panelMaterial);
-          panel.position.set(0, 0, zOffset);
-          panel.rotation.x = -Math.PI / 2;
-          panel.castShadow = false;
-          panel.receiveShadow = false;
-          panelGroup.add(panel);
-        });
-
         lightingRigRef.current = {
           group: lightingRig,
           key,
           fill,
           rim,
-          ambient,
-          panelLights,
-          panelMaterial
+          ambient
         };
         applyLightingPreset();
       };
@@ -17271,19 +17210,14 @@ const powerRef = useRef(hud.power);
             shotReplayRef.current = null;
             shotRecording = null;
           }
-          if (!(hudRef.current?.over)) {
-            const playerSeat = localSeatRef.current === 'B' ? 'B' : 'A';
-            const playerTurnAfterShot =
-              safeState?.activePlayer === playerSeat && !nextInHand && !safeState.frameOver;
-            if (playerTurnAfterShot) {
-              window.setTimeout(() => {
-                const hudState = hudRef.current;
-                if (hudState?.turn === 0 && !hudState.over && !hudState.inHand) {
-                  autoAimRequestRef.current = true;
-                  startUserSuggestionRef.current?.();
-                }
-              }, 0);
-            }
+          if (hadObjectPot && !(hudRef.current?.over)) {
+            window.setTimeout(() => {
+              const hudState = hudRef.current;
+              if (hudState?.turn === 0 && !hudState.over) {
+                autoAimRequestRef.current = true;
+                startUserSuggestionRef.current?.();
+              }
+            }, 0);
           }
           if (cameraRef.current && sphRef.current) {
             const cuePos = cue?.pos
