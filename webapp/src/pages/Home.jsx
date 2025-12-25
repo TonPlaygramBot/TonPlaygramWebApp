@@ -41,17 +41,66 @@ export default function Home() {
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const baseUrl = import.meta.env.BASE_URL || '/';
-  const gamePreloads = [
-    {
-      name: 'Pool Royale preload',
-      description: 'Text bundle of code for Pool Royale animations and HUD.',
-      href: `${baseUrl}game-preloads/pool-royale-preload.txt`
-    }
-  ];
+  const [pwaDownloadStatus, setPwaDownloadStatus] = useState({ state: 'idle', message: '' });
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
   const [tonConnectUI] = useTonConnectUI();
+  const runtimeCacheName = 'tonplaygram-runtime-v2';
+
+
+  const handlePwaDownload = async () => {
+    const baseNormalized = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+    const manifestUrl = new URL('pwa/offline-assets.json', `${window.location.origin}${baseNormalized}`).toString();
+
+    setPwaDownloadStatus({ state: 'working', message: 'Preparing offline download…' });
+
+    if (!('serviceWorker' in navigator) || !navigator.serviceWorker?.ready || !('caches' in window)) {
+      setPwaDownloadStatus({
+        state: 'error',
+        message: 'Offline download is unavailable in this browser. Please try from a supported browser.'
+      });
+      return;
+    }
+
+    try {
+      await navigator.serviceWorker.ready;
+      const manifestResponse = await fetch(manifestUrl, { cache: 'no-store' });
+      if (!manifestResponse.ok) throw new Error('Unable to fetch offline manifest');
+
+      const assets = await manifestResponse.json();
+      if (!Array.isArray(assets) || assets.length === 0) {
+        throw new Error('Offline manifest is empty');
+      }
+
+      const cache = await caches.open(runtimeCacheName);
+      let successes = 0;
+      for (const asset of assets) {
+        const normalizedAsset = asset.startsWith('http') ? asset : asset.replace(/^\//, '');
+        const assetUrl = new URL(normalizedAsset, `${window.location.origin}${baseNormalized}`).toString();
+        try {
+          const request = new Request(assetUrl, { cache: 'reload' });
+          const response = await fetch(request);
+          if (!response.ok) throw new Error('Bad response');
+          await cache.put(request, response.clone());
+          successes++;
+        } catch (err) {
+          console.warn('Failed to cache asset', assetUrl, err);
+        }
+      }
+
+      setPwaDownloadStatus({
+        state: 'ready',
+        message: `Cached ${successes} of ${assets.length} files. The PWA should start faster and work better offline.`
+      });
+    } catch (err) {
+      console.error('PWA offline download failed', err);
+      setPwaDownloadStatus({
+        state: 'error',
+        message: 'Unable to prepare offline download right now. Please try again after reloading.'
+      });
+    }
+  };
 
 
   useEffect(() => {
@@ -236,27 +285,46 @@ export default function Home() {
 
       <div className="mt-4 bg-surface border border-border rounded-xl p-4 space-y-3">
         <div className="text-center space-y-1">
-          <h3 className="text-lg font-semibold text-white">Preload game code (tekst)</h3>
+          <h3 className="text-lg font-semibold text-white">PWA offline setup</h3>
           <p className="text-sm text-subtext">
-            Download text bundles for the main games so Tirana Hallway can cache them faster.
+            Download the core web assets so the app opens faster and can be added to your home screen.
           </p>
         </div>
-        <div className="space-y-2">
-          {gamePreloads.map((preload) => (
-            <div key={preload.name} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-background/50 border border-border rounded-lg p-3">
-              <div className="space-y-0.5">
-                <p className="text-sm font-semibold text-white">{preload.name}</p>
-                <p className="text-xs text-subtext">{preload.description}</p>
-              </div>
-              <a
-                href={preload.href}
-                download
-                className="mt-2 sm:mt-0 inline-flex items-center justify-center px-3 py-1.5 text-sm font-semibold bg-primary text-surface rounded-full shadow-primary/40 hover:shadow-primary/60 shadow"
-              >
-                Download bundle
-              </a>
-            </div>
-          ))}
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={handlePwaDownload}
+            className="w-full inline-flex items-center justify-center px-3 py-2 text-sm font-semibold bg-primary text-surface rounded-full shadow-primary/40 hover:shadow-primary/60 shadow disabled:opacity-60 disabled:cursor-not-allowed"
+            disabled={pwaDownloadStatus.state === 'working'}
+          >
+            {pwaDownloadStatus.state === 'working' ? 'Downloading assets…' : 'Download offline assets'}
+          </button>
+          {pwaDownloadStatus.message && (
+            <p
+              className={`text-xs text-center ${
+                pwaDownloadStatus.state === 'error'
+                  ? 'text-red-400'
+                  : pwaDownloadStatus.state === 'ready'
+                    ? 'text-green-400'
+                    : 'text-subtext'
+              }`}
+            >
+              {pwaDownloadStatus.message}
+            </p>
+          )}
+          <div className="space-y-1 text-xs text-subtext text-left bg-background/50 border border-border rounded-lg p-3">
+            <p className="text-white font-semibold text-sm">Add to home screen</p>
+            <p>1) Tap the browser menu and choose &quot;Add to Home screen&quot; to pin the web app like an app.</p>
+            <p>2) On Android, you can also install the lightweight launcher APK for faster opening:</p>
+            <a
+              href={`${baseUrl}tonplaygram-launcher.apk`}
+              className="text-primary font-semibold underline"
+              download
+            >
+              Download launcher APK
+            </a>
+            <p className="italic text-[11px] text-subtext">No new binaries are added; this uses the existing launcher file.</p>
+          </div>
         </div>
       </div>
       <p className="text-center text-xs text-subtext">Status: {status}</p>
