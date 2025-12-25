@@ -1675,7 +1675,7 @@ const BASE_BALL_COLORS = Object.freeze({
   black: 0x111111
 });
 const CLOTH_TEXTURE_INTENSITY = 0.74;
-const CLOTH_HAIR_INTENSITY = 0.88;
+const CLOTH_HAIR_INTENSITY = 0.7;
 const CLOTH_BUMP_INTENSITY = 0.94;
 const CLOTH_SOFT_BLEND = 0.42;
 
@@ -4300,7 +4300,7 @@ const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.1;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // allow the lowered cue view while keeping the cap slightly above the surface stop
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.26; // halt the downward sweep sooner so the lowest angle stays slightly higher
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.022; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
@@ -4400,8 +4400,8 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 1.38; // pull the rail overhead broadcast he
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.036;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.1;
+const CUE_VIEW_RADIUS_RATIO = 0.04;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.12;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
@@ -4417,7 +4417,7 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
-const CAMERA_TILT_ZOOM = BALL_R * 1.62; // increase zoom effect when the camera tilts down for the cue view
+const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.05;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
@@ -5766,19 +5766,19 @@ function Table3D(
   const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.26);
   const cushionColor = cushionPrimary.clone().lerp(clothHighlight, 0.18);
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
-  const clothSheen = 0;
-  const clothSheenRoughness = 1;
+  const clothSheen = CLOTH_QUALITY.sheen * 0.18;
+  const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.35);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 1,
+    roughness: 0.985,
     sheen: clothSheen,
     sheenColor,
     sheenRoughness: clothSheenRoughness,
     clearcoat: 0,
-    clearcoatRoughness: 1,
+    clearcoatRoughness: 0.94,
     envMapIntensity: 0,
-    emissive: clothColor.clone().multiplyScalar(0.02),
-    emissiveIntensity: 0.18,
+    emissive: clothColor.clone().multiplyScalar(0.03),
+    emissiveIntensity: 0.26,
     metalness: 0
   });
   clothMat.side = THREE.DoubleSide;
@@ -5794,7 +5794,7 @@ function Table3D(
   const repeatRatio = 3.28;
   const baseBumpScale =
     (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.24) * CLOTH_QUALITY.bumpScaleMultiplier;
-  const flattenedBumpScale = baseBumpScale * 0.72;
+  const flattenedBumpScale = baseBumpScale * 0.62;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
