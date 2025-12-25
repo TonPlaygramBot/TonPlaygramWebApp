@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TonPlaygram • Offline</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/power-slider.css" />
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(circle at 20% 20%, rgba(52, 172, 224, 0.2), transparent 35%),
+          radial-gradient(circle at 80% 0%, rgba(104, 94, 255, 0.2), transparent 40%),
+          #0b0f1a;
+        color: #f3f5ff;
+        text-align: center;
+        padding: 32px 20px;
+      }
+      .card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 24px 20px;
+        max-width: 420px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(10px);
+      }
+      h1 {
+        font-size: 1.4rem;
+        margin: 0 0 8px;
+        letter-spacing: 0.02em;
+      }
+      p {
+        margin: 6px 0;
+        color: #cfd6ff;
+        line-height: 1.5;
+      }
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 18px;
+      }
+      button {
+        border: none;
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.1s ease, box-shadow 0.2s ease;
+      }
+      button:active {
+        transform: scale(0.98);
+      }
+      .primary {
+        background: linear-gradient(135deg, #6d8bff, #4ad2ff);
+        color: #0b0f1a;
+        box-shadow: 0 10px 25px rgba(77, 138, 255, 0.35);
+      }
+      .secondary {
+        background: rgba(255, 255, 255, 0.08);
+        color: #f3f5ff;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .pill {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 0.9rem;
+        color: #cfd6ff;
+        background: rgba(255, 255, 255, 0.05);
+        margin-bottom: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="pill">TonPlaygram • Offline</div>
+      <h1>Ready to resume when you are</h1>
+      <p>We couldn’t reach the network. Any available content is cached so you can keep browsing.</p>
+      <p>Reconnect to get live rewards, leaderboards, and multiplayer sessions.</p>
+      <div class="actions">
+        <button class="primary" onclick="window.location.reload()">Retry connection</button>
+        <button class="secondary" onclick="window.history.back()">Go back</button>
+      </div>
+    </div>
+  </body>
+</html>
