@@ -14203,8 +14203,8 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.2; // slightly widen the overhead footprint so the fixtures feel larger
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.35; // lift the rig a touch higher for a broader throw
+        const lightSpreadBoost = 1.32; // widen the overhead footprint so fixtures read larger on mobile
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.65; // lift the rig higher for a broader throw
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
         const lightOffsetZ =
@@ -14220,11 +14220,11 @@ const powerRef = useRef(hud.power);
         const ambient = new THREE.AmbientLight(0xffffff, 0.32);
         lightingRig.add(ambient);
 
-        const key = new THREE.DirectionalLight(0xffffff, 1.82);
+        const key = new THREE.DirectionalLight(0xffffff, 1.68);
         key.position.set(lightLineX, lightRigHeight, -lightLineZ);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
-        key.shadow.mapSize.set(4096, 4096);
+        key.shadow.mapSize.set(2048, 2048);
         key.shadow.camera.near = 0.1;
         key.shadow.camera.far = shadowDepth;
         key.shadow.camera.left = -shadowHalfSpan;
@@ -14237,13 +14237,13 @@ const powerRef = useRef(hud.power);
         lightingRig.add(key);
         lightingRig.add(key.target);
 
-        const fill = new THREE.DirectionalLight(0xffffff, 0.9);
+        const fill = new THREE.DirectionalLight(0xffffff, 0.84);
         fill.position.set(lightLineX, lightRigHeight * 1.02, 0);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
-        const rim = new THREE.DirectionalLight(0xffffff, 0.72);
+        const rim = new THREE.DirectionalLight(0xffffff, 0.68);
         rim.position.set(lightLineX, lightRigHeight * 1.06, lightLineZ);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
