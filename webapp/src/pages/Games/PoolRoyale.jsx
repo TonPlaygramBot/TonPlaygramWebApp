@@ -8840,6 +8840,27 @@ function PoolRoyaleGame({
   useEffect(() => {
     tgIdRef.current = tgId || '';
   }, [tgId]);
+  const detectObjectPotFromSnapshots = useCallback((before = [], after = []) => {
+    if (!Array.isArray(before) || before.length === 0) return false;
+    const beforeActive = new Map();
+    before.forEach((entry) => {
+      if (!entry) return;
+      const id = String(entry.id);
+      beforeActive.set(id, entry.active !== false);
+    });
+    const afterActive = new Map();
+    after.forEach((entry) => {
+      if (!entry) return;
+      const id = String(entry.id);
+      afterActive.set(id, entry.active !== false);
+    });
+    for (const [id, wasActive] of beforeActive.entries()) {
+      if (id.toLowerCase() === 'cue') continue;
+      const stillActive = afterActive.has(id) ? afterActive.get(id) : false;
+      if (wasActive && !stillActive) return true;
+    }
+    return false;
+  }, []);
   const ensureCueFeePaid = useCallback(async () => {
     if (cueFeePaidRef.current) return true;
     const id = accountIdRef.current;
@@ -10322,18 +10343,26 @@ const powerRef = useRef(hud.power);
       const recording = incomingRemoteShotRef.current;
       const hasState = Boolean(payload.state);
       if (recording && (hasState || (payload.final && !hasLayout))) {
-        recording.postState =
+        const postState =
           payload.layout ??
-          (captureBallSnapshotRef.current ? captureBallSnapshotRef.current() : recording.frames?.[recording.frames.length - 1]?.balls ?? null);
-        recording.startState =
+          (captureBallSnapshotRef.current
+            ? captureBallSnapshotRef.current()
+            : recording.frames?.[recording.frames.length - 1]?.balls ?? null);
+        const startState =
           recording.startState || recording.frames?.[0]?.balls || null;
+        const foulCommitted = Boolean(payload.state?.foul);
+        const hadPot = detectObjectPotFromSnapshots(startState ?? [], postState ?? []);
+        recording.postState = postState;
+        recording.startState = startState;
+        recording.foul = foulCommitted;
+        recording.hadPot = hadPot;
         pendingRemoteReplayRef.current = { ...recording };
         incomingRemoteShotRef.current = null;
         remoteShotActiveRef.current = false;
         remoteShotUntilRef.current = 0;
       }
     },
-    [accountId, isOnlineMatch, tableId]
+    [accountId, detectObjectPotFromSnapshots, isOnlineMatch, tableId]
   );
 
   useEffect(() => {
@@ -16835,22 +16864,24 @@ const powerRef = useRef(hud.power);
         const resolveReplayDecision = ({
           recording,
           hadObjectPot,
+          foulCommitted,
           pottedBalls,
           shotContext
         }) => {
-          if (!recording || !hadObjectPot) return null;
+          if (!recording || (!hadObjectPot && !foulCommitted)) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
+          if (foulCommitted) tags.add('foul');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
           if (potCount > 1) tags.add('multi');
           if (shotContext?.cushionAfterContact) tags.add('bank');
           if (lastShotPower >= POWER_REPLAY_THRESHOLD) tags.add('power');
           if (tags.size === 0) return null;
-          const priority = ['multi', 'bank', 'long', 'power', 'spin'];
+          const priority = ['foul', 'multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
           return {
-            shouldReplay: hadObjectPot || tags.size > 0,
+            shouldReplay: hadObjectPot || foulCommitted,
             banner: selectReplayBanner(primary),
             zoomOnly,
             tags: Array.from(tags)
@@ -16863,20 +16894,9 @@ const powerRef = useRef(hud.power);
           const shotEvents = [];
           const firstContactColor = toBallColorId(firstHit);
           const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
-          const replayDecision = resolveReplayDecision({
-            recording: shotRecording,
-            hadObjectPot,
-            pottedBalls: potted,
-            shotContext: shotContextRef.current
-          });
-          if (replayDecision && shotRecording) {
-            shotRecording.replayTags = replayDecision.tags;
-            shotRecording.zoomOnly = replayDecision.zoomOnly;
-          }
-          const shouldStartReplay =
-            Boolean(replayDecision?.shouldReplay) &&
-            (shotRecording?.frames?.length ?? 0) > 1;
-          const replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
+          let replayDecision = null;
+          let shouldStartReplay = false;
+          let replayBannerText = selectReplayBanner('default');
           let postShotSnapshot = null;
         if (firstContactColor || firstHit) {
           shotEvents.push({
@@ -16977,6 +16997,22 @@ const powerRef = useRef(hud.power);
         }
         const metaState =
           safeState && typeof safeState.meta === 'object' ? safeState.meta.state : null;
+        const foulCommitted = Boolean(safeState?.foul);
+        replayDecision = resolveReplayDecision({
+          recording: shotRecording,
+          hadObjectPot,
+          foulCommitted,
+          pottedBalls: potted,
+          shotContext: shotContextRef.current
+        });
+        if (replayDecision && shotRecording) {
+          shotRecording.replayTags = replayDecision.tags;
+          shotRecording.zoomOnly = replayDecision.zoomOnly;
+        }
+        shouldStartReplay =
+          Boolean(replayDecision?.shouldReplay) &&
+          (shotRecording?.frames?.length ?? 0) > 1;
+        replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
         if (safeState?.foul) {
           showRuleToast('Foul');
         }
@@ -17301,7 +17337,17 @@ const powerRef = useRef(hud.power);
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
           const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
-          if (pending?.frames?.length > 1) {
+          const allowRemoteReplay =
+            pending?.hadPot ||
+            pending?.foul ||
+            detectObjectPotFromSnapshots(
+              pending.startState ?? [],
+              pending.postState ?? []
+            );
+          if (!allowRemoteReplay) {
+            shotRecording = null;
+            shotReplayRef.current = null;
+          } else if (pending?.frames?.length > 1) {
             shotRecording = {
               ...pending,
               startTime: pending.startTime ?? nowMs,
@@ -17385,11 +17431,14 @@ const powerRef = useRef(hud.power);
         const remoteShotActive =
           currentHud?.turn === 1 && remoteShotActiveRef.current;
         const remoteAimState = remoteAimRef.current;
+        const cueVisualizationLocked =
+          shooting || replayPlaybackRef.current || shotRecording || remoteShotActive;
         if (isAiTurn) {
           autoPlaceAiCueBall();
         }
         const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
         const canShowCue =
+          !cueVisualizationLocked &&
           allStopped(balls) &&
           cue?.active &&
           !(currentHud?.over) &&
@@ -17727,6 +17776,14 @@ const powerRef = useRef(hud.power);
           }
         } else if (showingRemoteAim) {
           aimFocusRef.current = null;
+          const remoteCueAnchor =
+            remoteAimState?.cueBall &&
+            Number.isFinite(remoteAimState.cueBall.x) &&
+            Number.isFinite(remoteAimState.cueBall.y)
+              ? new THREE.Vector2(remoteAimState.cueBall.x, remoteAimState.cueBall.y)
+              : cue?.pos
+                ? new THREE.Vector2(cue.pos.x, cue.pos.y)
+                : new THREE.Vector2(0, 0);
           const remoteAimDir = new THREE.Vector2(
             remoteAimState?.dir?.x ?? 0,
             remoteAimState?.dir?.y ?? 0
@@ -17740,12 +17797,20 @@ const powerRef = useRef(hud.power);
           const perp = new THREE.Vector3(-baseDir.z, 0, baseDir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           const powerStrength = THREE.MathUtils.clamp(remoteAimState?.power ?? 0, 0, 1);
+          const ballsForRemoteAim = Array.isArray(balls)
+            ? balls.filter((b) => b && b.id !== cue?.id)
+            : [];
+          const remoteCue = { pos: remoteCueAnchor };
           const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
-            cue,
+            remoteCue,
             remoteAimDir,
-            balls
+            ballsForRemoteAim
           );
-          const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+          const start = new THREE.Vector3(
+            remoteCueAnchor.x,
+            BALL_CENTER_Y,
+            remoteCueAnchor.y
+          );
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(baseDir.clone().multiplyScalar(BALL_R));
@@ -17803,9 +17868,13 @@ const powerRef = useRef(hud.power);
           }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           cueStick.position.set(
-            cue.pos.x - baseDir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
+            remoteCueAnchor.x -
+              baseDir.x * (cueLen / 2 + pull + CUE_TIP_GAP) +
+              spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - baseDir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
+            remoteCueAnchor.y -
+              baseDir.z * (cueLen / 2 + pull + CUE_TIP_GAP) +
+              spinWorld.z
           );
           const tiltAmount = Math.abs(spinY);
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
