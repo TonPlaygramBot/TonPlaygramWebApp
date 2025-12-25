@@ -2388,8 +2388,6 @@ const LIGHTING_OPTIONS = Object.freeze([
       fillIntensity: 0.84,
       rimColor: 0xffffff,
       rimIntensity: 0.6,
-      sideColor: 0xf6f8ff,
-      sideIntensity: 0.52,
       ambientIntensity: 0.2
     }
   },
@@ -2404,8 +2402,6 @@ const LIGHTING_OPTIONS = Object.freeze([
       fillIntensity: 0.62,
       rimColor: 0xf7fbff,
       rimIntensity: 0.78,
-      sideColor: 0xf2f5ff,
-      sideIntensity: 0.6,
       ambientIntensity: 0.16
     }
   },
@@ -2420,8 +2416,6 @@ const LIGHTING_OPTIONS = Object.freeze([
       fillIntensity: 0.82,
       rimColor: 0xf5f8ff,
       rimIntensity: 0.5,
-      sideColor: 0xeaf1ff,
-      sideIntensity: 0.48,
       ambientIntensity: 0.18
     }
   }
@@ -9732,7 +9726,6 @@ const powerRef = useRef(hud.power);
         key,
         fill,
         rim,
-        side,
         ambient
       } = rig;
 
@@ -9742,8 +9735,6 @@ const powerRef = useRef(hud.power);
       if (settings.fillIntensity && fill) fill.intensity = settings.fillIntensity;
       if (settings.rimColor && rim) rim.color.set(settings.rimColor);
       if (settings.rimIntensity && rim) rim.intensity = settings.rimIntensity;
-      if (settings.sideColor && side) side.color.set(settings.sideColor);
-      if (settings.sideIntensity && side) side.intensity = settings.sideIntensity;
       if (settings.ambientIntensity && ambient)
         ambient.intensity = settings.ambientIntensity;
     },
@@ -14218,18 +14209,16 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.52; // widen the overhead footprint so fixtures read larger on mobile
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.85; // lift the rig higher for a broader throw
+        const lightSpreadBoost = 1.42; // widen the overhead footprint so fixtures read larger on mobile
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.65; // lift the rig higher for a broader throw
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
         const lightOffsetZ =
           Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
         const lightLineX = lightOffsetX * 0.48; // keep the rig aligned along a single long rail
-        const lightLineZ = lightOffsetZ * 0.64; // spread the heads along the long side in a straight line
-        const lightLineOuterZ = lightLineZ * 1.08;
-        const lightLineInnerZ = lightLineZ * 0.38;
+        const lightLineZ = lightOffsetZ * 0.58; // spread the three heads along the long side in a straight line
         const shadowHalfSpan =
-          Math.max(roomWidth, roomDepth) * 0.78 + TABLE.THICK * 3.8;
+          Math.max(roomWidth, roomDepth) * 0.72 + TABLE.THICK * 3.5;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
@@ -14238,7 +14227,7 @@ const powerRef = useRef(hud.power);
         lightingRig.add(ambient);
 
         const key = new THREE.DirectionalLight(0xffffff, 1.68);
-        key.position.set(lightLineX, lightRigHeight, -lightLineOuterZ);
+        key.position.set(lightLineX, lightRigHeight, -lightLineZ);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
         key.shadow.mapSize.set(2048, 2048);
@@ -14255,29 +14244,22 @@ const powerRef = useRef(hud.power);
         lightingRig.add(key.target);
 
         const fill = new THREE.DirectionalLight(0xffffff, 0.84);
-        fill.position.set(lightLineX, lightRigHeight * 1.02, -lightLineInnerZ);
+        fill.position.set(lightLineX, lightRigHeight * 1.02, 0);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
         const rim = new THREE.DirectionalLight(0xffffff, 0.68);
-        rim.position.set(lightLineX, lightRigHeight * 1.06, lightLineInnerZ);
+        rim.position.set(lightLineX, lightRigHeight * 1.06, lightLineZ);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
-
-        const side = new THREE.DirectionalLight(0xffffff, 0.72);
-        side.position.set(lightLineX, lightRigHeight * 1.04, lightLineOuterZ);
-        side.target.position.set(0, targetY, 0);
-        lightingRig.add(side);
-        lightingRig.add(side.target);
 
         lightingRigRef.current = {
           group: lightingRig,
           key,
           fill,
           rim,
-          side,
           ambient
         };
         applyLightingPreset();
