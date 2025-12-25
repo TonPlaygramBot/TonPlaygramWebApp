@@ -14220,16 +14220,17 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.54; // widen the overhead footprint so fixtures read larger on mobile and reach farther to the sides
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.75; // lift the rig higher for a broader throw
+        const lightSpreadBoost = 1.68; // widen the overhead footprint so fixtures read larger on mobile and reach farther to the sides
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 7.1; // lift the rig higher for a broader throw and wider coverage
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
         const lightOffsetZ =
           Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
         const lightLineX = lightOffsetX * 0.5; // keep the rig aligned along a single long rail with a slightly wider stance
-        const lightLineZ = lightOffsetZ * 0.64; // spread the heads farther along the long side in a straight line
+        const lightSpacing = lightOffsetZ * 0.6; // enforce equal spacing between fixtures to mirror the centred heads
+        const lightPositionsZ = [-1.5, -0.5, 0.5, 1.5].map((mult) => mult * lightSpacing);
         const shadowHalfSpan =
-          Math.max(roomWidth, roomDepth) * 0.72 + TABLE.THICK * 3.5;
+          Math.max(roomWidth, roomDepth) * 0.82 + TABLE.THICK * 3.5;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
@@ -14237,8 +14238,8 @@ const powerRef = useRef(hud.power);
         const ambient = new THREE.AmbientLight(0xffffff, 0.32);
         lightingRig.add(ambient);
 
-        const key = new THREE.DirectionalLight(0xffffff, 1.68);
-        key.position.set(lightLineX, lightRigHeight, -lightLineZ * 1.08);
+        const key = new THREE.DirectionalLight(0xffffff, 1.78);
+        key.position.set(lightLineX, lightRigHeight, lightPositionsZ[0]);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
         key.shadow.mapSize.set(2048, 2048);
@@ -14254,20 +14255,20 @@ const powerRef = useRef(hud.power);
         lightingRig.add(key);
         lightingRig.add(key.target);
 
-        const fill = new THREE.DirectionalLight(0xffffff, 0.84);
-        fill.position.set(lightLineX, lightRigHeight * 1.02, -lightLineZ * 0.36);
+        const fill = new THREE.DirectionalLight(0xffffff, 0.9);
+        fill.position.set(lightLineX, lightRigHeight * 1.02, lightPositionsZ[1]);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
-        const wash = new THREE.DirectionalLight(0xffffff, 0.72);
-        wash.position.set(lightLineX, lightRigHeight * 1.04, lightLineZ * 0.36);
+        const wash = new THREE.DirectionalLight(0xffffff, 0.82);
+        wash.position.set(lightLineX, lightRigHeight * 1.04, lightPositionsZ[2]);
         wash.target.position.set(0, targetY, 0);
         lightingRig.add(wash);
         lightingRig.add(wash.target);
 
-        const rim = new THREE.DirectionalLight(0xffffff, 0.68);
-        rim.position.set(lightLineX, lightRigHeight * 1.06, lightLineZ * 1.08);
+        const rim = new THREE.DirectionalLight(0xffffff, 0.74);
+        rim.position.set(lightLineX, lightRigHeight * 1.06, lightPositionsZ[3]);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
