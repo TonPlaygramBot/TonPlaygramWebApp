@@ -9812,6 +9812,7 @@ const powerRef = useRef(hud.power);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
+  const liveOpponentFrameRef = useRef(null);
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
@@ -10216,7 +10217,7 @@ const powerRef = useRef(hud.power);
     window.setTimeout(goToLobby, 1200);
   }, [frameState.frameOver, frameState.winner, goToLobby, isTraining]);
 
-  const applyRemoteState = useCallback(({ state, hud: incomingHud, layout }) => {
+  const applyRemoteState = useCallback(({ state, hud: incomingHud, layout, live }) => {
     if (state) {
       frameRef.current = state;
       setFrameState(state);
@@ -10224,6 +10225,26 @@ const powerRef = useRef(hud.power);
     }
     if (incomingHud) {
       setHud((prev) => ({ ...prev, ...incomingHud }));
+    }
+    if (live === null) {
+      liveOpponentFrameRef.current = null;
+    } else if (live) {
+      const localId = accountIdRef.current || accountId || null;
+      const sourceId = live.playerId ?? null;
+      if (!sourceId || String(sourceId) !== String(localId)) {
+        const nextTs = Number.isFinite(live.frameTs) ? live.frameTs : Date.now();
+        const prevTs = Number.isFinite(liveOpponentFrameRef.current?.frameTs)
+          ? liveOpponentFrameRef.current.frameTs
+          : 0;
+        if (!prevTs || nextTs >= prevTs) {
+          liveOpponentFrameRef.current = {
+            ...live,
+            frameTs: nextTs,
+            playerId: sourceId,
+            receivedAt: performance.now()
+          };
+        }
+      }
     }
     if (Array.isArray(layout)) {
       const applySnapshot = applyBallSnapshotRef.current;
@@ -10239,11 +10260,33 @@ const powerRef = useRef(hud.power);
     if (!isOnlineMatch || !tableId) return undefined;
     const handlePoolState = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
-      applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
+      applyRemoteState({
+        state: payload.state,
+        hud: payload.hud,
+        layout: payload.layout,
+        live: payload.live
+          ? {
+              ...payload.live,
+              playerId: payload.playerId ?? payload.live?.playerId ?? null,
+              frameTs: payload.frameTs ?? payload.updatedAt ?? null
+            }
+          : null
+      });
     };
     const handlePoolFrame = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
-      applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
+      applyRemoteState({
+        state: payload.state,
+        hud: payload.hud,
+        layout: payload.layout,
+        live: payload.live
+          ? {
+              ...payload.live,
+              playerId: payload.playerId ?? payload.live?.playerId ?? null,
+              frameTs: payload.frameTs ?? payload.updatedAt ?? null
+            }
+          : null
+      });
     };
 
     socket.emit('register', { playerId: accountId });
@@ -11959,6 +12002,48 @@ const powerRef = useRef(hud.power);
             focusWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
             lerp: 0.18
           };
+          const remoteLiveFrame = liveOpponentFrameRef.current;
+          const remoteLiveTs = Number.isFinite(remoteLiveFrame?.frameTs)
+            ? remoteLiveFrame.frameTs
+            : null;
+          const remoteViewActive =
+            isOnlineMatch &&
+            remoteLiveFrame &&
+            remoteLiveFrame.playerId &&
+            String(remoteLiveFrame.playerId) !== String(accountIdRef.current || accountId || '') &&
+            hudRef.current?.turn === 1 &&
+            (!remoteLiveTs || Math.abs(Date.now() - remoteLiveTs) < 2000);
+          if (remoteViewActive && remoteLiveFrame.camera) {
+            const snap = remoteLiveFrame.camera;
+            const cam = activeRenderCameraRef.current ?? camera;
+            const pos = normalizeVector3Snapshot(snap.position, cam.position);
+            const targetSnap = normalizeVector3Snapshot(snap.target, null);
+            if (pos) {
+              cam.position.set(pos.x, pos.y, pos.z);
+            }
+            const minTargetY = Number.isFinite(snap.minTargetY)
+              ? snap.minTargetY
+              : baseSurfaceWorldY;
+            const focusTarget = targetSnap
+              ? new THREE.Vector3(
+                  targetSnap.x,
+                  Math.max(targetSnap.y, minTargetY),
+                  targetSnap.z
+                )
+              : new THREE.Vector3(0, minTargetY, 0);
+            if (Number.isFinite(snap.fov) && cam.fov !== snap.fov) {
+              cam.fov = snap.fov;
+              cam.updateProjectionMatrix();
+            }
+            cam.lookAt(focusTarget);
+            activeRenderCameraRef.current = cam;
+            renderCamera = cam;
+            lookTarget = focusTarget;
+            broadcastArgs.focusWorld = focusTarget.clone();
+            broadcastArgs.targetWorld = focusTarget.clone();
+            broadcastArgs.lerp = 0.06;
+            return renderCamera;
+          }
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
           if (broadcastSystem?.smoothing != null) {
@@ -13437,6 +13522,44 @@ const powerRef = useRef(hud.power);
             snapshot.minTargetY = overheadCamera.minTargetY;
           }
           return snapshot;
+        };
+
+        const captureLiveFrameSnapshot = () => {
+          const aimDir = aimDirRef.current;
+          const spin = spinRef.current || { x: 0, y: 0 };
+          const activeCamera = activeRenderCameraRef.current ?? camera;
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+          const target =
+            lastCameraTargetRef.current?.clone?.() ??
+            broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ??
+            new THREE.Vector3(0, minTargetY, 0);
+          return {
+            aim: {
+              dir: {
+                x: Number.isFinite(aimDir?.x) ? aimDir.x : 0,
+                y: Number.isFinite(aimDir?.y) ? aimDir.y : 1
+              },
+              power: THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1),
+              pull: Number.isFinite(cuePullCurrentRef.current)
+                ? cuePullCurrentRef.current
+                : 0,
+              spin: {
+                x: Number.isFinite(spin?.x) ? spin.x : 0,
+                y: Number.isFinite(spin?.y) ? spin.y : 0
+              },
+              cueVisible: Boolean(cueStick?.visible),
+              lookMode: Boolean(lookModeRef.current)
+            },
+            camera: {
+              position: serializeVector3Snapshot(activeCamera?.position, camera.position),
+              target: serializeVector3Snapshot(target, target),
+              fov: Number.isFinite(activeCamera?.fov) ? activeCamera.fov : camera.fov,
+              topView: Boolean(topViewRef.current),
+              minTargetY
+            },
+            replayActive: Boolean(replayPlaybackRef.current)
+          };
         };
 
         const applyBallSnapshot = (snapshot) => {
@@ -17230,6 +17353,31 @@ const powerRef = useRef(hud.power);
           0,
           1
         );
+        const liveOpponentFrame = liveOpponentFrameRef.current;
+        const remoteTs = Number.isFinite(liveOpponentFrame?.frameTs)
+          ? liveOpponentFrame.frameTs
+          : null;
+        const nowMs = Date.now();
+        const remoteFrameFresh =
+          isOnlineMatch &&
+          liveOpponentFrame &&
+          liveOpponentFrame.aim &&
+          liveOpponentFrame.playerId &&
+          String(liveOpponentFrame.playerId) !== String(accountIdRef.current || accountId || '') &&
+          hudRef.current?.turn === 1 &&
+          (!remoteTs || Math.abs(nowMs - remoteTs) < 1500);
+        const remoteAimState = remoteFrameFresh ? liveOpponentFrame.aim : null;
+        const remoteAimDir =
+          remoteAimState?.dir &&
+          Number.isFinite(remoteAimState.dir.x) &&
+          Number.isFinite(remoteAimState.dir.y)
+            ? new THREE.Vector2(remoteAimState.dir.x, remoteAimState.dir.y)
+            : null;
+        const remoteSpinState = remoteAimState?.spin;
+        const remotePower = remoteAimState?.power;
+        const remoteCuePull = remoteAimState?.pull;
+        const remoteCueVisible = Boolean(remoteAimState?.cueVisible);
+        const aimDirForPreview = remoteAimDir ?? aimDir;
         const baseAimLerp = THREE.MathUtils.lerp(
           CUE_VIEW_AIM_LINE_LERP,
           STANDING_VIEW_AIM_LINE_LERP,
@@ -17238,10 +17386,18 @@ const powerRef = useRef(hud.power);
         const aimLerpFactor = chalkAssistTargetRef.current
           ? Math.min(baseAimLerp, CHALK_AIM_LERP_SLOW)
           : baseAimLerp;
-        if (!lookModeRef.current) {
+        if (!lookModeRef.current && !remoteFrameFresh) {
           aimDir.lerp(tmpAim, aimLerpFactor);
         }
-        const appliedSpin = applySpinConstraints(aimDir, true);
+        if (remoteSpinState) {
+          const normalizedSpin = {
+            x: clamp(remoteSpinState.x ?? 0, -1, 1),
+            y: clamp(remoteSpinState.y ?? 0, -1, 1)
+          };
+          spinRef.current = normalizedSpin;
+          spinRequestRef.current = normalizedSpin;
+        }
+        const appliedSpin = applySpinConstraints(aimDirForPreview, true);
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
         let shouldSlowAim = false;
@@ -17250,6 +17406,7 @@ const powerRef = useRef(hud.power);
         const isPlayerTurn = currentHud?.turn === 0;
         const isAiTurn = aiOpponentEnabled && currentHud?.turn === 1;
         const previewingAiShot = aiShotPreviewRef.current;
+        const allowOpponentPreview = remoteFrameFresh && remoteCueVisible;
         if (isAiTurn) {
           autoPlaceAiCueBall();
         }
@@ -17260,19 +17417,20 @@ const powerRef = useRef(hud.power);
           !(currentHud?.over) &&
           !(inHandPlacementModeRef.current) &&
           (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current);
+        const allowAimVisuals =
+          isPlayerTurn || previewingAiShot || allowOpponentPreview;
 
         sidePocketAimRef.current = false;
-        if (canShowCue && (isPlayerTurn || previewingAiShot)) {
-          const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
+        if (canShowCue && allowAimVisuals) {
+          const baseAimDir = new THREE.Vector3(aimDirForPreview.x, 0, aimDirForPreview.y);
           if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
           else baseAimDir.normalize();
           const basePerp = new THREE.Vector3(-baseAimDir.z, 0, baseAimDir.x);
           if (basePerp.lengthSq() > 1e-8) basePerp.normalize();
-          const powerStrength = THREE.MathUtils.clamp(
-            powerRef.current ?? 0,
-            0,
-            1
-          );
+          const powerStrength =
+            allowOpponentPreview && Number.isFinite(remotePower)
+              ? THREE.MathUtils.clamp(remotePower, 0, 1)
+              : THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1);
           const aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
           const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
             cue,
@@ -17396,20 +17554,29 @@ const powerRef = useRef(hud.power);
           } else {
             impactRing.visible = false;
           }
-          const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
+          const desiredPull =
+            allowOpponentPreview && Number.isFinite(remoteCuePull)
+              ? Math.max(0, remoteCuePull)
+              : powerStrength * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             aimDir2D.clone().multiplyScalar(-1),
             balls
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-          const pullTarget = Math.min(desiredPull, maxPull);
+          const pullTarget =
+            allowOpponentPreview && Number.isFinite(remoteCuePull)
+              ? Math.max(0, remoteCuePull)
+              : Math.min(desiredPull, maxPull);
           cuePullTargetRef.current = pullTarget;
-          const pull = THREE.MathUtils.lerp(
-            cuePullCurrentRef.current ?? 0,
-            pullTarget,
-            CUE_PULL_SMOOTHING
-          );
+          const pull =
+            allowOpponentPreview && Number.isFinite(remoteCuePull)
+              ? Math.max(0, remoteCuePull)
+              : THREE.MathUtils.lerp(
+                  cuePullCurrentRef.current ?? 0,
+                  pullTarget,
+                  CUE_PULL_SMOOTHING
+                );
           cuePullCurrentRef.current = pull;
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
@@ -18293,19 +18460,32 @@ const powerRef = useRef(hud.power);
           const shouldStreamLayout =
             isOnlineMatch &&
             tableId &&
-            shooting &&
-            typeof captureBallSnapshot === 'function';
+            typeof captureBallSnapshot === 'function' &&
+            (shooting ||
+              replayPlaybackRef.current ||
+              (hudRef.current?.turn === 0 &&
+                cue?.active &&
+                !(hudRef.current?.over) &&
+                !(hudRef.current?.inHand)));
           if (shouldStreamLayout) {
             const intervalTarget = frameTiming?.targetMs ?? 1000 / 60;
             const minInterval = Math.max(4, intervalTarget * 0.9);
             if (!lastLiveSyncSentAt || now - lastLiveSyncSentAt >= minInterval) {
               const layout = captureBallSnapshot();
+              const liveFrame = captureLiveFrameSnapshot
+                ? captureLiveFrameSnapshot()
+                : null;
+              const liveFrameTs = Date.now();
+              const liveFramePayload = liveFrame
+                ? { ...liveFrame, frameTs: liveFrameTs }
+                : null;
               socket.emit('poolFrame', {
                 tableId,
                 layout,
                 hud: hudRef.current,
-                frameTs: now,
-                playerId: accountIdRef.current || accountId || ''
+                frameTs: liveFrameTs,
+                playerId: accountIdRef.current || accountId || '',
+                live: liveFramePayload
               });
               lastLiveSyncSentAt = now;
             }

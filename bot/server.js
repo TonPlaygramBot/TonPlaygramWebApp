@@ -1108,6 +1108,8 @@ io.on('connection', (socket) => {
         state: cached.state,
         hud: cached.hud,
         layout: cached.layout,
+        frameTs: cached.ts,
+        live: cached.live,
         updatedAt: cached.ts
       });
     }
@@ -1122,12 +1124,14 @@ io.on('connection', (socket) => {
         state: cached.state,
         hud: cached.hud,
         layout: cached.layout,
+        frameTs: cached.ts,
+        live: cached.live,
         updatedAt: cached.ts
       });
     }
   });
 
-  socket.on('poolFrame', ({ tableId, layout, hud, playerId, frameTs }) => {
+  socket.on('poolFrame', ({ tableId, layout, hud, playerId, frameTs, live }) => {
     if (!tableId || !Array.isArray(layout)) return;
     const ts = Number.isFinite(frameTs) ? frameTs : Date.now();
     const cached = poolStates.get(tableId) || {};
@@ -1135,6 +1139,8 @@ io.on('connection', (socket) => {
       tableId,
       layout,
       hud: hud || cached.hud || null,
+      live: live || cached.live || null,
+      frameTs: ts,
       updatedAt: ts,
       playerId: playerId || null
     };
@@ -1142,6 +1148,7 @@ io.on('connection', (socket) => {
       state: cached.state || null,
       hud: payload.hud,
       layout,
+      live: payload.live || null,
       ts
     });
     socket.to(tableId).emit('poolFrame', payload);
@@ -1154,12 +1161,15 @@ io.on('connection', (socket) => {
       state,
       hud: hud || null,
       layout: layout || null,
+      live: null,
       updatedAt: Date.now()
     };
+    payload.frameTs = payload.updatedAt;
     poolStates.set(tableId, {
       state,
       hud: hud || null,
       layout: layout || null,
+      live: null,
       ts: payload.updatedAt
     });
     socket.to(tableId).emit('poolState', payload);
