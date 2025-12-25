@@ -14203,12 +14203,13 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.14; // widen the overhead footprint slightly
+        const lightSpreadBoost = 1.18; // widen the overhead footprint slightly
         const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.35; // lift the rig a touch higher for a broader throw
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
         const lightOffsetZ =
           Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
+        const lightLineZ = lightOffsetZ * 0.32;
         const shadowHalfSpan =
           Math.max(roomWidth, roomDepth) * 0.72 + TABLE.THICK * 3.5;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
@@ -14219,7 +14220,7 @@ const powerRef = useRef(hud.power);
         lightingRig.add(ambient);
 
         const key = new THREE.DirectionalLight(0xffffff, 1.82);
-        key.position.set(lightOffsetX * 0.3, lightRigHeight, lightOffsetZ * 0.24);
+        key.position.set(-lightOffsetX * 0.4, lightRigHeight, lightLineZ);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
         key.shadow.mapSize.set(4096, 4096);
@@ -14236,13 +14237,13 @@ const powerRef = useRef(hud.power);
         lightingRig.add(key.target);
 
         const fill = new THREE.DirectionalLight(0xffffff, 0.9);
-        fill.position.set(-lightOffsetX * 0.34, lightRigHeight * 1.02, lightOffsetZ * 0.28);
+        fill.position.set(0, lightRigHeight * 1.02, lightLineZ);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
         const rim = new THREE.DirectionalLight(0xffffff, 0.72);
-        rim.position.set(0, lightRigHeight * 1.06, -lightOffsetZ * 0.38);
+        rim.position.set(lightOffsetX * 0.4, lightRigHeight * 1.06, lightLineZ);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
@@ -16574,6 +16575,7 @@ const powerRef = useRef(hud.power);
           if (activeBalls.length === 0) return null;
 
           const normalizeTargetId = (value) => {
+            if (typeof value === 'number') return `BALL_${value}`;
             if (typeof value === 'string') return value.toUpperCase();
             return null;
           };
@@ -16600,15 +16602,6 @@ const powerRef = useRef(hud.power);
           const lastPotId = normalizeTargetId(
             lastPotEntry?.id ? toBallColorId(lastPotEntry.id) : lastPotEntry?.color
           );
-          const targetPriority = [];
-          const pushTargetId = (id) => {
-            if (!id) return;
-            const normalized = normalizeTargetId(id);
-            if (!normalized || !isBallTargetId(normalized)) return;
-            if (!targetPriority.includes(normalized)) targetPriority.push(normalized);
-          };
-          legalTargets.forEach((entry) => pushTargetId(entry));
-          pushTargetId(lastPotId);
           const pickClosestBall = (candidates) =>
             candidates.reduce((best, ball) => {
               if (!best) return ball;
@@ -16630,64 +16623,70 @@ const powerRef = useRef(hud.power);
               return best;
             }, null);
 
+          const normalizeGroup = (values = []) =>
+            values
+              .map((entry) => normalizeTargetId(entry))
+              .filter((entry) => entry && isBallTargetId(entry));
+
+          const pickClosestFromIds = (ids = []) => {
+            const normalized = normalizeGroup(ids);
+            if (normalized.length === 0) return null;
+            const matches = activeBalls.filter((ball) =>
+              normalized.includes(toBallColorId(ball.id))
+            );
+            return matches.length ? pickClosestBall(matches) : null;
+          };
+
+          const assignmentTargets = (() => {
+            const assignments =
+              shooterSeat && metaState && typeof metaState === 'object'
+                ? metaState.assignments ?? null
+                : null;
+            const assignedColour =
+              assignments && shooterSeat ? assignments[shooterSeat] : null;
+            const normalized = normalizeTargetId(assignedColour);
+            if (!normalized) return [];
+            if (normalized === 'RED') return ['RED'];
+            if (normalized === 'BLUE' || normalized === 'YELLOW')
+              return ['YELLOW', 'BLUE'];
+            if (normalized === 'BLACK') return ['BLACK'];
+            return [];
+          })();
+
+          const targetGroups = [];
+          if (Array.isArray(metaState?.ballOn) && metaState.ballOn.length > 0) {
+            targetGroups.push(metaState.ballOn);
+          }
+          if (legalTargets.length > 0) {
+            targetGroups.push(legalTargets);
+          }
+          if (assignmentTargets.length > 0) {
+            targetGroups.push(assignmentTargets);
+          }
+          if (lastPotId) {
+            targetGroups.push([lastPotId]);
+          }
+
           let targetBall = null;
           if ((frameSnapshot?.currentBreak ?? 0) === 0) {
             targetBall = findRackApex();
           }
 
-          if (!targetBall && activeVariantId === 'uk') {
-            const shooterId = metaState?.currentPlayer ?? null;
-            const assignments = metaState?.assignments ?? {};
-            const assignedColour = shooterId ? assignments[shooterId] : null;
-            const preferredColours = [];
-            if (assignedColour === 'red') preferredColours.push('RED');
-            if (assignedColour === 'blue' || assignedColour === 'yellow') {
-              preferredColours.push('YELLOW', 'BLUE');
-            }
-            if (assignedColour === 'black') preferredColours.push('BLACK');
-            if (preferredColours.length === 0 && legalTargets.length > 0) {
-              preferredColours.push(...legalTargets);
-            }
-            preferredColours.forEach((entry) => pushTargetId(entry));
-            if (preferredColours.length > 0) {
-              const ukTargets = activeBalls.filter((ball) =>
-                preferredColours.includes(toBallColorId(ball.id))
-              );
-              if (ukTargets.length > 0) {
-                targetBall = pickClosestBall(ukTargets);
-              }
-            }
+          if (!targetBall && activeVariantId === 'uk' && assignmentTargets.length > 0) {
+            targetBall = pickClosestFromIds(assignmentTargets);
           }
 
           if (
             !targetBall &&
             (activeVariantId === 'american' || activeVariantId === '9ball')
           ) {
-            const rawNextList = Array.isArray(metaState?.ballOn)
+            const nextList = Array.isArray(metaState?.ballOn)
               ? metaState.ballOn
               : legalTargets;
-            const normalizedNext = Array.isArray(rawNextList)
-              ? rawNextList
-                  .map((entry) =>
-                    typeof entry === 'string' ? entry.toUpperCase() : entry
-                  )
-                  .filter(Boolean)
-              : [];
-            normalizedNext.forEach((entry) => pushTargetId(entry));
-            const pickFromList = (order) => {
-              for (const targetId of order) {
-                const match = activeBalls.find(
-                  (ball) => toBallColorId(ball.id) === targetId
-                );
-                if (match) return match;
-              }
-              return null;
-            };
-            const prioritized = pickFromList(normalizedNext);
+            const prioritized = pickClosestFromIds(nextList);
             if (prioritized) {
               targetBall = prioritized;
-            }
-            if (!targetBall) {
+            } else {
               const numbered = activeBalls
                 .map((ball) => {
                   const colorId = toBallColorId(ball.id);
@@ -16702,12 +16701,13 @@ const powerRef = useRef(hud.power);
             }
           }
 
-          if (!targetBall && targetPriority.length > 0) {
-            const priorityBalls = activeBalls.filter((ball) =>
-              targetPriority.includes(toBallColorId(ball.id))
-            );
-            if (priorityBalls.length > 0) {
-              targetBall = pickClosestBall(priorityBalls);
+          if (!targetBall && targetGroups.length > 0) {
+            for (const group of targetGroups) {
+              const candidate = pickClosestFromIds(group);
+              if (candidate) {
+                targetBall = candidate;
+                break;
+              }
             }
           }
 
