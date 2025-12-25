@@ -3,12 +3,6 @@ using UnityEngine;
 
 public class BilliardLighting : MonoBehaviour
 {
-    [SerializeField]
-    private float tableLightIntensityBudget = 6.75f; // matches current total brightness
-
-    [SerializeField]
-    private Color tableLightColor = Color.white;
-
     void Start()
     {
         // Create three spot lights to highlight the D, blue and black spots on the table
@@ -19,17 +13,13 @@ public class BilliardLighting : MonoBehaviour
             new Vector3(0f, 5f, 3.5f)   // black spot at top end
         };
 
-        float perLightIntensity = lightPositions.Length > 0
-            ? tableLightIntensityBudget / lightPositions.Length
-            : 0f;
-
         for (int i = 0; i < lightPositions.Length; i++)
         {
             GameObject lightObj = new GameObject("BilliardSpotLight_" + i);
             Light spotLight = lightObj.AddComponent<Light>();
             spotLight.type = LightType.Spot;
-            spotLight.color = tableLightColor;
-            spotLight.intensity = perLightIntensity; // keep total brightness while using three lights
+            spotLight.color = Color.white;
+            spotLight.intensity = 2.25f;       // brightness reduced by 10%
             spotLight.range = 17f;             // slightly broader coverage
             spotLight.spotAngle = 70f;         // wider cone for bigger pools of light
             spotLight.shadows = LightShadows.Soft;
