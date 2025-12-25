@@ -41,6 +41,7 @@ export default function SnookerClub() {
   const playType = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('type');
+    if (requested === 'training') return 'training';
     if (requested === 'tournament') return 'tournament';
     return 'regular';
   }, [location.search]);
@@ -71,6 +72,27 @@ export default function SnookerClub() {
       getTelegramId() ||
       'Player'
     );
+  }, [location.search]);
+
+  const playerAvatar = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('avatar') || '';
+  }, [location.search]);
+
+  const opponentAvatar = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('opponentAvatar') || '';
+  }, [location.search]);
+
+  const trainingMode = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get('mode');
+    return requested === 'solo' ? 'solo' : 'ai';
+  }, [location.search]);
+
+  const trainingRulesEnabled = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('rules') !== 'off';
   }, [location.search]);
 
   const stakeAmount = useMemo(() => {
@@ -150,16 +172,37 @@ export default function SnookerClub() {
     return params.get('opponent') || '';
   }, [location.search]);
 
+  const tableId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const incoming = params.get('tableId');
+    if (incoming) {
+      try {
+        window.sessionStorage?.setItem('snookerClubTableId', incoming);
+      } catch {}
+      return incoming;
+    }
+    try {
+      return window.sessionStorage?.getItem('snookerClubTableId') || '';
+    } catch {
+      return '';
+    }
+  }, [location.search]);
+
   return (
     <SnookerClubGame
       variantKey={variantKey}
       tableSizeKey={tableSizeKey}
       playType={playType}
       mode={mode}
+      trainingMode={trainingMode}
+      trainingRulesEnabled={trainingRulesEnabled}
       accountId={accountId}
       tgId={tgId}
       playerName={playerName}
+      playerAvatar={playerAvatar}
       opponentName={opponentName}
+      opponentAvatar={opponentAvatar}
+      tableId={tableId}
       gameId="snookerclub"
       lobbyPath={lobbyPath}
       tableResolver={resolveSnookerTableSize}
