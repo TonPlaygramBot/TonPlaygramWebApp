@@ -4424,6 +4424,7 @@ const REPLAY_BANNER_VARIANTS = {
   multi: ['Double pot!', 'Two for one!', 'What a combo!'],
   power: ['Power drive!', 'Thunder break!', 'Crushed it!'],
   spin: ['Swerve magic!', 'Spin control!', 'Curved in!'],
+  foul: ['Foul review', 'Scratch recap', 'Penalty replay'],
   default: ['Good shot!', 'Nice pot!', 'Great touch!']
 };
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
@@ -5330,7 +5331,7 @@ function applySpinImpulse(ball, scale = 1) {
 }
 
 // calculate impact point and post-collision direction for aiming guide
-function calcTarget(cue, dir, balls) {
+function calcTarget(cue, dir, balls, cuePosOverride = null) {
   if (!cue) {
     return {
       impact: new THREE.Vector2(),
@@ -5341,7 +5342,13 @@ function calcTarget(cue, dir, balls) {
       tHit: 0
     };
   }
-  const cuePos = cue.pos.clone();
+  const cueId = cue?.id ?? null;
+  const cuePos =
+    cuePosOverride &&
+    Number.isFinite(cuePosOverride.x) &&
+    Number.isFinite(cuePosOverride.y)
+      ? new THREE.Vector2(cuePosOverride.x, cuePosOverride.y)
+      : cue.pos.clone();
   if (!dir || dir.lengthSq() < 1e-8) {
     return {
       impact: cuePos.clone(),
@@ -5379,7 +5386,7 @@ function calcTarget(cue, dir, balls) {
   const contactRadius2 = contactRadius * contactRadius;
   const ballList = Array.isArray(balls) ? balls : [];
   ballList.forEach((b) => {
-    if (!b.active || b === cue) return;
+    if (!b.active || (cueId !== null && b.id === cueId)) return;
     const v = b.pos.clone().sub(cuePos);
     const proj = v.dot(dirNorm);
     if (proj <= 0) return;
@@ -10241,6 +10248,26 @@ const powerRef = useRef(hud.power);
     }
   }, []);
 
+  const countActiveObjectBalls = useCallback((snapshot = []) => {
+    if (!Array.isArray(snapshot)) return 0;
+    return snapshot.filter(
+      (entry) =>
+        entry &&
+        entry.active &&
+        String(entry.id).toLowerCase() !== 'cue'
+    ).length;
+  }, []);
+
+  const detectObjectPotFromSnapshots = useCallback(
+    (startSnapshot, endSnapshot) => {
+      if (!Array.isArray(startSnapshot) || !Array.isArray(endSnapshot)) return false;
+      const startCount = countActiveObjectBalls(startSnapshot);
+      const endCount = countActiveObjectBalls(endSnapshot);
+      return endCount < startCount;
+    },
+    [countActiveObjectBalls]
+  );
+
   const handleRemotePayload = useCallback(
     (payload = {}) => {
       if (!isOnlineMatch || !tableId) return;
@@ -10263,11 +10290,17 @@ const powerRef = useRef(hud.power);
       ) {
         const spinX = THREE.MathUtils.clamp(aimPayload?.spin?.x ?? 0, -1, 1);
         const spinY = THREE.MathUtils.clamp(aimPayload?.spin?.y ?? 0, -1, 1);
+        const cueBallOverride =
+          aimPayload?.cueBall &&
+          Number.isFinite(aimPayload.cueBall.x) &&
+          Number.isFinite(aimPayload.cueBall.y)
+            ? { x: aimPayload.cueBall.x, y: aimPayload.cueBall.y }
+            : null;
         remoteAimRef.current = {
           dir: { x: aimPayload.dir.x, y: aimPayload.dir.y },
           power: THREE.MathUtils.clamp(aimPayload.power ?? 0, 0, 1),
           spin: { x: spinX, y: spinY },
-          cueBall: aimPayload.cueBall ?? null,
+          cueBall: cueBallOverride,
           updatedAt: now,
           playerId: senderId
         };
@@ -10327,13 +10360,22 @@ const powerRef = useRef(hud.power);
           (captureBallSnapshotRef.current ? captureBallSnapshotRef.current() : recording.frames?.[recording.frames.length - 1]?.balls ?? null);
         recording.startState =
           recording.startState || recording.frames?.[0]?.balls || null;
-        pendingRemoteReplayRef.current = { ...recording };
+        const foulCommitted = Boolean(payload.state?.foul);
+        const hadObjectPot = detectObjectPotFromSnapshots(
+          recording.startState,
+          recording.postState
+        );
+        recording.replayTags = Array.from(new Set([...(recording.replayTags ?? []), ...(foulCommitted ? ['foul'] : [])]));
+        recording.shouldReplay = hadObjectPot || foulCommitted;
+        pendingRemoteReplayRef.current = recording.shouldReplay
+          ? { ...recording, foul: foulCommitted, hadObjectPot }
+          : null;
         incomingRemoteShotRef.current = null;
         remoteShotActiveRef.current = false;
         remoteShotUntilRef.current = 0;
       }
     },
-    [accountId, isOnlineMatch, tableId]
+    [accountId, detectObjectPotFromSnapshots, isOnlineMatch, tableId]
   );
 
   useEffect(() => {
@@ -15472,6 +15514,21 @@ const powerRef = useRef(hud.power);
         );
       };
 
+      const hideAimAndCue = () => {
+        aimFocusRef.current = null;
+        aim.visible = false;
+        tick.visible = false;
+        target.visible = false;
+        cueAfter.visible = false;
+        impactRing.visible = false;
+        cueStick.visible = false;
+        cuePullTargetRef.current = 0;
+        cuePullCurrentRef.current = 0;
+        const precisionArea = chalkAreaRef.current;
+        if (precisionArea) precisionArea.visible = false;
+        updateChalkVisibility(null);
+      };
+
       // Fire (slider triggers on release)
         const fire = () => {
           const currentHud = hudRef.current;
@@ -15493,6 +15550,7 @@ const powerRef = useRef(hud.power);
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
         }
+        hideAimAndCue();
         const forcedCueView = aiShotCueViewRef.current;
         setAiShotCueViewActive(false);
         setAiShotPreviewActive(false);
@@ -16836,21 +16894,25 @@ const powerRef = useRef(hud.power);
           recording,
           hadObjectPot,
           pottedBalls,
-          shotContext
+          shotContext,
+          foul
         }) => {
-          if (!recording || !hadObjectPot) return null;
+          if (!recording) return null;
+          const foulCommitted = Boolean(foul);
+          if (!hadObjectPot && !foulCommitted) return null;
           const tags = new Set(recording.replayTags ?? []);
           if (hadObjectPot) tags.add('pot');
+          if (foulCommitted) tags.add('foul');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
           if (potCount > 1) tags.add('multi');
           if (shotContext?.cushionAfterContact) tags.add('bank');
           if (lastShotPower >= POWER_REPLAY_THRESHOLD) tags.add('power');
           if (tags.size === 0) return null;
-          const priority = ['multi', 'bank', 'long', 'power', 'spin'];
+          const priority = ['foul', 'multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
           return {
-            shouldReplay: hadObjectPot || tags.size > 0,
+            shouldReplay: hadObjectPot || foulCommitted,
             banner: selectReplayBanner(primary),
             zoomOnly,
             tags: Array.from(tags)
@@ -16863,21 +16925,6 @@ const powerRef = useRef(hud.power);
           const shotEvents = [];
           const firstContactColor = toBallColorId(firstHit);
           const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
-          const replayDecision = resolveReplayDecision({
-            recording: shotRecording,
-            hadObjectPot,
-            pottedBalls: potted,
-            shotContext: shotContextRef.current
-          });
-          if (replayDecision && shotRecording) {
-            shotRecording.replayTags = replayDecision.tags;
-            shotRecording.zoomOnly = replayDecision.zoomOnly;
-          }
-          const shouldStartReplay =
-            Boolean(replayDecision?.shouldReplay) &&
-            (shotRecording?.frames?.length ?? 0) > 1;
-          const replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
-          let postShotSnapshot = null;
         if (firstContactColor || firstHit) {
           shotEvents.push({
             type: 'HIT',
@@ -16933,6 +16980,23 @@ const powerRef = useRef(hud.power);
             safeState = { ...safeState, activePlayer: 'A' };
           }
         }
+        const foulCommitted = Boolean(safeState?.foul);
+        const replayDecision = resolveReplayDecision({
+          recording: shotRecording,
+          hadObjectPot,
+          pottedBalls: potted,
+          shotContext: shotContextRef.current,
+          foul: foulCommitted
+        });
+        if (replayDecision && shotRecording) {
+          shotRecording.replayTags = replayDecision.tags;
+          shotRecording.zoomOnly = replayDecision.zoomOnly;
+        }
+        const shouldStartReplay =
+          Boolean(replayDecision?.shouldReplay) &&
+          (shotRecording?.frames?.length ?? 0) > 1;
+        const replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
+        let postShotSnapshot = null;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
           const newPots = potted.filter(
@@ -17301,7 +17365,8 @@ const powerRef = useRef(hud.power);
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
           const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
-          if (pending?.frames?.length > 1) {
+          const allowReplay = pending?.shouldReplay !== false;
+          if (allowReplay && pending?.frames?.length > 1) {
             shotRecording = {
               ...pending,
               startTime: pending.startTime ?? nowMs,
@@ -17408,7 +17473,9 @@ const powerRef = useRef(hud.power);
           remoteAimFresh;
 
         sidePocketAimRef.current = false;
-        if (canShowCue && (isPlayerTurn || previewingAiShot)) {
+        if (shooting || remoteShotActive) {
+          hideAimAndCue();
+        } else if (canShowCue && (isPlayerTurn || previewingAiShot)) {
           const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
           else baseAimDir.normalize();
@@ -17736,6 +17803,17 @@ const powerRef = useRef(hud.power);
           } else {
             remoteAimDir.normalize();
           }
+          const remoteCuePos2D =
+            remoteAimState?.cueBall &&
+            Number.isFinite(remoteAimState.cueBall.x) &&
+            Number.isFinite(remoteAimState.cueBall.y)
+              ? new THREE.Vector2(remoteAimState.cueBall.x, remoteAimState.cueBall.y)
+              : new THREE.Vector2(cue.pos.x, cue.pos.y);
+          const remoteCuePos3D = new THREE.Vector3(
+            remoteCuePos2D.x,
+            BALL_CENTER_Y,
+            remoteCuePos2D.y
+          );
           const baseDir = new THREE.Vector3(remoteAimDir.x, 0, remoteAimDir.y);
           const perp = new THREE.Vector3(-baseDir.z, 0, baseDir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
@@ -17743,9 +17821,10 @@ const powerRef = useRef(hud.power);
           const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
             cue,
             remoteAimDir,
-            balls
+            balls,
+            remoteCuePos2D
           );
-          const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+          const start = remoteCuePos3D.clone();
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(baseDir.clone().multiplyScalar(BALL_R));
@@ -17775,7 +17854,8 @@ const powerRef = useRef(hud.power);
           const backInfo = calcTarget(
             cue,
             remoteAimDir.clone().multiplyScalar(-1),
-            balls
+            balls,
+            remoteCuePos2D
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const pullTarget = Math.min(desiredPull, maxPull);
@@ -17803,9 +17883,9 @@ const powerRef = useRef(hud.power);
           }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           cueStick.position.set(
-            cue.pos.x - baseDir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
+            remoteCuePos3D.x - baseDir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - baseDir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
+            remoteCuePos3D.z - baseDir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(spinY);
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
