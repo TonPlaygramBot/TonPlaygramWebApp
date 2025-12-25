@@ -1108,7 +1108,10 @@ io.on('connection', (socket) => {
         state: cached.state,
         hud: cached.hud,
         layout: cached.layout,
-        updatedAt: cached.ts
+        updatedAt: cached.ts,
+        aim: cached.aim || null,
+        shotActive: cached.shotActive || false,
+        replayActive: cached.replayActive || false
       });
     }
   });
@@ -1122,45 +1125,69 @@ io.on('connection', (socket) => {
         state: cached.state,
         hud: cached.hud,
         layout: cached.layout,
-        updatedAt: cached.ts
+        updatedAt: cached.ts,
+        aim: cached.aim || null,
+        shotActive: cached.shotActive || false,
+        replayActive: cached.replayActive || false
       });
     }
   });
 
-  socket.on('poolFrame', ({ tableId, layout, hud, playerId, frameTs }) => {
+  socket.on('poolFrame', ({ tableId, layout, hud, playerId, frameTs, aim, shotActive, replayActive }) => {
     if (!tableId || !Array.isArray(layout)) return;
     const ts = Number.isFinite(frameTs) ? frameTs : Date.now();
     const cached = poolStates.get(tableId) || {};
+    const resolvedShotActive =
+      typeof shotActive === 'boolean' ? shotActive : Boolean(cached.shotActive);
+    const resolvedReplayActive =
+      typeof replayActive === 'boolean' ? replayActive : Boolean(cached.replayActive);
     const payload = {
       tableId,
       layout,
       hud: hud || cached.hud || null,
       updatedAt: ts,
-      playerId: playerId || null
+      playerId: playerId || null,
+      aim: aim ?? cached.aim ?? null,
+      shotActive: resolvedShotActive,
+      replayActive: resolvedReplayActive
     };
     poolStates.set(tableId, {
       state: cached.state || null,
       hud: payload.hud,
       layout,
-      ts
+      ts,
+      aim: payload.aim,
+      shotActive: payload.shotActive,
+      replayActive: payload.replayActive
     });
     socket.to(tableId).emit('poolFrame', payload);
   });
 
-  socket.on('poolShot', ({ tableId, state, hud, layout }) => {
+  socket.on('poolShot', ({ tableId, state, hud, layout, aim, shotActive, replayActive }) => {
     if (!tableId || !state) return;
+    const cached = poolStates.get(tableId) || {};
+    const resolvedShotActive =
+      typeof shotActive === 'boolean' ? shotActive : Boolean(cached.shotActive);
+    const resolvedReplayActive =
+      typeof replayActive === 'boolean' ? replayActive : Boolean(cached.replayActive);
     const payload = {
       tableId,
       state,
       hud: hud || null,
       layout: layout || null,
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
+      aim: aim ?? null,
+      shotActive: resolvedShotActive,
+      replayActive: resolvedReplayActive
     };
     poolStates.set(tableId, {
       state,
       hud: hud || null,
       layout: layout || null,
-      ts: payload.updatedAt
+      ts: payload.updatedAt,
+      aim: payload.aim,
+      shotActive: payload.shotActive,
+      replayActive: payload.replayActive
     });
     socket.to(tableId).emit('poolState', payload);
   });
