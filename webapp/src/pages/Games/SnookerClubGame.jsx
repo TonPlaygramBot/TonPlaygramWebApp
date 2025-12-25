@@ -406,33 +406,32 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 1.028;
-const CORNER_POCKET_INWARD_SCALE = 1.024; // pull the rounded corner cuts a hair further inward without moving the pocket centers
-const CORNER_POCKET_SCALE_BOOST = 0.994; // ease the restriction so the corner mouth opens slightly wider than before
-const CORNER_POCKET_EXTRA_SCALE = 1.02; // further relax the corner mouth while leaving side pockets unchanged
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.034; // widen the chrome arc so the fascia tracks the photographed pocket throat
+const POCKET_VISUAL_EXPANSION = 1.034;
+const CORNER_POCKET_INWARD_SCALE = 1.008; // pull the rounded corner cuts a hair further inward without moving the pocket centers
+const CORNER_POCKET_SCALE_BOOST = 0.998; // ease the restriction so the corner mouth opens slightly wider than before
+const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01; // widen the chrome arc so the fascia tracks the photographed pocket throat
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // mirror snooker notch depth so the rounded chrome cut hugs the cloth identically
 const CHROME_CORNER_EXPANSION_SCALE = 1.002; // trim back the fascia so it now finishes flush with the pocket jaw edge along the long rail
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002; // mirror the lighter reach so the chrome stops exactly where the jaw shoulder begins
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03; // remove the base trim so the fascia rides the cushion edge without a gap
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
-const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.052; // carry the fascia farther over the cushion radius so the chrome lip meets the jaw edge like the reference
-const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.052; // mirror the deeper wrap so both axes cover the full pocket reveal
+const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.034; // carry the fascia farther over the cushion radius so the chrome lip meets the jaw edge like the reference
+const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.034; // mirror the deeper wrap so both axes cover the full pocket reveal
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly without additional rounding
-const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0.012; // allow a hair of extra fascia depth so the chrome plate seats flush with the jaws
+const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth level with the Pool Royale jaw placement
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
-const CHROME_CORNER_WIDTH_SCALE = 1.006; // widen the chrome plate to match the photographed rail coverage up to the jaw line
-const CHROME_CORNER_HEIGHT_SCALE = 0.996; // lift the fascia coverage on the short rail so it mirrors the corner wrap in the photos
-const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.01; // ease the offset so the chrome sits centred under the thicker jaw lip
+const CHROME_CORNER_WIDTH_SCALE = 0.978; // trim fascia width to match Pool Royale jaw coverage on the long rail
+const CHROME_CORNER_HEIGHT_SCALE = 0.962; // mirror the Pool Royale fascia height so the corner wrap stops at the jaw shoulder
+const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.02; // align the fascia offset with the Pool Royale jaw lip
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
-  CHROME_CORNER_POCKET_RADIUS_SCALE *
-  1.028; // mirror snooker side arches while widening to the photographed middle-pocket chrome radius
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
+  CHROME_CORNER_POCKET_RADIUS_SCALE; // mirror Pool Royale side arches while widening to the photographed middle-pocket chrome radius
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 0; // keep wooden rail corners crisp like Pool Royale so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
@@ -440,30 +439,30 @@ const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to th
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_REFLECTION_SCALE = 0.28; // kill pocket-cut reflections by damping env-map intensity on fascia cuts
 const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so pocket arches stop casting hot spots on cloth
-const CHROME_PLATE_THICKNESS_SCALE = 0.033; // lift fascia depth to the beefier chrome lip seen in the reference captures
-const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.26; // mirror the deeper middle fascia so all plates share the same heft
+const CHROME_PLATE_THICKNESS_SCALE = 0.0306; // lift fascia depth to the beefier chrome lip seen in the reference captures
+const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // mirror the deeper middle fascia so all plates share the same heft
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.32; // extend the side fascia span so the middle pockets gain the same wraparound as the corners
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 2.88; // grow fascia reach so the middle pocket cuts are fully framed like the photo reference
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // extend the side fascia span so the middle pockets gain the same wraparound as Pool Royale
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // grow fascia reach so the middle pocket cuts are fully framed like the Pool Royale reference
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.36; // widen fascia span so the middle plates hug the pocket mouths exactly like the captures
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.34; // push fascia outward to cloak the wood up to the jaw line as seen on-device
-const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 1; // restore full middle fascia width while keeping the rounded cut and outer edge unchanged
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.62; // widen fascia span so the middle plates hug the pocket mouths exactly like the captures
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.68; // push fascia outward to cloak the wood up to the jaw line as seen on-device
+const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.986; // restore full middle fascia width while keeping the rounded cut and outer edge unchanged
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.08; // keep the fascia centred over the pocket reveal so both chrome edges mirror the photos
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.16; // keep the fascia centred over the pocket reveal so both chrome edges mirror Pool Royale
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.052; // open the chrome corner cut to match the photographed jaw reveal
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.1; // widen and deepen the middle chrome arch so it matches the side-pocket captures
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.38; // draw the middle chrome arch farther toward centre for the symmetric jaw alignment in the reference
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.94; // relax the wooden rail pocket relief slightly so the wood cut follows the broader chrome wrap
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the chrome corner cut to match the Pool Royale jaw reveal
+const CHROME_SIDE_POCKET_CUT_SCALE = CHROME_CORNER_POCKET_CUT_SCALE * 1.012; // widen and deepen the middle chrome arch so it matches the side-pocket captures
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // keep the middle chrome arch aligned to the Pool Royale jaw placement
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // relax the wooden rail pocket relief slightly so the wood cut follows the broader chrome wrap
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.02; // keep middle rail arches snug while letting the chrome-and-jaw alignment stay balanced
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.2; // pull the middle-pocket wood arch farther toward centre so the smaller radius aligns with the tighter inboard cut
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.018; // keep middle rail arches snug while letting the chrome-and-jaw alignment stay balanced
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.08; // push the middle-pocket wood arch outward so the relief follows the Pool Royale jaw line
 
 function buildChromePlateGeometry({
   width,
@@ -869,13 +868,14 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const PINK_FROM_TOP = PINK_FROM_TOP_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const POCKET_CORNER_MOUTH_SCALE = 1; // enforce the official WPBSA corner mouth width after scaling
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1; // keep the side pocket mouth at the official scaled width for snooker
+const POCKET_CORNER_MOUTH_SCALE =
+  CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE; // mirror the Pool Royale corner mouth width after scaling
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.972; // keep the side pocket mouth aligned with the Pool Royale jaw width
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // preserve the official side-to-corner ratio while reusing the Pool Royale pocket fascia
-const SIDE_POCKET_CUT_SCALE = 0.972; // make the middle cloth/rail cutouts a touch smaller without altering fascia or jaw geometry
+const SIDE_POCKET_CUT_SCALE = 0.968; // make the middle cloth/rail cutouts a touch smaller without altering fascia or jaw geometry
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -883,13 +883,13 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_INTERIOR_TOP_SCALE = 1.012; // gently expand the interior diameter at the top of each pocket for a broader opening
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // push the corner pocket centres and cuts slightly farther outward toward the rails
+  POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // push the corner pocket centres and cuts slightly farther outward toward the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS =
   POCKET_VIS_R * POCKET_VISUAL_EXPANSION * CORNER_POCKET_INWARD_SCALE;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
 const CORNER_RAIL_NOTCH_INSET =
-  POCKET_VIS_R * 0.066 * POCKET_VISUAL_EXPANSION; // let the rail and chrome cutouts follow the outward corner pocket shift
+  POCKET_VIS_R * 0.078 * POCKET_VISUAL_EXPANSION; // let the rail and chrome cutouts follow the outward corner pocket shift
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -6207,12 +6207,12 @@ function Table3D(
     mesh.material.needsUpdate = true;
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(orientedRailSurface);
-  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.01; // push the cushions farther outward so they fully kiss the wooden rails
-  const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
+  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.07; // push the cushions further outward so they meet the wooden rails without a gap
+  const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep only a light setback along the long rails while staying flush to the wood
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.18; // shorten the corner cushions to match Pool Royale pocket spacing
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.032; // trim the side cushions to the same pocket clearance as Pool Royale
-  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.034; // press the side cushions firmly into the rails without creating overlap
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.26; // shorten the corner cushions to match Pool Royale pocket spacing
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.14; // trim the side cushions to the same pocket clearance as Pool Royale
+  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
   const railsGroup = new THREE.Group();
@@ -9351,28 +9351,27 @@ export function PoolRoyaleGame({
       const preset =
         LIGHTING_PRESET_MAP[presetId] ?? LIGHTING_PRESET_MAP[DEFAULT_LIGHTING_ID];
       const settings = preset?.settings ?? {};
-      const {
-        hemisphere,
-        hemisphereRig,
-        dirLight,
-        spot,
-        ambient
-      } = rig;
+      const { stripeKey, stripeFill, ambient } = rig;
+      const KEY_INTENSITY_SCALE = 0.9;
+      const FILL_INTENSITY_SCALE = 0.12;
 
-      if (settings.hemiSky && hemisphere) hemisphere.color.set(settings.hemiSky);
-      if (settings.hemiGround && hemisphereRig)
-        hemisphereRig.groundColor.set(settings.hemiGround);
-      if (settings.hemiIntensity && hemisphere)
-        hemisphere.intensity = settings.hemiIntensity;
-      if (settings.rimIntensity && hemisphereRig)
-        hemisphereRig.intensity = settings.rimIntensity;
-      if (settings.dirColor && dirLight) dirLight.color.set(settings.dirColor);
-      if (settings.dirIntensity && dirLight) dirLight.intensity = settings.dirIntensity;
-      if (settings.spotColor && spot) spot.color.set(settings.spotColor);
-      if (settings.spotIntensity && spot) spot.intensity = settings.spotIntensity;
-      if (settings.spotAngle && spot) spot.angle = settings.spotAngle;
-      if (settings.ambientIntensity && ambient)
+      if (settings.hemiSky && ambient) ambient.color.set(settings.hemiSky);
+      if (settings.dirColor && stripeKey) stripeKey.color.set(settings.dirColor);
+      if (stripeKey) {
+        const keyBase =
+          settings.dirIntensity ?? stripeKey.userData?.baseIntensity ?? stripeKey.intensity;
+        stripeKey.intensity = keyBase * KEY_INTENSITY_SCALE;
+      }
+      if (settings.spotColor && stripeFill) stripeFill.color.set(settings.spotColor);
+      if (stripeFill) {
+        const fillIntensity =
+          settings.spotIntensity ?? stripeFill.userData?.baseIntensity ?? stripeFill.intensity;
+        const rimScale = settings.rimIntensity ?? 1;
+        stripeFill.intensity = fillIntensity * FILL_INTENSITY_SCALE * rimScale;
+      }
+      if (settings.ambientIntensity && ambient) {
         ambient.intensity = settings.ambientIntensity;
+      }
     },
     [lightingId]
   );
@@ -13161,93 +13160,50 @@ export function PoolRoyaleGame({
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Adopt the lighting rig from the standalone snooker demo and scale all
-      // authored coordinates so they sit correctly over the larger table.
+      // Use two elongated stripe lights to mirror the Pool Royale rig while keeping the pass lightweight.
       const addMobileLighting = () => {
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const SAMPLE_PLAY_W = 1.216;
-        const SAMPLE_PLAY_H = 2.536;
-        const SAMPLE_TABLE_HEIGHT = 0.75;
+        const stripeHeight = tableSurfaceY + TABLE.THICK * 6.4;
+        const stripeSeparation = Math.max(PLAY_W * 0.36, TABLE.THICK * 3.6);
+        const stripeHalfWidth = Math.max(PLAY_W * 0.22, TABLE.THICK * 2.4);
+        const stripeHalfLength = Math.max(PLAY_H * 0.72, TABLE.THICK * 8.8);
+        const targetY = tableSurfaceY + BALL_R * 0.08;
+        const shadowDepth = stripeHeight + Math.abs(stripeHeight - targetY) + TABLE.THICK * 10;
 
-        const LIGHT_DIMENSION_SCALE = 0.8; // reduce fixture footprint by 20%
-        const LIGHT_HEIGHT_SCALE = 1.4; // lift the rig further above the table
-        const LIGHT_HEIGHT_LIFT_MULTIPLIER = 5.8; // bring fixtures closer so the spot highlight reads on the balls
-        const LIGHT_LATERAL_SCALE = 0.45; // pull shadow-casting lights nearer the table centre
-
-        const baseWidthScale = (PLAY_W / SAMPLE_PLAY_W) * LIGHT_DIMENSION_SCALE;
-        const baseLengthScale = (PLAY_H / SAMPLE_PLAY_H) * LIGHT_DIMENSION_SCALE;
-        const fixtureScale = Math.max(baseWidthScale, baseLengthScale);
-        const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
-        const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
-
-        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.758625);
-        const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
-        const triangleHeight = tableSurfaceY + 6.6 * scaledHeight + lightHeightLift;
-        const triangleRadius = fixtureScale * 0.98;
-        const lightRetreatOffset = scaledHeight * 0.24;
-        const lightReflectionGuard = scaledHeight * 0.32;
-        hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.6);
-        lightingRig.add(hemisphere);
-
-        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.4284);
-        hemisphereRig.position.set(0, triangleHeight, 0);
-        lightingRig.add(hemisphereRig);
-
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.176);
-        dirLight.position.set(
-          -triangleRadius * LIGHT_LATERAL_SCALE,
-          triangleHeight,
-          triangleRadius * LIGHT_LATERAL_SCALE * 0.4
-        );
-        dirLight.target.position.set(0, tableSurfaceY + BALL_R * 0.05, 0);
-        lightingRig.add(dirLight);
-        lightingRig.add(dirLight.target);
-
-        const spot = new THREE.SpotLight(
-          0xffffff,
-          12.289725,
-          0,
-          Math.PI * 0.36,
-          0.42,
-          1
-        );
-        spot.position.set(
-          triangleRadius * LIGHT_LATERAL_SCALE,
-          triangleHeight + lightRetreatOffset + lightReflectionGuard,
-          triangleRadius * LIGHT_LATERAL_SCALE * (0.35 + LIGHT_LATERAL_SCALE * 0.12)
-        );
-        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.18, 0);
-        spot.decay = 1.0;
-        spot.castShadow = true;
-        spot.shadow.mapSize.set(2048, 2048);
-        spot.shadow.bias = -0.00004;
-        spot.shadow.normalBias = 0.006;
-        lightingRig.add(spot);
-        lightingRig.add(spot.target);
-
-        const ambient = new THREE.AmbientLight(
-          0xffffff,
-          0.0223125
-        ); // match the snooker ambient fill for identical arena lighting
-        ambient.position.set(
-          0,
-          tableSurfaceY +
-            scaledHeight * 1.95 +
-            lightHeightLift +
-            lightRetreatOffset +
-            lightReflectionGuard,
-          triangleRadius * LIGHT_LATERAL_SCALE * 0.12
-        );
+        const ambient = new THREE.AmbientLight(0xffffff, 0.18);
         lightingRig.add(ambient);
+
+        const createStripe = (sideSign, intensity = 1) => {
+          const light = new THREE.DirectionalLight(0xffffff, intensity);
+          light.userData = { ...(light.userData || {}), baseIntensity: intensity };
+          light.position.set(sideSign * stripeSeparation, stripeHeight, 0);
+          light.target.position.set(0, targetY, 0);
+          light.castShadow = intensity > 0.9;
+          light.shadow.mapSize.set(1024, 1024);
+          light.shadow.camera.near = 0.1;
+          light.shadow.camera.far = shadowDepth;
+          light.shadow.camera.left = -stripeHalfWidth;
+          light.shadow.camera.right = stripeHalfWidth;
+          light.shadow.camera.top = stripeHalfLength;
+          light.shadow.camera.bottom = -stripeHalfLength;
+          light.shadow.bias = -0.00005;
+          light.shadow.normalBias = 0.0012;
+          light.shadow.camera.updateProjectionMatrix();
+          lightingRig.add(light);
+          lightingRig.add(light.target);
+          return light;
+        };
+
+        const stripeKey = createStripe(-1, 1.22);
+        const stripeFill = createStripe(1, 0.98);
+        stripeFill.castShadow = false;
 
         lightingRigRef.current = {
           group: lightingRig,
-          hemisphere,
-          hemisphereRig,
-          dirLight,
-          spot,
+          stripeKey,
+          stripeFill,
           ambient
         };
         applyLightingPreset();
