@@ -14203,7 +14203,7 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.2; // slightly widen the overhead footprint so the fixtures feel larger
+        const lightSpreadBoost = 1.3; // widen the overhead footprint slightly more so fixtures read larger
         const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.35; // lift the rig a touch higher for a broader throw
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
@@ -14224,7 +14224,7 @@ const powerRef = useRef(hud.power);
         key.position.set(lightLineX, lightRigHeight, -lightLineZ);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
-        key.shadow.mapSize.set(4096, 4096);
+        key.shadow.mapSize.set(2048, 2048);
         key.shadow.camera.near = 0.1;
         key.shadow.camera.far = shadowDepth;
         key.shadow.camera.left = -shadowHalfSpan;
