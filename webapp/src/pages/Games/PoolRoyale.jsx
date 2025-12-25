@@ -14221,7 +14221,9 @@ const powerRef = useRef(hud.power);
         world.add(lightingRig);
 
         const lightSpreadBoost = 1.68; // widen the overhead footprint so fixtures read larger on mobile and reach farther to the sides
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 7.1; // lift the rig higher for a broader throw and wider coverage
+        const previousLightRigHeight = tableSurfaceY + TABLE.THICK * 7.1; // baseline height used for the prior brightness target
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.4; // bring the rig closer so ball reflections enlarge without shifting color
+        const brightnessCompensation = (lightRigHeight ** 2) / (previousLightRigHeight ** 2); // preserve on-cloth brightness after moving the rig closer
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
         const lightOffsetZ =
@@ -14238,7 +14240,7 @@ const powerRef = useRef(hud.power);
         const ambient = new THREE.AmbientLight(0xffffff, 0.32);
         lightingRig.add(ambient);
 
-        const key = new THREE.DirectionalLight(0xffffff, 1.78);
+        const key = new THREE.DirectionalLight(0xffffff, 1.78 * brightnessCompensation);
         key.position.set(lightLineX, lightRigHeight, lightPositionsZ[0]);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
@@ -14255,20 +14257,20 @@ const powerRef = useRef(hud.power);
         lightingRig.add(key);
         lightingRig.add(key.target);
 
-        const fill = new THREE.DirectionalLight(0xffffff, 0.9);
-        fill.position.set(lightLineX, lightRigHeight * 1.02, lightPositionsZ[1]);
+        const fill = new THREE.DirectionalLight(0xffffff, 0.9 * brightnessCompensation);
+        fill.position.set(-lightLineX, lightRigHeight * 1.01, lightPositionsZ[1]);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
-        const wash = new THREE.DirectionalLight(0xffffff, 0.82);
-        wash.position.set(lightLineX, lightRigHeight * 1.04, lightPositionsZ[2]);
+        const wash = new THREE.DirectionalLight(0xffffff, 0.82 * brightnessCompensation);
+        wash.position.set(lightLineX, lightRigHeight * 1.02, lightPositionsZ[2]);
         wash.target.position.set(0, targetY, 0);
         lightingRig.add(wash);
         lightingRig.add(wash.target);
 
-        const rim = new THREE.DirectionalLight(0xffffff, 0.74);
-        rim.position.set(lightLineX, lightRigHeight * 1.06, lightPositionsZ[3]);
+        const rim = new THREE.DirectionalLight(0xffffff, 0.74 * brightnessCompensation);
+        rim.position.set(-lightLineX, lightRigHeight * 1.03, lightPositionsZ[3]);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
