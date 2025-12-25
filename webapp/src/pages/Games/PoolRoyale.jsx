@@ -9809,10 +9809,6 @@ const powerRef = useRef(hud.power);
   const spinLegalityRef = useRef({ blocked: false, reason: '' });
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
-  const remoteAimStateRef = useRef(null);
-  const remoteShotActiveRef = useRef(false);
-  const remoteReplayActiveRef = useRef(false);
-  const remoteFrameTsRef = useRef(0);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
@@ -10220,75 +10216,34 @@ const powerRef = useRef(hud.power);
     window.setTimeout(goToLobby, 1200);
   }, [frameState.frameOver, frameState.winner, goToLobby, isTraining]);
 
-  const applyRemoteState = useCallback(
-    ({ state, hud: incomingHud, layout, aim, shotActive, replayActive }) => {
-      const receivedAt =
-        typeof performance !== 'undefined' && typeof performance.now === 'function'
-          ? performance.now()
-          : Date.now();
-      remoteFrameTsRef.current = receivedAt;
-      if (state) {
-        frameRef.current = state;
-        setFrameState(state);
-        setTurnCycle((value) => value + 1);
+  const applyRemoteState = useCallback(({ state, hud: incomingHud, layout }) => {
+    if (state) {
+      frameRef.current = state;
+      setFrameState(state);
+      setTurnCycle((value) => value + 1);
+    }
+    if (incomingHud) {
+      setHud((prev) => ({ ...prev, ...incomingHud }));
+    }
+    if (Array.isArray(layout)) {
+      const applySnapshot = applyBallSnapshotRef.current;
+      if (applySnapshot) {
+        applySnapshot(layout);
+      } else {
+        pendingLayoutRef.current = layout;
       }
-      if (incomingHud) {
-        setHud((prev) => ({ ...prev, ...incomingHud }));
-      }
-      if (Array.isArray(layout)) {
-        const applySnapshot = applyBallSnapshotRef.current;
-        if (applySnapshot) {
-          applySnapshot(layout);
-        } else {
-          pendingLayoutRef.current = layout;
-        }
-      }
-      if (aim === null) {
-        remoteAimStateRef.current = null;
-      } else if (aim && typeof aim === 'object') {
-        const dir = normalizeVector2Snapshot(aim.dir, { x: 0, y: 1 });
-        const spin = normalizeVector2Snapshot(aim.spin, { x: 0, y: 0 });
-        remoteAimStateRef.current = {
-          dir: dir || { x: 0, y: 1 },
-          power: THREE.MathUtils.clamp(aim.power ?? 0, 0, 1),
-          spin: spin || { x: 0, y: 0 },
-          pull: Math.max(0, Number.isFinite(aim.pull) ? aim.pull : 0)
-        };
-      }
-      if (typeof shotActive === 'boolean') {
-        remoteShotActiveRef.current = shotActive;
-        if (shotActive) remoteAimStateRef.current = null;
-      }
-      if (typeof replayActive === 'boolean') {
-        remoteReplayActiveRef.current = replayActive;
-      }
-    },
-    []
-  );
+    }
+  }, []);
 
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return undefined;
     const handlePoolState = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
-      applyRemoteState({
-        state: payload.state,
-        hud: payload.hud,
-        layout: payload.layout,
-        aim: payload.aim,
-        shotActive: payload.shotActive,
-        replayActive: payload.replayActive
-      });
+      applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
     const handlePoolFrame = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
-      applyRemoteState({
-        state: payload.state,
-        hud: payload.hud,
-        layout: payload.layout,
-        aim: payload.aim,
-        shotActive: payload.shotActive,
-        replayActive: payload.replayActive
-      });
+      applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
 
     socket.emit('register', { playerId: accountId });
@@ -10310,15 +10265,7 @@ const powerRef = useRef(hud.power);
     const layout = captureBallSnapshotRef.current
       ? captureBallSnapshotRef.current()
       : null;
-    socket.emit('poolShot', {
-      tableId,
-      state,
-      hud: hudRef.current,
-      layout,
-      shotActive: false,
-      replayActive: false,
-      aim: null
-    });
+    socket.emit('poolShot', { tableId, state, hud: hudRef.current, layout });
   }, [isOnlineMatch, tableId]);
 
   useEffect(() => {
@@ -10643,10 +10590,6 @@ const powerRef = useRef(hud.power);
         y: Number.isFinite(vec?.y) ? vec.y : fallback.y ?? 0,
         z: Number.isFinite(vec?.z) ? vec.z : fallback.z ?? 0
       });
-      const serializeVector2Snapshot = (vec, fallback = { x: 0, y: 0 }) => ({
-        x: Number.isFinite(vec?.x) ? vec.x : fallback.x ?? 0,
-        y: Number.isFinite(vec?.y) ? vec.y : fallback.y ?? 0
-      });
       const serializeQuaternionSnapshot = (quat) => ({
         x: Number.isFinite(quat?.x) ? quat.x : 0,
         y: Number.isFinite(quat?.y) ? quat.y : 0,
@@ -10660,16 +10603,6 @@ const powerRef = useRef(hud.power);
         } else if (value && typeof value === 'object') {
           const { x, y, z } = value;
           if ([x, y, z].every(Number.isFinite)) return { x, y, z };
-        }
-        return fallback;
-      };
-      const normalizeVector2Snapshot = (value, fallback = null) => {
-        if (Array.isArray(value) && value.length >= 2) {
-          const [x, y] = value;
-          if ([x, y].every(Number.isFinite)) return { x, y };
-        } else if (value && typeof value === 'object') {
-          const { x, y } = value;
-          if ([x, y].every(Number.isFinite)) return { x, y };
         }
         return fallback;
       };
@@ -13473,23 +13406,6 @@ const powerRef = useRef(hud.power);
                 }
               : null
           }));
-
-        const captureAimSnapshot = () => {
-          const aimDir = aimDirRef.current || new THREE.Vector2(0, 1);
-          const spin = spinRef.current || { x: 0, y: 0 };
-          return {
-            dir: serializeVector2Snapshot(aimDir, { x: 0, y: 1 }),
-            power: THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1),
-            spin: serializeVector2Snapshot(
-              {
-                x: THREE.MathUtils.clamp(spin?.x ?? 0, -1, 1),
-                y: THREE.MathUtils.clamp(spin?.y ?? 0, -1, 1)
-              },
-              { x: 0, y: 0 }
-            ),
-            pull: Math.max(0, cuePullCurrentRef.current ?? 0)
-          };
-        };
 
         const captureReplayCameraSnapshot = () => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
@@ -17127,10 +17043,7 @@ const powerRef = useRef(hud.power);
               tableId,
               state: safeState,
               hud: hudRef.current,
-              layout,
-              shotActive: false,
-              replayActive: false,
-              aim: null
+              layout
             });
           }
           setShootingState(false);
@@ -17210,47 +17123,9 @@ const powerRef = useRef(hud.power);
   let lastStepTime = performance.now();
   let lastReplayFrameAt = 0;
   let lastLiveSyncSentAt = 0;
-  const streamLiveFrame = (now, { force = false } = {}) => {
-    if (!isOnlineMatch || !tableId || typeof captureBallSnapshot !== 'function') {
-      return;
-    }
-    const frameTiming = frameTimingRef.current;
-    const intervalTarget = frameTiming?.targetMs ?? 1000 / 60;
-    const minInterval = Math.max(4, intervalTarget * 0.9);
-    if (!force && lastLiveSyncSentAt && now - lastLiveSyncSentAt < minInterval) {
-      return;
-    }
-    const shotActive = shooting || Boolean(replayPlaybackRef.current);
-    const allowAimingStream =
-      !shotActive &&
-      hudRef.current?.turn === 0 &&
-      !aiOpponentEnabled &&
-      !(hudRef.current?.inHand && !cueBallPlacedFromHandRef.current);
-    if (!shotActive && !allowAimingStream) return;
-    const layout = captureBallSnapshot();
-    const aim = allowAimingStream ? captureAimSnapshot() : null;
-    socket.emit('poolFrame', {
-      tableId,
-      layout,
-      hud: hudRef.current,
-      frameTs: now,
-      playerId: accountIdRef.current || accountId || '',
-      shotActive,
-      replayActive: Boolean(replayPlaybackRef.current),
-      aim
-    });
-    lastLiveSyncSentAt = now;
-  };
   const step = (now) => {
     if (disposed) return;
     const playback = replayPlaybackRef.current;
-        if ((remoteShotActiveRef.current || remoteReplayActiveRef.current) && remoteFrameTsRef.current) {
-          const age = now - remoteFrameTsRef.current;
-          if (age > 2000) {
-            remoteShotActiveRef.current = false;
-            remoteReplayActiveRef.current = false;
-          }
-        }
         if (playback) {
           const frameTiming = frameTimingRef.current;
           const targetReplayFrameTime =
@@ -17296,7 +17171,6 @@ const powerRef = useRef(hud.power);
             };
             const frameCamera = updateCamera();
             renderer.render(scene, frameCamera ?? camera);
-            streamLiveFrame(now);
             const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
             if (finished) {
               finishReplayPlayback(playback);
@@ -17367,6 +17241,7 @@ const powerRef = useRef(hud.power);
         if (!lookModeRef.current) {
           aimDir.lerp(tmpAim, aimLerpFactor);
         }
+        const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
         let shouldSlowAim = false;
@@ -17375,35 +17250,11 @@ const powerRef = useRef(hud.power);
         const isPlayerTurn = currentHud?.turn === 0;
         const isAiTurn = aiOpponentEnabled && currentHud?.turn === 1;
         const previewingAiShot = aiShotPreviewRef.current;
-        const opponentAimActive =
-          isOnlineMatch &&
-          !isPlayerTurn &&
-          !aiOpponentEnabled &&
-          !shooting &&
-          !remoteShotActiveRef.current &&
-          !remoteReplayActiveRef.current &&
-          !replayPlaybackRef.current;
-        const opponentAim = opponentAimActive ? remoteAimStateRef.current : null;
-        const aimSource = opponentAim?.dir
-          ? new THREE.Vector2(opponentAim.dir.x ?? 0, opponentAim.dir.y ?? 1)
-          : aimDir;
-        if (aimSource.lengthSq() < 1e-6) aimSource.set(0, 1);
-        else aimSource.normalize();
-        const appliedSpin = opponentAim?.spin
-          ? {
-              x: THREE.MathUtils.clamp(opponentAim.spin.x ?? 0, -1, 1),
-              y: THREE.MathUtils.clamp(opponentAim.spin.y ?? 0, -1, 1)
-            }
-          : applySpinConstraints(aimSource, true);
         if (isAiTurn) {
           autoPlaceAiCueBall();
         }
         const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
         const canShowCue =
-          !shooting &&
-          !remoteShotActiveRef.current &&
-          !remoteReplayActiveRef.current &&
-          !replayPlaybackRef.current &&
           allStopped(balls) &&
           cue?.active &&
           !(currentHud?.over) &&
@@ -17411,18 +17262,17 @@ const powerRef = useRef(hud.power);
           (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current);
 
         sidePocketAimRef.current = false;
-        if (canShowCue && (isPlayerTurn || previewingAiShot || opponentAim)) {
-          const baseAimDir = new THREE.Vector3(aimSource.x, 0, aimSource.y);
+        if (canShowCue && (isPlayerTurn || previewingAiShot)) {
+          const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
           else baseAimDir.normalize();
           const basePerp = new THREE.Vector3(-baseAimDir.z, 0, baseAimDir.x);
           if (basePerp.lengthSq() > 1e-8) basePerp.normalize();
-          const resolvedPower = THREE.MathUtils.clamp(
-            opponentAim?.power ?? powerRef.current ?? 0,
+          const powerStrength = THREE.MathUtils.clamp(
+            powerRef.current ?? 0,
             0,
             1
           );
-          const powerStrength = resolvedPower;
           const aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
           const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
             cue,
@@ -17437,9 +17287,9 @@ const powerRef = useRef(hud.power);
           }
           aimGeom.setFromPoints([start, end]);
           aim.visible = true;
-          const slowAssistEnabled = chalkAssistEnabledRef.current && !opponentAim;
+          const slowAssistEnabled = chalkAssistEnabledRef.current;
           const hasTarget = slowAssistEnabled && (targetBall || railNormal);
-          shouldSlowAim = hasTarget && !opponentAim;
+          shouldSlowAim = hasTarget;
           const precisionArea = chalkAreaRef.current;
           if (precisionArea) {
             precisionArea.visible = hasTarget;
@@ -17546,30 +17396,21 @@ const powerRef = useRef(hud.power);
           } else {
             impactRing.visible = false;
           }
-          const desiredPull = resolvedPower * BALL_R * 10 * 0.65 * 1.2;
+          const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             aimDir2D.clone().multiplyScalar(-1),
             balls
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-          const desiredPullTarget = opponentAim
-            ? Math.max(0, opponentAim.pull ?? desiredPull)
-            : desiredPull;
-          const pullTarget = Math.min(desiredPullTarget, maxPull);
-          if (!opponentAim) {
-            cuePullTargetRef.current = pullTarget;
-          }
-          const pull = opponentAim
-            ? pullTarget
-            : THREE.MathUtils.lerp(
-                cuePullCurrentRef.current ?? 0,
-                pullTarget,
-                CUE_PULL_SMOOTHING
-              );
-          if (!opponentAim) {
-            cuePullCurrentRef.current = pull;
-          }
+          const pullTarget = Math.min(desiredPull, maxPull);
+          cuePullTargetRef.current = pullTarget;
+          const pull = THREE.MathUtils.lerp(
+            cuePullCurrentRef.current ?? 0,
+            pullTarget,
+            CUE_PULL_SMOOTHING
+          );
+          cuePullCurrentRef.current = pull;
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
           let side = appliedSpin.x * offsetSide;
@@ -17827,7 +17668,7 @@ const powerRef = useRef(hud.power);
           const precisionArea = chalkAreaRef.current;
           if (precisionArea) precisionArea.visible = false;
         }
-        chalkAssistTargetRef.current = shouldSlowAim && !opponentAim;
+        chalkAssistTargetRef.current = shouldSlowAim;
 
         // Fizika
         balls.forEach((ball) => {
@@ -18449,7 +18290,26 @@ const powerRef = useRef(hud.power);
           }
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
-          streamLiveFrame(now);
+          const shouldStreamLayout =
+            isOnlineMatch &&
+            tableId &&
+            shooting &&
+            typeof captureBallSnapshot === 'function';
+          if (shouldStreamLayout) {
+            const intervalTarget = frameTiming?.targetMs ?? 1000 / 60;
+            const minInterval = Math.max(4, intervalTarget * 0.9);
+            if (!lastLiveSyncSentAt || now - lastLiveSyncSentAt >= minInterval) {
+              const layout = captureBallSnapshot();
+              socket.emit('poolFrame', {
+                tableId,
+                layout,
+                hud: hudRef.current,
+                frameTs: now,
+                playerId: accountIdRef.current || accountId || ''
+              });
+              lastLiveSyncSentAt = now;
+            }
+          }
           if (!disposed) {
             rafRef.current = requestAnimationFrame(step);
           }
