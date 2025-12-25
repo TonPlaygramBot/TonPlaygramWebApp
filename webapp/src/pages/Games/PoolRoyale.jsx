@@ -1007,7 +1007,6 @@ const STOP_EPS = 0.02;
 const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
 const STOP_FINAL_EPS = STOP_EPS * 0.45;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
-const LIVE_CAMERA_BLEND_MS = 120; // blend remote camera updates smoothly while staying near-real-time
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
@@ -9813,8 +9812,6 @@ const powerRef = useRef(hud.power);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
-  const remoteLiveCameraRef = useRef(null);
-  const remoteLiveAimRef = useRef(null);
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
@@ -10219,12 +10216,7 @@ const powerRef = useRef(hud.power);
     window.setTimeout(goToLobby, 1200);
   }, [frameState.frameOver, frameState.winner, goToLobby, isTraining]);
 
-  const applyRemoteState = useCallback(({ state, hud: incomingHud, layout, camera, aim, frameTs }) => {
-    const timestamp =
-      typeof performance !== 'undefined' && typeof performance.now === 'function'
-        ? performance.now()
-        : Date.now();
-    const resolvedTs = Number.isFinite(frameTs) ? frameTs : timestamp;
+  const applyRemoteState = useCallback(({ state, hud: incomingHud, layout }) => {
     if (state) {
       frameRef.current = state;
       setFrameState(state);
@@ -10241,62 +10233,17 @@ const powerRef = useRef(hud.power);
         pendingLayoutRef.current = layout;
       }
     }
-    if (camera) {
-      const parsed = parseCameraSnapshot(camera);
-      if (parsed) {
-        const previous =
-          remoteLiveCameraRef.current?.frameB ??
-          remoteLiveCameraRef.current?.frameA ??
-          parsed;
-        remoteLiveCameraRef.current = {
-          frameA: previous,
-          frameB: parsed,
-          updatedAt: timestamp,
-          frameTs: resolvedTs,
-          blendMs: LIVE_CAMERA_BLEND_MS
-        };
-      }
-    }
-    if (aim) {
-      const dir = normalizeVector2Snapshot(aim.dir, { x: 0, y: 1 }) || { x: 0, y: 1 };
-      const spin = aim.spin || {};
-      remoteLiveAimRef.current = {
-        dir,
-        power: THREE.MathUtils.clamp(aim.power ?? 0, 0, 1),
-        pull: Number.isFinite(aim.pull) ? aim.pull : 0,
-        spin: {
-          x: THREE.MathUtils.clamp(spin.x ?? 0, -1, 1),
-          y: THREE.MathUtils.clamp(spin.y ?? 0, -1, 1)
-        },
-        mode: typeof aim.mode === 'string' ? aim.mode : 'standard',
-        updatedAt: resolvedTs
-      };
-    }
   }, []);
 
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return undefined;
     const handlePoolState = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
-      applyRemoteState({
-        state: payload.state,
-        hud: payload.hud,
-        layout: payload.layout,
-        camera: payload.camera,
-        aim: payload.aim,
-        frameTs: payload.updatedAt
-      });
+      applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
     const handlePoolFrame = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
-      applyRemoteState({
-        state: payload.state,
-        hud: payload.hud,
-        layout: payload.layout,
-        camera: payload.camera,
-        aim: payload.aim,
-        frameTs: payload.updatedAt
-      });
+      applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
 
     socket.emit('register', { playerId: accountId });
@@ -10448,13 +10395,6 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     updateHudPanels();
   }, [updateHudPanels]);
-
-  useEffect(() => {
-    if (hud.turn === 0 || hud.over) {
-      remoteLiveAimRef.current = null;
-      remoteLiveCameraRef.current = null;
-    }
-  }, [hud.over, hud.turn]);
 
   useEffect(() => {
     const isSoloTraining = isTraining && trainingModeState === 'solo';
@@ -10675,40 +10615,6 @@ const powerRef = useRef(hud.power);
           if ([x, y, z, w].every(Number.isFinite)) return { x, y, z, w };
         }
         return fallback;
-      };
-      const normalizeVector2Snapshot = (value, fallback = null) => {
-        if (Array.isArray(value) && value.length >= 2) {
-          const [x, y] = value;
-          if ([x, y].every(Number.isFinite)) return { x, y };
-        } else if (value && typeof value === 'object') {
-          const { x, y } = value;
-          if ([x, y].every(Number.isFinite)) return { x, y };
-        }
-        return fallback;
-      };
-      const serializeCameraSnapshot = (snapshot) => {
-        if (!snapshot) return null;
-        const position = snapshot.position
-          ? serializeVector3Snapshot(snapshot.position)
-          : null;
-        const target = snapshot.target ? serializeVector3Snapshot(snapshot.target) : null;
-        const fov = Number.isFinite(snapshot.fov) ? snapshot.fov : null;
-        const minTargetY = Number.isFinite(snapshot.minTargetY) ? snapshot.minTargetY : null;
-        if (!position && !target && !Number.isFinite(fov)) return null;
-        return { position, target, fov, minTargetY };
-      };
-      const parseCameraSnapshot = (snapshot) => {
-        if (!snapshot) return null;
-        const position = normalizeVector3Snapshot(snapshot.position);
-        const target = normalizeVector3Snapshot(snapshot.target);
-        const fov = Number.isFinite(snapshot.fov) ? snapshot.fov : null;
-        const minTargetY = Number.isFinite(snapshot.minTargetY) ? snapshot.minTargetY : null;
-        return {
-          position: position ? new THREE.Vector3(position.x, position.y, position.z) : null,
-          target: target ? new THREE.Vector3(target.x, target.y, target.z) : null,
-          fov,
-          minTargetY
-        };
       };
       let activeShotView = null;
       let suspendedActionView = null;
@@ -12042,46 +11948,6 @@ const powerRef = useRef(hud.power);
             : fallbackFov;
           return { position, target, fov: resolvedFov, minTargetY };
         };
-        const resolveLiveCameraView = () => {
-          const liveFrame = remoteLiveCameraRef.current;
-          if (!liveFrame) return null;
-          const now = performance.now();
-          const blendWindow = Number.isFinite(liveFrame.blendMs)
-            ? liveFrame.blendMs
-            : LIVE_CAMERA_BLEND_MS;
-          const alpha =
-            blendWindow > 0
-              ? THREE.MathUtils.clamp((now - (liveFrame.updatedAt ?? now)) / blendWindow, 0, 1)
-              : 1;
-          const lerpVector = (a, b, t) => {
-            if (!a && !b) return null;
-            const start = a ?? b;
-            const end = b ?? a;
-            const startVec = start?.clone?.() ?? start;
-            const endVec = end?.clone?.() ?? end;
-            if (!startVec || !endVec || typeof startVec.lerp !== 'function') {
-              return start ?? end ?? null;
-            }
-            return startVec.lerp(endVec, t);
-          };
-          const frameA = liveFrame.frameA ?? liveFrame.frameB ?? null;
-          const frameB = liveFrame.frameB ?? frameA;
-          if (!frameA && !frameB) return null;
-          const position = lerpVector(frameA?.position, frameB?.position, alpha);
-          const target = lerpVector(frameA?.target, frameB?.target, alpha);
-          const fovA = Number.isFinite(frameA?.fov) ? frameA.fov : null;
-          const fovB = Number.isFinite(frameB?.fov) ? frameB.fov : fovA;
-          const fov =
-            Number.isFinite(fovA) || Number.isFinite(fovB)
-              ? THREE.MathUtils.lerp(fovA ?? fovB, fovB ?? fovA, alpha)
-              : null;
-          const minTargetY = Number.isFinite(frameB?.minTargetY)
-            ? frameB.minTargetY
-            : Number.isFinite(frameA?.minTargetY)
-              ? frameA.minTargetY
-              : null;
-          return { position, target, fov, minTargetY };
-        };
 
         const updateCamera = () => {
           const replayActive = Boolean(replayPlaybackRef.current);
@@ -12099,9 +11965,6 @@ const powerRef = useRef(hud.power);
             broadcastArgs.lerp = broadcastSystem.smoothing;
           }
           const galleryState = cueGalleryStateRef.current;
-          const viewingRemoteTurn =
-            isOnlineMatch && !aiOpponentEnabled && (hudRef.current?.turn === 1);
-          const liveCameraView = viewingRemoteTurn ? resolveLiveCameraView() : null;
           if (replayActive) {
             const storedReplayCamera = replayCameraRef.current;
             const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
@@ -12141,38 +12004,6 @@ const powerRef = useRef(hud.power);
             broadcastArgs.focusWorld = focusTarget.clone();
             broadcastArgs.targetWorld = focusTarget.clone();
             broadcastArgs.lerp = 0.04;
-          } else if (liveCameraView) {
-            const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-            const minTargetY = Math.max(
-              baseSurfaceWorldY,
-              BALL_CENTER_Y * scale,
-              liveCameraView.minTargetY ?? baseSurfaceWorldY
-            );
-            const focusTarget =
-              liveCameraView.target?.clone?.() ??
-              lastCameraTargetRef.current?.clone?.() ??
-              new THREE.Vector3(playerOffsetRef.current * scale, minTargetY, 0);
-            focusTarget.y = Math.max(focusTarget.y, minTargetY);
-            const desiredPosition =
-              liveCameraView.position?.clone?.() ?? camera.position.clone();
-            if (desiredPosition.y < minTargetY) {
-              desiredPosition.y = minTargetY;
-            }
-            const liveFov = Number.isFinite(liveCameraView.fov)
-              ? liveCameraView.fov
-              : null;
-            if (Number.isFinite(liveFov) && camera.fov !== liveFov) {
-              camera.fov = liveFov;
-              camera.updateProjectionMatrix();
-            }
-            camera.position.copy(desiredPosition);
-            camera.lookAt(focusTarget);
-            renderCamera = camera;
-            lookTarget = focusTarget;
-            broadcastArgs.focusWorld = focusTarget.clone();
-            broadcastArgs.targetWorld = focusTarget.clone();
-            broadcastArgs.orbitWorld = desiredPosition.clone();
-            broadcastArgs.lerp = 0.08;
           } else if (galleryState?.active) {
             const basePosition =
               galleryState.basePosition ?? galleryState.position ?? null;
@@ -13606,28 +13437,6 @@ const powerRef = useRef(hud.power);
             snapshot.minTargetY = overheadCamera.minTargetY;
           }
           return snapshot;
-        };
-        const captureLiveCameraSnapshot = () => {
-          const snapshot = captureReplayCameraSnapshot();
-          return serializeCameraSnapshot(snapshot);
-        };
-        const captureLiveAimSnapshot = () => {
-          const aimDir = aimDirRef.current ?? { x: 0, y: 1 };
-          const spinApplied = spinAppliedRef.current ?? spinRef.current ?? { x: 0, y: 0 };
-          const pull = cuePullCurrentRef.current ?? 0;
-          return {
-            dir: {
-              x: Number.isFinite(aimDir?.x) ? aimDir.x : 0,
-              y: Number.isFinite(aimDir?.y) ? aimDir.y : 1
-            },
-            power: THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1),
-            pull: Number.isFinite(pull) ? pull : 0,
-            spin: {
-              x: THREE.MathUtils.clamp(spinApplied?.x ?? 0, -1, 1),
-              y: THREE.MathUtils.clamp(spinApplied?.y ?? 0, -1, 1)
-            },
-            mode: typeof spinApplied?.mode === 'string' ? spinApplied.mode : 'standard'
-          };
         };
 
         const applyBallSnapshot = (snapshot) => {
@@ -17230,15 +17039,11 @@ const powerRef = useRef(hud.power);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
           if (isOnlineMatch && tableId) {
             const layout = captureBallSnapshot();
-            const camera = captureLiveCameraSnapshot();
-            const aim = captureLiveAimSnapshot();
             socket.emit('poolShot', {
               tableId,
               state: safeState,
               hud: hudRef.current,
-              layout,
-              camera,
-              aim
+              layout
             });
           }
           setShootingState(false);
@@ -17412,15 +17217,6 @@ const powerRef = useRef(hud.power);
         );
         const subStepScale = frameScale / physicsSubsteps;
         lastStepTime = now;
-        const currentHud = hudRef.current;
-        const isPlayerTurn = currentHud?.turn === 0;
-        const isAiTurn = aiOpponentEnabled && currentHud?.turn === 1;
-        const previewingAiShot = aiShotPreviewRef.current;
-        const remoteAim =
-          isOnlineMatch && !aiOpponentEnabled && currentHud?.turn === 1 && !currentHud?.over
-            ? remoteLiveAimRef.current
-            : null;
-        const usingRemoteAim = Boolean(remoteAim);
         if (topViewRef.current && topViewLockedRef.current) {
           const fallbackAim = aimDirRef.current.clone();
           if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
@@ -17442,38 +17238,18 @@ const powerRef = useRef(hud.power);
         const aimLerpFactor = chalkAssistTargetRef.current
           ? Math.min(baseAimLerp, CHALK_AIM_LERP_SLOW)
           : baseAimLerp;
-        const renderAimDir = usingRemoteAim
-          ? new THREE.Vector2(
-              Number.isFinite(remoteAim?.dir?.x) ? remoteAim.dir.x : 0,
-              Number.isFinite(remoteAim?.dir?.y) ? remoteAim.dir.y : 1
-            )
-          : aimDir;
-        if (!usingRemoteAim && !lookModeRef.current) {
-          renderAimDir.lerp(tmpAim, aimLerpFactor);
+        if (!lookModeRef.current) {
+          aimDir.lerp(tmpAim, aimLerpFactor);
         }
-        if (renderAimDir.lengthSq() < 1e-6) {
-          renderAimDir.set(0, 1);
-        } else {
-          renderAimDir.normalize();
-        }
-        if (!usingRemoteAim) {
-          aimDir.copy(renderAimDir);
-        }
-        const appliedSpin = usingRemoteAim
-          ? {
-              x: THREE.MathUtils.clamp(remoteAim?.spin?.x ?? 0, -1, 1),
-              y: THREE.MathUtils.clamp(remoteAim?.spin?.y ?? 0, -1, 1),
-              mode: remoteAim?.mode ?? 'standard'
-            }
-          : applySpinConstraints(renderAimDir, true);
-        if (usingRemoteAim) {
-          const magnitude = Math.hypot(appliedSpin.x ?? 0, appliedSpin.y ?? 0);
-          spinAppliedRef.current = { ...appliedSpin, magnitude };
-        }
+        const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
         let shouldSlowAim = false;
         // Aiming vizual
+        const currentHud = hudRef.current;
+        const isPlayerTurn = currentHud?.turn === 0;
+        const isAiTurn = aiOpponentEnabled && currentHud?.turn === 1;
+        const previewingAiShot = aiShotPreviewRef.current;
         if (isAiTurn) {
           autoPlaceAiCueBall();
         }
@@ -17486,14 +17262,14 @@ const powerRef = useRef(hud.power);
           (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current);
 
         sidePocketAimRef.current = false;
-        if (canShowCue && (isPlayerTurn || previewingAiShot || usingRemoteAim)) {
-          const baseAimDir = new THREE.Vector3(renderAimDir.x, 0, renderAimDir.y);
+        if (canShowCue && (isPlayerTurn || previewingAiShot)) {
+          const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
           else baseAimDir.normalize();
           const basePerp = new THREE.Vector3(-baseAimDir.z, 0, baseAimDir.x);
           if (basePerp.lengthSq() > 1e-8) basePerp.normalize();
           const powerStrength = THREE.MathUtils.clamp(
-            usingRemoteAim ? remoteAim?.power ?? 0 : powerRef.current ?? 0,
+            powerRef.current ?? 0,
             0,
             1
           );
@@ -17620,17 +17396,14 @@ const powerRef = useRef(hud.power);
           } else {
             impactRing.visible = false;
           }
-          const desiredPull = powerStrength * BALL_R * 10 * 0.65 * 1.2;
+          const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             aimDir2D.clone().multiplyScalar(-1),
             balls
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-          const remotePull = Number.isFinite(remoteAim?.pull) ? remoteAim.pull : 0;
-          const pullTarget = usingRemoteAim
-            ? THREE.MathUtils.clamp(remotePull, 0, Math.max(maxPull, 0))
-            : Math.min(desiredPull, maxPull);
+          const pullTarget = Math.min(desiredPull, maxPull);
           cuePullTargetRef.current = pullTarget;
           const pull = THREE.MathUtils.lerp(
             cuePullCurrentRef.current ?? 0,
@@ -18520,23 +18293,19 @@ const powerRef = useRef(hud.power);
           const shouldStreamLayout =
             isOnlineMatch &&
             tableId &&
-            typeof captureBallSnapshot === 'function' &&
-            (shooting || (hudRef.current?.turn === 0 && !hudRef.current?.over));
+            shooting &&
+            typeof captureBallSnapshot === 'function';
           if (shouldStreamLayout) {
             const intervalTarget = frameTiming?.targetMs ?? 1000 / 60;
-            const minInterval = Math.max(2, intervalTarget);
+            const minInterval = Math.max(4, intervalTarget * 0.9);
             if (!lastLiveSyncSentAt || now - lastLiveSyncSentAt >= minInterval) {
               const layout = captureBallSnapshot();
-              const camera = captureLiveCameraSnapshot();
-              const aim = captureLiveAimSnapshot();
               socket.emit('poolFrame', {
                 tableId,
                 layout,
                 hud: hudRef.current,
                 frameTs: now,
-                playerId: accountIdRef.current || accountId || '',
-                camera,
-                aim
+                playerId: accountIdRef.current || accountId || ''
               });
               lastLiveSyncSentAt = now;
             }
@@ -18587,8 +18356,6 @@ const powerRef = useRef(hud.power);
           captureBallSnapshotRef.current = null;
           applyBallSnapshotRef.current = null;
           pendingLayoutRef.current = null;
-          remoteLiveCameraRef.current = null;
-          remoteLiveAimRef.current = null;
           lightingRigRef.current = null;
           worldRef.current = null;
           activeRenderCameraRef.current = null;
