@@ -5,13 +5,12 @@ public class BilliardLighting : MonoBehaviour
 {
     void Start()
     {
-        // Create four spot lights to highlight the run of spots along the table
+        // Create three spot lights to highlight the D, blue and black spots on the table
         Vector3[] lightPositions =
         {
-            new Vector3(0f, 5f, -3.75f), // near the baulk end
-            new Vector3(0f, 5f, -1.25f), // between baulk and centre
-            new Vector3(0f, 5f, 1.25f),  // between centre and top end
-            new Vector3(0f, 5f, 3.75f)   // near the top end
+            new Vector3(0f, 5f, -3.5f), // D spot at baulk end
+            new Vector3(0f, 5f, 0f),    // blue spot in the centre
+            new Vector3(0f, 5f, 3.5f)   // black spot at top end
         };
 
         for (int i = 0; i < lightPositions.Length; i++)
@@ -21,8 +20,8 @@ public class BilliardLighting : MonoBehaviour
             spotLight.type = LightType.Spot;
             spotLight.color = Color.white;
             spotLight.intensity = 2.25f;       // brightness reduced by 10%
-            spotLight.range = 19f;             // slightly broader coverage
-            spotLight.spotAngle = 78f;         // wider cone for bigger pools of light
+            spotLight.range = 17f;             // slightly broader coverage
+            spotLight.spotAngle = 70f;         // wider cone for bigger pools of light
             spotLight.shadows = LightShadows.Soft;
 
             lightObj.transform.position = lightPositions[i];
