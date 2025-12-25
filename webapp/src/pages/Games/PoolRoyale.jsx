@@ -499,13 +499,13 @@ const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.16; // push the side fascias far
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = CHROME_CORNER_POCKET_CUT_SCALE * 1.012; // open the rounded chrome cut slightly wider on the middle pockets only
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.032; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.018; // push the middle rail rounded cuts slightly farther outward so they sit farther from the table centre while keeping their slim profile
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.08; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.05; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
 
 function buildChromePlateGeometry({
   width,
@@ -848,11 +848,11 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.58; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.26; // trim the middle jaw reach further so it finishes closer to the wood/cloth gap while keeping the jaw radius
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // relax the middle jaw arc radius slightly so side-pocket jaws read a touch wider
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.14; // trim the middle jaw reach further so it finishes closer to the wood/cloth gap while keeping the jaw radius
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.94; // relax the middle jaw arc radius slightly so side-pocket jaws read a touch wider
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.02; // lift the middle jaws so their rims sit level with the cloth like the corner pockets
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.12; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.06; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -907,9 +907,9 @@ const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the reference layout
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.05; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
-const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.02; // gently bias the middle pocket centres and cuts back toward the playfield
-const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.03; // pull only the middle pocket cloth cutouts slightly toward the playfield centre
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.02; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
+const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.026; // gently bias the middle pocket centres and cuts back toward the playfield
+const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.032; // pull only the middle pocket cloth cutouts slightly toward the playfield centre
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -925,12 +925,12 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.972; // shrink the middle pocket mouth width a touch more so the radius tightens up further
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.958; // shrink the middle pocket mouth width a touch more so the radius tightens up further
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
-const SIDE_POCKET_CUT_SCALE = 0.968; // trim the middle cloth/rail cutouts a bit more so the openings follow the tighter pocket radius
+const SIDE_POCKET_CUT_SCALE = 0.954; // trim the middle cloth/rail cutouts a bit more so the openings follow the tighter pocket radius
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -1029,7 +1029,7 @@ const PLYWOOD_EXTRA_DROP = 0;
 const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // fallback plywood tone when a finish color is unavailable
 const PLYWOOD_HOLE_SCALE = 1.05; // plywood pocket cutouts should be 5% larger than the pocket bowls for clearance
 const PLYWOOD_HOLE_R = POCKET_VIS_R * PLYWOOD_HOLE_SCALE * POCKET_VISUAL_EXPANSION;
-const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.26; // slim the cloth wrap to avoid showing any underlay beneath the surface
+const CLOTH_EXTENDED_DEPTH = CLOTH_THICKNESS; // wrap only the cloth depth so no hidden underlay is visible
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
@@ -1230,9 +1230,9 @@ const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
-const DEFAULT_CUSHION_CUT_ANGLE = 27;
-// middle pocket cushion cuts are sharpened to a 31° cut to align the side-rail cushions with the updated spec
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 31;
+const DEFAULT_CUSHION_CUT_ANGLE = 29;
+// middle pocket cushion cuts are sharpened to a 29° cut to align the side-rail cushions with the updated spec
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -2181,9 +2181,187 @@ const TABLE_FINISHES = Object.freeze({
         rail,
         leg: frame,
         trim,
+      accent
+    };
+    applySnookerStyleWoodPreset(materials, 'jetBlackCarbon');
+    return { ...materials, ...createPocketMaterials() };
+    }
+  },
+  frostedAsh: {
+    id: 'frostedAsh',
+    label: 'Frosted Ash',
+    colors: makeColorPalette({
+      cloth: 0x2d7f4b,
+      rail: 0xd9dfe5,
+      base: 0xd2d8dd
+    }),
+    woodTextureId: null,
+    createMaterials: () => {
+      const frameColor = new THREE.Color('#d2d8dd');
+      const railColor = new THREE.Color('#d9dfe5');
+      const trimColor = new THREE.Color('#eef2f6');
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: frameColor,
+        metalness: 0.18,
+        roughness: 0.24,
+        clearcoat: 0.48,
+        clearcoatRoughness: 0.16,
+        sheen: 0.18,
+        sheenRoughness: 0.4,
+        reflectivity: 0.6,
+        envMapIntensity: 0.92
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: railColor,
+        metalness: 0.22,
+        roughness: 0.26,
+        clearcoat: 0.5,
+        clearcoatRoughness: 0.16,
+        sheen: 0.2,
+        sheenRoughness: 0.42,
+        reflectivity: 0.64,
+        envMapIntensity: 0.98
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: trimColor,
+        metalness: 0.7,
+        roughness: 0.22,
+        clearcoat: 0.54,
+        clearcoatRoughness: 0.14,
+        envMapIntensity: 1.04
+      });
+      const accent = new THREE.MeshPhysicalMaterial({
+        color: 0xc4ccd6,
+        metalness: 0.36,
+        roughness: 0.28,
+        clearcoat: 0.28,
+        clearcoatRoughness: 0.18,
+        envMapIntensity: 0.9
+      });
+      const materials = {
+        frame,
+        rail,
+        leg: frame,
+        trim,
         accent
       };
-      applySnookerStyleWoodPreset(materials, 'jetBlackCarbon');
+      applySnookerStyleWoodPreset(materials, 'frostedAsh');
+      return { ...materials, ...createPocketMaterials() };
+    }
+  },
+  amberWharf: {
+    id: 'amberWharf',
+    label: 'Amber Wharf',
+    colors: makeColorPalette({
+      cloth: 0x2d7f4b,
+      rail: 0xc58b58,
+      base: 0xb87744
+    }),
+    woodTextureId: null,
+    createMaterials: () => {
+      const frameColor = new THREE.Color('#b87744');
+      const railColor = new THREE.Color('#c58b58');
+      const trimColor = new THREE.Color('#e0b072');
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: frameColor,
+        metalness: 0.2,
+        roughness: 0.32,
+        clearcoat: 0.42,
+        clearcoatRoughness: 0.22,
+        sheen: 0.2,
+        sheenRoughness: 0.44,
+        reflectivity: 0.56,
+        envMapIntensity: 0.88
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: railColor,
+        metalness: 0.26,
+        roughness: 0.34,
+        clearcoat: 0.46,
+        clearcoatRoughness: 0.2,
+        sheen: 0.22,
+        sheenRoughness: 0.46,
+        reflectivity: 0.6,
+        envMapIntensity: 0.94
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: trimColor,
+        metalness: 0.72,
+        roughness: 0.32,
+        clearcoat: 0.44,
+        clearcoatRoughness: 0.18,
+        envMapIntensity: 1.02
+      });
+      const materials = {
+        frame,
+        rail,
+        leg: frame,
+        trim,
+        accent: null
+      };
+      applySnookerStyleWoodPreset(materials, 'amberWharf');
+      return { ...materials, ...createPocketMaterials() };
+    }
+  },
+  obsidianMist: {
+    id: 'obsidianMist',
+    label: 'Obsidian Mist',
+    colors: makeColorPalette({
+      cloth: 0x1f4da8,
+      rail: 0x1e2126,
+      base: 0x16181c
+    }),
+    woodTextureId: null,
+    createMaterials: () => {
+      const frameColor = new THREE.Color('#16181c');
+      const railColor = new THREE.Color('#1e2126');
+      const trimColor = new THREE.Color('#3a3f48');
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: frameColor,
+        metalness: 0.32,
+        roughness: 0.52,
+        clearcoat: 0.22,
+        clearcoatRoughness: 0.32,
+        sheen: 0.26,
+        sheenColor: new THREE.Color('#2d3036'),
+        sheenRoughness: 0.56,
+        envMapIntensity: 0.72
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: railColor,
+        metalness: 0.34,
+        roughness: 0.46,
+        clearcoat: 0.26,
+        clearcoatRoughness: 0.3,
+        sheen: 0.28,
+        sheenColor: new THREE.Color('#343840'),
+        sheenRoughness: 0.52,
+        envMapIntensity: 0.78
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: trimColor,
+        metalness: 0.78,
+        roughness: 0.28,
+        clearcoat: 0.36,
+        clearcoatRoughness: 0.2,
+        envMapIntensity: 0.94
+      });
+      const accent = new THREE.MeshPhysicalMaterial({
+        color: 0x0f1116,
+        metalness: 0.36,
+        roughness: 0.54,
+        clearcoat: 0.22,
+        clearcoatRoughness: 0.42,
+        envMapIntensity: 0.62
+      });
+      const materials = {
+        frame,
+        rail,
+        leg: frame,
+        trim,
+        accent
+      };
+      applySnookerStyleWoodPreset(materials, 'obsidianMist');
       return { ...materials, ...createPocketMaterials() };
     }
   }
@@ -2195,7 +2373,10 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.charredTimber,
     TABLE_FINISHES.plankStudio,
     TABLE_FINISHES.weatheredGrey,
-    TABLE_FINISHES.jetBlackCarbon
+    TABLE_FINISHES.jetBlackCarbon,
+    TABLE_FINISHES.frostedAsh,
+    TABLE_FINISHES.amberWharf,
+    TABLE_FINISHES.obsidianMist
   ].filter(Boolean)
 );
 
@@ -2336,6 +2517,72 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
     },
     sparkle: 1.18,
     stray: 1.2
+  }),
+  crimsonFlash: Object.freeze({
+    id: 'crimsonFlash',
+    palette: {
+      shadow: 0x2a0b14,
+      base: 0x8c1224,
+      accent: 0xb81f35,
+      highlight: 0xf2455c
+    },
+    sparkle: 1.04,
+    stray: 1.02
+  }),
+  rubyInferno: Object.freeze({
+    id: 'rubyInferno',
+    palette: {
+      shadow: 0x2c0f12,
+      base: 0x9f1e2f,
+      accent: 0xd43145,
+      highlight: 0xff6a7a
+    },
+    sparkle: 1.08,
+    stray: 1.1
+  }),
+  garnetVelvet: Object.freeze({
+    id: 'garnetVelvet',
+    palette: {
+      shadow: 0x190910,
+      base: 0x702136,
+      accent: 0x9b2f4a,
+      highlight: 0xc4576d
+    },
+    sparkle: 0.92,
+    stray: 0.9
+  }),
+  forestPrime: Object.freeze({
+    id: 'forestPrime',
+    palette: {
+      shadow: 0x0d2d1a,
+      base: 0x1f6b3a,
+      accent: 0x2f8f52,
+      highlight: 0x4ecf7a
+    },
+    sparkle: 0.88,
+    stray: 0.94
+  }),
+  evergreenLuxe: Object.freeze({
+    id: 'evergreenLuxe',
+    palette: {
+      shadow: 0x103626,
+      base: 0x2c8a53,
+      accent: 0x43a86a,
+      highlight: 0x71d69b
+    },
+    sparkle: 1.02,
+    stray: 1
+  }),
+  jadeCurrent: Object.freeze({
+    id: 'jadeCurrent',
+    palette: {
+      shadow: 0x0a3a32,
+      base: 0x1fa37c,
+      accent: 0x32c99f,
+      highlight: 0x7bf2cb
+    },
+    sparkle: 1.1,
+    stray: 1.12
   })
 });
 
@@ -2444,6 +2691,84 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
       sheenRoughness: 0.34,
       bumpMultiplier: 1.12,
       emissiveIntensity: 0.5
+    }
+  },
+  {
+    id: 'crimsonFlash',
+    label: 'Crimson Flash',
+    color: 0x9c1a2b,
+    textureKey: 'crimsonFlash',
+    detail: {
+      sheen: 0.62,
+      sheenRoughness: 0.42,
+      bumpMultiplier: 1.02,
+      emissiveIntensity: 0.44,
+      envMapIntensity: 0.18
+    }
+  },
+  {
+    id: 'rubyInferno',
+    label: 'Ruby Inferno',
+    color: 0xaf2136,
+    textureKey: 'rubyInferno',
+    detail: {
+      sheen: 0.7,
+      sheenRoughness: 0.38,
+      bumpMultiplier: 1.08,
+      emissiveIntensity: 0.48,
+      envMapIntensity: 0.22
+    }
+  },
+  {
+    id: 'garnetVelvet',
+    label: 'Garnet Velvet',
+    color: 0x7a2c3f,
+    textureKey: 'garnetVelvet',
+    detail: {
+      roughness: 0.82,
+      bumpMultiplier: 0.94,
+      sheen: 0.54,
+      sheenRoughness: 0.48,
+      envMapIntensity: 0.14
+    }
+  },
+  {
+    id: 'forestPrime',
+    label: 'Forest Prime',
+    color: 0x217a45,
+    textureKey: 'forestPrime',
+    detail: {
+      roughness: 0.76,
+      sheen: 0.6,
+      sheenRoughness: 0.46,
+      emissiveIntensity: 0.32,
+      envMapIntensity: 0.16
+    }
+  },
+  {
+    id: 'evergreenLuxe',
+    label: 'Evergreen Luxe',
+    color: 0x2f9c5f,
+    textureKey: 'evergreenLuxe',
+    detail: {
+      sheen: 0.68,
+      sheenRoughness: 0.4,
+      bumpMultiplier: 1.02,
+      emissiveIntensity: 0.42,
+      envMapIntensity: 0.2
+    }
+  },
+  {
+    id: 'jadeCurrent',
+    label: 'Jade Current',
+    color: 0x1fb190,
+    textureKey: 'jadeCurrent',
+    detail: {
+      sheen: 0.74,
+      sheenRoughness: 0.36,
+      bumpMultiplier: 1.1,
+      emissiveIntensity: 0.46,
+      envMapIntensity: 0.24
     }
   }
 ]);
@@ -2679,6 +3004,192 @@ const POCKET_LINER_PRESETS = Object.freeze([
       repeatX: 2.1,
       repeatY: 2.1,
       seed: 4101
+    }
+  }),
+  Object.freeze({
+    id: 'graphitePocket',
+    label: 'Graphite Pocket Jaws',
+    type: 'metal',
+    jawColor: 0x1f222a,
+    rimColor: 0x2a2e38,
+    sheenColor: 0x424855,
+    rimSheenColor: 0x3a3f4a,
+    sheen: 0.64,
+    sheenRoughness: 0.4,
+    roughness: 0.3,
+    rimRoughness: 0.32,
+    metalness: 0.74,
+    rimMetalness: 0.76,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.18,
+    envMapIntensity: 0.92,
+    texture: {
+      base: 0x2c303a,
+      highlight: 0x6a707c,
+      shadow: 0x14171d,
+      density: 0.62,
+      grainSize: 0.8,
+      streakAlpha: 0.16,
+      creaseAlpha: 0.14,
+      seamContrast: 0.22,
+      repeatX: 2.1,
+      repeatY: 2.1,
+      seed: 5123
+    }
+  }),
+  Object.freeze({
+    id: 'titaniumPocket',
+    label: 'Titanium Pocket Jaws',
+    type: 'metal',
+    jawColor: 0x8d97a6,
+    rimColor: 0x9aa4b4,
+    sheenColor: 0xb9c2cf,
+    rimSheenColor: 0xaeb9c8,
+    sheen: 0.72,
+    sheenRoughness: 0.34,
+    roughness: 0.28,
+    rimRoughness: 0.32,
+    metalness: 0.78,
+    rimMetalness: 0.8,
+    clearcoat: 0.34,
+    clearcoatRoughness: 0.16,
+    envMapIntensity: 0.96,
+    texture: {
+      base: 0x8a93a1,
+      highlight: 0xd8dde5,
+      shadow: 0x6a7280,
+      density: 0.48,
+      grainSize: 0.76,
+      streakAlpha: 0.12,
+      creaseAlpha: 0.12,
+      seamContrast: 0.18,
+      repeatX: 2,
+      repeatY: 2,
+      seed: 5331
+    }
+  }),
+  Object.freeze({
+    id: 'copperPocket',
+    label: 'Copper Pocket Jaws',
+    type: 'metal',
+    jawColor: 0x8a4c2a,
+    rimColor: 0x9f5b36,
+    sheenColor: 0xbf7a52,
+    rimSheenColor: 0xb26a42,
+    sheen: 0.7,
+    sheenRoughness: 0.42,
+    roughness: 0.34,
+    rimRoughness: 0.36,
+    metalness: 0.76,
+    rimMetalness: 0.78,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.2,
+    envMapIntensity: 0.94,
+    texture: {
+      base: 0x9b623c,
+      highlight: 0xd89c74,
+      shadow: 0x5c2f1a,
+      density: 0.54,
+      grainSize: 0.82,
+      streakAlpha: 0.18,
+      creaseAlpha: 0.14,
+      seamContrast: 0.22,
+      repeatX: 2.2,
+      repeatY: 2.1,
+      seed: 5449
+    }
+  }),
+  Object.freeze({
+    id: 'emeraldPocket',
+    label: 'Emerald Pocket Jaws',
+    type: 'metal',
+    jawColor: 0x1f6b4b,
+    rimColor: 0x2a8a64,
+    sheenColor: 0x48b487,
+    rimSheenColor: 0x3da276,
+    sheen: 0.68,
+    sheenRoughness: 0.4,
+    roughness: 0.3,
+    rimRoughness: 0.34,
+    metalness: 0.7,
+    rimMetalness: 0.72,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.2,
+    envMapIntensity: 0.9,
+    texture: {
+      base: 0x2a8a64,
+      highlight: 0x6dd3a8,
+      shadow: 0x184332,
+      density: 0.56,
+      grainSize: 0.8,
+      streakAlpha: 0.16,
+      creaseAlpha: 0.14,
+      seamContrast: 0.22,
+      repeatX: 2.1,
+      repeatY: 2.1,
+      seed: 5567
+    }
+  }),
+  Object.freeze({
+    id: 'rubyPocket',
+    label: 'Ruby Pocket Jaws',
+    type: 'metal',
+    jawColor: 0x7b1d2d,
+    rimColor: 0x9a2e3f,
+    sheenColor: 0xbd3f56,
+    rimSheenColor: 0xac344a,
+    sheen: 0.7,
+    sheenRoughness: 0.42,
+    roughness: 0.32,
+    rimRoughness: 0.36,
+    metalness: 0.74,
+    rimMetalness: 0.76,
+    clearcoat: 0.34,
+    clearcoatRoughness: 0.2,
+    envMapIntensity: 0.92,
+    texture: {
+      base: 0x9a2e3f,
+      highlight: 0xe06478,
+      shadow: 0x4a0f1c,
+      density: 0.58,
+      grainSize: 0.82,
+      streakAlpha: 0.18,
+      creaseAlpha: 0.16,
+      seamContrast: 0.22,
+      repeatX: 2.2,
+      repeatY: 2.2,
+      seed: 5685
+    }
+  }),
+  Object.freeze({
+    id: 'pearlPocket',
+    label: 'Pearl Pocket Jaws',
+    type: 'metal',
+    jawColor: 0xe6e0d3,
+    rimColor: 0xf3ede3,
+    sheenColor: 0xf7f2e8,
+    rimSheenColor: 0xf0e9dc,
+    sheen: 0.62,
+    sheenRoughness: 0.5,
+    roughness: 0.28,
+    rimRoughness: 0.3,
+    metalness: 0.42,
+    rimMetalness: 0.44,
+    clearcoat: 0.4,
+    clearcoatRoughness: 0.18,
+    envMapIntensity: 0.86,
+    texture: {
+      base: 0xebe5db,
+      highlight: 0xffffff,
+      shadow: 0xb4ad9f,
+      density: 0.46,
+      grainSize: 0.76,
+      streakAlpha: 0.12,
+      creaseAlpha: 0.1,
+      seamContrast: 0.18,
+      repeatX: 2.2,
+      repeatY: 2.2,
+      seed: 5799
     }
   })
 ]);
@@ -5368,11 +5879,11 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS * 0.92 + BALL_R * 0.55; // tighten the middle pocket guard so bounces mirror the corner flow
+  const sideSpan = SIDE_POCKET_RADIUS * 0.88 + BALL_R * 0.5; // tighten the middle pocket guard so bounces mirror the corner flow
   const sidePocketGuard =
-    SIDE_POCKET_RADIUS * 0.86 * POCKET_VISUAL_EXPANSION + BALL_R * 0.06; // soften the capture window around middle jaws
-  const sideGuardClearance = Math.max(0, sidePocketGuard - BALL_R * 0.12);
-  const sideDepthLimit = POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION;
+    SIDE_POCKET_RADIUS * 0.82 * POCKET_VISUAL_EXPANSION + BALL_R * 0.04; // soften the capture window around middle jaws
+  const sideGuardClearance = Math.max(0, sidePocketGuard - BALL_R * 0.1);
+  const sideDepthLimit = POCKET_VIS_R * 1.5 * POCKET_VISUAL_EXPANSION;
   const sidePocketCenters = pocketCenters().slice(4);
   for (const center of sidePocketCenters) {
     TMP_VEC2_A.copy(ball.pos).sub(center);
@@ -14374,10 +14885,11 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.68; // widen the overhead footprint so fixtures read larger on mobile and reach farther to the sides
+        const lightSpreadBoost = 1.6; // widen the overhead footprint so fixtures read larger on mobile and reach farther to the sides
         const previousLightRigHeight = tableSurfaceY + TABLE.THICK * 7.1; // baseline height used for the prior brightness target
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.4; // bring the rig closer so ball reflections enlarge without shifting color
-        const brightnessCompensation = (lightRigHeight ** 2) / (previousLightRigHeight ** 2); // preserve on-cloth brightness after moving the rig closer
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.05; // bring the rig closer so ball reflections enlarge without shifting color
+        const brightnessCompensation =
+          ((lightRigHeight ** 2) / (previousLightRigHeight ** 2)) * 0.9; // preserve on-cloth brightness after moving the rig closer while dimming slightly
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
         const lightOffsetZ =
