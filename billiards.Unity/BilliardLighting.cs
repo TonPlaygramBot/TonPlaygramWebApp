@@ -5,16 +5,13 @@ public class BilliardLighting : MonoBehaviour
 {
     void Start()
     {
-        // Create four overhead spot lights around the table so every side is evenly lit
+        // Create three spot lights to highlight the D, blue and black spots on the table
         Vector3[] lightPositions =
         {
-            new Vector3(-2.5f, 5.5f, -3.6f),
-            new Vector3(2.5f, 5.5f, -3.6f),
-            new Vector3(-2.5f, 5.5f, 3.6f),
-            new Vector3(2.5f, 5.5f, 3.6f)
+            new Vector3(0f, 5f, -3.5f), // D spot at baulk end
+            new Vector3(0f, 5f, 0f),    // blue spot in the centre
+            new Vector3(0f, 5f, 3.5f)   // black spot at top end
         };
-
-        Vector3 tableFocus = new Vector3(0f, 0.5f, 0f);
 
         for (int i = 0; i < lightPositions.Length; i++)
         {
@@ -22,13 +19,13 @@ public class BilliardLighting : MonoBehaviour
             Light spotLight = lightObj.AddComponent<Light>();
             spotLight.type = LightType.Spot;
             spotLight.color = Color.white;
-            spotLight.intensity = 2.4f;        // brighter to push light across the table
-            spotLight.range = 18f;             // slightly broader coverage
-            spotLight.spotAngle = 80f;         // wide cone so edges stay lit
+            spotLight.intensity = 2.25f;       // brightness reduced by 10%
+            spotLight.range = 17f;             // slightly broader coverage
+            spotLight.spotAngle = 70f;         // wider cone for bigger pools of light
             spotLight.shadows = LightShadows.Soft;
 
             lightObj.transform.position = lightPositions[i];
-            lightObj.transform.rotation = Quaternion.LookRotation(tableFocus - lightObj.transform.position);
+            lightObj.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
         }
 
         // Apply a shiny plastic (PBR) material to each ball while keeping its colour
@@ -56,17 +53,13 @@ public class BilliardLighting : MonoBehaviour
                 CreateCueBallDot(ball.transform);
             }
 
-            // Position four spot lights so each ball shows evenly spaced square reflections
-            const int lightCount = 4;
-            const float ringRadius = 0.6f;
-            const float highlightHeight = 0.85f;
+            // Position three spot lights so each ball shows three white square reflections
+            const int lightCount = 3;
+            Vector3 basePos = new Vector3(0.5f, 0.8f, 0.6f);
             for (int i = 0; i < lightCount; i++)
             {
-                float angle = i * 90f * Mathf.Deg2Rad; // equal gaps between all four highlights
-                Vector3 pos = new Vector3(
-                    Mathf.Cos(angle) * ringRadius,
-                    highlightHeight,
-                    Mathf.Sin(angle) * ringRadius);
+                float angle = (i - (lightCount - 1) / 2f) * 30f;
+                Vector3 pos = Quaternion.Euler(0f, 0f, angle) * basePos;
                 CreateHighlightLight(ball.transform, pos);
             }
         }
