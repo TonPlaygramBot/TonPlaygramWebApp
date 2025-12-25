@@ -902,6 +902,7 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
+const ENABLE_BALL_FLOOR_SHADOWS = false;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
@@ -984,21 +985,24 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_SEGMENTS.width,
   BALL_SEGMENTS.height
 );
-const BALL_SHADOW_GEOMETRY = new THREE.CircleGeometry(
-  BALL_R * BALL_SHADOW_RADIUS_MULTIPLIER,
-  32
-);
-BALL_SHADOW_GEOMETRY.rotateX(-Math.PI / 2);
-const BALL_SHADOW_MATERIAL = new THREE.MeshBasicMaterial({
-  color: 0x000000,
-  transparent: true,
-  opacity: BALL_SHADOW_OPACITY,
-  depthWrite: false,
-  side: THREE.DoubleSide
-});
-BALL_SHADOW_MATERIAL.polygonOffset = true;
-BALL_SHADOW_MATERIAL.polygonOffsetFactor = -0.5;
-BALL_SHADOW_MATERIAL.polygonOffsetUnits = -0.5;
+const BALL_SHADOW_GEOMETRY = ENABLE_BALL_FLOOR_SHADOWS
+  ? new THREE.CircleGeometry(BALL_R * BALL_SHADOW_RADIUS_MULTIPLIER, 32)
+  : null;
+if (BALL_SHADOW_GEOMETRY) BALL_SHADOW_GEOMETRY.rotateX(-Math.PI / 2);
+const BALL_SHADOW_MATERIAL = ENABLE_BALL_FLOOR_SHADOWS
+  ? new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: BALL_SHADOW_OPACITY,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    })
+  : null;
+if (BALL_SHADOW_MATERIAL) {
+  BALL_SHADOW_MATERIAL.polygonOffset = true;
+  BALL_SHADOW_MATERIAL.polygonOffsetFactor = -0.5;
+  BALL_SHADOW_MATERIAL.polygonOffsetUnits = -0.5;
+}
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 const FRICTION = 0.993;
 const DEFAULT_CUSHION_RESTITUTION = 0.985;
@@ -5449,22 +5453,24 @@ function Guret(parent, id, color, x, y, options = {}) {
   mesh.position.set(x, BALL_CENTER_Y, y);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-  const shadow = new THREE.Mesh(
-    BALL_SHADOW_GEOMETRY,
-    BALL_SHADOW_MATERIAL.clone()
-  );
-  shadow.position.set(x, BALL_SHADOW_Y, y);
-  shadow.renderOrder = (mesh.renderOrder ?? 0) - 0.5;
-  shadow.matrixAutoUpdate = true;
-  shadow.visible = true;
-  shadow.userData = shadow.userData || {};
-  shadow.userData.ballId = id;
+  const shadow =
+    ENABLE_BALL_FLOOR_SHADOWS && BALL_SHADOW_GEOMETRY && BALL_SHADOW_MATERIAL
+      ? new THREE.Mesh(BALL_SHADOW_GEOMETRY, BALL_SHADOW_MATERIAL.clone())
+      : null;
+  if (shadow) {
+    shadow.position.set(x, BALL_SHADOW_Y, y);
+    shadow.renderOrder = (mesh.renderOrder ?? 0) - 0.5;
+    shadow.matrixAutoUpdate = true;
+    shadow.visible = true;
+    shadow.userData = shadow.userData || {};
+    shadow.userData.ballId = id;
+  }
   mesh.traverse((node) => {
     node.userData = node.userData || {};
     node.userData.ballId = id;
   });
   parent.add(mesh);
-  parent.add(shadow);
+  if (shadow) parent.add(shadow);
   return {
     id,
     color,
@@ -14203,7 +14209,7 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.32; // widen the overhead footprint so fixtures read larger on mobile
+        const lightSpreadBoost = 1.42; // widen the overhead footprint so fixtures read larger on mobile
         const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.65; // lift the rig higher for a broader throw
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
