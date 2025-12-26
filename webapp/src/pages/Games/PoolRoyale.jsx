@@ -1004,11 +1004,11 @@ if (BALL_SHADOW_MATERIAL) {
   BALL_SHADOW_MATERIAL.polygonOffsetUnits = -0.5;
 }
 // Match the snooker build so pace and rebound energy stay consistent between modes.
-const FRICTION = 0.993;
+const FRICTION = 0.995;
 const DEFAULT_CUSHION_RESTITUTION = 0.985;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
-const STOP_EPS = 0.02;
-const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
+const STOP_EPS = 0.015;
+const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
 const STOP_FINAL_EPS = STOP_EPS * 0.45;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
@@ -2433,10 +2433,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   graphite: Object.freeze({
     id: 'graphite',
     palette: {
-      shadow: 0x181b23,
-      base: 0x3d414e,
-      accent: 0x626a7b,
-      highlight: 0x95a1b6
+      shadow: 0x12141a,
+      base: 0x2f3542,
+      accent: 0x56607a,
+      highlight: 0x9aa6bc
     },
     sparkle: 0.65,
     stray: 0.9
@@ -2444,10 +2444,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   arcticBlue: Object.freeze({
     id: 'arcticBlue',
     palette: {
-      shadow: 0x2a668a,
-      base: 0x3d9ed8,
-      accent: 0x7dcaf7,
-      highlight: 0xb4e5ff
+      shadow: 0x1f5f8f,
+      base: 0x3aa8f0,
+      accent: 0x66ccff,
+      highlight: 0xa8e6ff
     },
     sparkle: 1.05,
     stray: 1.12
@@ -2455,10 +2455,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   emeraldPulse: Object.freeze({
     id: 'emeraldPulse',
     palette: {
-      shadow: 0x0f5a38,
-      base: 0x1fa95f,
-      accent: 0x2fce7a,
-      highlight: 0x6ff3b1
+      shadow: 0x0b4f2d,
+      base: 0x1fb66c,
+      accent: 0x35e08f,
+      highlight: 0x7ff4c4
     },
     sparkle: 1.08,
     stray: 1.05
@@ -2466,10 +2466,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   ivyDrift: Object.freeze({
     id: 'ivyDrift',
     palette: {
-      shadow: 0x0e3b24,
-      base: 0x1f6a3d,
-      accent: 0x2f8f56,
-      highlight: 0x52c586
+      shadow: 0x0c3a25,
+      base: 0x1f7a4a,
+      accent: 0x33a86a,
+      highlight: 0x65e0a3
     },
     sparkle: 0.9,
     stray: 0.92
@@ -2477,10 +2477,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   mintRadiance: Object.freeze({
     id: 'mintRadiance',
     palette: {
-      shadow: 0x0f7f6a,
-      base: 0x2fcfba,
-      accent: 0x66e9d3,
-      highlight: 0xb4fff3
+      shadow: 0x0f8476,
+      base: 0x35e0cc,
+      accent: 0x6df5e0,
+      highlight: 0xc2fff7
     },
     sparkle: 1.12,
     stray: 1.18
@@ -2499,10 +2499,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   midnightWave: Object.freeze({
     id: 'midnightWave',
     palette: {
-      shadow: 0x0b1b3d,
-      base: 0x133a73,
-      accent: 0x1f5aa4,
-      highlight: 0x3a7dd8
+      shadow: 0x0a1633,
+      base: 0x10397f,
+      accent: 0x1f64cf,
+      highlight: 0x4f9aff
     },
     sparkle: 0.82,
     stray: 0.88
@@ -2510,10 +2510,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   neonAzure: Object.freeze({
     id: 'neonAzure',
     palette: {
-      shadow: 0x0b3e5a,
-      base: 0x0fb3e0,
-      accent: 0x29d9ff,
-      highlight: 0x7ce9ff
+      shadow: 0x0b4766,
+      base: 0x00c4ff,
+      accent: 0x2ae4ff,
+      highlight: 0x93f4ff
     },
     sparkle: 1.18,
     stray: 1.2
@@ -2521,10 +2521,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   crimsonFlash: Object.freeze({
     id: 'crimsonFlash',
     palette: {
-      shadow: 0x2a0b14,
-      base: 0x8c1224,
-      accent: 0xb81f35,
-      highlight: 0xf2455c
+      shadow: 0x2c0b12,
+      base: 0xa0162f,
+      accent: 0xd62e4f,
+      highlight: 0xff6281
     },
     sparkle: 1.04,
     stray: 1.02
@@ -2532,10 +2532,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   rubyInferno: Object.freeze({
     id: 'rubyInferno',
     palette: {
-      shadow: 0x2c0f12,
-      base: 0x9f1e2f,
-      accent: 0xd43145,
-      highlight: 0xff6a7a
+      shadow: 0x320b14,
+      base: 0xb11c36,
+      accent: 0xe33c5b,
+      highlight: 0xff788d
     },
     sparkle: 1.08,
     stray: 1.1
@@ -2543,10 +2543,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   garnetVelvet: Object.freeze({
     id: 'garnetVelvet',
     palette: {
-      shadow: 0x190910,
-      base: 0x702136,
-      accent: 0x9b2f4a,
-      highlight: 0xc4576d
+      shadow: 0x1a0a12,
+      base: 0x7f2240,
+      accent: 0xb43f66,
+      highlight: 0xd66a8a
     },
     sparkle: 0.92,
     stray: 0.9
@@ -2554,10 +2554,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   forestPrime: Object.freeze({
     id: 'forestPrime',
     palette: {
-      shadow: 0x0d2d1a,
-      base: 0x1f6b3a,
-      accent: 0x2f8f52,
-      highlight: 0x4ecf7a
+      shadow: 0x0b331f,
+      base: 0x1f7d46,
+      accent: 0x32a563,
+      highlight: 0x5fdf9c
     },
     sparkle: 0.88,
     stray: 0.94
@@ -2565,10 +2565,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   evergreenLuxe: Object.freeze({
     id: 'evergreenLuxe',
     palette: {
-      shadow: 0x103626,
-      base: 0x2c8a53,
-      accent: 0x43a86a,
-      highlight: 0x71d69b
+      shadow: 0x0f3828,
+      base: 0x2fa165,
+      accent: 0x49c282,
+      highlight: 0x7cebb0
     },
     sparkle: 1.02,
     stray: 1
@@ -2576,10 +2576,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   jadeCurrent: Object.freeze({
     id: 'jadeCurrent',
     palette: {
-      shadow: 0x0a3a32,
-      base: 0x1fa37c,
-      accent: 0x32c99f,
-      highlight: 0x7bf2cb
+      shadow: 0x0b3f37,
+      base: 0x1fb89a,
+      accent: 0x3cdcc1,
+      highlight: 0x8dfaea
     },
     sparkle: 1.1,
     stray: 1.12
@@ -2604,7 +2604,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'graphite',
     label: 'Arcadia Graphite',
-    color: 0x4a5566,
+    color: 0x55607a,
     textureKey: 'graphite',
     detail: {
       bumpMultiplier: 0.92,
@@ -2615,7 +2615,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'arcticBlue',
     label: 'Arctic Blue',
-    color: 0x6fc5f6,
+    color: 0x58c4ff,
     textureKey: 'arcticBlue',
     detail: {
       sheen: 0.64,
@@ -2626,7 +2626,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'emeraldPulse',
     label: 'Emerald Pulse',
-    color: 0x2ac278,
+    color: 0x23c87c,
     textureKey: 'emeraldPulse',
     detail: {
       sheen: 0.62,
@@ -2638,7 +2638,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'ivyDrift',
     label: 'Ivy Drift',
-    color: 0x1f6a3d,
+    color: 0x238a55,
     textureKey: 'ivyDrift',
     detail: {
       roughness: 0.78,
@@ -2649,7 +2649,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'mintRadiance',
     label: 'Mint Radiance',
-    color: 0x56e8d4,
+    color: 0x60f1e1,
     textureKey: 'mintRadiance',
     detail: {
       sheen: 0.7,
@@ -2673,7 +2673,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'midnightWave',
     label: 'Midnight Wave',
-    color: 0x1f4da8,
+    color: 0x2a63c8,
     textureKey: 'midnightWave',
     detail: {
       roughness: 0.82,
@@ -2684,7 +2684,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'neonAzure',
     label: 'Neon Azure',
-    color: 0x1fc9f0,
+    color: 0x1fd8ff,
     textureKey: 'neonAzure',
     detail: {
       sheen: 0.78,
@@ -2696,7 +2696,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'crimsonFlash',
     label: 'Crimson Flash',
-    color: 0x9c1a2b,
+    color: 0xb3203a,
     textureKey: 'crimsonFlash',
     detail: {
       sheen: 0.62,
@@ -2709,7 +2709,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'rubyInferno',
     label: 'Ruby Inferno',
-    color: 0xaf2136,
+    color: 0xc12442,
     textureKey: 'rubyInferno',
     detail: {
       sheen: 0.7,
@@ -2722,7 +2722,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'garnetVelvet',
     label: 'Garnet Velvet',
-    color: 0x7a2c3f,
+    color: 0x8d2c53,
     textureKey: 'garnetVelvet',
     detail: {
       roughness: 0.82,
@@ -2735,7 +2735,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'forestPrime',
     label: 'Forest Prime',
-    color: 0x217a45,
+    color: 0x259155,
     textureKey: 'forestPrime',
     detail: {
       roughness: 0.76,
@@ -2748,7 +2748,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'evergreenLuxe',
     label: 'Evergreen Luxe',
-    color: 0x2f9c5f,
+    color: 0x33a96c,
     textureKey: 'evergreenLuxe',
     detail: {
       sheen: 0.68,
@@ -2761,7 +2761,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'jadeCurrent',
     label: 'Jade Current',
-    color: 0x1fb190,
+    color: 0x22c6aa,
     textureKey: 'jadeCurrent',
     detail: {
       sheen: 0.74,
@@ -10185,13 +10185,19 @@ function PoolRoyaleGame({
   const shotReplayRef = useRef(null);
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
+  const [replayTransition, setReplayTransition] = useState(false);
   const replayBannerTimeoutRef = useRef(null);
+  const replayTransitionTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
       if (replayBannerTimeoutRef.current) {
         clearTimeout(replayBannerTimeoutRef.current);
         replayBannerTimeoutRef.current = null;
+      }
+      if (replayTransitionTimeoutRef.current) {
+        clearTimeout(replayTransitionTimeoutRef.current);
+        replayTransitionTimeoutRef.current = null;
       }
     },
     []
@@ -14481,6 +14487,17 @@ const powerRef = useRef(hud.power);
           const duration = frames[frames.length - 1]?.t ?? 0;
           return { frames, cuePath, duration };
         };
+        const triggerReplayTransition = (duration = 700) => {
+          if (replayTransitionTimeoutRef.current) {
+            clearTimeout(replayTransitionTimeoutRef.current);
+            replayTransitionTimeoutRef.current = null;
+          }
+          setReplayTransition(true);
+          replayTransitionTimeoutRef.current = window.setTimeout(() => {
+            setReplayTransition(false);
+            replayTransitionTimeoutRef.current = null;
+          }, duration);
+        };
 
         const storeReplayCameraFrame = () => {
           const activeCamera = activeRenderCameraRef.current ?? camera;
@@ -14524,6 +14541,7 @@ const powerRef = useRef(hud.power);
           if (!Number.isFinite(duration) || duration <= 0) return;
           storeReplayCameraFrame();
           resetCameraForReplay();
+          triggerReplayTransition();
           replayPlayback = {
             frames: trimmed.frames,
             cuePath: trimmed.cuePath,
@@ -14585,6 +14603,11 @@ const powerRef = useRef(hud.power);
             pocketDropRef.current = playback.pocketDrops;
           }
           pausedPocketDrops = null;
+          setReplayTransition(false);
+          if (replayTransitionTimeoutRef.current) {
+            clearTimeout(replayTransitionTimeoutRef.current);
+            replayTransitionTimeoutRef.current = null;
+          }
           replayPlayback = null;
           replayPlaybackRef.current = null;
           shotReplayRef.current = null;
@@ -14940,17 +14963,17 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.6; // widen the overhead footprint so fixtures read larger on mobile and reach farther to the sides
-        const previousLightRigHeight = tableSurfaceY + TABLE.THICK * 7.1; // baseline height used for the prior brightness target
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.05; // bring the rig closer so ball reflections enlarge without shifting color
+        const lightSpreadBoost = 1.4; // tighten the footprint so fixtures bunch closer together while still covering the cloth
+        const previousLightRigHeight = tableSurfaceY + TABLE.THICK * 6.05; // baseline height used for the prior brightness target
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.35; // drop the rig nearer to the cloth for a stronger on-table glow
         const brightnessCompensation =
-          ((lightRigHeight ** 2) / (previousLightRigHeight ** 2)) * 0.9; // preserve on-cloth brightness after moving the rig closer while dimming slightly
+          ((lightRigHeight ** 2) / (previousLightRigHeight ** 2)) * 0.96; // preserve on-cloth brightness after moving the rig closer while keeping highlights controlled
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
         const lightOffsetZ =
           Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
-        const lightLineX = lightOffsetX * 0.5; // keep the rig aligned along a single long rail with a slightly wider stance
-        const lightSpacing = lightOffsetZ * 0.6; // enforce equal spacing between fixtures to mirror the centred heads
+        const lightLineX = lightOffsetX * 0.42; // pull fixtures inward so the cluster reads tighter on portrait framing
+        const lightSpacing = lightOffsetZ * 0.52; // bring the heads closer together so the rail wash feels concentrated
         const lightPositionsZ = [-1.5, -0.5, 0.5, 1.5].map((mult) => mult * lightSpacing);
         const shadowHalfSpan =
           Math.max(roomWidth, roomDepth) * 0.82 + TABLE.THICK * 3.5;
@@ -14979,19 +15002,19 @@ const powerRef = useRef(hud.power);
         lightingRig.add(key.target);
 
         const fill = new THREE.DirectionalLight(0xffffff, 0.9 * brightnessCompensation);
-        fill.position.set(-lightLineX, lightRigHeight * 1.01, lightPositionsZ[1]);
+        fill.position.set(-lightLineX, lightRigHeight * 1.005, lightPositionsZ[1]);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
         const wash = new THREE.DirectionalLight(0xffffff, 0.82 * brightnessCompensation);
-        wash.position.set(lightLineX, lightRigHeight * 1.02, lightPositionsZ[2]);
+        wash.position.set(lightLineX, lightRigHeight * 1.018, lightPositionsZ[2]);
         wash.target.position.set(0, targetY, 0);
         lightingRig.add(wash);
         lightingRig.add(wash.target);
 
         const rim = new THREE.DirectionalLight(0xffffff, 0.74 * brightnessCompensation);
-        rim.position.set(-lightLineX, lightRigHeight * 1.03, lightPositionsZ[3]);
+        rim.position.set(-lightLineX, lightRigHeight * 1.025, lightPositionsZ[3]);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
@@ -19887,6 +19910,29 @@ const powerRef = useRef(hud.power);
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
+      {replayTransition && (
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
+          <div className="flex items-center gap-3 rounded-full bg-black/75 px-6 py-3 text-xs font-semibold uppercase tracking-[0.32em] text-emerald-200 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-emerald-400/60">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className="h-5 w-5 text-emerald-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.45)]"
+              aria-hidden="true"
+            >
+              <path
+                d="M4 12a8 8 0 1 1 8 8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path d="M4 8v4h4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]">Replay</span>
+          </div>
+        </div>
+      )}
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
           <div
