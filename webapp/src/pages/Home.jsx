@@ -46,7 +46,7 @@ export default function Home() {
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
   const [tonConnectUI] = useTonConnectUI();
-  const runtimeCacheName = 'tonplaygram-runtime-v3';
+  const runtimeCacheName = 'tonplaygram-runtime-v2';
 
 
   const handlePwaDownload = async () => {
