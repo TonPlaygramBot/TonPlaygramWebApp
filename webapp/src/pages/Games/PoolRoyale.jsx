@@ -1693,8 +1693,8 @@ const CLOTH_QUALITY = (() => {
     anisotropy: 48,
     generateMipmaps: true,
     bumpScaleMultiplier: 1,
-    sheen: 0.75,
-    sheenRoughness: 0.78
+    sheen: 0.95,
+    sheenRoughness: 0.66
   };
 
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
@@ -1703,8 +1703,8 @@ const CLOTH_QUALITY = (() => {
       textureSize: 2048,
       anisotropy: 16,
       bumpScaleMultiplier: 0.88,
-      sheen: 0.72,
-      sheenRoughness: 0.82
+      sheen: 0.9,
+      sheenRoughness: 0.72
     };
   }
 
@@ -1721,23 +1721,23 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: 2048,
+      textureSize: highDensity ? 1536 : 1152,
       anisotropy: highDensity ? 16 : 12,
       generateMipmaps: true,
       bumpScaleMultiplier: highDensity ? 0.82 : 0.74,
-      sheen: 0.62,
-      sheenRoughness: 0.9
+      sheen: 0.78,
+      sheenRoughness: 0.82
     };
   }
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 4096,
+      textureSize: 3072,
       anisotropy: 32,
       generateMipmaps: true,
       bumpScaleMultiplier: 0.95,
-      sheen: 0.72,
-      sheenRoughness: 0.82
+      sheen: 0.9,
+      sheenRoughness: 0.7
     };
   }
 
@@ -3731,13 +3731,11 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.55; // enlarge thread spacing for a coarser, more pronounced weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_VISIBILITY_SCALE = 3;
-const CLOTH_PATTERN_REPEAT_SCALE = 1 / CLOTH_PATTERN_VISIBILITY_SCALE;
 const CLOTH_PATTERN_SCALE = 0.86; // slightly larger pattern footprint to match the scanned cloths
-const CLOTH_TEXTURE_REPEAT_HINT = 1.55 * CLOTH_PATTERN_REPEAT_SCALE;
+const CLOTH_TEXTURE_REPEAT_HINT = 1.55;
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.35, 0.55);
-const CLOTH_ROUGHNESS_BASE = 0.9;
-const CLOTH_ROUGHNESS_TARGET = 0.86;
+const CLOTH_ROUGHNESS_BASE = 0.82;
+const CLOTH_ROUGHNESS_TARGET = 0.78;
 
 const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
   if (!cloth?.sourceId) return acc;
@@ -3829,8 +3827,6 @@ const createClothTextures = (() => {
         .map((u) => {
           const lower = u.toLowerCase();
           let score = 0;
-          if (lower.includes('8k')) score += 9;
-          if (lower.includes('4k')) score += 8;
           if (lower.includes('2k')) score += 6;
           if (lower.includes('1k')) score += 4;
           if (lower.includes('jpg')) score += 3;
@@ -5460,7 +5456,6 @@ const GOOD_SHOT_REPLAY_DELAY_MS = 900;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
-const PLAYER_CUE_SHOT_HOLD_MS = 3000;
 const REPLAY_BANNER_VARIANTS = {
   long: ['Long pot!', 'Full-table finish!', 'Cross-table clearance!'],
   bank: ['Banked clean!', 'Rail-first beauty!', 'Cushion wizardry!'],
@@ -6793,8 +6788,8 @@ function Table3D(
   const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.32);
   const cushionColor = cushionPrimary.clone().lerp(clothHighlight, 0.22);
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
-  const clothSheen = CLOTH_QUALITY.sheen * 0.52;
-  const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.25);
+  const clothSheen = CLOTH_QUALITY.sheen * 0.72;
+  const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.08);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
     roughness: CLOTH_ROUGHNESS_BASE,
@@ -6802,10 +6797,10 @@ function Table3D(
     sheenColor,
     sheenRoughness: clothSheenRoughness,
     clearcoat: 0,
-    clearcoatRoughness: 1,
-    envMapIntensity: 0,
-    emissive: clothColor.clone().multiplyScalar(0.032),
-    emissiveIntensity: 0.24,
+    clearcoatRoughness: 0.86,
+    envMapIntensity: 0.02,
+    emissive: clothColor.clone().multiplyScalar(0.045),
+    emissiveIntensity: 0.38,
     metalness: 0
   });
   clothMat.side = THREE.DoubleSide;
@@ -6819,26 +6814,24 @@ function Table3D(
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.45;
-  const scaledBaseRepeat = baseRepeat * CLOTH_PATTERN_REPEAT_SCALE;
-  const scaledRepeatY = scaledBaseRepeat * repeatRatio;
   const baseBumpScale =
     (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) * CLOTH_QUALITY.bumpScaleMultiplier;
   const flattenedBumpScale = baseBumpScale * 0.48;
   if (clothMap) {
     clothMat.map = clothMap;
-    clothMat.map.repeat.set(scaledBaseRepeat, scaledRepeatY);
+    clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.map.needsUpdate = true;
   }
   if (clothNormal) {
     clothMat.normalMap = clothNormal;
-    clothMat.normalMap.repeat.set(scaledBaseRepeat, scaledRepeatY);
+    clothMat.normalMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.normalScale = CLOTH_NORMAL_SCALE.clone();
     clothMat.normalMap.needsUpdate = true;
     clothMat.bumpScale = flattenedBumpScale;
     clothMat.bumpMap = null;
   } else if (clothBump) {
     clothMat.bumpMap = clothBump;
-    clothMat.bumpMap.repeat.set(scaledBaseRepeat, scaledRepeatY);
+    clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.bumpScale = flattenedBumpScale;
     clothMat.bumpMap.needsUpdate = true;
   } else {
@@ -6846,16 +6839,16 @@ function Table3D(
   }
   if (clothRoughness) {
     clothMat.roughnessMap = clothRoughness;
-    clothMat.roughnessMap.repeat.set(scaledBaseRepeat, scaledRepeatY);
+    clothMat.roughnessMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.roughness = CLOTH_ROUGHNESS_TARGET;
     clothMat.roughnessMap.needsUpdate = true;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
-    baseRepeat: scaledBaseRepeat,
+    baseRepeat,
     repeatRatio,
-    nearRepeat: scaledBaseRepeat * 1.12,
-    farRepeat: scaledBaseRepeat * 0.44,
+    nearRepeat: baseRepeat * 1.12,
+    farRepeat: baseRepeat * 0.44,
     bumpScale: clothMat.bumpScale,
     baseBumpScale: clothMat.bumpScale,
     quality: CLOTH_QUALITY
@@ -6892,7 +6885,7 @@ function Table3D(
     envMapIntensity: clothMat.envMapIntensity,
     emissiveIntensity: clothMat.emissiveIntensity,
     bumpScale: clothMat.bumpScale,
-    baseRepeat: scaledBaseRepeat,
+    baseRepeat,
     repeatRatio,
     baseBumpScale
   };
@@ -10681,9 +10674,6 @@ const powerRef = useRef(hud.power);
     }
   }, [hud.inHand, hud.turn]);
   const [shotActive, setShotActive] = useState(false);
-  const shotHoldTimeoutRef = useRef(null);
-  const pendingShotRef = useRef(null);
-  const [cueHoldActive, setCueHoldActive] = useState(false);
   const shootingRef = useRef(shotActive);
   useEffect(() => {
     shootingRef.current = shotActive;
@@ -10706,23 +10696,6 @@ const powerRef = useRef(hud.power);
       cameraBlendTweenRef.current = null;
     }
   }, []);
-  const cancelPendingPlayerShot = useCallback(() => {
-    if (shotHoldTimeoutRef.current) {
-      clearTimeout(shotHoldTimeoutRef.current);
-      shotHoldTimeoutRef.current = null;
-    }
-    pendingShotRef.current = null;
-    setCueHoldActive(false);
-  }, []);
-
-  useEffect(() => () => {
-    cancelPendingPlayerShot();
-  }, [cancelPendingPlayerShot]);
-  useEffect(() => {
-    if (hud.over || (hud.turn ?? 0) !== 0) {
-      cancelPendingPlayerShot();
-    }
-  }, [cancelPendingPlayerShot, hud.over, hud.turn]);
 
   useEffect(() => () => {
     if (aiRetryTimeoutRef.current) {
@@ -16688,73 +16661,44 @@ const powerRef = useRef(hud.power);
             (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
             !allStopped(balls) ||
             currentHud?.over ||
-            replayPlaybackRef.current ||
-            shotHoldTimeoutRef.current
+            replayPlaybackRef.current
           )
             return;
         if (currentHud?.inHand && (fullTableHandPlacement || inHandPlacementActive)) {
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
         }
-        const shotConfig = {
-          frameSnapshot,
-          aimDir: aimDirRef.current.clone(),
-          clampedPower: THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1)
-        };
         const forcedCueView = aiShotCueViewRef.current;
         setAiShotCueViewActive(false);
         setAiShotPreviewActive(false);
-        alignStandingCameraToAim(cue, shotConfig.aimDir);
+        alignStandingCameraToAim(cue, aimDirRef.current);
         cancelCameraBlendTween();
         const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
-        const playerTurn = (currentHud?.turn ?? 0) === 0;
-        const blendTarget = forcedCueView ? forcedCueBlend : playerTurn ? 0 : 1;
-        applyCameraBlend(blendTarget);
+        applyCameraBlend(forcedCueView ? forcedCueBlend : 1);
         updateCamera();
-        const continueShot = (queued = shotConfig) => {
-          pendingShotRef.current = null;
-          const activeConfig = queued ?? shotConfig;
-          const activeHud = hudRef.current;
-          const queuedFrame = activeConfig.frameSnapshot;
-          const fullTable =
-            allowFullTableInHand() && Boolean(queuedFrame?.meta?.state?.ballInHand);
-          const placementActive = Boolean(activeHud?.inHand && !fullTable);
-          if (
-            !cue?.active ||
-            (placementActive && !cueBallPlacedFromHandRef.current) ||
-            !allStopped(balls) ||
-            activeHud?.over ||
-            replayPlaybackRef.current
-          ) {
-            return;
+        let placedFromHand = false;
+        const meta = frameSnapshot?.meta;
+        if (meta && typeof meta === 'object') {
+          if (meta.variant === 'american' && meta.state) {
+            placedFromHand = Boolean(meta.state.ballInHand);
+          } else if (meta.variant === '9ball' && meta.state) {
+            placedFromHand = Boolean(meta.state.ballInHand);
+          } else if (meta.variant === 'uk' && meta.state) {
+            placedFromHand = Boolean(meta.state.mustPlayFromBaulk);
           }
-          if (activeHud?.inHand && (fullTable || placementActive)) {
-            hudRef.current = { ...activeHud, inHand: false };
-            setHud((prev) => ({ ...prev, inHand: false }));
-          }
-          let placedFromHand = false;
-          const meta = queuedFrame?.meta;
-          if (meta && typeof meta === 'object') {
-            if (meta.variant === 'american' && meta.state) {
-              placedFromHand = Boolean(meta.state.ballInHand);
-            } else if (meta.variant === '9ball' && meta.state) {
-              placedFromHand = Boolean(meta.state.ballInHand);
-            } else if (meta.variant === 'uk' && meta.state) {
-              placedFromHand = Boolean(meta.state.mustPlayFromBaulk);
-            }
-          }
-          shotContextRef.current = {
-            placedFromHand,
-            contactMade: false,
-            cushionAfterContact: false
-          };
-          setShootingState(true);
-          activeShotView = null;
-          aimFocusRef.current = null;
-          potted = [];
-          firstHit = null;
-          clearInterval(timerRef.current);
-          const aimDir = activeConfig.aimDir.clone();
+        }
+        shotContextRef.current = {
+          placedFromHand,
+          contactMade: false,
+          cushionAfterContact: false
+        };
+        setShootingState(true);
+        activeShotView = null;
+        aimFocusRef.current = null;
+        potted = [];
+        firstHit = null;
+        clearInterval(timerRef.current);
+        const aimDir = aimDirRef.current.clone();
           const prediction = calcTarget(cue, aimDir.clone(), balls);
           const predictedTravelRaw = prediction.targetBall
             ? cue.pos.distanceTo(prediction.targetBall.pos)
@@ -16798,11 +16742,7 @@ const powerRef = useRef(hud.power);
             pocketSwitchIntentRef.current = null;
           }
           lastPocketBallRef.current = null;
-          const clampedPower = THREE.MathUtils.clamp(
-            activeConfig.clampedPower ?? powerRef.current ?? 0,
-            0,
-            1
-          );
+          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           lastShotPower = clampedPower;
           const spinMagnitude = Math.hypot(
             spinRef.current?.x ?? 0,
@@ -17033,22 +16973,6 @@ const powerRef = useRef(hud.power);
             }
           };
           animateCue();
-        };
-        if (playerTurn) {
-          pendingShotRef.current = shotConfig;
-          setCueHoldActive(true);
-          shotHoldTimeoutRef.current = window.setTimeout(() => {
-            const queued = pendingShotRef.current;
-            pendingShotRef.current = null;
-            shotHoldTimeoutRef.current = null;
-            setCueHoldActive(false);
-            if (!queued) return;
-            continueShot(queued);
-          }, PLAYER_CUE_SHOT_HOLD_MS);
-          tweenCameraBlend(blendTarget, 220);
-        } else {
-          continueShot(shotConfig);
-        }
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -20669,14 +20593,6 @@ const powerRef = useRef(hud.power);
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      {cueHoldActive && (
-        <div className="pointer-events-none absolute top-20 left-1/2 z-40 -translate-x-1/2 px-4">
-          <div className="rounded-full bg-emerald-400/90 px-5 py-2 text-xs font-bold uppercase tracking-[0.2em] text-black shadow-[0_12px_32px_rgba(0,0,0,0.45)] ring-1 ring-emerald-200/60">
-            Cue view locked • adjust spin for 3s
-          </div>
-        </div>
-      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
