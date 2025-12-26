@@ -15,12 +15,7 @@ import {
 } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
-import {
-  createMurlanStyleTable,
-  applyTableMaterials,
-  clonePolyHavenTexture,
-  requestPolyHavenClothTextures
-} from '../../utils/murlanTable.js';
+import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js';
 import {
   WOOD_FINISH_PRESETS,
   WOOD_GRAIN_OPTIONS,
@@ -1097,7 +1092,7 @@ export default function MurlanRoyaleArena({ search }) {
       if (three.tableInfo?.materials) {
         applyTableMaterials(three.tableInfo.materials, { woodOption, clothOption, baseOption }, three.renderer);
       }
-      applyChairThemeMaterials(three, stoolTheme, three.renderer);
+      applyChairThemeMaterials(three, stoolTheme);
       applyOutfitThemeMaterials(three, outfitTheme);
 
       const shouldRefreshCards = refreshCards || three.appearance?.cards !== safe.cards;
@@ -1500,7 +1495,7 @@ export default function MurlanRoyaleArena({ search }) {
       const chairTemplate = chairBuild.chairTemplate;
       threeStateRef.current.chairTemplate = chairTemplate;
       threeStateRef.current.chairMaterials = chairBuild.materials;
-      applyChairThemeMaterials(threeStateRef.current, stoolTheme, renderer);
+      applyChairThemeMaterials(threeStateRef.current, stoolTheme);
 
       const avatarRadius = 0.32 * MODEL_SCALE;
       const avatarHeight = 0.9 * MODEL_SCALE;
@@ -2670,24 +2665,9 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
   return texture;
 }
 
-const LEATHER_TEXTURE_ID = 'fabric_leather_02';
-const LEATHER_REPEAT = 2.4 / 3;
-
-function disposeChairLeatherTextures(mats) {
-  const toDispose = mats?.__leatherTextures;
-  if (!toDispose?.length) return;
-  toDispose.forEach((tex) => tex?.dispose?.());
-  mats.__leatherTextures = null;
-}
-
-function applyChairThemeMaterials(three, theme, renderer = null) {
+function applyChairThemeMaterials(three, theme) {
   const mats = three?.chairMaterials;
   if (!mats) return;
-  const isLeather = theme?.id === 'leather';
-  mats.__leatherThemeActive = isLeather;
-  if (!isLeather) {
-    disposeChairLeatherTextures(mats);
-  }
   if (mats.seat?.color) {
     mats.seat.color.set(theme.seatColor);
     mats.seat.needsUpdate = true;
@@ -2701,12 +2681,6 @@ function applyChairThemeMaterials(three, theme, renderer = null) {
       mat.color.set(theme.seatColor);
       mat.needsUpdate = true;
     }
-    if (!isLeather && mat) {
-      mat.map = null;
-      mat.normalMap = null;
-      mat.roughnessMap = null;
-      mat.needsUpdate = true;
-    }
   });
   (mats.metal ?? []).forEach((mat) => {
     if (mat?.color) {
@@ -2714,51 +2688,6 @@ function applyChairThemeMaterials(three, theme, renderer = null) {
       mat.needsUpdate = true;
     }
   });
-
-  if (!isLeather) return;
-
-  const applyLeatherTextures = (entry) => {
-    if (!mats.__leatherThemeActive || !entry?.ready) return false;
-    disposeChairLeatherTextures(mats);
-    const targets = [mats.seat, ...(mats.upholstery ?? [])].filter(Boolean);
-    if (!targets.length) return false;
-    const clonedTextures = [];
-    targets.forEach((mat) => {
-      const map = clonePolyHavenTexture(entry.map, LEATHER_REPEAT);
-      const normal = clonePolyHavenTexture(entry.normal, LEATHER_REPEAT);
-      const roughness = clonePolyHavenTexture(entry.roughness, LEATHER_REPEAT);
-      if (map) {
-        mat.map = map;
-        clonedTextures.push(map);
-      }
-      if (normal) {
-        mat.normalMap = normal;
-        clonedTextures.push(normal);
-      }
-      if (roughness) {
-        mat.roughnessMap = roughness;
-        clonedTextures.push(roughness);
-      }
-      if (map || normal || roughness) {
-        mat.color?.set?.('#ffffff');
-        mat.roughness = 0.48;
-        mat.metalness = Math.max(0.16, mat.metalness ?? 0.2);
-        mat.needsUpdate = true;
-      }
-    });
-    mats.__leatherTextures = clonedTextures;
-    return clonedTextures.length > 0;
-  };
-
-  const leatherEntry = requestPolyHavenClothTextures(LEATHER_TEXTURE_ID, renderer);
-  const applied = applyLeatherTextures(leatherEntry);
-  if (!applied) {
-    leatherEntry?.promise?.then(() => {
-      if (!mats.__leatherThemeActive) return;
-      const latest = requestPolyHavenClothTextures(LEATHER_TEXTURE_ID, renderer);
-      applyLeatherTextures(latest);
-    });
-  }
 }
 
 function applyOutfitThemeMaterials(three, theme) {
