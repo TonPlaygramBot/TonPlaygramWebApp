@@ -1,8 +1,7 @@
 import {
   POOL_ROYALE_DEFAULT_LOADOUT,
   POOL_ROYALE_DEFAULT_UNLOCKS,
-  POOL_ROYALE_OPTION_LABELS,
-  POOL_ROYALE_STORE_ITEMS
+  POOL_ROYALE_OPTION_LABELS
 } from '../config/poolRoyaleInventoryConfig.js';
 import {
   getPoolRoyalInventoryRemote,
@@ -12,23 +11,6 @@ import {
 const STORAGE_KEY = 'poolRoyalInventoryByAccount';
 const MIGRATION_KEY = 'poolRoyalInventoryMigrated';
 const inflightSync = new Map();
-const STORE_ITEM_TO_OPTION = Object.freeze(
-  (POOL_ROYALE_STORE_ITEMS || []).reduce((acc, item) => {
-    if (item?.id && item?.optionId) {
-      acc[item.id] = item.optionId;
-    }
-    return acc;
-  }, {})
-);
-
-const normalizeOptionId = (type, value) => {
-  if (!value) return null;
-  const mapped = STORE_ITEM_TO_OPTION[value];
-  if (mapped && POOL_ROYALE_OPTION_LABELS[type]?.[mapped]) {
-    return mapped;
-  }
-  return value;
-};
 
 const copyDefaults = () =>
   Object.entries(POOL_ROYALE_DEFAULT_UNLOCKS).reduce((acc, [key, values]) => {
@@ -88,10 +70,7 @@ const normalizeInventory = (rawInventory) => {
   const merged = { ...base };
   Object.entries(rawInventory).forEach(([key, value]) => {
     if (!Array.isArray(value)) return;
-    const normalizedValues = value
-      .map((entry) => normalizeOptionId(key, entry))
-      .filter(Boolean);
-    merged[key] = sortUnique([...(merged[key] || []), ...normalizedValues]);
+    merged[key] = sortUnique([...(merged[key] || []), ...value]);
   });
   return merged;
 };
@@ -233,15 +212,11 @@ export const getPoolRoyalInventory = async (accountId, options = {}) => {
 
 export const isPoolOptionUnlocked = (type, optionId, inventoryOrAccountId) => {
   if (!type || !optionId) return false;
-  const normalizedOptionId = normalizeOptionId(type, optionId);
   const inventory =
     typeof inventoryOrAccountId === 'string' || !inventoryOrAccountId
       ? getCachedPoolRoyalInventory(inventoryOrAccountId)
       : inventoryOrAccountId;
-  return (
-    Array.isArray(inventory?.[type]) &&
-    inventory[type].some((entry) => normalizeOptionId(type, entry) === normalizedOptionId)
-  );
+  return Array.isArray(inventory?.[type]) && inventory[type].includes(optionId);
 };
 
 export const addPoolRoyalUnlock = async (type, optionId, accountId) => {
