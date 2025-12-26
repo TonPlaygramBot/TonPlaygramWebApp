@@ -1,5 +1,7 @@
 const TELEGRAM_ONLY = true;
 const REFRESH_FLAG_KEY = 'tonplaygram-sw-refreshed';
+const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+const SERVICE_WORKER_URL = '/service-worker.js';
 
 function shouldRegisterForTelegram() {
   if (!('serviceWorker' in navigator)) return false;
@@ -62,17 +64,35 @@ async function requestPersistentStorage() {
   }
 }
 
+function setupUpdatePolling(registration) {
+  const runUpdate = () => {
+    registration.update().catch(() => {});
+  };
+
+  const intervalId = setInterval(runUpdate, UPDATE_CHECK_INTERVAL_MS);
+  window.addEventListener(
+    'beforeunload',
+    () => {
+      clearInterval(intervalId);
+    },
+    { once: true }
+  );
+  window.addEventListener('online', runUpdate);
+}
+
 export async function registerTelegramServiceWorker() {
   if (!shouldRegisterForTelegram()) return;
 
   try {
     const hadController = Boolean(navigator.serviceWorker.controller);
-    const registration = await navigator.serviceWorker.register('/service-worker.js', {
-      scope: '/'
+    const registration = await navigator.serviceWorker.register(SERVICE_WORKER_URL, {
+      scope: '/',
+      updateViaCache: 'none'
     });
 
     wireUpdateFlow(registration, hadController);
     registration.update();
+    setupUpdatePolling(registration);
     requestPersistentStorage();
 
     // Refresh in-session to pick up any new build without prompting the user

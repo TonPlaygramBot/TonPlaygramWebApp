@@ -33,6 +33,7 @@ import TonConnectButton from '../components/TonConnectButton.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
 import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
+import { RUNTIME_CACHE_NAME } from '../pwa/preloadGames.js';
 
 
 export default function Home() {
@@ -46,7 +47,7 @@ export default function Home() {
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
   const [tonConnectUI] = useTonConnectUI();
-  const runtimeCacheName = 'tonplaygram-runtime-v2';
+  const runtimeCacheName = RUNTIME_CACHE_NAME;
 
 
   const handlePwaDownload = async () => {

@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'tonplaygram-static-v2';
-const RUNTIME_CACHE = 'tonplaygram-runtime-v2';
+const STATIC_CACHE = 'tonplaygram-static-v3';
+const RUNTIME_CACHE = 'tonplaygram-runtime-v3';
 const OFFLINE_FALLBACK = '/offline.html';
 
 const APP_SHELL = [
@@ -13,6 +13,20 @@ const APP_SHELL = [
   '/assets/icons/file_000000003f7861f481d50537fb031e13.png'
 ];
 
+const PREFETCH_RUNTIME_ASSETS = [
+  '/goal-rush.html',
+  '/goal-rush-api.js',
+  '/texas-holdem.html',
+  '/texas-holdem.js',
+  '/domino-royal.html',
+  '/murlan-royale.html',
+  '/roulette.html',
+  '/chess-royale.html',
+  '/pool-royale-api.js',
+  '/power-slider.js',
+  '/power-slider.css'
+];
+
 const enableNavigationPreload = async () => {
   if (self.registration?.navigationPreload) {
     await self.registration.navigationPreload.enable();
@@ -21,12 +35,29 @@ const enableNavigationPreload = async () => {
 
 const precache = async () => {
   const cache = await caches.open(STATIC_CACHE);
-  await cache.addAll(APP_SHELL);
+  await cache.addAll(APP_SHELL.map(path => new Request(path, { cache: 'reload' })));
+};
+
+const prewarmRuntimeCache = async () => {
+  const cache = await caches.open(RUNTIME_CACHE);
+  await Promise.all(
+    PREFETCH_RUNTIME_ASSETS.map(async asset => {
+      try {
+        const request = new Request(asset, { cache: 'reload' });
+        const response = await fetch(request);
+        if (response.ok) {
+          await cache.put(request, response.clone());
+        }
+      } catch (err) {
+        // Ignore failed warmups to avoid breaking install
+      }
+    })
+  );
 };
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    Promise.all([precache(), enableNavigationPreload()]).catch(() => {})
+    Promise.all([precache(), prewarmRuntimeCache(), enableNavigationPreload()]).catch(() => {})
   );
   self.skipWaiting();
 });
@@ -48,8 +79,12 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('message', event => {
-  if (event.data?.type === 'SKIP_WAITING') {
+  const { type } = event.data || {};
+  if (type === 'SKIP_WAITING') {
     self.skipWaiting();
+  }
+  if (type === 'CHECK_FOR_UPDATE' && self.registration?.update) {
+    event.waitUntil(self.registration.update());
   }
 });
 
