@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'tonplaygram-static-v3';
-const RUNTIME_CACHE = 'tonplaygram-runtime-v3';
+const STATIC_CACHE = 'tonplaygram-static-v4';
+const RUNTIME_CACHE = 'tonplaygram-runtime-v4';
 const OFFLINE_FALLBACK = '/offline.html';
 
 const APP_SHELL = [
@@ -9,8 +9,12 @@ const APP_SHELL = [
   '/manifest.webmanifest',
   '/tonconnect-manifest.json',
   '/power-slider.css',
+  '/pwa/offline-assets.json',
   '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp',
-  '/assets/icons/file_000000003f7861f481d50537fb031e13.png'
+  '/assets/icons/file_000000003f7861f481d50537fb031e13.png',
+  '/assets/icons/snakes_and_ladders.webp',
+  '/assets/icons/new-twitter-x-logo-twitter-icon-x-social-media-icon-free-png.webp',
+  '/assets/icons/TON.webp'
 ];
 
 const PREFETCH_RUNTIME_ASSETS = [
@@ -24,7 +28,8 @@ const PREFETCH_RUNTIME_ASSETS = [
   '/chess-royale.html',
   '/pool-royale-api.js',
   '/power-slider.js',
-  '/power-slider.css'
+  '/power-slider.css',
+  '/pwa/offline-assets.json'
 ];
 
 const enableNavigationPreload = async () => {
