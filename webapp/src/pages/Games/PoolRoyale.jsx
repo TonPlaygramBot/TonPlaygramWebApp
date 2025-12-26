@@ -925,7 +925,7 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.968; // open the middle pocket mouth slightly so clean entries stop rebounding off the jaw
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.958; // shrink the middle pocket mouth width a touch more so the radius tightens up further
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
@@ -1017,12 +1017,8 @@ const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without explodin
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
-const SIDE_POCKET_CAPTURE_BIAS = 1.06; // widen the middle pocket capture window so shots down the rail fall cleanly
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
-  SIDE_POCKET_RADIUS *
-  POCKET_INTERIOR_TOP_SCALE *
-  POCKET_VISUAL_EXPANSION *
-  SIDE_POCKET_CAPTURE_BIAS;
+  SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the interior bowl so balls fall at the throat
 const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now matches the bowl opening instead of scaling from corners
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
@@ -5054,8 +5050,8 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 1.38; // pull the rail overhead broadcast he
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.036; // bring the cue orbit a touch closer for a fuller table view
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.1;
+const CUE_VIEW_RADIUS_RATIO = 0.04;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.12;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
@@ -5886,11 +5882,11 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS * 0.8 + BALL_R * 0.45; // trim the middle pocket guard so natural pots don't clip the cushion edge
+  const sideSpan = SIDE_POCKET_RADIUS * 0.88 + BALL_R * 0.5; // tighten the middle pocket guard so bounces mirror the corner flow
   const sidePocketGuard =
-    SIDE_POCKET_RADIUS * 0.76 * POCKET_VISUAL_EXPANSION + BALL_R * 0.02; // widen the safe lane into the jaw to prevent bounce-outs
+    SIDE_POCKET_RADIUS * 0.82 * POCKET_VISUAL_EXPANSION + BALL_R * 0.04; // soften the capture window around middle jaws
   const sideGuardClearance = Math.max(0, sidePocketGuard - BALL_R * 0.1);
-  const sideDepthLimit = POCKET_VIS_R * 1.2 * POCKET_VISUAL_EXPANSION;
+  const sideDepthLimit = POCKET_VIS_R * 1.5 * POCKET_VISUAL_EXPANSION;
   const sidePocketCenters = pocketCenters().slice(4);
   for (const center of sidePocketCenters) {
     TMP_VEC2_A.copy(ball.pos).sub(center);
@@ -5911,7 +5907,7 @@ function reflectRails(ball) {
     ball.pos.addScaledVector(normal, push);
     const vn = ball.vel.dot(normal);
     if (vn < 0) {
-      const restitution = Math.min(CUSHION_RESTITUTION, 0.94);
+      const restitution = CUSHION_RESTITUTION;
       ball.vel.addScaledVector(normal, -(1 + restitution) * vn);
       TMP_VEC2_LIMIT.copy(normal).multiplyScalar(ball.vel.dot(normal));
       const vt = TMP_VEC2_B.copy(ball.vel).sub(
@@ -10420,7 +10416,6 @@ const powerRef = useRef(hud.power);
   const pocketCameraStateRef = useRef(false);
   const pocketCamerasRef = useRef(new Map());
   const broadcastCamerasRef = useRef(null);
-  const railReplayCameraRef = useRef(null);
   const lightingRigRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
   const pocketSwitchIntentRef = useRef(null);
@@ -12693,20 +12688,6 @@ const powerRef = useRef(hud.power);
           applyPreset(useBack ? rig.cameras.back : rig.cameras.front, useBack ? 1 : -1);
           applyPreset(useBack ? rig.cameras.front : rig.cameras.back, useBack ? -1 : 1);
           rig.activeRail = useBack ? 'back' : 'front';
-          const activeHead = useBack ? rig.cameras.back?.head : rig.cameras.front?.head;
-          if (activeHead) {
-            const position = activeHead.getWorldPosition(new THREE.Vector3());
-            const focus = rig.userData?.focus?.clone?.() ?? baseFocus?.clone?.() ?? null;
-            const target = focus ?? trackingTarget ?? null;
-            if (target) {
-              railReplayCameraRef.current = {
-                position,
-                target,
-                fov: STANDING_VIEW_FOV,
-                minTargetY: target?.y ?? null
-              };
-            }
-          }
         };
 
         const resolveRailOverheadReplayCamera = ({
@@ -14248,7 +14229,6 @@ const powerRef = useRef(hud.power);
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
           const fallbackCamera = activeRenderCameraRef.current ?? camera;
-          const railFrame = railReplayCameraRef.current;
           const fovSnapshot = Number.isFinite(fallbackCamera?.fov)
             ? fallbackCamera.fov
             : camera.fov;
@@ -14259,27 +14239,19 @@ const powerRef = useRef(hud.power);
             focusOverride: targetSnapshot,
             minTargetY
           });
-          const resolvedPosition = railFrame?.position?.clone?.() ??
-            overheadCamera?.position?.clone?.() ??
-            fallbackCamera?.position?.clone?.() ??
-            null;
-          const resolvedTarget = railFrame?.target?.clone?.() ??
-            overheadCamera?.target?.clone?.() ??
-            targetSnapshot;
-          const resolvedFov = Number.isFinite(railFrame?.fov)
-            ? railFrame.fov
-            : Number.isFinite(overheadCamera?.fov)
-              ? overheadCamera.fov
-              : fovSnapshot;
+          const resolvedPosition = overheadCamera?.position?.clone?.() ??
+            fallbackCamera?.position?.clone?.() ?? null;
+          const resolvedTarget = overheadCamera?.target?.clone?.() ?? targetSnapshot;
+          const resolvedFov = Number.isFinite(overheadCamera?.fov)
+            ? overheadCamera.fov
+            : fovSnapshot;
           if (!resolvedPosition && !resolvedTarget) return null;
           const snapshot = {
             position: resolvedPosition,
             target: resolvedTarget,
             fov: resolvedFov
           };
-          if (Number.isFinite(railFrame?.minTargetY)) {
-            snapshot.minTargetY = railFrame.minTargetY;
-          } else if (Number.isFinite(overheadCamera?.minTargetY)) {
+          if (Number.isFinite(overheadCamera?.minTargetY)) {
             snapshot.minTargetY = overheadCamera.minTargetY;
           }
           return snapshot;
@@ -16837,22 +16809,6 @@ const powerRef = useRef(hud.power);
                 }
               }
               if (cueDist < 1e-6) continue;
-              const cueDirNorm = cueVec.clone().normalize();
-              const laneClearanceScore = (() => {
-                const len = cueVec.length();
-                if (len < 1e-6) return 0;
-                let closest = Infinity;
-                activeBalls.forEach((other) => {
-                  if (!other.active || ignore.has(other.id)) return;
-                  const rel = other.pos.clone().sub(cuePos);
-                  const proj = THREE.MathUtils.clamp(rel.dot(cueDirNorm), 0, len);
-                  const closestPt = cuePos.clone().add(cueDirNorm.clone().multiplyScalar(proj));
-                  const dist = other.pos.distanceTo(closestPt);
-                  closest = Math.min(closest, dist);
-                });
-                if (!Number.isFinite(closest) || closest === Infinity) return 0;
-                return THREE.MathUtils.clamp((closest - BALL_R) / BALL_R, 0, 3);
-              })();
               const aimDir = cueVec.clone().normalize();
               const impactNormal = targetBall.pos.clone().sub(ghost).normalize();
               const cutCos = THREE.MathUtils.clamp(
@@ -16863,16 +16819,8 @@ const powerRef = useRef(hud.power);
               const cutAngle = Math.acos(Math.abs(cutCos));
               const totalDist = cueDist + toPocketLen;
               const cushionTax = cushionAid ? BALL_R * 30 + cushionAid.totalDist * 0.08 : 0;
-              const cutSeverity = Math.pow(cutAngle / (Math.PI / 2), 1.35);
-              const distanceTax = cueDist * 1.05 + toPocketLen * 1.25;
-              const pocketProximity = THREE.MathUtils.clamp(
-                (POCKET_CORNER_MOUTH / Math.max(toPocketLen, BALL_R * 4)) * 0.5,
-                0.1,
-                2.5
-              );
-              const baseDifficultyRaw =
-                (distanceTax + cutSeverity * BALL_R * 24 + cushionTax) /
-                (1 + entranceFavor * 0.35 + pocketProximity + laneClearanceScore * 0.18);
+              const baseDifficulty =
+                cueDist + toPocketLen * 1.15 + cutAngle * BALL_R * 40 + cushionTax;
               const plan = {
                 type: 'pot',
                 aimDir,
@@ -16881,7 +16829,7 @@ const powerRef = useRef(hud.power);
                 targetBall,
                 pocketId: POCKET_IDS[i],
                 pocketCenter: pocketCenter.clone(),
-                difficulty: baseDifficultyRaw,
+                difficulty: baseDifficulty / entranceFavor,
                 cueToTarget: cueDist,
                 targetToPocket: toPocketLen,
                 railNormal: cushionAid?.railNormal ?? null,
@@ -16898,15 +16846,7 @@ const powerRef = useRef(hud.power);
                 0,
                 3
               );
-              plan.difficulty =
-                plan.difficulty /
-                (1 + openLaneScore * 0.12 + entranceFavor * 0.15 + pocketProximity * 0.08);
-              if (plan.viaCushion) {
-                plan.difficulty *= 1.2;
-              }
-              if (cutAngle > Math.PI / 1.8) {
-                plan.difficulty += BALL_R * 120;
-              }
+              plan.difficulty = plan.difficulty / (1 + openLaneScore * 0.2);
               plan.spin = computePlanSpin(plan, state);
               potShots.push(plan);
             }
@@ -17345,26 +17285,6 @@ const powerRef = useRef(hud.power);
             (ball) => ball.active && String(ball.id) !== 'cue'
           );
           if (activeBalls.length === 0) return null;
-
-          const evaluated = evaluateShotOptions();
-          const directPlan =
-            evaluated?.bestPot && !evaluated.bestPot.viaCushion
-              ? evaluated.bestPot
-              : null;
-          if (directPlan?.targetBall?.active) {
-            const toBall = new THREE.Vector2(
-              directPlan.targetBall.pos.x - cuePos.x,
-              directPlan.targetBall.pos.y - cuePos.y
-            );
-            if (toBall.lengthSq() > 1e-6) {
-              return toBall.normalize();
-            }
-          } else if (directPlan?.aimDir) {
-            const dir = directPlan.aimDir.clone();
-            if (dir.lengthSq() > 1e-6) {
-              return dir.normalize();
-            }
-          }
 
           const normalizeTargetId = (value) => {
             if (typeof value === 'string') return value.toUpperCase();
@@ -18014,7 +17934,7 @@ const powerRef = useRef(hud.power);
             shotReplayRef.current = null;
             shotRecording = null;
           }
-          if (!(hudRef.current?.over)) {
+          if (hadObjectPot && !(hudRef.current?.over)) {
             window.setTimeout(() => {
               const hudState = hudRef.current;
               if (hudState?.turn === 0 && !hudState.over) {
@@ -19495,7 +19415,6 @@ const powerRef = useRef(hud.power);
           lightingRigRef.current = null;
           worldRef.current = null;
           activeRenderCameraRef.current = null;
-          railReplayCameraRef.current = null;
           cueBodyRef.current = null;
           tipGroupRef.current = null;
           try {
