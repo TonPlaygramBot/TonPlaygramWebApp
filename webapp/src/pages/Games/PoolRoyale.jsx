@@ -1212,7 +1212,7 @@ const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
-const CUE_PULL_SMOOTHING = 0.55;
+const CUE_PULL_SMOOTHING = 0.35;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
@@ -1221,8 +1221,8 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.1;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.22;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(3.25);
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.45;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -4958,7 +4958,7 @@ const STANDING_VIEW_MARGIN = 0.0016; // pull the standing frame closer so the ta
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.1;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.38; // halt the downward sweep sooner so the lowest angle stays slightly higher and stops above the cue
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.32; // halt the downward sweep sooner so the lowest angle stays slightly higher and stops above the cue
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.018; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
@@ -5118,18 +5118,18 @@ const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view 
 const SHORT_RAIL_POCKET_TRIGGER =
   RAIL_LIMIT_Y - POCKET_VIS_R * 0.45; // request pocket cams as soon as play reaches the short rail mouths
 const SHORT_RAIL_POCKET_INTENT_COOLDOWN_MS = 280;
-const AI_MIN_SHOT_TIME_MS = 6200;
-const AI_MAX_SHOT_TIME_MS = 8500;
-const AI_MIN_AIM_PREVIEW_MS = 1300;
+const AI_MIN_SHOT_TIME_MS = 5000;
+const AI_MAX_SHOT_TIME_MS = 7000;
+const AI_MIN_AIM_PREVIEW_MS = 900;
 const AI_EARLY_SHOT_DIFFICULTY = 120;
 const AI_EARLY_SHOT_CUE_DISTANCE = PLAY_H * 0.55;
 const AI_EARLY_SHOT_DELAY_MS = AI_MIN_SHOT_TIME_MS; // never bypass the full telegraphed aim window
 const AI_THINKING_BUDGET_MS =
   AI_MAX_SHOT_TIME_MS - AI_MIN_AIM_PREVIEW_MS; // leave room for the cue preview while keeping decisions under 7 seconds
-const AI_CAMERA_DROP_LEAD_MS = 750; // start lowering into cue view shortly before the AI pulls the trigger
-const AI_CAMERA_SETTLE_MS = 520; // allow time for the cue view to settle before firing
+const AI_CAMERA_DROP_LEAD_MS = 420; // start lowering into cue view shortly before the AI pulls the trigger
+const AI_CAMERA_SETTLE_MS = 320; // allow time for the cue view to settle before firing
 const AI_CAMERA_DROP_BLEND = 0.14;
-const AI_CAMERA_DROP_DURATION_MS = 720;
+const AI_CAMERA_DROP_DURATION_MS = 480;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -10201,40 +10201,11 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
-const previewCuePullFromPower = useCallback((powerValue) => {
-  const cueBall = cueRef.current;
-  const cueStick = cueStickRef.current;
-  const cueLen = cueLengthRef.current;
-  if (!cueBall?.active || !cueStick || !Number.isFinite(cueLen) || cueLen <= 0) {
-    return;
-  }
-  if (shootingRef.current) return;
-  const aimDir = aimDirRef.current?.clone() ?? new THREE.Vector2(0, 1);
-  if (aimDir.lengthSq() < 1e-6) aimDir.set(0, 1);
-  aimDir.normalize();
-  const desiredPull = THREE.MathUtils.clamp(powerValue ?? 0, 0, 1) * CUE_PULL_BASE;
-  const backInfo = calcTarget(
-    cueBall,
-    aimDir.clone().multiplyScalar(-1),
-    ballsRef.current ?? []
-  );
-  const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-  const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-  const pullTarget = Math.min(desiredPull, maxPull);
-  cuePullTargetRef.current = pullTarget;
-  cuePullCurrentRef.current = THREE.MathUtils.lerp(
-    cuePullCurrentRef.current ?? 0,
-    pullTarget,
-    0.72
-  );
-}, []);
-const applyPower = useCallback((nextPower) => {
-  const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
-  powerRef.current = clampedPower;
-  setHud((prev) => ({ ...prev, power: clampedPower }));
-  previewCuePullFromPower(clampedPower);
-  cameraUpdateRef.current?.();
-}, [previewCuePullFromPower]);
+  const applyPower = useCallback((nextPower) => {
+    const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
+    powerRef.current = clampedPower;
+    setHud((prev) => ({ ...prev, power: clampedPower }));
+  }, []);
   useEffect(() => {
     inHandPlacementModeRef.current = inHandPlacementMode;
   }, [inHandPlacementMode]);
@@ -10559,8 +10530,6 @@ const applyPower = useCallback((nextPower) => {
   const resetSpinRef = useRef(() => {});
   const tipGroupRef = useRef(null);
   const cueBodyRef = useRef(null);
-  const cueStickRef = useRef(null);
-  const cueLengthRef = useRef(null);
   const spinRangeRef = useRef({
     side: 0,
     forward: 0,
@@ -11433,7 +11402,6 @@ const applyPower = useCallback((nextPower) => {
         if (shooting === value) return;
         shooting = value;
         shotStartedAt = shooting ? getNow() : 0;
-        shootingRef.current = value;
         if (shooting) {
           preShotTopViewRef.current = topViewRef.current;
           preShotTopViewLockRef.current = topViewLockedRef.current;
@@ -15381,8 +15349,6 @@ const applyPower = useCallback((nextPower) => {
         tipCompensation: buttTipComp,
         length: cueLen
       };
-      cueStickRef.current = cueStick;
-      cueLengthRef.current = cueLen;
 
       const paletteLength = CUE_RACK_PALETTE.length || CUE_STYLE_PRESETS.length || 1;
       const initialIndexRaw = cueStyleIndexRef.current ?? cueStyleIndex ?? 0;
@@ -19805,8 +19771,6 @@ const applyPower = useCallback((nextPower) => {
           activeRenderCameraRef.current = null;
           cueBodyRef.current = null;
           tipGroupRef.current = null;
-          cueStickRef.current = null;
-          cueLengthRef.current = null;
           try {
             host.removeChild(renderer.domElement);
           } catch {}
