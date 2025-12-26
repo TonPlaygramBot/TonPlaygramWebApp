@@ -93,6 +93,10 @@ The server honors a few extra environment variables when building or serving the
 - `WEBAPP_API_BASE_URL` – overrides the API base used during the webapp build. Set this when the bot API is hosted on another domain or port. If left empty the webapp assumes it is served from the same origin.
 - `SKIP_WEBAPP_BUILD` – set to any value to skip the automatic webapp build that normally runs when `npm start` is executed. Useful if you built the assets manually.
 - `ALLOWED_ORIGINS` – list of origins allowed for CORS and socket.io when serving the API. Separate multiple origins with commas.
+- `TELEGRAM_APK_URL` – optional absolute URL for the Telegram launcher APK. If unset, drop the APK into
+  `webapp/public/downloads/tonplaygram-telegram-launcher.apk` (or override the file name with
+  `TELEGRAM_APK_FILE`) and the backend will expose it at `/api/downloads/apk` and
+  `/downloads/<filename>` so users can grab the entire web app and bundled games from one link.
 
 5. Copy `scripts/.env.example` to `scripts/.env` and set:
    - `MNEMONIC` – wallet seed phrase used to deploy the Jetton

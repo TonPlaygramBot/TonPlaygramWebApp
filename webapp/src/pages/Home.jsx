@@ -25,7 +25,7 @@ const xIcon = (
 
 import { Link } from 'react-router-dom';
 
-import { ping, getProfile, fetchTelegramInfo } from '../utils/api.js';
+import { ping, getProfile, fetchTelegramInfo, getTelegramApkLink } from '../utils/api.js';
 
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
@@ -39,7 +39,12 @@ export default function Home() {
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
-  const telegramApkUrl = useMemo(() => import.meta.env.VITE_TELEGRAM_APK_URL || '', []);
+  const defaultTelegramApkUrl = useMemo(
+    () => (import.meta.env.VITE_TELEGRAM_APK_URL || '').trim(),
+    []
+  );
+  const [telegramApkUrl, setTelegramApkUrl] = useState(defaultTelegramApkUrl);
+  const [apkLinkError, setApkLinkError] = useState('');
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
@@ -104,6 +109,24 @@ export default function Home() {
     window.addEventListener('profilePhotoUpdated', handleUpdate);
     return () => window.removeEventListener('profilePhotoUpdated', handleUpdate);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadApkLink = async () => {
+      const result = await getTelegramApkLink();
+      if (cancelled) return;
+      if (result?.url) {
+        setTelegramApkUrl(result.url);
+        setApkLinkError('');
+      } else if (!defaultTelegramApkUrl) {
+        setApkLinkError(result?.error || 'APK link not configured yet.');
+      }
+    };
+    loadApkLink();
+    return () => {
+      cancelled = true;
+    };
+  }, [defaultTelegramApkUrl]);
 
 
 
@@ -229,8 +252,8 @@ export default function Home() {
         <div className="text-center space-y-1">
           <h3 className="text-lg font-semibold text-white">Telegram APK launcher</h3>
           <p className="text-sm text-subtext">
-            Install the Telegram-optimized APK so players can open TonPlaygram directly inside the Telegram browser with
-            all bundled games and web features.
+            Download the Telegram-optimized APK to bundle the entire TonPlaygram web app and all games into one launch
+            link inside the Telegram browser.
           </p>
           <p className="text-[11px] text-subtext">
             Use the Telegram in-app browser to download and install the launcher for the best experience.
@@ -259,10 +282,17 @@ export default function Home() {
             <p>1) Open this page from the Telegram mini app browser.</p>
             <p>2) Tap the APK download and follow Telegram&apos;s prompts to install the launcher.</p>
             <p>3) Launch TonPlaygram from the new shortcut; all games open inside Telegram instead of the Android app drawer.</p>
-            {!telegramApkUrl && (
-              <p className="italic text-[11px] text-subtext">
-                The download link will appear here once the APK is hosted. No binaries are stored in this repository.
+            {apkLinkError ? (
+              <p className="text-[11px] text-red-300">
+                {apkLinkError}
               </p>
+            ) : (
+              !telegramApkUrl && (
+                <p className="italic text-[11px] text-subtext">
+                  Upload the launcher APK to <code>webapp/public/downloads</code> or set <code>TELEGRAM_APK_URL</code>{' '}
+                  so the one-click download is available.
+                </p>
+              )
             )}
           </div>
         </div>
