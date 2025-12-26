@@ -1186,8 +1186,6 @@ const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
-const LEG_FOOT_RADIUS_SCALE = 1.36; // add a wider chrome puck beneath each leg to mirror the photographed base
-const LEG_FOOT_HEIGHT_SCALE = 0.32; // keep the footpad slim so it rests on the floor without lifting the playfield
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
 const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension by 20% to lower the playfield
 const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE;
@@ -6281,7 +6279,6 @@ function Table3D(
   const finishParts = {
     frameMeshes: [],
     legMeshes: [],
-    footMeshes: [],
     railMeshes: [],
     trimMeshes: [],
     gapFillMeshes: [],
@@ -8724,14 +8721,8 @@ function Table3D(
   const legTopWorld = legTopLocal + TABLE_Y;
   const legBottomWorld = FLOOR_Y;
   const legReach = Math.max(legTopWorld - legBottomWorld, TABLE_H);
-  const legHRaw = legReach + LEG_TOP_OVERLAP;
-  const footH = Math.max(MICRO_EPS, legR * LEG_FOOT_HEIGHT_SCALE);
-  const legH = Math.max(MICRO_EPS, legHRaw - footH);
+  const legH = legReach + LEG_TOP_OVERLAP;
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
-  const footRadiusTop = legR * (LEG_FOOT_RADIUS_SCALE * 0.94);
-  const footRadiusBottom = legR * LEG_FOOT_RADIUS_SCALE;
-  const footGeo = new THREE.CylinderGeometry(footRadiusTop, footRadiusBottom, footH, 48);
-  const footMat = applyChromePlateDamping(trimMat) ?? trimMat;
   const legInset = baseRailWidth * 2.85;
   const legPositions = [
     [-frameOuterX + legInset, -frameOuterZ + legInset],
@@ -8741,9 +8732,7 @@ function Table3D(
     [-frameOuterX + legInset, frameOuterZ - legInset],
     [frameOuterX - legInset, frameOuterZ - legInset]
   ];
-  const legYBase = legTopLocal + LEG_TOP_OVERLAP - legHRaw / 2;
-  const legY = legYBase + footH / 2;
-  const footY = FLOOR_Y - TABLE_Y + footH / 2;
+  const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
   const legCircumference = 2 * Math.PI * legR;
   // Match the skirt/apron wood grain with the cue butt so the pattern reads
   // clearly from the player perspective.
@@ -8801,14 +8790,6 @@ function Table3D(
     leg.receiveShadow = true;
     table.add(leg);
     finishParts.legMeshes.push(leg);
-
-    const foot = new THREE.Mesh(footGeo, footMat);
-    foot.position.set(lx, footY, lz);
-    foot.castShadow = true;
-    foot.receiveShadow = true;
-    foot.userData.isChromePlate = true;
-    table.add(foot);
-    finishParts.footMeshes.push(foot);
   });
 
   table.updateMatrixWorld(true);
@@ -8946,7 +8927,6 @@ function applyTableFinishToTable(table, finish) {
 
   finishInfo.parts.frameMeshes.forEach((mesh) => swapMaterial(mesh, frameMat));
   finishInfo.parts.legMeshes.forEach((mesh) => swapMaterial(mesh, legMat));
-  finishInfo.parts.footMeshes.forEach((mesh) => swapMaterial(mesh, trimMat));
   finishInfo.parts.railMeshes.forEach((mesh) => swapMaterial(mesh, railMat));
   finishInfo.parts.trimMeshes.forEach((mesh) => swapMaterial(mesh, trimMat));
   finishInfo.parts.pocketJawMeshes.forEach((mesh) => swapMaterial(mesh, pocketJawMat));
