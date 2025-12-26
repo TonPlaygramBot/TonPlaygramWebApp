@@ -1016,9 +1016,9 @@ const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up ca
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const POCKET_INTERIOR_CAPTURE_R =
-  POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
+  POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 1.015; // widen capture slightly so clean entries are honoured
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
-  SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
+  SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 1.025; // expand the middle pocket capture to prevent rail bounces on centre-line pots
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the interior bowl so balls fall at the throat
 const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now matches the bowl opening instead of scaling from corners
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
@@ -5050,8 +5050,8 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 1.38; // pull the rail overhead broadcast he
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.04;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.12;
+const CUE_VIEW_RADIUS_RATIO = 0.035;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.1;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
@@ -5882,11 +5882,11 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS * 0.88 + BALL_R * 0.5; // tighten the middle pocket guard so bounces mirror the corner flow
+  const sideSpan = SIDE_POCKET_RADIUS * 0.96 + BALL_R * 0.58; // open the middle capture lane to reduce false cushion kicks
   const sidePocketGuard =
-    SIDE_POCKET_RADIUS * 0.82 * POCKET_VISUAL_EXPANSION + BALL_R * 0.04; // soften the capture window around middle jaws
-  const sideGuardClearance = Math.max(0, sidePocketGuard - BALL_R * 0.1);
-  const sideDepthLimit = POCKET_VIS_R * 1.5 * POCKET_VISUAL_EXPANSION;
+    SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.06; // soften the capture window around middle jaws
+  const sideGuardClearance = Math.max(0, sidePocketGuard - BALL_R * 0.08);
+  const sideDepthLimit = POCKET_VIS_R * 1.65 * POCKET_VISUAL_EXPANSION;
   const sidePocketCenters = pocketCenters().slice(4);
   for (const center of sidePocketCenters) {
     TMP_VEC2_A.copy(ball.pos).sub(center);
@@ -5932,7 +5932,7 @@ function reflectRails(ball) {
 
   // If the ball is entering a pocket capture zone, skip straight rail reflections
   const nearPocketRadius =
-    Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 0.15;
+    Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 0.22;
   const nearPocket = pocketCenters().some(
     (c) => ball.pos.distanceTo(c) < nearPocketRadius
   );
@@ -12780,7 +12780,12 @@ const powerRef = useRef(hud.power);
                 replayFrameCameraRef.current?.frameB?.target ?? null,
               minTargetY: replayCamera?.minTargetY
             });
-            const appliedReplayCamera = railBroadcastReplay ?? replayCamera;
+            const hasRecordedView =
+              replayCamera &&
+              (replayCamera.position != null || replayCamera.target != null);
+            const appliedReplayCamera = hasRecordedView
+              ? replayCamera
+              : railBroadcastReplay ?? replayCamera;
             const { position, target, fov: replayFov, minTargetY } = appliedReplayCamera;
             const focusTarget = target ??
               new THREE.Vector3(
@@ -16847,6 +16852,25 @@ const powerRef = useRef(hud.power);
                 3
               );
               plan.difficulty = plan.difficulty / (1 + openLaneScore * 0.2);
+              const viewAngle = Math.atan2(ballDiameter, toPocketLen);
+              const viewScore = Math.min(viewAngle / (Math.PI / 2), 1);
+              const openLaneNorm = THREE.MathUtils.clamp(openLaneScore / 3, 0, 1);
+              const cutSeverity = Math.min(cutAngle / (Math.PI / 2), 1);
+              const travelPenalty = Math.min(
+                (cueDist + toPocketLen) / Math.max(PLAY_W, PLAY_H, BALL_R),
+                1
+              );
+              const cushionPenalty = cushionAid ? 0.18 : 0;
+              plan.quality = THREE.MathUtils.clamp(
+                0.32 * entryAlignment +
+                  0.24 * (1 - cutSeverity) +
+                  0.16 * openLaneNorm +
+                  0.14 * (1 - travelPenalty) +
+                  0.14 * viewScore -
+                  cushionPenalty,
+                0,
+                1
+              );
               plan.spin = computePlanSpin(plan, state);
               potShots.push(plan);
             }
@@ -16865,29 +16889,35 @@ const powerRef = useRef(hud.power);
                 difficulty: cueDist + safetyDist * 2 + 400,
                 cueToTarget: cueDist,
                 targetToPocket: safetyDist,
-                spin: { x: 0, y: -0.05 }
+                spin: { x: 0, y: -0.05 },
+                quality: Math.max(
+                  0,
+                  1 - (cueDist + safetyDist * 2) / (PLAY_W + PLAY_H)
+                )
               };
               if (!fallbackPlan || blockedPlan.difficulty < fallbackPlan.difficulty) {
                 fallbackPlan = blockedPlan;
               }
               return;
             }
-            const safetyPlan = {
-              type: 'safety',
-              aimDir: cueToBall.clone().normalize(),
-              power: computePowerFromDistance((cueDist + safetyDist) * 0.85),
-              target: colorId,
+              const safetyPlan = {
+                type: 'safety',
+                aimDir: cueToBall.clone().normalize(),
+                power: computePowerFromDistance((cueDist + safetyDist) * 0.85),
+                target: colorId,
               targetBall,
               pocketId: 'SAFETY',
-              difficulty: cueDist + safetyDist * 1.2,
-              cueToTarget: cueDist,
-              targetToPocket: safetyDist,
-              spin: { x: 0, y: -0.2 }
-            };
+                difficulty: cueDist + safetyDist * 1.2,
+                cueToTarget: cueDist,
+                targetToPocket: safetyDist,
+                spin: { x: 0, y: -0.2 },
+                quality: Math.max(
+                  0,
+                  1 - (cueDist + safetyDist * 1.2) / (PLAY_W + PLAY_H)
+                )
+              };
             safetyShots.push(safetyPlan);
           });
-          potShots.sort((a, b) => a.difficulty - b.difficulty);
-          safetyShots.sort((a, b) => a.difficulty - b.difficulty);
           if (!potShots.length && (activeVariantId === 'american' || activeVariantId === '9ball')) {
             const targetBall = activeBalls
               .filter((b) => b.id !== cue.id)
@@ -16910,6 +16940,35 @@ const powerRef = useRef(hud.power);
                 const cueDist = cueVec.length();
                 const toPocket = targetBall.pos.distanceTo(pocketCenter);
                 const power = computePowerFromDistance(cueDist + toPocket);
+                const entryAlignment = Math.max(
+                  0,
+                  toPocketDir
+                    .clone()
+                    .normalize()
+                    .dot(pocketCenter.clone().normalize().multiplyScalar(-1))
+                );
+                const cutCos = THREE.MathUtils.clamp(
+                  targetBall.pos.clone().sub(ghost).normalize().dot(aimDir),
+                  -1,
+                  1
+                );
+                const cutAngle = Math.acos(Math.abs(cutCos));
+                const cutSeverity = Math.min(cutAngle / (Math.PI / 2), 1);
+                const travelPenalty = Math.min(
+                  (cueDist + toPocket) / Math.max(PLAY_W, PLAY_H, BALL_R),
+                  1
+                );
+                const viewAngle = Math.atan2(ballDiameter, toPocket);
+                const viewScore = Math.min(viewAngle / (Math.PI / 2), 1);
+                const quality = THREE.MathUtils.clamp(
+                  0.32 * entryAlignment +
+                    0.24 * (1 - cutSeverity) +
+                    0.18 * (1 - travelPenalty) +
+                    0.14 * viewScore +
+                    0.12,
+                  0,
+                  1
+                );
                 potShots.push({
                   type: 'pot',
                   aimDir,
@@ -16923,6 +16982,7 @@ const powerRef = useRef(hud.power);
                   targetToPocket: toPocket,
                   railNormal: null,
                   viaCushion: false,
+                  quality,
                   spin: computePlanSpin(
                     {
                       type: 'pot',
@@ -16936,7 +16996,8 @@ const powerRef = useRef(hud.power);
                       cueToTarget: cueDist,
                       targetToPocket: toPocket,
                       railNormal: null,
-                      viaCushion: false
+                      viaCushion: false,
+                      quality
                     },
                     state
                   )
@@ -16945,8 +17006,24 @@ const powerRef = useRef(hud.power);
             }
           }
           if (!potShots.length && !safetyShots.length && fallbackPlan) {
+            if (fallbackPlan.quality == null) {
+              fallbackPlan.quality = Math.max(
+                0,
+                1 - fallbackPlan.difficulty / (PLAY_W + PLAY_H)
+              );
+            }
             safetyShots.push(fallbackPlan);
           }
+          potShots.sort(
+            (a, b) =>
+              (b.quality ?? 0) - (a.quality ?? 0) ||
+              a.difficulty - b.difficulty
+          );
+          safetyShots.sort(
+            (a, b) =>
+              (b.quality ?? 0) - (a.quality ?? 0) ||
+              a.difficulty - b.difficulty
+          );
           const bestDirectPot = potShots.find((plan) => !plan.viaCushion) ?? null;
           const bestPot = bestDirectPot ?? potShots[0] ?? null;
           const bestSafety =
@@ -17454,6 +17531,17 @@ const powerRef = useRef(hud.power);
           userSuggestionPlanRef.current = plan;
           const summary = summarizePlan(plan);
           userSuggestionRef.current = summary;
+          const applyAimDirection = (dir, key = null) => {
+            if (!dir || typeof dir.lengthSq !== 'function' || dir.lengthSq() <= 1e-6) {
+              return false;
+            }
+            const normalized = dir.clone().normalize();
+            aimDirRef.current.copy(normalized);
+            alignStandingCameraToAim(cue, normalized);
+            autoAimRequestRef.current = false;
+            suggestionAimKeyRef.current = key;
+            return true;
+          };
           const preferAutoAim = autoAimRequestRef.current || plan?.viaCushion;
           if (preferAutoAim) {
             let autoDir = resolveAutoAimDirection();
@@ -17467,24 +17555,23 @@ const powerRef = useRef(hud.power);
               }
             }
             suggestionAimKeyRef.current = null;
-            if (autoDir && autoDir.lengthSq() > 1e-6) {
-              aimDirRef.current.copy(autoDir);
-              alignStandingCameraToAim(cue, autoDir);
-              autoAimRequestRef.current = false;
+            if (applyAimDirection(autoDir, null)) {
+              return;
+            }
+          }
+          if (plan?.targetBall && plan?.viaCushion && cue?.pos) {
+            const directDir = new THREE.Vector2(
+              plan.targetBall.pos.x - cue.pos.x,
+              plan.targetBall.pos.y - cue.pos.y
+            );
+            if (applyAimDirection(directDir, null)) {
               return;
             }
           }
           if (plan?.aimDir && !plan.viaCushion) {
             const dir = plan.aimDir.clone();
-            if (dir.lengthSq() > 1e-6) {
-              dir.normalize();
-              aimDirRef.current.copy(dir);
-              alignStandingCameraToAim(cue, dir);
-              autoAimRequestRef.current = false;
-              suggestionAimKeyRef.current = summary?.key ?? null;
-            } else {
-              suggestionAimKeyRef.current = null;
-            }
+            if (applyAimDirection(dir, summary?.key ?? null)) return;
+            suggestionAimKeyRef.current = null;
           } else {
             suggestionAimKeyRef.current = null;
           }
@@ -17934,15 +18021,14 @@ const powerRef = useRef(hud.power);
             shotReplayRef.current = null;
             shotRecording = null;
           }
-          if (hadObjectPot && !(hudRef.current?.over)) {
-            window.setTimeout(() => {
-              const hudState = hudRef.current;
-              if (hudState?.turn === 0 && !hudState.over) {
-                autoAimRequestRef.current = true;
-                startUserSuggestionRef.current?.();
-              }
-            }, 0);
-          }
+          window.setTimeout(() => {
+            const hudState = hudRef.current;
+            if (hudState?.turn === 0 && !hudState.over) {
+              autoAimRequestRef.current = true;
+              suggestionAimKeyRef.current = null;
+              startUserSuggestionRef.current?.();
+            }
+          }, 0);
           if (cameraRef.current && sphRef.current) {
             const cuePos = cue?.pos
               ? new THREE.Vector2(cue.pos.x, cue.pos.y)
