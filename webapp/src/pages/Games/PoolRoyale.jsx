@@ -1682,6 +1682,10 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
+const CLOTH_TEXTURE_INTENSITY = 0.86;
+const CLOTH_HAIR_INTENSITY = 0.78;
+const CLOTH_BUMP_INTENSITY = 1.02;
+const CLOTH_SOFT_BLEND = 0.42;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
@@ -1739,24 +1743,6 @@ const CLOTH_QUALITY = (() => {
 
   return defaults;
 })();
-
-const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.35, 0.55);
-const CLOTH_PATTERN_SCALE = 0.82; // lower repeat slightly so Poly Haven patterns look larger
-const CLOTH_PLACEHOLDER_REPEAT = 1.55;
-const CLOTH_FALLBACK_COLORS = Object.freeze({
-  caban: 0xb56a2a,
-  cotton_jersey: 0xb9a27d,
-  curly_teddy_checkered: 0x2f6a70,
-  curly_teddy_natural: 0xcdbfa9,
-  denim_fabric_03: 0x2b4a7a,
-  denim_fabric_04: 0x4a78a8,
-  denim_fabric_05: 0x2c2f35,
-  faux_fur_geometric: 0xcaa0a8,
-  hessian_230: 0x9b7a45,
-  jogging_melange: 0x7a7a7f,
-  knitted_fleece: 0x6e5a4a,
-  polar_fleece: 0xd9d2c2
-});
 
 const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff, cushion }) => ({
   cloth,
@@ -3744,338 +3730,296 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.55; // enlarge thread spacing for a coarser, more pronounced weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.35, 0.55);
-const CLOTH_PATTERN_SCALE = 0.82; // lower repeat slightly so Poly Haven patterns look larger
-const CLOTH_PLACEHOLDER_REPEAT = 1.55;
-const CLOTH_FALLBACK_COLORS = Object.freeze({
-  caban: 0xb56a2a,
-  cotton_jersey: 0xb9a27d,
-  curly_teddy_checkered: 0x2f6a70,
-  curly_teddy_natural: 0xcdbfa9,
-  denim_fabric_03: 0x2b4a7a,
-  denim_fabric_04: 0x4a78a8,
-  denim_fabric_05: 0x2c2f35,
-  faux_fur_geometric: 0xcaa0a8,
-  hessian_230: 0x9b7a45,
-  jogging_melange: 0x7a7a7f,
-  knitted_fleece: 0x6e5a4a,
-  polar_fleece: 0xd9d2c2
-});
-const CLOTH_LIBRARY_BY_ID = Object.freeze(
-  CLOTH_LIBRARY.reduce((acc, cloth) => {
-    acc[cloth.id] = cloth;
-    return acc;
-  }, {})
-);
 
-const CLOTH_TEXTURE_CACHE = new Map();
-const CLOTH_TEXTURE_LOADER = new THREE.TextureLoader();
-CLOTH_TEXTURE_LOADER.setCrossOrigin('anonymous');
-
-const toRepeatVector = (value) => {
-  if (value?.isVector2) return value.clone();
-  if (value && Number.isFinite(value.x) && Number.isFinite(value.y)) {
-    return new THREE.Vector2(value.x, value.y);
-  }
-  if (Number.isFinite(value)) return new THREE.Vector2(value, value);
-  return new THREE.Vector2(1, 1);
-};
-
-const makeCheckerTexture = (size, baseHex = 0x7b8392) => {
-  const base = new THREE.Color(baseHex);
-  const lighter = base.clone().lerp(new THREE.Color(0xffffff), 0.3);
-  const darker = base.clone().lerp(new THREE.Color(0x000000), 0.18);
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  const step = size / 8;
-  for (let y = 0; y < 8; y++) {
-    for (let x = 0; x < 8; x++) {
-      ctx.fillStyle = (x + y) % 2 === 0 ? `#${lighter.getHexString()}` : `#${darker.getHexString()}`;
-      ctx.fillRect(x * step, y * step, step, step);
+const createClothTextures = (() => {
+  const cache = new Map();
+  const clamp255 = (value) => Math.max(0, Math.min(255, value));
+  const cloneTexture = (texture) => {
+    if (!texture) return null;
+    const clone = texture.clone();
+    clone.image = texture.image;
+    clone.needsUpdate = true;
+    return clone;
+  };
+  const toRgb = (hex) => {
+    const color = new THREE.Color(hex ?? 0xffffff);
+    return {
+      r: Math.round(color.r * 255),
+      g: Math.round(color.g * 255),
+      b: Math.round(color.b * 255)
+    };
+  };
+  return (textureKey = DEFAULT_CLOTH_TEXTURE_KEY) => {
+    const preset =
+      CLOTH_TEXTURE_PRESETS[textureKey] ??
+      CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY];
+    if (cache.has(preset.id)) {
+      const entry = cache.get(preset.id);
+      return {
+        map: cloneTexture(entry.map),
+        bump: cloneTexture(entry.bump),
+        presetId: preset.id
+      };
     }
-  }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.needsUpdate = true;
-  return tex;
-};
+    if (typeof document === 'undefined') {
+      cache.set(preset.id, { map: null, bump: null });
+      return { map: null, bump: null, presetId: preset.id };
+    }
 
-const makeSolidTexture = (size, value = 0.5) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  const v = Math.round(THREE.MathUtils.clamp(value, 0, 1) * 255);
-  ctx.fillStyle = `rgb(${v}, ${v}, ${v})`;
-  ctx.fillRect(0, 0, size, size);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.needsUpdate = true;
-  return tex;
-};
+    const SIZE = CLOTH_TEXTURE_SIZE;
+    const THREAD_PITCH = CLOTH_THREAD_PITCH;
+    const DIAG = Math.PI / 4;
+    const COS = Math.cos(DIAG);
+    const SIN = Math.sin(DIAG);
+    const TAU = Math.PI * 2;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = SIZE;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      cache.set(preset.id, { map: null, bump: null });
+      return { map: null, bump: null, presetId: preset.id };
+    }
 
-const makeFlatNormalTexture = (size) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = 'rgb(128,128,255)';
-  ctx.fillRect(0, 0, size, size);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.needsUpdate = true;
-  return tex;
-};
+    const palette = preset.palette || CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY].palette;
+    const shadow = toRgb(palette.shadow);
+    const base = toRgb(palette.base);
+    const accent = toRgb(palette.accent);
+    const highlight = toRgb(palette.highlight);
+    const sparkleScale = Number.isFinite(preset.sparkle) ? preset.sparkle : 1;
+    const strayScale = Number.isFinite(preset.stray) ? preset.stray : 1;
 
-const pickBestTextureUrls = (apiJson) => {
-  const urls = [];
-  const walk = (value) => {
-    if (!value) return;
-    if (typeof value === 'string') {
-      const lower = value.toLowerCase();
-      if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
-        urls.push(value);
+    const image = ctx.createImageData(SIZE, SIZE);
+    const data = image.data;
+    const hashNoise = (x, y, seedX, seedY, phase = 0) =>
+      Math.sin((x * seedX + y * seedY + phase) * 0.02454369260617026) * 0.5 + 0.5;
+    const fiberNoise = (x, y) =>
+      hashNoise(x, y, 12.9898, 78.233, 1.5) * 0.7 +
+      hashNoise(x, y, 32.654, 23.147, 15.73) * 0.2 +
+      hashNoise(x, y, 63.726, 12.193, -9.21) * 0.1;
+    const microNoise = (x, y) =>
+      hashNoise(x, y, 41.12, 27.43, -4.5) * 0.5 +
+      hashNoise(x, y, 19.71, 55.83, 23.91) * 0.5;
+    const sparkleNoise = (x, y) =>
+      hashNoise(x, y, 73.19, 11.17, 7.2) * 0.45 +
+      hashNoise(x, y, 27.73, 61.91, -14.4) * 0.55;
+    const strayWispNoise = (x, y) =>
+      hashNoise(x, y, 91.27, 7.51, 3.3) * 0.6 +
+      hashNoise(x, y, 14.91, 83.11, -5.7) * 0.4;
+    const hairFiber = (x, y) => {
+      const tuftSeed = hashNoise(x, y, 67.41, 3.73, -11.9);
+      const straySeed = strayWispNoise(x + 13.7, y - 21.4);
+      const dir = hashNoise(x, y, 5.19, 14.73, 8.2) * TAU;
+      const wiggle = hashNoise(x, y, 51.11, 33.07, -6.9) * 2.5;
+      const along = Math.sin(
+        (x * Math.cos(dir) + y * Math.sin(dir)) * 0.042 + wiggle
+      );
+      const tuft = Math.pow(tuftSeed, 3.8);
+      const stray = Math.pow(straySeed, 2.4);
+      const filament = Math.pow(Math.abs(along), 1.6);
+      const wisp = Math.pow(
+        strayWispNoise(x * 0.82 - y * 0.63, y * 0.74 + x * 0.18),
+        4.2
+      );
+      const crossNap = Math.pow(
+        Math.abs(Math.cos((x - y) * 0.035 + wiggle * 0.42)),
+        2.1
+      );
+      return THREE.MathUtils.clamp(
+        tuft * 0.45 + stray * 0.22 + filament * 0.28 + wisp * 0.18 + crossNap * 0.25,
+        0,
+        1
+      );
+    };
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const u = ((x * COS + y * SIN) / THREAD_PITCH) * TAU;
+        const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
+        const warp = 0.5 + 0.5 * Math.cos(u);
+        const weft = 0.5 + 0.5 * Math.cos(v);
+        const weave = Math.pow((warp + weft) * 0.5, 1.68);
+        const cross = Math.pow(warp * weft, 0.9);
+        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.6);
+        const fiber = fiberNoise(x, y);
+        const micro = microNoise(x + 31.8, y + 17.3);
+        const sparkleRaw = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
+        const sparkle = THREE.MathUtils.clamp(
+          0.5 + (sparkleRaw - 0.5) * sparkleScale,
+          0,
+          1
+        );
+        const fuzz = Math.pow(fiber, 1.2);
+        const hairRaw = hairFiber(x, y);
+        const hair = THREE.MathUtils.clamp(0.5 + (hairRaw - 0.5) * strayScale, 0, 1);
+        const tonal = THREE.MathUtils.clamp(
+          0.56 +
+            (weave - 0.5) * 0.6 * CLOTH_TEXTURE_INTENSITY +
+            (cross - 0.5) * 0.48 * CLOTH_TEXTURE_INTENSITY +
+            (diamond - 0.5) * 0.54 * CLOTH_TEXTURE_INTENSITY +
+            (fiber - 0.5) * 0.26 * CLOTH_TEXTURE_INTENSITY +
+            (fuzz - 0.5) * 0.2 * CLOTH_TEXTURE_INTENSITY +
+            (micro - 0.5) * 0.18 * CLOTH_TEXTURE_INTENSITY +
+            (hair - 0.5) * 0.3 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
+        const tonalEnhanced = THREE.MathUtils.clamp(
+          0.5 +
+            (tonal - 0.5) * (1 + (1.56 - 1) * CLOTH_TEXTURE_INTENSITY) +
+            (hair - 0.5) * 0.16 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
+        const highlightMix = THREE.MathUtils.clamp(
+          0.34 +
+            (cross - 0.5) * 0.44 * CLOTH_TEXTURE_INTENSITY +
+            (diamond - 0.5) * 0.66 * CLOTH_TEXTURE_INTENSITY +
+            (sparkle - 0.5) * 0.38 * CLOTH_TEXTURE_INTENSITY +
+            (hair - 0.5) * 0.22 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
+        const accentMix = THREE.MathUtils.clamp(
+          0.48 +
+            (diamond - 0.5) * 1.12 * CLOTH_TEXTURE_INTENSITY +
+            (fuzz - 0.5) * 0.26 * CLOTH_TEXTURE_INTENSITY +
+            (hair - 0.5) * 0.26 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
+        const highlightEnhanced = THREE.MathUtils.clamp(
+          0.38 +
+            (highlightMix - 0.5) * (1 + (1.68 - 1) * CLOTH_TEXTURE_INTENSITY) +
+            (hair - 0.5) * 0.18 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
+        const baseR = shadow.r + (base.r - shadow.r) * tonalEnhanced;
+        const baseG = shadow.g + (base.g - shadow.g) * tonalEnhanced;
+        const baseB = shadow.b + (base.b - shadow.b) * tonalEnhanced;
+        const accentR = baseR + (accent.r - baseR) * accentMix;
+        const accentG = baseG + (accent.g - baseG) * accentMix;
+        const accentB = baseB + (accent.b - baseB) * accentMix;
+        const r = accentR + (highlight.r - accentR) * highlightEnhanced;
+        const g = accentG + (highlight.g - accentG) * highlightEnhanced;
+        const b = accentB + (highlight.b - accentB) * highlightEnhanced;
+        const softR = baseR + (r - baseR) * CLOTH_SOFT_BLEND;
+        const softG = baseG + (g - baseG) * CLOTH_SOFT_BLEND;
+        const softB = baseB + (b - baseB) * CLOTH_SOFT_BLEND;
+        const i = (y * SIZE + x) * 4;
+        data[i + 0] = clamp255(softR);
+        data[i + 1] = clamp255(softG);
+        data[i + 2] = clamp255(softB);
+        data[i + 3] = 255;
       }
-      return;
     }
-    if (Array.isArray(value)) {
-      value.forEach(walk);
-      return;
+    ctx.putImageData(image, 0, 0);
+
+    const colorMap = new THREE.CanvasTexture(canvas);
+    colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
+    colorMap.anisotropy = CLOTH_QUALITY.anisotropy;
+    colorMap.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
+    colorMap.minFilter = CLOTH_QUALITY.generateMipmaps
+      ? THREE.LinearMipmapLinearFilter
+      : THREE.LinearFilter;
+    colorMap.magFilter = THREE.LinearFilter;
+    applySRGBColorSpace(colorMap);
+    colorMap.needsUpdate = true;
+
+    const bumpCanvas = document.createElement('canvas');
+    bumpCanvas.width = bumpCanvas.height = SIZE;
+    const bumpCtx = bumpCanvas.getContext('2d');
+    if (!bumpCtx) {
+      cache.set(preset.id, { map: colorMap, bump: null });
+      return { map: cloneTexture(colorMap), bump: null, presetId: preset.id };
     }
-    if (typeof value === 'object') {
-      Object.values(value).forEach(walk);
+    const bumpImage = bumpCtx.createImageData(SIZE, SIZE);
+    const bumpData = bumpImage.data;
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const u = ((x * COS + y * SIN) / THREAD_PITCH) * TAU;
+        const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
+        const warp = 0.5 + 0.5 * Math.cos(u);
+        const weft = 0.5 + 0.5 * Math.cos(v);
+        const weave = Math.pow((warp + weft) * 0.5, 1.58);
+        const cross = Math.pow(warp * weft, 0.94);
+        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.68);
+        const fiber = fiberNoise(x, y);
+        const micro = microNoise(x + 31.8, y + 17.3);
+        const fuzz = Math.pow(fiber, 1.22);
+        const hairRaw = hairFiber(x, y);
+        const hair = THREE.MathUtils.clamp(0.5 + (hairRaw - 0.5) * strayScale, 0, 1);
+        const bump = THREE.MathUtils.clamp(
+          0.56 +
+            (weave - 0.5) * 0.9 * CLOTH_BUMP_INTENSITY +
+            (cross - 0.5) * 0.46 * CLOTH_BUMP_INTENSITY +
+            (diamond - 0.5) * 0.58 * CLOTH_BUMP_INTENSITY +
+            (fiber - 0.5) * 0.3 * CLOTH_BUMP_INTENSITY +
+            (fuzz - 0.5) * 0.2 * CLOTH_BUMP_INTENSITY +
+            (micro - 0.5) * 0.22 * CLOTH_BUMP_INTENSITY +
+            (hair - 0.5) * 0.4 * CLOTH_HAIR_INTENSITY,
+          0,
+          1
+        );
+        const value = clamp255(140 + (bump - 0.5) * 180 + (hair - 0.5) * 48);
+        const i = (y * SIZE + x) * 4;
+        bumpData[i + 0] = value;
+        bumpData[i + 1] = value;
+        bumpData[i + 2] = value;
+        bumpData[i + 3] = 255;
+      }
     }
-  };
-  walk(apiJson);
+    bumpCtx.putImageData(bumpImage, 0, 0);
 
-  const pick = (keywords) => {
-    const scored = urls
-      .filter((url) => keywords.some((kw) => url.toLowerCase().includes(kw)))
-      .map((url) => {
-        const lower = url.toLowerCase();
-        let score = 0;
-        if (lower.includes('2k')) score += 6;
-        if (lower.includes('1k')) score += 4;
-        if (lower.includes('jpg')) score += 3;
-        if (lower.includes('png')) score += 2;
-        if (lower.includes('diff') || lower.includes('diffuse') || lower.includes('albedo') || lower.includes('basecolor')) score += 2;
-        if (lower.includes('nor_gl') || lower.includes('normal_gl')) score += 2;
-        if (lower.includes('nor') || lower.includes('normal')) score += 1;
-        if (lower.includes('rough')) score += 1;
-        if (lower.includes('disp') || lower.includes('displ') || lower.includes('height') || lower.includes('bump')) score += 2;
-        if (lower.includes('preview')) score -= 6;
-        return { url, score };
-      })
-      .sort((a, b) => b.score - a.score);
-    return scored[0]?.url;
-  };
+    const bumpMap = new THREE.CanvasTexture(bumpCanvas);
+    bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
+    bumpMap.repeat.copy(colorMap.repeat);
+    bumpMap.anisotropy = CLOTH_QUALITY.anisotropy;
+    bumpMap.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
+    bumpMap.minFilter = CLOTH_QUALITY.generateMipmaps
+      ? THREE.LinearMipmapLinearFilter
+      : THREE.LinearFilter;
+    bumpMap.magFilter = THREE.LinearFilter;
+    bumpMap.needsUpdate = true;
 
-  return {
-    diffuse: pick(['diff', 'diffuse', 'albedo', 'basecolor']),
-    normal: pick(['nor_gl', 'normal_gl', 'nor', 'normal']),
-    roughness: pick(['rough', 'roughness']),
-    height: pick(['disp', 'displ', 'height', 'bump'])
-  };
-};
-
-const loadTexture = (url, isColor) =>
-  new Promise((resolve, reject) => {
-    CLOTH_TEXTURE_LOADER.load(
-      url,
-      (texture) => {
-        if (isColor) applySRGBColorSpace(texture);
-        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-        texture.anisotropy = CLOTH_QUALITY.anisotropy;
-        texture.generateMipmaps = true;
-        texture.minFilter = THREE.LinearMipmapLinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        resolve(texture);
-      },
-      undefined,
-      reject
-    );
-  });
-
-const assignTextureImage = (target, source) => {
-  if (!target || !source) return;
-  target.image = source.image;
-  target.colorSpace = source.colorSpace;
-  target.wrapS = target.wrapT = THREE.RepeatWrapping;
-  target.anisotropy = CLOTH_QUALITY.anisotropy;
-  target.magFilter = source.magFilter;
-  target.minFilter = source.minFilter;
-  target.needsUpdate = true;
-};
-
-const cloneClothTexture = (entry, texture, repeat, baseKey) => {
-  if (!texture) return null;
-  const clone = texture.clone();
-  clone.image = texture.image;
-  clone.userData = {
-    ...(clone.userData || {}),
-    __clothEntry: entry,
-    __clothBase: baseKey
-  };
-  if (repeat?.isVector2) {
-    clone.repeat.copy(repeat);
-  } else if (repeat && Number.isFinite(repeat.x) && Number.isFinite(repeat.y)) {
-    clone.repeat.set(repeat.x, repeat.y);
-  }
-  clone.needsUpdate = true;
-  entry.clones.add(clone);
-  return clone;
-};
-
-const disposeTrackedTexture = (texture) => {
-  if (!texture) return;
-  const entry = texture.userData?.__clothEntry;
-  if (entry?.clones) {
-    entry.clones.delete(texture);
-  }
-  texture.dispose?.();
-};
-
-const createClothTextures = (textureKey = DEFAULT_CLOTH_TEXTURE_KEY) => {
-  const preset =
-    CLOTH_TEXTURE_PRESETS[textureKey] ??
-    CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY];
-  if (typeof document === 'undefined') {
-    return { map: null, normal: null, roughness: null, bump: null, presetId: preset.id };
-  }
-  const cloth = CLOTH_LIBRARY_BY_ID[textureKey];
-  const sourceId = cloth?.sourceId;
-  const cacheKey = sourceId ?? textureKey;
-  const fallbackColor = CLOTH_FALLBACK_COLORS[sourceId] ?? 0x7b8392;
-  let entry = CLOTH_TEXTURE_CACHE.get(cacheKey);
-
-  if (!entry) {
-    const baseRepeat = CLOTH_PLACEHOLDER_REPEAT * CLOTH_PATTERN_SCALE;
-    const map = makeCheckerTexture(256, fallbackColor);
-    map.colorSpace = THREE.SRGBColorSpace;
-    map.wrapS = map.wrapT = THREE.RepeatWrapping;
-    map.repeat.set(baseRepeat, baseRepeat);
-    map.anisotropy = CLOTH_QUALITY.anisotropy;
-    map.generateMipmaps = true;
-    map.minFilter = THREE.LinearMipmapLinearFilter;
-    map.magFilter = THREE.LinearFilter;
-    applySRGBColorSpace(map);
-    const normal = makeFlatNormalTexture(64);
-    normal.wrapS = normal.wrapT = THREE.RepeatWrapping;
-    normal.repeat.copy(map.repeat);
-    normal.anisotropy = CLOTH_QUALITY.anisotropy;
-    normal.generateMipmaps = true;
-    normal.minFilter = THREE.LinearMipmapLinearFilter;
-    normal.magFilter = THREE.LinearFilter;
-    const roughness = makeSolidTexture(64, 0.66);
-    roughness.wrapS = roughness.wrapT = THREE.RepeatWrapping;
-    roughness.repeat.copy(map.repeat);
-    roughness.anisotropy = CLOTH_QUALITY.anisotropy;
-    roughness.generateMipmaps = true;
-    roughness.minFilter = THREE.LinearMipmapLinearFilter;
-    roughness.magFilter = THREE.LinearFilter;
-    const bump = makeSolidTexture(64, 0.5);
-    bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
-    bump.repeat.copy(map.repeat);
-    bump.anisotropy = CLOTH_QUALITY.anisotropy;
-    bump.generateMipmaps = true;
-    bump.minFilter = THREE.LinearMipmapLinearFilter;
-    bump.magFilter = THREE.LinearFilter;
-    entry = {
-      base: { map, normal, roughness, bump },
-      clones: new Set(),
-      loading: false
+    cache.set(preset.id, { map: colorMap, bump: bumpMap });
+    return {
+      map: cloneTexture(colorMap),
+      bump: cloneTexture(bumpMap),
+      presetId: preset.id
     };
-    map.userData = { ...(map.userData || {}), __clothEntry: entry, __clothBase: 'map' };
-    normal.userData = { ...(normal.userData || {}), __clothEntry: entry, __clothBase: 'normal' };
-    roughness.userData = {
-      ...(roughness.userData || {}),
-      __clothEntry: entry,
-      __clothBase: 'roughness'
-    };
-    bump.userData = { ...(bump.userData || {}), __clothEntry: entry, __clothBase: 'bump' };
-    CLOTH_TEXTURE_CACHE.set(cacheKey, entry);
+  };
+})();
+
+function replaceMaterialTexture (material, prop, baseTexture, fallbackRepeat) {
+  if (!material) return;
+  const prev = material[prop];
+  if (prev?.dispose) {
+    prev.dispose();
   }
-
-  const loadFromPolyHaven = async () => {
-    if (!sourceId || entry.loading) return;
-    entry.loading = true;
-    try {
-      const res = await fetch(`https://api.polyhaven.com/files/${sourceId}`);
-      if (!res.ok) return;
-      const json = await res.json();
-      const urls = pickBestTextureUrls(json);
-      const [diffuse, normal, roughness, height] = await Promise.all([
-        urls.diffuse ? loadTexture(urls.diffuse, true) : null,
-        urls.normal ? loadTexture(urls.normal, false) : null,
-        urls.roughness ? loadTexture(urls.roughness, false) : null,
-        urls.height ? loadTexture(urls.height, false) : null
-      ]);
-      if (diffuse) assignTextureImage(entry.base.map, diffuse);
-      if (normal) assignTextureImage(entry.base.normal, normal);
-      if (roughness) assignTextureImage(entry.base.roughness, roughness);
-      if (height) assignTextureImage(entry.base.bump, height);
-      entry.clones.forEach((clone) => {
-        if (!clone) return;
-        if (clone.userData?.__clothEntry !== entry) return;
-        if (clone.userData?.__clothBase === 'map') {
-          clone.image = entry.base.map.image;
-        } else if (clone.userData?.__clothBase === 'normal') {
-          clone.image = entry.base.normal.image;
-        } else if (clone.userData?.__clothBase === 'roughness') {
-          clone.image = entry.base.roughness.image;
-        } else if (clone.userData?.__clothBase === 'bump') {
-          clone.image = entry.base.bump.image;
-        }
-        clone.needsUpdate = true;
-      });
-    } catch {
-      // ignore network failures
-    } finally {
-      entry.loading = false;
-    }
-  };
-
-  void loadFromPolyHaven();
-
-  return {
-    map: entry.base.map,
-    normal: entry.base.normal,
-    roughness: entry.base.roughness,
-    bump: entry.base.bump,
-    presetId: preset.id
-  };
-};
-
-const applyClothTexturesToMaterial = (material, textures, repeat) => {
-  if (!material || !textures) return;
-  const repeatVec = toRepeatVector(repeat);
-  const assign = (prop, tex, baseKey) => {
-    const entry = tex?.userData?.__clothEntry;
-    const sourceTexture =
-      entry && baseKey && entry.base?.[baseKey] ? entry.base[baseKey] : tex;
-    const nextTex =
-      entry && baseKey && entry.base?.[baseKey]
-        ? cloneClothTexture(entry, sourceTexture, repeatVec, baseKey)
-        : sourceTexture;
-    const prev = material[prop];
-    if (!nextTex) {
-      disposeTrackedTexture(prev);
-      material[prop] = null;
-      return;
-    }
-    if (prev !== nextTex) {
-      disposeTrackedTexture(prev);
-      material[prop] = nextTex;
-    }
-    if (nextTex.repeat?.isVector2) {
-      nextTex.repeat.copy(repeatVec);
-    }
-    nextTex.needsUpdate = true;
-  };
-
-  assign('map', textures.map, 'map');
-  assign('normalMap', textures.normal, 'normal');
-  assign('roughnessMap', textures.roughness, 'roughness');
-  assign('bumpMap', textures.bump, 'bump');
-  material.normalScale = CLOTH_NORMAL_SCALE.clone();
+  if (!baseTexture) {
+    material[prop] = null;
+    material.needsUpdate = true;
+    return;
+  }
+  const next = baseTexture.clone();
+  next.image = baseTexture.image;
+  if (prev?.repeat?.isVector2) {
+    next.repeat.copy(prev.repeat);
+  } else if (fallbackRepeat?.isVector2) {
+    next.repeat.copy(fallbackRepeat);
+  } else if (fallbackRepeat && Number.isFinite(fallbackRepeat.x) && Number.isFinite(fallbackRepeat.y)) {
+    next.repeat.set(fallbackRepeat.x, fallbackRepeat.y);
+  }
+  if (prev?.center?.isVector2) {
+    next.center.copy(prev.center);
+  } else {
+    next.center.set(0.5, 0.5);
+  }
+  next.rotation = typeof prev?.rotation === 'number' ? prev.rotation : 0;
+  next.needsUpdate = true;
+  material[prop] = next;
   material.needsUpdate = true;
-};
+}
 
 function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TEXTURE_KEY) {
   if (!finishInfo?.clothMat) return;
@@ -4083,12 +4027,14 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
   const baseRepeatValue = finishInfo.clothMat.userData?.baseRepeat ?? finishInfo.clothBase?.baseRepeat ?? 1;
   const repeatRatioValue = finishInfo.clothMat.userData?.repeatRatio ?? finishInfo.clothBase?.repeatRatio ?? 1;
   const fallbackRepeat = new THREE.Vector2(baseRepeatValue, baseRepeatValue * repeatRatioValue);
-  applyClothTexturesToMaterial(finishInfo.clothMat, textures, fallbackRepeat);
+  replaceMaterialTexture(finishInfo.clothMat, 'map', textures.map, fallbackRepeat);
+  replaceMaterialTexture(finishInfo.clothMat, 'bumpMap', textures.bump, fallbackRepeat);
   if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
     finishInfo.clothMat.bumpScale = finishInfo.clothBase.baseBumpScale;
   }
   if (finishInfo.cushionMat) {
-    applyClothTexturesToMaterial(finishInfo.cushionMat, textures, fallbackRepeat);
+    replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat);
+    replaceMaterialTexture(finishInfo.cushionMat, 'bumpMap', textures.bump, fallbackRepeat);
     if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
       finishInfo.cushionMat.bumpScale = finishInfo.clothBase.baseBumpScale;
     }
@@ -6655,12 +6601,7 @@ function Table3D(
   };
   finishParts.woodRepeatScale = woodRepeatScale;
 
-  const {
-    map: clothMap,
-    normal: clothNormal,
-    roughness: clothRoughness,
-    bump: clothBump
-  } = createClothTextures(clothTextureKey);
+  const { map: clothMap, bump: clothBump } = createClothTextures(clothTextureKey);
   const clothPrimary = new THREE.Color(palette.cloth);
   const cushionPrimary = new THREE.Color(palette.cushion ?? palette.cloth);
   const clothHighlight = new THREE.Color(0xf6fff9);
@@ -6690,9 +6631,8 @@ function Table3D(
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping the cloth visibly taut
   const baseRepeat =
-    (((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
-      clothTextureScale) *
-    CLOTH_PATTERN_SCALE;
+    ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
+    clothTextureScale;
   const repeatRatio = 3.45;
   const baseBumpScale =
     (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) * CLOTH_QUALITY.bumpScaleMultiplier;
@@ -6701,17 +6641,6 @@ function Table3D(
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.map.needsUpdate = true;
-  }
-  if (clothNormal) {
-    clothMat.normalMap = clothNormal;
-    clothMat.normalMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.normalScale = CLOTH_NORMAL_SCALE.clone();
-    clothMat.normalMap.needsUpdate = true;
-  }
-  if (clothRoughness) {
-    clothMat.roughnessMap = clothRoughness;
-    clothMat.roughnessMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.roughnessMap.needsUpdate = true;
   }
   if (clothBump) {
     clothMat.bumpMap = clothBump;
