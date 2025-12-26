@@ -34,7 +34,7 @@ const buildClothOption = (
   };
 };
 
-export const POLY_HAVEN_CLOTHS = [
+const POLY_HAVEN_CLOTHS = [
   { id: 'denim_fabric_03', label: 'Denim Fabric 03 Cloth', base: 0x2b4a7a },
   { id: 'hessian_230', label: 'Hessian 230 Cloth', base: 0x9b7a45 },
   { id: 'polar_fleece', label: 'Polar Fleece Cloth', base: 0xd9d2c2 },
@@ -72,11 +72,7 @@ export const TABLE_CLOTH_OPTIONS = [
   { id: 'sunset', label: 'Sunset Cloth', feltTop: '#ea580c', feltBottom: '#c2410c', emissive: '#320e03' },
   { id: 'violet', label: 'Violet Cloth', feltTop: '#7c3aed', feltBottom: '#5b21b6', emissive: '#1f0a47' },
   { id: 'amber', label: 'Amber Cloth', feltTop: '#b7791f', feltBottom: '#92571a', emissive: '#2b1402' },
-  ...POLY_HAVEN_CLOTHS.map((option) => ({
-    ...buildClothOption(option.id, option.label, option.base),
-    sourceId: option.id,
-    baseColor: normalizeHex(option.base)
-  }))
+  ...POLY_HAVEN_CLOTHS.map((option) => buildClothOption(option.id, option.label, option.base))
 ];
 
 export const TABLE_BASE_OPTIONS = [
