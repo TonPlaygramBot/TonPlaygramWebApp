@@ -25,7 +25,6 @@ import adsRoutes from './routes/ads.js';
 import influencerRoutes from './routes/influencer.js';
 import onlineRoutes from './routes/online.js';
 import poolRoyaleRoutes from './routes/poolRoyale.js';
-import downloadRoutes from './routes/downloads.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
 import AdView from './models/AdView.js';
@@ -155,7 +154,6 @@ app.use('/api/broadcast', broadcastRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/online', onlineRoutes);
 app.use('/api/pool-royale', poolRoyaleRoutes);
-app.use('/api/downloads', downloadRoutes);
 
 app.post('/api/goal-rush/calibration', (req, res) => {
   const { accountId, calibration } = req.body || {};

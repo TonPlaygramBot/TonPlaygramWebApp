@@ -26,10 +26,6 @@ export async function ping() {
   return data.message;
 }
 
-export function getTelegramApkLink() {
-  return get('/api/downloads/apk');
-}
-
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
