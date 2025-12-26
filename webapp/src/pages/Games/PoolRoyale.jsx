@@ -3728,10 +3728,10 @@ const ORIGINAL_HALF_H = ORIGINAL_PLAY_H / 2;
 const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
-const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
+const CLOTH_TEXTURE_SIZE = Math.round(CLOTH_QUALITY.textureSize * 1.25); // lift resolution so the enlarged weave stays crisp
 const CLOTH_THREAD_PITCH = 12 * 1.55; // enlarge thread spacing for a coarser, more pronounced weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.86; // slightly larger pattern footprint to match the scanned cloths
+const CLOTH_PATTERN_SCALE = 0.86 / 3; // triple the weave footprint so cloth patterns read bolder across every fabric
 const CLOTH_TEXTURE_REPEAT_HINT = 1.55;
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.35, 0.55);
 const CLOTH_ROUGHNESS_BASE = 0.82;
@@ -5431,6 +5431,7 @@ const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
+const CUE_SURFACE_STOP_Y = CUE_Y + CUE_TIP_RADIUS * 2.1; // halt the camera right at the cue top surface to avoid reflections/glancing angles
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.48;
@@ -5438,6 +5439,7 @@ const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
+const CUE_VIEW_ALIGN_BLEND_THRESHOLD = 0.38; // when blended this close to cue view, steer framing down the aim line
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
@@ -5471,6 +5473,7 @@ const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view 
 const SHORT_RAIL_POCKET_TRIGGER =
   RAIL_LIMIT_Y - POCKET_VIS_R * 0.45; // request pocket cams as soon as play reaches the short rail mouths
 const SHORT_RAIL_POCKET_INTENT_COOLDOWN_MS = 280;
+const SHOT_WARMUP_MS = 3000; // keep the cue camera lowered for 3 seconds so spin can be adjusted before firing
 const AI_MIN_SHOT_TIME_MS = 5000;
 const AI_MAX_SHOT_TIME_MS = 7000;
 const AI_MIN_AIM_PREVIEW_MS = 900;
@@ -6788,20 +6791,21 @@ function Table3D(
   const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.32);
   const cushionColor = cushionPrimary.clone().lerp(clothHighlight, 0.22);
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
-  const clothSheen = CLOTH_QUALITY.sheen * 0.72;
-  const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.08);
+  const clothSheen = CLOTH_QUALITY.sheen * 0.18;
+  const clothSheenRoughness = 1;
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: CLOTH_ROUGHNESS_BASE,
+    roughness: Math.min(1, CLOTH_ROUGHNESS_BASE * 1.08),
     sheen: clothSheen,
     sheenColor,
     sheenRoughness: clothSheenRoughness,
     clearcoat: 0,
-    clearcoatRoughness: 0.86,
-    envMapIntensity: 0.02,
-    emissive: clothColor.clone().multiplyScalar(0.045),
-    emissiveIntensity: 0.38,
-    metalness: 0
+    clearcoatRoughness: 1,
+    envMapIntensity: 0,
+    emissive: clothColor.clone().multiplyScalar(0.028),
+    emissiveIntensity: 0.28,
+    metalness: 0,
+    reflectivity: 0
   });
   clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
@@ -10815,6 +10819,9 @@ const powerRef = useRef(hud.power);
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
   const aimFocusRef = useRef(null);
+  const aimLineViewRef = useRef(null);
+  const shotWarmupTimeoutRef = useRef(null);
+  const shotWarmupActiveRef = useRef(false);
   const [pocketCameraActive, setPocketCameraActive] = useState(false);
   const pocketCameraStateRef = useRef(false);
   const pocketCamerasRef = useRef(new Map());
@@ -10843,6 +10850,28 @@ const powerRef = useRef(hud.power);
   const topViewLockedRef = useRef(false);
   const preShotTopViewRef = useRef(false);
   const preShotTopViewLockRef = useRef(false);
+  useEffect(
+    () => () => {
+      if (shotWarmupTimeoutRef.current) {
+        clearTimeout(shotWarmupTimeoutRef.current);
+        shotWarmupTimeoutRef.current = null;
+      }
+      shotWarmupActiveRef.current = false;
+    },
+    []
+  );
+  useEffect(() => {
+    if (
+      shotWarmupTimeoutRef.current &&
+      (hud.turn !== 0 || hud.over || hud.inHand)
+    ) {
+      clearTimeout(shotWarmupTimeoutRef.current);
+      shotWarmupTimeoutRef.current = null;
+    }
+    if (hud.turn !== 0 || hud.over || hud.inHand) {
+      shotWarmupActiveRef.current = false;
+    }
+  }, [hud.inHand, hud.over, hud.turn]);
   const sidePocketAimRef = useRef(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const playerOffsetRef = useRef(0);
@@ -11772,7 +11801,15 @@ const powerRef = useRef(hud.power);
       const tmpReplayQuatB = new THREE.Quaternion();
       const tmpReplayScale = new THREE.Vector3();
       const tmpReplayPos = new THREE.Vector3();
+      const cancelShotWarmup = () => {
+        if (shotWarmupTimeoutRef.current) {
+          clearTimeout(shotWarmupTimeoutRef.current);
+          shotWarmupTimeoutRef.current = null;
+        }
+        shotWarmupActiveRef.current = false;
+      };
       const setShootingState = (value) => {
+        cancelShotWarmup();
         if (shooting === value) return;
         shooting = value;
         shotStartedAt = shooting ? getNow() : 0;
@@ -13951,6 +13988,46 @@ const powerRef = useRef(hud.power);
           }
           focusTarget.multiplyScalar(worldScaleFactor);
           lookTarget = focusTarget;
+          const cueViewBlend = cameraBlendRef.current ?? 1;
+          const cueViewActive =
+            !shooting &&
+            !replayActive &&
+            cue?.active &&
+            cueViewBlend <= CUE_VIEW_ALIGN_BLEND_THRESHOLD;
+          if (cueViewActive) {
+            const cueBall = cueRef.current || cue;
+            const aimDir = aimDirRef.current?.clone?.() ?? null;
+            if (cueBall?.pos && aimDir) {
+              const aimDir2D = new THREE.Vector2(aimDir.x, aimDir.y);
+              if (aimDir2D.lengthSq() > 1e-8) {
+                aimDir2D.normalize();
+                const aimData = aimLineViewRef.current;
+                const cueTopLocal = new THREE.Vector3(
+                  cueBall.pos.x,
+                  CUE_SURFACE_STOP_Y,
+                  cueBall.pos.y
+                );
+                const fallbackEnd = cueTopLocal.clone().add(
+                  new THREE.Vector3(aimDir2D.x, 0, aimDir2D.y).multiplyScalar(
+                    Math.max(BALL_R * 18, Math.min(LONG_SHOT_DISTANCE, BALL_R * 48))
+                  )
+                );
+                const aimEndLocal =
+                  aimData?.target?.clone?.() ??
+                  aimData?.impact?.clone?.() ??
+                  fallbackEnd;
+                aimEndLocal.y = CUE_SURFACE_STOP_Y;
+                const aimLookLocal = cueTopLocal
+                  .clone()
+                  .lerp(aimEndLocal, 0.6);
+                aimLookLocal.y = CUE_SURFACE_STOP_Y;
+                lookTarget = aimLookLocal.clone().multiplyScalar(worldScaleFactor);
+                const aimTheta = Math.atan2(aimDir2D.x, aimDir2D.y) + Math.PI;
+                sph.theta = aimTheta;
+                TMP_SPH.theta = aimTheta;
+              }
+            }
+          }
           if (topViewRef.current) {
             const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
               playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
@@ -14025,10 +14102,12 @@ const powerRef = useRef(hud.power);
                 Math.max(0, CAMERA_SURFACE_STOP_MARGIN) * scaleFactor;
               const cueLevelWorldY =
                 (CUE_Y + CAMERA_CUE_SURFACE_MARGIN) * scaleFactor;
+              const cueSurfaceTopWorldY = CUE_SURFACE_STOP_Y * scaleFactor;
               const surfaceClampY = Math.max(
                 baseSurfaceWorldY + surfaceMarginWorld,
                 cueLevelWorldY,
-                aimLineWorldY
+                aimLineWorldY,
+                cueSurfaceTopWorldY
               );
               if (TMP_SPH.radius > 1e-6) {
                 const minPhiFromSurface = Math.acos(
@@ -16648,7 +16727,9 @@ const powerRef = useRef(hud.power);
       };
 
       // Fire (slider triggers on release)
-        const fire = () => {
+        const performShot = () => {
+          const wasWarmup = shotWarmupActiveRef.current;
+          cancelShotWarmup();
           const currentHud = hudRef.current;
           const frameSnapshot = frameRef.current ?? frameState;
           const fullTableHandPlacement =
@@ -16668,13 +16749,18 @@ const powerRef = useRef(hud.power);
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
         }
-        const forcedCueView = aiShotCueViewRef.current;
+        const warmupCueView = wasWarmup;
+        const forcedCueView = aiShotCueViewRef.current || warmupCueView;
         setAiShotCueViewActive(false);
         setAiShotPreviewActive(false);
         alignStandingCameraToAim(cue, aimDirRef.current);
         cancelCameraBlendTween();
-        const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
-        applyCameraBlend(forcedCueView ? forcedCueBlend : 1);
+        const forcedCueBlend = forcedCueView
+          ? aiShotCueViewRef.current
+            ? aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND
+            : 0
+          : 1;
+        applyCameraBlend(forcedCueBlend);
         updateCamera();
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
@@ -16973,6 +17059,39 @@ const powerRef = useRef(hud.power);
             }
           };
           animateCue();
+        };
+        const fire = () => {
+          if (shotWarmupTimeoutRef.current) return;
+          const hudState = hudRef.current;
+          const isAiTurn = hudState?.turn === 1;
+          if (isAiTurn) {
+            performShot();
+            return;
+          }
+          const aimDir = aimDirRef.current;
+          const sph = sphRef.current;
+          if (sph && aimDir) {
+            const cueBounds = cameraBoundsRef.current?.cueShot;
+            if (cueBounds) {
+              sph.radius = clampOrbitRadius(cueBounds.radius, CUE_VIEW_MIN_RADIUS);
+              sph.phi = THREE.MathUtils.clamp(
+                cueBounds.phi,
+                CAMERA.minPhi,
+                CAMERA.maxPhi
+              );
+            }
+            const aimTheta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+            sph.theta = aimTheta;
+            syncBlendToSpherical();
+          }
+          cancelCameraBlendTween();
+          applyCameraBlend(0);
+          updateCamera();
+          shotWarmupActiveRef.current = true;
+          shotWarmupTimeoutRef.current = window.setTimeout(() => {
+            shotWarmupTimeoutRef.current = null;
+            performShot();
+          }, SHOT_WARMUP_MS);
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -18857,6 +18976,7 @@ const powerRef = useRef(hud.power);
         };
 
         sidePocketAimRef.current = false;
+        aimLineViewRef.current = null;
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
           const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
@@ -18882,6 +19002,14 @@ const powerRef = useRef(hud.power);
           }
           aimGeom.setFromPoints([start, end]);
           aim.visible = true;
+          aimLineViewRef.current = {
+            cue: new THREE.Vector3(cue.pos.x, CUE_SURFACE_STOP_Y, cue.pos.y),
+            target: targetBall
+              ? new THREE.Vector3(targetBall.pos.x, CUE_SURFACE_STOP_Y, targetBall.pos.y)
+              : null,
+            impact: new THREE.Vector3(end.x, CUE_SURFACE_STOP_Y, end.z),
+            dir: dir.clone()
+          };
           const slowAssistEnabled = chalkAssistEnabledRef.current;
           const hasTarget = slowAssistEnabled && (targetBall || railNormal);
           shouldSlowAim = hasTarget;
