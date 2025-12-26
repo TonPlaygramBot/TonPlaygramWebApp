@@ -5050,8 +5050,8 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 1.38; // pull the rail overhead broadcast he
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.035;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.1;
+const CUE_VIEW_RADIUS_RATIO = 0.031;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
@@ -5072,7 +5072,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.05;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
-const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.4;
+const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.48;
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
@@ -16668,20 +16668,165 @@ const powerRef = useRef(hud.power);
             return fallback;
           }
         };
+        const normalizeTargetId = (value) => {
+          if (typeof value === 'string') return value.toUpperCase();
+          return null;
+        };
+        const isBallTargetId = (id) =>
+          typeof id === 'string' &&
+          (/^BALL_(\d+)/.test(id) ||
+            [
+              'RED',
+              'YELLOW',
+              'BLUE',
+              'BLACK',
+              'PINK',
+              'GREEN',
+              'BROWN',
+              'STRIPE',
+              'SOLID'
+            ].includes(id));
+        const parseBallNumber = (id) => {
+          if (typeof id !== 'string') return null;
+          const match = /^BALL_(\d+)/.exec(id);
+          return match ? parseInt(match[1], 10) : null;
+        };
+        const mapAssignmentToTargets = (assignment, variantId) => {
+          if (!assignment) return [];
+          const normalized = normalizeTargetId(assignment);
+          if (normalized === 'RED') return ['RED'];
+          if (normalized === 'BLUE' || normalized === 'YELLOW') {
+            return variantId === 'american' ? ['SOLID'] : ['YELLOW', 'BLUE'];
+          }
+          if (normalized === 'BLACK') return ['BLACK', 'BALL_8'];
+          if (normalized === 'SOLID' || normalized === 'SOLIDS') return ['SOLID'];
+          if (normalized === 'STRIPE' || normalized === 'STRIPES') return ['STRIPE'];
+          return [];
+        };
+        const mapNumberToGroup = (id) => {
+          const num = parseBallNumber(id);
+          if (num == null) return null;
+          if (num === 8) return 'BLACK';
+          if (num >= 9) return 'STRIPE';
+          return 'SOLID';
+        };
+        const matchesTargetId = (ball, targetId) => {
+          if (!ball || !targetId) return false;
+          const normalizedTarget = normalizeTargetId(targetId);
+          if (!normalizedTarget) return false;
+          const colorId = toBallColorId(ball.id);
+          if (!colorId) return false;
+          const numericGroup = mapNumberToGroup(colorId);
+          if (normalizedTarget === 'BLACK') {
+            return colorId === 'BLACK' || numericGroup === 'BLACK';
+          }
+          if (normalizedTarget === 'SOLID') {
+            return colorId === 'SOLID' || numericGroup === 'SOLID';
+          }
+          if (normalizedTarget === 'STRIPE') {
+            return colorId === 'STRIPE' || numericGroup === 'STRIPE';
+          }
+          if (normalizedTarget === 'YELLOW' || normalizedTarget === 'BLUE') {
+            return colorId === 'YELLOW' || colorId === 'BLUE';
+          }
+          return colorId === normalizedTarget;
+        };
+        const resolveTargetPriorities = (frameSnapshot, activeVariantId, activeBalls) => {
+          const order = [];
+          const pushTargetId = (id) => {
+            const normalized = normalizeTargetId(id);
+            if (!normalized || !isBallTargetId(normalized)) return;
+            if (!order.includes(normalized)) order.push(normalized);
+          };
+          const metaState = frameSnapshot?.meta?.state ?? null;
+          const shooterSeat = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
+          const assignments = metaState?.assignments ?? {};
+          const assignmentTargets = mapAssignmentToTargets(
+            shooterSeat ? assignments[shooterSeat] : null,
+            activeVariantId
+          );
+          assignmentTargets.forEach((id) => pushTargetId(id));
+          const legalTargetsRaw = frameSnapshot?.ballOn ?? [];
+          if (Array.isArray(legalTargetsRaw)) {
+            legalTargetsRaw.forEach((entry) => {
+              const normalized = normalizeTargetId(entry);
+              if (normalized) {
+                pushTargetId(normalized);
+                const numericGroup = mapNumberToGroup(normalized);
+                if (numericGroup) pushTargetId(numericGroup);
+              }
+            });
+          }
+          const shooterSeatRef = shooterSeat && lastPottedBySeatRef.current
+            ? lastPottedBySeatRef.current[shooterSeat]
+            : null;
+          const lastPotId = normalizeTargetId(
+            shooterSeatRef?.id ? toBallColorId(shooterSeatRef.id) : shooterSeatRef?.color
+          );
+          if (lastPotId) {
+            pushTargetId(lastPotId);
+            const numericGroup = mapNumberToGroup(lastPotId);
+            if (numericGroup) pushTargetId(numericGroup);
+          }
+          if (
+            assignmentTargets.length > 0 &&
+            !activeBalls.some((ball) =>
+              assignmentTargets.some((target) => matchesTargetId(ball, target))
+            )
+          ) {
+            pushTargetId('BLACK');
+          }
+          const hasAnyNonBlackTargets = activeBalls.some(
+            (ball) => !matchesTargetId(ball, 'BLACK')
+          );
+          if (!hasAnyNonBlackTargets && activeBalls.some((ball) => matchesTargetId(ball, 'BLACK'))) {
+            pushTargetId('BLACK');
+          }
+          return order;
+        };
+        const pocketCentersCached = pocketEntranceCenters();
+        const scoreBallForAim = (ball, cuePos) => {
+          if (!ball || !cuePos) return -Infinity;
+          const cueDist = cuePos.distanceTo(ball.pos);
+          const nearestPocket = pocketCentersCached.reduce(
+            (min, pocket) => Math.min(min, ball.pos.distanceTo(pocket)),
+            Infinity
+          );
+          const pocketEase = Math.max(0, 1 - nearestPocket / Math.max(PLAY_W, PLAY_H));
+          const cueEase = Math.max(0, 1 - cueDist / Math.max(PLAY_W, PLAY_H));
+          return pocketEase * 0.65 + cueEase * 0.35;
+        };
+        const pickPreferredBall = (targets, candidateBalls, cuePos) => {
+          for (const targetId of targets) {
+            const matches = candidateBalls.filter((ball) => matchesTargetId(ball, targetId));
+            if (matches.length > 0) {
+              return matches.reduce((best, ball) => {
+                if (!best) return ball;
+                const bestScore = scoreBallForAim(best, cuePos);
+                const score = scoreBallForAim(ball, cuePos);
+                return score > bestScore ? ball : best;
+              }, null);
+            }
+          }
+          return null;
+        };
+
         const evaluateShotOptionsBaseline = () => {
           if (!cue?.active) return { bestPot: null, bestSafety: null };
           const state = frameRef.current ?? frameState;
           const activeVariantId = activeVariantRef.current?.id ?? variantKey;
           const activeBalls = balls.filter((b) => b.active);
-          const legalTargetsRaw = Array.isArray(state?.ballOn)
-            ? state.ballOn
-            : ['RED'];
+          const targetOrder = resolveTargetPriorities(state, activeVariantId, activeBalls);
+          const legalTargetsRaw =
+            targetOrder.length > 0
+              ? targetOrder
+              : Array.isArray(state?.ballOn)
+                ? state.ballOn
+                : ['RED'];
           const legalTargets = new Set(
             legalTargetsRaw
-              .map((entry) =>
-                typeof entry === 'string' ? entry.toUpperCase() : entry
-              )
-              .filter(Boolean)
+              .map((entry) => normalizeTargetId(entry))
+              .filter((entry) => entry && isBallTargetId(entry))
           );
           if (legalTargets.size === 0) {
             if (activeVariantId === 'american' || activeVariantId === '9ball') {
@@ -16774,7 +16919,10 @@ const powerRef = useRef(hud.power);
           activeBalls.forEach((targetBall) => {
             if (targetBall === cue) return;
             const colorId = toBallColorId(targetBall.id);
-            if (!colorId || !legalTargets.has(colorId)) return;
+            const targetAllowed =
+              legalTargets.size > 0 &&
+              Array.from(legalTargets).some((id) => matchesTargetId(targetBall, id));
+            if (!colorId || !targetAllowed) return;
             const ignore = new Set([cue.id, targetBall.id]);
             const directClear = isPathClear(cuePos, targetBall.pos, ignore);
             for (let i = 0; i < centers.length; i++) {
@@ -17014,18 +17162,55 @@ const powerRef = useRef(hud.power);
             }
             safetyShots.push(fallbackPlan);
           }
-          potShots.sort(
-            (a, b) =>
-              (b.quality ?? 0) - (a.quality ?? 0) ||
-              a.difficulty - b.difficulty
-          );
+          const scorePotPlan = (plan) => {
+            if (!plan) return -Infinity;
+            const difficultyNorm = Math.max(1, PLAY_W + PLAY_H);
+            const difficulty = Number.isFinite(plan.difficulty)
+              ? plan.difficulty
+              : difficultyNorm;
+            const difficultyEase = 1 - Math.min(difficulty / difficultyNorm, 1);
+            const targetToPocket = Number.isFinite(plan.targetToPocket)
+              ? plan.targetToPocket
+              : Math.max(PLAY_W, PLAY_H);
+            const cueToTarget = Number.isFinite(plan.cueToTarget)
+              ? plan.cueToTarget
+              : Math.max(PLAY_W, PLAY_H);
+            const pocketEase = Math.max(
+              0,
+              1 - targetToPocket / Math.max(BALL_R * 24, 1e-3)
+            );
+            const cueEase = Math.max(0, 1 - cueToTarget / Math.max(PLAY_W, PLAY_H, BALL_R));
+            const quality = plan.quality ?? 0;
+            const priorityIndex = targetOrder.findIndex((target) =>
+              matchesTargetId(plan.targetBall, target)
+            );
+            const priorityBonus =
+              priorityIndex >= 0 ? 1 - Math.min(priorityIndex * 0.18, 0.72) : 0;
+            const cushionPenalty = plan.viaCushion ? 0.18 : 0;
+            return (
+              quality * 0.55 +
+              difficultyEase * 0.2 +
+              pocketEase * 0.1 +
+              cueEase * 0.08 +
+              priorityBonus * 0.1 -
+              cushionPenalty
+            );
+          };
+          const scoredPots = potShots
+            .map((plan) => ({ plan, score: scorePotPlan(plan) }))
+            .sort(
+              (a, b) =>
+                b.score - a.score ||
+                (a.plan?.difficulty ?? 0) - (b.plan?.difficulty ?? 0)
+            );
           safetyShots.sort(
             (a, b) =>
               (b.quality ?? 0) - (a.quality ?? 0) ||
               a.difficulty - b.difficulty
           );
-          const bestDirectPot = potShots.find((plan) => !plan.viaCushion) ?? null;
-          const bestPot = bestDirectPot ?? potShots[0] ?? null;
+          const bestDirectPot =
+            scoredPots.find((entry) => entry.plan && !entry.plan.viaCushion) ?? null;
+          const bestPot = (bestDirectPot ?? scoredPots[0])?.plan ?? null;
           const bestSafety =
             activeVariantId === 'uk' && bestPot ? null : safetyShots[0] ?? null;
           return {
@@ -17363,57 +17548,30 @@ const powerRef = useRef(hud.power);
           );
           if (activeBalls.length === 0) return null;
 
-          const normalizeTargetId = (value) => {
-            if (typeof value === 'string') return value.toUpperCase();
-            return null;
-          };
-          const isBallTargetId = (id) =>
-            typeof id === 'string' &&
-            (/^BALL_(\d+)/.test(id) ||
-              ['RED', 'YELLOW', 'BLUE', 'BLACK', 'PINK', 'GREEN', 'BROWN', 'STRIPE', 'SOLID'].includes(
-                id
-              ));
-          const legalTargetsRaw = frameSnapshot?.ballOn ?? [];
-          const legalTargets = Array.isArray(legalTargetsRaw)
-            ? legalTargetsRaw
-                .map((entry) => normalizeTargetId(entry))
-                .filter((entry) => entry && isBallTargetId(entry))
-            : [];
-          const legalTargetSet = new Set(legalTargets);
           const activeVariantId =
             frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
-          const metaState = frameSnapshot?.meta?.state ?? null;
-          const shooterSeat = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
-          const lastPotEntry =
-            shooterSeat && lastPottedBySeatRef.current
-              ? lastPottedBySeatRef.current[shooterSeat]
-              : null;
-          const lastPotId = normalizeTargetId(
-            lastPotEntry?.id ? toBallColorId(lastPotEntry.id) : lastPotEntry?.color
+          const targetOrder = resolveTargetPriorities(
+            frameSnapshot,
+            activeVariantId,
+            activeBalls
           );
-          const targetPriority = [];
-          const pushTargetId = (id) => {
-            if (!id) return;
-            const normalized = normalizeTargetId(id);
-            if (!normalized || !isBallTargetId(normalized)) return;
-            if (!targetPriority.includes(normalized)) targetPriority.push(normalized);
-          };
-          legalTargets.forEach((entry) => pushTargetId(entry));
-          pushTargetId(lastPotId);
-          const pickClosestBall = (candidates) =>
-            candidates.reduce((best, ball) => {
+          const legalTargetsRaw = Array.isArray(frameSnapshot?.ballOn)
+            ? frameSnapshot.ballOn
+            : [];
+          const combinedTargets = [...targetOrder];
+          legalTargetsRaw
+            .map((entry) => normalizeTargetId(entry))
+            .filter((entry) => entry && isBallTargetId(entry))
+            .forEach((entry) => {
+              if (!combinedTargets.includes(entry)) combinedTargets.push(entry);
+            });
+          const pickFallbackBall = () =>
+            activeBalls.reduce((best, ball) => {
               if (!best) return ball;
-              const bestDist = cuePos.distanceTo(best.pos);
-              const dist = cuePos.distanceTo(ball.pos);
-              return dist < bestDist ? ball : best;
+              const bestScore = scoreBallForAim(best, cuePos);
+              const score = scoreBallForAim(ball, cuePos);
+              return score > bestScore ? ball : best;
             }, null);
-          const eligibleTargets =
-            legalTargetSet.size > 0
-              ? activeBalls.filter((ball) => legalTargetSet.has(toBallColorId(ball.id)))
-              : [];
-          const closestLegalBall =
-            eligibleTargets.length > 0 ? pickClosestBall(eligibleTargets) : null;
-
           const findRackApex = () =>
             activeBalls.reduce((best, ball) => {
               if (!best) return ball;
@@ -17432,11 +17590,12 @@ const powerRef = useRef(hud.power);
             targetBall = findRackApex();
           }
 
-          if (!targetBall && closestLegalBall) {
-            targetBall = closestLegalBall;
+          if (!targetBall && combinedTargets.length > 0) {
+            targetBall = pickPreferredBall(combinedTargets, activeBalls, cuePos);
           }
 
           if (!targetBall && activeVariantId === 'uk') {
+            const metaState = frameSnapshot?.meta?.state ?? null;
             const shooterId = metaState?.currentPlayer ?? null;
             const assignments = metaState?.assignments ?? {};
             const assignedColour = shooterId ? assignments[shooterId] : null;
@@ -17445,75 +17604,27 @@ const powerRef = useRef(hud.power);
             if (assignedColour === 'blue' || assignedColour === 'yellow') {
               preferredColours.push('YELLOW', 'BLUE');
             }
-            if (assignedColour === 'black') preferredColours.push('BLACK');
-            if (preferredColours.length === 0 && legalTargets.length > 0) {
-              preferredColours.push(...legalTargets);
-            }
-            preferredColours.forEach((entry) => pushTargetId(entry));
             if (preferredColours.length > 0) {
-              const ukTargets = activeBalls.filter((ball) =>
-                preferredColours.includes(toBallColorId(ball.id))
-              );
-              if (ukTargets.length > 0) {
-                targetBall = pickClosestBall(ukTargets);
-              }
-            }
-          }
-
-          if (
-            !targetBall &&
-            (activeVariantId === 'american' || activeVariantId === '9ball')
-          ) {
-            const rawNextList = Array.isArray(metaState?.ballOn)
-              ? metaState.ballOn
-              : legalTargets;
-            const normalizedNext = Array.isArray(rawNextList)
-              ? rawNextList
-                  .map((entry) =>
-                    typeof entry === 'string' ? entry.toUpperCase() : entry
-                  )
-                  .filter(Boolean)
-              : [];
-            normalizedNext.forEach((entry) => pushTargetId(entry));
-            const pickFromList = (order) => {
-              for (const targetId of order) {
-                const match = activeBalls.find(
-                  (ball) => toBallColorId(ball.id) === targetId
-                );
-                if (match) return match;
-              }
-              return null;
-            };
-            const prioritized = pickFromList(normalizedNext);
-            if (prioritized) {
-              targetBall = prioritized;
-            }
-            if (!targetBall) {
-              const numbered = activeBalls
-                .map((ball) => {
-                  const colorId = toBallColorId(ball.id);
-                  const match = /^BALL_(\d+)/.exec(colorId ?? '');
-                  return match ? { ball, num: parseInt(match[1], 10) } : null;
-                })
-                .filter(Boolean)
-                .sort((a, b) => a.num - b.num);
-              if (numbered.length > 0) {
-                targetBall = numbered[0].ball;
-              }
-            }
-          }
-
-          if (!targetBall && targetPriority.length > 0) {
-            const priorityBalls = activeBalls.filter((ball) =>
-              targetPriority.includes(toBallColorId(ball.id))
-            );
-            if (priorityBalls.length > 0) {
-              targetBall = pickClosestBall(priorityBalls);
+              targetBall = pickPreferredBall(preferredColours, activeBalls, cuePos);
             }
           }
 
           if (!targetBall) {
-            targetBall = pickClosestBall(activeBalls);
+            targetBall = pickPreferredBall(['BLACK'], activeBalls, cuePos);
+          }
+
+          if (!targetBall) {
+            targetBall = pickPreferredBall(
+              activeBalls
+                .map((ball) => toBallColorId(ball.id))
+                .filter((entry) => entry && isBallTargetId(entry)),
+              activeBalls,
+              cuePos
+            );
+          }
+
+          if (!targetBall && activeBalls.length > 0) {
+            targetBall = pickFallbackBall();
           }
 
           if (!targetBall) return null;
