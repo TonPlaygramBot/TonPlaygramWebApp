@@ -3733,13 +3733,9 @@ const CLOTH_THREAD_PITCH = 12 * 1.55; // enlarge thread spacing for a coarser, m
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.86; // slightly larger pattern footprint to match the scanned cloths
 const CLOTH_TEXTURE_REPEAT_HINT = 1.55;
-const POLYHAVEN_PATTERN_MAGNIFICATION = 3; // enlarge scanned Poly Haven weaves so the pattern reads clearly
-const POLYHAVEN_REPEAT_SCALE = 1 / POLYHAVEN_PATTERN_MAGNIFICATION;
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.35, 0.55);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
-const POLYHAVEN_ROUGHNESS_FLOOR = 0.9; // keep scanned fabrics matte so they do not reflect light
-const CLOTH_BRIGHTNESS_LIFT = 0.08; // brighten the cloth palette so all fabrics read a touch lighter
 
 const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
   if (!cloth?.sourceId) return acc;
@@ -3871,12 +3867,11 @@ const createClothTextures = (() => {
       );
     });
 
-  const applyTextureDefaults = (texture, repeatScale = 1) => {
+  const applyTextureDefaults = (texture) => {
     if (!texture) return;
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    const repeat = CLOTH_TEXTURE_REPEAT_HINT * repeatScale;
-    texture.repeat.set(repeat, repeat);
+    texture.repeat.set(CLOTH_TEXTURE_REPEAT_HINT, CLOTH_TEXTURE_REPEAT_HINT);
     texture.anisotropy = CLOTH_QUALITY.anisotropy;
     texture.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
     texture.minFilter = CLOTH_QUALITY.generateMipmaps
@@ -4085,9 +4080,7 @@ const createClothTextures = (() => {
           loadTexture(loader, urls.roughness, false)
         ]);
 
-        [map, normal, roughness].forEach((texture) =>
-          applyTextureDefaults(texture, POLYHAVEN_REPEAT_SCALE)
-        );
+        [map, normal, roughness].forEach(applyTextureDefaults);
 
         const existing = cache.get(cacheKey) || {};
         cache.set(cacheKey, {
@@ -4131,16 +4124,12 @@ const createClothTextures = (() => {
 
     ensurePolyHavenTextures(preset, cacheKey);
 
-    const isPolyHaven = Boolean(entry.sourceId);
-
     return {
       map: cloneTexture(entry.map),
       bump: cloneTexture(entry.bump),
       normal: cloneTexture(entry.normal),
       roughness: cloneTexture(entry.roughness),
-      presetId: preset.id,
-      repeatScale: isPolyHaven ? POLYHAVEN_REPEAT_SCALE : 1,
-      isPolyHaven
+      presetId: preset.id
     };
   };
 })();
@@ -4179,12 +4168,7 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
   if (!finishInfo?.clothMat) return;
   registerClothTextureConsumer(textureKey, finishInfo);
   const textures = createClothTextures(textureKey);
-  const repeatScale = textures.repeatScale ?? 1;
-  const storedRepeatScale = Math.max(finishInfo.clothMat.userData?.repeatScale ?? 1, 1e-6);
-  const baseRepeatValue =
-    ((finishInfo.clothMat.userData?.baseRepeat ?? finishInfo.clothBase?.baseRepeat ?? 1) /
-      storedRepeatScale) *
-    repeatScale;
+  const baseRepeatValue = finishInfo.clothMat.userData?.baseRepeat ?? finishInfo.clothBase?.baseRepeat ?? 1;
   const repeatRatioValue = finishInfo.clothMat.userData?.repeatRatio ?? finishInfo.clothBase?.repeatRatio ?? 1;
   const fallbackRepeat = new THREE.Vector2(baseRepeatValue, baseRepeatValue * repeatRatioValue);
   replaceMaterialTexture(finishInfo.clothMat, 'map', textures.map, fallbackRepeat);
@@ -4196,32 +4180,15 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
   } else {
     replaceMaterialTexture(finishInfo.clothMat, 'bumpMap', textures.bump, fallbackRepeat);
   }
-  const roughnessFloor = textures.isPolyHaven ? POLYHAVEN_ROUGHNESS_FLOOR : 0;
   if (textures.roughness) {
-    finishInfo.clothMat.roughness = Math.max(CLOTH_ROUGHNESS_TARGET, roughnessFloor);
+    finishInfo.clothMat.roughness = CLOTH_ROUGHNESS_TARGET;
   } else {
-    finishInfo.clothMat.roughness = Math.max(CLOTH_ROUGHNESS_BASE, roughnessFloor);
+    finishInfo.clothMat.roughness = CLOTH_ROUGHNESS_BASE;
   }
   if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
     finishInfo.clothMat.bumpScale = finishInfo.clothBase.baseBumpScale;
   }
-  finishInfo.clothMat.userData = {
-    ...(finishInfo.clothMat.userData || {}),
-    baseRepeat: baseRepeatValue,
-    repeatRatio: repeatRatioValue,
-    nearRepeat: baseRepeatValue * 1.12,
-    farRepeat: baseRepeatValue * 0.44,
-    repeatScale
-  };
   if (finishInfo.cushionMat) {
-    finishInfo.cushionMat.userData = {
-      ...(finishInfo.cushionMat.userData || {}),
-      baseRepeat: baseRepeatValue,
-      repeatRatio: repeatRatioValue,
-      nearRepeat: baseRepeatValue * 1.12,
-      farRepeat: baseRepeatValue * 0.44,
-      repeatScale
-    };
     replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat);
     replaceMaterialTexture(finishInfo.cushionMat, 'normalMap', textures.normal, fallbackRepeat);
     replaceMaterialTexture(
@@ -4237,9 +4204,9 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
       replaceMaterialTexture(finishInfo.cushionMat, 'bumpMap', textures.bump, fallbackRepeat);
     }
     if (textures.roughness) {
-      finishInfo.cushionMat.roughness = Math.max(CLOTH_ROUGHNESS_TARGET, roughnessFloor);
+      finishInfo.cushionMat.roughness = CLOTH_ROUGHNESS_TARGET;
     } else {
-      finishInfo.cushionMat.roughness = Math.max(CLOTH_ROUGHNESS_BASE, roughnessFloor);
+      finishInfo.cushionMat.roughness = CLOTH_ROUGHNESS_BASE;
     }
     if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
       finishInfo.cushionMat.bumpScale = finishInfo.clothBase.baseBumpScale;
@@ -5514,7 +5481,6 @@ const AI_THINKING_BUDGET_MS =
   AI_MAX_SHOT_TIME_MS - AI_MIN_AIM_PREVIEW_MS; // leave room for the cue preview while keeping decisions under 7 seconds
 const AI_CAMERA_DROP_LEAD_MS = 420; // start lowering into cue view shortly before the AI pulls the trigger
 const AI_CAMERA_SETTLE_MS = 320; // allow time for the cue view to settle before firing
-const AI_CUE_HOLD_MS = 3000; // linger in cue camera for three seconds before the AI strikes
 const AI_CAMERA_DROP_BLEND = 0.14;
 const AI_CAMERA_DROP_DURATION_MS = 480;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -6814,28 +6780,19 @@ function Table3D(
     map: clothMap,
     bump: clothBump,
     normal: clothNormal,
-    roughness: clothRoughness,
-    repeatScale: clothRepeatScale = 1,
-    isPolyHaven: clothIsPolyHaven = false
+    roughness: clothRoughness
   } = createClothTextures(clothTextureKey);
   const clothPrimary = new THREE.Color(palette.cloth);
   const cushionPrimary = new THREE.Color(palette.cushion ?? palette.cloth);
   const clothHighlight = new THREE.Color(0xf6fff9);
-  const clothColor = clothPrimary
-    .clone()
-    .lerp(clothHighlight, 0.32)
-    .lerp(new THREE.Color(0xffffff), CLOTH_BRIGHTNESS_LIFT);
-  const cushionColor = cushionPrimary
-    .clone()
-    .lerp(clothHighlight, 0.22)
-    .lerp(new THREE.Color(0xffffff), CLOTH_BRIGHTNESS_LIFT);
+  const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.32);
+  const cushionColor = cushionPrimary.clone().lerp(clothHighlight, 0.22);
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
-  const roughnessFloor = clothIsPolyHaven ? POLYHAVEN_ROUGHNESS_FLOOR : 0;
   const clothSheen = CLOTH_QUALITY.sheen * 0.72;
   const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.08);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: Math.max(CLOTH_ROUGHNESS_BASE, roughnessFloor),
+    roughness: CLOTH_ROUGHNESS_BASE,
     sheen: clothSheen,
     sheenColor,
     sheenRoughness: clothSheenRoughness,
@@ -6853,10 +6810,9 @@ function Table3D(
   const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25 * 1.5 * CLOTH_PATTERN_SCALE; // double the thread pattern size for a looser, woollier weave
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping the cloth visibly taut
-  const baseRepeatUnscaled =
+  const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
-  const baseRepeat = baseRepeatUnscaled * clothRepeatScale;
   const repeatRatio = 3.45;
   const baseBumpScale =
     (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) * CLOTH_QUALITY.bumpScaleMultiplier;
@@ -6884,13 +6840,12 @@ function Table3D(
   if (clothRoughness) {
     clothMat.roughnessMap = clothRoughness;
     clothMat.roughnessMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.roughness = Math.max(CLOTH_ROUGHNESS_TARGET, roughnessFloor);
+    clothMat.roughness = CLOTH_ROUGHNESS_TARGET;
     clothMat.roughnessMap.needsUpdate = true;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
-    repeatScale: clothRepeatScale,
     repeatRatio,
     nearRepeat: baseRepeat * 1.12,
     farRepeat: baseRepeat * 0.44,
@@ -18260,7 +18215,7 @@ const powerRef = useRef(hud.power);
               if (aiShotTimeoutRef.current) {
                 clearTimeout(aiShotTimeoutRef.current);
               }
-              const remaining = Math.max(0, shotDelay - dropDelay) + AI_CUE_HOLD_MS;
+              const remaining = Math.max(0, shotDelay - dropDelay);
               aiShotTimeoutRef.current = window.setTimeout(() => {
                 aiShotTimeoutRef.current = null;
                 applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
