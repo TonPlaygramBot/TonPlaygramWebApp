@@ -96,9 +96,7 @@ The server honors a few extra environment variables when building or serving the
 - `TELEGRAM_APK_URL` – optional absolute URL for the Telegram launcher APK. If unset, drop the APK into
   `webapp/public/downloads/tonplaygram-telegram-launcher.apk` (or override the file name with
   `TELEGRAM_APK_FILE`) and the backend will expose it at `/api/downloads/apk` and
-  `/downloads/<filename>` so users can grab the entire web app and bundled games from one link. If no APK is present,
-  the server now generates a ZIP bundle of the project (excluding `node_modules`, `.env*`, built assets and private
-  binaries) so the download button always returns a usable package without leaking credentials.
+  `/downloads/<filename>` so users can grab the entire web app and bundled games from one link.
 
 5. Copy `scripts/.env.example` to `scripts/.env` and set:
    - `MNEMONIC` – wallet seed phrase used to deploy the Jetton
