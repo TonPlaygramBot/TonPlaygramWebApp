@@ -2781,6 +2781,150 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
       emissiveIntensity: 0.36,
       envMapIntensity: 0.2
     }
+  },
+  {
+    id: 'denim_fabric_03',
+    label: 'Denim Fabric 03',
+    color: 0x2b4a7a,
+    textureKey: 'denim_fabric_03',
+    detail: {
+      roughness: 0.78,
+      sheen: 0.42,
+      sheenRoughness: 0.5
+    }
+  },
+  {
+    id: 'hessian_230',
+    label: 'Hessian 230',
+    color: 0x9b7a45,
+    textureKey: 'hessian_230',
+    detail: {
+      roughness: 0.88,
+      sheen: 0.36,
+      sheenRoughness: 0.6
+    }
+  },
+  {
+    id: 'polar_fleece',
+    label: 'Polar Fleece',
+    color: 0xd9d2c2,
+    textureKey: 'polar_fleece',
+    detail: {
+      sheen: 0.6,
+      sheenRoughness: 0.52,
+      emissiveIntensity: 0.34
+    }
+  },
+  {
+    id: 'cotton_jersey',
+    label: 'Cotton Jersey',
+    color: 0xb9a27d,
+    textureKey: 'cotton_jersey',
+    detail: {
+      sheen: 0.48,
+      sheenRoughness: 0.58,
+      roughness: 0.74
+    }
+  },
+  {
+    id: 'faux_fur_geometric',
+    label: 'Faux Fur Geometric',
+    color: 0xcaa0a8,
+    textureKey: 'faux_fur_geometric',
+    detail: {
+      sheen: 0.66,
+      sheenRoughness: 0.44,
+      emissiveIntensity: 0.4
+    }
+  },
+  {
+    id: 'jogging_melange',
+    label: 'Jogging Mélange',
+    color: 0x7a7a7f,
+    textureKey: 'jogging_melange',
+    detail: {
+      roughness: 0.86,
+      sheen: 0.38,
+      sheenRoughness: 0.58
+    }
+  },
+  {
+    id: 'knitted_fleece',
+    label: 'Knitted Fleece',
+    color: 0x6e5a4a,
+    textureKey: 'knitted_fleece',
+    detail: {
+      sheen: 0.44,
+      sheenRoughness: 0.64,
+      roughness: 0.82
+    }
+  },
+  {
+    id: 'caban',
+    label: 'Caban Wool',
+    color: 0xb56a2a,
+    textureKey: 'caban',
+    detail: {
+      sheen: 0.48,
+      sheenRoughness: 0.56,
+      roughness: 0.8
+    }
+  },
+  {
+    id: 'curly_teddy_natural',
+    label: 'Curly Teddy Natural',
+    color: 0xcdbfa9,
+    textureKey: 'curly_teddy_natural',
+    detail: {
+      sheen: 0.64,
+      sheenRoughness: 0.46,
+      emissiveIntensity: 0.38
+    }
+  },
+  {
+    id: 'curly_teddy_checkered',
+    label: 'Curly Teddy Checkered',
+    color: 0x2f6a70,
+    textureKey: 'curly_teddy_checkered',
+    detail: {
+      sheen: 0.62,
+      sheenRoughness: 0.48,
+      emissiveIntensity: 0.36
+    }
+  },
+  {
+    id: 'denim_fabric_04',
+    label: 'Denim Fabric 04',
+    color: 0x4a78a8,
+    textureKey: 'denim_fabric_04',
+    detail: {
+      sheen: 0.46,
+      sheenRoughness: 0.54,
+      roughness: 0.76
+    }
+  },
+  {
+    id: 'denim_fabric_05',
+    label: 'Denim Fabric 05',
+    color: 0x2c2f35,
+    textureKey: 'denim_fabric_05',
+    detail: {
+      sheen: 0.4,
+      sheenRoughness: 0.6,
+      roughness: 0.82
+    }
+  },
+  {
+    id: 'scuba_suede',
+    label: 'Scuba Suede',
+    color: 0x2a8c86,
+    textureKey: 'scuba_suede',
+    detail: {
+      sheen: 0.56,
+      sheenRoughness: 0.52,
+      roughness: 0.8,
+      clearcoat: 0.06
+    }
   }
 ]);
 
@@ -3555,6 +3699,21 @@ const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 
 const createClothTextures = (() => {
   const cache = new Map();
+  const POLYHAVEN_CLOTH_TEXTURES = Object.freeze({
+    denim_fabric_03: { fallbackColor: 0x2b4a7a },
+    hessian_230: { fallbackColor: 0x9b7a45 },
+    polar_fleece: { fallbackColor: 0xd9d2c2 },
+    cotton_jersey: { fallbackColor: 0xb9a27d },
+    faux_fur_geometric: { fallbackColor: 0xcaa0a8 },
+    jogging_melange: { fallbackColor: 0x7a7a7f },
+    knitted_fleece: { fallbackColor: 0x6e5a4a },
+    caban: { fallbackColor: 0xb56a2a },
+    curly_teddy_natural: { fallbackColor: 0xcdbfa9 },
+    curly_teddy_checkered: { fallbackColor: 0x2f6a70 },
+    denim_fabric_04: { fallbackColor: 0x4a78a8 },
+    denim_fabric_05: { fallbackColor: 0x2c2f35 },
+    scuba_suede: { fallbackColor: 0x2a8c86 }
+  });
   const clamp255 = (value) => Math.max(0, Math.min(255, value));
   const cloneTexture = (texture) => {
     if (!texture) return null;
@@ -3571,7 +3730,128 @@ const createClothTextures = (() => {
       b: Math.round(color.b * 255)
     };
   };
+  const pickBestTextureUrls = (apiJson) => {
+    const urls = [];
+    const walk = (v) => {
+      if (!v) return;
+      if (typeof v === 'string') {
+        if (v.startsWith('http') && (v.includes('.jpg') || v.includes('.png'))) urls.push(v);
+        return;
+      }
+      if (Array.isArray(v)) {
+        v.forEach(walk);
+        return;
+      }
+      if (typeof v === 'object') {
+        Object.keys(v).forEach((k) => walk(v[k]));
+      }
+    };
+    walk(apiJson);
+    const scoreUrl = (u) => {
+      const lu = u.toLowerCase();
+      let score = 0;
+      if (lu.includes('2k')) score += 5;
+      if (lu.includes('jpg')) score += 3;
+      if (lu.includes('png')) score += 2;
+      if (lu.includes('diff') || lu.includes('albedo') || lu.includes('basecolor')) score += 2;
+      if (lu.includes('nor_gl') || lu.includes('normal_gl')) score += 2;
+      if (lu.includes('nor') || lu.includes('normal')) score += 1;
+      if (lu.includes('rough')) score += 1;
+      return score;
+    };
+    const pick = (keywords) =>
+      urls
+        .filter((u) => keywords.some((kw) => u.toLowerCase().includes(kw)))
+        .map((u) => ({ u, score: scoreUrl(u) }))
+        .sort((a, b) => b.score - a.score)[0]?.u;
+    return {
+      diffuse: pick(['diff', 'albedo', 'basecolor']),
+      normal: pick(['nor_gl', 'normal']),
+      roughness: pick(['rough'])
+    };
+  };
+  const loadTexture = (loader, url, isColor) =>
+    new Promise((resolve, reject) => {
+      loader.load(
+        url,
+        (tex) => {
+          if (isColor) tex.colorSpace = THREE.SRGBColorSpace;
+          tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+          tex.repeat.set(2.2, 2.2);
+          tex.needsUpdate = true;
+          resolve(tex);
+        },
+        undefined,
+        reject
+      );
+    });
+  const createSolidTexture = (hex = 0x2d7f4b) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = `#${hex.toString(16).padStart(6, '0')}`;
+    ctx.fillRect(0, 0, 64, 64);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.needsUpdate = true;
+    return tex;
+  };
+  const requestPolyHavenTextures = (textureKey) => {
+    const existing = cache.get(textureKey);
+    if (existing?.promise || existing?.ready) return existing;
+    const fallbackColor = POLYHAVEN_CLOTH_TEXTURES[textureKey]?.fallbackColor ?? 0x2d7f4b;
+    const placeholderMap = createSolidTexture(fallbackColor);
+    const placeholderBump = placeholderMap.clone();
+    const entry = {
+      ready: false,
+      map: placeholderMap,
+      bump: placeholderBump,
+      normal: null,
+      roughness: null,
+      promise: null
+    };
+    cache.set(textureKey, entry);
+    if (typeof fetch !== 'function' || typeof THREE.TextureLoader !== 'function') {
+      entry.ready = true;
+      return entry;
+    }
+    const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin('anonymous');
+    entry.promise = fetch(`https://api.polyhaven.com/files/${textureKey}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then(async (json) => {
+        if (!json) return entry;
+        const urls = pickBestTextureUrls(json);
+        const tasks = [];
+        if (urls.diffuse) tasks.push(loadTexture(loader, urls.diffuse, true).then((t) => (entry.map = t)));
+        if (urls.normal)
+          tasks.push(
+            loadTexture(loader, urls.normal, false).then((t) => {
+              entry.normal = t;
+              entry.bump = t;
+            })
+          );
+        if (urls.roughness)
+          tasks.push(loadTexture(loader, urls.roughness, false).then((t) => (entry.roughness = t)));
+        await Promise.all(tasks);
+        entry.ready = true;
+        return entry;
+      })
+      .catch(() => entry);
+    return entry;
+  };
   return (textureKey = DEFAULT_CLOTH_TEXTURE_KEY) => {
+    if (POLYHAVEN_CLOTH_TEXTURES[textureKey]) {
+      const entry = requestPolyHavenTextures(textureKey);
+      return {
+        map: cloneTexture(entry.map),
+        bump: cloneTexture(entry.bump),
+        normal: cloneTexture(entry.normal),
+        roughness: cloneTexture(entry.roughness),
+        presetId: textureKey,
+        promise: entry.promise
+      };
+    }
     const preset =
       CLOTH_TEXTURE_PRESETS[textureKey] ??
       CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY];
@@ -3584,8 +3864,8 @@ const createClothTextures = (() => {
       };
     }
     if (typeof document === 'undefined') {
-      cache.set(preset.id, { map: null, bump: null });
-      return { map: null, bump: null, presetId: preset.id };
+      cache.set(preset.id, { map: null, bump: null, normal: null, roughness: null });
+      return { map: null, bump: null, normal: null, roughness: null, presetId: preset.id };
     }
 
     const SIZE = CLOTH_TEXTURE_SIZE;
@@ -3751,8 +4031,8 @@ const createClothTextures = (() => {
     bumpCanvas.width = bumpCanvas.height = SIZE;
     const bumpCtx = bumpCanvas.getContext('2d');
     if (!bumpCtx) {
-      cache.set(preset.id, { map: colorMap, bump: null });
-      return { map: cloneTexture(colorMap), bump: null, presetId: preset.id };
+      cache.set(preset.id, { map: colorMap, bump: null, normal: null, roughness: null });
+      return { map: cloneTexture(colorMap), bump: null, normal: null, roughness: null, presetId: preset.id };
     }
     const bumpImage = bumpCtx.createImageData(SIZE, SIZE);
     const bumpData = bumpImage.data;
@@ -3803,10 +4083,12 @@ const createClothTextures = (() => {
     bumpMap.magFilter = THREE.LinearFilter;
     bumpMap.needsUpdate = true;
 
-    cache.set(preset.id, { map: colorMap, bump: bumpMap });
+    cache.set(preset.id, { map: colorMap, bump: bumpMap, normal: null, roughness: null });
     return {
       map: cloneTexture(colorMap),
       bump: cloneTexture(bumpMap),
+      normal: null,
+      roughness: null,
       presetId: preset.id
     };
   };
@@ -3849,18 +4131,22 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
   const baseRepeatValue = finishInfo.clothMat.userData?.baseRepeat ?? finishInfo.clothBase?.baseRepeat ?? 1;
   const repeatRatioValue = finishInfo.clothMat.userData?.repeatRatio ?? finishInfo.clothBase?.repeatRatio ?? 1;
   const fallbackRepeat = new THREE.Vector2(baseRepeatValue, baseRepeatValue * repeatRatioValue);
-  replaceMaterialTexture(finishInfo.clothMat, 'map', textures.map, fallbackRepeat);
-  replaceMaterialTexture(finishInfo.clothMat, 'bumpMap', textures.bump, fallbackRepeat);
-  if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
-    finishInfo.clothMat.bumpScale = finishInfo.clothBase.baseBumpScale;
-  }
-  if (finishInfo.cushionMat) {
-    replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat);
-    replaceMaterialTexture(finishInfo.cushionMat, 'bumpMap', textures.bump, fallbackRepeat);
-    if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
-      finishInfo.cushionMat.bumpScale = finishInfo.clothBase.baseBumpScale;
+  const applyTexturesToMaterial = (material, resolved = textures) => {
+    if (!material) return;
+    replaceMaterialTexture(material, 'map', resolved.map, fallbackRepeat);
+    replaceMaterialTexture(material, 'bumpMap', resolved.bump, fallbackRepeat);
+    replaceMaterialTexture(material, 'normalMap', resolved.normal, fallbackRepeat);
+    replaceMaterialTexture(material, 'roughnessMap', resolved.roughness, fallbackRepeat);
+    if (resolved.normal && material.normalScale) {
+      material.normalScale.set(0.9, 0.45);
     }
-  }
+    if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
+      material.bumpScale = finishInfo.clothBase.baseBumpScale;
+    }
+  };
+
+  applyTexturesToMaterial(finishInfo.clothMat);
+  applyTexturesToMaterial(finishInfo.cushionMat);
   if (finishInfo.clothEdgeMat) {
     const edgeColor = finishInfo.clothMat?.color
       ? finishInfo.clothMat.color.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT)
@@ -3893,6 +4179,23 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     }
     mesh.material.needsUpdate = true;
   });
+  if (textures?.promise?.then) {
+    textures.promise
+      .then((entry) => {
+        if (!entry) return;
+        const resolved = {
+          map: entry.map ?? textures.map,
+          bump: entry.bump ?? textures.bump,
+          normal: entry.normal ?? textures.normal ?? null,
+          roughness: entry.roughness ?? textures.roughness ?? null
+        };
+        applyTexturesToMaterial(finishInfo.clothMat, resolved);
+        applyTexturesToMaterial(finishInfo.cushionMat, resolved);
+        finishInfo.clothMat?.needsUpdate && (finishInfo.clothMat.needsUpdate = true);
+        finishInfo.cushionMat?.needsUpdate && (finishInfo.cushionMat.needsUpdate = true);
+      })
+      .catch(() => {});
+  }
   finishInfo.clothTextureKey = textureKey;
 }
 
@@ -5118,18 +5421,22 @@ const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view 
 const SHORT_RAIL_POCKET_TRIGGER =
   RAIL_LIMIT_Y - POCKET_VIS_R * 0.45; // request pocket cams as soon as play reaches the short rail mouths
 const SHORT_RAIL_POCKET_INTENT_COOLDOWN_MS = 280;
-const AI_MIN_SHOT_TIME_MS = 5000;
-const AI_MAX_SHOT_TIME_MS = 7000;
-const AI_MIN_AIM_PREVIEW_MS = 900;
+const AI_MIN_SHOT_TIME_MS = 9500;
+const AI_MAX_SHOT_TIME_MS = 12000;
+const AI_MIN_AIM_PREVIEW_MS = 2800;
+const AI_STANDING_VIEW_MIN_MS = 2000;
+const AI_STANDING_VIEW_MAX_MS = 3000;
+const AI_CUE_VIEW_MIN_MS = 2000;
+const AI_CUE_VIEW_MAX_MS = 3000;
 const AI_EARLY_SHOT_DIFFICULTY = 120;
 const AI_EARLY_SHOT_CUE_DISTANCE = PLAY_H * 0.55;
 const AI_EARLY_SHOT_DELAY_MS = AI_MIN_SHOT_TIME_MS; // never bypass the full telegraphed aim window
 const AI_THINKING_BUDGET_MS =
   AI_MAX_SHOT_TIME_MS - AI_MIN_AIM_PREVIEW_MS; // leave room for the cue preview while keeping decisions under 7 seconds
-const AI_CAMERA_DROP_LEAD_MS = 420; // start lowering into cue view shortly before the AI pulls the trigger
-const AI_CAMERA_SETTLE_MS = 320; // allow time for the cue view to settle before firing
+const AI_CAMERA_DROP_LEAD_MS = 0; // keep descent scheduled explicitly by the shot timeline instead of jumping early
+const AI_CAMERA_SETTLE_MS = 1100; // allow time for the cue view to settle before firing
 const AI_CAMERA_DROP_BLEND = 0.14;
-const AI_CAMERA_DROP_DURATION_MS = 480;
+const AI_CAMERA_DROP_DURATION_MS = 1300;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -6423,7 +6730,13 @@ function Table3D(
   };
   finishParts.woodRepeatScale = woodRepeatScale;
 
-  const { map: clothMap, bump: clothBump } = createClothTextures(clothTextureKey);
+  const {
+    map: clothMap,
+    bump: clothBump,
+    normal: clothNormal,
+    roughness: clothRoughness,
+    promise: clothPromise
+  } = createClothTextures(clothTextureKey);
   const clothPrimary = new THREE.Color(palette.cloth);
   const cushionPrimary = new THREE.Color(palette.cushion ?? palette.cloth);
   const clothHighlight = new THREE.Color(0xf6fff9);
@@ -6456,6 +6769,7 @@ function Table3D(
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.45;
+  const resolvedRepeat = new THREE.Vector2(baseRepeat, baseRepeat * repeatRatio);
   const baseBumpScale =
     (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) * CLOTH_QUALITY.bumpScaleMultiplier;
   const flattenedBumpScale = baseBumpScale * 0.48;
@@ -6472,6 +6786,17 @@ function Table3D(
   } else {
     clothMat.bumpScale = flattenedBumpScale;
   }
+  if (clothNormal) {
+    clothMat.normalMap = clothNormal;
+    clothMat.normalMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
+    clothMat.normalScale = new THREE.Vector2(0.9, 0.45);
+    clothMat.normalMap.needsUpdate = true;
+  }
+  if (clothRoughness) {
+    clothMat.roughnessMap = clothRoughness;
+    clothMat.roughnessMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
+    clothMat.roughnessMap.needsUpdate = true;
+  }
   clothMat.userData = {
     ...(clothMat.userData || {}),
     baseRepeat,
@@ -6487,6 +6812,19 @@ function Table3D(
   cushionMat.color.copy(cushionColor);
   cushionMat.emissive.copy(cushionColor.clone().multiplyScalar(0.045));
   cushionMat.side = THREE.DoubleSide;
+  if (clothNormal) {
+    cushionMat.normalMap = clothNormal.clone();
+    cushionMat.normalMap.image = clothNormal.image;
+    cushionMat.normalMap.repeat.copy(resolvedRepeat);
+    cushionMat.normalScale = new THREE.Vector2(0.9, 0.45);
+    cushionMat.normalMap.needsUpdate = true;
+  }
+  if (clothRoughness) {
+    cushionMat.roughnessMap = clothRoughness.clone();
+    cushionMat.roughnessMap.image = clothRoughness.image;
+    cushionMat.roughnessMap.repeat.copy(resolvedRepeat);
+    cushionMat.roughnessMap.needsUpdate = true;
+  }
   const clothEdgeMat = clothMat.clone();
   clothEdgeMat.color.copy(clothColor);
   clothEdgeMat.emissive.set(0x000000);
@@ -6517,6 +6855,36 @@ function Table3D(
     baseBumpScale
   };
   const clothMaterials = [clothMat, cushionMat, clothEdgeMat];
+  const applyResolvedClothTextures = (resolved) => {
+    if (!resolved) return;
+    const resolvedMap = resolved.map ?? clothMap ?? null;
+    const resolvedBump = resolved.bump ?? clothBump ?? null;
+    const resolvedNormal = resolved.normal ?? clothNormal ?? null;
+    const resolvedRoughness = resolved.roughness ?? clothRoughness ?? null;
+    replaceMaterialTexture(clothMat, 'map', resolvedMap, resolvedRepeat);
+    replaceMaterialTexture(cushionMat, 'map', resolvedMap, resolvedRepeat);
+    replaceMaterialTexture(clothMat, 'bumpMap', resolvedBump, resolvedRepeat);
+    replaceMaterialTexture(cushionMat, 'bumpMap', resolvedBump, resolvedRepeat);
+    replaceMaterialTexture(clothMat, 'normalMap', resolvedNormal, resolvedRepeat);
+    replaceMaterialTexture(cushionMat, 'normalMap', resolvedNormal, resolvedRepeat);
+    replaceMaterialTexture(clothMat, 'roughnessMap', resolvedRoughness, resolvedRepeat);
+    replaceMaterialTexture(cushionMat, 'roughnessMap', resolvedRoughness, resolvedRepeat);
+    if (resolvedNormal && clothMat.normalScale) {
+      clothMat.normalScale.set(0.9, 0.45);
+      if (!cushionMat.normalScale) {
+        cushionMat.normalScale = new THREE.Vector2(0.9, 0.45);
+      } else {
+        cushionMat.normalScale.set(0.9, 0.45);
+      }
+    }
+    clothMat.needsUpdate = true;
+    cushionMat.needsUpdate = true;
+  };
+  if (clothPromise?.then) {
+    clothPromise
+      .then((entry) => applyResolvedClothTextures(entry))
+      .catch(() => {});
+  }
   const applyClothDetail = (detail) => {
     const overrides = detail && typeof detail === 'object' ? detail : {};
     const bumpMultiplier = Number.isFinite(overrides.bumpMultiplier)
@@ -16609,10 +16977,12 @@ const powerRef = useRef(hud.power);
           const startedAt = aiShotWindowRef.current?.startedAt ?? now;
           const duration = aiShotWindowRef.current?.duration ?? AI_MIN_SHOT_TIME_MS;
           const elapsed = Math.max(0, now - startedAt);
-          const maxRemaining = Math.max(0, AI_MAX_SHOT_TIME_MS - elapsed);
-          const targetRemaining = duration - elapsed;
-          const desiredWindow = Math.max(AI_MIN_AIM_PREVIEW_MS, targetRemaining);
-          return Math.min(maxRemaining, desiredWindow);
+          const windowRemaining = Math.max(0, duration - elapsed);
+          const desiredWindow = Math.max(
+            AI_MIN_AIM_PREVIEW_MS,
+            THREE.MathUtils.randInt(AI_STANDING_VIEW_MIN_MS, AI_STANDING_VIEW_MAX_MS)
+          );
+          return Math.min(windowRemaining, desiredWindow);
         };
         const scheduleEarlyAiShot = (plan) => {
           if (!plan || plan.type !== 'pot') {
@@ -17814,18 +18184,52 @@ const powerRef = useRef(hud.power);
               clearTimeout(aiShotCueDropTimeoutRef.current);
               aiShotCueDropTimeoutRef.current = null;
             }
-            const previewDelayMs = resolveAiPreviewDelay();
-            const dropDelay = Math.max(0, previewDelayMs - AI_CAMERA_DROP_LEAD_MS);
-            const shotDelay = Math.max(previewDelayMs, dropDelay + AI_CAMERA_SETTLE_MS);
+            const windowDuration = aiShotWindowRef.current?.duration ?? AI_MIN_SHOT_TIME_MS;
+            const windowStart = aiShotWindowRef.current?.startedAt ?? performance.now();
+            const elapsedSinceWindowStart = Math.max(0, performance.now() - windowStart);
+            const windowRemaining = Math.max(
+              AI_MIN_SHOT_TIME_MS * 0.6,
+              windowDuration - elapsedSinceWindowStart
+            );
+            const standingPreviewMs = THREE.MathUtils.randInt(
+              AI_STANDING_VIEW_MIN_MS,
+              AI_STANDING_VIEW_MAX_MS
+            );
+            const cueDropDurationMs = THREE.MathUtils.randInt(
+              AI_CUE_VIEW_MIN_MS,
+              AI_CUE_VIEW_MAX_MS
+            );
+            const cueHoldDurationMs = THREE.MathUtils.randInt(
+              AI_CUE_VIEW_MIN_MS,
+              AI_CUE_VIEW_MAX_MS
+            );
+            const baseTimeline = standingPreviewMs + cueDropDurationMs + cueHoldDurationMs;
+            const timelineScale =
+              baseTimeline > windowRemaining ? windowRemaining / baseTimeline : 1;
+            const resolvedStandingMs = Math.max(
+              AI_STANDING_VIEW_MIN_MS * 0.9,
+              Math.round(standingPreviewMs * timelineScale)
+            );
+            const resolvedDropMs = Math.max(
+              AI_CUE_VIEW_MIN_MS * 0.9,
+              Math.round(cueDropDurationMs * timelineScale)
+            );
+            const resolvedCueHoldMs = Math.max(
+              Math.max(AI_CUE_VIEW_MIN_MS * 0.9, AI_CAMERA_SETTLE_MS),
+              Math.round(cueHoldDurationMs * timelineScale)
+            );
+            const previewDelayMs = Math.max(resolvedStandingMs, AI_MIN_AIM_PREVIEW_MS);
+            const dropDelay = previewDelayMs;
+            const shotDelay = previewDelayMs + resolvedDropMs + resolvedCueHoldMs;
             const beginCueView = () => {
               setAiShotCueViewActive(true);
               setAiShotPreviewActive(false);
               aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
-              tweenCameraBlend(aiCueViewBlendRef.current, AI_CAMERA_DROP_DURATION_MS);
+              tweenCameraBlend(aiCueViewBlendRef.current, resolvedDropMs || AI_CAMERA_DROP_DURATION_MS);
               if (aiShotTimeoutRef.current) {
                 clearTimeout(aiShotTimeoutRef.current);
               }
-              const remaining = Math.max(0, shotDelay - dropDelay);
+              const remaining = Math.max(0, resolvedDropMs + resolvedCueHoldMs);
               aiShotTimeoutRef.current = window.setTimeout(() => {
                 aiShotTimeoutRef.current = null;
                 applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
