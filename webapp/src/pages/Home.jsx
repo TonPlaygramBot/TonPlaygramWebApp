@@ -34,6 +34,7 @@ import useTokenBalances from '../hooks/useTokenBalances.js';
 import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
 import { cacheOfflineAssets, isTelegramEnvironment, shouldAutoWarmOfflineCache } from '../pwa/offlineCache.js';
+import ProceduralDownloads from '../components/ProceduralDownloads.jsx';
 
 
 export default function Home() {
@@ -237,10 +238,11 @@ export default function Home() {
 
       </div>
 
-        <div className="grid grid-cols-1 gap-4">
-          <TasksCard />
-        </div>
-        <ProjectAchievementsCard />
+      <div className="grid grid-cols-1 gap-4">
+        <TasksCard />
+      </div>
+      <ProjectAchievementsCard />
+      <ProceduralDownloads />
 
       <div className="flex justify-center space-x-4 mt-4">
         <a
