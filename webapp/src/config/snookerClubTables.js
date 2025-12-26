@@ -1,6 +1,6 @@
-const BASE_TABLE_SCALE = 1.32;
-const BASE_TABLE_MOBILE_SCALE = 1.36;
-const BASE_TABLE_COMPACT_SCALE = 1.28;
+const BASE_TABLE_SCALE = 1.46;
+const BASE_TABLE_MOBILE_SCALE = 1.52;
+const BASE_TABLE_COMPACT_SCALE = 1.36;
 const BASE_PLAYFIELD_WIDTH_MM = 3556; // reference 12 ft match table width
 
 const TABLE_PHYSICAL_SPECS = Object.freeze({
@@ -16,9 +16,9 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
     cushionCutAngleDeg: 35,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 105 }),
     scaleOverrides: Object.freeze({
-      scale: 1.36,
-      mobileScale: 1.44,
-      compactScale: 1.3
+      scale: 1.56,
+      mobileScale: 1.68,
+      compactScale: 1.48
     })
   },
   '10ft': {

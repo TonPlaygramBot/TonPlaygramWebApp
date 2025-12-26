@@ -408,8 +408,6 @@ function adjustSideNotchDepth(mp) {
 
 const POCKET_VISUAL_EXPANSION = 1.034;
 const CORNER_POCKET_INWARD_SCALE = 1.008; // pull the rounded corner cuts a hair further inward without moving the pocket centers
-const CORNER_POCKET_SCALE_BOOST = 0.998; // ease the restriction so the corner mouth opens slightly wider than before
-const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01; // widen the chrome arc so the fascia tracks the photographed pocket throat
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // mirror snooker notch depth so the rounded chrome cut hugs the cloth identically
 const CHROME_CORNER_EXPANSION_SCALE = 1.002; // trim back the fascia so it now finishes flush with the pocket jaw edge along the long rail
@@ -741,8 +739,8 @@ function addPocketCuts(
 // separate scales for table and balls
 // Dimensions tuned for an official 9ft pool table footprint while globally reduced
 // to fit comfortably inside the existing mobile arena presentation.
-const TABLE_SIZE_SHRINK = 0.85; // match Pool Royale arena footprint while preserving the official snooker proportions
-const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // reuse Pool Royale trim so we can drop the snooker layout into the same shell
+const TABLE_SIZE_SHRINK = 0.95; // expand the snooker footprint so it reads larger than Pool Royale while keeping proportions intact
+const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // reuse Pool Royale trim while allowing the larger snooker layout to stretch further
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 0.88; // pull the entire table set ~12% closer so the arena feels more intimate without distorting proportions
@@ -756,7 +754,7 @@ const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const TABLE_BASE_SCALE = 1.17;
-const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
+const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // enlarge the snooker build while keeping proportions untouched
 const TABLE = {
   W: 72 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
@@ -816,17 +814,17 @@ const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; //
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-// Dimensions reflect WPBSA full-size snooker specifications (playing surface ~3569 mm × 1778 mm),
-// scaled down onto the Pool Royale shell so the layout matches 1:1 while respecting the official ratios.
+// Dimensions reflect WPBSA full-size snooker proportions (playing surface ~3569 mm × 1778 mm),
+// scaled down onto the Pool Royale shell while reusing Pool Royale ball + pocket sizing for visual parity.
 const WIDTH_REF = 3569;
 const HEIGHT_REF = 1778;
-const BALL_D_REF = 52.5; // official snooker ball diameter (52.5 mm)
+const BALL_D_REF = 57.15; // match Pool Royale ball diameter (57.15 mm) for consistent visuals
 const BAULK_FROM_BAULK_REF = 737; // official baulk line distance from the baulk cushion
 const D_RADIUS_REF = 292;
 const PINK_FROM_TOP_REF = 737; // pink spot distance from the top cushion on a full-size snooker table
 const BLACK_FROM_TOP_REF = 324; // black spot distance from the top cushion on a full-size snooker table
-const CORNER_MOUTH_REF = 86; // WPBSA corner pocket mouth between cushion noses
-const SIDE_MOUTH_REF = 92; // WPBSA side pocket mouth between cushion noses
+const CORNER_MOUTH_REF = 114.3; // reuse Pool Royale corner pocket mouth between cushion noses
+const SIDE_MOUTH_REF = 127; // reuse Pool Royale side pocket mouth between cushion noses
 const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -846,13 +844,14 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Snooker table inner ratio must match the 2:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 1; // preserve the official snooker ball diameter while letting the global table scale shrink the layout
+const POOL_BALL_DIAMETER_UNITS = 2.2869143826790057; // Pool Royale ball size in world units
+const BALL_SIZE_SCALE = POOL_BALL_DIAMETER_UNITS / (BALL_D_REF * MM_TO_UNITS); // keep snooker balls visually identical to Pool Royale
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres with Pool Royale positioning while staying on the official snooker footprint
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.05; // push middle pocket centres slightly outward to match the Pool Royale fascia alignment
-const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.02; // gently bias the middle pocket centres and cuts back toward the playfield
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.02; // align middle pocket centres with Pool Royale fascia placement
+const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.026; // mirror Pool Royale middle-pocket balance toward the playfield
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -868,17 +867,18 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const PINK_FROM_TOP = PINK_FROM_TOP_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
+const POOL_CORNER_MOUTH_UNITS = 4.9788771951091375; // Pool Royale corner pocket mouth in world units
+const POOL_SIDE_MOUTH_UNITS = 4.769764352914554; // Pool Royale side pocket mouth in world units
 const POCKET_CORNER_MOUTH_SCALE =
-  CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE; // mirror the Pool Royale corner mouth width after scaling
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.972; // keep the side pocket mouth aligned with the Pool Royale jaw width
+  POOL_CORNER_MOUTH_UNITS / (CORNER_MOUTH_REF * MM_TO_UNITS); // enforce Pool Royale mouth size on the larger snooker layout
+const POCKET_CORNER_MOUTH = POOL_CORNER_MOUTH_UNITS;
+const POCKET_SIDE_MOUTH = POOL_SIDE_MOUTH_UNITS;
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = POCKET_SIDE_MOUTH / POCKET_CORNER_MOUTH; // maintain the Pool Royale side-to-corner ratio
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
-  SIDE_POCKET_MOUTH_REDUCTION_SCALE; // preserve the official side-to-corner ratio while reusing the Pool Royale pocket fascia
-const SIDE_POCKET_CUT_SCALE = 0.968; // make the middle cloth/rail cutouts a touch smaller without altering fascia or jaw geometry
-const POCKET_CORNER_MOUTH =
-  CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
-const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
+  SIDE_POCKET_MOUTH_REDUCTION_SCALE;
+const SIDE_POCKET_CUT_SCALE = 0.954; // mirror Pool Royale side cut sizing
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_INTERIOR_TOP_SCALE = 1.012; // gently expand the interior diameter at the top of each pocket for a broader opening
 const POCKET_R = POCKET_VIS_R * 0.985;
