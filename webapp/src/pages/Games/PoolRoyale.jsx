@@ -2444,32 +2444,32 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   arcticBlue: Object.freeze({
     id: 'arcticBlue',
     palette: {
-      shadow: 0x265a7d,
-      base: 0x4b9bc7,
-      accent: 0x74bade,
-      highlight: 0xa5d5ee
+      shadow: 0x2a668a,
+      base: 0x3d9ed8,
+      accent: 0x7dcaf7,
+      highlight: 0xb4e5ff
     },
-    sparkle: 0.96,
-    stray: 1.04
+    sparkle: 1.05,
+    stray: 1.12
   }),
   emeraldPulse: Object.freeze({
     id: 'emeraldPulse',
     palette: {
-      shadow: 0x0e4a33,
-      base: 0x25945c,
-      accent: 0x36b876,
-      highlight: 0x5fce94
+      shadow: 0x0f5a38,
+      base: 0x1fa95f,
+      accent: 0x2fce7a,
+      highlight: 0x6ff3b1
     },
-    sparkle: 0.98,
-    stray: 1.02
+    sparkle: 1.08,
+    stray: 1.05
   }),
   ivyDrift: Object.freeze({
     id: 'ivyDrift',
     palette: {
-      shadow: 0x123f28,
-      base: 0x277549,
-      accent: 0x37985e,
-      highlight: 0x59c487
+      shadow: 0x0e3b24,
+      base: 0x1f6a3d,
+      accent: 0x2f8f56,
+      highlight: 0x52c586
     },
     sparkle: 0.9,
     stray: 0.92
@@ -2477,13 +2477,13 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   mintRadiance: Object.freeze({
     id: 'mintRadiance',
     palette: {
-      shadow: 0x1d6e57,
-      base: 0x3abf9b,
-      accent: 0x55d6b2,
-      highlight: 0x8be9cf
+      shadow: 0x0f7f6a,
+      base: 0x2fcfba,
+      accent: 0x66e9d3,
+      highlight: 0xb4fff3
     },
-    sparkle: 1.02,
-    stray: 1.08
+    sparkle: 1.12,
+    stray: 1.18
   }),
   cobaltFrost: Object.freeze({
     id: 'cobaltFrost',
@@ -2499,24 +2499,24 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   midnightWave: Object.freeze({
     id: 'midnightWave',
     palette: {
-      shadow: 0x102844,
-      base: 0x1f487f,
-      accent: 0x2f6aa8,
-      highlight: 0x4f8cc8
+      shadow: 0x0b1b3d,
+      base: 0x133a73,
+      accent: 0x1f5aa4,
+      highlight: 0x3a7dd8
     },
-    sparkle: 0.9,
-    stray: 0.94
+    sparkle: 0.82,
+    stray: 0.88
   }),
   neonAzure: Object.freeze({
     id: 'neonAzure',
     palette: {
-      shadow: 0x0d5775,
-      base: 0x1a9fcf,
-      accent: 0x33bde6,
-      highlight: 0x7edcf5
+      shadow: 0x0b3e5a,
+      base: 0x0fb3e0,
+      accent: 0x29d9ff,
+      highlight: 0x7ce9ff
     },
-    sparkle: 1.05,
-    stray: 1.08
+    sparkle: 1.18,
+    stray: 1.2
   }),
   crimsonFlash: Object.freeze({
     id: 'crimsonFlash',
@@ -2554,35 +2554,35 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   forestPrime: Object.freeze({
     id: 'forestPrime',
     palette: {
-      shadow: 0x123f29,
-      base: 0x277a48,
-      accent: 0x3a9a60,
-      highlight: 0x60c685
+      shadow: 0x0d2d1a,
+      base: 0x1f6b3a,
+      accent: 0x2f8f52,
+      highlight: 0x4ecf7a
     },
-    sparkle: 0.92,
-    stray: 0.98
+    sparkle: 0.88,
+    stray: 0.94
   }),
   evergreenLuxe: Object.freeze({
     id: 'evergreenLuxe',
     palette: {
-      shadow: 0x133e2a,
-      base: 0x2f8550,
-      accent: 0x45a369,
-      highlight: 0x70c992
+      shadow: 0x103626,
+      base: 0x2c8a53,
+      accent: 0x43a86a,
+      highlight: 0x71d69b
     },
-    sparkle: 0.98,
-    stray: 0.98
+    sparkle: 1.02,
+    stray: 1
   }),
   jadeCurrent: Object.freeze({
     id: 'jadeCurrent',
     palette: {
-      shadow: 0x0f4d3f,
-      base: 0x2a9b7d,
-      accent: 0x3ec3a0,
-      highlight: 0x78e1c6
+      shadow: 0x0a3a32,
+      base: 0x1fa37c,
+      accent: 0x32c99f,
+      highlight: 0x7bf2cb
     },
-    sparkle: 1.02,
-    stray: 1.06
+    sparkle: 1.1,
+    stray: 1.12
   })
 });
 
@@ -2615,7 +2615,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'arcticBlue',
     label: 'Arctic Blue',
-    color: 0x5ab2df,
+    color: 0x6fc5f6,
     textureKey: 'arcticBlue',
     detail: {
       sheen: 0.64,
@@ -2626,19 +2626,19 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'emeraldPulse',
     label: 'Emerald Pulse',
-    color: 0x28a164,
+    color: 0x2ac278,
     textureKey: 'emeraldPulse',
     detail: {
       sheen: 0.62,
       sheenRoughness: 0.48,
       bumpMultiplier: 1.08,
-      emissiveIntensity: 0.36
+      emissiveIntensity: 0.4
     }
   },
   {
     id: 'ivyDrift',
     label: 'Ivy Drift',
-    color: 0x277549,
+    color: 0x1f6a3d,
     textureKey: 'ivyDrift',
     detail: {
       roughness: 0.78,
@@ -2649,12 +2649,12 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'mintRadiance',
     label: 'Mint Radiance',
-    color: 0x3abf9b,
+    color: 0x56e8d4,
     textureKey: 'mintRadiance',
     detail: {
       sheen: 0.7,
       sheenRoughness: 0.42,
-      emissiveIntensity: 0.4,
+      emissiveIntensity: 0.46,
       envMapIntensity: 0.2
     }
   },
@@ -2673,24 +2673,24 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'midnightWave',
     label: 'Midnight Wave',
-    color: 0x1f4b86,
+    color: 0x1f4da8,
     textureKey: 'midnightWave',
     detail: {
       roughness: 0.82,
       bumpMultiplier: 0.9,
-      emissiveIntensity: 0.26
+      emissiveIntensity: 0.3
     }
   },
   {
     id: 'neonAzure',
     label: 'Neon Azure',
-    color: 0x1a9ece,
+    color: 0x1fc9f0,
     textureKey: 'neonAzure',
     detail: {
       sheen: 0.78,
       sheenRoughness: 0.34,
-      bumpMultiplier: 1.06,
-      emissiveIntensity: 0.42
+      bumpMultiplier: 1.12,
+      emissiveIntensity: 0.5
     }
   },
   {
@@ -2735,40 +2735,40 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'forestPrime',
     label: 'Forest Prime',
-    color: 0x2b8a57,
+    color: 0x217a45,
     textureKey: 'forestPrime',
     detail: {
       roughness: 0.76,
-      sheen: 0.62,
-      sheenRoughness: 0.44,
-      emissiveIntensity: 0.34,
+      sheen: 0.6,
+      sheenRoughness: 0.46,
+      emissiveIntensity: 0.32,
       envMapIntensity: 0.16
     }
   },
   {
     id: 'evergreenLuxe',
     label: 'Evergreen Luxe',
-    color: 0x2f8d5b,
+    color: 0x2f9c5f,
     textureKey: 'evergreenLuxe',
     detail: {
-      sheen: 0.66,
-      sheenRoughness: 0.42,
+      sheen: 0.68,
+      sheenRoughness: 0.4,
       bumpMultiplier: 1.02,
-      emissiveIntensity: 0.38,
+      emissiveIntensity: 0.42,
       envMapIntensity: 0.2
     }
   },
   {
     id: 'jadeCurrent',
     label: 'Jade Current',
-    color: 0x2ba889,
+    color: 0x1fb190,
     textureKey: 'jadeCurrent',
     detail: {
-      sheen: 0.68,
-      sheenRoughness: 0.38,
-      bumpMultiplier: 1.08,
-      emissiveIntensity: 0.44,
-      envMapIntensity: 0.22
+      sheen: 0.74,
+      sheenRoughness: 0.36,
+      bumpMultiplier: 1.1,
+      emissiveIntensity: 0.46,
+      envMapIntensity: 0.24
     }
   }
 ]);
@@ -9342,8 +9342,8 @@ function PoolRoyaleGame({
   );
   const availablePocketLiners = useMemo(
     () =>
-      POCKET_LINER_OPTIONS.filter(
-        (option) => option && isPoolOptionUnlocked('pocketLiner', option.id, poolInventory)
+      POCKET_LINER_OPTIONS.filter((option) =>
+        isPoolOptionUnlocked('pocketLiner', option.id, poolInventory)
       ),
     [poolInventory]
   );
@@ -10430,7 +10430,6 @@ const powerRef = useRef(hud.power);
     standing: { phi: STANDING_VIEW.phi, radius: BREAK_VIEW.radius }
   });
   const rendererRef = useRef(null);
-  const rendererQualityRef = useRef({ pixelRatio: 1, renderScale: 1 });
   const last3DRef = useRef({ phi: CAMERA.maxPhi, theta: Math.PI });
   const cushionHeightRef = useRef(TABLE.THICK + 0.4);
   const fitRef = useRef(() => {});
@@ -10462,54 +10461,13 @@ const powerRef = useRef(hud.power);
       (typeof window !== 'undefined' ? resolveDefaultPixelRatioCap() : 2);
     const renderScale =
       typeof quality?.renderScale === 'number' && Number.isFinite(quality.renderScale)
-        ? THREE.MathUtils.clamp(quality.renderScale, 0.75, 1.15)
+        ? THREE.MathUtils.clamp(quality.renderScale, 0.75, 1)
         : 1;
-    const appliedPixelRatio = Math.min(pixelRatioCap, dpr);
-    renderer.setPixelRatio(appliedPixelRatio);
+    renderer.setPixelRatio(Math.min(pixelRatioCap, dpr));
     renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
-    rendererQualityRef.current = {
-      pixelRatio: appliedPixelRatio,
-      renderScale
-    };
   }, []);
-  const tuneRendererForFrame = useCallback(
-    (targetFrameTime, rawDeltaMs) => {
-      const renderer = rendererRef.current;
-      const host = mountRef.current;
-      const quality = frameQualityRef.current;
-      if (!renderer || !host || !quality || !targetFrameTime) {
-        return;
-      }
-      const dpr =
-        typeof window !== 'undefined' && typeof window.devicePixelRatio === 'number'
-          ? window.devicePixelRatio
-          : 1;
-      const desiredPixelRatio = Math.min(
-        quality.pixelRatioCap ?? resolveDefaultPixelRatioCap(),
-        dpr
-      );
-      const currentPixelRatio =
-        renderer.getPixelRatio?.() ?? rendererQualityRef.current.pixelRatio ?? desiredPixelRatio;
-      const slowFrame = rawDeltaMs > targetFrameTime * 1.15;
-      const fastFrame = rawDeltaMs < targetFrameTime * 0.85;
-      let nextPixelRatio = currentPixelRatio;
-      const adjustStep = 0.06;
-      if (slowFrame && currentPixelRatio > 1) {
-        nextPixelRatio = Math.max(1, currentPixelRatio - adjustStep);
-      } else if (fastFrame && currentPixelRatio < desiredPixelRatio) {
-        nextPixelRatio = Math.min(desiredPixelRatio, currentPixelRatio + adjustStep);
-      }
-      if (Math.abs(nextPixelRatio - currentPixelRatio) > 0.01) {
-        renderer.setPixelRatio(nextPixelRatio);
-        const renderScale = rendererQualityRef.current.renderScale ?? 1;
-        renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
-        rendererQualityRef.current.pixelRatio = nextPixelRatio;
-      }
-    },
-    []
-  );
   useEffect(() => {
     applyRendererQuality();
   }, [applyRendererQuality, frameQualityProfile]);
@@ -18099,7 +18057,6 @@ const powerRef = useRef(hud.power);
             ? frameTiming.maxMs
             : targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
         const rawDelta = Math.max(now - lastStepTime, 0);
-        tuneRendererForFrame(targetFrameTime, rawDelta);
         const deltaMs = Math.min(rawDelta, maxFrameTime);
         const appliedDeltaMs = deltaMs;
         const deltaSeconds = appliedDeltaMs / 1000;
@@ -19394,11 +19351,7 @@ const powerRef = useRef(hud.power);
       // Resize
         const onResize = () => {
           if (disposed || !host) return;
-          const renderScale = rendererQualityRef.current.renderScale ?? 1;
-          renderer.setSize(
-            host.clientWidth * renderScale,
-            host.clientHeight * renderScale
-          );
+          renderer.setSize(host.clientWidth, host.clientHeight);
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
           const scaleChanged = applyWorldScaleRef.current?.() ?? false;
@@ -20021,44 +19974,6 @@ const powerRef = useRef(hud.power);
                     );
                   })}
                 </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Pocket Jaws
-                </h3>
-                {availablePocketLiners.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {availablePocketLiners.map((option) => {
-                      const active = option.id === pocketLinerId;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setPocketLinerId(option.id)}
-                          aria-pressed={active}
-                          className={`flex-1 min-w-[9rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                          }`}
-                        >
-                          <span className="flex items-center justify-center gap-2">
-                            <span
-                              className="h-3.5 w-3.5 rounded-full border border-white/40"
-                              style={{ backgroundColor: toHexColor(option.jawColor ?? option.rimColor) }}
-                              aria-hidden="true"
-                            />
-                            {option.label}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/50">
-                    Unlock jaws in the store to customise pockets.
-                  </p>
-                )}
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
