@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import { applySRGBColorSpace } from './colorSpace.js';
 
 // Pool Royale generates up to 15 numbered + striped textures when players pick the
-// Solids & Stripes skin for UK 8-ball. At 4096px this was exhausting mobile GPUs
-// and crashing the session, so dial the texture size back to keep memory in check.
-const BALL_TEXTURE_SIZE = 1024;
+// Solids & Stripes skin for UK 8-ball. Increase the resolution for crisper patterns
+// while staying well below the 4K floor that previously overwhelmed mobile GPUs.
+const BALL_TEXTURE_SIZE = 2048;
 const BALL_TEXTURE_CACHE = new Map();
 const BALL_MATERIAL_CACHE = new Map();
 
@@ -80,7 +80,7 @@ function drawNumberBadge(ctx, size, number) {
 }
 
 function drawPoolNumberBadge(ctx, size, number) {
-  const radius = size * 0.08; // shrink the badge so numbers sit farther inside the stripes
+  const radius = size * 0.24; // enlarge badge so labels sit boldly across every skin
   const badgeStretch = 2; // compensate equirectangular vertical compression on spheres
   const cx = size * 0.5;
   const cy = size * 0.5;
@@ -93,14 +93,14 @@ function drawPoolNumberBadge(ctx, size, number) {
   ctx.fillStyle = '#ffffff';
   ctx.fill();
 
-  ctx.lineWidth = Math.max(2, Math.floor(size * 0.016));
+  ctx.lineWidth = Math.max(3, Math.floor(size * 0.024));
   ctx.strokeStyle = '#000000';
   ctx.stroke();
 
   const numStr = String(number);
 
   ctx.fillStyle = '#000000';
-  const fontSize = numStr.length === 2 ? size * 0.1296 : size * 0.144; // ~20% smaller label text
+  const fontSize = numStr.length === 2 ? size * 0.216 : size * 0.24; // keep dual digits centered while scaling up
   ctx.font = `900 ${fontSize}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -128,7 +128,7 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
 
   if (pattern === 'stripe') {
     ctx.fillStyle = baseHex;
-    const stripeHeight = size * 0.45;
+    const stripeHeight = size * 0.72;
     const stripeY = (size - stripeHeight) / 2;
     ctx.fillRect(0, stripeY, size, stripeHeight);
   }
@@ -305,14 +305,14 @@ export function getBallMaterial({
   const material = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
     map,
-    clearcoat: 1,
-    clearcoatRoughness: 0.015,
-    metalness: 0.24,
-    roughness: 0.06,
-    reflectivity: 1,
-    sheen: 0.18,
-    sheenColor: new THREE.Color(0xf8f9ff),
-    envMapIntensity: 1.18
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.34,
+    metalness: 0.08,
+    roughness: 0.42,
+    reflectivity: 0.35,
+    sheen: 0.12,
+    sheenColor: new THREE.Color(0xf4f5fa),
+    envMapIntensity: 0.42
   });
   material.needsUpdate = true;
   BALL_MATERIAL_CACHE.set(cacheKey, material);
