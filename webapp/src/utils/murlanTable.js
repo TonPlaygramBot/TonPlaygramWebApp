@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { applySRGBColorSpace } from './colorSpace.js';
+import { POLY_HAVEN_CLOTHS } from './tableCustomizationOptions.js';
 import {
   applyWoodTextures,
   WOOD_FINISH_PRESETS,
@@ -33,6 +34,14 @@ export const DEFAULT_TABLE_CLOTH_OPTION = Object.freeze({
   feltBottom: '#054d24',
   emissive: '#021a0b'
 });
+
+const POLY_HAVEN_CLOTH_IDS = new Set(POLY_HAVEN_CLOTHS.map((cloth) => cloth.id));
+const POLY_HAVEN_PATTERN_REPEAT = 2.4 / 3; // 3x larger pattern footprint than our previous tiling
+const POLY_HAVEN_MIN_ANISOTROPY = 12;
+const polyHavenTextureCache = new Map();
+const polyHavenPendingLoads = new Map();
+const polyHavenLoader = new THREE.TextureLoader();
+polyHavenLoader.setCrossOrigin('anonymous');
 
 export function createRegularPolygonShape(sides = 8, radius = 1) {
   const shape = new THREE.Shape();
@@ -140,6 +149,158 @@ function createDirectionalRadiusSampler(points, fallbackRadius) {
     }
     return max;
   };
+}
+
+function pickPolyHavenTextureUrls(apiJson) {
+  const urls = [];
+  const walk = (value) => {
+    if (!value) return;
+    if (typeof value === 'string') {
+      if (value.startsWith('http') && (value.endsWith('.jpg') || value.endsWith('.png'))) {
+        urls.push(value);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.values(value).forEach(walk);
+    }
+  };
+  walk(apiJson);
+
+  const pick = (keywords) => {
+    const scored = urls
+      .filter((url) => keywords.some((kw) => url.toLowerCase().includes(kw)))
+      .map((url) => {
+        const lower = url.toLowerCase();
+        let score = 0;
+        if (lower.includes('8k')) score += 10;
+        if (lower.includes('4k')) score += 7;
+        if (lower.includes('2k')) score += 4;
+        if (lower.includes('1k')) score += 2;
+        if (lower.endsWith('.jpg')) score += 3;
+        if (lower.endsWith('.png')) score += 2;
+        if (lower.includes('diff') || lower.includes('albedo') || lower.includes('basecolor')) score += 3;
+        if (lower.includes('nor_gl') || lower.includes('normal_gl')) score += 3;
+        if (lower.includes('nor') || lower.includes('normal')) score += 1;
+        if (lower.includes('rough')) score += 2;
+        return { url, score };
+      })
+      .sort((a, b) => b.score - a.score);
+    return scored[0]?.url ?? null;
+  };
+
+  return {
+    diffuse: pick(['diff', 'diffuse', 'albedo', 'basecolor']),
+    normal: pick(['nor_gl', 'normal_gl', 'nor', 'normal']),
+    roughness: pick(['rough', 'roughness'])
+  };
+}
+
+function applyPolyHavenTextureDefaults(texture, renderer) {
+  if (!texture) return;
+  const maxAniso = renderer?.capabilities?.getMaxAnisotropy?.();
+  const targetAniso = Math.max(POLY_HAVEN_MIN_ANISOTROPY, Number(maxAniso) || POLY_HAVEN_MIN_ANISOTROPY);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = targetAniso;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+}
+
+const loadPolyHavenTexture = (url, isColor, renderer) =>
+  new Promise((resolve, reject) => {
+    if (!url) {
+      resolve(null);
+      return;
+    }
+    polyHavenLoader.load(
+      url,
+      (texture) => {
+        if (isColor) {
+          applySRGBColorSpace(texture);
+        }
+        applyPolyHavenTextureDefaults(texture, renderer);
+        resolve(texture);
+      },
+      undefined,
+      (err) => reject(err || new Error('Poly Haven texture load failed'))
+    );
+  });
+
+async function fetchPolyHavenTextureSet(textureId, renderer) {
+  try {
+    const response = await fetch(`https://api.polyhaven.com/files/${textureId}`);
+    if (!response?.ok) return null;
+    const json = await response.json();
+    const urls = pickPolyHavenTextureUrls(json);
+    if (!urls.diffuse && !urls.normal && !urls.roughness) return null;
+    const [map, normal, roughness] = await Promise.all([
+      loadPolyHavenTexture(urls.diffuse, true, renderer),
+      loadPolyHavenTexture(urls.normal, false, renderer),
+      loadPolyHavenTexture(urls.roughness, false, renderer)
+    ]);
+    return {
+      map,
+      normal,
+      roughness,
+      ready: Boolean(map || normal || roughness)
+    };
+  } catch (error) {
+    console.warn('Failed to fetch Poly Haven cloth textures', textureId, error);
+    return null;
+  }
+}
+
+export function requestPolyHavenClothTextures(textureId, renderer) {
+  if (!textureId) return null;
+  let entry = polyHavenTextureCache.get(textureId);
+  if (entry?.ready) return entry;
+  if (!entry) {
+    entry = { map: null, normal: null, roughness: null, ready: false, promise: null };
+    polyHavenTextureCache.set(textureId, entry);
+  }
+  if (!polyHavenPendingLoads.has(textureId)) {
+    const promise = fetchPolyHavenTextureSet(textureId, renderer)
+      .then((result) => {
+        if (result) {
+          entry.map = result.map || entry.map;
+          entry.normal = result.normal || entry.normal;
+          entry.roughness = result.roughness || entry.roughness;
+          entry.ready = Boolean(entry.map || entry.normal || entry.roughness);
+        }
+        polyHavenPendingLoads.delete(textureId);
+        return entry;
+      })
+      .catch((error) => {
+        console.warn('Poly Haven cloth download failed', textureId, error);
+        polyHavenPendingLoads.delete(textureId);
+        return entry;
+      });
+    entry.promise = promise;
+    polyHavenPendingLoads.set(textureId, promise);
+  }
+  return entry;
+}
+
+export function clonePolyHavenTexture(texture, repeat = POLY_HAVEN_PATTERN_REPEAT) {
+  if (!texture) return null;
+  const clone = texture.clone();
+  clone.wrapS = texture.wrapS;
+  clone.wrapT = texture.wrapT;
+  clone.anisotropy = texture.anisotropy;
+  clone.minFilter = texture.minFilter;
+  clone.magFilter = texture.magFilter;
+  clone.generateMipmaps = texture.generateMipmaps;
+  clone.colorSpace = texture.colorSpace || texture.encoding;
+  clone.repeat.set(repeat, repeat);
+  clone.needsUpdate = true;
+  return clone;
 }
 
 export const TABLE_SHAPE_OPTIONS = Object.freeze([
@@ -281,6 +442,38 @@ function applyWoodSelectionToMaterials(topMat, rimMat, option) {
   }
 }
 
+function disposeSurfaceTextureSet(parts) {
+  const textures = parts?.surfaceTextures;
+  if (!textures) return;
+  ['map', 'normal', 'roughness'].forEach((key) => {
+    textures[key]?.dispose?.();
+  });
+  parts.surfaceTextures = null;
+}
+
+function applyPolyHavenTextureSetToSurface(parts, textureSet, repeat = POLY_HAVEN_PATTERN_REPEAT) {
+  if (!parts?.surfaceMat || !textureSet?.ready) return false;
+  disposeSurfaceTextureSet(parts);
+  parts.velvetTexture?.dispose?.();
+  const clones = {
+    map: clonePolyHavenTexture(textureSet.map, repeat),
+    normal: clonePolyHavenTexture(textureSet.normal, repeat),
+    roughness: clonePolyHavenTexture(textureSet.roughness, repeat)
+  };
+  parts.surfaceTextures = clones;
+  parts.surfaceMat.map = clones.map || null;
+  parts.surfaceMat.normalMap = clones.normal || null;
+  parts.surfaceMat.roughnessMap = clones.roughness || null;
+  if (clones.normal) {
+    parts.surfaceMat.roughness = 0.68;
+  } else if (clones.roughness) {
+    parts.surfaceMat.roughness = 0.72;
+  }
+  parts.surfaceMat.metalness = 0.06;
+  parts.surfaceMat.needsUpdate = true;
+  return Boolean(clones.map || clones.normal || clones.roughness);
+}
+
 export function applyTableMaterials(parts, { woodOption, clothOption, baseOption }, renderer) {
   if (!parts) return;
 
@@ -316,33 +509,81 @@ export function applyTableMaterials(parts, { woodOption, clothOption, baseOption
   applyWoodSelectionToMaterials(parts.topWoodMat, parts.rimWoodMat, woodOption);
 
   if (parts.surfaceMat && clothOption) {
-    parts.velvetTexture?.dispose?.();
-    const tex = makeRoughClothTexture(
-      1024,
-      clothOption.feltTop,
-      clothOption.feltBottom,
-      renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
-    );
-    parts.surfaceMat.map = tex;
-    parts.surfaceMat.color?.set?.('#ffffff');
-    if (typeof clothOption.roughness === 'number') {
-      parts.surfaceMat.roughness = clothOption.roughness;
+    const clothSourceId = clothOption.sourceId || clothOption.id;
+    const wantsPolyHaven = clothSourceId && POLY_HAVEN_CLOTH_IDS.has(clothSourceId);
+    const applyProcedural = () => {
+      disposeSurfaceTextureSet(parts);
+      parts.velvetTexture?.dispose?.();
+      const tex = makeRoughClothTexture(
+        2048,
+        clothOption.feltTop,
+        clothOption.feltBottom,
+        renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
+      );
+      parts.surfaceTextures = null;
+      parts.surfaceMat.map = tex;
+      parts.surfaceMat.normalMap = null;
+      parts.surfaceMat.roughnessMap = null;
+      parts.surfaceMat.color?.set?.('#ffffff');
+      if (typeof clothOption.roughness === 'number') {
+        parts.surfaceMat.roughness = clothOption.roughness;
+      }
+      if (typeof clothOption.metalness === 'number') {
+        parts.surfaceMat.metalness = clothOption.metalness;
+      }
+      if ('emissive' in parts.surfaceMat) {
+        const emissive = clothOption.emissive ?? '#000000';
+        parts.surfaceMat.emissive?.set?.(emissive);
+      }
+      if ('emissiveIntensity' in parts.surfaceMat) {
+        const intensity = Number.isFinite(clothOption.emissiveIntensity)
+          ? clothOption.emissiveIntensity
+          : 0.08;
+        parts.surfaceMat.emissiveIntensity = intensity;
+      }
+      parts.surfaceMat.needsUpdate = true;
+      parts.velvetTexture = tex;
+    };
+
+    if (wantsPolyHaven) {
+      parts.surfaceMat.userData = {
+        ...(parts.surfaceMat.userData || {}),
+        clothSourceId
+      };
+      const attemptApply = (candidate) => {
+        if (!candidate?.ready) return false;
+        const applied = applyPolyHavenTextureSetToSurface(parts, candidate, POLY_HAVEN_PATTERN_REPEAT);
+        if (applied) {
+          parts.surfaceMat.color?.set?.('#ffffff');
+          if ('emissive' in parts.surfaceMat) {
+            const emissive = clothOption.emissive ?? '#000000';
+            parts.surfaceMat.emissive?.set?.(emissive);
+          }
+          if ('emissiveIntensity' in parts.surfaceMat) {
+            const intensity = Number.isFinite(clothOption.emissiveIntensity)
+              ? clothOption.emissiveIntensity
+              : 0.08;
+            parts.surfaceMat.emissiveIntensity = intensity;
+          }
+        }
+        return applied;
+      };
+
+      const entry = requestPolyHavenClothTextures(clothSourceId, renderer);
+      const entryApplied = attemptApply(entry);
+      if (!entryApplied) {
+        applyProcedural();
+        entry?.promise?.then(() => {
+          if (parts.surfaceMat?.userData?.clothSourceId !== clothSourceId) return;
+          const latest = requestPolyHavenClothTextures(clothSourceId, renderer);
+          if (!attemptApply(latest)) {
+            applyProcedural();
+          }
+        });
+      }
+    } else {
+      applyProcedural();
     }
-    if (typeof clothOption.metalness === 'number') {
-      parts.surfaceMat.metalness = clothOption.metalness;
-    }
-    if ('emissive' in parts.surfaceMat) {
-      const emissive = clothOption.emissive ?? '#000000';
-      parts.surfaceMat.emissive?.set?.(emissive);
-    }
-    if ('emissiveIntensity' in parts.surfaceMat) {
-      const intensity = Number.isFinite(clothOption.emissiveIntensity)
-        ? clothOption.emissiveIntensity
-        : 0.08;
-      parts.surfaceMat.emissiveIntensity = intensity;
-    }
-    parts.surfaceMat.needsUpdate = true;
-    parts.velvetTexture = tex;
   }
 }
 
@@ -521,6 +762,7 @@ export function createMurlanStyleTable({
     trimMat,
     surfaceMat,
     velvetTexture: null,
+    surfaceTextures: null,
     topWoodMat,
     rimWoodMat,
     group: tableGroup
@@ -529,12 +771,15 @@ export function createMurlanStyleTable({
   applyTableMaterials(tableParts, { woodOption, clothOption, baseOption }, renderer);
 
   const dispose = () => {
+    disposeSurfaceTextureSet(tableParts);
     tableParts.velvetTexture?.dispose?.();
     disposeMaterialWithWood(tableParts.topWoodMat);
     disposeMaterialWithWood(tableParts.rimWoodMat);
     tableParts.baseMat?.dispose?.();
     tableParts.trimMat?.dispose?.();
-    tableParts.surfaceMat?.map?.dispose?.();
+    tableParts.surfaceMat.map = null;
+    tableParts.surfaceMat.normalMap = null;
+    tableParts.surfaceMat.roughnessMap = null;
     tableParts.surfaceMat?.dispose?.();
     if (tableGroup.parent) {
       tableGroup.parent.remove(tableGroup);
