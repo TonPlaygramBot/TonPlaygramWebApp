@@ -44,6 +44,7 @@ export default function Home() {
     []
   );
   const [telegramApkUrl, setTelegramApkUrl] = useState(defaultTelegramApkUrl);
+  const [apkLinkType, setApkLinkType] = useState('apk');
   const [apkLinkError, setApkLinkError] = useState('');
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
@@ -117,6 +118,7 @@ export default function Home() {
       if (cancelled) return;
       if (result?.url) {
         setTelegramApkUrl(result.url);
+        setApkLinkType(result.type || 'apk');
         setApkLinkError('');
       } else if (!defaultTelegramApkUrl) {
         setApkLinkError(result?.error || 'APK link not configured yet.');
@@ -251,13 +253,27 @@ export default function Home() {
       <div className="mt-4 bg-surface border border-border rounded-xl p-4 space-y-3">
         <div className="text-center space-y-1">
           <h3 className="text-lg font-semibold text-white">Telegram APK launcher</h3>
-          <p className="text-sm text-subtext">
-            Download the Telegram-optimized APK to bundle the entire TonPlaygram web app and all games into one launch
-            link inside the Telegram browser.
-          </p>
-          <p className="text-[11px] text-subtext">
-            Use the Telegram in-app browser to download and install the launcher for the best experience.
-          </p>
+          {apkLinkType === 'apk' ? (
+            <>
+              <p className="text-sm text-subtext">
+                Download the Telegram-optimized APK to bundle the entire TonPlaygram web app and all games into one
+                launch link inside the Telegram browser.
+              </p>
+              <p className="text-[11px] text-subtext">
+                Use the Telegram in-app browser to download and install the launcher for the best experience.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-subtext">
+                APK not yet uploaded. Download the full TonPlaygram web bundle (without private credentials or
+                node_modules) to sideload or inspect the code while the official APK is prepared.
+              </p>
+              <p className="text-[11px] text-subtext">
+                The ZIP includes the webapp and games; sensitive files like .env and build artifacts are excluded.
+              </p>
+            </>
+          )}
         </div>
         <div className="space-y-3">
           <a
@@ -275,7 +291,11 @@ export default function Home() {
               }
             }}
           >
-            {telegramApkUrl ? 'Download Telegram APK' : 'APK link not available yet'}
+            {telegramApkUrl
+              ? apkLinkType === 'apk'
+                ? 'Download Telegram APK'
+                : 'Download source bundle (ZIP)'
+              : 'APK link not available yet'}
           </a>
           <div className="space-y-1 text-xs text-subtext text-left bg-background/50 border border-border rounded-lg p-3">
             <p className="text-white font-semibold text-sm">Install via Telegram</p>
