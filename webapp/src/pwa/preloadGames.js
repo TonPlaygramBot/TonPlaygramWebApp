@@ -1,4 +1,4 @@
-const RUNTIME_CACHE_NAME = 'tonplaygram-runtime-v3';
+const RUNTIME_CACHE_NAME = 'tonplaygram-runtime-v4';
 
 const GAME_ENTRYPOINTS = [
   '/goal-rush.html',
