@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import TasksCard from '../components/TasksCard.jsx';
 import NftGiftCard from '../components/NftGiftCard.jsx';
@@ -33,7 +33,7 @@ import TonConnectButton from '../components/TonConnectButton.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
 import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
-import { RUNTIME_CACHE_NAME } from '../pwa/preloadGames.js';
+import { cacheOfflineAssets, isTelegramEnvironment, shouldAutoWarmOfflineCache } from '../pwa/offlineCache.js';
 
 
 export default function Home() {
@@ -41,68 +41,50 @@ export default function Home() {
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
-  const baseUrl = import.meta.env.BASE_URL || '/';
+  const baseUrl = useMemo(() => import.meta.env.BASE_URL || '/', []);
   const [pwaDownloadStatus, setPwaDownloadStatus] = useState({ state: 'idle', message: '' });
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
   const [tonConnectUI] = useTonConnectUI();
-  const runtimeCacheName = RUNTIME_CACHE_NAME;
 
-
-  const handlePwaDownload = async () => {
-    const baseNormalized = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
-    const manifestUrl = new URL('pwa/offline-assets.json', `${window.location.origin}${baseNormalized}`).toString();
-
-    setPwaDownloadStatus({ state: 'working', message: 'Preparing offline download…' });
-
-    if (!('serviceWorker' in navigator) || !navigator.serviceWorker?.ready || !('caches' in window)) {
-      setPwaDownloadStatus({
-        state: 'error',
-        message: 'Offline download is unavailable in this browser. Please try from a supported browser.'
-      });
-      return;
-    }
+  const handlePwaDownload = useCallback(async (autoTriggered = false) => {
+    setPwaDownloadStatus({
+      state: 'working',
+      message: autoTriggered ? 'Preparing Telegram offline package…' : 'Preparing offline download…'
+    });
 
     try {
-      await navigator.serviceWorker.ready;
-      const manifestResponse = await fetch(manifestUrl, { cache: 'no-store' });
-      if (!manifestResponse.ok) throw new Error('Unable to fetch offline manifest');
-
-      const assets = await manifestResponse.json();
-      if (!Array.isArray(assets) || assets.length === 0) {
-        throw new Error('Offline manifest is empty');
-      }
-
-      const cache = await caches.open(runtimeCacheName);
-      let successes = 0;
-      for (const asset of assets) {
-        const normalizedAsset = asset.startsWith('http') ? asset : asset.replace(/^\//, '');
-        const assetUrl = new URL(normalizedAsset, `${window.location.origin}${baseNormalized}`).toString();
-        try {
-          const request = new Request(assetUrl, { cache: 'reload' });
-          const response = await fetch(request);
-          if (!response.ok) throw new Error('Bad response');
-          await cache.put(request, response.clone());
-          successes++;
-        } catch (err) {
-          console.warn('Failed to cache asset', assetUrl, err);
+      const result = await cacheOfflineAssets({
+        baseUrl,
+        onUpdate: ({ completed, total }) => {
+          setPwaDownloadStatus({
+            state: 'working',
+            message: `Caching assets (${completed}/${total})…`
+          });
         }
-      }
+      });
 
       setPwaDownloadStatus({
         state: 'ready',
-        message: `Cached ${successes} of ${assets.length} files. The PWA should start faster and work better offline.`
+        message: `Cached ${result.successes} of ${result.total} files. The PWA should start faster and work better offline.`
       });
     } catch (err) {
       console.error('PWA offline download failed', err);
       setPwaDownloadStatus({
         state: 'error',
-        message: 'Unable to prepare offline download right now. Please try again after reloading.'
+        message:
+          'Offline download is unavailable right now. Please try again from the Telegram in-app browser after reloading.'
       });
     }
-  };
+  }, [baseUrl]);
 
+
+  useEffect(() => {
+    if (isTelegramEnvironment() && shouldAutoWarmOfflineCache()) {
+      handlePwaDownload(true);
+    }
+  }, [handlePwaDownload]);
 
   useEffect(() => {
     ping()
@@ -286,9 +268,12 @@ export default function Home() {
 
       <div className="mt-4 bg-surface border border-border rounded-xl p-4 space-y-3">
         <div className="text-center space-y-1">
-          <h3 className="text-lg font-semibold text-white">PWA offline setup</h3>
+          <h3 className="text-lg font-semibold text-white">Telegram PWA setup</h3>
           <p className="text-sm text-subtext">
-            Download the core web assets so the app opens faster and can be added to your home screen.
+            Cache every in-game image and sound so the Telegram mini app behaves like a downloaded app.
+          </p>
+          <p className="text-[11px] text-subtext">
+            We auto-start this download inside Telegram; tap again if you want to retry.
           </p>
         </div>
         <div className="space-y-3">
@@ -298,7 +283,7 @@ export default function Home() {
             className="w-full inline-flex items-center justify-center px-3 py-2 text-sm font-semibold bg-primary text-surface rounded-full shadow-primary/40 hover:shadow-primary/60 shadow disabled:opacity-60 disabled:cursor-not-allowed"
             disabled={pwaDownloadStatus.state === 'working'}
           >
-            {pwaDownloadStatus.state === 'working' ? 'Downloading assets…' : 'Download offline assets'}
+            {pwaDownloadStatus.state === 'working' ? 'Downloading assets…' : 'Download Telegram asset pack'}
           </button>
           {pwaDownloadStatus.message && (
             <p
