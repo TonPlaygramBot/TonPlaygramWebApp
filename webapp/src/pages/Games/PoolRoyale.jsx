@@ -1004,12 +1004,12 @@ if (BALL_SHADOW_MATERIAL) {
   BALL_SHADOW_MATERIAL.polygonOffsetUnits = -0.5;
 }
 // Match the snooker build so pace and rebound energy stay consistent between modes.
-const FRICTION = 0.993;
+const FRICTION = 0.9945;
 const DEFAULT_CUSHION_RESTITUTION = 0.985;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
-const STOP_EPS = 0.02;
-const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
-const STOP_FINAL_EPS = STOP_EPS * 0.45;
+const STOP_EPS = 0.012;
+const STOP_SOFTENING = 0.975; // ease balls into a stop instead of hard-braking at the speed threshold
+const STOP_FINAL_EPS = STOP_EPS * 0.6;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
@@ -2433,57 +2433,57 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   graphite: Object.freeze({
     id: 'graphite',
     palette: {
-      shadow: 0x181b23,
-      base: 0x3d414e,
-      accent: 0x626a7b,
-      highlight: 0x95a1b6
+      shadow: 0x10131c,
+      base: 0x2f3442,
+      accent: 0x4a556d,
+      highlight: 0x7f8cab
     },
-    sparkle: 0.65,
-    stray: 0.9
+    sparkle: 0.72,
+    stray: 0.94
   }),
   arcticBlue: Object.freeze({
     id: 'arcticBlue',
     palette: {
-      shadow: 0x2a668a,
-      base: 0x3d9ed8,
-      accent: 0x7dcaf7,
-      highlight: 0xb4e5ff
+      shadow: 0x1c4f87,
+      base: 0x2c9cf5,
+      accent: 0x56c4ff,
+      highlight: 0x9bddff
     },
-    sparkle: 1.05,
-    stray: 1.12
+    sparkle: 1.14,
+    stray: 1.15
   }),
   emeraldPulse: Object.freeze({
     id: 'emeraldPulse',
     palette: {
-      shadow: 0x0f5a38,
-      base: 0x1fa95f,
-      accent: 0x2fce7a,
-      highlight: 0x6ff3b1
+      shadow: 0x0b5a32,
+      base: 0x16c067,
+      accent: 0x22e58a,
+      highlight: 0x62fac0
     },
-    sparkle: 1.08,
-    stray: 1.05
+    sparkle: 1.12,
+    stray: 1.08
   }),
   ivyDrift: Object.freeze({
     id: 'ivyDrift',
     palette: {
-      shadow: 0x0e3b24,
-      base: 0x1f6a3d,
-      accent: 0x2f8f56,
-      highlight: 0x52c586
+      shadow: 0x0c3f25,
+      base: 0x1c7b3f,
+      accent: 0x2ea35d,
+      highlight: 0x56d089
     },
-    sparkle: 0.9,
-    stray: 0.92
+    sparkle: 0.96,
+    stray: 0.96
   }),
   mintRadiance: Object.freeze({
     id: 'mintRadiance',
     palette: {
-      shadow: 0x0f7f6a,
-      base: 0x2fcfba,
-      accent: 0x66e9d3,
-      highlight: 0xb4fff3
+      shadow: 0x0d8f7c,
+      base: 0x2fe9d1,
+      accent: 0x62f7e3,
+      highlight: 0xc5fff7
     },
-    sparkle: 1.12,
-    stray: 1.18
+    sparkle: 1.18,
+    stray: 1.2
   }),
   cobaltFrost: Object.freeze({
     id: 'cobaltFrost',
@@ -2499,90 +2499,90 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   midnightWave: Object.freeze({
     id: 'midnightWave',
     palette: {
-      shadow: 0x0b1b3d,
-      base: 0x133a73,
-      accent: 0x1f5aa4,
-      highlight: 0x3a7dd8
+      shadow: 0x0b1e45,
+      base: 0x1b4fae,
+      accent: 0x2f75e0,
+      highlight: 0x5ca3ff
     },
-    sparkle: 0.82,
-    stray: 0.88
+    sparkle: 0.9,
+    stray: 0.94
   }),
   neonAzure: Object.freeze({
     id: 'neonAzure',
     palette: {
-      shadow: 0x0b3e5a,
-      base: 0x0fb3e0,
-      accent: 0x29d9ff,
-      highlight: 0x7ce9ff
+      shadow: 0x0b4d73,
+      base: 0x12cbff,
+      accent: 0x3be3ff,
+      highlight: 0x92f2ff
     },
-    sparkle: 1.18,
-    stray: 1.2
+    sparkle: 1.22,
+    stray: 1.22
   }),
   crimsonFlash: Object.freeze({
     id: 'crimsonFlash',
     palette: {
-      shadow: 0x2a0b14,
-      base: 0x8c1224,
-      accent: 0xb81f35,
-      highlight: 0xf2455c
+      shadow: 0x2f0c13,
+      base: 0xaa1f32,
+      accent: 0xd62f45,
+      highlight: 0xff6378
     },
-    sparkle: 1.04,
-    stray: 1.02
+    sparkle: 1.08,
+    stray: 1.06
   }),
   rubyInferno: Object.freeze({
     id: 'rubyInferno',
     palette: {
-      shadow: 0x2c0f12,
-      base: 0x9f1e2f,
-      accent: 0xd43145,
-      highlight: 0xff6a7a
+      shadow: 0x310f16,
+      base: 0xbd233c,
+      accent: 0xe13a55,
+      highlight: 0xff778c
     },
-    sparkle: 1.08,
-    stray: 1.1
+    sparkle: 1.12,
+    stray: 1.12
   }),
   garnetVelvet: Object.freeze({
     id: 'garnetVelvet',
     palette: {
-      shadow: 0x190910,
-      base: 0x702136,
-      accent: 0x9b2f4a,
-      highlight: 0xc4576d
+      shadow: 0x1c0a12,
+      base: 0x81283f,
+      accent: 0xac3a57,
+      highlight: 0xd15e7a
     },
-    sparkle: 0.92,
-    stray: 0.9
+    sparkle: 0.96,
+    stray: 0.94
   }),
   forestPrime: Object.freeze({
     id: 'forestPrime',
     palette: {
-      shadow: 0x0d2d1a,
-      base: 0x1f6b3a,
-      accent: 0x2f8f52,
-      highlight: 0x4ecf7a
+      shadow: 0x0d3720,
+      base: 0x23854d,
+      accent: 0x36ad6a,
+      highlight: 0x5fdd98
     },
-    sparkle: 0.88,
-    stray: 0.94
+    sparkle: 0.94,
+    stray: 0.98
   }),
   evergreenLuxe: Object.freeze({
     id: 'evergreenLuxe',
     palette: {
-      shadow: 0x103626,
-      base: 0x2c8a53,
-      accent: 0x43a86a,
-      highlight: 0x71d69b
+      shadow: 0x123f2b,
+      base: 0x31a66a,
+      accent: 0x4abd82,
+      highlight: 0x76e0af
     },
-    sparkle: 1.02,
-    stray: 1
+    sparkle: 1.06,
+    stray: 1.02
   }),
   jadeCurrent: Object.freeze({
     id: 'jadeCurrent',
     palette: {
-      shadow: 0x0a3a32,
-      base: 0x1fa37c,
-      accent: 0x32c99f,
-      highlight: 0x7bf2cb
+      shadow: 0x0b4a42,
+      base: 0x26b48f,
+      accent: 0x38dcb3,
+      highlight: 0x86ffd9
     },
-    sparkle: 1.1,
-    stray: 1.12
+    sparkle: 1.16,
+    stray: 1.16
   })
 });
 
@@ -2604,58 +2604,58 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'graphite',
     label: 'Arcadia Graphite',
-    color: 0x4a5566,
+    color: 0x55607a,
     textureKey: 'graphite',
     detail: {
       bumpMultiplier: 0.92,
       roughness: 0.72,
-      envMapIntensity: 0.16
+      envMapIntensity: 0.18
     }
   },
   {
     id: 'arcticBlue',
     label: 'Arctic Blue',
-    color: 0x6fc5f6,
+    color: 0x59cfff,
     textureKey: 'arcticBlue',
     detail: {
       sheen: 0.64,
       sheenRoughness: 0.44,
-      envMapIntensity: 0.16
+      envMapIntensity: 0.2
     }
   },
   {
     id: 'emeraldPulse',
     label: 'Emerald Pulse',
-    color: 0x2ac278,
+    color: 0x25d17f,
     textureKey: 'emeraldPulse',
     detail: {
       sheen: 0.62,
       sheenRoughness: 0.48,
       bumpMultiplier: 1.08,
-      emissiveIntensity: 0.4
+      emissiveIntensity: 0.42
     }
   },
   {
     id: 'ivyDrift',
     label: 'Ivy Drift',
-    color: 0x1f6a3d,
+    color: 0x24894c,
     textureKey: 'ivyDrift',
     detail: {
       roughness: 0.78,
       bumpMultiplier: 0.96,
-      envMapIntensity: 0.12
+      envMapIntensity: 0.14
     }
   },
   {
     id: 'mintRadiance',
     label: 'Mint Radiance',
-    color: 0x56e8d4,
+    color: 0x63f2e1,
     textureKey: 'mintRadiance',
     detail: {
       sheen: 0.7,
       sheenRoughness: 0.42,
-      emissiveIntensity: 0.46,
-      envMapIntensity: 0.2
+      emissiveIntensity: 0.48,
+      envMapIntensity: 0.24
     }
   },
   {
@@ -2673,102 +2673,102 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'midnightWave',
     label: 'Midnight Wave',
-    color: 0x1f4da8,
+    color: 0x255dce,
     textureKey: 'midnightWave',
     detail: {
       roughness: 0.82,
       bumpMultiplier: 0.9,
-      emissiveIntensity: 0.3
+      emissiveIntensity: 0.32
     }
   },
   {
     id: 'neonAzure',
     label: 'Neon Azure',
-    color: 0x1fc9f0,
+    color: 0x30d8ff,
     textureKey: 'neonAzure',
     detail: {
       sheen: 0.78,
       sheenRoughness: 0.34,
       bumpMultiplier: 1.12,
-      emissiveIntensity: 0.5
+      emissiveIntensity: 0.54
     }
   },
   {
     id: 'crimsonFlash',
     label: 'Crimson Flash',
-    color: 0x9c1a2b,
+    color: 0xbb2741,
     textureKey: 'crimsonFlash',
     detail: {
       sheen: 0.62,
       sheenRoughness: 0.42,
       bumpMultiplier: 1.02,
-      emissiveIntensity: 0.44,
-      envMapIntensity: 0.18
+      emissiveIntensity: 0.48,
+      envMapIntensity: 0.2
     }
   },
   {
     id: 'rubyInferno',
     label: 'Ruby Inferno',
-    color: 0xaf2136,
+    color: 0xca2d49,
     textureKey: 'rubyInferno',
     detail: {
       sheen: 0.7,
       sheenRoughness: 0.38,
       bumpMultiplier: 1.08,
-      emissiveIntensity: 0.48,
-      envMapIntensity: 0.22
+      emissiveIntensity: 0.52,
+      envMapIntensity: 0.26
     }
   },
   {
     id: 'garnetVelvet',
     label: 'Garnet Velvet',
-    color: 0x7a2c3f,
+    color: 0x91324f,
     textureKey: 'garnetVelvet',
     detail: {
       roughness: 0.82,
       bumpMultiplier: 0.94,
-      sheen: 0.54,
-      sheenRoughness: 0.48,
-      envMapIntensity: 0.14
+      sheen: 0.56,
+      sheenRoughness: 0.46,
+      envMapIntensity: 0.18
     }
   },
   {
     id: 'forestPrime',
     label: 'Forest Prime',
-    color: 0x217a45,
+    color: 0x29985b,
     textureKey: 'forestPrime',
     detail: {
       roughness: 0.76,
       sheen: 0.6,
       sheenRoughness: 0.46,
-      emissiveIntensity: 0.32,
-      envMapIntensity: 0.16
+      emissiveIntensity: 0.36,
+      envMapIntensity: 0.18
     }
   },
   {
     id: 'evergreenLuxe',
     label: 'Evergreen Luxe',
-    color: 0x2f9c5f,
+    color: 0x37bb79,
     textureKey: 'evergreenLuxe',
     detail: {
       sheen: 0.68,
       sheenRoughness: 0.4,
       bumpMultiplier: 1.02,
-      emissiveIntensity: 0.42,
-      envMapIntensity: 0.2
+      emissiveIntensity: 0.46,
+      envMapIntensity: 0.24
     }
   },
   {
     id: 'jadeCurrent',
     label: 'Jade Current',
-    color: 0x1fb190,
+    color: 0x2ad1aa,
     textureKey: 'jadeCurrent',
     detail: {
       sheen: 0.74,
       sheenRoughness: 0.36,
       bumpMultiplier: 1.1,
-      emissiveIntensity: 0.46,
-      envMapIntensity: 0.24
+      emissiveIntensity: 0.5,
+      envMapIntensity: 0.28
     }
   }
 ]);
@@ -5105,6 +5105,7 @@ const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const GOOD_SHOT_REPLAY_DELAY_MS = 900;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
+const REPLAY_TRANSITION_DURATION_MS = 620;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
 const REPLAY_BANNER_VARIANTS = {
@@ -9265,6 +9266,42 @@ function PoolRoyaleGame({
     },
     [poolInventory]
   );
+  const resolveOwnedPocketLiners = useCallback((inventory) => {
+    const base = Array.isArray(inventory?.pocketLiner) ? inventory.pocketLiner : [];
+    const nftEntries = Array.isArray(inventory?.nfts)
+      ? inventory.nfts
+      : Array.isArray(inventory?.nftItems)
+        ? inventory.nftItems
+        : [];
+    const nftIds = nftEntries
+      .map((entry) => {
+        if (!entry) return null;
+        if (typeof entry === 'string') return entry;
+        if (entry.type === 'pocketLiner' || entry.category === 'pocketLiner') {
+          return entry.optionId || entry.id || null;
+        }
+        return null;
+      })
+      .filter(Boolean);
+    return Array.from(new Set([...base, ...nftIds]));
+  }, []);
+  const ownedPocketLinerIds = useMemo(
+    () => resolveOwnedPocketLiners(poolInventory),
+    [poolInventory, resolveOwnedPocketLiners]
+  );
+  const ownedPocketLinerSet = useMemo(() => new Set(ownedPocketLinerIds), [ownedPocketLinerIds]);
+  const resolvePocketLinerSelection = useCallback(() => {
+    const fallbackId = DEFAULT_POCKET_LINER_OPTION_ID;
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(POCKET_LINER_STORAGE_KEY);
+      if (stored && POCKET_LINER_OPTIONS.some((opt) => opt?.id === stored) && ownedPocketLinerSet.has(stored)) {
+        return stored;
+      }
+    }
+    if (ownedPocketLinerSet.has(fallbackId)) return fallbackId;
+    const firstOwned = POCKET_LINER_OPTIONS.find((opt) => ownedPocketLinerSet.has(opt.id));
+    return firstOwned?.id ?? fallbackId;
+  }, [ownedPocketLinerSet]);
   const [tableFinishId, setTableFinishId] = useState(() => {
     return resolveStoredSelection(
       'tableFinish',
@@ -9281,15 +9318,7 @@ function PoolRoyaleGame({
       DEFAULT_CLOTH_COLOR_ID
     );
   });
-  const [pocketLinerId, setPocketLinerId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(POCKET_LINER_STORAGE_KEY);
-      if (stored && POCKET_LINER_OPTIONS.some((opt) => opt?.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_POCKET_LINER_OPTION_ID;
-  });
+  const [pocketLinerId, setPocketLinerId] = useState(resolvePocketLinerSelection);
   const [railMarkerShapeId, setRailMarkerShapeId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('poolRailMarkerShape');
@@ -9397,10 +9426,8 @@ function PoolRoyaleGame({
   );
   const availablePocketLiners = useMemo(
     () =>
-      POCKET_LINER_OPTIONS.filter((option) =>
-        isPoolOptionUnlocked('pocketLiner', option.id, poolInventory)
-      ),
-    [poolInventory]
+      POCKET_LINER_OPTIONS.filter((option) => ownedPocketLinerSet.has(option.id)),
+    [ownedPocketLinerSet]
   );
   const availableCueStyles = useMemo(
     () =>
@@ -9443,14 +9470,16 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('railMarkerColor', railMarkerColorId, poolInventory)) {
       setRailMarkerColorId(DEFAULT_RAIL_MARKER_COLOR_ID);
     }
-    if (!isPoolOptionUnlocked('pocketLiner', pocketLinerId, poolInventory)) {
-      setPocketLinerId(DEFAULT_POCKET_LINER_OPTION_ID);
+    if (!ownedPocketLinerSet.has(pocketLinerId)) {
+      setPocketLinerId(resolvePocketLinerSelection());
     }
   }, [
     chromeColorId,
     clothColorId,
+    ownedPocketLinerSet,
     pocketLinerId,
     poolInventory,
+    resolvePocketLinerSelection,
     railMarkerColorId,
     tableFinishId
   ]);
@@ -10186,12 +10215,18 @@ function PoolRoyaleGame({
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
+  const [replayTransitioning, setReplayTransitioning] = useState(false);
+  const replayTransitionTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
       if (replayBannerTimeoutRef.current) {
         clearTimeout(replayBannerTimeoutRef.current);
         replayBannerTimeoutRef.current = null;
+      }
+      if (replayTransitionTimeoutRef.current) {
+        clearTimeout(replayTransitionTimeoutRef.current);
+        replayTransitionTimeoutRef.current = null;
       }
     },
     []
@@ -14516,29 +14551,54 @@ const powerRef = useRef(hud.power);
           updateCamera();
         };
 
+        const clearReplayTransition = () => {
+          if (replayTransitionTimeoutRef.current) {
+            clearTimeout(replayTransitionTimeoutRef.current);
+            replayTransitionTimeoutRef.current = null;
+          }
+          setReplayTransitioning(false);
+        };
+
         const startShotReplay = (postShotSnapshot) => {
           if (replayPlaybackRef.current) return;
           if (!shotRecording || !shotRecording.frames?.length) return;
           const trimmed = trimReplayRecording(shotRecording);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
+          const rig = broadcastCamerasRef.current;
+          if (
+            rig?.cameras &&
+            shotRecording.broadcastRail &&
+            rig.cameras[shotRecording.broadcastRail]
+          ) {
+            rig.activeRail = shotRecording.broadcastRail;
+          }
           storeReplayCameraFrame();
-          resetCameraForReplay();
-          replayPlayback = {
-            frames: trimmed.frames,
-            cuePath: trimmed.cuePath,
-            duration,
-            startedAt: performance.now(),
-            lastIndex: 0,
-            postState: postShotSnapshot,
-            pocketDrops: pausedPocketDrops ?? pocketDropRef.current
+          const launchReplayPlayback = () => {
+            resetCameraForReplay();
+            replayPlayback = {
+              frames: trimmed.frames,
+              cuePath: trimmed.cuePath,
+              duration,
+              startedAt: performance.now(),
+              lastIndex: 0,
+              postState: postShotSnapshot,
+              pocketDrops: pausedPocketDrops ?? pocketDropRef.current
+            };
+            pausedPocketDrops = pocketDropRef.current;
+            pocketDropRef.current = new Map();
+            replayPlaybackRef.current = replayPlayback;
+            shotReplayRef.current = shotRecording;
+            applyBallSnapshot(shotRecording.startState ?? []);
+            updateReplayTrail(replayPlayback.cuePath, 0);
           };
-          pausedPocketDrops = pocketDropRef.current;
-          pocketDropRef.current = new Map();
-          replayPlaybackRef.current = replayPlayback;
-          shotReplayRef.current = shotRecording;
-          applyBallSnapshot(shotRecording.startState ?? []);
-          updateReplayTrail(replayPlayback.cuePath, 0);
+          clearReplayTransition();
+          setReplayTransitioning(true);
+          replayTransitionTimeoutRef.current = window.setTimeout(() => {
+            replayTransitionTimeoutRef.current = null;
+            setReplayTransitioning(false);
+            launchReplayPlayback();
+          }, REPLAY_TRANSITION_DURATION_MS);
         };
 
         const waitMs = (ms = 0) =>
@@ -14563,6 +14623,7 @@ const powerRef = useRef(hud.power);
 
         const finishReplayPlayback = (playback) => {
           if (!playback) return;
+          clearReplayTransition();
           if (playback.postState) {
             applyBallSnapshot(playback.postState);
           }
@@ -14940,21 +15001,21 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.6; // widen the overhead footprint so fixtures read larger on mobile and reach farther to the sides
+        const lightSpreadBoost = 1.28; // widen the overhead footprint so fixtures read larger on mobile and reach farther to the sides
         const previousLightRigHeight = tableSurfaceY + TABLE.THICK * 7.1; // baseline height used for the prior brightness target
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.05; // bring the rig closer so ball reflections enlarge without shifting color
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.35; // bring the rig closer so ball reflections enlarge without shifting color
         const brightnessCompensation =
-          ((lightRigHeight ** 2) / (previousLightRigHeight ** 2)) * 0.9; // preserve on-cloth brightness after moving the rig closer while dimming slightly
+          ((lightRigHeight ** 2) / (previousLightRigHeight ** 2)) * 0.92; // preserve on-cloth brightness after moving the rig closer while dimming slightly
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
         const lightOffsetZ =
           Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
-        const lightLineX = lightOffsetX * 0.5; // keep the rig aligned along a single long rail with a slightly wider stance
-        const lightSpacing = lightOffsetZ * 0.6; // enforce equal spacing between fixtures to mirror the centred heads
-        const lightPositionsZ = [-1.5, -0.5, 0.5, 1.5].map((mult) => mult * lightSpacing);
+        const lightLineX = lightOffsetX * 0.42; // keep the rig aligned along a single long rail with a slightly wider stance
+        const lightSpacing = lightOffsetZ * 0.48; // enforce equal spacing between fixtures to mirror the centred heads
+        const lightPositionsZ = [-1.35, -0.45, 0.45, 1.35].map((mult) => mult * lightSpacing);
         const shadowHalfSpan =
-          Math.max(roomWidth, roomDepth) * 0.82 + TABLE.THICK * 3.5;
-        const targetY = tableSurfaceY + TABLE.THICK * 0.2;
+          Math.max(roomWidth, roomDepth) * 0.78 + TABLE.THICK * 3.2;
+        const targetY = tableSurfaceY + TABLE.THICK * 0.14;
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
@@ -14995,6 +15056,32 @@ const powerRef = useRef(hud.power);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
+
+        const panelSize = Math.max(PLAY_W * 0.18, TABLE.THICK * 5.2);
+        const panelHeight = lightRigHeight - TABLE.THICK * 0.2;
+        const panelGeometry = new THREE.PlaneGeometry(panelSize, panelSize);
+        const panelMaterial = new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.16,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide
+        });
+        const panelPositions = [
+          { x: lightLineX, z: lightPositionsZ[0] },
+          { x: -lightLineX, z: lightPositionsZ[1] },
+          { x: lightLineX, z: lightPositionsZ[2] },
+          { x: -lightLineX, z: lightPositionsZ[3] }
+        ];
+        panelPositions.forEach((pos, index) => {
+          const panel = new THREE.Mesh(panelGeometry, panelMaterial.clone());
+          panel.position.set(pos.x, panelHeight, pos.z);
+          panel.rotation.x = -Math.PI / 2;
+          panel.renderOrder = 1;
+          panel.name = `broadcast-light-panel-${index}`;
+          lightingRig.add(panel);
+        });
 
         lightingRigRef.current = {
           group: lightingRig,
@@ -16361,7 +16448,8 @@ const powerRef = useRef(hud.power);
               frames: [],
               cuePath: [],
               replayTags: Array.from(replayTags),
-              zoomOnly: preferZoomReplay
+              zoomOnly: preferZoomReplay,
+              broadcastRail: broadcastCamerasRef.current?.activeRail ?? null
             };
             shotReplayRef.current = shotRecording;
             recordReplayFrame(shotRecording.startTime);
@@ -18094,6 +18182,7 @@ const powerRef = useRef(hud.power);
               ...pending,
               startTime: pending.startTime ?? nowMs,
               startState: pending.startState ?? captureBallSnapshot(),
+              broadcastRail: pending.broadcastRail ?? broadcastCamerasRef.current?.activeRail ?? null,
               zoomOnly: pending.zoomOnly ?? false,
               replayTags: pending.replayTags ?? ['remote']
             };
@@ -19886,6 +19975,30 @@ const powerRef = useRef(hud.power);
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {replayTransitioning && (
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[2px]">
+          <div className="flex items-center gap-3 rounded-2xl border border-emerald-300/70 bg-black/80 px-4 py-3 text-emerald-100 shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-400/20 ring-1 ring-emerald-300/70">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="h-6 w-6"
+              >
+                <path d="M12 5v4l3.5-2M12 19v-4l-3.5 2" />
+                <path d="M6 9.5a6.5 6.5 0 1 1 12 5" />
+                <path d="M18 14.5a6.5 6.5 0 1 1-12-5" />
+              </svg>
+            </div>
+            <div className="text-xs font-bold uppercase tracking-[0.32em] text-emerald-100">
+              Instant Replay
+            </div>
+          </div>
+        </div>
+      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
