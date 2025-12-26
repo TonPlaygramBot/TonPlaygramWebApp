@@ -8724,12 +8724,15 @@ function Table3D(
   const legFootingHeight = TABLE.THICK * 0.045;
   const legH = Math.max(MICRO_EPS, legReach + LEG_TOP_OVERLAP - legFootingHeight);
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
-  const footPadGeo = new THREE.CylinderGeometry(
-    legR * 1.55,
-    legR * 1.4,
-    legFootingHeight,
-    48
-  );
+  const footPadProfile = [
+    new THREE.Vector2(0, -legFootingHeight / 2),
+    new THREE.Vector2(legR, -legFootingHeight / 2 + legFootingHeight * 0.12),
+    new THREE.Vector2(legR * 0.98, -legFootingHeight / 2 + legFootingHeight * 0.35),
+    new THREE.Vector2(legR * 0.96, 0),
+    new THREE.Vector2(legR * 0.98, legFootingHeight / 2 - legFootingHeight * 0.2),
+    new THREE.Vector2(legR, legFootingHeight / 2)
+  ];
+  const footPadGeo = new THREE.LatheGeometry(footPadProfile, 48);
   const legInset = baseRailWidth * 2.85;
   const legPositions = [
     [-frameOuterX + legInset, -frameOuterZ + legInset],
@@ -8769,6 +8772,16 @@ function Table3D(
     ...woodFrameSurface,
     woodRepeatScale
   });
+  const footPadMat = trimMat.clone();
+  footPadMat.metalness = Math.max(footPadMat.metalness ?? 0.9, 0.92);
+  footPadMat.roughness = Math.min(footPadMat.roughness ?? 0.15, 0.08);
+  footPadMat.clearcoat = Math.max(footPadMat.clearcoat ?? 0.6, 0.85);
+  footPadMat.clearcoatRoughness = Math.min(
+    footPadMat.clearcoatRoughness ?? 0.3,
+    0.16
+  );
+  footPadMat.envMapIntensity = Math.max(footPadMat.envMapIntensity ?? 1.1, 1.4);
+  footPadMat.needsUpdate = true;
 
   // Force the rail grain direction and scale to match the skirt/apron below so
   // every side shares the exact same wood flow and texture density.
@@ -8800,7 +8813,7 @@ function Table3D(
     table.add(leg);
     finishParts.legMeshes.push(leg);
 
-    const foot = new THREE.Mesh(footPadGeo, trimMat);
+    const foot = new THREE.Mesh(footPadGeo, footPadMat);
     foot.position.set(lx, footPadY, lz);
     foot.castShadow = true;
     foot.receiveShadow = true;
