@@ -1212,7 +1212,7 @@ const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
-const CUE_PULL_SMOOTHING = 0.5;
+const CUE_PULL_SMOOTHING = 0.35;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
@@ -4958,7 +4958,7 @@ const STANDING_VIEW_MARGIN = 0.0016; // pull the standing frame closer so the ta
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.1;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.38; // halt the downward sweep sooner so the lowest angle stays slightly higher and stops above the cue
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.32; // halt the downward sweep sooner so the lowest angle stays slightly higher and stops above the cue
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.018; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
@@ -5118,20 +5118,18 @@ const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view 
 const SHORT_RAIL_POCKET_TRIGGER =
   RAIL_LIMIT_Y - POCKET_VIS_R * 0.45; // request pocket cams as soon as play reaches the short rail mouths
 const SHORT_RAIL_POCKET_INTENT_COOLDOWN_MS = 280;
-const AI_MIN_SHOT_TIME_MS = 7000;
-const AI_MAX_SHOT_TIME_MS = 9000;
+const AI_MIN_SHOT_TIME_MS = 5000;
+const AI_MAX_SHOT_TIME_MS = 7000;
 const AI_MIN_AIM_PREVIEW_MS = 900;
 const AI_EARLY_SHOT_DIFFICULTY = 120;
 const AI_EARLY_SHOT_CUE_DISTANCE = PLAY_H * 0.55;
 const AI_EARLY_SHOT_DELAY_MS = AI_MIN_SHOT_TIME_MS; // never bypass the full telegraphed aim window
 const AI_THINKING_BUDGET_MS =
-  AI_MAX_SHOT_TIME_MS - AI_MIN_AIM_PREVIEW_MS; // leave room for the cue preview while keeping decisions under 9 seconds
-const AI_STANDING_VIEW_HOLD_MIN_MS = 2000;
-const AI_STANDING_VIEW_HOLD_MAX_MS = 4000;
-const AI_CAMERA_DROP_MIN_MS = 3000;
-const AI_CAMERA_DROP_MAX_MS = 5000;
-const AI_CAMERA_SETTLE_MS = 650; // allow time for the cue view to settle before firing
+  AI_MAX_SHOT_TIME_MS - AI_MIN_AIM_PREVIEW_MS; // leave room for the cue preview while keeping decisions under 7 seconds
+const AI_CAMERA_DROP_LEAD_MS = 420; // start lowering into cue view shortly before the AI pulls the trigger
+const AI_CAMERA_SETTLE_MS = 320; // allow time for the cue view to settle before firing
 const AI_CAMERA_DROP_BLEND = 0.14;
+const AI_CAMERA_DROP_DURATION_MS = 480;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -16557,19 +16555,31 @@ const powerRef = useRef(hud.power);
             if (animFrame < animSteps) {
               requestAnimationFrame(animateCue);
             } else {
-              cuePullCurrentRef.current = 0;
-              cuePullTargetRef.current = 0;
-              cueStick.position.copy(endPos);
-              cueStick.visible = false;
-              cueAnimating = false;
-              if (cameraRef.current && sphRef.current) {
-                topViewRef.current = false;
-                topViewLockedRef.current = false;
-                setIsTopDownView(false);
-                const sph = sphRef.current;
-                sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-                updateCamera();
-              }
+              let backFrame = 0;
+              const animateBack = () => {
+                backFrame++;
+                cueStick.position.lerpVectors(
+                  endPos,
+                  startPos,
+                  backFrame / animSteps
+                );
+                if (backFrame < animSteps) requestAnimationFrame(animateBack);
+                else {
+                  cuePullCurrentRef.current = 0;
+                  cuePullTargetRef.current = 0;
+                  cueStick.visible = false;
+                  cueAnimating = false;
+                  if (cameraRef.current && sphRef.current) {
+                    topViewRef.current = false;
+                    topViewLockedRef.current = false;
+                    setIsTopDownView(false);
+                    const sph = sphRef.current;
+                    sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+                    updateCamera();
+                  }
+                }
+              };
+              requestAnimationFrame(animateBack);
             }
           };
           animateCue();
@@ -17805,50 +17815,17 @@ const powerRef = useRef(hud.power);
               aiShotCueDropTimeoutRef.current = null;
             }
             const previewDelayMs = resolveAiPreviewDelay();
-            const now = performance.now();
-            const shotWindowStart = aiShotWindowRef.current?.startedAt ?? now;
-            const shotWindowDuration =
-              aiShotWindowRef.current?.duration ?? AI_MIN_SHOT_TIME_MS;
-            const windowRemaining = Math.max(
-              0,
-              shotWindowStart + shotWindowDuration - now
-            );
-            const requiredBudget =
-              AI_STANDING_VIEW_HOLD_MIN_MS + AI_CAMERA_DROP_MIN_MS + AI_CAMERA_SETTLE_MS;
-            const totalBudget = THREE.MathUtils.clamp(
-              Math.max(previewDelayMs, requiredBudget),
-              requiredBudget,
-              Math.max(requiredBudget, windowRemaining)
-            );
-            const holdTarget = Math.min(totalBudget * 0.45, AI_STANDING_VIEW_HOLD_MAX_MS);
-            const holdCap = Math.max(
-              AI_STANDING_VIEW_HOLD_MIN_MS,
-              totalBudget - AI_CAMERA_DROP_MIN_MS - AI_CAMERA_SETTLE_MS
-            );
-            const holdDuration = THREE.MathUtils.clamp(
-              holdTarget,
-              AI_STANDING_VIEW_HOLD_MIN_MS,
-              Math.min(AI_STANDING_VIEW_HOLD_MAX_MS, holdCap)
-            );
-            const remainingForDrop = Math.max(
-              totalBudget - holdDuration - AI_CAMERA_SETTLE_MS,
-              AI_CAMERA_DROP_MIN_MS
-            );
-            const dropDuration = THREE.MathUtils.clamp(
-              remainingForDrop,
-              AI_CAMERA_DROP_MIN_MS,
-              Math.min(AI_CAMERA_DROP_MAX_MS, totalBudget - holdDuration - AI_CAMERA_SETTLE_MS)
-            );
-            const shotDelay = holdDuration + dropDuration + AI_CAMERA_SETTLE_MS;
+            const dropDelay = Math.max(0, previewDelayMs - AI_CAMERA_DROP_LEAD_MS);
+            const shotDelay = Math.max(previewDelayMs, dropDelay + AI_CAMERA_SETTLE_MS);
             const beginCueView = () => {
               setAiShotCueViewActive(true);
               setAiShotPreviewActive(false);
               aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
-              tweenCameraBlend(aiCueViewBlendRef.current, dropDuration);
+              tweenCameraBlend(aiCueViewBlendRef.current, AI_CAMERA_DROP_DURATION_MS);
               if (aiShotTimeoutRef.current) {
                 clearTimeout(aiShotTimeoutRef.current);
               }
-              const remaining = Math.max(0, shotDelay - holdDuration);
+              const remaining = Math.max(0, shotDelay - dropDelay);
               aiShotTimeoutRef.current = window.setTimeout(() => {
                 aiShotTimeoutRef.current = null;
                 applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
@@ -17856,13 +17833,13 @@ const powerRef = useRef(hud.power);
                 fire();
               }, remaining);
             };
-            if (holdDuration <= 0) {
+            if (dropDelay <= 0) {
               beginCueView();
             } else {
               aiShotCueDropTimeoutRef.current = window.setTimeout(() => {
                 aiShotCueDropTimeoutRef.current = null;
                 beginCueView();
-              }, holdDuration);
+              }, dropDelay);
             }
           } catch (err) {
             console.error('Pool Royale AI shot failed:', err);
