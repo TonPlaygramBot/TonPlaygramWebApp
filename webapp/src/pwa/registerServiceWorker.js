@@ -1,5 +1,6 @@
 const TELEGRAM_ONLY = true;
 const REFRESH_FLAG_KEY = 'tonplaygram-sw-refreshed';
+const CACHE_OFFLINE_MESSAGE = { type: 'CACHE_OFFLINE_BUNDLE' };
 
 function shouldRegisterForTelegram() {
   if (!('serviceWorker' in navigator)) return false;
@@ -62,6 +63,15 @@ async function requestPersistentStorage() {
   }
 }
 
+async function prewarmOfflineBundle() {
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    registration.active?.postMessage(CACHE_OFFLINE_MESSAGE);
+  } catch (err) {
+    // Best-effort; ignore failures
+  }
+}
+
 export async function registerTelegramServiceWorker() {
   if (!shouldRegisterForTelegram()) return;
 
@@ -74,6 +84,8 @@ export async function registerTelegramServiceWorker() {
     wireUpdateFlow(registration, hadController);
     registration.update();
     requestPersistentStorage();
+    prewarmOfflineBundle();
+    navigator.serviceWorker.addEventListener('controllerchange', prewarmOfflineBundle);
 
     // Refresh in-session to pick up any new build without prompting the user
     document.addEventListener('visibilitychange', () => {

@@ -1,6 +1,7 @@
-const STATIC_CACHE = 'tonplaygram-static-v2';
-const RUNTIME_CACHE = 'tonplaygram-runtime-v2';
+const STATIC_CACHE = 'tonplaygram-static-v3';
+const RUNTIME_CACHE = 'tonplaygram-runtime-v3';
 const OFFLINE_FALLBACK = '/offline.html';
+const OFFLINE_MANIFEST = '/pwa/offline-assets.json';
 
 const APP_SHELL = [
   '/',
@@ -24,9 +25,43 @@ const precache = async () => {
   await cache.addAll(APP_SHELL);
 };
 
+const normalizeAsset = asset => {
+  try {
+    const url = new URL(asset, self.location.origin);
+    return url.href;
+  } catch (err) {
+    return null;
+  }
+};
+
+const precacheOfflineAssets = async () => {
+  try {
+    const response = await fetch(OFFLINE_MANIFEST, { cache: 'no-store' });
+    if (!response.ok) return;
+
+    const assets = await response.json();
+    if (!Array.isArray(assets)) return;
+
+    const normalizedAssets = assets
+      .map(normalizeAsset)
+      .filter(Boolean);
+
+    const cache = await caches.open(RUNTIME_CACHE);
+    await Promise.all(
+      normalizedAssets.map(asset =>
+        cache.add(asset).catch(() => {
+          // Ignore individual asset failures to keep install fast
+        })
+      )
+    );
+  } catch (err) {
+    // Offline precache is best-effort; ignore failures
+  }
+};
+
 self.addEventListener('install', event => {
   event.waitUntil(
-    Promise.all([precache(), enableNavigationPreload()]).catch(() => {})
+    Promise.all([precache(), precacheOfflineAssets(), enableNavigationPreload()]).catch(() => {})
   );
   self.skipWaiting();
 });
@@ -50,6 +85,11 @@ self.addEventListener('activate', event => {
 self.addEventListener('message', event => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
+    return;
+  }
+
+  if (event.data?.type === 'CACHE_OFFLINE_BUNDLE') {
+    event.waitUntil(precacheOfflineAssets());
   }
 });
 
