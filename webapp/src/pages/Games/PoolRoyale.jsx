@@ -970,9 +970,9 @@ const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
-  clearcoatMax: 0.028,
-  clearcoatRoughnessMin: 0.48,
-  envMapIntensityMax: 0.22
+  clearcoatMax: 0,
+  clearcoatRoughnessMin: 1,
+  envMapIntensityMax: 0
 });
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
@@ -1689,22 +1689,22 @@ const CLOTH_SOFT_BLEND = 0.42;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 4096,
+    textureSize: 6144,
     anisotropy: 48,
     generateMipmaps: true,
-    bumpScaleMultiplier: 1,
-    sheen: 0.95,
-    sheenRoughness: 0.66
+    bumpScaleMultiplier: 1.05,
+    sheen: 0.82,
+    sheenRoughness: 0.74
   };
 
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
       ...defaults,
-      textureSize: 2048,
-      anisotropy: 16,
-      bumpScaleMultiplier: 0.88,
-      sheen: 0.9,
-      sheenRoughness: 0.72
+      textureSize: 3072,
+      anisotropy: 24,
+      bumpScaleMultiplier: 0.95,
+      sheen: 0.78,
+      sheenRoughness: 0.82
     };
   }
 
@@ -1721,23 +1721,23 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 1536 : 1152,
-      anisotropy: highDensity ? 16 : 12,
+      textureSize: highDensity ? 2048 : 1536,
+      anisotropy: highDensity ? 20 : 14,
       generateMipmaps: true,
-      bumpScaleMultiplier: highDensity ? 0.82 : 0.74,
-      sheen: 0.78,
-      sheenRoughness: 0.82
+      bumpScaleMultiplier: highDensity ? 0.9 : 0.8,
+      sheen: 0.68,
+      sheenRoughness: 0.88
     };
   }
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 3072,
-      anisotropy: 32,
+      textureSize: 4096,
+      anisotropy: 40,
       generateMipmaps: true,
-      bumpScaleMultiplier: 0.95,
-      sheen: 0.9,
-      sheenRoughness: 0.7
+      bumpScaleMultiplier: 1,
+      sheen: 0.8,
+      sheenRoughness: 0.78
     };
   }
 
@@ -3732,10 +3732,11 @@ const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.55; // enlarge thread spacing for a coarser, more pronounced weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.86; // slightly larger pattern footprint to match the scanned cloths
+const CLOTH_PATTERN_VISIBILITY_MULTIPLIER = 5; // blow up every cloth weave so patterns read 5x larger and more visible
 const CLOTH_TEXTURE_REPEAT_HINT = 1.55;
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.35, 0.55);
-const CLOTH_ROUGHNESS_BASE = 0.82;
-const CLOTH_ROUGHNESS_TARGET = 0.78;
+const CLOTH_ROUGHNESS_BASE = 0.92;
+const CLOTH_ROUGHNESS_TARGET = 0.9;
 
 const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
   if (!cloth?.sourceId) return acc;
@@ -5415,7 +5416,7 @@ const CUE_VIEW_RADIUS_RATIO = 0.028; // tighten cue camera distance so the cue b
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.26
+  STANDING_VIEW_PHI + 0.22
 );
 const CUE_VIEW_PHI_LIFT = 0.1; // raise the cue camera slightly so the aim view sits higher above the cloth
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
@@ -5454,6 +5455,7 @@ const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const GOOD_SHOT_REPLAY_DELAY_MS = 900;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
+const CUE_SHOT_HOLD_MS = 3000;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
 const REPLAY_BANNER_VARIANTS = {
@@ -6788,8 +6790,8 @@ function Table3D(
   const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.32);
   const cushionColor = cushionPrimary.clone().lerp(clothHighlight, 0.22);
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
-  const clothSheen = CLOTH_QUALITY.sheen * 0.72;
-  const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.08);
+  const clothSheen = CLOTH_QUALITY.sheen * 0.35;
+  const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.25);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
     roughness: CLOTH_ROUGHNESS_BASE,
@@ -6797,19 +6799,22 @@ function Table3D(
     sheenColor,
     sheenRoughness: clothSheenRoughness,
     clearcoat: 0,
-    clearcoatRoughness: 0.86,
-    envMapIntensity: 0.02,
+    clearcoatRoughness: 1,
+    envMapIntensity: 0,
     emissive: clothColor.clone().multiplyScalar(0.045),
-    emissiveIntensity: 0.38,
+    emissiveIntensity: 0.32,
     metalness: 0
   });
   clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 12; // base density before global scaling adjustments
-  const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25 * 1.5 * CLOTH_PATTERN_SCALE; // double the thread pattern size for a looser, woollier weave
+  const clothPatternUpscale =
+    ((1 / 1.3) * 0.5 * 1.25 * 1.5 * CLOTH_PATTERN_SCALE) /
+    CLOTH_PATTERN_VISIBILITY_MULTIPLIER; // magnify weave footprints while keeping the pattern coherent
   const clothTextureScale =
-    0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping the cloth visibly taut
+    (0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale) /
+    CLOTH_PATTERN_VISIBILITY_MULTIPLIER; // stretch the weave while keeping the cloth visibly taut
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
@@ -10688,6 +10693,8 @@ const powerRef = useRef(hud.power);
   const aiCueViewBlendRef = useRef(AI_CAMERA_DROP_BLEND);
   const aiRetryTimeoutRef = useRef(null);
   const aiShotWindowRef = useRef({ startedAt: 0, duration: AI_MIN_SHOT_TIME_MS });
+  const queuedShotRef = useRef(null);
+  const shotHoldTimeoutRef = useRef(null);
   const [aiTakingShot, setAiTakingShot] = useState(false);
   const cameraBlendTweenRef = useRef(null);
   const cancelCameraBlendTween = useCallback(() => {
@@ -11772,16 +11779,24 @@ const powerRef = useRef(hud.power);
       const tmpReplayQuatB = new THREE.Quaternion();
       const tmpReplayScale = new THREE.Vector3();
       const tmpReplayPos = new THREE.Vector3();
-      const setShootingState = (value) => {
+      const setShootingState = (value, { stayInCueView = false } = {}) => {
         if (shooting === value) return;
         shooting = value;
         shotStartedAt = shooting ? getNow() : 0;
         if (shooting) {
           preShotTopViewRef.current = topViewRef.current;
           preShotTopViewLockRef.current = topViewLockedRef.current;
-          topViewRef.current = true;
-          topViewLockedRef.current = true;
-          enterTopView(true);
+          if (stayInCueView) {
+            topViewRef.current = false;
+            topViewLockedRef.current = false;
+            setIsTopDownView(false);
+            applyCameraBlend(0);
+            updateCamera();
+          } else {
+            topViewRef.current = true;
+            topViewLockedRef.current = true;
+            enterTopView(true);
+          }
         } else if (!preShotTopViewRef.current) {
           exitTopView(true);
         } else {
@@ -16648,57 +16663,61 @@ const powerRef = useRef(hud.power);
       };
 
       // Fire (slider triggers on release)
-        const fire = () => {
+        const executeQueuedShot = (powerSnapshot) => {
+          queuedShotRef.current = null;
+          shotHoldTimeoutRef.current = null;
           const currentHud = hudRef.current;
           const frameSnapshot = frameRef.current ?? frameState;
           const fullTableHandPlacement =
             allowFullTableInHand() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
-        const inHandPlacementActive = Boolean(
-          currentHud?.inHand && !fullTableHandPlacement
-        );
+          const inHandPlacementActive = Boolean(
+            currentHud?.inHand && !fullTableHandPlacement
+          );
           if (
             !cue?.active ||
             (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
             !allStopped(balls) ||
             currentHud?.over ||
             replayPlaybackRef.current
-          )
+          ) {
+            setShotActive(false);
             return;
-        if (currentHud?.inHand && (fullTableHandPlacement || inHandPlacementActive)) {
-          hudRef.current = { ...currentHud, inHand: false };
-          setHud((prev) => ({ ...prev, inHand: false }));
-        }
-        const forcedCueView = aiShotCueViewRef.current;
-        setAiShotCueViewActive(false);
-        setAiShotPreviewActive(false);
-        alignStandingCameraToAim(cue, aimDirRef.current);
-        cancelCameraBlendTween();
-        const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
-        applyCameraBlend(forcedCueView ? forcedCueBlend : 1);
-        updateCamera();
-        let placedFromHand = false;
-        const meta = frameSnapshot?.meta;
-        if (meta && typeof meta === 'object') {
-          if (meta.variant === 'american' && meta.state) {
-            placedFromHand = Boolean(meta.state.ballInHand);
-          } else if (meta.variant === '9ball' && meta.state) {
-            placedFromHand = Boolean(meta.state.ballInHand);
-          } else if (meta.variant === 'uk' && meta.state) {
-            placedFromHand = Boolean(meta.state.mustPlayFromBaulk);
           }
-        }
-        shotContextRef.current = {
-          placedFromHand,
-          contactMade: false,
-          cushionAfterContact: false
-        };
-        setShootingState(true);
-        activeShotView = null;
-        aimFocusRef.current = null;
-        potted = [];
-        firstHit = null;
-        clearInterval(timerRef.current);
-        const aimDir = aimDirRef.current.clone();
+          if (currentHud?.inHand && (fullTableHandPlacement || inHandPlacementActive)) {
+            hudRef.current = { ...currentHud, inHand: false };
+            setHud((prev) => ({ ...prev, inHand: false }));
+          }
+          const forcedCueView = aiShotCueViewRef.current;
+          setAiShotCueViewActive(false);
+          setAiShotPreviewActive(false);
+          alignStandingCameraToAim(cue, aimDirRef.current);
+          cancelCameraBlendTween();
+          const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
+          applyCameraBlend(forcedCueView ? forcedCueBlend : 0);
+          updateCamera();
+          let placedFromHand = false;
+          const meta = frameSnapshot?.meta;
+          if (meta && typeof meta === 'object') {
+            if (meta.variant === 'american' && meta.state) {
+              placedFromHand = Boolean(meta.state.ballInHand);
+            } else if (meta.variant === '9ball' && meta.state) {
+              placedFromHand = Boolean(meta.state.ballInHand);
+            } else if (meta.variant === 'uk' && meta.state) {
+              placedFromHand = Boolean(meta.state.mustPlayFromBaulk);
+            }
+          }
+          shotContextRef.current = {
+            placedFromHand,
+            contactMade: false,
+            cushionAfterContact: false
+          };
+          setShootingState(true, { stayInCueView: true });
+          activeShotView = null;
+          aimFocusRef.current = null;
+          potted = [];
+          firstHit = null;
+          clearInterval(timerRef.current);
+          const aimDir = aimDirRef.current.clone();
           const prediction = calcTarget(cue, aimDir.clone(), balls);
           const predictedTravelRaw = prediction.targetBall
             ? cue.pos.distanceTo(prediction.targetBall.pos)
@@ -16707,8 +16726,7 @@ const powerRef = useRef(hud.power);
             ? predictedTravelRaw
             : 0;
           const isShortShot =
-            predictedTravel > 0 &&
-            predictedTravel < SHORT_SHOT_CAMERA_DISTANCE;
+            predictedTravel > 0 && predictedTravel < SHORT_SHOT_CAMERA_DISTANCE;
           const isLongShot = predictedTravel > LONG_SHOT_DISTANCE;
           const replayTags = new Set();
           if (isLongShot) replayTags.add('long');
@@ -16718,14 +16736,10 @@ const powerRef = useRef(hud.power);
             impact: prediction.impact
               ? new THREE.Vector2(prediction.impact.x, prediction.impact.y)
               : null,
-            railNormal: prediction.railNormal
-              ? prediction.railNormal.clone()
-              : null,
+            railNormal: prediction.railNormal ? prediction.railNormal.clone() : null,
             travel: predictedTravel,
             longShot: isLongShot,
-            targetInitialPos: prediction.targetBall
-              ? prediction.targetBall.pos.clone()
-              : null
+            targetInitialPos: prediction.targetBall ? prediction.targetBall.pos.clone() : null
           };
           if (shotPrediction.railNormal) replayTags.add('bank');
           const intentTimestamp = performance.now();
@@ -16742,7 +16756,8 @@ const powerRef = useRef(hud.power);
             pocketSwitchIntentRef.current = null;
           }
           lastPocketBallRef.current = null;
-          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
+          const clampedPower = THREE.MathUtils.clamp(powerSnapshot ?? powerRef.current, 0, 1);
+          powerRef.current = clampedPower;
           lastShotPower = clampedPower;
           const spinMagnitude = Math.hypot(
             spinRef.current?.x ?? 0,
@@ -16759,9 +16774,7 @@ const powerRef = useRef(hud.power);
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
-          const base = aimDir
-            .clone()
-            .multiplyScalar(speedBase * powerScale);
+          const base = aimDir.clone().multiplyScalar(speedBase * powerScale);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
@@ -16801,11 +16814,7 @@ const powerRef = useRef(hud.power);
                   radius: clampOrbitRadius(
                     standingBounds.radius ?? sphRef.current?.radius ?? BREAK_VIEW.radius
                   ),
-                  phi: THREE.MathUtils.clamp(
-                    standingBounds.phi,
-                    CAMERA.minPhi,
-                    CAMERA.maxPhi
-                  ),
+                  phi: THREE.MathUtils.clamp(standingBounds.phi, CAMERA.minPhi, CAMERA.maxPhi),
                   theta: sphRef.current?.theta ?? 0
                 }
               }
@@ -16902,11 +16911,7 @@ const powerRef = useRef(hud.power);
             const standingView = bounds?.standing;
             if (standingView) {
               sph.radius = clampOrbitRadius(standingView.radius);
-              sph.phi = THREE.MathUtils.clamp(
-                standingView.phi,
-                CAMERA.minPhi,
-                CAMERA.maxPhi
-              );
+              sph.phi = THREE.MathUtils.clamp(standingView.phi, CAMERA.minPhi, CAMERA.maxPhi);
               syncBlendToSpherical();
             }
             updateCamera();
@@ -16916,11 +16921,7 @@ const powerRef = useRef(hud.power);
           const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
           dir.normalize();
-          const backInfo = calcTarget(
-            cue,
-            aimDir.clone().multiplyScalar(-1),
-            balls
-          );
+          const backInfo = calcTarget(cue, aimDir.clone().multiplyScalar(-1), balls);
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           cuePullTargetRef.current = Math.min(CUE_PULL_BASE * clampedPower, maxPull);
@@ -16937,22 +16938,14 @@ const powerRef = useRef(hud.power);
           const animSteps = 5;
           const animateCue = () => {
             animFrame++;
-            cueStick.position.lerpVectors(
-              startPos,
-              endPos,
-              animFrame / animSteps
-            );
+            cueStick.position.lerpVectors(startPos, endPos, animFrame / animSteps);
             if (animFrame < animSteps) {
               requestAnimationFrame(animateCue);
             } else {
               let backFrame = 0;
               const animateBack = () => {
                 backFrame++;
-                cueStick.position.lerpVectors(
-                  endPos,
-                  startPos,
-                  backFrame / animSteps
-                );
+                cueStick.position.lerpVectors(endPos, startPos, backFrame / animSteps);
                 if (backFrame < animSteps) requestAnimationFrame(animateBack);
                 else {
                   cuePullCurrentRef.current = 0;
@@ -16973,6 +16966,43 @@ const powerRef = useRef(hud.power);
             }
           };
           animateCue();
+        };
+
+        const fire = () => {
+          if (shotHoldTimeoutRef.current || queuedShotRef.current) return;
+          const currentHud = hudRef.current;
+          const frameSnapshot = frameRef.current ?? frameState;
+          const fullTableHandPlacement =
+            allowFullTableInHand() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
+          const inHandPlacementActive = Boolean(
+            currentHud?.inHand && !fullTableHandPlacement
+          );
+          if (
+            !cue?.active ||
+            (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
+            !allStopped(balls) ||
+            currentHud?.over ||
+            replayPlaybackRef.current
+          )
+            return;
+          const forcedCueView = aiShotCueViewRef.current;
+          setAiShotCueViewActive(false);
+          setAiShotPreviewActive(false);
+          alignStandingCameraToAim(cue, aimDirRef.current);
+          cancelCameraBlendTween();
+          const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
+          applyCameraBlend(forcedCueView ? forcedCueBlend : 0);
+          topViewRef.current = false;
+          topViewLockedRef.current = false;
+          setIsTopDownView(false);
+          updateCamera();
+          clearInterval(timerRef.current);
+          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
+          queuedShotRef.current = { power: clampedPower };
+          shotHoldTimeoutRef.current = window.setTimeout(
+            () => executeQueuedShot(clampedPower),
+            CUE_SHOT_HOLD_MS
+          );
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -20139,6 +20169,11 @@ const powerRef = useRef(hud.power);
         return () => {
           disposed = true;
           cancelCameraBlendTween();
+          if (shotHoldTimeoutRef.current) {
+            clearTimeout(shotHoldTimeoutRef.current);
+            shotHoldTimeoutRef.current = null;
+          }
+          queuedShotRef.current = null;
           applyWorldScaleRef.current = () => {};
           topViewControlsRef.current = { enter: () => {}, exit: () => {} };
           cameraUpdateRef.current = () => {};
