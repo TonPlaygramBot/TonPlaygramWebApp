@@ -1209,7 +1209,7 @@ const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
-const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // stop the lowered camera at the cue top without floating too high
+const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_SMOOTHING = 0.35;
@@ -3728,16 +3728,14 @@ const ORIGINAL_HALF_H = ORIGINAL_PLAY_H / 2;
 const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
-const CLOTH_RESOLUTION_SCALE = 1.1;
-const CLOTH_TEXTURE_SIZE = Math.round(CLOTH_QUALITY.textureSize * CLOTH_RESOLUTION_SCALE);
+const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.55; // enlarge thread spacing for a coarser, more pronounced weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.86; // slightly larger pattern footprint to match the scanned cloths
-const CLOTH_PATTERN_VISIBILITY_BOOST = 3; // triple pattern scale so the weave reads boldly on cloth and sleeves
 const CLOTH_TEXTURE_REPEAT_HINT = 1.55;
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.35, 0.55);
-const CLOTH_ROUGHNESS_BASE = 0.92;
-const CLOTH_ROUGHNESS_TARGET = 0.9;
+const CLOTH_ROUGHNESS_BASE = 0.82;
+const CLOTH_ROUGHNESS_TARGET = 0.78;
 
 const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
   if (!cloth?.sourceId) return acc;
@@ -5326,11 +5324,11 @@ const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
 const CAMERA_ZOOM_PROFILES = Object.freeze({
-  default: Object.freeze({ cue: 1.0, broadcast: 0.9, margin: 0.99 }),
-  nearLandscape: Object.freeze({ cue: 1.02, broadcast: 0.92, margin: 0.995 }),
-  landscape: Object.freeze({ cue: 1.04, broadcast: 0.94, margin: 1.0 }),
-  portrait: Object.freeze({ cue: 1.0, broadcast: 0.88, margin: 0.97 }),
-  ultraPortrait: Object.freeze({ cue: 1.0, broadcast: 0.87, margin: 0.96 })
+  default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.97 }),
+  nearLandscape: Object.freeze({ cue: 0.88, broadcast: 0.92, margin: 0.985 }),
+  landscape: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 1.0 }),
+  portrait: Object.freeze({ cue: 0.82, broadcast: 0.88, margin: 0.96 }),
+  ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 0.87, margin: 0.955 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -5413,7 +5411,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 1.38; // pull the rail overhead broadcast he
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.045; // keep cue view wide enough to frame cue stick, cue ball, and target without extra zoom
+const CUE_VIEW_RADIUS_RATIO = 0.028; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -5428,14 +5426,14 @@ const CAMERA_RAIL_APPROACH_PHI = Math.min(
 const CAMERA_MIN_HORIZONTAL =
   ((Math.max(PLAY_W, PLAY_H) / 2 + SIDE_RAIL_INNER_THICKNESS) * WORLD_SCALE) +
   CAMERA_RAIL_SAFETY;
-const CAMERA_DOWNWARD_PULL = 0;
-const CAMERA_DYNAMIC_PULL_RANGE = 0;
-const CAMERA_TILT_ZOOM = 0;
+const CAMERA_DOWNWARD_PULL = 1.9;
+const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
+const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
-const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.05;
+const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
-const CUE_VIEW_FORWARD_SLIDE_MAX = 0;
+const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.48;
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
@@ -5476,7 +5474,6 @@ const SHORT_RAIL_POCKET_INTENT_COOLDOWN_MS = 280;
 const AI_MIN_SHOT_TIME_MS = 5000;
 const AI_MAX_SHOT_TIME_MS = 7000;
 const AI_MIN_AIM_PREVIEW_MS = 900;
-const AI_CUE_HOLD_MS = 3000;
 const AI_EARLY_SHOT_DIFFICULTY = 120;
 const AI_EARLY_SHOT_CUE_DISTANCE = PLAY_H * 0.55;
 const AI_EARLY_SHOT_DELAY_MS = AI_MIN_SHOT_TIME_MS; // never bypass the full telegraphed aim window
@@ -6791,8 +6788,8 @@ function Table3D(
   const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.32);
   const cushionColor = cushionPrimary.clone().lerp(clothHighlight, 0.22);
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
-  const clothSheen = CLOTH_QUALITY.sheen * 0.42;
-  const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.18);
+  const clothSheen = CLOTH_QUALITY.sheen * 0.72;
+  const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.08);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
     roughness: CLOTH_ROUGHNESS_BASE,
@@ -6801,9 +6798,9 @@ function Table3D(
     sheenRoughness: clothSheenRoughness,
     clearcoat: 0,
     clearcoatRoughness: 0.86,
-    envMapIntensity: 0,
+    envMapIntensity: 0.02,
     emissive: clothColor.clone().multiplyScalar(0.045),
-    emissiveIntensity: 0.26,
+    emissiveIntensity: 0.38,
     metalness: 0
   });
   clothMat.side = THREE.DoubleSide;
@@ -6812,7 +6809,7 @@ function Table3D(
   const threadsPerBallTarget = 12; // base density before global scaling adjustments
   const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25 * 1.5 * CLOTH_PATTERN_SCALE; // double the thread pattern size for a looser, woollier weave
   const clothTextureScale =
-    (0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale) / CLOTH_PATTERN_VISIBILITY_BOOST; // stretch the weave while keeping the cloth visibly taut and 3x more legible
+    0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping the cloth visibly taut
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
@@ -13950,55 +13947,55 @@ const powerRef = useRef(hud.power);
                   setOrbitFocusToDefault();
                 }
               }
-              focusTarget = store.target.clone();
-            }
-            focusTarget.multiplyScalar(worldScaleFactor);
-            lookTarget = focusTarget;
-            if (topViewRef.current) {
-              const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-                playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
-                ORBIT_FOCUS_BASE_Y,
-                TOP_VIEW_SCREEN_OFFSET.z
-              ).multiplyScalar(worldScaleFactor);
-              lookTarget = topFocusTarget;
-              lastCameraTargetRef.current.copy(topFocusTarget);
-              const topRadius = clampOrbitRadius(
-                Math.max(
-                  fitRadius(camera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
-                  CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
-                )
-              );
-              const topTheta = Math.PI;
-              const topPhi = TOP_VIEW_RESOLVED_PHI;
-              TMP_SPH.set(topRadius, topPhi, topTheta);
-              camera.up.set(0, 1, 0);
-              camera.position.setFromSpherical(TMP_SPH);
-              camera.position.add(topFocusTarget);
-              camera.lookAt(topFocusTarget);
-              renderCamera = camera;
-              const topCameraWorld = camera.position.clone();
-              const overheadRailCamera = resolveRailOverheadReplayCamera({
-                focusOverride: topFocusTarget,
-                minTargetY: topFocusTarget.y
-              });
-              if (overheadRailCamera) {
-                broadcastArgs.focusWorld =
-                  overheadRailCamera.target?.clone?.() ?? topFocusTarget.clone();
-                broadcastArgs.targetWorld =
-                  overheadRailCamera.target?.clone?.() ?? topFocusTarget.clone();
-                broadcastArgs.orbitWorld =
-                  overheadRailCamera.position?.clone?.() ?? topCameraWorld;
-                broadcastArgs.lerp = 0.08;
-              } else {
-                broadcastArgs.focusWorld = topFocusTarget.clone();
-                broadcastArgs.targetWorld = topFocusTarget.clone();
-                broadcastArgs.orbitWorld = topCameraWorld;
-                if (broadcastCamerasRef.current) {
-                  broadcastCamerasRef.current.defaultFocusWorld = topFocusTarget.clone();
-                }
-                broadcastArgs.lerp = 0.12;
-              }
+            focusTarget = store.target.clone();
+          }
+          focusTarget.multiplyScalar(worldScaleFactor);
+          lookTarget = focusTarget;
+          if (topViewRef.current) {
+            const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
+              playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
+              ORBIT_FOCUS_BASE_Y,
+              TOP_VIEW_SCREEN_OFFSET.z
+            ).multiplyScalar(worldScaleFactor);
+            lookTarget = topFocusTarget;
+            lastCameraTargetRef.current.copy(topFocusTarget);
+            const topRadius = clampOrbitRadius(
+              Math.max(
+                fitRadius(camera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
+                CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
+              )
+            );
+            const topTheta = Math.PI;
+            const topPhi = TOP_VIEW_RESOLVED_PHI;
+            TMP_SPH.set(topRadius, topPhi, topTheta);
+            camera.up.set(0, 1, 0);
+            camera.position.setFromSpherical(TMP_SPH);
+            camera.position.add(topFocusTarget);
+            camera.lookAt(topFocusTarget);
+            renderCamera = camera;
+            const topCameraWorld = camera.position.clone();
+            const overheadRailCamera = resolveRailOverheadReplayCamera({
+              focusOverride: topFocusTarget,
+              minTargetY: topFocusTarget.y
+            });
+            if (overheadRailCamera) {
+              broadcastArgs.focusWorld =
+                overheadRailCamera.target?.clone?.() ?? topFocusTarget.clone();
+              broadcastArgs.targetWorld =
+                overheadRailCamera.target?.clone?.() ?? topFocusTarget.clone();
+              broadcastArgs.orbitWorld =
+                overheadRailCamera.position?.clone?.() ?? topCameraWorld;
+              broadcastArgs.lerp = 0.08;
             } else {
+              broadcastArgs.focusWorld = topFocusTarget.clone();
+              broadcastArgs.targetWorld = topFocusTarget.clone();
+              broadcastArgs.orbitWorld = topCameraWorld;
+              if (broadcastCamerasRef.current) {
+                broadcastCamerasRef.current.defaultFocusWorld = topFocusTarget.clone();
+              }
+              broadcastArgs.lerp = 0.12;
+            }
+          } else {
             camera.up.set(0, 1, 0);
             TMP_SPH.copy(sph);
               if (sidePocketAimRef.current && !shooting && !replayActive) {
@@ -18218,8 +18215,7 @@ const powerRef = useRef(hud.power);
               if (aiShotTimeoutRef.current) {
                 clearTimeout(aiShotTimeoutRef.current);
               }
-              const cueHold = Math.max(AI_CUE_HOLD_MS, AI_CAMERA_SETTLE_MS);
-              const remaining = Math.max(cueHold, shotDelay - dropDelay);
+              const remaining = Math.max(0, shotDelay - dropDelay);
               aiShotTimeoutRef.current = window.setTimeout(() => {
                 aiShotTimeoutRef.current = null;
                 applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
@@ -18945,10 +18941,14 @@ const powerRef = useRef(hud.power);
             end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
           ]);
           tick.visible = true;
-          const lookFocus = targetBall
-            ? new THREE.Vector3(targetBall.pos.x, BALL_CENTER_Y, targetBall.pos.y)
-            : end.clone();
-          aimFocusRef.current = lookFocus;
+          if (lookModeRef.current) {
+            const lookFocus = targetBall
+              ? new THREE.Vector3(targetBall.pos.x, BALL_CENTER_Y, targetBall.pos.y)
+              : end.clone();
+            aimFocusRef.current = lookFocus;
+          } else {
+            aimFocusRef.current = null;
+          }
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
