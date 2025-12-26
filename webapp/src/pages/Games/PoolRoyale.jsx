@@ -2444,10 +2444,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   arcticBlue: Object.freeze({
     id: 'arcticBlue',
     palette: {
-      shadow: 0x2a668a,
-      base: 0x3d9ed8,
-      accent: 0x7dcaf7,
-      highlight: 0xb4e5ff
+      shadow: 0x1c4f73,
+      base: 0x3f84b8,
+      accent: 0x5aa7d8,
+      highlight: 0x9ac9ed
     },
     sparkle: 1.05,
     stray: 1.12
@@ -2455,10 +2455,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   emeraldPulse: Object.freeze({
     id: 'emeraldPulse',
     palette: {
-      shadow: 0x0f5a38,
-      base: 0x1fa95f,
-      accent: 0x2fce7a,
-      highlight: 0x6ff3b1
+      shadow: 0x0f4c2f,
+      base: 0x1b8a51,
+      accent: 0x2eae68,
+      highlight: 0x58d994
     },
     sparkle: 1.08,
     stray: 1.05
@@ -2466,10 +2466,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   ivyDrift: Object.freeze({
     id: 'ivyDrift',
     palette: {
-      shadow: 0x0e3b24,
-      base: 0x1f6a3d,
-      accent: 0x2f8f56,
-      highlight: 0x52c586
+      shadow: 0x0d3320,
+      base: 0x1b5c33,
+      accent: 0x2d7a49,
+      highlight: 0x4aa76d
     },
     sparkle: 0.9,
     stray: 0.92
@@ -2477,10 +2477,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   mintRadiance: Object.freeze({
     id: 'mintRadiance',
     palette: {
-      shadow: 0x0f7f6a,
-      base: 0x2fcfba,
-      accent: 0x66e9d3,
-      highlight: 0xb4fff3
+      shadow: 0x1f5338,
+      base: 0x3a9662,
+      accent: 0x54b67c,
+      highlight: 0x83d7a5
     },
     sparkle: 1.12,
     stray: 1.18
@@ -2499,10 +2499,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   midnightWave: Object.freeze({
     id: 'midnightWave',
     palette: {
-      shadow: 0x0b1b3d,
-      base: 0x133a73,
-      accent: 0x1f5aa4,
-      highlight: 0x3a7dd8
+      shadow: 0x0d1f38,
+      base: 0x1c3f7a,
+      accent: 0x2f5a9d,
+      highlight: 0x4f7fbf
     },
     sparkle: 0.82,
     stray: 0.88
@@ -2510,10 +2510,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   neonAzure: Object.freeze({
     id: 'neonAzure',
     palette: {
-      shadow: 0x0b3e5a,
-      base: 0x0fb3e0,
-      accent: 0x29d9ff,
-      highlight: 0x7ce9ff
+      shadow: 0x0f3e64,
+      base: 0x2b8ac2,
+      accent: 0x46b1e4,
+      highlight: 0x7ad5ff
     },
     sparkle: 1.18,
     stray: 1.2
@@ -2554,10 +2554,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   forestPrime: Object.freeze({
     id: 'forestPrime',
     palette: {
-      shadow: 0x0d2d1a,
-      base: 0x1f6b3a,
-      accent: 0x2f8f52,
-      highlight: 0x4ecf7a
+      shadow: 0x0e2f1d,
+      base: 0x1f6d3c,
+      accent: 0x2f8a55,
+      highlight: 0x4fb67a
     },
     sparkle: 0.88,
     stray: 0.94
@@ -2565,10 +2565,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   evergreenLuxe: Object.freeze({
     id: 'evergreenLuxe',
     palette: {
-      shadow: 0x103626,
-      base: 0x2c8a53,
-      accent: 0x43a86a,
-      highlight: 0x71d69b
+      shadow: 0x103923,
+      base: 0x2a7c4c,
+      accent: 0x3f9961,
+      highlight: 0x65c08a
     },
     sparkle: 1.02,
     stray: 1
@@ -2576,10 +2576,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   jadeCurrent: Object.freeze({
     id: 'jadeCurrent',
     palette: {
-      shadow: 0x0a3a32,
-      base: 0x1fa37c,
-      accent: 0x32c99f,
-      highlight: 0x7bf2cb
+      shadow: 0x0f3f2d,
+      base: 0x2a8b63,
+      accent: 0x40a57c,
+      highlight: 0x6ccca4
     },
     sparkle: 1.1,
     stray: 1.12
@@ -2615,47 +2615,49 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'arcticBlue',
     label: 'Arctic Blue',
-    color: 0x6fc5f6,
+    color: 0x5aa7d8,
     textureKey: 'arcticBlue',
     detail: {
-      sheen: 0.64,
-      sheenRoughness: 0.44,
-      envMapIntensity: 0.16
+      sheen: 0.58,
+      sheenRoughness: 0.46,
+      envMapIntensity: 0.14
     }
   },
   {
     id: 'emeraldPulse',
     label: 'Emerald Pulse',
-    color: 0x2ac278,
+    color: 0x1f9d5a,
     textureKey: 'emeraldPulse',
     detail: {
-      sheen: 0.62,
-      sheenRoughness: 0.48,
-      bumpMultiplier: 1.08,
-      emissiveIntensity: 0.4
+      sheen: 0.6,
+      sheenRoughness: 0.5,
+      bumpMultiplier: 1.05,
+      emissiveIntensity: 0.32
     }
   },
   {
     id: 'ivyDrift',
     label: 'Ivy Drift',
-    color: 0x1f6a3d,
+    color: 0x1b5c33,
     textureKey: 'ivyDrift',
     detail: {
+      sheen: 0.56,
+      sheenRoughness: 0.5,
       roughness: 0.78,
       bumpMultiplier: 0.96,
-      envMapIntensity: 0.12
+      envMapIntensity: 0.1
     }
   },
   {
     id: 'mintRadiance',
     label: 'Mint Radiance',
-    color: 0x56e8d4,
+    color: 0x3fa56b,
     textureKey: 'mintRadiance',
     detail: {
-      sheen: 0.7,
-      sheenRoughness: 0.42,
-      emissiveIntensity: 0.46,
-      envMapIntensity: 0.2
+      sheen: 0.64,
+      sheenRoughness: 0.46,
+      emissiveIntensity: 0.36,
+      envMapIntensity: 0.18
     }
   },
   {
@@ -2673,24 +2675,25 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'midnightWave',
     label: 'Midnight Wave',
-    color: 0x1f4da8,
+    color: 0x1c3f7a,
     textureKey: 'midnightWave',
     detail: {
-      roughness: 0.82,
+      roughness: 0.84,
       bumpMultiplier: 0.9,
-      emissiveIntensity: 0.3
+      emissiveIntensity: 0.24
     }
   },
   {
     id: 'neonAzure',
     label: 'Neon Azure',
-    color: 0x1fc9f0,
+    color: 0x2b9ad6,
     textureKey: 'neonAzure',
     detail: {
-      sheen: 0.78,
-      sheenRoughness: 0.34,
-      bumpMultiplier: 1.12,
-      emissiveIntensity: 0.5
+      sheen: 0.7,
+      sheenRoughness: 0.4,
+      bumpMultiplier: 1.05,
+      emissiveIntensity: 0.34,
+      envMapIntensity: 0.18
     }
   },
   {
@@ -2735,40 +2738,40 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'forestPrime',
     label: 'Forest Prime',
-    color: 0x217a45,
+    color: 0x1f6d3c,
     textureKey: 'forestPrime',
     detail: {
       roughness: 0.76,
       sheen: 0.6,
-      sheenRoughness: 0.46,
-      emissiveIntensity: 0.32,
-      envMapIntensity: 0.16
+      sheenRoughness: 0.48,
+      emissiveIntensity: 0.28,
+      envMapIntensity: 0.12
     }
   },
   {
     id: 'evergreenLuxe',
     label: 'Evergreen Luxe',
-    color: 0x2f9c5f,
+    color: 0x2a7c4c,
     textureKey: 'evergreenLuxe',
     detail: {
-      sheen: 0.68,
-      sheenRoughness: 0.4,
-      bumpMultiplier: 1.02,
-      emissiveIntensity: 0.42,
-      envMapIntensity: 0.2
+      sheen: 0.62,
+      sheenRoughness: 0.44,
+      bumpMultiplier: 1,
+      emissiveIntensity: 0.34,
+      envMapIntensity: 0.18
     }
   },
   {
     id: 'jadeCurrent',
     label: 'Jade Current',
-    color: 0x1fb190,
+    color: 0x2a8b63,
     textureKey: 'jadeCurrent',
     detail: {
-      sheen: 0.74,
-      sheenRoughness: 0.36,
-      bumpMultiplier: 1.1,
-      emissiveIntensity: 0.46,
-      envMapIntensity: 0.24
+      sheen: 0.66,
+      sheenRoughness: 0.42,
+      bumpMultiplier: 1.02,
+      emissiveIntensity: 0.36,
+      envMapIntensity: 0.2
     }
   }
 ]);
@@ -2902,16 +2905,16 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'hd50',
     label: 'HD Performance (50 Hz)',
     fps: 50,
-    renderScale: 1,
-    pixelRatioCap: 1.4,
-    resolution: 'HD render • DPR 1.4 cap',
+    renderScale: 0.96,
+    pixelRatioCap: 1.35,
+    resolution: 'HD render • DPR 1.35 cap',
     description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
   },
   {
     id: 'fhd60',
     label: 'Full HD (60 Hz)',
     fps: 60,
-    renderScale: 1.1,
+    renderScale: 1.05,
     pixelRatioCap: 1.5,
     resolution: 'Full HD render • DPR 1.5 cap',
     description: '1080p-focused profile that mirrors the Snooker frame pacing.'
@@ -2920,27 +2923,27 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'qhd90',
     label: 'Quad HD (90 Hz)',
     fps: 90,
-    renderScale: 1.25,
-    pixelRatioCap: 1.7,
-    resolution: 'QHD render • DPR 1.7 cap',
+    renderScale: 1.12,
+    pixelRatioCap: 1.65,
+    resolution: 'QHD render • DPR 1.65 cap',
     description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
   },
   {
     id: 'uhd120',
     label: 'Ultra HD (120 Hz)',
     fps: 120,
-    renderScale: 1.35,
-    pixelRatioCap: 2,
-    resolution: 'Ultra HD render • DPR 2.0 cap',
+    renderScale: 1.18,
+    pixelRatioCap: 1.8,
+    resolution: 'Ultra HD render • DPR 1.8 cap',
     description: '4K-oriented profile for 120 Hz flagships and desktops.'
   },
   {
     id: 'ultra144',
     label: 'Ultra HD+ (144 Hz)',
     fps: 144,
-    renderScale: 1.5,
-    pixelRatioCap: 2.2,
-    resolution: 'Ultra HD+ render • DPR 2.2 cap',
+    renderScale: 1.2,
+    pixelRatioCap: 1.9,
+    resolution: 'Ultra HD+ render • DPR 1.9 cap',
     description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
   }
 ]);
@@ -10452,6 +10455,12 @@ const powerRef = useRef(hud.power);
     const host = mountRef.current;
     if (!renderer || !host) return;
     const quality = frameQualityRef.current;
+    const timing = frameTimingRef.current;
+    const targetMs =
+      timing && Number.isFinite(timing.targetMs) ? timing.targetMs : 1000 / 60;
+    const targetFps = targetMs > 0 ? 1000 / targetMs : 60;
+    const highFpsBias =
+      targetFps >= 144 ? 0.9 : targetFps >= 120 ? 0.92 : targetFps >= 90 ? 0.96 : 1;
     const dpr =
       typeof window !== 'undefined' && typeof window.devicePixelRatio === 'number'
         ? window.devicePixelRatio
@@ -10459,11 +10468,20 @@ const powerRef = useRef(hud.power);
     const pixelRatioCap =
       quality?.pixelRatioCap ??
       (typeof window !== 'undefined' ? resolveDefaultPixelRatioCap() : 2);
-    const renderScale =
+    const renderScaleBase =
       typeof quality?.renderScale === 'number' && Number.isFinite(quality.renderScale)
-        ? THREE.MathUtils.clamp(quality.renderScale, 0.75, 1)
+        ? THREE.MathUtils.clamp(quality.renderScale, 0.78, 1.15)
         : 1;
-    renderer.setPixelRatio(Math.min(pixelRatioCap, dpr));
+    const renderScale = THREE.MathUtils.clamp(
+      renderScaleBase * highFpsBias,
+      0.78,
+      1.15
+    );
+    const cappedDpr = Math.min(pixelRatioCap, dpr);
+    const performanceDpr =
+      highFpsBias < 1 ? cappedDpr * (0.92 + highFpsBias * 0.08) : cappedDpr;
+    const resolvedPixelRatio = Math.max(1, performanceDpr);
+    renderer.setPixelRatio(resolvedPixelRatio);
     renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
@@ -14885,18 +14903,18 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.6; // widen the overhead footprint so fixtures read larger on mobile and reach farther to the sides
+        const lightSpreadBoost = 1.4; // widen the overhead footprint so fixtures read larger on mobile and reach farther to the sides
         const previousLightRigHeight = tableSurfaceY + TABLE.THICK * 7.1; // baseline height used for the prior brightness target
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.05; // bring the rig closer so ball reflections enlarge without shifting color
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.65; // bring the rig closer so ball reflections enlarge without shifting color
         const brightnessCompensation =
-          ((lightRigHeight ** 2) / (previousLightRigHeight ** 2)) * 0.9; // preserve on-cloth brightness after moving the rig closer while dimming slightly
+          ((lightRigHeight ** 2) / (previousLightRigHeight ** 2)) * 1.02; // preserve on-cloth brightness after moving the rig closer while dimming slightly
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
         const lightOffsetZ =
           Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
-        const lightLineX = lightOffsetX * 0.5; // keep the rig aligned along a single long rail with a slightly wider stance
-        const lightSpacing = lightOffsetZ * 0.6; // enforce equal spacing between fixtures to mirror the centred heads
-        const lightPositionsZ = [-1.5, -0.5, 0.5, 1.5].map((mult) => mult * lightSpacing);
+        const lightLineX = 0; // align fixtures down the center line instead of offsetting per side
+        const lightSpacing = Math.max(lightOffsetZ * 0.58, TABLE.THICK * 2.6); // enforce equal spacing between fixtures to mirror the centred heads
+        const lightPositionsZ = [-1.4, -0.4, 0.4, 1.4].map((mult) => mult * lightSpacing);
         const shadowHalfSpan =
           Math.max(roomWidth, roomDepth) * 0.82 + TABLE.THICK * 3.5;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
@@ -20031,9 +20049,45 @@ const powerRef = useRef(hud.power);
                         </button>
                       );
                     })}
+                  </div>
                 </div>
-              </div>
-            ) : null}
+              ) : null}
+              {availablePocketLiners.length > 0 ? (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                    Pocket Jaws
+                  </h3>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {availablePocketLiners.map((option) => {
+                      const active = option.id === pocketLinerId;
+                      const swatchColor =
+                        option.jawColor ?? option.rimColor ?? option.sheenColor ?? option.color;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setPocketLinerId(option.id)}
+                          aria-pressed={active}
+                          className={`flex-1 min-w-[9rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className="flex items-center justify-center gap-2">
+                            <span
+                              className="h-3.5 w-3.5 rounded-full border border-white/40"
+                              style={{ backgroundColor: toHexColor(swatchColor) }}
+                              aria-hidden="true"
+                            />
+                            {option.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Rail Markers
