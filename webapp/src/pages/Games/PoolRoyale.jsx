@@ -2942,7 +2942,8 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze(
       id: cloth.id,
       palette: cloth.palette,
       sparkle: cloth.sparkle,
-      stray: cloth.stray
+      stray: cloth.stray,
+      sourceId: cloth.sourceId
     });
     return acc;
   }, {})
@@ -3730,9 +3731,59 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.55; // enlarge thread spacing for a coarser, more pronounced weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
+const CLOTH_PATTERN_SCALE = 0.86; // slightly larger pattern footprint to match the scanned cloths
+const CLOTH_TEXTURE_REPEAT_HINT = 1.55;
+const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.35, 0.55);
+const CLOTH_ROUGHNESS_BASE = 0.82;
+const CLOTH_ROUGHNESS_TARGET = 0.78;
+
+const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
+  if (!cloth?.sourceId) return acc;
+  if (!acc[cloth.sourceId]) {
+    acc[cloth.sourceId] = new Set();
+  }
+  acc[cloth.sourceId].add(cloth.id);
+  return acc;
+}, {});
+
+const CLOTH_TEXTURE_CONSUMERS = new Map();
+const CLOTH_CONSUMER_KEYS = new Map();
+
+function registerClothTextureConsumer(textureKey, finishInfo) {
+  if (!textureKey || !finishInfo) return;
+  const previousKey = CLOTH_CONSUMER_KEYS.get(finishInfo);
+  if (previousKey && previousKey !== textureKey) {
+    const prevSet = CLOTH_TEXTURE_CONSUMERS.get(previousKey);
+    if (prevSet) {
+      prevSet.delete(finishInfo);
+      if (!prevSet.size) {
+        CLOTH_TEXTURE_CONSUMERS.delete(previousKey);
+      }
+    }
+  }
+  let set = CLOTH_TEXTURE_CONSUMERS.get(textureKey);
+  if (!set) {
+    set = new Set();
+    CLOTH_TEXTURE_CONSUMERS.set(textureKey, set);
+  }
+  set.add(finishInfo);
+  CLOTH_CONSUMER_KEYS.set(finishInfo, textureKey);
+}
+
+function broadcastClothTextureReady(sourceId) {
+  if (!sourceId) return;
+  const textureKeys = CLOTH_TEXTURE_KEYS_BY_SOURCE[sourceId];
+  if (!textureKeys) return;
+  textureKeys.forEach((textureKey) => {
+    const consumers = CLOTH_TEXTURE_CONSUMERS.get(textureKey);
+    if (!consumers?.size) return;
+    consumers.forEach((finishInfo) => updateClothTexturesForFinish(finishInfo, textureKey));
+  });
+}
 
 const createClothTextures = (() => {
   const cache = new Map();
+  const pendingLoads = new Map();
   const clamp255 = (value) => Math.max(0, Math.min(255, value));
   const cloneTexture = (texture) => {
     if (!texture) return null;
@@ -3749,25 +3800,93 @@ const createClothTextures = (() => {
       b: Math.round(color.b * 255)
     };
   };
-  return (textureKey = DEFAULT_CLOTH_TEXTURE_KEY) => {
-    const preset =
-      CLOTH_TEXTURE_PRESETS[textureKey] ??
-      CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY];
-    if (cache.has(preset.id)) {
-      const entry = cache.get(preset.id);
-      return {
-        map: cloneTexture(entry.map),
-        bump: cloneTexture(entry.bump),
-        presetId: preset.id
-      };
-    }
-    if (typeof document === 'undefined') {
-      cache.set(preset.id, { map: null, bump: null });
-      return { map: null, bump: null, presetId: preset.id };
-    }
 
+  const pickPolyHavenTextureUrls = (apiJson) => {
+    const urls = [];
+    const walk = (v) => {
+      if (!v) return;
+      if (typeof v === 'string') {
+        const lower = v.toLowerCase();
+        if (v.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
+          urls.push(v);
+        }
+        return;
+      }
+      if (Array.isArray(v)) {
+        v.forEach(walk);
+        return;
+      }
+      if (typeof v === 'object') {
+        Object.values(v).forEach(walk);
+      }
+    };
+    walk(apiJson);
+    const scoreAndPick = (keywords) => {
+      const scored = urls
+        .filter((u) => keywords.some((kw) => u.toLowerCase().includes(kw)))
+        .map((u) => {
+          const lower = u.toLowerCase();
+          let score = 0;
+          if (lower.includes('2k')) score += 6;
+          if (lower.includes('1k')) score += 4;
+          if (lower.includes('jpg')) score += 3;
+          if (lower.includes('png')) score += 2;
+          if (lower.includes('diff') || lower.includes('albedo') || lower.includes('basecolor')) score += 2;
+          if (lower.includes('nor_gl') || lower.includes('normal_gl')) score += 2;
+          if (lower.includes('nor') || lower.includes('normal')) score += 1;
+          if (lower.includes('rough')) score += 1;
+          if (lower.includes('preview')) score -= 6;
+          return { url: u, score };
+        })
+        .sort((a, b) => b.score - a.score);
+      return scored[0]?.url ?? null;
+    };
+    return {
+      diffuse: scoreAndPick(['diff', 'diffuse', 'albedo', 'basecolor']),
+      normal: scoreAndPick(['nor_gl', 'normal_gl', 'nor', 'normal']),
+      roughness: scoreAndPick(['rough', 'roughness'])
+    };
+  };
+
+  const loadTexture = (loader, url, isColor) =>
+    new Promise((resolve, reject) => {
+      if (!url) {
+        resolve(null);
+        return;
+      }
+      loader.load(
+        url,
+        (texture) => {
+          if (isColor) {
+            applySRGBColorSpace(texture);
+          }
+          resolve(texture);
+        },
+        undefined,
+        (err) => reject(err || new Error('Texture load failed'))
+      );
+    });
+
+  const applyTextureDefaults = (texture) => {
+    if (!texture) return;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(CLOTH_TEXTURE_REPEAT_HINT, CLOTH_TEXTURE_REPEAT_HINT);
+    texture.anisotropy = CLOTH_QUALITY.anisotropy;
+    texture.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
+    texture.minFilter = CLOTH_QUALITY.generateMipmaps
+      ? THREE.LinearMipmapLinearFilter
+      : THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.needsUpdate = true;
+  };
+
+  const generateProceduralClothTextures = (preset) => {
+    if (typeof document === 'undefined') {
+      return { map: null, bump: null };
+    }
     const SIZE = CLOTH_TEXTURE_SIZE;
-    const THREAD_PITCH = CLOTH_THREAD_PITCH;
+    const THREAD_PITCH = CLOTH_THREAD_PITCH / CLOTH_PATTERN_SCALE;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
     const SIN = Math.sin(DIAG);
@@ -3776,8 +3895,7 @@ const createClothTextures = (() => {
     canvas.width = canvas.height = SIZE;
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      cache.set(preset.id, { map: null, bump: null });
-      return { map: null, bump: null, presetId: preset.id };
+      return { map: null, bump: null };
     }
 
     const palette = preset.palette || CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY].palette;
@@ -3858,138 +3976,163 @@ const createClothTextures = (() => {
             (fiber - 0.5) * 0.26 * CLOTH_TEXTURE_INTENSITY +
             (fuzz - 0.5) * 0.2 * CLOTH_TEXTURE_INTENSITY +
             (micro - 0.5) * 0.18 * CLOTH_TEXTURE_INTENSITY +
-            (hair - 0.5) * 0.3 * CLOTH_HAIR_INTENSITY,
+            (sparkle - 0.5) * 0.24 * CLOTH_TEXTURE_INTENSITY,
           0,
           1
         );
-        const tonalEnhanced = THREE.MathUtils.clamp(
-          0.5 +
-            (tonal - 0.5) * (1 + (1.56 - 1) * CLOTH_TEXTURE_INTENSITY) +
-            (hair - 0.5) * 0.16 * CLOTH_HAIR_INTENSITY,
+        const softness = Math.pow(Math.abs(Math.sin(u * 0.5)) * Math.abs(Math.sin(v * 0.5)), 1.3);
+        const hairWeave = Math.pow(hair, 1.6) * 0.42 + softness * CLOTH_SOFT_BLEND * 0.6;
+        const warpBias = Math.pow(Math.abs(Math.cos(u)), 1.4);
+        const weftBias = Math.pow(Math.abs(Math.sin(v)), 1.4);
+        const bias = Math.pow((warpBias + weftBias) * 0.5, 1.18);
+        const grain = Math.pow(
+          Math.abs(Math.sin((x * COS + y * SIN) * 0.025)) *
+            Math.abs(Math.cos((x * COS - y * SIN) * 0.025)),
+          1.1
+        );
+        const sheen = THREE.MathUtils.clamp(
+          0.42 +
+            (sparkle - 0.5) * 0.4 +
+            (hairWeave - 0.5) * CLOTH_HAIR_INTENSITY * 0.6 +
+            (grain - 0.5) * 0.2,
           0,
           1
         );
-        const highlightMix = THREE.MathUtils.clamp(
-          0.34 +
-            (cross - 0.5) * 0.44 * CLOTH_TEXTURE_INTENSITY +
-            (diamond - 0.5) * 0.66 * CLOTH_TEXTURE_INTENSITY +
-            (sparkle - 0.5) * 0.38 * CLOTH_TEXTURE_INTENSITY +
-            (hair - 0.5) * 0.22 * CLOTH_HAIR_INTENSITY,
+
+        const shade = THREE.MathUtils.clamp(
+          softness * 0.16 +
+            sparkle * 0.22 +
+            hairWeave * 0.2 +
+            tonal * 0.28 +
+            bias * 0.18,
           0,
           1
         );
-        const accentMix = THREE.MathUtils.clamp(
-          0.48 +
-            (diamond - 0.5) * 1.12 * CLOTH_TEXTURE_INTENSITY +
-            (fuzz - 0.5) * 0.26 * CLOTH_TEXTURE_INTENSITY +
-            (hair - 0.5) * 0.26 * CLOTH_HAIR_INTENSITY,
-          0,
-          1
-        );
-        const highlightEnhanced = THREE.MathUtils.clamp(
-          0.38 +
-            (highlightMix - 0.5) * (1 + (1.68 - 1) * CLOTH_TEXTURE_INTENSITY) +
-            (hair - 0.5) * 0.18 * CLOTH_HAIR_INTENSITY,
-          0,
-          1
-        );
-        const baseR = shadow.r + (base.r - shadow.r) * tonalEnhanced;
-        const baseG = shadow.g + (base.g - shadow.g) * tonalEnhanced;
-        const baseB = shadow.b + (base.b - shadow.b) * tonalEnhanced;
-        const accentR = baseR + (accent.r - baseR) * accentMix;
-        const accentG = baseG + (accent.g - baseG) * accentMix;
-        const accentB = baseB + (accent.b - baseB) * accentMix;
-        const r = accentR + (highlight.r - accentR) * highlightEnhanced;
-        const g = accentG + (highlight.g - accentG) * highlightEnhanced;
-        const b = accentB + (highlight.b - accentB) * highlightEnhanced;
-        const softR = baseR + (r - baseR) * CLOTH_SOFT_BLEND;
-        const softG = baseG + (g - baseG) * CLOTH_SOFT_BLEND;
-        const softB = baseB + (b - baseB) * CLOTH_SOFT_BLEND;
-        const i = (y * SIZE + x) * 4;
-        data[i + 0] = clamp255(softR);
-        data[i + 1] = clamp255(softG);
-        data[i + 2] = clamp255(softB);
-        data[i + 3] = 255;
+        const baseMix = Math.pow(shade, 1.08);
+        const accentMix = Math.pow(shade, 1.35);
+        const highlightMix = Math.pow(shade, 1.5);
+        const r =
+          clamp255(shadow.r * (1 - baseMix) +
+            base.r * baseMix * (1 - accentMix) +
+            accent.r * accentMix * (1 - highlightMix) +
+            highlight.r * highlightMix);
+        const g =
+          clamp255(shadow.g * (1 - baseMix) +
+            base.g * baseMix * (1 - accentMix) +
+            accent.g * accentMix * (1 - highlightMix) +
+            highlight.g * highlightMix);
+        const b =
+          clamp255(shadow.b * (1 - baseMix) +
+            base.b * baseMix * (1 - accentMix) +
+            accent.b * accentMix * (1 - highlightMix) +
+            highlight.b * highlightMix);
+        const a = 255;
+
+        const bump =
+          shade * 0.5 * CLOTH_BUMP_INTENSITY +
+          sparkle * 0.25 * CLOTH_BUMP_INTENSITY +
+          hair * 0.15 * CLOTH_BUMP_INTENSITY +
+          grain * 0.1 * CLOTH_BUMP_INTENSITY;
+        const bumpValue = clamp255(128 + (bump - 0.5) * 64);
+
+        const idx = (y * SIZE + x) * 4;
+        data[idx] = r;
+        data[idx + 1] = g;
+        data[idx + 2] = b;
+        data[idx + 3] = a;
+        data[idx + 4] = bumpValue;
+        data[idx + 5] = bumpValue;
+        data[idx + 6] = bumpValue;
+        data[idx + 7] = a;
       }
     }
-    ctx.putImageData(image, 0, 0);
 
-    const colorMap = new THREE.CanvasTexture(canvas);
-    colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.anisotropy = CLOTH_QUALITY.anisotropy;
-    colorMap.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
-    colorMap.minFilter = CLOTH_QUALITY.generateMipmaps
-      ? THREE.LinearMipmapLinearFilter
-      : THREE.LinearFilter;
-    colorMap.magFilter = THREE.LinearFilter;
+    const colorMap = new THREE.CanvasTexture(image);
     applySRGBColorSpace(colorMap);
-    colorMap.needsUpdate = true;
+    applyTextureDefaults(colorMap);
 
-    const bumpCanvas = document.createElement('canvas');
-    bumpCanvas.width = bumpCanvas.height = SIZE;
-    const bumpCtx = bumpCanvas.getContext('2d');
-    if (!bumpCtx) {
-      cache.set(preset.id, { map: colorMap, bump: null });
-      return { map: cloneTexture(colorMap), bump: null, presetId: preset.id };
-    }
-    const bumpImage = bumpCtx.createImageData(SIZE, SIZE);
-    const bumpData = bumpImage.data;
-    for (let y = 0; y < SIZE; y++) {
-      for (let x = 0; x < SIZE; x++) {
-        const u = ((x * COS + y * SIN) / THREAD_PITCH) * TAU;
-        const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
-        const warp = 0.5 + 0.5 * Math.cos(u);
-        const weft = 0.5 + 0.5 * Math.cos(v);
-        const weave = Math.pow((warp + weft) * 0.5, 1.58);
-        const cross = Math.pow(warp * weft, 0.94);
-        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.68);
-        const fiber = fiberNoise(x, y);
-        const micro = microNoise(x + 31.8, y + 17.3);
-        const fuzz = Math.pow(fiber, 1.22);
-        const hairRaw = hairFiber(x, y);
-        const hair = THREE.MathUtils.clamp(0.5 + (hairRaw - 0.5) * strayScale, 0, 1);
-        const bump = THREE.MathUtils.clamp(
-          0.56 +
-            (weave - 0.5) * 0.9 * CLOTH_BUMP_INTENSITY +
-            (cross - 0.5) * 0.46 * CLOTH_BUMP_INTENSITY +
-            (diamond - 0.5) * 0.58 * CLOTH_BUMP_INTENSITY +
-            (fiber - 0.5) * 0.3 * CLOTH_BUMP_INTENSITY +
-            (fuzz - 0.5) * 0.2 * CLOTH_BUMP_INTENSITY +
-            (micro - 0.5) * 0.22 * CLOTH_BUMP_INTENSITY +
-            (hair - 0.5) * 0.4 * CLOTH_HAIR_INTENSITY,
-          0,
-          1
-        );
-        const value = clamp255(140 + (bump - 0.5) * 180 + (hair - 0.5) * 48);
-        const i = (y * SIZE + x) * 4;
-        bumpData[i + 0] = value;
-        bumpData[i + 1] = value;
-        bumpData[i + 2] = value;
-        bumpData[i + 3] = 255;
+    const bumpMap = new THREE.DataTexture(image.data, SIZE, SIZE, THREE.RGBAFormat);
+    applyTextureDefaults(bumpMap);
+
+    return { map: colorMap, bump: bumpMap };
+  };
+
+  const ensurePolyHavenTextures = (preset, cacheKey) => {
+    if (!preset?.sourceId) return;
+    const cached = cache.get(cacheKey);
+    if (cached?.ready) return;
+    if (pendingLoads.has(cacheKey)) return;
+    if (typeof window === 'undefined' || typeof fetch !== 'function') return;
+
+    const promise = (async () => {
+      try {
+        const response = await fetch(`https://api.polyhaven.com/files/${preset.sourceId}`);
+        if (!response?.ok) return;
+        const json = await response.json();
+        const urls = pickPolyHavenTextureUrls(json);
+        if (!urls.diffuse) return;
+        const loader = new THREE.TextureLoader();
+        loader.setCrossOrigin('anonymous');
+
+        const [map, normal, roughness] = await Promise.all([
+          loadTexture(loader, urls.diffuse, true),
+          loadTexture(loader, urls.normal, false),
+          loadTexture(loader, urls.roughness, false)
+        ]);
+
+        [map, normal, roughness].forEach(applyTextureDefaults);
+
+        const existing = cache.get(cacheKey) || {};
+        cache.set(cacheKey, {
+          ...existing,
+          map: map ?? existing.map ?? null,
+          bump: null,
+          normal: normal ?? existing.normal ?? null,
+          roughness: roughness ?? existing.roughness ?? null,
+          presetId: preset.id,
+          sourceId: preset.sourceId,
+          ready: Boolean(map || normal || roughness)
+        });
+        broadcastClothTextureReady(preset.sourceId);
+      } catch (err) {
+        console.warn('Failed to load Poly Haven cloth textures', preset?.sourceId, err);
+      } finally {
+        pendingLoads.delete(cacheKey);
       }
+    })();
+    pendingLoads.set(cacheKey, promise);
+  };
+
+  return (textureKey = DEFAULT_CLOTH_TEXTURE_KEY) => {
+    const preset =
+      CLOTH_TEXTURE_PRESETS[textureKey] ??
+      CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY];
+    const cacheKey = preset.sourceId || preset.id;
+    let entry = cache.get(cacheKey);
+    if (!entry) {
+      const procedural = generateProceduralClothTextures(preset);
+      entry = {
+        ...procedural,
+        normal: null,
+        roughness: null,
+        presetId: preset.id,
+        sourceId: preset.sourceId,
+        ready: false
+      };
+      cache.set(cacheKey, entry);
     }
-    bumpCtx.putImageData(bumpImage, 0, 0);
 
-    const bumpMap = new THREE.CanvasTexture(bumpCanvas);
-    bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
-    bumpMap.repeat.copy(colorMap.repeat);
-    bumpMap.anisotropy = CLOTH_QUALITY.anisotropy;
-    bumpMap.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
-    bumpMap.minFilter = CLOTH_QUALITY.generateMipmaps
-      ? THREE.LinearMipmapLinearFilter
-      : THREE.LinearFilter;
-    bumpMap.magFilter = THREE.LinearFilter;
-    bumpMap.needsUpdate = true;
+    ensurePolyHavenTextures(preset, cacheKey);
 
-    cache.set(preset.id, { map: colorMap, bump: bumpMap });
     return {
-      map: cloneTexture(colorMap),
-      bump: cloneTexture(bumpMap),
+      map: cloneTexture(entry.map),
+      bump: cloneTexture(entry.bump),
+      normal: cloneTexture(entry.normal),
+      roughness: cloneTexture(entry.roughness),
       presetId: preset.id
     };
   };
 })();
-
 function replaceMaterialTexture (material, prop, baseTexture, fallbackRepeat) {
   if (!material) return;
   const prev = material[prop];
@@ -4023,18 +4166,48 @@ function replaceMaterialTexture (material, prop, baseTexture, fallbackRepeat) {
 
 function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TEXTURE_KEY) {
   if (!finishInfo?.clothMat) return;
+  registerClothTextureConsumer(textureKey, finishInfo);
   const textures = createClothTextures(textureKey);
   const baseRepeatValue = finishInfo.clothMat.userData?.baseRepeat ?? finishInfo.clothBase?.baseRepeat ?? 1;
   const repeatRatioValue = finishInfo.clothMat.userData?.repeatRatio ?? finishInfo.clothBase?.repeatRatio ?? 1;
   const fallbackRepeat = new THREE.Vector2(baseRepeatValue, baseRepeatValue * repeatRatioValue);
   replaceMaterialTexture(finishInfo.clothMat, 'map', textures.map, fallbackRepeat);
-  replaceMaterialTexture(finishInfo.clothMat, 'bumpMap', textures.bump, fallbackRepeat);
+  replaceMaterialTexture(finishInfo.clothMat, 'normalMap', textures.normal, fallbackRepeat);
+  replaceMaterialTexture(finishInfo.clothMat, 'roughnessMap', textures.roughness, fallbackRepeat);
+  if (textures.normal) {
+    finishInfo.clothMat.normalScale = CLOTH_NORMAL_SCALE.clone();
+    replaceMaterialTexture(finishInfo.clothMat, 'bumpMap', null, fallbackRepeat);
+  } else {
+    replaceMaterialTexture(finishInfo.clothMat, 'bumpMap', textures.bump, fallbackRepeat);
+  }
+  if (textures.roughness) {
+    finishInfo.clothMat.roughness = CLOTH_ROUGHNESS_TARGET;
+  } else {
+    finishInfo.clothMat.roughness = CLOTH_ROUGHNESS_BASE;
+  }
   if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
     finishInfo.clothMat.bumpScale = finishInfo.clothBase.baseBumpScale;
   }
   if (finishInfo.cushionMat) {
     replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat);
-    replaceMaterialTexture(finishInfo.cushionMat, 'bumpMap', textures.bump, fallbackRepeat);
+    replaceMaterialTexture(finishInfo.cushionMat, 'normalMap', textures.normal, fallbackRepeat);
+    replaceMaterialTexture(
+      finishInfo.cushionMat,
+      'roughnessMap',
+      textures.roughness,
+      fallbackRepeat
+    );
+    if (textures.normal) {
+      finishInfo.cushionMat.normalScale = CLOTH_NORMAL_SCALE.clone();
+      replaceMaterialTexture(finishInfo.cushionMat, 'bumpMap', null, fallbackRepeat);
+    } else {
+      replaceMaterialTexture(finishInfo.cushionMat, 'bumpMap', textures.bump, fallbackRepeat);
+    }
+    if (textures.roughness) {
+      finishInfo.cushionMat.roughness = CLOTH_ROUGHNESS_TARGET;
+    } else {
+      finishInfo.cushionMat.roughness = CLOTH_ROUGHNESS_BASE;
+    }
     if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
       finishInfo.cushionMat.bumpScale = finishInfo.clothBase.baseBumpScale;
     }
@@ -4051,6 +4224,8 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     }
     finishInfo.clothEdgeMat.map = null;
     finishInfo.clothEdgeMat.bumpMap = null;
+    finishInfo.clothEdgeMat.normalMap = null;
+    finishInfo.clothEdgeMat.roughnessMap = null;
     finishInfo.clothEdgeMat.bumpScale = 0;
     finishInfo.clothEdgeMat.roughness = 1;
     finishInfo.clothEdgeMat.clearcoat = 0;
@@ -6601,7 +6776,12 @@ function Table3D(
   };
   finishParts.woodRepeatScale = woodRepeatScale;
 
-  const { map: clothMap, bump: clothBump } = createClothTextures(clothTextureKey);
+  const {
+    map: clothMap,
+    bump: clothBump,
+    normal: clothNormal,
+    roughness: clothRoughness
+  } = createClothTextures(clothTextureKey);
   const clothPrimary = new THREE.Color(palette.cloth);
   const cushionPrimary = new THREE.Color(palette.cushion ?? palette.cloth);
   const clothHighlight = new THREE.Color(0xf6fff9);
@@ -6612,7 +6792,7 @@ function Table3D(
   const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.08);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.97,
+    roughness: CLOTH_ROUGHNESS_BASE,
     sheen: clothSheen,
     sheenColor,
     sheenRoughness: clothSheenRoughness,
@@ -6627,7 +6807,7 @@ function Table3D(
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 12; // base density before global scaling adjustments
-  const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25 * 1.5; // double the thread pattern size for a looser, woollier weave
+  const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25 * 1.5 * CLOTH_PATTERN_SCALE; // double the thread pattern size for a looser, woollier weave
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping the cloth visibly taut
   const baseRepeat =
@@ -6642,13 +6822,26 @@ function Table3D(
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.map.needsUpdate = true;
   }
-  if (clothBump) {
+  if (clothNormal) {
+    clothMat.normalMap = clothNormal;
+    clothMat.normalMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
+    clothMat.normalScale = CLOTH_NORMAL_SCALE.clone();
+    clothMat.normalMap.needsUpdate = true;
+    clothMat.bumpScale = flattenedBumpScale;
+    clothMat.bumpMap = null;
+  } else if (clothBump) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
     clothMat.bumpScale = flattenedBumpScale;
     clothMat.bumpMap.needsUpdate = true;
   } else {
     clothMat.bumpScale = flattenedBumpScale;
+  }
+  if (clothRoughness) {
+    clothMat.roughnessMap = clothRoughness;
+    clothMat.roughnessMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
+    clothMat.roughness = CLOTH_ROUGHNESS_TARGET;
+    clothMat.roughnessMap.needsUpdate = true;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
@@ -6670,6 +6863,8 @@ function Table3D(
   clothEdgeMat.emissive.set(0x000000);
   clothEdgeMat.map = null;
   clothEdgeMat.bumpMap = null;
+  clothEdgeMat.normalMap = null;
+  clothEdgeMat.roughnessMap = null;
   clothEdgeMat.bumpScale = 0;
   clothEdgeMat.side = THREE.DoubleSide;
   clothEdgeMat.envMapIntensity = 0;
@@ -6795,6 +6990,7 @@ function Table3D(
     clothTextureKey,
     woodRepeatScale
   };
+  registerClothTextureConsumer(clothTextureKey, finishInfo);
 
   const clothExtendBase = Math.max(
     SIDE_RAIL_INNER_THICKNESS * 0.38,
@@ -13931,12 +14127,28 @@ const powerRef = useRef(hud.power);
               clothMat.map.needsUpdate = true;
             }
             if (
+              clothMat.normalMap &&
+              (clothMat.normalMap.repeat.x !== targetRepeat ||
+                clothMat.normalMap.repeat.y !== targetRepeatY)
+            ) {
+              clothMat.normalMap.repeat.set(targetRepeat, targetRepeatY);
+              clothMat.normalMap.needsUpdate = true;
+            }
+            if (
               clothMat.bumpMap &&
               (clothMat.bumpMap.repeat.x !== targetRepeat ||
                 clothMat.bumpMap.repeat.y !== targetRepeatY)
             ) {
               clothMat.bumpMap.repeat.set(targetRepeat, targetRepeatY);
               clothMat.bumpMap.needsUpdate = true;
+            }
+            if (
+              clothMat.roughnessMap &&
+              (clothMat.roughnessMap.repeat.x !== targetRepeat ||
+                clothMat.roughnessMap.repeat.y !== targetRepeatY)
+            ) {
+              clothMat.roughnessMap.repeat.set(targetRepeat, targetRepeatY);
+              clothMat.roughnessMap.needsUpdate = true;
             }
             if (
               Number.isFinite(clothMat.userData?.bumpScale) &&
