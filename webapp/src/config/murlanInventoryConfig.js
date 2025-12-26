@@ -92,6 +92,118 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     description: 'Golden amber felt with cinematic warmth.'
   },
   {
+    id: 'cloth-denimFabric03',
+    type: 'tableCloth',
+    optionId: 'denim_fabric_03',
+    name: 'Denim Fabric 03 Cloth',
+    price: 460,
+    description: 'Denim-inspired felt with deep indigo threads.'
+  },
+  {
+    id: 'cloth-hessian230',
+    type: 'tableCloth',
+    optionId: 'hessian_230',
+    name: 'Hessian 230 Cloth',
+    price: 480,
+    description: 'Rustic hessian weave with warm earthy tones.'
+  },
+  {
+    id: 'cloth-polarFleece',
+    type: 'tableCloth',
+    optionId: 'polar_fleece',
+    name: 'Polar Fleece Cloth',
+    price: 500,
+    description: 'Soft polar fleece texture with airy highlights.'
+  },
+  {
+    id: 'cloth-cottonJersey',
+    type: 'tableCloth',
+    optionId: 'cotton_jersey',
+    name: 'Cotton Jersey Cloth',
+    price: 520,
+    description: 'Smooth jersey knit with balanced midtones.'
+  },
+  {
+    id: 'cloth-leatherWeave',
+    type: 'tableCloth',
+    optionId: 'fabric_leather_02',
+    name: 'Leather Weave Cloth',
+    price: 540,
+    description: 'Leather-inspired weave with luxe sheen.'
+  },
+  {
+    id: 'cloth-fauxFurGeo',
+    type: 'tableCloth',
+    optionId: 'faux_fur_geometric',
+    name: 'Faux Fur Geo Cloth',
+    price: 560,
+    description: 'Geometric faux fur nap with soft gradients.'
+  },
+  {
+    id: 'cloth-joggingMelange',
+    type: 'tableCloth',
+    optionId: 'jogging_melange',
+    name: 'Jogging Mélange Cloth',
+    price: 580,
+    description: 'Heathered mélange felt for sport styling.'
+  },
+  {
+    id: 'cloth-knittedFleece',
+    type: 'tableCloth',
+    optionId: 'knitted_fleece',
+    name: 'Knitted Fleece Cloth',
+    price: 600,
+    description: 'Knitted fleece with plush depth and warmth.'
+  },
+  {
+    id: 'cloth-caban',
+    type: 'tableCloth',
+    optionId: 'caban',
+    name: 'Caban Wool Cloth',
+    price: 620,
+    description: 'Caban wool texture with tawny undertones.'
+  },
+  {
+    id: 'cloth-curlyTeddyNatural',
+    type: 'tableCloth',
+    optionId: 'curly_teddy_natural',
+    name: 'Curly Teddy Natural Cloth',
+    price: 640,
+    description: 'Natural teddy curl with soft, pale fibers.'
+  },
+  {
+    id: 'cloth-curlyTeddyCheckered',
+    type: 'tableCloth',
+    optionId: 'curly_teddy_checkered',
+    name: 'Curly Teddy Checkered Cloth',
+    price: 660,
+    description: 'Checkered teddy weave with teal accents.'
+  },
+  {
+    id: 'cloth-denimFabric04',
+    type: 'tableCloth',
+    optionId: 'denim_fabric_04',
+    name: 'Denim Fabric 04 Cloth',
+    price: 680,
+    description: 'Bright indigo denim cloth with crisp texture.'
+  },
+  {
+    id: 'cloth-denimFabric05',
+    type: 'tableCloth',
+    optionId: 'denim_fabric_05',
+    name: 'Denim Fabric 05 Cloth',
+    price: 700,
+    description: 'Dark denim cloth with modern graphite threads.'
+  },
+  {
+    id: 'cloth-scubaSuede',
+    type: 'tableCloth',
+    optionId: 'scuba_suede',
+    name: 'Scuba Suede Cloth',
+    price: 720,
+    description: 'Suede-like scuba finish with deep teal tone.'
+  },
+  {
     id: 'base-forestBronze',
     type: 'tableBase',
     optionId: 'forestBronze',
@@ -210,6 +322,14 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     name: 'Frost Stools',
     price: 290,
     description: 'Frosted charcoal seats with dark legs.'
+  },
+  {
+    id: 'stool-leather',
+    type: 'stools',
+    optionId: 'leather',
+    name: 'Leather Stools',
+    price: 320,
+    description: 'Leather-wrapped seats with dark studio legs.'
   }
 ];
 

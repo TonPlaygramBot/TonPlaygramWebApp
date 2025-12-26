@@ -13,5 +13,6 @@ export const MURLAN_STOOL_THEMES = [
   { id: 'teal', label: 'Teal', seatColor: '#0f766e', legColor: '#082f2a' },
   { id: 'amber', label: 'Amber', seatColor: '#b45309', legColor: '#2f2410' },
   { id: 'violet', label: 'Violet', seatColor: '#7c3aed', legColor: '#2b1059' },
-  { id: 'frost', label: 'Ice', seatColor: '#1f2937', legColor: '#0f172a' }
+  { id: 'frost', label: 'Ice', seatColor: '#1f2937', legColor: '#0f172a' },
+  { id: 'leather', label: 'Leather', seatColor: '#6a4a32', legColor: '#1a1410' }
 ];
