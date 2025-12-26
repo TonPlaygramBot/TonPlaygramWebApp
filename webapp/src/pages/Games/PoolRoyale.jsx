@@ -4207,21 +4207,6 @@ function enhanceChromeMaterial(material) {
   material.needsUpdate = true;
 }
 
-function createFootGripMaterial(baseMaterial) {
-  const material = baseMaterial?.clone ? baseMaterial.clone() : new THREE.MeshPhysicalMaterial();
-  material.color = new THREE.Color(0x0e1015);
-  material.metalness = Math.min(0.32, material.metalness ?? 0.32);
-  material.roughness = Math.max(0.78, material.roughness ?? 0.78);
-  material.clearcoat = 0;
-  material.clearcoatRoughness = 1;
-  material.envMapIntensity = Math.min(material.envMapIntensity ?? 0.58, 0.64);
-  material.reflectivity = Math.min(material.reflectivity ?? 0.36, 0.4);
-  material.side = THREE.DoubleSide;
-  material.shadowSide = THREE.DoubleSide;
-  material.needsUpdate = true;
-  return material;
-}
-
 function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = {}) {
   if (!geometry || typeof depth !== 'number' || depth <= 0) return geometry;
   const target = geometry.toNonIndexed ? geometry.toNonIndexed() : geometry;
@@ -6296,7 +6281,6 @@ function Table3D(
     legMeshes: [],
     railMeshes: [],
     trimMeshes: [],
-    footGripMeshes: [],
     gapFillMeshes: [],
     pocketJawMeshes: [],
     pocketRimMeshes: [],
@@ -6378,7 +6362,6 @@ function Table3D(
   pocketRimMat.needsUpdate = true;
   gapStripeMat.needsUpdate = true;
   enhanceChromeMaterial(trimMat);
-  const footGripMat = createFootGripMaterial(trimMat);
   if (accentConfig?.material) {
     accentConfig.material.needsUpdate = true;
   }
@@ -6602,7 +6585,6 @@ function Table3D(
       rail: railMat,
       leg: legMat,
       trim: trimMat,
-      footGrip: footGripMat,
       pocketJaw: pocketJawMat,
       pocketRim: pocketRimMat,
       accent: accentConfig
@@ -8742,21 +8724,12 @@ function Table3D(
   const legFootingHeight = TABLE.THICK * 0.045;
   const legH = Math.max(MICRO_EPS, legReach + LEG_TOP_OVERLAP - legFootingHeight);
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
-  const footPadProfile = [
-    new THREE.Vector2(0, 0),
-    new THREE.Vector2(legR, 0),
-    new THREE.Vector2(legR * 0.98, legFootingHeight * 0.22),
-    new THREE.Vector2(legR * 0.96, legFootingHeight * 0.52),
-    new THREE.Vector2(legR * 0.98, legFootingHeight * 0.82),
-    new THREE.Vector2(legR, legFootingHeight),
-    new THREE.Vector2(legR, legFootingHeight + MICRO_EPS * 0.5)
-  ];
-  const footPadGeo = new THREE.LatheGeometry(footPadProfile, 80);
-  footPadGeo.computeVertexNormals();
-  footPadGeo.translate(0, -legFootingHeight / 2, 0);
-  const footGripHeight = legFootingHeight * 0.22;
-  const footGripGeo = new THREE.CylinderGeometry(legR, legR, footGripHeight, 64);
-  footGripGeo.translate(0, -legFootingHeight / 2 + footGripHeight / 2, 0);
+  const footPadGeo = new THREE.CylinderGeometry(
+    legR * 1.55,
+    legR * 1.4,
+    legFootingHeight,
+    48
+  );
   const legInset = baseRailWidth * 2.85;
   const legPositions = [
     [-frameOuterX + legInset, -frameOuterZ + legInset],
@@ -8834,14 +8807,6 @@ function Table3D(
     foot.userData = { ...(foot.userData || {}), isChromePlate: true };
     table.add(foot);
     finishParts.trimMeshes.push(foot);
-
-    const footGrip = new THREE.Mesh(footGripGeo, footGripMat);
-    footGrip.position.set(lx, footPadY, lz);
-    footGrip.castShadow = true;
-    footGrip.receiveShadow = true;
-    footGrip.userData = { ...(footGrip.userData || {}), isFootGrip: true };
-    table.add(footGrip);
-    finishParts.footGripMeshes.push(footGrip);
   });
 
   table.updateMatrixWorld(true);
@@ -8932,7 +8897,6 @@ function applyTableFinishToTable(table, finish) {
   pocketJawMat.needsUpdate = true;
   pocketRimMat.needsUpdate = true;
   enhanceChromeMaterial(trimMat);
-  const footGripMat = createFootGripMaterial(trimMat);
   if (accentConfig?.material) {
     accentConfig.material.needsUpdate = true;
   }
@@ -8982,7 +8946,6 @@ function applyTableFinishToTable(table, finish) {
   finishInfo.parts.legMeshes.forEach((mesh) => swapMaterial(mesh, legMat));
   finishInfo.parts.railMeshes.forEach((mesh) => swapMaterial(mesh, railMat));
   finishInfo.parts.trimMeshes.forEach((mesh) => swapMaterial(mesh, trimMat));
-  finishInfo.parts.footGripMeshes.forEach((mesh) => swapMaterial(mesh, footGripMat));
   finishInfo.parts.pocketJawMeshes.forEach((mesh) => swapMaterial(mesh, pocketJawMat));
   finishInfo.parts.pocketRimMeshes.forEach((mesh) => swapMaterial(mesh, pocketRimMat));
   if (table.userData?.railMarkers?.updateBaseMaterial) {
@@ -9179,7 +9142,6 @@ function applyTableFinishToTable(table, finish) {
     rail: railMat,
     leg: legMat,
     trim: trimMat,
-    footGrip: footGripMat,
     pocketJaw: pocketJawMat,
     pocketRim: pocketRimMat,
     accent: accentConfig
