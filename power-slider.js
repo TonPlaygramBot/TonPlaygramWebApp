@@ -157,6 +157,9 @@ export class PowerSlider {
     const pct = ratio * 100;
     this.powerFill.style.clipPath = `inset(0 0 ${100 - pct}% 0)`;
     this._updateHandleColor(ratio);
+    if (this.handleText) {
+      this.handleText.textContent = `${Math.round(this.value)}%`;
+    }
     this.tooltip.textContent = `${Math.round(this.value)}%`;
     this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
     if (ratio >= 0.9) this.el.classList.add('ps-hot');
