@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import TasksCard from '../components/TasksCard.jsx';
 import NftGiftCard from '../components/NftGiftCard.jsx';
@@ -42,6 +42,7 @@ export default function Home() {
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const baseUrl = import.meta.env.BASE_URL || '/';
+  const [offlineAssetCount, setOfflineAssetCount] = useState(null);
   const [pwaDownloadStatus, setPwaDownloadStatus] = useState({ state: 'idle', message: '' });
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
@@ -49,10 +50,23 @@ export default function Home() {
   const [tonConnectUI] = useTonConnectUI();
   const runtimeCacheName = RUNTIME_CACHE_NAME;
 
+  const isLocalhost = useMemo(
+    () => ['localhost', '127.0.0.1'].includes(window.location.hostname),
+    []
+  );
+
 
   const handlePwaDownload = async () => {
     const baseNormalized = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
     const manifestUrl = new URL('pwa/offline-assets.json', `${window.location.origin}${baseNormalized}`).toString();
+
+    if (!window.Telegram?.WebApp && !isLocalhost) {
+      setPwaDownloadStatus({
+        state: 'error',
+        message: 'Offline install is available inside the Telegram mini app. Open TonPlaygram in Telegram to cache the assets.'
+      });
+      return;
+    }
 
     setPwaDownloadStatus({ state: 'working', message: 'Preparing offline download…' });
 
@@ -73,6 +87,11 @@ export default function Home() {
       if (!Array.isArray(assets) || assets.length === 0) {
         throw new Error('Offline manifest is empty');
       }
+
+      setPwaDownloadStatus({
+        state: 'working',
+        message: `Downloading ${assets.length} assets (images + sounds)…`
+      });
 
       const cache = await caches.open(runtimeCacheName);
       let successes = 0;
@@ -163,6 +182,20 @@ export default function Home() {
     window.addEventListener('profilePhotoUpdated', handleUpdate);
     return () => window.removeEventListener('profilePhotoUpdated', handleUpdate);
   }, []);
+
+  useEffect(() => {
+    const baseNormalized = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+    const manifestUrl = new URL('pwa/offline-assets.json', `${window.location.origin}${baseNormalized}`).toString();
+
+    fetch(manifestUrl, { cache: 'no-store' })
+      .then(res => (res.ok ? res.json() : Promise.resolve([])))
+      .then(list => {
+        if (Array.isArray(list)) {
+          setOfflineAssetCount(list.length);
+        }
+      })
+      .catch(() => setOfflineAssetCount(null));
+  }, [baseUrl]);
 
 
 
@@ -288,8 +321,15 @@ export default function Home() {
         <div className="text-center space-y-1">
           <h3 className="text-lg font-semibold text-white">PWA offline setup</h3>
           <p className="text-sm text-subtext">
-            Download the core web assets so the app opens faster and can be added to your home screen.
+            Download every image and sound so the Telegram mini app opens like an installed game.
           </p>
+          {offlineAssetCount ? (
+            <p className="text-xs text-primary">
+              Ready to cache {offlineAssetCount} files from /assets (icons + sounds) and the core pages.
+            </p>
+          ) : (
+            <p className="text-xs text-subtext">Preparing the asset list…</p>
+          )}
         </div>
         <div className="space-y-3">
           <button
@@ -298,7 +338,7 @@ export default function Home() {
             className="w-full inline-flex items-center justify-center px-3 py-2 text-sm font-semibold bg-primary text-surface rounded-full shadow-primary/40 hover:shadow-primary/60 shadow disabled:opacity-60 disabled:cursor-not-allowed"
             disabled={pwaDownloadStatus.state === 'working'}
           >
-            {pwaDownloadStatus.state === 'working' ? 'Downloading assets…' : 'Download offline assets'}
+            {pwaDownloadStatus.state === 'working' ? 'Downloading assets…' : 'Download offline assets (Telegram)'}
           </button>
           {pwaDownloadStatus.message && (
             <p
@@ -314,9 +354,10 @@ export default function Home() {
             </p>
           )}
           <div className="space-y-1 text-xs text-subtext text-left bg-background/50 border border-border rounded-lg p-3">
-            <p className="text-white font-semibold text-sm">Add to home screen</p>
-            <p>1) Tap the browser menu and choose &quot;Add to Home screen&quot; to pin the web app like an app.</p>
-            <p>2) On Android, you can also install the lightweight launcher APK for faster opening:</p>
+            <p className="text-white font-semibold text-sm">Install flow (Telegram first)</p>
+            <p>1) Open TonPlaygram inside Telegram, tap &quot;Download offline assets&quot; above, and wait for completion.</p>
+            <p>2) Tap the browser menu and choose &quot;Add to Home screen&quot; so it opens like a native app.</p>
+            <p>3) On Android, you can also install the lightweight launcher APK for faster opening:</p>
             <a
               href={`${baseUrl}tonplaygram-launcher.apk`}
               className="text-primary font-semibold underline"
@@ -324,7 +365,7 @@ export default function Home() {
             >
               Download launcher APK
             </a>
-            <p className="italic text-[11px] text-subtext">No new binaries are added; this uses the existing launcher file.</p>
+            <p className="italic text-[11px] text-subtext">No new binaries are added in this update; we only reference existing assets.</p>
           </div>
         </div>
       </div>
