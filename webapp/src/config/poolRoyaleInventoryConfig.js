@@ -42,20 +42,7 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     garnetVelvet: 'Garnet Velvet',
     forestPrime: 'Forest Prime',
     evergreenLuxe: 'Evergreen Luxe',
-    jadeCurrent: 'Jade Current',
-    denim_fabric_03: 'Denim Fabric 03',
-    hessian_230: 'Hessian Weave 230',
-    polar_fleece: 'Polar Fleece',
-    cotton_jersey: 'Cotton Jersey',
-    faux_fur_geometric: 'Faux Fur Geometric',
-    jogging_melange: 'Jogging Mélange',
-    knitted_fleece: 'Knitted Fleece',
-    caban: 'Caban Wool',
-    curly_teddy_natural: 'Curly Teddy Natural',
-    curly_teddy_checkered: 'Curly Teddy Checkered',
-    denim_fabric_04: 'Denim Fabric 04',
-    denim_fabric_05: 'Denim Fabric 05',
-    scuba_suede: 'Scuba Suede'
+    jadeCurrent: 'Jade Current'
   }),
   cueStyle: Object.freeze({
     'redwood-ember': 'Redwood Ember',
@@ -270,110 +257,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     name: 'Jade Current Cloth',
     price: 650,
     description: 'Jade-tinted cloth with cool current-like sheen.'
-  },
-  {
-    id: 'cloth-denimFabric03',
-    type: 'clothColor',
-    optionId: 'denim_fabric_03',
-    name: 'Denim Fabric 03 Cloth',
-    price: 690,
-    description: 'Poly Haven denim weave with deep indigo threads and soft sheen.'
-  },
-  {
-    id: 'cloth-hessian230',
-    type: 'clothColor',
-    optionId: 'hessian_230',
-    name: 'Hessian 230 Cloth',
-    price: 710,
-    description: 'Rustic hessian burlap texture with warm tan fibers.'
-  },
-  {
-    id: 'cloth-polarFleece',
-    type: 'clothColor',
-    optionId: 'polar_fleece',
-    name: 'Polar Fleece Cloth',
-    price: 720,
-    description: 'Soft polar fleece nap with cozy neutral highlights.'
-  },
-  {
-    id: 'cloth-cottonJersey',
-    type: 'clothColor',
-    optionId: 'cotton_jersey',
-    name: 'Cotton Jersey Cloth',
-    price: 715,
-    description: 'Smooth cotton jersey knit with balanced cream tone.'
-  },
-  {
-    id: 'cloth-fauxFurGeo',
-    type: 'clothColor',
-    optionId: 'faux_fur_geometric',
-    name: 'Faux Fur Geometric Cloth',
-    price: 740,
-    description: 'Patterned faux fur with geometric strands for luxe depth.'
-  },
-  {
-    id: 'cloth-joggingMelange',
-    type: 'clothColor',
-    optionId: 'jogging_melange',
-    name: 'Jogging Mélange Cloth',
-    price: 720,
-    description: 'Heathered jogging mélange with balanced grey flecks.'
-  },
-  {
-    id: 'cloth-knittedFleece',
-    type: 'clothColor',
-    optionId: 'knitted_fleece',
-    name: 'Knitted Fleece Cloth',
-    price: 725,
-    description: 'Knitted fleece texture with warm brown yarn detail.'
-  },
-  {
-    id: 'cloth-caban',
-    type: 'clothColor',
-    optionId: 'caban',
-    name: 'Caban Wool Cloth',
-    price: 730,
-    description: 'Rich caban wool weave with amber undertones.'
-  },
-  {
-    id: 'cloth-curlyTeddyNatural',
-    type: 'clothColor',
-    optionId: 'curly_teddy_natural',
-    name: 'Curly Teddy Natural Cloth',
-    price: 750,
-    description: 'Natural curly teddy pile with plush neutral fibers.'
-  },
-  {
-    id: 'cloth-curlyTeddyCheckered',
-    type: 'clothColor',
-    optionId: 'curly_teddy_checkered',
-    name: 'Curly Teddy Checkered Cloth',
-    price: 750,
-    description: 'Checkered teddy fleece with deep teal highlights.'
-  },
-  {
-    id: 'cloth-denimFabric04',
-    type: 'clothColor',
-    optionId: 'denim_fabric_04',
-    name: 'Denim Fabric 04 Cloth',
-    price: 705,
-    description: 'Poly Haven denim 04 with balanced blue grain and sheen.'
-  },
-  {
-    id: 'cloth-denimFabric05',
-    type: 'clothColor',
-    optionId: 'denim_fabric_05',
-    name: 'Denim Fabric 05 Cloth',
-    price: 705,
-    description: 'Dark denim 05 texture with charcoal warp threads.'
-  },
-  {
-    id: 'cloth-scubaSuede',
-    type: 'clothColor',
-    optionId: 'scuba_suede',
-    name: 'Scuba Suede Cloth',
-    price: 740,
-    description: 'Soft scuba suede surface with teal tint and subtle nap.'
   },
   {
     id: 'pocket-graphite',
