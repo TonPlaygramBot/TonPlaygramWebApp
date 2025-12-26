@@ -5,6 +5,7 @@ import {
   POOL_ROYALE_OPTION_LABELS,
   POOL_ROYALE_STORE_ITEMS
 } from '../config/poolRoyaleInventoryConfig.js';
+import { POOL_ROYALE_CLOTH_SWATCHES } from '../config/poolRoyaleClothCatalog.js';
 import {
   SNOOKER_CLUB_DEFAULT_LOADOUT,
   SNOOKER_CLUB_OPTION_LABELS,
@@ -275,6 +276,8 @@ const TYPE_SWATCHES = {
   default: ['#22c55e', '#0ea5e9']
 };
 
+const CLOTH_SWATCH_OVERRIDES = Object.freeze(POOL_ROYALE_CLOTH_SWATCHES);
+
 const OPTION_SWATCH_OVERRIDES = {
   charredTimber: ['#2f2217', '#6b4226'],
   rusticSplit: ['#f3e8ff', '#fef3c7'],
@@ -282,15 +285,7 @@ const OPTION_SWATCH_OVERRIDES = {
   weatheredGrey: ['#94a3b8', '#e2e8f0'],
   jetBlackCarbon: ['#0b1220', '#111827'],
   gold: ['#f59e0b', '#fbbf24'],
-  freshGreen: ['#0f5132', '#2dd4bf'],
-  graphite: ['#111827', '#4b5563'],
-  arcticBlue: ['#2f6a9e', '#8ac4ed'],
-  emeraldPulse: ['#145a34', '#39c276'],
-  ivyDrift: ['#0f3520', '#3f8a5a'],
-  mintRadiance: ['#2c7a50', '#71d19b'],
-  cobaltFrost: ['#0ea5e9', '#60a5fa'],
-  midnightWave: ['#13294f', '#3f6fb6'],
-  neonAzure: ['#1f5e8c', '#63c1f0'],
+  ...CLOTH_SWATCH_OVERRIDES,
   chrome: ['#e5e7eb', '#a1a1aa'],
   pearl: ['#f5f3ff', '#e2e8f0'],
   'redwood-ember': ['#7f1d1d', '#b45309'],

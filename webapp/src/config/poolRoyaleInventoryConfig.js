@@ -1,8 +1,20 @@
+import {
+  DEFAULT_POOL_ROYALE_CLOTH_ID,
+  POOL_ROYALE_CLOTH_VARIANTS
+} from './poolRoyaleClothCatalog.js';
+
+const CLOTH_LABELS = Object.freeze(
+  POOL_ROYALE_CLOTH_VARIANTS.reduce((acc, variant) => {
+    acc[variant.id] = `${variant.label}`;
+    return acc;
+  }, {})
+);
+
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: ['charredTimber'],
   chromeColor: ['gold'],
   railMarkerColor: ['gold'],
-  clothColor: ['freshGreen'],
+  clothColor: [DEFAULT_POOL_ROYALE_CLOTH_ID],
   cueStyle: ['birch-frost'],
   pocketLiner: ['blackPocket']
 });
@@ -27,23 +39,7 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     pearl: 'Pearl',
     gold: 'Gold'
   }),
-  clothColor: Object.freeze({
-    freshGreen: 'Tour Green',
-    graphite: 'Arcadia Graphite',
-    arcticBlue: 'Arctic Blue',
-    emeraldPulse: 'Emerald Pulse',
-    ivyDrift: 'Ivy Drift',
-    mintRadiance: 'Mint Radiance',
-    cobaltFrost: 'Cobalt Frost',
-    midnightWave: 'Midnight Wave',
-    neonAzure: 'Neon Azure',
-    crimsonFlash: 'Crimson Flash',
-    rubyInferno: 'Ruby Inferno',
-    garnetVelvet: 'Garnet Velvet',
-    forestPrime: 'Forest Prime',
-    evergreenLuxe: 'Evergreen Luxe',
-    jadeCurrent: 'Jade Current'
-  }),
+  clothColor: Object.freeze(CLOTH_LABELS),
   cueStyle: Object.freeze({
     'redwood-ember': 'Redwood Ember',
     'birch-frost': 'Birch Frost',
@@ -146,118 +142,14 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 240,
     description: 'Chrome-lined diamond markers that match fascia shine.'
   },
-  {
-    id: 'cloth-graphite',
+  ...POOL_ROYALE_CLOTH_VARIANTS.map((variant, index) => ({
+    id: `cloth-${variant.id}`,
     type: 'clothColor',
-    optionId: 'graphite',
-    name: 'Arcadia Graphite Cloth',
-    price: 520,
-    description: 'Tournament graphite cloth for a darker arena feel.'
-  },
-  {
-    id: 'cloth-arcticBlue',
-    type: 'clothColor',
-    optionId: 'arcticBlue',
-    name: 'Arctic Blue Cloth',
-    price: 560,
-    description: 'Cool arctic blue tournament cloth with crisp sheen.'
-  },
-  {
-    id: 'cloth-emeraldPulse',
-    type: 'clothColor',
-    optionId: 'emeraldPulse',
-    name: 'Emerald Pulse Cloth',
-    price: 590,
-    description: 'Glowing emerald cloth with a pulsing luxe nap.'
-  },
-  {
-    id: 'cloth-ivyDrift',
-    type: 'clothColor',
-    optionId: 'ivyDrift',
-    name: 'Ivy Drift Cloth',
-    price: 610,
-    description: 'Deep ivy cloth with shaded railside gradients.'
-  },
-  {
-    id: 'cloth-mintRadiance',
-    type: 'clothColor',
-    optionId: 'mintRadiance',
-    name: 'Mint Radiance Cloth',
-    price: 620,
-    description: 'Bright mint cloth that lifts ambient highlights.'
-  },
-  {
-    id: 'cloth-cobaltFrost',
-    type: 'clothColor',
-    optionId: 'cobaltFrost',
-    name: 'Cobalt Frost Cloth',
-    price: 630,
-    description: 'Frosted cobalt cloth with crisp cool reflections.'
-  },
-  {
-    id: 'cloth-midnightWave',
-    type: 'clothColor',
-    optionId: 'midnightWave',
-    name: 'Midnight Wave Cloth',
-    price: 640,
-    description: 'Midnight navy cloth with wavey sapphire sheen.'
-  },
-  {
-    id: 'cloth-neonAzure',
-    type: 'clothColor',
-    optionId: 'neonAzure',
-    name: 'Neon Azure Cloth',
-    price: 660,
-    description: 'Electric azure cloth with high-contrast glow.'
-  },
-  {
-    id: 'cloth-crimsonFlash',
-    type: 'clothColor',
-    optionId: 'crimsonFlash',
-    name: 'Crimson Flash Cloth',
-    price: 670,
-    description: 'Deep crimson cloth with bright ruby sheen for bold arenas.'
-  },
-  {
-    id: 'cloth-rubyInferno',
-    type: 'clothColor',
-    optionId: 'rubyInferno',
-    name: 'Ruby Inferno Cloth',
-    price: 680,
-    description: 'Hot ruby felt with fiery highlights tuned for neon rigs.'
-  },
-  {
-    id: 'cloth-garnetVelvet',
-    type: 'clothColor',
-    optionId: 'garnetVelvet',
-    name: 'Garnet Velvet Cloth',
-    price: 690,
-    description: 'Velvet garnet nap with dark wine undertones.'
-  },
-  {
-    id: 'cloth-forestPrime',
-    type: 'clothColor',
-    optionId: 'forestPrime',
-    name: 'Forest Prime Cloth',
-    price: 620,
-    description: 'Deep forest tournament cloth with neutral grain.'
-  },
-  {
-    id: 'cloth-evergreenLuxe',
-    type: 'clothColor',
-    optionId: 'evergreenLuxe',
-    name: 'Evergreen Luxe Cloth',
-    price: 640,
-    description: 'Luxe evergreen felt with polished highlights.'
-  },
-  {
-    id: 'cloth-jadeCurrent',
-    type: 'clothColor',
-    optionId: 'jadeCurrent',
-    name: 'Jade Current Cloth',
-    price: 650,
-    description: 'Jade-tinted cloth with cool current-like sheen.'
-  },
+    optionId: variant.id,
+    name: `${variant.label}`,
+    price: 640 + (index % 2) * 20 + Math.floor(index / 2) * 6,
+    description: `High-resolution Poly Haven weave with a ${variant.tintLabel.toLowerCase()} bias and pronounced texture.`
+  })),
   {
     id: 'pocket-graphite',
     type: 'pocketLiner',
@@ -368,7 +260,11 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
   { type: 'tableFinish', optionId: 'charredTimber', label: 'Charred Timber Finish' },
   { type: 'chromeColor', optionId: 'gold', label: 'Gold Chrome Plates' },
   { type: 'railMarkerColor', optionId: 'gold', label: 'Gold Diamond Markers' },
-  { type: 'clothColor', optionId: 'freshGreen', label: 'Tour Green Cloth' },
+  {
+    type: 'clothColor',
+    optionId: DEFAULT_POOL_ROYALE_CLOTH_ID,
+    label: CLOTH_LABELS[DEFAULT_POOL_ROYALE_CLOTH_ID] ?? POOL_ROYALE_CLOTH_VARIANTS[0]?.label
+  },
   { type: 'cueStyle', optionId: 'birch-frost', label: 'Birch Frost Cue' },
   { type: 'pocketLiner', optionId: 'blackPocket', label: 'Black Pocket Jaws' }
 ];
