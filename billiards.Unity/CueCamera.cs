@@ -25,14 +25,14 @@ public class CueCamera : MonoBehaviour
 
     [Header("Cue aim view")]
     // Distance from the cue ball when the camera is fully raised above the cue.
-    public float cueRaisedDistanceFromBall = 0.62f;
+    public float cueRaisedDistanceFromBall = 0.68f;
     // Distance from the cue ball used for the lowest aiming view.  This keeps the
     // camera hovering over the mid–upper portion of the cue rather than slipping
     // all the way back to the plastic end.
-    public float cueLoweredDistanceFromBall = 0.035f;
+    public float cueLoweredDistanceFromBall = 0.05f;
     // Additional pull-in applied to the cue camera so the portrait framing hugs
     // the cloth like a player leaning over the shot.
-    public float cueDistancePullIn = 0.54f;
+    public float cueDistancePullIn = 0.48f;
     // Minimum separation we allow once the pull-in is applied. Prevents the
     // camera from intersecting the cue or cloth when the player drops in tight.
     public float cueMinimumDistance = 0.02f;
@@ -43,7 +43,7 @@ public class CueCamera : MonoBehaviour
     // view.
     public float cueRaisedHeightPadding = 0.05f;
     // Minimum height maintained when the player drops the camera toward the cue.
-    public float cueLoweredHeight = 0.32f;
+    public float cueLoweredHeight = 0.27f;
     // Extra forward push applied as the player lowers the camera so the framing
     // stays tight on the cue ball and shaft instead of drifting backward.
     public float cueLoweredForwardPush = 0.08f;
@@ -51,7 +51,7 @@ public class CueCamera : MonoBehaviour
     // retreats past the stick and always looks down the shaft.
     public float cueButtClearance = 0.12f;
     // Extra clearance to ensure the camera stays above the cue stick.
-    public float cueHeightClearance = 0.07f;
+    public float cueHeightClearance = 0.05f;
     // Limit how far toward the butt end the camera can travel as it lowers.
     // Keeps the framing over the upper half of the cue rather than drifting to
     // the plastic cap.
@@ -71,7 +71,7 @@ public class CueCamera : MonoBehaviour
     // How quickly the aiming axis aligns to the current cue direction.
     public float cueAxisSmoothSpeed = 6f;
     // Field of view used when the camera is fully raised above the cue.
-    public float cueRaisedFieldOfView = 58f;
+    public float cueRaisedFieldOfView = 60f;
     // Field of view target when the camera is fully lowered toward the cue.
     public float cueLoweredFieldOfView = 52f;
     // Speed applied when easing the cue zoom toward the desired field of view.
@@ -84,7 +84,7 @@ public class CueCamera : MonoBehaviour
     // Keeps the framing just above the cue stick instead of letting the
     // view slide down into the shaft.
     [Range(0f, 1f)]
-    public float maxCueAimLowering = 0.68f;
+    public float maxCueAimLowering = 0.82f;
 
     [Header("Cue aim framing")]
     // Scale applied to the cue distance when the camera is raised. Values below
@@ -328,7 +328,7 @@ public class CueCamera : MonoBehaviour
 
         cueAimForward = cueAimForward.normalized;
 
-        float blend = ClampCueAimLowering(cueAimLowering);
+        float blend = Mathf.Clamp01(cueAimLowering);
         float minimumDistanceLimit = Mathf.Max(0.0001f, cueMinimumDistance);
         float tipStopDistance = Mathf.Max(minimumDistanceLimit, cueBallRadius + cueMinimumDistance);
         float minDistance = Mathf.Max(minimumDistanceLimit, cueLoweredDistanceFromBall);
@@ -1018,7 +1018,7 @@ public class CueCamera : MonoBehaviour
 
         flatForward = flatForward.normalized;
 
-        float lowering = ClampCueAimLowering(cueAimLowering);
+        float lowering = Mathf.Clamp01(cueAimLowering);
 
         Vector3 aimVector = aimEnd - focus;
         aimVector.y = 0f;
