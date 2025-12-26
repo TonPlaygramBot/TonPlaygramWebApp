@@ -1,7 +1,6 @@
-const STATIC_CACHE = 'tonplaygram-static-v4';
-const RUNTIME_CACHE = 'tonplaygram-runtime-v4';
+const STATIC_CACHE = 'tonplaygram-static-v3';
+const RUNTIME_CACHE = 'tonplaygram-runtime-v3';
 const OFFLINE_FALLBACK = '/offline.html';
-const MODEL_ASSET_PATTERN = /\.(gltf|glb)(\?|$)/i;
 
 const APP_SHELL = [
   '/',
@@ -9,8 +8,6 @@ const APP_SHELL = [
   OFFLINE_FALLBACK,
   '/manifest.webmanifest',
   '/tonconnect-manifest.json',
-  '/pwa/offline-assets.json',
-  '/pwa/model-assets.json',
   '/power-slider.css',
   '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp',
   '/assets/icons/file_000000003f7861f481d50537fb031e13.png'
@@ -105,25 +102,6 @@ const navigationPreloadResponse = async event => {
   }
 };
 
-const cacheFirstModelAsset = async request => {
-  const cached = await caches.match(request);
-  const updatePromise = fetch(request)
-    .then(async response => {
-      await cacheResponse(RUNTIME_CACHE, request, response);
-      return response.clone();
-    })
-    .catch(() => null);
-
-  if (cached) {
-    updatePromise.catch(() => {});
-    return cached;
-  }
-
-  const networkResponse = await updatePromise;
-  if (networkResponse) return networkResponse;
-  throw new Error('Network unavailable for model asset');
-};
-
 const networkFirst = async (event, request) => {
   const preloadResponse = await navigationPreloadResponse(event);
   if (preloadResponse) return preloadResponse;
@@ -170,23 +148,14 @@ self.addEventListener('fetch', event => {
 
   if (request.method !== 'GET') return;
 
-  const url = new URL(request.url);
-  const destination = request.destination;
-  const isModelAsset = destination === 'model' || MODEL_ASSET_PATTERN.test(url.pathname);
-
-  if (isModelAsset) {
-    event.respondWith(
-      cacheFirstModelAsset(request).catch(() => fetch(request))
-    );
-    return;
-  }
-
   if (request.mode === 'navigate') {
     handleNavigationRequest(event);
     return;
   }
 
+  const url = new URL(request.url);
   const isSameOrigin = url.origin === self.location.origin;
+  const destination = request.destination;
   const cacheableDestinations = ['script', 'style', 'font', 'image', 'audio', 'video'];
 
   if (isSameOrigin && cacheableDestinations.includes(destination)) {
