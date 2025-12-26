@@ -1,9 +1,0 @@
-TonPlaygram Android Launcher (preview)
-
-This .apk file acts as a placeholder for downloading the full Android application.
-It currently includes text only to validate the download endpoint without sensitive code
-or closed binaries. Replace it with the signed official build as soon as it is ready.
-
-- Contains no keys or private data.
-- Can be shared publicly to test the download flow.
-- Keep the filename so existing links continue to work.

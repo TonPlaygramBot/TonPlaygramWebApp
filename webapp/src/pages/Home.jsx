@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import TasksCard from '../components/TasksCard.jsx';
 import NftGiftCard from '../components/NftGiftCard.jsx';
@@ -33,58 +33,17 @@ import TonConnectButton from '../components/TonConnectButton.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
 import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
-import { cacheOfflineAssets, isTelegramEnvironment, shouldAutoWarmOfflineCache } from '../pwa/offlineCache.js';
-
 
 export default function Home() {
 
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
-  const baseUrl = useMemo(() => import.meta.env.BASE_URL || '/', []);
-  const [pwaDownloadStatus, setPwaDownloadStatus] = useState({ state: 'idle', message: '' });
+  const telegramApkUrl = useMemo(() => import.meta.env.VITE_TELEGRAM_APK_URL || '', []);
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
   const [tonConnectUI] = useTonConnectUI();
-
-  const handlePwaDownload = useCallback(async (autoTriggered = false) => {
-    setPwaDownloadStatus({
-      state: 'working',
-      message: autoTriggered ? 'Preparing Telegram offline package…' : 'Preparing offline download…'
-    });
-
-    try {
-      const result = await cacheOfflineAssets({
-        baseUrl,
-        onUpdate: ({ completed, total }) => {
-          setPwaDownloadStatus({
-            state: 'working',
-            message: `Caching assets (${completed}/${total})…`
-          });
-        }
-      });
-
-      setPwaDownloadStatus({
-        state: 'ready',
-        message: `Cached ${result.successes} of ${result.total} files. The PWA should start faster and work better offline.`
-      });
-    } catch (err) {
-      console.error('PWA offline download failed', err);
-      setPwaDownloadStatus({
-        state: 'error',
-        message:
-          'Offline download is unavailable right now. Please try again from the Telegram in-app browser after reloading.'
-      });
-    }
-  }, [baseUrl]);
-
-
-  useEffect(() => {
-    if (isTelegramEnvironment() && shouldAutoWarmOfflineCache()) {
-      handlePwaDownload(true);
-    }
-  }, [handlePwaDownload]);
 
   useEffect(() => {
     ping()
@@ -268,48 +227,43 @@ export default function Home() {
 
       <div className="mt-4 bg-surface border border-border rounded-xl p-4 space-y-3">
         <div className="text-center space-y-1">
-          <h3 className="text-lg font-semibold text-white">Telegram PWA setup</h3>
+          <h3 className="text-lg font-semibold text-white">Telegram APK launcher</h3>
           <p className="text-sm text-subtext">
-            Cache every in-game image and sound so the Telegram mini app behaves like a downloaded app.
+            Install the Telegram-optimized APK so players can open TonPlaygram directly inside the Telegram browser with
+            all bundled games and web features.
           </p>
           <p className="text-[11px] text-subtext">
-            We auto-start this download inside Telegram; tap again if you want to retry.
+            Use the Telegram in-app browser to download and install the launcher for the best experience.
           </p>
         </div>
         <div className="space-y-3">
-          <button
-            type="button"
-            onClick={handlePwaDownload}
-            className="w-full inline-flex items-center justify-center px-3 py-2 text-sm font-semibold bg-primary text-surface rounded-full shadow-primary/40 hover:shadow-primary/60 shadow disabled:opacity-60 disabled:cursor-not-allowed"
-            disabled={pwaDownloadStatus.state === 'working'}
+          <a
+            href={telegramApkUrl || undefined}
+            className={`w-full inline-flex items-center justify-center px-3 py-2 text-sm font-semibold rounded-full shadow-primary/40 hover:shadow-primary/60 shadow ${
+              telegramApkUrl ? 'bg-primary text-surface' : 'bg-border text-subtext cursor-not-allowed'
+            }`}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-disabled={!telegramApkUrl}
+            download={Boolean(telegramApkUrl)}
+            onClick={(e) => {
+              if (!telegramApkUrl) {
+                e.preventDefault();
+              }
+            }}
           >
-            {pwaDownloadStatus.state === 'working' ? 'Downloading assets…' : 'Download Telegram asset pack'}
-          </button>
-          {pwaDownloadStatus.message && (
-            <p
-              className={`text-xs text-center ${
-                pwaDownloadStatus.state === 'error'
-                  ? 'text-red-400'
-                  : pwaDownloadStatus.state === 'ready'
-                    ? 'text-green-400'
-                    : 'text-subtext'
-              }`}
-            >
-              {pwaDownloadStatus.message}
-            </p>
-          )}
+            {telegramApkUrl ? 'Download Telegram APK' : 'APK link not available yet'}
+          </a>
           <div className="space-y-1 text-xs text-subtext text-left bg-background/50 border border-border rounded-lg p-3">
-            <p className="text-white font-semibold text-sm">Add to home screen</p>
-            <p>1) Tap the browser menu and choose &quot;Add to Home screen&quot; to pin the web app like an app.</p>
-            <p>2) On Android, you can also install the lightweight launcher APK for faster opening:</p>
-            <a
-              href={`${baseUrl}tonplaygram-launcher.apk`}
-              className="text-primary font-semibold underline"
-              download
-            >
-              Download launcher APK
-            </a>
-            <p className="italic text-[11px] text-subtext">No new binaries are added; this uses the existing launcher file.</p>
+            <p className="text-white font-semibold text-sm">Install via Telegram</p>
+            <p>1) Open this page from the Telegram mini app browser.</p>
+            <p>2) Tap the APK download and follow Telegram&apos;s prompts to install the launcher.</p>
+            <p>3) Launch TonPlaygram from the new shortcut; all games open inside Telegram instead of the Android app drawer.</p>
+            {!telegramApkUrl && (
+              <p className="italic text-[11px] text-subtext">
+                The download link will appear here once the APK is hosted. No binaries are stored in this repository.
+              </p>
+            )}
           </div>
         </div>
       </div>
