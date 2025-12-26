@@ -39,7 +39,7 @@ export class PowerSlider {
     this.handle.className = 'ps-handle';
     this.handleText = document.createElement('span');
     this.handleText.className = 'ps-handle-text';
-    this.handleText.textContent = this._formatPercent(value);
+    this.handleText.textContent = 'Pull';
 
     this.powerBar = document.createElement('div');
     this.powerBar.className = 'ps-power-bar';
@@ -157,10 +157,8 @@ export class PowerSlider {
     const pct = ratio * 100;
     this.powerFill.style.clipPath = `inset(0 0 ${100 - pct}% 0)`;
     this._updateHandleColor(ratio);
-    this.handleText.textContent = this._formatPercent(this.value);
-    const pctLabel = Math.round(this.value);
-    this.tooltip.textContent = `${pctLabel}%`;
-    this.el.setAttribute('aria-valuenow', String(pctLabel));
+    this.tooltip.textContent = `${Math.round(this.value)}%`;
+    this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
     if (ratio >= 0.9) this.el.classList.add('ps-hot');
     else this.el.classList.remove('ps-hot');
     if (this.theme === 'pool-royale') {
@@ -195,10 +193,6 @@ export class PowerSlider {
     const ratio = Math.min(Math.max(pos, 0), 1);
     const value = this.min + ratio * (this.max - this.min);
     this.set(value);
-  }
-
-  _formatPercent(value) {
-    return `${Math.round(value)}%`;
   }
 
   _pointerDown(e) {

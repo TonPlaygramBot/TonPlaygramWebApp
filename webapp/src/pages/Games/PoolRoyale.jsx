@@ -1010,8 +1010,6 @@ let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
 const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
 const STOP_FINAL_EPS = STOP_EPS * 0.45;
-const CUE_MAX_HOP_POWER = 0.12; // maximum upward hop height as a fraction of ball radius
-const CUE_HOP_GRAVITY = BALL_R * 120;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
@@ -5056,9 +5054,9 @@ const CUE_VIEW_RADIUS_RATIO = 0.028; // tighten cue camera distance so the cue b
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.34
+  STANDING_VIEW_PHI + 0.26
 );
-const CUE_VIEW_PHI_LIFT = 0.12; // raise the cue camera slightly so the aim view sits higher above the cloth
+const CUE_VIEW_PHI_LIFT = 0.1; // raise the cue camera slightly so the aim view sits higher above the cloth
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -5071,7 +5069,7 @@ const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
-const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.25;
+const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.05;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.48;
@@ -5120,10 +5118,8 @@ const AI_EARLY_SHOT_CUE_DISTANCE = PLAY_H * 0.55;
 const AI_EARLY_SHOT_DELAY_MS = AI_MIN_SHOT_TIME_MS; // never bypass the full telegraphed aim window
 const AI_THINKING_BUDGET_MS =
   AI_MAX_SHOT_TIME_MS - AI_MIN_AIM_PREVIEW_MS; // leave room for the cue preview while keeping decisions under 7 seconds
-const AI_CAMERA_DROP_LEAD_MS = 320; // start lowering into cue view shortly before the AI pulls the trigger
-const AI_CAMERA_SETTLE_MS = 220; // allow time for the cue view to settle before firing
-const AI_CUE_VIEW_BLEND_TARGET = 0.18; // stop the AI cue camera slightly above the lowest point
-const AI_CAMERA_LOWER_DURATION_MS = 480;
+const AI_CAMERA_DROP_LEAD_MS = 260; // start lowering into cue view shortly before the AI pulls the trigger
+const AI_CAMERA_SETTLE_MS = 200; // allow time for the cue view to settle before firing
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -10164,7 +10160,7 @@ const initialHudInHand = useMemo(
   [initialFrame]
 );
 const [hud, setHud] = useState({
-  power: 0,
+  power: 0.65,
   A: 0,
   B: 0,
   turn: 0,
@@ -10303,7 +10299,6 @@ const powerRef = useRef(hud.power);
   const aiShotTimeoutRef = useRef(null);
   const aiShotCueDropTimeoutRef = useRef(null);
   const aiShotCueViewRef = useRef(false);
-  const aiBlendTweenRef = useRef(null);
   const aiRetryTimeoutRef = useRef(null);
   const aiShotWindowRef = useRef({ startedAt: 0, duration: AI_MIN_SHOT_TIME_MS });
   const [aiTakingShot, setAiTakingShot] = useState(false);
@@ -10554,7 +10549,6 @@ const powerRef = useRef(hud.power);
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
   const pocketDropRef = useRef(new Map());
-  const ballHopRef = useRef(new Map());
   const captureBallSnapshotRef = useRef(null);
   const applyBallSnapshotRef = useRef(null);
   const pendingLayoutRef = useRef(null);
@@ -12624,38 +12618,6 @@ const powerRef = useRef(hud.power);
           sph.phi = clampedPhi;
           sph.radius = clampOrbitRadius(finalRadius, cueMinRadius);
           syncBlendToSpherical();
-        };
-
-        const tweenCameraBlend = (targetBlend, duration = 300) => {
-          if (aiBlendTweenRef.current) {
-            cancelAnimationFrame(aiBlendTweenRef.current);
-            aiBlendTweenRef.current = null;
-          }
-          const start = cameraBlendRef.current ?? 1;
-          const end = THREE.MathUtils.clamp(
-            targetBlend ?? start,
-            0,
-            1
-          );
-          if (Math.abs(end - start) < 1e-4 || duration <= 0) {
-            applyCameraBlend(end);
-            updateCamera();
-            return;
-          }
-          const startTime = performance.now();
-          const ease = (k) => k * k * (3 - 2 * k);
-          const step = (now) => {
-            const t = Math.min(1, (now - startTime) / Math.max(duration, 1));
-            const eased = ease(t);
-            applyCameraBlend(THREE.MathUtils.lerp(start, end, eased));
-            updateCamera();
-            if (t < 1) {
-              aiBlendTweenRef.current = requestAnimationFrame(step);
-            } else {
-              aiBlendTweenRef.current = null;
-            }
-          };
-          aiBlendTweenRef.current = requestAnimationFrame(step);
         };
 
         const sanitizeVector3 = (vec, fallback = null) => {
@@ -17761,8 +17723,7 @@ const powerRef = useRef(hud.power);
           if (currentHud?.over || currentHud?.inHand || shooting) return;
           try {
             cancelAiShotPreview();
-            aiPlanRef.current = null;
-            let plan = computeAiShot();
+            let plan = aiPlanRef.current ?? computeAiShot();
             if (!plan) {
               const cuePos = cue?.pos ? cue.pos.clone() : null;
               if (!cuePos) return;
@@ -17777,7 +17738,6 @@ const powerRef = useRef(hud.power);
                 spin: { x: 0, y: 0 }
               };
             }
-            aiPlanRef.current = plan;
             clearEarlyAiShot();
             stopAiThinking();
             setAiPlanning(null);
@@ -17811,7 +17771,8 @@ const powerRef = useRef(hud.power);
             const beginCueView = () => {
               setAiShotCueViewActive(true);
               setAiShotPreviewActive(false);
-              tweenCameraBlend(AI_CUE_VIEW_BLEND_TARGET, AI_CAMERA_LOWER_DURATION_MS);
+              applyCameraBlend(0);
+              updateCamera();
               if (aiShotTimeoutRef.current) {
                 clearTimeout(aiShotTimeoutRef.current);
               }
@@ -18393,23 +18354,6 @@ const powerRef = useRef(hud.power);
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
         let shouldSlowAim = false;
-        const computeCueClearanceLift = () => {
-          if (!cue || !Array.isArray(balls) || balls.length === 0) return 0;
-          const threshold = BALL_R * 2.2;
-          let lift = 0;
-          for (let i = 0; i < balls.length; i++) {
-            const other = balls[i];
-            if (!other || !other.active || other === cue) continue;
-            const dx = other.pos.x - cue.pos.x;
-            const dy = other.pos.y - cue.pos.y;
-            const dist = Math.hypot(dx, dy);
-            if (dist > 1e-6 && dist < threshold) {
-              const weight = 1 - dist / threshold;
-              lift = Math.max(lift, BALL_R * 0.18 * weight);
-            }
-          }
-          return lift;
-        };
         // Aiming vizual
         const currentHud = hudRef.current;
         const isPlayerTurn = currentHud?.turn === 0;
@@ -18614,10 +18558,9 @@ const powerRef = useRef(hud.power);
             vert,
             perp.z * side
           );
-          const clearanceLift = computeCueClearanceLift();
           cueStick.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y + clearanceLift,
+            CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(appliedSpin.y || 0);
@@ -18629,7 +18572,7 @@ const powerRef = useRef(hud.power);
           }
           TMP_VEC3_BUTT.set(
             cue.pos.x - dir.x * (cueLen + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y + clearanceLift,
+            CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen + pull + CUE_TIP_GAP) + spinWorld.z
           );
           let visibleChalkIndex = null;
@@ -18836,10 +18779,9 @@ const powerRef = useRef(hud.power);
             }
           }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
-          const clearanceLift = computeCueClearanceLift();
           cueStick.position.set(
             cue.pos.x - baseDir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y + clearanceLift,
+            CUE_Y + spinWorld.y,
             cue.pos.y - baseDir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(spinY);
@@ -18939,10 +18881,9 @@ const powerRef = useRef(hud.power);
             }
           }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
-          const clearanceLift = computeCueClearanceLift();
           cueStick.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y + clearanceLift,
+            CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(spinY);
@@ -18984,28 +18925,12 @@ const powerRef = useRef(hud.power);
           if (!ball) return;
           const dropping = pocketDropRef.current.has(ball.id);
           if (!ball.active && !dropping) {
-            ballHopRef.current.delete(ball.id);
             ball.mesh.visible = false;
             if (ball.shadow) ball.shadow.visible = false;
           }
         });
         for (let stepIndex = 0; stepIndex < physicsSubsteps; stepIndex++) {
           const stepScale = subStepScale;
-          const hopStates = ballHopRef.current;
-          hopStates.forEach((state, key) => {
-            if (!state) {
-              hopStates.delete(key);
-              return;
-            }
-            state.velocity = (state.velocity ?? 0) - CUE_HOP_GRAVITY * stepScale;
-            state.height = Math.max(
-              0,
-              (state.height ?? 0) + (state.velocity ?? 0) * stepScale
-            );
-            if (state.height <= 1e-4 && state.velocity <= 0) {
-              hopStates.delete(key);
-            }
-          });
           balls.forEach((b) => {
             if (!b.active) return;
             const isCue = b.id === 'cue';
@@ -19097,8 +19022,7 @@ const powerRef = useRef(hud.power);
                 railSoundTimeRef.current.set(b.id, nowRail);
               }
             }
-            const hopHeight = ballHopRef.current.get(b.id)?.height ?? 0;
-            b.mesh.position.set(b.pos.x, BALL_CENTER_Y + hopHeight, b.pos.y);
+            b.mesh.position.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
             if (scaledSpeed > 0) {
               const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
               const angle = scaledSpeed / BALL_R;
@@ -19112,9 +19036,11 @@ const powerRef = useRef(hud.power);
                 b.shadow.position.set(b.pos.x, BALL_SHADOW_Y, b.pos.y);
                 const spread = 1 + THREE.MathUtils.clamp(speed * 0.08, 0, 0.35);
                 b.shadow.scale.setScalar(spread);
-                const baseShadowOpacity = BALL_SHADOW_OPACITY + 0.12;
-                const faded = hopHeight > 0 ? baseShadowOpacity - hopHeight * 2.2 : baseShadowOpacity;
-                b.shadow.material.opacity = THREE.MathUtils.clamp(faded, 0, 1);
+                b.shadow.material.opacity = THREE.MathUtils.clamp(
+                  BALL_SHADOW_OPACITY + 0.12,
+                  0,
+                  1
+                );
               }
             }
           });
@@ -19166,14 +19092,6 @@ const powerRef = useRef(hud.power);
                   if (volume > 0) playBallHit(volume);
                 }
                 const cueBall = a.id === 'cue' ? a : b.id === 'cue' ? b : null;
-                if (cueBall && isNewImpact && lastShotPower >= 0.95) {
-                  const hopStates = ballHopRef.current;
-                  const lift = BALL_R * CUE_MAX_HOP_POWER * lastShotPower;
-                  hopStates.set(cueBall.id, {
-                    height: lift,
-                    velocity: BALL_R * 12 * lastShotPower
-                  });
-                }
                 if (!firstHit) {
                   if (a.id === 'cue' && b.id !== 'cue') firstHit = b.id;
                   else if (b.id === 'cue' && a.id !== 'cue') firstHit = a.id;
@@ -19725,11 +19643,6 @@ const powerRef = useRef(hud.power);
           activeRenderCameraRef.current = null;
           cueBodyRef.current = null;
           tipGroupRef.current = null;
-          if (aiBlendTweenRef.current) {
-            cancelAnimationFrame(aiBlendTweenRef.current);
-            aiBlendTweenRef.current = null;
-          }
-          ballHopRef.current.clear();
           try {
             host.removeChild(renderer.domElement);
           } catch {}
