@@ -6,11 +6,13 @@ public class BilliardLighting : MonoBehaviour
     void Start()
     {
         // Create three spot lights to highlight the D, blue and black spots on the table
+        const float lightHeight = 4.2f; // sit the lamps closer to the cloth plane
+        const float lightSpacing = 3.4f;
         Vector3[] lightPositions =
         {
-            new Vector3(0f, 5f, -3.5f), // D spot at baulk end
-            new Vector3(0f, 5f, 0f),    // blue spot in the centre
-            new Vector3(0f, 5f, 3.5f)   // black spot at top end
+            new Vector3(0f, lightHeight, -lightSpacing), // D spot at baulk end
+            new Vector3(0f, lightHeight, 0f),            // blue spot in the centre
+            new Vector3(0f, lightHeight, lightSpacing)   // black spot at top end
         };
 
         for (int i = 0; i < lightPositions.Length; i++)
