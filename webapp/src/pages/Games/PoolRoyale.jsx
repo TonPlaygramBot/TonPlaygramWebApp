@@ -1682,9 +1682,9 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 0.74;
-const CLOTH_HAIR_INTENSITY = 0.7;
-const CLOTH_BUMP_INTENSITY = 0.94;
+const CLOTH_TEXTURE_INTENSITY = 0.86;
+const CLOTH_HAIR_INTENSITY = 0.78;
+const CLOTH_BUMP_INTENSITY = 1.02;
 const CLOTH_SOFT_BLEND = 0.42;
 
 const CLOTH_QUALITY = (() => {
@@ -2415,374 +2415,552 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
 
 // Palettes derived from CC0 textile scans (ambientCG FabricWool series) and
 // popular tournament felts so every option mirrors a real pool cloth.
-const CLOTH_TEXTURE_PRESETS = Object.freeze({
-  freshGreen: Object.freeze({
-    id: 'freshGreen',
-    palette: {
-      shadow: 0x1d8048,
-      base: 0x3ab86e,
-      accent: 0x54cf88,
-      highlight: 0x7ef2af
-    },
-    sparkle: 1,
-    stray: 1
-  }),
-  snookerGreen: Object.freeze({
-    id: 'snookerGreen',
-    palette: {
-      shadow: 0x1c5b35,
-      base: 0x2d7f4b,
-      accent: 0x3f9b60,
-      highlight: 0x59c57f
-    },
-    sparkle: 0.9,
-    stray: 0.96
-  }),
-  graphite: Object.freeze({
-    id: 'graphite',
-    palette: {
-      shadow: 0x181b23,
-      base: 0x3d414e,
-      accent: 0x626a7b,
-      highlight: 0x95a1b6
-    },
-    sparkle: 0.65,
-    stray: 0.9
-  }),
-  arcticBlue: Object.freeze({
-    id: 'arcticBlue',
-    palette: {
-      shadow: 0x1c4f73,
-      base: 0x3f84b8,
-      accent: 0x5aa7d8,
-      highlight: 0x9ac9ed
-    },
-    sparkle: 1.05,
-    stray: 1.12
-  }),
-  emeraldPulse: Object.freeze({
-    id: 'emeraldPulse',
-    palette: {
-      shadow: 0x0f4c2f,
-      base: 0x1b8a51,
-      accent: 0x2eae68,
-      highlight: 0x58d994
-    },
-    sparkle: 1.08,
-    stray: 1.05
-  }),
-  ivyDrift: Object.freeze({
-    id: 'ivyDrift',
-    palette: {
-      shadow: 0x0d3320,
-      base: 0x1b5c33,
-      accent: 0x2d7a49,
-      highlight: 0x4aa76d
-    },
-    sparkle: 0.9,
-    stray: 0.92
-  }),
-  mintRadiance: Object.freeze({
-    id: 'mintRadiance',
-    palette: {
-      shadow: 0x1f5338,
-      base: 0x3a9662,
-      accent: 0x54b67c,
-      highlight: 0x83d7a5
-    },
-    sparkle: 1.12,
-    stray: 1.18
-  }),
-  cobaltFrost: Object.freeze({
-    id: 'cobaltFrost',
-    palette: {
-      shadow: 0x0d3c73,
-      base: 0x1f6ecf,
-      accent: 0x4da2ff,
-      highlight: 0x8fd3ff
-    },
-    sparkle: 1,
-    stray: 1.05
-  }),
-  midnightWave: Object.freeze({
-    id: 'midnightWave',
-    palette: {
-      shadow: 0x0d1f38,
-      base: 0x1c3f7a,
-      accent: 0x2f5a9d,
-      highlight: 0x4f7fbf
-    },
-    sparkle: 0.82,
-    stray: 0.88
-  }),
-  neonAzure: Object.freeze({
-    id: 'neonAzure',
-    palette: {
-      shadow: 0x0f3e64,
-      base: 0x2b8ac2,
-      accent: 0x46b1e4,
-      highlight: 0x7ad5ff
-    },
-    sparkle: 1.18,
-    stray: 1.2
-  }),
-  crimsonFlash: Object.freeze({
-    id: 'crimsonFlash',
-    palette: {
-      shadow: 0x2a0b14,
-      base: 0x8c1224,
-      accent: 0xb81f35,
-      highlight: 0xf2455c
-    },
-    sparkle: 1.04,
-    stray: 1.02
-  }),
-  rubyInferno: Object.freeze({
-    id: 'rubyInferno',
-    palette: {
-      shadow: 0x2c0f12,
-      base: 0x9f1e2f,
-      accent: 0xd43145,
-      highlight: 0xff6a7a
-    },
-    sparkle: 1.08,
-    stray: 1.1
-  }),
-  garnetVelvet: Object.freeze({
-    id: 'garnetVelvet',
-    palette: {
-      shadow: 0x190910,
-      base: 0x702136,
-      accent: 0x9b2f4a,
-      highlight: 0xc4576d
-    },
-    sparkle: 0.92,
-    stray: 0.9
-  }),
-  forestPrime: Object.freeze({
-    id: 'forestPrime',
-    palette: {
-      shadow: 0x0e2f1d,
-      base: 0x1f6d3c,
-      accent: 0x2f8a55,
-      highlight: 0x4fb67a
-    },
-    sparkle: 0.88,
-    stray: 0.94
-  }),
-  evergreenLuxe: Object.freeze({
-    id: 'evergreenLuxe',
-    palette: {
-      shadow: 0x103923,
-      base: 0x2a7c4c,
-      accent: 0x3f9961,
-      highlight: 0x65c08a
-    },
-    sparkle: 1.02,
-    stray: 1
-  }),
-  jadeCurrent: Object.freeze({
-    id: 'jadeCurrent',
-    palette: {
-      shadow: 0x0f3f2d,
-      base: 0x2a8b63,
-      accent: 0x40a57c,
-      highlight: 0x6ccca4
-    },
-    sparkle: 1.1,
-    stray: 1.12
-  })
+const BASE_CLOTH_DETAIL = Object.freeze({
+  bumpMultiplier: 1.18,
+  sheen: 0.62,
+  sheenRoughness: 0.46,
+  emissiveIntensity: 0.32,
+  envMapIntensity: 0.18
 });
 
-const DEFAULT_CLOTH_TEXTURE_KEY = 'freshGreen';
-const DEFAULT_CLOTH_COLOR_ID = 'freshGreen';
-const CLOTH_COLOR_OPTIONS = Object.freeze([
-  {
-    id: 'freshGreen',
-    label: 'Tour Green',
-    color: 0x55cf93,
-    textureKey: 'freshGreen',
-    detail: {
-      bumpMultiplier: 1,
-      sheen: 0.55,
-      sheenRoughness: 0.46,
-      emissiveIntensity: 0.36
-    }
-  },
-  {
-    id: 'graphite',
-    label: 'Arcadia Graphite',
-    color: 0x4a5566,
-    textureKey: 'graphite',
-    detail: {
-      bumpMultiplier: 0.92,
-      roughness: 0.72,
-      envMapIntensity: 0.16
-    }
-  },
-  {
-    id: 'arcticBlue',
-    label: 'Arctic Blue',
-    color: 0x5aa7d8,
-    textureKey: 'arcticBlue',
-    detail: {
-      sheen: 0.58,
-      sheenRoughness: 0.46,
-      envMapIntensity: 0.14
-    }
-  },
-  {
-    id: 'emeraldPulse',
-    label: 'Emerald Pulse',
-    color: 0x1f9d5a,
-    textureKey: 'emeraldPulse',
-    detail: {
-      sheen: 0.6,
-      sheenRoughness: 0.5,
-      bumpMultiplier: 1.05,
-      emissiveIntensity: 0.32
-    }
-  },
-  {
-    id: 'ivyDrift',
-    label: 'Ivy Drift',
-    color: 0x1b5c33,
-    textureKey: 'ivyDrift',
-    detail: {
-      sheen: 0.56,
-      sheenRoughness: 0.5,
-      roughness: 0.78,
-      bumpMultiplier: 0.96,
-      envMapIntensity: 0.1
-    }
-  },
-  {
-    id: 'mintRadiance',
-    label: 'Mint Radiance',
-    color: 0x3fa56b,
-    textureKey: 'mintRadiance',
-    detail: {
-      sheen: 0.64,
-      sheenRoughness: 0.46,
-      emissiveIntensity: 0.36,
-      envMapIntensity: 0.18
-    }
-  },
-  {
-    id: 'cobaltFrost',
-    label: 'Cobalt Frost',
-    color: 0x3388e0,
-    textureKey: 'cobaltFrost',
-    detail: {
-      sheen: 0.66,
-      sheenRoughness: 0.38,
-      bumpMultiplier: 1.02,
-      envMapIntensity: 0.22
-    }
-  },
-  {
-    id: 'midnightWave',
-    label: 'Midnight Wave',
-    color: 0x1c3f7a,
-    textureKey: 'midnightWave',
-    detail: {
-      roughness: 0.84,
-      bumpMultiplier: 0.9,
-      emissiveIntensity: 0.24
-    }
-  },
-  {
-    id: 'neonAzure',
-    label: 'Neon Azure',
-    color: 0x2b9ad6,
-    textureKey: 'neonAzure',
-    detail: {
-      sheen: 0.7,
-      sheenRoughness: 0.4,
-      bumpMultiplier: 1.05,
-      emissiveIntensity: 0.34,
-      envMapIntensity: 0.18
-    }
-  },
-  {
-    id: 'crimsonFlash',
-    label: 'Crimson Flash',
-    color: 0x9c1a2b,
-    textureKey: 'crimsonFlash',
-    detail: {
-      sheen: 0.62,
-      sheenRoughness: 0.42,
-      bumpMultiplier: 1.02,
-      emissiveIntensity: 0.44,
-      envMapIntensity: 0.18
-    }
-  },
-  {
-    id: 'rubyInferno',
-    label: 'Ruby Inferno',
-    color: 0xaf2136,
-    textureKey: 'rubyInferno',
-    detail: {
-      sheen: 0.7,
-      sheenRoughness: 0.38,
-      bumpMultiplier: 1.08,
-      emissiveIntensity: 0.48,
-      envMapIntensity: 0.22
-    }
-  },
-  {
-    id: 'garnetVelvet',
-    label: 'Garnet Velvet',
-    color: 0x7a2c3f,
-    textureKey: 'garnetVelvet',
-    detail: {
-      roughness: 0.82,
-      bumpMultiplier: 0.94,
+const makeClothDetail = (overrides = {}) => ({
+  ...BASE_CLOTH_DETAIL,
+  ...overrides
+});
+
+// Poly Haven sourced cloths (CC0) with dual tints and enlarged weave detail.
+const CLOTH_LIBRARY = Object.freeze([
+  Object.freeze({
+    id: 'denimFabric03Green',
+    label: 'Denim Fabric 03 — Green Tint',
+    sourceId: 'denim_fabric_03',
+    palette: Object.freeze({
+      shadow: 0x1d6251,
+      base: 0x288871,
+      accent: 0x4a9b88,
+      highlight: 0x6dae9e
+    }),
+    color: 0x288871,
+    sparkle: 1.12,
+    stray: 1.08,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.24,
       sheen: 0.54,
+      sheenRoughness: 0.42,
+      emissiveIntensity: 0.26,
+      envMapIntensity: 0.22
+    })
+  }),
+  Object.freeze({
+    id: 'denimFabric03Blue',
+    label: 'Denim Fabric 03 — Blue Tint',
+    sourceId: 'denim_fabric_03',
+    palette: Object.freeze({
+      shadow: 0x204783,
+      base: 0x2d62b6,
+      accent: 0x4f7bc2,
+      highlight: 0x7094cd
+    }),
+    color: 0x2d62b6,
+    sparkle: 1.12,
+    stray: 1.08,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.24,
+      sheen: 0.54,
+      sheenRoughness: 0.42,
+      emissiveIntensity: 0.26,
+      envMapIntensity: 0.22
+    })
+  }),
+  Object.freeze({
+    id: 'hessian230Green',
+    label: 'Hessian 230 — Green Tint',
+    sourceId: 'hessian_230',
+    palette: Object.freeze({
+      shadow: 0x49753c,
+      base: 0x66a254,
+      accent: 0x7eb16f,
+      highlight: 0x97c08b
+    }),
+    color: 0x66a254,
+    sparkle: 1.08,
+    stray: 1.04,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.24,
+      sheen: 0.58,
       sheenRoughness: 0.48,
+      emissiveIntensity: 0.22,
+      envMapIntensity: 0.16
+    })
+  }),
+  Object.freeze({
+    id: 'hessian230Blue',
+    label: 'Hessian 230 — Blue Tint',
+    sourceId: 'hessian_230',
+    palette: Object.freeze({
+      shadow: 0x4c5a6e,
+      base: 0x6a7d99,
+      accent: 0x8292a9,
+      highlight: 0x9aa7ba
+    }),
+    color: 0x6a7d99,
+    sparkle: 1.08,
+    stray: 1.04,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.24,
+      sheen: 0.58,
+      sheenRoughness: 0.48,
+      emissiveIntensity: 0.22,
+      envMapIntensity: 0.16
+    })
+  }),
+  Object.freeze({
+    id: 'polarFleeceGreen',
+    label: 'Polar Fleece — Green Tint',
+    sourceId: 'polar_fleece',
+    palette: Object.freeze({
+      shadow: 0x62976e,
+      base: 0x88d299,
+      accent: 0x9bd9a9,
+      highlight: 0xaee0ba
+    }),
+    color: 0x88d299,
+    sparkle: 1.12,
+    stray: 1.1,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.12,
+      sheen: 0.7,
+      sheenRoughness: 0.52,
+      emissiveIntensity: 0.34,
       envMapIntensity: 0.14
-    }
-  },
-  {
-    id: 'forestPrime',
-    label: 'Forest Prime',
-    color: 0x1f6d3c,
-    textureKey: 'forestPrime',
-    detail: {
-      roughness: 0.76,
+    })
+  }),
+  Object.freeze({
+    id: 'polarFleeceBlue',
+    label: 'Polar Fleece — Blue Tint',
+    sourceId: 'polar_fleece',
+    palette: Object.freeze({
+      shadow: 0x667d9f,
+      base: 0x8daddd,
+      accent: 0x9fbae2,
+      highlight: 0xb1c7e8
+    }),
+    color: 0x8daddd,
+    sparkle: 1.12,
+    stray: 1.1,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.12,
+      sheen: 0.7,
+      sheenRoughness: 0.52,
+      emissiveIntensity: 0.34,
+      envMapIntensity: 0.14
+    })
+  }),
+  Object.freeze({
+    id: 'cottonJerseyGreen',
+    label: 'Cotton Jersey — Green Tint',
+    sourceId: 'cotton_jersey',
+    palette: Object.freeze({
+      shadow: 0x558453,
+      base: 0x76b873,
+      accent: 0x8cc389,
+      highlight: 0xa2cfa0
+    }),
+    color: 0x76b873,
+    sparkle: 1.08,
+    stray: 1.06,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.18,
       sheen: 0.6,
       sheenRoughness: 0.48,
       emissiveIntensity: 0.28,
-      envMapIntensity: 0.12
-    }
-  },
-  {
-    id: 'evergreenLuxe',
-    label: 'Evergreen Luxe',
-    color: 0x2a7c4c,
-    textureKey: 'evergreenLuxe',
-    detail: {
-      sheen: 0.62,
-      sheenRoughness: 0.44,
-      bumpMultiplier: 1,
-      emissiveIntensity: 0.34,
       envMapIntensity: 0.18
-    }
-  },
-  {
-    id: 'jadeCurrent',
-    label: 'Jade Current',
-    color: 0x2a8b63,
-    textureKey: 'jadeCurrent',
-    detail: {
-      sheen: 0.66,
-      sheenRoughness: 0.42,
-      bumpMultiplier: 1.02,
+    })
+  }),
+  Object.freeze({
+    id: 'cottonJerseyBlue',
+    label: 'Cotton Jersey — Blue Tint',
+    sourceId: 'cotton_jersey',
+    palette: Object.freeze({
+      shadow: 0x596a84,
+      base: 0x7b93b8,
+      accent: 0x90a4c3,
+      highlight: 0xa5b6cf
+    }),
+    color: 0x7b93b8,
+    sparkle: 1.08,
+    stray: 1.06,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.18,
+      sheen: 0.6,
+      sheenRoughness: 0.48,
+      emissiveIntensity: 0.28,
+      envMapIntensity: 0.18
+    })
+  }),
+  Object.freeze({
+    id: 'fauxFurGeometricGreen',
+    label: 'Faux Fur Geometric — Green Tint',
+    sourceId: 'faux_fur_geometric',
+    palette: Object.freeze({
+      shadow: 0x5c8463,
+      base: 0x80b78a,
+      accent: 0x94c39d,
+      highlight: 0xa9ceaf
+    }),
+    color: 0x80b78a,
+    sparkle: 1.16,
+    stray: 1.14,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.16,
+      sheen: 0.72,
+      sheenRoughness: 0.44,
       emissiveIntensity: 0.36,
       envMapIntensity: 0.2
-    }
-  }
+    })
+  }),
+  Object.freeze({
+    id: 'fauxFurGeometricBlue',
+    label: 'Faux Fur Geometric — Blue Tint',
+    sourceId: 'faux_fur_geometric',
+    palette: Object.freeze({
+      shadow: 0x5f6995,
+      base: 0x8492cf,
+      accent: 0x98a3d7,
+      highlight: 0xabb5de
+    }),
+    color: 0x8492cf,
+    sparkle: 1.16,
+    stray: 1.14,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.16,
+      sheen: 0.72,
+      sheenRoughness: 0.44,
+      emissiveIntensity: 0.36,
+      envMapIntensity: 0.2
+    })
+  }),
+  Object.freeze({
+    id: 'joggingMelangeGreen',
+    label: 'Jogging Mélange — Green Tint',
+    sourceId: 'jogging_melange',
+    palette: Object.freeze({
+      shadow: 0x3c7554,
+      base: 0x54a274,
+      accent: 0x6fb18a,
+      highlight: 0x8bc0a0
+    }),
+    color: 0x54a274,
+    sparkle: 1.1,
+    stray: 1.08,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.12,
+      sheen: 0.66,
+      sheenRoughness: 0.5,
+      emissiveIntensity: 0.3,
+      envMapIntensity: 0.16
+    })
+  }),
+  Object.freeze({
+    id: 'joggingMelangeBlue',
+    label: 'Jogging Mélange — Blue Tint',
+    sourceId: 'jogging_melange',
+    palette: Object.freeze({
+      shadow: 0x3f5a85,
+      base: 0x587db9,
+      accent: 0x7392c4,
+      highlight: 0x8da7cf
+    }),
+    color: 0x587db9,
+    sparkle: 1.1,
+    stray: 1.08,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.12,
+      sheen: 0.66,
+      sheenRoughness: 0.5,
+      emissiveIntensity: 0.3,
+      envMapIntensity: 0.16
+    })
+  }),
+  Object.freeze({
+    id: 'knittedFleeceGreen',
+    label: 'Knitted Fleece — Green Tint',
+    sourceId: 'knitted_fleece',
+    palette: Object.freeze({
+      shadow: 0x37683f,
+      base: 0x4d9057,
+      accent: 0x69a272,
+      highlight: 0x86b48d
+    }),
+    color: 0x4d9057,
+    sparkle: 1.12,
+    stray: 1.1,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.14,
+      sheen: 0.68,
+      sheenRoughness: 0.5,
+      emissiveIntensity: 0.32,
+      envMapIntensity: 0.16
+    })
+  }),
+  Object.freeze({
+    id: 'knittedFleeceBlue',
+    label: 'Knitted Fleece — Blue Tint',
+    sourceId: 'knitted_fleece',
+    palette: Object.freeze({
+      shadow: 0x3b4d70,
+      base: 0x526b9b,
+      accent: 0x6e83ab,
+      highlight: 0x899abb
+    }),
+    color: 0x526b9b,
+    sparkle: 1.12,
+    stray: 1.1,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.14,
+      sheen: 0.68,
+      sheenRoughness: 0.5,
+      emissiveIntensity: 0.32,
+      envMapIntensity: 0.16
+    })
+  }),
+  Object.freeze({
+    id: 'cabanGreen',
+    label: 'Caban Wool — Green Tint',
+    sourceId: 'caban',
+    palette: Object.freeze({
+      shadow: 0x546e32,
+      base: 0x749945,
+      accent: 0x8aa963,
+      highlight: 0xa0ba81
+    }),
+    color: 0x749945,
+    sparkle: 1.08,
+    stray: 1.06,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.22,
+      sheen: 0.58,
+      sheenRoughness: 0.46,
+      emissiveIntensity: 0.24,
+      envMapIntensity: 0.18
+    })
+  }),
+  Object.freeze({
+    id: 'cabanBlue',
+    label: 'Caban Wool — Blue Tint',
+    sourceId: 'caban',
+    palette: Object.freeze({
+      shadow: 0x575463,
+      base: 0x79748a,
+      accent: 0x8e8a9d,
+      highlight: 0xa4a0af
+    }),
+    color: 0x79748a,
+    sparkle: 1.08,
+    stray: 1.06,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.22,
+      sheen: 0.58,
+      sheenRoughness: 0.46,
+      emissiveIntensity: 0.24,
+      envMapIntensity: 0.18
+    })
+  }),
+  Object.freeze({
+    id: 'curlyTeddyNaturalGreen',
+    label: 'Curly Teddy Natural — Green Tint',
+    sourceId: 'curly_teddy_natural',
+    palette: Object.freeze({
+      shadow: 0x5d9064,
+      base: 0x81c88b,
+      accent: 0x95d19e,
+      highlight: 0xa9dab0
+    }),
+    color: 0x81c88b,
+    sparkle: 1.16,
+    stray: 1.14,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.16,
+      sheen: 0.72,
+      sheenRoughness: 0.44,
+      emissiveIntensity: 0.36,
+      envMapIntensity: 0.22
+    })
+  }),
+  Object.freeze({
+    id: 'curlyTeddyNaturalBlue',
+    label: 'Curly Teddy Natural — Blue Tint',
+    sourceId: 'curly_teddy_natural',
+    palette: Object.freeze({
+      shadow: 0x607596,
+      base: 0x86a3d0,
+      accent: 0x99b2d8,
+      highlight: 0xadc0df
+    }),
+    color: 0x86a3d0,
+    sparkle: 1.16,
+    stray: 1.14,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.16,
+      sheen: 0.72,
+      sheenRoughness: 0.44,
+      emissiveIntensity: 0.36,
+      envMapIntensity: 0.22
+    })
+  }),
+  Object.freeze({
+    id: 'curlyTeddyCheckeredGreen',
+    label: 'Curly Teddy Checkered — Green Tint',
+    sourceId: 'curly_teddy_checkered',
+    palette: Object.freeze({
+      shadow: 0x1f6e4e,
+      base: 0x2b996c,
+      accent: 0x4da984,
+      highlight: 0x6fba9b
+    }),
+    color: 0x2b996c,
+    sparkle: 1.16,
+    stray: 1.12,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.16,
+      sheen: 0.7,
+      sheenRoughness: 0.44,
+      emissiveIntensity: 0.36,
+      envMapIntensity: 0.22
+    })
+  }),
+  Object.freeze({
+    id: 'curlyTeddyCheckeredBlue',
+    label: 'Curly Teddy Checkered — Blue Tint',
+    sourceId: 'curly_teddy_checkered',
+    palette: Object.freeze({
+      shadow: 0x22547f,
+      base: 0x2f74b0,
+      accent: 0x508abd,
+      highlight: 0x72a0c9
+    }),
+    color: 0x2f74b0,
+    sparkle: 1.16,
+    stray: 1.12,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.16,
+      sheen: 0.7,
+      sheenRoughness: 0.44,
+      emissiveIntensity: 0.36,
+      envMapIntensity: 0.22
+    })
+  }),
+  Object.freeze({
+    id: 'denimFabric04Green',
+    label: 'Denim Fabric 04 — Green Tint',
+    sourceId: 'denim_fabric_04',
+    palette: Object.freeze({
+      shadow: 0x297463,
+      base: 0x39a18a,
+      accent: 0x59b09d,
+      highlight: 0x78bfaf
+    }),
+    color: 0x39a18a,
+    sparkle: 1.14,
+    stray: 1.1,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.24,
+      sheen: 0.54,
+      sheenRoughness: 0.42,
+      emissiveIntensity: 0.26,
+      envMapIntensity: 0.22
+    })
+  }),
+  Object.freeze({
+    id: 'denimFabric04Blue',
+    label: 'Denim Fabric 04 — Blue Tint',
+    sourceId: 'denim_fabric_04',
+    palette: Object.freeze({
+      shadow: 0x2d5995,
+      base: 0x3e7ccf,
+      accent: 0x5d91d7,
+      highlight: 0x7ca6de
+    }),
+    color: 0x3e7ccf,
+    sparkle: 1.14,
+    stray: 1.1,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.24,
+      sheen: 0.54,
+      sheenRoughness: 0.42,
+      emissiveIntensity: 0.26,
+      envMapIntensity: 0.22
+    })
+  }),
+  Object.freeze({
+    id: 'denimFabric05Green',
+    label: 'Denim Fabric 05 — Green Tint',
+    sourceId: 'denim_fabric_05',
+    palette: Object.freeze({
+      shadow: 0x1e5736,
+      base: 0x29794b,
+      accent: 0x4b8e68,
+      highlight: 0x6da485
+    }),
+    color: 0x29794b,
+    sparkle: 1.14,
+    stray: 1.1,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.24,
+      sheen: 0.54,
+      sheenRoughness: 0.42,
+      emissiveIntensity: 0.26,
+      envMapIntensity: 0.22
+    })
+  }),
+  Object.freeze({
+    id: 'denimFabric05Blue',
+    label: 'Denim Fabric 05 — Blue Tint',
+    sourceId: 'denim_fabric_05',
+    palette: Object.freeze({
+      shadow: 0x203c68,
+      base: 0x2d5390,
+      accent: 0x4f6fa2,
+      highlight: 0x708ab4
+    }),
+    color: 0x2d5390,
+    sparkle: 1.14,
+    stray: 1.1,
+    detail: makeClothDetail({
+      bumpMultiplier: 1.24,
+      sheen: 0.54,
+      sheenRoughness: 0.42,
+      emissiveIntensity: 0.26,
+      envMapIntensity: 0.22
+    })
+  })
 ]);
+
+const CLOTH_TEXTURE_PRESETS = Object.freeze(
+  CLOTH_LIBRARY.reduce((acc, cloth) => {
+    acc[cloth.id] = Object.freeze({
+      id: cloth.id,
+      palette: cloth.palette,
+      sparkle: cloth.sparkle,
+      stray: cloth.stray
+    });
+    return acc;
+  }, {})
+);
+
+const DEFAULT_CLOTH_TEXTURE_KEY =
+  POOL_ROYALE_DEFAULT_UNLOCKS.clothColor?.[0] ?? CLOTH_LIBRARY[0].id;
+const DEFAULT_CLOTH_COLOR_ID = DEFAULT_CLOTH_TEXTURE_KEY;
+const CLOTH_COLOR_OPTIONS = Object.freeze(
+  CLOTH_LIBRARY.map((cloth) => ({
+    id: cloth.id,
+    label: cloth.label,
+    color: cloth.color,
+    textureKey: cloth.id,
+    detail: cloth.detail,
+    sourceId: cloth.sourceId
+  }))
+);
 
 const DEFAULT_RAIL_MARKER_SHAPE = 'diamond';
 const RAIL_MARKER_SHAPE_OPTIONS = Object.freeze([
@@ -3550,7 +3728,7 @@ const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
-const CLOTH_THREAD_PITCH = 12 * 1.32; // widen thread spacing (~10% more) for a coarser weave
+const CLOTH_THREAD_PITCH = 12 * 1.55; // enlarge thread spacing for a coarser, more pronounced weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 
 const createClothTextures = (() => {
