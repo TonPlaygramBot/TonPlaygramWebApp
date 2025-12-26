@@ -1,11 +1,43 @@
 import { RUNTIME_CACHE_NAME } from './preloadGames.js';
 
-const OFFLINE_MANIFEST_PATH = 'pwa/offline-assets.json';
+const OFFLINE_MANIFEST_PATHS = ['pwa/offline-assets.json', 'pwa/model-assets.json'];
 const OFFLINE_CACHE_VERSION_KEY = 'tonplaygram-offline-cache-version';
 
 const normalizeBaseUrl = base => {
   if (!base) return '/';
   return base.endsWith('/') ? base : `${base}/`;
+};
+
+const buildManifestUrl = (path, baseNormalized) =>
+  new URL(path, `${window.location.origin}${baseNormalized}`).toString();
+
+const fetchManifestAssets = async (baseNormalized = '/') => {
+  const seen = new Set();
+  const assets = [];
+
+  for (const manifestPath of OFFLINE_MANIFEST_PATHS) {
+    const manifestUrl = buildManifestUrl(manifestPath, baseNormalized);
+    const manifestResponse = await fetch(manifestUrl, { cache: 'no-store' });
+    if (!manifestResponse.ok) throw new Error(`Unable to fetch manifest at ${manifestPath}`);
+
+    const manifestAssets = await manifestResponse.json();
+    if (!Array.isArray(manifestAssets)) {
+      throw new Error(`Offline manifest ${manifestPath} is invalid`);
+    }
+
+    for (const asset of manifestAssets) {
+      if (typeof asset === 'string' && !seen.has(asset)) {
+        seen.add(asset);
+        assets.push(asset);
+      }
+    }
+  }
+
+  if (assets.length === 0) {
+    throw new Error('Offline manifests are empty');
+  }
+
+  return assets;
 };
 
 export const isTelegramEnvironment = () => Boolean(window.Telegram?.WebApp);
@@ -23,19 +55,7 @@ export async function cacheOfflineAssets({ baseUrl = '/', onUpdate } = {}) {
   await navigator.serviceWorker.ready;
 
   const baseNormalized = normalizeBaseUrl(baseUrl);
-  const manifestUrl = new URL(
-    OFFLINE_MANIFEST_PATH,
-    `${window.location.origin}${baseNormalized}`
-  ).toString();
-
-  const manifestResponse = await fetch(manifestUrl, { cache: 'no-store' });
-  if (!manifestResponse.ok) throw new Error('Unable to fetch offline manifest');
-
-  const assets = await manifestResponse.json();
-  if (!Array.isArray(assets) || assets.length === 0) {
-    throw new Error('Offline manifest is empty');
-  }
-
+  const assets = await fetchManifestAssets(baseNormalized);
   const cache = await caches.open(RUNTIME_CACHE_NAME);
   let successes = 0;
   let failures = 0;
