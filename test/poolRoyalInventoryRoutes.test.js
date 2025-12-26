@@ -73,15 +73,15 @@ test('Pool Royale inventory persists across reloads and devices', async () => {
 
       const deviceAInventory = {
         ...initialInventory,
-        clothColor: [...(initialInventory.clothColor || []), 'graphite'],
+        clothColor: [...(initialInventory.clothColor || []), 'denimFabric03Blue'],
         cueStyle: [...(initialInventory.cueStyle || []), 'carbon-matrix']
       };
       const afterDeviceA = await saveInventory(3213, accountId, deviceAInventory);
-      assert.ok(afterDeviceA.clothColor.includes('graphite'));
+      assert.ok(afterDeviceA.clothColor.includes('denimFabric03Blue'));
       assert.ok(afterDeviceA.cueStyle.includes('carbon-matrix'));
 
       const afterReload = await getInventory(3213, accountId);
-      assert.ok(afterReload.clothColor.includes('graphite'));
+      assert.ok(afterReload.clothColor.includes('denimFabric03Blue'));
       assert.ok(afterReload.cueStyle.includes('carbon-matrix'));
 
       const deviceBInventory = {
@@ -93,7 +93,7 @@ test('Pool Royale inventory persists across reloads and devices', async () => {
 
       const finalInventory = await getInventory(3213, accountId);
       assert.ok(finalInventory.tableFinish.includes('jetBlackCarbon'));
-      assert.ok(finalInventory.clothColor.includes('graphite'));
+      assert.ok(finalInventory.clothColor.includes('denimFabric03Blue'));
       assert.ok(finalInventory.cueStyle.includes('carbon-matrix'));
     } finally {
       server.kill();
