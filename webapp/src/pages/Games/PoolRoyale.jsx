@@ -8,6 +8,7 @@ import React, {
 import * as THREE from 'three';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -1004,11 +1005,11 @@ if (BALL_SHADOW_MATERIAL) {
   BALL_SHADOW_MATERIAL.polygonOffsetUnits = -0.5;
 }
 // Match the snooker build so pace and rebound energy stay consistent between modes.
-const FRICTION = 0.993;
+const FRICTION = 0.995;
 const DEFAULT_CUSHION_RESTITUTION = 0.985;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
-const STOP_EPS = 0.02;
-const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
+const STOP_EPS = 0.014;
+const STOP_SOFTENING = 0.97; // ease balls into a stop instead of hard-braking at the speed threshold
 const STOP_FINAL_EPS = STOP_EPS * 0.45;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
@@ -2604,7 +2605,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'graphite',
     label: 'Arcadia Graphite',
-    color: 0x4a5566,
+    color: 0x3d4a5a,
     textureKey: 'graphite',
     detail: {
       bumpMultiplier: 0.92,
@@ -2615,7 +2616,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'arcticBlue',
     label: 'Arctic Blue',
-    color: 0x6fc5f6,
+    color: 0x5bb8ff,
     textureKey: 'arcticBlue',
     detail: {
       sheen: 0.64,
@@ -2626,7 +2627,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'emeraldPulse',
     label: 'Emerald Pulse',
-    color: 0x2ac278,
+    color: 0x1fb26d,
     textureKey: 'emeraldPulse',
     detail: {
       sheen: 0.62,
@@ -2638,7 +2639,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'ivyDrift',
     label: 'Ivy Drift',
-    color: 0x1f6a3d,
+    color: 0x1b5f39,
     textureKey: 'ivyDrift',
     detail: {
       roughness: 0.78,
@@ -2649,7 +2650,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'mintRadiance',
     label: 'Mint Radiance',
-    color: 0x56e8d4,
+    color: 0x44d9c2,
     textureKey: 'mintRadiance',
     detail: {
       sheen: 0.7,
@@ -2673,7 +2674,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'midnightWave',
     label: 'Midnight Wave',
-    color: 0x1f4da8,
+    color: 0x1b4395,
     textureKey: 'midnightWave',
     detail: {
       roughness: 0.82,
@@ -2684,7 +2685,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'neonAzure',
     label: 'Neon Azure',
-    color: 0x1fc9f0,
+    color: 0x16b7e6,
     textureKey: 'neonAzure',
     detail: {
       sheen: 0.78,
@@ -2696,7 +2697,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'crimsonFlash',
     label: 'Crimson Flash',
-    color: 0x9c1a2b,
+    color: 0xb01e34,
     textureKey: 'crimsonFlash',
     detail: {
       sheen: 0.62,
@@ -2709,7 +2710,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'rubyInferno',
     label: 'Ruby Inferno',
-    color: 0xaf2136,
+    color: 0xc62744,
     textureKey: 'rubyInferno',
     detail: {
       sheen: 0.7,
@@ -2722,7 +2723,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'garnetVelvet',
     label: 'Garnet Velvet',
-    color: 0x7a2c3f,
+    color: 0x8b3046,
     textureKey: 'garnetVelvet',
     detail: {
       roughness: 0.82,
@@ -2735,7 +2736,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'forestPrime',
     label: 'Forest Prime',
-    color: 0x217a45,
+    color: 0x1c6f42,
     textureKey: 'forestPrime',
     detail: {
       roughness: 0.76,
@@ -2748,7 +2749,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'evergreenLuxe',
     label: 'Evergreen Luxe',
-    color: 0x2f9c5f,
+    color: 0x30a869,
     textureKey: 'evergreenLuxe',
     detail: {
       sheen: 0.68,
@@ -2761,7 +2762,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'jadeCurrent',
     label: 'Jade Current',
-    color: 0x1fb190,
+    color: 0x19a186,
     textureKey: 'jadeCurrent',
     detail: {
       sheen: 0.74,
@@ -5105,6 +5106,7 @@ const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const GOOD_SHOT_REPLAY_DELAY_MS = 900;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
+const REPLAY_INTRO_DURATION_MS = 650;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
 const REPLAY_BANNER_VARIANTS = {
@@ -9282,13 +9284,12 @@ function PoolRoyaleGame({
     );
   });
   const [pocketLinerId, setPocketLinerId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(POCKET_LINER_STORAGE_KEY);
-      if (stored && POCKET_LINER_OPTIONS.some((opt) => opt?.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_POCKET_LINER_OPTION_ID;
+    return resolveStoredSelection(
+      'pocketLiner',
+      POCKET_LINER_STORAGE_KEY,
+      (id) => POCKET_LINER_OPTIONS.some((opt) => opt?.id === id),
+      DEFAULT_POCKET_LINER_OPTION_ID
+    );
   });
   const [railMarkerShapeId, setRailMarkerShapeId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -10186,12 +10187,18 @@ function PoolRoyaleGame({
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
+  const [replayIntroActive, setReplayIntroActive] = useState(false);
+  const replayIntroTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
       if (replayBannerTimeoutRef.current) {
         clearTimeout(replayBannerTimeoutRef.current);
         replayBannerTimeoutRef.current = null;
+      }
+      if (replayIntroTimeoutRef.current) {
+        clearTimeout(replayIntroTimeoutRef.current);
+        replayIntroTimeoutRef.current = null;
       }
     },
     []
@@ -10438,8 +10445,10 @@ const powerRef = useRef(hud.power);
         fill,
         rim,
         wash,
-        ambient
+        ambient,
+        panels
       } = rig;
+      const panelLights = Array.isArray(panels) ? panels : [];
 
       if (settings.keyColor && key) key.color.set(settings.keyColor);
       if (settings.keyIntensity && key) key.intensity = settings.keyIntensity;
@@ -10451,6 +10460,30 @@ const powerRef = useRef(hud.power);
       if (settings.rimIntensity && rim) rim.intensity = settings.rimIntensity;
       if (settings.ambientIntensity && ambient)
         ambient.intensity = settings.ambientIntensity;
+      const panelTargets = [
+        { light: panelLights[0], color: settings.keyColor, ref: key, intensity: settings.keyIntensity },
+        { light: panelLights[1], color: settings.fillColor, ref: fill, intensity: settings.fillIntensity },
+        { light: panelLights[2], color: settings.washColor, ref: wash, intensity: settings.washIntensity },
+        { light: panelLights[3], color: settings.rimColor, ref: rim, intensity: settings.rimIntensity }
+      ];
+      panelTargets.forEach(({ light, color, ref, intensity }) => {
+        if (!light) return;
+        if (color) light.color.set(color);
+        const basePanelIntensity = light.userData?.baseIntensity ?? light.intensity;
+        const baseRefIntensity = ref?.userData?.baseIntensity ?? ref?.intensity ?? null;
+        const targetRefIntensity =
+          Number.isFinite(intensity) && intensity >= 0
+            ? intensity
+            : ref?.intensity ?? baseRefIntensity;
+        if (
+          Number.isFinite(basePanelIntensity) &&
+          Number.isFinite(baseRefIntensity) &&
+          Number.isFinite(targetRefIntensity) &&
+          baseRefIntensity > 0
+        ) {
+          light.intensity = (basePanelIntensity * targetRefIntensity) / baseRefIntensity;
+        }
+      });
     },
     [lightingId]
   );
@@ -11367,6 +11400,7 @@ const powerRef = useRef(hud.power);
         powerPreference: 'high-performance'
       });
       renderer.useLegacyLights = false;
+      renderer.physicallyCorrectLights = true;
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
@@ -14520,19 +14554,50 @@ const powerRef = useRef(hud.power);
           if (replayPlaybackRef.current) return;
           if (!shotRecording || !shotRecording.frames?.length) return;
           const trimmed = trimReplayRecording(shotRecording);
-          const duration = trimmed.duration;
+          const introCamera =
+            (typeof captureReplayCameraSnapshotRef.current === 'function'
+              ? captureReplayCameraSnapshotRef.current()
+              : null) ?? trimmed.frames[0]?.camera ?? null;
+          const introFrame = trimmed.frames[0]
+            ? {
+                ...trimmed.frames[0],
+                t: 0,
+                camera: introCamera ?? trimmed.frames[0].camera
+              }
+            : null;
+          const duration = REPLAY_INTRO_DURATION_MS + trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
+          const frames = trimmed.frames.map((frame) => ({
+            ...frame,
+            t: frame.t + REPLAY_INTRO_DURATION_MS
+          }));
+          if (introFrame) {
+            frames.unshift(introFrame);
+          }
+          const cuePath =
+            trimmed.cuePath?.map((entry) => ({
+              ...entry,
+              t: entry.t + REPLAY_INTRO_DURATION_MS
+            })) ?? [];
           storeReplayCameraFrame();
           resetCameraForReplay();
           replayPlayback = {
-            frames: trimmed.frames,
-            cuePath: trimmed.cuePath,
+            frames,
+            cuePath,
             duration,
             startedAt: performance.now(),
             lastIndex: 0,
             postState: postShotSnapshot,
             pocketDrops: pausedPocketDrops ?? pocketDropRef.current
           };
+          if (replayIntroTimeoutRef.current) {
+            clearTimeout(replayIntroTimeoutRef.current);
+          }
+          setReplayIntroActive(true);
+          replayIntroTimeoutRef.current = window.setTimeout(() => {
+            setReplayIntroActive(false);
+            replayIntroTimeoutRef.current = null;
+          }, REPLAY_INTRO_DURATION_MS);
           pausedPocketDrops = pocketDropRef.current;
           pocketDropRef.current = new Map();
           replayPlaybackRef.current = replayPlayback;
@@ -14563,6 +14628,11 @@ const powerRef = useRef(hud.power);
 
         const finishReplayPlayback = (playback) => {
           if (!playback) return;
+          if (replayIntroTimeoutRef.current) {
+            clearTimeout(replayIntroTimeoutRef.current);
+            replayIntroTimeoutRef.current = null;
+          }
+          setReplayIntroActive(false);
           if (playback.postState) {
             applyBallSnapshot(playback.postState);
           }
@@ -14940,69 +15010,108 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.6; // widen the overhead footprint so fixtures read larger on mobile and reach farther to the sides
+        RectAreaLightUniformsLib.init();
+
+        const lightSpreadBoost = 1.28; // keep fixtures tighter together so the heads sit nearer to each other
         const previousLightRigHeight = tableSurfaceY + TABLE.THICK * 7.1; // baseline height used for the prior brightness target
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.05; // bring the rig closer so ball reflections enlarge without shifting color
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.35; // bring the rig even closer so the table feels brighter and more intimate
         const brightnessCompensation =
-          ((lightRigHeight ** 2) / (previousLightRigHeight ** 2)) * 0.9; // preserve on-cloth brightness after moving the rig closer while dimming slightly
+          ((lightRigHeight ** 2) / (previousLightRigHeight ** 2)) * 0.92; // preserve on-cloth brightness after moving the rig closer while dimming slightly
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
         const lightOffsetZ =
           Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
-        const lightLineX = lightOffsetX * 0.5; // keep the rig aligned along a single long rail with a slightly wider stance
-        const lightSpacing = lightOffsetZ * 0.6; // enforce equal spacing between fixtures to mirror the centred heads
-        const lightPositionsZ = [-1.5, -0.5, 0.5, 1.5].map((mult) => mult * lightSpacing);
+        const lightLineX = lightOffsetX * 0.42; // keep the rig aligned along a single long rail with a slightly narrower stance
+        const lightSpacing = lightOffsetZ * 0.48; // enforce equal spacing between fixtures to mirror the centred heads
+        const lightPositionsZ = [-1.25, -0.35, 0.35, 1.25].map((mult) => mult * lightSpacing);
         const shadowHalfSpan =
           Math.max(roomWidth, roomDepth) * 0.82 + TABLE.THICK * 3.5;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
+        const panelWidth = Math.max(PLAY_W * 0.9, TABLE.THICK * 7.6);
+        const panelHeight = panelWidth * 0.36;
+        const aimTarget = new THREE.Vector3(0, targetY, 0);
+        const addPanelLight = (color, intensity, position) => {
+          const light = new THREE.RectAreaLight(color, intensity, panelWidth, panelHeight);
+          light.position.copy(position);
+          light.lookAt(aimTarget);
+          light.userData = { ...(light.userData || {}), baseIntensity: intensity };
+          lightingRig.add(light);
+          return light;
+        };
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.32);
         lightingRig.add(ambient);
 
-        const key = new THREE.DirectionalLight(0xffffff, 1.78 * brightnessCompensation);
-        key.position.set(lightLineX, lightRigHeight, lightPositionsZ[0]);
-        key.target.position.set(0, targetY, 0);
-        key.castShadow = true;
-        key.shadow.mapSize.set(2048, 2048);
-        key.shadow.camera.near = 0.1;
-        key.shadow.camera.far = shadowDepth;
-        key.shadow.camera.left = -shadowHalfSpan;
-        key.shadow.camera.right = shadowHalfSpan;
-        key.shadow.camera.top = shadowHalfSpan;
-        key.shadow.camera.bottom = -shadowHalfSpan;
-        key.shadow.bias = -0.00006;
-        key.shadow.normalBias = 0.0006;
-        key.shadow.camera.updateProjectionMatrix();
-        lightingRig.add(key);
-        lightingRig.add(key.target);
+        const shadowKey = new THREE.DirectionalLight(0xffffff, 0.64 * brightnessCompensation);
+        shadowKey.position.set(lightLineX, lightRigHeight, lightPositionsZ[0]);
+        shadowKey.target.position.set(0, targetY, 0);
+        shadowKey.castShadow = true;
+        shadowKey.userData = { ...(shadowKey.userData || {}), baseIntensity: shadowKey.intensity };
+        shadowKey.shadow.mapSize.set(2048, 2048);
+        shadowKey.shadow.camera.near = 0.1;
+        shadowKey.shadow.camera.far = shadowDepth;
+        shadowKey.shadow.camera.left = -shadowHalfSpan;
+        shadowKey.shadow.camera.right = shadowHalfSpan;
+        shadowKey.shadow.camera.top = shadowHalfSpan;
+        shadowKey.shadow.camera.bottom = -shadowHalfSpan;
+        shadowKey.shadow.bias = -0.00006;
+        shadowKey.shadow.normalBias = 0.0006;
+        shadowKey.shadow.camera.updateProjectionMatrix();
+        lightingRig.add(shadowKey);
+        lightingRig.add(shadowKey.target);
 
-        const fill = new THREE.DirectionalLight(0xffffff, 0.9 * brightnessCompensation);
+        const keyPanel = addPanelLight(
+          0xf6f8ff,
+          18 * brightnessCompensation,
+          new THREE.Vector3(lightLineX, lightRigHeight, lightPositionsZ[0])
+        );
+        const fillPanel = addPanelLight(
+          0xf6f8ff,
+          14 * brightnessCompensation,
+          new THREE.Vector3(-lightLineX, lightRigHeight * 1.01, lightPositionsZ[1])
+        );
+        const washPanel = addPanelLight(
+          0xf8faff,
+          15 * brightnessCompensation,
+          new THREE.Vector3(lightLineX, lightRigHeight * 1.02, lightPositionsZ[2])
+        );
+        const rimPanel = addPanelLight(
+          0xffffff,
+          13 * brightnessCompensation,
+          new THREE.Vector3(-lightLineX, lightRigHeight * 1.03, lightPositionsZ[3])
+        );
+
+        const fill = new THREE.DirectionalLight(0xffffff, 0.52 * brightnessCompensation);
         fill.position.set(-lightLineX, lightRigHeight * 1.01, lightPositionsZ[1]);
         fill.target.position.set(0, targetY, 0);
+        fill.userData = { ...(fill.userData || {}), baseIntensity: fill.intensity };
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
-        const wash = new THREE.DirectionalLight(0xffffff, 0.82 * brightnessCompensation);
+        const wash = new THREE.DirectionalLight(0xffffff, 0.46 * brightnessCompensation);
         wash.position.set(lightLineX, lightRigHeight * 1.02, lightPositionsZ[2]);
         wash.target.position.set(0, targetY, 0);
+        wash.userData = { ...(wash.userData || {}), baseIntensity: wash.intensity };
         lightingRig.add(wash);
         lightingRig.add(wash.target);
 
-        const rim = new THREE.DirectionalLight(0xffffff, 0.74 * brightnessCompensation);
+        const rim = new THREE.DirectionalLight(0xffffff, 0.42 * brightnessCompensation);
         rim.position.set(-lightLineX, lightRigHeight * 1.03, lightPositionsZ[3]);
         rim.target.position.set(0, targetY, 0);
+        rim.userData = { ...(rim.userData || {}), baseIntensity: rim.intensity };
         lightingRig.add(rim);
         lightingRig.add(rim.target);
 
         lightingRigRef.current = {
           group: lightingRig,
-          key,
+          key: shadowKey,
           fill,
           wash,
           rim,
-          ambient
+          ambient,
+          panels: [keyPanel, fillPanel, washPanel, rimPanel]
         };
         applyLightingPreset();
       };
@@ -19894,6 +20003,26 @@ const powerRef = useRef(hud.power);
             aria-live="polite"
           >
             {replayBanner}
+          </div>
+        </div>
+      )}
+      {replayIntroActive && (
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
+          <div className="flex items-center gap-3 rounded-2xl bg-black/70 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-white shadow-[0_16px_40px_rgba(0,0,0,0.55)] ring-1 ring-emerald-300/50 backdrop-blur">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              className="h-6 w-6 text-emerald-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 5v4l-3-3m3 12a6 6 0 1 0-6-6" />
+            </svg>
+            <span className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">Replay</span>
           </div>
         </div>
       )}
