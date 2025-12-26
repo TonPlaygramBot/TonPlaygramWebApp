@@ -7914,15 +7914,8 @@ function Table3D(
   const legTopWorld = legTopLocal + TABLE_Y;
   const legBottomWorld = FLOOR_Y;
   const legReach = Math.max(legTopWorld - legBottomWorld, TABLE_H);
-  const legFootingHeight = TABLE.THICK * 0.045;
-  const legH = Math.max(MICRO_EPS, legReach + LEG_TOP_OVERLAP - legFootingHeight);
+  const legH = legReach + LEG_TOP_OVERLAP;
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
-  const footPadGeo = new THREE.CylinderGeometry(
-    legR * 1.55,
-    legR * 1.4,
-    legFootingHeight,
-    48
-  );
   const legInset = baseRailWidth * 2.2;
   const legPositions = [
     [-frameOuterX + legInset, -frameOuterZ + legInset],
@@ -7934,8 +7927,6 @@ function Table3D(
   ];
   const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
   const legCircumference = 2 * Math.PI * legR;
-  const floorLocal = FLOOR_Y - TABLE_Y;
-  const footPadY = floorLocal + legFootingHeight / 2;
   // Match the skirt/apron wood grain with the cue butt so the pattern reads
   // clearly from the player perspective.
   const baseFrameFallback = {
@@ -7983,14 +7974,6 @@ function Table3D(
     leg.receiveShadow = true;
     table.add(leg);
     finishParts.legMeshes.push(leg);
-
-    const foot = new THREE.Mesh(footPadGeo, trimMat);
-    foot.position.set(lx, footPadY, lz);
-    foot.castShadow = true;
-    foot.receiveShadow = true;
-    foot.userData = { ...(foot.userData || {}), isChromePlate: true };
-    table.add(foot);
-    finishParts.trimMeshes.push(foot);
   });
 
   table.updateMatrixWorld(true);
