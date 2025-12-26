@@ -1015,7 +1015,6 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const PLAYER_SHOT_HOLD_MS = 3000; // keep the cue camera pinned for 3s before releasing a player shot
 const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 0.85;
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.6;
@@ -10524,17 +10523,11 @@ function PoolRoyaleGame({
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
-  const shotHoldTimeoutRef = useRef(null);
-  const holdCueViewRef = useRef(() => {});
   useEffect(
     () => () => {
       if (replayBannerTimeoutRef.current) {
         clearTimeout(replayBannerTimeoutRef.current);
         replayBannerTimeoutRef.current = null;
-      }
-      if (shotHoldTimeoutRef.current) {
-        clearTimeout(shotHoldTimeoutRef.current);
-        shotHoldTimeoutRef.current = null;
       }
     },
     []
@@ -15069,13 +15062,6 @@ const powerRef = useRef(hud.power);
           exit: (immediate = true) => exitTopView(immediate)
         };
         cameraUpdateRef.current = () => updateCamera();
-        holdCueViewRef.current = () => {
-          topViewRef.current = false;
-          topViewLockedRef.current = false;
-          setIsTopDownView(false);
-          applyCameraBlend(0);
-          updateCamera();
-        };
         const clampSpinToLimits = () => {
           const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
           const current = spinRef.current || { x: 0, y: 0 };
@@ -16685,13 +16671,10 @@ const powerRef = useRef(hud.power);
         const forcedCueView = aiShotCueViewRef.current;
         setAiShotCueViewActive(false);
         setAiShotPreviewActive(false);
-        topViewRef.current = false;
-        topViewLockedRef.current = false;
-        setIsTopDownView(false);
         alignStandingCameraToAim(cue, aimDirRef.current);
         cancelCameraBlendTween();
         const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
-        applyCameraBlend(forcedCueView ? forcedCueBlend : 0);
+        applyCameraBlend(forcedCueView ? forcedCueBlend : 1);
         updateCamera();
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
@@ -20246,18 +20229,6 @@ const powerRef = useRef(hud.power);
     applyRailMarkerStyleRef.current?.(railMarkerStyleRef.current);
   }, [tableFinish]);
 
-  const queuePlayerShot = useCallback(() => {
-    if (shotHoldTimeoutRef.current) {
-      clearTimeout(shotHoldTimeoutRef.current);
-      shotHoldTimeoutRef.current = null;
-    }
-    holdCueViewRef.current?.();
-    shotHoldTimeoutRef.current = window.setTimeout(() => {
-      shotHoldTimeoutRef.current = null;
-      fireRef.current?.();
-    }, PLAYER_SHOT_HOLD_MS);
-  }, []);
-
   // --------------------------------------------------
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
@@ -20276,7 +20247,7 @@ const powerRef = useRef(hud.power);
       labels: true,
       onChange: (v) => applyPower(v / 100),
       onCommit: () => {
-        queuePlayerShot();
+        fireRef.current?.();
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
         });
@@ -20288,7 +20259,7 @@ const powerRef = useRef(hud.power);
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock, queuePlayerShot, showPowerSlider]);
+  }, [applySliderLock, showPowerSlider]);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
