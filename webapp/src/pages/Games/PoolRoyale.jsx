@@ -1015,7 +1015,6 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const CUE_SHOT_HOLD_MS = 3000; // linger in cue view before striking so players can adjust spin
 const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 0.85;
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.6;
@@ -5312,7 +5311,7 @@ const STANDING_VIEW_MARGIN = 0.0016; // pull the standing frame closer so the ta
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.1;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.28; // allow the cue view to dip lower while still stopping above the cloth
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.32; // halt the downward sweep sooner so the lowest angle stays slightly higher and stops above the cue
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.018; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
@@ -10674,12 +10673,6 @@ const powerRef = useRef(hud.power);
       cueBallPlacedFromHandRef.current = false;
     }
   }, [hud.inHand, hud.turn]);
-  const [shotHoldActive, setShotHoldActive] = useState(false);
-  const shotHoldRef = useRef(shotHoldActive);
-  useEffect(() => {
-    shotHoldRef.current = shotHoldActive;
-  }, [shotHoldActive]);
-  const shotHoldTimeoutRef = useRef(null);
   const [shotActive, setShotActive] = useState(false);
   const shootingRef = useRef(shotActive);
   useEffect(() => {
@@ -10710,15 +10703,6 @@ const powerRef = useRef(hud.power);
       aiRetryTimeoutRef.current = null;
     }
   }, []);
-  useEffect(
-    () => () => {
-      if (shotHoldTimeoutRef.current) {
-        clearTimeout(shotHoldTimeoutRef.current);
-        shotHoldTimeoutRef.current = null;
-      }
-    },
-    []
-  );
   const recomputeAiShotState = useCallback(() => {
     const hudState = hudRef.current;
     const aiTurn = aiOpponentEnabled && hudState?.turn === 1;
@@ -10784,16 +10768,13 @@ const powerRef = useRef(hud.power);
     if (!slider) return;
     const hudState = hudRef.current;
     const shouldLock =
-      hudState?.turn !== 0 ||
-      hudState?.over ||
-      shootingRef.current ||
-      shotHoldRef.current;
+      hudState?.turn !== 0 || hudState?.over || shootingRef.current;
     if (shouldLock) slider.lock();
     else slider.unlock();
   }, []);
   useEffect(() => {
     applySliderLock();
-  }, [applySliderLock, hud.turn, hud.over, shotActive, shotHoldActive]);
+  }, [applySliderLock, hud.turn, hud.over, shotActive]);
 
   const applyLightingPreset = useCallback(
     (presetId = lightingId) => {
@@ -16667,8 +16648,7 @@ const powerRef = useRef(hud.power);
       };
 
       // Fire (slider triggers on release)
-        const fire = (options = {}) => {
-          const { bypassHold = false } = options;
+        const fire = () => {
           const currentHud = hudRef.current;
           const frameSnapshot = frameRef.current ?? frameState;
           const fullTableHandPlacement =
@@ -16688,40 +16668,13 @@ const powerRef = useRef(hud.power);
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
         }
-        alignStandingCameraToAim(cue, aimDirRef.current);
-        const shouldHoldCueShot =
-          !bypassHold &&
-          !shotHoldRef.current &&
-          currentHud?.turn === 0 &&
-          !replayPlaybackRef.current;
-        if (shouldHoldCueShot) {
-          if (shotHoldTimeoutRef.current) {
-            clearTimeout(shotHoldTimeoutRef.current);
-          }
-          setShotHoldActive(true);
-          shotHoldRef.current = true;
-          const slider = sliderInstanceRef.current;
-          if (slider) slider.lock();
-          applyCameraBlend(0);
-          updateCamera();
-          shotHoldTimeoutRef.current = window.setTimeout(() => {
-            shotHoldTimeoutRef.current = null;
-            shotHoldRef.current = false;
-            setShotHoldActive(false);
-            applySliderLock();
-            fire({ bypassHold: true });
-          }, CUE_SHOT_HOLD_MS);
-          return;
-        }
-        if (shotHoldRef.current && !bypassHold) {
-          return;
-        }
         const forcedCueView = aiShotCueViewRef.current;
         setAiShotCueViewActive(false);
         setAiShotPreviewActive(false);
+        alignStandingCameraToAim(cue, aimDirRef.current);
         cancelCameraBlendTween();
         const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
-        applyCameraBlend(forcedCueView ? forcedCueBlend : 0);
+        applyCameraBlend(forcedCueView ? forcedCueBlend : 1);
         updateCamera();
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
