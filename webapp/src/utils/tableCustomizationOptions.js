@@ -22,13 +22,12 @@ const buildClothOption = (
   id,
   label,
   baseColor,
-  { topTint = 0.08, bottomTint = -0.12, emissiveTint = -0.65, sourceId } = {}
+  { topTint = 0.08, bottomTint = -0.12, emissiveTint = -0.65 } = {}
 ) => {
   const baseHex = normalizeHex(baseColor);
   return {
     id,
     label,
-    sourceId,
     feltTop: tintHex(baseHex, topTint),
     feltBottom: tintHex(baseHex, bottomTint),
     emissive: tintHex(baseHex, emissiveTint)
@@ -52,8 +51,6 @@ const POLY_HAVEN_CLOTHS = [
   { id: 'scuba_suede', label: 'Scuba Suede Cloth', base: 0x2a8c86 }
 ];
 
-export const POLY_HAVEN_CLOTH_IDS = Object.freeze(new Set(POLY_HAVEN_CLOTHS.map((option) => option.id)));
-
 export const WOOD_PRESETS_BY_ID = Object.freeze(
   WOOD_FINISH_PRESETS.reduce((acc, preset) => {
     acc[preset.id] = preset;
@@ -75,7 +72,7 @@ export const TABLE_CLOTH_OPTIONS = [
   { id: 'sunset', label: 'Sunset Cloth', feltTop: '#ea580c', feltBottom: '#c2410c', emissive: '#320e03' },
   { id: 'violet', label: 'Violet Cloth', feltTop: '#7c3aed', feltBottom: '#5b21b6', emissive: '#1f0a47' },
   { id: 'amber', label: 'Amber Cloth', feltTop: '#b7791f', feltBottom: '#92571a', emissive: '#2b1402' },
-  ...POLY_HAVEN_CLOTHS.map((option) => buildClothOption(option.id, option.label, option.base, { sourceId: option.id }))
+  ...POLY_HAVEN_CLOTHS.map((option) => buildClothOption(option.id, option.label, option.base))
 ];
 
 export const TABLE_BASE_OPTIONS = [

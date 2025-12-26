@@ -15,12 +15,7 @@ import {
 } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
-import {
-  createMurlanStyleTable,
-  applyTableMaterials,
-  clampTexture,
-  loadPolyHavenTextures
-} from '../../utils/murlanTable.js';
+import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js';
 import {
   WOOD_FINISH_PRESETS,
   WOOD_GRAIN_OPTIONS,
@@ -2673,54 +2668,6 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
 function applyChairThemeMaterials(three, theme) {
   const mats = three?.chairMaterials;
   if (!mats) return;
-  const renderer = three?.renderer;
-  const isLeather = theme?.id === 'leather';
-
-  const clearUpholsteryTextures = () => {
-    mats.leatherToken = null;
-    (mats.upholstery ?? []).forEach((mat) => {
-      if (!mat) return;
-      mat.map = null;
-      mat.normalMap = null;
-      mat.roughnessMap = null;
-      mat.needsUpdate = true;
-    });
-  };
-
-  const applyLeatherUpholstery = () => {
-    const token = Symbol('leather-seat');
-    mats.leatherToken = token;
-    loadPolyHavenTextures('fabric_leather_02')
-      .then((textures) => {
-        if (mats.leatherToken !== token) return;
-        const { map, normal, roughness } = textures || {};
-        (mats.upholstery ?? []).forEach((mat) => {
-          if (!mat) return;
-          const texturesToClamp = [map, normal, roughness].filter(Boolean);
-          texturesToClamp.forEach((tex) => clampTexture(tex, renderer));
-          if (map) {
-            mat.map = map;
-            mat.color?.set?.('#ffffff');
-          }
-          if (normal) {
-            mat.normalMap = normal;
-            mat.normalScale = new THREE.Vector2(0.8, 0.8);
-          } else {
-            mat.normalMap = null;
-          }
-          if (roughness) {
-            mat.roughnessMap = roughness;
-            mat.roughness = 0.65;
-          } else {
-            mat.roughnessMap = null;
-          }
-          mat.metalness = 0.06;
-          mat.needsUpdate = true;
-        });
-      })
-      .catch(() => {});
-  };
-
   if (mats.seat?.color) {
     mats.seat.color.set(theme.seatColor);
     mats.seat.needsUpdate = true;
@@ -2741,12 +2688,6 @@ function applyChairThemeMaterials(three, theme) {
       mat.needsUpdate = true;
     }
   });
-
-  if (isLeather) {
-    applyLeatherUpholstery();
-  } else {
-    clearUpholsteryTextures();
-  }
 }
 
 function applyOutfitThemeMaterials(three, theme) {
