@@ -852,8 +852,8 @@ const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.58; // extend the corner jaw reach
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.14; // trim the middle jaw reach further so it finishes closer to the wood/cloth gap while keeping the jaw radius
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.94; // relax the middle jaw arc radius slightly so side-pocket jaws read a touch wider
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.02; // lift the middle jaws so their rims sit level with the cloth like the corner pockets
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.06; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // drop the middle jaws slightly so their rims sit a touch lower than the corners
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = -TABLE.THICK * 0.015; // pull the middle pocket jaws slightly inward so the midpoint entries tuck toward the centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -1690,10 +1690,10 @@ const CLOTH_SOFT_BLEND = 0.42;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 4608,
-    anisotropy: 56,
+    textureSize: 5120,
+    anisotropy: 64,
     generateMipmaps: true,
-    bumpScaleMultiplier: 1.12,
+    bumpScaleMultiplier: 1.16,
     sheen: 0.95,
     sheenRoughness: 0.66
   };
@@ -1701,9 +1701,9 @@ const CLOTH_QUALITY = (() => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
       ...defaults,
-      textureSize: 2304,
-      anisotropy: 20,
-      bumpScaleMultiplier: 1,
+      textureSize: 2688,
+      anisotropy: 28,
+      bumpScaleMultiplier: 1.04,
       sheen: 0.9,
       sheenRoughness: 0.72
     };
@@ -1722,23 +1722,23 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 1728 : 1312,
-      anisotropy: highDensity ? 18 : 14,
+      textureSize: highDensity ? 2048 : 1536,
+      anisotropy: highDensity ? 22 : 18,
       generateMipmaps: true,
-      bumpScaleMultiplier: highDensity ? 0.96 : 0.88,
-      sheen: 0.78,
-      sheenRoughness: 0.82
+      bumpScaleMultiplier: highDensity ? 1.02 : 0.94,
+      sheen: 0.82,
+      sheenRoughness: 0.8
     };
   }
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 3584,
-      anisotropy: 40,
+      textureSize: 4096,
+      anisotropy: 48,
       generateMipmaps: true,
-      bumpScaleMultiplier: 1.06,
+      bumpScaleMultiplier: 1.1,
       sheen: 0.9,
-      sheenRoughness: 0.7
+      sheenRoughness: 0.68
     };
   }
 
@@ -2599,48 +2599,48 @@ const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'hd50',
-    label: 'HD Performance (50 Hz)',
-    fps: 50,
-    renderScale: 0.96,
-    pixelRatioCap: 1.35,
-    resolution: 'HD render • DPR 1.35 cap',
-    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
+    label: 'HD Performance (60 Hz)',
+    fps: 60,
+    renderScale: 1.04,
+    pixelRatioCap: 1.45,
+    resolution: 'HD render • DPR 1.45 cap',
+    description: 'Raised HD output for battery saver and 60 Hz displays with clearer detail.'
   },
   {
     id: 'fhd60',
-    label: 'Full HD (60 Hz)',
-    fps: 60,
-    renderScale: 1.05,
-    pixelRatioCap: 1.5,
-    resolution: 'Full HD render • DPR 1.5 cap',
-    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
+    label: 'Full HD (90 Hz)',
+    fps: 90,
+    renderScale: 1.14,
+    pixelRatioCap: 1.65,
+    resolution: 'Full HD render • DPR 1.65 cap',
+    description: '1080p-focused profile tuned for smoother 90 Hz pacing with added sharpness.'
   },
   {
     id: 'qhd90',
-    label: 'Quad HD (90 Hz)',
-    fps: 90,
-    renderScale: 1.12,
-    pixelRatioCap: 1.65,
-    resolution: 'QHD render • DPR 1.65 cap',
-    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    label: 'Quad HD (120 Hz)',
+    fps: 120,
+    renderScale: 1.22,
+    pixelRatioCap: 1.8,
+    resolution: 'QHD render • DPR 1.8 cap',
+    description: 'Sharper 1440p render for capable 120 Hz mobile and desktop GPUs.'
   },
   {
     id: 'uhd120',
-    label: 'Ultra HD (120 Hz)',
-    fps: 120,
-    renderScale: 1.18,
-    pixelRatioCap: 1.8,
-    resolution: 'Ultra HD render • DPR 1.8 cap',
-    description: '4K-oriented profile for 120 Hz flagships and desktops.'
+    label: 'Ultra HD (144 Hz)',
+    fps: 144,
+    renderScale: 1.28,
+    pixelRatioCap: 1.95,
+    resolution: 'Ultra HD render • DPR 1.95 cap',
+    description: '4K-oriented profile for 144 Hz flagships and desktops.'
   },
   {
     id: 'ultra144',
-    label: 'Ultra HD+ (144 Hz)',
-    fps: 144,
-    renderScale: 1.2,
-    pixelRatioCap: 1.9,
-    resolution: 'Ultra HD+ render • DPR 1.9 cap',
-    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+    label: 'Ultra HD+ (165 Hz)',
+    fps: 165,
+    renderScale: 1.32,
+    pixelRatioCap: 2.05,
+    resolution: 'Ultra HD+ render • DPR 2.05 cap',
+    description: 'Maximum clarity preset that prioritizes UHD detail at 165 Hz.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
@@ -6355,8 +6355,14 @@ function Table3D(
     const minLightness = isPolyHavenCloth ? 0.3 : 0;
     const maxLightness = isPolyHavenCloth ? 0.68 : 0.86;
     const result = baseColor.clone();
+    const isBlueRange = hsl.h > 0.48 && hsl.h < 0.66;
+    const correctedHue =
+      isPolyHavenCloth && isBlueRange
+        ? THREE.MathUtils.lerp(hsl.h, 0.61, 0.22)
+        : hsl.h;
+    const saturationBias = isPolyHavenCloth && isBlueRange ? 1.05 : 1;
     const baseSaturation = THREE.MathUtils.clamp(
-      hsl.s * saturationBoost,
+      hsl.s * saturationBoost * saturationBias,
       saturationFloor,
       1
     );
@@ -6365,7 +6371,7 @@ function Table3D(
       ? THREE.MathUtils.lerp(clampedLightness, 0.5, 0.14)
       : THREE.MathUtils.lerp(clampedLightness, 0.5, 0.08);
     result.setHSL(
-      hsl.h,
+      correctedHue,
       baseSaturation,
       balancedLightness
     );
