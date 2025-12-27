@@ -6353,42 +6353,23 @@ function Table3D(
     const baseSaturationBoost = isPolyHavenCloth ? 1.12 : 1.08;
     let hue = hsl.h;
     let saturationBoost = baseSaturationBoost;
-    const isPolyHavenBlue = isPolyHavenCloth && hue >= 0.48 && hue <= 0.64;
-    const blueBias = isPolyHavenBlue
-      ? THREE.MathUtils.clamp((hue - 0.48) / 0.16, 0, 1)
-      : 0;
-    if (isPolyHavenBlue) {
-      hue = THREE.MathUtils.lerp(
-        hue,
-        0.58 + 0.06 * blueBias,
-        0.64
-      );
-      saturationBoost =
-        baseSaturationBoost + 0.12 + 0.06 * blueBias;
+    if (isPolyHavenCloth && hue >= 0.48 && hue <= 0.64) {
+      const blueBias = THREE.MathUtils.clamp((hue - 0.48) / 0.16, 0, 1);
+      hue = THREE.MathUtils.lerp(hue, 0.61, 0.4 + 0.18 * blueBias);
+      saturationBoost = baseSaturationBoost + 0.08 * (0.5 + 0.5 * blueBias);
     }
     const saturationFloor = isPolyHavenCloth ? 0.32 : 0.18;
-    const minLightness =
-      (isPolyHavenCloth ? 0.3 : 0) + (isPolyHavenBlue ? 0.03 : 0);
-    const maxLightness =
-      (isPolyHavenCloth ? 0.68 : 0.86) +
-      (isPolyHavenBlue ? 0.06 + 0.04 * blueBias : 0);
+    const minLightness = isPolyHavenCloth ? 0.3 : 0;
+    const maxLightness = isPolyHavenCloth ? 0.68 : 0.86;
     const result = baseColor.clone();
     const baseSaturation = THREE.MathUtils.clamp(
       hsl.s * saturationBoost,
       saturationFloor,
       1
     );
-    const clampedLightness = THREE.MathUtils.clamp(
-      hsl.l + (isPolyHavenBlue ? 0.05 + 0.04 * blueBias : 0),
-      minLightness,
-      maxLightness
-    );
+    const clampedLightness = THREE.MathUtils.clamp(hsl.l, minLightness, maxLightness);
     const balancedLightness = isPolyHavenCloth
-      ? THREE.MathUtils.lerp(
-          clampedLightness,
-          0.5 + (isPolyHavenBlue ? 0.02 : 0),
-          0.14
-        )
+      ? THREE.MathUtils.lerp(clampedLightness, 0.5, 0.14)
       : THREE.MathUtils.lerp(clampedLightness, 0.5, 0.08);
     result.setHSL(
       hue,
