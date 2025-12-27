@@ -53,8 +53,8 @@ const MATERIAL_SERIES = [
       emissiveIntensity: 0.24,
       envMapIntensity: 0.18
     },
-    greens: ['#6b8c4b', '#5f7c3d', '#749a55', '#85aa61', '#56723a'],
-    blues: ['#6a7592', '#7c86a2', '#59647c', '#7081a0', '#8b98b3']
+    greens: ['#4f7a3c', '#466f33', '#5d8e47', '#6c9c50', '#3e6430'],
+    blues: ['#566e8c', '#667e9c', '#4b5d78', '#5f7896', '#7688ad']
   },
   {
     prefix: 'curlyTeddyNatural',
@@ -72,8 +72,8 @@ const MATERIAL_SERIES = [
       emissiveIntensity: 0.36,
       envMapIntensity: 0.22
     },
-    greens: ['#74c18a', '#68b47e', '#7fcb99', '#8cd2a5', '#61a870'],
-    blues: ['#7da6cf', '#6f98c3', '#8ab4da', '#99c0e2', '#658db2']
+    greens: ['#5fae77', '#54a36c', '#6bb885', '#78c291', '#489662'],
+    blues: ['#6b99c4', '#5f8cba', '#79a6d1', '#88b4db', '#4c7ca3']
   },
   {
     prefix: 'polarFleece',
@@ -91,8 +91,8 @@ const MATERIAL_SERIES = [
       emissiveIntensity: 0.34,
       envMapIntensity: 0.14
     },
-    greens: ['#7fcf95', '#72c487', '#8ed9a8', '#9ae1b3', '#68b37a'],
-    blues: ['#7faadf', '#709ed5', '#8ab7e9', '#99c3f0', '#6289bd']
+    greens: ['#69b980', '#5ead73', '#74c690', '#7fce99', '#4f9d62'],
+    blues: ['#6d9ad0', '#608fc5', '#7aacdd', '#86b7e6', '#4e7ead']
   },
   {
     prefix: 'cottonJersey',
@@ -110,8 +110,8 @@ const MATERIAL_SERIES = [
       emissiveIntensity: 0.28,
       envMapIntensity: 0.18
     },
-    greens: ['#6eaf73', '#63a567', '#7bb984', '#88c290', '#569658'],
-    blues: ['#6f8fb4', '#6484a8', '#7b9bc0', '#89a7cc', '#557296']
+    greens: ['#5a9b64', '#4f9158', '#67a971', '#73b37c', '#44804a'],
+    blues: ['#6084ad', '#5579a1', '#6f92ba', '#7ca0c5', '#436a8c']
   }
 ];
 

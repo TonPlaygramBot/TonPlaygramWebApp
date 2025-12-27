@@ -161,7 +161,7 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     optionId: 'caban',
     name: 'Caban Wool Cloth',
     price: 620,
-    description: 'Caban wool texture with tawny undertones.'
+    description: 'Caban wool texture with rich evergreen depth.'
   },
   {
     id: 'cloth-curlyTeddyNatural',
