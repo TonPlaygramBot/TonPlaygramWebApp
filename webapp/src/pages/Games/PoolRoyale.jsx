@@ -1230,9 +1230,6 @@ const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_SMOOTHING = 0.35;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const MAX_POWER_LAUNCH_LIFT = CUE_TIP_RADIUS * 1.05;
-const MAX_POWER_LAUNCH_IMPULSE = CUE_TIP_RADIUS * 6;
-const MAX_POWER_CAMERA_HOLD_MS = 360;
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
@@ -6123,7 +6120,6 @@ function Guret(parent, id, color, x, y, options = {}) {
     pendingSpin: new THREE.Vector2(),
     lift: 0,
     liftVel: 0,
-    liftArmed: false,
     active: true
   };
 }
@@ -10208,11 +10204,11 @@ function PoolRoyaleGame({
     aiPlanningRef.current = aiPlanning;
   }, [aiPlanning]);
   const userSuggestionPlanRef = useRef(null);
-  const shotContextRef = useRef({
-    placedFromHand: false,
-    contactMade: false,
-    cushionAfterContact: false
-  });
+    const shotContextRef = useRef({
+      placedFromHand: false,
+      contactMade: false,
+      cushionAfterContact: false
+    });
   const shotReplayRef = useRef(null);
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
@@ -10256,9 +10252,7 @@ const lastPottedBySeatRef = useRef({ A: null, B: null });
 const lastAssignmentsRef = useRef({ A: null, B: null });
 const lastShotReminderRef = useRef({ A: 0, B: 0 });
 const [ruleToast, setRuleToast] = useState(null);
-const [replaySlate, setReplaySlate] = useState(false);
 const ruleToastTimeoutRef = useRef(null);
-const replaySlateTimeoutRef = useRef(null);
 const showRuleToast = useCallback((message) => {
   if (!message) return;
   if (ruleToastTimeoutRef.current) {
@@ -10272,92 +10266,88 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
-const applyPower = useCallback((nextPower) => {
-  const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
-  powerRef.current = clampedPower;
-  setHud((prev) => ({ ...prev, power: clampedPower }));
-}, []);
-useEffect(() => {
-  inHandPlacementModeRef.current = inHandPlacementMode;
-}, [inHandPlacementMode]);
-useEffect(() => {
-  powerRef.current = hud.power;
-}, [hud.power]);
-const hudRef = useRef(hud);
-useEffect(() => {
-  hudRef.current = hud;
-}, [hud]);
-useEffect(
-  () => () => {
-    if (ruleToastTimeoutRef.current) {
-      clearTimeout(ruleToastTimeoutRef.current);
-      ruleToastTimeoutRef.current = null;
+  const applyPower = useCallback((nextPower) => {
+    const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
+    powerRef.current = clampedPower;
+    setHud((prev) => ({ ...prev, power: clampedPower }));
+  }, []);
+  useEffect(() => {
+    inHandPlacementModeRef.current = inHandPlacementMode;
+  }, [inHandPlacementMode]);
+  useEffect(() => {
+    powerRef.current = hud.power;
+  }, [hud.power]);
+  const hudRef = useRef(hud);
+  useEffect(() => {
+    hudRef.current = hud;
+  }, [hud]);
+  useEffect(
+    () => () => {
+      if (ruleToastTimeoutRef.current) {
+        clearTimeout(ruleToastTimeoutRef.current);
+        ruleToastTimeoutRef.current = null;
+      }
+    },
+    []
+  );
+  const localSeatRef = useRef(localSeat);
+  useEffect(() => {
+    localSeatRef.current = localSeat;
+  }, [localSeat]);
+  useEffect(() => {
+    const nextInHand = deriveInHandFromFrame(initialFrame);
+    cueBallPlacedFromHandRef.current = !nextInHand;
+    setPottedBySeat({ A: [], B: [] });
+    lastAssignmentsRef.current = { A: null, B: null };
+    lastShotReminderRef.current = { A: 0, B: 0 };
+    setTurnCycle(0);
+    setRuleToast(null);
+    setHud((prev) => ({
+      ...prev,
+      A: 0,
+      B: 0,
+      turn: 0,
+      phase: 'reds',
+      next: 'red',
+      inHand: nextInHand,
+      over: false
+    }));
+  }, [initialFrame]);
+  useEffect(() => {
+    if (!isTraining) return;
+    gameOverHandledRef.current = false;
+    setFrameState((prev) => ({
+      ...prev,
+      activePlayer: trainingModeState === 'solo' ? 'A' : prev.activePlayer ?? 'A',
+      foul: trainingRulesOn ? prev.foul : undefined,
+      frameOver: trainingRulesOn ? prev.frameOver : false,
+      winner: trainingRulesOn ? prev.winner : undefined
+    }));
+    setHud((prev) => ({
+      ...prev,
+      turn: trainingModeState === 'solo' ? 0 : prev.turn ?? 0,
+      over: trainingRulesOn ? prev.over : false
+    }));
+  }, [isTraining, trainingModeState, trainingRulesOn, setFrameState]);
+  useEffect(() => {
+    if (!isTraining) {
+      trainingCompletionHandledRef.current = false;
+      return;
     }
-    if (replaySlateTimeoutRef.current) {
-      clearTimeout(replaySlateTimeoutRef.current);
-      replaySlateTimeoutRef.current = null;
+    if (!frameState.frameOver) {
+      trainingCompletionHandledRef.current = false;
+      return;
     }
-  },
-  []
-);
-const localSeatRef = useRef(localSeat);
-useEffect(() => {
-  localSeatRef.current = localSeat;
-}, [localSeat]);
-useEffect(() => {
-  const nextInHand = deriveInHandFromFrame(initialFrame);
-  cueBallPlacedFromHandRef.current = !nextInHand;
-  setPottedBySeat({ A: [], B: [] });
-  lastAssignmentsRef.current = { A: null, B: null };
-  lastShotReminderRef.current = { A: 0, B: 0 };
-  setTurnCycle(0);
-  setRuleToast(null);
-  setHud((prev) => ({
-    ...prev,
-    A: 0,
-    B: 0,
-    turn: 0,
-    phase: 'reds',
-    next: 'red',
-    inHand: nextInHand,
-    over: false
-  }));
-}, [initialFrame]);
-useEffect(() => {
-  if (!isTraining) return;
-  gameOverHandledRef.current = false;
-  setFrameState((prev) => ({
-    ...prev,
-    activePlayer: trainingModeState === 'solo' ? 'A' : prev.activePlayer ?? 'A',
-    foul: trainingRulesOn ? prev.foul : undefined,
-    frameOver: trainingRulesOn ? prev.frameOver : false,
-    winner: trainingRulesOn ? prev.winner : undefined
-  }));
-  setHud((prev) => ({
-    ...prev,
-    turn: trainingModeState === 'solo' ? 0 : prev.turn ?? 0,
-    over: trainingRulesOn ? prev.over : false
-  }));
-}, [isTraining, trainingModeState, trainingRulesOn, setFrameState]);
-useEffect(() => {
-  if (!isTraining) {
-    trainingCompletionHandledRef.current = false;
-    return;
-  }
-  if (!frameState.frameOver) {
-    trainingCompletionHandledRef.current = false;
-    return;
-  }
-  if (trainingCompletionHandledRef.current) return;
-  trainingCompletionHandledRef.current = true;
-  const completedLevel = trainingLevelRef.current || 1;
-  setTrainingProgress((prev) => {
-    const completedSet = new Set(
-      (prev?.completed || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
-    );
-    completedSet.add(completedLevel);
-    const completed = Array.from(completedSet).sort((a, b) => a - b);
-    const lastLevel = Math.max(prev?.lastLevel ?? 1, completedLevel);
+    if (trainingCompletionHandledRef.current) return;
+    trainingCompletionHandledRef.current = true;
+    const completedLevel = trainingLevelRef.current || 1;
+    setTrainingProgress((prev) => {
+      const completedSet = new Set(
+        (prev?.completed || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
+      );
+      completedSet.add(completedLevel);
+      const completed = Array.from(completedSet).sort((a, b) => a - b);
+      const lastLevel = Math.max(prev?.lastLevel ?? 1, completedLevel);
       const updated = { completed, lastLevel };
       persistTrainingProgress(updated);
       const nextPlayable = resolvePlayableTrainingLevel(completedLevel + 1, updated);
@@ -14677,7 +14667,6 @@ useEffect(() => {
           if (playback.postState) {
             applyBallSnapshot(playback.postState);
           }
-          setReplaySlate(false);
           replayTrail.visible = false;
           const storedReplayCamera = replayCameraRef.current;
           const targetFov = Number.isFinite(storedReplayCamera?.restoreFov)
@@ -16031,9 +16020,6 @@ useEffect(() => {
         cue.spin?.set(0, 0);
         cue.pendingSpin?.set(0, 0);
         cue.spinMode = 'standard';
-        cue.lift = 0;
-        cue.liftVel = 0;
-        cue.liftArmed = false;
       };
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
@@ -16505,16 +16491,6 @@ useEffect(() => {
             .multiplyScalar(speedBase * powerScale);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
-          if (clampedPower >= MAX_POWER_BOUNCE_THRESHOLD) {
-            cue.lift = Math.max(cue.lift ?? 0, MAX_POWER_LAUNCH_LIFT * clampedPower);
-            cue.liftVel = Math.max(
-              cue.liftVel ?? 0,
-              MAX_POWER_LAUNCH_IMPULSE * clampedPower
-            );
-            cue.liftArmed = true;
-          } else {
-            cue.liftArmed = false;
-          }
           if (shouldRecordReplay) {
             shotRecording = {
               longShot: replayTags.has('long'),
@@ -16613,13 +16589,6 @@ useEffect(() => {
             if (shouldActivateActionView) {
               suspendedActionView = null;
               activeShotView = actionView;
-              if (clampedPower >= MAX_POWER_BOUNCE_THRESHOLD) {
-                const holdUntil = performance.now() + MAX_POWER_CAMERA_HOLD_MS;
-                activeShotView.holdUntil = Math.max(
-                  activeShotView.holdUntil ?? 0,
-                  holdUntil
-                );
-              }
               updateCamera();
             } else {
               suspendedActionView = actionView;
@@ -16683,12 +16652,12 @@ useEffect(() => {
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           const pullTarget = Math.min(CUE_PULL_BASE * clampedPower, maxPull);
           const pull = computeCuePull(pullTarget, maxPull, {
+            instant: true,
             preserveLarger: true
           });
           cueAnimating = true;
           const startPos = cueStick.position.clone();
-          const strikeDistance = Math.max(CUE_TIP_RADIUS * 0.6, Math.min(BALL_R, pull));
-          const endPos = startPos.clone().add(dir.clone().multiplyScalar(strikeDistance));
+          const endPos = startPos.clone().add(dir.clone().multiplyScalar(pull));
           let animFrame = 0;
           const animSteps = 5;
           const animateCue = () => {
@@ -18295,9 +18264,6 @@ useEffect(() => {
               cue.spin?.set(0, 0);
               cue.pendingSpin?.set(0, 0);
               cue.spinMode = 'standard';
-              cue.lift = 0;
-              cue.liftVel = 0;
-              cue.liftArmed = false;
               cue.impacted = false;
               cue.launchDir = null;
             }
@@ -18343,23 +18309,13 @@ useEffect(() => {
             const launchReplay = () => {
               replayBannerTimeoutRef.current = null;
               setReplayBanner(null);
-              setReplaySlate(true);
-              if (replaySlateTimeoutRef.current) {
-                clearTimeout(replaySlateTimeoutRef.current);
-                replaySlateTimeoutRef.current = null;
+              shotRecording = recordingForReplay;
+              if (recordingForReplay) {
+                startShotReplay(postShotSnapshot);
+              } else {
+                shotReplayRef.current = null;
               }
-              const beginPlayback = () => {
-                replaySlateTimeoutRef.current = null;
-                setReplaySlate(false);
-                shotRecording = recordingForReplay;
-                if (recordingForReplay) {
-                  startShotReplay(postShotSnapshot);
-                } else {
-                  shotReplayRef.current = null;
-                }
-                shotRecording = null;
-              };
-              replaySlateTimeoutRef.current = window.setTimeout(beginPlayback, 420);
+              shotRecording = null;
             };
             if (replayBannerTimeoutRef.current) {
               clearTimeout(replayBannerTimeoutRef.current);
@@ -19175,10 +19131,6 @@ useEffect(() => {
               if (nextLift <= 1e-4 && Math.abs(nextVel) <= 1e-4) {
                 b.lift = 0;
                 b.liftVel = 0;
-                if (b.id === 'cue' && b.liftArmed) {
-                  playBallHit(0.6 + 0.25 * lastShotPower);
-                  b.liftArmed = false;
-                }
               }
             }
             if (hasSpin) {
@@ -19419,10 +19371,6 @@ useEffect(() => {
                 pending.smoothedPos = cameraRef.current.position.clone();
                 const storedTarget = lastCameraTargetRef.current?.clone();
                 if (storedTarget) pending.smoothedTarget = storedTarget;
-              }
-              if (lastShotPower >= MAX_POWER_BOUNCE_THRESHOLD) {
-                const holdUntil = now + MAX_POWER_CAMERA_HOLD_MS;
-                pending.holdUntil = Math.max(pending.holdUntil ?? 0, holdUntil);
               }
               activeShotView = pending;
               suspendedActionView = null;
@@ -20324,13 +20272,13 @@ useEffect(() => {
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
-  const bottomHudScale = isPortrait ? uiScale * 0.9 : uiScale;
+  const bottomHudScale = isPortrait ? uiScale * 0.94 : uiScale;
   const bottomHudInsets = isPortrait
-    ? { left: 'max(2rem, 5vw)', right: 'max(3rem, 8vw)' }
+    ? { left: 'max(2.5rem, 6vw)', right: 'max(3.75rem, 9vw)' }
     : { left: 'max(4rem, 10vw)', right: 'max(6.75rem, 14vw)' };
-  const avatarSizeClass = isPortrait ? 'h-10 w-10' : 'h-12 w-12';
-  const nameWidthClass = isPortrait ? 'max-w-[7rem]' : 'max-w-[8.75rem]';
-  const hudGapClass = isPortrait ? 'gap-3.5' : 'gap-5';
+  const avatarSizeClass = isPortrait ? 'h-11 w-11' : 'h-12 w-12';
+  const nameWidthClass = isPortrait ? 'max-w-[7.75rem]' : 'max-w-[8.75rem]';
+  const hudGapClass = isPortrait ? 'gap-4' : 'gap-5';
   const renderFlagAvatar = useCallback(
     (flagEmoji, label, isActive) => (
       <span
@@ -20350,15 +20298,6 @@ useEffect(() => {
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      {replaySlate && (
-        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm">
-          <div className="flex items-center gap-3 rounded-full bg-white/90 px-6 py-3 text-sm font-black uppercase tracking-[0.32em] text-gray-900 shadow-[0_18px_36px_rgba(0,0,0,0.45)]">
-            <span className="text-lg leading-none">⏪</span>
-            <span>Replay</span>
-          </div>
-        </div>
-      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
