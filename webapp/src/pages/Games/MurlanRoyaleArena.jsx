@@ -548,39 +548,35 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0) {
 
 async function loadPolyhavenModel(assetId) {
   if (!assetId) throw new Error('Missing Poly Haven asset id');
-  const normalizedId = assetId.toLowerCase();
-  const cacheKey = normalizedId;
-  if (POLYHAVEN_MODEL_CACHE.has(cacheKey)) {
-    return POLYHAVEN_MODEL_CACHE.get(cacheKey);
+  if (POLYHAVEN_MODEL_CACHE.has(assetId)) {
+    return POLYHAVEN_MODEL_CACHE.get(assetId);
   }
 
   const promise = (async () => {
     let fileMap = new Map();
-    const modelCandidates = new Set();
-    const assetCandidates = Array.from(new Set([assetId, normalizedId]));
+    const modelCandidates = [];
 
-    for (const candidateId of assetCandidates) {
-      try {
-        const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(candidateId)}`).then((r) => r.json());
-        const allUrls = extractAllHttpUrls(filesJson);
-        const apiModelUrl = pickBestModelUrl(allUrls);
-        if (apiModelUrl) modelCandidates.add(apiModelUrl);
-        if (!fileMap.size) {
-          fileMap = allUrls.reduce((acc, u) => {
-            const b = basename(stripQueryHash(u));
-            if (!acc.has(b)) acc.set(b, u);
-            return acc;
-          }, new Map());
-        }
-      } catch (error) {
-        console.warn('Poly Haven file lookup failed, falling back to direct URLs', error);
-      }
-
-      buildPolyhavenModelUrls(candidateId).forEach((u) => modelCandidates.add(u));
+    try {
+      const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`).then((r) => r.json());
+      const allUrls = extractAllHttpUrls(filesJson);
+      const apiModelUrl = pickBestModelUrl(allUrls);
+      if (apiModelUrl) modelCandidates.push(apiModelUrl);
+      fileMap = allUrls.reduce((acc, u) => {
+        const b = basename(stripQueryHash(u));
+        if (!acc.has(b)) acc.set(b, u);
+        return acc;
+      }, new Map());
+    } catch (error) {
+      console.warn('Poly Haven file lookup failed, falling back to direct URLs', error);
     }
 
-    const modelUrlList = Array.from(modelCandidates);
-    if (!modelUrlList.length) {
+    buildPolyhavenModelUrls(assetId).forEach((u) => {
+      if (!modelCandidates.includes(u)) {
+        modelCandidates.push(u);
+      }
+    });
+
+    if (!modelCandidates.length) {
       throw new Error(`No model URL found for ${assetId}`);
     }
 
@@ -592,7 +588,7 @@ async function loadPolyhavenModel(assetId) {
     loader.setCrossOrigin?.('anonymous');
 
     if (fileMap.size) {
-      const base = stripQueryHash(modelUrlList[0]);
+      const base = stripQueryHash(modelCandidates[0]);
       const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
       loader.manager.setURLModifier((requestedUrl) => {
         if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
@@ -610,7 +606,7 @@ async function loadPolyhavenModel(assetId) {
 
     let gltf = null;
     let lastError = null;
-    for (const modelUrl of modelUrlList) {
+    for (const modelUrl of modelCandidates) {
       try {
         gltf = await loader.loadAsync(modelUrl);
         break;
@@ -631,8 +627,8 @@ async function loadPolyhavenModel(assetId) {
     return root;
   })();
 
-  POLYHAVEN_MODEL_CACHE.set(cacheKey, promise);
-  promise.catch(() => POLYHAVEN_MODEL_CACHE.delete(cacheKey));
+  POLYHAVEN_MODEL_CACHE.set(assetId, promise);
+  promise.catch(() => POLYHAVEN_MODEL_CACHE.delete(assetId));
   return promise;
 }
 
