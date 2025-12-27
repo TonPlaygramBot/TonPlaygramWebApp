@@ -5077,9 +5077,7 @@ const AI_THINKING_BUDGET_MS =
   AI_MAX_SHOT_TIME_MS - AI_MIN_AIM_PREVIEW_MS; // leave room for the cue preview while keeping decisions under 7 seconds
 const AI_CAMERA_DROP_LEAD_MS = 420; // start lowering into cue view shortly before the AI pulls the trigger
 const AI_CAMERA_SETTLE_MS = 320; // allow time for the cue view to settle before firing
-const AI_CAMERA_STAGE_BLEND = 0.42; // midway between standing and cue camera for a short settle
-const AI_CAMERA_STAGE_HOLD_MS = 3000; // time to linger in the staged camera before the cue view
-const AI_CUE_VIEW_HOLD_MS = 0; // staging hold covers the pause before firing
+const AI_CUE_VIEW_HOLD_MS = 3000;
 const AI_CAMERA_DROP_BLEND = 0.14;
 const AI_CAMERA_DROP_DURATION_MS = 480;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -10361,7 +10359,6 @@ const powerRef = useRef(hud.power);
   const aiEarlyShotIntentRef = useRef(null);
   const aiShotPreviewRef = useRef(false);
   const aiShotTimeoutRef = useRef(null);
-  const aiShotStageTimeoutRef = useRef(null);
   const aiShotCueDropTimeoutRef = useRef(null);
   const aiShotCueViewRef = useRef(false);
   const aiCueViewBlendRef = useRef(AI_CAMERA_DROP_BLEND);
@@ -10412,10 +10409,6 @@ const powerRef = useRef(hud.power);
     if (aiShotTimeoutRef.current) {
       clearTimeout(aiShotTimeoutRef.current);
       aiShotTimeoutRef.current = null;
-    }
-    if (aiShotStageTimeoutRef.current) {
-      clearTimeout(aiShotStageTimeoutRef.current);
-      aiShotStageTimeoutRef.current = null;
     }
     if (aiShotCueDropTimeoutRef.current) {
       clearTimeout(aiShotCueDropTimeoutRef.current);
@@ -17901,16 +17894,11 @@ const powerRef = useRef(hud.power);
               clearTimeout(aiShotCueDropTimeoutRef.current);
               aiShotCueDropTimeoutRef.current = null;
             }
-            if (aiShotStageTimeoutRef.current) {
-              clearTimeout(aiShotStageTimeoutRef.current);
-              aiShotStageTimeoutRef.current = null;
-            }
             const previewDelayMs = resolveAiPreviewDelay();
-            const stageDelay = Math.max(0, previewDelayMs - AI_CAMERA_DROP_LEAD_MS);
-            const cueDropDelay = stageDelay + AI_CAMERA_STAGE_HOLD_MS;
+            const dropDelay = Math.max(0, previewDelayMs - AI_CAMERA_DROP_LEAD_MS);
             const shotDelay = Math.max(
-              previewDelayMs + AI_CAMERA_STAGE_HOLD_MS,
-              cueDropDelay + AI_CAMERA_SETTLE_MS + AI_CUE_VIEW_HOLD_MS
+              previewDelayMs,
+              dropDelay + AI_CAMERA_SETTLE_MS + AI_CUE_VIEW_HOLD_MS
             );
             const beginCueView = () => {
               setAiShotCueViewActive(true);
@@ -17920,7 +17908,7 @@ const powerRef = useRef(hud.power);
               if (aiShotTimeoutRef.current) {
                 clearTimeout(aiShotTimeoutRef.current);
               }
-              const remaining = Math.max(0, shotDelay - cueDropDelay);
+              const remaining = Math.max(0, shotDelay - dropDelay);
               aiShotTimeoutRef.current = window.setTimeout(() => {
                 aiShotTimeoutRef.current = null;
                 applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
@@ -17928,24 +17916,13 @@ const powerRef = useRef(hud.power);
                 fire();
               }, remaining);
             };
-            const beginStageView = () => {
-              setAiShotPreviewActive(true);
-              tweenCameraBlend(AI_CAMERA_STAGE_BLEND, AI_CAMERA_DROP_DURATION_MS);
-              if (aiShotCueDropTimeoutRef.current) {
-                clearTimeout(aiShotCueDropTimeoutRef.current);
-              }
+            if (dropDelay <= 0) {
+              beginCueView();
+            } else {
               aiShotCueDropTimeoutRef.current = window.setTimeout(() => {
                 aiShotCueDropTimeoutRef.current = null;
                 beginCueView();
-              }, AI_CAMERA_STAGE_HOLD_MS);
-            };
-            if (stageDelay <= 0) {
-              beginStageView();
-            } else {
-              aiShotStageTimeoutRef.current = window.setTimeout(() => {
-                aiShotStageTimeoutRef.current = null;
-                beginStageView();
-              }, stageDelay);
+              }, dropDelay);
             }
           } catch (err) {
             console.error('Pool Royale AI shot failed:', err);
