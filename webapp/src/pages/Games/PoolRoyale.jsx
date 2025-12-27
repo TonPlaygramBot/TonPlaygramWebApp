@@ -1686,14 +1686,14 @@ const BASE_BALL_COLORS = Object.freeze({
 const CLOTH_TEXTURE_INTENSITY = 0.93;
 const CLOTH_HAIR_INTENSITY = 0.78;
 const CLOTH_BUMP_INTENSITY = 1.12;
-const CLOTH_SOFT_BLEND = 0.36;
+const CLOTH_SOFT_BLEND = 0.42;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 5120,
-    anisotropy: 64,
+    textureSize: 4096,
+    anisotropy: 48,
     generateMipmaps: true,
-    bumpScaleMultiplier: 1.12,
+    bumpScaleMultiplier: 1.08,
     sheen: 0.95,
     sheenRoughness: 0.66
   };
@@ -1701,9 +1701,9 @@ const CLOTH_QUALITY = (() => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
       ...defaults,
-      textureSize: 2560,
-      anisotropy: 24,
-      bumpScaleMultiplier: 1,
+      textureSize: 2048,
+      anisotropy: 16,
+      bumpScaleMultiplier: 0.94,
       sheen: 0.9,
       sheenRoughness: 0.72
     };
@@ -1722,10 +1722,10 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 1792 : 1344,
-      anisotropy: highDensity ? 20 : 14,
+      textureSize: highDensity ? 1536 : 1152,
+      anisotropy: highDensity ? 16 : 12,
       generateMipmaps: true,
-      bumpScaleMultiplier: highDensity ? 0.96 : 0.88,
+      bumpScaleMultiplier: highDensity ? 0.9 : 0.82,
       sheen: 0.78,
       sheenRoughness: 0.82
     };
@@ -1733,10 +1733,10 @@ const CLOTH_QUALITY = (() => {
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 3584,
-      anisotropy: 40,
+      textureSize: 3072,
+      anisotropy: 32,
       generateMipmaps: true,
-      bumpScaleMultiplier: 1.08,
+      bumpScaleMultiplier: 1.02,
       sheen: 0.9,
       sheenRoughness: 0.7
     };
