@@ -175,7 +175,7 @@ const MURLAN_TYPE_LABELS = {
   tableCloth: 'Table Cloth',
   tableBase: 'Table Base',
   cards: 'Card Themes',
-  stools: 'Stools & Chairs'
+  stools: 'Stools'
 };
 
 const DOMINO_TYPE_LABELS = {
