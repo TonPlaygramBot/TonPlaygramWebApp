@@ -492,21 +492,24 @@ function fitModelToHeight(model, targetHeight) {
   model.position.y -= scaledBox.min.y;
 }
 
-function disposeMaterialCollection(materials = []) {
+function disposeMaterialCollection(materials = [], { disposeTextures = true } = {}) {
   materials.forEach((mat) => {
     if (!mat) return;
     if (Array.isArray(mat)) {
-      disposeMaterialCollection(mat);
+      disposeMaterialCollection(mat, { disposeTextures });
       return;
     }
-    if (mat.map) mat.map.dispose?.();
-    if (mat.emissiveMap) mat.emissiveMap.dispose?.();
+    if (disposeTextures) {
+      if (mat.map) mat.map.dispose?.();
+      if (mat.emissiveMap) mat.emissiveMap.dispose?.();
+    }
     mat.dispose?.();
   });
 }
 
 function disposeChairResources(store) {
   if (!store) return;
+  const disposeTextures = !store.chairOption?.preserveMaterials;
   if (Array.isArray(store.seatEntries)) {
     store.seatEntries.forEach((entry) => {
       if (entry?.chairModel && entry.group) {
@@ -522,7 +525,7 @@ function disposeChairResources(store) {
       ...(store.chairMaterials.upholstery ?? []),
       ...(store.chairMaterials.metal ?? [])
     ]);
-    disposeMaterialCollection(Array.from(mats));
+    disposeMaterialCollection(Array.from(mats), { disposeTextures });
   }
   if (store.chairTemplate) {
     store.chairTemplate.traverse((obj) => {
