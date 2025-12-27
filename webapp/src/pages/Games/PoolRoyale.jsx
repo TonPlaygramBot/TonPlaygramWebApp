@@ -850,7 +850,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.58; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.14; // trim the middle jaw reach further so it finishes closer to the wood/cloth gap while keeping the jaw radius
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // expand the middle jaw arc radius slightly so side-pocket jaws read a touch wider
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.94; // relax the middle jaw arc radius slightly so side-pocket jaws read a touch wider
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.02; // lift the middle jaws so their rims sit level with the cloth like the corner pockets
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.06; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
@@ -926,12 +926,12 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.972; // shrink the middle pocket mouth width a touch less so the radius opens slightly
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.958; // shrink the middle pocket mouth width a touch more so the radius tightens up further
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
-const SIDE_POCKET_CUT_SCALE = 0.972; // trim the middle cloth/rail cutouts slightly less so the openings follow the eased pocket radius
+const SIDE_POCKET_CUT_SCALE = 0.954; // trim the middle cloth/rail cutouts a bit more so the openings follow the tighter pocket radius
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -1690,12 +1690,12 @@ const CLOTH_SOFT_BLEND = 0.42;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 5632,
-    anisotropy: 64,
+    textureSize: 4608,
+    anisotropy: 56,
     generateMipmaps: true,
-    bumpScaleMultiplier: 1.18,
-    sheen: 0.97,
-    sheenRoughness: 0.64
+    bumpScaleMultiplier: 1.12,
+    sheen: 0.95,
+    sheenRoughness: 0.66
   };
 
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
@@ -1722,8 +1722,8 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 1760 : 1408,
-      anisotropy: highDensity ? 20 : 16,
+      textureSize: highDensity ? 1728 : 1312,
+      anisotropy: highDensity ? 18 : 14,
       generateMipmaps: true,
       bumpScaleMultiplier: highDensity ? 0.96 : 0.88,
       sheen: 0.78,
@@ -1733,12 +1733,12 @@ const CLOTH_QUALITY = (() => {
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 4096,
-      anisotropy: 48,
+      textureSize: 3584,
+      anisotropy: 40,
       generateMipmaps: true,
-      bumpScaleMultiplier: 1.1,
-      sheen: 0.92,
-      sheenRoughness: 0.68
+      bumpScaleMultiplier: 1.06,
+      sheen: 0.9,
+      sheenRoughness: 0.7
     };
   }
 
@@ -2599,48 +2599,48 @@ const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'hd50',
-    label: 'HD Performance (72 Hz)',
-    fps: 72,
-    renderScale: 1.08,
-    pixelRatioCap: 1.55,
-    resolution: 'HD+ render • DPR 1.55 cap',
-    description: 'Higher baseline frame pacing with denser cloth sampling for 60–72 Hz displays.'
+    label: 'HD Performance (50 Hz)',
+    fps: 50,
+    renderScale: 0.96,
+    pixelRatioCap: 1.35,
+    resolution: 'HD render • DPR 1.35 cap',
+    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
   },
   {
     id: 'fhd60',
-    label: 'Full HD (96 Hz)',
-    fps: 96,
-    renderScale: 1.16,
-    pixelRatioCap: 1.7,
-    resolution: 'Full HD render • DPR 1.7 cap',
-    description: '1080p-focused profile tuned for smoother 90–96 Hz playback with richer felt detail.'
+    label: 'Full HD (60 Hz)',
+    fps: 60,
+    renderScale: 1.05,
+    pixelRatioCap: 1.5,
+    resolution: 'Full HD render • DPR 1.5 cap',
+    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
   },
   {
     id: 'qhd90',
-    label: 'Quad HD (120 Hz)',
-    fps: 120,
-    renderScale: 1.22,
-    pixelRatioCap: 1.85,
-    resolution: 'QHD render • DPR 1.85 cap',
-    description: 'Sharper 1440p render that pushes higher refresh cloth fidelity on mid/high GPUs.'
+    label: 'Quad HD (90 Hz)',
+    fps: 90,
+    renderScale: 1.12,
+    pixelRatioCap: 1.65,
+    resolution: 'QHD render • DPR 1.65 cap',
+    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
   },
   {
     id: 'uhd120',
-    label: 'Ultra HD (144 Hz)',
-    fps: 144,
-    renderScale: 1.28,
-    pixelRatioCap: 2,
-    resolution: 'Ultra HD render • DPR 2.0 cap',
-    description: '4K-oriented profile for 144 Hz flagships and desktops with boosted felt sharpness.'
+    label: 'Ultra HD (120 Hz)',
+    fps: 120,
+    renderScale: 1.18,
+    pixelRatioCap: 1.8,
+    resolution: 'Ultra HD render • DPR 1.8 cap',
+    description: '4K-oriented profile for 120 Hz flagships and desktops.'
   },
   {
     id: 'ultra144',
-    label: 'Ultra HD+ (165 Hz)',
-    fps: 165,
-    renderScale: 1.32,
-    pixelRatioCap: 2.1,
-    resolution: 'Ultra HD+ render • DPR 2.1 cap',
-    description: 'Maximum clarity preset that prioritizes UHD felt detail at 165 Hz while staying stable.'
+    label: 'Ultra HD+ (144 Hz)',
+    fps: 144,
+    renderScale: 1.2,
+    pixelRatioCap: 1.9,
+    resolution: 'Ultra HD+ render • DPR 1.9 cap',
+    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
