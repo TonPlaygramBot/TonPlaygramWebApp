@@ -6827,32 +6827,52 @@ function Table3D(
   const clampClothColor = (baseColor) => {
     const hsl = { h: 0, s: 0, l: 0 };
     baseColor.getHSL(hsl);
-    const saturationBoost = isPolyHavenCloth ? 1.12 : 1;
-    const minLightness = isPolyHavenCloth ? 0.32 : 0;
-    const maxLightness = isPolyHavenCloth ? 0.7 : 1;
+    const saturationBoost = isPolyHavenCloth ? 1.18 : 1;
+    const saturationFloor = isPolyHavenCloth ? 0.35 : 0;
+    const minLightness = isPolyHavenCloth ? 0.38 : 0;
+    const maxLightness = isPolyHavenCloth ? 0.62 : 1;
     const result = baseColor.clone();
+    const baseSaturation = THREE.MathUtils.clamp(
+      hsl.s * saturationBoost,
+      saturationFloor,
+      1
+    );
+    const clampedLightness = THREE.MathUtils.clamp(hsl.l, minLightness, maxLightness);
+    const balancedLightness = isPolyHavenCloth
+      ? THREE.MathUtils.lerp(clampedLightness, 0.5, 0.35)
+      : clampedLightness;
     result.setHSL(
       hsl.h,
-      Math.min(1, hsl.s * saturationBoost),
-      THREE.MathUtils.clamp(hsl.l, minLightness, maxLightness)
+      baseSaturation,
+      balancedLightness
     );
     return result;
   };
+  const clothHighlightMix = THREE.MathUtils.clamp(
+    (0.32 + brightnessLift) - (isPolyHavenCloth ? 0.06 : 0),
+    0,
+    1
+  );
+  const cushionHighlightMix = THREE.MathUtils.clamp(
+    (0.22 + brightnessLift) - (isPolyHavenCloth ? 0.04 : 0),
+    0,
+    1
+  );
   const clothColor = clampClothColor(
-    clothPrimary.clone().lerp(clothHighlight, 0.32 + brightnessLift)
+    clothPrimary.clone().lerp(clothHighlight, clothHighlightMix)
   );
   const cushionColor = clampClothColor(
-    cushionPrimary.clone().lerp(clothHighlight, 0.22 + brightnessLift)
+    cushionPrimary.clone().lerp(clothHighlight, cushionHighlightMix)
   );
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18 + brightnessLift * 0.5);
-  const clothSheen = CLOTH_QUALITY.sheen * (isPolyHavenCloth ? 0.62 : 0.72);
+  const clothSheen = CLOTH_QUALITY.sheen * (isPolyHavenCloth ? 0.56 : 0.72);
   const clothSheenRoughness = Math.min(
     1,
-    CLOTH_QUALITY.sheenRoughness * (isPolyHavenCloth ? 1.18 : 1.08)
+    CLOTH_QUALITY.sheenRoughness * (isPolyHavenCloth ? 1.24 : 1.08)
   );
-  const clothRoughnessBase = CLOTH_ROUGHNESS_BASE + (isPolyHavenCloth ? 0.06 : 0);
-  const clothRoughnessTarget = CLOTH_ROUGHNESS_TARGET + (isPolyHavenCloth ? 0.04 : 0);
-  const clothEmissiveIntensity = isPolyHavenCloth ? 0.32 : 0.38;
+  const clothRoughnessBase = CLOTH_ROUGHNESS_BASE + (isPolyHavenCloth ? 0.08 : 0);
+  const clothRoughnessTarget = CLOTH_ROUGHNESS_TARGET + (isPolyHavenCloth ? 0.06 : 0);
+  const clothEmissiveIntensity = isPolyHavenCloth ? 0.26 : 0.38;
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
     roughness: clothRoughnessBase,
@@ -15421,9 +15441,9 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.4; // widen the overhead footprint so fixtures read larger on mobile and reach farther to the sides
+        const lightSpreadBoost = 1.28; // keep the overhead footprint broad on mobile while pulling fixtures closer together
         const previousLightRigHeight = tableSurfaceY + TABLE.THICK * 7.1; // baseline height used for the prior brightness target
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.2; // lift the rig slightly higher so the fixtures sit further above the felt
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.6; // lift the rig slightly higher so the fixtures sit further above the felt
         const brightnessCompensation =
           ((lightRigHeight ** 2) / (previousLightRigHeight ** 2)) * 1.02; // preserve on-cloth brightness after the height change while keeping intensity stable
         const lightOffsetX =
@@ -15431,7 +15451,7 @@ const powerRef = useRef(hud.power);
         const lightOffsetZ =
           Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
         const lightLineX = 0; // align fixtures down the center line instead of offsetting per side
-        const lightSpacing = Math.max(lightOffsetZ * 0.5, TABLE.THICK * 2.4); // tighten spacing so the fixtures sit closer to each other while staying evenly distributed
+        const lightSpacing = Math.max(lightOffsetZ * 0.44, TABLE.THICK * 2.2); // pull fixtures closer together while keeping even coverage
         const lightPositionsZ = [-1.25, -0.38, 0.38, 1.25].map((mult) => mult * lightSpacing);
         const shadowHalfSpan =
           Math.max(roomWidth, roomDepth) * 0.82 + TABLE.THICK * 3.5;
@@ -15439,10 +15459,10 @@ const powerRef = useRef(hud.power);
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.32);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.3);
         lightingRig.add(ambient);
 
-        const key = new THREE.DirectionalLight(0xffffff, 1.78 * brightnessCompensation);
+        const key = new THREE.DirectionalLight(0xffffff, 1.68 * brightnessCompensation);
         key.position.set(lightLineX, lightRigHeight, lightPositionsZ[0]);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
@@ -15459,19 +15479,19 @@ const powerRef = useRef(hud.power);
         lightingRig.add(key);
         lightingRig.add(key.target);
 
-        const fill = new THREE.DirectionalLight(0xffffff, 0.9 * brightnessCompensation);
+        const fill = new THREE.DirectionalLight(0xffffff, 0.84 * brightnessCompensation);
         fill.position.set(-lightLineX, lightRigHeight * 1.01, lightPositionsZ[1]);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
-        const wash = new THREE.DirectionalLight(0xffffff, 0.82 * brightnessCompensation);
+        const wash = new THREE.DirectionalLight(0xffffff, 0.76 * brightnessCompensation);
         wash.position.set(lightLineX, lightRigHeight * 1.02, lightPositionsZ[2]);
         wash.target.position.set(0, targetY, 0);
         lightingRig.add(wash);
         lightingRig.add(wash.target);
 
-        const rim = new THREE.DirectionalLight(0xffffff, 0.74 * brightnessCompensation);
+        const rim = new THREE.DirectionalLight(0xffffff, 0.68 * brightnessCompensation);
         rim.position.set(-lightLineX, lightRigHeight * 1.03, lightPositionsZ[3]);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
