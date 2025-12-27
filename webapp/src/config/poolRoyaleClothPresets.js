@@ -35,11 +35,11 @@ const createSwatches = (baseHex) => [
 
 const CABAN_GREEN_SWATCHES = Object.freeze(['#33b46a', '#2ca85f', '#42c47a', '#4fd184', '#238f4a']);
 const CABAN_OCEAN_BLUE_SWATCHES = Object.freeze([
-  '#0c76c6',
-  '#0d86d8',
-  '#119ae8',
-  '#1bb0fa',
-  '#075a9b'
+  '#118fd6',
+  '#0e83c9',
+  '#1ca7f0',
+  '#29b8ff',
+  '#0b74b3'
 ]);
 
 const GREEN_SHADE_NAMES = ['Meadow', 'Spruce', 'Grove', 'Glade', 'Summit'];
