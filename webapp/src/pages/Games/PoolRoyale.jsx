@@ -2529,14 +2529,14 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Gentle TV studio fill with reduced contrast for practice.',
     settings: {
       keyColor: 0xf5f7fb,
-      keyIntensity: 1.28,
+      keyIntensity: 1.08,
       fillColor: 0xf5f7fb,
-      fillIntensity: 0.76,
+      fillIntensity: 0.62,
       washColor: 0xf8faff,
-      washIntensity: 0.7,
+      washIntensity: 0.56,
       rimColor: 0xfafcff,
-      rimIntensity: 0.54,
-      ambientIntensity: 0.18
+      rimIntensity: 0.44,
+      ambientIntensity: 0.16
     }
   },
   {
@@ -2545,14 +2545,14 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Tour stadium key with crisp specular pickup.',
     settings: {
       keyColor: 0xf6f8ff,
-      keyIntensity: 1.64,
+      keyIntensity: 1.38,
       fillColor: 0xf6f8ff,
-      fillIntensity: 0.84,
+      fillIntensity: 0.7,
       washColor: 0xf8faff,
-      washIntensity: 0.74,
+      washIntensity: 0.6,
       rimColor: 0xffffff,
-      rimIntensity: 0.6,
-      ambientIntensity: 0.2
+      rimIntensity: 0.48,
+      ambientIntensity: 0.17
     }
   },
   {
@@ -2561,14 +2561,14 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'High-contrast stage look with tight rim control.',
     settings: {
       keyColor: 0xf2f5ff,
-      keyIntensity: 1.74,
+      keyIntensity: 1.44,
       fillColor: 0xf2f5ff,
-      fillIntensity: 0.62,
+      fillIntensity: 0.52,
       washColor: 0xf5f8ff,
-      washIntensity: 0.78,
+      washIntensity: 0.64,
       rimColor: 0xf7fbff,
-      rimIntensity: 0.78,
-      ambientIntensity: 0.16
+      rimIntensity: 0.62,
+      ambientIntensity: 0.14
     }
   },
   {
@@ -2577,14 +2577,14 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Cool broadcast grade with soft rim and wider beam.',
     settings: {
       keyColor: 0xeaf1ff,
-      keyIntensity: 1.42,
+      keyIntensity: 1.2,
       fillColor: 0xeaf1ff,
-      fillIntensity: 0.82,
+      fillIntensity: 0.68,
       washColor: 0xf0f5ff,
-      washIntensity: 0.72,
+      washIntensity: 0.58,
       rimColor: 0xf5f8ff,
-      rimIntensity: 0.5,
-      ambientIntensity: 0.18
+      rimIntensity: 0.4,
+      ambientIntensity: 0.15
     }
   }
 ]);
@@ -6336,10 +6336,10 @@ function Table3D(
   const clampClothColor = (baseColor) => {
     const hsl = { h: 0, s: 0, l: 0 };
     baseColor.getHSL(hsl);
-    const saturationBoost = isPolyHavenCloth ? 1.18 : 1;
-    const saturationFloor = isPolyHavenCloth ? 0.35 : 0;
-    const minLightness = isPolyHavenCloth ? 0.38 : 0;
-    const maxLightness = isPolyHavenCloth ? 0.62 : 1;
+    const saturationBoost = isPolyHavenCloth ? 1.06 : 1;
+    const saturationFloor = isPolyHavenCloth ? 0.26 : 0;
+    const minLightness = isPolyHavenCloth ? 0.3 : 0;
+    const maxLightness = isPolyHavenCloth ? 0.72 : 1;
     const result = baseColor.clone();
     const baseSaturation = THREE.MathUtils.clamp(
       hsl.s * saturationBoost,
@@ -6348,7 +6348,7 @@ function Table3D(
     );
     const clampedLightness = THREE.MathUtils.clamp(hsl.l, minLightness, maxLightness);
     const balancedLightness = isPolyHavenCloth
-      ? THREE.MathUtils.lerp(clampedLightness, 0.5, 0.35)
+      ? THREE.MathUtils.lerp(clampedLightness, 0.5, 0.18)
       : clampedLightness;
     result.setHSL(
       hsl.h,
@@ -6358,12 +6358,12 @@ function Table3D(
     return result;
   };
   const clothHighlightMix = THREE.MathUtils.clamp(
-    (0.32 + brightnessLift) - (isPolyHavenCloth ? 0.06 : 0),
+    (0.32 + brightnessLift) - (isPolyHavenCloth ? 0.02 : 0),
     0,
     1
   );
   const cushionHighlightMix = THREE.MathUtils.clamp(
-    (0.22 + brightnessLift) - (isPolyHavenCloth ? 0.04 : 0),
+    (0.22 + brightnessLift) - (isPolyHavenCloth ? 0.02 : 0),
     0,
     1
   );
@@ -6381,7 +6381,7 @@ function Table3D(
   );
   const clothRoughnessBase = CLOTH_ROUGHNESS_BASE + (isPolyHavenCloth ? 0.08 : 0);
   const clothRoughnessTarget = CLOTH_ROUGHNESS_TARGET + (isPolyHavenCloth ? 0.06 : 0);
-  const clothEmissiveIntensity = isPolyHavenCloth ? 0.26 : 0.38;
+  const clothEmissiveIntensity = isPolyHavenCloth ? 0.18 : 0.38;
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
     roughness: clothRoughnessBase,
@@ -14950,7 +14950,7 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.28; // keep the overhead footprint broad on mobile while pulling fixtures closer together
+        const lightSpreadBoost = 1.12; // tighten the overhead footprint while keeping enough coverage for mobile
         const previousLightRigHeight = tableSurfaceY + TABLE.THICK * 7.1; // baseline height used for the prior brightness target
         const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.6; // lift the rig slightly higher so the fixtures sit further above the felt
         const brightnessCompensation =
@@ -14960,8 +14960,8 @@ const powerRef = useRef(hud.power);
         const lightOffsetZ =
           Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
         const lightLineX = 0; // align fixtures down the center line instead of offsetting per side
-        const lightSpacing = Math.max(lightOffsetZ * 0.44, TABLE.THICK * 2.2); // pull fixtures closer together while keeping even coverage
-        const lightPositionsZ = [-1.25, -0.38, 0.38, 1.25].map((mult) => mult * lightSpacing);
+        const lightSpacing = Math.max(lightOffsetZ * 0.36, TABLE.THICK * 2); // pull fixtures closer together while keeping even coverage
+        const lightPositionsZ = [-1.1, -0.34, 0.34, 1.1].map((mult) => mult * lightSpacing);
         const shadowHalfSpan =
           Math.max(roomWidth, roomDepth) * 0.82 + TABLE.THICK * 3.5;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
