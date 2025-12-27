@@ -4185,6 +4185,10 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
   registerClothTextureConsumer(textureKey, finishInfo);
   const textures = createClothTextures(textureKey);
   const textureScale = textures.mapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
+  const roughnessBase =
+    finishInfo.clothBase?.roughness ?? finishInfo.clothMat.roughness ?? CLOTH_ROUGHNESS_BASE;
+  const roughnessTarget =
+    finishInfo.clothBase?.roughnessTarget ?? CLOTH_ROUGHNESS_TARGET;
   const baseRepeatRaw =
     finishInfo.clothMat.userData?.baseRepeatRaw ??
     finishInfo.clothBase?.baseRepeatRaw ??
@@ -4205,9 +4209,9 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     replaceMaterialTexture(finishInfo.clothMat, 'bumpMap', textures.bump, fallbackRepeat);
   }
   if (textures.roughness) {
-    finishInfo.clothMat.roughness = CLOTH_ROUGHNESS_TARGET;
+    finishInfo.clothMat.roughness = roughnessTarget;
   } else {
-    finishInfo.clothMat.roughness = CLOTH_ROUGHNESS_BASE;
+    finishInfo.clothMat.roughness = roughnessBase;
   }
   if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
     finishInfo.clothMat.bumpScale = finishInfo.clothBase.baseBumpScale;
@@ -4235,9 +4239,9 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
       replaceMaterialTexture(finishInfo.cushionMat, 'bumpMap', textures.bump, fallbackRepeat);
     }
     if (textures.roughness) {
-      finishInfo.cushionMat.roughness = CLOTH_ROUGHNESS_TARGET;
+      finishInfo.cushionMat.roughness = roughnessTarget;
     } else {
-      finishInfo.cushionMat.roughness = CLOTH_ROUGHNESS_BASE;
+      finishInfo.cushionMat.roughness = roughnessBase;
     }
     if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
       finishInfo.cushionMat.bumpScale = finishInfo.clothBase.baseBumpScale;
@@ -6815,26 +6819,51 @@ function Table3D(
     roughness: clothRoughness,
     mapSource: clothMapSource
   } = createClothTextures(clothTextureKey);
+  const isPolyHavenCloth = clothMapSource === 'polyhaven';
   const clothPrimary = new THREE.Color(palette.cloth);
   const cushionPrimary = new THREE.Color(palette.cushion ?? palette.cloth);
   const clothHighlight = new THREE.Color(0xf6fff9);
   const brightnessLift = CLOTH_BRIGHTNESS_LERP;
-  const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.32 + brightnessLift);
-  const cushionColor = cushionPrimary.clone().lerp(clothHighlight, 0.22 + brightnessLift);
+  const clampClothColor = (baseColor) => {
+    const hsl = { h: 0, s: 0, l: 0 };
+    baseColor.getHSL(hsl);
+    const saturationBoost = isPolyHavenCloth ? 1.12 : 1;
+    const minLightness = isPolyHavenCloth ? 0.32 : 0;
+    const maxLightness = isPolyHavenCloth ? 0.7 : 1;
+    const result = baseColor.clone();
+    result.setHSL(
+      hsl.h,
+      Math.min(1, hsl.s * saturationBoost),
+      THREE.MathUtils.clamp(hsl.l, minLightness, maxLightness)
+    );
+    return result;
+  };
+  const clothColor = clampClothColor(
+    clothPrimary.clone().lerp(clothHighlight, 0.32 + brightnessLift)
+  );
+  const cushionColor = clampClothColor(
+    cushionPrimary.clone().lerp(clothHighlight, 0.22 + brightnessLift)
+  );
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18 + brightnessLift * 0.5);
-  const clothSheen = CLOTH_QUALITY.sheen * 0.72;
-  const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.08);
+  const clothSheen = CLOTH_QUALITY.sheen * (isPolyHavenCloth ? 0.62 : 0.72);
+  const clothSheenRoughness = Math.min(
+    1,
+    CLOTH_QUALITY.sheenRoughness * (isPolyHavenCloth ? 1.18 : 1.08)
+  );
+  const clothRoughnessBase = CLOTH_ROUGHNESS_BASE + (isPolyHavenCloth ? 0.06 : 0);
+  const clothRoughnessTarget = CLOTH_ROUGHNESS_TARGET + (isPolyHavenCloth ? 0.04 : 0);
+  const clothEmissiveIntensity = isPolyHavenCloth ? 0.32 : 0.38;
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: CLOTH_ROUGHNESS_BASE,
+    roughness: clothRoughnessBase,
     sheen: clothSheen,
     sheenColor,
     sheenRoughness: clothSheenRoughness,
     clearcoat: 0,
-    clearcoatRoughness: 0.86,
+    clearcoatRoughness: 0.9,
     envMapIntensity: 0,
     emissive: clothColor.clone().multiplyScalar(0.045),
-    emissiveIntensity: 0.38,
+    emissiveIntensity: clothEmissiveIntensity,
     metalness: 0
   });
   clothMat.side = THREE.DoubleSide;
@@ -6916,6 +6945,7 @@ function Table3D(
   clothEdgeMat.reflectivity = 0;
   clothEdgeMat.needsUpdate = true;
   const clothBaseSettings = {
+    roughnessTarget: clothRoughnessTarget,
     roughness: clothMat.roughness,
     sheen: clothMat.sheen,
     sheenRoughness: clothMat.sheenRoughness,
@@ -6928,7 +6958,8 @@ function Table3D(
     baseRepeatRaw: baseRepeat,
     repeatRatio,
     baseBumpScale,
-    polyRepeatScale
+    polyRepeatScale,
+    isPolyHavenCloth
   };
   const clothMaterials = [clothMat, cushionMat, clothEdgeMat];
   const applyClothDetail = (detail) => {
@@ -15392,16 +15423,16 @@ const powerRef = useRef(hud.power);
 
         const lightSpreadBoost = 1.4; // widen the overhead footprint so fixtures read larger on mobile and reach farther to the sides
         const previousLightRigHeight = tableSurfaceY + TABLE.THICK * 7.1; // baseline height used for the prior brightness target
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.65; // bring the rig closer so ball reflections enlarge without shifting color
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.2; // lift the rig slightly higher so the fixtures sit further above the felt
         const brightnessCompensation =
-          ((lightRigHeight ** 2) / (previousLightRigHeight ** 2)) * 1.02; // preserve on-cloth brightness after moving the rig closer while dimming slightly
+          ((lightRigHeight ** 2) / (previousLightRigHeight ** 2)) * 1.02; // preserve on-cloth brightness after the height change while keeping intensity stable
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
         const lightOffsetZ =
           Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
         const lightLineX = 0; // align fixtures down the center line instead of offsetting per side
-        const lightSpacing = Math.max(lightOffsetZ * 0.58, TABLE.THICK * 2.6); // enforce equal spacing between fixtures to mirror the centred heads
-        const lightPositionsZ = [-1.4, -0.4, 0.4, 1.4].map((mult) => mult * lightSpacing);
+        const lightSpacing = Math.max(lightOffsetZ * 0.5, TABLE.THICK * 2.4); // tighten spacing so the fixtures sit closer to each other while staying evenly distributed
+        const lightPositionsZ = [-1.25, -0.38, 0.38, 1.25].map((mult) => mult * lightSpacing);
         const shadowHalfSpan =
           Math.max(roomWidth, roomDepth) * 0.82 + TABLE.THICK * 3.5;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
