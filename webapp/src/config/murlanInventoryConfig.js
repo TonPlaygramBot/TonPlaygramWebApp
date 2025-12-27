@@ -138,56 +138,17 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     name: 'Onyx Deck',
     price: 340,
     description: 'Monochrome slate backs with steel edging.'
-  },
-  {
-    id: 'stool-slate',
-    type: 'stools',
-    optionId: 'slate',
-    name: 'Slate Stools',
-    price: 210,
-    description: 'Slate seats with midnight legs.'
-  },
-  {
-    id: 'stool-teal',
-    type: 'stools',
-    optionId: 'teal',
-    name: 'Teal Stools',
-    price: 230,
-    description: 'Teal cushions with deep green support.'
-  },
-  {
-    id: 'stool-amber',
-    type: 'stools',
-    optionId: 'amber',
-    name: 'Amber Stools',
-    price: 250,
-    description: 'Amber seats with rich brown legs.'
-  },
-  {
-    id: 'stool-violet',
-    type: 'stools',
-    optionId: 'violet',
-    name: 'Violet Stools',
-    price: 270,
-    description: 'Violet cushions with twilight framing.'
-  },
-  {
-    id: 'stool-frost',
-    type: 'stools',
-    optionId: 'frost',
-    name: 'Frost Stools',
-    price: 290,
-    description: 'Frosted charcoal seats with dark legs.'
-  },
-  {
-    id: 'stool-leather',
-    type: 'stools',
-    optionId: 'leather',
-    name: 'Leather Stools',
-    price: 320,
-    description: 'Leather-wrapped seats with dark studio legs.'
   }
-];
+].concat(
+  MURLAN_STOOL_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
+    id: `stool-${theme.id}`,
+    type: 'stools',
+    optionId: theme.id,
+    name: theme.label,
+    price: theme.price ?? 300 + idx * 20,
+    description: theme.description || `Premium ${theme.label} seating with original finish.`
+  }))
+);
 
 export const MURLAN_ROYALE_DEFAULT_LOADOUT = [
   { type: 'tableWood', optionId: TABLE_WOOD_OPTIONS[0].id, label: TABLE_WOOD_OPTIONS[0].label },
