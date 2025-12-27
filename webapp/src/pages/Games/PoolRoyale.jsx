@@ -1017,11 +1017,11 @@ const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up ca
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
-const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 0.85;
-const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.6;
+const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 0.95;
+const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
-const MAX_POWER_CAMERA_HOLD_MS = 380;
+const MAX_POWER_CAMERA_HOLD_MS = 2000;
 const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 1.015; // widen capture slightly so clean entries are honoured
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
@@ -1178,9 +1178,9 @@ const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
-const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
-const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
-const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
+const SWERVE_THRESHOLD = 0.78; // outer 22% of the spin control activates swerve behaviour
+const SWERVE_TRAVEL_MULTIPLIER = 0.72; // dampen sideways drift while swerve is active so it stays believable
+const PRE_IMPACT_SPIN_DRIFT = 0.085; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
@@ -1232,7 +1232,7 @@ const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_SMOOTHING = 0.35;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 2.1;
+const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 3.1;
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
@@ -5067,6 +5067,7 @@ const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
   SHOT_BASE_SPEED * 0.82; // skip long-shot cam switch if cue ball launches faster
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const GOOD_SHOT_REPLAY_DELAY_MS = 900;
+const REPLAY_TRANSITION_LEAD_MS = 420;
 const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
@@ -16697,31 +16698,70 @@ const powerRef = useRef(hud.power);
             instant: true,
             preserveLarger: true
           });
+          cuePullCurrentRef.current = pull;
+          cuePullTargetRef.current = pull;
+          const cuePerp = new THREE.Vector3(-dir.z, 0, dir.x);
+          if (cuePerp.lengthSq() > 1e-8) cuePerp.normalize();
+          const offsetSide = ranges.offsetSide ?? 0;
+          const offsetVertical = ranges.offsetVertical ?? 0;
+          let contactSide = appliedSpin.x * offsetSide;
+          let contactVert = -appliedSpin.y * offsetVertical;
+          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
+          if (maxContactOffset > 1e-6) {
+            const combined = Math.hypot(contactSide, contactVert);
+            if (combined > maxContactOffset) {
+              const scale = maxContactOffset / combined;
+              contactSide *= scale;
+              contactVert *= scale;
+            }
+          }
+          const spinWorld = new THREE.Vector3(
+            cuePerp.x * contactSide,
+            contactVert,
+            cuePerp.z * contactSide
+          );
+          const obstructionStrength = resolveCueObstruction(dir, pull);
+          const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
+          const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
+          cueStick.position.set(
+            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
+            CUE_Y + spinWorld.y + obstructionLift,
+            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
+          );
+          const tiltAmount = Math.abs(appliedSpin.y || 0);
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
+          applyCueButtTilt(cueStick, extraTilt + obstructionTilt);
+          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
+          if (tipGroupRef.current) {
+            tipGroupRef.current.position.set(0, 0, -cueLen / 2);
+          }
           cueAnimating = true;
           const startPos = cueStick.position.clone();
-          const impactPos = startPos.clone().add(dir.clone().multiplyScalar(pull));
+          const impactPos = startPos.clone().add(dir.clone().multiplyScalar(Math.max(pull, 0)));
           const retreatDistance = Math.max(BALL_R * 0.6, Math.min(pull, BALL_R * 4));
           const settlePos = impactPos
             .clone()
             .sub(dir.clone().multiplyScalar(retreatDistance));
           cueStick.visible = true;
-          cueStick.position.copy(impactPos);
-          cuePullCurrentRef.current = 0;
-          cuePullTargetRef.current = 0;
-          let backFrame = 0;
-          const animSteps = 6;
-          const animateBack = () => {
-            backFrame++;
-            cueStick.position.lerpVectors(
-              impactPos,
-              settlePos,
-              backFrame / animSteps
-            );
-            if (backFrame < animSteps) {
-              requestAnimationFrame(animateBack);
+          cueStick.position.copy(startPos);
+          let frame = 0;
+          const forwardFrames = 6;
+          const backFrames = 8;
+          const animateStroke = () => {
+            frame += 1;
+            if (frame <= forwardFrames) {
+              cueStick.position.lerpVectors(startPos, impactPos, frame / forwardFrames);
+            } else if (frame <= forwardFrames + backFrames) {
+              cueStick.position.lerpVectors(
+                impactPos,
+                settlePos,
+                (frame - forwardFrames) / backFrames
+              );
             } else {
               cueStick.visible = false;
               cueAnimating = false;
+              cuePullCurrentRef.current = 0;
+              cuePullTargetRef.current = 0;
               if (cameraRef.current && sphRef.current) {
                 topViewRef.current = false;
                 topViewLockedRef.current = false;
@@ -16730,9 +16770,11 @@ const powerRef = useRef(hud.power);
                 sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
                 updateCamera();
               }
+              return;
             }
+            requestAnimationFrame(animateStroke);
           };
-          animateBack();
+          animateStroke();
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -18014,8 +18056,8 @@ const powerRef = useRef(hud.power);
           return pool[Math.max(0, Math.min(index, pool.length - 1))] ?? 'Good shot!';
         };
 
-        const triggerReplaySlate = (label = 'Instant Replay') => {
-          setReplaySlate({ label });
+        const triggerReplaySlate = (label = 'Instant Replay', { accent = 'default' } = {}) => {
+          setReplaySlate({ label, accent, startedAt: performance.now() });
           if (replaySlateTimeoutRef.current) {
             clearTimeout(replaySlateTimeoutRef.current);
           }
@@ -18023,6 +18065,7 @@ const powerRef = useRef(hud.power);
             setReplaySlate(null);
             replaySlateTimeoutRef.current = null;
           }, REPLAY_SLATE_DURATION_MS);
+          return REPLAY_TRANSITION_LEAD_MS;
         };
 
         const resolveReplayDecision = ({
@@ -18046,7 +18089,8 @@ const powerRef = useRef(hud.power);
             shouldReplay: hadObjectPot || tags.size > 0,
             banner: selectReplayBanner(primary),
             zoomOnly,
-            tags: Array.from(tags)
+            tags: Array.from(tags),
+            primaryTag: primary
           };
         };
 
@@ -18070,6 +18114,7 @@ const powerRef = useRef(hud.power);
             Boolean(replayDecision?.shouldReplay) &&
             (shotRecording?.frames?.length ?? 0) > 1;
           const replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
+          const replayAccent = replayDecision?.primaryTag ?? 'default';
           let postShotSnapshot = null;
         if (firstContactColor || firstHit) {
           shotEvents.push({
@@ -18356,14 +18401,21 @@ const powerRef = useRef(hud.power);
             const launchReplay = () => {
               replayBannerTimeoutRef.current = null;
               setReplayBanner(null);
-              triggerReplaySlate(replayBannerText);
-              shotRecording = recordingForReplay;
-              if (recordingForReplay) {
-                startShotReplay(postShotSnapshot);
+              const slateLead = triggerReplaySlate(replayBannerText, { accent: replayAccent });
+              const beginReplay = () => {
+                shotRecording = recordingForReplay;
+                if (recordingForReplay) {
+                  startShotReplay(postShotSnapshot);
+                } else {
+                  shotReplayRef.current = null;
+                }
+                shotRecording = null;
+              };
+              if (slateLead > 0) {
+                window.setTimeout(beginReplay, slateLead);
               } else {
-                shotReplayRef.current = null;
+                beginReplay();
               }
-              shotRecording = null;
             };
             if (replayBannerTimeoutRef.current) {
               clearTimeout(replayBannerTimeoutRef.current);
@@ -18600,7 +18652,7 @@ const powerRef = useRef(hud.power);
           isOnlineMatch &&
           currentHud?.turn === 1 &&
           remoteAimFresh;
-        const resolveCueObstruction = (dirVec3, pullDistance = cuePullTargetRef.current ?? 0) => {
+        function resolveCueObstruction(dirVec3, pullDistance = cuePullTargetRef.current ?? 0) {
           if (!cue?.pos || !dirVec3) return 0;
           const backward = new THREE.Vector2(-dirVec3.x, -dirVec3.z);
           if (backward.lengthSq() < 1e-8) return 0;
@@ -18630,7 +18682,7 @@ const powerRef = useRef(hud.power);
             strength = Math.max(strength, influence);
           });
           return strength;
-        };
+        }
 
         sidePocketAimRef.current = false;
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
@@ -20346,12 +20398,49 @@ const powerRef = useRef(hud.power);
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
   const bottomHudScale = isPortrait ? uiScale * 0.85 : uiScale;
   const bottomHudInsets = isPortrait
-    ? { left: 'max(5rem, 16vw)', right: 'max(5rem, 16vw)' }
+    ? { left: 'max(3.75rem, 12vw)', right: 'max(5rem, 16vw)' }
     : { left: 'max(4rem, 10vw)', right: 'max(6.75rem, 14vw)' };
   const avatarSizeClass = isPortrait ? 'h-8 w-8' : 'h-12 w-12';
   const nameWidthClass = isPortrait ? 'max-w-[6.5rem]' : 'max-w-[8.75rem]';
   const nameTextClass = isPortrait ? 'text-xs' : 'text-sm';
   const hudGapClass = isPortrait ? 'gap-3' : 'gap-5';
+  const bottomHudLayoutClass = isPortrait ? 'justify-between px-4 w-full' : 'justify-center';
+  const playerPanelClass = isPortrait
+    ? `flex min-w-0 items-center gap-2.5 rounded-full ${isPlayerTurn ? 'text-white' : 'text-white/80'}`
+    : `flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
+        isPlayerTurn
+          ? 'bg-emerald-400/20 pl-4 pr-3 text-white ring-2 ring-emerald-300/70'
+          : 'pl-3.5 pr-3 text-white/80'
+      }`;
+  const opponentPanelClass = isPortrait
+    ? `flex min-w-0 items-center gap-2.5 rounded-full ${isOpponentTurn ? 'text-white' : 'text-white/80'}`
+    : `flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
+        isOpponentTurn
+          ? 'bg-emerald-400/20 pl-3 pr-4 text-white ring-2 ring-emerald-300/70'
+          : 'pl-3 pr-3.5 text-white/80'
+      }`;
+  const playerPanelStyle = isPortrait
+    ? {
+        boxShadow: isPlayerTurn
+          ? '0 0 18px rgba(16,185,129,0.32), -10px 0 18px rgba(16,185,129,0.18)'
+          : '0 6px 14px rgba(0,0,0,0.35)'
+      }
+    : {
+        boxShadow: isPlayerTurn
+          ? '0 0 18px rgba(16,185,129,0.35), -14px 0 22px rgba(16,185,129,0.28)'
+          : '0 6px 14px rgba(0,0,0,0.35)'
+      };
+  const opponentPanelStyle = isPortrait
+    ? {
+        boxShadow: isOpponentTurn
+          ? '0 0 18px rgba(16,185,129,0.32), 10px 0 18px rgba(16,185,129,0.18)'
+          : '0 6px 14px rgba(0,0,0,0.35)'
+      }
+    : {
+        boxShadow: isOpponentTurn
+          ? '0 0 18px rgba(16,185,129,0.35), 14px 0 22px rgba(16,185,129,0.28)'
+          : '0 6px 14px rgba(0,0,0,0.35)'
+      };
   const renderFlagAvatar = useCallback(
     (flagEmoji, label, isActive) => (
       <span
@@ -20374,34 +20463,47 @@ const powerRef = useRef(hud.power);
 
       {replaySlate && (
         <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
-          <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/80 px-5 py-3 shadow-[0_18px_42px_rgba(0,0,0,0.55)] backdrop-blur">
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-300 text-black shadow-[0_10px_28px_rgba(0,0,0,0.35)]">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="h-6 w-6"
-                aria-hidden="true"
+          <div className="relative isolate flex w-[min(26rem,90vw)] items-center justify-between overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-r from-black/85 via-black/70 to-black/85 px-5 py-4 shadow-[0_18px_42px_rgba(0,0,0,0.55)] backdrop-blur">
+            <div className="pointer-events-none absolute inset-0 opacity-80">
+              <div className="absolute -left-10 top-0 h-full w-1/2 rotate-3 bg-gradient-to-r from-emerald-400/15 via-emerald-300/10 to-transparent" />
+              <div className="absolute -right-14 bottom-0 h-2/3 w-1/2 -rotate-6 bg-gradient-to-l from-cyan-300/20 via-cyan-200/12 to-transparent" />
+              <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+            </div>
+            <div className="relative flex items-center gap-3">
+              <span
+                className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${
+                  replaySlate.accent === 'power'
+                    ? 'from-amber-300 to-orange-400'
+                    : replaySlate.accent === 'spin'
+                      ? 'from-indigo-300 to-sky-400'
+                      : 'from-emerald-300 to-cyan-300'
+                } text-black shadow-[0_12px_28px_rgba(0,0,0,0.35)] ring-1 ring-white/40`}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 5V2.5a.5.5 0 0 0-.85-.35L6.7 6.59a.5.5 0 0 0 0 .71l4.45 4.45a.5.5 0 0 0 .85-.35V9.5a6.5 6.5 0 0 1 6.35 5.17"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M18.5 15.6A6.5 6.5 0 1 1 12 5"
-                />
-              </svg>
-            </span>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-amber-200">
-                Instant Replay
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="h-6 w-6"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m5 4 14 8-14 8V4z" />
+                </svg>
               </span>
-              <span className="text-sm font-semibold text-white">{replaySlate.label}</span>
+              <div className="flex flex-col leading-tight">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-emerald-100">
+                  Instant Replay
+                </span>
+                <span className="text-sm font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]">
+                  {replaySlate.label}
+                </span>
+              </div>
+            </div>
+            <div className="relative flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.26em] text-white/70">
+              <span className="h-px w-10 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+              <span>TV</span>
+              <span className="h-px w-10 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
             </div>
           </div>
         </div>
@@ -20947,7 +21049,7 @@ const powerRef = useRef(hud.power);
 
       {bottomHudVisible && (
         <div
-          className={`absolute bottom-4 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
+          className={`absolute bottom-4 flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive}
           style={{
             left: bottomHudInsets.left,
@@ -20959,20 +21061,12 @@ const powerRef = useRef(hud.power);
             style={{
               transform: `scale(${bottomHudScale})`,
               transformOrigin: 'bottom center',
-              maxWidth: isPortrait ? 'min(22rem, 100%)' : 'min(32rem, 100%)'
+              maxWidth: isPortrait ? 'min(26rem, 100%)' : 'min(32rem, 100%)'
             }}
           >
             <div
-              className={`flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
-                isPlayerTurn
-                  ? 'bg-emerald-400/20 pl-4 pr-3 text-white ring-2 ring-emerald-300/70'
-                  : 'pl-3.5 pr-3 text-white/80'
-              }`}
-              style={{
-                boxShadow: isPlayerTurn
-                  ? '0 0 18px rgba(16,185,129,0.35), -14px 0 22px rgba(16,185,129,0.28)'
-                  : '0 6px 14px rgba(0,0,0,0.35)'
-              }}
+              className={playerPanelClass}
+              style={playerPanelStyle}
             >
               {isOnlineMatch ? (
                 <img
@@ -21010,16 +21104,8 @@ const powerRef = useRef(hud.power);
               <span>{hud.B}</span>
             </div>
             <div
-              className={`flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full ${isPortrait ? 'text-xs' : 'text-sm'} transition-all ${
-                isOpponentTurn
-                  ? 'bg-emerald-400/20 pl-3 pr-4 text-white ring-2 ring-emerald-300/70'
-                  : 'pl-3 pr-3.5 text-white/80'
-              }`}
-              style={{
-                boxShadow: isOpponentTurn
-                  ? '0 0 18px rgba(16,185,129,0.35), 14px 0 22px rgba(16,185,129,0.28)'
-                  : '0 6px 14px rgba(0,0,0,0.35)'
-              }}
+              className={`${opponentPanelClass} ${isPortrait ? 'text-xs' : 'text-sm'}`}
+              style={opponentPanelStyle}
             >
               {isOnlineMatch ? (
                 <>
