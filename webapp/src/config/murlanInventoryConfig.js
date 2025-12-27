@@ -164,12 +164,12 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     description: 'Caban wool texture with rich evergreen depth.'
   },
   {
-    id: 'cloth-curlyTeddyNatural',
+    id: 'cloth-polarFleecePlush',
     type: 'tableCloth',
-    optionId: 'curly_teddy_natural',
-    name: 'Curly Teddy Natural Cloth',
+    optionId: 'polar_fleece',
+    name: 'Polar Fleece Plush Cloth',
     price: 640,
-    description: 'Natural teddy curl with soft, pale fibers.'
+    description: 'Plush polar fleece take with fuller pile and brighter fibers.'
   },
   {
     id: 'cloth-curlyTeddyCheckered',
