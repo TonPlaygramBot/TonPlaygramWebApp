@@ -496,14 +496,6 @@ async function createPolyhavenInstance(assetId, targetHeight, rotationY = 0) {
   return model;
 }
 
-function buildPolyhavenModelUrls(assetId) {
-  if (!assetId) return [];
-  return [
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`
-  ];
-}
-
 function shouldPreserveChairMaterials(theme) {
   return Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
 }
@@ -553,72 +545,40 @@ async function loadPolyhavenModel(assetId) {
   }
 
   const promise = (async () => {
-    let fileMap = new Map();
-    const modelCandidates = [];
-
-    try {
-      const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`).then((r) => r.json());
-      const allUrls = extractAllHttpUrls(filesJson);
-      const apiModelUrl = pickBestModelUrl(allUrls);
-      if (apiModelUrl) modelCandidates.push(apiModelUrl);
-      fileMap = allUrls.reduce((acc, u) => {
-        const b = basename(stripQueryHash(u));
-        if (!acc.has(b)) acc.set(b, u);
-        return acc;
-      }, new Map());
-    } catch (error) {
-      console.warn('Poly Haven file lookup failed, falling back to direct URLs', error);
-    }
-
-    buildPolyhavenModelUrls(assetId).forEach((u) => {
-      if (!modelCandidates.includes(u)) {
-        modelCandidates.push(u);
-      }
-    });
-
-    if (!modelCandidates.length) {
+    const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`).then((r) => r.json());
+    const allUrls = extractAllHttpUrls(filesJson);
+    const modelUrl = pickBestModelUrl(allUrls);
+    if (!modelUrl) {
       throw new Error(`No model URL found for ${assetId}`);
     }
 
-    const manager = fileMap.size ? new THREE.LoadingManager() : undefined;
-    const loader = new GLTFLoader(manager);
-    const draco = new DRACOLoader();
-    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-    loader.setDRACOLoader(draco);
-    loader.setCrossOrigin?.('anonymous');
-
-    if (fileMap.size) {
-      const base = stripQueryHash(modelCandidates[0]);
-      const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
-      loader.manager.setURLModifier((requestedUrl) => {
-        if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
-        const req = stripQueryHash(requestedUrl);
-        const b = basename(req);
-        const mapped = fileMap.get(b);
-        if (mapped) return mapped;
-        try {
-          return new URL(req, baseDir).toString();
-        } catch {
-          return requestedUrl;
-        }
-      });
-    }
-
-    let gltf = null;
-    let lastError = null;
-    for (const modelUrl of modelCandidates) {
-      try {
-        gltf = await loader.loadAsync(modelUrl);
-        break;
-      } catch (error) {
-        lastError = error;
+    const fileMap = new Map();
+    for (const u of allUrls) {
+      const b = basename(stripQueryHash(u));
+      if (!fileMap.has(b)) {
+        fileMap.set(b, u);
       }
     }
 
-    if (!gltf) {
-      throw lastError || new Error(`Failed to load chair model for ${assetId}`);
-    }
+    const base = stripQueryHash(modelUrl);
+    const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
+    const manager = new THREE.LoadingManager();
+    manager.setURLModifier((requestedUrl) => {
+      if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
+      const req = stripQueryHash(requestedUrl);
+      const b = basename(req);
+      const mapped = fileMap.get(b);
+      if (mapped) return mapped;
+      try {
+        return new URL(req, baseDir).toString();
+      } catch {
+        return requestedUrl;
+      }
+    });
 
+    const loader = new GLTFLoader(manager);
+    loader.setCrossOrigin?.('anonymous');
+    const gltf = await loader.loadAsync(modelUrl);
     const root = gltf.scene || gltf.scenes?.[0] || gltf;
     if (!root) {
       throw new Error(`Missing scene for ${assetId}`);
@@ -701,8 +661,7 @@ function createProceduralChair(theme) {
       leg: legMaterial,
       upholstery: [seatMaterial],
       metal: [legMaterial]
-    },
-    preserveOriginal: false
+    }
   };
 }
 
@@ -720,20 +679,20 @@ async function buildChairTemplate(theme) {
       if (!preserveMaterials) {
         applyChairThemeMaterials({ chairMaterials: materials }, theme);
       }
-      return { chairTemplate: model, materials, preserveOriginal: preserveMaterials };
+      return { chairTemplate: model, materials };
     }
     if (theme?.source === 'gltf' && Array.isArray(theme.urls) && theme.urls.length) {
       const gltfChair = await loadGltfChair(theme.urls, rotationY);
       if (!preserveMaterials) {
         applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
       }
-      return { ...gltfChair, preserveOriginal: preserveMaterials };
+      return gltfChair;
     }
     const gltfChair = await loadGltfChair(CHAIR_MODEL_URLS, rotationY);
     if (!preserveMaterials) {
       applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
     }
-    return { ...gltfChair, preserveOriginal: preserveMaterials };
+    return gltfChair;
   } catch (error) {
     console.error('Falling back to procedural chair', error);
   }
@@ -1334,7 +1293,7 @@ export default function MurlanRoyaleArena({ search }) {
       }
       store.chairTemplate = chairBuild.chairTemplate;
       store.chairMaterials = chairBuild.materials;
-      store.chairThemePreserve = chairBuild.preserveOriginal ?? shouldPreserveChairMaterials(safe);
+      store.chairThemePreserve = shouldPreserveChairMaterials(safe);
       store.chairThemeId = safe.id;
       applyChairThemeMaterials(store, safe);
 
@@ -1368,12 +1327,8 @@ export default function MurlanRoyaleArena({ search }) {
       if (three.tableInfo?.materials) {
         applyTableMaterials(three.tableInfo.materials, { woodOption, clothOption, baseOption }, three.renderer);
       }
-      const preserveRequested = shouldPreserveChairMaterials(stoolTheme);
-      if (three.chairThemePreserve == null) {
-        three.chairThemePreserve = preserveRequested;
-      }
+      three.chairThemePreserve = shouldPreserveChairMaterials(stoolTheme);
       if (three.chairThemeId !== stoolTheme.id) {
-        three.chairThemePreserve = preserveRequested;
         void rebuildChairs(stoolTheme);
       } else {
         applyChairThemeMaterials(three, stoolTheme);
@@ -1818,8 +1773,7 @@ export default function MurlanRoyaleArena({ search }) {
       const chairTemplate = chairBuild.chairTemplate;
       threeStateRef.current.chairTemplate = chairTemplate;
       threeStateRef.current.chairMaterials = chairBuild.materials;
-      threeStateRef.current.chairThemePreserve =
-        chairBuild.preserveOriginal ?? shouldPreserveChairMaterials(stoolTheme);
+      threeStateRef.current.chairThemePreserve = shouldPreserveChairMaterials(stoolTheme);
       threeStateRef.current.chairThemeId = stoolTheme.id;
       applyChairThemeMaterials(threeStateRef.current, stoolTheme);
 
@@ -3020,27 +2974,24 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
 function applyChairThemeMaterials(three, theme) {
   const mats = three?.chairMaterials;
   if (!mats) return;
-  const preserve = three?.chairThemePreserve ?? shouldPreserveChairMaterials(theme);
-  if (preserve) return;
-  const seatColor = theme?.seatColor || '#7c3aed';
-  const legColor = theme?.legColor || '#111827';
+  if (shouldPreserveChairMaterials(theme) || three?.chairThemePreserve) return;
   if (mats.seat?.color) {
-    mats.seat.color.set(seatColor);
+    mats.seat.color.set(theme.seatColor);
     mats.seat.needsUpdate = true;
   }
   if (mats.leg?.color) {
-    mats.leg.color.set(legColor);
+    mats.leg.color.set(theme.legColor);
     mats.leg.needsUpdate = true;
   }
   (mats.upholstery ?? []).forEach((mat) => {
     if (mat?.color) {
-      mat.color.set(seatColor);
+      mat.color.set(theme.seatColor);
       mat.needsUpdate = true;
     }
   });
   (mats.metal ?? []).forEach((mat) => {
     if (mat?.color) {
-      mat.color.set(legColor);
+      mat.color.set(theme.legColor);
       mat.needsUpdate = true;
     }
   });
