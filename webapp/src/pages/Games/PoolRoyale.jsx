@@ -1227,28 +1227,28 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
+const CUE_TIP_GAP = BALL_R * 1.32; // pull cue stick slightly farther back while keeping the tip centred on the cue ball
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_SMOOTHING = 0.35;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.015; // align cue height closely with the cue-ball centre so the blue tip matches the spin dot
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 3.8;
-const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
+const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 4.75;
+const CUE_BUTT_LIFT = BALL_R * 0.68; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.1;
-const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.45;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6);
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.3;
+const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.6;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(8);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
-const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
+const MAX_SPIN_CONTACT_OFFSET = BALL_R - CUE_TIP_RADIUS * 1.4;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_SIDE = BALL_R * 0.35;
 const MAX_SPIN_VERTICAL = MAX_SPIN_CONTACT_OFFSET;
 const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
-const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
-const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
+const SPIN_CLEARANCE_MARGIN = BALL_R * 0.32;
+const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.75;
 const SIDE_SPIN_MULTIPLIER = 1.25;
 const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.3;
@@ -9588,6 +9588,9 @@ function PoolRoyaleGame({
   const [configOpen, setConfigOpen] = useState(false);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
+  useEffect(() => {
+    if (replayActive) setConfigOpen(false);
+  }, [replayActive]);
   const accountIdRef = useRef(accountId || '');
   const tgIdRef = useRef(tgId || '');
   const captureReplayCameraSnapshotRef = useRef(null);
@@ -10216,6 +10219,7 @@ function PoolRoyaleGame({
     });
   const shotReplayRef = useRef(null);
   const replayPlaybackRef = useRef(null);
+  const [replayActive, setReplayActive] = useState(false);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
   const [replaySlate, setReplaySlate] = useState(null);
@@ -10248,7 +10252,7 @@ const initialHudInHand = useMemo(
   [initialFrame]
 );
 const [hud, setHud] = useState({
-  power: 0.65,
+  power: 0,
   A: 0,
   B: 0,
   turn: 0,
@@ -14646,6 +14650,7 @@ const powerRef = useRef(hud.power);
             postState: postShotSnapshot,
             pocketDrops: pausedPocketDrops ?? pocketDropRef.current
           };
+          setReplayActive(true);
           pausedPocketDrops = pocketDropRef.current;
           pocketDropRef.current = new Map();
           replayPlaybackRef.current = replayPlayback;
@@ -14704,6 +14709,7 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = null;
           replayCameraRef.current = null;
           replayFrameCameraRef.current = null;
+          setReplayActive(false);
         };
 
         const enterTopView = (immediate = false) => {
@@ -20073,7 +20079,7 @@ const powerRef = useRef(hud.power);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = !hud.over;
+  const showPowerSlider = !hud.over && !replayActive;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -20103,7 +20109,7 @@ const powerRef = useRef(hud.power);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
-  const showPlayerControls = isPlayerTurn && !hud.over;
+  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
 
   // Spin controller interactions
   useEffect(() => {
@@ -20406,11 +20412,11 @@ const powerRef = useRef(hud.power);
   const opponentSeatId = playerSeatId === 'A' ? 'B' : 'A';
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
-  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
+  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
   const bottomHudScale = isPortrait ? uiScale * 0.95 : uiScale * 1.02;
-  const leftControlFootprint = uiScale * (isPortrait ? 150 : 180);
+  const leftControlFootprint = uiScale * (isPortrait ? 126 : 180);
   const rightControlFootprint =
-    uiScale * (SPIN_CONTROL_DIAMETER_PX + (isPortrait ? 110 : 130));
+    uiScale * (SPIN_CONTROL_DIAMETER_PX + (isPortrait ? 86 : 130));
   const bottomHudInsets = {
     left: `${leftControlFootprint}px`,
     right: `${rightControlFootprint}px`
@@ -20475,6 +20481,20 @@ const powerRef = useRef(hud.power);
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {replayActive && (
+        <div className="pointer-events-none absolute inset-0 z-40">
+          <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent to-black/45" />
+          <div className="absolute inset-4 rounded-3xl border border-white/10 shadow-[0_18px_38px_rgba(0,0,0,0.55)]" />
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 rounded-full bg-black/75 px-5 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-white/80 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/15">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-300 text-black shadow-inner">R</span>
+            <span className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">Instant Replay</span>
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/15 text-[11px] font-bold leading-none text-white shadow-inner">
+              TV
+            </span>
+          </div>
+        </div>
+      )}
 
       {replaySlate && (
         <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
@@ -20572,45 +20592,46 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      <div className="absolute top-4 left-4 z-50 flex flex-col items-start gap-2">
-        <button
-          ref={configButtonRef}
-          type="button"
-          onClick={() => setConfigOpen((prev) => !prev)}
-          aria-expanded={configOpen}
-          aria-controls="snooker-config-panel"
-          className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-            configOpen ? 'bg-black/60' : 'hover:bg-black/60'
-          }`}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            className="h-6 w-6"
-            aria-hidden="true"
+      {!replayActive && (
+        <div className="absolute top-4 left-4 z-50 flex flex-col items-start gap-2">
+          <button
+            ref={configButtonRef}
+            type="button"
+            onClick={() => setConfigOpen((prev) => !prev)}
+            aria-expanded={configOpen}
+            aria-controls="snooker-config-panel"
+            className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+              configOpen ? 'bg-black/60' : 'hover:bg-black/60'
+            }`}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24 -.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24 -.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
-            />
-          </svg>
-          <span className="sr-only">Toggle table setup</span>
-        </button>
-        {configOpen && (
-          <div
-            id="snooker-config-panel"
-            ref={configPanelRef}
-            className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur"
-          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className="h-6 w-6"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24 -.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24 -.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
+              />
+            </svg>
+            <span className="sr-only">Toggle table setup</span>
+          </button>
+          {configOpen && (
+            <div
+              id="snooker-config-panel"
+              ref={configPanelRef}
+              className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur"
+            >
             <div className="flex items-center justify-between gap-4">
               <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">
                 Table Setup
@@ -20918,9 +20939,10 @@ const powerRef = useRef(hud.power);
                 </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {isTraining && (
         <div className="absolute right-3 top-3 z-50 flex flex-col items-end gap-2">
@@ -21030,37 +21052,39 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      <div
-        className="pointer-events-none absolute bottom-4 left-4 z-50 flex flex-col gap-2"
-        style={{ transform: `scale(${uiScale})`, transformOrigin: 'bottom left' }}
-      >
-        <button
-          type="button"
-          aria-pressed={isLookMode}
-          onClick={() => setIsLookMode((prev) => !prev)}
-          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-            isLookMode
-              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-          }`}
+      {!replayActive && (
+        <div
+          className="pointer-events-none absolute bottom-4 left-4 z-50 flex flex-col gap-2"
+          style={{ transform: `scale(${uiScale})`, transformOrigin: 'bottom left' }}
         >
-          <span className="text-base">👁️</span>
-          <span>Look</span>
-        </button>
-        <button
-          type="button"
-          aria-pressed={isTopDownView}
-          onClick={() => setIsTopDownView((prev) => !prev)}
-          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-            isTopDownView
-              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-          }`}
-        >
-          <span className="text-base">🧭</span>
-          <span>{isTopDownView ? '3D' : '2D'}</span>
-        </button>
-      </div>
+          <button
+            type="button"
+            aria-pressed={isLookMode}
+            onClick={() => setIsLookMode((prev) => !prev)}
+            className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+              isLookMode
+                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+            }`}
+          >
+            <span className="text-base">👁️</span>
+            <span>Look</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={isTopDownView}
+            onClick={() => setIsTopDownView((prev) => !prev)}
+            className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+              isTopDownView
+                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+            }`}
+          >
+            <span className="text-base">🧭</span>
+            <span>{isTopDownView ? '3D' : '2D'}</span>
+          </button>
+        </div>
+      )}
 
       {bottomHudVisible && (
         <div
