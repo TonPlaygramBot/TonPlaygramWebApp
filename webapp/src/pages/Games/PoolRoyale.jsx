@@ -1178,9 +1178,9 @@ const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
-const SWERVE_THRESHOLD = 0.78; // outer 22% of the spin control activates swerve behaviour
-const SWERVE_TRAVEL_MULTIPLIER = 0.72; // dampen sideways drift while swerve is active so it stays believable
-const PRE_IMPACT_SPIN_DRIFT = 0.085; // reapply stored sideways swerve once the cue ball is rolling after impact
+const SWERVE_THRESHOLD = 0.7; // outer 30% of the spin control activates swerve behaviour
+const SWERVE_TRAVEL_MULTIPLIER = 0.88; // keep more sideways bend active while swerve is engaged
+const PRE_IMPACT_SPIN_DRIFT = 0.11; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
@@ -1232,7 +1232,7 @@ const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_SMOOTHING = 0.35;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 3.1;
+const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 3.85;
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
@@ -5966,7 +5966,7 @@ function applySpinImpulse(ball, scale = 1) {
   const lateral = TMP_VEC2_LATERAL.set(-forward.y, forward.x);
   const sideSpin = ball.spin.x || 0;
   const verticalSpin = ball.spin.y || 0;
-  const swerveScale = 0.65 + Math.min(speed, 8) * 0.12;
+  const swerveScale = 0.72 + Math.min(speed, 8) * 0.13;
   const liftScale = 0.35 + Math.min(speed, 6) * 0.08;
   const lateralKick = sideSpin * SPIN_STRENGTH * swerveScale * scale;
   const forwardKick = verticalSpin * SPIN_STRENGTH * liftScale * scale * 0.5;
@@ -15450,12 +15450,23 @@ const powerRef = useRef(hud.power);
           info.tipCompensation = tipComp;
           info.current = totalTilt;
           info.extra = extraTilt;
+          info.currentLift = Math.sin(totalTilt) * len;
         }
+      };
+      const resolveRearLiftTilt = (extraLift = 0) => {
+        const info = cueStick.userData?.buttTilt;
+        const len = info?.length ?? cueLen;
+        const baseTilt = info?.angle ?? buttTilt;
+        const baseLift = info?.lift ?? buttLift;
+        const targetLift = Math.max(0, baseLift + extraLift);
+        const targetTilt = Math.asin(Math.min(1, targetLift / Math.max(len, 1e-4)));
+        return targetTilt - baseTilt;
       };
       cueStick.userData.buttTilt = {
         angle: buttTilt,
         tipCompensation: buttTipComp,
-        length: cueLen
+        length: cueLen,
+        lift: buttLift
       };
 
       const paletteLength = CUE_RACK_PALETTE.length || CUE_STYLE_PRESETS.length || 1;
@@ -16725,12 +16736,13 @@ const powerRef = useRef(hud.power);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           cueStick.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y + obstructionLift,
+            CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(appliedSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
-          applyCueButtTilt(cueStick, extraTilt + obstructionTilt);
+          const rearTilt = resolveRearLiftTilt(obstructionLift);
+          applyCueButtTilt(cueStick, extraTilt + obstructionTilt + rearTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
@@ -18857,19 +18869,21 @@ const powerRef = useRef(hud.power);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           cueStick.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y + obstructionLift,
+            CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(appliedSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
-          applyCueButtTilt(cueStick, extraTilt + obstructionTilt);
+          const rearTilt = resolveRearLiftTilt(obstructionLift);
+          applyCueButtTilt(cueStick, extraTilt + obstructionTilt + rearTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
+          const buttLiftCurrent = cueStick.userData?.buttTilt?.currentLift ?? 0;
           TMP_VEC3_BUTT.set(
             cue.pos.x - dir.x * (cueLen + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y + obstructionLift,
+            CUE_Y + spinWorld.y + buttLiftCurrent,
             cue.pos.y - dir.z * (cueLen + pull + CUE_TIP_GAP) + spinWorld.z
           );
           let visibleChalkIndex = null;
@@ -19075,12 +19089,13 @@ const powerRef = useRef(hud.power);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           cueStick.position.set(
             cue.pos.x - baseDir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y + obstructionLift,
+            CUE_Y + spinWorld.y,
             cue.pos.y - baseDir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(spinY);
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
-          applyCueButtTilt(cueStick, extraTilt + obstructionTilt);
+          const rearTilt = resolveRearLiftTilt(obstructionLift);
+          applyCueButtTilt(cueStick, extraTilt + obstructionTilt + rearTilt);
           cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
@@ -19174,12 +19189,13 @@ const powerRef = useRef(hud.power);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           cueStick.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y + obstructionLift,
+            CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(spinY);
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
-          applyCueButtTilt(cueStick, extraTilt + obstructionTilt);
+          const rearTilt = resolveRearLiftTilt(obstructionLift);
+          applyCueButtTilt(cueStick, extraTilt + obstructionTilt + rearTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
@@ -20396,15 +20412,15 @@ const powerRef = useRef(hud.power);
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
-  const bottomHudScale = isPortrait ? uiScale * 0.85 : uiScale;
+  const bottomHudScale = isPortrait ? uiScale * 0.96 : uiScale * 1.05;
   const bottomHudInsets = isPortrait
-    ? { left: 'max(3.75rem, 12vw)', right: 'max(5rem, 16vw)' }
-    : { left: 'max(4rem, 10vw)', right: 'max(6.75rem, 14vw)' };
-  const avatarSizeClass = isPortrait ? 'h-8 w-8' : 'h-12 w-12';
-  const nameWidthClass = isPortrait ? 'max-w-[6.5rem]' : 'max-w-[8.75rem]';
-  const nameTextClass = isPortrait ? 'text-xs' : 'text-sm';
-  const hudGapClass = isPortrait ? 'gap-3' : 'gap-5';
-  const bottomHudLayoutClass = isPortrait ? 'justify-between px-4 w-full' : 'justify-center';
+    ? { left: 'max(4.75rem, 15vw)', right: 'max(4.75rem, 15vw)' }
+    : { left: 'max(5.5rem, 12vw)', right: 'max(5.5rem, 12vw)' };
+  const avatarSizeClass = isPortrait ? 'h-10 w-10' : 'h-12 w-12';
+  const nameWidthClass = isPortrait ? 'max-w-[7.25rem]' : 'max-w-[9.5rem]';
+  const nameTextClass = isPortrait ? 'text-sm' : 'text-base';
+  const hudGapClass = isPortrait ? 'gap-4' : 'gap-6';
+  const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
   const playerPanelClass = isPortrait
     ? `flex min-w-0 items-center gap-2.5 rounded-full ${isPlayerTurn ? 'text-white' : 'text-white/80'}`
     : `flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
@@ -21057,11 +21073,11 @@ const powerRef = useRef(hud.power);
           }}
         >
           <div
-            className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'px-5 py-2' : 'px-6 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
+            className={`pointer-events-auto flex min-h-[3.5rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'px-5 py-2.5' : 'px-7 py-3'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
             style={{
               transform: `scale(${bottomHudScale})`,
               transformOrigin: 'bottom center',
-              maxWidth: isPortrait ? 'min(26rem, 100%)' : 'min(32rem, 100%)'
+              maxWidth: isPortrait ? 'min(28rem, 100%)' : 'min(34rem, 100%)'
             }}
           >
             <div
