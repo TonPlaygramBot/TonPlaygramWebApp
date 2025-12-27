@@ -5078,7 +5078,9 @@ const AI_THINKING_BUDGET_MS =
 const AI_CAMERA_DROP_LEAD_MS = 420; // start lowering into cue view shortly before the AI pulls the trigger
 const AI_CAMERA_SETTLE_MS = 320; // allow time for the cue view to settle before firing
 const AI_CUE_VIEW_HOLD_MS = 3000;
-const AI_CAMERA_DROP_BLEND = 0.14;
+// Ease the AI camera just partway toward cue view (still above the stick) so the shot preview
+// lingers in a mid-angle frame for a few seconds before firing.
+const AI_CAMERA_DROP_BLEND = 0.65;
 const AI_CAMERA_DROP_DURATION_MS = 480;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
