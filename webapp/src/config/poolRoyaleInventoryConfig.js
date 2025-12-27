@@ -1,8 +1,10 @@
+import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
+
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: ['charredTimber'],
   chromeColor: ['gold'],
   railMarkerColor: ['gold'],
-  clothColor: ['denimFabric03Green'],
+  clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
   cueStyle: ['birch-frost'],
   pocketLiner: ['blackPocket']
 });
@@ -27,32 +29,12 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     pearl: 'Pearl',
     gold: 'Gold'
   }),
-  clothColor: Object.freeze({
-    denimFabric03Green: 'Denim Fabric 03 — Green Tint',
-    denimFabric03Blue: 'Denim Fabric 03 — Blue Tint',
-    hessian230Green: 'Hessian 230 — Green Tint',
-    hessian230Blue: 'Hessian 230 — Blue Tint',
-    polarFleeceGreen: 'Polar Fleece — Green Tint',
-    polarFleeceBlue: 'Polar Fleece — Blue Tint',
-    cottonJerseyGreen: 'Cotton Jersey — Green Tint',
-    cottonJerseyBlue: 'Cotton Jersey — Blue Tint',
-    fauxFurGeometricGreen: 'Faux Fur Geometric — Green Tint',
-    fauxFurGeometricBlue: 'Faux Fur Geometric — Blue Tint',
-    joggingMelangeGreen: 'Jogging Mélange — Green Tint',
-    joggingMelangeBlue: 'Jogging Mélange — Blue Tint',
-    knittedFleeceGreen: 'Knitted Fleece — Green Tint',
-    knittedFleeceBlue: 'Knitted Fleece — Blue Tint',
-    cabanGreen: 'Caban Wool — Green Tint',
-    cabanBlue: 'Caban Wool — Blue Tint',
-    curlyTeddyNaturalGreen: 'Curly Teddy Natural — Green Tint',
-    curlyTeddyNaturalBlue: 'Curly Teddy Natural — Blue Tint',
-    curlyTeddyCheckeredGreen: 'Curly Teddy Checkered — Green Tint',
-    curlyTeddyCheckeredBlue: 'Curly Teddy Checkered — Blue Tint',
-    denimFabric04Green: 'Denim Fabric 04 — Green Tint',
-    denimFabric04Blue: 'Denim Fabric 04 — Blue Tint',
-    denimFabric05Green: 'Denim Fabric 05 — Green Tint',
-    denimFabric05Blue: 'Denim Fabric 05 — Blue Tint'
-  }),
+  clothColor: Object.freeze(
+    POOL_ROYALE_CLOTH_VARIANTS.reduce((acc, variant) => {
+      acc[variant.id] = variant.name;
+      return acc;
+    }, {})
+  ),
   cueStyle: Object.freeze({
     'redwood-ember': 'Redwood Ember',
     'birch-frost': 'Birch Frost',
@@ -155,198 +137,14 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 240,
     description: 'Chrome-lined diamond markers that match fascia shine.'
   },
-  {
-    id: 'cloth-denimFabric03Green',
+  ...POOL_ROYALE_CLOTH_VARIANTS.map((variant) => ({
+    id: `cloth-${variant.id}`,
     type: 'clothColor',
-    optionId: 'denimFabric03Green',
-    name: 'Denim Fabric 03 — Green Tint',
-    price: 620,
-    description: 'Poly Haven denim_fabric_03 cloth tinted green with high-res weave.'
-  },
-  {
-    id: 'cloth-denimFabric03Blue',
-    type: 'clothColor',
-    optionId: 'denimFabric03Blue',
-    name: 'Denim Fabric 03 — Blue Tint',
-    price: 640,
-    description: 'Poly Haven denim_fabric_03 cloth tinted blue with pronounced threads.'
-  },
-  {
-    id: 'cloth-hessian230Green',
-    type: 'clothColor',
-    optionId: 'hessian230Green',
-    name: 'Hessian 230 — Green Tint',
-    price: 630,
-    description: 'Hessian_230 texture in a green pass, scaled for larger stitch detail.'
-  },
-  {
-    id: 'cloth-hessian230Blue',
-    type: 'clothColor',
-    optionId: 'hessian230Blue',
-    name: 'Hessian 230 — Blue Tint',
-    price: 650,
-    description: 'Hessian_230 texture in a blue pass, kept at full-resolution grain.'
-  },
-  {
-    id: 'cloth-polarFleeceGreen',
-    type: 'clothColor',
-    optionId: 'polarFleeceGreen',
-    name: 'Polar Fleece — Green Tint',
-    price: 640,
-    description: 'Polar_fleece cloth with green tint and boosted nap definition.'
-  },
-  {
-    id: 'cloth-polarFleeceBlue',
-    type: 'clothColor',
-    optionId: 'polarFleeceBlue',
-    name: 'Polar Fleece — Blue Tint',
-    price: 660,
-    description: 'Polar_fleece cloth with blue tint and amplified fleece depth.'
-  },
-  {
-    id: 'cloth-cottonJerseyGreen',
-    type: 'clothColor',
-    optionId: 'cottonJerseyGreen',
-    name: 'Cotton Jersey — Green Tint',
-    price: 650,
-    description: 'Cotton_jersey knit with green tint and enlarged stitch pattern.'
-  },
-  {
-    id: 'cloth-cottonJerseyBlue',
-    type: 'clothColor',
-    optionId: 'cottonJerseyBlue',
-    name: 'Cotton Jersey — Blue Tint',
-    price: 670,
-    description: 'Cotton_jersey knit with blue tint and high-fidelity weave.'
-  },
-  {
-    id: 'cloth-fauxFurGeometricGreen',
-    type: 'clothColor',
-    optionId: 'fauxFurGeometricGreen',
-    name: 'Faux Fur Geometric — Green Tint',
-    price: 660,
-    description: 'Faux_fur_geometric pass with green tint and crisp pattern scale.'
-  },
-  {
-    id: 'cloth-fauxFurGeometricBlue',
-    type: 'clothColor',
-    optionId: 'fauxFurGeometricBlue',
-    name: 'Faux Fur Geometric — Blue Tint',
-    price: 680,
-    description: 'Faux_fur_geometric pass with blue tint and sharper fur relief.'
-  },
-  {
-    id: 'cloth-joggingMelangeGreen',
-    type: 'clothColor',
-    optionId: 'joggingMelangeGreen',
-    name: 'Jogging Mélange — Green Tint',
-    price: 670,
-    description: 'Jogging_melange cloth in green with emphasized melange fibers.'
-  },
-  {
-    id: 'cloth-joggingMelangeBlue',
-    type: 'clothColor',
-    optionId: 'joggingMelangeBlue',
-    name: 'Jogging Mélange — Blue Tint',
-    price: 690,
-    description: 'Jogging_melange cloth in blue with bold high-res threading.'
-  },
-  {
-    id: 'cloth-knittedFleeceGreen',
-    type: 'clothColor',
-    optionId: 'knittedFleeceGreen',
-    name: 'Knitted Fleece — Green Tint',
-    price: 680,
-    description: 'Knitted_fleece texture tinted green with enlarged knit pattern.'
-  },
-  {
-    id: 'cloth-knittedFleeceBlue',
-    type: 'clothColor',
-    optionId: 'knittedFleeceBlue',
-    name: 'Knitted Fleece — Blue Tint',
-    price: 700,
-    description: 'Knitted_fleece texture tinted blue with pronounced fibers.'
-  },
-  {
-    id: 'cloth-cabanGreen',
-    type: 'clothColor',
-    optionId: 'cabanGreen',
-    name: 'Caban Wool — Green Tint',
-    price: 690,
-    description: 'Caban wool weave in a green tint, using full-size Poly Haven maps.'
-  },
-  {
-    id: 'cloth-cabanBlue',
-    type: 'clothColor',
-    optionId: 'cabanBlue',
-    name: 'Caban Wool — Blue Tint',
-    price: 710,
-    description: 'Caban wool weave in a blue tint with preserved coarse detail.'
-  },
-  {
-    id: 'cloth-curlyTeddyNaturalGreen',
-    type: 'clothColor',
-    optionId: 'curlyTeddyNaturalGreen',
-    name: 'Curly Teddy Natural — Green Tint',
-    price: 700,
-    description: 'Curly_teddy_natural nap, green tinted and kept at high resolution.'
-  },
-  {
-    id: 'cloth-curlyTeddyNaturalBlue',
-    type: 'clothColor',
-    optionId: 'curlyTeddyNaturalBlue',
-    name: 'Curly Teddy Natural — Blue Tint',
-    price: 720,
-    description: 'Curly_teddy_natural nap, blue tinted with lifted pattern contrast.'
-  },
-  {
-    id: 'cloth-curlyTeddyCheckeredGreen',
-    type: 'clothColor',
-    optionId: 'curlyTeddyCheckeredGreen',
-    name: 'Curly Teddy Checkered — Green Tint',
-    price: 710,
-    description: 'Curly_teddy_checkered cloth tinted green with visible checker depth.'
-  },
-  {
-    id: 'cloth-curlyTeddyCheckeredBlue',
-    type: 'clothColor',
-    optionId: 'curlyTeddyCheckeredBlue',
-    name: 'Curly Teddy Checkered — Blue Tint',
-    price: 730,
-    description: 'Curly_teddy_checkered cloth tinted blue with defined wool pattern.'
-  },
-  {
-    id: 'cloth-denimFabric04Green',
-    type: 'clothColor',
-    optionId: 'denimFabric04Green',
-    name: 'Denim Fabric 04 — Green Tint',
-    price: 720,
-    description: 'Denim_fabric_04 cloth tinted green and upscaled for bold weave.'
-  },
-  {
-    id: 'cloth-denimFabric04Blue',
-    type: 'clothColor',
-    optionId: 'denimFabric04Blue',
-    name: 'Denim Fabric 04 — Blue Tint',
-    price: 740,
-    description: 'Denim_fabric_04 cloth tinted blue with enlarged thread spacing.'
-  },
-  {
-    id: 'cloth-denimFabric05Green',
-    type: 'clothColor',
-    optionId: 'denimFabric05Green',
-    name: 'Denim Fabric 05 — Green Tint',
-    price: 730,
-    description: 'Denim_fabric_05 cloth tinted green with heavier texture relief.'
-  },
-  {
-    id: 'cloth-denimFabric05Blue',
-    type: 'clothColor',
-    optionId: 'denimFabric05Blue',
-    name: 'Denim Fabric 05 — Blue Tint',
-    price: 750,
-    description: 'Denim_fabric_05 cloth tinted blue with boosted fiber contrast.'
-  },
+    optionId: variant.id,
+    name: variant.name,
+    price: variant.price,
+    description: variant.description
+  })),
   {
     id: 'pocket-graphite',
     type: 'pocketLiner',
@@ -459,8 +257,8 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
   { type: 'railMarkerColor', optionId: 'gold', label: 'Gold Diamond Markers' },
   {
     type: 'clothColor',
-    optionId: 'denimFabric03Green',
-    label: 'Denim Fabric 03 — Green Tint'
+    optionId: POOL_ROYALE_CLOTH_VARIANTS[0].id,
+    label: POOL_ROYALE_CLOTH_VARIANTS[0].name
   },
   { type: 'cueStyle', optionId: 'birch-frost', label: 'Birch Frost Cue' },
   { type: 'pocketLiner', optionId: 'blackPocket', label: 'Black Pocket Jaws' }

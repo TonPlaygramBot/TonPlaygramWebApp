@@ -5,6 +5,7 @@ import {
   POOL_ROYALE_OPTION_LABELS,
   POOL_ROYALE_STORE_ITEMS
 } from '../config/poolRoyaleInventoryConfig.js';
+import { POOL_ROYALE_CLOTH_VARIANTS } from '../config/poolRoyaleClothPresets.js';
 import {
   SNOOKER_CLUB_DEFAULT_LOADOUT,
   SNOOKER_CLUB_OPTION_LABELS,
@@ -217,6 +218,7 @@ const SNAKE_STORE_ACCOUNT_ID = import.meta.env.VITE_SNAKE_STORE_ACCOUNT_ID || DE
 const TEXAS_STORE_ACCOUNT_ID = import.meta.env.VITE_TEXAS_HOLDEM_STORE_ACCOUNT_ID || DEV_INFO.account;
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
+const selectionKey = (item) => `${item.slug}:${item.id}`;
 
 const resolveSwatches = (type, optionId, fallbackSwatches = []) => {
   if (OPTION_SWATCH_OVERRIDES[optionId]) return OPTION_SWATCH_OVERRIDES[optionId];
@@ -275,37 +277,21 @@ const TYPE_SWATCHES = {
   default: ['#22c55e', '#0ea5e9']
 };
 
+const POOL_CLOTH_SWATCHES = POOL_ROYALE_CLOTH_VARIANTS.reduce((acc, cloth) => {
+  if (cloth?.swatches?.length) {
+    acc[cloth.id] = cloth.swatches;
+  }
+  return acc;
+}, {});
+
 const OPTION_SWATCH_OVERRIDES = {
+  ...POOL_CLOTH_SWATCHES,
   charredTimber: ['#2f2217', '#6b4226'],
   rusticSplit: ['#f3e8ff', '#fef3c7'],
   plankStudio: ['#e0e7ff', '#a78bfa'],
   weatheredGrey: ['#94a3b8', '#e2e8f0'],
   jetBlackCarbon: ['#0b1220', '#111827'],
   gold: ['#f59e0b', '#fbbf24'],
-  denimFabric03Green: ['#288871', '#6dae9e'],
-  denimFabric03Blue: ['#2d62b6', '#7094cd'],
-  hessian230Green: ['#66a254', '#97c08b'],
-  hessian230Blue: ['#6a7d99', '#9aa7ba'],
-  polarFleeceGreen: ['#88d299', '#aee0ba'],
-  polarFleeceBlue: ['#8daddd', '#b1c7e8'],
-  cottonJerseyGreen: ['#76b873', '#a2cfa0'],
-  cottonJerseyBlue: ['#7b93b8', '#a5b6cf'],
-  fauxFurGeometricGreen: ['#80b78a', '#a9ceaf'],
-  fauxFurGeometricBlue: ['#8492cf', '#abb5de'],
-  joggingMelangeGreen: ['#54a274', '#8bc0a0'],
-  joggingMelangeBlue: ['#587db9', '#8da7cf'],
-  knittedFleeceGreen: ['#4d9057', '#86b48d'],
-  knittedFleeceBlue: ['#526b9b', '#899abb'],
-  cabanGreen: ['#749945', '#a0ba81'],
-  cabanBlue: ['#79748a', '#a4a0af'],
-  curlyTeddyNaturalGreen: ['#81c88b', '#a9dab0'],
-  curlyTeddyNaturalBlue: ['#86a3d0', '#adc0df'],
-  curlyTeddyCheckeredGreen: ['#2b996c', '#6fba9b'],
-  curlyTeddyCheckeredBlue: ['#2f74b0', '#72a0c9'],
-  denimFabric04Green: ['#39a18a', '#78bfaf'],
-  denimFabric04Blue: ['#3e7ccf', '#7ca6de'],
-  denimFabric05Green: ['#29794b', '#6da485'],
-  denimFabric05Blue: ['#2d5390', '#708ab4'],
   chrome: ['#e5e7eb', '#a1a1aa'],
   pearl: ['#f5f3ff', '#e2e8f0'],
   'redwood-ember': ['#7f1d1d', '#b45309'],
@@ -470,6 +456,8 @@ export default function Store() {
   const [listForm, setListForm] = useState(() => ({ ...DEFAULT_LIST_FORM }));
   const [showMyListings, setShowMyListings] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
+  const [selectedKeys, setSelectedKeys] = useState([]);
+  const [confirmItems, setConfirmItems] = useState([]);
 
   useEffect(() => {
     setAccountId(poolRoyalAccountId());
@@ -691,6 +679,52 @@ export default function Store() {
   );
   const visibleItems = showMyListings ? filteredUserListings : filteredItems;
 
+  useEffect(() => {
+    const validKeys = new Set(allMarketplaceItems.map((item) => selectionKey(item)));
+    setSelectedKeys((prev) => prev.filter((key) => validKeys.has(key)));
+  }, [allMarketplaceItems]);
+
+  const selectedItems = useMemo(() => {
+    const keySet = new Set(selectedKeys);
+    return allMarketplaceItems.filter((item) => keySet.has(selectionKey(item)));
+  }, [allMarketplaceItems, selectedKeys]);
+
+  const selectedPurchasable = useMemo(
+    () => selectedItems.filter((item) => !item.owned),
+    [selectedItems]
+  );
+  const selectedTotalPrice = useMemo(
+    () => selectedPurchasable.reduce((sum, item) => sum + item.price, 0),
+    [selectedPurchasable]
+  );
+  const selectedOwnedCount = selectedItems.length - selectedPurchasable.length;
+  const selectedGameCount = useMemo(
+    () => new Set(selectedPurchasable.map((item) => item.slug)).size,
+    [selectedPurchasable]
+  );
+
+  useEffect(() => {
+    if (!selectedPurchasable.length) {
+      setConfirmItems([]);
+    }
+  }, [selectedPurchasable]);
+
+  const toggleSelection = useCallback((item) => {
+    if (!item || item.owned) return;
+    setSelectedKeys((prev) => {
+      const key = selectionKey(item);
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return Array.from(next);
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedKeys([]), []);
+
   const userListingStats = useMemo(() => {
     const total = decoratedUserListings.length;
     const prices = decoratedUserListings.map((item) => Number(item.price) || 0);
@@ -757,10 +791,21 @@ export default function Store() {
     setInfo('Your NFT listing has been added to the marketplace.');
   };
 
-  const handlePurchase = async (item) => {
-    const slug = item?.slug;
-    if (item.owned || processing === item.id) return;
-    if (!slug) return;
+  const handlePurchase = async (items) => {
+    const payload = Array.isArray(items) ? items.filter(Boolean) : [items].filter(Boolean);
+    if (!payload.length) return;
+    const seen = new Set();
+    const unique = payload.filter((item) => {
+      const key = selectionKey(item);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const purchasable = unique.filter((item) => !item.owned);
+    if (!purchasable.length) {
+      setInfo('No new items selected for purchase.');
+      return;
+    }
     if (!accountId || accountId === 'guest') {
       setInfo('Link your TPC account in the wallet first.');
       return;
@@ -777,45 +822,63 @@ export default function Store() {
       snake: SNAKE_STORE_ACCOUNT_ID,
       texasholdem: TEXAS_STORE_ACCOUNT_ID
     };
-    const storeId = storeAccounts[slug];
-    const gameName = storeMeta[slug]?.name || 'Game';
 
-    const ownedLabel = labelResolvers[slug] ? labelResolvers[slug](item) : item.name;
-
-    if (tpcBalance !== null && item.price > tpcBalance) {
+    const totalPrice = purchasable.reduce((sum, item) => sum + item.price, 0);
+    if (tpcBalance !== null && totalPrice > tpcBalance) {
       setInfo('Insufficient TPC balance for this purchase.');
       return;
     }
 
-    setProcessing(item.id);
+    const groupedBySlug = purchasable.reduce((acc, item) => {
+      const storeId = storeAccounts[item.slug];
+      if (!storeId) return acc;
+      acc[item.slug] = acc[item.slug] || { storeId, items: [], gameName: storeMeta[item.slug]?.name || item.slug };
+      acc[item.slug].items.push(item);
+      return acc;
+    }, {});
+
+    const groupedEntries = Object.values(groupedBySlug);
+    if (!groupedEntries.length) {
+      setInfo('Selected items are unavailable for purchase.');
+      return;
+    }
+
+    const labelResolver = (slug, item) =>
+      labelResolvers[slug] ? labelResolvers[slug](item) : item.name || item.displayLabel;
+    setProcessing(purchasable.length > 1 ? 'bulk' : purchasable[0].id);
     resetStatus();
 
     try {
-      const res = await sendAccountTpc(accountId, storeId, item.price, `${gameName}: ${ownedLabel}`);
-      if (res?.error) {
-        setInfo(res.error || 'Purchase failed.');
-        return;
-      }
+      for (const [slug, group] of Object.entries(groupedBySlug)) {
+        const total = group.items.reduce((sum, entry) => sum + entry.price, 0);
+        const res = await sendAccountTpc(accountId, group.storeId, total, `${group.gameName}: ${group.items.length} cosmetics`);
+        if (res?.error) {
+          setInfo(res.error || 'Purchase failed.');
+          return;
+        }
 
-      if (slug === 'poolroyale') {
-        const updated = await addPoolRoyalUnlock(item.type, item.optionId, accountId);
-        setPoolOwned(updated);
-      } else if (slug === 'snookerclub') {
-        setSnookerOwned(addSnookerClubUnlock(item.type, item.optionId, accountId));
-      } else if (slug === 'airhockey') {
-        setAirOwned(addAirHockeyUnlock(item.type, item.optionId, accountId));
-      } else if (slug === 'chessbattleroyal') {
-        setChessOwned(addChessBattleUnlock(item.type, item.optionId, accountId));
-      } else if (slug === 'ludobattleroyal') {
-        setLudoOwned(addLudoBattleUnlock(item.type, item.optionId, accountId));
-      } else if (slug === 'murlanroyale') {
-        setMurlanOwned(addMurlanUnlock(item.type, item.optionId, accountId));
-      } else if (slug === 'domino-royal') {
-        setDominoOwned(addDominoRoyalUnlock(item.type, item.optionId, accountId));
-      } else if (slug === 'snake') {
-        setSnakeOwned(addSnakeUnlock(item.type, item.optionId, accountId));
-      } else if (slug === 'texasholdem') {
-        setTexasOwned(addTexasHoldemUnlock(item.type, item.optionId, accountId));
+        for (const entry of group.items) {
+          if (slug === 'poolroyale') {
+            const updated = await addPoolRoyalUnlock(entry.type, entry.optionId, accountId);
+            setPoolOwned(updated);
+          } else if (slug === 'snookerclub') {
+            setSnookerOwned(addSnookerClubUnlock(entry.type, entry.optionId, accountId));
+          } else if (slug === 'airhockey') {
+            setAirOwned(addAirHockeyUnlock(entry.type, entry.optionId, accountId));
+          } else if (slug === 'chessbattleroyal') {
+            setChessOwned(addChessBattleUnlock(entry.type, entry.optionId, accountId));
+          } else if (slug === 'ludobattleroyal') {
+            setLudoOwned(addLudoBattleUnlock(entry.type, entry.optionId, accountId));
+          } else if (slug === 'murlanroyale') {
+            setMurlanOwned(addMurlanUnlock(entry.type, entry.optionId, accountId));
+          } else if (slug === 'domino-royal') {
+            setDominoOwned(addDominoRoyalUnlock(entry.type, entry.optionId, accountId));
+          } else if (slug === 'snake') {
+            setSnakeOwned(addSnakeUnlock(entry.type, entry.optionId, accountId));
+          } else if (slug === 'texasholdem') {
+            setTexasOwned(addTexasHoldemUnlock(entry.type, entry.optionId, accountId));
+          }
+        }
       }
 
       const bal = await getAccountBalance(accountId);
@@ -823,7 +886,15 @@ export default function Store() {
         setTpcBalance(bal.balance);
       }
 
-      setPurchaseStatus(`${ownedLabel} purchase completed — now owned in ${gameName}.`);
+      const resolver = (item) => labelResolver(item.slug, item);
+      const groupedCount = groupedEntries.length;
+      const successLabel =
+        purchasable.length === 1
+          ? `${resolver(purchasable[0])} purchase completed — now owned in ${storeMeta[purchasable[0].slug]?.name || purchasable[0].slug}.`
+          : `${purchasable.length} cosmetics purchased across ${groupedCount} game${groupedCount === 1 ? '' : 's'}.`;
+      const purchasedKeys = new Set(purchasable.map((item) => selectionKey(item)));
+      setSelectedKeys((prev) => prev.filter((key) => !purchasedKeys.has(key)));
+      setPurchaseStatus(successLabel);
       setInfo('');
     } catch (err) {
       console.error('Purchase failed', err);
@@ -831,6 +902,7 @@ export default function Store() {
     } finally {
       setProcessing('');
       setConfirmItem(null);
+      setConfirmItems([]);
     }
   };
 
@@ -1024,9 +1096,85 @@ export default function Store() {
                 type="button"
                 onClick={() => handlePurchase(confirmItem)}
                 className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
-                disabled={processing === confirmItem.id}
+                disabled={Boolean(processing)}
               >
-                {processing === confirmItem.id ? 'Processing…' : 'Confirm & Buy'}
+                {processing ? 'Processing…' : 'Confirm & Buy'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderBulkConfirmModal = () => {
+    if (!confirmItems.length) return null;
+    const totalPrice = confirmItems.reduce((sum, item) => sum + item.price, 0);
+    const grouped = confirmItems.reduce((acc, item) => {
+      const gameName = storeMeta[item.slug]?.name || item.slug;
+      acc[gameName] = (acc[gameName] || 0) + 1;
+      return acc;
+    }, {});
+    const groupedLabels = Object.entries(grouped)
+      .map(([name, count]) => `${count} in ${name}`)
+      .join(' • ');
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+        <div className="w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-white/10 p-4">
+            <div>
+              <p className="text-xs text-white/60">Confirm bulk purchase</p>
+              <h3 className="text-lg font-semibold text-white">
+                {confirmItems.length} cosmetics • {groupedLabels || 'Mixed games'}
+              </h3>
+              <p className="text-sm text-white/60">Review your cart and pay once to unlock everything.</p>
+            </div>
+            <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
+              {totalPrice.toLocaleString()}
+              <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+            </div>
+          </div>
+
+          <div className="grid gap-3 p-4 text-sm text-white/80">
+            <div className="grid max-h-64 gap-2 overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-3">
+              {confirmItems.map((item) => (
+                <div
+                  key={`${item.slug}-${item.id}-confirm`}
+                  className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+                >
+                  <div className="grid gap-0.5">
+                    <span className="text-white font-semibold">{item.displayLabel}</span>
+                    <span className="text-xs text-white/60">{storeMeta[item.slug]?.name || item.slug} • {item.typeLabel}</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-sm font-semibold">
+                    {item.price}
+                    <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/60">
+              <p className="font-semibold text-white">Checkout summary</p>
+              <p className="mt-1">One TPC transaction per game, applied to every unowned NFT selected.</p>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setConfirmItems([])}
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 sm:w-auto"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePurchase(confirmItems)}
+                className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
+                disabled={Boolean(processing)}
+              >
+                {processing ? 'Processing…' : 'Confirm & Buy All'}
               </button>
             </div>
           </div>
@@ -1116,13 +1264,14 @@ export default function Store() {
                 >
                   Close
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmItem(detailItem);
-                    setDetailItem(null);
-                  }}
-                  className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmItems([]);
+                      setConfirmItem(detailItem);
+                      setDetailItem(null);
+                    }}
+                    className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
                   disabled={processing === detailItem.id || detailItem.owned}
                 >
                   {detailItem.owned ? 'Already owned' : 'Buy now'}
@@ -1496,6 +1645,53 @@ export default function Store() {
               </div>
             </div>
 
+            <div className="mt-3 grid gap-2 rounded-2xl border border-white/10 bg-black/15 p-3 text-sm text-white/80">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/70">
+                    Multi-select checkout
+                  </span>
+                  <span className="font-semibold text-white">
+                    {selectedPurchasable.length
+                      ? `${selectedPurchasable.length} item${selectedPurchasable.length === 1 ? '' : 's'} • ${selectedGameCount || 0} game${selectedGameCount === 1 ? '' : 's'}`
+                      : 'Select items to bundle a purchase'}
+                  </span>
+                  {selectedOwnedCount > 0 ? (
+                    <span className="text-xs text-amber-200">
+                      {selectedOwnedCount} owned selection{selectedOwnedCount === 1 ? ' is' : 's are'} skipped automatically.
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={clearSelection}
+                    className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!selectedKeys.length}
+                  >
+                    Clear selection
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmItem(null);
+                      setConfirmItems(selectedPurchasable);
+                    }}
+                    className="rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!selectedPurchasable.length || Boolean(processing)}
+                  >
+                    Buy selected ({selectedTotalPrice.toLocaleString()} TPC)
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-white/60">
+                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">
+                  Green + Blue cloth bundles ready for Pool Royale
+                </span>
+                <span>Pick multiple NFTs, confirm once, and unlock them together.</span>
+              </div>
+            </div>
+
             <div className="mt-3 grid gap-3 rounded-3xl border border-white/10 bg-black/20 p-4 text-sm text-white/80 shadow-sm sm:grid-cols-4">
               <div className="space-y-1">
                 <p className="text-[11px] uppercase tracking-wide text-white/60">Your listings</p>
@@ -1590,51 +1786,66 @@ export default function Store() {
           </div>
 
           <div className="space-y-2">
-            {visibleItems.map((item) => (
-              <div
-                key={`${item.slug}-${item.id}`}
-                className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-left shadow-sm transition hover:border-white/20 hover:bg-white/10 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-black/30 text-lg font-semibold">
-                    {item.gameName[0]}
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <div className="text-sm font-semibold">{item.displayLabel}</div>
-                      {item.owned && (
-                        <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
-                          Owned
-                        </span>
-                      )}
+            {visibleItems.map((item) => {
+              const checked = selectedKeys.includes(selectionKey(item));
+              return (
+                <div
+                  key={`${item.slug}-${item.id}`}
+                  className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-left shadow-sm transition hover:border-white/20 hover:bg-white/10 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="h-5 w-5 rounded border-white/30 bg-black/40 text-emerald-400 focus:ring-emerald-300"
+                        checked={checked}
+                        onChange={() => toggleSelection(item)}
+                        disabled={item.owned}
+                      />
+                      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-black/30 text-lg font-semibold">
+                        {item.gameName[0]}
+                      </div>
+                    </label>
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="text-sm font-semibold">{item.displayLabel}</div>
+                        {item.owned && (
+                          <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
+                            Owned
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-white/60">{item.gameName} • {item.typeLabel}</div>
                     </div>
-                    <div className="text-xs text-white/60">{item.gameName} • {item.typeLabel}</div>
                   </div>
-                </div>
 
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                  <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
-                    {item.price}
-                    <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
+                      {item.price}
+                      <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDetailItem(item)}
+                      className="rounded-2xl border border-white/15 bg-black/30 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10"
+                    >
+                      View
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConfirmItems([]);
+                        setConfirmItem(item);
+                      }}
+                      className="rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={item.owned || Boolean(processing)}
+                    >
+                      {item.owned ? 'Owned' : 'Buy'}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setDetailItem(item)}
-                    className="rounded-2xl border border-white/15 bg-black/30 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10"
-                  >
-                    View
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmItem(item)}
-                    className="rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-white/90"
-                    disabled={item.owned}
-                  >
-                    {item.owned ? 'Owned' : 'Buy'}
-                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {visibleItems.length === 0 && (
@@ -1663,6 +1874,7 @@ export default function Store() {
 
       {renderListModal()}
       {renderDetailModal()}
+      {renderBulkConfirmModal()}
       {renderConfirmModal()}
     </div>
   );
