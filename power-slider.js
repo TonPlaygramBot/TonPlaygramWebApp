@@ -8,7 +8,6 @@ export class PowerSlider {
       step = 1,
       cueSrc = '',
       onChange,
-      onDragStateChange,
       onCommit,
       theme = 'default',
       labels = false
@@ -21,7 +20,6 @@ export class PowerSlider {
     this.max = max;
     this.step = step;
     this.onChange = onChange;
-    this.onDragStateChange = onDragStateChange;
     this.onCommit = onCommit;
     this.locked = false;
 
@@ -204,9 +202,6 @@ export class PowerSlider {
     if (this.locked) return;
     e.preventDefault();
     this.dragging = true;
-    if (typeof this.onDragStateChange === 'function') {
-      this.onDragStateChange(true);
-    }
     this.dragMoved = false;
     this.dragStartValue = this.value;
     this.el.classList.add('ps-no-animate');
@@ -227,9 +222,6 @@ export class PowerSlider {
   _pointerUp(e) {
     if (!this.dragging) return;
     this.dragging = false;
-    if (typeof this.onDragStateChange === 'function') {
-      this.onDragStateChange(false);
-    }
     this.el.releasePointerCapture(e.pointerId);
     this.el.removeEventListener('pointermove', this._onPointerMove);
     this.el.removeEventListener('pointerup', this._onPointerUp);
