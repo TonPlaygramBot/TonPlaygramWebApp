@@ -3413,6 +3413,40 @@ const createClothTextures = (() => {
     texture.needsUpdate = true;
   };
 
+  const neutralizePolyHavenColorMap = (texture) => {
+    if (!texture || !texture.image || typeof document === 'undefined') return texture;
+    const image = texture.image;
+    const width = image.naturalWidth || image.videoWidth || image.width;
+    const height = image.naturalHeight || image.videoHeight || image.height;
+    if (!width || !height) return texture;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return texture;
+    try {
+      ctx.drawImage(image, 0, 0, width, height);
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const luminance = Math.round(r * 0.2126 + g * 0.7152 + b * 0.0722);
+        data[i] = luminance;
+        data[i + 1] = luminance;
+        data[i + 2] = luminance;
+      }
+      ctx.putImageData(imageData, 0, 0);
+      texture.dispose();
+      const neutralTexture = new THREE.CanvasTexture(canvas);
+      applySRGBColorSpace(neutralTexture);
+      return neutralTexture;
+    } catch (err) {
+      return texture;
+    }
+  };
+
   const generateProceduralClothTextures = (preset) => {
     if (typeof document === 'undefined') {
       return { map: null, bump: null };
@@ -3606,11 +3640,15 @@ const createClothTextures = (() => {
         const loader = new THREE.TextureLoader();
         loader.setCrossOrigin('anonymous');
 
-        const [map, normal, roughness] = await Promise.all([
+        let [map, normal, roughness] = await Promise.all([
           loadTexture(loader, urls.diffuse, true),
           loadTexture(loader, urls.normal, false),
           loadTexture(loader, urls.roughness, false)
         ]);
+
+        if (map) {
+          map = neutralizePolyHavenColorMap(map);
+        }
 
         [map, normal, roughness].forEach((tex) =>
           applyTextureDefaults(tex, { isPolyHaven: true })
