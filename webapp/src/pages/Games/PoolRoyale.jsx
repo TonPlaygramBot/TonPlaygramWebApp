@@ -10357,6 +10357,7 @@ const powerRef = useRef(hud.power);
     shootingRef.current = shotActive;
   }, [shotActive]);
   const sliderInstanceRef = useRef(null);
+  const powerSliderDraggingRef = useRef(false);
   const suggestionAimKeyRef = useRef(null);
   const aiEarlyShotIntentRef = useRef(null);
   const aiShotPreviewRef = useRef(false);
@@ -16637,31 +16638,21 @@ const powerRef = useRef(hud.power);
             if (animFrame < animSteps) {
               requestAnimationFrame(animateCue);
             } else {
-              let backFrame = 0;
-              const animateBack = () => {
-                backFrame++;
-                cueStick.position.lerpVectors(
-                  endPos,
-                  startPos,
-                  backFrame / animSteps
-                );
-                if (backFrame < animSteps) requestAnimationFrame(animateBack);
-                else {
-                  cuePullCurrentRef.current = 0;
-                  cuePullTargetRef.current = 0;
-                  cueStick.visible = false;
-                  cueAnimating = false;
-                  if (cameraRef.current && sphRef.current) {
-                    topViewRef.current = false;
-                    topViewLockedRef.current = false;
-                    setIsTopDownView(false);
-                    const sph = sphRef.current;
-                    sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-                    updateCamera();
-                  }
+              cueStick.position.copy(endPos);
+              cuePullCurrentRef.current = 0;
+              cuePullTargetRef.current = 0;
+              requestAnimationFrame(() => {
+                cueStick.visible = false;
+                cueAnimating = false;
+                if (cameraRef.current && sphRef.current) {
+                  topViewRef.current = false;
+                  topViewLockedRef.current = false;
+                  setIsTopDownView(false);
+                  const sph = sphRef.current;
+                  sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+                  updateCamera();
                 }
-              };
-              requestAnimationFrame(animateBack);
+              });
             }
           };
           animateCue();
@@ -18695,11 +18686,13 @@ const powerRef = useRef(hud.power);
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const pullTarget = Math.min(desiredPull, maxPull);
           cuePullTargetRef.current = pullTarget;
-          const pull = THREE.MathUtils.lerp(
-            cuePullCurrentRef.current ?? 0,
-            pullTarget,
-            CUE_PULL_SMOOTHING
-          );
+          const pull = powerSliderDraggingRef.current
+            ? pullTarget
+            : THREE.MathUtils.lerp(
+                cuePullCurrentRef.current ?? 0,
+                pullTarget,
+                CUE_PULL_SMOOTHING
+              );
           cuePullCurrentRef.current = pull;
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
@@ -19940,6 +19933,9 @@ const powerRef = useRef(hud.power);
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
+      onDragStateChange: (dragging) => {
+        powerSliderDraggingRef.current = dragging;
+      },
       onChange: (v) => applyPower(v / 100),
       onCommit: () => {
         fireRef.current?.();
