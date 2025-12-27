@@ -38,9 +38,6 @@ const BLUE_SHADE_NAMES = ['Harbor', 'Fjord', 'Glacier', 'Sapphire', 'Midnight'];
 const NATURE_SHADE_NAMES = ['Fern', 'Grove', 'Canopy', 'Meadow', 'Wildwood'];
 const OCEAN_SHADE_NAMES = ['Crest', 'Current', 'Lagoon', 'Reef', 'Abyss'];
 
-const CABAN_GREEN_PALETTE = ['#33b46a', '#2ca85f', '#42c47a', '#4fd184', '#238f4a'];
-const CABAN_BLUE_PALETTE = ['#1d9fe8', '#168fdd', '#33b5f6', '#42c1ff', '#125aa7'];
-
 const MATERIAL_SERIES = [
   {
     prefix: 'caban',
@@ -58,8 +55,8 @@ const MATERIAL_SERIES = [
       emissiveIntensity: 0.24,
       envMapIntensity: 0.18
     },
-    greens: CABAN_GREEN_PALETTE,
-    blues: CABAN_BLUE_PALETTE
+    greens: ['#33b46a', '#2ca85f', '#42c47a', '#4fd184', '#238f4a'],
+    blues: ['#2ba5d9', '#2499ce', '#3ab5e6', '#45c0ed', '#1f86b8']
   },
   {
     prefix: 'polarFleece',
@@ -77,8 +74,8 @@ const MATERIAL_SERIES = [
       emissiveIntensity: 0.34,
       envMapIntensity: 0.14
     },
-    greens: CABAN_GREEN_PALETTE,
-    blues: CABAN_BLUE_PALETTE
+    greens: ['#69b980', '#5ead73', '#74c690', '#7fce99', '#4f9d62'],
+    blues: ['#6d9ad0', '#608fc5', '#7aacdd', '#86b7e6', '#4e7ead']
   },
   {
     prefix: 'polarFleecePlush',
@@ -96,8 +93,8 @@ const MATERIAL_SERIES = [
       emissiveIntensity: 0.36,
       envMapIntensity: 0.16
     },
-    greens: CABAN_GREEN_PALETTE,
-    blues: CABAN_BLUE_PALETTE
+    greens: ['#5fae77', '#54a36c', '#6bb885', '#78c291', '#489662'],
+    blues: ['#6b99c4', '#5f8cba', '#79a6d1', '#88b4db', '#4c7ca3']
   },
   {
     prefix: 'polarFleeceNatureOcean',
@@ -115,8 +112,8 @@ const MATERIAL_SERIES = [
       emissiveIntensity: 0.34,
       envMapIntensity: 0.15
     },
-    greens: CABAN_GREEN_PALETTE,
-    blues: CABAN_BLUE_PALETTE,
+    greens: ['#2f9b58', '#279350', '#3aa866', '#45b471', '#1f7e43'],
+    blues: ['#2a8fc7', '#2484bd', '#3a9dd9', '#44a8e4', '#1f74a7'],
     greenShadeNames: NATURE_SHADE_NAMES,
     blueShadeNames: OCEAN_SHADE_NAMES
   }

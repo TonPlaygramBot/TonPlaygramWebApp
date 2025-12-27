@@ -1690,10 +1690,10 @@ const CLOTH_SOFT_BLEND = 0.42;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 5120,
-    anisotropy: 60,
+    textureSize: 4096,
+    anisotropy: 48,
     generateMipmaps: true,
-    bumpScaleMultiplier: 1.14,
+    bumpScaleMultiplier: 1.08,
     sheen: 0.95,
     sheenRoughness: 0.66
   };
@@ -1701,9 +1701,9 @@ const CLOTH_QUALITY = (() => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
       ...defaults,
-      textureSize: 2560,
-      anisotropy: 24,
-      bumpScaleMultiplier: 1.02,
+      textureSize: 2048,
+      anisotropy: 16,
+      bumpScaleMultiplier: 0.94,
       sheen: 0.9,
       sheenRoughness: 0.72
     };
@@ -1722,10 +1722,10 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 1920 : 1408,
-      anisotropy: highDensity ? 20 : 16,
+      textureSize: highDensity ? 1536 : 1152,
+      anisotropy: highDensity ? 16 : 12,
       generateMipmaps: true,
-      bumpScaleMultiplier: highDensity ? 0.96 : 0.88,
+      bumpScaleMultiplier: highDensity ? 0.9 : 0.82,
       sheen: 0.78,
       sheenRoughness: 0.82
     };
@@ -1733,10 +1733,10 @@ const CLOTH_QUALITY = (() => {
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 3584,
-      anisotropy: 40,
+      textureSize: 3072,
+      anisotropy: 32,
       generateMipmaps: true,
-      bumpScaleMultiplier: 1.08,
+      bumpScaleMultiplier: 1.02,
       sheen: 0.9,
       sheenRoughness: 0.7
     };
@@ -3238,10 +3238,10 @@ const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
-const CLOTH_THREAD_PITCH = 12 * 1.42; // tighten thread spacing slightly so the weave reads sharper
+const CLOTH_THREAD_PITCH = 12 * 1.55; // enlarge thread spacing for a coarser, more pronounced weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.76; // slightly smaller footprint to boost perceived resolution
-const CLOTH_TEXTURE_REPEAT_HINT = 1.56;
+const CLOTH_PATTERN_SCALE = 0.82; // slightly larger pattern footprint to match the scanned cloths
+const CLOTH_TEXTURE_REPEAT_HINT = 1.42;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
 const POLYHAVEN_ANISOTROPY_BOOST = 2.4;
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.35, 0.55);
@@ -3249,7 +3249,7 @@ const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
 const CLOTH_PATTERN_OVERRIDES = Object.freeze({
-  polar_fleece: { repeatScale: 1.08 } // slightly tighter pattern to sharpen the fleece weave
+  polar_fleece: { repeatScale: 0.94 } // 10% larger pattern to emphasize the fleece nap
 });
 
 const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
