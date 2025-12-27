@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
@@ -16,6 +17,8 @@ import {
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js';
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import {
   WOOD_FINISH_PRESETS,
   WOOD_GRAIN_OPTIONS,
@@ -269,6 +272,9 @@ const CHAIR_MODEL_URLS = [
 ];
 
 const polyHavenCache = new Map();
+const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+let sharedKTX2Loader = null;
+let ktx2SupportRenderer = null;
 
 function stripQueryHash(u) {
   return u.split('#')[0].split('?')[0];
@@ -299,6 +305,40 @@ function extractAllHttpUrls(apiJson) {
   };
   walk(apiJson);
   return Array.from(out);
+}
+
+function getSharedKTX2Loader(renderer = null) {
+  if (!sharedKTX2Loader) {
+    sharedKTX2Loader = new KTX2Loader();
+    sharedKTX2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
+    if (!ktx2SupportRenderer) {
+      ktx2SupportRenderer = renderer;
+    }
+    if (!ktx2SupportRenderer && typeof document !== 'undefined') {
+      ktx2SupportRenderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+    }
+    if (ktx2SupportRenderer) {
+      sharedKTX2Loader.detectSupport(ktx2SupportRenderer);
+    }
+  } else if (renderer && ktx2SupportRenderer !== renderer) {
+    ktx2SupportRenderer = renderer;
+    sharedKTX2Loader.detectSupport(renderer);
+  }
+  return sharedKTX2Loader;
+}
+
+function createConfiguredGLTFLoader({ manager = undefined, renderer = null } = {}) {
+  const loader = new GLTFLoader(manager);
+  loader.setCrossOrigin('anonymous');
+  const draco = new DRACOLoader(manager);
+  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  loader.setDRACOLoader(draco);
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  const ktx2 = getSharedKTX2Loader(renderer);
+  if (ktx2) {
+    loader.setKTX2Loader(ktx2);
+  }
+  return loader;
 }
 
 function pickBestModelUrl(urls) {
@@ -338,7 +378,7 @@ function ensureMeshMaterials(root) {
   });
 }
 
-async function loadPolyHavenAsset(id) {
+async function loadPolyHavenAsset(id, renderer = null) {
   if (!id) throw new Error('Poly Haven asset id is required');
   if (polyHavenCache.has(id)) return polyHavenCache.get(id);
 
@@ -366,11 +406,7 @@ async function loadPolyHavenAsset(id) {
       }
     });
 
-    const loader = new GLTFLoader(manager);
-    const draco = new DRACOLoader(manager);
-    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-    loader.setDRACOLoader(draco);
-    loader.setCrossOrigin?.('anonymous');
+    const loader = createConfiguredGLTFLoader({ manager, renderer });
 
     const gltf = await loader.loadAsync(modelUrl);
     const root = gltf.scene || gltf.scenes?.[0] || new THREE.Group();
@@ -573,11 +609,8 @@ function extractChairMaterials(model) {
   };
 }
 
-async function loadGltfChair(urls = CHAIR_MODEL_URLS) {
-  const loader = new GLTFLoader();
-  const draco = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-  loader.setDRACOLoader(draco);
+async function loadGltfChair(urls = CHAIR_MODEL_URLS, renderer = null) {
+  const loader = createConfiguredGLTFLoader({ renderer });
 
   let gltf = null;
   let lastError = null;
@@ -680,11 +713,11 @@ function createProceduralChair(theme) {
   };
 }
 
-async function buildChairTemplate(chairOption, theme) {
+async function buildChairTemplate(chairOption, theme, renderer = null) {
   const allowTheme = chairOption?.tintable !== false && !chairOption?.preserveMaterials;
   try {
     if (chairOption?.source === 'polyhaven' && chairOption.assetId) {
-      const root = (await loadPolyHavenAsset(chairOption.assetId)).clone(true);
+      const root = (await loadPolyHavenAsset(chairOption.assetId, renderer)).clone(true);
       root.rotation.set(0, chairOption.rotationY ?? 0, 0);
       fitChairModelToFootprint(root);
       const materials = extractChairMaterials(root);
@@ -695,14 +728,14 @@ async function buildChairTemplate(chairOption, theme) {
     }
 
     if (chairOption?.source === 'gltf' && chairOption.url) {
-      const gltfChair = await loadGltfChair([chairOption.url]);
+      const gltfChair = await loadGltfChair([chairOption.url], renderer);
       if (allowTheme) {
         applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
       }
       return gltfChair;
     }
 
-    const gltfChair = await loadGltfChair();
+    const gltfChair = await loadGltfChair(undefined, renderer);
     if (allowTheme) {
       applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
     }
@@ -1312,7 +1345,7 @@ export default function MurlanRoyaleArena({ search }) {
       if (chairChanged) {
         const buildId = ++chairBuildIdRef.current;
         try {
-          const chairBuild = await buildChairTemplate(chairOption, stoolTheme);
+          const chairBuild = await buildChairTemplate(chairOption, stoolTheme, three.renderer);
           if (buildId !== chairBuildIdRef.current) return;
           disposeChairResources(three);
           three.chairTemplate = chairBuild.chairTemplate;
@@ -1693,7 +1726,7 @@ export default function MurlanRoyaleArena({ search }) {
       await Promise.allSettled(
         MURLAN_FLOWER_POTS.map(async (option, idx) => {
           try {
-            const potTemplate = await loadPolyHavenAsset(option.assetId);
+            const potTemplate = await loadPolyHavenAsset(option.assetId, renderer);
             const pot = potTemplate.clone(true);
             fitModelToHeight(pot, TARGET_POT_HEIGHT);
             const angle = potAngles[idx % potAngles.length];
@@ -1765,7 +1798,7 @@ export default function MurlanRoyaleArena({ search }) {
         -TABLE_RADIUS * 0.62
       );
 
-      const chairBuild = await buildChairTemplate(chairOption, stoolTheme);
+      const chairBuild = await buildChairTemplate(chairOption, stoolTheme, renderer);
       if (disposed) return;
       const chairTemplate = chairBuild.chairTemplate;
       threeStateRef.current.chairTemplate = chairTemplate;
