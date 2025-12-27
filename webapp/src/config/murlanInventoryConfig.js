@@ -1,6 +1,7 @@
 import { TABLE_BASE_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_WOOD_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { CARD_THEMES } from '../utils/cardThemes.js';
 import { MURLAN_STOOL_THEMES } from './murlanThemes.js';
+import { MURLAN_CHAIR_MODELS } from './murlanChairs.js';
 
 const mapLabels = (options) =>
   Object.freeze(
@@ -15,7 +16,8 @@ export const MURLAN_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableCloth: [TABLE_CLOTH_OPTIONS[0].id],
   tableBase: [TABLE_BASE_OPTIONS[0].id],
   cards: [CARD_THEMES[0].id],
-  stools: [MURLAN_STOOL_THEMES[0].id]
+  stools: [MURLAN_STOOL_THEMES[0].id],
+  chairModel: [MURLAN_CHAIR_MODELS[0].id]
 });
 
 export const MURLAN_ROYALE_OPTION_LABELS = Object.freeze({
@@ -23,7 +25,8 @@ export const MURLAN_ROYALE_OPTION_LABELS = Object.freeze({
   tableCloth: mapLabels(TABLE_CLOTH_OPTIONS),
   tableBase: mapLabels(TABLE_BASE_OPTIONS),
   cards: mapLabels(CARD_THEMES),
-  stools: mapLabels(MURLAN_STOOL_THEMES)
+  stools: mapLabels(MURLAN_STOOL_THEMES),
+  chairModel: mapLabels(MURLAN_CHAIR_MODELS)
 });
 
 export const MURLAN_ROYALE_STORE_ITEMS = [
@@ -186,7 +189,15 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     name: 'Leather Stools',
     price: 320,
     description: 'Leather-wrapped seats with dark studio legs.'
-  }
+  },
+  ...MURLAN_CHAIR_MODELS.slice(1).map((option, idx) => ({
+    id: `chair-${option.id}`,
+    type: 'chairModel',
+    optionId: option.id,
+    name: `${option.label}`,
+    price: Number.isFinite(option.price) ? option.price : 520 + idx * 12,
+    description: option.description || 'Unlocks a new seating model with its original materials.'
+  }))
 ];
 
 export const MURLAN_ROYALE_DEFAULT_LOADOUT = [
@@ -194,5 +205,6 @@ export const MURLAN_ROYALE_DEFAULT_LOADOUT = [
   { type: 'tableCloth', optionId: TABLE_CLOTH_OPTIONS[0].id, label: TABLE_CLOTH_OPTIONS[0].label },
   { type: 'tableBase', optionId: TABLE_BASE_OPTIONS[0].id, label: TABLE_BASE_OPTIONS[0].label },
   { type: 'cards', optionId: CARD_THEMES[0].id, label: CARD_THEMES[0].label },
-  { type: 'stools', optionId: MURLAN_STOOL_THEMES[0].id, label: MURLAN_STOOL_THEMES[0].label }
+  { type: 'stools', optionId: MURLAN_STOOL_THEMES[0].id, label: MURLAN_STOOL_THEMES[0].label },
+  { type: 'chairModel', optionId: MURLAN_CHAIR_MODELS[0].id, label: MURLAN_CHAIR_MODELS[0].label }
 ];
