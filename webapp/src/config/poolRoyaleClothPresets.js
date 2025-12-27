@@ -55,13 +55,13 @@ const MATERIAL_SERIES = [
       emissiveIntensity: 0.24,
       envMapIntensity: 0.18
     },
-    greens: ['#2f9a55', '#278f4d', '#3cab66', '#49b870', '#1f7f3c'],
-    blues: ['#3f82c2', '#3578b8', '#4a90cf', '#569bdc', '#2f6fa6']
+    greens: ['#33b46a', '#2ca85f', '#42c47a', '#4fd184', '#238f4a'],
+    blues: ['#2ba5d9', '#2499ce', '#3ab5e6', '#45c0ed', '#1f86b8']
   },
   {
     prefix: 'polarFleece',
     label: 'Polar Fleece',
-    sourceId: 'polar_fleece',
+    sourceId: 'caban',
     basePrice: 640,
     priceStep: 10,
     bluePremium: 20,
@@ -80,7 +80,7 @@ const MATERIAL_SERIES = [
   {
     prefix: 'polarFleecePlush',
     label: 'Polar Fleece Plush',
-    sourceId: 'polar_fleece',
+    sourceId: 'caban',
     basePrice: 700,
     priceStep: 10,
     bluePremium: 20,
@@ -99,7 +99,7 @@ const MATERIAL_SERIES = [
   {
     prefix: 'polarFleeceNatureOcean',
     label: 'Polar Fleece Nature & Ocean',
-    sourceId: 'polar_fleece',
+    sourceId: 'caban',
     basePrice: 660,
     priceStep: 10,
     bluePremium: 20,
