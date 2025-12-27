@@ -9,7 +9,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
@@ -514,7 +513,6 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0) {
   const draco = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
   loader.setDRACOLoader(draco);
-  loader.setMeshoptDecoder?.(MeshoptDecoder);
 
   let gltf = null;
   let lastError = null;
@@ -550,35 +548,39 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0) {
 
 async function loadPolyhavenModel(assetId) {
   if (!assetId) throw new Error('Missing Poly Haven asset id');
-  if (POLYHAVEN_MODEL_CACHE.has(assetId)) {
-    return POLYHAVEN_MODEL_CACHE.get(assetId);
+  const normalizedId = assetId.toLowerCase();
+  const cacheKey = normalizedId;
+  if (POLYHAVEN_MODEL_CACHE.has(cacheKey)) {
+    return POLYHAVEN_MODEL_CACHE.get(cacheKey);
   }
 
   const promise = (async () => {
     let fileMap = new Map();
-    const modelCandidates = [];
+    const modelCandidates = new Set();
+    const assetCandidates = Array.from(new Set([assetId, normalizedId]));
 
-    try {
-      const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`).then((r) => r.json());
-      const allUrls = extractAllHttpUrls(filesJson);
-      const apiModelUrl = pickBestModelUrl(allUrls);
-      if (apiModelUrl) modelCandidates.push(apiModelUrl);
-      fileMap = allUrls.reduce((acc, u) => {
-        const b = basename(stripQueryHash(u));
-        if (!acc.has(b)) acc.set(b, u);
-        return acc;
-      }, new Map());
-    } catch (error) {
-      console.warn('Poly Haven file lookup failed, falling back to direct URLs', error);
+    for (const candidateId of assetCandidates) {
+      try {
+        const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(candidateId)}`).then((r) => r.json());
+        const allUrls = extractAllHttpUrls(filesJson);
+        const apiModelUrl = pickBestModelUrl(allUrls);
+        if (apiModelUrl) modelCandidates.add(apiModelUrl);
+        if (!fileMap.size) {
+          fileMap = allUrls.reduce((acc, u) => {
+            const b = basename(stripQueryHash(u));
+            if (!acc.has(b)) acc.set(b, u);
+            return acc;
+          }, new Map());
+        }
+      } catch (error) {
+        console.warn('Poly Haven file lookup failed, falling back to direct URLs', error);
+      }
+
+      buildPolyhavenModelUrls(candidateId).forEach((u) => modelCandidates.add(u));
     }
 
-    buildPolyhavenModelUrls(assetId).forEach((u) => {
-      if (!modelCandidates.includes(u)) {
-        modelCandidates.push(u);
-      }
-    });
-
-    if (!modelCandidates.length) {
+    const modelUrlList = Array.from(modelCandidates);
+    if (!modelUrlList.length) {
       throw new Error(`No model URL found for ${assetId}`);
     }
 
@@ -587,11 +589,10 @@ async function loadPolyhavenModel(assetId) {
     const draco = new DRACOLoader();
     draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
     loader.setDRACOLoader(draco);
-    loader.setMeshoptDecoder?.(MeshoptDecoder);
     loader.setCrossOrigin?.('anonymous');
 
     if (fileMap.size) {
-      const base = stripQueryHash(modelCandidates[0]);
+      const base = stripQueryHash(modelUrlList[0]);
       const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
       loader.manager.setURLModifier((requestedUrl) => {
         if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
@@ -609,7 +610,7 @@ async function loadPolyhavenModel(assetId) {
 
     let gltf = null;
     let lastError = null;
-    for (const modelUrl of modelCandidates) {
+    for (const modelUrl of modelUrlList) {
       try {
         gltf = await loader.loadAsync(modelUrl);
         break;
@@ -630,8 +631,8 @@ async function loadPolyhavenModel(assetId) {
     return root;
   })();
 
-  POLYHAVEN_MODEL_CACHE.set(assetId, promise);
-  promise.catch(() => POLYHAVEN_MODEL_CACHE.delete(assetId));
+  POLYHAVEN_MODEL_CACHE.set(cacheKey, promise);
+  promise.catch(() => POLYHAVEN_MODEL_CACHE.delete(cacheKey));
   return promise;
 }
 
