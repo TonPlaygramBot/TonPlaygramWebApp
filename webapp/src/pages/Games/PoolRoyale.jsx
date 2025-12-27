@@ -16339,8 +16339,30 @@ const powerRef = useRef(hud.power);
         );
       };
 
+      const computeCuePull = (
+        pullTarget = 0,
+        maxPull = CUE_PULL_BASE,
+        { instant = false, preserveLarger = false } = {}
+      ) => {
+        const slider = sliderInstanceRef.current;
+        const dragging = Boolean(slider?.dragging);
+        const cappedMax = Number.isFinite(maxPull) ? Math.max(0, maxPull) : CUE_PULL_BASE;
+        const desiredTarget = preserveLarger
+          ? Math.max(cuePullCurrentRef.current ?? 0, pullTarget ?? 0)
+          : pullTarget ?? 0;
+        const clampedTarget = THREE.MathUtils.clamp(desiredTarget, 0, cappedMax);
+        const smoothing = instant || dragging ? 1 : CUE_PULL_SMOOTHING;
+        const nextPull =
+          smoothing >= 1
+            ? clampedTarget
+            : THREE.MathUtils.lerp(cuePullCurrentRef.current ?? 0, clampedTarget, smoothing);
+        cuePullTargetRef.current = clampedTarget;
+        cuePullCurrentRef.current = nextPull;
+        return nextPull;
+      };
+
       // Fire (slider triggers on release)
-        const fire = () => {
+      const fire = () => {
           const currentHud = hudRef.current;
           const frameSnapshot = frameRef.current ?? frameState;
           const fullTableHandPlacement =
@@ -16615,13 +16637,11 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          cuePullTargetRef.current = Math.min(CUE_PULL_BASE * clampedPower, maxPull);
-          const pull = THREE.MathUtils.clamp(
-            Math.max(cuePullCurrentRef.current ?? 0, cuePullTargetRef.current ?? 0),
-            0,
-            maxPull
-          );
-          cuePullCurrentRef.current = pull;
+          const pullTarget = Math.min(CUE_PULL_BASE * clampedPower, maxPull);
+          const pull = computeCuePull(pullTarget, maxPull, {
+            instant: true,
+            preserveLarger: true
+          });
           cueAnimating = true;
           const startPos = cueStick.position.clone();
           const endPos = startPos.clone().add(dir.clone().multiplyScalar(pull));
@@ -18694,13 +18714,7 @@ const powerRef = useRef(hud.power);
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const pullTarget = Math.min(desiredPull, maxPull);
-          cuePullTargetRef.current = pullTarget;
-          const pull = THREE.MathUtils.lerp(
-            cuePullCurrentRef.current ?? 0,
-            pullTarget,
-            CUE_PULL_SMOOTHING
-          );
-          cuePullCurrentRef.current = pull;
+          const pull = computeCuePull(pullTarget, maxPull);
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
           let side = appliedSpin.x * offsetSide;
@@ -18926,13 +18940,7 @@ const powerRef = useRef(hud.power);
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const pullTarget = Math.min(desiredPull, maxPull);
-          cuePullTargetRef.current = pullTarget;
-          const pull = THREE.MathUtils.lerp(
-            cuePullCurrentRef.current ?? 0,
-            pullTarget,
-            CUE_PULL_SMOOTHING
-          );
-          cuePullCurrentRef.current = pull;
+          const pull = computeCuePull(pullTarget, maxPull);
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
           const spinX = THREE.MathUtils.clamp(remoteAimState?.spin?.x ?? 0, -1, 1);
@@ -19030,13 +19038,7 @@ const powerRef = useRef(hud.power);
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           const pullTarget = Math.min(desiredPull, maxPull);
-          cuePullTargetRef.current = pullTarget;
-          const pull = THREE.MathUtils.lerp(
-            cuePullCurrentRef.current ?? 0,
-            pullTarget,
-            CUE_PULL_SMOOTHING
-          );
-          cuePullCurrentRef.current = pull;
+          const pull = computeCuePull(pullTarget, maxPull);
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
           const planSpin = activeAiPlan.spin ?? spinRef.current ?? { x: 0, y: 0 };
@@ -19077,12 +19079,7 @@ const powerRef = useRef(hud.power);
           target.visible = false;
           cueAfter.visible = false;
           impactRing.visible = false;
-          cuePullTargetRef.current = 0;
-          cuePullCurrentRef.current = THREE.MathUtils.lerp(
-            cuePullCurrentRef.current ?? 0,
-            0,
-            CUE_PULL_SMOOTHING
-          );
+          computeCuePull(0, CUE_PULL_BASE);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
