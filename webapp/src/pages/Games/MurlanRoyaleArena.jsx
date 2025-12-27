@@ -9,7 +9,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
@@ -514,7 +513,6 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0) {
   const draco = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
   loader.setDRACOLoader(draco);
-  loader.setMeshoptDecoder?.(MeshoptDecoder);
 
   let gltf = null;
   let lastError = null;
@@ -587,7 +585,6 @@ async function loadPolyhavenModel(assetId) {
     const draco = new DRACOLoader();
     draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
     loader.setDRACOLoader(draco);
-    loader.setMeshoptDecoder?.(MeshoptDecoder);
     loader.setCrossOrigin?.('anonymous');
 
     if (fileMap.size) {
