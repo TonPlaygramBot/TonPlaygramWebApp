@@ -1020,6 +1020,12 @@ const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 0.85;
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.6;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
+const MAX_POWER_IMPACT_THRESHOLD = 0.98;
+const MAX_POWER_IMPACT_LIFT = CUE_TIP_RADIUS * 1.05;
+const MAX_POWER_IMPACT_VELOCITY = MAX_POWER_IMPACT_LIFT * 26;
+const MAX_POWER_IMPACT_HOLD_MS = 480;
+const MAX_POWER_IMPACT_TRAVEL = BALL_R * 5;
+const LIFT_LAND_SOUND_THRESHOLD = MAX_POWER_IMPACT_LIFT * 0.35;
 const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 1.015; // widen capture slightly so clean entries are honoured
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
@@ -6120,6 +6126,7 @@ function Guret(parent, id, color, x, y, options = {}) {
     pendingSpin: new THREE.Vector2(),
     lift: 0,
     liftVel: 0,
+    liftLandingPlayed: false,
     active: true
   };
 }
@@ -10213,12 +10220,18 @@ function PoolRoyaleGame({
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
+  const [replaySlateVisible, setReplaySlateVisible] = useState(false);
+  const replaySlateTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
       if (replayBannerTimeoutRef.current) {
         clearTimeout(replayBannerTimeoutRef.current);
         replayBannerTimeoutRef.current = null;
+      }
+      if (replaySlateTimeoutRef.current) {
+        clearTimeout(replaySlateTimeoutRef.current);
+        replaySlateTimeoutRef.current = null;
       }
     },
     []
@@ -10266,6 +10279,7 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
+const powerImpactHoldUntilRef = useRef(0);
   const applyPower = useCallback((nextPower) => {
     const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
     powerRef.current = clampedPower;
@@ -14005,7 +14019,7 @@ const powerRef = useRef(hud.power);
           targetId,
           followView,
           railNormal,
-          { longShot = false, travelDistance = 0 } = {}
+          { longShot = false, travelDistance = 0, powerHoldUntil = null } = {}
         ) => {
           if (!cueBall) return null;
           const ballsList = ballsRef.current || [];
@@ -14039,15 +14053,22 @@ const powerRef = useRef(hud.power);
           });
           const preferRailOverhead = Boolean(railNormal);
           const now = performance.now();
-          const activationDelay = longShot
+          const activationDelayBase = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
             : null;
-          const activationTravel = longShot
+          const activationDelay =
+            powerHoldUntil != null
+              ? Math.max(powerHoldUntil, activationDelayBase ?? powerHoldUntil)
+              : activationDelayBase;
+          const activationTravelBase = longShot
             ? Math.max(
                 BALL_R * 12,
                 Math.min(travelDistance * 0.5, LONG_SHOT_ACTIVATION_TRAVEL)
               )
             : 0;
+          const activationTravel = powerHoldUntil
+            ? Math.max(activationTravelBase, MAX_POWER_IMPACT_TRAVEL)
+            : activationTravelBase;
           return {
             mode: 'action',
             cueId: cueBall.id,
@@ -14622,24 +14643,37 @@ const powerRef = useRef(hud.power);
           const trimmed = trimReplayRecording(shotRecording);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
-          storeReplayCameraFrame();
-          resetCameraForReplay();
-          replayPlayback = {
-            frames: trimmed.frames,
-            cuePath: trimmed.cuePath,
-            duration,
-            startedAt: performance.now(),
-            lastIndex: 0,
-            postState: postShotSnapshot,
-            pocketDrops: pausedPocketDrops ?? pocketDropRef.current
+          const launchReplay = () => {
+            storeReplayCameraFrame();
+            resetCameraForReplay();
+            replayPlayback = {
+              frames: trimmed.frames,
+              cuePath: trimmed.cuePath,
+              duration,
+              startedAt: performance.now(),
+              lastIndex: 0,
+              postState: postShotSnapshot,
+              pocketDrops: pausedPocketDrops ?? pocketDropRef.current
+            };
+            pausedPocketDrops = pocketDropRef.current;
+            pocketDropRef.current = new Map();
+            replayPlaybackRef.current = replayPlayback;
+            lastReplayFrameAt = 0;
+            shotReplayRef.current = shotRecording;
+            applyBallSnapshot(shotRecording.startState ?? []);
+            updateReplayTrail(replayPlayback.cuePath, 0);
           };
-          pausedPocketDrops = pocketDropRef.current;
-          pocketDropRef.current = new Map();
-          replayPlaybackRef.current = replayPlayback;
-          lastReplayFrameAt = 0;
-          shotReplayRef.current = shotRecording;
-          applyBallSnapshot(shotRecording.startState ?? []);
-          updateReplayTrail(replayPlayback.cuePath, 0);
+          const slateMs = 650;
+          setReplaySlateVisible(true);
+          if (replaySlateTimeoutRef.current) {
+            clearTimeout(replaySlateTimeoutRef.current);
+            replaySlateTimeoutRef.current = null;
+          }
+          replaySlateTimeoutRef.current = window.setTimeout(() => {
+            setReplaySlateVisible(false);
+            replaySlateTimeoutRef.current = null;
+            launchReplay();
+          }, slateMs);
         };
 
         const waitMs = (ms = 0) =>
@@ -14664,6 +14698,11 @@ const powerRef = useRef(hud.power);
 
         const finishReplayPlayback = (playback) => {
           if (!playback) return;
+          if (replaySlateTimeoutRef.current) {
+            clearTimeout(replaySlateTimeoutRef.current);
+            replaySlateTimeoutRef.current = null;
+          }
+          setReplaySlateVisible(false);
           if (playback.postState) {
             applyBallSnapshot(playback.postState);
           }
@@ -16020,6 +16059,9 @@ const powerRef = useRef(hud.power);
         cue.spin?.set(0, 0);
         cue.pendingSpin?.set(0, 0);
         cue.spinMode = 'standard';
+        cue.lift = 0;
+        cue.liftVel = 0;
+        cue.liftLandingPlayed = false;
       };
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
@@ -16374,6 +16416,70 @@ const powerRef = useRef(hud.power);
         return nextPull;
       };
 
+      const resetCueAfterShot = (dir) => {
+        if (!cueStick) return;
+        const cueBall = cueRef.current || cue;
+        if (!cueBall?.pos || !dir) {
+          cueStick.visible = false;
+          cueAnimating = false;
+          cuePullCurrentRef.current = 0;
+          cuePullTargetRef.current = 0;
+          return;
+        }
+        const forward = dir.clone();
+        if (forward.lengthSq() < 1e-8) forward.set(0, 0, 1);
+        forward.normalize();
+        cuePullCurrentRef.current = 0;
+        cuePullTargetRef.current = 0;
+        cueStick.position.set(
+          cueBall.pos.x - forward.x * (cueLen / 2 + CUE_TIP_GAP),
+          CUE_Y,
+          cueBall.pos.y - forward.z * (cueLen / 2 + CUE_TIP_GAP)
+        );
+        cueStick.rotation.y = Math.atan2(forward.x, forward.z) + Math.PI;
+        applyCueButtTilt(cueStick, 0);
+        cueStick.visible = false;
+        cueAnimating = false;
+      };
+
+      const playCueStrikeAnimation = (dir, pullAmount = 0) => {
+        if (!cueStick) return;
+        const forward = dir.clone();
+        if (forward.lengthSq() < 1e-8) forward.set(0, 0, 1);
+        forward.normalize();
+        const stroke = Math.max(0, Math.min(pullAmount, BALL_R * 2));
+        const startPos = cueStick.position.clone();
+        const contactPos = startPos.clone().add(forward.clone().multiplyScalar(stroke));
+        cueAnimating = true;
+        let animFrame = 0;
+        const forwardSteps = 4;
+        const returnSteps = 6;
+        const animateForward = () => {
+          animFrame += 1;
+          cueStick.position.lerpVectors(startPos, contactPos, animFrame / forwardSteps);
+          if (animFrame < forwardSteps) {
+            requestAnimationFrame(animateForward);
+            return;
+          }
+          let backFrame = 0;
+          const animateReturn = () => {
+            backFrame += 1;
+            cueStick.position.lerpVectors(
+              contactPos,
+              startPos,
+              backFrame / returnSteps
+            );
+            if (backFrame < returnSteps) {
+              requestAnimationFrame(animateReturn);
+            } else {
+              resetCueAfterShot(forward);
+            }
+          };
+          requestAnimationFrame(animateReturn);
+        };
+        requestAnimationFrame(animateForward);
+      };
+
       // Fire (slider triggers on release)
       const fire = () => {
           const currentHud = hudRef.current;
@@ -16510,6 +16616,9 @@ const powerRef = useRef(hud.power);
           const allowLongShotCameraSwitch =
             !isShortShot &&
             (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD);
+          const powerHoldUntil = powerImpact
+            ? performance.now() + MAX_POWER_IMPACT_HOLD_MS
+            : null;
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
           const suppressPocketCameras = broadcastSystem?.avoidPocketCameras;
@@ -16547,16 +16656,18 @@ const powerRef = useRef(hud.power);
                 shotPrediction.railNormal,
                 {
                   longShot: isLongShot,
-                  travelDistance: predictedTravel
+                  travelDistance: predictedTravel,
+                  powerHoldUntil
                 }
               )
             : null;
-          const earlyPocketView =
-            !suppressPocketCameras && shotPrediction.ballId && followView
-              ? makePocketCameraView(shotPrediction.ballId, followView, {
-                  forceEarly: true
-                })
-              : null;
+          const allowImmediatePocketView =
+            !suppressPocketCameras && !powerImpact && shotPrediction.ballId && followView;
+          const earlyPocketView = allowImmediatePocketView
+            ? makePocketCameraView(shotPrediction.ballId, followView, {
+                forceEarly: true
+              })
+            : null;
           if (actionView && cameraRef.current) {
             actionView.smoothedPos = cameraRef.current.position.clone();
             const storedTarget = lastCameraTargetRef.current?.clone();
@@ -16651,53 +16762,22 @@ const powerRef = useRef(hud.power);
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           const pullTarget = Math.min(CUE_PULL_BASE * clampedPower, maxPull);
-          const pull = computeCuePull(pullTarget, maxPull, {
-            instant: true,
-            preserveLarger: true
-          });
-          cueAnimating = true;
-          const startPos = cueStick.position.clone();
-          const endPos = startPos.clone().add(dir.clone().multiplyScalar(pull));
-          let animFrame = 0;
-          const animSteps = 5;
-          const animateCue = () => {
-            animFrame++;
-            cueStick.position.lerpVectors(
-              startPos,
-              endPos,
-              animFrame / animSteps
-            );
-            if (animFrame < animSteps) {
-              requestAnimationFrame(animateCue);
-            } else {
-              let backFrame = 0;
-              const animateBack = () => {
-                backFrame++;
-                cueStick.position.lerpVectors(
-                  endPos,
-                  startPos,
-                  backFrame / animSteps
-                );
-                if (backFrame < animSteps) requestAnimationFrame(animateBack);
-                else {
-                  cuePullCurrentRef.current = 0;
-                  cuePullTargetRef.current = 0;
-                  cueStick.visible = false;
-                  cueAnimating = false;
-                  if (cameraRef.current && sphRef.current) {
-                    topViewRef.current = false;
-                    topViewLockedRef.current = false;
-                    setIsTopDownView(false);
-                    const sph = sphRef.current;
-                    sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-                    updateCamera();
-                  }
-                }
-              };
-              requestAnimationFrame(animateBack);
-            }
-          };
-          animateCue();
+          const pull =
+            cuePullCurrentRef.current != null
+              ? Math.min(Math.max(cuePullCurrentRef.current, 0), Math.max(0, maxPull))
+              : pullTarget;
+          cuePullTargetRef.current = pullTarget;
+          const powerImpact =
+            clampedPower >= MAX_POWER_IMPACT_THRESHOLD && cue?.id === 'cue';
+          powerImpactHoldUntilRef.current = powerImpact
+            ? performance.now() + MAX_POWER_IMPACT_HOLD_MS
+            : 0;
+          if (powerImpact) {
+            cue.lift = Math.max(cue.lift ?? 0, MAX_POWER_IMPACT_LIFT);
+            cue.liftVel = MAX_POWER_IMPACT_VELOCITY;
+            cue.liftLandingPlayed = false;
+          }
+          playCueStrikeAnimation(dir, pull);
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -18266,6 +18346,10 @@ const powerRef = useRef(hud.power);
               cue.spinMode = 'standard';
               cue.impacted = false;
               cue.launchDir = null;
+              cue.lift = 0;
+              cue.liftVel = 0;
+              cue.liftLandingPlayed = false;
+              cue.mesh.position.y = BALL_CENTER_Y;
             }
             if (shouldStartReplay) {
               postShotSnapshot = captureBallSnapshot();
@@ -18303,6 +18387,7 @@ const powerRef = useRef(hud.power);
           suspendedActionView = null;
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
+          powerImpactHoldUntilRef.current = 0;
           updatePocketCameraState(false);
           if (shouldStartReplay && postShotSnapshot) {
             const recordingForReplay = shotRecording;
@@ -19120,6 +19205,8 @@ const powerRef = useRef(hud.power);
           balls.forEach((b) => {
             if (!b.active) return;
             const isCue = b.id === 'cue';
+            const prevLift = b.lift ?? 0;
+            const prevLiftVel = b.liftVel ?? 0;
             const hasSpin = b.spin?.lengthSq() > 1e-6;
             const hasLift = (b.lift ?? 0) > 1e-6 || Math.abs(b.liftVel ?? 0) > 1e-6;
             if (hasLift) {
@@ -19132,6 +19219,8 @@ const powerRef = useRef(hud.power);
                 b.lift = 0;
                 b.liftVel = 0;
               }
+            } else if (isCue) {
+              b.liftLandingPlayed = false;
             }
             if (hasSpin) {
               const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
@@ -19226,6 +19315,23 @@ const powerRef = useRef(hud.power);
               const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
               const angle = scaledSpeed / BALL_R;
               b.mesh.rotateOnWorldAxis(axis, angle);
+            }
+            if (
+              isCue &&
+              prevLift > LIFT_LAND_SOUND_THRESHOLD &&
+              (b.lift ?? 0) <= 0 &&
+              !b.liftLandingPlayed
+            ) {
+              const landingVolume = clamp(
+                Math.abs(prevLiftVel) / (MAX_POWER_IMPACT_VELOCITY * 0.65),
+                0.25,
+                1
+              );
+              playBallHit(landingVolume);
+              b.liftLandingPlayed = true;
+            }
+            if (isCue && (b.lift ?? 0) > LIFT_LAND_SOUND_THRESHOLD) {
+              b.liftLandingPlayed = false;
             }
             if (b.shadow) {
               const droppingShadow = pocketDropRef.current.has(b.id);
@@ -19443,6 +19549,10 @@ const powerRef = useRef(hud.power);
           !topViewRef.current &&
           (activeShotView?.mode !== 'pocket' || !activeShotView)
         ) {
+          const now = performance.now();
+          if (powerImpactHoldUntilRef.current && now < powerImpactHoldUntilRef.current) {
+            // Hold current camera for a brief moment on max-power strikes so the impact is visible.
+          } else {
           const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
           const sph = sphRef.current;
           const orbitSnapshot = sph
@@ -19454,7 +19564,6 @@ const powerRef = useRef(hud.power);
               : suspendedActionView?.mode === 'action'
                 ? suspendedActionView
                 : null;
-          const now = performance.now();
           let pocketIntent = pocketSwitchIntentRef.current;
           if (pocketIntent && now - pocketIntent.createdAt > POCKET_INTENT_TIMEOUT_MS) {
             pocketIntent = null;
@@ -19536,6 +19645,7 @@ const powerRef = useRef(hud.power);
             }
             updatePocketCameraState(true);
             activeShotView = bestPocketView;
+          }
           }
         }
         // Pocket capture
@@ -20272,13 +20382,14 @@ const powerRef = useRef(hud.power);
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
-  const bottomHudScale = isPortrait ? uiScale * 0.94 : uiScale;
+  const bottomHudScale = isPortrait ? uiScale * 0.88 : uiScale;
   const bottomHudInsets = isPortrait
-    ? { left: 'max(2.5rem, 6vw)', right: 'max(3.75rem, 9vw)' }
+    ? { left: 'max(2rem, 5vw)', right: 'max(3rem, 8vw)' }
     : { left: 'max(4rem, 10vw)', right: 'max(6.75rem, 14vw)' };
-  const avatarSizeClass = isPortrait ? 'h-11 w-11' : 'h-12 w-12';
-  const nameWidthClass = isPortrait ? 'max-w-[7.75rem]' : 'max-w-[8.75rem]';
-  const hudGapClass = isPortrait ? 'gap-4' : 'gap-5';
+  const bottomHudMaxWidth = isPortrait ? 'min(30rem, 100%)' : 'min(32rem, 100%)';
+  const avatarSizeClass = isPortrait ? 'h-10 w-10' : 'h-12 w-12';
+  const nameWidthClass = isPortrait ? 'max-w-[6.75rem]' : 'max-w-[8.75rem]';
+  const hudGapClass = isPortrait ? 'gap-3.5' : 'gap-5';
   const renderFlagAvatar = useCallback(
     (flagEmoji, label, isActive) => (
       <span
@@ -20298,6 +20409,17 @@ const powerRef = useRef(hud.power);
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {replaySlateVisible && (
+        <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/65 backdrop-blur-sm">
+          <div className="flex items-center gap-3 rounded-full bg-white/95 px-5 py-3 text-sm font-bold uppercase tracking-[0.32em] text-black shadow-[0_16px_42px_rgba(0,0,0,0.55)]">
+            <span className="text-xl" aria-hidden="true">
+              ⏪
+            </span>
+            <span>Replay</span>
+          </div>
+        </div>
+      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
@@ -20823,11 +20945,11 @@ const powerRef = useRef(hud.power);
           }}
         >
           <div
-            className={`pointer-events-auto flex min-h-[3.25rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 px-6 py-2.5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
+          className={`pointer-events-auto flex min-h-[3.25rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 px-6 py-2.5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
           style={{
             transform: `scale(${bottomHudScale})`,
             transformOrigin: 'bottom center',
-            maxWidth: 'min(32rem, 100%)'
+            maxWidth: bottomHudMaxWidth
           }}
         >
             <div
