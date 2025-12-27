@@ -6351,25 +6351,40 @@ function Table3D(
     const hsl = { h: 0, s: 0, l: 0 };
     baseColor.getHSL(hsl);
     const baseSaturationBoost = isPolyHavenCloth ? 1.12 : 1.08;
+    const isPolyHavenBlue = isPolyHavenCloth && hsl.h >= 0.48 && hsl.h <= 0.64;
     let hue = hsl.h;
     let saturationBoost = baseSaturationBoost;
-    if (isPolyHavenCloth && hue >= 0.48 && hue <= 0.64) {
+    let lightnessLift = 0;
+    if (isPolyHavenBlue) {
       const blueBias = THREE.MathUtils.clamp((hue - 0.48) / 0.16, 0, 1);
-      hue = THREE.MathUtils.lerp(hue, 0.61, 0.4 + 0.18 * blueBias);
-      saturationBoost = baseSaturationBoost + 0.08 * (0.5 + 0.5 * blueBias);
+      hue = THREE.MathUtils.lerp(hue, 0.62, 0.4 + 0.2 * blueBias);
+      saturationBoost =
+        baseSaturationBoost +
+        0.08 * (0.5 + 0.5 * blueBias) +
+        0.06 * (0.25 + 0.75 * blueBias);
+      lightnessLift = 0.05 + 0.06 * blueBias;
     }
     const saturationFloor = isPolyHavenCloth ? 0.32 : 0.18;
-    const minLightness = isPolyHavenCloth ? 0.3 : 0;
-    const maxLightness = isPolyHavenCloth ? 0.68 : 0.86;
+    const minLightness = isPolyHavenCloth ? 0.32 : 0;
+    const maxLightness = isPolyHavenCloth ? 0.74 : 0.86;
     const result = baseColor.clone();
     const baseSaturation = THREE.MathUtils.clamp(
       hsl.s * saturationBoost,
       saturationFloor,
       1
     );
-    const clampedLightness = THREE.MathUtils.clamp(hsl.l, minLightness, maxLightness);
+    const boostedLightness = THREE.MathUtils.clamp(
+      hsl.l + lightnessLift,
+      0,
+      1
+    );
+    const clampedLightness = THREE.MathUtils.clamp(
+      boostedLightness,
+      minLightness,
+      maxLightness
+    );
     const balancedLightness = isPolyHavenCloth
-      ? THREE.MathUtils.lerp(clampedLightness, 0.5, 0.14)
+      ? THREE.MathUtils.lerp(clampedLightness, 0.5, 0.12)
       : THREE.MathUtils.lerp(clampedLightness, 0.5, 0.08);
     result.setHSL(
       hue,
@@ -6379,12 +6394,12 @@ function Table3D(
     return result;
   };
   const clothHighlightMix = THREE.MathUtils.clamp(
-    (0.28 + brightnessLift) - (isPolyHavenCloth ? 0.02 : 0),
+    (0.28 + brightnessLift) + (isPolyHavenCloth ? 0.02 : 0),
     0,
     1
   );
   const cushionHighlightMix = THREE.MathUtils.clamp(
-    (0.18 + brightnessLift) - (isPolyHavenCloth ? 0.02 : 0),
+    (0.18 + brightnessLift) + (isPolyHavenCloth ? 0.01 : 0),
     0,
     1
   );
@@ -6402,7 +6417,7 @@ function Table3D(
   );
   const clothRoughnessBase = CLOTH_ROUGHNESS_BASE + (isPolyHavenCloth ? 0.1 : 0.02);
   const clothRoughnessTarget = CLOTH_ROUGHNESS_TARGET + (isPolyHavenCloth ? 0.08 : 0.02);
-  const clothEmissiveIntensity = isPolyHavenCloth ? 0.16 : 0.32;
+  const clothEmissiveIntensity = isPolyHavenCloth ? 0.22 : 0.32;
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
     roughness: clothRoughnessBase,
