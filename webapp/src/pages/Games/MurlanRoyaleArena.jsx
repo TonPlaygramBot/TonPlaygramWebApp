@@ -266,11 +266,32 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
+const POLYHAVEN_CHAIR_IDS = [
+  'ArmChair_01',
+  'BarberShopChair_01',
+  'GreenChair_01',
+  'Rockingchair_01',
+  'SchoolChair_01',
+  'WoodenChair_01',
+  'bar_chair_round_01',
+  'chinese_armchair',
+  'dining_chair_02',
+  'gallinera_chair',
+  'mid_century_lounge_chair',
+  'modern_arm_chair_01',
+  'outdoor_table_chair_set_01',
+  'painted_wooden_chair_01',
+  'painted_wooden_chair_02',
+  'plastic_monobloc_chair_01',
+  'wheelchair_01'
+];
+const POLYHAVEN_POT_IDS = ['potted_plant_01', 'potted_plant_02', 'potted_plant_04', 'planter_pot_clay'];
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
 );
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
+const POT_TARGET_SIZE = new THREE.Vector3(1.45 * MODEL_SCALE, 2 * MODEL_SCALE, 1.45 * MODEL_SCALE);
 
 const DEFAULT_APPEARANCE = {
   outfit: 0,
@@ -334,6 +355,103 @@ function normalizeAppearance(value = {}) {
     }
   }
   return normalized;
+}
+
+function stripQueryHash(u) {
+  return u.split('#')[0].split('?')[0];
+}
+
+function basename(p) {
+  const s = p.replace(/\\/g, '/');
+  const parts = s.split('/');
+  return parts[parts.length - 1] || s;
+}
+
+function isModelUrl(u) {
+  const s = stripQueryHash(u).toLowerCase();
+  return s.endsWith('.glb') || s.endsWith('.gltf');
+}
+
+function extractAllHttpUrls(apiJson) {
+  const out = new Set();
+  const walk = (v) => {
+    if (!v) return;
+    if (typeof v === 'string') {
+      if (v.startsWith('http')) out.add(v);
+      return;
+    }
+    if (typeof v !== 'object') return;
+    if (Array.isArray(v)) {
+      v.forEach(walk);
+      return;
+    }
+    Object.values(v).forEach(walk);
+  };
+  walk(apiJson);
+  return Array.from(out);
+}
+
+function pickBestModelUrl(urls) {
+  const modelUrls = urls.filter(isModelUrl);
+  const glbs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.glb'));
+  const gltfs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.gltf'));
+
+  const score = (u) => {
+    const lu = u.toLowerCase();
+    let s = 0;
+    if (lu.includes('2k')) s += 3;
+    if (lu.includes('1k')) s += 2;
+    if (lu.includes('4k')) s += 1;
+    if (lu.includes('8k')) s -= 2;
+    if (lu.includes('download')) s += 1;
+    return s;
+  };
+
+  glbs.sort((a, b) => score(b) - score(a));
+  gltfs.sort((a, b) => score(b) - score(a));
+
+  return glbs[0] || gltfs[0] || null;
+}
+
+function ensureVisible(root) {
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    if (!o.material) {
+      o.material = new THREE.MeshStandardMaterial({
+        color: 0xd0d6e2,
+        roughness: 0.85,
+        metalness: 0
+      });
+    }
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach((m) => {
+      if (!m) return;
+      if (m.map) applySRGBColorSpace(m.map);
+      if (m.emissiveMap) applySRGBColorSpace(m.emissiveMap);
+      if (!m.map && m.color?.getHex?.() === 0x000000) {
+        m.color.set(0xd0d6e2);
+      }
+      m.needsUpdate = true;
+    });
+    o.castShadow = true;
+    o.receiveShadow = true;
+  });
+}
+
+function disposeObject3D(object, disposedMaterials = new Set()) {
+  if (!object) return;
+  object.traverse((child) => {
+    if (!child.isMesh) return;
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    mats.forEach((mat) => {
+      if (!mat || disposedMaterials.has(mat)) return;
+      disposedMaterials.add(mat);
+      if (mat.map) mat.map.dispose?.();
+      if (mat.emissiveMap) mat.emissiveMap.dispose?.();
+      mat.dispose?.();
+    });
+    child.geometry?.dispose?.();
+  });
 }
 
 function fitChairModelToFootprint(model) {
@@ -508,6 +626,82 @@ async function buildChairTemplate(theme) {
     console.error('Falling back to procedural chair', error);
   }
   return createProceduralChair(theme);
+}
+
+function scaleModelToTargetSize(model, targetSize, alignToFloor = true) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const targetMax = Math.max(targetSize.x, targetSize.y, targetSize.z);
+  const currentMax = Math.max(size.x, size.y, size.z);
+  if (currentMax > 0) {
+    model.scale.multiplyScalar(targetMax / currentMax);
+  }
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+  model.position.sub(scaledCenter);
+  if (alignToFloor) {
+    model.position.y -= scaledBox.min.y;
+  }
+}
+
+async function loadPolyHavenModel(assetId) {
+  try {
+    const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`).then((r) => r.json());
+    const allUrls = extractAllHttpUrls(filesJson);
+    const modelUrl = pickBestModelUrl(allUrls);
+    if (!modelUrl) {
+      throw new Error(`No model found for ${assetId}`);
+    }
+
+    const fileMap = new Map();
+    for (const url of allUrls) {
+      const base = basename(stripQueryHash(url));
+      if (!fileMap.has(base)) {
+        fileMap.set(base, url);
+      }
+    }
+
+    const base = stripQueryHash(modelUrl);
+    const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
+    const manager = new THREE.LoadingManager();
+    manager.setURLModifier((requestedUrl) => {
+      if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
+      const req = stripQueryHash(requestedUrl);
+      const mapped = fileMap.get(basename(req));
+      if (mapped) return mapped;
+      try {
+        return new URL(req, baseDir).toString();
+      } catch (err) {
+        return requestedUrl;
+      }
+    });
+
+    const loader = new GLTFLoader(manager);
+    const draco = new DRACOLoader(manager);
+    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    loader.setDRACOLoader(draco);
+    loader.setCrossOrigin?.('anonymous');
+
+    const gltf = await loader.loadAsync(modelUrl);
+    const root = gltf.scene || gltf.scenes?.[0] || new THREE.Group();
+    ensureVisible(root);
+    return root;
+  } catch (error) {
+    console.error(`Failed to load Poly Haven asset ${assetId}`, error);
+    return null;
+  }
+}
+
+async function loadPolyHavenAssets(ids, transform) {
+  const results = await Promise.all(
+    ids.map(async (id) => {
+      const root = await loadPolyHavenModel(id);
+      if (!root) return null;
+      if (typeof transform === 'function') transform(root);
+      return root;
+    })
+  );
+  return results.filter(Boolean);
 }
 
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE;
@@ -793,6 +987,10 @@ export default function MurlanRoyaleArena({ search }) {
     tableInfo: null,
     chairMaterials: null,
     chairTemplate: null,
+    decorChairTemplates: [],
+    decorChairs: [],
+    decorPotTemplates: [],
+    decorPots: [],
     outfitParts: [],
     cardThemeId: '',
     appearance: { ...DEFAULT_APPEARANCE }
@@ -1435,6 +1633,49 @@ export default function MurlanRoyaleArena({ search }) {
 
       const cameraBoundRadius = wallInnerRadius - CAMERA_WALL_PADDING;
 
+      const decorChairTemplates = await loadPolyHavenAssets(POLYHAVEN_CHAIR_IDS, (root) => {
+        fitChairModelToFootprint(root);
+      });
+      if (disposed) return;
+      const decorChairs = [];
+      if (decorChairTemplates.length > 0) {
+        const chairRingRadius = Math.max(CHAIR_RADIUS + 1.4 * MODEL_SCALE, cameraBoundRadius * 0.78);
+        const chairCount = decorChairTemplates.length;
+        decorChairTemplates.forEach((template, index) => {
+          const holder = new THREE.Group();
+          const instance = template.clone(true);
+          holder.add(instance);
+          const angle = (index / Math.max(1, chairCount)) * Math.PI * 2 + Math.PI / 2;
+          holder.position.set(Math.cos(angle) * chairRingRadius, CHAIR_BASE_HEIGHT, Math.sin(angle) * chairRingRadius);
+          holder.lookAt(new THREE.Vector3(0, CHAIR_BASE_HEIGHT, 0));
+          arenaGroup.add(holder);
+          decorChairs.push(holder);
+        });
+      }
+
+      const potTemplates = await loadPolyHavenAssets(POLYHAVEN_POT_IDS, (root) => {
+        scaleModelToTargetSize(root, POT_TARGET_SIZE);
+      });
+      if (disposed) return;
+      const decorPots = [];
+      const potRadius = Math.max(TABLE_RADIUS * ARENA_GROWTH * 1.8, cameraBoundRadius * 0.62);
+      const potAngles = [Math.PI / 4, (3 * Math.PI) / 4, (-3 * Math.PI) / 4, -Math.PI / 4];
+      potTemplates.slice(0, 4).forEach((template, index) => {
+        const holder = new THREE.Group();
+        const instance = template.clone(true);
+        holder.add(instance);
+        const angle = potAngles[index] ?? (index / Math.max(1, potTemplates.length)) * Math.PI * 2;
+        holder.position.set(Math.cos(angle) * potRadius, 0, Math.sin(angle) * potRadius);
+        holder.lookAt(new THREE.Vector3(0, 0, 0));
+        arenaGroup.add(holder);
+        decorPots.push(holder);
+      });
+
+      threeStateRef.current.decorChairTemplates = decorChairTemplates;
+      threeStateRef.current.decorChairs = decorChairs;
+      threeStateRef.current.decorPotTemplates = potTemplates;
+      threeStateRef.current.decorPots = decorPots;
+
       const scoreboardCanvas = document.createElement('canvas');
       scoreboardCanvas.width = 1024;
       scoreboardCanvas.height = 512;
@@ -1806,6 +2047,7 @@ export default function MurlanRoyaleArena({ search }) {
       }
       renderer?.dispose?.();
       cardGeometry?.dispose?.();
+      const disposedMaterials = new Set();
       store.cardMap.forEach(({ mesh }) => {
         const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         const mats = new Set(list.filter(Boolean));
@@ -1821,6 +2063,16 @@ export default function MurlanRoyaleArena({ search }) {
         arenaGroup?.remove(mesh);
       });
       store.faceTextureCache.forEach((tex) => tex.dispose());
+      store.decorChairs?.forEach((group) => {
+        group.parent?.remove(group);
+        disposeObject3D(group, disposedMaterials);
+      });
+      store.decorPots?.forEach((group) => {
+        group.parent?.remove(group);
+        disposeObject3D(group, disposedMaterials);
+      });
+      store.decorChairTemplates?.forEach((template) => disposeObject3D(template, disposedMaterials));
+      store.decorPotTemplates?.forEach((template) => disposeObject3D(template, disposedMaterials));
       if (store.scoreboard) {
         const { mesh, geometry, material, texture } = store.scoreboard;
         if (mesh?.parent) {
@@ -1878,6 +2130,10 @@ export default function MurlanRoyaleArena({ search }) {
         tableInfo: null,
         chairMaterials: null,
         chairTemplate: null,
+        decorChairTemplates: [],
+        decorChairs: [],
+        decorPotTemplates: [],
+        decorPots: [],
         outfitParts: [],
         cardThemeId: '',
         appearance: { ...DEFAULT_APPEARANCE }
