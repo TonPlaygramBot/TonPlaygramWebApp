@@ -2435,20 +2435,20 @@ const CLOTH_LIBRARY = Object.freeze([
     label: 'Denim Fabric 03 — Green Tint',
     sourceId: 'denim_fabric_03',
     palette: Object.freeze({
-      shadow: 0x1d6251,
-      base: 0x288871,
-      accent: 0x4a9b88,
-      highlight: 0x6dae9e
+      shadow: 0x1f6d5c,
+      base: 0x2f947b,
+      accent: 0x49aa90,
+      highlight: 0x63c0a5
     }),
-    color: 0x288871,
-    sparkle: 1.12,
-    stray: 1.08,
+    color: 0x2f947b,
+    sparkle: 1.06,
+    stray: 1.04,
     detail: makeClothDetail({
-      bumpMultiplier: 1.24,
-      sheen: 0.54,
-      sheenRoughness: 0.42,
-      emissiveIntensity: 0.26,
-      envMapIntensity: 0.22
+      bumpMultiplier: 1.18,
+      sheen: 0.46,
+      sheenRoughness: 0.56,
+      emissiveIntensity: 0.34,
+      envMapIntensity: 0.14
     })
   }),
   Object.freeze({
@@ -2456,20 +2456,20 @@ const CLOTH_LIBRARY = Object.freeze([
     label: 'Denim Fabric 03 — Blue Tint',
     sourceId: 'denim_fabric_03',
     palette: Object.freeze({
-      shadow: 0x204783,
-      base: 0x2d62b6,
-      accent: 0x4f7bc2,
-      highlight: 0x7094cd
+      shadow: 0x235da4,
+      base: 0x2f74c8,
+      accent: 0x4e8ad3,
+      highlight: 0x6fa1de
     }),
-    color: 0x2d62b6,
-    sparkle: 1.12,
-    stray: 1.08,
+    color: 0x2f74c8,
+    sparkle: 1.06,
+    stray: 1.04,
     detail: makeClothDetail({
-      bumpMultiplier: 1.24,
-      sheen: 0.54,
-      sheenRoughness: 0.42,
-      emissiveIntensity: 0.26,
-      envMapIntensity: 0.22
+      bumpMultiplier: 1.18,
+      sheen: 0.46,
+      sheenRoughness: 0.56,
+      emissiveIntensity: 0.34,
+      envMapIntensity: 0.14
     })
   }),
   Object.freeze({
@@ -15390,9 +15390,9 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.4; // widen the overhead footprint so fixtures read larger on mobile and reach farther to the sides
+        const lightSpreadBoost = 1.32; // keep the overhead footprint broad while letting fixtures sit nearer to one another
         const previousLightRigHeight = tableSurfaceY + TABLE.THICK * 7.1; // baseline height used for the prior brightness target
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.65; // bring the rig closer so ball reflections enlarge without shifting color
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.1; // lift the rig slightly so reflections stay soft while keeping it closer than the legacy height
         const brightnessCompensation =
           ((lightRigHeight ** 2) / (previousLightRigHeight ** 2)) * 1.02; // preserve on-cloth brightness after moving the rig closer while dimming slightly
         const lightOffsetX =
@@ -15400,8 +15400,8 @@ const powerRef = useRef(hud.power);
         const lightOffsetZ =
           Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
         const lightLineX = 0; // align fixtures down the center line instead of offsetting per side
-        const lightSpacing = Math.max(lightOffsetZ * 0.58, TABLE.THICK * 2.6); // enforce equal spacing between fixtures to mirror the centred heads
-        const lightPositionsZ = [-1.4, -0.4, 0.4, 1.4].map((mult) => mult * lightSpacing);
+        const lightSpacing = Math.max(lightOffsetZ * 0.52, TABLE.THICK * 2.4); // tighten spacing between fixtures while keeping even coverage
+        const lightPositionsZ = [-1.25, -0.35, 0.35, 1.25].map((mult) => mult * lightSpacing);
         const shadowHalfSpan =
           Math.max(roomWidth, roomDepth) * 0.82 + TABLE.THICK * 3.5;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
