@@ -14987,7 +14987,7 @@ const powerRef = useRef(hud.power);
         const lightLineX = 0; // align fixtures down the center line instead of offsetting per side
         const lightSpacing = Math.max(lightOffsetZ * 0.36, TABLE.THICK * 2); // pull fixtures closer together while keeping even coverage
         const lightPositionsZ = [-1.1, -0.34, 0.34, 1.1].map((mult) => mult * lightSpacing);
-        const lightBrightnessTrim = 0.86; // slightly lower the rig intensity for softer cloth highlights
+        const lightBrightnessTrim = 0.8; // lower the rig intensity a touch for gentler cloth highlights
         const shadowHalfSpan =
           Math.max(roomWidth, roomDepth) * 0.82 + TABLE.THICK * 3.5;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
