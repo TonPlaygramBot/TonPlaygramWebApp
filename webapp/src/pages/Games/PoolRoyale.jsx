@@ -1017,7 +1017,7 @@ const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up ca
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
-const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.05;
+const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 0.95;
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
@@ -1227,28 +1227,28 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_GAP = BALL_R * 1.35; // pull cue stick slightly farther back for a more natural stance
+const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_SMOOTHING = 0.35;
-const CUE_Y = BALL_CENTER_Y; // align cue height directly with the cue ball centre
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 4.6;
-const CUE_BUTT_LIFT = BALL_R * 0.78; // raise the butt a little more so the rear clears rails while the tip stays aligned
+const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 3.8;
+const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.1;
-const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.62;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(8.5);
+const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.45;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
-const MAX_SPIN_CONTACT_OFFSET = Math.max(BALL_R - CUE_TIP_RADIUS * 0.55, BALL_R * 0.86);
+const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_SIDE = BALL_R * 0.35;
 const MAX_SPIN_VERTICAL = MAX_SPIN_CONTACT_OFFSET;
 const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
-const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.2;
+const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
 const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.3;
@@ -9588,12 +9588,6 @@ function PoolRoyaleGame({
   const [configOpen, setConfigOpen] = useState(false);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
-  useEffect(() => {
-    if (replayActive) {
-      setConfigOpen(false);
-      setTrainingMenuOpen(false);
-    }
-  }, [replayActive]);
   const accountIdRef = useRef(accountId || '');
   const tgIdRef = useRef(tgId || '');
   const captureReplayCameraSnapshotRef = useRef(null);
@@ -9651,7 +9645,6 @@ function PoolRoyaleGame({
   );
   const [isTopDownView, setIsTopDownView] = useState(false);
   const [isLookMode, setIsLookMode] = useState(false);
-  const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
   const lookModeRef = useRef(false);
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -10227,7 +10220,6 @@ function PoolRoyaleGame({
   const replayBannerTimeoutRef = useRef(null);
   const [replaySlate, setReplaySlate] = useState(null);
   const replaySlateTimeoutRef = useRef(null);
-  const [replayActive, setReplayActive] = useState(false);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
@@ -10256,7 +10248,7 @@ const initialHudInHand = useMemo(
   [initialFrame]
 );
 const [hud, setHud] = useState({
-  power: 0,
+  power: 0.65,
   A: 0,
   B: 0,
   turn: 0,
@@ -10627,8 +10619,6 @@ const powerRef = useRef(hud.power);
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
-  const leftControlsRef = useRef(null);
-  const spinControlsRef = useRef(null);
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
   const updateSpinDotPosition = useCallback((value, blocked) => {
@@ -14659,7 +14649,6 @@ const powerRef = useRef(hud.power);
           pausedPocketDrops = pocketDropRef.current;
           pocketDropRef.current = new Map();
           replayPlaybackRef.current = replayPlayback;
-          setReplayActive(true);
           lastReplayFrameAt = 0;
           shotReplayRef.current = shotRecording;
           applyBallSnapshot(shotRecording.startState ?? []);
@@ -14715,7 +14704,6 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = null;
           replayCameraRef.current = null;
           replayFrameCameraRef.current = null;
-          setReplayActive(false);
         };
 
         const enterTopView = (immediate = false) => {
@@ -20085,7 +20073,7 @@ const powerRef = useRef(hud.power);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = !hud.over && !replayActive;
+  const showPowerSlider = !hud.over;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -20115,7 +20103,7 @@ const powerRef = useRef(hud.power);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
-  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
+  const showPlayerControls = isPlayerTurn && !hud.over;
 
   // Spin controller interactions
   useEffect(() => {
@@ -20418,56 +20406,15 @@ const powerRef = useRef(hud.power);
   const opponentSeatId = playerSeatId === 'A' ? 'B' : 'A';
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
-  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
+  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
   const bottomHudScale = isPortrait ? uiScale * 0.95 : uiScale * 1.02;
-  const leftControlFootprint = uiScale * (isPortrait ? 120 : 180);
+  const leftControlFootprint = uiScale * (isPortrait ? 150 : 180);
   const rightControlFootprint =
-    uiScale * (SPIN_CONTROL_DIAMETER_PX + (isPortrait ? 104 : 130));
-  const bottomHudInsets = isPortrait
-    ? hudInsets
-    : {
-        left: `${leftControlFootprint}px`,
-        right: `${rightControlFootprint}px`
-      };
-  const refreshHudInsets = useCallback(() => {
-    if (!isPortrait) {
-      setHudInsets({
-        left: `${leftControlFootprint}px`,
-        right: `${rightControlFootprint}px`
-      });
-      return;
-    }
-    const margin = 12;
-    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
-    const leftRect = leftControlsRef.current?.getBoundingClientRect?.();
-    const rightRect = spinControlsRef.current?.getBoundingClientRect?.();
-    const leftInsetPx = leftRect ? leftRect.right + margin : leftControlFootprint;
-    const rightInsetPx =
-      rightRect && viewportWidth
-        ? Math.max(viewportWidth - rightRect.left + margin, rightControlFootprint)
-        : rightControlFootprint;
-    setHudInsets({
-      left: `${leftInsetPx}px`,
-      right: `${rightInsetPx}px`
-    });
-  }, [isPortrait, leftControlFootprint, rightControlFootprint]);
-  useEffect(() => {
-    refreshHudInsets();
-    const raf = typeof window !== 'undefined'
-      ? window.requestAnimationFrame(() => refreshHudInsets())
-      : null;
-    return () => {
-      if (raf && typeof window !== 'undefined') {
-        window.cancelAnimationFrame(raf);
-      }
-    };
-  }, [refreshHudInsets, uiScale, showPlayerControls, showPowerSlider, replayActive]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const handleResize = () => refreshHudInsets();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [refreshHudInsets]);
+    uiScale * (SPIN_CONTROL_DIAMETER_PX + (isPortrait ? 110 : 130));
+  const bottomHudInsets = {
+    left: `${leftControlFootprint}px`,
+    right: `${rightControlFootprint}px`
+  };
   const avatarSizeClass = isPortrait ? 'h-8 w-8' : 'h-12 w-12';
   const nameWidthClass = isPortrait ? 'max-w-[6.5rem]' : 'max-w-[8.75rem]';
   const nameTextClass = isPortrait ? 'text-xs' : 'text-sm';
@@ -20619,124 +20566,169 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      {replayActive && (
-        <div className="pointer-events-none absolute inset-0 z-40">
-          <div className="absolute inset-3 rounded-[28px] border-2 border-emerald-200/40 bg-gradient-to-b from-white/5 via-transparent to-white/5 shadow-[0_0_40px_rgba(0,0,0,0.45)]" />
-          <div className="absolute top-6 left-1/2 z-40 -translate-x-1/2 flex items-center gap-3 rounded-full bg-black/75 px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-100 shadow-[0_14px_34px_rgba(0,0,0,0.55)] ring-1 ring-emerald-200/40">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-300 text-slate-900 shadow-inner">
-              🎥
-            </span>
-            <span className="drop-shadow-[0_1px_3px_rgba(0,0,0,0.55)]">Replay · TV</span>
-          </div>
-        </div>
-      )}
-
       {ENABLE_CUE_GALLERY && cueGalleryActive && (
         <div className="pointer-events-none absolute top-6 left-1/2 z-50 -translate-x-1/2 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
           Scroll and click to change the cue
         </div>
       )}
 
-      {!replayActive && (
-        <div className="absolute top-4 left-4 z-50 flex flex-col items-start gap-2">
-          <button
-            ref={configButtonRef}
-            type="button"
-            onClick={() => setConfigOpen((prev) => !prev)}
-            aria-expanded={configOpen}
-            aria-controls="snooker-config-panel"
-            className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-              configOpen ? 'bg-black/60' : 'hover:bg-black/60'
-            }`}
+      <div className="absolute top-4 left-4 z-50 flex flex-col items-start gap-2">
+        <button
+          ref={configButtonRef}
+          type="button"
+          onClick={() => setConfigOpen((prev) => !prev)}
+          aria-expanded={configOpen}
+          aria-controls="snooker-config-panel"
+          className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+            configOpen ? 'bg-black/60' : 'hover:bg-black/60'
+          }`}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            className="h-6 w-6"
+            aria-hidden="true"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="h-6 w-6"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24 -.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24 -.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
-              />
-            </svg>
-            <span className="sr-only">Toggle table setup</span>
-          </button>
-          {configOpen && (
-            <div
-              id="snooker-config-panel"
-              ref={configPanelRef}
-              className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">
-                  Table Setup
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setConfigOpen(false)}
-                  className="rounded-full p-1 text-white/70 transition-colors duration-150 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                  aria-label="Close setup"
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24 -.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24 -.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
+            />
+          </svg>
+          <span className="sr-only">Toggle table setup</span>
+        </button>
+        {configOpen && (
+          <div
+            id="snooker-config-panel"
+            ref={configPanelRef}
+            className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">
+                Table Setup
+              </span>
+              <button
+                type="button"
+                onClick={() => setConfigOpen(false)}
+                className="rounded-full p-1 text-white/70 transition-colors duration-150 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                aria-label="Close setup"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  className="h-4 w-4"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    className="h-4 w-4"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
-                  </svg>
-                </button>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
+                </svg>
+              </button>
+            </div>
+            <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Table Finish
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {availableTableFinishes.map((option) => {
+                    const active = option.id === tableFinishId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setTableFinishId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[9rem] rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Table Finish
-                  </h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {availableTableFinishes.map((option) => {
-                      const active = option.id === tableFinishId;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setTableFinishId(option.id)}
-                          aria-pressed={active}
-                          className={`flex-1 min-w-[9rem] rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                              : 'bg-white/10 text-white/80 hover:bg-white/20'
-                          }`}
-                        >
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Chrome Plates
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {availableChromeOptions.map((option) => {
+                    const active = option.id === chromeColorId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setChromeColorId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <span
+                            className="h-3.5 w-3.5 rounded-full border border-white/40"
+                            style={{ backgroundColor: toHexColor(option.color) }}
+                            aria-hidden="true"
+                          />
                           {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Cue Styles
+                </h3>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {availableCueStyles.map(({ preset, index }) => {
+                    const active = cueStyleIndex === index;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => selectCueStyleFromMenu(index)}
+                        aria-pressed={active}
+                        className={`rounded-xl px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {availableClothOptions.length > 0 ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Chrome Plates
+                    Cloth Color
                   </h3>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {availableChromeOptions.map((option) => {
-                      const active = option.id === chromeColorId;
+                    {availableClothOptions.map((option) => {
+                      const active = option.id === clothColorId;
                       return (
                         <button
                           key={option.id}
                           type="button"
-                          onClick={() => setChromeColorId(option.id)}
+                          onClick={() => setClothColorId(option.id)}
                           aria-pressed={active}
                           className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                             active
@@ -20757,135 +20749,24 @@ const powerRef = useRef(hud.power);
                     })}
                   </div>
                 </div>
+              ) : null}
+              {availablePocketLiners.length > 0 ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Cue Styles
-                  </h3>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    {availableCueStyles.map(({ preset, index }) => {
-                      const active = cueStyleIndex === index;
-                      return (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          onClick={() => selectCueStyleFromMenu(index)}
-                          aria-pressed={active}
-                          className={`rounded-xl px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
-                              : 'bg-white/10 text-white/80 hover:bg-white/20'
-                          }`}
-                        >
-                          {preset.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                {availableClothOptions.length > 0 ? (
-                  <div>
-                    <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                      Cloth Color
-                    </h3>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {availableClothOptions.map((option) => {
-                        const active = option.id === clothColorId;
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => setClothColorId(option.id)}
-                            aria-pressed={active}
-                            className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                              active
-                                ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                                : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                            }`}
-                          >
-                            <span className="flex items-center justify-center gap-2">
-                              <span
-                                className="h-3.5 w-3.5 rounded-full border border-white/40"
-                                style={{ backgroundColor: toHexColor(option.color) }}
-                                aria-hidden="true"
-                              />
-                              {option.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-                {availablePocketLiners.length > 0 ? (
-                  <div>
-                    <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                      Pocket Jaws
-                    </h3>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {availablePocketLiners.map((option) => {
-                        const active = option.id === pocketLinerId;
-                        const swatchColor =
-                          option.jawColor ?? option.rimColor ?? option.sheenColor ?? option.color;
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => setPocketLinerId(option.id)}
-                            aria-pressed={active}
-                            className={`flex-1 min-w-[9rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                              active
-                                ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                                : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                            }`}
-                          >
-                            <span className="flex items-center justify-center gap-2">
-                              <span
-                                className="h-3.5 w-3.5 rounded-full border border-white/40"
-                                style={{ backgroundColor: toHexColor(swatchColor) }}
-                                aria-hidden="true"
-                              />
-                              {option.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Rail Markers
+                    Pocket Jaws
                   </h3>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {RAIL_MARKER_SHAPE_OPTIONS.map((option) => {
-                      const active = option.id === railMarkerShapeId;
+                    {availablePocketLiners.map((option) => {
+                      const active = option.id === pocketLinerId;
+                      const swatchColor =
+                        option.jawColor ?? option.rimColor ?? option.sheenColor ?? option.color;
                       return (
                         <button
                           key={option.id}
                           type="button"
-                          onClick={() => setRailMarkerShapeId(option.id)}
+                          onClick={() => setPocketLinerId(option.id)}
                           aria-pressed={active}
-                          className={`flex-1 min-w-[7rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {availableRailMarkerColors.map((option) => {
-                      const active = option.id === railMarkerColorId;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setRailMarkerColorId(option.id)}
-                          aria-pressed={active}
-                          className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          className={`flex-1 min-w-[9rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                             active
                               ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                               : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
@@ -20894,7 +20775,7 @@ const powerRef = useRef(hud.power);
                           <span className="flex items-center justify-center gap-2">
                             <span
                               className="h-3.5 w-3.5 rounded-full border border-white/40"
-                              style={{ backgroundColor: toHexColor(option.color) }}
+                              style={{ backgroundColor: toHexColor(swatchColor) }}
                               aria-hidden="true"
                             />
                             {option.label}
@@ -20904,92 +20785,144 @@ const powerRef = useRef(hud.power);
                     })}
                   </div>
                 </div>
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Graphics
-                  </h3>
-                  <p className="mt-1 text-[0.7rem] text-white/70">
-                    Match the Murlan Royale quality presets for identical FPS and clarity choices.
-                  </p>
-                  <div className="mt-2 grid gap-2">
-                    {FRAME_RATE_OPTIONS.map((option) => {
-                      const active = option.id === frameRateId;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setFrameRateId(option.id)}
-                          aria-pressed={active}
-                          className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                          }`}
-                        >
-                          <span className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                              {option.label}
-                            </span>
-                            <span className="text-xs font-semibold tracking-wide">
-                              {option.resolution
-                                ? `${option.resolution} • ${option.fps} FPS`
-                                : `${option.fps} FPS`}
-                            </span>
-                          </span>
-                          {option.description ? (
-                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                              {option.description}
-                            </span>
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
+              ) : null}
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Rail Markers
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {RAIL_MARKER_SHAPE_OPTIONS.map((option) => {
+                    const active = option.id === railMarkerShapeId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setRailMarkerShapeId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[7rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
                 </div>
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Broadcast Modes
-                  </h3>
-                  <div className="mt-2 grid gap-2">
-                    {BROADCAST_SYSTEM_OPTIONS.map((option) => {
-                      const active = option.id === broadcastSystemId;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setBroadcastSystemId(option.id)}
-                          aria-pressed={active}
-                          className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                          }`}
-                        >
-                          <span className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                              {option.label}
-                            </span>
-                            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-100/80">
-                              {option.method}
-                            </span>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {availableRailMarkerColors.map((option) => {
+                    const active = option.id === railMarkerColorId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setRailMarkerColorId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <span
+                            className="h-3.5 w-3.5 rounded-full border border-white/40"
+                            style={{ backgroundColor: toHexColor(option.color) }}
+                            aria-hidden="true"
+                          />
+                          {option.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Graphics
+                </h3>
+                <p className="mt-1 text-[0.7rem] text-white/70">
+                  Match the Murlan Royale quality presets for identical FPS and clarity choices.
+                </p>
+                <div className="mt-2 grid gap-2">
+                  {FRAME_RATE_OPTIONS.map((option) => {
+                    const active = option.id === frameRateId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setFrameRateId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                            {option.label}
                           </span>
-                          {option.description ? (
-                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                              {option.description}
-                            </span>
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
+                          <span className="text-xs font-semibold tracking-wide">
+                            {option.resolution
+                              ? `${option.resolution} • ${option.fps} FPS`
+                              : `${option.fps} FPS`}
+                          </span>
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Broadcast Modes
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {BROADCAST_SYSTEM_OPTIONS.map((option) => {
+                    const active = option.id === broadcastSystemId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setBroadcastSystemId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                            {option.label}
+                          </span>
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-100/80">
+                            {option.method}
+                          </span>
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
-      {isTraining && !replayActive && (
+      {isTraining && (
         <div className="absolute right-3 top-3 z-50 flex flex-col items-end gap-2">
           <div className="pointer-events-auto w-64 rounded-2xl border border-emerald-400/50 bg-black/80 p-4 text-sm text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
             <div className="flex items-start justify-between gap-2">
@@ -21028,7 +20961,7 @@ const powerRef = useRef(hud.power);
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
             </svg>
           </button>
-          {trainingMenuOpen && (
+            {trainingMenuOpen && (
             <div className="pointer-events-auto w-64 rounded-2xl border border-emerald-400/50 bg-black/85 p-4 text-sm text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[11px] uppercase tracking-[0.3em] text-emerald-200">Training menu</span>
@@ -21097,40 +21030,37 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      {!replayActive && (
-        <div
-          ref={leftControlsRef}
-          className="pointer-events-none absolute bottom-4 left-4 z-50 flex flex-col gap-2"
-          style={{ transform: `scale(${uiScale})`, transformOrigin: 'bottom left' }}
+      <div
+        className="pointer-events-none absolute bottom-4 left-4 z-50 flex flex-col gap-2"
+        style={{ transform: `scale(${uiScale})`, transformOrigin: 'bottom left' }}
+      >
+        <button
+          type="button"
+          aria-pressed={isLookMode}
+          onClick={() => setIsLookMode((prev) => !prev)}
+          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+            isLookMode
+              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+          }`}
         >
-          <button
-            type="button"
-            aria-pressed={isLookMode}
-            onClick={() => setIsLookMode((prev) => !prev)}
-            className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-              isLookMode
-                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-            }`}
-          >
-            <span className="text-base">👁️</span>
-            <span>Look</span>
-          </button>
-          <button
-            type="button"
-            aria-pressed={isTopDownView}
-            onClick={() => setIsTopDownView((prev) => !prev)}
-            className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-              isTopDownView
-                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-            }`}
-          >
-            <span className="text-base">🧭</span>
-            <span>{isTopDownView ? '3D' : '2D'}</span>
-          </button>
-        </div>
-      )}
+          <span className="text-base">👁️</span>
+          <span>Look</span>
+        </button>
+        <button
+          type="button"
+          aria-pressed={isTopDownView}
+          onClick={() => setIsTopDownView((prev) => !prev)}
+          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+            isTopDownView
+              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+          }`}
+        >
+          <span className="text-base">🧭</span>
+          <span>{isTopDownView ? '3D' : '2D'}</span>
+        </button>
+      </div>
 
       {bottomHudVisible && (
         <div
@@ -21243,7 +21173,7 @@ const powerRef = useRef(hud.power);
           Init error: {String(err)}
         </div>
       )}
-      {hud?.inHand && !replayActive && (
+      {hud?.inHand && (
         <div className="pointer-events-none absolute left-1/2 top-4 z-40 flex -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
           <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg ring-1 ring-white/60">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">BIH</span>
@@ -21276,7 +21206,6 @@ const powerRef = useRef(hud.power);
       {/* Spin controller */}
       {showPlayerControls && (
         <div
-          ref={spinControlsRef}
           className="absolute bottom-4 right-4"
           style={{
             transform: `scale(${uiScale})`,
