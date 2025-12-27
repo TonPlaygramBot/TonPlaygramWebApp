@@ -53,27 +53,8 @@ const MATERIAL_SERIES = [
       emissiveIntensity: 0.24,
       envMapIntensity: 0.18
     },
-    greens: ['#4f7a3c', '#466f33', '#5d8e47', '#6c9c50', '#3e6430'],
+    greens: ['#3f7f3a', '#357333', '#4a9446', '#58a250', '#2f6030'],
     blues: ['#566e8c', '#667e9c', '#4b5d78', '#5f7896', '#7688ad']
-  },
-  {
-    prefix: 'curlyTeddyNatural',
-    label: 'Curly Teddy Natural',
-    sourceId: 'curly_teddy_natural',
-    basePrice: 700,
-    priceStep: 10,
-    bluePremium: 20,
-    sparkle: 1.16,
-    stray: 1.14,
-    detail: {
-      bumpMultiplier: 1.16,
-      sheen: 0.72,
-      sheenRoughness: 0.44,
-      emissiveIntensity: 0.36,
-      envMapIntensity: 0.22
-    },
-    greens: ['#5fae77', '#54a36c', '#6bb885', '#78c291', '#489662'],
-    blues: ['#6b99c4', '#5f8cba', '#79a6d1', '#88b4db', '#4c7ca3']
   },
   {
     prefix: 'polarFleece',
@@ -93,6 +74,25 @@ const MATERIAL_SERIES = [
     },
     greens: ['#69b980', '#5ead73', '#74c690', '#7fce99', '#4f9d62'],
     blues: ['#6d9ad0', '#608fc5', '#7aacdd', '#86b7e6', '#4e7ead']
+  },
+  {
+    prefix: 'polarFleecePlush',
+    label: 'Polar Fleece Plush',
+    sourceId: 'polar_fleece',
+    basePrice: 700,
+    priceStep: 10,
+    bluePremium: 20,
+    sparkle: 1.14,
+    stray: 1.12,
+    detail: {
+      bumpMultiplier: 1.14,
+      sheen: 0.72,
+      sheenRoughness: 0.5,
+      emissiveIntensity: 0.36,
+      envMapIntensity: 0.16
+    },
+    greens: ['#5fae77', '#54a36c', '#6bb885', '#78c291', '#489662'],
+    blues: ['#6b99c4', '#5f8cba', '#79a6d1', '#88b4db', '#4c7ca3']
   },
   {
     prefix: 'cottonJersey',

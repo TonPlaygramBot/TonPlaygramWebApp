@@ -44,7 +44,6 @@ const POLY_HAVEN_CLOTHS = [
   { id: 'jogging_melange', label: 'Jogging Mélange Cloth', base: 0x7a7a7f },
   { id: 'knitted_fleece', label: 'Knitted Fleece Cloth', base: 0x6e5a4a },
   { id: 'caban', label: 'Caban Wool Cloth', base: 0x3f7242 },
-  { id: 'curly_teddy_natural', label: 'Curly Teddy Natural Cloth', base: 0x6bb885 },
   { id: 'curly_teddy_checkered', label: 'Curly Teddy Checkered Cloth', base: 0x2f6a70 },
   { id: 'denim_fabric_04', label: 'Denim Fabric 04 Cloth', base: 0x4a78a8 },
   { id: 'denim_fabric_05', label: 'Denim Fabric 05 Cloth', base: 0x2c2f35 },
