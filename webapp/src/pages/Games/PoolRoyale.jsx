@@ -1020,6 +1020,8 @@ const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 0.85;
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.6;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
+const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
+const MAX_POWER_CAMERA_HOLD_MS = 380;
 const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 1.015; // widen capture slightly so clean entries are honoured
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
@@ -1230,6 +1232,7 @@ const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_SMOOTHING = 0.35;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
+const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 2.1;
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
@@ -5064,6 +5067,7 @@ const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
   SHOT_BASE_SPEED * 0.82; // skip long-shot cam switch if cue ball launches faster
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const GOOD_SHOT_REPLAY_DELAY_MS = 900;
+const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
@@ -10213,12 +10217,18 @@ function PoolRoyaleGame({
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
+  const [replaySlate, setReplaySlate] = useState(null);
+  const replaySlateTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
       if (replayBannerTimeoutRef.current) {
         clearTimeout(replayBannerTimeoutRef.current);
         replayBannerTimeoutRef.current = null;
+      }
+      if (replaySlateTimeoutRef.current) {
+        clearTimeout(replaySlateTimeoutRef.current);
+        replaySlateTimeoutRef.current = null;
       }
     },
     []
@@ -10652,6 +10662,8 @@ const powerRef = useRef(hud.power);
   const muteRef = useRef(isGameMuted());
   const volumeRef = useRef(getGameVolume());
   const railSoundTimeRef = useRef(new Map());
+  const liftLandingTimeRef = useRef(new Map());
+  const powerImpactHoldRef = useRef(0);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
   const playerInfoRef = useRef(player);
   useEffect(() => {
@@ -16471,6 +16483,10 @@ const powerRef = useRef(hud.power);
           lastPocketBallRef.current = null;
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           lastShotPower = clampedPower;
+          const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
+          powerImpactHoldRef.current = isMaxPowerShot
+            ? performance.now() + MAX_POWER_CAMERA_HOLD_MS
+            : 0;
           const spinMagnitude = Math.hypot(
             spinRef.current?.x ?? 0,
             spinRef.current?.y ?? 0
@@ -16563,7 +16579,7 @@ const powerRef = useRef(hud.power);
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
           let pocketViewActivated = false;
-          if (earlyPocketView) {
+          if (earlyPocketView && !isMaxPowerShot) {
             const now = performance.now();
             earlyPocketView.lastUpdate = now;
             if (cameraRef.current) {
@@ -16585,12 +16601,23 @@ const powerRef = useRef(hud.power);
             pocketViewActivated = true;
           }
           if (!pocketViewActivated && actionView) {
-            const shouldActivateActionView = !isLongShot || forceActionActivation;
+            const shouldActivateActionView =
+              (!isLongShot || forceActionActivation) && !isMaxPowerShot;
             if (shouldActivateActionView) {
               suspendedActionView = null;
               activeShotView = actionView;
               updateCamera();
             } else {
+              actionView.pendingActivation = true;
+              const holdUntil = powerImpactHoldRef.current || null;
+              const baseDelay = actionView.activationDelay ?? null;
+              const delayed = Math.max(baseDelay ?? 0, holdUntil ?? 0);
+              actionView.activationDelay = delayed;
+              const baseTravel = actionView.activationTravel ?? 0;
+              actionView.activationTravel = Math.max(
+                baseTravel,
+                isMaxPowerShot ? BALL_R * 6 : 0
+              );
               suspendedActionView = actionView;
             }
           }
@@ -16619,6 +16646,21 @@ const powerRef = useRef(hud.power);
           resetSpinRef.current?.();
           cue.impacted = false;
           cue.launchDir = aimDir.clone().normalize();
+          if (isMaxPowerShot) {
+            const liftAmount = Math.min(
+              MAX_POWER_LIFT_HEIGHT,
+              Math.max(CUE_TIP_RADIUS, MAX_POWER_BOUNCE_IMPULSE * 0.25)
+            );
+            const liftVelocity = Math.min(
+              MAX_POWER_BOUNCE_IMPULSE * clampedPower,
+              MAX_POWER_BOUNCE_IMPULSE * 0.55
+            );
+            cue.lift = Math.max(cue.lift ?? 0, liftAmount);
+            cue.liftVel = Math.max(cue.liftVel ?? 0, liftVelocity);
+          } else {
+            cue.lift = 0;
+            cue.liftVel = 0;
+          }
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -16657,47 +16699,40 @@ const powerRef = useRef(hud.power);
           });
           cueAnimating = true;
           const startPos = cueStick.position.clone();
-          const endPos = startPos.clone().add(dir.clone().multiplyScalar(pull));
-          let animFrame = 0;
-          const animSteps = 5;
-          const animateCue = () => {
-            animFrame++;
+          const impactPos = startPos.clone().add(dir.clone().multiplyScalar(pull));
+          const retreatDistance = Math.max(BALL_R * 0.6, Math.min(pull, BALL_R * 4));
+          const settlePos = impactPos
+            .clone()
+            .sub(dir.clone().multiplyScalar(retreatDistance));
+          cueStick.visible = true;
+          cueStick.position.copy(impactPos);
+          cuePullCurrentRef.current = 0;
+          cuePullTargetRef.current = 0;
+          let backFrame = 0;
+          const animSteps = 6;
+          const animateBack = () => {
+            backFrame++;
             cueStick.position.lerpVectors(
-              startPos,
-              endPos,
-              animFrame / animSteps
+              impactPos,
+              settlePos,
+              backFrame / animSteps
             );
-            if (animFrame < animSteps) {
-              requestAnimationFrame(animateCue);
-            } else {
-              let backFrame = 0;
-              const animateBack = () => {
-                backFrame++;
-                cueStick.position.lerpVectors(
-                  endPos,
-                  startPos,
-                  backFrame / animSteps
-                );
-                if (backFrame < animSteps) requestAnimationFrame(animateBack);
-                else {
-                  cuePullCurrentRef.current = 0;
-                  cuePullTargetRef.current = 0;
-                  cueStick.visible = false;
-                  cueAnimating = false;
-                  if (cameraRef.current && sphRef.current) {
-                    topViewRef.current = false;
-                    topViewLockedRef.current = false;
-                    setIsTopDownView(false);
-                    const sph = sphRef.current;
-                    sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-                    updateCamera();
-                  }
-                }
-              };
+            if (backFrame < animSteps) {
               requestAnimationFrame(animateBack);
+            } else {
+              cueStick.visible = false;
+              cueAnimating = false;
+              if (cameraRef.current && sphRef.current) {
+                topViewRef.current = false;
+                topViewLockedRef.current = false;
+                setIsTopDownView(false);
+                const sph = sphRef.current;
+                sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+                updateCamera();
+              }
             }
           };
-          animateCue();
+          animateBack();
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -17979,6 +18014,17 @@ const powerRef = useRef(hud.power);
           return pool[Math.max(0, Math.min(index, pool.length - 1))] ?? 'Good shot!';
         };
 
+        const triggerReplaySlate = (label = 'Instant Replay') => {
+          setReplaySlate({ label });
+          if (replaySlateTimeoutRef.current) {
+            clearTimeout(replaySlateTimeoutRef.current);
+          }
+          replaySlateTimeoutRef.current = window.setTimeout(() => {
+            setReplaySlate(null);
+            replaySlateTimeoutRef.current = null;
+          }, REPLAY_SLATE_DURATION_MS);
+        };
+
         const resolveReplayDecision = ({
           recording,
           hadObjectPot,
@@ -18298,6 +18344,7 @@ const powerRef = useRef(hud.power);
             });
           }
           setShootingState(false);
+          powerImpactHoldRef.current = 0;
           shotPrediction = null;
           activeShotView = null;
           suspendedActionView = null;
@@ -18309,6 +18356,7 @@ const powerRef = useRef(hud.power);
             const launchReplay = () => {
               replayBannerTimeoutRef.current = null;
               setReplayBanner(null);
+              triggerReplaySlate(replayBannerText);
               shotRecording = recordingForReplay;
               if (recordingForReplay) {
                 startShotReplay(postShotSnapshot);
@@ -19126,6 +19174,21 @@ const powerRef = useRef(hud.power);
               const dampedVel = (b.liftVel ?? 0) * Math.pow(MAX_POWER_BOUNCE_DAMPING, stepScale);
               const nextLift = Math.max(0, (b.lift ?? 0) + dampedVel * stepScale);
               const nextVel = dampedVel - MAX_POWER_BOUNCE_GRAVITY * stepScale;
+              const landingNow =
+                isCue && (b.lift ?? 0) > 1e-6 && nextLift <= 1e-4 && dampedVel < 0;
+              if (landingNow) {
+                const lastLanding = liftLandingTimeRef.current.get(b.id) ?? 0;
+                const nowLanding = performance.now();
+                if (nowLanding - lastLanding > MAX_POWER_LANDING_SOUND_COOLDOWN_MS) {
+                  const landingVol = clamp(
+                    Math.abs(dampedVel) / MAX_POWER_BOUNCE_IMPULSE,
+                    0,
+                    1
+                  );
+                  playBallHit(Math.max(0.35, landingVol * 0.85));
+                  liftLandingTimeRef.current.set(b.id, nowLanding);
+                }
+              }
               b.lift = nextLift;
               b.liftVel = Math.abs(nextLift) > 1e-6 ? nextVel : 0;
               if (nextLift <= 1e-4 && Math.abs(nextVel) <= 1e-4) {
@@ -19323,11 +19386,14 @@ const powerRef = useRef(hud.power);
                   const bounceStrength = THREE.MathUtils.clamp(lastShotPower, 0, 1);
                   cueBall.lift = Math.max(
                     cueBall.lift ?? 0,
-                    MAX_POWER_BOUNCE_IMPULSE * 0.35
+                    Math.min(MAX_POWER_LIFT_HEIGHT, MAX_POWER_BOUNCE_IMPULSE * 0.35)
                   );
                   cueBall.liftVel = Math.max(
                     cueBall.liftVel ?? 0,
-                    MAX_POWER_BOUNCE_IMPULSE * bounceStrength
+                    Math.min(
+                      MAX_POWER_BOUNCE_IMPULSE * bounceStrength,
+                      MAX_POWER_BOUNCE_IMPULSE * 0.55
+                    )
                   );
                 }
                 if (
@@ -19361,7 +19427,9 @@ const powerRef = useRef(hud.power);
             const delayReady =
               !suspendedActionView.activationDelay ||
               now >= suspendedActionView.activationDelay;
-            if (travelReady && delayReady) {
+            const holdReady =
+              !powerImpactHoldRef.current || now >= powerImpactHoldRef.current;
+            if (travelReady && delayReady && holdReady) {
               const pending = suspendedActionView;
               pending.pendingActivation = false;
               pending.activationDelay = null;
@@ -19437,9 +19505,13 @@ const powerRef = useRef(hud.power);
         const suppressPocketCameras =
           (broadcastSystemRef.current ?? activeBroadcastSystem ?? null)
             ?.avoidPocketCameras;
+        const pocketHoldActive =
+          powerImpactHoldRef.current &&
+          performance.now() < powerImpactHoldRef.current;
         if (
           !suppressPocketCameras &&
           shooting &&
+          !pocketHoldActive &&
           !topViewRef.current &&
           (activeShotView?.mode !== 'pocket' || !activeShotView)
         ) {
@@ -20272,13 +20344,14 @@ const powerRef = useRef(hud.power);
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
-  const bottomHudScale = isPortrait ? uiScale * 0.94 : uiScale;
+  const bottomHudScale = isPortrait ? uiScale * 0.85 : uiScale;
   const bottomHudInsets = isPortrait
-    ? { left: 'max(2.5rem, 6vw)', right: 'max(3.75rem, 9vw)' }
+    ? { left: 'max(5rem, 16vw)', right: 'max(5rem, 16vw)' }
     : { left: 'max(4rem, 10vw)', right: 'max(6.75rem, 14vw)' };
-  const avatarSizeClass = isPortrait ? 'h-11 w-11' : 'h-12 w-12';
-  const nameWidthClass = isPortrait ? 'max-w-[7.75rem]' : 'max-w-[8.75rem]';
-  const hudGapClass = isPortrait ? 'gap-4' : 'gap-5';
+  const avatarSizeClass = isPortrait ? 'h-8 w-8' : 'h-12 w-12';
+  const nameWidthClass = isPortrait ? 'max-w-[6.5rem]' : 'max-w-[8.75rem]';
+  const nameTextClass = isPortrait ? 'text-xs' : 'text-sm';
+  const hudGapClass = isPortrait ? 'gap-3' : 'gap-5';
   const renderFlagAvatar = useCallback(
     (flagEmoji, label, isActive) => (
       <span
@@ -20299,13 +20372,72 @@ const powerRef = useRef(hud.power);
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
+      {replaySlate && (
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
+          <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/80 px-5 py-3 shadow-[0_18px_42px_rgba(0,0,0,0.55)] backdrop-blur">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-300 text-black shadow-[0_10px_28px_rgba(0,0,0,0.35)]">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="h-6 w-6"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 5V2.5a.5.5 0 0 0-.85-.35L6.7 6.59a.5.5 0 0 0 0 .71l4.45 4.45a.5.5 0 0 0 .85-.35V9.5a6.5 6.5 0 0 1 6.35 5.17"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M18.5 15.6A6.5 6.5 0 1 1 12 5"
+                />
+              </svg>
+            </span>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-amber-200">
+                Instant Replay
+              </span>
+              <span className="text-sm font-semibold text-white">{replaySlate.label}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
           <div
-            className="rounded-full bg-emerald-400/90 px-6 py-2 text-sm font-bold uppercase tracking-[0.32em] text-black shadow-[0_12px_32px_rgba(0,0,0,0.45)]"
+            className="flex items-center gap-3 rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300 px-6 py-2 text-sm font-bold uppercase tracking-[0.32em] text-slate-900 shadow-[0_12px_32px_rgba(0,0,0,0.45)] ring-2 ring-white/30"
             aria-live="polite"
           >
-            {replayBanner}
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/10 text-slate-900 shadow-inner">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="h-4 w-4"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M11 5V3a1 1 0 0 0-1.7-.7L4.6 7a1 1 0 0 0 0 1.4l4.7 4.7A1 1 0 0 0 11 12v-2a7 7 0 0 1 7 7"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M18 17a7 7 0 1 1-7-7"
+                />
+              </svg>
+            </span>
+            <span className="drop-shadow-[0_1px_2px_rgba(255,255,255,0.35)]">
+              {replayBanner}
+            </span>
           </div>
         </div>
       )}
@@ -20823,15 +20955,15 @@ const powerRef = useRef(hud.power);
           }}
         >
           <div
-            className={`pointer-events-auto flex min-h-[3.25rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 px-6 py-2.5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
-          style={{
-            transform: `scale(${bottomHudScale})`,
-            transformOrigin: 'bottom center',
-            maxWidth: 'min(32rem, 100%)'
-          }}
-        >
+            className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'px-5 py-2' : 'px-6 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
+            style={{
+              transform: `scale(${bottomHudScale})`,
+              transformOrigin: 'bottom center',
+              maxWidth: isPortrait ? 'min(22rem, 100%)' : 'min(32rem, 100%)'
+            }}
+          >
             <div
-              className={`flex min-w-0 items-center gap-4 rounded-full transition-all ${
+              className={`flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
                 isPlayerTurn
                   ? 'bg-emerald-400/20 pl-4 pr-3 text-white ring-2 ring-emerald-300/70'
                   : 'pl-3.5 pr-3 text-white/80'
@@ -20850,7 +20982,7 @@ const powerRef = useRef(hud.power);
                     isPlayerTurn
                       ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                       : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                    }`}
+                  }`}
                 />
               ) : (
                 <img
@@ -20864,19 +20996,21 @@ const powerRef = useRef(hud.power);
                 />
               )}
               <div className="flex min-w-0 flex-col">
-                <span className={`${nameWidthClass} truncate text-sm font-semibold tracking-wide`}>
+                <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
                   {player.name}
                 </span>
                 <div className="mt-1">{renderPottedRow(playerPotted)}</div>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-base font-semibold">
+            <div
+              className={`flex items-center gap-2 ${isPortrait ? 'text-sm' : 'text-base'} font-semibold`}
+            >
               <span className="text-amber-300">{hud.A}</span>
               <span className="text-white/50">-</span>
               <span>{hud.B}</span>
             </div>
             <div
-              className={`flex min-w-0 items-center gap-4 rounded-full text-sm transition-all ${
+              className={`flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full ${isPortrait ? 'text-xs' : 'text-sm'} transition-all ${
                 isOpponentTurn
                   ? 'bg-emerald-400/20 pl-3 pr-4 text-white ring-2 ring-emerald-300/70'
                   : 'pl-3 pr-3.5 text-white/80'
@@ -20899,7 +21033,7 @@ const powerRef = useRef(hud.power);
                     }`}
                   />
                   <div className="flex min-w-0 flex-col">
-                    <span className={`${nameWidthClass} truncate text-sm font-semibold tracking-wide`}>
+                    <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
                       {opponentDisplayName}
                     </span>
                     <div className="mt-1">{renderPottedRow(opponentPotted)}</div>
