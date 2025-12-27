@@ -3375,6 +3375,90 @@ const createClothTextures = (() => {
     };
   };
 
+  const getPaletteForPreset = (preset) =>
+    preset?.palette || CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY].palette;
+
+  const isBluePalette = (palette) => {
+    if (!palette?.base) return false;
+    const hsl = { h: 0, s: 0, l: 0 };
+    const base = new THREE.Color(palette.base);
+    base.getHSL(hsl);
+    return hsl.h >= 0.52 && hsl.h <= 0.72;
+  };
+
+  const colorMatchPolyHavenTexture = (texture, preset) => {
+    if (!texture || typeof document === 'undefined') return texture;
+    const palette = getPaletteForPreset(preset);
+    if (!palette || !isBluePalette(palette)) return texture;
+    const { image } = texture;
+    const width = image?.naturalWidth || image?.videoWidth || image?.width || 0;
+    const height = image?.naturalHeight || image?.videoHeight || image?.height || 0;
+    if (!width || !height) return texture;
+
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return texture;
+      ctx.drawImage(image, 0, 0, width, height);
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const data = imageData.data;
+      const pixelCount = Math.max(1, width * height);
+      let sumR = 0;
+      let sumG = 0;
+      let sumB = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        sumR += data[i];
+        sumG += data[i + 1];
+        sumB += data[i + 2];
+      }
+      const avg = {
+        r: (sumR / pixelCount) / 255,
+        g: (sumG / pixelCount) / 255,
+        b: (sumB / pixelCount) / 255
+      };
+      const baseColor = new THREE.Color(palette.base);
+      const highlightColor = new THREE.Color(palette.highlight ?? palette.base);
+      const clampMul = (value) => THREE.MathUtils.clamp(value, 0.35, 2.85);
+      const multipliers = {
+        r: clampMul(baseColor.r / Math.max(0.001, avg.r)),
+        g: clampMul(baseColor.g / Math.max(0.001, avg.g)),
+        b: clampMul(baseColor.b / Math.max(0.001, avg.b))
+      };
+      const blend = 0.22;
+      const highlightBlend = 0.08;
+      const baseBlend = Math.max(0, 1 - blend - highlightBlend);
+      for (let i = 0; i < data.length; i += 4) {
+        const tintedR = data[i] * multipliers.r;
+        const tintedG = data[i + 1] * multipliers.g;
+        const tintedB = data[i + 2] * multipliers.b;
+        data[i] = clamp255(
+          tintedR * baseBlend +
+            baseColor.r * 255 * blend +
+            highlightColor.r * 255 * highlightBlend
+        );
+        data[i + 1] = clamp255(
+          tintedG * baseBlend +
+            baseColor.g * 255 * blend +
+            highlightColor.g * 255 * highlightBlend
+        );
+        data[i + 2] = clamp255(
+          tintedB * baseBlend +
+            baseColor.b * 255 * blend +
+            highlightColor.b * 255 * highlightBlend
+        );
+      }
+      ctx.putImageData(imageData, 0, 0);
+      const colorMatched = new THREE.CanvasTexture(canvas);
+      applySRGBColorSpace(colorMatched);
+      return colorMatched;
+    } catch (err) {
+      console.warn('Failed to color-match Poly Haven cloth texture', preset?.sourceId, err);
+      return texture;
+    }
+  };
+
   const loadTexture = (loader, url, isColor) =>
     new Promise((resolve, reject) => {
       if (!url) {
@@ -3606,11 +3690,12 @@ const createClothTextures = (() => {
         const loader = new THREE.TextureLoader();
         loader.setCrossOrigin('anonymous');
 
-        const [map, normal, roughness] = await Promise.all([
+        let [map, normal, roughness] = await Promise.all([
           loadTexture(loader, urls.diffuse, true),
           loadTexture(loader, urls.normal, false),
           loadTexture(loader, urls.roughness, false)
         ]);
+        map = colorMatchPolyHavenTexture(map, preset);
 
         [map, normal, roughness].forEach((tex) =>
           applyTextureDefaults(tex, { isPolyHaven: true })
