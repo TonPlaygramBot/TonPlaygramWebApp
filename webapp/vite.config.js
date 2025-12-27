@@ -5,15 +5,6 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   base: '/',
   plugins: [react()],
-  resolve: {
-    // Ensure polygon-clipping can load its SplayTree dependency in Vite
-    alias: {
-      splaytree: 'splaytree/dist/splay.esm.js'
-    }
-  },
-  optimizeDeps: {
-    include: ['splaytree']
-  },
   build: {
     outDir: 'dist',
     emptyOutDir: true
