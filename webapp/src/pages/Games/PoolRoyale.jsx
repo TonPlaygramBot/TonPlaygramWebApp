@@ -1685,7 +1685,7 @@ const BASE_BALL_COLORS = Object.freeze({
 });
 const CLOTH_TEXTURE_INTENSITY = 0.86;
 const CLOTH_HAIR_INTENSITY = 0.78;
-const CLOTH_BUMP_INTENSITY = 1.02;
+const CLOTH_BUMP_INTENSITY = 1.08;
 const CLOTH_SOFT_BLEND = 0.42;
 
 const CLOTH_QUALITY = (() => {
@@ -2529,14 +2529,14 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Gentle TV studio fill with reduced contrast for practice.',
     settings: {
       keyColor: 0xf5f7fb,
-      keyIntensity: 1.08,
+      keyIntensity: 1,
       fillColor: 0xf5f7fb,
-      fillIntensity: 0.62,
+      fillIntensity: 0.56,
       washColor: 0xf8faff,
-      washIntensity: 0.56,
+      washIntensity: 0.5,
       rimColor: 0xfafcff,
-      rimIntensity: 0.44,
-      ambientIntensity: 0.16
+      rimIntensity: 0.4,
+      ambientIntensity: 0.14
     }
   },
   {
@@ -2545,14 +2545,14 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Tour stadium key with crisp specular pickup.',
     settings: {
       keyColor: 0xf6f8ff,
-      keyIntensity: 1.38,
+      keyIntensity: 1.26,
       fillColor: 0xf6f8ff,
-      fillIntensity: 0.7,
+      fillIntensity: 0.64,
       washColor: 0xf8faff,
-      washIntensity: 0.6,
+      washIntensity: 0.54,
       rimColor: 0xffffff,
-      rimIntensity: 0.48,
-      ambientIntensity: 0.17
+      rimIntensity: 0.44,
+      ambientIntensity: 0.15
     }
   },
   {
@@ -2561,14 +2561,14 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'High-contrast stage look with tight rim control.',
     settings: {
       keyColor: 0xf2f5ff,
-      keyIntensity: 1.44,
+      keyIntensity: 1.3,
       fillColor: 0xf2f5ff,
-      fillIntensity: 0.52,
+      fillIntensity: 0.48,
       washColor: 0xf5f8ff,
-      washIntensity: 0.64,
+      washIntensity: 0.58,
       rimColor: 0xf7fbff,
-      rimIntensity: 0.62,
-      ambientIntensity: 0.14
+      rimIntensity: 0.56,
+      ambientIntensity: 0.12
     }
   },
   {
@@ -2577,14 +2577,14 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Cool broadcast grade with soft rim and wider beam.',
     settings: {
       keyColor: 0xeaf1ff,
-      keyIntensity: 1.2,
+      keyIntensity: 1.1,
       fillColor: 0xeaf1ff,
-      fillIntensity: 0.68,
+      fillIntensity: 0.62,
       washColor: 0xf0f5ff,
-      washIntensity: 0.58,
+      washIntensity: 0.52,
       rimColor: 0xf5f8ff,
-      rimIntensity: 0.4,
-      ambientIntensity: 0.15
+      rimIntensity: 0.36,
+      ambientIntensity: 0.13
     }
   }
 ]);
@@ -3240,14 +3240,14 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.55; // enlarge thread spacing for a coarser, more pronounced weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.86; // slightly larger pattern footprint to match the scanned cloths
+const CLOTH_PATTERN_SCALE = 0.82; // slightly larger pattern footprint to match the scanned cloths
 const CLOTH_TEXTURE_REPEAT_HINT = 1.55;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
 const POLYHAVEN_ANISOTROPY_BOOST = 2;
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.35, 0.55);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
-const CLOTH_BRIGHTNESS_LERP = 0.08;
+const CLOTH_BRIGHTNESS_LERP = 0.05;
 
 const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
   if (!cloth?.sourceId) return acc;
@@ -3257,6 +3257,22 @@ const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
   acc[cloth.sourceId].add(cloth.id);
   return acc;
 }, {});
+
+const CLOTH_PATTERN_REPEAT_SCALES = Object.freeze({
+  cotton_jersey: 1 / 1.5,
+  curly_teddy_natural: 1.5,
+  polar_fleece: 1.2
+});
+
+const resolveClothPatternRepeatScale = (textureKey, sourceId = null) => {
+  if (sourceId && typeof CLOTH_PATTERN_REPEAT_SCALES[sourceId] === 'number') {
+    return CLOTH_PATTERN_REPEAT_SCALES[sourceId];
+  }
+  if (textureKey && typeof CLOTH_PATTERN_REPEAT_SCALES[textureKey] === 'number') {
+    return CLOTH_PATTERN_REPEAT_SCALES[textureKey];
+  }
+  return 1;
+};
 
 const CLOTH_TEXTURE_CONSUMERS = new Map();
 const CLOTH_CONSUMER_KEYS = new Map();
@@ -3692,12 +3708,23 @@ function replaceMaterialTexture (material, prop, baseTexture, fallbackRepeat) {
 function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TEXTURE_KEY) {
   if (!finishInfo?.clothMat) return;
   registerClothTextureConsumer(textureKey, finishInfo);
+  const preset =
+    CLOTH_TEXTURE_PRESETS[textureKey] ?? CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY];
   const textures = createClothTextures(textureKey);
   const textureScale = textures.mapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
   const roughnessBase =
     finishInfo.clothBase?.roughness ?? finishInfo.clothMat.roughness ?? CLOTH_ROUGHNESS_BASE;
   const roughnessTarget =
     finishInfo.clothBase?.roughnessTarget ?? CLOTH_ROUGHNESS_TARGET;
+  const sourceId = textures.sourceId ?? preset?.sourceId ?? textureKey;
+  const storedPatternScale =
+    finishInfo.clothMat.userData?.patternRepeatScale ??
+    finishInfo.clothBase?.patternRepeatScale ??
+    1;
+  const patternRepeatScale =
+    storedPatternScale !== 1 || finishInfo.clothMat.userData?.patternRepeatScale != null
+      ? storedPatternScale
+      : resolveClothPatternRepeatScale(textureKey, sourceId);
   const baseRepeatRaw =
     finishInfo.clothMat.userData?.baseRepeatRaw ??
     finishInfo.clothBase?.baseRepeatRaw ??
@@ -3706,7 +3733,8 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     1;
   const repeatRatioValue =
     finishInfo.clothMat.userData?.repeatRatio ?? finishInfo.clothBase?.repeatRatio ?? 1;
-  const baseRepeatValue = baseRepeatRaw * textureScale;
+  const baseRepeatPattern = baseRepeatRaw * patternRepeatScale;
+  const baseRepeatValue = baseRepeatPattern * textureScale;
   const fallbackRepeat = new THREE.Vector2(baseRepeatValue, baseRepeatValue * repeatRatioValue);
   replaceMaterialTexture(finishInfo.clothMat, 'map', textures.map, fallbackRepeat);
   replaceMaterialTexture(finishInfo.clothMat, 'normalMap', textures.normal, fallbackRepeat);
@@ -3727,10 +3755,18 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
   }
   if (finishInfo.clothMat.userData) {
     finishInfo.clothMat.userData.polyRepeatScale = textureScale;
+    finishInfo.clothMat.userData.patternRepeatScale = patternRepeatScale;
     finishInfo.clothMat.userData.baseRepeat = baseRepeatValue;
     finishInfo.clothMat.userData.baseRepeatRaw = baseRepeatRaw;
+    finishInfo.clothMat.userData.baseRepeatPattern = baseRepeatPattern;
     finishInfo.clothMat.userData.nearRepeat = baseRepeatValue * 1.12;
     finishInfo.clothMat.userData.farRepeat = baseRepeatValue * 0.44;
+  }
+  if (finishInfo.clothBase) {
+    finishInfo.clothBase.baseRepeat = baseRepeatValue;
+    finishInfo.clothBase.baseRepeatRaw = baseRepeatRaw;
+    finishInfo.clothBase.baseRepeatPattern = baseRepeatPattern;
+    finishInfo.clothBase.patternRepeatScale = patternRepeatScale;
   }
   if (finishInfo.cushionMat) {
     replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat);
@@ -6326,7 +6362,8 @@ function Table3D(
     bump: clothBump,
     normal: clothNormal,
     roughness: clothRoughness,
-    mapSource: clothMapSource
+    mapSource: clothMapSource,
+    sourceId: clothSourceId
   } = createClothTextures(clothTextureKey);
   const isPolyHavenCloth = clothMapSource === 'polyhaven';
   const clothPrimary = new THREE.Color(palette.cloth);
@@ -6402,9 +6439,14 @@ function Table3D(
   const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25 * 1.5 * CLOTH_PATTERN_SCALE; // double the thread pattern size for a looser, woollier weave
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping the cloth visibly taut
-  const baseRepeat =
+  const baseRepeatRaw =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
+  const patternRepeatScale = resolveClothPatternRepeatScale(
+    clothTextureKey,
+    clothSourceId ?? clothTextureKey
+  );
+  const baseRepeat = baseRepeatRaw * patternRepeatScale;
   const repeatRatio = 3.45;
   const polyRepeatScale =
     clothMapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
@@ -6440,10 +6482,12 @@ function Table3D(
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
-    baseRepeatRaw: baseRepeat,
+    baseRepeatRaw,
     baseRepeat: baseRepeatApplied,
     repeatRatio,
     polyRepeatScale,
+    patternRepeatScale,
+    baseRepeatPattern: baseRepeat,
     nearRepeat: baseRepeatApplied * 1.12,
     farRepeat: baseRepeatApplied * 0.44,
     bumpScale: clothMat.bumpScale,
@@ -6484,7 +6528,9 @@ function Table3D(
     emissiveIntensity: clothMat.emissiveIntensity,
     bumpScale: clothMat.bumpScale,
     baseRepeat: baseRepeatApplied,
-    baseRepeatRaw: baseRepeat,
+    baseRepeatRaw,
+    baseRepeatPattern: baseRepeat,
+    patternRepeatScale,
     repeatRatio,
     baseBumpScale,
     polyRepeatScale,
@@ -18247,23 +18293,12 @@ const powerRef = useRef(hud.power);
 
   // Loop
   let lastStepTime = performance.now();
-  let lastReplayFrameAt = 0;
   let lastLiveSyncSentAt = 0;
   let lastLiveAimSentAt = 0;
   const step = (now) => {
     if (disposed) return;
     const playback = replayPlaybackRef.current;
         if (playback) {
-          const frameTiming = frameTimingRef.current;
-          const targetReplayFrameTime =
-            frameTiming && Number.isFinite(frameTiming.targetMs)
-              ? frameTiming.targetMs
-              : 1000 / 60;
-          if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
-            rafRef.current = requestAnimationFrame(step);
-            return;
-          }
-          lastReplayFrameAt = now;
           const scheduleNext = () => {
             if (disposed) return;
             rafRef.current = requestAnimationFrame(step);
