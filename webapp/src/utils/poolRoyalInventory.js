@@ -11,6 +11,15 @@ import {
 const STORAGE_KEY = 'poolRoyalInventoryByAccount';
 const MIGRATION_KEY = 'poolRoyalInventoryMigrated';
 const inflightSync = new Map();
+const ALLOWED_OPTIONS_BY_TYPE = Object.freeze({
+  clothColor: new Set(Object.keys(POOL_ROYALE_OPTION_LABELS.clothColor || {}))
+});
+
+const filterAllowedOptions = (type, values) => {
+  const allowed = ALLOWED_OPTIONS_BY_TYPE[type];
+  if (!allowed) return values;
+  return (values || []).filter((value) => allowed.has(value));
+};
 
 const copyDefaults = () =>
   Object.entries(POOL_ROYALE_DEFAULT_UNLOCKS).reduce((acc, [key, values]) => {
@@ -70,7 +79,8 @@ const normalizeInventory = (rawInventory) => {
   const merged = { ...base };
   Object.entries(rawInventory).forEach(([key, value]) => {
     if (!Array.isArray(value)) return;
-    merged[key] = sortUnique([...(merged[key] || []), ...value]);
+    const allowedValues = filterAllowedOptions(key, value);
+    merged[key] = sortUnique([...(merged[key] || []), ...allowedValues]);
   });
   return merged;
 };

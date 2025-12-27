@@ -3,7 +3,8 @@ import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import {
   POOL_ROYALE_DEFAULT_LOADOUT,
   POOL_ROYALE_OPTION_LABELS,
-  POOL_ROYALE_STORE_ITEMS
+  POOL_ROYALE_STORE_ITEMS,
+  POOL_ROYALE_CLOTH_PRESETS
 } from '../config/poolRoyaleInventoryConfig.js';
 import {
   SNOOKER_CLUB_DEFAULT_LOADOUT,
@@ -275,37 +276,21 @@ const TYPE_SWATCHES = {
   default: ['#22c55e', '#0ea5e9']
 };
 
+const CLOTH_SWATCH_OVERRIDES = POOL_ROYALE_CLOTH_PRESETS.reduce((acc, cloth) => {
+  if (cloth.optionId && cloth.swatches) {
+    acc[cloth.optionId] = cloth.swatches;
+  }
+  return acc;
+}, {});
+
 const OPTION_SWATCH_OVERRIDES = {
+  ...CLOTH_SWATCH_OVERRIDES,
   charredTimber: ['#2f2217', '#6b4226'],
   rusticSplit: ['#f3e8ff', '#fef3c7'],
   plankStudio: ['#e0e7ff', '#a78bfa'],
   weatheredGrey: ['#94a3b8', '#e2e8f0'],
   jetBlackCarbon: ['#0b1220', '#111827'],
   gold: ['#f59e0b', '#fbbf24'],
-  denimFabric03Green: ['#288871', '#6dae9e'],
-  denimFabric03Blue: ['#2d62b6', '#7094cd'],
-  hessian230Green: ['#66a254', '#97c08b'],
-  hessian230Blue: ['#6a7d99', '#9aa7ba'],
-  polarFleeceGreen: ['#88d299', '#aee0ba'],
-  polarFleeceBlue: ['#8daddd', '#b1c7e8'],
-  cottonJerseyGreen: ['#76b873', '#a2cfa0'],
-  cottonJerseyBlue: ['#7b93b8', '#a5b6cf'],
-  fauxFurGeometricGreen: ['#80b78a', '#a9ceaf'],
-  fauxFurGeometricBlue: ['#8492cf', '#abb5de'],
-  joggingMelangeGreen: ['#54a274', '#8bc0a0'],
-  joggingMelangeBlue: ['#587db9', '#8da7cf'],
-  knittedFleeceGreen: ['#4d9057', '#86b48d'],
-  knittedFleeceBlue: ['#526b9b', '#899abb'],
-  cabanGreen: ['#749945', '#a0ba81'],
-  cabanBlue: ['#79748a', '#a4a0af'],
-  curlyTeddyNaturalGreen: ['#81c88b', '#a9dab0'],
-  curlyTeddyNaturalBlue: ['#86a3d0', '#adc0df'],
-  curlyTeddyCheckeredGreen: ['#2b996c', '#6fba9b'],
-  curlyTeddyCheckeredBlue: ['#2f74b0', '#72a0c9'],
-  denimFabric04Green: ['#39a18a', '#78bfaf'],
-  denimFabric04Blue: ['#3e7ccf', '#7ca6de'],
-  denimFabric05Green: ['#29794b', '#6da485'],
-  denimFabric05Blue: ['#2d5390', '#708ab4'],
   chrome: ['#e5e7eb', '#a1a1aa'],
   pearl: ['#f5f3ff', '#e2e8f0'],
   'redwood-ember': ['#7f1d1d', '#b45309'],
@@ -444,6 +429,18 @@ const storeMeta = {
   }
 };
 
+const STORE_ACCOUNTS = {
+  poolroyale: POOL_STORE_ACCOUNT_ID,
+  snookerclub: SNOOKER_STORE_ACCOUNT_ID,
+  airhockey: AIR_HOCKEY_STORE_ACCOUNT_ID,
+  chessbattleroyal: CHESS_STORE_ACCOUNT_ID,
+  ludobattleroyal: LUDO_STORE_ACCOUNT_ID,
+  murlanroyale: MURLAN_STORE_ACCOUNT_ID,
+  'domino-royal': DOMINO_STORE_ACCOUNT_ID,
+  snake: SNAKE_STORE_ACCOUNT_ID,
+  texasholdem: TEXAS_STORE_ACCOUNT_ID
+};
+
 export default function Store() {
   useTelegramBackButton();
   const [accountId, setAccountId] = useState(() => poolRoyalAccountId());
@@ -470,6 +467,9 @@ export default function Store() {
   const [listForm, setListForm] = useState(() => ({ ...DEFAULT_LIST_FORM }));
   const [showMyListings, setShowMyListings] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [showBatchConfirm, setShowBatchConfirm] = useState(false);
+  const [processingBatch, setProcessingBatch] = useState(false);
 
   useEffect(() => {
     setAccountId(poolRoyalAccountId());
@@ -659,6 +659,16 @@ export default function Store() {
     [baseMarketplaceItems, decoratedUserListings]
   );
 
+  const selectedItems = useMemo(
+    () => allMarketplaceItems.filter((item) => selectedIds.has(item.id) && !item.owned),
+    [allMarketplaceItems, selectedIds]
+  );
+
+  const selectedTotalPrice = useMemo(
+    () => selectedItems.reduce((sum, item) => sum + (Number(item.price) || 0), 0),
+    [selectedItems]
+  );
+
   const applyFilters = useCallback(
     (items) => {
       const term = searchTerm.trim().toLowerCase();
@@ -722,6 +732,21 @@ export default function Store() {
     setInfo('');
   };
 
+  const toggleSelection = (item) => {
+    if (!item || item.owned) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(item.id)) {
+        next.delete(item.id);
+      } else {
+        next.add(item.id);
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
   const handleListSubmit = (event) => {
     event?.preventDefault();
     const selectedItem = ownedMarketplaceItems.find((item) => item.id === listForm.itemId);
@@ -757,44 +782,25 @@ export default function Store() {
     setInfo('Your NFT listing has been added to the marketplace.');
   };
 
-  const handlePurchase = async (item) => {
+  const purchaseItem = async (item) => {
     const slug = item?.slug;
-    if (item.owned || processing === item.id) return;
-    if (!slug) return;
+    if (!item) return { error: 'No item selected.' };
+    if (item.owned) return { error: 'Item already owned.' };
+    if (!slug) return { error: 'Store item missing game slug.' };
     if (!accountId || accountId === 'guest') {
-      setInfo('Link your TPC account in the wallet first.');
-      return;
+      return { error: 'Link your TPC account in the wallet first.' };
     }
 
-    const storeAccounts = {
-      poolroyale: POOL_STORE_ACCOUNT_ID,
-      snookerclub: SNOOKER_STORE_ACCOUNT_ID,
-      airhockey: AIR_HOCKEY_STORE_ACCOUNT_ID,
-      chessbattleroyal: CHESS_STORE_ACCOUNT_ID,
-      ludobattleroyal: LUDO_STORE_ACCOUNT_ID,
-      murlanroyale: MURLAN_STORE_ACCOUNT_ID,
-      'domino-royal': DOMINO_STORE_ACCOUNT_ID,
-      snake: SNAKE_STORE_ACCOUNT_ID,
-      texasholdem: TEXAS_STORE_ACCOUNT_ID
-    };
-    const storeId = storeAccounts[slug];
+    const storeId = STORE_ACCOUNTS[slug];
+    if (!storeId) return { error: 'Store account unavailable.' };
+
     const gameName = storeMeta[slug]?.name || 'Game';
-
     const ownedLabel = labelResolvers[slug] ? labelResolvers[slug](item) : item.name;
-
-    if (tpcBalance !== null && item.price > tpcBalance) {
-      setInfo('Insufficient TPC balance for this purchase.');
-      return;
-    }
-
-    setProcessing(item.id);
-    resetStatus();
 
     try {
       const res = await sendAccountTpc(accountId, storeId, item.price, `${gameName}: ${ownedLabel}`);
       if (res?.error) {
-        setInfo(res.error || 'Purchase failed.');
-        return;
+        return { error: res.error || 'Purchase failed.' };
       }
 
       if (slug === 'poolroyale') {
@@ -818,20 +824,105 @@ export default function Store() {
         setTexasOwned(addTexasHoldemUnlock(item.type, item.optionId, accountId));
       }
 
+      setSelectedIds((prev) => {
+        if (!prev.has(item.id)) return prev;
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+
+      return { success: true, ownedLabel, gameName };
+    } catch (error) {
+      console.error('Purchase failed', error);
+      return { error: 'Failed to process purchase.' };
+    }
+  };
+
+  const handlePurchase = async (item) => {
+    const slug = item?.slug;
+    if (item.owned || processing === item.id) return;
+    if (!slug) return;
+    if (!accountId || accountId === 'guest') {
+      setInfo('Link your TPC account in the wallet first.');
+      return;
+    }
+
+    if (tpcBalance !== null && item.price > tpcBalance) {
+      setInfo('Insufficient TPC balance for this purchase.');
+      return;
+    }
+
+    setProcessing(item.id);
+    resetStatus();
+
+    const result = await purchaseItem(item);
+    if (result?.error) {
+      setInfo(result.error);
+    } else if (result?.success) {
       const bal = await getAccountBalance(accountId);
       if (typeof bal?.balance === 'number') {
         setTpcBalance(bal.balance);
       }
-
-      setPurchaseStatus(`${ownedLabel} purchase completed — now owned in ${gameName}.`);
+      setPurchaseStatus(`${result.ownedLabel} purchase completed — now owned in ${result.gameName}.`);
       setInfo('');
-    } catch (err) {
-      console.error('Purchase failed', err);
-      setInfo('Failed to process purchase.');
-    } finally {
-      setProcessing('');
-      setConfirmItem(null);
     }
+
+    setProcessing('');
+    setConfirmItem(null);
+  };
+
+  const handleBatchPurchase = async () => {
+    if (!selectedItems.length) {
+      setInfo('Select NFTs to buy first.');
+      setShowBatchConfirm(false);
+      return;
+    }
+
+    if (!accountId || accountId === 'guest') {
+      setInfo('Link your TPC account in the wallet first.');
+      setShowBatchConfirm(false);
+      return;
+    }
+
+    if (tpcBalance !== null && selectedTotalPrice > tpcBalance) {
+      setInfo('Insufficient TPC balance for the selected items.');
+      return;
+    }
+
+    setProcessingBatch(true);
+    resetStatus();
+
+    const successes = [];
+    const failures = [];
+
+    for (const item of selectedItems) {
+      const result = await purchaseItem(item);
+      if (result?.success) {
+        successes.push(result.ownedLabel);
+      } else if (result?.error) {
+        failures.push(`${item.displayLabel || item.name}: ${result.error}`);
+      }
+    }
+
+    const bal = await getAccountBalance(accountId);
+    if (typeof bal?.balance === 'number') {
+      setTpcBalance(bal.balance);
+    }
+
+    if (successes.length) {
+      const preview = successes.slice(0, 3).join(', ');
+      const suffix = successes.length > 3 ? `, +${successes.length - 3} more` : '';
+      setPurchaseStatus(`Purchased ${successes.length} item(s): ${preview}${suffix}.`);
+    }
+
+    if (failures.length) {
+      setInfo(`Some purchases failed: ${failures.join(' | ')}`);
+    } else if (!successes.length) {
+      setInfo('No purchases were completed.');
+    }
+
+    setProcessingBatch(false);
+    setShowBatchConfirm(false);
   };
 
   const featuredCount = allMarketplaceItems.length;
@@ -968,6 +1059,72 @@ export default function Store() {
               </div>
             </div>
           </form>
+        </div>
+      </div>
+    );
+  };
+
+  const renderBatchConfirmModal = () => {
+    if (!showBatchConfirm) return null;
+    const total = selectedItems.length;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+        <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-white/10 p-4">
+            <div>
+              <p className="text-xs text-white/60">Confirm batch purchase</p>
+              <h3 className="text-lg font-semibold text-white">Buy {total} NFT{total === 1 ? '' : 's'} together</h3>
+              <p className="text-sm text-white/60">
+                Pay once for everything you selected. We’ll unlock each cosmetic right after checkout.
+              </p>
+            </div>
+            <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
+              {selectedTotalPrice}
+              <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+            </div>
+          </div>
+
+          <div className="space-y-3 p-4 text-sm text-white/70">
+            <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+              {selectedItems.map((item) => (
+                <div
+                  key={`batch-${item.id}`}
+                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2"
+                >
+                  <div className="grid gap-0.5">
+                    <div className="font-semibold text-white">{item.displayLabel}</div>
+                    <div className="text-xs text-white/60">
+                      {item.gameName} • {item.typeLabel}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-sm font-semibold">
+                    {item.price}
+                    <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowBatchConfirm(false)}
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 sm:w-auto"
+                disabled={processingBatch}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleBatchPurchase}
+                className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
+                disabled={processingBatch}
+              >
+                {processingBatch ? 'Processing…' : 'Confirm & Buy All'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1579,6 +1736,35 @@ export default function Store() {
             </div>
           </div>
 
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/15 px-3 py-2">
+            <div className="text-sm text-white/80">
+              Selected <span className="font-semibold text-white">{selectedItems.length}</span> item{selectedItems.length === 1 ? '' : 's'} ·
+              Total{' '}
+              <span className="inline-flex items-center gap-1 font-semibold text-white">
+                {selectedTotalPrice}
+                <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowBatchConfirm(true)}
+                className="rounded-2xl bg-white px-4 py-2 text-xs font-semibold text-zinc-950 hover:bg-white/90 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-zinc-700"
+                disabled={!selectedItems.length || processingBatch}
+              >
+                Buy selected
+              </button>
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!selectedItems.length}
+              >
+                Clear selection
+              </button>
+            </div>
+          </div>
+
           <div className="mt-2 flex items-end justify-between gap-3">
             <div>
               <div className="text-base font-semibold">{showMyListings ? 'Your listings' : 'Marketplace'}</div>
@@ -1590,51 +1776,71 @@ export default function Store() {
           </div>
 
           <div className="space-y-2">
-            {visibleItems.map((item) => (
-              <div
-                key={`${item.slug}-${item.id}`}
-                className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-left shadow-sm transition hover:border-white/20 hover:bg-white/10 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-black/30 text-lg font-semibold">
-                    {item.gameName[0]}
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <div className="text-sm font-semibold">{item.displayLabel}</div>
-                      {item.owned && (
-                        <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
-                          Owned
-                        </span>
-                      )}
+            {visibleItems.map((item) => {
+              const isSelected = selectedIds.has(item.id);
+              return (
+                <div
+                  key={`${item.slug}-${item.id}`}
+                  className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-left shadow-sm transition hover:border-white/20 hover:bg-white/10 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-black/30 text-lg font-semibold">
+                      {item.gameName[0]}
                     </div>
-                    <div className="text-xs text-white/60">{item.gameName} • {item.typeLabel}</div>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-semibold">{item.displayLabel}</div>
+                        {item.owned && (
+                          <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
+                            Owned
+                          </span>
+                        )}
+                        {isSelected && !item.owned && (
+                          <span className="rounded-full border border-blue-300/30 bg-blue-400/10 px-2 py-0.5 text-[10px] font-semibold text-blue-100">
+                            Selected
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-white/60">{item.gameName} • {item.typeLabel}</div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                  <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
-                    {item.price}
-                    <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
+                      {item.price}
+                      <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleSelection(item)}
+                      className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition ${
+                        isSelected
+                          ? 'border-blue-200/50 bg-blue-400/20 text-blue-50'
+                          : 'border-white/15 bg-black/30 text-white/80 hover:bg-white/10'
+                      }`}
+                      disabled={item.owned}
+                    >
+                      {item.owned ? 'Owned' : isSelected ? 'Selected' : 'Select'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDetailItem(item)}
+                      className="rounded-2xl border border-white/15 bg-black/30 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10"
+                    >
+                      View
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmItem(item)}
+                      className="rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-white/90"
+                      disabled={item.owned}
+                    >
+                      {item.owned ? 'Owned' : 'Buy'}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setDetailItem(item)}
-                    className="rounded-2xl border border-white/15 bg-black/30 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10"
-                  >
-                    View
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmItem(item)}
-                    className="rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-white/90"
-                    disabled={item.owned}
-                  >
-                    {item.owned ? 'Owned' : 'Buy'}
-                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {visibleItems.length === 0 && (
@@ -1662,6 +1868,7 @@ export default function Store() {
       </main>
 
       {renderListModal()}
+      {renderBatchConfirmModal()}
       {renderDetailModal()}
       {renderConfirmModal()}
     </div>
