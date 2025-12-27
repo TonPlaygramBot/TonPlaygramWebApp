@@ -50,7 +50,6 @@ import {
   MURLAN_OUTFIT_THEMES as OUTFIT_THEMES,
   MURLAN_STOOL_THEMES as STOOL_THEMES
 } from '../../config/murlanThemes.js';
-import { MURLAN_CHAIR_MODELS, MURLAN_FLOWER_POTS } from '../../config/murlanChairs.js';
 
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
@@ -267,134 +266,89 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
-
-const polyHavenCache = new Map();
+const POLYHAVEN_PLANT_ASSETS = ['potted_plant_01', 'potted_plant_02', 'potted_plant_04', 'planter_box_01'];
+const POLYHAVEN_MODEL_CACHE = new Map();
+const PLANT_TARGET_HEIGHT = 2.8 * MODEL_SCALE;
+const DECOR_PLANT_RADIUS_SCALE = 0.9;
 
 function stripQueryHash(u) {
   return u.split('#')[0].split('?')[0];
 }
 
 function basename(p) {
-  const normalized = p.replace(/\\/g, '/');
-  const parts = normalized.split('/');
-  return parts[parts.length - 1] || normalized;
+  const s = p.replace(/\\/g, '/');
+  const parts = s.split('/');
+  return parts[parts.length - 1] || s;
+}
+
+function isModelUrl(u) {
+  const s = stripQueryHash(u).toLowerCase();
+  return s.endsWith('.glb') || s.endsWith('.gltf');
 }
 
 function extractAllHttpUrls(apiJson) {
   const out = new Set();
-  const seen = new Set();
-  const walk = (value) => {
-    if (!value || seen.has(value)) return;
-    if (typeof value === 'string') {
-      if (value.startsWith('http')) out.add(value);
+  const walk = (v) => {
+    if (!v) return;
+    if (typeof v === 'string') {
+      if (v.startsWith('http')) out.add(v);
       return;
     }
-    if (typeof value !== 'object') return;
-    seen.add(value);
-    if (Array.isArray(value)) {
-      value.forEach(walk);
+    if (typeof v !== 'object') return;
+    if (Array.isArray(v)) {
+      v.forEach(walk);
       return;
     }
-    Object.values(value).forEach(walk);
+    Object.values(v).forEach(walk);
   };
   walk(apiJson);
   return Array.from(out);
 }
 
 function pickBestModelUrl(urls) {
-  const candidates = urls.filter((u) => {
-    const s = stripQueryHash(u).toLowerCase();
-    return s.endsWith('.glb') || s.endsWith('.gltf');
-  });
+  const modelUrls = urls.filter(isModelUrl);
+  const glbs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.glb'));
+  const gltfs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.gltf'));
+
   const score = (u) => {
-    const s = u.toLowerCase();
-    let value = 0;
-    if (s.includes('2k')) value += 3;
-    if (s.includes('1k')) value += 2;
-    if (s.includes('4k')) value += 1;
-    if (s.includes('8k')) value -= 2;
-    if (s.includes('download')) value += 1;
-    return value;
+    const lu = u.toLowerCase();
+    let s = 0;
+    if (lu.includes('2k')) s += 3;
+    if (lu.includes('1k')) s += 2;
+    if (lu.includes('4k')) s += 1;
+    if (lu.includes('8k')) s -= 2;
+    if (lu.includes('download')) s += 1;
+    return s;
   };
-  candidates.sort((a, b) => score(b) - score(a));
-  return candidates[0] || null;
+
+  glbs.sort((a, b) => score(b) - score(a));
+  gltfs.sort((a, b) => score(b) - score(a));
+
+  return glbs[0] || gltfs[0] || null;
 }
 
-function ensureMeshMaterials(root) {
-  root.traverse((obj) => {
-    if (!obj.isMesh) return;
-    obj.castShadow = true;
-    obj.receiveShadow = true;
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    mats.forEach((mat) => {
-      if (!mat) return;
-      if (mat.map) applySRGBColorSpace(mat.map);
-      if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
-      if (!mat.map && mat.color?.getHex?.() === 0x000000) {
-        mat.color.set('#d0d6e2');
-      }
-      mat.needsUpdate = true;
-    });
+function prepareLoadedModel(model) {
+  model.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((mat) => {
+        if (!mat) return;
+        if (mat.map) applySRGBColorSpace(mat.map);
+        if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+      });
+    }
   });
 }
-
-async function loadPolyHavenAsset(id) {
-  if (!id) throw new Error('Poly Haven asset id is required');
-  if (polyHavenCache.has(id)) return polyHavenCache.get(id);
-
-  const promise = (async () => {
-    const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(id)}`).then((r) => r.json());
-    const allUrls = extractAllHttpUrls(filesJson);
-    const modelUrl = pickBestModelUrl(allUrls);
-    if (!modelUrl) throw new Error(`No model found for ${id}`);
-
-    const fileMap = new Map();
-    allUrls.forEach((u) => fileMap.set(basename(stripQueryHash(u)), u));
-
-    const base = stripQueryHash(modelUrl);
-    const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
-    const manager = new THREE.LoadingManager();
-    manager.setURLModifier((requestedUrl) => {
-      if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
-      const cleaned = stripQueryHash(requestedUrl);
-      const mapped = fileMap.get(basename(cleaned));
-      if (mapped) return mapped;
-      try {
-        return new URL(cleaned, baseDir).toString();
-      } catch {
-        return requestedUrl;
-      }
-    });
-
-    const loader = new GLTFLoader(manager);
-    const draco = new DRACOLoader(manager);
-    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-    loader.setDRACOLoader(draco);
-    loader.setCrossOrigin?.('anonymous');
-
-    const gltf = await loader.loadAsync(modelUrl);
-    const root = gltf.scene || gltf.scenes?.[0] || new THREE.Group();
-    ensureMeshMaterials(root);
-    return root;
-  })().catch((error) => {
-    polyHavenCache.delete(id);
-    throw error;
-  });
-
-  polyHavenCache.set(id, promise);
-  return promise;
-}
-
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
 );
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
-const TARGET_POT_HEIGHT = 1.25 * MODEL_SCALE;
 
 const DEFAULT_APPEARANCE = {
   outfit: 0,
-  chairModel: 0,
   stools: 0,
   ...DEFAULT_TABLE_CUSTOMIZATION
 };
@@ -405,7 +359,6 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
   { key: 'cards', label: 'Cards', options: CARD_THEMES },
-  { key: 'chairModel', label: 'Chairs', options: MURLAN_CHAIR_MODELS },
   { key: 'stools', label: 'Stools', options: STOOL_THEMES }
 ];
 
@@ -430,7 +383,6 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['cards', CARD_THEMES.length],
-    ['chairModel', MURLAN_CHAIR_MODELS.length],
     ['stools', STOOL_THEMES.length]
   ];
   entries.forEach(([key, max]) => {
@@ -479,78 +431,6 @@ function fitChairModelToFootprint(model) {
   model.position.add(offset);
 }
 
-function fitModelToHeight(model, targetHeight) {
-  const box = new THREE.Box3().setFromObject(model);
-  const size = box.getSize(new THREE.Vector3());
-  if (size.y > 0 && Number.isFinite(targetHeight)) {
-    const scale = targetHeight / size.y;
-    model.scale.multiplyScalar(scale);
-  }
-  const scaledBox = new THREE.Box3().setFromObject(model);
-  const center = scaledBox.getCenter(new THREE.Vector3());
-  model.position.sub(center);
-  model.position.y -= scaledBox.min.y;
-}
-
-function disposeMaterialCollection(materials = [], { disposeTextures = true } = {}) {
-  materials.forEach((mat) => {
-    if (!mat) return;
-    if (Array.isArray(mat)) {
-      disposeMaterialCollection(mat, { disposeTextures });
-      return;
-    }
-    if (disposeTextures) {
-      if (mat.map) mat.map.dispose?.();
-      if (mat.emissiveMap) mat.emissiveMap.dispose?.();
-    }
-    mat.dispose?.();
-  });
-}
-
-function disposeChairResources(store) {
-  if (!store) return;
-  const disposeTextures = !store.chairOption?.preserveMaterials;
-  if (Array.isArray(store.seatEntries)) {
-    store.seatEntries.forEach((entry) => {
-      if (entry?.chairModel && entry.group) {
-        entry.group.remove(entry.chairModel);
-        entry.chairModel = null;
-      }
-    });
-  }
-  if (store.chairMaterials) {
-    const mats = new Set([
-      store.chairMaterials.seat,
-      store.chairMaterials.leg,
-      ...(store.chairMaterials.upholstery ?? []),
-      ...(store.chairMaterials.metal ?? [])
-    ]);
-    disposeMaterialCollection(Array.from(mats), { disposeTextures });
-  }
-  if (store.chairTemplate) {
-    store.chairTemplate.traverse((obj) => {
-      if (obj.isMesh) {
-        obj.geometry?.dispose?.();
-      }
-    });
-  }
-  store.chairMaterials = null;
-  store.chairTemplate = null;
-}
-
-function applyChairTemplateToSeats(store, chairTemplate) {
-  if (!store || !chairTemplate || !Array.isArray(store.seatEntries)) return;
-  store.seatEntries.forEach((entry) => {
-    if (!entry?.group) return;
-    if (entry.chairModel) {
-      entry.group.remove(entry.chairModel);
-    }
-    const clone = chairTemplate.clone(true);
-    entry.group.add(clone);
-    entry.chairModel = clone;
-  });
-}
-
 function extractChairMaterials(model) {
   const upholstery = new Set();
   const metal = new Set();
@@ -576,7 +456,59 @@ function extractChairMaterials(model) {
   };
 }
 
-async function loadGltfChair(urls = CHAIR_MODEL_URLS) {
+function disposeObjectResources(object) {
+  const materials = new Set();
+  object.traverse((obj) => {
+    if (obj.isMesh) {
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((mat) => mat && materials.add(mat));
+      obj.geometry?.dispose?.();
+    }
+  });
+  materials.forEach((mat) => {
+    if (mat?.map) mat.map.dispose?.();
+    if (mat?.emissiveMap) mat.emissiveMap.dispose?.();
+    mat?.dispose?.();
+  });
+}
+
+function liftModelToGround(model, targetMinY = 0) {
+  const box = new THREE.Box3().setFromObject(model);
+  model.position.y += targetMinY - box.min.y;
+}
+
+function fitModelToHeight(model, targetHeight) {
+  const box = new THREE.Box3().setFromObject(model);
+  const currentHeight = box.max.y - box.min.y;
+  if (currentHeight > 0) {
+    const scale = targetHeight / currentHeight;
+    model.scale.multiplyScalar(scale);
+  }
+  liftModelToGround(model, 0);
+}
+
+async function createPolyhavenInstance(assetId, targetHeight, rotationY = 0) {
+  const root = await loadPolyhavenModel(assetId);
+  const model = root.clone(true);
+  prepareLoadedModel(model);
+  fitModelToHeight(model, targetHeight);
+  if (rotationY) model.rotation.y += rotationY;
+  return model;
+}
+
+function buildPolyhavenModelUrls(assetId) {
+  if (!assetId) return [];
+  return [
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`
+  ];
+}
+
+function shouldPreserveChairMaterials(theme) {
+  return Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
+}
+
+async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0) {
   const loader = new GLTFLoader();
   const draco = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
@@ -601,13 +533,107 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS) {
     throw new Error('Chair model missing scene');
   }
 
-  ensureMeshMaterials(model);
+  prepareLoadedModel(model);
+
   fitChairModelToFootprint(model);
+  if (rotationY) {
+    model.rotation.y += rotationY;
+  }
 
   return {
     chairTemplate: model,
     materials: extractChairMaterials(model)
   };
+}
+
+async function loadPolyhavenModel(assetId) {
+  if (!assetId) throw new Error('Missing Poly Haven asset id');
+  const normalizedId = assetId.toLowerCase();
+  const cacheKey = normalizedId;
+  if (POLYHAVEN_MODEL_CACHE.has(cacheKey)) {
+    return POLYHAVEN_MODEL_CACHE.get(cacheKey);
+  }
+
+  const promise = (async () => {
+    let fileMap = new Map();
+    const modelCandidates = new Set();
+    const assetCandidates = Array.from(new Set([assetId, normalizedId]));
+
+    for (const candidateId of assetCandidates) {
+      try {
+        const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(candidateId)}`).then((r) => r.json());
+        const allUrls = extractAllHttpUrls(filesJson);
+        const apiModelUrl = pickBestModelUrl(allUrls);
+        if (apiModelUrl) modelCandidates.add(apiModelUrl);
+        if (!fileMap.size) {
+          fileMap = allUrls.reduce((acc, u) => {
+            const b = basename(stripQueryHash(u));
+            if (!acc.has(b)) acc.set(b, u);
+            return acc;
+          }, new Map());
+        }
+      } catch (error) {
+        console.warn('Poly Haven file lookup failed, falling back to direct URLs', error);
+      }
+
+      buildPolyhavenModelUrls(candidateId).forEach((u) => modelCandidates.add(u));
+    }
+
+    const modelUrlList = Array.from(modelCandidates);
+    if (!modelUrlList.length) {
+      throw new Error(`No model URL found for ${assetId}`);
+    }
+
+    const manager = fileMap.size ? new THREE.LoadingManager() : undefined;
+    const loader = new GLTFLoader(manager);
+    const draco = new DRACOLoader();
+    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    loader.setDRACOLoader(draco);
+    loader.setCrossOrigin?.('anonymous');
+
+    if (fileMap.size) {
+      const base = stripQueryHash(modelUrlList[0]);
+      const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
+      loader.manager.setURLModifier((requestedUrl) => {
+        if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
+        const req = stripQueryHash(requestedUrl);
+        const b = basename(req);
+        const mapped = fileMap.get(b);
+        if (mapped) return mapped;
+        try {
+          return new URL(req, baseDir).toString();
+        } catch {
+          return requestedUrl;
+        }
+      });
+    }
+
+    let gltf = null;
+    let lastError = null;
+    for (const modelUrl of modelUrlList) {
+      try {
+        gltf = await loader.loadAsync(modelUrl);
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (!gltf) {
+      throw lastError || new Error(`Failed to load chair model for ${assetId}`);
+    }
+
+    const root = gltf.scene || gltf.scenes?.[0] || gltf;
+    if (!root) {
+      throw new Error(`Missing scene for ${assetId}`);
+    }
+    prepareLoadedModel(root);
+    return root;
+  })();
+
+  POLYHAVEN_MODEL_CACHE.set(cacheKey, promise);
+  promise.catch(() => POLYHAVEN_MODEL_CACHE.delete(cacheKey));
+  return promise;
 }
 
 function createProceduralChair(theme) {
@@ -679,37 +705,39 @@ function createProceduralChair(theme) {
       leg: legMaterial,
       upholstery: [seatMaterial],
       metal: [legMaterial]
-    }
+    },
+    preserveOriginal: false
   };
 }
 
-async function buildChairTemplate(chairOption, theme) {
-  const allowTheme = chairOption?.tintable !== false && !chairOption?.preserveMaterials;
+async function buildChairTemplate(theme) {
+  const rotationY = theme?.modelRotation || 0;
+  const preserveMaterials = shouldPreserveChairMaterials(theme);
   try {
-    if (chairOption?.source === 'polyhaven' && chairOption.assetId) {
-      const root = (await loadPolyHavenAsset(chairOption.assetId)).clone(true);
-      root.rotation.set(0, chairOption.rotationY ?? 0, 0);
-      fitChairModelToFootprint(root);
-      const materials = extractChairMaterials(root);
-      if (allowTheme) {
+    if (theme?.source === 'polyhaven' && theme?.assetId) {
+      const polyhavenRoot = await loadPolyhavenModel(theme.assetId);
+      const model = polyhavenRoot.clone(true);
+      prepareLoadedModel(model);
+      fitChairModelToFootprint(model);
+      if (rotationY) model.rotation.y += rotationY;
+      const materials = extractChairMaterials(model);
+      if (!preserveMaterials) {
         applyChairThemeMaterials({ chairMaterials: materials }, theme);
       }
-      return { chairTemplate: root, materials };
+      return { chairTemplate: model, materials, preserveOriginal: preserveMaterials };
     }
-
-    if (chairOption?.source === 'gltf' && chairOption.url) {
-      const gltfChair = await loadGltfChair([chairOption.url]);
-      if (allowTheme) {
+    if (theme?.source === 'gltf' && Array.isArray(theme.urls) && theme.urls.length) {
+      const gltfChair = await loadGltfChair(theme.urls, rotationY);
+      if (!preserveMaterials) {
         applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
       }
-      return gltfChair;
+      return { ...gltfChair, preserveOriginal: preserveMaterials };
     }
-
-    const gltfChair = await loadGltfChair();
-    if (allowTheme) {
+    const gltfChair = await loadGltfChair(CHAIR_MODEL_URLS, rotationY);
+    if (!preserveMaterials) {
       applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
     }
-    return gltfChair;
+    return { ...gltfChair, preserveOriginal: preserveMaterials };
   } catch (error) {
     console.error('Falling back to procedural chair', error);
   }
@@ -839,10 +867,6 @@ export default function MurlanRoyaleArena({ search }) {
   const [actionError, setActionError] = useState('');
   const [threeReady, setThreeReady] = useState(false);
   const [seatAnchors, setSeatAnchors] = useState([]);
-  const activeChairOption = useMemo(
-    () => MURLAN_CHAIR_MODELS[appearance?.chairModel] ?? MURLAN_CHAIR_MODELS[0],
-    [appearance?.chairModel]
-  );
   const seatAnchorMap = useMemo(() => {
     const map = new Map();
     seatAnchors.forEach((anchor) => {
@@ -853,15 +877,13 @@ export default function MurlanRoyaleArena({ search }) {
 
   const customizationSections = useMemo(
     () =>
-      CUSTOMIZATION_SECTIONS.filter((section) => (section.key === 'stools' ? activeChairOption?.tintable !== false : true))
-        .map((section) => ({
-          ...section,
-          options: section.options
-            .map((option, idx) => ({ ...option, idx }))
-            .filter(({ id }) => isMurlanOptionUnlocked(section.key, id, murlanInventory))
-        }))
-        .filter((section) => section.options.length > 0),
-    [activeChairOption?.tintable, murlanInventory]
+      CUSTOMIZATION_SECTIONS.map((section) => ({
+        ...section,
+        options: section.options
+          .map((option, idx) => ({ ...option, idx }))
+          .filter(({ id }) => isMurlanOptionUnlocked(section.key, id, murlanInventory))
+      })).filter((section) => section.options.length > 0),
+    [murlanInventory]
   );
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -938,7 +960,6 @@ export default function MurlanRoyaleArena({ search }) {
         tableCloth: TABLE_CLOTH_OPTIONS,
         tableBase: TABLE_BASE_OPTIONS,
         cards: CARD_THEMES,
-        chairModel: MURLAN_CHAIR_MODELS,
         stools: STOOL_THEMES
       };
       let changed = false;
@@ -996,9 +1017,7 @@ export default function MurlanRoyaleArena({ search }) {
     cardGeometry: null,
     cardMap: new Map(),
     faceTextureCache: new Map(),
-    seatEntries: [],
     seatConfigs: [],
-    potGroup: null,
     selectionTargets: [],
     animations: [],
     raycaster: new THREE.Raycaster(),
@@ -1008,7 +1027,11 @@ export default function MurlanRoyaleArena({ search }) {
     tableInfo: null,
     chairMaterials: null,
     chairTemplate: null,
-    chairOption: null,
+    chairThemePreserve: false,
+    chairThemeId: null,
+    chairInstances: [],
+    decorPlants: [],
+    decorGroup: null,
     outfitParts: [],
     cardThemeId: '',
     appearance: { ...DEFAULT_APPEARANCE }
@@ -1016,7 +1039,6 @@ export default function MurlanRoyaleArena({ search }) {
   const soundsRef = useRef({ card: null, turn: null });
   const audioStateRef = useRef({ tableIds: [], activePlayer: null, status: null, initialized: false });
   const prevStateRef = useRef(null);
-  const chairBuildIdRef = useRef(0);
 
   const ensureCardMeshes = useCallback((state) => {
     const three = threeStateRef.current;
@@ -1293,8 +1315,49 @@ export default function MurlanRoyaleArena({ search }) {
     }
   }, []);
 
+  const rebuildChairs = useCallback(
+    async (stoolTheme) => {
+      if (!threeReady) return;
+      const safe = stoolTheme || STOOL_THEMES[0];
+      const chairBuild = await buildChairTemplate(safe);
+      const currentAppearance = normalizeAppearance(appearanceRef.current);
+      const expectedTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
+      if (expectedTheme.id !== safe.id) return;
+      const store = threeStateRef.current;
+      if (store.chairMaterials) {
+        const mats = new Set([
+          store.chairMaterials.seat,
+          store.chairMaterials.leg,
+          ...(store.chairMaterials.upholstery ?? []),
+          ...(store.chairMaterials.metal ?? [])
+        ]);
+        mats.forEach((mat) => mat?.dispose?.());
+      }
+      if (store.chairTemplate) {
+        disposeObjectResources(store.chairTemplate);
+      }
+      store.chairTemplate = chairBuild.chairTemplate;
+      store.chairMaterials = chairBuild.materials;
+      store.chairThemePreserve = chairBuild.preserveOriginal ?? shouldPreserveChairMaterials(safe);
+      store.chairThemeId = safe.id;
+      applyChairThemeMaterials(store, safe);
+
+      store.chairInstances.forEach((chair) => {
+        const previous = chair?.userData?.chairModel;
+        if (previous) {
+          disposeObjectResources(previous);
+          chair.remove(previous);
+        }
+        const clone = chairBuild.chairTemplate.clone(true);
+        chair.add(clone);
+        chair.userData.chairModel = clone;
+      });
+    },
+    [threeReady]
+  );
+
   const updateSceneAppearance = useCallback(
-    async (nextAppearance, { refreshCards = false } = {}) => {
+    (nextAppearance, { refreshCards = false } = {}) => {
       if (!threeReady) return;
       const three = threeStateRef.current;
       if (!three.scene) return;
@@ -1302,7 +1365,6 @@ export default function MurlanRoyaleArena({ search }) {
       const woodOption = TABLE_WOOD_OPTIONS[safe.tableWood] ?? TABLE_WOOD_OPTIONS[0];
       const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
       const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
-      const chairOption = MURLAN_CHAIR_MODELS[safe.chairModel] ?? MURLAN_CHAIR_MODELS[0];
       const stoolTheme = STOOL_THEMES[safe.stools] ?? STOOL_THEMES[0];
       const outfitTheme = OUTFIT_THEMES[safe.outfit] ?? OUTFIT_THEMES[0];
       const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
@@ -1310,25 +1372,16 @@ export default function MurlanRoyaleArena({ search }) {
       if (three.tableInfo?.materials) {
         applyTableMaterials(three.tableInfo.materials, { woodOption, clothOption, baseOption }, three.renderer);
       }
-
-      const chairChanged = three.chairOption?.id !== chairOption?.id || !three.chairTemplate;
-      if (chairChanged) {
-        const buildId = ++chairBuildIdRef.current;
-        try {
-          const chairBuild = await buildChairTemplate(chairOption, stoolTheme);
-          if (buildId !== chairBuildIdRef.current) return;
-          disposeChairResources(three);
-          three.chairTemplate = chairBuild.chairTemplate;
-          three.chairMaterials = chairBuild.materials;
-          three.chairOption = chairOption;
-          applyChairTemplateToSeats(three, chairBuild.chairTemplate);
-        } catch (error) {
-          console.error('Failed to refresh chair model', error);
-        }
+      const preserveRequested = shouldPreserveChairMaterials(stoolTheme);
+      if (three.chairThemePreserve == null) {
+        three.chairThemePreserve = preserveRequested;
+      }
+      if (three.chairThemeId !== stoolTheme.id) {
+        three.chairThemePreserve = preserveRequested;
+        void rebuildChairs(stoolTheme);
       } else {
         applyChairThemeMaterials(three, stoolTheme);
       }
-
       applyOutfitThemeMaterials(three, outfitTheme);
 
       const shouldRefreshCards = refreshCards || three.appearance?.cards !== safe.cards;
@@ -1339,7 +1392,7 @@ export default function MurlanRoyaleArena({ search }) {
       ensureCardMeshes(gameStateRef.current);
       applyStateToScene(gameStateRef.current, selectedRef.current, true);
     },
-    [applyStateToScene, ensureCardMeshes, threeReady]
+    [applyStateToScene, ensureCardMeshes, rebuildChairs, threeReady]
   );
 
   const renderPreview = useCallback((type, option) => {
@@ -1419,27 +1472,25 @@ export default function MurlanRoyaleArena({ search }) {
             />
           </div>
         );
-      case 'chairModel': {
-        const [c1, c2] = option.swatches ?? ['#e5e7eb', '#1f2937'];
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/50">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="h-10 w-16 rounded-xl border border-white/10 shadow-inner"
-                style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}
-              />
-            </div>
-            <div className="absolute bottom-1 right-1 rounded-full bg-black/60 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-sky-100/80">
-              Original
-            </div>
-          </div>
-        );
-      }
       case 'stools':
         return (
-          <div className="relative flex h-12 w-full items-center justify-center rounded-xl border border-white/10 bg-slate-950/50">
-            <div className="h-6 w-12 rounded-md" style={{ background: option.seatColor }} />
-            <div className="absolute bottom-1 h-2 w-14 rounded-full opacity-80" style={{ background: option.legColor }} />
+          <div className="relative flex h-12 w-full items-center justify-center rounded-xl border border-white/10 bg-slate-950/50 overflow-hidden">
+            {option.thumbnail ? (
+              <img
+                src={option.thumbnail}
+                alt={option.label}
+                className="h-full w-full object-cover opacity-90"
+                loading="lazy"
+              />
+            ) : (
+              <>
+                <div className="h-6 w-12 rounded-md" style={{ background: option.seatColor }} />
+                <div
+                  className="absolute bottom-1 h-2 w-14 rounded-full opacity-80"
+                  style={{ background: option.legColor }}
+                />
+              </>
+            )}
           </div>
         );
       case 'outfit':
@@ -1551,12 +1602,12 @@ export default function MurlanRoyaleArena({ search }) {
     }
     const previous = threeStateRef.current.appearance;
     const cardChanged = previous?.cards !== appearance.cards;
-    void updateSceneAppearance(appearance, { refreshCards: cardChanged });
+    updateSceneAppearance(appearance, { refreshCards: cardChanged });
   }, [appearance, updateSceneAppearance]);
 
   useEffect(() => {
     if (!threeReady) return;
-    void updateSceneAppearance(appearanceRef.current, { refreshCards: true });
+    updateSceneAppearance(appearanceRef.current, { refreshCards: true });
   }, [threeReady, updateSceneAppearance]);
 
   useEffect(() => {
@@ -1645,8 +1696,6 @@ export default function MurlanRoyaleArena({ search }) {
         TABLE_CLOTH_OPTIONS[currentAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
       const baseOption =
         TABLE_BASE_OPTIONS[currentAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
-      const chairOption =
-        MURLAN_CHAIR_MODELS[currentAppearance.chairModel] ?? MURLAN_CHAIR_MODELS[0];
       const stoolTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
       const outfitTheme = OUTFIT_THEMES[currentAppearance.outfit] ?? OUTFIT_THEMES[0];
 
@@ -1687,31 +1736,31 @@ export default function MurlanRoyaleArena({ search }) {
       wall.receiveShadow = false;
       arenaGroup.add(wall);
 
-      const potGroup = new THREE.Group();
-      arenaGroup.add(potGroup);
-      threeStateRef.current.potGroup = potGroup;
-
-      const potRadius = wallInnerRadius - MODEL_SCALE * 0.6;
-      const potAngles = [Math.PI / 4, (3 * Math.PI) / 4, (-3 * Math.PI) / 4, -Math.PI / 4];
-      await Promise.allSettled(
-        MURLAN_FLOWER_POTS.map(async (option, idx) => {
-          try {
-            const potTemplate = await loadPolyHavenAsset(option.assetId);
-            const pot = potTemplate.clone(true);
-            fitModelToHeight(pot, TARGET_POT_HEIGHT);
-            const angle = potAngles[idx % potAngles.length];
-            pot.position.set(Math.cos(angle) * potRadius, 0, Math.sin(angle) * potRadius);
-            pot.rotation.y = option.rotationY ?? 0;
-            potGroup.add(pot);
-            return pot;
-          } catch (error) {
-            console.warn(`Failed to load pot ${option?.id}`, error);
-            return null;
-          }
-        })
-      );
-
       const cameraBoundRadius = wallInnerRadius - CAMERA_WALL_PADDING;
+
+      const decorGroup = new THREE.Group();
+      arenaGroup.add(decorGroup);
+      threeStateRef.current.decorGroup = decorGroup;
+      threeStateRef.current.decorPlants = [];
+      const addCornerPlants = async () => {
+        try {
+          const radius = wallInnerRadius * DECOR_PLANT_RADIUS_SCALE;
+          for (let i = 0; i < POLYHAVEN_PLANT_ASSETS.length; i += 1) {
+            const assetId = POLYHAVEN_PLANT_ASSETS[i];
+            const plant = await createPolyhavenInstance(assetId, PLANT_TARGET_HEIGHT);
+            if (disposed) return;
+            const angle = (i / POLYHAVEN_PLANT_ASSETS.length) * Math.PI * 2 + Math.PI / 4;
+            const pos = new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+            plant.position.add(pos);
+            plant.lookAt(new THREE.Vector3(0, plant.position.y + 0.1, 0));
+            decorGroup.add(plant);
+            threeStateRef.current.decorPlants.push(plant);
+          }
+        } catch (error) {
+          console.warn('Failed to load decor plants', error);
+        }
+      };
+      void addCornerPlants();
 
       const scoreboardCanvas = document.createElement('canvas');
       scoreboardCanvas.width = 1024;
@@ -1768,12 +1817,14 @@ export default function MurlanRoyaleArena({ search }) {
         -TABLE_RADIUS * 0.62
       );
 
-      const chairBuild = await buildChairTemplate(chairOption, stoolTheme);
+      const chairBuild = await buildChairTemplate(stoolTheme);
       if (disposed) return;
       const chairTemplate = chairBuild.chairTemplate;
       threeStateRef.current.chairTemplate = chairTemplate;
       threeStateRef.current.chairMaterials = chairBuild.materials;
-      threeStateRef.current.chairOption = chairOption;
+      threeStateRef.current.chairThemePreserve =
+        chairBuild.preserveOriginal ?? shouldPreserveChairMaterials(stoolTheme);
+      threeStateRef.current.chairThemeId = stoolTheme.id;
       applyChairThemeMaterials(threeStateRef.current, stoolTheme);
 
       const avatarRadius = 0.32 * MODEL_SCALE;
@@ -1805,13 +1856,15 @@ export default function MurlanRoyaleArena({ search }) {
       cardGeometry = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
 
       const seatConfigs = [];
-      const seatEntries = [];
+      threeStateRef.current.chairInstances = [];
 
       for (let i = 0; i < CHAIR_COUNT; i++) {
         const player = players[i] ?? null;
         const chair = new THREE.Group();
         const chairModel = chairTemplate.clone(true);
         chair.add(chairModel);
+        chair.userData.chairModel = chairModel;
+        threeStateRef.current.chairInstances.push(chair);
 
         const occupant = new THREE.Group();
         occupant.position.z = -seatDepth * 0.12;
@@ -1877,7 +1930,6 @@ export default function MurlanRoyaleArena({ search }) {
         occupant.add(crest);
         avatarMaterials.push(coreMaterial, accentMaterial);
         chair.add(occupant);
-        seatEntries.push({ group: chair, chairModel, occupant });
 
         const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
         const isHumanSeat = Boolean(player?.isHuman);
@@ -1910,8 +1962,6 @@ export default function MurlanRoyaleArena({ search }) {
         });
 
       }
-
-      threeStateRef.current.seatEntries = seatEntries;
 
       const humanSeatIndex = players.findIndex((player) => player?.isHuman);
       const humanSeatConfig = humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
@@ -2118,19 +2168,42 @@ export default function MurlanRoyaleArena({ search }) {
         store.tableInfo.dispose?.();
         store.tableInfo = null;
       }
-      disposeChairResources(store);
-      if (store.potGroup) {
-        store.potGroup.traverse((obj) => {
+      if (store.chairMaterials) {
+        const mats = new Set([
+          store.chairMaterials.seat,
+          store.chairMaterials.leg,
+          ...(store.chairMaterials.upholstery ?? []),
+          ...(store.chairMaterials.metal ?? [])
+        ]);
+        mats.forEach((mat) => {
+          if (mat && typeof mat.dispose === 'function') mat.dispose();
+        });
+      }
+      if (store.chairTemplate) {
+        store.chairTemplate.traverse((obj) => {
           if (obj.isMesh) {
-            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-            disposeMaterialCollection(mats);
             obj.geometry?.dispose?.();
           }
         });
-        if (store.potGroup.parent) {
-          store.potGroup.parent.remove(store.potGroup);
+        store.chairTemplate = null;
+      }
+      if (store.chairInstances?.length) {
+        store.chairInstances.forEach((group) => {
+          const model = group?.userData?.chairModel;
+          if (model) {
+            disposeObjectResources(model);
+            group.remove(model);
+          }
+        });
+        store.chairInstances = [];
+      }
+      if (store.decorGroup) {
+        disposeObjectResources(store.decorGroup);
+        if (store.decorGroup.parent) {
+          store.decorGroup.parent.remove(store.decorGroup);
         }
-        store.potGroup = null;
+        store.decorGroup = null;
+        store.decorPlants = [];
       }
       if (store.outfitParts) {
         store.outfitParts.forEach((mat) => {
@@ -2146,9 +2219,7 @@ export default function MurlanRoyaleArena({ search }) {
         cardGeometry: null,
         cardMap: new Map(),
         faceTextureCache: new Map(),
-        seatEntries: [],
         seatConfigs: [],
-        potGroup: null,
         selectionTargets: [],
         animations: [],
         raycaster: new THREE.Raycaster(),
@@ -2158,7 +2229,11 @@ export default function MurlanRoyaleArena({ search }) {
         tableInfo: null,
         chairMaterials: null,
         chairTemplate: null,
-        chairOption: null,
+        chairThemePreserve: false,
+        chairThemeId: null,
+        chairInstances: [],
+        decorPlants: [],
+        decorGroup: null,
         outfitParts: [],
         cardThemeId: '',
         appearance: { ...DEFAULT_APPEARANCE }
@@ -2948,25 +3023,28 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
 
 function applyChairThemeMaterials(three, theme) {
   const mats = three?.chairMaterials;
-  if (three?.chairOption?.preserveMaterials || three?.chairOption?.tintable === false) return;
   if (!mats) return;
+  const preserve = three?.chairThemePreserve ?? shouldPreserveChairMaterials(theme);
+  if (preserve) return;
+  const seatColor = theme?.seatColor || '#7c3aed';
+  const legColor = theme?.legColor || '#111827';
   if (mats.seat?.color) {
-    mats.seat.color.set(theme.seatColor);
+    mats.seat.color.set(seatColor);
     mats.seat.needsUpdate = true;
   }
   if (mats.leg?.color) {
-    mats.leg.color.set(theme.legColor);
+    mats.leg.color.set(legColor);
     mats.leg.needsUpdate = true;
   }
   (mats.upholstery ?? []).forEach((mat) => {
     if (mat?.color) {
-      mat.color.set(theme.seatColor);
+      mat.color.set(seatColor);
       mat.needsUpdate = true;
     }
   });
   (mats.metal ?? []).forEach((mat) => {
     if (mat?.color) {
-      mat.color.set(theme.legColor);
+      mat.color.set(legColor);
       mat.needsUpdate = true;
     }
   });
