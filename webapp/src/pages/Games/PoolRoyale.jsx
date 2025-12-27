@@ -1683,17 +1683,17 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 0.93;
+const CLOTH_TEXTURE_INTENSITY = 0.97;
 const CLOTH_HAIR_INTENSITY = 0.78;
 const CLOTH_BUMP_INTENSITY = 1.12;
 const CLOTH_SOFT_BLEND = 0.42;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 4096,
-    anisotropy: 48,
+    textureSize: 4608,
+    anisotropy: 56,
     generateMipmaps: true,
-    bumpScaleMultiplier: 1.08,
+    bumpScaleMultiplier: 1.12,
     sheen: 0.95,
     sheenRoughness: 0.66
   };
@@ -1701,9 +1701,9 @@ const CLOTH_QUALITY = (() => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
       ...defaults,
-      textureSize: 2048,
-      anisotropy: 16,
-      bumpScaleMultiplier: 0.94,
+      textureSize: 2304,
+      anisotropy: 20,
+      bumpScaleMultiplier: 1,
       sheen: 0.9,
       sheenRoughness: 0.72
     };
@@ -1722,10 +1722,10 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 1536 : 1152,
-      anisotropy: highDensity ? 16 : 12,
+      textureSize: highDensity ? 1728 : 1312,
+      anisotropy: highDensity ? 18 : 14,
       generateMipmaps: true,
-      bumpScaleMultiplier: highDensity ? 0.9 : 0.82,
+      bumpScaleMultiplier: highDensity ? 0.96 : 0.88,
       sheen: 0.78,
       sheenRoughness: 0.82
     };
@@ -1733,10 +1733,10 @@ const CLOTH_QUALITY = (() => {
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 3072,
-      anisotropy: 32,
+      textureSize: 3584,
+      anisotropy: 40,
       generateMipmaps: true,
-      bumpScaleMultiplier: 1.02,
+      bumpScaleMultiplier: 1.06,
       sheen: 0.9,
       sheenRoughness: 0.7
     };
@@ -3238,12 +3238,12 @@ const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
-const CLOTH_THREAD_PITCH = 12 * 1.55; // enlarge thread spacing for a coarser, more pronounced weave
+const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.82; // slightly larger pattern footprint to match the scanned cloths
-const CLOTH_TEXTURE_REPEAT_HINT = 1.42;
+const CLOTH_PATTERN_SCALE = 0.76; // tighten the pattern footprint so the scan resolves more clearly
+const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
-const POLYHAVEN_ANISOTROPY_BOOST = 2.4;
+const POLYHAVEN_ANISOTROPY_BOOST = 2.6;
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.35, 0.55);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;

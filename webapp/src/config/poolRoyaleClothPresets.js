@@ -33,6 +33,15 @@ const createSwatches = (baseHex) => [
   adjustHex(baseHex, 0.3)
 ];
 
+const CABAN_GREEN_SWATCHES = Object.freeze(['#33b46a', '#2ca85f', '#42c47a', '#4fd184', '#238f4a']);
+const CABAN_OCEAN_BLUE_SWATCHES = Object.freeze([
+  '#118fd6',
+  '#0e83c9',
+  '#1ca7f0',
+  '#29b8ff',
+  '#0b74b3'
+]);
+
 const GREEN_SHADE_NAMES = ['Meadow', 'Spruce', 'Grove', 'Glade', 'Summit'];
 const BLUE_SHADE_NAMES = ['Harbor', 'Fjord', 'Glacier', 'Sapphire', 'Midnight'];
 const NATURE_SHADE_NAMES = ['Fern', 'Grove', 'Canopy', 'Meadow', 'Wildwood'];
@@ -55,8 +64,8 @@ const MATERIAL_SERIES = [
       emissiveIntensity: 0.24,
       envMapIntensity: 0.18
     },
-    greens: ['#33b46a', '#2ca85f', '#42c47a', '#4fd184', '#238f4a'],
-    blues: ['#2ba5d9', '#2499ce', '#3ab5e6', '#45c0ed', '#1f86b8']
+    greens: CABAN_GREEN_SWATCHES,
+    blues: CABAN_OCEAN_BLUE_SWATCHES
   },
   {
     prefix: 'polarFleece',
@@ -74,8 +83,8 @@ const MATERIAL_SERIES = [
       emissiveIntensity: 0.34,
       envMapIntensity: 0.14
     },
-    greens: ['#69b980', '#5ead73', '#74c690', '#7fce99', '#4f9d62'],
-    blues: ['#6d9ad0', '#608fc5', '#7aacdd', '#86b7e6', '#4e7ead']
+    greens: CABAN_GREEN_SWATCHES,
+    blues: CABAN_OCEAN_BLUE_SWATCHES
   },
   {
     prefix: 'polarFleecePlush',
@@ -93,8 +102,8 @@ const MATERIAL_SERIES = [
       emissiveIntensity: 0.36,
       envMapIntensity: 0.16
     },
-    greens: ['#5fae77', '#54a36c', '#6bb885', '#78c291', '#489662'],
-    blues: ['#6b99c4', '#5f8cba', '#79a6d1', '#88b4db', '#4c7ca3']
+    greens: CABAN_GREEN_SWATCHES,
+    blues: CABAN_OCEAN_BLUE_SWATCHES
   },
   {
     prefix: 'polarFleeceNatureOcean',
@@ -112,8 +121,8 @@ const MATERIAL_SERIES = [
       emissiveIntensity: 0.34,
       envMapIntensity: 0.15
     },
-    greens: ['#2f9b58', '#279350', '#3aa866', '#45b471', '#1f7e43'],
-    blues: ['#2a8fc7', '#2484bd', '#3a9dd9', '#44a8e4', '#1f74a7'],
+    greens: CABAN_GREEN_SWATCHES,
+    blues: CABAN_OCEAN_BLUE_SWATCHES,
     greenShadeNames: NATURE_SHADE_NAMES,
     blueShadeNames: OCEAN_SHADE_NAMES
   }
