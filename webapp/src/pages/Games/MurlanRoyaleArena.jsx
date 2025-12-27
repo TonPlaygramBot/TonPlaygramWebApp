@@ -456,6 +456,18 @@ function extractChairMaterials(model) {
   };
 }
 
+function flattenChairMaterials(chairMaterials) {
+  if (!chairMaterials) return [];
+  const { seat, leg, upholstery = [], metal = [] } = chairMaterials;
+  return [seat, leg, ...upholstery, ...metal].filter(Boolean);
+}
+
+function hasTexturedChairMaterials(chairMaterials) {
+  return flattenChairMaterials(chairMaterials).some(
+    (mat) => mat?.map || mat?.emissiveMap || mat?.normalMap || mat?.roughnessMap || mat?.metalnessMap
+  );
+}
+
 function disposeObjectResources(object) {
   const materials = new Set();
   object.traverse((obj) => {
@@ -1291,9 +1303,12 @@ export default function MurlanRoyaleArena({ search }) {
       if (store.chairTemplate) {
         disposeObjectResources(store.chairTemplate);
       }
+      const preserveLoadedMaterials =
+        shouldPreserveChairMaterials(safe) ||
+        (hasTexturedChairMaterials(chairBuild.materials) && !safe?.seatColor && !safe?.legColor);
       store.chairTemplate = chairBuild.chairTemplate;
       store.chairMaterials = chairBuild.materials;
-      store.chairThemePreserve = shouldPreserveChairMaterials(safe);
+      store.chairThemePreserve = preserveLoadedMaterials;
       store.chairThemeId = safe.id;
       applyChairThemeMaterials(store, safe);
 
@@ -1773,7 +1788,10 @@ export default function MurlanRoyaleArena({ search }) {
       const chairTemplate = chairBuild.chairTemplate;
       threeStateRef.current.chairTemplate = chairTemplate;
       threeStateRef.current.chairMaterials = chairBuild.materials;
-      threeStateRef.current.chairThemePreserve = shouldPreserveChairMaterials(stoolTheme);
+      const preserveLoadedMaterials =
+        shouldPreserveChairMaterials(stoolTheme) ||
+        (hasTexturedChairMaterials(chairBuild.materials) && !stoolTheme?.seatColor && !stoolTheme?.legColor);
+      threeStateRef.current.chairThemePreserve = preserveLoadedMaterials;
       threeStateRef.current.chairThemeId = stoolTheme.id;
       applyChairThemeMaterials(threeStateRef.current, stoolTheme);
 
@@ -2974,23 +2992,32 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
 function applyChairThemeMaterials(three, theme) {
   const mats = three?.chairMaterials;
   if (!mats) return;
-  if (shouldPreserveChairMaterials(theme) || three?.chairThemePreserve) return;
-  if (mats.seat?.color) {
+  const textured = hasTexturedChairMaterials(mats);
+  const preserveTheme = shouldPreserveChairMaterials(theme);
+  const missingThemeColors = !theme?.seatColor && !theme?.legColor;
+  const shouldPreserve = preserveTheme || three?.chairThemePreserve || (textured && missingThemeColors);
+  if (shouldPreserve) {
+    if (textured && three && !three.chairThemePreserve) {
+      three.chairThemePreserve = true;
+    }
+    return;
+  }
+  if (mats.seat?.color && theme?.seatColor) {
     mats.seat.color.set(theme.seatColor);
     mats.seat.needsUpdate = true;
   }
-  if (mats.leg?.color) {
+  if (mats.leg?.color && theme?.legColor) {
     mats.leg.color.set(theme.legColor);
     mats.leg.needsUpdate = true;
   }
   (mats.upholstery ?? []).forEach((mat) => {
-    if (mat?.color) {
+    if (mat?.color && theme?.seatColor) {
       mat.color.set(theme.seatColor);
       mat.needsUpdate = true;
     }
   });
   (mats.metal ?? []).forEach((mat) => {
-    if (mat?.color) {
+    if (mat?.color && theme?.legColor) {
       mat.color.set(theme.legColor);
       mat.needsUpdate = true;
     }
