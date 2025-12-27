@@ -1026,6 +1026,20 @@ const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 1.025; // expand the middle pocket capture to prevent rail bounces on centre-line pots
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the interior bowl so balls fall at the throat
 const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now matches the bowl opening instead of scaling from corners
+const POCKET_GUARD_RADIUS = POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.06; // align the rail guard to the playable capture bowl instead of the visual rim
+const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.08); // keep a slim safety margin so clean entries aren't rejected
+const CORNER_POCKET_DEPTH_LIMIT =
+  POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
+const SIDE_POCKET_GUARD_RADIUS =
+  SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.08; // use the middle-pocket bowl to gate reflections
+const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
+  0,
+  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.08
+);
+const SIDE_POCKET_DEPTH_LIMIT =
+  POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
+const SIDE_POCKET_SPAN =
+  SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.52; // tune the middle lane to the real mouth width
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_ENABLED = false; // fully disable any plywood underlay beneath the cloth
 const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
@@ -1239,9 +1253,9 @@ const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
-const DEFAULT_CUSHION_CUT_ANGLE = 29;
+const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // middle pocket cushion cuts are sharpened to a 29° cut to align the side-rail cushions with the updated spec
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 34;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -4906,8 +4920,9 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0016; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.1;
+const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.14; // let the cue view drop to the same rail-hugging height used by AI shots while staying above the cue
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.32; // halt the downward sweep sooner so the lowest angle stays slightly higher and stops above the cue
+const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.018; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
@@ -5017,8 +5032,8 @@ const CUE_VIEW_PHI_LIFT = 0.1; // raise the cue camera slightly so the aim view 
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
-  CAMERA_MAX_PHI - 0.02
-); // ensure rail clamp activates within the lowered camera tilt limit
+  CAMERA_LOWEST_PHI - 0.18
+); // ensure rail clamp activates within the lowered camera tilt limit even with the deeper cue view
 const CAMERA_MIN_HORIZONTAL =
   ((Math.max(PLAY_W, PLAY_H) / 2 + SIDE_RAIL_INNER_THICKNESS) * WORLD_SCALE) +
   CAMERA_RAIL_SAFETY;
@@ -5806,10 +5821,9 @@ function reflectRails(ball) {
   const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
   const cornerCos = Math.cos(cornerRad);
   const cornerSin = Math.sin(cornerRad);
-  const pocketGuard =
-    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION + BALL_R * 0.08; // widen the safe zone so balls don't bounce before reaching the jaw
-  const guardClearance = Math.max(0, pocketGuard - BALL_R * 0.1);
-  const cornerDepthLimit = POCKET_VIS_R * 1.75 * POCKET_VISUAL_EXPANSION;
+  const pocketGuard = POCKET_GUARD_RADIUS;
+  const guardClearance = POCKET_GUARD_CLEARANCE;
+  const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
   for (const { sx, sy } of CORNER_SIGNS) {
     TMP_VEC2_C.set(sx * limX, sy * limY);
     TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
@@ -5846,11 +5860,10 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS * 0.96 + BALL_R * 0.58; // open the middle capture lane to reduce false cushion kicks
-  const sidePocketGuard =
-    SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.06; // soften the capture window around middle jaws
-  const sideGuardClearance = Math.max(0, sidePocketGuard - BALL_R * 0.08);
-  const sideDepthLimit = POCKET_VIS_R * 1.65 * POCKET_VISUAL_EXPANSION;
+  const sideSpan = SIDE_POCKET_SPAN;
+  const sidePocketGuard = SIDE_POCKET_GUARD_RADIUS;
+  const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
+  const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
   const sidePocketCenters = pocketCenters().slice(4);
   for (const center of sidePocketCenters) {
     TMP_VEC2_A.copy(ball.pos).sub(center);
