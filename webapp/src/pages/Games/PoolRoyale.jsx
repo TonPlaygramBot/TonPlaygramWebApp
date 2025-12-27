@@ -505,7 +505,7 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.018; // push the middle rail rounded cuts slightly farther outward so they sit farther from the table centre while keeping their slim profile
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.032; // push the middle rail rounded cuts slightly farther outward so they sit farther from the table centre while keeping their slim profile
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.05; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
 
 function buildChromePlateGeometry({
@@ -850,7 +850,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.58; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.14; // trim the middle jaw reach further so it finishes closer to the wood/cloth gap while keeping the jaw radius
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.94; // relax the middle jaw arc radius slightly so side-pocket jaws read a touch wider
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.98; // relax the middle jaw arc radius slightly so side-pocket jaws read a touch wider
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.02; // lift the middle jaws so their rims sit level with the cloth like the corner pockets
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.06; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
@@ -1690,10 +1690,10 @@ const CLOTH_SOFT_BLEND = 0.42;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 4608,
-    anisotropy: 56,
+    textureSize: 5632,
+    anisotropy: 72,
     generateMipmaps: true,
-    bumpScaleMultiplier: 1.12,
+    bumpScaleMultiplier: 1.16,
     sheen: 0.95,
     sheenRoughness: 0.66
   };
@@ -1722,10 +1722,10 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 1728 : 1312,
-      anisotropy: highDensity ? 18 : 14,
+      textureSize: highDensity ? 2048 : 1536,
+      anisotropy: highDensity ? 22 : 18,
       generateMipmaps: true,
-      bumpScaleMultiplier: highDensity ? 0.96 : 0.88,
+      bumpScaleMultiplier: highDensity ? 1.02 : 0.94,
       sheen: 0.78,
       sheenRoughness: 0.82
     };
@@ -1733,10 +1733,10 @@ const CLOTH_QUALITY = (() => {
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 3584,
-      anisotropy: 40,
+      textureSize: 4096,
+      anisotropy: 48,
       generateMipmaps: true,
-      bumpScaleMultiplier: 1.06,
+      bumpScaleMultiplier: 1.12,
       sheen: 0.9,
       sheenRoughness: 0.7
     };
@@ -2599,48 +2599,48 @@ const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'hd50',
-    label: 'HD Performance (50 Hz)',
-    fps: 50,
-    renderScale: 0.96,
-    pixelRatioCap: 1.35,
-    resolution: 'HD render • DPR 1.35 cap',
-    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
+    label: 'HD Performance (60 Hz)',
+    fps: 60,
+    renderScale: 1.05,
+    pixelRatioCap: 1.4,
+    resolution: 'HD render • DPR 1.4 cap',
+    description: 'Minimum HD output with higher refresh for battery saver and 60 Hz displays.'
   },
   {
     id: 'fhd60',
-    label: 'Full HD (60 Hz)',
-    fps: 60,
-    renderScale: 1.05,
-    pixelRatioCap: 1.5,
-    resolution: 'Full HD render • DPR 1.5 cap',
-    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
+    label: 'Full HD (75 Hz)',
+    fps: 75,
+    renderScale: 1.12,
+    pixelRatioCap: 1.55,
+    resolution: 'Full HD render • DPR 1.55 cap',
+    description: '1080p-focused profile with extra headroom over the Snooker pacing.'
   },
   {
     id: 'qhd90',
-    label: 'Quad HD (90 Hz)',
-    fps: 90,
-    renderScale: 1.12,
-    pixelRatioCap: 1.65,
-    resolution: 'QHD render • DPR 1.65 cap',
-    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    label: 'Quad HD (105 Hz)',
+    fps: 105,
+    renderScale: 1.22,
+    pixelRatioCap: 1.72,
+    resolution: 'QHD render • DPR 1.72 cap',
+    description: 'Sharper 1440p render for capable 105 Hz mobile and desktop GPUs.'
   },
   {
     id: 'uhd120',
-    label: 'Ultra HD (120 Hz)',
-    fps: 120,
-    renderScale: 1.18,
-    pixelRatioCap: 1.8,
-    resolution: 'Ultra HD render • DPR 1.8 cap',
-    description: '4K-oriented profile for 120 Hz flagships and desktops.'
+    label: 'Ultra HD (144 Hz)',
+    fps: 144,
+    renderScale: 1.28,
+    pixelRatioCap: 1.85,
+    resolution: 'Ultra HD render • DPR 1.85 cap',
+    description: '4K-oriented profile for 144 Hz flagships and desktops.'
   },
   {
     id: 'ultra144',
-    label: 'Ultra HD+ (144 Hz)',
-    fps: 144,
-    renderScale: 1.2,
-    pixelRatioCap: 1.9,
-    resolution: 'Ultra HD+ render • DPR 1.9 cap',
-    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+    label: 'Ultra HD+ (165 Hz)',
+    fps: 165,
+    renderScale: 1.32,
+    pixelRatioCap: 2,
+    resolution: 'Ultra HD+ render • DPR 2.0 cap',
+    description: 'Maximum clarity preset that prioritizes UHD detail at 165 Hz.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
@@ -6350,7 +6350,14 @@ function Table3D(
   const clampClothColor = (baseColor) => {
     const hsl = { h: 0, s: 0, l: 0 };
     baseColor.getHSL(hsl);
-    const saturationBoost = isPolyHavenCloth ? 1.12 : 1.08;
+    const baseSaturationBoost = isPolyHavenCloth ? 1.12 : 1.08;
+    let hue = hsl.h;
+    let saturationBoost = baseSaturationBoost;
+    if (isPolyHavenCloth && hue >= 0.48 && hue <= 0.64) {
+      const blueBias = THREE.MathUtils.clamp((hue - 0.48) / 0.16, 0, 1);
+      hue = THREE.MathUtils.lerp(hue, 0.61, 0.4 + 0.18 * blueBias);
+      saturationBoost = baseSaturationBoost + 0.08 * (0.5 + 0.5 * blueBias);
+    }
     const saturationFloor = isPolyHavenCloth ? 0.32 : 0.18;
     const minLightness = isPolyHavenCloth ? 0.3 : 0;
     const maxLightness = isPolyHavenCloth ? 0.68 : 0.86;
@@ -6365,7 +6372,7 @@ function Table3D(
       ? THREE.MathUtils.lerp(clampedLightness, 0.5, 0.14)
       : THREE.MathUtils.lerp(clampedLightness, 0.5, 0.08);
     result.setHSL(
-      hsl.h,
+      hue,
       baseSaturation,
       balancedLightness
     );
