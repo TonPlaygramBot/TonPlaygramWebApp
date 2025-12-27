@@ -9,7 +9,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
@@ -270,37 +269,6 @@ const CHAIR_MODEL_URLS = [
 ];
 
 const polyHavenCache = new Map();
-let sharedKTX2Loader = null;
-
-function getKTX2Loader(manager = null, renderer = null) {
-  if (!sharedKTX2Loader) {
-    sharedKTX2Loader = new KTX2Loader(manager ?? undefined);
-    sharedKTX2Loader.setTranscoderPath(
-      'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/'
-    );
-    const supportRenderer =
-      renderer ||
-      (typeof document !== 'undefined' ? new THREE.WebGLRenderer({ antialias: false, alpha: true }) : null);
-    if (supportRenderer) {
-      sharedKTX2Loader.detectSupport(supportRenderer);
-      if (!renderer) supportRenderer.dispose();
-    }
-  } else if (manager && sharedKTX2Loader.manager !== manager) {
-    sharedKTX2Loader.manager = manager;
-  }
-  return sharedKTX2Loader;
-}
-
-function createConfiguredGLTFLoader({ manager = null, renderer = null } = {}) {
-  const loader = manager ? new GLTFLoader(manager) : new GLTFLoader();
-  loader.setCrossOrigin?.('anonymous');
-  const draco = manager ? new DRACOLoader(manager) : new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-  loader.setDRACOLoader(draco);
-  const ktx2 = getKTX2Loader(manager, renderer);
-  loader.setKTX2Loader(ktx2);
-  return loader;
-}
 
 function stripQueryHash(u) {
   return u.split('#')[0].split('?')[0];
@@ -398,7 +366,11 @@ async function loadPolyHavenAsset(id) {
       }
     });
 
-    const loader = createConfiguredGLTFLoader({ manager });
+    const loader = new GLTFLoader(manager);
+    const draco = new DRACOLoader(manager);
+    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    loader.setDRACOLoader(draco);
+    loader.setCrossOrigin?.('anonymous');
 
     const gltf = await loader.loadAsync(modelUrl);
     const root = gltf.scene || gltf.scenes?.[0] || new THREE.Group();
@@ -602,7 +574,10 @@ function extractChairMaterials(model) {
 }
 
 async function loadGltfChair(urls = CHAIR_MODEL_URLS) {
-  const loader = createConfiguredGLTFLoader();
+  const loader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  loader.setDRACOLoader(draco);
 
   let gltf = null;
   let lastError = null;
