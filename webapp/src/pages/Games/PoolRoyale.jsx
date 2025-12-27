@@ -10253,17 +10253,27 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
+const cuePullMaxRef = useRef(CUE_PULL_BASE);
+const syncCuePullFromPower = useCallback((power) => {
+  const desired = Math.max(0, (power ?? 0) * CUE_PULL_BASE);
+  const maxPull = Math.max(0, cuePullMaxRef.current ?? CUE_PULL_BASE);
+  const pull = Math.min(desired, maxPull);
+  cuePullTargetRef.current = pull;
+  cuePullCurrentRef.current = pull;
+}, []);
   const applyPower = useCallback((nextPower) => {
     const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
     powerRef.current = clampedPower;
+    syncCuePullFromPower(clampedPower);
     setHud((prev) => ({ ...prev, power: clampedPower }));
-  }, []);
+  }, [syncCuePullFromPower]);
   useEffect(() => {
     inHandPlacementModeRef.current = inHandPlacementMode;
   }, [inHandPlacementMode]);
   useEffect(() => {
     powerRef.current = hud.power;
-  }, [hud.power]);
+    syncCuePullFromPower(hud.power);
+  }, [hud.power, syncCuePullFromPower]);
   const hudRef = useRef(hud);
   useEffect(() => {
     hudRef.current = hud;
@@ -16615,6 +16625,7 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
+          cuePullMaxRef.current = maxPull;
           cuePullTargetRef.current = Math.min(CUE_PULL_BASE * clampedPower, maxPull);
           const pull = THREE.MathUtils.clamp(
             Math.max(cuePullCurrentRef.current ?? 0, cuePullTargetRef.current ?? 0),
@@ -18693,6 +18704,7 @@ const powerRef = useRef(hud.power);
             balls
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          cuePullMaxRef.current = maxPull;
           const pullTarget = Math.min(desiredPull, maxPull);
           cuePullTargetRef.current = pullTarget;
           const pull = THREE.MathUtils.lerp(
@@ -18925,6 +18937,7 @@ const powerRef = useRef(hud.power);
             balls
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          cuePullMaxRef.current = maxPull;
           const pullTarget = Math.min(desiredPull, maxPull);
           cuePullTargetRef.current = pullTarget;
           const pull = THREE.MathUtils.lerp(
@@ -19029,6 +19042,7 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
+          cuePullMaxRef.current = maxPull;
           const pullTarget = Math.min(desiredPull, maxPull);
           cuePullTargetRef.current = pullTarget;
           const pull = THREE.MathUtils.lerp(
