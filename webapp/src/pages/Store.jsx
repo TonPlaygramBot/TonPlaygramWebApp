@@ -175,8 +175,7 @@ const MURLAN_TYPE_LABELS = {
   tableCloth: 'Table Cloth',
   tableBase: 'Table Base',
   cards: 'Card Themes',
-  chairModel: 'Chairs',
-  stools: 'Stools'
+  stools: 'Stools & Chairs'
 };
 
 const DOMINO_TYPE_LABELS = {
@@ -257,7 +256,6 @@ const TYPE_SWATCHES = {
   tableWood: ['#4b3621', '#9a7b4f'],
   tableCloth: ['#0f172a', '#34d399'],
   tableBase: ['#0f172a', '#1f2937'],
-  chairModel: ['#e5e7eb', '#1f2937'],
   chairColor: ['#111827', '#f59e0b'],
   tableShape: ['#334155', '#64748b'],
   sideColor: ['#f8fafc', '#1f2937'],
@@ -334,8 +332,7 @@ const PREVIEW_BY_TYPE = {
   tableFinish: 'table',
   tableWood: 'table',
   tableCloth: 'table',
-  tableBase: 'table',
-  chairModel: 'chair'
+  tableBase: 'table'
 };
 
 const PREVIEW_BY_SLUG = {
