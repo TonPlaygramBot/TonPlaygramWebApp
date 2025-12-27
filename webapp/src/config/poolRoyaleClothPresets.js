@@ -35,6 +35,8 @@ const createSwatches = (baseHex) => [
 
 const GREEN_SHADE_NAMES = ['Meadow', 'Spruce', 'Grove', 'Glade', 'Summit'];
 const BLUE_SHADE_NAMES = ['Harbor', 'Fjord', 'Glacier', 'Sapphire', 'Midnight'];
+const NATURE_SHADE_NAMES = ['Fern', 'Grove', 'Canopy', 'Meadow', 'Wildwood'];
+const OCEAN_SHADE_NAMES = ['Crest', 'Current', 'Lagoon', 'Reef', 'Abyss'];
 
 const MATERIAL_SERIES = [
   {
@@ -53,8 +55,8 @@ const MATERIAL_SERIES = [
       emissiveIntensity: 0.24,
       envMapIntensity: 0.18
     },
-    greens: ['#3f7f3a', '#357333', '#4a9446', '#58a250', '#2f6030'],
-    blues: ['#566e8c', '#667e9c', '#4b5d78', '#5f7896', '#7688ad']
+    greens: ['#2f9a55', '#278f4d', '#3cab66', '#49b870', '#1f7f3c'],
+    blues: ['#3f82c2', '#3578b8', '#4a90cf', '#569bdc', '#2f6fa6']
   },
   {
     prefix: 'polarFleece',
@@ -95,29 +97,35 @@ const MATERIAL_SERIES = [
     blues: ['#6b99c4', '#5f8cba', '#79a6d1', '#88b4db', '#4c7ca3']
   },
   {
-    prefix: 'cottonJersey',
-    label: 'Cotton Jersey',
-    sourceId: 'cotton_jersey',
-    basePrice: 650,
+    prefix: 'polarFleeceNatureOcean',
+    label: 'Polar Fleece Nature & Ocean',
+    sourceId: 'polar_fleece',
+    basePrice: 660,
     priceStep: 10,
     bluePremium: 20,
-    sparkle: 1.08,
-    stray: 1.06,
+    sparkle: 1.1,
+    stray: 1.08,
     detail: {
-      bumpMultiplier: 1.18,
-      sheen: 0.6,
-      sheenRoughness: 0.48,
-      emissiveIntensity: 0.28,
-      envMapIntensity: 0.18
+      bumpMultiplier: 1.16,
+      sheen: 0.68,
+      sheenRoughness: 0.5,
+      emissiveIntensity: 0.34,
+      envMapIntensity: 0.15
     },
-    greens: ['#5a9b64', '#4f9158', '#67a971', '#73b37c', '#44804a'],
-    blues: ['#6084ad', '#5579a1', '#6f92ba', '#7ca0c5', '#436a8c']
+    greens: ['#2f9b58', '#279350', '#3aa866', '#45b471', '#1f7e43'],
+    blues: ['#2a8fc7', '#2484bd', '#3a9dd9', '#44a8e4', '#1f74a7'],
+    greenShadeNames: NATURE_SHADE_NAMES,
+    blueShadeNames: OCEAN_SHADE_NAMES
   }
 ];
 
 const createVariantsForMaterial = (material) => {
-  const buildTone = (toneKey, palette, shadeNames) =>
+  const buildTone = (toneKey, palette) =>
     palette.map((hex, index) => {
+      const shadeNames =
+        toneKey === 'green'
+          ? material.greenShadeNames || GREEN_SHADE_NAMES
+          : material.blueShadeNames || BLUE_SHADE_NAMES;
       const name = shadeNames[index] || `${toneKey}-${index + 1}`;
       const toneLabel = toneKey === 'green' ? 'Green' : 'Blue';
       const id = `${material.prefix}${toneLabel}${name}`;
@@ -139,8 +147,8 @@ const createVariantsForMaterial = (material) => {
     });
 
   return [
-    ...buildTone('green', material.greens, GREEN_SHADE_NAMES),
-    ...buildTone('blue', material.blues, BLUE_SHADE_NAMES)
+    ...buildTone('green', material.greens),
+    ...buildTone('blue', material.blues)
   ];
 };
 

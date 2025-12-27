@@ -3249,8 +3249,7 @@ const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
 const CLOTH_PATTERN_OVERRIDES = Object.freeze({
-  cotton_jersey: { repeatScale: 4 / 9 },
-  polar_fleece: { repeatScale: 1.04 }
+  polar_fleece: { repeatScale: 0.94 } // 10% larger pattern to emphasize the fleece nap
 });
 
 const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
@@ -14988,7 +14987,7 @@ const powerRef = useRef(hud.power);
         const lightLineX = 0; // align fixtures down the center line instead of offsetting per side
         const lightSpacing = Math.max(lightOffsetZ * 0.36, TABLE.THICK * 2); // pull fixtures closer together while keeping even coverage
         const lightPositionsZ = [-1.1, -0.34, 0.34, 1.1].map((mult) => mult * lightSpacing);
-        const lightBrightnessTrim = 0.92; // slightly lower the rig intensity for softer cloth highlights
+        const lightBrightnessTrim = 0.86; // slightly lower the rig intensity for softer cloth highlights
         const shadowHalfSpan =
           Math.max(roomWidth, roomDepth) * 0.82 + TABLE.THICK * 3.5;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
