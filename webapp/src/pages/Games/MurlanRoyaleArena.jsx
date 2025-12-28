@@ -269,11 +269,10 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
-const HALLWAY_PLANT_ASSETS = ['potted_plant_01', 'potted_plant_02', 'potted_plant_04'];
+const HALLWAY_PLANT_ASSETS = ['potted_plant_04'];
 const POLYHAVEN_MODEL_CACHE = new Map();
 const PLANT_TARGET_HEIGHT = 2.8 * MODEL_SCALE;
-const HALLWAY_PLANT_SCALE = 2;
-const DECOR_PLANT_RADIUS_SCALE = 0.9;
+const HALLWAY_PLANT_SCALE = 1;
 const DECOR_PLANT_COUNT = 4;
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
@@ -780,6 +779,163 @@ function createHallwayCeilingWallMaterial(textureLoader, maxAnisotropy = 1) {
     roughness: 0.15,
     map: ceilingTex
   });
+}
+
+const WALL_TEXTURE_CONFIG = {
+  sourceId: 'white_planks_clean',
+  fallbackColor: 0xdedede,
+  repeat: new THREE.Vector2(1.875, 3.4),
+  anisotropy: 12,
+  preferredResolutionK: 4
+};
+
+const loadWallPlankTextures = (() => {
+  let cache = null;
+  let pending = null;
+
+  const pickTextureUrls = (apiJson) => {
+    const urls = [];
+    const walk = (value) => {
+      if (!value) return;
+      if (typeof value === 'string') {
+        const lower = value.toLowerCase();
+        if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
+          urls.push(value);
+        }
+        return;
+      }
+      if (Array.isArray(value)) {
+        value.forEach(walk);
+        return;
+      }
+      if (typeof value === 'object') {
+        Object.values(value).forEach(walk);
+      }
+    };
+    walk(apiJson);
+    const pickTexture = (candidateUrls, preferredResolutions) => {
+      const lowerUrls = candidateUrls.map((u) => u.toLowerCase());
+      for (const res of preferredResolutions) {
+        const match = lowerUrls.find((u) => u.includes(`_${res}.`));
+        if (match) return candidateUrls[lowerUrls.indexOf(match)];
+      }
+      return candidateUrls[0] ?? null;
+    };
+    const scoreAndPick = (keys) => {
+      const candidates = [];
+      keys.forEach((key) => {
+        Object.entries(apiJson || {}).forEach(([k, v]) => {
+          if (k.toLowerCase().includes(key)) candidates.push(v);
+        });
+      });
+      const flat = [];
+      const flatten = (v) => {
+        if (!v) return;
+        if (typeof v === 'string') {
+          flat.push(v);
+          return;
+        }
+        if (Array.isArray(v)) {
+          v.forEach(flatten);
+          return;
+        }
+        if (typeof v === 'object') {
+          Object.values(v).forEach(flatten);
+        }
+      };
+      flatten(candidates);
+      return pickTexture(
+        flat,
+        WALL_TEXTURE_CONFIG.preferredResolutionK ? [`${WALL_TEXTURE_CONFIG.preferredResolutionK}k`, '4k', '2k'] : ['4k', '2k']
+      );
+    };
+    return {
+      diffuse: scoreAndPick(['diff', 'diffuse', 'albedo', 'basecolor']),
+      normal: scoreAndPick(['nor_gl', 'normal_gl', 'nor', 'normal']),
+      roughness: scoreAndPick(['rough', 'roughness'])
+    };
+  };
+
+  const loadTexture = (loader, url, isColor) =>
+    new Promise((resolve) => {
+      if (!url) {
+        resolve(null);
+        return;
+      }
+      loader.load(
+        url,
+        (texture) => {
+          if (isColor) {
+            applySRGBColorSpace(texture);
+          }
+          resolve(texture);
+        },
+        undefined,
+        () => resolve(null)
+      );
+    });
+
+  return async (anisotropy) => {
+    if (cache) return cache;
+    if (!pending) {
+      pending = (async () => {
+        if (typeof fetch !== 'function') return null;
+        try {
+          const response = await fetch(`https://api.polyhaven.com/files/${WALL_TEXTURE_CONFIG.sourceId}`);
+          if (!response?.ok) return null;
+          const json = await response.json();
+          const urls = pickTextureUrls(json);
+          if (!urls.diffuse) return null;
+          const loader = new THREE.TextureLoader();
+          loader.setCrossOrigin('anonymous');
+          const [map, normal, roughness] = await Promise.all([
+            loadTexture(loader, urls.diffuse, true),
+            loadTexture(loader, urls.normal, false),
+            loadTexture(loader, urls.roughness, false)
+          ]);
+          [map, normal, roughness].forEach((tex) => {
+            if (!tex) return;
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.anisotropy = Math.max(1, anisotropy ?? WALL_TEXTURE_CONFIG.anisotropy);
+            tex.needsUpdate = true;
+          });
+          cache = { map, normal, roughness };
+          return cache;
+        } catch (err) {
+          console.warn('Failed to load Poly Haven wall plank textures', err);
+          return null;
+        }
+      })();
+    }
+    return pending;
+  };
+})();
+
+async function applyPoolWallMaterial(material, { repeat, anisotropy, isCancelled } = {}) {
+  if (!material || (typeof isCancelled === 'function' && isCancelled())) return null;
+  const targetRepeat = new THREE.Vector2(
+    repeat?.x ?? WALL_TEXTURE_CONFIG.repeat.x,
+    repeat?.y ?? WALL_TEXTURE_CONFIG.repeat.y
+  );
+  const textures = await loadWallPlankTextures(anisotropy);
+  if (!textures || (typeof isCancelled === 'function' && isCancelled())) return null;
+  const applyRepeat = (tex) => {
+    if (!tex) return;
+    tex.repeat.copy(targetRepeat);
+    tex.needsUpdate = true;
+  };
+  applyRepeat(textures.map);
+  applyRepeat(textures.normal);
+  applyRepeat(textures.roughness);
+  material.map = textures.map ?? material.map;
+  material.normalMap = textures.normal ?? material.normalMap;
+  material.roughnessMap = textures.roughness ?? material.roughnessMap;
+  material.color = new THREE.Color(0xffffff);
+  material.roughness = 0.78;
+  material.metalness = 0.03;
+  material.needsUpdate = true;
+  return textures;
 }
 
 function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
@@ -2161,9 +2317,18 @@ export default function MurlanRoyaleArena({ search }) {
       const arenaScale = 1.3 * ARENA_GROWTH;
       const boardSize = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * arenaScale;
       const camConfig = buildArenaCameraConfig(boardSize);
+      const wallThickness = 0.8 * MODEL_SCALE;
+      const interiorWidth = Math.max(TABLE_RADIUS * ARENA_GROWTH * 3.6, CHAIR_RADIUS * 2 + 4 * MODEL_SCALE);
+      const interiorDepth = interiorWidth;
+      const roomWidth = interiorWidth + wallThickness * 2;
+      const roomDepth = interiorDepth + wallThickness * 2;
+      const halfWidth = roomWidth / 2;
+      const halfDepth = roomDepth / 2;
+      const innerHalfWidth = interiorWidth / 2;
+      const innerHalfDepth = interiorDepth / 2;
 
       const floor = new THREE.Mesh(
-        new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 3.2, 64),
+        new THREE.PlaneGeometry(roomWidth, roomDepth),
         new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.9, metalness: 0.1 })
       );
       floor.rotation.x = -Math.PI / 2;
@@ -2171,7 +2336,7 @@ export default function MurlanRoyaleArena({ search }) {
       arenaGroup.add(floor);
 
       const carpet = new THREE.Mesh(
-        new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 2.2, 64),
+        new THREE.PlaneGeometry(interiorWidth * 0.9, interiorDepth * 0.9),
         createArenaCarpetMaterial(new THREE.Color('#0f172a'), new THREE.Color('#1e3a8a'))
       );
       carpet.rotation.x = -Math.PI / 2;
@@ -2179,24 +2344,44 @@ export default function MurlanRoyaleArena({ search }) {
       carpet.receiveShadow = true;
       arenaGroup.add(carpet);
 
-      const wallInnerRadius = TABLE_RADIUS * ARENA_GROWTH * 2.4;
-      const wallMaterial = createHallwayCeilingWallMaterial(textureLoader, maxAnisotropy);
-      const wall = new THREE.Mesh(
-        new THREE.CylinderGeometry(
-          wallInnerRadius,
-          TABLE_RADIUS * ARENA_GROWTH * 2.6,
-          ARENA_WALL_HEIGHT,
-          48,
-          1,
-          true
+      const wallMaterial = new THREE.MeshStandardMaterial({
+        color: WALL_TEXTURE_CONFIG.fallbackColor,
+        roughness: 0.78,
+        metalness: 0.03,
+        flatShading: true
+      });
+      void applyPoolWallMaterial(wallMaterial, {
+        repeat: new THREE.Vector2(
+          Math.max(WALL_TEXTURE_CONFIG.repeat.x, roomWidth / 160),
+          Math.max(WALL_TEXTURE_CONFIG.repeat.y, ARENA_WALL_HEIGHT / 40)
         ),
-        wallMaterial
-      );
-      wall.position.y = ARENA_WALL_CENTER_Y;
-      wall.receiveShadow = false;
-      arenaGroup.add(wall);
+        anisotropy: maxAnisotropy,
+        isCancelled: () => disposed
+      });
 
-      const cameraBoundRadius = wallInnerRadius - CAMERA_WALL_PADDING;
+      const makeWall = (width, depth, position) => {
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(width, ARENA_WALL_HEIGHT, depth), wallMaterial);
+        wall.castShadow = false;
+        wall.receiveShadow = true;
+        wall.position.set(position.x, ARENA_WALL_CENTER_Y, position.z);
+        arenaGroup.add(wall);
+        return wall;
+      };
+
+      makeWall(roomWidth, wallThickness, { x: 0, z: halfDepth - wallThickness / 2 });
+      makeWall(roomWidth, wallThickness, { x: 0, z: -halfDepth + wallThickness / 2 });
+      makeWall(wallThickness, roomDepth, { x: -halfWidth + wallThickness / 2, z: 0 });
+      makeWall(wallThickness, roomDepth, { x: halfWidth - wallThickness / 2, z: 0 });
+
+      const ceilingMaterial = createHallwayCeilingWallMaterial(textureLoader, maxAnisotropy);
+      ceilingMaterial.side = THREE.DoubleSide;
+      const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(roomWidth, roomDepth), ceilingMaterial);
+      ceiling.rotation.x = Math.PI / 2;
+      ceiling.position.y = ARENA_WALL_HEIGHT;
+      ceiling.receiveShadow = false;
+      arenaGroup.add(ceiling);
+
+      const cameraBoundRadius = Math.hypot(innerHalfWidth, innerHalfDepth) - CAMERA_WALL_PADDING;
 
       const decorGroup = new THREE.Group();
       arenaGroup.add(decorGroup);
@@ -2219,9 +2404,16 @@ export default function MurlanRoyaleArena({ search }) {
               )
             ).filter((entry) => entry[1])
           );
-          const radius = wallInnerRadius * DECOR_PLANT_RADIUS_SCALE;
-          for (let i = 0; i < DECOR_PLANT_COUNT; i += 1) {
-            const assetId = HALLWAY_PLANT_ASSETS[i % HALLWAY_PLANT_ASSETS.length];
+          const plantPadding = Math.max(0.8 * MODEL_SCALE, wallThickness * 1.1);
+          const cornerOffsets = [
+            new THREE.Vector3(innerHalfWidth - plantPadding, 0, innerHalfDepth - plantPadding),
+            new THREE.Vector3(-(innerHalfWidth - plantPadding), 0, innerHalfDepth - plantPadding),
+            new THREE.Vector3(innerHalfWidth - plantPadding, 0, -(innerHalfDepth - plantPadding)),
+            new THREE.Vector3(-(innerHalfWidth - plantPadding), 0, -(innerHalfDepth - plantPadding))
+          ];
+          const targetOffsets = cornerOffsets.slice(0, DECOR_PLANT_COUNT);
+          for (let i = 0; i < targetOffsets.length; i += 1) {
+            const assetId = HALLWAY_PLANT_ASSETS[0];
             const plant = await createPolyhavenInstance(assetId, PLANT_TARGET_HEIGHT, 0, renderer, {
               textureLoader,
               maxAnisotropy,
@@ -2231,9 +2423,8 @@ export default function MurlanRoyaleArena({ search }) {
             });
             if (disposed) return;
             plant.scale.multiplyScalar(HALLWAY_PLANT_SCALE);
-            const angle = (i / DECOR_PLANT_COUNT) * Math.PI * 2 + Math.PI / 4;
-            const pos = new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
-            plant.position.add(pos);
+            const pos = targetOffsets[i];
+            plant.position.copy(pos);
             plant.lookAt(new THREE.Vector3(0, plant.position.y + 0.1, 0));
             decorGroup.add(plant);
             threeStateRef.current.decorPlants.push(plant);
@@ -2258,11 +2449,11 @@ export default function MurlanRoyaleArena({ search }) {
           toneMapped: false,
           depthWrite: false
         });
-        const scoreboardWidth = Math.min(wallInnerRadius * 0.7, 4.4 * MODEL_SCALE);
+        const scoreboardWidth = Math.min(innerHalfWidth * 0.9, 4.4 * MODEL_SCALE);
         const scoreboardHeight = scoreboardWidth * 0.42;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        scoreboardMesh.position.set(0, ARENA_WALL_HEIGHT * 0.6, -wallInnerRadius + 0.12);
+        scoreboardMesh.position.set(0, ARENA_WALL_HEIGHT * 0.6, -innerHalfDepth + wallThickness * 0.6);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
         scoreboardMesh.renderOrder = 2;
         scoreboardMesh.visible = false;
@@ -2278,6 +2469,77 @@ export default function MurlanRoyaleArena({ search }) {
       } else {
         threeStateRef.current.scoreboard = null;
       }
+
+      const buildHallwayDoor = () => {
+        const woodTex = textureLoader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/wood/mahogany_diffuse.jpg');
+        applySRGBColorSpace(woodTex);
+        woodTex.wrapS = THREE.RepeatWrapping;
+        woodTex.wrapT = THREE.RepeatWrapping;
+        woodTex.anisotropy = maxAnisotropy;
+
+        const handleTex = textureLoader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/metal/Brass_Albedo.jpg');
+        applySRGBColorSpace(handleTex);
+
+        const doorMat = new THREE.MeshStandardMaterial({
+          map: woodTex,
+          color: '#0a0a0f',
+          roughness: 0.3,
+          metalness: 0.25
+        });
+        const handleMat = new THREE.MeshStandardMaterial({
+          map: handleTex,
+          color: '#ffd700',
+          metalness: 1,
+          roughness: 0.1
+        });
+        const frameMat = new THREE.MeshStandardMaterial({
+          color: '#d7b56b',
+          metalness: 0.9,
+          roughness: 0.18,
+          emissive: '#a2752a',
+          emissiveIntensity: 0.08
+        });
+        const doorGroup = new THREE.Group();
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(4.6, 5.2, 0.25), frameMat);
+        frame.castShadow = true;
+        frame.receiveShadow = true;
+        doorGroup.add(frame);
+
+        const doorMatGeometry = new THREE.BoxGeometry(2, 4.8, 0.12);
+        const leftDoor = new THREE.Mesh(doorMatGeometry, doorMat);
+        const rightDoor = new THREE.Mesh(doorMatGeometry, doorMat);
+        leftDoor.position.set(-1.05, 0, 0.12);
+        rightDoor.position.set(1.05, 0, 0.12);
+        const handleGeom = new THREE.CylinderGeometry(0.07, 0.07, 0.4, 32);
+        const leftHandle = new THREE.Mesh(handleGeom, handleMat);
+        const rightHandle = new THREE.Mesh(handleGeom, handleMat);
+        leftHandle.rotation.z = Math.PI / 2;
+        rightHandle.rotation.z = Math.PI / 2;
+        leftHandle.position.set(0.85, 0, 0.16);
+        rightHandle.position.set(-0.85, 0, 0.16);
+        leftDoor.add(leftHandle);
+        rightDoor.add(rightHandle);
+        [leftDoor, rightDoor].forEach((mesh) => {
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+        });
+        [leftHandle, rightHandle].forEach((mesh) => {
+          mesh.castShadow = true;
+          mesh.receiveShadow = false;
+        });
+        doorGroup.add(leftDoor);
+        doorGroup.add(rightDoor);
+
+        const frameHeight = 5.2;
+        return { doorGroup, frameHeight };
+      };
+
+      const { doorGroup, frameHeight } = buildHallwayDoor();
+      const doorScale = Math.min(1, (ARENA_WALL_HEIGHT * 0.92) / frameHeight);
+      doorGroup.scale.setScalar(doorScale);
+      doorGroup.position.set(0, (frameHeight * doorScale) / 2, innerHalfDepth - wallThickness * 0.55);
+      doorGroup.rotation.y = Math.PI;
+      decorGroup.add(doorGroup);
 
       updateScoreboardDisplay(computeUiState(gameStateRef.current).scoreboard);
 
