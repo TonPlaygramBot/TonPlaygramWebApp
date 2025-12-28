@@ -341,57 +341,6 @@ function prepareLoadedModel(model) {
     }
   });
 }
-
-const TEXTURE_PROPS = [
-  'map',
-  'emissiveMap',
-  'normalMap',
-  'aoMap',
-  'alphaMap',
-  'bumpMap',
-  'displacementMap',
-  'metalnessMap',
-  'roughnessMap',
-  'clearcoatMap',
-  'clearcoatNormalMap',
-  'clearcoatRoughnessMap',
-  'specularMap',
-  'specularColorMap',
-  'sheenColorMap',
-  'sheenRoughnessMap',
-  'transmissionMap',
-  'thicknessMap'
-];
-
-function cloneModelWithMaterials(source) {
-  const clone = source.clone(true);
-  const materialCache = new Map();
-  clone.traverse((obj) => {
-    if (!obj.isMesh) return;
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    const remapped = mats.map((mat) => {
-      if (!mat) return mat;
-      if (!materialCache.has(mat)) {
-        const matClone = mat.clone();
-        TEXTURE_PROPS.forEach((key) => {
-          const tex = mat[key];
-          if (tex?.isTexture) {
-            const texClone = tex.clone();
-            if (key === 'map' || key === 'emissiveMap') {
-              applySRGBColorSpace(texClone);
-            }
-            matClone[key] = texClone;
-          }
-        });
-        matClone.needsUpdate = true;
-        materialCache.set(mat, matClone);
-      }
-      return materialCache.get(mat);
-    });
-    obj.material = Array.isArray(obj.material) ? remapped : remapped[0];
-  });
-  return clone;
-}
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
 );
@@ -540,7 +489,7 @@ function fitModelToHeight(model, targetHeight) {
 
 async function createPolyhavenInstance(assetId, targetHeight, rotationY = 0) {
   const root = await loadPolyhavenModel(assetId);
-  const model = cloneModelWithMaterials(root);
+  const model = root.clone(true);
   prepareLoadedModel(model);
   fitModelToHeight(model, targetHeight);
   if (rotationY) model.rotation.y += rotationY;
@@ -767,7 +716,7 @@ async function buildChairTemplate(theme) {
   try {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
       const polyhavenRoot = await loadPolyhavenModel(theme.assetId);
-      const model = cloneModelWithMaterials(polyhavenRoot);
+      const model = polyhavenRoot.clone(true);
       prepareLoadedModel(model);
       fitChairModelToFootprint(model);
       if (rotationY) model.rotation.y += rotationY;
