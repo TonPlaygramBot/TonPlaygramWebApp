@@ -1229,9 +1229,9 @@ const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_GAP = BALL_R * 1.12; // pull cue stick closer so the blue tip locks to the cue-ball centre line and match the spin controller contact point
-const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
+const CUE_PULL_BASE = BALL_R * 10 * 0.72 * 1.25; // slightly larger visual retreat so the pull label motion is more obvious
 const CUE_PULL_MIN_VISUAL = BALL_R * 0.9; // guarantee a small visible pull even when clearance is tight
-const CUE_PULL_VISUAL_FUDGE = BALL_R * 0.6; // allow a little extra travel before obstructions cancel the pull
+const CUE_PULL_VISUAL_FUDGE = BALL_R * 0.9; // allow a little extra travel before obstructions cancel the pull
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_Y = BALL_CENTER_Y; // align the cue height directly with the cue ball centre for precise strikes
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
@@ -1240,10 +1240,11 @@ const CUE_BUTT_LIFT = BALL_R * 0.9; // raise the butt a little more so the rear 
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.1;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.3;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
 const CUE_OBSTRUCTION_LIFT = BALL_R * 0.72;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(8.5);
+const CAMERA_SHOT_SWITCH_HOLD_MS = 2000;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -10397,6 +10398,7 @@ const powerRef = useRef(hud.power);
   const aiShotCueViewRef = useRef(false);
   const aiCueViewBlendRef = useRef(AI_CAMERA_DROP_BLEND);
   const aiRetryTimeoutRef = useRef(null);
+  const shotCameraHoldRef = useRef(0);
   const aiShotWindowRef = useRef({ startedAt: 0, duration: AI_MIN_SHOT_TIME_MS });
   const [aiTakingShot, setAiTakingShot] = useState(false);
   const cameraBlendTweenRef = useRef(null);
@@ -16399,46 +16401,58 @@ const powerRef = useRef(hud.power);
         );
       };
 
-      const computeCuePull = (
-        pullTarget = 0,
-        maxPull = CUE_PULL_BASE,
-        { instant = false, preserveLarger = false } = {}
-      ) => {
-        const slider = sliderInstanceRef.current;
-        const dragging = Boolean(slider?.dragging);
-        const cappedMax = Number.isFinite(maxPull) ? Math.max(0, maxPull) : CUE_PULL_BASE;
-        const effectiveMax = Math.max(cappedMax + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL);
-        const desiredTarget = preserveLarger
-          ? Math.max(cuePullCurrentRef.current ?? 0, pullTarget ?? 0)
-          : pullTarget ?? 0;
-        const clampedTarget = THREE.MathUtils.clamp(desiredTarget, 0, effectiveMax);
-        const smoothing = instant || dragging ? 1 : CUE_PULL_SMOOTHING;
-        const nextPull =
-          smoothing >= 1
-            ? clampedTarget
-            : THREE.MathUtils.lerp(cuePullCurrentRef.current ?? 0, clampedTarget, smoothing);
-        cuePullTargetRef.current = clampedTarget;
-        cuePullCurrentRef.current = nextPull;
-        return nextPull;
-      };
+    const clampContactOffset = (side = 0, vert = 0, limit = BALL_R) => {
+      const clampedSide = THREE.MathUtils.clamp(side, -limit, limit);
+      const clampedVert = THREE.MathUtils.clamp(vert, -limit, limit);
+      const mag = Math.hypot(clampedSide, clampedVert);
+      if (mag > limit && mag > 1e-6) {
+        const scale = limit / mag;
+        return { side: clampedSide * scale, vert: clampedVert * scale };
+      }
+      return { side: clampedSide, vert: clampedVert };
+    };
 
-      // Fire (slider triggers on release)
-      const fire = () => {
-          const currentHud = hudRef.current;
-          const frameSnapshot = frameRef.current ?? frameState;
-          const fullTableHandPlacement =
-            allowFullTableInHand() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
-        const inHandPlacementActive = Boolean(
-          currentHud?.inHand && !fullTableHandPlacement
-        );
-          if (
-            !cue?.active ||
-            (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
-            !allStopped(balls) ||
-            currentHud?.over ||
-            replayPlaybackRef.current
-          )
-            return;
+    const computeCuePull = (
+      pullTarget = 0,
+      maxPull = CUE_PULL_BASE,
+      { instant = false, preserveLarger = false } = {}
+    ) => {
+      const slider = sliderInstanceRef.current;
+      const dragging = Boolean(slider?.dragging);
+      const cappedMax = Number.isFinite(maxPull) ? Math.max(0, maxPull) : CUE_PULL_BASE;
+      const effectiveMax = Math.max(cappedMax + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL);
+      const desiredTarget = preserveLarger
+        ? Math.max(cuePullCurrentRef.current ?? 0, pullTarget ?? 0)
+        : pullTarget ?? 0;
+      const clampedTarget = THREE.MathUtils.clamp(desiredTarget, 0, effectiveMax);
+      const smoothing = instant || dragging ? 1 : CUE_PULL_SMOOTHING;
+      const nextPull =
+        smoothing >= 1
+          ? clampedTarget
+          : THREE.MathUtils.lerp(cuePullCurrentRef.current ?? 0, clampedTarget, smoothing);
+      cuePullTargetRef.current = clampedTarget;
+      cuePullCurrentRef.current = nextPull;
+      return nextPull;
+    };
+
+    // Fire (slider triggers on release)
+    const fire = () => {
+      shotCameraHoldRef.current = performance.now() + CAMERA_SHOT_SWITCH_HOLD_MS;
+      const currentHud = hudRef.current;
+      const frameSnapshot = frameRef.current ?? frameState;
+      const fullTableHandPlacement =
+        allowFullTableInHand() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
+      const inHandPlacementActive = Boolean(
+        currentHud?.inHand && !fullTableHandPlacement
+      );
+      if (
+        !cue?.active ||
+        (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
+        !allStopped(balls) ||
+        currentHud?.over ||
+        replayPlaybackRef.current
+      )
+        return;
         if (currentHud?.inHand && (fullTableHandPlacement || inHandPlacementActive)) {
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
@@ -16620,8 +16634,10 @@ const powerRef = useRef(hud.power);
             const storedTarget = lastCameraTargetRef.current?.clone();
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
+          const cameraSwitchHold = shotCameraHoldRef.current || 0;
+          const allowCameraSwitchNow = performance.now() >= cameraSwitchHold;
           let pocketViewActivated = false;
-          if (earlyPocketView && !isMaxPowerShot) {
+          if (earlyPocketView && !isMaxPowerShot && allowCameraSwitchNow) {
             const now = performance.now();
             earlyPocketView.lastUpdate = now;
             if (cameraRef.current) {
@@ -16643,25 +16659,17 @@ const powerRef = useRef(hud.power);
             pocketViewActivated = true;
           }
           if (!pocketViewActivated && actionView) {
-            const shouldActivateActionView =
-              (!isLongShot || forceActionActivation) && !isMaxPowerShot;
-            if (shouldActivateActionView) {
-              suspendedActionView = null;
-              activeShotView = actionView;
-              updateCamera();
-            } else {
-              actionView.pendingActivation = true;
-              const holdUntil = powerImpactHoldRef.current || null;
-              const baseDelay = actionView.activationDelay ?? null;
-              const delayed = Math.max(baseDelay ?? 0, holdUntil ?? 0);
-              actionView.activationDelay = delayed;
-              const baseTravel = actionView.activationTravel ?? 0;
-              actionView.activationTravel = Math.max(
-                baseTravel,
-                isMaxPowerShot ? BALL_R * 6 : 0
-              );
-              suspendedActionView = actionView;
-            }
+            actionView.pendingActivation = true;
+            const holdUntil = Math.max(powerImpactHoldRef.current || 0, cameraSwitchHold);
+            const baseDelay = actionView.activationDelay ?? null;
+            const delayed = Math.max(baseDelay ?? 0, holdUntil ?? 0);
+            actionView.activationDelay = delayed;
+            const baseTravel = actionView.activationTravel ?? 0;
+            actionView.activationTravel = Math.max(
+              baseTravel,
+              isMaxPowerShot ? BALL_R * 6 : 0
+            );
+            suspendedActionView = actionView;
           }
           const appliedSpin = applySpinConstraints(aimDir, true);
           const ranges = spinRangeRef.current || {};
@@ -16747,15 +16755,13 @@ const powerRef = useRef(hud.power);
           const offsetVertical = ranges.offsetVertical ?? 0;
           let contactSide = appliedSpin.x * offsetSide;
           let contactVert = -appliedSpin.y * offsetVertical;
-          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
-          if (maxContactOffset > 1e-6) {
-            const combined = Math.hypot(contactSide, contactVert);
-            if (combined > maxContactOffset) {
-              const scale = maxContactOffset / combined;
-              contactSide *= scale;
-              contactVert *= scale;
-            }
-          }
+          const clampedContact = clampContactOffset(
+            contactSide,
+            contactVert,
+            Math.min(MAX_SPIN_CONTACT_OFFSET, BALL_R)
+          );
+          contactSide = clampedContact.side;
+          contactVert = clampedContact.vert;
           const spinWorld = new THREE.Vector3(
             cuePerp.x * contactSide,
             contactVert,
@@ -16774,7 +16780,7 @@ const powerRef = useRef(hud.power);
           const tiltAmount = Math.abs(appliedSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
-          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
+          cueStick.rotation.y = Math.atan2(dir.x, dir.z);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
@@ -18431,6 +18437,12 @@ const powerRef = useRef(hud.power);
               layout
             });
           }
+          powerRef.current = 0;
+          setHud((prev) => ({ ...prev, power: 0 }));
+          const slider = sliderInstanceRef.current;
+          if (slider) {
+            slider.set(slider.min, { animate: true });
+          }
           setShootingState(false);
           powerImpactHoldRef.current = 0;
           shotPrediction = null;
@@ -18874,20 +18886,18 @@ const powerRef = useRef(hud.power);
           const offsetVertical = ranges.offsetVertical ?? 0;
           let side = appliedSpin.x * offsetSide;
           let vert = -appliedSpin.y * offsetVertical;
-          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
-          if (maxContactOffset > 1e-6) {
-            const combined = Math.hypot(side, vert);
-            if (combined > maxContactOffset) {
-              const scale = maxContactOffset / combined;
-              side *= scale;
-              vert *= scale;
-            }
-            if (
-              spinLegalityRef.current?.blocked &&
-              Math.hypot(side, vert) < 1e-6
-            ) {
-              vert = Math.min(maxContactOffset * 0.35, CUE_TIP_RADIUS * 0.6);
-            }
+          const clampedContact = clampContactOffset(
+            side,
+            vert,
+            Math.min(MAX_SPIN_CONTACT_OFFSET, BALL_R)
+          );
+          side = clampedContact.side;
+          vert = clampedContact.vert;
+          if (
+            spinLegalityRef.current?.blocked &&
+            Math.hypot(side, vert) < 1e-6
+          ) {
+            vert = Math.min(MAX_SPIN_CONTACT_OFFSET * 0.35, CUE_TIP_RADIUS * 0.6);
           }
           const spinWorld = new THREE.Vector3(
             perp.x * side,
@@ -18907,7 +18917,7 @@ const powerRef = useRef(hud.power);
           const tiltAmount = Math.abs(appliedSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
-          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
+          cueStick.rotation.y = Math.atan2(dir.x, dir.z);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
@@ -19105,15 +19115,13 @@ const powerRef = useRef(hud.power);
           const spinY = THREE.MathUtils.clamp(remoteAimState?.spin?.y ?? 0, -1, 1);
           let side = spinX * offsetSide;
           let vert = -spinY * offsetVertical;
-          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
-          if (maxContactOffset > 1e-6) {
-            const combined = Math.hypot(side, vert);
-            if (combined > maxContactOffset) {
-              const scale = maxContactOffset / combined;
-              side *= scale;
-              vert *= scale;
-            }
-          }
+          const clampedContact = clampContactOffset(
+            side,
+            vert,
+            Math.min(MAX_SPIN_CONTACT_OFFSET, BALL_R)
+          );
+          side = clampedContact.side;
+          vert = clampedContact.vert;
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           const obstructionStrength = resolveCueObstruction(baseDir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
@@ -19128,7 +19136,7 @@ const powerRef = useRef(hud.power);
           const tiltAmount = Math.abs(spinY);
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
-          cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
+          cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
@@ -19205,15 +19213,13 @@ const powerRef = useRef(hud.power);
           const spinY = THREE.MathUtils.clamp(planSpin.y ?? 0, -1, 1);
           let side = spinX * offsetSide;
           let vert = -spinY * offsetVertical;
-          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
-          if (maxContactOffset > 1e-6) {
-            const combined = Math.hypot(side, vert);
-            if (combined > maxContactOffset) {
-              const scale = maxContactOffset / combined;
-              side *= scale;
-              vert *= scale;
-            }
-          }
+          const clampedContact = clampContactOffset(
+            side,
+            vert,
+            Math.min(MAX_SPIN_CONTACT_OFFSET, BALL_R)
+          );
+          side = clampedContact.side;
+          vert = clampedContact.vert;
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
@@ -19228,7 +19234,7 @@ const powerRef = useRef(hud.power);
           const tiltAmount = Math.abs(spinY);
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
-          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
+          cueStick.rotation.y = Math.atan2(dir.x, dir.z);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
@@ -20538,26 +20544,6 @@ const powerRef = useRef(hud.power);
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      {replaySlate && (
-        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
-          <div className="relative isolate flex w-[min(26rem,90vw)] items-center justify-between overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-r from-black/85 via-black/70 to-black/85 px-5 py-4 shadow-[0_18px_42px_rgba(0,0,0,0.55)] backdrop-blur">
-            <div className="pointer-events-none absolute inset-0 opacity-80">
-              <div className="absolute -left-10 top-0 h-full w-1/2 rotate-3 bg-gradient-to-r from-emerald-400/15 via-emerald-300/10 to-transparent" />
-              <div className="absolute -right-14 bottom-0 h-2/3 w-1/2 -rotate-6 bg-gradient-to-l from-cyan-300/20 via-cyan-200/12 to-transparent" />
-              <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
-            </div>
-            <div className="relative flex flex-col leading-tight">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-emerald-100">
-                Instant Replay
-              </span>
-              <span className="text-sm font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]">
-                {replaySlate.label}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-4 right-4 z-50">
