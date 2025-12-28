@@ -7,6 +7,12 @@ import { getOnlineCount } from '../utils/api.js';
 
 const WALL_REPEAT = new THREE.Vector2(10, 2.8); // tighter marble tiling around the hallway
 const PREFERRED_SIZES = ['4k', '2k', '1k'];
+const LANTERN_URLS = [
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Lantern/glTF-Binary/Lantern.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Lantern/glTF-Binary/Lantern.glb',
+  'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/Lantern/glTF-Binary/Lantern.glb'
+];
 
 const fallbackGameNames = [
   'Chess Arena',
@@ -268,9 +274,18 @@ export default function GamesHallway({ games, onClose }) {
 
     const loadCenterLantern = async () => {
       try {
-        const gltf = await gltfLoader.loadAsync(
-          'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb'
-        );
+        let gltf = null;
+        for (const url of LANTERN_URLS) {
+          try {
+            gltf = await gltfLoader.loadAsync(url);
+            break;
+          } catch (error) {
+            gltf = null;
+          }
+        }
+        if (!gltf) {
+          throw new Error('Lantern failed to load');
+        }
         if (disposed) {
           gltf.scene?.traverse((child) => {
             if (child.isMesh) {
@@ -280,16 +295,41 @@ export default function GamesHallway({ games, onClose }) {
           });
           return;
         }
-        gltf.scene.traverse((child) => {
+        const lanternRoot = gltf.scene;
+        lanternRoot.traverse((child) => {
           if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
+            if (child.material) {
+              const material = child.material;
+              if ('emissiveIntensity' in material) {
+                material.emissiveIntensity = Math.max(material.emissiveIntensity || 0.1, 0.35);
+              }
+              if ('metalness' in material) {
+                material.metalness = Math.min(material.metalness + 0.05, 1);
+              }
+              if ('roughness' in material) {
+                material.roughness = Math.max(material.roughness * 0.85, 0.12);
+              }
+              if ('envMapIntensity' in material) {
+                material.envMapIntensity = 1.1;
+              }
+            }
           }
         });
-        gltf.scene.scale.set(0.78, 0.78, 0.78);
-        gltf.scene.position.set(0, -0.55, 0);
-        gltf.scene.rotation.y = Math.PI;
-        chandelier.add(gltf.scene);
+        const lanternBox = new THREE.Box3().setFromObject(lanternRoot);
+        const lanternSize = lanternBox.getSize(new THREE.Vector3());
+        const lanternCenter = lanternBox.getCenter(new THREE.Vector3());
+        lanternRoot.position.sub(lanternCenter);
+        lanternRoot.position.y -= lanternSize.y * 0.5;
+        lanternRoot.scale.set(0.92, 0.92, 0.92);
+        lanternRoot.position.y -= 0.35;
+        lanternRoot.rotation.y = Math.PI;
+        chandelier.add(lanternRoot);
+        const lanternLight = new THREE.PointLight(0xffe6b0, 1.45, 16, 2.2);
+        lanternLight.position.set(0, -0.2, 0);
+        lanternLight.castShadow = false;
+        chandelier.add(lanternLight);
       } catch (error) {
         // keep procedural chandelier as fallback
       }
@@ -391,6 +431,8 @@ export default function GamesHallway({ games, onClose }) {
 
     const interactable = [];
     const handleGeom = new THREE.CylinderGeometry(0.07, 0.07, 0.4, 32);
+
+    const doorAngles = [];
 
     doorEntries.forEach((game, index) => {
       const label = String(game?.name || fallbackGameNames[index % fallbackGameNames.length]);
@@ -537,7 +579,131 @@ export default function GamesHallway({ games, onClose }) {
       interactable.push(sign);
 
       scene.add(doorGroup);
+      doorAngles.push(angle);
     });
+
+    if (doorAngles.length > 1) {
+      const potMaterial = new THREE.MeshStandardMaterial({
+        color: '#b07d52',
+        roughness: 0.32,
+        metalness: 0.18
+      });
+      const potRimMaterial = new THREE.MeshStandardMaterial({
+        color: '#c89a6d',
+        roughness: 0.28,
+        metalness: 0.22
+      });
+      const soilMaterial = new THREE.MeshStandardMaterial({
+        color: '#3a2b20',
+        roughness: 0.65,
+        metalness: 0.05
+      });
+      const foliageMaterial = new THREE.MeshStandardMaterial({
+        color: '#1f8a4c',
+        roughness: 0.5,
+        metalness: 0.1,
+        emissive: '#0f4c2a',
+        emissiveIntensity: 0.25
+      });
+      const sconceMetal = new THREE.MeshStandardMaterial({
+        color: '#d3b06a',
+        metalness: 0.88,
+        roughness: 0.32
+      });
+      const sconceGlass = new THREE.MeshStandardMaterial({
+        color: '#ffe7c2',
+        emissive: '#ffd9a0',
+        emissiveIntensity: 0.7,
+        metalness: 0.1,
+        roughness: 0.18,
+        transparent: true,
+        opacity: 0.9,
+        side: THREE.DoubleSide
+      });
+
+      doorAngles.forEach((angle, index) => {
+        const nextAngle = index === doorAngles.length - 1 ? doorAngles[0] + Math.PI * 2 : doorAngles[index + 1];
+        const midAngle = angle + (nextAngle - angle) * 0.5;
+        const potRadius = 17.2;
+        const potX = Math.cos(midAngle) * potRadius;
+        const potZ = Math.sin(midAngle) * potRadius;
+
+        const potGroup = new THREE.Group();
+        potGroup.position.set(potX, 0.75, potZ);
+        potGroup.lookAt(0, 0.75, 0);
+
+        const potBody = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 1.25, 1.5, 32, 1, true), potMaterial);
+        potBody.castShadow = true;
+        potBody.receiveShadow = true;
+        potGroup.add(potBody);
+
+        const potRim = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.12, 24, 48), potRimMaterial);
+        potRim.rotation.x = Math.PI / 2;
+        potRim.position.y = 0.75;
+        potRim.castShadow = true;
+        potRim.receiveShadow = true;
+        potGroup.add(potRim);
+
+        const potSoil = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 1, 0.18, 24), soilMaterial);
+        potSoil.position.y = 0.9;
+        potSoil.castShadow = true;
+        potSoil.receiveShadow = true;
+        potGroup.add(potSoil);
+
+        const foliage = new THREE.Mesh(new THREE.ConeGeometry(1.05, 1.8, 28, 1, true), foliageMaterial);
+        foliage.position.y = 1.8;
+        foliage.castShadow = true;
+        foliage.receiveShadow = true;
+        potGroup.add(foliage);
+
+        scene.add(potGroup);
+
+        const sconceGroup = new THREE.Group();
+        const sconceRadius = 19.1;
+        const lampHeight = 4.4;
+        const lampX = Math.cos(midAngle) * sconceRadius;
+        const lampZ = Math.sin(midAngle) * sconceRadius;
+        sconceGroup.position.set(lampX, lampHeight, lampZ);
+        sconceGroup.lookAt(0, lampHeight, 0);
+
+        const backplate = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.08, 32), sconceMetal);
+        backplate.rotation.x = Math.PI / 2;
+        backplate.castShadow = true;
+        backplate.receiveShadow = true;
+        sconceGroup.add(backplate);
+
+        const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.55, 16), sconceMetal);
+        arm.rotation.z = Math.PI / 2;
+        arm.position.z = -0.3;
+        arm.castShadow = true;
+        arm.receiveShadow = true;
+        sconceGroup.add(arm);
+
+        const shade = new THREE.Mesh(new THREE.ConeGeometry(0.6, 0.9, 24, 1, true), sconceGlass);
+        shade.position.z = -0.75;
+        shade.rotation.x = Math.PI;
+        shade.castShadow = false;
+        shade.receiveShadow = false;
+        sconceGroup.add(shade);
+
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 24, 16), new THREE.MeshStandardMaterial({
+          color: '#fff3d8',
+          emissive: '#ffe8b5',
+          emissiveIntensity: 1.2,
+          metalness: 0.05,
+          roughness: 0.2
+        }));
+        bulb.position.z = -0.52;
+        bulb.castShadow = false;
+        sconceGroup.add(bulb);
+
+        const sconceLight = new THREE.PointLight(0xffe5b0, 1.1, 9.5, 2.4);
+        sconceLight.position.z = -0.45;
+        sconceGroup.add(sconceLight);
+
+        scene.add(sconceGroup);
+      });
+    }
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
