@@ -112,6 +112,17 @@ export default function GamesHallway({ games, onClose }) {
     const ambient = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambient);
 
+    const wrapAngle = (value) => {
+      const twoPi = Math.PI * 2;
+      let next = value % twoPi;
+      if (next > Math.PI) {
+        next -= twoPi;
+      } else if (next < -Math.PI) {
+        next += twoPi;
+      }
+      return next;
+    };
+
     const ceilingTex = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/water.jpg');
     ceilingTex.wrapS = THREE.RepeatWrapping;
     ceilingTex.wrapT = THREE.RepeatWrapping;
@@ -266,11 +277,27 @@ export default function GamesHallway({ games, onClose }) {
     chandelier.position.y = 6.6;
     scene.add(chandelier);
 
+    const centerLanternUrls = [
+      'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb',
+      'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Lantern/glTF-Binary/Lantern.glb'
+    ];
+    const lanternEmissiveColor = new THREE.Color('#b48440');
+    const blackColor = new THREE.Color(0x000000);
+
     const loadCenterLantern = async () => {
       try {
-        const gltf = await gltfLoader.loadAsync(
-          'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb'
-        );
+        let gltf = null;
+        for (const url of centerLanternUrls) {
+          try {
+            gltf = await gltfLoader.loadAsync(url);
+            break;
+          } catch (error) {
+            // try next fallback
+          }
+        }
+        if (!gltf) {
+          throw new Error('Lantern glTF failed to load from all sources');
+        }
         if (disposed) {
           gltf.scene?.traverse((child) => {
             if (child.isMesh) {
@@ -284,12 +311,31 @@ export default function GamesHallway({ games, onClose }) {
           if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
+            const material = child.material;
+            if (material?.isMaterial) {
+              if (material.emissive?.equals?.(blackColor)) {
+                material.emissive = lanternEmissiveColor.clone();
+              }
+              if (typeof material.emissiveIntensity === 'number') {
+                material.emissiveIntensity = Math.max(material.emissiveIntensity, 0.6);
+              }
+              if (typeof material.envMapIntensity === 'number') {
+                material.envMapIntensity = Math.max(material.envMapIntensity, 1.2);
+              }
+              material.roughness = Math.min(material.roughness ?? 0.6, 0.6);
+              material.metalness = Math.max(material.metalness ?? 0.35, 0.35);
+              material.needsUpdate = true;
+            }
           }
         });
         gltf.scene.scale.set(0.78, 0.78, 0.78);
         gltf.scene.position.set(0, -0.55, 0);
         gltf.scene.rotation.y = Math.PI;
         chandelier.add(gltf.scene);
+
+        const lanternHighlight = new THREE.PointLight(0xffe8c4, 1.35, 9, 2.1);
+        lanternHighlight.position.set(0, -0.35, 0);
+        chandelier.add(lanternHighlight);
       } catch (error) {
         // keep procedural chandelier as fallback
       }
@@ -391,10 +437,12 @@ export default function GamesHallway({ games, onClose }) {
 
     const interactable = [];
     const handleGeom = new THREE.CylinderGeometry(0.07, 0.07, 0.4, 32);
+    const doorAngles = [];
 
     doorEntries.forEach((game, index) => {
       const label = String(game?.name || fallbackGameNames[index % fallbackGameNames.length]);
       const angle = (index / doorEntries.length) * Math.PI * 2;
+      doorAngles.push(angle);
       const radius = 18;
       const dx = Math.cos(angle) * radius;
       const dz = Math.sin(angle) * radius;
@@ -539,21 +587,157 @@ export default function GamesHallway({ games, onClose }) {
       scene.add(doorGroup);
     });
 
+    const addFlowerPotsBetweenDoors = () => {
+      if (!doorAngles.length) {
+        return;
+      }
+      const potBodyMat = new THREE.MeshStandardMaterial({
+        color: '#c09363',
+        metalness: 0.35,
+        roughness: 0.58
+      });
+      const potRimMat = new THREE.MeshStandardMaterial({
+        color: '#a7723d',
+        metalness: 0.45,
+        roughness: 0.38
+      });
+      const soilMat = new THREE.MeshStandardMaterial({
+        color: '#3b2b1f',
+        metalness: 0.12,
+        roughness: 0.86
+      });
+      const leafMat = new THREE.MeshStandardMaterial({
+        color: '#1f7a42',
+        emissive: '#0f3f23',
+        emissiveIntensity: 0.16,
+        metalness: 0.14,
+        roughness: 0.32,
+        side: THREE.DoubleSide
+      });
+      const sconcePlateMat = new THREE.MeshStandardMaterial({
+        color: '#d2b070',
+        metalness: 0.82,
+        roughness: 0.32
+      });
+      const sconceShadeMat = new THREE.MeshStandardMaterial({
+        color: '#fff0cd',
+        emissive: '#ffe4b0',
+        emissiveIntensity: 0.8,
+        metalness: 0.25,
+        roughness: 0.22,
+        transparent: true,
+        opacity: 0.72,
+        side: THREE.DoubleSide
+      });
+      const sconceBulbMat = new THREE.MeshStandardMaterial({
+        color: '#fff9ec',
+        emissive: '#ffe7c4',
+        emissiveIntensity: 0.95,
+        metalness: 0.1,
+        roughness: 0.1
+      });
+
+      const potRadius = 16.6;
+      const sconceRadius = 19.15;
+      const twoPi = Math.PI * 2;
+
+      doorAngles.forEach((angle, index) => {
+        let delta = wrapAngle(doorAngles[(index + 1) % doorAngles.length] - angle);
+        if (delta <= 0) {
+          delta += twoPi;
+        }
+        const midpointAngle = angle + delta / 2;
+        const potX = Math.cos(midpointAngle) * potRadius;
+        const potZ = Math.sin(midpointAngle) * potRadius;
+
+        const potGroup = new THREE.Group();
+        potGroup.position.set(potX, 0, potZ);
+        potGroup.rotation.y = -(midpointAngle + Math.PI / 2);
+
+        const potBody = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 1, 1.15, 48, 1, true), potBodyMat);
+        potBody.position.y = 0.58;
+        potBody.castShadow = true;
+        potBody.receiveShadow = true;
+        potGroup.add(potBody);
+
+        const potLip = new THREE.Mesh(new THREE.TorusGeometry(0.82, 0.08, 20, 64), potRimMat);
+        potLip.position.y = 1.05;
+        potLip.rotation.x = Math.PI / 2;
+        potLip.castShadow = true;
+        potLip.receiveShadow = true;
+        potGroup.add(potLip);
+
+        const soil = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.18, 32), soilMat);
+        soil.position.y = 0.96;
+        soil.receiveShadow = true;
+        potGroup.add(soil);
+
+        for (let i = 0; i < 6; i += 1) {
+          const leafGeom = new THREE.ConeGeometry(0.18, 0.95, 12, 1, true);
+          const theta = (i / 6) * twoPi;
+          const leaf = new THREE.Mesh(leafGeom, leafMat);
+          const radiusOffset = 0.32 + (i % 2) * 0.05;
+          leaf.position.set(Math.cos(theta) * radiusOffset, 1 + Math.random() * 0.2, Math.sin(theta) * radiusOffset);
+          leaf.rotation.z = -Math.PI / 5 + Math.random() * 0.2;
+          leaf.rotation.x = Math.PI / 2.8;
+          leaf.castShadow = true;
+          leaf.receiveShadow = true;
+          potGroup.add(leaf);
+        }
+
+        const potAccent = new THREE.PointLight(0xc9f7d2, 0.42, 4.8, 2.6);
+        potAccent.position.set(0, 1.45, 0);
+        potGroup.add(potAccent);
+
+        scene.add(potGroup);
+
+        const sconceGroup = new THREE.Group();
+        const sconceX = Math.cos(midpointAngle) * sconceRadius;
+        const sconceZ = Math.sin(midpointAngle) * sconceRadius;
+        sconceGroup.position.set(sconceX, 4.45, sconceZ);
+        sconceGroup.rotation.y = -(midpointAngle + Math.PI / 2);
+
+        const backplate = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.5, 0.1), sconcePlateMat);
+        backplate.receiveShadow = true;
+        sconceGroup.add(backplate);
+
+        const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.55, 16), sconcePlateMat);
+        arm.rotation.x = Math.PI / 2;
+        arm.position.z = 0.33;
+        sconceGroup.add(arm);
+
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 18, 12), sconceBulbMat);
+        bulb.position.set(0, 0.12, 0.7);
+        bulb.castShadow = true;
+        sconceGroup.add(bulb);
+
+        const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.35, 0.8, 26, 1, true), sconceShadeMat);
+        shade.position.set(0, 0.12, 0.65);
+        shade.castShadow = true;
+        shade.receiveShadow = true;
+        sconceGroup.add(shade);
+
+        const sconceGlow = new THREE.PointLight(0xffe4bf, 1.6, 10, 2.2);
+        sconceGlow.position.set(0, 0.35, 0.5);
+        sconceGroup.add(sconceGlow);
+
+        const sconceBeam = new THREE.SpotLight(0xffe9c8, 1.35, 11, Math.PI / 3.3, 0.55, 1.8);
+        sconceBeam.position.set(0, 0.3, 0.4);
+        sconceBeam.target.position.set(0, -1.8, -2.4);
+        sconceGroup.add(sconceBeam);
+        sconceGroup.add(sconceBeam.target);
+
+        scene.add(sconceGroup);
+      });
+    };
+
+    void addFlowerPotsBetweenDoors();
+
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
 
     const clampPitch = (value) => THREE.MathUtils.clamp(value, -Math.PI / 8, Math.PI / 4);
     const clampRadius = (value) => THREE.MathUtils.clamp(value, 3.6, 14);
-    const wrapAngle = (value) => {
-      const twoPi = Math.PI * 2;
-      let next = value % twoPi;
-      if (next > Math.PI) {
-        next -= twoPi;
-      } else if (next < -Math.PI) {
-        next += twoPi;
-      }
-      return next;
-    };
     const lerpAngle = (start, end, alpha) => {
       const difference = wrapAngle(end - start);
       return wrapAngle(start + difference * alpha);
