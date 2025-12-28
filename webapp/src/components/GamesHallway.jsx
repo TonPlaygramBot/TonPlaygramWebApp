@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { getOnlineCount } from '../utils/api.js';
 
-const WALL_REPEAT = new THREE.Vector2(5, 2.8); // 30% smaller wall tiles
-const PREFERRED_SIZES = ['2k', '1k'];
+const WALL_REPEAT = new THREE.Vector2(10, 2.8); // tighter marble tiling around the hallway
+const PREFERRED_SIZES = ['4k', '2k', '1k'];
 
 const fallbackGameNames = [
   'Chess Arena',
@@ -105,6 +106,9 @@ export default function GamesHallway({ games, onClose }) {
     const loader = new THREE.TextureLoader();
     loader.setCrossOrigin('anonymous');
 
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.setCrossOrigin('anonymous');
+
     const ambient = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambient);
 
@@ -151,6 +155,25 @@ export default function GamesHallway({ games, onClose }) {
 
     let disposed = false;
     const marbleWallTextures = [];
+    const disposeMaterial = (material) => {
+      if (!material) {
+        return;
+      }
+      ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap', 'alphaMap'].forEach((key) => {
+        const value = material[key];
+        if (value?.dispose) {
+          value.dispose();
+        }
+      });
+      material.dispose?.();
+    };
+    const disposeMeshMaterials = (material) => {
+      if (Array.isArray(material)) {
+        material.forEach(disposeMaterial);
+      } else {
+        disposeMaterial(material);
+      }
+    };
     const wallMat = new THREE.MeshStandardMaterial({
       color: '#d8d6d1',
       side: THREE.BackSide,
@@ -242,6 +265,37 @@ export default function GamesHallway({ games, onClose }) {
     const chandelier = new THREE.Group();
     chandelier.position.y = 6.6;
     scene.add(chandelier);
+
+    const loadCenterLantern = async () => {
+      try {
+        const gltf = await gltfLoader.loadAsync(
+          'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb'
+        );
+        if (disposed) {
+          gltf.scene?.traverse((child) => {
+            if (child.isMesh) {
+              child.geometry?.dispose?.();
+              disposeMeshMaterials(child.material);
+            }
+          });
+          return;
+        }
+        gltf.scene.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        gltf.scene.scale.set(0.78, 0.78, 0.78);
+        gltf.scene.position.set(0, -0.55, 0);
+        gltf.scene.rotation.y = Math.PI;
+        chandelier.add(gltf.scene);
+      } catch (error) {
+        // keep procedural chandelier as fallback
+      }
+    };
+
+    void loadCenterLantern();
 
     const chandelierShade = new THREE.Mesh(
       new THREE.CylinderGeometry(1.35, 1.75, 1.15, 64, 1, true),
@@ -487,18 +541,6 @@ export default function GamesHallway({ games, onClose }) {
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
-    const disposeMaterial = (material) => {
-      if (!material) {
-        return;
-      }
-      ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap', 'alphaMap'].forEach((key) => {
-        const value = material[key];
-        if (value?.dispose) {
-          value.dispose();
-        }
-      });
-      material.dispose?.();
-    };
 
     const clampPitch = (value) => THREE.MathUtils.clamp(value, -Math.PI / 8, Math.PI / 4);
     const clampRadius = (value) => THREE.MathUtils.clamp(value, 3.6, 14);
@@ -690,11 +732,7 @@ export default function GamesHallway({ games, onClose }) {
         if (child.isMesh) {
           child.geometry?.dispose?.();
           const { material } = child;
-          if (Array.isArray(material)) {
-            material.forEach(disposeMaterial);
-          } else {
-            disposeMaterial(material);
-          }
+          disposeMeshMaterials(material);
         }
       });
       handleGeom.dispose();
