@@ -1017,15 +1017,31 @@ const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up ca
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
-const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 0.85;
-const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.6;
+const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 0.95;
+const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
+const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
+const MAX_POWER_CAMERA_HOLD_MS = 2000;
 const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 1.015; // widen capture slightly so clean entries are honoured
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 1.025; // expand the middle pocket capture to prevent rail bounces on centre-line pots
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the interior bowl so balls fall at the throat
 const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now matches the bowl opening instead of scaling from corners
+const POCKET_GUARD_RADIUS = POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.06; // align the rail guard to the playable capture bowl instead of the visual rim
+const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.08); // keep a slim safety margin so clean entries aren't rejected
+const CORNER_POCKET_DEPTH_LIMIT =
+  POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
+const SIDE_POCKET_GUARD_RADIUS =
+  SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.08; // use the middle-pocket bowl to gate reflections
+const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
+  0,
+  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.08
+);
+const SIDE_POCKET_DEPTH_LIMIT =
+  POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
+const SIDE_POCKET_SPAN =
+  SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.52; // tune the middle lane to the real mouth width
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_ENABLED = false; // fully disable any plywood underlay beneath the cloth
 const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
@@ -1162,9 +1178,9 @@ const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
-const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
-const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
-const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
+const SWERVE_THRESHOLD = 0.7; // outer 30% of the spin control activates swerve behaviour
+const SWERVE_TRAVEL_MULTIPLIER = 0.86; // let swerve-driven roll carry more lateral energy while staying believable
+const PRE_IMPACT_SPIN_DRIFT = 0.1; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
@@ -1216,6 +1232,7 @@ const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_SMOOTHING = 0.35;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
+const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 3.8;
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
@@ -1239,9 +1256,9 @@ const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
-const DEFAULT_CUSHION_CUT_ANGLE = 29;
+const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // middle pocket cushion cuts are sharpened to a 29° cut to align the side-rail cushions with the updated spec
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 34;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -4906,8 +4923,9 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0016; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.1;
+const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.14; // let the cue view drop to the same rail-hugging height used by AI shots while staying above the cue
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.32; // halt the downward sweep sooner so the lowest angle stays slightly higher and stops above the cue
+const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.018; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
@@ -5017,8 +5035,8 @@ const CUE_VIEW_PHI_LIFT = 0.1; // raise the cue camera slightly so the aim view 
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
-  CAMERA_MAX_PHI - 0.02
-); // ensure rail clamp activates within the lowered camera tilt limit
+  CAMERA_LOWEST_PHI - 0.18
+); // ensure rail clamp activates within the lowered camera tilt limit even with the deeper cue view
 const CAMERA_MIN_HORIZONTAL =
   ((Math.max(PLAY_W, PLAY_H) / 2 + SIDE_RAIL_INNER_THICKNESS) * WORLD_SCALE) +
   CAMERA_RAIL_SAFETY;
@@ -5049,6 +5067,8 @@ const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
   SHOT_BASE_SPEED * 0.82; // skip long-shot cam switch if cue ball launches faster
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const GOOD_SHOT_REPLAY_DELAY_MS = 900;
+const REPLAY_TRANSITION_LEAD_MS = 420;
+const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
@@ -5806,10 +5826,9 @@ function reflectRails(ball) {
   const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
   const cornerCos = Math.cos(cornerRad);
   const cornerSin = Math.sin(cornerRad);
-  const pocketGuard =
-    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION + BALL_R * 0.08; // widen the safe zone so balls don't bounce before reaching the jaw
-  const guardClearance = Math.max(0, pocketGuard - BALL_R * 0.1);
-  const cornerDepthLimit = POCKET_VIS_R * 1.75 * POCKET_VISUAL_EXPANSION;
+  const pocketGuard = POCKET_GUARD_RADIUS;
+  const guardClearance = POCKET_GUARD_CLEARANCE;
+  const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
   for (const { sx, sy } of CORNER_SIGNS) {
     TMP_VEC2_C.set(sx * limX, sy * limY);
     TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
@@ -5846,11 +5865,10 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS * 0.96 + BALL_R * 0.58; // open the middle capture lane to reduce false cushion kicks
-  const sidePocketGuard =
-    SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.06; // soften the capture window around middle jaws
-  const sideGuardClearance = Math.max(0, sidePocketGuard - BALL_R * 0.08);
-  const sideDepthLimit = POCKET_VIS_R * 1.65 * POCKET_VISUAL_EXPANSION;
+  const sideSpan = SIDE_POCKET_SPAN;
+  const sidePocketGuard = SIDE_POCKET_GUARD_RADIUS;
+  const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
+  const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
   const sidePocketCenters = pocketCenters().slice(4);
   for (const center of sidePocketCenters) {
     TMP_VEC2_A.copy(ball.pos).sub(center);
@@ -10200,12 +10218,18 @@ function PoolRoyaleGame({
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
+  const [replaySlate, setReplaySlate] = useState(null);
+  const replaySlateTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
       if (replayBannerTimeoutRef.current) {
         clearTimeout(replayBannerTimeoutRef.current);
         replayBannerTimeoutRef.current = null;
+      }
+      if (replaySlateTimeoutRef.current) {
+        clearTimeout(replaySlateTimeoutRef.current);
+        replaySlateTimeoutRef.current = null;
       }
     },
     []
@@ -10639,6 +10663,8 @@ const powerRef = useRef(hud.power);
   const muteRef = useRef(isGameMuted());
   const volumeRef = useRef(getGameVolume());
   const railSoundTimeRef = useRef(new Map());
+  const liftLandingTimeRef = useRef(new Map());
+  const powerImpactHoldRef = useRef(0);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
   const playerInfoRef = useRef(player);
   useEffect(() => {
@@ -15410,25 +15436,26 @@ const powerRef = useRef(hud.power);
       const buttTilt = Math.asin(
         Math.min(1, buttLift / Math.max(cueLen, 1e-4))
       );
-      const buttTipComp = Math.sin(buttTilt) * cueLen * 0.5;
       const applyCueButtTilt = (group, extraTilt = 0) => {
         if (!group) return;
         const info = group.userData?.buttTilt;
         const baseTilt = info?.angle ?? buttTilt;
         const len = info?.length ?? cueLen;
-        const totalTilt = baseTilt + extraTilt;
+        const totalTilt = -(baseTilt + extraTilt);
         group.rotation.x = totalTilt;
-        const tipComp = Math.sin(totalTilt) * len * 0.5;
+        const tipComp = -Math.sin(totalTilt) * len * 0.5;
         group.position.y += tipComp;
         if (info) {
           info.tipCompensation = tipComp;
           info.current = totalTilt;
           info.extra = extraTilt;
+          info.buttHeightOffset = -Math.sin(totalTilt) * len;
         }
       };
       cueStick.userData.buttTilt = {
         angle: buttTilt,
-        tipCompensation: buttTipComp,
+        tipCompensation: -Math.sin(-buttTilt) * cueLen * 0.5,
+        buttHeightOffset: -Math.sin(-buttTilt) * cueLen,
         length: cueLen
       };
 
@@ -16458,6 +16485,10 @@ const powerRef = useRef(hud.power);
           lastPocketBallRef.current = null;
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           lastShotPower = clampedPower;
+          const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
+          powerImpactHoldRef.current = isMaxPowerShot
+            ? performance.now() + MAX_POWER_CAMERA_HOLD_MS
+            : 0;
           const spinMagnitude = Math.hypot(
             spinRef.current?.x ?? 0,
             spinRef.current?.y ?? 0
@@ -16550,7 +16581,7 @@ const powerRef = useRef(hud.power);
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
           let pocketViewActivated = false;
-          if (earlyPocketView) {
+          if (earlyPocketView && !isMaxPowerShot) {
             const now = performance.now();
             earlyPocketView.lastUpdate = now;
             if (cameraRef.current) {
@@ -16572,12 +16603,23 @@ const powerRef = useRef(hud.power);
             pocketViewActivated = true;
           }
           if (!pocketViewActivated && actionView) {
-            const shouldActivateActionView = !isLongShot || forceActionActivation;
+            const shouldActivateActionView =
+              (!isLongShot || forceActionActivation) && !isMaxPowerShot;
             if (shouldActivateActionView) {
               suspendedActionView = null;
               activeShotView = actionView;
               updateCamera();
             } else {
+              actionView.pendingActivation = true;
+              const holdUntil = powerImpactHoldRef.current || null;
+              const baseDelay = actionView.activationDelay ?? null;
+              const delayed = Math.max(baseDelay ?? 0, holdUntil ?? 0);
+              actionView.activationDelay = delayed;
+              const baseTravel = actionView.activationTravel ?? 0;
+              actionView.activationTravel = Math.max(
+                baseTravel,
+                isMaxPowerShot ? BALL_R * 6 : 0
+              );
               suspendedActionView = actionView;
             }
           }
@@ -16606,6 +16648,21 @@ const powerRef = useRef(hud.power);
           resetSpinRef.current?.();
           cue.impacted = false;
           cue.launchDir = aimDir.clone().normalize();
+          if (isMaxPowerShot) {
+            const liftAmount = Math.min(
+              MAX_POWER_LIFT_HEIGHT,
+              Math.max(CUE_TIP_RADIUS, MAX_POWER_BOUNCE_IMPULSE * 0.25)
+            );
+            const liftVelocity = Math.min(
+              MAX_POWER_BOUNCE_IMPULSE * clampedPower,
+              MAX_POWER_BOUNCE_IMPULSE * 0.55
+            );
+            cue.lift = Math.max(cue.lift ?? 0, liftAmount);
+            cue.liftVel = Math.max(cue.liftVel ?? 0, liftVelocity);
+          } else {
+            cue.lift = 0;
+            cue.liftVel = 0;
+          }
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -16642,49 +16699,85 @@ const powerRef = useRef(hud.power);
             instant: true,
             preserveLarger: true
           });
+          cuePullCurrentRef.current = pull;
+          cuePullTargetRef.current = pull;
+          const cuePerp = new THREE.Vector3(-dir.z, 0, dir.x);
+          if (cuePerp.lengthSq() > 1e-8) cuePerp.normalize();
+          const offsetSide = ranges.offsetSide ?? 0;
+          const offsetVertical = ranges.offsetVertical ?? 0;
+          let contactSide = appliedSpin.x * offsetSide;
+          let contactVert = -appliedSpin.y * offsetVertical;
+          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
+          if (maxContactOffset > 1e-6) {
+            const combined = Math.hypot(contactSide, contactVert);
+            if (combined > maxContactOffset) {
+              const scale = maxContactOffset / combined;
+              contactSide *= scale;
+              contactVert *= scale;
+            }
+          }
+          const spinWorld = new THREE.Vector3(
+            cuePerp.x * contactSide,
+            contactVert,
+            cuePerp.z * contactSide
+          );
+          const obstructionStrength = resolveCueObstruction(dir, pull);
+          const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
+          const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
+          const obstructionTiltFromLift =
+            obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
+          cueStick.position.set(
+            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
+            CUE_Y + spinWorld.y,
+            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
+          );
+          const tiltAmount = Math.abs(appliedSpin.y || 0);
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
+          applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
+          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
+          if (tipGroupRef.current) {
+            tipGroupRef.current.position.set(0, 0, -cueLen / 2);
+          }
           cueAnimating = true;
           const startPos = cueStick.position.clone();
-          const endPos = startPos.clone().add(dir.clone().multiplyScalar(pull));
-          let animFrame = 0;
-          const animSteps = 5;
-          const animateCue = () => {
-            animFrame++;
-            cueStick.position.lerpVectors(
-              startPos,
-              endPos,
-              animFrame / animSteps
-            );
-            if (animFrame < animSteps) {
-              requestAnimationFrame(animateCue);
+          const impactPos = startPos.clone().add(dir.clone().multiplyScalar(Math.max(pull, 0)));
+          const retreatDistance = Math.max(BALL_R * 0.6, Math.min(pull, BALL_R * 4));
+          const settlePos = impactPos
+            .clone()
+            .sub(dir.clone().multiplyScalar(retreatDistance));
+          cueStick.visible = true;
+          cueStick.position.copy(startPos);
+          let frame = 0;
+          const forwardFrames = 6;
+          const backFrames = 8;
+          const animateStroke = () => {
+            frame += 1;
+            if (frame <= forwardFrames) {
+              cueStick.position.lerpVectors(startPos, impactPos, frame / forwardFrames);
+            } else if (frame <= forwardFrames + backFrames) {
+              cueStick.position.lerpVectors(
+                impactPos,
+                settlePos,
+                (frame - forwardFrames) / backFrames
+              );
             } else {
-              let backFrame = 0;
-              const animateBack = () => {
-                backFrame++;
-                cueStick.position.lerpVectors(
-                  endPos,
-                  startPos,
-                  backFrame / animSteps
-                );
-                if (backFrame < animSteps) requestAnimationFrame(animateBack);
-                else {
-                  cuePullCurrentRef.current = 0;
-                  cuePullTargetRef.current = 0;
-                  cueStick.visible = false;
-                  cueAnimating = false;
-                  if (cameraRef.current && sphRef.current) {
-                    topViewRef.current = false;
-                    topViewLockedRef.current = false;
-                    setIsTopDownView(false);
-                    const sph = sphRef.current;
-                    sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-                    updateCamera();
-                  }
-                }
-              };
-              requestAnimationFrame(animateBack);
+              cueStick.visible = false;
+              cueAnimating = false;
+              cuePullCurrentRef.current = 0;
+              cuePullTargetRef.current = 0;
+              if (cameraRef.current && sphRef.current) {
+                topViewRef.current = false;
+                topViewLockedRef.current = false;
+                setIsTopDownView(false);
+                const sph = sphRef.current;
+                sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+                updateCamera();
+              }
+              return;
             }
+            requestAnimationFrame(animateStroke);
           };
-          animateCue();
+          animateStroke();
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -17966,6 +18059,18 @@ const powerRef = useRef(hud.power);
           return pool[Math.max(0, Math.min(index, pool.length - 1))] ?? 'Good shot!';
         };
 
+        const triggerReplaySlate = (label = 'Instant Replay', { accent = 'default' } = {}) => {
+          setReplaySlate({ label, accent, startedAt: performance.now() });
+          if (replaySlateTimeoutRef.current) {
+            clearTimeout(replaySlateTimeoutRef.current);
+          }
+          replaySlateTimeoutRef.current = window.setTimeout(() => {
+            setReplaySlate(null);
+            replaySlateTimeoutRef.current = null;
+          }, REPLAY_SLATE_DURATION_MS);
+          return REPLAY_TRANSITION_LEAD_MS;
+        };
+
         const resolveReplayDecision = ({
           recording,
           hadObjectPot,
@@ -17987,7 +18092,8 @@ const powerRef = useRef(hud.power);
             shouldReplay: hadObjectPot || tags.size > 0,
             banner: selectReplayBanner(primary),
             zoomOnly,
-            tags: Array.from(tags)
+            tags: Array.from(tags),
+            primaryTag: primary
           };
         };
 
@@ -18011,6 +18117,7 @@ const powerRef = useRef(hud.power);
             Boolean(replayDecision?.shouldReplay) &&
             (shotRecording?.frames?.length ?? 0) > 1;
           const replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
+          const replayAccent = replayDecision?.primaryTag ?? 'default';
           let postShotSnapshot = null;
         if (firstContactColor || firstHit) {
           shotEvents.push({
@@ -18285,6 +18392,7 @@ const powerRef = useRef(hud.power);
             });
           }
           setShootingState(false);
+          powerImpactHoldRef.current = 0;
           shotPrediction = null;
           activeShotView = null;
           suspendedActionView = null;
@@ -18296,13 +18404,21 @@ const powerRef = useRef(hud.power);
             const launchReplay = () => {
               replayBannerTimeoutRef.current = null;
               setReplayBanner(null);
-              shotRecording = recordingForReplay;
-              if (recordingForReplay) {
-                startShotReplay(postShotSnapshot);
+              const slateLead = triggerReplaySlate(replayBannerText, { accent: replayAccent });
+              const beginReplay = () => {
+                shotRecording = recordingForReplay;
+                if (recordingForReplay) {
+                  startShotReplay(postShotSnapshot);
+                } else {
+                  shotReplayRef.current = null;
+                }
+                shotRecording = null;
+              };
+              if (slateLead > 0) {
+                window.setTimeout(beginReplay, slateLead);
               } else {
-                shotReplayRef.current = null;
+                beginReplay();
               }
-              shotRecording = null;
             };
             if (replayBannerTimeoutRef.current) {
               clearTimeout(replayBannerTimeoutRef.current);
@@ -18539,7 +18655,7 @@ const powerRef = useRef(hud.power);
           isOnlineMatch &&
           currentHud?.turn === 1 &&
           remoteAimFresh;
-        const resolveCueObstruction = (dirVec3, pullDistance = cuePullTargetRef.current ?? 0) => {
+        function resolveCueObstruction(dirVec3, pullDistance = cuePullTargetRef.current ?? 0) {
           if (!cue?.pos || !dirVec3) return 0;
           const backward = new THREE.Vector2(-dirVec3.x, -dirVec3.z);
           if (backward.lengthSq() < 1e-8) return 0;
@@ -18569,7 +18685,7 @@ const powerRef = useRef(hud.power);
             strength = Math.max(strength, influence);
           });
           return strength;
-        };
+        }
 
         sidePocketAimRef.current = false;
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
@@ -18740,23 +18856,27 @@ const powerRef = useRef(hud.power);
             perp.z * side
           );
           const obstructionStrength = resolveCueObstruction(dir, pull);
-          const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
+          const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
+          const obstructionTiltFromLift =
+            obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
           cueStick.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y + obstructionLift,
+            CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(appliedSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
-          applyCueButtTilt(cueStick, extraTilt + obstructionTilt);
+          applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
+          const buttTiltInfo = cueStick.userData?.buttTilt;
+          const buttHeightOffset = buttTiltInfo?.buttHeightOffset ?? 0;
           TMP_VEC3_BUTT.set(
             cue.pos.x - dir.x * (cueLen + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y + obstructionLift,
+            CUE_Y + spinWorld.y + buttHeightOffset,
             cue.pos.y - dir.z * (cueLen + pull + CUE_TIP_GAP) + spinWorld.z
           );
           let visibleChalkIndex = null;
@@ -18958,16 +19078,18 @@ const powerRef = useRef(hud.power);
           }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           const obstructionStrength = resolveCueObstruction(baseDir, pull);
-          const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
+          const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
+          const obstructionTiltFromLift =
+            obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
           cueStick.position.set(
             cue.pos.x - baseDir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y + obstructionLift,
+            CUE_Y + spinWorld.y,
             cue.pos.y - baseDir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(spinY);
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
-          applyCueButtTilt(cueStick, extraTilt + obstructionTilt);
+          applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
           cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
@@ -19057,16 +19179,18 @@ const powerRef = useRef(hud.power);
           }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           const obstructionStrength = resolveCueObstruction(dir, pull);
-          const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
+          const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
+          const obstructionTiltFromLift =
+            obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
           cueStick.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y + obstructionLift,
+            CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(spinY);
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
-          applyCueButtTilt(cueStick, extraTilt + obstructionTilt);
+          applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
@@ -19113,6 +19237,21 @@ const powerRef = useRef(hud.power);
               const dampedVel = (b.liftVel ?? 0) * Math.pow(MAX_POWER_BOUNCE_DAMPING, stepScale);
               const nextLift = Math.max(0, (b.lift ?? 0) + dampedVel * stepScale);
               const nextVel = dampedVel - MAX_POWER_BOUNCE_GRAVITY * stepScale;
+              const landingNow =
+                isCue && (b.lift ?? 0) > 1e-6 && nextLift <= 1e-4 && dampedVel < 0;
+              if (landingNow) {
+                const lastLanding = liftLandingTimeRef.current.get(b.id) ?? 0;
+                const nowLanding = performance.now();
+                if (nowLanding - lastLanding > MAX_POWER_LANDING_SOUND_COOLDOWN_MS) {
+                  const landingVol = clamp(
+                    Math.abs(dampedVel) / MAX_POWER_BOUNCE_IMPULSE,
+                    0,
+                    1
+                  );
+                  playBallHit(Math.max(0.35, landingVol * 0.85));
+                  liftLandingTimeRef.current.set(b.id, nowLanding);
+                }
+              }
               b.lift = nextLift;
               b.liftVel = Math.abs(nextLift) > 1e-6 ? nextVel : 0;
               if (nextLift <= 1e-4 && Math.abs(nextVel) <= 1e-4) {
@@ -19310,11 +19449,14 @@ const powerRef = useRef(hud.power);
                   const bounceStrength = THREE.MathUtils.clamp(lastShotPower, 0, 1);
                   cueBall.lift = Math.max(
                     cueBall.lift ?? 0,
-                    MAX_POWER_BOUNCE_IMPULSE * 0.35
+                    Math.min(MAX_POWER_LIFT_HEIGHT, MAX_POWER_BOUNCE_IMPULSE * 0.35)
                   );
                   cueBall.liftVel = Math.max(
                     cueBall.liftVel ?? 0,
-                    MAX_POWER_BOUNCE_IMPULSE * bounceStrength
+                    Math.min(
+                      MAX_POWER_BOUNCE_IMPULSE * bounceStrength,
+                      MAX_POWER_BOUNCE_IMPULSE * 0.55
+                    )
                   );
                 }
                 if (
@@ -19348,7 +19490,9 @@ const powerRef = useRef(hud.power);
             const delayReady =
               !suspendedActionView.activationDelay ||
               now >= suspendedActionView.activationDelay;
-            if (travelReady && delayReady) {
+            const holdReady =
+              !powerImpactHoldRef.current || now >= powerImpactHoldRef.current;
+            if (travelReady && delayReady && holdReady) {
               const pending = suspendedActionView;
               pending.pendingActivation = false;
               pending.activationDelay = null;
@@ -19424,9 +19568,13 @@ const powerRef = useRef(hud.power);
         const suppressPocketCameras =
           (broadcastSystemRef.current ?? activeBroadcastSystem ?? null)
             ?.avoidPocketCameras;
+        const pocketHoldActive =
+          powerImpactHoldRef.current &&
+          performance.now() < powerImpactHoldRef.current;
         if (
           !suppressPocketCameras &&
           shooting &&
+          !pocketHoldActive &&
           !topViewRef.current &&
           (activeShotView?.mode !== 'pocket' || !activeShotView)
         ) {
@@ -20259,13 +20407,55 @@ const powerRef = useRef(hud.power);
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
-  const bottomHudScale = isPortrait ? uiScale * 0.94 : uiScale;
-  const bottomHudInsets = isPortrait
-    ? { left: 'max(2.5rem, 6vw)', right: 'max(3.75rem, 9vw)' }
-    : { left: 'max(4rem, 10vw)', right: 'max(6.75rem, 14vw)' };
-  const avatarSizeClass = isPortrait ? 'h-11 w-11' : 'h-12 w-12';
-  const nameWidthClass = isPortrait ? 'max-w-[7.75rem]' : 'max-w-[8.75rem]';
-  const hudGapClass = isPortrait ? 'gap-4' : 'gap-5';
+  const bottomHudScale = isPortrait ? uiScale * 0.95 : uiScale * 1.02;
+  const leftControlFootprint = uiScale * (isPortrait ? 150 : 180);
+  const rightControlFootprint =
+    uiScale * (SPIN_CONTROL_DIAMETER_PX + (isPortrait ? 110 : 130));
+  const bottomHudInsets = {
+    left: `${leftControlFootprint}px`,
+    right: `${rightControlFootprint}px`
+  };
+  const avatarSizeClass = isPortrait ? 'h-8 w-8' : 'h-12 w-12';
+  const nameWidthClass = isPortrait ? 'max-w-[6.5rem]' : 'max-w-[8.75rem]';
+  const nameTextClass = isPortrait ? 'text-xs' : 'text-sm';
+  const hudGapClass = isPortrait ? 'gap-3' : 'gap-5';
+  const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
+  const playerPanelClass = isPortrait
+    ? `flex min-w-0 items-center gap-2.5 rounded-full ${isPlayerTurn ? 'text-white' : 'text-white/80'}`
+    : `flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
+        isPlayerTurn
+          ? 'bg-emerald-400/20 pl-4 pr-3 text-white ring-2 ring-emerald-300/70'
+          : 'pl-3.5 pr-3 text-white/80'
+      }`;
+  const opponentPanelClass = isPortrait
+    ? `flex min-w-0 items-center gap-2.5 rounded-full ${isOpponentTurn ? 'text-white' : 'text-white/80'}`
+    : `flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
+        isOpponentTurn
+          ? 'bg-emerald-400/20 pl-3 pr-4 text-white ring-2 ring-emerald-300/70'
+          : 'pl-3 pr-3.5 text-white/80'
+      }`;
+  const playerPanelStyle = isPortrait
+    ? {
+        boxShadow: isPlayerTurn
+          ? '0 0 18px rgba(16,185,129,0.32), -10px 0 18px rgba(16,185,129,0.18)'
+          : '0 6px 14px rgba(0,0,0,0.35)'
+      }
+    : {
+        boxShadow: isPlayerTurn
+          ? '0 0 18px rgba(16,185,129,0.35), -14px 0 22px rgba(16,185,129,0.28)'
+          : '0 6px 14px rgba(0,0,0,0.35)'
+      };
+  const opponentPanelStyle = isPortrait
+    ? {
+        boxShadow: isOpponentTurn
+          ? '0 0 18px rgba(16,185,129,0.32), 10px 0 18px rgba(16,185,129,0.18)'
+          : '0 6px 14px rgba(0,0,0,0.35)'
+      }
+    : {
+        boxShadow: isOpponentTurn
+          ? '0 0 18px rgba(16,185,129,0.35), 14px 0 22px rgba(16,185,129,0.28)'
+          : '0 6px 14px rgba(0,0,0,0.35)'
+      };
   const renderFlagAvatar = useCallback(
     (flagEmoji, label, isActive) => (
       <span
@@ -20286,13 +20476,85 @@ const powerRef = useRef(hud.power);
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
+      {replaySlate && (
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
+          <div className="relative isolate flex w-[min(26rem,90vw)] items-center justify-between overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-r from-black/85 via-black/70 to-black/85 px-5 py-4 shadow-[0_18px_42px_rgba(0,0,0,0.55)] backdrop-blur">
+            <div className="pointer-events-none absolute inset-0 opacity-80">
+              <div className="absolute -left-10 top-0 h-full w-1/2 rotate-3 bg-gradient-to-r from-emerald-400/15 via-emerald-300/10 to-transparent" />
+              <div className="absolute -right-14 bottom-0 h-2/3 w-1/2 -rotate-6 bg-gradient-to-l from-cyan-300/20 via-cyan-200/12 to-transparent" />
+              <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+            </div>
+            <div className="relative flex items-center gap-3">
+              <span
+                className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${
+                  replaySlate.accent === 'power'
+                    ? 'from-amber-300 to-orange-400'
+                    : replaySlate.accent === 'spin'
+                      ? 'from-indigo-300 to-sky-400'
+                      : 'from-emerald-300 to-cyan-300'
+                } text-black shadow-[0_12px_28px_rgba(0,0,0,0.35)] ring-1 ring-white/40`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="h-6 w-6"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m5 4 14 8-14 8V4z" />
+                </svg>
+              </span>
+              <div className="flex flex-col leading-tight">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-emerald-100">
+                  Instant Replay
+                </span>
+                <span className="text-sm font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]">
+                  {replaySlate.label}
+                </span>
+              </div>
+            </div>
+            <div className="relative flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.26em] text-white/70">
+              <span className="h-px w-10 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+              <span>TV</span>
+              <span className="h-px w-10 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
           <div
-            className="rounded-full bg-emerald-400/90 px-6 py-2 text-sm font-bold uppercase tracking-[0.32em] text-black shadow-[0_12px_32px_rgba(0,0,0,0.45)]"
+            className="flex items-center gap-3 rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300 px-6 py-2 text-sm font-bold uppercase tracking-[0.32em] text-slate-900 shadow-[0_12px_32px_rgba(0,0,0,0.45)] ring-2 ring-white/30"
             aria-live="polite"
           >
-            {replayBanner}
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/10 text-slate-900 shadow-inner">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="h-4 w-4"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M11 5V3a1 1 0 0 0-1.7-.7L4.6 7a1 1 0 0 0 0 1.4l4.7 4.7A1 1 0 0 0 11 12v-2a7 7 0 0 1 7 7"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M18 17a7 7 0 1 1-7-7"
+                />
+              </svg>
+            </span>
+            <span className="drop-shadow-[0_1px_2px_rgba(255,255,255,0.35)]">
+              {replayBanner}
+            </span>
           </div>
         </div>
       )}
@@ -20802,7 +21064,7 @@ const powerRef = useRef(hud.power);
 
       {bottomHudVisible && (
         <div
-          className={`absolute bottom-4 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
+          className={`absolute bottom-4 flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive}
           style={{
             left: bottomHudInsets.left,
@@ -20810,24 +21072,16 @@ const powerRef = useRef(hud.power);
           }}
         >
           <div
-            className={`pointer-events-auto flex min-h-[3.25rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 px-6 py-2.5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
-          style={{
-            transform: `scale(${bottomHudScale})`,
-            transformOrigin: 'bottom center',
-            maxWidth: 'min(32rem, 100%)'
-          }}
-        >
+            className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'px-5 py-2' : 'px-6 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
+            style={{
+              transform: `scale(${bottomHudScale})`,
+              transformOrigin: 'bottom center',
+              maxWidth: isPortrait ? 'min(28rem, 100%)' : 'min(34rem, 100%)'
+            }}
+          >
             <div
-              className={`flex min-w-0 items-center gap-4 rounded-full transition-all ${
-                isPlayerTurn
-                  ? 'bg-emerald-400/20 pl-4 pr-3 text-white ring-2 ring-emerald-300/70'
-                  : 'pl-3.5 pr-3 text-white/80'
-              }`}
-              style={{
-                boxShadow: isPlayerTurn
-                  ? '0 0 18px rgba(16,185,129,0.35), -14px 0 22px rgba(16,185,129,0.28)'
-                  : '0 6px 14px rgba(0,0,0,0.35)'
-              }}
+              className={playerPanelClass}
+              style={playerPanelStyle}
             >
               {isOnlineMatch ? (
                 <img
@@ -20837,7 +21091,7 @@ const powerRef = useRef(hud.power);
                     isPlayerTurn
                       ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                       : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                    }`}
+                  }`}
                 />
               ) : (
                 <img
@@ -20851,28 +21105,22 @@ const powerRef = useRef(hud.power);
                 />
               )}
               <div className="flex min-w-0 flex-col">
-                <span className={`${nameWidthClass} truncate text-sm font-semibold tracking-wide`}>
+                <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
                   {player.name}
                 </span>
                 <div className="mt-1">{renderPottedRow(playerPotted)}</div>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-base font-semibold">
+            <div
+              className={`flex items-center gap-2 ${isPortrait ? 'text-sm' : 'text-base'} font-semibold`}
+            >
               <span className="text-amber-300">{hud.A}</span>
               <span className="text-white/50">-</span>
               <span>{hud.B}</span>
             </div>
             <div
-              className={`flex min-w-0 items-center gap-4 rounded-full text-sm transition-all ${
-                isOpponentTurn
-                  ? 'bg-emerald-400/20 pl-3 pr-4 text-white ring-2 ring-emerald-300/70'
-                  : 'pl-3 pr-3.5 text-white/80'
-              }`}
-              style={{
-                boxShadow: isOpponentTurn
-                  ? '0 0 18px rgba(16,185,129,0.35), 14px 0 22px rgba(16,185,129,0.28)'
-                  : '0 6px 14px rgba(0,0,0,0.35)'
-              }}
+              className={`${opponentPanelClass} ${isPortrait ? 'text-xs' : 'text-sm'}`}
+              style={opponentPanelStyle}
             >
               {isOnlineMatch ? (
                 <>
@@ -20886,7 +21134,7 @@ const powerRef = useRef(hud.power);
                     }`}
                   />
                   <div className="flex min-w-0 flex-col">
-                    <span className={`${nameWidthClass} truncate text-sm font-semibold tracking-wide`}>
+                    <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
                       {opponentDisplayName}
                     </span>
                     <div className="mt-1">{renderPottedRow(opponentPotted)}</div>
