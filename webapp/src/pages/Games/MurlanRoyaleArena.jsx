@@ -9,8 +9,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
-import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
@@ -268,12 +266,10 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
-const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const POLYHAVEN_PLANT_ASSETS = ['potted_plant_01', 'potted_plant_02', 'potted_plant_04', 'planter_box_01'];
 const POLYHAVEN_MODEL_CACHE = new Map();
 const PLANT_TARGET_HEIGHT = 2.8 * MODEL_SCALE;
 const DECOR_PLANT_RADIUS_SCALE = 0.9;
-let sharedKTX2Loader = null;
 
 function stripQueryHash(u) {
   return u.split('#')[0].split('?')[0];
@@ -329,45 +325,6 @@ function pickBestModelUrl(urls) {
   gltfs.sort((a, b) => score(b) - score(a));
 
   return glbs[0] || gltfs[0] || null;
-}
-
-function getSharedKTX2Loader(renderer = null) {
-  if (sharedKTX2Loader) {
-    if (renderer) sharedKTX2Loader.detectSupport(renderer);
-    return sharedKTX2Loader;
-  }
-  try {
-    const loader = new KTX2Loader();
-    loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
-    let supportRenderer = renderer;
-    if (!supportRenderer && typeof document !== 'undefined') {
-      supportRenderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
-    }
-    if (supportRenderer) {
-      loader.detectSupport(supportRenderer);
-      if (!renderer) supportRenderer.dispose?.();
-    }
-    sharedKTX2Loader = loader;
-  } catch (error) {
-    console.warn('Failed to initialize KTX2 loader', error);
-  }
-  return sharedKTX2Loader;
-}
-
-function createConfiguredGLTFLoader({ manager, renderer } = {}) {
-  const loader = new GLTFLoader(manager);
-  loader.setCrossOrigin?.('anonymous');
-  const draco = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-  loader.setDRACOLoader(draco);
-  if (loader.setMeshoptDecoder) {
-    loader.setMeshoptDecoder(MeshoptDecoder);
-  }
-  const ktx2Loader = getSharedKTX2Loader(renderer);
-  if (ktx2Loader) {
-    loader.setKTX2Loader(ktx2Loader);
-  }
-  return loader;
 }
 
 function prepareLoadedModel(model) {
@@ -530,8 +487,8 @@ function fitModelToHeight(model, targetHeight) {
   liftModelToGround(model, 0);
 }
 
-async function createPolyhavenInstance(assetId, targetHeight, rotationY = 0, renderer = null) {
-  const root = await loadPolyhavenModel(assetId, renderer);
+async function createPolyhavenInstance(assetId, targetHeight, rotationY = 0) {
+  const root = await loadPolyhavenModel(assetId);
   const model = root.clone(true);
   prepareLoadedModel(model);
   fitModelToHeight(model, targetHeight);
@@ -551,8 +508,11 @@ function shouldPreserveChairMaterials(theme) {
   return Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
 }
 
-async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0, renderer = null) {
-  const loader = createConfiguredGLTFLoader({ renderer });
+async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0) {
+  const loader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  loader.setDRACOLoader(draco);
 
   let gltf = null;
   let lastError = null;
@@ -586,7 +546,7 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0, renderer = 
   };
 }
 
-async function loadPolyhavenModel(assetId, renderer = null) {
+async function loadPolyhavenModel(assetId) {
   if (!assetId) throw new Error('Missing Poly Haven asset id');
   const normalizedId = assetId.toLowerCase();
   const cacheKey = normalizedId;
@@ -625,7 +585,11 @@ async function loadPolyhavenModel(assetId, renderer = null) {
     }
 
     const manager = fileMap.size ? new THREE.LoadingManager() : undefined;
-    const loader = createConfiguredGLTFLoader({ manager, renderer });
+    const loader = new GLTFLoader(manager);
+    const draco = new DRACOLoader();
+    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    loader.setDRACOLoader(draco);
+    loader.setCrossOrigin?.('anonymous');
 
     if (fileMap.size) {
       const base = stripQueryHash(modelUrlList[0]);
@@ -746,12 +710,12 @@ function createProceduralChair(theme) {
   };
 }
 
-async function buildChairTemplate(theme, renderer = null) {
+async function buildChairTemplate(theme) {
   const rotationY = theme?.modelRotation || 0;
   const preserveMaterials = shouldPreserveChairMaterials(theme);
   try {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
-      const polyhavenRoot = await loadPolyhavenModel(theme.assetId, renderer);
+      const polyhavenRoot = await loadPolyhavenModel(theme.assetId);
       const model = polyhavenRoot.clone(true);
       prepareLoadedModel(model);
       fitChairModelToFootprint(model);
@@ -763,13 +727,13 @@ async function buildChairTemplate(theme, renderer = null) {
       return { chairTemplate: model, materials, preserveOriginal: preserveMaterials };
     }
     if (theme?.source === 'gltf' && Array.isArray(theme.urls) && theme.urls.length) {
-      const gltfChair = await loadGltfChair(theme.urls, rotationY, renderer);
+      const gltfChair = await loadGltfChair(theme.urls, rotationY);
       if (!preserveMaterials) {
         applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
       }
       return { ...gltfChair, preserveOriginal: preserveMaterials };
     }
-    const gltfChair = await loadGltfChair(CHAIR_MODEL_URLS, rotationY, renderer);
+    const gltfChair = await loadGltfChair(CHAIR_MODEL_URLS, rotationY);
     if (!preserveMaterials) {
       applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
     }
@@ -1355,7 +1319,7 @@ export default function MurlanRoyaleArena({ search }) {
     async (stoolTheme) => {
       if (!threeReady) return;
       const safe = stoolTheme || STOOL_THEMES[0];
-      const chairBuild = await buildChairTemplate(safe, threeStateRef.current.renderer);
+      const chairBuild = await buildChairTemplate(safe);
       const currentAppearance = normalizeAppearance(appearanceRef.current);
       const expectedTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
       if (expectedTheme.id !== safe.id) return;
@@ -1783,7 +1747,7 @@ export default function MurlanRoyaleArena({ search }) {
           const radius = wallInnerRadius * DECOR_PLANT_RADIUS_SCALE;
           for (let i = 0; i < POLYHAVEN_PLANT_ASSETS.length; i += 1) {
             const assetId = POLYHAVEN_PLANT_ASSETS[i];
-            const plant = await createPolyhavenInstance(assetId, PLANT_TARGET_HEIGHT, 0, renderer);
+            const plant = await createPolyhavenInstance(assetId, PLANT_TARGET_HEIGHT);
             if (disposed) return;
             const angle = (i / POLYHAVEN_PLANT_ASSETS.length) * Math.PI * 2 + Math.PI / 4;
             const pos = new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
@@ -1853,7 +1817,7 @@ export default function MurlanRoyaleArena({ search }) {
         -TABLE_RADIUS * 0.62
       );
 
-      const chairBuild = await buildChairTemplate(stoolTheme, renderer);
+      const chairBuild = await buildChairTemplate(stoolTheme);
       if (disposed) return;
       const chairTemplate = chairBuild.chairTemplate;
       threeStateRef.current.chairTemplate = chairTemplate;
