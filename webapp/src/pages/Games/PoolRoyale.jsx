@@ -1231,15 +1231,15 @@ const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.16; // widen the visible air gap so the blue tip never kisses the cue ball
 const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
-const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
-const CUE_PULL_MIN_VISUAL = BALL_R * 1.95; // guarantee a clear visible pull even when clearance is tight
-const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.6; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_MULTIPLIER = 1.65;
+const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 1.85;
+const CUE_PULL_MIN_VISUAL = BALL_R * 1.55; // guarantee a clear visible pull even when clearance is tight
+const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.2; // allow extra travel before obstructions cancel the pull
+const CUE_PULL_VISUAL_MULTIPLIER = 1.5;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.26; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
-const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth in cue view so the cue stays tight to the ball
+const CUE_PULL_CUE_CAMERA_DAMPING = 0.18; // trim the pull depth in cue view so the cue stays tight to the ball
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.18; // add extra draw for higher orbit angles so the stroke feels weightier
-const CUE_PULL_MAX_VISUAL_BONUS = 0.42; // cap the compensation so the cue never overextends past the intended stroke
+const CUE_PULL_MAX_VISUAL_BONUS = 0.32; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_STROKE_MIN_MS = 95;
 const CUE_STROKE_MAX_MS = 420;
 const CUE_STROKE_SPEED_MIN = BALL_R * 18;
@@ -1248,9 +1248,6 @@ const CUE_FOLLOW_MIN_MS = 180;
 const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
-const AI_STROKE_FORWARD_SLOWDOWN = 1.12;
-const AI_STROKE_PULLBACK_RATIO = 0.9;
-const AI_STROKE_MAX_DURATION_MULTIPLIER = 1.2;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.02; // align the tip closer to the cue-ball equator so the contact reads front-and-centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 5.2;
@@ -14852,7 +14849,18 @@ const powerRef = useRef(hud.power);
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
             return;
           }
-          cueStick.visible = false;
+          if (localTime <= settleEnd && settleTime > 0) {
+            const t = THREE.MathUtils.clamp(
+              (localTime - impactEnd) / Math.max(settleTime, 1e-6),
+              0,
+              1
+            );
+            tmpReplayCueA.set(impactSnap.x, impactSnap.y, impactSnap.z);
+            tmpReplayCueB.set(settleSnap.x, settleSnap.y, settleSnap.z);
+            cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
+            return;
+          }
+          cueStick.position.set(settleSnap.x, settleSnap.y, settleSnap.z);
           cueAnimating = false;
         };
 
@@ -15054,8 +15062,6 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = null;
           replayCameraRef.current = null;
           replayFrameCameraRef.current = null;
-          autoAimRequestRef.current = true;
-          startUserSuggestionRef.current?.();
           setReplayActive(false);
         };
 
@@ -17138,16 +17144,16 @@ const powerRef = useRef(hud.power);
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
           const obstructionTiltFromLift =
             obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
-          const isAiShooter = aiOpponentEnabled && hudRef.current?.turn === 1;
           const buildCuePosition = (pullAmount = visualPull) =>
             new THREE.Vector3(
               cue.pos.x - dir.x * (cueLen / 2 + pullAmount + CUE_TIP_GAP) + spinWorld.x,
               CUE_Y + spinWorld.y,
               cue.pos.y - dir.z * (cueLen / 2 + pullAmount + CUE_TIP_GAP) + spinWorld.z
             );
-          const warmupPull = isAiShooter
-            ? Math.max(0, Math.min(visualPull, BALL_R * 0.75))
-            : visualPull;
+          const warmupPull =
+            aiOpponentEnabled && hudRef.current?.turn === 1
+              ? Math.max(0, Math.min(visualPull, BALL_R * 0.75))
+              : visualPull;
           const startPos = buildCuePosition(visualPull);
           const warmupPos = buildCuePosition(warmupPull);
           const tiltAmount = hasSpin ? Math.abs(appliedSpin.y || 0) : 0;
@@ -17189,33 +17195,25 @@ const powerRef = useRef(hud.power);
             CUE_STROKE_SPEED_MAX,
             clampedPower
           );
-          const forwardDurationBase =
-            (forwardDistance / Math.max(forwardSpeed, 1e-4)) * 1000;
-          const aiStrokeCameraScale = AI_CAMERA_DROP_DURATION_MS / CUE_STROKE_MAX_MS;
           const forwardDuration = THREE.MathUtils.clamp(
-            forwardDurationBase *
-              (isAiShooter ? Math.max(aiStrokeCameraScale, AI_STROKE_FORWARD_SLOWDOWN) : 1),
+            (forwardDistance / Math.max(forwardSpeed, 1e-4)) * 1000,
             CUE_STROKE_MIN_MS,
-            CUE_STROKE_MAX_MS * (isAiShooter ? AI_STROKE_MAX_DURATION_MULTIPLIER : 1)
+            CUE_STROKE_MAX_MS
           );
           const settleSpeed = THREE.MathUtils.lerp(
             CUE_FOLLOW_SPEED_MIN,
             CUE_FOLLOW_SPEED_MAX,
             clampedPower
           );
-          const settleDurationBase =
-            (totalRetreat / Math.max(settleSpeed, 1e-4)) *
-            1000 *
-            (backSpinWeight > 0 ? 0.82 : 1);
           const settleDuration = THREE.MathUtils.clamp(
-            settleDurationBase *
-              (isAiShooter ? Math.max(1, AI_STROKE_FORWARD_SLOWDOWN * 0.9) : 1),
+            (totalRetreat / Math.max(settleSpeed, 1e-4)) * 1000 * (backSpinWeight > 0 ? 0.82 : 1),
             CUE_FOLLOW_MIN_MS,
-            CUE_FOLLOW_MAX_MS * (isAiShooter ? AI_STROKE_MAX_DURATION_MULTIPLIER : 1)
+            CUE_FOLLOW_MAX_MS
           );
-          const pullbackDuration = isAiShooter
-            ? Math.max(CUE_STROKE_MIN_MS, forwardDuration * AI_STROKE_PULLBACK_RATIO)
-            : 0;
+          const pullbackDuration =
+            aiOpponentEnabled && hudRef.current?.turn === 1
+              ? Math.max(CUE_STROKE_MIN_MS, forwardDuration * 0.65)
+              : 0;
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
@@ -19184,14 +19182,7 @@ const powerRef = useRef(hud.power);
 
         sidePocketAimRef.current = false;
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
-          const frameSnapshot = frameRef.current ?? frameState;
-          const legalTargetsRaw = Array.isArray(frameSnapshot?.ballOn) ? frameSnapshot.ballOn : [];
-          const legalTargets = Array.isArray(legalTargetsRaw)
-            ? legalTargetsRaw
-                .map((entry) => (typeof entry === 'string' ? entry.toUpperCase() : entry))
-                .filter(Boolean)
-            : [];
-          let baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
+          const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
           else baseAimDir.normalize();
           const basePerp = new THREE.Vector3(-baseAimDir.z, 0, baseAimDir.x);
@@ -19201,65 +19192,12 @@ const powerRef = useRef(hud.power);
             0,
             1
           );
-          let aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
-          const cuePos2D = new THREE.Vector2(cue.pos.x, cue.pos.y);
-          let { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
+          const aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
+          const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
             cue,
             aimDir2D,
             balls
           );
-          if (isPlayerTurn && railNormal && !targetBall) {
-            const activeBalls = balls.filter((b) => b.active && b !== cue);
-            const preferredTargets = [];
-            const pushTarget = (t) => {
-              if (t && !preferredTargets.includes(t)) preferredTargets.push(t);
-            };
-            const activeVariantId = activeVariantRef.current?.id ?? variantKey;
-            resolveTargetPriorities(frameSnapshot, activeVariantId, activeBalls).forEach(pushTarget);
-            legalTargetsRaw
-              .map((entry) => normalizeTargetId(entry))
-              .filter((entry) => entry && isBallTargetId(entry))
-              .forEach(pushTarget);
-            if (preferredTargets.length === 0) {
-              activeBalls
-                .map((ball) => normalizeTargetId(toBallColorId(ball.id)))
-                .filter((entry) => entry && isBallTargetId(entry))
-                .forEach(pushTarget);
-            }
-            const fallbackBall =
-              pickPreferredBall(preferredTargets, activeBalls, cuePos2D) ||
-              activeBalls.reduce((closest, ball) => {
-                if (!closest) return ball;
-                return cuePos2D.distanceTo(ball.pos) < cuePos2D.distanceTo(closest.pos)
-                  ? ball
-                  : closest;
-              }, null);
-            if (fallbackBall) {
-              const toBall = new THREE.Vector2(
-                fallbackBall.pos.x - cuePos2D.x,
-                fallbackBall.pos.y - cuePos2D.y
-              );
-              if (toBall.lengthSq() > 1e-8) {
-                const dirNorm = toBall.clone().normalize();
-                aimDir2D = dirNorm.clone();
-                baseAimDir = new THREE.Vector3(dirNorm.x, 0, dirNorm.y);
-                const contactDistance = Math.max(0, toBall.length() - BALL_R * 2);
-                impact = cuePos2D.clone().add(dirNorm.clone().multiplyScalar(contactDistance));
-                const contactNormal = fallbackBall.pos.clone().sub(impact);
-                if (contactNormal.lengthSq() > 1e-8) contactNormal.normalize();
-                targetDir = contactNormal.lengthSq() > 1e-8 ? contactNormal : dirNorm.clone();
-                const cueDirCandidate = dirNorm
-                  .clone()
-                  .sub(targetDir.clone().multiplyScalar(dirNorm.dot(targetDir)));
-                cueDir =
-                  cueDirCandidate.lengthSq() > 1e-8 ? cueDirCandidate.normalize() : dirNorm.clone();
-                targetBall = fallbackBall;
-                railNormal = null;
-                aimDir.copy(aimDir2D);
-                aimDirRef.current.copy(aimDir2D);
-              }
-            }
-          }
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           const dir = baseAimDir.clone();
@@ -19287,6 +19225,15 @@ const powerRef = useRef(hud.power);
             }
           }
           const targetBallColor = targetBall ? toBallColorId(targetBall.id) : null;
+          const legalTargetsRaw =
+            frameRef.current?.ballOn ?? frameState.ballOn ?? [];
+          const legalTargets = Array.isArray(legalTargetsRaw)
+            ? legalTargetsRaw
+                .map((entry) =>
+                  typeof entry === 'string' ? entry.toUpperCase() : entry
+                )
+                .filter(Boolean)
+            : [];
           const suggestionPlan = userSuggestionPlanRef.current;
           const suggestionMatchesTarget =
             suggestionPlan?.targetBall &&
