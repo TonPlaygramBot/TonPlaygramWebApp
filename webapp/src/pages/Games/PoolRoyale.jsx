@@ -1236,7 +1236,8 @@ const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.2; // allow extra travel before obstruc
 const CUE_PULL_VISUAL_MULTIPLIER = 1.5;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.26; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
-const CUE_PULL_LOW_CAMERA_BONUS = 0.14; // add a small draw boost for low/standing views where perspective hides travel
+const CUE_PULL_STANDING_CAMERA_BONUS = 0.18; // amplify the visible pull when viewing from the higher standing camera so the draw reads clearly
+const CUE_PULL_LOW_CAMERA_REDUCTION = 0.1; // gently soften pull amounts when locked into the low cue view to avoid exaggerated retreat
 const CUE_PULL_MAX_VISUAL_BONUS = 0.32; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_STROKE_MIN_MS = 95;
 const CUE_STROKE_MAX_MS = 420;
@@ -5221,8 +5222,8 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
-// When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
-const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.48;
+// When pushing the camera below the cue height, translate forward slightly instead of dipping beneath the cue.
+const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.18;
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
@@ -16668,14 +16669,18 @@ const powerRef = useRef(hud.power);
           }
         }
         const blend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
-        const lowCameraBoost = THREE.MathUtils.lerp(
-          CUE_PULL_LOW_CAMERA_BONUS,
-          0,
-          blend
+        const viewScale = THREE.MathUtils.clamp(
+          THREE.MathUtils.lerp(
+            1 - CUE_PULL_LOW_CAMERA_REDUCTION,
+            1 + CUE_PULL_STANDING_CAMERA_BONUS,
+            blend
+          ),
+          Math.max(0, 1 - CUE_PULL_LOW_CAMERA_REDUCTION),
+          1 + CUE_PULL_STANDING_CAMERA_BONUS
         );
         const alignmentBoost = 1 + alignment * CUE_PULL_ALIGNMENT_BOOST;
         const compensated =
-          basePull * alignmentBoost * (1 + lowCameraBoost);
+          basePull * alignmentBoost * viewScale;
         const maxScale = 1 + CUE_PULL_MAX_VISUAL_BONUS;
         return Math.min(compensated, basePull * maxScale);
       };
