@@ -1227,20 +1227,20 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
-const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
-const CUE_PULL_SMOOTHING = 0.35;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
+const CUE_TIP_GAP = BALL_R * 1.32; // pull cue stick slightly farther back for a more natural stance
+const CUE_PULL_BASE = BALL_R * 10 * 0.72 * 1.2;
+const CUE_PULL_SMOOTHING = 0.6;
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.015; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 3.8;
+const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 4.6;
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.1;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.25;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.45;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6);
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.62;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(9);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -10220,6 +10220,7 @@ function PoolRoyaleGame({
   const replayBannerTimeoutRef = useRef(null);
   const [replaySlate, setReplaySlate] = useState(null);
   const replaySlateTimeoutRef = useRef(null);
+  const [replayActive, setReplayActive] = useState(false);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
@@ -10248,7 +10249,7 @@ const initialHudInHand = useMemo(
   [initialFrame]
 );
 const [hud, setHud] = useState({
-  power: 0.65,
+  power: 0,
   A: 0,
   B: 0,
   turn: 0,
@@ -14648,6 +14649,7 @@ const powerRef = useRef(hud.power);
           };
           pausedPocketDrops = pocketDropRef.current;
           pocketDropRef.current = new Map();
+          setReplayActive(true);
           replayPlaybackRef.current = replayPlayback;
           lastReplayFrameAt = 0;
           shotReplayRef.current = shotRecording;
@@ -14704,6 +14706,7 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = null;
           replayCameraRef.current = null;
           replayFrameCameraRef.current = null;
+          setReplayActive(false);
         };
 
         const enterTopView = (immediate = false) => {
@@ -16651,11 +16654,11 @@ const powerRef = useRef(hud.power);
           if (isMaxPowerShot) {
             const liftAmount = Math.min(
               MAX_POWER_LIFT_HEIGHT,
-              Math.max(CUE_TIP_RADIUS, MAX_POWER_BOUNCE_IMPULSE * 0.25)
+              Math.max(CUE_TIP_RADIUS, MAX_POWER_BOUNCE_IMPULSE * 0.32)
             );
             const liftVelocity = Math.min(
               MAX_POWER_BOUNCE_IMPULSE * clampedPower,
-              MAX_POWER_BOUNCE_IMPULSE * 0.55
+              MAX_POWER_BOUNCE_IMPULSE * 0.6
             );
             cue.lift = Math.max(cue.lift ?? 0, liftAmount);
             cue.liftVel = Math.max(cue.liftVel ?? 0, liftVelocity);
@@ -18822,7 +18825,7 @@ const powerRef = useRef(hud.power);
           } else {
             impactRing.visible = false;
           }
-          const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
+          const desiredPull = powerRef.current * CUE_PULL_BASE * 1.05;
           const backInfo = calcTarget(
             cue,
             aimDir2D.clone().multiplyScalar(-1),
@@ -19052,7 +19055,7 @@ const powerRef = useRef(hud.power);
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
           impactRing.visible = false;
-          const desiredPull = powerStrength * BALL_R * 10 * 0.65 * 1.2;
+          const desiredPull = powerStrength * CUE_PULL_BASE * 1.05;
           const backInfo = calcTarget(
             cue,
             remoteAimDir.clone().multiplyScalar(-1),
@@ -19151,7 +19154,7 @@ const powerRef = useRef(hud.power);
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           const powerTarget = THREE.MathUtils.clamp(activeAiPlan.power ?? powerRef.current ?? 0, 0, 1);
-          const desiredPull = powerTarget * BALL_R * 10 * 0.65 * 1.2;
+          const desiredPull = powerTarget * CUE_PULL_BASE * 1.05;
           const backInfo = calcTarget(
             cue,
             planDir.clone().multiplyScalar(-1),
@@ -19449,13 +19452,13 @@ const powerRef = useRef(hud.power);
                   const bounceStrength = THREE.MathUtils.clamp(lastShotPower, 0, 1);
                   cueBall.lift = Math.max(
                     cueBall.lift ?? 0,
-                    Math.min(MAX_POWER_LIFT_HEIGHT, MAX_POWER_BOUNCE_IMPULSE * 0.35)
+                    Math.min(MAX_POWER_LIFT_HEIGHT, MAX_POWER_BOUNCE_IMPULSE * 0.44)
                   );
                   cueBall.liftVel = Math.max(
                     cueBall.liftVel ?? 0,
                     Math.min(
                       MAX_POWER_BOUNCE_IMPULSE * bounceStrength,
-                      MAX_POWER_BOUNCE_IMPULSE * 0.55
+                      MAX_POWER_BOUNCE_IMPULSE * 0.6
                     )
                   );
                 }
@@ -20073,7 +20076,7 @@ const powerRef = useRef(hud.power);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = !hud.over;
+  const showPowerSlider = !hud.over && !replayActive;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -20103,7 +20106,7 @@ const powerRef = useRef(hud.power);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
-  const showPlayerControls = isPlayerTurn && !hud.over;
+  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
 
   // Spin controller interactions
   useEffect(() => {
@@ -20406,15 +20409,20 @@ const powerRef = useRef(hud.power);
   const opponentSeatId = playerSeatId === 'A' ? 'B' : 'A';
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
-  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
-  const bottomHudScale = isPortrait ? uiScale * 0.95 : uiScale * 1.02;
-  const leftControlFootprint = uiScale * (isPortrait ? 150 : 180);
+  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
+  const bottomHudScale = isPortrait ? uiScale * 0.93 : uiScale * 1.02;
+  const leftControlFootprint = uiScale * (isPortrait ? 170 : 180);
   const rightControlFootprint =
-    uiScale * (SPIN_CONTROL_DIAMETER_PX + (isPortrait ? 110 : 130));
-  const bottomHudInsets = {
-    left: `${leftControlFootprint}px`,
-    right: `${rightControlFootprint}px`
-  };
+    uiScale * (SPIN_CONTROL_DIAMETER_PX + (isPortrait ? 170 : 130));
+  const bottomHudInsets = isPortrait
+    ? {
+        left: `${leftControlFootprint}px`,
+        right: `${rightControlFootprint}px`
+      }
+    : {
+        left: `${leftControlFootprint}px`,
+        right: `${rightControlFootprint}px`
+      };
   const avatarSizeClass = isPortrait ? 'h-8 w-8' : 'h-12 w-12';
   const nameWidthClass = isPortrait ? 'max-w-[6.5rem]' : 'max-w-[8.75rem]';
   const nameTextClass = isPortrait ? 'text-xs' : 'text-sm';
@@ -20475,6 +20483,21 @@ const powerRef = useRef(hud.power);
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {replayActive && (
+        <div className="pointer-events-none absolute inset-0 z-40">
+          <div className="absolute inset-2 rounded-[26px] border border-white/12 bg-gradient-to-b from-black/38 via-transparent to-black/38 shadow-[0_0_0_1px_rgba(16,185,129,0.32),0_22px_48px_rgba(0,0,0,0.55)]" />
+          <div className="absolute left-5 top-6 flex items-center gap-3 rounded-full bg-black/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-100 shadow-[0_10px_28px_rgba(0,0,0,0.55)] ring-1 ring-emerald-300/50">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_0_4px_rgba(16,185,129,0.32)]" />
+            <span>Replay</span>
+            <span className="text-white/70">Live</span>
+          </div>
+          <div className="absolute right-5 bottom-6 flex items-center gap-2 rounded-full bg-black/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-white/80 ring-1 ring-white/25">
+            <span className="h-px w-8 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+            <span>Broadcast</span>
+          </div>
+        </div>
+      )}
 
       {replaySlate && (
         <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
@@ -21030,42 +21053,46 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      <div
-        className="pointer-events-none absolute bottom-4 left-4 z-50 flex flex-col gap-2"
-        style={{ transform: `scale(${uiScale})`, transformOrigin: 'bottom left' }}
-      >
-        <button
-          type="button"
-          aria-pressed={isLookMode}
-          onClick={() => setIsLookMode((prev) => !prev)}
-          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-            isLookMode
-              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-          }`}
+      {!replayActive && (
+        <div
+          className="pointer-events-none absolute bottom-4 left-4 z-50 flex flex-col gap-2"
+          style={{ transform: `scale(${uiScale})`, transformOrigin: 'bottom left' }}
         >
-          <span className="text-base">👁️</span>
-          <span>Look</span>
-        </button>
-        <button
-          type="button"
-          aria-pressed={isTopDownView}
-          onClick={() => setIsTopDownView((prev) => !prev)}
-          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-            isTopDownView
-              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-          }`}
-        >
-          <span className="text-base">🧭</span>
-          <span>{isTopDownView ? '3D' : '2D'}</span>
-        </button>
-      </div>
+          <button
+            type="button"
+            aria-pressed={isLookMode}
+            onClick={() => setIsLookMode((prev) => !prev)}
+            className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+              isLookMode
+                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+            }`}
+          >
+            <span className="text-base">👁️</span>
+            <span>Look</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={isTopDownView}
+            onClick={() => setIsTopDownView((prev) => !prev)}
+            className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+              isTopDownView
+                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+            }`}
+          >
+            <span className="text-base">🧭</span>
+            <span>{isTopDownView ? '3D' : '2D'}</span>
+          </button>
+        </div>
+      )}
 
       {bottomHudVisible && (
         <div
-          className={`absolute bottom-4 flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
-          aria-hidden={pocketCameraActive}
+          className={`absolute bottom-4 flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${
+            pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'
+          }`}
+          aria-hidden={pocketCameraActive || replayActive}
           style={{
             left: bottomHudInsets.left,
             right: bottomHudInsets.right
@@ -21076,7 +21103,7 @@ const powerRef = useRef(hud.power);
             style={{
               transform: `scale(${bottomHudScale})`,
               transformOrigin: 'bottom center',
-              maxWidth: isPortrait ? 'min(28rem, 100%)' : 'min(34rem, 100%)'
+              maxWidth: isPortrait ? 'min(26rem, 100%)' : 'min(34rem, 100%)'
             }}
           >
             <div
@@ -21173,7 +21200,7 @@ const powerRef = useRef(hud.power);
           Init error: {String(err)}
         </div>
       )}
-      {hud?.inHand && (
+      {hud?.inHand && !replayActive && (
         <div className="pointer-events-none absolute left-1/2 top-4 z-40 flex -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
           <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg ring-1 ring-white/60">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">BIH</span>
