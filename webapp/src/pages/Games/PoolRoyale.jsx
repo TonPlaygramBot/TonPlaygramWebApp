@@ -1233,6 +1233,10 @@ const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.15; // guarantee a small visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 1.05; // allow a little extra travel before obstructions cancel the pull
 const CUE_PULL_SMOOTHING = 0.55;
+const CUE_STROKE_MIN_MS = 95;
+const CUE_STROKE_MAX_MS = 260;
+const CUE_FOLLOW_MIN_MS = 120;
+const CUE_FOLLOW_MAX_MS = 320;
 const CUE_Y = BALL_CENTER_Y; // align the cue height directly with the cue ball centre for precise strikes
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 5.2;
@@ -16613,6 +16617,11 @@ const powerRef = useRef(hud.power);
         cuePullCurrentRef.current = nextPull;
         return nextPull;
       };
+      const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
+        const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
+        const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
+        return Math.max(effectiveMax, CUE_PULL_MIN_VISUAL) * ratio;
+      };
       const clampCueTipOffset = (vec, limit = BALL_R) => {
         if (!vec) return vec;
         const horiz = Math.hypot(vec.x ?? 0, vec.z ?? 0);
@@ -16621,6 +16630,24 @@ const powerRef = useRef(hud.power);
           vec.multiplyScalar(limit / total);
         }
         return vec;
+      };
+      const computeSpinOffsets = (spin, ranges) => {
+        const offsetSide = ranges?.offsetSide ?? 0;
+        const offsetVertical = ranges?.offsetVertical ?? 0;
+        const magnitude = Math.hypot(spin?.x ?? 0, spin?.y ?? 0);
+        const hasSpin = magnitude > 1e-4;
+        let side = hasSpin ? spin.x * offsetSide : 0;
+        let vert = hasSpin ? -spin.y * offsetVertical : 0;
+        const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
+        if (hasSpin && maxContactOffset > 1e-6) {
+          const combined = Math.hypot(side, vert);
+          if (combined > maxContactOffset) {
+            const scale = maxContactOffset / combined;
+            side *= scale;
+            vert *= scale;
+          }
+        }
+        return { side, vert, hasSpin };
       };
 
       // Fire (slider triggers on release)
@@ -16935,7 +16962,7 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          const pullTarget = CUE_PULL_BASE * clampedPower;
+          const pullTarget = computePullTargetFromPower(clampedPower, maxPull);
           const pull = computeCuePull(pullTarget, maxPull, {
             instant: true,
             preserveLarger: true
@@ -16944,19 +16971,10 @@ const powerRef = useRef(hud.power);
           cuePullTargetRef.current = pull;
           const cuePerp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (cuePerp.lengthSq() > 1e-8) cuePerp.normalize();
-          const offsetSide = ranges.offsetSide ?? 0;
-          const offsetVertical = ranges.offsetVertical ?? 0;
-          let contactSide = appliedSpin.x * offsetSide;
-          let contactVert = -appliedSpin.y * offsetVertical;
-          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
-          if (maxContactOffset > 1e-6) {
-            const combined = Math.hypot(contactSide, contactVert);
-            if (combined > maxContactOffset) {
-              const scale = maxContactOffset / combined;
-              contactSide *= scale;
-              contactVert *= scale;
-            }
-          }
+          const { side: contactSide, vert: contactVert, hasSpin } = computeSpinOffsets(
+            appliedSpin,
+            ranges
+          );
           const spinWorld = new THREE.Vector3(
             cuePerp.x * contactSide,
             contactVert,
@@ -16973,7 +16991,7 @@ const powerRef = useRef(hud.power);
             CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
-          const tiltAmount = Math.abs(appliedSpin.y || 0);
+          const tiltAmount = hasSpin ? Math.abs(appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
@@ -16989,19 +17007,26 @@ const powerRef = useRef(hud.power);
             .sub(dir.clone().multiplyScalar(retreatDistance));
           cueStick.visible = true;
           cueStick.position.copy(startPos);
-          let frame = 0;
-          const forwardFrames = 6;
-          const backFrames = 8;
-          const animateStroke = () => {
-            frame += 1;
-            if (frame <= forwardFrames) {
-              cueStick.position.lerpVectors(startPos, impactPos, frame / forwardFrames);
-            } else if (frame <= forwardFrames + backFrames) {
-              cueStick.position.lerpVectors(
-                impactPos,
-                settlePos,
-                (frame - forwardFrames) / backFrames
-              );
+          const forwardDuration = THREE.MathUtils.lerp(
+            CUE_STROKE_MAX_MS,
+            CUE_STROKE_MIN_MS,
+            clampedPower
+          );
+          const settleDuration = THREE.MathUtils.lerp(
+            CUE_FOLLOW_MAX_MS,
+            CUE_FOLLOW_MIN_MS,
+            clampedPower
+          );
+          const startTime = performance.now();
+          const impactTime = startTime + forwardDuration;
+          const settleTime = impactTime + settleDuration;
+          const animateStroke = (now) => {
+            if (now <= impactTime) {
+              const t = forwardDuration > 0 ? THREE.MathUtils.clamp((now - startTime) / forwardDuration, 0, 1) : 1;
+              cueStick.position.lerpVectors(startPos, impactPos, t);
+            } else if (now <= settleTime) {
+              const t = settleDuration > 0 ? THREE.MathUtils.clamp((now - impactTime) / settleDuration, 0, 1) : 1;
+              cueStick.position.lerpVectors(impactPos, settlePos, t);
             } else {
               cueStick.visible = false;
               cueAnimating = false;
@@ -17019,7 +17044,7 @@ const powerRef = useRef(hud.power);
             }
             requestAnimationFrame(animateStroke);
           };
-          animateStroke();
+          requestAnimationFrame(animateStroke);
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -18634,6 +18659,10 @@ const powerRef = useRef(hud.power);
             });
           }
           setShootingState(false);
+          spinRef.current = { x: 0, y: 0 };
+          spinRequestRef.current = { x: 0, y: 0 };
+          spinAppliedRef.current = { x: 0, y: 0, magnitude: 0, mode: 'standard' };
+          resetSpinRef.current?.();
           powerImpactHoldRef.current = 0;
           shotPrediction = null;
           activeShotView = null;
@@ -19064,38 +19093,21 @@ const powerRef = useRef(hud.power);
           } else {
             impactRing.visible = false;
           }
-          const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             aimDir2D.clone().multiplyScalar(-1),
             balls
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-          const pull = computeCuePull(desiredPull, maxPull);
-          const offsetSide = ranges.offsetSide ?? 0;
-          const offsetVertical = ranges.offsetVertical ?? 0;
-          let side = appliedSpin.x * offsetSide;
-          let vert = -appliedSpin.y * offsetVertical;
-          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
-          if (maxContactOffset > 1e-6) {
-            const combined = Math.hypot(side, vert);
-            if (combined > maxContactOffset) {
-              const scale = maxContactOffset / combined;
-              side *= scale;
-              vert *= scale;
-            }
-            if (
-              spinLegalityRef.current?.blocked &&
-              Math.hypot(side, vert) < 1e-6
-            ) {
-              vert = Math.min(maxContactOffset * 0.35, CUE_TIP_RADIUS * 0.6);
-            }
-          }
-          const spinWorld = new THREE.Vector3(
-            perp.x * side,
-            vert,
-            perp.z * side
+          const desiredPull = computePullTargetFromPower(
+            powerRef.current,
+            maxPull
           );
+          const pull = computeCuePull(desiredPull, maxPull, {
+            instant: Boolean(sliderInstanceRef.current?.dragging)
+          });
+          const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
+          const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
@@ -19107,7 +19119,7 @@ const powerRef = useRef(hud.power);
             CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
-          const tiltAmount = Math.abs(appliedSpin.y || 0);
+          const tiltAmount = hasSpin ? Math.abs(appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
@@ -19294,29 +19306,20 @@ const powerRef = useRef(hud.power);
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
           impactRing.visible = false;
-          const desiredPull = powerStrength * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             remoteAimDir.clone().multiplyScalar(-1),
             balls
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const desiredPull = computePullTargetFromPower(powerStrength, maxPull);
           const pull = computeCuePull(desiredPull, maxPull);
-          const offsetSide = ranges.offsetSide ?? 0;
-          const offsetVertical = ranges.offsetVertical ?? 0;
           const spinX = THREE.MathUtils.clamp(remoteAimState?.spin?.x ?? 0, -1, 1);
           const spinY = THREE.MathUtils.clamp(remoteAimState?.spin?.y ?? 0, -1, 1);
-          let side = spinX * offsetSide;
-          let vert = -spinY * offsetVertical;
-          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
-          if (maxContactOffset > 1e-6) {
-            const combined = Math.hypot(side, vert);
-            if (combined > maxContactOffset) {
-              const scale = maxContactOffset / combined;
-              side *= scale;
-              vert *= scale;
-            }
-          }
+          const { side, vert, hasSpin } = computeSpinOffsets(
+            { x: spinX, y: spinY },
+            ranges
+          );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(baseDir, pull);
@@ -19329,7 +19332,7 @@ const powerRef = useRef(hud.power);
             CUE_Y + spinWorld.y,
             cue.pos.y - baseDir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
-          const tiltAmount = Math.abs(spinY);
+          const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
           cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
@@ -19393,7 +19396,6 @@ const powerRef = useRef(hud.power);
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           const powerTarget = THREE.MathUtils.clamp(activeAiPlan.power ?? powerRef.current ?? 0, 0, 1);
-          const desiredPull = powerTarget * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             planDir.clone().multiplyScalar(-1),
@@ -19401,23 +19403,15 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
+          const desiredPull = computePullTargetFromPower(powerTarget, maxPull);
           const pull = computeCuePull(desiredPull, maxPull);
-          const offsetSide = ranges.offsetSide ?? 0;
-          const offsetVertical = ranges.offsetVertical ?? 0;
           const planSpin = activeAiPlan.spin ?? spinRef.current ?? { x: 0, y: 0 };
           const spinX = THREE.MathUtils.clamp(planSpin.x ?? 0, -1, 1);
           const spinY = THREE.MathUtils.clamp(planSpin.y ?? 0, -1, 1);
-          let side = spinX * offsetSide;
-          let vert = -spinY * offsetVertical;
-          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
-          if (maxContactOffset > 1e-6) {
-            const combined = Math.hypot(side, vert);
-            if (combined > maxContactOffset) {
-              const scale = maxContactOffset / combined;
-              side *= scale;
-              vert *= scale;
-            }
-          }
+          const { side, vert, hasSpin } = computeSpinOffsets(
+            { x: spinX, y: spinY },
+            ranges
+          );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
@@ -19430,7 +19424,7 @@ const powerRef = useRef(hud.power);
             CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
-          const tiltAmount = Math.abs(spinY);
+          const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
@@ -21408,8 +21402,11 @@ const powerRef = useRef(hud.power);
       )}
 
       {err && (
-        <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
-          Init error: {String(err)}
+        <div className="pointer-events-none absolute left-1/2 top-4 z-50 -translate-x-1/2 px-4">
+          <div className="pointer-events-auto flex max-w-xl items-center gap-2 rounded-2xl border border-red-400/50 bg-red-900/85 px-4 py-3 text-xs font-semibold text-white shadow-[0_16px_34px_rgba(0,0,0,0.5)] backdrop-blur">
+            <span className="text-red-200">Init issue:</span>
+            <span className="text-white/90">{String(err)}</span>
+          </div>
         </div>
       )}
       {hud?.inHand && (
