@@ -1228,7 +1228,7 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_GAP = BALL_R * 1.04; // pull the blue tip into the cue-ball centre line so it stays level with the aim guide
+const CUE_TIP_GAP = BALL_R * 1.12; // leave a clearer gap ahead of the cue ball so the tip never rides up over the centre line
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.55;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.55; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 1.7; // allow extra travel before obstructions cancel the pull
@@ -17015,12 +17015,22 @@ const powerRef = useRef(hud.power);
           }
           cueAnimating = true;
           const strokeDistance = Math.max(pull, CUE_PULL_MIN_VISUAL);
+          const powerStrokeScale = 0.7 + clampedPower * 0.6;
+          const topSpinWeight = Math.max(0, -(appliedSpin.y || 0));
+          const backSpinWeight = Math.max(0, appliedSpin.y || 0);
           const startPos = cueStick.position.clone();
-          const impactPos = startPos.clone().add(dir.clone().multiplyScalar(Math.max(pull, 0)));
-          const retreatDistance = Math.max(
+          const forwardOvershoot =
+            topSpinWeight > 0
+              ? (BALL_R * (1.15 + clampedPower * 0.85)) * topSpinWeight
+              : 0;
+          const impactTravel = Math.max(pull, 0) + forwardOvershoot;
+          const impactPos = startPos.clone().add(dir.clone().multiplyScalar(impactTravel));
+          const retreatBase = Math.max(
             BALL_R * 1.5,
             Math.min(strokeDistance, BALL_R * 8)
           );
+          const retreatDistance =
+            retreatBase + backSpinWeight * BALL_R * (1.25 + clampedPower * 0.75);
           const settlePos = impactPos
             .clone()
             .sub(dir.clone().multiplyScalar(retreatDistance));
@@ -17031,8 +17041,9 @@ const powerRef = useRef(hud.power);
             CUE_STROKE_SPEED_MAX,
             clampedPower
           );
+          const forwardAdjustedSpeed = forwardSpeed * powerStrokeScale;
           const forwardDuration = THREE.MathUtils.clamp(
-            (strokeDistance / Math.max(forwardSpeed, 1e-4)) * 1000,
+            (impactTravel / Math.max(forwardAdjustedSpeed, 1e-4)) * 1000,
             CUE_STROKE_MIN_MS,
             CUE_STROKE_MAX_MS
           );
@@ -17041,9 +17052,14 @@ const powerRef = useRef(hud.power);
             CUE_FOLLOW_SPEED_MAX,
             clampedPower
           );
+          const settleAdjustedSpeed =
+            settleSpeed * (powerStrokeScale + backSpinWeight * 0.6);
+          const settleMin =
+            CUE_FOLLOW_MIN_MS *
+            Math.max(0.6, 1 - Math.min(backSpinWeight * 0.35, 0.45));
           const settleDuration = THREE.MathUtils.clamp(
-            (retreatDistance / Math.max(settleSpeed, 1e-4)) * 1000,
-            CUE_FOLLOW_MIN_MS,
+            (retreatDistance / Math.max(settleAdjustedSpeed, 1e-4)) * 1000,
+            settleMin,
             CUE_FOLLOW_MAX_MS
           );
           const startTime = performance.now();
@@ -20383,7 +20399,7 @@ const powerRef = useRef(hud.power);
         const spinWidth = spinBox?.width ?? fallbackSpinWidth;
         const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
         const spinCenter = spinLeft + spinWidth / 2;
-        const desiredCenter = leftCenter * 0.6 + spinCenter * 0.4;
+        const desiredCenter = (leftCenter + spinCenter) / 2;
         const screenCenter = viewportWidth / 2;
         setBottomHudOffset(desiredCenter - screenCenter);
       } else {
