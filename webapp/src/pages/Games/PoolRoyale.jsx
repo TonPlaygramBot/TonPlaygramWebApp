@@ -1228,16 +1228,15 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_GAP = BALL_R * 1.08; // pull cue stick closer so the blue tip locks to the cue-ball centre line and match the spin controller contact point
-const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2 * 1.25; // deeper default backswing for clearer stroke read
-const CUE_PULL_MIN_VISUAL = BALL_R * 1.3; // guarantee a small visible pull even when clearance is tight
-const CUE_PULL_VISUAL_FUDGE = BALL_R * 1.6; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_SCALE = 1.25; // scale up perceived pull distance for stronger animations
+const CUE_TIP_GAP = BALL_R * 1.12; // pull cue stick closer so the blue tip locks to the cue-ball centre line and match the spin controller contact point
+const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
+const CUE_PULL_MIN_VISUAL = BALL_R * 1.15; // guarantee a small visible pull even when clearance is tight
+const CUE_PULL_VISUAL_FUDGE = BALL_R * 1.05; // allow a little extra travel before obstructions cancel the pull
 const CUE_PULL_SMOOTHING = 0.55;
-const CUE_STROKE_MIN_MS = 140;
-const CUE_STROKE_MAX_MS = 320;
-const CUE_FOLLOW_MIN_MS = 180;
-const CUE_FOLLOW_MAX_MS = 360;
+const CUE_STROKE_MIN_MS = 95;
+const CUE_STROKE_MAX_MS = 260;
+const CUE_FOLLOW_MIN_MS = 120;
+const CUE_FOLLOW_MAX_MS = 320;
 const CUE_Y = BALL_CENTER_Y; // align the cue height directly with the cue ball centre for precise strikes
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 5.2;
@@ -10436,7 +10435,6 @@ const [ruleToast, setRuleToast] = useState(null);
 const ruleToastTimeoutRef = useRef(null);
 const [replayActive, setReplayActive] = useState(false);
 const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
-const [bottomHudOffset, setBottomHudOffset] = useState(0);
 const leftControlsRef = useRef(null);
 const spinBoxRef = useRef(null);
 const showRuleToast = useCallback((message) => {
@@ -15673,12 +15671,10 @@ const powerRef = useRef(hud.power);
         const baseTilt = info?.angle ?? buttTilt;
         const len = info?.length ?? cueLen;
         const totalTilt = -(baseTilt + extraTilt);
-        const baseY = group.position.y;
         group.rotation.x = totalTilt;
         const tipComp = -Math.sin(totalTilt) * len * 0.5;
-        group.position.y = baseY - tipComp;
+        group.position.y += tipComp;
         if (info) {
-          info.baseY = baseY;
           info.tipCompensation = tipComp;
           info.current = totalTilt;
           info.extra = extraTilt;
@@ -16607,15 +16603,11 @@ const powerRef = useRef(hud.power);
         const slider = sliderInstanceRef.current;
         const dragging = Boolean(slider?.dragging);
         const cappedMax = Number.isFinite(maxPull) ? Math.max(0, maxPull) : CUE_PULL_BASE;
-        const effectiveMax = Math.max(
-          (cappedMax + CUE_PULL_VISUAL_FUDGE) * CUE_PULL_VISUAL_SCALE,
-          CUE_PULL_MIN_VISUAL
-        );
+        const effectiveMax = Math.max(cappedMax + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL);
         const desiredTarget = preserveLarger
           ? Math.max(cuePullCurrentRef.current ?? 0, pullTarget ?? 0)
           : pullTarget ?? 0;
-        const scaledTarget = desiredTarget * CUE_PULL_VISUAL_SCALE;
-        const clampedTarget = THREE.MathUtils.clamp(scaledTarget, 0, effectiveMax);
+        const clampedTarget = THREE.MathUtils.clamp(desiredTarget, 0, effectiveMax);
         const smoothing = instant || dragging ? 1 : CUE_PULL_SMOOTHING;
         const nextPull =
           smoothing >= 1
@@ -16660,19 +16652,21 @@ const powerRef = useRef(hud.power);
 
       // Fire (slider triggers on release)
       const fire = () => {
-        const currentHud = hudRef.current;
-        const frameSnapshot = frameRef.current ?? frameState;
-        const fullTableHandPlacement =
-          allowFullTableInHand() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
-        const inHandPlacementActive = Boolean(currentHud?.inHand && !fullTableHandPlacement);
-        if (
-          !cue?.active ||
-          (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
-          !allStopped(balls) ||
-          currentHud?.over ||
-          replayPlaybackRef.current
-        )
-          return;
+          const currentHud = hudRef.current;
+          const frameSnapshot = frameRef.current ?? frameState;
+          const fullTableHandPlacement =
+            allowFullTableInHand() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
+        const inHandPlacementActive = Boolean(
+          currentHud?.inHand && !fullTableHandPlacement
+        );
+          if (
+            !cue?.active ||
+            (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
+            !allStopped(balls) ||
+            currentHud?.over ||
+            replayPlaybackRef.current
+          )
+            return;
         if (currentHud?.inHand && (fullTableHandPlacement || inHandPlacementActive)) {
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
@@ -18333,11 +18327,14 @@ const powerRef = useRef(hud.power);
         };
 
         const triggerReplaySlate = (label = 'Replay', { accent = 'default' } = {}) => {
+          setReplaySlate({ label, accent, startedAt: performance.now() });
           if (replaySlateTimeoutRef.current) {
             clearTimeout(replaySlateTimeoutRef.current);
           }
-          setReplaySlate(null);
-          replaySlateTimeoutRef.current = null;
+          replaySlateTimeoutRef.current = window.setTimeout(() => {
+            setReplaySlate(null);
+            replaySlateTimeoutRef.current = null;
+          }, REPLAY_SLATE_DURATION_MS);
           return REPLAY_TRANSITION_LEAD_MS;
         };
 
@@ -20311,8 +20308,6 @@ const powerRef = useRef(hud.power);
 
   useLayoutEffect(() => {
     const computeInsets = () => {
-      const viewportWidth =
-        typeof window !== 'undefined' && window?.innerWidth ? window.innerWidth : document.documentElement.clientWidth || 0;
       if (!isPortrait) {
         const left = uiScale * 150;
         const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 150);
@@ -20320,7 +20315,6 @@ const powerRef = useRef(hud.power);
           left: `${left}px`,
           right: `${right}px`
         });
-        setBottomHudOffset(0);
         return;
       }
       const leftBox = leftControlsRef.current?.getBoundingClientRect();
@@ -20330,25 +20324,10 @@ const powerRef = useRef(hud.power);
         (spinBox?.width ?? uiScale * (SPIN_CONTROL_DIAMETER_PX + 64)) +
         uiScale * 32 +
         12;
-      const defaultCenter =
-        viewportWidth > 0 ? leftInset + (viewportWidth - leftInset - rightInset) / 2 : 0;
-      const leftCenter =
-        leftBox?.width != null && leftBox?.x != null
-          ? leftBox.x + leftBox.width / 2
-          : leftInset / 2;
-      let rightCenter = defaultCenter;
-      if (spinBox?.width != null && spinBox?.x != null) {
-        rightCenter = spinBox.x + spinBox.width / 2;
-      } else if (viewportWidth > 0) {
-        rightCenter = viewportWidth - rightInset / 2;
-      }
-      const targetCenter =
-        viewportWidth > 0 ? (leftCenter + rightCenter) / 2 : defaultCenter;
       setHudInsets({
         left: `${leftInset}px`,
         right: `${rightInset}px`
       });
-      setBottomHudOffset(targetCenter - defaultCenter);
     };
     computeInsets();
     window.addEventListener('resize', computeInsets);
@@ -21322,7 +21301,7 @@ const powerRef = useRef(hud.power);
           style={{
             left: hudInsets.left,
             right: hudInsets.right,
-            transform: isPortrait ? `translateX(${bottomHudOffset}px)` : undefined
+            transform: isPortrait ? 'translateX(-14px)' : undefined
           }}
         >
           <div
