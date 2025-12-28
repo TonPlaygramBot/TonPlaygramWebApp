@@ -1228,7 +1228,7 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_GAP = BALL_R * 1.1; // leave a small air gap so the tip stays level with the aim guide instead of touching the cue ball
+const CUE_TIP_GAP = BALL_R * 1.04; // pull the blue tip into the cue-ball centre line so it stays level with the aim guide
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.55;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.55; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 1.7; // allow extra travel before obstructions cancel the pull
@@ -17014,44 +17014,33 @@ const powerRef = useRef(hud.power);
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           cueAnimating = true;
-          const spinY = appliedSpin?.y || 0;
-          const topSpinBias = Math.max(0, -spinY);
-          const backSpinBias = Math.max(0, spinY);
           const strokeDistance = Math.max(pull, CUE_PULL_MIN_VISUAL);
-          const followThrough =
-            topSpinBias > 0
-              ? strokeDistance * (0.12 + 0.28 * clampedPower) * topSpinBias
-              : 0;
-          const forwardTravel = Math.max(pull, 0) + followThrough;
           const startPos = cueStick.position.clone();
-          const impactPos = startPos.clone().add(dir.clone().multiplyScalar(forwardTravel));
-          const retreatBase = Math.max(
+          const impactPos = startPos.clone().add(dir.clone().multiplyScalar(Math.max(pull, 0)));
+          const retreatDistance = Math.max(
             BALL_R * 1.5,
             Math.min(strokeDistance, BALL_R * 8)
           );
-          const retreatDistance = retreatBase * (1 + backSpinBias * 0.55);
           const settlePos = impactPos
             .clone()
             .sub(dir.clone().multiplyScalar(retreatDistance));
           cueStick.visible = true;
           cueStick.position.copy(startPos);
-          const strokePowerScale = THREE.MathUtils.clamp(clampedPower, 0, 1);
           const forwardSpeed = THREE.MathUtils.lerp(
             CUE_STROKE_SPEED_MIN,
             CUE_STROKE_SPEED_MAX,
-            strokePowerScale
+            clampedPower
           );
           const forwardDuration = THREE.MathUtils.clamp(
-            (forwardTravel / Math.max(forwardSpeed, 1e-4)) * 1000,
+            (strokeDistance / Math.max(forwardSpeed, 1e-4)) * 1000,
             CUE_STROKE_MIN_MS,
             CUE_STROKE_MAX_MS
           );
-          const settleSpeedBase = THREE.MathUtils.lerp(
+          const settleSpeed = THREE.MathUtils.lerp(
             CUE_FOLLOW_SPEED_MIN,
             CUE_FOLLOW_SPEED_MAX,
-            strokePowerScale
+            clampedPower
           );
-          const settleSpeed = settleSpeedBase * (1 + backSpinBias * 0.4);
           const settleDuration = THREE.MathUtils.clamp(
             (retreatDistance / Math.max(settleSpeed, 1e-4)) * 1000,
             CUE_FOLLOW_MIN_MS,
@@ -18942,7 +18931,6 @@ const powerRef = useRef(hud.power);
         const isPlayerTurn = currentHud?.turn === 0;
         const isAiTurn = aiOpponentEnabled && currentHud?.turn === 1;
         const previewingAiShot = aiShotPreviewRef.current;
-        const aiCueViewActive = aiShotCueViewRef.current;
         const remoteShotActive =
           currentHud?.turn === 1 && remoteShotActiveRef.current;
         const remoteAimState = remoteAimRef.current;
@@ -18961,8 +18949,6 @@ const powerRef = useRef(hud.power);
           remoteAimState &&
           Number.isFinite(remoteAimState.updatedAt) &&
           now - remoteAimState.updatedAt <= 3200;
-        const aiStrokeVisible =
-          isAiTurn && (previewingAiShot || aiCueViewActive || shooting);
         const showingRemoteAim =
           canShowCue &&
           !aiOpponentEnabled &&
@@ -19002,7 +18988,7 @@ const powerRef = useRef(hud.power);
         }
 
         sidePocketAimRef.current = false;
-        if (canShowCue && (isPlayerTurn || aiStrokeVisible)) {
+        if (canShowCue && (isPlayerTurn || previewingAiShot)) {
           const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
           else baseAimDir.normalize();
@@ -20397,7 +20383,7 @@ const powerRef = useRef(hud.power);
         const spinWidth = spinBox?.width ?? fallbackSpinWidth;
         const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
         const spinCenter = spinLeft + spinWidth / 2;
-        const desiredCenter = (leftCenter + spinCenter) * 0.5;
+        const desiredCenter = leftCenter * 0.6 + spinCenter * 0.4;
         const screenCenter = viewportWidth / 2;
         setBottomHudOffset(desiredCenter - screenCenter);
       } else {
