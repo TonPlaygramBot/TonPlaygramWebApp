@@ -458,16 +458,12 @@ function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotrop
     material.roughness = Math.max(material.roughness ?? 0.4, 0.4);
     material.metalness = Math.min(material.metalness ?? 0.4, 0.4);
 
-    if (material.map) {
+    const desiredDiffuse = textureSet?.diffuse || material.map || fallbackTexture || null;
+    if (desiredDiffuse) {
+      material.map = desiredDiffuse;
       applySRGBColorSpace(material.map);
+      material.map.wrapS = material.map.wrapT = THREE.RepeatWrapping;
       material.map.anisotropy = Math.max(material.map.anisotropy ?? 1, maxAnisotropy);
-    } else if (textureSet?.diffuse) {
-      material.map = textureSet.diffuse;
-      applySRGBColorSpace(material.map);
-      material.needsUpdate = true;
-    } else if (fallbackTexture) {
-      material.map = fallbackTexture;
-      applySRGBColorSpace(material.map);
       material.needsUpdate = true;
     }
 
@@ -476,15 +472,18 @@ function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotrop
       material.emissiveMap.anisotropy = Math.max(material.emissiveMap.anisotropy ?? 1, maxAnisotropy);
     }
 
-    if (!material.normalMap && textureSet?.normal) {
-      material.normalMap = textureSet.normal;
-    }
-    if (material.normalMap) {
+    const desiredNormal = textureSet?.normal || material.normalMap || null;
+    if (desiredNormal) {
+      material.normalMap = desiredNormal;
+      material.normalMap.wrapS = material.normalMap.wrapT = THREE.RepeatWrapping;
       material.normalMap.anisotropy = Math.max(material.normalMap.anisotropy ?? 1, maxAnisotropy);
     }
 
-    if (!material.roughnessMap && textureSet?.roughness) {
-      material.roughnessMap = textureSet.roughness;
+    const desiredRoughness = textureSet?.roughness || material.roughnessMap || null;
+    if (desiredRoughness) {
+      material.roughnessMap = desiredRoughness;
+      material.roughnessMap.wrapS = material.roughnessMap.wrapT = THREE.RepeatWrapping;
+      material.roughnessMap.anisotropy = Math.max(material.roughnessMap.anisotropy ?? 1, maxAnisotropy);
     }
   };
 
