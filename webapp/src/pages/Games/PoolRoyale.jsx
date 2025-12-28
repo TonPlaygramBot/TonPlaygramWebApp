@@ -1230,8 +1230,8 @@ const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_GAP = BALL_R * 1.12; // pull cue stick closer so the blue tip locks to the cue-ball centre line and match the spin controller contact point
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
-const CUE_PULL_MIN_VISUAL = BALL_R * 0.9; // guarantee a small visible pull even when clearance is tight
-const CUE_PULL_VISUAL_FUDGE = BALL_R * 0.6; // allow a little extra travel before obstructions cancel the pull
+const CUE_PULL_MIN_VISUAL = BALL_R * 1.15; // guarantee a small visible pull even when clearance is tight
+const CUE_PULL_VISUAL_FUDGE = BALL_R * 1.05; // allow a little extra travel before obstructions cancel the pull
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_Y = BALL_CENTER_Y; // align the cue height directly with the cue ball centre for precise strikes
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
@@ -1240,7 +1240,7 @@ const CUE_BUTT_LIFT = BALL_R * 0.9; // raise the butt a little more so the rear 
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.1;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.35;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
 const CUE_OBSTRUCTION_LIFT = BALL_R * 0.72;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(8.5);
@@ -5076,6 +5076,7 @@ const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
 const AI_POST_SHOT_CAMERA_HOLD_MS = 2000;
+const SHOT_CAMERA_HOLD_MS = 2000;
 const REPLAY_BANNER_VARIANTS = {
   long: ['Long pot!', 'Full-table finish!', 'Cross-table clearance!'],
   bank: ['Banked clean!', 'Rail-first beauty!', 'Cushion wizardry!'],
@@ -10213,17 +10214,18 @@ function PoolRoyaleGame({
     aiPlanningRef.current = aiPlanning;
   }, [aiPlanning]);
   const userSuggestionPlanRef = useRef(null);
-    const shotContextRef = useRef({
-      placedFromHand: false,
-      contactMade: false,
-      cushionAfterContact: false
-    });
+  const shotContextRef = useRef({
+    placedFromHand: false,
+    contactMade: false,
+    cushionAfterContact: false
+  });
   const shotReplayRef = useRef(null);
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
   const [replaySlate, setReplaySlate] = useState(null);
   const replaySlateTimeoutRef = useRef(null);
+  const shotCameraHoldTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
@@ -10305,6 +10307,10 @@ const powerRef = useRef(hud.power);
       if (ruleToastTimeoutRef.current) {
         clearTimeout(ruleToastTimeoutRef.current);
         ruleToastTimeoutRef.current = null;
+      }
+      if (shotCameraHoldTimeoutRef.current) {
+        clearTimeout(shotCameraHoldTimeoutRef.current);
+        shotCameraHoldTimeoutRef.current = null;
       }
     },
     []
@@ -11488,12 +11494,20 @@ const powerRef = useRef(hud.power);
         if (shooting === value) return;
         shooting = value;
         shotStartedAt = shooting ? getNow() : 0;
+        if (shotCameraHoldTimeoutRef.current) {
+          clearTimeout(shotCameraHoldTimeoutRef.current);
+          shotCameraHoldTimeoutRef.current = null;
+        }
         if (shooting) {
           preShotTopViewRef.current = topViewRef.current;
           preShotTopViewLockRef.current = topViewLockedRef.current;
-          topViewRef.current = true;
-          topViewLockedRef.current = true;
-          enterTopView(true);
+          shotCameraHoldTimeoutRef.current = window.setTimeout(() => {
+            shotCameraHoldTimeoutRef.current = null;
+            if (!shooting) return;
+            topViewRef.current = true;
+            topViewLockedRef.current = true;
+            enterTopView(true);
+          }, SHOT_CAMERA_HOLD_MS);
         } else if (!preShotTopViewRef.current) {
           exitTopView(true);
         } else {
@@ -16421,6 +16435,15 @@ const powerRef = useRef(hud.power);
         cuePullCurrentRef.current = nextPull;
         return nextPull;
       };
+      const clampCueTipOffset = (vec, limit = BALL_R) => {
+        if (!vec) return vec;
+        const horiz = Math.hypot(vec.x ?? 0, vec.z ?? 0);
+        const total = Math.hypot(horiz, vec.y ?? 0);
+        if (total > limit && total > 1e-6) {
+          vec.multiplyScalar(limit / total);
+        }
+        return vec;
+      };
 
       // Fire (slider triggers on release)
       const fire = () => {
@@ -16761,6 +16784,7 @@ const powerRef = useRef(hud.power);
             contactVert,
             cuePerp.z * contactSide
           );
+          clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
@@ -18099,7 +18123,7 @@ const powerRef = useRef(hud.power);
           return pool[Math.max(0, Math.min(index, pool.length - 1))] ?? 'Good shot!';
         };
 
-        const triggerReplaySlate = (label = 'Instant Replay', { accent = 'default' } = {}) => {
+        const triggerReplaySlate = (label = 'Replay', { accent = 'default' } = {}) => {
           setReplaySlate({ label, accent, startedAt: performance.now() });
           if (replaySlateTimeoutRef.current) {
             clearTimeout(replaySlateTimeoutRef.current);
@@ -18894,6 +18918,7 @@ const powerRef = useRef(hud.power);
             vert,
             perp.z * side
           );
+          clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
@@ -19115,6 +19140,7 @@ const powerRef = useRef(hud.power);
             }
           }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
+          clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(baseDir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
@@ -19215,6 +19241,7 @@ const powerRef = useRef(hud.power);
             }
           }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
+          clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
@@ -20166,6 +20193,16 @@ const powerRef = useRef(hud.power);
       slider.destroy();
     };
   }, [applySliderLock, showPowerSlider]);
+  useEffect(() => {
+    if (shotActive || hud.over || hud.turn !== 0) return;
+    const slider = sliderInstanceRef.current;
+    if (slider) {
+      slider.set(slider.min, { animate: true });
+    }
+    applyPower(0);
+    cuePullCurrentRef.current = 0;
+    cuePullTargetRef.current = 0;
+  }, [applyPower, hud.over, hud.turn, shotActive]);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
@@ -20548,9 +20585,6 @@ const powerRef = useRef(hud.power);
               <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
             </div>
             <div className="relative flex flex-col leading-tight">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-emerald-100">
-                Instant Replay
-              </span>
               <span className="text-sm font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]">
                 {replaySlate.label}
               </span>
@@ -20589,11 +20623,6 @@ const powerRef = useRef(hud.power);
         <div className="pointer-events-none absolute inset-0 z-40">
           <div className="absolute inset-0 rounded-[28px] border border-white/12 shadow-[0_0_32px_rgba(0,0,0,0.55),0_0_0_8px_rgba(0,0,0,0.45)]" />
           <div className="absolute inset-0 rounded-[28px] bg-gradient-to-b from-black/55 via-transparent to-black/55" />
-          <div className="absolute top-4 right-4 flex items-center justify-end px-6 py-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-white/90">
-            <span className="rounded-full border border-white/30 bg-black/65 px-4 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
-              Instant Replay
-            </span>
-          </div>
           <div className="absolute inset-x-10 top-6 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
           <div className="absolute inset-x-10 bottom-6 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
         </div>
