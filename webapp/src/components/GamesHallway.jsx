@@ -772,30 +772,6 @@ export default function GamesHallway({ games, onClose }) {
       scene.add(doorGroup);
     });
 
-    const carbonFiberTexture = (() => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 64;
-      canvas.height = 64;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.fillStyle = '#0a0a0a';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#111';
-        ctx.fillRect(0, 0, canvas.width / 2, canvas.height / 2);
-        ctx.fillRect(canvas.width / 2, canvas.height / 2, canvas.width / 2, canvas.height / 2);
-        ctx.fillStyle = '#161616';
-        ctx.fillRect(0, canvas.height / 2, canvas.width / 2, canvas.height / 2);
-        ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height / 2);
-      }
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.wrapS = THREE.RepeatWrapping;
-      texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(8, 8);
-      texture.anisotropy = maxAnisotropy;
-      texture.colorSpace = THREE.SRGBColorSpace;
-      return texture;
-    })();
-
     const potFallbackTexture = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/uv_grid_opengl.jpg');
     potFallbackTexture.colorSpace = THREE.SRGBColorSpace;
     potFallbackTexture.wrapS = THREE.RepeatWrapping;
@@ -913,27 +889,25 @@ export default function GamesHallway({ games, onClose }) {
       }
     ];
 
-    const sconcePlateMat = new THREE.MeshStandardMaterial({
-      color: '#0a0a0a',
-      metalness: 0.72,
-      roughness: 0.32,
-      map: carbonFiberTexture
-    });
-    const sconceBulbMat = new THREE.MeshStandardMaterial({
-      color: '#fff6e3',
-      emissive: '#ffeac6',
-      emissiveIntensity: 0.82,
-      metalness: 0.1,
-      roughness: 0.12
-    });
-
     const addFlowerPotsBetweenDoors = async () => {
       if (!doorAngles.length) {
         return;
       }
 
+      const findDoorIndex = (predicate) =>
+        doorEntries.findIndex((entry) => {
+          const name = String(entry?.name || '').toLowerCase();
+          return predicate(name);
+        });
+
+      const poolIndex = findDoorIndex((name) => name.includes('pool royale'));
+      const snookerIndex = findDoorIndex((name) => name.includes('snooker club'));
+
+      if (poolIndex === -1 || snookerIndex === -1) {
+        return;
+      }
+
       const potRadius = 16.6;
-      const sconceRadius = 19.15;
       const twoPi = Math.PI * 2;
 
       const plantTextures = new Map(
@@ -1001,62 +975,31 @@ export default function GamesHallway({ games, onClose }) {
         plantVariants.push(buildProceduralPlant());
       }
 
-      doorAngles.forEach((angle, index) => {
-        let delta = wrapAngle(doorAngles[(index + 1) % doorAngles.length] - angle);
-        if (delta <= 0) {
-          delta += twoPi;
+      const baseAngle = doorAngles[poolIndex];
+      let delta = wrapAngle(doorAngles[snookerIndex] - baseAngle);
+      if (delta <= 0) {
+        delta += twoPi;
+      }
+      const midpointAngle = baseAngle + delta / 2;
+      const potX = Math.cos(midpointAngle) * potRadius;
+      const potZ = Math.sin(midpointAngle) * potRadius;
+
+      const potGroup = new THREE.Group();
+      potGroup.position.set(potX, 0, potZ);
+      potGroup.rotation.y = -(midpointAngle + Math.PI / 2);
+      potGroup.scale.setScalar(2);
+
+      if (plantVariants.length) {
+        const variant = plantVariants[poolIndex % plantVariants.length];
+        const instance = cloneSkinnedMesh(variant.scene);
+        instance.position.set(0, 0.05, 0);
+        if (variant.targetHeight) {
+          fitModelToHeight(instance, variant.targetHeight);
         }
-        const midpointAngle = angle + delta / 2;
-        const potX = Math.cos(midpointAngle) * potRadius;
-        const potZ = Math.sin(midpointAngle) * potRadius;
+        potGroup.add(instance);
+      }
 
-        const potGroup = new THREE.Group();
-        potGroup.position.set(potX, 0, potZ);
-        potGroup.rotation.y = -(midpointAngle + Math.PI / 2);
-        potGroup.scale.setScalar(1);
-
-        if (plantVariants.length) {
-          const variant = plantVariants[index % plantVariants.length];
-          const instance = cloneSkinnedMesh(variant.scene);
-          instance.position.set(0, 0.05, 0);
-          if (variant.targetHeight) {
-            fitModelToHeight(instance, variant.targetHeight);
-          }
-          potGroup.add(instance);
-        }
-
-        const potAccent = new THREE.PointLight(0xc9f7d2, 0.36, 3.8, 1.8);
-        potAccent.position.set(0, 1.55, 0);
-        potGroup.add(potAccent);
-
-        scene.add(potGroup);
-
-        const sconceGroup = new THREE.Group();
-        const sconceX = Math.cos(midpointAngle) * sconceRadius;
-        const sconceZ = Math.sin(midpointAngle) * sconceRadius;
-        sconceGroup.position.set(sconceX, 4.45, sconceZ);
-        sconceGroup.rotation.y = -(midpointAngle + Math.PI / 2);
-
-        const backplate = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.5, 0.1), sconcePlateMat);
-        backplate.receiveShadow = true;
-        sconceGroup.add(backplate);
-
-        const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.55, 16), sconcePlateMat);
-        arm.rotation.x = Math.PI / 2;
-        arm.position.z = 0.33;
-        sconceGroup.add(arm);
-
-        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 18, 12), sconceBulbMat);
-        bulb.position.set(0, 0.12, 0.7);
-        bulb.castShadow = true;
-        sconceGroup.add(bulb);
-
-        const sconceLight = new THREE.PointLight(0xfff0d6, 0.85, 8, 2.05);
-        sconceLight.position.set(0, 0.32, 0.5);
-        sconceGroup.add(sconceLight);
-
-        scene.add(sconceGroup);
-      });
+      scene.add(potGroup);
     };
 
     void addFlowerPotsBetweenDoors();
