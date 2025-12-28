@@ -1019,7 +1019,9 @@ const QUICK_SIDE_COLORS = [
   { id: 'mintVale', hex: 0x10b981, label: 'Mint Vale' },
   { id: 'royalWave', hex: 0x3b82f6, label: 'Royal Wave' },
   { id: 'roseMist', hex: 0xef4444, label: 'Rose Mist' },
-  { id: 'amethyst', hex: 0x8b5cf6, label: 'Amethyst' }
+  { id: 'amethyst', hex: 0x8b5cf6, label: 'Amethyst' },
+  { id: 'cinderBlaze', hex: 0xff6b35, label: 'Cinder Blaze' },
+  { id: 'arcticDrift', hex: 0xbcd7ff, label: 'Arctic Drift' }
 ];
 
 const QUICK_HEAD_PRESETS = [
@@ -1037,7 +1039,8 @@ const QUICK_BOARD_THEMES = [
   { id: 'sand', name: 'Sand/Brown', light: 0xddd0b8, dark: 0x6b4f3a },
   { id: 'ocean', name: 'Ocean', light: 0xa4c8e1, dark: 0x1e3a5f },
   { id: 'violet', name: 'Violet', light: 0xddd6fe, dark: 0x3b2a6e },
-  { id: 'chrome', name: 'Chrome', light: 0xb0b0b0, dark: 0x6e6e6e, special: 'chrome' }
+  { id: 'chrome', name: 'Chrome', light: 0xb0b0b0, dark: 0x6e6e6e, special: 'chrome' },
+  { id: 'nebulaGlass', name: 'Nebula Glass', light: 0xe0f2fe, dark: 0x0b1024 }
 ];
 
 const SNOOKER_TABLE_SCALE = 1.3;
