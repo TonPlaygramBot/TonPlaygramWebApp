@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { clone as cloneSkinnedMesh } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { getOnlineCount } from '../utils/api.js';
 
@@ -22,6 +23,78 @@ const fallbackGameNames = [
   'Blackjack Multi',
   'Goal Rush'
 ];
+
+let modernLightBufferPromise = null;
+
+function buildModernCeilingLightBuffer() {
+  if (!modernLightBufferPromise) {
+    modernLightBufferPromise = new Promise((resolve, reject) => {
+      const light = new THREE.Group();
+
+      const outerRing = new THREE.Mesh(
+        new THREE.TorusGeometry(1.7, 0.22, 28, 96),
+        new THREE.MeshStandardMaterial({ color: '#f4f4f4', metalness: 0.8, roughness: 0.2 })
+      );
+      light.add(outerRing);
+
+      const innerRing = new THREE.Mesh(
+        new THREE.TorusGeometry(0.82, 0.08, 24, 64),
+        new THREE.MeshStandardMaterial({ color: '#d8d8d8', metalness: 0.72, roughness: 0.22 })
+      );
+      innerRing.position.y = 0.08;
+      light.add(innerRing);
+
+      const diffuser = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.08, 1.08, 0.2, 64, 1, true),
+        new THREE.MeshStandardMaterial({
+          color: '#fff8ec',
+          emissive: '#ffe8c4',
+          emissiveIntensity: 0.9,
+          metalness: 0.05,
+          roughness: 0.22,
+          transparent: true,
+          opacity: 0.96,
+          side: THREE.DoubleSide
+        })
+      );
+      diffuser.position.y = -0.05;
+      light.add(diffuser);
+
+      const stem = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08, 0.1, 0.62, 24),
+        new THREE.MeshStandardMaterial({ color: '#e3e3e3', metalness: 0.85, roughness: 0.25 })
+      );
+      stem.position.y = 1.05;
+      light.add(stem);
+
+      const mount = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.38, 0.48, 0.22, 32),
+        new THREE.MeshStandardMaterial({ color: '#e3e3e3', metalness: 0.88, roughness: 0.24 })
+      );
+      mount.position.y = 1.46;
+      light.add(mount);
+
+      const exporter = new GLTFExporter();
+      try {
+        exporter.parse(
+          light,
+          (result) => {
+            if (result instanceof ArrayBuffer) {
+              resolve(result);
+            } else {
+              reject(new Error('Modern light exporter did not return binary data'));
+            }
+          },
+          { binary: true },
+          (error) => reject(error)
+        );
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+  return modernLightBufferPromise;
+}
 
 function useBodyScrollLock(isLocked) {
   useEffect(() => {
@@ -89,7 +162,7 @@ export default function GamesHallway({ games, onClose }) {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.85;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.35));
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
@@ -150,7 +223,7 @@ export default function GamesHallway({ games, onClose }) {
       roughness: 0.1,
       map: ceilingTex
     });
-    const ceiling = new THREE.Mesh(new THREE.CircleGeometry(18, 64), ceilingMat);
+    const ceiling = new THREE.Mesh(new THREE.CircleGeometry(18, 56), ceilingMat);
     ceiling.position.set(0, 8.3, 0);
     ceiling.rotation.x = Math.PI / 2;
     scene.add(ceiling);
@@ -173,7 +246,7 @@ export default function GamesHallway({ games, onClose }) {
       emissive: '#2b0000',
       emissiveIntensity: 0.3
     });
-    const floor = new THREE.Mesh(new THREE.CircleGeometry(20, 128), floorMat);
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(20, 96), floorMat);
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
 
@@ -204,7 +277,7 @@ export default function GamesHallway({ games, onClose }) {
       roughness: 0.52,
       metalness: 0.02
     });
-    const walls = new THREE.Mesh(new THREE.CylinderGeometry(20, 20, 8, 96, 1, true), wallMat);
+    const walls = new THREE.Mesh(new THREE.CylinderGeometry(20, 20, 8, 80, 1, true), wallMat);
     walls.position.y = 4;
     scene.add(walls);
 
@@ -627,20 +700,57 @@ export default function GamesHallway({ games, onClose }) {
       return texture;
     })();
 
+    const potFallbackTexture = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/uv_grid_opengl.jpg');
+    potFallbackTexture.colorSpace = THREE.SRGBColorSpace;
+    potFallbackTexture.wrapS = THREE.RepeatWrapping;
+    potFallbackTexture.wrapT = THREE.RepeatWrapping;
+    potFallbackTexture.repeat.set(1.6, 1.6);
+    potFallbackTexture.anisotropy = maxAnisotropy;
+
+    const buildProceduralPlant = () => {
+      const pot = new THREE.Group();
+      const potBody = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.9, 1.15, 1.2, 24),
+        new THREE.MeshStandardMaterial({
+          color: '#d2b48c',
+          map: potFallbackTexture,
+          metalness: 0.2,
+          roughness: 0.55
+        })
+      );
+      potBody.position.y = 0.6;
+      pot.add(potBody);
+
+      const leaves = new THREE.Mesh(
+        new THREE.ConeGeometry(1.45, 2.4, 28, 6),
+        new THREE.MeshStandardMaterial({
+          color: '#2f5d37',
+          emissive: '#1a3a1f',
+          emissiveIntensity: 0.12,
+          metalness: 0.15,
+          roughness: 0.6
+        })
+      );
+      leaves.position.y = 2.2;
+      pot.add(leaves);
+
+      return { scene: pot, scale: 1.1 };
+    };
+
     const plantModelSources = [
       {
         urls: [
           'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/potted_plant_01/potted_plant_01_2k.gltf',
           'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/potted_plant_01/potted_plant_01_1k.gltf'
         ],
-        scale: 2.05
+        scale: 2.35
       },
       {
         urls: [
           'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/potted_plant_02/potted_plant_02_2k.gltf',
           'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/potted_plant_02/potted_plant_02_1k.gltf'
         ],
-        scale: 1.9
+        scale: 2.15
       }
     ];
 
@@ -716,6 +826,8 @@ export default function GamesHallway({ games, onClose }) {
                 if (child.material.map) {
                   child.material.map.colorSpace = THREE.SRGBColorSpace;
                   child.material.map.anisotropy = maxAnisotropy;
+                } else {
+                  child.material.map = potFallbackTexture;
                 }
                 if (child.material.normalMap) {
                   child.material.normalMap.anisotropy = maxAnisotropy;
@@ -727,6 +839,10 @@ export default function GamesHallway({ games, onClose }) {
           return scene ? { scene, scale: source.scale } : null;
         })
         .filter(Boolean);
+
+      if (!plantVariants.length) {
+        plantVariants.push(buildProceduralPlant());
+      }
 
       doorAngles.forEach((angle, index) => {
         let delta = wrapAngle(doorAngles[(index + 1) % doorAngles.length] - angle);
@@ -740,17 +856,18 @@ export default function GamesHallway({ games, onClose }) {
         const potGroup = new THREE.Group();
         potGroup.position.set(potX, 0, potZ);
         potGroup.rotation.y = -(midpointAngle + Math.PI / 2);
+        potGroup.scale.setScalar(1.12);
 
         if (plantVariants.length) {
           const variant = plantVariants[index % plantVariants.length];
           const instance = cloneSkinnedMesh(variant.scene);
           instance.position.set(0, 0.05, 0);
-          instance.scale.setScalar(variant.scale);
+          instance.scale.setScalar(variant.scale * 1.08);
           potGroup.add(instance);
         }
 
-        const potAccent = new THREE.PointLight(0xc9f7d2, 0.42, 4.8, 2.6);
-        potAccent.position.set(0, 1.45, 0);
+        const potAccent = new THREE.PointLight(0xc9f7d2, 0.48, 5.2, 2.6);
+        potAccent.position.set(0, 1.55, 0);
         potGroup.add(potAccent);
 
         scene.add(potGroup);
@@ -797,14 +914,12 @@ export default function GamesHallway({ games, onClose }) {
 
     void addFlowerPotsBetweenDoors();
 
-    const ceilingLampUrls = [
-      'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/AnisotropyBarnLamp.glb',
-      'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/gltf/AnisotropyBarnLamp.glb'
-    ];
-
-    const addCeilingLampShade = async () => {
+    const addModernCeilingLight = async () => {
       try {
-        const gltf = await loadGltfWithFallbacks(ceilingLampUrls);
+        const buffer = await buildModernCeilingLightBuffer();
+        const gltf = await new Promise((resolve, reject) => {
+          gltfLoader.parse(buffer.slice(0), '', resolve, reject);
+        });
         if (disposed) {
           gltf?.scene?.traverse((child) => {
             if (child.isMesh) {
@@ -814,16 +929,16 @@ export default function GamesHallway({ games, onClose }) {
           });
           return;
         }
-        const lamp = gltf.scene || new THREE.Group();
-        lamp.position.set(0, 7.8, 0);
-        lamp.rotation.y = Math.PI / 6;
-        lamp.scale.set(1.6, 1.6, 1.6);
-        lamp.traverse((child) => {
+        const light = gltf.scene || new THREE.Group();
+        light.position.set(0, 7.95, 0);
+        light.scale.set(2.45, 2.45, 2.45);
+        light.rotation.y = Math.PI / 6;
+        light.traverse((child) => {
           if (child.isMesh && child.material) {
             child.castShadow = true;
             child.receiveShadow = true;
-            child.material.roughness = Math.max(child.material.roughness ?? 0.25, 0.25);
-            child.material.metalness = Math.min(child.material.metalness ?? 0.65, 0.65);
+            child.material.roughness = Math.max(child.material.roughness ?? 0.2, 0.2);
+            child.material.metalness = Math.min(child.material.metalness ?? 0.7, 0.7);
             if (child.material.map) {
               child.material.map.colorSpace = THREE.SRGBColorSpace;
               child.material.map.anisotropy = maxAnisotropy;
@@ -831,17 +946,23 @@ export default function GamesHallway({ games, onClose }) {
             child.material.needsUpdate = true;
           }
         });
-        scene.add(lamp);
+        scene.add(light);
 
-        const lampGlow = new THREE.PointLight(0xffe6c0, 1.4, 16, 1.9);
-        lampGlow.position.set(0, 7.3, 0);
-        scene.add(lampGlow);
+        const softGlow = new THREE.PointLight(0xffedc8, 1.55, 18, 2.1);
+        softGlow.position.set(0, 7.45, 0);
+        scene.add(softGlow);
+
+        const downlight = new THREE.SpotLight(0xfff2da, 1.35, 22, Math.PI / 2.8, 0.45, 1.6);
+        downlight.position.set(0, 7.6, 0);
+        downlight.target.position.set(0, 2.6, 0);
+        scene.add(downlight);
+        scene.add(downlight.target);
       } catch (error) {
         // keep chandelier-only layout on failure
       }
     };
 
-    void addCeilingLampShade();
+    void addModernCeilingLight();
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
