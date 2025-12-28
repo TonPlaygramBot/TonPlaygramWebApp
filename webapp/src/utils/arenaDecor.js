@@ -144,42 +144,11 @@ export function createArenaCarpetMaterial() {
   return material;
 }
 
-const normalizeWallTexture = (texture, { repeat = null, anisotropy = 4 } = {}) => {
-  if (!texture) return null;
-  texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
-  texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
-  if (repeat) {
-    texture.repeat.copy(repeat);
-  }
-  texture.anisotropy = Math.max(texture.anisotropy ?? 1, anisotropy);
-  texture.needsUpdate = true;
-  return texture;
-};
-
-export function createArenaWallMaterial(
-  baseColor = '#eeeeee',
-  accentColor = '#e5e7eb',
-  { textureSet = null, repeat = null, anisotropy = 4 } = {}
-) {
-  const material = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(baseColor),
-    emissive: new THREE.Color(accentColor).multiplyScalar(0.02),
+export function createArenaWallMaterial() {
+  return new THREE.MeshStandardMaterial({
+    color: 0xeeeeee,
     roughness: 0.88,
     metalness: 0.06,
     side: THREE.DoubleSide
   });
-
-  if (textureSet?.diffuse) {
-    applySRGBColorSpace(textureSet.diffuse);
-    material.map = normalizeWallTexture(textureSet.diffuse, { repeat, anisotropy });
-  }
-  if (textureSet?.normal) {
-    material.normalMap = normalizeWallTexture(textureSet.normal, { repeat, anisotropy });
-  }
-  if (textureSet?.roughness) {
-    material.roughnessMap = normalizeWallTexture(textureSet.roughness, { repeat, anisotropy });
-  }
-
-  material.needsUpdate = true;
-  return material;
 }
