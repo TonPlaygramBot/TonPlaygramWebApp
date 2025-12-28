@@ -1228,10 +1228,10 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_GAP = BALL_R * 1.12; // pull cue stick closer so the blue tip locks to the cue-ball centre line and match the spin controller contact point
-const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
-const CUE_PULL_MIN_VISUAL = BALL_R * 1.15; // guarantee a small visible pull even when clearance is tight
-const CUE_PULL_VISUAL_FUDGE = BALL_R * 1.05; // allow a little extra travel before obstructions cancel the pull
+const CUE_TIP_GAP = BALL_R * 1.08; // pull cue stick closer so the blue tip locks to the cue-ball centre line and match the spin controller contact point
+const CUE_PULL_BASE = BALL_R * 9.5;
+const CUE_PULL_MIN_VISUAL = BALL_R * 1.6; // guarantee a small visible pull even when clearance is tight
+const CUE_PULL_VISUAL_FUDGE = BALL_R * 1.4; // allow a little extra travel before obstructions cancel the pull
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_STROKE_MIN_MS = 95;
 const CUE_STROKE_MAX_MS = 260;
@@ -10388,6 +10388,7 @@ function PoolRoyaleGame({
   const replayBannerTimeoutRef = useRef(null);
   const [replaySlate, setReplaySlate] = useState(null);
   const replaySlateTimeoutRef = useRef(null);
+  const SHOW_REPLAY_SLATE = false;
   const shotCameraHoldTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
@@ -15665,16 +15666,18 @@ const powerRef = useRef(hud.power);
       const buttTilt = Math.asin(
         Math.min(1, buttLift / Math.max(cueLen, 1e-4))
       );
-      const applyCueButtTilt = (group, extraTilt = 0) => {
+      const applyCueButtTilt = (group, extraTilt = 0, baseY = null) => {
         if (!group) return;
         const info = group.userData?.buttTilt;
         const baseTilt = info?.angle ?? buttTilt;
         const len = info?.length ?? cueLen;
         const totalTilt = -(baseTilt + extraTilt);
         group.rotation.x = totalTilt;
-        const tipComp = -Math.sin(totalTilt) * len * 0.5;
-        group.position.y += tipComp;
+        const tipComp = Math.sin(baseTilt + extraTilt) * len * 0.5;
+        const originY = baseY ?? info?.baseY ?? group.position.y;
+        group.position.y = originY - tipComp;
         if (info) {
+          info.baseY = originY;
           info.tipCompensation = tipComp;
           info.current = totalTilt;
           info.extra = extraTilt;
@@ -15683,8 +15686,8 @@ const powerRef = useRef(hud.power);
       };
       cueStick.userData.buttTilt = {
         angle: buttTilt,
-        tipCompensation: -Math.sin(-buttTilt) * cueLen * 0.5,
-        buttHeightOffset: -Math.sin(-buttTilt) * cueLen,
+        tipCompensation: Math.sin(buttTilt) * cueLen * 0.5,
+        buttHeightOffset: Math.sin(buttTilt) * cueLen,
         length: cueLen
       };
 
@@ -15887,7 +15890,7 @@ const powerRef = useRef(hud.power);
       cueBody.add(stripeOverlay);
 
       cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
-      applyCueButtTilt(cueStick);
+      applyCueButtTilt(cueStick, 0, cueStick.position.y);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
@@ -16619,8 +16622,9 @@ const powerRef = useRef(hud.power);
       };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
-        const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
-        return Math.max(effectiveMax, CUE_PULL_MIN_VISUAL) * ratio;
+        const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, CUE_PULL_BASE) : CUE_PULL_BASE;
+        const pullFloor = Math.max(CUE_PULL_MIN_VISUAL * 1.35, effectiveMax * 0.35);
+        return pullFloor + ratio * (effectiveMax - pullFloor);
       };
       const clampCueTipOffset = (vec, limit = BALL_R) => {
         if (!vec) return vec;
@@ -16986,14 +16990,15 @@ const powerRef = useRef(hud.power);
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
           const obstructionTiltFromLift =
             obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
+          const cueBaseY = CUE_Y + spinWorld.y;
           cueStick.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y,
+            cueBaseY,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = hasSpin ? Math.abs(appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
-          applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
+          applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift, cueBaseY);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
@@ -17001,21 +17006,27 @@ const powerRef = useRef(hud.power);
           cueAnimating = true;
           const startPos = cueStick.position.clone();
           const impactPos = startPos.clone().add(dir.clone().multiplyScalar(Math.max(pull, 0)));
-          const retreatDistance = Math.max(BALL_R * 0.6, Math.min(pull, BALL_R * 4));
+          const retreatDistance = Math.max(BALL_R * 1.1, Math.min(pull * 0.75, BALL_R * 5.2));
           const settlePos = impactPos
             .clone()
             .sub(dir.clone().multiplyScalar(retreatDistance));
           cueStick.visible = true;
           cueStick.position.copy(startPos);
-          const forwardDuration = THREE.MathUtils.lerp(
-            CUE_STROKE_MAX_MS,
+          const strokeDistance = Math.max(pull, CUE_PULL_MIN_VISUAL);
+          const forwardDuration = THREE.MathUtils.clamp(
+            (strokeDistance / Math.max(predictedCueSpeed, 1e-3)) * 1000,
             CUE_STROKE_MIN_MS,
-            clampedPower
+            CUE_STROKE_MAX_MS
           );
-          const settleDuration = THREE.MathUtils.lerp(
+          const settleDurationBase = THREE.MathUtils.lerp(
             CUE_FOLLOW_MAX_MS,
             CUE_FOLLOW_MIN_MS,
             clampedPower
+          );
+          const settleDuration = THREE.MathUtils.clamp(
+            settleDurationBase * (0.9 + clampedPower * 0.3),
+            CUE_FOLLOW_MIN_MS * 0.85,
+            CUE_FOLLOW_MAX_MS
           );
           const startTime = performance.now();
           const impactTime = startTime + forwardDuration;
@@ -19114,14 +19125,15 @@ const powerRef = useRef(hud.power);
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
           const obstructionTiltFromLift =
             obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
+          const cueBaseY = CUE_Y + spinWorld.y;
           cueStick.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y,
+            cueBaseY,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = hasSpin ? Math.abs(appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
-          applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
+          applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift, cueBaseY);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
@@ -19327,14 +19339,15 @@ const powerRef = useRef(hud.power);
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
           const obstructionTiltFromLift =
             obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
+          const cueBaseY = CUE_Y + spinWorld.y;
           cueStick.position.set(
             cue.pos.x - baseDir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y,
+            cueBaseY,
             cue.pos.y - baseDir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
-          applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
+          applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift, cueBaseY);
           cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
@@ -19419,14 +19432,15 @@ const powerRef = useRef(hud.power);
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
           const obstructionTiltFromLift =
             obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
+          const cueBaseY = CUE_Y + spinWorld.y;
           cueStick.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y,
+            cueBaseY,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
-          applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
+          applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift, cueBaseY);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
@@ -20308,6 +20322,10 @@ const powerRef = useRef(hud.power);
 
   useLayoutEffect(() => {
     const computeInsets = () => {
+      const viewportWidth =
+        typeof window !== 'undefined'
+          ? window.innerWidth || document.documentElement?.clientWidth || 0
+          : 0;
       if (!isPortrait) {
         const left = uiScale * 150;
         const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 150);
@@ -20317,13 +20335,20 @@ const powerRef = useRef(hud.power);
         });
         return;
       }
+      const margin = 12;
       const leftBox = leftControlsRef.current?.getBoundingClientRect();
       const spinBox = spinBoxRef.current?.getBoundingClientRect();
-      const leftInset = (leftBox?.width ?? uiScale * 120) + 12;
+      const defaultLeftWidth = uiScale * 120;
+      const defaultSpinWidth = uiScale * (SPIN_CONTROL_DIAMETER_PX + 64);
+      const leftEdge = (leftBox?.right ?? defaultLeftWidth) + margin;
+      const leftInset = leftEdge;
+      const spinLeftGuess = Math.max(
+        0,
+        (spinBox?.left ?? Math.max(viewportWidth - defaultSpinWidth, defaultSpinWidth)) - margin
+      );
+      const safeSpinLeft = Math.max(spinLeftGuess, leftEdge + uiScale * 40);
       const rightInset =
-        (spinBox?.width ?? uiScale * (SPIN_CONTROL_DIAMETER_PX + 64)) +
-        uiScale * 32 +
-        12;
+        viewportWidth > 0 ? Math.max(0, viewportWidth - safeSpinLeft) : defaultSpinWidth + margin;
       setHudInsets({
         left: `${leftInset}px`,
         right: `${rightInset}px`
@@ -20749,7 +20774,7 @@ const powerRef = useRef(hud.power);
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
-      {replaySlate && (
+      {SHOW_REPLAY_SLATE && replaySlate && (
         <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
           <div className="relative isolate flex w-[min(26rem,90vw)] items-center justify-between overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-r from-black/85 via-black/70 to-black/85 px-5 py-4 shadow-[0_18px_42px_rgba(0,0,0,0.55)] backdrop-blur">
             <div className="pointer-events-none absolute inset-0 opacity-80">
@@ -21300,8 +21325,7 @@ const powerRef = useRef(hud.power);
           aria-hidden={pocketCameraActive || replayActive}
           style={{
             left: hudInsets.left,
-            right: hudInsets.right,
-            transform: isPortrait ? 'translateX(-14px)' : undefined
+            right: hudInsets.right
           }}
         >
           <div
