@@ -1236,7 +1236,8 @@ const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.2; // allow extra travel before obstruc
 const CUE_PULL_VISUAL_MULTIPLIER = 1.5;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.26; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
-const CUE_PULL_LOW_CAMERA_BONUS = 0.14; // add a small draw boost for low/standing views where perspective hides travel
+const CUE_PULL_LOW_CAMERA_REDUCTION = 0.18; // trim pull distance when hugging the cue so the stroke stays subtle in close-up
+const CUE_PULL_STANDING_CAMERA_BONUS = 0.22; // add a stronger draw in the raised view where foreshortening hides travel
 const CUE_PULL_MAX_VISUAL_BONUS = 0.32; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_STROKE_MIN_MS = 95;
 const CUE_STROKE_MAX_MS = 420;
@@ -12787,16 +12788,19 @@ const powerRef = useRef(hud.power);
           const requestedBlend =
             nextBlend ?? cameraBlendRef.current ?? ACTION_CAMERA_START_BLEND;
           const blend = THREE.MathUtils.clamp(requestedBlend, 0, 1);
-          const overshoot = Math.max(0, blend - requestedBlend);
+          const overshoot =
+            requestedBlend < 0
+              ? -requestedBlend
+              : Math.max(0, blend - requestedBlend);
           cameraBlendRef.current = blend;
           if (overshoot > 1e-6 && CUE_VIEW_FORWARD_SLIDE_MAX > 0) {
-            const slideStore = lowViewSlideRef.current ?? 0;
+            const slideStore = Math.max(lowViewSlideRef.current ?? 0, 0);
             const increment = overshoot * CUE_VIEW_FORWARD_SLIDE_MAX;
-            lowViewSlideRef.current = THREE.MathUtils.clamp(
-              slideStore + increment,
-              0,
-              CUE_VIEW_FORWARD_SLIDE_MAX
+            const targetSlide = Math.min(
+              CUE_VIEW_FORWARD_SLIDE_MAX,
+              Math.max(slideStore, increment)
             );
+            lowViewSlideRef.current = targetSlide;
           } else if (blend >= CUE_VIEW_FORWARD_SLIDE_RESET_BLEND) {
             if (blend >= 0.95) {
               lowViewSlideRef.current = 0;
@@ -16668,14 +16672,17 @@ const powerRef = useRef(hud.power);
           }
         }
         const blend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
-        const lowCameraBoost = THREE.MathUtils.lerp(
-          CUE_PULL_LOW_CAMERA_BONUS,
-          0,
-          blend
+        const cameraScale = THREE.MathUtils.clamp(
+          THREE.MathUtils.lerp(
+            1 - CUE_PULL_LOW_CAMERA_REDUCTION,
+            1 + CUE_PULL_STANDING_CAMERA_BONUS,
+            blend
+          ),
+          Math.max(0.4, 1 - CUE_PULL_LOW_CAMERA_REDUCTION),
+          1 + CUE_PULL_STANDING_CAMERA_BONUS
         );
         const alignmentBoost = 1 + alignment * CUE_PULL_ALIGNMENT_BOOST;
-        const compensated =
-          basePull * alignmentBoost * (1 + lowCameraBoost);
+        const compensated = basePull * alignmentBoost * cameraScale;
         const maxScale = 1 + CUE_PULL_MAX_VISUAL_BONUS;
         return Math.min(compensated, basePull * maxScale);
       };
