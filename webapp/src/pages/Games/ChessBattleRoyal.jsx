@@ -482,6 +482,9 @@ const KENNEY_SET_URLS = [
   'https://cdn.jsdelivr.net/gh/KenneyNL/boardgame-kit@main/Models/GLTF/boardgame-kit.glb'
 ];
 
+const POLYHAVEN_CHESS_SLUG = 'chess_set';
+const POLYHAVEN_CHESS_SET_ID = 'polyhavenChess';
+
 const POLYGONAL_SET_URLS = [
   'https://raw.githubusercontent.com/quaterniusdev/ChessSet/master/Source/GLTF/ChessSet.glb',
   'https://cdn.jsdelivr.net/gh/quaterniusdev/ChessSet@master/Source/GLTF/ChessSet.glb'
@@ -1236,7 +1239,7 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.id !== DIAMOND_SHAPE_ID);
 
-const PRESERVE_NATIVE_PIECE_IDS = new Set([BEAUTIFUL_GAME_SWAP_SET_ID]);
+const PRESERVE_NATIVE_PIECE_IDS = new Set([BEAUTIFUL_GAME_SWAP_SET_ID, POLYHAVEN_CHESS_SET_ID]);
 
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
@@ -2041,8 +2044,8 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
 
 let sharedKTX2Loader = null;
 
-function createConfiguredGLTFLoader(renderer = null) {
-  const loader = new GLTFLoader();
+function createConfiguredGLTFLoader(renderer = null, manager = null) {
+  const loader = new GLTFLoader(manager || undefined);
   loader.setCrossOrigin('anonymous');
   const draco = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
@@ -2128,6 +2131,110 @@ async function loadPieceSetFromUrls(urls = [], options = {}) {
   }
   if (lastError) throw lastError;
   throw new Error('Chess set model failed to load');
+}
+
+function stripQueryHash(u = '') {
+  return u.split('#')[0].split('?')[0];
+}
+
+function isGlbUrl(u = '') {
+  return stripQueryHash(u).toLowerCase().endsWith('.glb');
+}
+
+function isGltfUrl(u = '') {
+  return stripQueryHash(u).toLowerCase().endsWith('.gltf');
+}
+
+function looksLikeFileUrl(u = '') {
+  const lu = u.toLowerCase();
+  if (!/^https?:\/\//i.test(u)) return false;
+  if (lu.includes('polyhaven.com') && lu.includes('/a/')) return false;
+  return true;
+}
+
+function extractUrls(apiJson) {
+  const out = new Set();
+  const seen = new Set();
+  const walk = (v) => {
+    if (!v) return;
+    if (typeof v === 'string') {
+      if (looksLikeFileUrl(v)) out.add(v);
+      return;
+    }
+    if (typeof v !== 'object' || seen.has(v)) return;
+    seen.add(v);
+    if (Array.isArray(v)) {
+      v.forEach((x) => walk(x));
+    } else {
+      Object.values(v).forEach((x) => walk(x));
+    }
+  };
+  walk(apiJson);
+  return Array.from(out);
+}
+
+function pickBestModelUrl(urls = []) {
+  const candidates = urls.filter((u) => isGlbUrl(u) || isGltfUrl(u));
+  const score = (u) => {
+    const lu = u.toLowerCase();
+    let s = 0;
+    if (isGlbUrl(u)) s += 10;
+    if (isGltfUrl(u)) s += 4;
+    if (lu.includes('2k')) s += 3;
+    if (lu.includes('1k')) s += 2;
+    if (lu.includes('4k')) s += 1;
+    if (lu.includes('8k')) s -= 2;
+    return s;
+  };
+  candidates.sort((a, b) => score(b) - score(a));
+  return candidates[0] || null;
+}
+
+async function fetchPolyHavenModelUrl(slug) {
+  const res = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(slug)}`);
+  if (!res.ok) return null;
+  const json = await res.json();
+  const urls = extractUrls(json);
+  return pickBestModelUrl(urls);
+}
+
+async function loadPolyHavenScene(slug) {
+  const modelUrl = await fetchPolyHavenModelUrl(slug);
+  if (!modelUrl) throw new Error(`PolyHaven asset unavailable for ${slug}`);
+  const base = stripQueryHash(modelUrl);
+  const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
+
+  const manager = new THREE.LoadingManager();
+  manager.setURLModifier((requestedUrl) => {
+    if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
+    try {
+      return new URL(requestedUrl, baseDir).toString();
+    } catch {
+      return requestedUrl;
+    }
+  });
+
+  const loader = createConfiguredGLTFLoader(null, manager);
+  loader.setResourcePath(baseDir);
+  loader.setPath(baseDir);
+
+  const gltf = await loadGltfResilient(modelUrl, loader);
+  const scene = gltf?.scene || gltf?.scenes?.[0];
+  if (!scene) throw new Error('PolyHaven model missing scene root');
+
+  scene.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+    materials.forEach((mat) => {
+      if (!mat) return;
+      if (mat.map) applySRGBColorSpace(mat.map);
+      if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+    });
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+  });
+
+  return scene;
 }
 
 async function resolveTextureSet(definition = {}) {
@@ -2707,6 +2814,21 @@ async function loadPolygonalAssets(targetBoardSize = RAW_BOARD_SIZE) {
     assetScale: 0.98,
     fallbackBuilder: buildPolygonalFallbackAssets
   });
+}
+
+async function loadPolyHavenChessAssets(targetBoardSize = RAW_BOARD_SIZE) {
+  const scene = await loadPolyHavenScene(POLYHAVEN_CHESS_SLUG);
+  const assets = extractChessSetAssets(scene, {
+    targetBoardSize,
+    styleId: POLYHAVEN_CHESS_SET_ID,
+    name: 'PolyHavenChess',
+    pieceFootprintRatio: PIECE_FOOTPRINT_RATIO,
+    pieceYOffset: PIECE_PLACEMENT_Y_OFFSET
+  });
+  return {
+    ...assets,
+    userData: { ...(assets.userData || {}), styleId: POLYHAVEN_CHESS_SET_ID, preserveOriginalMaterials: true }
+  };
 }
 
 function buildLathe(profile, segments = 32) {
@@ -6009,8 +6131,12 @@ function Chess3D({
     }
     const pieceSetOption =
       PIECE_STYLE_OPTIONS[normalized.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-    const nextPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
-    const isBeautifulGameSet = (arena.activePieceSetId || nextPieceSetId || '').startsWith('beautifulGame');
+    const nextPieceSetId = POLYHAVEN_CHESS_SET_ID;
+    const preserveNativePieces = PRESERVE_NATIVE_PIECE_IDS.has(
+      arena.activePieceSetId || nextPieceSetId
+    );
+    const isBeautifulGameSet =
+      (arena.activePieceSetId || nextPieceSetId || '').startsWith('beautifulGame');
     const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[normalized.tableBase] ?? TABLE_BASE_OPTIONS[0];
@@ -6019,7 +6145,11 @@ function Chess3D({
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
     const headPreset = palette.head ?? HEAD_PRESET_OPTIONS[0].preset;
-    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
+    const pieceSetLoader = (size = RAW_BOARD_SIZE) =>
+      loadPolyHavenChessAssets(size).catch((error) => {
+        console.warn('Chess Battle Royal: PolyHaven chess set failed, falling back', error);
+        return resolveBeautifulGameAssets(size);
+      });
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
 
     if (shapeOption) {
@@ -6074,17 +6204,20 @@ function Chess3D({
       }
     }
 
-    if (arena.piecePrototypes) {
+    if (!preserveNativePieces && arena.piecePrototypes) {
       harmonizeBeautifulGamePieces(arena.piecePrototypes, pieceStyleOption);
       applyHeadPresetToPrototypes(arena.piecePrototypes, headPreset);
     }
-    if (arena.allPieceMeshes) {
+    if (arena.allPieceMeshes && !preserveNativePieces) {
       applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption);
       applyHeadPresetToMeshes(arena.allPieceMeshes, headPreset);
     }
 
     if (arena.boardModel) {
-      applyBeautifulGameBoardTheme(arena.boardModel, boardTheme);
+      const themedBoard = preserveNativePieces
+        ? { ...(boardTheme || {}), preserveOriginalMaterials: true }
+        : boardTheme;
+      applyBeautifulGameBoardTheme(arena.boardModel, themedBoard);
       arena.boardModel.visible = true;
       arena.setProceduralBoardVisible?.(false);
     }
@@ -6134,11 +6267,11 @@ function Chess3D({
       });
     }
 
-    if (isBeautifulGameSet && arena.piecePrototypes) {
+    if (isBeautifulGameSet && arena.piecePrototypes && !preserveNativePieces) {
       harmonizeBeautifulGamePieces(arena.piecePrototypes, pieceStyleOption);
     }
 
-    if (arena.allPieceMeshes) {
+    if (arena.allPieceMeshes && !preserveNativePieces) {
       if (isBeautifulGameSet) {
         applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption);
         disposePieceMaterials(arena.pieceMaterials);
@@ -6244,8 +6377,12 @@ function Chess3D({
       const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
       const pieceSetOption =
         PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-      const initialPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
-      const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
+      const initialPieceSetId = POLYHAVEN_CHESS_SET_ID;
+      const pieceSetLoader = (size = RAW_BOARD_SIZE) =>
+        loadPolyHavenChessAssets(size).catch((error) => {
+          console.warn('Chess Battle Royal: PolyHaven chess set failed, falling back', error);
+          return resolveBeautifulGameAssets(size);
+        });
       const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
       const initialPlayerFlag =
         playerFlag ||
@@ -7275,7 +7412,10 @@ function Chess3D({
         );
         currentPieceYOffset = preferredYOffset;
         boardGroup.add(boardModel);
-        applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
+        const resolvedBoardTheme = preserveOriginalMaterials
+          ? { ...(paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME), preserveOriginalMaterials: true }
+          : paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME;
+        applyBeautifulGameBoardTheme(boardModel, resolvedBoardTheme);
         setProceduralBoardVisible(false);
         currentBoardModel = boardModel;
         currentBoardCleanup = () => {
