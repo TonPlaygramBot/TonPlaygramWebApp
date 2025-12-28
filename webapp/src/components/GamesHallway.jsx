@@ -12,7 +12,6 @@ import { getOnlineCount } from '../utils/api.js';
 
 const WALL_REPEAT = new THREE.Vector2(10, 2.8); // tighter marble tiling around the hallway
 const PREFERRED_SIZES = ['4k', '2k', '1k'];
-const PLANT_TEXTURE_SIZES = ['2k', '1k'];
 
 const fallbackGameNames = [
   'Chess Arena',
@@ -30,7 +29,6 @@ const fallbackGameNames = [
 
 let modernLightBufferPromise = null;
 let sharedKTX2Loader = null;
-const plantTextureCache = new Map();
 
 function buildModernCeilingLightBuffer() {
   if (!modernLightBufferPromise) {
@@ -139,111 +137,6 @@ function createConfiguredGLTFLoader(renderer = null) {
 
   loader.setKTX2Loader(sharedKTX2Loader);
   return loader;
-}
-
-function pickPolyHavenTextureUrl(apiJson, keywords, preferredSizes = PREFERRED_SIZES) {
-  const urls = [];
-  const walk = (value) => {
-    if (!value) return;
-    if (typeof value === 'string') {
-      if (value.startsWith('http') && /\.(png|jpg)$/i.test(value)) {
-        urls.push(value);
-      }
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach(walk);
-      return;
-    }
-    if (typeof value === 'object') {
-      Object.values(value).forEach(walk);
-    }
-  };
-  walk(apiJson);
-
-  const lowerKeywords = keywords.map((kw) => kw.toLowerCase());
-  const scored = urls
-    .filter((url) => lowerKeywords.some((kw) => url.toLowerCase().includes(kw)))
-    .map((url) => {
-      const lower = url.toLowerCase();
-      let score = 0;
-      preferredSizes.forEach((size, index) => {
-        if (lower.includes(`/${size}/`)) {
-          score += (preferredSizes.length - index) * 12;
-        }
-      });
-      if (lower.endsWith('.jpg')) score += 6;
-      if (lower.endsWith('.png')) score += 3;
-      if (lower.includes('/preview/') || lower.includes('thumb')) score -= 50;
-      return { url, score };
-    })
-    .sort((a, b) => b.score - a.score);
-  return scored[0]?.url;
-}
-
-async function loadPlantTextureSet(slug, loader, maxAnisotropy) {
-  if (plantTextureCache.has(slug)) {
-    return plantTextureCache.get(slug);
-  }
-
-  const promise = (async () => {
-    const response = await fetch(`https://api.polyhaven.com/files/${slug}`);
-    if (!response.ok) {
-      return null;
-    }
-    const json = await response.json();
-    const pick = (keywords) => pickPolyHavenTextureUrl(json, keywords, PLANT_TEXTURE_SIZES);
-    const potDiffuseUrl = pick(['pot_diff', 'pot_basecolor', 'pot_albedo']);
-    const potRoughUrl = pick(['pot_rough', 'pot_roughness']);
-    const potNormalUrl = pick(['pot_nor', 'pot_normal', 'pot_nor_gl']);
-    const leafDiffuseUrl = pick(['leaves_diff', 'leaf_diff', 'leaves_basecolor']);
-    const leafRoughUrl = pick(['leaves_rough', 'leaf_roughness']);
-    const leafNormalUrl = pick(['leaves_nor', 'leaves_nor_gl', 'leaves_normal']);
-    const leafAlphaUrl = pick(['leaves_alpha', 'leaf_alpha']);
-
-    const wrapTexture = (texture, isColor) => {
-      if (!texture) return;
-      texture.wrapS = THREE.RepeatWrapping;
-      texture.wrapT = THREE.RepeatWrapping;
-      texture.anisotropy = maxAnisotropy;
-      if (isColor) {
-        texture.colorSpace = THREE.SRGBColorSpace;
-      }
-      texture.needsUpdate = true;
-    };
-
-    const [potMap, potRoughnessMap, potNormalMap, leafMap, leafRoughnessMap, leafNormalMap, leafAlphaMap] =
-      await Promise.all([
-        potDiffuseUrl ? loadTexture(loader, potDiffuseUrl, true) : null,
-        potRoughUrl ? loadTexture(loader, potRoughUrl, false) : null,
-        potNormalUrl ? loadTexture(loader, potNormalUrl, false) : null,
-        leafDiffuseUrl ? loadTexture(loader, leafDiffuseUrl, true) : null,
-        leafRoughUrl ? loadTexture(loader, leafRoughUrl, false) : null,
-        leafNormalUrl ? loadTexture(loader, leafNormalUrl, false) : null,
-        leafAlphaUrl ? loadTexture(loader, leafAlphaUrl, false) : null
-      ]);
-
-    wrapTexture(potMap, true);
-    wrapTexture(potRoughnessMap, false);
-    wrapTexture(potNormalMap, false);
-    wrapTexture(leafMap, true);
-    wrapTexture(leafRoughnessMap, false);
-    wrapTexture(leafNormalMap, false);
-    wrapTexture(leafAlphaMap, false);
-
-    return {
-      pot: { map: potMap, roughnessMap: potRoughnessMap, normalMap: potNormalMap },
-      leaves: {
-        map: leafMap,
-        roughnessMap: leafRoughnessMap,
-        normalMap: leafNormalMap,
-        alphaMap: leafAlphaMap
-      }
-    };
-  })().catch(() => null);
-
-  plantTextureCache.set(slug, promise);
-  return promise;
 }
 
 export default function GamesHallway({ games, onClose }) {
@@ -820,26 +713,36 @@ export default function GamesHallway({ games, onClose }) {
       scene.add(doorGroup);
     });
 
+    const carbonFiberTexture = (() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#0a0a0a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, canvas.width / 2, canvas.height / 2);
+        ctx.fillRect(canvas.width / 2, canvas.height / 2, canvas.width / 2, canvas.height / 2);
+        ctx.fillStyle = '#161616';
+        ctx.fillRect(0, canvas.height / 2, canvas.width / 2, canvas.height / 2);
+        ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height / 2);
+      }
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(8, 8);
+      texture.anisotropy = maxAnisotropy;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      return texture;
+    })();
+
     const potFallbackTexture = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/uv_grid_opengl.jpg');
     potFallbackTexture.colorSpace = THREE.SRGBColorSpace;
     potFallbackTexture.wrapS = THREE.RepeatWrapping;
     potFallbackTexture.wrapT = THREE.RepeatWrapping;
     potFallbackTexture.repeat.set(1.6, 1.6);
     potFallbackTexture.anisotropy = maxAnisotropy;
-
-    const sconceBackMat = new THREE.MeshBasicMaterial({ color: '#0c0c0c', side: THREE.DoubleSide });
-    const sconceGlowMat = new THREE.MeshBasicMaterial({
-      color: '#ffe8c9',
-      transparent: true,
-      opacity: 0.82,
-      side: THREE.DoubleSide
-    });
-    const sconceHaloMat = new THREE.MeshBasicMaterial({
-      color: '#ffc47d',
-      transparent: true,
-      opacity: 0.45,
-      side: THREE.DoubleSide
-    });
 
     const buildProceduralPlant = () => {
       const pot = new THREE.Group();
@@ -868,12 +771,11 @@ export default function GamesHallway({ games, onClose }) {
       leaves.position.y = 2.2;
       pot.add(leaves);
 
-    return { scene: pot, scale: 1.1 };
+      return { scene: pot, scale: 1.1 };
     };
 
     const plantModelSources = [
       {
-        slug: 'potted_plant_01',
         urls: [
           'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/potted_plant_01/potted_plant_01_2k.gltf',
           'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/potted_plant_01/potted_plant_01_1k.gltf'
@@ -881,7 +783,6 @@ export default function GamesHallway({ games, onClose }) {
         scale: 2.35
       },
       {
-        slug: 'potted_plant_02',
         urls: [
           'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/potted_plant_02/potted_plant_02_2k.gltf',
           'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/potted_plant_02/potted_plant_02_1k.gltf'
@@ -889,6 +790,30 @@ export default function GamesHallway({ games, onClose }) {
         scale: 2.15
       }
     ];
+
+    const sconcePlateMat = new THREE.MeshStandardMaterial({
+      color: '#0a0a0a',
+      metalness: 0.72,
+      roughness: 0.32,
+      map: carbonFiberTexture
+    });
+    const sconceShadeMat = new THREE.MeshStandardMaterial({
+      color: '#fff0cd',
+      emissive: '#ffe4b0',
+      emissiveIntensity: 0.8,
+      metalness: 0.25,
+      roughness: 0.22,
+      transparent: true,
+      opacity: 0.72,
+      side: THREE.DoubleSide
+    });
+    const sconceBulbMat = new THREE.MeshStandardMaterial({
+      color: '#fff9ec',
+      emissive: '#ffe7c4',
+      emissiveIntensity: 0.95,
+      metalness: 0.1,
+      roughness: 0.1
+    });
 
     const addFlowerPotsBetweenDoors = async () => {
       if (!doorAngles.length) {
@@ -910,14 +835,6 @@ export default function GamesHallway({ games, onClose }) {
         })
       );
 
-      const textureSets = await Promise.all(
-        plantModelSources.map(async (source) => ({
-          slug: source.slug,
-          textures: await loadPlantTextureSet(source.slug, loader, maxAnisotropy)
-        }))
-      );
-      const getTextureSet = (slug) => textureSets.find((entry) => entry.slug === slug)?.textures ?? null;
-
       if (disposed) {
         loadedPlants
           .filter(Boolean)
@@ -932,37 +849,10 @@ export default function GamesHallway({ games, onClose }) {
         return;
       }
 
-      const applyPlantMaterialTextures = (material, textureSet) => {
-        if (!textureSet || !material) return;
-        const name = material.name?.toLowerCase?.() || '';
-        const isLeaf = name.includes('leaf') || name.includes('foliage');
-        const isPot = name.includes('pot') || name.includes('soil');
-        const chosen = isLeaf ? textureSet.leaves : isPot ? textureSet.pot : null;
-        if (!chosen) return;
-
-        if (!material.map && chosen.map) {
-          material.map = chosen.map;
-        }
-        if (!material.roughnessMap && chosen.roughnessMap) {
-          material.roughnessMap = chosen.roughnessMap;
-        }
-        if (!material.normalMap && chosen.normalMap) {
-          material.normalMap = chosen.normalMap;
-        }
-        if (isLeaf && chosen.alphaMap && !material.alphaMap) {
-          material.alphaMap = chosen.alphaMap;
-          material.transparent = true;
-          material.alphaTest = Math.max(material.alphaTest ?? 0.35, 0.35);
-          material.depthWrite = false;
-        }
-        material.needsUpdate = true;
-      };
-
       const plantVariants = loadedPlants
         .filter(Boolean)
         .map(({ gltf, source }) => {
           const scene = gltf?.scene;
-          const textureSet = getTextureSet(source.slug);
           if (scene) {
             scene.traverse((child) => {
               if (child.isMesh && child.material) {
@@ -970,7 +860,6 @@ export default function GamesHallway({ games, onClose }) {
                 child.receiveShadow = true;
                 child.material.roughness = Math.max(child.material.roughness ?? 0.4, 0.4);
                 child.material.metalness = Math.min(child.material.metalness ?? 0.3, 0.3);
-                applyPlantMaterialTextures(child.material, textureSet);
                 if (child.material.map) {
                   child.material.map.colorSpace = THREE.SRGBColorSpace;
                   child.material.map.anisotropy = maxAnisotropy;
@@ -1018,8 +907,8 @@ export default function GamesHallway({ games, onClose }) {
           potGroup.add(instance);
         }
 
-        const potAccent = new THREE.PointLight(0xc9f7d2, 0.38, 4.6, 2.4);
-        potAccent.position.set(0, 1.5, 0);
+        const potAccent = new THREE.PointLight(0xc9f7d2, 0.48, 5.2, 2.6);
+        potAccent.position.set(0, 1.55, 0);
         potGroup.add(potAccent);
 
         scene.add(potGroup);
@@ -1030,21 +919,35 @@ export default function GamesHallway({ games, onClose }) {
         sconceGroup.position.set(sconceX, 4.45, sconceZ);
         sconceGroup.rotation.y = -(midpointAngle + Math.PI / 2);
 
-        const backing = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.6), sconceBackMat);
-        backing.receiveShadow = false;
-        sconceGroup.add(backing);
+        const backplate = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.5, 0.1), sconcePlateMat);
+        backplate.receiveShadow = true;
+        sconceGroup.add(backplate);
 
-        const glowPanel = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 1.1), sconceGlowMat);
-        glowPanel.position.z = 0.02;
-        sconceGroup.add(glowPanel);
+        const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.55, 16), sconcePlateMat);
+        arm.rotation.x = Math.PI / 2;
+        arm.position.z = 0.33;
+        sconceGroup.add(arm);
 
-        const halo = new THREE.Mesh(new THREE.CircleGeometry(0.46, 16), sconceHaloMat);
-        halo.position.set(0, 0.2, 0.04);
-        sconceGroup.add(halo);
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 18, 12), sconceBulbMat);
+        bulb.position.set(0, 0.12, 0.7);
+        bulb.castShadow = true;
+        sconceGroup.add(bulb);
 
-        const sconceGlow = new THREE.PointLight(0xffe4bf, 0.95, 7.2, 2.6);
-        sconceGlow.position.set(0, 0.24, 0.16);
+        const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.35, 0.8, 26, 1, true), sconceShadeMat);
+        shade.position.set(0, 0.12, 0.65);
+        shade.castShadow = true;
+        shade.receiveShadow = true;
+        sconceGroup.add(shade);
+
+        const sconceGlow = new THREE.PointLight(0xffe4bf, 1.6, 10, 2.2);
+        sconceGlow.position.set(0, 0.35, 0.5);
         sconceGroup.add(sconceGlow);
+
+        const sconceBeam = new THREE.SpotLight(0xffe9c8, 1.35, 11, Math.PI / 3.3, 0.55, 1.8);
+        sconceBeam.position.set(0, 0.3, 0.4);
+        sconceBeam.target.position.set(0, -1.8, -2.4);
+        sconceGroup.add(sconceBeam);
+        sconceGroup.add(sconceBeam.target);
 
         scene.add(sconceGroup);
       });
