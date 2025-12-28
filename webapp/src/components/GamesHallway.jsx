@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { clone as cloneSkinnedMesh } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { getOnlineCount } from '../utils/api.js';
 
 const WALL_REPEAT = new THREE.Vector2(10, 2.8); // tighter marble tiling around the hallway
@@ -108,6 +109,18 @@ export default function GamesHallway({ games, onClose }) {
 
     const gltfLoader = new GLTFLoader();
     gltfLoader.setCrossOrigin('anonymous');
+
+    const loadGltfWithFallbacks = async (urls) => {
+      for (const url of urls) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          return await gltfLoader.loadAsync(url);
+        } catch (error) {
+          // try next fallback
+        }
+      }
+      throw new Error('All GLTF sources failed');
+    };
 
     const ambient = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambient);
@@ -409,6 +422,9 @@ export default function GamesHallway({ games, onClose }) {
 
     const woodTex = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/wood/mahogany_diffuse.jpg');
     woodTex.colorSpace = THREE.SRGBColorSpace;
+    woodTex.wrapS = THREE.RepeatWrapping;
+    woodTex.wrapT = THREE.RepeatWrapping;
+    woodTex.anisotropy = maxAnisotropy;
 
     const handleTex = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/metal/Brass_Albedo.jpg');
     handleTex.colorSpace = THREE.SRGBColorSpace;
@@ -587,59 +603,102 @@ export default function GamesHallway({ games, onClose }) {
       scene.add(doorGroup);
     });
 
-    const addFlowerPotsBetweenDoors = () => {
+    const carbonFiberTexture = (() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#0a0a0a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, canvas.width / 2, canvas.height / 2);
+        ctx.fillRect(canvas.width / 2, canvas.height / 2, canvas.width / 2, canvas.height / 2);
+        ctx.fillStyle = '#161616';
+        ctx.fillRect(0, canvas.height / 2, canvas.width / 2, canvas.height / 2);
+        ctx.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height / 2);
+      }
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(8, 8);
+      texture.anisotropy = maxAnisotropy;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      return texture;
+    })();
+
+    const flowerPotUrls = [
+      'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Flower/Flower.glb',
+      'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/gltf/Flower/Flower.glb'
+    ];
+
+    const sconcePlateMat = new THREE.MeshStandardMaterial({
+      color: '#0a0a0a',
+      metalness: 0.72,
+      roughness: 0.32,
+      map: carbonFiberTexture
+    });
+    const sconceShadeMat = new THREE.MeshStandardMaterial({
+      color: '#fff0cd',
+      emissive: '#ffe4b0',
+      emissiveIntensity: 0.8,
+      metalness: 0.25,
+      roughness: 0.22,
+      transparent: true,
+      opacity: 0.72,
+      side: THREE.DoubleSide
+    });
+    const sconceBulbMat = new THREE.MeshStandardMaterial({
+      color: '#fff9ec',
+      emissive: '#ffe7c4',
+      emissiveIntensity: 0.95,
+      metalness: 0.1,
+      roughness: 0.1
+    });
+
+    const addFlowerPotsBetweenDoors = async () => {
       if (!doorAngles.length) {
         return;
       }
-      const potBodyMat = new THREE.MeshStandardMaterial({
-        color: '#c09363',
-        metalness: 0.35,
-        roughness: 0.58
-      });
-      const potRimMat = new THREE.MeshStandardMaterial({
-        color: '#a7723d',
-        metalness: 0.45,
-        roughness: 0.38
-      });
-      const soilMat = new THREE.MeshStandardMaterial({
-        color: '#3b2b1f',
-        metalness: 0.12,
-        roughness: 0.86
-      });
-      const leafMat = new THREE.MeshStandardMaterial({
-        color: '#1f7a42',
-        emissive: '#0f3f23',
-        emissiveIntensity: 0.16,
-        metalness: 0.14,
-        roughness: 0.32,
-        side: THREE.DoubleSide
-      });
-      const sconcePlateMat = new THREE.MeshStandardMaterial({
-        color: '#d2b070',
-        metalness: 0.82,
-        roughness: 0.32
-      });
-      const sconceShadeMat = new THREE.MeshStandardMaterial({
-        color: '#fff0cd',
-        emissive: '#ffe4b0',
-        emissiveIntensity: 0.8,
-        metalness: 0.25,
-        roughness: 0.22,
-        transparent: true,
-        opacity: 0.72,
-        side: THREE.DoubleSide
-      });
-      const sconceBulbMat = new THREE.MeshStandardMaterial({
-        color: '#fff9ec',
-        emissive: '#ffe7c4',
-        emissiveIntensity: 0.95,
-        metalness: 0.1,
-        roughness: 0.1
-      });
 
       const potRadius = 16.6;
       const sconceRadius = 19.15;
       const twoPi = Math.PI * 2;
+
+      let flowerGltf = null;
+      try {
+        flowerGltf = await loadGltfWithFallbacks(flowerPotUrls);
+      } catch (error) {
+        // keep hallway functional even if assets fail to load
+        flowerGltf = null;
+      }
+
+      if (disposed) {
+        flowerGltf?.scene?.traverse((child) => {
+          if (child.isMesh) {
+            child.geometry?.dispose?.();
+            disposeMeshMaterials(child.material);
+          }
+        });
+        return;
+      }
+
+      const flowerModel = flowerGltf?.scene;
+      if (flowerModel) {
+        flowerModel.traverse((child) => {
+          if (child.isMesh && child.material) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            child.material.roughness = Math.max(child.material.roughness ?? 0.42, 0.42);
+            child.material.metalness = Math.min(child.material.metalness ?? 0.25, 0.25);
+            if (child.material.map) {
+              child.material.map.colorSpace = THREE.SRGBColorSpace;
+              child.material.map.anisotropy = maxAnisotropy;
+            }
+            child.material.needsUpdate = true;
+          }
+        });
+      }
 
       doorAngles.forEach((angle, index) => {
         let delta = wrapAngle(doorAngles[(index + 1) % doorAngles.length] - angle);
@@ -654,35 +713,11 @@ export default function GamesHallway({ games, onClose }) {
         potGroup.position.set(potX, 0, potZ);
         potGroup.rotation.y = -(midpointAngle + Math.PI / 2);
 
-        const potBody = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 1, 1.15, 48, 1, true), potBodyMat);
-        potBody.position.y = 0.58;
-        potBody.castShadow = true;
-        potBody.receiveShadow = true;
-        potGroup.add(potBody);
-
-        const potLip = new THREE.Mesh(new THREE.TorusGeometry(0.82, 0.08, 20, 64), potRimMat);
-        potLip.position.y = 1.05;
-        potLip.rotation.x = Math.PI / 2;
-        potLip.castShadow = true;
-        potLip.receiveShadow = true;
-        potGroup.add(potLip);
-
-        const soil = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.18, 32), soilMat);
-        soil.position.y = 0.96;
-        soil.receiveShadow = true;
-        potGroup.add(soil);
-
-        for (let i = 0; i < 6; i += 1) {
-          const leafGeom = new THREE.ConeGeometry(0.18, 0.95, 12, 1, true);
-          const theta = (i / 6) * twoPi;
-          const leaf = new THREE.Mesh(leafGeom, leafMat);
-          const radiusOffset = 0.32 + (i % 2) * 0.05;
-          leaf.position.set(Math.cos(theta) * radiusOffset, 1 + Math.random() * 0.2, Math.sin(theta) * radiusOffset);
-          leaf.rotation.z = -Math.PI / 5 + Math.random() * 0.2;
-          leaf.rotation.x = Math.PI / 2.8;
-          leaf.castShadow = true;
-          leaf.receiveShadow = true;
-          potGroup.add(leaf);
+        if (flowerModel) {
+          const instance = cloneSkinnedMesh(flowerModel);
+          instance.position.set(0, 0.05, 0);
+          instance.scale.set(2.2, 2.2, 2.2);
+          potGroup.add(instance);
         }
 
         const potAccent = new THREE.PointLight(0xc9f7d2, 0.42, 4.8, 2.6);
@@ -732,6 +767,52 @@ export default function GamesHallway({ games, onClose }) {
     };
 
     void addFlowerPotsBetweenDoors();
+
+    const ceilingLampUrls = [
+      'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/AnisotropyBarnLamp.glb',
+      'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/gltf/AnisotropyBarnLamp.glb'
+    ];
+
+    const addCeilingLampShade = async () => {
+      try {
+        const gltf = await loadGltfWithFallbacks(ceilingLampUrls);
+        if (disposed) {
+          gltf?.scene?.traverse((child) => {
+            if (child.isMesh) {
+              child.geometry?.dispose?.();
+              disposeMeshMaterials(child.material);
+            }
+          });
+          return;
+        }
+        const lamp = gltf.scene || new THREE.Group();
+        lamp.position.set(0, 7.8, 0);
+        lamp.rotation.y = Math.PI / 6;
+        lamp.scale.set(1.6, 1.6, 1.6);
+        lamp.traverse((child) => {
+          if (child.isMesh && child.material) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            child.material.roughness = Math.max(child.material.roughness ?? 0.25, 0.25);
+            child.material.metalness = Math.min(child.material.metalness ?? 0.65, 0.65);
+            if (child.material.map) {
+              child.material.map.colorSpace = THREE.SRGBColorSpace;
+              child.material.map.anisotropy = maxAnisotropy;
+            }
+            child.material.needsUpdate = true;
+          }
+        });
+        scene.add(lamp);
+
+        const lampGlow = new THREE.PointLight(0xffe6c0, 1.4, 16, 1.9);
+        lampGlow.position.set(0, 7.3, 0);
+        scene.add(lampGlow);
+      } catch (error) {
+        // keep chandelier-only layout on failure
+      }
+    };
+
+    void addCeilingLampShade();
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
