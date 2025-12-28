@@ -1231,15 +1231,16 @@ const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.16; // widen the visible air gap so the blue tip never kisses the cue ball
 const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
-const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 1.85;
-const CUE_PULL_MIN_VISUAL = BALL_R * 1.55; // guarantee a clear visible pull even when clearance is tight
-const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.2; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_MULTIPLIER = 1.5;
+const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
+const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
+const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
+const CUE_PULL_VISUAL_MULTIPLIER = 1.7;
 const CUE_PULL_SMOOTHING = 0.55;
-const CUE_PULL_ALIGNMENT_BOOST = 0.26; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
-const CUE_PULL_CUE_CAMERA_DAMPING = 0.18; // trim the pull depth in cue view so the cue stays tight to the ball
-const CUE_PULL_STANDING_CAMERA_BONUS = 0.18; // add extra draw for higher orbit angles so the stroke feels weightier
-const CUE_PULL_MAX_VISUAL_BONUS = 0.32; // cap the compensation so the cue never overextends past the intended stroke
+const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
+const CUE_PULL_CUE_CAMERA_DAMPING = 0.12; // trim the pull depth in cue view so the cue stays tight to the ball
+const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
+const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_STROKE_MIN_MS = 95;
 const CUE_STROKE_MAX_MS = 420;
 const CUE_STROKE_SPEED_MIN = BALL_R * 18;
@@ -5261,6 +5262,7 @@ const REPLAY_BANNER_VARIANTS = {
 };
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
+const REPLAY_CUE_RETURN_WINDOW_MS = 260;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
@@ -5281,6 +5283,8 @@ const AI_CUE_VIEW_HOLD_MS = 2000;
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
 const AI_CAMERA_DROP_DURATION_MS = 480;
+const AI_STROKE_TIME_SCALE = 1.25;
+const AI_STROKE_PULLBACK_FACTOR = 0.9;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -14829,6 +14833,11 @@ const powerRef = useRef(hud.power);
             : cueStick.rotation.x;
           cueStick.visible = true;
           cueAnimating = true;
+          const returnWindowStart = Math.max(
+            impactEnd,
+            settleEnd - REPLAY_CUE_RETURN_WINDOW_MS
+          );
+          const showReturn = localTime >= returnWindowStart;
           if (localTime <= 0) {
             cueStick.position.copy(tmpReplayCueA);
             return;
@@ -14857,10 +14866,18 @@ const powerRef = useRef(hud.power);
             );
             tmpReplayCueA.set(impactSnap.x, impactSnap.y, impactSnap.z);
             tmpReplayCueB.set(settleSnap.x, settleSnap.y, settleSnap.z);
-            cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
+            if (showReturn) {
+              cueStick.visible = true;
+              cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
+            } else {
+              cueStick.visible = false;
+            }
             return;
           }
-          cueStick.position.set(settleSnap.x, settleSnap.y, settleSnap.z);
+          cueStick.visible = showReturn;
+          if (showReturn) {
+            cueStick.position.set(settleSnap.x, settleSnap.y, settleSnap.z);
+          }
           cueAnimating = false;
         };
 
@@ -16739,7 +16756,8 @@ const powerRef = useRef(hud.power);
         const desiredTarget = preserveLarger
           ? Math.max(cuePullCurrentRef.current ?? 0, pullTarget ?? 0)
           : pullTarget ?? 0;
-        const clampedTarget = THREE.MathUtils.clamp(desiredTarget, 0, effectiveMax);
+        const boostedTarget = desiredTarget * CUE_PULL_GLOBAL_VISIBILITY_BOOST;
+        const clampedTarget = THREE.MathUtils.clamp(boostedTarget, 0, effectiveMax);
         const smoothing = instant || dragging ? 1 : CUE_PULL_SMOOTHING;
         const nextPull =
           smoothing >= 1
@@ -17195,7 +17213,7 @@ const powerRef = useRef(hud.power);
             CUE_STROKE_SPEED_MAX,
             clampedPower
           );
-          const forwardDuration = THREE.MathUtils.clamp(
+          const forwardDurationBase = THREE.MathUtils.clamp(
             (forwardDistance / Math.max(forwardSpeed, 1e-4)) * 1000,
             CUE_STROKE_MIN_MS,
             CUE_STROKE_MAX_MS
@@ -17205,14 +17223,22 @@ const powerRef = useRef(hud.power);
             CUE_FOLLOW_SPEED_MAX,
             clampedPower
           );
-          const settleDuration = THREE.MathUtils.clamp(
+          const settleDurationBase = THREE.MathUtils.clamp(
             (totalRetreat / Math.max(settleSpeed, 1e-4)) * 1000 * (backSpinWeight > 0 ? 0.82 : 1),
             CUE_FOLLOW_MIN_MS,
             CUE_FOLLOW_MAX_MS
           );
+          const aiStrokeScale =
+            aiOpponentEnabled && hudRef.current?.turn === 1 ? AI_STROKE_TIME_SCALE : 1;
+          const forwardDuration = forwardDurationBase * aiStrokeScale;
+          const settleDuration = settleDurationBase * aiStrokeScale;
           const pullbackDuration =
             aiOpponentEnabled && hudRef.current?.turn === 1
-              ? Math.max(CUE_STROKE_MIN_MS, forwardDuration * 0.65)
+              ? Math.max(
+                  CUE_STROKE_MIN_MS,
+                  forwardDuration * AI_STROKE_PULLBACK_FACTOR,
+                  AI_CAMERA_DROP_DURATION_MS * 0.9
+                )
               : 0;
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
@@ -18384,7 +18410,7 @@ const powerRef = useRef(hud.power);
             suggestionAimKeyRef.current = key;
             return true;
           };
-          const preferAutoAim = autoAimRequestRef.current || plan?.viaCushion;
+          const preferAutoAim = autoAimRequestRef.current;
           if (preferAutoAim) {
             let autoDir = resolveAutoAimDirection();
             if (!autoDir && plan?.targetBall && cue?.pos) {
