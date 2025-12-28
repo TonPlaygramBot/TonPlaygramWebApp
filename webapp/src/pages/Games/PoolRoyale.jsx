@@ -5223,7 +5223,6 @@ const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.48;
-const CUE_VIEW_FORWARD_SLIDE_NUDGE = CAMERA.minR * 0.16; // limit forward push when users drag below the lowest cue angle
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
@@ -12790,25 +12789,14 @@ const powerRef = useRef(hud.power);
           const blend = THREE.MathUtils.clamp(requestedBlend, 0, 1);
           const overshoot = Math.max(0, blend - requestedBlend);
           cameraBlendRef.current = blend;
-          if (overshoot > 1e-6 && CUE_VIEW_FORWARD_SLIDE_MAX > 0 && CUE_VIEW_FORWARD_SLIDE_NUDGE > 0) {
-            const slideStore = Math.min(
-              lowViewSlideRef.current ?? 0,
-              CUE_VIEW_FORWARD_SLIDE_NUDGE
+          if (overshoot > 1e-6 && CUE_VIEW_FORWARD_SLIDE_MAX > 0) {
+            const slideStore = lowViewSlideRef.current ?? 0;
+            const increment = overshoot * CUE_VIEW_FORWARD_SLIDE_MAX;
+            lowViewSlideRef.current = THREE.MathUtils.clamp(
+              slideStore + increment,
+              0,
+              CUE_VIEW_FORWARD_SLIDE_MAX
             );
-            const remaining = Math.max(0, CUE_VIEW_FORWARD_SLIDE_NUDGE - slideStore);
-            if (remaining > 1e-6) {
-              const increment = Math.min(
-                remaining,
-                overshoot * CUE_VIEW_FORWARD_SLIDE_MAX
-              );
-              if (increment > 1e-6) {
-                lowViewSlideRef.current = THREE.MathUtils.clamp(
-                  slideStore + increment,
-                  0,
-                  CUE_VIEW_FORWARD_SLIDE_NUDGE
-                );
-              }
-            }
           } else if (blend >= CUE_VIEW_FORWARD_SLIDE_RESET_BLEND) {
             if (blend >= 0.95) {
               lowViewSlideRef.current = 0;
@@ -12818,14 +12806,10 @@ const powerRef = useRef(hud.power);
                 blend - CUE_VIEW_FORWARD_SLIDE_RESET_BLEND
               );
               if (decayBlend > 0 && CUE_VIEW_FORWARD_SLIDE_MAX > 0) {
-                const slideStore = Math.min(
-                  lowViewSlideRef.current ?? 0,
-                  CUE_VIEW_FORWARD_SLIDE_NUDGE
-                );
-                const decay = decayBlend * Math.min(CUE_VIEW_FORWARD_SLIDE_MAX, CUE_VIEW_FORWARD_SLIDE_NUDGE);
+                const decay = decayBlend * CUE_VIEW_FORWARD_SLIDE_MAX;
                 lowViewSlideRef.current = Math.max(
                   0,
-                  Math.min(CUE_VIEW_FORWARD_SLIDE_NUDGE, slideStore - decay)
+                  lowViewSlideRef.current - decay
                 );
               }
             }
@@ -12922,11 +12906,8 @@ const powerRef = useRef(hud.power);
                 ? Math.max(zoomed, minRadiusForRails)
                 : zoomed;
           }
-          if (CUE_VIEW_FORWARD_SLIDE_MAX > 0 && CUE_VIEW_FORWARD_SLIDE_NUDGE > 0) {
-            const storedSlide = Math.min(
-              lowViewSlideRef.current ?? 0,
-              CUE_VIEW_FORWARD_SLIDE_NUDGE
-            );
+          if (CUE_VIEW_FORWARD_SLIDE_MAX > 0) {
+            const storedSlide = lowViewSlideRef.current ?? 0;
             if (storedSlide > 1e-6) {
               const fade =
                 CUE_VIEW_FORWARD_SLIDE_BLEND_FADE > 1e-6
@@ -16687,14 +16668,14 @@ const powerRef = useRef(hud.power);
           }
         }
         const blend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
-        const cameraHeightBoost = THREE.MathUtils.clamp(
-          THREE.MathUtils.lerp(0, CUE_PULL_LOW_CAMERA_BONUS, blend),
+        const lowCameraBoost = THREE.MathUtils.lerp(
+          CUE_PULL_LOW_CAMERA_BONUS,
           0,
-          CUE_PULL_LOW_CAMERA_BONUS
+          blend
         );
         const alignmentBoost = 1 + alignment * CUE_PULL_ALIGNMENT_BOOST;
         const compensated =
-          basePull * alignmentBoost * (1 + cameraHeightBoost);
+          basePull * alignmentBoost * (1 + lowCameraBoost);
         const maxScale = 1 + CUE_PULL_MAX_VISUAL_BONUS;
         return Math.min(compensated, basePull * maxScale);
       };
