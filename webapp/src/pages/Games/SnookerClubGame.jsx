@@ -16234,13 +16234,11 @@ export function PoolRoyaleGame({
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const pullTarget = Math.min(desiredPull, maxPull);
           cuePullTargetRef.current = pullTarget;
-          const pull = powerSliderDraggingRef.current
-            ? pullTarget
-            : THREE.MathUtils.lerp(
-                cuePullCurrentRef.current ?? 0,
-                pullTarget,
-                CUE_PULL_SMOOTHING
-              );
+          const pull = THREE.MathUtils.lerp(
+            cuePullCurrentRef.current ?? 0,
+            pullTarget,
+            CUE_PULL_SMOOTHING
+          );
           cuePullCurrentRef.current = pull;
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
@@ -17219,7 +17217,6 @@ export function PoolRoyaleGame({
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const powerSliderDraggingRef = useRef(false);
   const showPowerSlider = !hud.over;
   useEffect(() => {
     if (!showPowerSlider) {
@@ -17232,9 +17229,6 @@ export function PoolRoyaleGame({
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onDragStateChange: (dragging) => {
-        powerSliderDraggingRef.current = dragging;
-      },
       onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
       onCommit: () => {
         fireRef.current?.();
