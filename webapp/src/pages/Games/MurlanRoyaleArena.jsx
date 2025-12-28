@@ -11,10 +11,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import {
-  createArenaCarpetMaterial,
-  createArenaWallMaterial
-} from '../../utils/arenaDecor.js';
+import { createArenaCarpetMaterial } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js';
@@ -47,6 +44,7 @@ import {
 } from '../../../../lib/murlan.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
+import { clone as cloneSkinnedMesh } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {
   MURLAN_OUTFIT_THEMES as OUTFIT_THEMES,
   MURLAN_STOOL_THEMES as STOOL_THEMES,
@@ -60,10 +58,10 @@ const CHAIR_SIZE_SCALE = 1.3;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const CHAIR_COUNT = 4;
 const CUSTOM_SEAT_ANGLES = [
-  THREE.MathUtils.degToRad(90),
-  THREE.MathUtils.degToRad(315),
   THREE.MathUtils.degToRad(270),
-  THREE.MathUtils.degToRad(225)
+  THREE.MathUtils.degToRad(0),
+  THREE.MathUtils.degToRad(180),
+  THREE.MathUtils.degToRad(90)
 ];
 
 const SUITS = ['♠', '♥', '♦', '♣'];
@@ -269,10 +267,14 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
-const POLYHAVEN_PLANT_ASSETS = ['potted_plant_01', 'potted_plant_02', 'potted_plant_04', 'planter_box_01'];
+const HALLWAY_PLANT_ASSETS = ['potted_plant_01', 'potted_plant_02', 'potted_plant_04'];
 const POLYHAVEN_MODEL_CACHE = new Map();
-const PLANT_TARGET_HEIGHT = 2.8 * MODEL_SCALE;
+const PLANT_TARGET_HEIGHT = 2.1;
+const DECOR_PLANT_COUNT = 4;
 const DECOR_PLANT_RADIUS_SCALE = 0.9;
+const HALLWAY_PLANT_SCALE = 2;
+const HALLWAY_WALL_TEXTURE_URL = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/water.jpg';
+const HALLWAY_WALL_TEXTURE_REPEAT = new THREE.Vector2(4, 2.4);
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 
@@ -519,6 +521,37 @@ function prepareLoadedModel(model) {
       });
     }
   });
+}
+
+function buildProceduralPlant(fallbackTexture = null) {
+  const pot = new THREE.Group();
+  const potBody = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.9, 1.15, 1.2, 24),
+    new THREE.MeshStandardMaterial({
+      color: '#d2b48c',
+      map: fallbackTexture ?? null,
+      metalness: 0.2,
+      roughness: 0.55
+    })
+  );
+  potBody.position.y = 0.6;
+  pot.add(potBody);
+
+  const leaves = new THREE.Mesh(
+    new THREE.ConeGeometry(1.45, 2.4, 28, 6),
+    new THREE.MeshStandardMaterial({
+      color: '#2f5d37',
+      emissive: '#1a3a1f',
+      emissiveIntensity: 0.12,
+      metalness: 0.15,
+      roughness: 0.6
+    })
+  );
+  leaves.position.y = 2.2;
+  pot.add(leaves);
+
+  fitModelToHeight(pot, PLANT_TARGET_HEIGHT);
+  return pot;
 }
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
@@ -1079,10 +1112,10 @@ const AI_TURN_DELAY = 2000;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
-  { left: '22%', top: '74%' },
-  { left: '78%', top: '28%' },
-  { left: '24%', top: '24%' },
-  { left: '78%', top: '72%' }
+  { left: '50%', top: '78%' },
+  { left: '78%', top: '50%' },
+  { left: '22%', top: '50%' },
+  { left: '50%', top: '22%' }
 ];
 
 const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -2088,6 +2121,13 @@ export default function MurlanRoyaleArena({ search }) {
       fallbackTexture.wrapT = THREE.RepeatWrapping;
       fallbackTexture.repeat.set(1.6, 1.6);
       fallbackTexture.anisotropy = maxAnisotropy;
+      const hallwayWallTexture = textureLoader.load(HALLWAY_WALL_TEXTURE_URL);
+      applySRGBColorSpace(hallwayWallTexture);
+      hallwayWallTexture.wrapS = THREE.RepeatWrapping;
+      hallwayWallTexture.wrapT = THREE.RepeatWrapping;
+      hallwayWallTexture.repeat.copy(HALLWAY_WALL_TEXTURE_REPEAT);
+      hallwayWallTexture.anisotropy = maxAnisotropy;
+      hallwayWallTexture.needsUpdate = true;
       threeStateRef.current.textureLoader = textureLoader;
       threeStateRef.current.textureCache = new Map();
       threeStateRef.current.maxAnisotropy = maxAnisotropy;
@@ -2157,6 +2197,15 @@ export default function MurlanRoyaleArena({ search }) {
       arenaGroup.add(carpet);
 
       const wallInnerRadius = TABLE_RADIUS * ARENA_GROWTH * 2.4;
+      const wallMaterial = new THREE.MeshStandardMaterial({
+        color: '#fdf8ef',
+        emissive: '#f0e8d0',
+        emissiveIntensity: 0.5,
+        metalness: 0.25,
+        roughness: 0.1,
+        side: THREE.DoubleSide,
+        map: hallwayWallTexture
+      });
       const wall = new THREE.Mesh(
         new THREE.CylinderGeometry(
           wallInnerRadius,
@@ -2166,7 +2215,7 @@ export default function MurlanRoyaleArena({ search }) {
           1,
           true
         ),
-        createArenaWallMaterial('#0b1120', '#1e293b')
+        wallMaterial
       );
       wall.position.y = ARENA_WALL_CENTER_Y;
       wall.receiveShadow = false;
@@ -2183,7 +2232,7 @@ export default function MurlanRoyaleArena({ search }) {
           const plantTextures = new Map(
             (
               await Promise.all(
-                POLYHAVEN_PLANT_ASSETS.map(async (assetId) => {
+                HALLWAY_PLANT_ASSETS.map(async (assetId) => {
                   const textures = await loadPolyhavenTextureSet(
                     assetId,
                     textureLoader,
@@ -2195,23 +2244,41 @@ export default function MurlanRoyaleArena({ search }) {
               )
             ).filter((entry) => entry[1])
           );
+          const loadedPlants = (
+            await Promise.all(
+              HALLWAY_PLANT_ASSETS.map(async (assetId) => {
+                try {
+                  return await createPolyhavenInstance(assetId, PLANT_TARGET_HEIGHT, 0, renderer, {
+                    textureLoader,
+                    maxAnisotropy,
+                    fallbackTexture,
+                    textureCache: threeStateRef.current.textureCache,
+                    textureSet: plantTextures.get(assetId)
+                  });
+                } catch (error) {
+                  return null;
+                }
+              })
+            )
+          ).filter(Boolean);
+          const basePlant = loadedPlants[0] ?? buildProceduralPlant(fallbackTexture);
           const radius = wallInnerRadius * DECOR_PLANT_RADIUS_SCALE;
-          for (let i = 0; i < POLYHAVEN_PLANT_ASSETS.length; i += 1) {
-            const assetId = POLYHAVEN_PLANT_ASSETS[i];
-            const plant = await createPolyhavenInstance(assetId, PLANT_TARGET_HEIGHT, 0, renderer, {
-              textureLoader,
-              maxAnisotropy,
-              fallbackTexture,
-              textureCache: threeStateRef.current.textureCache,
-              textureSet: plantTextures.get(assetId)
-            });
+          const totalPlants = Math.max(DECOR_PLANT_COUNT, 1);
+          for (let i = 0; i < totalPlants; i += 1) {
             if (disposed) return;
-            const angle = (i / POLYHAVEN_PLANT_ASSETS.length) * Math.PI * 2 + Math.PI / 4;
+            const angle = (i / totalPlants) * Math.PI * 2 + Math.PI / 4;
             const pos = new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
-            plant.position.add(pos);
-            plant.lookAt(new THREE.Vector3(0, plant.position.y + 0.1, 0));
-            decorGroup.add(plant);
-            threeStateRef.current.decorPlants.push(plant);
+            const plantGroup = new THREE.Group();
+            plantGroup.position.copy(pos);
+            plantGroup.scale.setScalar(HALLWAY_PLANT_SCALE);
+            const plantInstance = cloneSkinnedMesh(basePlant);
+            if (plantInstance) {
+              plantInstance.position.set(0, 0, 0);
+              plantGroup.add(plantInstance);
+              plantGroup.lookAt(new THREE.Vector3(0, plantGroup.position.y + 0.1, 0));
+              decorGroup.add(plantGroup);
+              threeStateRef.current.decorPlants.push(plantGroup);
+            }
           }
         } catch (error) {
           console.warn('Failed to load decor plants', error);
