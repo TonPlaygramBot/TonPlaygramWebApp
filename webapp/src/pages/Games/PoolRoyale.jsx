@@ -5231,6 +5231,7 @@ const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const GOOD_SHOT_REPLAY_DELAY_MS = 900;
 const REPLAY_TRANSITION_LEAD_MS = 420;
 const REPLAY_SLATE_DURATION_MS = 1200;
+const ENABLE_REPLAY_SLATE = false;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
@@ -10791,6 +10792,14 @@ const powerRef = useRef(hud.power);
   const spinLegalityRef = useRef({ blocked: false, reason: '' });
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
+  const recenterSpin = useCallback(() => {
+    const zeroSpin = { x: 0, y: 0 };
+    spinRef.current = { ...zeroSpin };
+    spinRequestRef.current = { ...zeroSpin };
+    spinAppliedRef.current = { ...zeroSpin, magnitude: 0, mode: 'standard' };
+    updateSpinDotPosition(zeroSpin, false);
+    resetSpinRef.current?.();
+  }, [updateSpinDotPosition]);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
@@ -16594,15 +16603,18 @@ const powerRef = useRef(hud.power);
       const computeCuePull = (
         pullTarget = 0,
         maxPull = CUE_PULL_BASE,
-        { instant = false, preserveLarger = false } = {}
+        { instant = false, preserveLarger = false, powerRatio = null } = {}
       ) => {
         const slider = sliderInstanceRef.current;
         const dragging = Boolean(slider?.dragging);
         const cappedMax = Number.isFinite(maxPull) ? Math.max(0, maxPull) : CUE_PULL_BASE;
         const effectiveMax = Math.max(cappedMax + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL);
+        const clampedRatio = powerRatio == null ? null : THREE.MathUtils.clamp(powerRatio, 0, 1);
+        const baseTarget =
+          clampedRatio != null ? effectiveMax * clampedRatio : pullTarget ?? 0;
         const desiredTarget = preserveLarger
-          ? Math.max(cuePullCurrentRef.current ?? 0, pullTarget ?? 0)
-          : pullTarget ?? 0;
+          ? Math.max(cuePullCurrentRef.current ?? 0, baseTarget)
+          : baseTarget;
         const clampedTarget = THREE.MathUtils.clamp(desiredTarget, 0, effectiveMax);
         const smoothing = instant || dragging ? 1 : CUE_PULL_SMOOTHING;
         const nextPull =
@@ -16935,10 +16947,10 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          const pullTarget = CUE_PULL_BASE * clampedPower;
-          const pull = computeCuePull(pullTarget, maxPull, {
+          const pull = computeCuePull(0, maxPull, {
             instant: true,
-            preserveLarger: true
+            preserveLarger: true,
+            powerRatio: clampedPower
           });
           cuePullCurrentRef.current = pull;
           cuePullTargetRef.current = pull;
@@ -16989,19 +17001,18 @@ const powerRef = useRef(hud.power);
             .sub(dir.clone().multiplyScalar(retreatDistance));
           cueStick.visible = true;
           cueStick.position.copy(startPos);
-          let frame = 0;
-          const forwardFrames = 6;
-          const backFrames = 8;
-          const animateStroke = () => {
-            frame += 1;
-            if (frame <= forwardFrames) {
-              cueStick.position.lerpVectors(startPos, impactPos, frame / forwardFrames);
-            } else if (frame <= forwardFrames + backFrames) {
-              cueStick.position.lerpVectors(
-                impactPos,
-                settlePos,
-                (frame - forwardFrames) / backFrames
-              );
+          const forwardDuration = THREE.MathUtils.lerp(260, 110, clampedPower);
+          const returnDuration = THREE.MathUtils.lerp(240, 170, clampedPower);
+          const strokeStart = performance.now();
+          const animateStroke = (timestamp) => {
+            const elapsed = timestamp - strokeStart;
+            if (elapsed <= forwardDuration) {
+              const t = forwardDuration > 0 ? elapsed / forwardDuration : 1;
+              cueStick.position.lerpVectors(startPos, impactPos, t);
+            } else if (elapsed <= forwardDuration + returnDuration) {
+              const t =
+                returnDuration > 0 ? (elapsed - forwardDuration) / returnDuration : 1;
+              cueStick.position.lerpVectors(impactPos, settlePos, t);
             } else {
               cueStick.visible = false;
               cueAnimating = false;
@@ -17019,7 +17030,7 @@ const powerRef = useRef(hud.power);
             }
             requestAnimationFrame(animateStroke);
           };
-          animateStroke();
+          requestAnimationFrame(animateStroke);
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -18239,6 +18250,10 @@ const powerRef = useRef(hud.power);
             updateCamera();
             powerRef.current = plan.power;
             setHud((s) => ({ ...s, power: plan.power }));
+            const slider = sliderInstanceRef.current;
+            if (slider) {
+              slider.set(plan.power * 100, { animate: true });
+            }
             const spinToApply = plan.spin ?? { x: 0, y: 0 };
             spinRef.current = { ...spinToApply };
             spinRequestRef.current = { ...spinToApply };
@@ -18302,6 +18317,14 @@ const powerRef = useRef(hud.power);
         };
 
         const triggerReplaySlate = (label = 'Replay', { accent = 'default' } = {}) => {
+          if (!ENABLE_REPLAY_SLATE) {
+            if (replaySlateTimeoutRef.current) {
+              clearTimeout(replaySlateTimeoutRef.current);
+              replaySlateTimeoutRef.current = null;
+            }
+            setReplaySlate(null);
+            return 0;
+          }
           setReplaySlate({ label, accent, startedAt: performance.now() });
           if (replaySlateTimeoutRef.current) {
             clearTimeout(replaySlateTimeoutRef.current);
@@ -18634,6 +18657,7 @@ const powerRef = useRef(hud.power);
             });
           }
           setShootingState(false);
+          recenterSpin();
           powerImpactHoldRef.current = 0;
           shotPrediction = null;
           activeShotView = null;
@@ -19064,18 +19088,21 @@ const powerRef = useRef(hud.power);
           } else {
             impactRing.visible = false;
           }
-          const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             aimDir2D.clone().multiplyScalar(-1),
             balls
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-          const pull = computeCuePull(desiredPull, maxPull);
+          const pull = computeCuePull(0, maxPull, { powerRatio: powerStrength });
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
           let side = appliedSpin.x * offsetSide;
           let vert = -appliedSpin.y * offsetVertical;
+          const requestedSpinMagnitude = Math.hypot(
+            spinRequestRef.current?.x ?? 0,
+            spinRequestRef.current?.y ?? 0
+          );
           const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
           if (maxContactOffset > 1e-6) {
             const combined = Math.hypot(side, vert);
@@ -19086,7 +19113,8 @@ const powerRef = useRef(hud.power);
             }
             if (
               spinLegalityRef.current?.blocked &&
-              Math.hypot(side, vert) < 1e-6
+              Math.hypot(side, vert) < 1e-6 &&
+              requestedSpinMagnitude > 1e-6
             ) {
               vert = Math.min(maxContactOffset * 0.35, CUE_TIP_RADIUS * 0.6);
             }
@@ -19294,14 +19322,13 @@ const powerRef = useRef(hud.power);
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
           impactRing.visible = false;
-          const desiredPull = powerStrength * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             remoteAimDir.clone().multiplyScalar(-1),
             balls
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-          const pull = computeCuePull(desiredPull, maxPull);
+          const pull = computeCuePull(0, maxPull, { powerRatio: powerStrength });
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
           const spinX = THREE.MathUtils.clamp(remoteAimState?.spin?.x ?? 0, -1, 1);
@@ -19393,7 +19420,6 @@ const powerRef = useRef(hud.power);
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           const powerTarget = THREE.MathUtils.clamp(activeAiPlan.power ?? powerRef.current ?? 0, 0, 1);
-          const desiredPull = powerTarget * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             planDir.clone().multiplyScalar(-1),
@@ -19401,7 +19427,7 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          const pull = computeCuePull(desiredPull, maxPull);
+          const pull = computeCuePull(0, maxPull, { powerRatio: powerTarget });
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
           const planSpin = activeAiPlan.spin ?? spinRef.current ?? { x: 0, y: 0 };
@@ -20755,7 +20781,7 @@ const powerRef = useRef(hud.power);
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
-      {replaySlate && (
+      {ENABLE_REPLAY_SLATE && replaySlate && (
         <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
           <div className="relative isolate flex w-[min(26rem,90vw)] items-center justify-between overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-r from-black/85 via-black/70 to-black/85 px-5 py-4 shadow-[0_18px_42px_rgba(0,0,0,0.55)] backdrop-blur">
             <div className="pointer-events-none absolute inset-0 opacity-80">
