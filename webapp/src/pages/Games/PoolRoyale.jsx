@@ -1228,12 +1228,12 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_GAP = BALL_R * 1.36; // pull cue stick slightly closer so the blue tip meets the cue ball centre line
+const CUE_TIP_GAP = BALL_R * 1.18; // pull the cue tip right up to the cue-ball centre line while leaving a small safety gap
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
-const CUE_PULL_SMOOTHING = 0.55;
+const CUE_PULL_SMOOTHING = 0.9;
 const CUE_Y = BALL_CENTER_Y; // align the cue height directly with the cue ball centre for precise strikes
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 4.6;
+const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 5.2;
 const CUE_BUTT_LIFT = BALL_R * 0.7; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
@@ -16728,6 +16728,10 @@ const powerRef = useRef(hud.power);
             contactVert,
             cuePerp.z * contactSide
           );
+          const spinContactTilt = Math.atan2(
+            Math.abs(spinWorld.y),
+            Math.max(cueLen, 1e-4)
+          );
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
@@ -16739,7 +16743,7 @@ const powerRef = useRef(hud.power);
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(appliedSpin.y || 0);
-          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + spinContactTilt;
           applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -18862,6 +18866,10 @@ const powerRef = useRef(hud.power);
             vert,
             perp.z * side
           );
+          const spinContactTilt = Math.atan2(
+            Math.abs(spinWorld.y),
+            Math.max(cueLen, 1e-4)
+          );
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
@@ -18873,7 +18881,7 @@ const powerRef = useRef(hud.power);
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(appliedSpin.y || 0);
-          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + spinContactTilt;
           applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -19084,6 +19092,10 @@ const powerRef = useRef(hud.power);
             }
           }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
+          const spinContactTilt = Math.atan2(
+            Math.abs(spinWorld.y),
+            Math.max(cueLen, 1e-4)
+          );
           const obstructionStrength = resolveCueObstruction(baseDir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
@@ -19095,7 +19107,8 @@ const powerRef = useRef(hud.power);
             cue.pos.y - baseDir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(spinY);
-          const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
+          const extraTilt =
+            MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1) + spinContactTilt;
           applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
           cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -19185,6 +19198,10 @@ const powerRef = useRef(hud.power);
             }
           }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
+          const spinContactTilt = Math.atan2(
+            Math.abs(spinWorld.y),
+            Math.max(cueLen, 1e-4)
+          );
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
@@ -19196,7 +19213,8 @@ const powerRef = useRef(hud.power);
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(spinY);
-          const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
+          const extraTilt =
+            MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1) + spinContactTilt;
           applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -20080,7 +20098,7 @@ const powerRef = useRef(hud.power);
     const computeInsets = () => {
       if (!isPortrait) {
         const left = uiScale * 150;
-        const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 130);
+        const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 130 + 32);
         setHudInsets({
           left: `${left}px`,
           right: `${right}px`
@@ -20089,8 +20107,10 @@ const powerRef = useRef(hud.power);
       }
       const leftBox = leftControlsRef.current?.getBoundingClientRect();
       const spinBox = spinBoxRef.current?.getBoundingClientRect();
-      const leftInset = (leftBox?.width ?? uiScale * 120) + 12;
-      const rightInset = (spinBox?.width ?? uiScale * (SPIN_CONTROL_DIAMETER_PX + 64)) + 12;
+      const leftInset = (leftBox?.width ?? uiScale * 120) + 8;
+      const rightInset =
+        (spinBox?.width ?? uiScale * (SPIN_CONTROL_DIAMETER_PX + 64)) +
+        uiScale * 48;
       setHudInsets({
         left: `${leftInset}px`,
         right: `${rightInset}px`
@@ -20120,6 +20140,7 @@ const powerRef = useRef(hud.power);
       onChange: (v) => applyPower(v / 100),
       onCommit: () => {
         fireRef.current?.();
+        applyPower(0);
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
         });
@@ -20132,6 +20153,12 @@ const powerRef = useRef(hud.power);
       slider.destroy();
     };
   }, [applySliderLock, showPowerSlider]);
+
+  useEffect(() => {
+    const slider = sliderInstanceRef.current;
+    if (!slider || slider.dragging) return;
+    slider.set((hud.power ?? 0) * 100, { animate: true });
+  }, [hud.power]);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
