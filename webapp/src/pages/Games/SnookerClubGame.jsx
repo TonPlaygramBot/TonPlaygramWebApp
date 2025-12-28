@@ -1156,7 +1156,10 @@ const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned wi
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_SMOOTHING = 0.2;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
+const CUE_Y = BALL_CENTER_Y; // align cue height to the cue ball centre for precise spin strikes
+const CUE_BALL_LIFT_MAX = BALL_R * 0.16;
+const CUE_BALL_LIFT_IMPULSE = BALL_R * 0.32;
+const CUE_BALL_LIFT_DECAY = 0.9;
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
@@ -5438,6 +5441,8 @@ function Guret(parent, id, color, x, y, options = {}) {
     impacted: false,
     launchDir: null,
     pendingSpin: new THREE.Vector2(),
+    lift: 0,
+    liftVel: 0,
     active: true
   };
 }
@@ -8660,6 +8665,10 @@ export function PoolRoyaleGame({
   const [uiScale, setUiScale] = useState(() =>
     detectCoarsePointer() ? TOUCH_UI_SCALE : POINTER_UI_SCALE
   );
+  const [isPortraitLayout, setIsPortraitLayout] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return window.innerHeight >= window.innerWidth;
+  });
   const [isTopDownView, setIsTopDownView] = useState(false);
   const [isLookMode, setIsLookMode] = useState(false);
   const lookModeRef = useRef(false);
@@ -8667,11 +8676,17 @@ export function PoolRoyaleGame({
     if (typeof window === 'undefined') {
       return undefined;
     }
+    const updateOrientation = () => {
+      setIsPortraitLayout(window.innerHeight >= window.innerWidth);
+    };
     const updateScale = () => {
       setUiScale(detectCoarsePointer() ? TOUCH_UI_SCALE : POINTER_UI_SCALE);
     };
     updateScale();
+    updateOrientation();
     window.addEventListener('resize', updateScale);
+    window.addEventListener('resize', updateOrientation);
+    window.addEventListener('orientationchange', updateOrientation);
     let coarseQuery = null;
     if (typeof window.matchMedia === 'function') {
       try {
@@ -8687,6 +8702,8 @@ export function PoolRoyaleGame({
     }
     return () => {
       window.removeEventListener('resize', updateScale);
+      window.removeEventListener('resize', updateOrientation);
+      window.removeEventListener('orientationchange', updateOrientation);
       if (!coarseQuery) return;
       if (coarseQuery.removeEventListener) {
         coarseQuery.removeEventListener('change', updateScale);
@@ -9233,7 +9250,7 @@ export function PoolRoyaleGame({
     [initialFrame]
   );
   const [hud, setHud] = useState({
-    power: 0.65,
+    power: 0,
     A: 0,
     B: 0,
     turn: 0,
@@ -9498,6 +9515,7 @@ export function PoolRoyaleGame({
   const orbitRadiusLimitRef = useRef(null);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
+  const [replayActive, setReplayActive] = useState(false);
   const timerWarnedRef = useRef(false);
   const timerValueRef = useRef(timer);
   useEffect(() => {
@@ -9528,8 +9546,14 @@ export function PoolRoyaleGame({
     const x = clamp(value.x ?? 0, -1, 1);
     const y = clamp(value.y ?? 0, -1, 1);
     const ranges = spinRangeRef.current || {};
-    const maxSide = Math.max(ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET, 1e-6);
-    const maxVertical = Math.max(ranges.offsetVertical ?? MAX_SPIN_VERTICAL, 1e-6);
+    const maxSide = Math.max(
+      (ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET) - SPIN_TIP_MARGIN,
+      1e-6
+    );
+    const maxVertical = Math.max(
+      (ranges.offsetVertical ?? MAX_SPIN_VERTICAL) - SPIN_TIP_MARGIN,
+      1e-6
+    );
     const largest = Math.max(maxSide, maxVertical);
     const scaledX = (x * maxSide) / largest;
     const scaledY = (y * maxVertical) / largest;
@@ -12691,6 +12715,7 @@ export function PoolRoyaleGame({
           balls.map((ball) => ({
             id: ball.id,
             active: ball.active,
+            lift: ball.lift ?? 0,
             pos: { x: ball.pos.x, y: ball.pos.y },
             mesh: {
               position: {
@@ -12718,6 +12743,15 @@ export function PoolRoyaleGame({
             ball.launchDir = null;
             ball.pos.set(state.pos.x, state.pos.y);
             const meshState = state.mesh;
+            const restoredLift =
+              Number.isFinite(state.lift) && state.lift > 0
+                ? state.lift
+                : Math.max(
+                    0,
+                    (meshState?.position?.y ?? BALL_CENTER_Y) - BALL_CENTER_Y
+                  );
+            ball.lift = restoredLift;
+            ball.liftVel = 0;
             if (ball.mesh && meshState) {
               const { position, quaternion, scale, visible } = meshState;
               ball.mesh.position.set(position.x, position.y, position.z);
@@ -12728,7 +12762,11 @@ export function PoolRoyaleGame({
             if (ball.shadow) {
               const shadowVisible = ball.mesh?.visible && ball.active;
               ball.shadow.visible = shadowVisible;
-              ball.shadow.position.set(ball.pos.x, BALL_SHADOW_Y, ball.pos.y);
+              ball.shadow.position.set(
+                ball.pos.x,
+                BALL_SHADOW_Y + (ball.lift ?? 0) * 0.25,
+                ball.pos.y
+              );
               const shadowScale = ball.mesh?.scale?.x ?? 1;
               ball.shadow.scale.setScalar(shadowScale);
               if (ball.shadow.material) {
@@ -12787,6 +12825,8 @@ export function PoolRoyaleGame({
                 THREE.MathUtils.lerp(posA3.z, posB3.z, alpha)
               );
               ball.mesh.position.copy(tmpReplayPos);
+              ball.lift = Math.max(0, tmpReplayPos.y - BALL_CENTER_Y);
+              ball.liftVel = 0;
               const quatA = meshA.quaternion;
               const quatB = meshB.quaternion ?? quatA;
               if (quatA && quatB) {
@@ -12870,6 +12910,7 @@ export function PoolRoyaleGame({
           pausedPocketDrops = pocketDropRef.current;
           pocketDropRef.current = new Map();
           replayPlaybackRef.current = replayPlayback;
+          setReplayActive(true);
           shotReplayRef.current = shotRecording;
           applyBallSnapshot(shotRecording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
@@ -14195,10 +14236,15 @@ export function PoolRoyaleGame({
         cue.mesh.visible = true;
         cue.pos.set(pos.x, pos.y);
         cue.mesh.position.set(pos.x, BALL_CENTER_Y, pos.y);
+        cue.lift = 0;
+        cue.liftVel = 0;
         cue.vel.set(0, 0);
         cue.spin?.set(0, 0);
         cue.pendingSpin?.set(0, 0);
         cue.spinMode = 'standard';
+        if (cue.shadow) {
+          cue.shadow.position.set(pos.x, BALL_SHADOW_Y, pos.y);
+        }
       };
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
@@ -14626,6 +14672,14 @@ export function PoolRoyaleGame({
           lastPocketBallRef.current = null;
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           lastShotPower = clampedPower;
+          const liftImpulse = THREE.MathUtils.clamp(clampedPower, 0, 1);
+          if (cue) {
+            cue.lift = Math.max(cue.lift ?? 0, liftImpulse * CUE_BALL_LIFT_MAX);
+            cue.liftVel = Math.max(
+              cue.liftVel ?? 0,
+              liftImpulse * CUE_BALL_LIFT_IMPULSE
+            );
+          }
           const spinMagnitude = Math.hypot(
             spinRef.current?.x ?? 0,
             spinRef.current?.y ?? 0
@@ -15846,6 +15900,8 @@ export function PoolRoyaleGame({
                   simBall.mesh.visible = true;
                   simBall.pos.set(sx, sy);
                   simBall.mesh.position.set(sx, BALL_CENTER_Y, sy);
+                  simBall.lift = 0;
+                  simBall.liftVel = 0;
                   simBall.vel.set(0, 0);
                   simBall.spin?.set(0, 0);
                   simBall.pendingSpin?.set(0, 0);
@@ -16023,6 +16079,7 @@ export function PoolRoyaleGame({
             replayPlayback = null;
             replayPlaybackRef.current = null;
             shotReplayRef.current = null;
+            setReplayActive(false);
             rafRef.current = requestAnimationFrame(step);
           } else {
             rafRef.current = requestAnimationFrame(step);
@@ -16240,11 +16297,14 @@ export function PoolRoyaleGame({
             CUE_PULL_SMOOTHING
           );
           cuePullCurrentRef.current = pull;
-          const offsetSide = ranges.offsetSide ?? 0;
-          const offsetVertical = ranges.offsetVertical ?? 0;
+          const offsetSide = Math.max((ranges.offsetSide ?? 0) - SPIN_TIP_MARGIN, 0);
+          const offsetVertical = Math.max((ranges.offsetVertical ?? 0) - SPIN_TIP_MARGIN, 0);
           let side = appliedSpin.x * offsetSide;
           let vert = -appliedSpin.y * offsetVertical;
-          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
+          const maxContactOffset = Math.max(
+            0,
+            MAX_SPIN_CONTACT_OFFSET - SPIN_TIP_MARGIN * 0.35
+          );
           if (maxContactOffset > 1e-6) {
             const combined = Math.hypot(side, vert);
             if (combined > maxContactOffset) {
@@ -16269,8 +16329,21 @@ export function PoolRoyaleGame({
             CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
+          const nearestBlocking = balls.reduce((min, ball) => {
+            if (!ball || ball === cue || !ball.active) return min;
+            const gap = cue.pos.distanceTo(ball.pos) - BALL_R * 2;
+            return Math.min(min, gap);
+          }, Infinity);
+          const clearanceBoost =
+            Number.isFinite(nearestBlocking) && nearestBlocking < SPIN_CLEARANCE_MARGIN
+              ? THREE.MathUtils.clamp(
+                  (SPIN_CLEARANCE_MARGIN - nearestBlocking) / SPIN_CLEARANCE_MARGIN,
+                  0,
+                  1
+                ) * MAX_BACKSPIN_TILT * 0.6
+              : 0;
           const tiltAmount = Math.abs(appliedSpin.y || 0);
-          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + clearanceBoost;
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -16604,7 +16677,21 @@ export function PoolRoyaleGame({
                 railSoundTimeRef.current.set(b.id, nowRail);
               }
             }
-            b.mesh.position.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
+            const liftDecay = Math.pow(CUE_BALL_LIFT_DECAY, stepScale);
+            if (b.lift != null) {
+              const nextLift =
+                (b.lift ?? 0) * liftDecay + (b.liftVel ?? 0) * stepScale;
+              const nextLiftVel =
+                (b.liftVel ?? 0) * liftDecay - CUE_BALL_LIFT_IMPULSE * 0.2 * stepScale;
+              b.lift = Math.max(0, nextLift);
+              b.liftVel = nextLiftVel > BALL_R * 0.0005 ? nextLiftVel : 0;
+              if (b.lift < BALL_R * 0.001) {
+                b.lift = 0;
+                b.liftVel = 0;
+              }
+            }
+            const liftOffset = b.lift ?? 0;
+            b.mesh.position.set(b.pos.x, BALL_CENTER_Y + liftOffset, b.pos.y);
             if (scaledSpeed > 0) {
               const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
               const angle = scaledSpeed / BALL_R;
@@ -16615,8 +16702,16 @@ export function PoolRoyaleGame({
               const shadowVisible = b.mesh.visible && b.active && !droppingShadow;
               b.shadow.visible = shadowVisible;
               if (shadowVisible) {
-                b.shadow.position.set(b.pos.x, BALL_SHADOW_Y, b.pos.y);
-                const spread = 1 + THREE.MathUtils.clamp(speed * 0.08, 0, 0.35);
+                b.shadow.position.set(
+                  b.pos.x,
+                  BALL_SHADOW_Y + liftOffset * 0.25,
+                  b.pos.y
+                );
+                const spread = 1 + THREE.MathUtils.clamp(
+                  speed * 0.08 - liftOffset * 0.6,
+                  0,
+                  0.35
+                );
                 b.shadow.scale.setScalar(spread);
                 if (b.shadow.material) {
                   b.shadow.material.opacity = THREE.MathUtils.clamp(
@@ -16931,7 +17026,7 @@ export function PoolRoyaleGame({
               const dropEntry = {
                 start: dropStart,
                 duration: dropDuration,
-                fromY: BALL_CENTER_Y,
+                fromY: BALL_CENTER_Y + (b.lift ?? 0),
                 toY: BALL_CENTER_Y - POCKET_DROP_DEPTH,
                 fromX,
                 fromZ,
@@ -16944,7 +17039,7 @@ export function PoolRoyaleGame({
               };
               b.mesh.visible = true;
               b.mesh.scale.set(1, 1, 1);
-              b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
+              b.mesh.position.set(fromX, BALL_CENTER_Y + (b.lift ?? 0), fromZ);
               if (b.shadow) b.shadow.visible = false;
               pocketDropRef.current.set(b.id, dropEntry);
               const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
@@ -17084,6 +17179,11 @@ export function PoolRoyaleGame({
                 mesh.scale.set(1, 1, 1);
                 mesh.position.set(entry.toX, BALL_CENTER_Y, entry.toZ);
                 pocketDropRef.current.delete(key);
+                const droppedBall = balls.find((ball) => ball?.id === key);
+                if (droppedBall) {
+                  droppedBall.lift = 0;
+                  droppedBall.liftVel = 0;
+                }
               }
             });
           }
@@ -17217,19 +17317,26 @@ export function PoolRoyaleGame({
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = !hud.over;
+  const showPowerSlider = !hud.over && !replayActive;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
     }
     const mount = sliderRef.current;
     if (!mount) return undefined;
+    const initialValue = 0;
+    powerRef.current = initialValue / 100;
+    setHud((s) => ({ ...s, power: initialValue / 100 }));
     const slider = new PoolRoyalePowerSlider({
       mount,
-      value: powerRef.current * 100,
+      value: initialValue,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
+      onChange: (v) => {
+        const nextPower = v / 100;
+        powerRef.current = nextPower;
+        setHud((s) => (Math.abs(s.power - nextPower) < 1e-4 ? s : { ...s, power: nextPower }));
+      },
       onCommit: () => {
         fireRef.current?.();
         requestAnimationFrame(() => {
@@ -17247,7 +17354,7 @@ export function PoolRoyaleGame({
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
-  const showPlayerControls = isPlayerTurn && !hud.over;
+  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
 
   // Spin controller interactions
   useEffect(() => {
@@ -17398,7 +17505,21 @@ export function PoolRoyaleGame({
     };
   }, [showPlayerControls, updateSpinDotPosition]);
 
-  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
+  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
+  const bottomHudStyle = useMemo(() => {
+    if (!isPortraitLayout) {
+      return {
+        left: 'max(4.5rem, 11vw)',
+        right: 'max(8.5rem, 18vw)'
+      };
+    }
+    const buttonColumn = 116 * uiScale;
+    const spinColumn = (SPIN_CONTROL_DIAMETER_PX + 36) * uiScale;
+    return {
+      left: `${Math.max(80, buttonColumn + 24)}px`,
+      right: `${Math.max(110, spinColumn + 28)}px`
+    };
+  }, [isPortraitLayout, uiScale]);
 
   return (
     <div
@@ -17407,6 +17528,22 @@ export function PoolRoyaleGame({
     >
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {replayActive && (
+        <div className="pointer-events-none absolute inset-2 z-40 flex flex-col justify-between">
+          <div className="flex items-center justify-between px-2 pt-1">
+            <div className="h-1 w-24 rounded-full bg-gradient-to-r from-emerald-300/70 to-amber-300/70 shadow-[0_0_28px_rgba(0,0,0,0.5)]" />
+            <div className="rounded-full bg-black/85 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.32em] text-amber-100 shadow-[0_12px_32px_rgba(0,0,0,0.55)]">
+              Instant Replay
+            </div>
+            <div className="h-1 w-24 rounded-full bg-gradient-to-l from-emerald-300/70 to-amber-300/70 shadow-[0_0_28px_rgba(0,0,0,0.5)]" />
+          </div>
+          <div className="flex items-end justify-between px-2 pb-1">
+            <div className="h-6 w-6 rounded-lg border border-white/25 bg-black/60 shadow-[0_0_18px_rgba(0,0,0,0.45)]" />
+            <div className="h-6 w-6 rounded-lg border border-white/25 bg-black/60 shadow-[0_0_18px_rgba(0,0,0,0.45)]" />
+          </div>
+        </div>
+      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
@@ -17425,6 +17562,8 @@ export function PoolRoyaleGame({
         </div>
       )}
 
+      {!replayActive && (
+      <>
       <div className="absolute top-4 left-4 z-50 flex flex-col items-start gap-2">
         <button
           ref={configButtonRef}
@@ -17810,15 +17949,14 @@ export function PoolRoyaleGame({
           <span>{isTopDownView ? '3D' : '2D'}</span>
         </button>
       </div>
+      </>
+      )}
 
       {bottomHudVisible && (
         <div
           className={`absolute bottom-4 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive}
-          style={{
-            left: 'max(4.5rem, 11vw)',
-            right: 'max(8.5rem, 18vw)'
-          }}
+          style={bottomHudStyle}
         >
           <div
             className="pointer-events-auto flex h-12 max-w-full items-center justify-center gap-4 rounded-full border border-emerald-400/40 bg-black/70 px-5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
@@ -17874,7 +18012,7 @@ export function PoolRoyaleGame({
           Init error: {String(err)}
         </div>
       )}
-      {hud?.inHand && (
+      {!replayActive && hud?.inHand && (
         <div className="pointer-events-none absolute left-1/2 top-4 z-40 flex -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
           <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg ring-1 ring-white/60">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">BIH</span>
