@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { getOnlineCount } from '../utils/api.js';
 
-const WALL_REPEAT = new THREE.Vector2(5, 2.8); // 30% smaller wall tiles
-const PREFERRED_SIZES = ['2k', '1k'];
+const WALL_REPEAT = new THREE.Vector2(10, 2.8); // 2x tighter marble tiling on the sides
+const PREFERRED_SIZES = ['4k', '2k', '1k'];
 
 const fallbackGameNames = [
   'Chess Arena',
@@ -151,6 +151,7 @@ export default function GamesHallway({ games, onClose }) {
 
     let disposed = false;
     const marbleWallTextures = [];
+    const lampshadeTextures = [];
     const wallMat = new THREE.MeshStandardMaterial({
       color: '#d8d6d1',
       side: THREE.BackSide,
@@ -165,6 +166,15 @@ export default function GamesHallway({ games, onClose }) {
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
       texture.repeat.copy(WALL_REPEAT);
+      texture.anisotropy = maxAnisotropy;
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      texture.needsUpdate = true;
+    };
+    const wrapShadeTexture = (texture) => {
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(3.5, 1.4);
       texture.anisotropy = maxAnisotropy;
       texture.minFilter = THREE.LinearMipmapLinearFilter;
       texture.magFilter = THREE.LinearFilter;
@@ -210,6 +220,55 @@ export default function GamesHallway({ games, onClose }) {
 
     void applyMarbleWalls();
 
+    const lampshadeMat = new THREE.MeshStandardMaterial({
+      color: '#f7efd9',
+      emissive: '#f6e3c1',
+      emissiveIntensity: 0.2,
+      metalness: 0.08,
+      roughness: 0.42,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.96
+    });
+
+    const applyFabricShade = async () => {
+      try {
+        const response = await fetch('https://api.polyhaven.com/files/fabric_pattern_07');
+        if (!response.ok) {
+          return;
+        }
+        const json = await response.json();
+        const urls = pickBestTextureUrls(json, PREFERRED_SIZES);
+        if (!urls.diffuse || !urls.normal || !urls.roughness) {
+          return;
+        }
+        const [albedo, normal, roughness] = await Promise.all([
+          loadTexture(loader, urls.diffuse, true),
+          loadTexture(loader, urls.normal, false),
+          loadTexture(loader, urls.roughness, false)
+        ]);
+        [albedo, normal, roughness].forEach((tex) => {
+          wrapShadeTexture(tex);
+          lampshadeTextures.push(tex);
+        });
+
+        if (disposed) {
+          lampshadeTextures.forEach((tex) => tex.dispose?.());
+          return;
+        }
+
+        lampshadeMat.map = albedo;
+        lampshadeMat.normalMap = normal;
+        lampshadeMat.roughnessMap = roughness;
+        lampshadeMat.emissiveIntensity = 0.3;
+        lampshadeMat.needsUpdate = true;
+      } catch (error) {
+        // ignore failed fabric load and keep fallback material
+      }
+    };
+
+    void applyFabricShade();
+
     const cornice = new THREE.Mesh(
       new THREE.TorusGeometry(19.1, 0.12, 24, 256),
       new THREE.MeshStandardMaterial({ color: '#c4a26c', metalness: 0.75, roughness: 0.28 })
@@ -224,6 +283,43 @@ export default function GamesHallway({ games, onClose }) {
     );
     baseboard.position.y = 0.15;
     scene.add(baseboard);
+
+    const ceilingLampshade = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.2, 2.6, 0.9, 64, 1, true),
+      lampshadeMat
+    );
+    ceilingLampshade.position.set(0, 7.55, 0);
+    ceilingLampshade.castShadow = true;
+    scene.add(ceilingLampshade);
+
+    const ceilingLampshadeRim = new THREE.Mesh(
+      new THREE.TorusGeometry(2.25, 0.05, 24, 96),
+      new THREE.MeshStandardMaterial({ color: '#d6b378', metalness: 0.82, roughness: 0.25 })
+    );
+    ceilingLampshadeRim.rotation.x = Math.PI / 2;
+    ceilingLampshadeRim.position.y = 7.08;
+    scene.add(ceilingLampshadeRim);
+
+    const ceilingLampshadeDiffuser = new THREE.Mesh(
+      new THREE.CircleGeometry(2.2, 64),
+      new THREE.MeshStandardMaterial({
+        color: '#fff7e3',
+        emissive: '#ffe9c5',
+        emissiveIntensity: 1.15,
+        metalness: 0.06,
+        roughness: 0.18,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.96
+      })
+    );
+    ceilingLampshadeDiffuser.rotation.x = Math.PI / 2;
+    ceilingLampshadeDiffuser.position.y = 7.05;
+    scene.add(ceilingLampshadeDiffuser);
+
+    const ceilingLampLight = new THREE.PointLight(0xfff2cc, 2.25, 26, 1.5);
+    ceilingLampLight.position.set(0, 7.12, 0);
+    scene.add(ceilingLampLight);
 
     const chandelierStem = new THREE.Mesh(
       new THREE.CylinderGeometry(0.12, 0.18, 1.6, 24),
@@ -697,6 +793,8 @@ export default function GamesHallway({ games, onClose }) {
           }
         }
       });
+      marbleWallTextures.forEach((tex) => tex.dispose?.());
+      lampshadeTextures.forEach((tex) => tex.dispose?.());
       handleGeom.dispose();
     };
   }, [games, navigate]);
@@ -814,7 +912,7 @@ function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_SIZES) {
   };
 
   return {
-    diffuse: pick(['diff', 'diffuse', 'albedo', 'basecolor']),
+    diffuse: pick(['diff', 'diffuse', 'albedo', 'basecolor', 'col', 'color']),
     normal: pick(['nor_gl', 'normal_gl', 'nor', 'normal']),
     roughness: pick(['rough', 'roughness'])
   };
