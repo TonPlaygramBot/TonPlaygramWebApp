@@ -1,6 +1,6 @@
 import { TABLE_BASE_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_WOOD_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { CARD_THEMES } from '../utils/cardThemes.js';
-import { MURLAN_STOOL_THEMES } from './murlanThemes.js';
+import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 
 const mapLabels = (options) =>
   Object.freeze(
@@ -15,7 +15,8 @@ export const MURLAN_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableCloth: [TABLE_CLOTH_OPTIONS[0].id],
   tableBase: [TABLE_BASE_OPTIONS[0].id],
   cards: [CARD_THEMES[0].id],
-  stools: [MURLAN_STOOL_THEMES[0].id]
+  stools: [MURLAN_STOOL_THEMES[0].id],
+  tables: [MURLAN_TABLE_THEMES[0].id]
 });
 
 export const MURLAN_ROYALE_OPTION_LABELS = Object.freeze({
@@ -23,7 +24,8 @@ export const MURLAN_ROYALE_OPTION_LABELS = Object.freeze({
   tableCloth: mapLabels(TABLE_CLOTH_OPTIONS),
   tableBase: mapLabels(TABLE_BASE_OPTIONS),
   cards: mapLabels(CARD_THEMES),
-  stools: mapLabels(MURLAN_STOOL_THEMES)
+  stools: mapLabels(MURLAN_STOOL_THEMES),
+  tables: mapLabels(MURLAN_TABLE_THEMES)
 });
 
 export const MURLAN_ROYALE_STORE_ITEMS = [
@@ -140,6 +142,15 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     description: 'Monochrome slate backs with steel edging.'
   }
 ].concat(
+  MURLAN_TABLE_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
+    id: `table-${theme.id}`,
+    type: 'tables',
+    optionId: theme.id,
+    name: theme.label,
+    price: theme.price ?? 980 + idx * 40,
+    description: theme.description || `${theme.label} table with preserved Poly Haven materials.`,
+    thumbnail: theme.thumbnail
+  })),
   MURLAN_STOOL_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
     id: `stool-${theme.id}`,
     type: 'stools',
@@ -155,5 +166,6 @@ export const MURLAN_ROYALE_DEFAULT_LOADOUT = [
   { type: 'tableCloth', optionId: TABLE_CLOTH_OPTIONS[0].id, label: TABLE_CLOTH_OPTIONS[0].label },
   { type: 'tableBase', optionId: TABLE_BASE_OPTIONS[0].id, label: TABLE_BASE_OPTIONS[0].label },
   { type: 'cards', optionId: CARD_THEMES[0].id, label: CARD_THEMES[0].label },
+  { type: 'tables', optionId: MURLAN_TABLE_THEMES[0].id, label: MURLAN_TABLE_THEMES[0].label },
   { type: 'stools', optionId: MURLAN_STOOL_THEMES[0].id, label: MURLAN_STOOL_THEMES[0].label }
 ];

@@ -46,11 +46,11 @@ import {
   sortHand
 } from '../../../../lib/murlan.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
 import {
   MURLAN_OUTFIT_THEMES as OUTFIT_THEMES,
-  MURLAN_STOOL_THEMES as STOOL_THEMES
+  MURLAN_STOOL_THEMES as STOOL_THEMES,
+  MURLAN_TABLE_THEMES as TABLE_THEMES
 } from '../../config/murlanThemes.js';
 
 const MODEL_SCALE = 0.75;
@@ -529,11 +529,13 @@ const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 const DEFAULT_APPEARANCE = {
   outfit: 0,
   stools: 0,
+  tables: 0,
   ...DEFAULT_TABLE_CUSTOMIZATION
 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const FRAME_RATE_STORAGE_KEY = 'murlanFrameRate';
 const CUSTOMIZATION_SECTIONS = [
+  { key: 'tables', label: 'Table Model', options: TABLE_THEMES },
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
@@ -562,7 +564,8 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['cards', CARD_THEMES.length],
-    ['stools', STOOL_THEMES.length]
+    ['stools', STOOL_THEMES.length],
+    ['tables', TABLE_THEMES.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -664,6 +667,34 @@ function fitModelToHeight(model, targetHeight) {
     model.scale.multiplyScalar(scale);
   }
   liftModelToGround(model, 0);
+}
+
+function fitTableModelToArena(model) {
+  if (!model) return { surfaceY: TABLE_HEIGHT, radius: TABLE_RADIUS };
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const maxXZ = Math.max(size.x, size.z);
+  const footprintCap = Math.max(0.5, TABLE_MODEL_TARGET_DIAMETER - TABLE_MODEL_PADDING);
+  let scale = size.y > 0 ? TABLE_MODEL_TARGET_HEIGHT / size.y : 1;
+  if (maxXZ > 0 && maxXZ * scale > footprintCap) {
+    scale = footprintCap / maxXZ;
+  }
+  if (scale !== 1) {
+    model.scale.multiplyScalar(scale);
+  }
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const center = scaledBox.getCenter(new THREE.Vector3());
+  model.position.add(new THREE.Vector3(-center.x, -scaledBox.min.y, -center.z));
+  const radius = Math.max(
+    Math.abs(scaledBox.max.x),
+    Math.abs(scaledBox.min.x),
+    Math.abs(scaledBox.max.z),
+    Math.abs(scaledBox.min.z)
+  );
+  return {
+    surfaceY: scaledBox.max.y,
+    radius
+  };
 }
 
 async function createPolyhavenInstance(
@@ -1018,6 +1049,9 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
+const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
+const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
+const TABLE_MODEL_PADDING = 0.18 * MODEL_SCALE;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
@@ -1211,7 +1245,8 @@ export default function MurlanRoyaleArena({ search }) {
         tableCloth: TABLE_CLOTH_OPTIONS,
         tableBase: TABLE_BASE_OPTIONS,
         cards: CARD_THEMES,
-        stools: STOOL_THEMES
+        stools: STOOL_THEMES,
+        tables: TABLE_THEMES
       };
       let changed = false;
       const next = { ...normalized };
@@ -1280,6 +1315,7 @@ export default function MurlanRoyaleArena({ search }) {
     discardAnchor: new THREE.Vector3(-TABLE_RADIUS * 0.76, TABLE_HEIGHT - CARD_H * 0.3, -TABLE_RADIUS * 0.62),
     scoreboard: null,
     tableInfo: null,
+    tableThemeId: null,
     chairMaterials: null,
     chairTemplate: null,
     chairThemePreserve: false,
@@ -1294,6 +1330,7 @@ export default function MurlanRoyaleArena({ search }) {
   const soundsRef = useRef({ card: null, turn: null });
   const audioStateRef = useRef({ tableIds: [], activePlayer: null, status: null, initialized: false });
   const prevStateRef = useRef(null);
+  const tableBuildTokenRef = useRef(0);
 
   const ensureCardMeshes = useCallback((state) => {
     const three = threeStateRef.current;
@@ -1388,10 +1425,10 @@ export default function MurlanRoyaleArena({ search }) {
     context.textBaseline = 'alphabetic';
     context.fillStyle = 'rgba(226, 232, 240, 0.82)';
     context.font = '700 64px "Inter", "Segoe UI", sans-serif';
-    context.fillText('Rezultati', padding + 24, 120);
+    context.fillText('Results', padding + 24, 120);
     context.font = '500 28px "Inter", "Segoe UI", sans-serif';
     context.fillStyle = 'rgba(148, 163, 184, 0.8)';
-    context.fillText('Kartat e mbetura', padding + 24, 160);
+    context.fillText('Cards remaining', padding + 24, 160);
 
     const rowHeight = 76;
     const rowGap = 12;
@@ -1404,7 +1441,7 @@ export default function MurlanRoyaleArena({ search }) {
       const rowY = 168 + i * (rowHeight + rowGap);
       const isActive = Boolean(entry?.isActive);
       const finished = Boolean(entry?.finished);
-      const displayName = typeof entry?.name === 'string' ? entry.name : 'Lojtar';
+      const displayName = typeof entry?.name === 'string' ? entry.name : 'Player';
       const trimmedName = displayName.trim();
       const fallbackInitial = trimmedName ? trimmedName.charAt(0).toUpperCase() : '🂠';
       const avatar = entry?.avatar && !entry.avatar.startsWith('http') ? entry.avatar : fallbackInitial;
@@ -1570,6 +1607,90 @@ export default function MurlanRoyaleArena({ search }) {
     }
   }, []);
 
+  const rebuildTable = useCallback(
+    async (tableTheme, woodOption, clothOption, baseOption) => {
+      const three = threeStateRef.current;
+      if (!three?.arena || !three.renderer) return null;
+      const token = ++tableBuildTokenRef.current;
+      if (three.tableInfo) {
+        three.tableInfo.dispose?.();
+        three.tableInfo = null;
+      }
+
+      const theme = tableTheme || TABLE_THEMES[0];
+      let tableInfo = null;
+
+      if (theme?.source === 'polyhaven' && theme?.assetId) {
+        try {
+          const model = await createPolyhavenInstance(
+            theme.assetId,
+            TABLE_MODEL_TARGET_HEIGHT,
+            theme.rotationY || 0,
+            three.renderer,
+            {
+              textureLoader: three.textureLoader,
+              maxAnisotropy: three.maxAnisotropy,
+              fallbackTexture: three.fallbackTexture,
+              textureCache: three.textureCache
+            }
+          );
+          if (tableBuildTokenRef.current === token && model) {
+            const tableGroup = new THREE.Group();
+            tableGroup.add(model);
+            const { surfaceY, radius } = fitTableModelToArena(tableGroup);
+            three.arena.add(tableGroup);
+            tableInfo = {
+              group: tableGroup,
+              surfaceY,
+              tableHeight: surfaceY,
+              radius,
+              dispose: () => {
+                disposeObjectResources(tableGroup);
+                if (tableGroup.parent) tableGroup.parent.remove(tableGroup);
+              },
+              materials: null,
+              shapeId: theme.id,
+              rotationY: theme.rotationY ?? 0,
+              themeId: theme.id
+            };
+          }
+        } catch (error) {
+          console.warn('Failed to load Poly Haven table', error);
+        }
+      }
+
+      if (!tableInfo) {
+        const procedural = createMurlanStyleTable({
+          arena: three.arena,
+          renderer: three.renderer,
+          tableRadius: TABLE_RADIUS,
+          tableHeight: TABLE_HEIGHT,
+          woodOption,
+          clothOption,
+          baseOption
+        });
+        applyTableMaterials(procedural.materials, { woodOption, clothOption, baseOption }, three.renderer);
+        tableInfo = { ...procedural, themeId: theme?.id || 'murlan-default' };
+      }
+
+      if (tableBuildTokenRef.current !== token) {
+        tableInfo.dispose?.();
+        return null;
+      }
+
+      three.tableInfo = tableInfo;
+      three.tableThemeId = theme?.id || 'murlan-default';
+      three.tableAnchor = new THREE.Vector3(0, tableInfo.surfaceY + CARD_SURFACE_OFFSET, 0);
+      three.discardAnchor = new THREE.Vector3(
+        -TABLE_RADIUS * 0.76,
+        tableInfo.surfaceY - CARD_H * 0.3,
+        -TABLE_RADIUS * 0.62
+      );
+      return tableInfo;
+    },
+    []
+  );
+
   const rebuildChairs = useCallback(
     async (stoolTheme) => {
       if (!threeReady) return;
@@ -1619,8 +1740,6 @@ export default function MurlanRoyaleArena({ search }) {
   const updateSceneAppearance = useCallback(
     (nextAppearance, { refreshCards = false } = {}) => {
       if (!threeReady) return;
-      const three = threeStateRef.current;
-      if (!three.scene) return;
       const safe = normalizeAppearance(nextAppearance);
       const woodOption = TABLE_WOOD_OPTIONS[safe.tableWood] ?? TABLE_WOOD_OPTIONS[0];
       const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
@@ -1628,35 +1747,62 @@ export default function MurlanRoyaleArena({ search }) {
       const stoolTheme = STOOL_THEMES[safe.stools] ?? STOOL_THEMES[0];
       const outfitTheme = OUTFIT_THEMES[safe.outfit] ?? OUTFIT_THEMES[0];
       const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
+      const tableTheme = TABLE_THEMES[safe.tables] ?? TABLE_THEMES[0];
 
-      if (three.tableInfo?.materials) {
-        applyTableMaterials(three.tableInfo.materials, { woodOption, clothOption, baseOption }, three.renderer);
-      }
-      const preserveRequested = shouldPreserveChairMaterials(stoolTheme);
-      if (three.chairThemePreserve == null) {
-        three.chairThemePreserve = preserveRequested;
-      }
-      if (three.chairThemeId !== stoolTheme.id) {
-        three.chairThemePreserve = preserveRequested;
-        void rebuildChairs(stoolTheme);
-      } else {
-        applyChairThemeMaterials(three, stoolTheme);
-      }
-      applyOutfitThemeMaterials(three, outfitTheme);
+      void (async () => {
+        const three = threeStateRef.current;
+        if (!three.scene) return;
+        const tableChanged = three.tableThemeId !== tableTheme.id || !three.tableInfo;
+        if (tableChanged) {
+          await rebuildTable(tableTheme, woodOption, clothOption, baseOption);
+        } else if (three.tableInfo?.materials) {
+          applyTableMaterials(three.tableInfo.materials, { woodOption, clothOption, baseOption }, three.renderer);
+        }
 
-      const shouldRefreshCards = refreshCards || three.appearance?.cards !== safe.cards;
-      applyCardThemeMaterials(three, cardTheme, shouldRefreshCards);
+        const preserveRequested = shouldPreserveChairMaterials(stoolTheme);
+        if (three.chairThemePreserve == null) {
+          three.chairThemePreserve = preserveRequested;
+        }
+        if (three.chairThemeId !== stoolTheme.id) {
+          three.chairThemePreserve = preserveRequested;
+          void rebuildChairs(stoolTheme);
+        } else {
+          applyChairThemeMaterials(three, stoolTheme);
+        }
+        applyOutfitThemeMaterials(three, outfitTheme);
 
-      three.appearance = { ...safe };
+        const shouldRefreshCards = refreshCards || three.appearance?.cards !== safe.cards;
+        applyCardThemeMaterials(three, cardTheme, shouldRefreshCards);
 
-      ensureCardMeshes(gameStateRef.current);
-      applyStateToScene(gameStateRef.current, selectedRef.current, true);
+        three.appearance = { ...safe };
+
+        ensureCardMeshes(gameStateRef.current);
+        applyStateToScene(gameStateRef.current, selectedRef.current, true);
+      })();
     },
-    [applyStateToScene, ensureCardMeshes, rebuildChairs, threeReady]
+    [applyStateToScene, ensureCardMeshes, rebuildChairs, rebuildTable, threeReady]
   );
 
   const renderPreview = useCallback((type, option) => {
     switch (type) {
+      case 'tables': {
+        const thumb = option?.thumbnail;
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/60">
+            {thumb ? (
+              <img src={thumb} alt={option?.label || 'Table model'} className="h-full w-full object-cover opacity-80" loading="lazy" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-slate-100/80">
+                {option?.label || 'Table'}
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-transparent to-black/50" />
+            <div className="absolute bottom-1 left-1 rounded-md bg-black/60 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-emerald-100/80">
+              {(option?.label || 'Table').slice(0, 22)}
+            </div>
+          </div>
+        );
+      }
       case 'tableWood': {
         const presetId = option?.presetId;
         const grainId = option?.grainId;
@@ -1972,6 +2118,7 @@ export default function MurlanRoyaleArena({ search }) {
       const baseOption =
         TABLE_BASE_OPTIONS[currentAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
       const stoolTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
+      const tableTheme = TABLE_THEMES[currentAppearance.tables] ?? TABLE_THEMES[0];
       const outfitTheme = OUTFIT_THEMES[currentAppearance.outfit] ?? OUTFIT_THEMES[0];
 
       const arenaScale = 1.3 * ARENA_GROWTH;
@@ -2095,23 +2242,8 @@ export default function MurlanRoyaleArena({ search }) {
 
       updateScoreboardDisplay(computeUiState(gameStateRef.current).scoreboard);
 
-      const tableInfo = createMurlanStyleTable({
-        arena: arenaGroup,
-        renderer,
-        tableRadius: TABLE_RADIUS,
-        tableHeight: TABLE_HEIGHT,
-        woodOption,
-        clothOption,
-        baseOption
-      });
-      applyTableMaterials(tableInfo.materials, { woodOption, clothOption, baseOption }, renderer);
-      threeStateRef.current.tableInfo = tableInfo;
-      threeStateRef.current.tableAnchor = new THREE.Vector3(0, tableInfo.surfaceY + CARD_SURFACE_OFFSET, 0);
-      threeStateRef.current.discardAnchor = new THREE.Vector3(
-        -TABLE_RADIUS * 0.76,
-        tableInfo.surfaceY - CARD_H * 0.3,
-        -TABLE_RADIUS * 0.62
-      );
+      await rebuildTable(tableTheme, woodOption, clothOption, baseOption);
+      if (disposed) return;
 
       const chairBuild = await buildChairTemplate(stoolTheme, renderer, {
         textureLoader,
@@ -2128,30 +2260,7 @@ export default function MurlanRoyaleArena({ search }) {
       threeStateRef.current.chairThemeId = stoolTheme.id;
       applyChairThemeMaterials(threeStateRef.current, stoolTheme);
 
-      const avatarRadius = 0.32 * MODEL_SCALE;
-      const avatarHeight = 0.9 * MODEL_SCALE;
-      const baseHeight = avatarHeight * 0.24;
-      const bodyHeight = avatarHeight * 0.46;
-      const leftoverHeight = Math.max(avatarHeight - (baseHeight + bodyHeight), avatarHeight * 0.18);
-      const headHeight = leftoverHeight * 0.65;
-      const crestHeight = Math.max(leftoverHeight - headHeight, avatarHeight * 0.08);
-
-      const accentTarget = new THREE.Color('#e8f3ff');
-      const sheenBlend = 0.55;
-      const accentBlend = 0.58;
-      const coreRoughness = 0.32;
-      const coreMetalness = 0.45;
-      const coreClearcoat = 0.36;
-      const coreClearcoatRoughness = 0.22;
-      const coreSheen = 0.35;
-      const accentRoughness = 0.24;
-      const accentMetalness = 0.82;
-      const accentClearcoat = 0.18;
-      const accentClearcoatRoughness = 0.25;
-
-      const avatarMaterials = [];
       const chairRadius = CHAIR_RADIUS;
-      const seatDepth = SEAT_DEPTH;
       const seatThickness = SEAT_THICKNESS;
 
       cardGeometry = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
@@ -2166,71 +2275,6 @@ export default function MurlanRoyaleArena({ search }) {
         chair.add(chairModel);
         chair.userData.chairModel = chairModel;
         threeStateRef.current.chairInstances.push(chair);
-
-        const occupant = new THREE.Group();
-        occupant.position.z = -seatDepth * 0.12;
-        const playerColor = new THREE.Color(player?.color || PLAYER_COLORS[i % PLAYER_COLORS.length]);
-        const coreMaterial = new THREE.MeshPhysicalMaterial({
-          color: playerColor.clone(),
-          roughness: coreRoughness,
-          metalness: coreMetalness,
-          clearcoat: coreClearcoat,
-          clearcoatRoughness: coreClearcoatRoughness,
-          sheen: coreSheen,
-          sheenColor: playerColor.clone().lerp(accentTarget, sheenBlend)
-        });
-        const accentMaterial = new THREE.MeshPhysicalMaterial({
-          color: playerColor.clone().lerp(accentTarget, accentBlend),
-          roughness: accentRoughness,
-          metalness: accentMetalness,
-          clearcoat: accentClearcoat,
-          clearcoatRoughness: accentClearcoatRoughness
-        });
-
-        const base = new THREE.Mesh(
-          new THREE.CylinderGeometry(avatarRadius * 1.45, avatarRadius * 1.65, baseHeight, 48),
-          accentMaterial
-        );
-        base.position.y = seatThickness / 2 + baseHeight / 2;
-        base.castShadow = true;
-        base.receiveShadow = true;
-        occupant.add(base);
-
-        const body = new THREE.Mesh(
-          new THREE.CylinderGeometry(avatarRadius * 1.05, avatarRadius * 0.82, bodyHeight, 48),
-          coreMaterial
-        );
-        body.position.y = base.position.y + baseHeight / 2 + bodyHeight / 2;
-        body.castShadow = true;
-        body.receiveShadow = true;
-        occupant.add(body);
-
-        const collar = new THREE.Mesh(new THREE.TorusGeometry(avatarRadius * 0.95, avatarHeight * 0.06, 24, 48), accentMaterial);
-        collar.rotation.x = Math.PI / 2;
-        collar.position.y = base.position.y + baseHeight / 2 + bodyHeight * 0.78;
-        collar.castShadow = true;
-        collar.receiveShadow = true;
-        occupant.add(collar);
-
-        const head = new THREE.Mesh(
-          new RoundedBoxGeometry(avatarRadius * 1.3, headHeight, avatarRadius * 1.3, 6, avatarRadius * 0.45),
-          coreMaterial
-        );
-        head.position.y = base.position.y + baseHeight / 2 + bodyHeight + headHeight / 2;
-        head.castShadow = true;
-        head.receiveShadow = true;
-        occupant.add(head);
-
-        const crest = new THREE.Mesh(
-          new THREE.CylinderGeometry(avatarRadius * 0.55, avatarRadius * 0.7, crestHeight, 32),
-          accentMaterial
-        );
-        crest.position.y = head.position.y + headHeight / 2 + crestHeight / 2;
-        crest.castShadow = true;
-        crest.receiveShadow = true;
-        occupant.add(crest);
-        avatarMaterials.push(coreMaterial, accentMaterial);
-        chair.add(occupant);
 
         const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
         const isHumanSeat = Boolean(player?.isHuman);
@@ -2267,7 +2311,7 @@ export default function MurlanRoyaleArena({ search }) {
       const humanSeatIndex = players.findIndex((player) => player?.isHuman);
       const humanSeatConfig = humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
 
-      threeStateRef.current.outfitParts = avatarMaterials;
+      threeStateRef.current.outfitParts = [];
       threeStateRef.current.appearance = { ...currentAppearance };
 
       spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
@@ -2543,6 +2587,7 @@ export default function MurlanRoyaleArena({ search }) {
         discardAnchor: new THREE.Vector3(-TABLE_RADIUS * 0.76, TABLE_HEIGHT - CARD_H * 0.3, -TABLE_RADIUS * 0.62),
         scoreboard: null,
         tableInfo: null,
+        tableThemeId: null,
         chairMaterials: null,
         chairTemplate: null,
         chairThemePreserve: false,
@@ -2557,7 +2602,7 @@ export default function MurlanRoyaleArena({ search }) {
       setThreeReady(false);
       setSeatAnchors([]);
     };
-  }, [applyRendererQuality, applyStateToScene, ensureCardMeshes, players, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
+  }, [applyRendererQuality, applyStateToScene, ensureCardMeshes, players, rebuildTable, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
 
   useEffect(() => {
     if (!threeReady) return;
