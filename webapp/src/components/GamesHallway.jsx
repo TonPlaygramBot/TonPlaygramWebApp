@@ -183,15 +183,38 @@ export default function GamesHallway({ games, onClose }) {
     const gltfLoader = new GLTFLoader();
     gltfLoader.setCrossOrigin('anonymous');
 
+    const loadGltfResilient = async (url) => {
+      const resolvedUrl = new URL(url, window.location.href).href;
+      const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+      gltfLoader.setResourcePath(resourcePath);
+      gltfLoader.setPath(resourcePath);
+      try {
+        return await gltfLoader.loadAsync(resolvedUrl);
+      } catch (primaryError) {
+        try {
+          const response = await fetch(resolvedUrl, { mode: 'cors' });
+          if (!response?.ok) throw new Error(`HTTP ${response?.status || 'fail'}`);
+          const buffer = await response.arrayBuffer();
+          return await new Promise((resolve, reject) => {
+            gltfLoader.parse(buffer, resourcePath, resolve, reject);
+          });
+        } catch (fallbackError) {
+          throw primaryError || fallbackError;
+        }
+      }
+    };
+
     const loadGltfWithFallbacks = async (urls) => {
+      let lastError = null;
       for (const url of urls) {
         try {
           // eslint-disable-next-line no-await-in-loop
-          return await gltfLoader.loadAsync(url);
+          return await loadGltfResilient(url);
         } catch (error) {
-          // try next fallback
+          lastError = error;
         }
       }
+      if (lastError) throw lastError;
       throw new Error('All GLTF sources failed');
     };
 
@@ -1099,12 +1122,21 @@ export default function GamesHallway({ games, onClose }) {
     renderer.domElement.addEventListener('contextmenu', contextMenuHandler);
     window.addEventListener('resize', handleResize);
 
-    const clock = new THREE.Clock();
+    const TARGET_FRAME_RATE = 90;
+    const targetFrameMs = 1000 / TARGET_FRAME_RATE;
+    const maxFrameMs = targetFrameMs * 2.5;
     let animationId = 0;
+    let lastFrameTime = performance.now();
 
-    const animate = () => {
+    const animate = (time) => {
       animationId = requestAnimationFrame(animate);
-      const delta = clock.getDelta();
+      const deltaMs = time - lastFrameTime;
+      if (deltaMs < targetFrameMs - 0.25) {
+        return;
+      }
+      const appliedMs = Math.min(deltaMs, maxFrameMs);
+      lastFrameTime = time - Math.max(0, deltaMs - appliedMs);
+      const delta = appliedMs / 1000;
       const now = performance.now();
 
       targetPitch = clampPitch(targetPitch);
