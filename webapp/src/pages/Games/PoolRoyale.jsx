@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState
@@ -1227,20 +1228,20 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
+const CUE_TIP_GAP = BALL_R * 1.36; // pull cue stick slightly closer so the blue tip meets the cue ball centre line
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
-const CUE_PULL_SMOOTHING = 0.35;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
+const CUE_PULL_SMOOTHING = 0.55;
+const CUE_Y = BALL_CENTER_Y; // align the cue height directly with the cue ball centre for precise strikes
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 3.8;
-const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
+const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 4.6;
+const CUE_BUTT_LIFT = BALL_R * 0.7; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.1;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.45;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6);
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.6;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(8.5);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -10248,7 +10249,7 @@ const initialHudInHand = useMemo(
   [initialFrame]
 );
 const [hud, setHud] = useState({
-  power: 0.65,
+  power: 0,
   A: 0,
   B: 0,
   turn: 0,
@@ -10264,6 +10265,10 @@ const lastAssignmentsRef = useRef({ A: null, B: null });
 const lastShotReminderRef = useRef({ A: 0, B: 0 });
 const [ruleToast, setRuleToast] = useState(null);
 const ruleToastTimeoutRef = useRef(null);
+const [replayActive, setReplayActive] = useState(false);
+const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
+const leftControlsRef = useRef(null);
+const spinBoxRef = useRef(null);
 const showRuleToast = useCallback((message) => {
   if (!message) return;
   if (ruleToastTimeoutRef.current) {
@@ -12858,7 +12863,7 @@ const powerRef = useRef(hud.power);
         };
 
         const updateCamera = () => {
-          const replayActive = Boolean(replayPlaybackRef.current);
+          const replayPlaybackActive = Boolean(replayPlaybackRef.current);
           let renderCamera = camera;
           let lookTarget = null;
           let broadcastArgs = {
@@ -12873,7 +12878,7 @@ const powerRef = useRef(hud.power);
             broadcastArgs.lerp = broadcastSystem.smoothing;
           }
           const galleryState = cueGalleryStateRef.current;
-          if (replayActive) {
+          if (replayPlaybackActive) {
             const storedReplayCamera = replayCameraRef.current;
             const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
             const replayCamera = resolveReplayCameraView(
@@ -14635,6 +14640,7 @@ const powerRef = useRef(hud.power);
           const trimmed = trimReplayRecording(shotRecording);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
+          setReplayActive(true);
           storeReplayCameraFrame();
           resetCameraForReplay();
           replayPlayback = {
@@ -14704,6 +14710,7 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = null;
           replayCameraRef.current = null;
           replayFrameCameraRef.current = null;
+          setReplayActive(false);
         };
 
         const enterTopView = (immediate = false) => {
@@ -16651,7 +16658,7 @@ const powerRef = useRef(hud.power);
           if (isMaxPowerShot) {
             const liftAmount = Math.min(
               MAX_POWER_LIFT_HEIGHT,
-              Math.max(CUE_TIP_RADIUS, MAX_POWER_BOUNCE_IMPULSE * 0.25)
+              Math.max(CUE_TIP_RADIUS, MAX_POWER_BOUNCE_IMPULSE * 0.45)
             );
             const liftVelocity = Math.min(
               MAX_POWER_BOUNCE_IMPULSE * clampedPower,
@@ -19449,7 +19456,7 @@ const powerRef = useRef(hud.power);
                   const bounceStrength = THREE.MathUtils.clamp(lastShotPower, 0, 1);
                   cueBall.lift = Math.max(
                     cueBall.lift ?? 0,
-                    Math.min(MAX_POWER_LIFT_HEIGHT, MAX_POWER_BOUNCE_IMPULSE * 0.35)
+                    Math.min(MAX_POWER_LIFT_HEIGHT, MAX_POWER_BOUNCE_IMPULSE * 0.45)
                   );
                   cueBall.liftVel = Math.max(
                     cueBall.liftVel ?? 0,
@@ -20069,11 +20076,36 @@ const powerRef = useRef(hud.power);
     applyRailMarkerStyleRef.current?.(railMarkerStyleRef.current);
   }, [tableFinish]);
 
+  useLayoutEffect(() => {
+    const computeInsets = () => {
+      if (!isPortrait) {
+        const left = uiScale * 150;
+        const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 130);
+        setHudInsets({
+          left: `${left}px`,
+          right: `${right}px`
+        });
+        return;
+      }
+      const leftBox = leftControlsRef.current?.getBoundingClientRect();
+      const spinBox = spinBoxRef.current?.getBoundingClientRect();
+      const leftInset = (leftBox?.width ?? uiScale * 120) + 12;
+      const rightInset = (spinBox?.width ?? uiScale * (SPIN_CONTROL_DIAMETER_PX + 64)) + 12;
+      setHudInsets({
+        left: `${leftInset}px`,
+        right: `${rightInset}px`
+      });
+    };
+    computeInsets();
+    window.addEventListener('resize', computeInsets);
+    return () => window.removeEventListener('resize', computeInsets);
+  }, [isPortrait, uiScale]);
+
   // --------------------------------------------------
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = !hud.over;
+  const showPowerSlider = !hud.over && !replayActive;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -20103,7 +20135,7 @@ const powerRef = useRef(hud.power);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
-  const showPlayerControls = isPlayerTurn && !hud.over;
+  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
 
   // Spin controller interactions
   useEffect(() => {
@@ -20406,15 +20438,8 @@ const powerRef = useRef(hud.power);
   const opponentSeatId = playerSeatId === 'A' ? 'B' : 'A';
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
-  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
+  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
   const bottomHudScale = isPortrait ? uiScale * 0.95 : uiScale * 1.02;
-  const leftControlFootprint = uiScale * (isPortrait ? 150 : 180);
-  const rightControlFootprint =
-    uiScale * (SPIN_CONTROL_DIAMETER_PX + (isPortrait ? 110 : 130));
-  const bottomHudInsets = {
-    left: `${leftControlFootprint}px`,
-    right: `${rightControlFootprint}px`
-  };
   const avatarSizeClass = isPortrait ? 'h-8 w-8' : 'h-12 w-12';
   const nameWidthClass = isPortrait ? 'max-w-[6.5rem]' : 'max-w-[8.75rem]';
   const nameTextClass = isPortrait ? 'text-xs' : 'text-sm';
@@ -20572,7 +20597,26 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      <div className="absolute top-4 left-4 z-50 flex flex-col items-start gap-2">
+      {replayActive && (
+        <div className="pointer-events-none absolute inset-0 z-40">
+          <div className="absolute inset-0 rounded-[28px] border border-white/12 shadow-[0_0_32px_rgba(0,0,0,0.55),0_0_0_8px_rgba(0,0,0,0.45)]" />
+          <div className="absolute inset-0 rounded-[28px] bg-gradient-to-b from-black/55 via-transparent to-black/55" />
+          <div className="absolute inset-0 flex items-center justify-between px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.32em] text-white/80">
+            <span className="rounded-full border border-white/30 bg-black/50 px-4 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
+              Instant Replay
+            </span>
+            <span className="rounded-full border border-white/30 bg-black/50 px-4 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
+              TV Mode
+            </span>
+          </div>
+          <div className="absolute inset-x-10 top-6 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
+          <div className="absolute inset-x-10 bottom-6 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
+        </div>
+      )}
+
+      <div
+        className={`absolute top-4 left-4 z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+      >
         <button
           ref={configButtonRef}
           type="button"
@@ -20922,7 +20966,7 @@ const powerRef = useRef(hud.power);
         )}
       </div>
 
-      {isTraining && (
+      {isTraining && !replayActive && (
         <div className="absolute right-3 top-3 z-50 flex flex-col items-end gap-2">
           <div className="pointer-events-auto w-64 rounded-2xl border border-emerald-400/50 bg-black/80 p-4 text-sm text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
             <div className="flex items-start justify-between gap-2">
@@ -21031,7 +21075,8 @@ const powerRef = useRef(hud.power);
       )}
 
       <div
-        className="pointer-events-none absolute bottom-4 left-4 z-50 flex flex-col gap-2"
+        ref={leftControlsRef}
+        className={`pointer-events-none absolute bottom-4 left-4 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{ transform: `scale(${uiScale})`, transformOrigin: 'bottom left' }}
       >
         <button
@@ -21064,11 +21109,11 @@ const powerRef = useRef(hud.power);
 
       {bottomHudVisible && (
         <div
-          className={`absolute bottom-4 flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
-          aria-hidden={pocketCameraActive}
+          className={`absolute bottom-4 flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
+          aria-hidden={pocketCameraActive || replayActive}
           style={{
-            left: bottomHudInsets.left,
-            right: bottomHudInsets.right
+            left: hudInsets.left,
+            right: hudInsets.right
           }}
         >
           <div
@@ -21187,7 +21232,7 @@ const powerRef = useRef(hud.power);
         </div>
       )}
       {/* Power Slider */}
-      {showPowerSlider && (
+      {showPowerSlider && !replayActive && (
         <div
           className="absolute right-3 top-[56%] -translate-y-1/2"
           data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
@@ -21204,8 +21249,9 @@ const powerRef = useRef(hud.power);
       )}
 
       {/* Spin controller */}
-      {showPlayerControls && (
+      {showPlayerControls && !replayActive && (
         <div
+          ref={spinBoxRef}
           className="absolute bottom-4 right-4"
           style={{
             transform: `scale(${uiScale})`,

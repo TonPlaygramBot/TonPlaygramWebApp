@@ -157,10 +157,11 @@ export class PowerSlider {
     const pct = ratio * 100;
     this.powerFill.style.clipPath = `inset(0 0 ${100 - pct}% 0)`;
     this._updateHandleColor(ratio);
+    const pctValue = Math.round(this.value);
     if (this.handleText) {
-      this.handleText.textContent = `${Math.round(this.value)}%`;
+      this.handleText.textContent = pctValue <= this.min ? 'Pull' : `${pctValue}%`;
     }
-    this.tooltip.textContent = `${Math.round(this.value)}%`;
+    this.tooltip.textContent = `${pctValue}%`;
     this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
     if (ratio >= 0.9) this.el.classList.add('ps-hot');
     else this.el.classList.remove('ps-hot');
