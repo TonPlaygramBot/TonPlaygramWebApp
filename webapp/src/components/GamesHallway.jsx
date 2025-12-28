@@ -894,6 +894,9 @@ export default function GamesHallway({ games, onClose }) {
         return;
       }
 
+      const potRadius = 16.6;
+      const twoPi = Math.PI * 2;
+
       const findDoorIndex = (predicate) =>
         doorEntries.findIndex((entry) => {
           const name = String(entry?.name || '').toLowerCase();
@@ -901,14 +904,6 @@ export default function GamesHallway({ games, onClose }) {
         });
 
       const poolIndex = findDoorIndex((name) => name.includes('pool royale'));
-      const snookerIndex = findDoorIndex((name) => name.includes('snooker club'));
-
-      if (poolIndex === -1 || snookerIndex === -1) {
-        return;
-      }
-
-      const potRadius = 16.6;
-      const twoPi = Math.PI * 2;
 
       const plantTextures = new Map(
         (
@@ -975,31 +970,38 @@ export default function GamesHallway({ games, onClose }) {
         plantVariants.push(buildProceduralPlant());
       }
 
-      const baseAngle = doorAngles[poolIndex];
-      let delta = wrapAngle(doorAngles[snookerIndex] - baseAngle);
-      if (delta <= 0) {
-        delta += twoPi;
+      const referenceIndex = poolIndex !== -1 ? poolIndex % plantVariants.length : 0;
+      const referenceVariant = plantVariants[referenceIndex];
+
+      if (!referenceVariant?.scene) {
+        return;
       }
-      const midpointAngle = baseAngle + delta / 2;
-      const potX = Math.cos(midpointAngle) * potRadius;
-      const potZ = Math.sin(midpointAngle) * potRadius;
 
-      const potGroup = new THREE.Group();
-      potGroup.position.set(potX, 0, potZ);
-      potGroup.rotation.y = -(midpointAngle + Math.PI / 2);
-      potGroup.scale.setScalar(2);
+      for (let i = 0; i < doorAngles.length; i += 1) {
+        const startAngle = doorAngles[i];
+        const endAngle = doorAngles[(i + 1) % doorAngles.length];
+        let delta = wrapAngle(endAngle - startAngle);
+        if (delta <= 0) {
+          delta += twoPi;
+        }
+        const midpointAngle = startAngle + delta / 2;
+        const potX = Math.cos(midpointAngle) * potRadius;
+        const potZ = Math.sin(midpointAngle) * potRadius;
 
-      if (plantVariants.length) {
-        const variant = plantVariants[poolIndex % plantVariants.length];
-        const instance = cloneSkinnedMesh(variant.scene);
+        const potGroup = new THREE.Group();
+        potGroup.position.set(potX, 0, potZ);
+        potGroup.rotation.y = -(midpointAngle + Math.PI / 2);
+        potGroup.scale.setScalar(2);
+
+        const instance = cloneSkinnedMesh(referenceVariant.scene);
         instance.position.set(0, 0.05, 0);
-        if (variant.targetHeight) {
-          fitModelToHeight(instance, variant.targetHeight);
+        if (referenceVariant.targetHeight) {
+          fitModelToHeight(instance, referenceVariant.targetHeight);
         }
         potGroup.add(instance);
-      }
 
-      scene.add(potGroup);
+        scene.add(potGroup);
+      }
     };
 
     void addFlowerPotsBetweenDoors();
