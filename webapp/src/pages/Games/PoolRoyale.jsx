@@ -4436,7 +4436,7 @@ const createCarpetTextures = (() => {
 const WALL_TEXTURE_CONFIG = {
   sourceId: 'white_planks_clean',
   fallbackColor: 0xdedede,
-  repeat: new THREE.Vector2(3.75, 3.4),
+  repeat: new THREE.Vector2(1.875, 3.4),
   anisotropy: 12,
   preferredResolutionK: 4
 };
@@ -12098,7 +12098,7 @@ const powerRef = useRef(hud.power);
         flatShading: true
       });
       const wallTextureRepeat = new THREE.Vector2(
-        Math.max(WALL_TEXTURE_CONFIG.repeat.x, roomWidth / 80),
+        Math.max(WALL_TEXTURE_CONFIG.repeat.x, roomWidth / 160),
         Math.max(WALL_TEXTURE_CONFIG.repeat.y, wallHeight / 40)
       );
       const wallTextureAnisotropy =
