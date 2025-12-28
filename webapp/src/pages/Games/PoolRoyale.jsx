@@ -850,11 +850,11 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.58; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.14; // trim the middle jaw reach further so it finishes closer to the wood/cloth gap while keeping the jaw radius
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.98; // relax the middle jaw arc radius slightly so side-pocket jaws read a touch wider
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.22; // push the middle jaw reach a touch wider so the openings read larger
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.05; // relax the middle jaw arc radius further so side-pocket jaws grow subtly
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.02; // lift the middle jaws so their rims sit level with the cloth like the corner pockets
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.06; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.072; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -1065,7 +1065,7 @@ const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.226; // trim the cushion tops furthe
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // round only the exterior rail corners while leaving the playfield edge crisp
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior wooden rails straight with no rounding
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
@@ -1230,10 +1230,10 @@ const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.12; // ensure a visible air gap so the tip never rests on the cue ball
 const CUE_TIP_GAP = BALL_R * 1.04 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
-const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.55;
+const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 1.85;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.55; // guarantee a clear visible pull even when clearance is tight
-const CUE_PULL_VISUAL_FUDGE = BALL_R * 1.7; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_MULTIPLIER = 1.32;
+const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.2; // allow extra travel before obstructions cancel the pull
+const CUE_PULL_VISUAL_MULTIPLIER = 1.5;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_STROKE_MIN_MS = 95;
 const CUE_STROKE_MAX_MS = 420;
@@ -1243,10 +1243,10 @@ const CUE_FOLLOW_MIN_MS = 180;
 const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
-const CUE_Y = BALL_CENTER_Y; // align the cue height directly with the cue ball centre for precise strikes
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // lower the cue height so the tip meets the cue-ball equator instead of creeping toward topspin
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 5.2;
-const CUE_BUTT_LIFT = BALL_R * 0.9; // raise the butt a little more so the rear clears rails while the tip stays aligned
+const CUE_BUTT_LIFT = BALL_R * 0.64; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
@@ -13872,8 +13872,7 @@ const powerRef = useRef(hud.power);
               ORBIT_FOCUS_BASE_Y,
               TOP_VIEW_SCREEN_OFFSET.z
             ).multiplyScalar(worldScaleFactor);
-            lookTarget = topFocusTarget;
-            lastCameraTargetRef.current.copy(topFocusTarget);
+            let resolvedTarget = topFocusTarget.clone();
             const topRadius = clampOrbitRadius(
               Math.max(
                 fitRadius(camera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
@@ -13886,27 +13885,42 @@ const powerRef = useRef(hud.power);
             camera.up.set(0, 1, 0);
             camera.position.setFromSpherical(TMP_SPH);
             camera.position.add(topFocusTarget);
-            camera.lookAt(topFocusTarget);
-            renderCamera = camera;
-            const topCameraWorld = camera.position.clone();
+            let resolvedPosition = camera.position.clone();
+            let resolvedFov = camera.fov;
             const overheadRailCamera = resolveRailOverheadReplayCamera({
               focusOverride: topFocusTarget,
               minTargetY: topFocusTarget.y
             });
             if (overheadRailCamera) {
+              resolvedTarget =
+                overheadRailCamera.target?.clone?.() ?? resolvedTarget;
+              resolvedPosition =
+                overheadRailCamera.position?.clone?.() ?? resolvedPosition;
+              if (Number.isFinite(overheadRailCamera.fov)) {
+                resolvedFov = overheadRailCamera.fov;
+              }
+            }
+            lookTarget = resolvedTarget;
+            lastCameraTargetRef.current.copy(resolvedTarget);
+            camera.fov = resolvedFov;
+            camera.updateProjectionMatrix();
+            camera.position.copy(resolvedPosition);
+            camera.lookAt(resolvedTarget);
+            renderCamera = camera;
+            if (overheadRailCamera) {
               broadcastArgs.focusWorld =
-                overheadRailCamera.target?.clone?.() ?? topFocusTarget.clone();
+                overheadRailCamera.target?.clone?.() ?? resolvedTarget.clone();
               broadcastArgs.targetWorld =
-                overheadRailCamera.target?.clone?.() ?? topFocusTarget.clone();
+                overheadRailCamera.target?.clone?.() ?? resolvedTarget.clone();
               broadcastArgs.orbitWorld =
-                overheadRailCamera.position?.clone?.() ?? topCameraWorld;
+                overheadRailCamera.position?.clone?.() ?? resolvedPosition.clone();
               broadcastArgs.lerp = 0.08;
             } else {
-              broadcastArgs.focusWorld = topFocusTarget.clone();
-              broadcastArgs.targetWorld = topFocusTarget.clone();
-              broadcastArgs.orbitWorld = topCameraWorld;
+              broadcastArgs.focusWorld = resolvedTarget.clone();
+              broadcastArgs.targetWorld = resolvedTarget.clone();
+              broadcastArgs.orbitWorld = resolvedPosition.clone();
               if (broadcastCamerasRef.current) {
-                broadcastCamerasRef.current.defaultFocusWorld = topFocusTarget.clone();
+                broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
               }
               broadcastArgs.lerp = 0.12;
             }
