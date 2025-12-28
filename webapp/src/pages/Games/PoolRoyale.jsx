@@ -5101,7 +5101,6 @@ const AI_THINKING_BUDGET_MS =
 const AI_CAMERA_DROP_LEAD_MS = 420; // start lowering into cue view shortly before the AI pulls the trigger
 const AI_CAMERA_SETTLE_MS = 320; // allow time for the cue view to settle before firing
 const AI_CUE_VIEW_HOLD_MS = 3000;
-const AI_SHOT_FRAME_HOLD_MS = 2000;
 // Ease the AI camera just partway toward cue view (still above the stick) so the shot preview
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
@@ -10629,7 +10628,6 @@ const powerRef = useRef(hud.power);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
-  const aiCameraHoldRef = useRef(null);
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
@@ -11391,12 +11389,6 @@ const powerRef = useRef(hud.power);
       startAiThinkingRef.current?.();
     }
   }, [aiOpponentEnabled, frameState, hud.turn, hud.over]);
-
-  useEffect(() => {
-    if (hud.turn !== 1) {
-      aiCameraHoldRef.current = null;
-    }
-  }, [hud.turn]);
 
   useEffect(() => {
     const sph = sphRef.current;
@@ -12848,52 +12840,6 @@ const powerRef = useRef(hud.power);
           const fallbackFov = Number.isFinite(storedReplayCamera?.fov)
             ? storedReplayCamera.fov
             : camera.fov;
-          const toVec2 = (value) => {
-            if (!value) return null;
-            if (typeof value.x === 'number' && typeof value.y === 'number') {
-              return new THREE.Vector2(value.x, value.y);
-            }
-            if (typeof value.x === 'number' && typeof value.z === 'number') {
-              return new THREE.Vector2(value.x, value.z);
-            }
-            return null;
-          };
-          const resolvePocketReplayCamera = (framing, baseTarget, targetMinY) => {
-            if (!framing?.pocketCenter) return null;
-            const center2D = toVec2(framing.pocketCenter);
-            if (!center2D) return null;
-            const anchorId = framing.anchorId ?? pocketIdFromCenter(center2D);
-            const outward2D =
-              toVec2(framing.anchorOutward) ?? getPocketCameraOutward(anchorId);
-            const outward =
-              outward2D && outward2D.lengthSq() > 1e-6
-                ? outward2D.clone().normalize()
-                : new THREE.Vector2(0, 1);
-            const minOutside = POCKET_CAM.minOutside;
-            const maxOutside = POCKET_CAM.maxOutside;
-            const distance = THREE.MathUtils.clamp(
-              framing.cameraDistance ?? minOutside * 1.15,
-              minOutside,
-              maxOutside
-            );
-            const heightScale = framing.heightScale ?? POCKET_CAM.heightScale ?? 1;
-            const heightOffset = framing.heightOffset ?? POCKET_CAM.heightOffset;
-            const focus =
-              framing.focus?.clone?.() ??
-              baseTarget?.clone?.() ??
-              new THREE.Vector3(center2D.x, BALL_CENTER_Y, center2D.y);
-            const position = new THREE.Vector3(
-              center2D.x + outward.x * distance,
-              TABLE_Y + TABLE.THICK + heightOffset * heightScale,
-              center2D.y + outward.y * distance
-            );
-            return {
-              position,
-              target: focus,
-              fov: storedReplayCamera?.fov ?? STANDING_VIEW_FOV,
-              minTargetY: targetMinY
-            };
-          };
           const lerpVector = (a, b, t) => {
             if (!a && !b) return null;
             const start = a ?? b;
@@ -12905,44 +12851,8 @@ const powerRef = useRef(hud.power);
             }
             return startVec.lerp(endVec, t);
           };
-          const applyReplayFraming = (frame) => {
-            if (!frame) return null;
-            const frameTarget =
-              frame.framing?.focus?.clone?.() ?? frame.target?.clone?.() ?? null;
-            if (frame.framing?.type === 'pocket') {
-              const pocketCam = resolvePocketReplayCamera(
-                frame.framing,
-                frameTarget ?? fallbackTarget,
-                frame.minTargetY ?? minTargetY
-              );
-              if (pocketCam) {
-                if (Number.isFinite(frame.fov)) pocketCam.fov = frame.fov;
-                return pocketCam;
-              }
-            }
-            if (frame.framing?.type === 'broadcast') {
-              const focusOverride = frameTarget ?? fallbackTarget;
-              const broadcastCam = resolveRailOverheadReplayCamera({
-                focusOverride,
-                minTargetY: Math.max(frame.minTargetY ?? minTargetY, minTargetY)
-              });
-              if (broadcastCam) {
-                if (Number.isFinite(frame.fov)) broadcastCam.fov = frame.fov;
-                broadcastCam.target = focusOverride ?? broadcastCam.target;
-                return broadcastCam;
-              }
-            }
-            return {
-              position: frame.position?.clone?.() ?? frame.position ?? null,
-              target: frameTarget ?? fallbackTarget,
-              fov: Number.isFinite(frame.fov) ? frame.fov : null,
-              minTargetY: frame.minTargetY
-            };
-          };
-          const cameraA = applyReplayFraming(
-            replayFrameCamera?.frameA ?? replayFrameCamera?.frameB ?? null
-          );
-          const cameraB = applyReplayFraming(replayFrameCamera?.frameB ?? cameraA);
+          const cameraA = replayFrameCamera?.frameA ?? replayFrameCamera?.frameB ?? null;
+          const cameraB = replayFrameCamera?.frameB ?? cameraA;
           const alpha = THREE.MathUtils.clamp(replayFrameCamera?.alpha ?? 0, 0, 1);
           const position = lerpVector(cameraA?.position, cameraB?.position, alpha) ?? fallbackPosition;
           const target = lerpVector(cameraA?.target, cameraB?.target, alpha) ?? fallbackTarget;
@@ -12951,11 +12861,7 @@ const powerRef = useRef(hud.power);
           const resolvedFov = Number.isFinite(fovA) || Number.isFinite(fovB)
             ? THREE.MathUtils.lerp(fovA ?? fovB, fovB ?? fovA, alpha)
             : fallbackFov;
-          const resolvedMinTargetY = Math.max(
-            cameraA?.minTargetY ?? minTargetY,
-            cameraB?.minTargetY ?? minTargetY
-          );
-          return { position, target, fov: resolvedFov, minTargetY: resolvedMinTargetY };
+          return { position, target, fov: resolvedFov, minTargetY };
         };
 
         const updateCamera = () => {
@@ -12968,49 +12874,6 @@ const powerRef = useRef(hud.power);
             focusWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
             lerp: 0.18
           };
-          const hold = aiCameraHoldRef.current;
-          if (hold) {
-            const now = performance.now();
-            const elapsed = now - (hold.startedAt ?? now);
-            const duration = hold.duration ?? AI_SHOT_FRAME_HOLD_MS;
-            if (elapsed <= duration) {
-              const scale =
-                Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-              const holdMinTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-              const stored = hold.camera ?? replayCameraRef.current ?? null;
-              const holdPosition = stored?.position?.clone?.() ?? camera.position.clone();
-              const holdTarget =
-                stored?.target?.clone?.() ??
-                lastCameraTargetRef.current?.clone() ??
-                new THREE.Vector3(
-                  playerOffsetRef.current * scale,
-                  holdMinTargetY,
-                  0
-                );
-              const holdFov = Number.isFinite(stored?.fov) ? stored.fov : camera.fov;
-              if (Number.isFinite(holdFov) && camera.fov !== holdFov) {
-                camera.fov = holdFov;
-                camera.updateProjectionMatrix();
-              }
-              const safeTargetY = Math.max(holdTarget.y ?? holdMinTargetY, holdMinTargetY);
-              holdTarget.y = safeTargetY;
-              const safePosition = holdPosition.clone();
-              const minCameraY = safeTargetY + CAMERA_CUE_SURFACE_MARGIN * scale;
-              if (safePosition.y < minCameraY) {
-                safePosition.y = minCameraY;
-              }
-              camera.position.copy(safePosition);
-              camera.lookAt(holdTarget);
-              renderCamera = camera;
-              lookTarget = holdTarget;
-              broadcastArgs.focusWorld = holdTarget.clone();
-              broadcastArgs.targetWorld = holdTarget.clone();
-              broadcastArgs.lerp = 0.04;
-              activeRenderCameraRef.current = renderCamera;
-              return renderCamera;
-            }
-            aiCameraHoldRef.current = null;
-          }
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
           if (broadcastSystem?.smoothing != null) {
@@ -14548,51 +14411,6 @@ const powerRef = useRef(hud.power);
           if (Number.isFinite(overheadCamera?.minTargetY)) {
             snapshot.minTargetY = overheadCamera.minTargetY;
           }
-          const framing = {};
-          if (activeShotView?.mode === 'pocket' && activeShotView.pocketCenter) {
-            framing.type = 'pocket';
-            framing.pocketCenter = activeShotView.pocketCenter.clone?.() ?? null;
-            framing.anchorId =
-              activeShotView.anchorId ??
-              pocketIdFromCenter(activeShotView.pocketCenter);
-            framing.anchorOutward = activeShotView.anchorOutward?.clone?.() ?? null;
-            framing.cameraDistance = activeShotView.cameraDistance ?? null;
-            framing.heightOffset = activeShotView.heightOffset ?? null;
-            framing.heightScale = activeShotView.heightScale ?? null;
-            if (activeShotView.lastBallPos) {
-              framing.focus = new THREE.Vector3(
-                activeShotView.lastBallPos.x,
-                BALL_CENTER_Y,
-                activeShotView.lastBallPos.y
-              );
-            }
-          } else if (shotPrediction) {
-            framing.type = 'broadcast';
-            framing.railDir =
-              shotPrediction.railNormal != null
-                ? signed(shotPrediction.railNormal.y ?? shotPrediction.railNormal.x ?? 1, 1)
-                : null;
-            framing.focus = shotPrediction.targetInitialPos
-              ? new THREE.Vector3(
-                  shotPrediction.targetInitialPos.x,
-                  BALL_CENTER_Y,
-                  shotPrediction.targetInitialPos.y
-                )
-              : null;
-            if (!framing.focus && ballsRef.current?.length) {
-              const cueBall = ballsRef.current.find((b) => b.id === 'cue');
-              if (cueBall) {
-                framing.focus = new THREE.Vector3(
-                  cueBall.pos.x,
-                  BALL_CENTER_Y,
-                  cueBall.pos.y
-                );
-              }
-            }
-          }
-          if (framing.type) {
-            snapshot.framing = framing;
-          }
           return snapshot;
         };
         captureReplayCameraSnapshotRef.current = captureReplayCameraSnapshot;
@@ -14990,11 +14808,10 @@ const powerRef = useRef(hud.power);
             spinLegalityRef.current = legality;
           }
           const applied = clampSpinToLimits();
-          const result = legality.blocked ? { x: 0, y: 0 } : applied;
-          const displaySpin = legality.blocked ? result : applied;
           if (updateUi) {
-            updateSpinDotPosition(displaySpin, legality.blocked);
+            updateSpinDotPosition(applied, legality.blocked);
           }
+          const result = legality.blocked ? { x: 0, y: 0 } : applied;
           const magnitude = Math.hypot(result.x ?? 0, result.y ?? 0);
           const mode = magnitude >= SWERVE_THRESHOLD ? 'swerve' : 'standard';
           spinAppliedRef.current = { ...result, magnitude, mode };
@@ -16610,28 +16427,6 @@ const powerRef = useRef(hud.power);
         const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
         applyCameraBlend(forcedCueView ? forcedCueBlend : 1);
         updateCamera();
-        const aiTurnActive = aiOpponentEnabled && currentHud?.turn === 1;
-        if (aiTurnActive) {
-          const capturedCamera = captureReplayCameraSnapshotRef.current
-            ? captureReplayCameraSnapshotRef.current()
-            : null;
-          const scale =
-            Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-          const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-          const fallbackCamera = {
-            position: camera.position.clone(),
-            target:
-              lastCameraTargetRef.current?.clone() ??
-              new THREE.Vector3(playerOffsetRef.current * scale, minTargetY, 0),
-            fov: camera.fov,
-            minTargetY
-          };
-          aiCameraHoldRef.current = {
-            camera: capturedCamera ?? fallbackCamera,
-            startedAt: performance.now(),
-            duration: AI_SHOT_FRAME_HOLD_MS
-          };
-        }
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
         if (meta && typeof meta === 'object') {
@@ -20345,13 +20140,10 @@ const powerRef = useRef(hud.power);
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
-  const showSpinController =
-    !hud.over && !replayActive && (showPlayerControls || aiTakingShot);
-  const spinInteractive = showPlayerControls;
 
   // Spin controller interactions
   useEffect(() => {
-    if (!spinInteractive || !showSpinController) {
+    if (!showPlayerControls) {
       spinDotElRef.current = null;
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
@@ -20405,8 +20197,7 @@ const powerRef = useRef(hud.power);
         }
       );
       spinLegalityRef.current = legality;
-      const effectiveSpin = legality.blocked ? { x: 0, y: 0 } : limited;
-      updateSpinDotPosition(effectiveSpin, legality.blocked);
+      updateSpinDotPosition(limited, legality.blocked);
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
@@ -20497,7 +20288,7 @@ const powerRef = useRef(hud.power);
       box.removeEventListener('pointerup', handlePointerUp);
       box.removeEventListener('pointercancel', handlePointerCancel);
     };
-  }, [showSpinController, spinInteractive, updateSpinDotPosition]);
+  }, [showPlayerControls, updateSpinDotPosition]);
 
   const americanBallSwatches = useMemo(() => {
     const colors = POOL_VARIANT_COLOR_SETS.american.objectColors || [];
@@ -20715,24 +20506,81 @@ const powerRef = useRef(hud.power);
       <div ref={mountRef} className="absolute inset-0" />
 
       {replaySlate && (
-        <div className="pointer-events-none absolute right-4 top-4 z-50">
-          <div className="flex flex-col items-end gap-1 rounded-2xl border border-white/25 bg-black/75 px-4 py-3 shadow-[0_18px_42px_rgba(0,0,0,0.55)] backdrop-blur">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-emerald-100">
-              Instant Replay
-            </span>
-            <span className="text-sm font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]">
-              {replaySlate.label}
-            </span>
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
+          <div className="relative isolate flex w-[min(26rem,90vw)] items-center justify-between overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-r from-black/85 via-black/70 to-black/85 px-5 py-4 shadow-[0_18px_42px_rgba(0,0,0,0.55)] backdrop-blur">
+            <div className="pointer-events-none absolute inset-0 opacity-80">
+              <div className="absolute -left-10 top-0 h-full w-1/2 rotate-3 bg-gradient-to-r from-emerald-400/15 via-emerald-300/10 to-transparent" />
+              <div className="absolute -right-14 bottom-0 h-2/3 w-1/2 -rotate-6 bg-gradient-to-l from-cyan-300/20 via-cyan-200/12 to-transparent" />
+              <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+            </div>
+            <div className="relative flex items-center gap-3">
+              <span
+                className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${
+                  replaySlate.accent === 'power'
+                    ? 'from-amber-300 to-orange-400'
+                    : replaySlate.accent === 'spin'
+                      ? 'from-indigo-300 to-sky-400'
+                      : 'from-emerald-300 to-cyan-300'
+                } text-black shadow-[0_12px_28px_rgba(0,0,0,0.35)] ring-1 ring-white/40`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="h-6 w-6"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m5 4 14 8-14 8V4z" />
+                </svg>
+              </span>
+              <div className="flex flex-col leading-tight">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-emerald-100">
+                  Instant Replay
+                </span>
+                <span className="text-sm font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]">
+                  {replaySlate.label}
+                </span>
+              </div>
+            </div>
+            <div className="relative flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.26em] text-white/70">
+              <span className="h-px w-10 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+              <span>TV</span>
+              <span className="h-px w-10 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+            </div>
           </div>
         </div>
       )}
 
       {replayBanner && (
-        <div className="pointer-events-none absolute top-14 right-4 z-50">
+        <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
           <div
-            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300 px-5 py-2 text-sm font-bold uppercase tracking-[0.32em] text-slate-900 shadow-[0_12px_32px_rgba(0,0,0,0.45)] ring-2 ring-white/30"
+            className="flex items-center gap-3 rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300 px-6 py-2 text-sm font-bold uppercase tracking-[0.32em] text-slate-900 shadow-[0_12px_32px_rgba(0,0,0,0.45)] ring-2 ring-white/30"
             aria-live="polite"
           >
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/10 text-slate-900 shadow-inner">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="h-4 w-4"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M11 5V3a1 1 0 0 0-1.7-.7L4.6 7a1 1 0 0 0 0 1.4l4.7 4.7A1 1 0 0 0 11 12v-2a7 7 0 0 1 7 7"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M18 17a7 7 0 1 1-7-7"
+                />
+              </svg>
+            </span>
             <span className="drop-shadow-[0_1px_2px_rgba(255,255,255,0.35)]">
               {replayBanner}
             </span>
@@ -20757,6 +20605,14 @@ const powerRef = useRef(hud.power);
         <div className="pointer-events-none absolute inset-0 z-40">
           <div className="absolute inset-0 rounded-[28px] border border-white/12 shadow-[0_0_32px_rgba(0,0,0,0.55),0_0_0_8px_rgba(0,0,0,0.45)]" />
           <div className="absolute inset-0 rounded-[28px] bg-gradient-to-b from-black/55 via-transparent to-black/55" />
+          <div className="absolute inset-0 flex items-center justify-between px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.32em] text-white/80">
+            <span className="rounded-full border border-white/30 bg-black/50 px-4 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
+              Instant Replay
+            </span>
+            <span className="rounded-full border border-white/30 bg-black/50 px-4 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
+              TV Mode
+            </span>
+          </div>
           <div className="absolute inset-x-10 top-6 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
           <div className="absolute inset-x-10 bottom-6 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
         </div>
@@ -21397,15 +21253,14 @@ const powerRef = useRef(hud.power);
       )}
 
       {/* Spin controller */}
-      {showSpinController && (
+      {showPlayerControls && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute bottom-4 right-4 ${spinInteractive ? '' : 'pointer-events-none opacity-80'}`}
+          className="absolute bottom-4 right-4"
           style={{
             transform: `scale(${uiScale})`,
             transformOrigin: 'bottom right'
           }}
-          aria-hidden={!spinInteractive}
         >
           <div
             id="spinBox"
