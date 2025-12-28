@@ -54,32 +54,6 @@ import {
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.3;
-const FALLBACK_TEXTURE_URL = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/uv_grid_opengl.jpg';
-const sharedTextureLoader = new THREE.TextureLoader();
-sharedTextureLoader.setCrossOrigin?.('anonymous');
-let maxTextureAnisotropy = 1;
-let fallbackTexture = null;
-
-function updateMaxTextureAnisotropy(value) {
-  maxTextureAnisotropy = Math.max(1, value || 1);
-  if (fallbackTexture) {
-    fallbackTexture.anisotropy = maxTextureAnisotropy;
-    fallbackTexture.needsUpdate = true;
-  }
-}
-
-function ensureFallbackTexture() {
-  if (!fallbackTexture) {
-    fallbackTexture = sharedTextureLoader.load(FALLBACK_TEXTURE_URL);
-    applySRGBColorSpace(fallbackTexture);
-    fallbackTexture.wrapS = THREE.RepeatWrapping;
-    fallbackTexture.wrapT = THREE.RepeatWrapping;
-    fallbackTexture.repeat.set(1.6, 1.6);
-  }
-  fallbackTexture.anisotropy = maxTextureAnisotropy;
-  fallbackTexture.needsUpdate = true;
-  return fallbackTexture;
-}
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const CHAIR_COUNT = 4;
@@ -353,34 +327,17 @@ function pickBestModelUrl(urls) {
   return glbs[0] || gltfs[0] || null;
 }
 
-function applyTextureTweaks(material, { useFallbackMap = true } = {}) {
-  if (!material) return;
-  const fallback = useFallbackMap ? ensureFallbackTexture() : null;
-  const touchTexture = (tex, withSrgb = false) => {
-    if (!tex) return;
-    if (withSrgb) applySRGBColorSpace(tex);
-    tex.anisotropy = maxTextureAnisotropy;
-    tex.needsUpdate = true;
-  };
-  if (material.map) {
-    touchTexture(material.map, true);
-  } else if (fallback) {
-    material.map = fallback;
-    material.needsUpdate = true;
-  }
-  touchTexture(material.emissiveMap, true);
-  touchTexture(material.normalMap);
-  touchTexture(material.roughnessMap);
-  touchTexture(material.metalnessMap);
-}
-
 function prepareLoadedModel(model) {
   model.traverse((obj) => {
     if (obj.isMesh) {
       obj.castShadow = true;
       obj.receiveShadow = true;
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      mats.forEach((mat) => applyTextureTweaks(mat));
+      mats.forEach((mat) => {
+        if (!mat) return;
+        if (mat.map) applySRGBColorSpace(mat.map);
+        if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+      });
     }
   });
 }
@@ -509,7 +466,7 @@ function disposeObjectResources(object) {
     }
   });
   materials.forEach((mat) => {
-    if (mat?.map && mat.map !== fallbackTexture) mat.map.dispose?.();
+    if (mat?.map) mat.map.dispose?.();
     if (mat?.emissiveMap) mat.emissiveMap.dispose?.();
     mat?.dispose?.();
   });
@@ -1690,7 +1647,6 @@ export default function MurlanRoyaleArena({ search }) {
     const setup = async () => {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
       applyRendererSRGB(renderer);
-      updateMaxTextureAnisotropy(renderer.capabilities?.getMaxAnisotropy?.() ?? 1);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.85;
       renderer.shadowMap.enabled = true;
