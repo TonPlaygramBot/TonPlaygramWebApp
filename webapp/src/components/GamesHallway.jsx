@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { getOnlineCount } from '../utils/api.js';
 
-const WALL_REPEAT = new THREE.Vector2(3.5, 2); // 4x larger wall tiles
+const WALL_REPEAT = new THREE.Vector2(5, 2.8); // 30% smaller wall tiles
 const PREFERRED_SIZES = ['2k', '1k'];
 
 const fallbackGameNames = [
@@ -92,6 +92,7 @@ export default function GamesHallway({ games, onClose }) {
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
     container.appendChild(renderer.domElement);
+    const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
 
     const camera = new THREE.PerspectiveCamera(
       60,
@@ -164,6 +165,9 @@ export default function GamesHallway({ games, onClose }) {
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
       texture.repeat.copy(WALL_REPEAT);
+      texture.anisotropy = maxAnisotropy;
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      texture.magFilter = THREE.LinearFilter;
       texture.needsUpdate = true;
     };
 
