@@ -1018,7 +1018,7 @@ const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up ca
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
-const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.05;
+const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 0.95;
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
@@ -1228,15 +1228,15 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_GAP = BALL_R * 1.18; // pull cue stick slightly closer so the blue tip meets the cue ball centre line
+const CUE_TIP_GAP = BALL_R * 1.36; // pull cue stick slightly closer so the blue tip meets the cue ball centre line
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
-const CUE_PULL_SMOOTHING = 1;
+const CUE_PULL_SMOOTHING = 0.55;
 const CUE_Y = BALL_CENTER_Y; // align the cue height directly with the cue ball centre for precise strikes
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 5.2;
-const CUE_BUTT_LIFT = BALL_R * 0.85; // raise the butt a little more so the rear clears rails while the tip stays aligned
+const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 4.6;
+const CUE_BUTT_LIFT = BALL_R * 0.7; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
-const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(11);
+const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.1;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
@@ -16394,11 +16394,6 @@ const powerRef = useRef(hud.power);
         cuePullCurrentRef.current = nextPull;
         return nextPull;
       };
-      const resetPowerSlider = (animate = true) => {
-        const slider = sliderInstanceRef.current;
-        if (!slider) return;
-        slider.set(slider.min, { animate });
-      };
 
       // Fire (slider triggers on release)
       const fire = () => {
@@ -16743,7 +16738,7 @@ const powerRef = useRef(hud.power);
             CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
-          const tiltAmount = THREE.MathUtils.clamp(appliedSpin.y || 0, -1, 1);
+          const tiltAmount = Math.abs(appliedSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
@@ -16777,7 +16772,6 @@ const powerRef = useRef(hud.power);
               cueAnimating = false;
               cuePullCurrentRef.current = 0;
               cuePullTargetRef.current = 0;
-              resetPowerSlider(true);
               if (cameraRef.current && sphRef.current) {
                 topViewRef.current = false;
                 topViewLockedRef.current = false;
@@ -18878,7 +18872,7 @@ const powerRef = useRef(hud.power);
             CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
-          const tiltAmount = THREE.MathUtils.clamp(appliedSpin.y || 0, -1, 1);
+          const tiltAmount = Math.abs(appliedSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
@@ -19100,8 +19094,8 @@ const powerRef = useRef(hud.power);
             CUE_Y + spinWorld.y,
             cue.pos.y - baseDir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
-          const tiltAmount = THREE.MathUtils.clamp(spinY, -1, 1);
-          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
+          const tiltAmount = Math.abs(spinY);
+          const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
           cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -19201,8 +19195,8 @@ const powerRef = useRef(hud.power);
             CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
-          const tiltAmount = THREE.MathUtils.clamp(spinY, -1, 1);
-          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
+          const tiltAmount = Math.abs(spinY);
+          const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(cueStick, extraTilt + obstructionTilt + obstructionTiltFromLift);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -20095,8 +20089,8 @@ const powerRef = useRef(hud.power);
       }
       const leftBox = leftControlsRef.current?.getBoundingClientRect();
       const spinBox = spinBoxRef.current?.getBoundingClientRect();
-      const leftInset = Math.max(0, (leftBox?.width ?? uiScale * 120) * 0.78 + 8);
-      const rightInset = (spinBox?.width ?? uiScale * (SPIN_CONTROL_DIAMETER_PX + 64)) + 26;
+      const leftInset = (leftBox?.width ?? uiScale * 120) + 12;
+      const rightInset = (spinBox?.width ?? uiScale * (SPIN_CONTROL_DIAMETER_PX + 64)) + 12;
       setHudInsets({
         left: `${leftInset}px`,
         right: `${rightInset}px`
