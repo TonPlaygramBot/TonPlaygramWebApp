@@ -1228,7 +1228,7 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_GAP = BALL_R * 1.28; // pull cue stick closer so the blue tip locks to the cue-ball centre line
+const CUE_TIP_GAP = BALL_R * 1.12; // pull cue stick closer so the blue tip locks to the cue-ball centre line and match the spin controller contact point
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_MIN_VISUAL = BALL_R * 0.9; // guarantee a small visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 0.6; // allow a little extra travel before obstructions cancel the pull
@@ -5075,6 +5075,7 @@ const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
+const AI_POST_SHOT_CAMERA_HOLD_MS = 2000;
 const REPLAY_BANNER_VARIANTS = {
   long: ['Long pot!', 'Full-table finish!', 'Cross-table clearance!'],
   bank: ['Banked clean!', 'Rail-first beauty!', 'Cushion wizardry!'],
@@ -14661,6 +14662,29 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = shotRecording;
           applyBallSnapshot(shotRecording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
+          const path = replayPlayback.cuePath ?? [];
+          if (path.length > 0) {
+            const start = path[0]?.pos ?? null;
+            const end = path[path.length - 1]?.pos ?? start;
+            if (start && end) {
+              const focus = new THREE.Vector3(
+                (start.x + end.x) * 0.5,
+                Math.max(baseSurfaceWorldY, BALL_CENTER_Y * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE)),
+                (start.z + end.z) * 0.5
+              );
+              const cinematicReplayCamera = resolveRailOverheadReplayCamera({
+                focusOverride: focus,
+                minTargetY: focus.y
+              });
+              if (cinematicReplayCamera) {
+                replayFrameCameraRef.current = {
+                  frameA: cinematicReplayCamera,
+                  frameB: cinematicReplayCamera,
+                  alpha: 0
+                };
+              }
+            }
+          }
         };
 
         const waitMs = (ms = 0) =>
@@ -16499,6 +16523,12 @@ const powerRef = useRef(hud.power);
           powerImpactHoldRef.current = isMaxPowerShot
             ? performance.now() + MAX_POWER_CAMERA_HOLD_MS
             : 0;
+          if (aiOpponentEnabled && hudRef.current?.turn === 1) {
+            powerImpactHoldRef.current = Math.max(
+              powerImpactHoldRef.current || 0,
+              performance.now() + AI_POST_SHOT_CAMERA_HOLD_MS
+            );
+          }
           const spinMagnitude = Math.hypot(
             spinRef.current?.x ?? 0,
             spinRef.current?.y ?? 0
@@ -20140,10 +20170,12 @@ const powerRef = useRef(hud.power);
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
+  const showSpinController =
+    !hud.over && !replayActive && (isPlayerTurn || aiTakingShot);
 
   // Spin controller interactions
   useEffect(() => {
-    if (!showPlayerControls) {
+    if (!showSpinController) {
       spinDotElRef.current = null;
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
@@ -20271,10 +20303,12 @@ const powerRef = useRef(hud.power);
       scaleBox(1);
     };
 
-    box.addEventListener('pointerdown', handlePointerDown);
-    box.addEventListener('pointermove', handlePointerMove);
-    box.addEventListener('pointerup', handlePointerUp);
-    box.addEventListener('pointercancel', handlePointerCancel);
+    if (showPlayerControls) {
+      box.addEventListener('pointerdown', handlePointerDown);
+      box.addEventListener('pointermove', handlePointerMove);
+      box.addEventListener('pointerup', handlePointerUp);
+      box.addEventListener('pointercancel', handlePointerCancel);
+    }
 
     return () => {
       spinDotElRef.current = null;
@@ -20288,7 +20322,7 @@ const powerRef = useRef(hud.power);
       box.removeEventListener('pointerup', handlePointerUp);
       box.removeEventListener('pointercancel', handlePointerCancel);
     };
-  }, [showPlayerControls, updateSpinDotPosition]);
+  }, [showPlayerControls, showSpinController, updateSpinDotPosition]);
 
   const americanBallSwatches = useMemo(() => {
     const colors = POOL_VARIANT_COLOR_SETS.american.objectColors || [];
@@ -20513,74 +20547,24 @@ const powerRef = useRef(hud.power);
               <div className="absolute -right-14 bottom-0 h-2/3 w-1/2 -rotate-6 bg-gradient-to-l from-cyan-300/20 via-cyan-200/12 to-transparent" />
               <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
             </div>
-            <div className="relative flex items-center gap-3">
-              <span
-                className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${
-                  replaySlate.accent === 'power'
-                    ? 'from-amber-300 to-orange-400'
-                    : replaySlate.accent === 'spin'
-                      ? 'from-indigo-300 to-sky-400'
-                      : 'from-emerald-300 to-cyan-300'
-                } text-black shadow-[0_12px_28px_rgba(0,0,0,0.35)] ring-1 ring-white/40`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="h-6 w-6"
-                  aria-hidden="true"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m5 4 14 8-14 8V4z" />
-                </svg>
+            <div className="relative flex flex-col leading-tight">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-emerald-100">
+                Instant Replay
               </span>
-              <div className="flex flex-col leading-tight">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-emerald-100">
-                  Instant Replay
-                </span>
-                <span className="text-sm font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]">
-                  {replaySlate.label}
-                </span>
-              </div>
-            </div>
-            <div className="relative flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.26em] text-white/70">
-              <span className="h-px w-10 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
-              <span>TV</span>
-              <span className="h-px w-10 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+              <span className="text-sm font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]">
+                {replaySlate.label}
+              </span>
             </div>
           </div>
         </div>
       )}
 
       {replayBanner && (
-        <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
+        <div className="pointer-events-none absolute top-4 right-4 z-50">
           <div
-            className="flex items-center gap-3 rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300 px-6 py-2 text-sm font-bold uppercase tracking-[0.32em] text-slate-900 shadow-[0_12px_32px_rgba(0,0,0,0.45)] ring-2 ring-white/30"
+            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.28em] text-slate-900 shadow-[0_12px_32px_rgba(0,0,0,0.45)] ring-2 ring-white/30"
             aria-live="polite"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/10 text-slate-900 shadow-inner">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="h-4 w-4"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M11 5V3a1 1 0 0 0-1.7-.7L4.6 7a1 1 0 0 0 0 1.4l4.7 4.7A1 1 0 0 0 11 12v-2a7 7 0 0 1 7 7"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M18 17a7 7 0 1 1-7-7"
-                />
-              </svg>
-            </span>
             <span className="drop-shadow-[0_1px_2px_rgba(255,255,255,0.35)]">
               {replayBanner}
             </span>
@@ -20605,12 +20589,9 @@ const powerRef = useRef(hud.power);
         <div className="pointer-events-none absolute inset-0 z-40">
           <div className="absolute inset-0 rounded-[28px] border border-white/12 shadow-[0_0_32px_rgba(0,0,0,0.55),0_0_0_8px_rgba(0,0,0,0.45)]" />
           <div className="absolute inset-0 rounded-[28px] bg-gradient-to-b from-black/55 via-transparent to-black/55" />
-          <div className="absolute inset-0 flex items-center justify-between px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.32em] text-white/80">
-            <span className="rounded-full border border-white/30 bg-black/50 px-4 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
+          <div className="absolute top-4 right-4 flex items-center justify-end px-6 py-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-white/90">
+            <span className="rounded-full border border-white/30 bg-black/65 px-4 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
               Instant Replay
-            </span>
-            <span className="rounded-full border border-white/30 bg-black/50 px-4 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
-              TV Mode
             </span>
           </div>
           <div className="absolute inset-x-10 top-6 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
@@ -21253,10 +21234,10 @@ const powerRef = useRef(hud.power);
       )}
 
       {/* Spin controller */}
-      {showPlayerControls && !replayActive && (
+      {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className="absolute bottom-4 right-4"
+          className={`absolute bottom-4 right-4 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
             transform: `scale(${uiScale})`,
             transformOrigin: 'bottom right'
@@ -21264,7 +21245,7 @@ const powerRef = useRef(hud.power);
         >
           <div
             id="spinBox"
-            className="relative rounded-full shadow-lg border border-white/70 overflow-hidden"
+            className={`relative rounded-full shadow-lg border border-white/70 overflow-hidden ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
               height: `${SPIN_CONTROL_DIAMETER_PX}px`,
