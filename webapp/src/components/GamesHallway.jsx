@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { getOnlineCount } from '../utils/api.js';
 
-const WALL_REPEAT = new THREE.Vector2(14, 8);
+const WALL_REPEAT = new THREE.Vector2(3.5, 2); // 4x larger wall tiles
 const PREFERRED_SIZES = ['2k', '1k'];
 
 const fallbackGameNames = [
