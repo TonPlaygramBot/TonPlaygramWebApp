@@ -5101,7 +5101,6 @@ const AI_THINKING_BUDGET_MS =
 const AI_CAMERA_DROP_LEAD_MS = 420; // start lowering into cue view shortly before the AI pulls the trigger
 const AI_CAMERA_SETTLE_MS = 320; // allow time for the cue view to settle before firing
 const AI_CUE_VIEW_HOLD_MS = 3000;
-const AI_POST_SHOT_FRAME_HOLD_MS = 2000;
 // Ease the AI camera just partway toward cue view (still above the stick) so the shot preview
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
@@ -10396,7 +10395,6 @@ const powerRef = useRef(hud.power);
   const aiShotCueDropTimeoutRef = useRef(null);
   const aiShotCueViewRef = useRef(false);
   const aiCueViewBlendRef = useRef(AI_CAMERA_DROP_BLEND);
-  const aiShotHoldTimeoutRef = useRef(null);
   const aiRetryTimeoutRef = useRef(null);
   const aiShotWindowRef = useRef({ startedAt: 0, duration: AI_MIN_SHOT_TIME_MS });
   const [aiTakingShot, setAiTakingShot] = useState(false);
@@ -10412,10 +10410,6 @@ const powerRef = useRef(hud.power);
     if (aiRetryTimeoutRef.current) {
       clearTimeout(aiRetryTimeoutRef.current);
       aiRetryTimeoutRef.current = null;
-    }
-    if (aiShotHoldTimeoutRef.current) {
-      clearTimeout(aiShotHoldTimeoutRef.current);
-      aiShotHoldTimeoutRef.current = null;
     }
   }, []);
   const recomputeAiShotState = useCallback(() => {
@@ -10452,10 +10446,6 @@ const powerRef = useRef(hud.power);
     if (aiShotCueDropTimeoutRef.current) {
       clearTimeout(aiShotCueDropTimeoutRef.current);
       aiShotCueDropTimeoutRef.current = null;
-    }
-    if (aiShotHoldTimeoutRef.current) {
-      clearTimeout(aiShotHoldTimeoutRef.current);
-      aiShotHoldTimeoutRef.current = null;
     }
     cancelCameraBlendTween();
     aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
@@ -10638,7 +10628,6 @@ const powerRef = useRef(hud.power);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
-  const replayFramingsRef = useRef({});
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
@@ -12872,110 +12861,7 @@ const powerRef = useRef(hud.power);
           const resolvedFov = Number.isFinite(fovA) || Number.isFinite(fovB)
             ? THREE.MathUtils.lerp(fovA ?? fovB, fovB ?? fovA, alpha)
             : fallbackFov;
-          const baseCamera = { position, target, fov: resolvedFov, minTargetY };
-          const framings = replayFramingsRef.current || {};
-          const progress = THREE.MathUtils.clamp(replayFrameCamera?.progress ?? 0, 0, 1);
-          const blendReplayCamera = (fromCam, toCam, weight = 0.5) => {
-            if (!toCam) return fromCam;
-            const t = THREE.MathUtils.clamp(weight ?? 0, 0, 1);
-            return {
-              position: lerpVector(fromCam?.position, toCam.position, t) ??
-                toCam.position ??
-                fromCam?.position,
-              target: lerpVector(fromCam?.target, toCam.target, t) ??
-                toCam.target ??
-                fromCam?.target,
-              fov:
-                Number.isFinite(fromCam?.fov) && Number.isFinite(toCam?.fov)
-                  ? THREE.MathUtils.lerp(fromCam.fov, toCam.fov, t)
-                  : toCam?.fov ?? fromCam?.fov,
-              minTargetY: Math.max(
-                fromCam?.minTargetY ?? minTargetY,
-                toCam?.minTargetY ?? minTargetY
-              )
-            };
-          };
-          let framedCamera = baseCamera;
-          if (framings.track) {
-            const trackWeight = THREE.MathUtils.smoothstep(0, 0.45, progress);
-            framedCamera = blendReplayCamera(framedCamera, framings.track, trackWeight * 0.85);
-          }
-          if (framings.pocketFollow) {
-            const pocketWeight = THREE.MathUtils.smoothstep(0.4, 0.9, progress);
-            framedCamera = blendReplayCamera(framedCamera, framings.pocketFollow, pocketWeight);
-          }
-          return framedCamera;
-        };
-
-        const prepareReplayFramings = (playback, recording) => {
-          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-          const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-          const framings = {};
-          const cuePath = playback?.cuePath ?? recording?.cuePath ?? [];
-          let cueStart = cuePath[0]?.pos?.clone?.() ?? null;
-          const cueStartState = recording?.startState?.find((entry) => entry.id === 'cue');
-          if (!cueStart && cueStartState?.pos) {
-            cueStart = new THREE.Vector3(
-              cueStartState.pos.x * scale,
-              minTargetY,
-              cueStartState.pos.y * scale
-            );
-          }
-          let cueDir = null;
-          if (cuePath.length > 1 && cuePath[0]?.pos && cuePath[1]?.pos) {
-            const delta = cuePath[1].pos.clone().sub(cuePath[0].pos);
-            delta.y = 0;
-            if (delta.lengthSq() > 1e-6) {
-              cueDir = delta.normalize();
-            }
-          }
-          if (cueStart && cueDir) {
-            const anchor = cueStart.clone();
-            anchor.y = minTargetY;
-            const lateral = new THREE.Vector3(-cueDir.z, 0, cueDir.x);
-            if (lateral.lengthSq() > 1e-6) lateral.normalize();
-            const cameraPos = anchor
-              .clone()
-              .add(cueDir.clone().multiplyScalar(-BALL_R * 26 * scale))
-              .add(lateral.clone().multiplyScalar(BALL_R * 6 * scale));
-            cameraPos.y = minTargetY + BALL_R * 14 * scale;
-            const cameraTarget = anchor
-              .clone()
-              .add(cueDir.clone().multiplyScalar(BALL_R * 8 * scale));
-            cameraTarget.y = Math.max(cameraTarget.y, minTargetY);
-            framings.track = {
-              position: cameraPos,
-              target: cameraTarget,
-              fov: STANDING_VIEW_FOV - 6,
-              minTargetY
-            };
-          }
-          const pocketDrops = playback?.pocketDrops;
-          const firstDrop = pocketDrops instanceof Map ? pocketDrops.values().next().value : null;
-          if (firstDrop) {
-            const pocket2D = new THREE.Vector2(firstDrop.toX ?? 0, firstDrop.toZ ?? 0);
-            if (pocket2D.lengthSq() > 1e-6) pocket2D.normalize();
-            const pocketWorld = new THREE.Vector3(
-              (firstDrop.toX ?? 0) * scale,
-              minTargetY,
-              (firstDrop.toZ ?? 0) * scale
-            );
-            const outward = pocket2D.lengthSq() > 1e-6 ? pocket2D : new THREE.Vector2(0, -1);
-            const lateral = new THREE.Vector3(-outward.y, 0, outward.x);
-            if (lateral.lengthSq() > 1e-6) lateral.normalize();
-            const pocketCamPos = pocketWorld
-              .clone()
-              .add(new THREE.Vector3(outward.x, 0, outward.y).multiplyScalar(-BALL_R * 30 * scale))
-              .add(lateral.clone().multiplyScalar(BALL_R * 8 * scale));
-            pocketCamPos.y = Math.max(pocketCamPos.y, minTargetY + BALL_R * 18 * scale);
-            framings.pocketFollow = {
-              position: pocketCamPos,
-              target: pocketWorld,
-              fov: 40,
-              minTargetY
-            };
-          }
-          replayFramingsRef.current = framings;
+          return { position, target, fov: resolvedFov, minTargetY };
         };
 
         const updateCamera = () => {
@@ -14773,7 +14659,6 @@ const powerRef = useRef(hud.power);
           replayPlaybackRef.current = replayPlayback;
           lastReplayFrameAt = 0;
           shotReplayRef.current = shotRecording;
-          prepareReplayFramings(replayPlayback, shotRecording);
           applyBallSnapshot(shotRecording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
         };
@@ -14827,7 +14712,6 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = null;
           replayCameraRef.current = null;
           replayFrameCameraRef.current = null;
-          replayFramingsRef.current = {};
           setReplayActive(false);
         };
 
@@ -16491,38 +16375,6 @@ const powerRef = useRef(hud.power);
         );
       };
 
-      const normalizeSpinForContact = (spinVec) => {
-        const scale = SPIN_RING_RATIO > 1e-6 ? SPIN_RING_RATIO : 1;
-        const normalized = {
-          x: THREE.MathUtils.clamp((spinVec?.x ?? 0) / scale, -1, 1),
-          y: THREE.MathUtils.clamp((spinVec?.y ?? 0) / scale, -1, 1)
-        };
-        const magnitude = Math.hypot(normalized.x, normalized.y);
-        if (magnitude > 1) {
-          normalized.x /= magnitude;
-          normalized.y /= magnitude;
-        }
-        return normalized;
-      };
-
-      const resolveSpinContactOffsets = (spinVec, ranges = {}) => {
-        const normalized = normalizeSpinForContact(spinVec);
-        const offsetSide = ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET;
-        const offsetVertical = ranges.offsetVertical ?? MAX_SPIN_VERTICAL;
-        let side = normalized.x * offsetSide;
-        let vert = -normalized.y * offsetVertical;
-        const maxContact = MAX_SPIN_CONTACT_OFFSET;
-        if (maxContact > 1e-6) {
-          const combined = Math.hypot(side, vert);
-          if (combined > maxContact) {
-            const scale = maxContact / combined;
-            side *= scale;
-            vert *= scale;
-          }
-        }
-        return { side, vert };
-      };
-
       const computeCuePull = (
         pullTarget = 0,
         maxPull = CUE_PULL_BASE,
@@ -16568,28 +16420,13 @@ const powerRef = useRef(hud.power);
           setHud((prev) => ({ ...prev, inHand: false }));
         }
         const forcedCueView = aiShotCueViewRef.current;
-        const isAiTurn = aiOpponentEnabled && currentHud?.turn === 1;
-        const holdAiCueFrame = isAiTurn && forcedCueView;
-        if (!holdAiCueFrame) {
-          setAiShotCueViewActive(false);
-        }
+        setAiShotCueViewActive(false);
         setAiShotPreviewActive(false);
         alignStandingCameraToAim(cue, aimDirRef.current);
         cancelCameraBlendTween();
         const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
         applyCameraBlend(forcedCueView ? forcedCueBlend : 1);
         updateCamera();
-        if (holdAiCueFrame) {
-          if (aiShotHoldTimeoutRef.current) {
-            clearTimeout(aiShotHoldTimeoutRef.current);
-          }
-          aiShotHoldTimeoutRef.current = window.setTimeout(() => {
-            aiShotHoldTimeoutRef.current = null;
-            setAiShotCueViewActive(false);
-            applyCameraBlend(1);
-            updateCamera();
-          }, AI_POST_SHOT_FRAME_HOLD_MS);
-        }
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
         if (meta && typeof meta === 'object') {
@@ -16878,12 +16715,17 @@ const powerRef = useRef(hud.power);
           if (cuePerp.lengthSq() > 1e-8) cuePerp.normalize();
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
-          const contact = resolveSpinContactOffsets(appliedSpin, {
-            offsetSide,
-            offsetVertical
-          });
-          let contactSide = contact.side;
-          let contactVert = contact.vert;
+          let contactSide = appliedSpin.x * offsetSide;
+          let contactVert = -appliedSpin.y * offsetVertical;
+          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
+          if (maxContactOffset > 1e-6) {
+            const combined = Math.hypot(contactSide, contactVert);
+            if (combined > maxContactOffset) {
+              const scale = maxContactOffset / combined;
+              contactSide *= scale;
+              contactVert *= scale;
+            }
+          }
           const spinWorld = new THREE.Vector3(
             cuePerp.x * contactSide,
             contactVert,
@@ -18689,8 +18531,7 @@ const powerRef = useRef(hud.power);
             replayFrameCameraRef.current = {
               frameA: frameA?.camera ?? null,
               frameB: frameB?.camera ?? frameA?.camera ?? null,
-              alpha,
-              progress: duration > 0 ? THREE.MathUtils.clamp(targetTime / duration, 0, 1) : 0
+              alpha
             };
             const frameCamera = updateCamera();
             renderer.render(scene, frameCamera ?? camera);
@@ -19001,19 +18842,22 @@ const powerRef = useRef(hud.power);
           const pull = computeCuePull(desiredPull, maxPull);
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
-          const contact = resolveSpinContactOffsets(appliedSpin, {
-            offsetSide,
-            offsetVertical
-          });
-          let side = contact.side;
-          let vert = contact.vert;
+          let side = appliedSpin.x * offsetSide;
+          let vert = -appliedSpin.y * offsetVertical;
           const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
-          if (
-            maxContactOffset > 1e-6 &&
-            spinLegalityRef.current?.blocked &&
-            Math.hypot(side, vert) < 1e-6
-          ) {
-            vert = Math.min(maxContactOffset * 0.35, CUE_TIP_RADIUS * 0.6);
+          if (maxContactOffset > 1e-6) {
+            const combined = Math.hypot(side, vert);
+            if (combined > maxContactOffset) {
+              const scale = maxContactOffset / combined;
+              side *= scale;
+              vert *= scale;
+            }
+            if (
+              spinLegalityRef.current?.blocked &&
+              Math.hypot(side, vert) < 1e-6
+            ) {
+              vert = Math.min(maxContactOffset * 0.35, CUE_TIP_RADIUS * 0.6);
+            }
           }
           const spinWorld = new THREE.Vector3(
             perp.x * side,
@@ -19229,13 +19073,17 @@ const powerRef = useRef(hud.power);
           const offsetVertical = ranges.offsetVertical ?? 0;
           const spinX = THREE.MathUtils.clamp(remoteAimState?.spin?.x ?? 0, -1, 1);
           const spinY = THREE.MathUtils.clamp(remoteAimState?.spin?.y ?? 0, -1, 1);
-          const spinForContact = { x: spinX, y: spinY };
-          const contact = resolveSpinContactOffsets(spinForContact, {
-            offsetSide,
-            offsetVertical
-          });
-          const side = contact.side;
-          const vert = contact.vert;
+          let side = spinX * offsetSide;
+          let vert = -spinY * offsetVertical;
+          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
+          if (maxContactOffset > 1e-6) {
+            const combined = Math.hypot(side, vert);
+            if (combined > maxContactOffset) {
+              const scale = maxContactOffset / combined;
+              side *= scale;
+              vert *= scale;
+            }
+          }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           const obstructionStrength = resolveCueObstruction(baseDir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
@@ -19325,12 +19173,17 @@ const powerRef = useRef(hud.power);
           const planSpin = activeAiPlan.spin ?? spinRef.current ?? { x: 0, y: 0 };
           const spinX = THREE.MathUtils.clamp(planSpin.x ?? 0, -1, 1);
           const spinY = THREE.MathUtils.clamp(planSpin.y ?? 0, -1, 1);
-          const contact = resolveSpinContactOffsets(
-            { x: spinX, y: spinY },
-            { offsetSide, offsetVertical }
-          );
-          const side = contact.side;
-          const vert = contact.vert;
+          let side = spinX * offsetSide;
+          let vert = -spinY * offsetVertical;
+          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
+          if (maxContactOffset > 1e-6) {
+            const combined = Math.hypot(side, vert);
+            if (combined > maxContactOffset) {
+              const scale = maxContactOffset / combined;
+              side *= scale;
+              vert *= scale;
+            }
+          }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
@@ -20287,21 +20140,14 @@ const powerRef = useRef(hud.power);
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
-  const showSpinController = (showPlayerControls || (aiTakingShot && !hud.over)) && !replayActive;
 
   // Spin controller interactions
   useEffect(() => {
     if (!showPlayerControls) {
-      const dot = document.getElementById('spinDot');
-      if (showSpinController && dot) {
-        spinDotElRef.current = dot;
-        updateSpinDotPosition(spinRef.current, spinLegalityRef.current?.blocked);
-      } else {
-        spinDotElRef.current = null;
-        resetSpinRef.current = () => {};
-        spinRequestRef.current = { x: 0, y: 0 };
-        spinLegalityRef.current = { blocked: false, reason: '' };
-      }
+      spinDotElRef.current = null;
+      resetSpinRef.current = () => {};
+      spinRequestRef.current = { x: 0, y: 0 };
+      spinLegalityRef.current = { blocked: false, reason: '' };
       return;
     }
 
@@ -20442,7 +20288,7 @@ const powerRef = useRef(hud.power);
       box.removeEventListener('pointerup', handlePointerUp);
       box.removeEventListener('pointercancel', handlePointerCancel);
     };
-  }, [showPlayerControls, showSpinController, updateSpinDotPosition]);
+  }, [showPlayerControls, updateSpinDotPosition]);
 
   const americanBallSwatches = useMemo(() => {
     const colors = POOL_VARIANT_COLOR_SETS.american.objectColors || [];
@@ -20660,21 +20506,50 @@ const powerRef = useRef(hud.power);
       <div ref={mountRef} className="absolute inset-0" />
 
       {replaySlate && (
-        <div className="pointer-events-none absolute top-4 right-4 z-50 flex flex-col items-end gap-1">
-          <span className="rounded-full border border-white/20 bg-black/65 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.32em] text-emerald-100 shadow-[0_10px_24px_rgba(0,0,0,0.55)] backdrop-blur">
-            Instant Replay
-          </span>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.55)] ring-1 ring-white/20 ${
-              replaySlate.accent === 'power'
-                ? 'bg-gradient-to-r from-amber-300/90 to-orange-400/90 text-slate-900'
-                : replaySlate.accent === 'spin'
-                  ? 'bg-gradient-to-r from-indigo-300/90 to-sky-400/90 text-slate-900'
-                  : 'bg-gradient-to-r from-emerald-300/90 to-cyan-300/90 text-slate-900'
-            }`}
-          >
-            {replaySlate.label}
-          </span>
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
+          <div className="relative isolate flex w-[min(26rem,90vw)] items-center justify-between overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-r from-black/85 via-black/70 to-black/85 px-5 py-4 shadow-[0_18px_42px_rgba(0,0,0,0.55)] backdrop-blur">
+            <div className="pointer-events-none absolute inset-0 opacity-80">
+              <div className="absolute -left-10 top-0 h-full w-1/2 rotate-3 bg-gradient-to-r from-emerald-400/15 via-emerald-300/10 to-transparent" />
+              <div className="absolute -right-14 bottom-0 h-2/3 w-1/2 -rotate-6 bg-gradient-to-l from-cyan-300/20 via-cyan-200/12 to-transparent" />
+              <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+            </div>
+            <div className="relative flex items-center gap-3">
+              <span
+                className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${
+                  replaySlate.accent === 'power'
+                    ? 'from-amber-300 to-orange-400'
+                    : replaySlate.accent === 'spin'
+                      ? 'from-indigo-300 to-sky-400'
+                      : 'from-emerald-300 to-cyan-300'
+                } text-black shadow-[0_12px_28px_rgba(0,0,0,0.35)] ring-1 ring-white/40`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="h-6 w-6"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m5 4 14 8-14 8V4z" />
+                </svg>
+              </span>
+              <div className="flex flex-col leading-tight">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-emerald-100">
+                  Instant Replay
+                </span>
+                <span className="text-sm font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]">
+                  {replaySlate.label}
+                </span>
+              </div>
+            </div>
+            <div className="relative flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.26em] text-white/70">
+              <span className="h-px w-10 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+              <span>TV</span>
+              <span className="h-px w-10 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+            </div>
+          </div>
         </div>
       )}
 
@@ -20730,9 +20605,12 @@ const powerRef = useRef(hud.power);
         <div className="pointer-events-none absolute inset-0 z-40">
           <div className="absolute inset-0 rounded-[28px] border border-white/12 shadow-[0_0_32px_rgba(0,0,0,0.55),0_0_0_8px_rgba(0,0,0,0.45)]" />
           <div className="absolute inset-0 rounded-[28px] bg-gradient-to-b from-black/55 via-transparent to-black/55" />
-          <div className="absolute inset-0 flex items-start justify-end px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.32em] text-white/80">
-            <span className="rounded-full border border-white/30 bg-black/65 px-4 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
+          <div className="absolute inset-0 flex items-center justify-between px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.32em] text-white/80">
+            <span className="rounded-full border border-white/30 bg-black/50 px-4 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
               Instant Replay
+            </span>
+            <span className="rounded-full border border-white/30 bg-black/50 px-4 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
+              TV Mode
             </span>
           </div>
           <div className="absolute inset-x-10 top-6 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
@@ -21375,10 +21253,10 @@ const powerRef = useRef(hud.power);
       )}
 
       {/* Spin controller */}
-      {showSpinController && (
+      {showPlayerControls && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute bottom-4 right-4 ${showPlayerControls ? '' : 'pointer-events-none opacity-90'}`}
+          className="absolute bottom-4 right-4"
           style={{
             transform: `scale(${uiScale})`,
             transformOrigin: 'bottom right'
@@ -21386,10 +21264,7 @@ const powerRef = useRef(hud.power);
         >
           <div
             id="spinBox"
-            className={`relative rounded-full shadow-lg overflow-hidden ${
-              showPlayerControls ? 'border border-white/70' : 'border border-white/40'
-            }`}
-            aria-readonly={showPlayerControls ? 'false' : 'true'}
+            className="relative rounded-full shadow-lg border border-white/70 overflow-hidden"
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
               height: `${SPIN_CONTROL_DIAMETER_PX}px`,
