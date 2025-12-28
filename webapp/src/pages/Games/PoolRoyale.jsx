@@ -1018,9 +1018,9 @@ const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up ca
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
-const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 0.72;
-const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.6;
-const MAX_POWER_BOUNCE_DAMPING = 0.82;
+const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 0.95;
+const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.2;
+const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
 const MAX_POWER_CAMERA_HOLD_MS = 2000;
 const POCKET_INTERIOR_CAPTURE_R =
@@ -1174,10 +1174,9 @@ const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
-const SPIN_POWER_BOOST = 1.15;
-const SPIN_STRENGTH = BALL_R * 0.0295 * SPIN_POWER_BOOST;
+const SPIN_STRENGTH = BALL_R * 0.0295;
 const SPIN_DECAY = 0.9;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * SPIN_POWER_BOOST;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_THRESHOLD = 0.7; // outer 30% of the spin control activates swerve behaviour
@@ -1187,9 +1186,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.1; // reapply stored sideways swerve once the cu
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_BOOST = 1.15;
-const SHOT_FORCE_BOOST =
-  1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * SHOT_POWER_BOOST;
+const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -1231,8 +1228,8 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.16; // ensure a visible air gap so the tip never rests on the cue ball
-const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
+const CUE_TIP_CLEARANCE = BALL_R * 0.12; // ensure a visible air gap so the tip never rests on the cue ball
+const CUE_TIP_GAP = BALL_R * 1.04 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 1.85;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.55; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.2; // allow extra travel before obstructions cancel the pull
@@ -1250,9 +1247,9 @@ const CUE_FOLLOW_MIN_MS = 180;
 const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.02; // lower the cue height further so the tip sits just below the topspin zone
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.08; // lower the cue height further so the tip sits just below the topspin zone
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 3.6;
+const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 5.2;
 const CUE_BUTT_LIFT = BALL_R * 0.64; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
@@ -10399,17 +10396,10 @@ function PoolRoyaleGame({
   });
   const shotReplayRef = useRef(null);
   const replayPlaybackRef = useRef(null);
-  const startManualReplayRef = useRef(() => false);
-  const lastReplayableShotRef = useRef(null);
-  const lastStrokeForReplayRef = useRef(null);
-  const replayStrokeFrameRef = useRef(null);
-  const replayStrokeTimeoutRef = useRef(null);
-  const maxPowerLiftTriggeredRef = useRef(false);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
   const [replaySlate, setReplaySlate] = useState(null);
   const replaySlateTimeoutRef = useRef(null);
-  const [replayReady, setReplayReady] = useState(false);
   const shotCameraHoldTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
@@ -14695,87 +14685,6 @@ const powerRef = useRef(hud.power);
           pendingLayoutRef.current = null;
         }
 
-        const stopReplayStroke = () => {
-          if (replayStrokeTimeoutRef.current) {
-            clearTimeout(replayStrokeTimeoutRef.current);
-            replayStrokeTimeoutRef.current = null;
-          }
-          if (replayStrokeFrameRef.current) {
-            cancelAnimationFrame(replayStrokeFrameRef.current);
-            replayStrokeFrameRef.current = null;
-          }
-        };
-
-        const playReplayCueStroke = (stroke) => {
-          stopReplayStroke();
-          if (!stroke || !cueStick) return;
-          const {
-            windupPos,
-            startPos,
-            impactPos,
-            settlePos,
-            windupDuration = 0,
-            forwardDuration = CUE_STROKE_MIN_MS,
-            settleDuration = CUE_FOLLOW_MIN_MS,
-            holdDuration = 0,
-            rotationY,
-            anchorY,
-            extraTilt,
-            tipOffset
-          } = stroke;
-          const safeStart = windupPos ?? startPos ?? impactPos;
-          const safeImpact = impactPos ?? startPos ?? settlePos ?? safeStart;
-          const safeSettle = settlePos ?? safeImpact ?? safeStart;
-          const safeStartPos = safeStart ? safeStart.clone() : cueStick.position.clone();
-          const safeWindupDuration = Math.max(0, windupDuration);
-          const safeForwardDuration = Math.max(1, forwardDuration);
-          const safeSettleDuration = Math.max(0, settleDuration);
-          const safeHold = Math.max(0, holdDuration);
-          const startTime = performance.now();
-          const windupEnd = startTime + safeWindupDuration;
-          const impactEnd = windupEnd + safeForwardDuration;
-          const settleEnd = impactEnd + safeSettleDuration;
-          const endTime = settleEnd + safeHold;
-          if (rotationY != null) cueStick.rotation.y = rotationY;
-          if (tipGroupRef.current && Number.isFinite(tipOffset)) {
-            tipGroupRef.current.position.z = tipOffset;
-          }
-          applyCueButtTilt(
-            cueStick,
-            extraTilt ?? cueStick.userData?.buttTilt?.extra ?? 0,
-            anchorY ?? cueStick.userData?.buttTilt?.baseAnchor ?? CUE_Y
-          );
-          cueStick.visible = true;
-          cueAnimating = true;
-          cueStick.position.copy(safeStartPos);
-          const animateReplayStroke = (now) => {
-            if (safeWindupDuration > 0 && now <= windupEnd) {
-              const t = THREE.MathUtils.clamp((now - startTime) / safeWindupDuration, 0, 1);
-              cueStick.position.lerpVectors(safeStartPos, startPos ?? safeStartPos, t);
-            } else if (now <= impactEnd) {
-              const t = THREE.MathUtils.clamp((now - windupEnd) / safeForwardDuration, 0, 1);
-              cueStick.position.lerpVectors(startPos ?? safeStartPos, safeImpact, t);
-            } else if (now <= settleEnd) {
-              const t = safeSettleDuration > 0 ? THREE.MathUtils.clamp((now - impactEnd) / safeSettleDuration, 0, 1) : 1;
-              cueStick.position.lerpVectors(safeImpact, safeSettle, t);
-            } else if (now <= endTime) {
-              cueStick.position.copy(safeSettle);
-            } else {
-              cueStick.visible = false;
-              cueAnimating = false;
-              stopReplayStroke();
-              return;
-            }
-            replayStrokeFrameRef.current = requestAnimationFrame(animateReplayStroke);
-          };
-          replayStrokeFrameRef.current = requestAnimationFrame(animateReplayStroke);
-          replayStrokeTimeoutRef.current = window.setTimeout(() => {
-            cueStick.visible = false;
-            cueAnimating = false;
-            stopReplayStroke();
-          }, Math.max(0, endTime - startTime + 50));
-        };
-
         const recordReplayFrame = (timestamp) => {
           if (!shotRecording) return;
           const start = shotRecording.startTime ?? timestamp;
@@ -14975,7 +14884,6 @@ const powerRef = useRef(hud.power);
           lastReplayFrameAt = 0;
           shotReplayRef.current = shotRecording;
           applyBallSnapshot(shotRecording.startState ?? []);
-          playReplayCueStroke(shotRecording.stroke ?? lastStrokeForReplayRef.current);
           updateReplayTrail(replayPlayback.cuePath, 0);
           const path = replayPlayback.cuePath ?? [];
           if (path.length > 0) {
@@ -15002,18 +14910,6 @@ const powerRef = useRef(hud.power);
           }
         };
 
-        startManualReplayRef.current = (recordingOverride = null, postSnapshotOverride = null) => {
-          if (replayPlaybackRef.current) return false;
-          const payload =
-            recordingOverride && postSnapshotOverride
-              ? { recording: recordingOverride, postState: postSnapshotOverride }
-              : lastReplayableShotRef.current;
-          if (!payload?.recording || !payload?.postState) return false;
-          shotRecording = payload.recording;
-          startShotReplay(payload.postState);
-          return true;
-        };
-
         const waitMs = (ms = 0) =>
           new Promise((resolve) => window.setTimeout(resolve, Math.max(0, ms)));
 
@@ -15036,7 +14932,6 @@ const powerRef = useRef(hud.power);
 
         const finishReplayPlayback = (playback) => {
           if (!playback) return;
-          stopReplayStroke();
           if (playback.postState) {
             applyBallSnapshot(playback.postState);
           }
@@ -16825,7 +16720,6 @@ const powerRef = useRef(hud.power);
       const fire = () => {
         const currentHud = hudRef.current;
         const frameSnapshot = frameRef.current ?? frameState;
-        const shotByAi = aiOpponentEnabled && currentHud?.turn === 1;
         const fullTableHandPlacement =
           allowFullTableInHand() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
         const inHandPlacementActive = Boolean(
@@ -16920,11 +16814,10 @@ const powerRef = useRef(hud.power);
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
-          maxPowerLiftTriggeredRef.current = false;
           powerImpactHoldRef.current = isMaxPowerShot
             ? performance.now() + MAX_POWER_CAMERA_HOLD_MS
             : 0;
-          if (shotByAi) {
+          if (aiOpponentEnabled && hudRef.current?.turn === 1) {
             powerImpactHoldRef.current = Math.max(
               powerImpactHoldRef.current || 0,
               performance.now() + AI_POST_SHOT_CAMERA_HOLD_MS
@@ -17089,8 +16982,21 @@ const powerRef = useRef(hud.power);
           resetSpinRef.current?.();
           cue.impacted = false;
           cue.launchDir = aimDir.clone().normalize();
-          cue.lift = 0;
-          cue.liftVel = 0;
+          if (isMaxPowerShot) {
+            const liftAmount = Math.min(
+              MAX_POWER_LIFT_HEIGHT,
+              Math.max(CUE_TIP_RADIUS, MAX_POWER_BOUNCE_IMPULSE * 0.45)
+            );
+            const liftVelocity = Math.min(
+              MAX_POWER_BOUNCE_IMPULSE * clampedPower,
+              MAX_POWER_BOUNCE_IMPULSE * 0.55
+            );
+            cue.lift = Math.max(cue.lift ?? 0, liftAmount);
+            cue.liftVel = Math.max(cue.liftVel ?? 0, liftVelocity);
+          } else {
+            cue.lift = 0;
+            cue.liftVel = 0;
+          }
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -17184,15 +17090,8 @@ const powerRef = useRef(hud.power);
           const settlePos = impactPos
             .clone()
             .sub(dir.clone().multiplyScalar(totalRetreat));
-          const windupDistance = shotByAi
-            ? Math.min(Math.max(strokeDistance * 0.35, BALL_R * 0.6), Math.max(strokeDistance, BALL_R * 9))
-            : 0;
-          const windupPos =
-            windupDistance > 0
-              ? startPos.clone().add(dir.clone().multiplyScalar(windupDistance))
-              : startPos.clone();
           cueStick.visible = true;
-          cueStick.position.copy(windupPos);
+          cueStick.position.copy(startPos);
           const forwardSpeed = THREE.MathUtils.lerp(
             CUE_STROKE_SPEED_MIN,
             CUE_STROKE_SPEED_MAX,
@@ -17213,50 +17112,16 @@ const powerRef = useRef(hud.power);
             CUE_FOLLOW_MIN_MS,
             CUE_FOLLOW_MAX_MS
           );
-          const windupDuration =
-            windupDistance > 0
-              ? THREE.MathUtils.clamp(
-                  (windupDistance / Math.max(settleSpeed, 1e-4)) * 1000,
-                  CUE_STROKE_MIN_MS,
-                  CUE_STROKE_MAX_MS * 0.75
-                )
-              : 0;
-          const strokeHold = shotByAi ? AI_POST_SHOT_CAMERA_HOLD_MS : 160;
           const startTime = performance.now();
-          const windupEndTime = startTime + windupDuration;
-          const impactTime = windupEndTime + forwardDuration;
+          const impactTime = startTime + forwardDuration;
           const settleTime = impactTime + settleDuration;
-          const endTime = settleTime + strokeHold;
-          const strokeRecord = {
-            windupPos,
-            startPos,
-            impactPos,
-            settlePos,
-            windupDuration,
-            forwardDuration,
-            settleDuration,
-            holdDuration: strokeHold,
-            rotationY: cueStick.rotation.y,
-            anchorY: CUE_Y + spinWorld.y + obstructionLift * 0.25,
-            extraTilt: extraTilt + obstructionTilt + obstructionTiltFromLift,
-            tipOffset: tipGroupRef.current ? tipGroupRef.current.position.z : null
-          };
-          lastStrokeForReplayRef.current = strokeRecord;
-          if (shotRecording) {
-            shotRecording.stroke = strokeRecord;
-          }
           const animateStroke = (now) => {
-            if (windupDuration > 0 && now <= windupEndTime) {
-              const t = windupDuration > 0 ? THREE.MathUtils.clamp((now - startTime) / windupDuration, 0, 1) : 1;
-              cueStick.position.lerpVectors(windupPos, startPos, t);
-            } else if (now <= impactTime) {
-              const t = forwardDuration > 0 ? THREE.MathUtils.clamp((now - windupEndTime) / forwardDuration, 0, 1) : 1;
+            if (now <= impactTime) {
+              const t = forwardDuration > 0 ? THREE.MathUtils.clamp((now - startTime) / forwardDuration, 0, 1) : 1;
               cueStick.position.lerpVectors(startPos, impactPos, t);
             } else if (now <= settleTime) {
               const t = settleDuration > 0 ? THREE.MathUtils.clamp((now - impactTime) / settleDuration, 0, 1) : 1;
               cueStick.position.lerpVectors(impactPos, settlePos, t);
-            } else if (now <= endTime) {
-              cueStick.position.copy(settlePos);
             } else {
               cueStick.visible = false;
               cueAnimating = false;
@@ -17272,9 +17137,9 @@ const powerRef = useRef(hud.power);
               }
               return;
             }
-            replayStrokeFrameRef.current = requestAnimationFrame(animateStroke);
+            requestAnimationFrame(animateStroke);
           };
-          replayStrokeFrameRef.current = requestAnimationFrame(animateStroke);
+          requestAnimationFrame(animateStroke);
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -18619,118 +18484,105 @@ const powerRef = useRef(hud.power);
           const replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
           const replayAccent = replayDecision?.primaryTag ?? 'default';
           let postShotSnapshot = null;
-          if (shotRecording) {
-            postShotSnapshot = captureBallSnapshot();
-          }
-          if (firstContactColor || firstHit) {
-            shotEvents.push({
-              type: 'HIT',
-              firstContact: firstContactColor,
-              ballId: firstHit ?? null
-            });
-          }
-          potted.forEach((entry) => {
-            const pocket = entry.pocket ?? 'TM';
-            shotEvents.push({
-              type: 'POTTED',
-              ball: entry.color,
-              pocket,
-              ballId: entry.id
-            });
+        if (firstContactColor || firstHit) {
+          shotEvents.push({
+            type: 'HIT',
+            firstContact: firstContactColor,
+            ballId: firstHit ?? null
           });
-          const currentState = frameRef.current ?? frameState;
-          const cueBallPotted =
-            potted.some((entry) => entry.color === 'CUE') || !cue.active;
-          const noCushionAfterContact =
-            shotContextRef.current.contactMade &&
-            !shotContextRef.current.cushionAfterContact &&
-            potted.every((entry) => entry.id !== 'cue');
-          const shotContext = {
-            placedFromHand: shotContextRef.current.placedFromHand,
-            cueBallPotted,
-            contactMade: shotContextRef.current.contactMade,
-            cushionAfterContact: shotContextRef.current.cushionAfterContact,
-            noCushionAfterContact,
-            variant: variantId
-          };
-          let safeState = currentState;
-          let shotResolved = false;
-          try {
-            const resolved = rules.applyShot(currentState, shotEvents, shotContext);
-            if (resolved && typeof resolved === 'object') {
-              safeState = resolved;
-            }
-            shotResolved = true;
-          } catch (err) {
-            console.error('Pool Royale shot resolution failed:', err);
+        }
+        potted.forEach((entry) => {
+          const pocket = entry.pocket ?? 'TM';
+          shotEvents.push({
+            type: 'POTTED',
+            ball: entry.color,
+            pocket,
+            ballId: entry.id
+          });
+        });
+        const currentState = frameRef.current ?? frameState;
+        const cueBallPotted =
+          potted.some((entry) => entry.color === 'CUE') || !cue.active;
+        const noCushionAfterContact =
+          shotContextRef.current.contactMade &&
+          !shotContextRef.current.cushionAfterContact &&
+          potted.every((entry) => entry.id !== 'cue');
+        const shotContext = {
+          placedFromHand: shotContextRef.current.placedFromHand,
+          cueBallPotted,
+          contactMade: shotContextRef.current.contactMade,
+          cushionAfterContact: shotContextRef.current.cushionAfterContact,
+          noCushionAfterContact,
+          variant: variantId
+        };
+        let safeState = currentState;
+        let shotResolved = false;
+        try {
+          const resolved = rules.applyShot(currentState, shotEvents, shotContext);
+          if (resolved && typeof resolved === 'object') {
+            safeState = resolved;
           }
-          if (isTraining) {
-            if (!trainingRulesRef.current) {
-              safeState = {
-                ...safeState,
-                foul: undefined,
-                frameOver: false,
-                winner: undefined
-              };
-            }
-            if (trainingModeRef.current === 'solo') {
-              safeState = { ...safeState, activePlayer: 'A' };
-            }
+          shotResolved = true;
+        } catch (err) {
+          console.error('Pool Royale shot resolution failed:', err);
+        }
+        if (isTraining) {
+          if (!trainingRulesRef.current) {
+            safeState = {
+              ...safeState,
+              foul: undefined,
+              frameOver: false,
+              winner: undefined
+            };
           }
-          const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
-          if (potted.length) {
-            const newPots = potted.filter(
-              (entry) => entry && entry.color && entry.color !== 'CUE'
-            );
-            if (newPots.length) {
-              lastPottedBySeatRef.current = {
-                ...lastPottedBySeatRef.current,
-                [shooterSeat]: newPots[newPots.length - 1] ?? null
+          if (trainingModeRef.current === 'solo') {
+            safeState = { ...safeState, activePlayer: 'A' };
+          }
+        }
+        const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
+        if (potted.length) {
+          const newPots = potted.filter(
+            (entry) => entry && entry.color && entry.color !== 'CUE'
+          );
+          if (newPots.length) {
+            lastPottedBySeatRef.current = {
+              ...lastPottedBySeatRef.current,
+              [shooterSeat]: newPots[newPots.length - 1] ?? null
+            };
+            setPottedBySeat((prev) => {
+              const next = {
+                ...prev,
+                [shooterSeat]: [...(prev[shooterSeat] || [])]
               };
-              setPottedBySeat((prev) => {
-                const next = {
-                  ...prev,
-                  [shooterSeat]: [...(prev[shooterSeat] || [])]
-                };
-                const existing = new Set(
-                  next[shooterSeat].map((entry) => String(entry.id ?? entry.color))
-                );
-                newPots.forEach((entry) => {
-                  const key = String(entry.id ?? entry.color);
-                  if (existing.has(key)) return;
-                  existing.add(key);
-                  next[shooterSeat].push({
-                    id: entry.id ?? key,
-                    color: entry.color,
-                    pocket: entry.pocket
-                  });
+              const existing = new Set(
+                next[shooterSeat].map((entry) => String(entry.id ?? entry.color))
+              );
+              newPots.forEach((entry) => {
+                const key = String(entry.id ?? entry.color);
+                if (existing.has(key)) return;
+                existing.add(key);
+                next[shooterSeat].push({
+                  id: entry.id ?? key,
+                  color: entry.color,
+                  pocket: entry.pocket
                 });
-                return next;
               });
-            } else {
-              lastPottedBySeatRef.current = {
-                ...lastPottedBySeatRef.current,
-                [shooterSeat]: null
-              };
-            }
+              return next;
+            });
           } else {
             lastPottedBySeatRef.current = {
               ...lastPottedBySeatRef.current,
               [shooterSeat]: null
             };
           }
-          if (shotRecording && postShotSnapshot) {
-            lastReplayableShotRef.current = {
-              recording: shotRecording,
-              postState: postShotSnapshot
-            };
-            setReplayReady(true);
-          } else {
-            lastReplayableShotRef.current = null;
-            setReplayReady(false);
-          }
-          const metaState =
-            safeState && typeof safeState.meta === 'object' ? safeState.meta.state : null;
+        } else {
+          lastPottedBySeatRef.current = {
+            ...lastPottedBySeatRef.current,
+            [shooterSeat]: null
+          };
+        }
+        const metaState =
+          safeState && typeof safeState.meta === 'object' ? safeState.meta.state : null;
         if (safeState?.foul) {
           showRuleToast('Foul');
         }
@@ -18874,9 +18726,9 @@ const powerRef = useRef(hud.power);
               cue.impacted = false;
               cue.launchDir = null;
             }
-          if (shotRecording) {
-            postShotSnapshot = captureBallSnapshot();
-          }
+            if (shouldStartReplay) {
+              postShotSnapshot = captureBallSnapshot();
+            }
             const nextMeta = safeState.meta;
             if (nextMeta && typeof nextMeta === 'object') {
               if (nextMeta.variant === 'american' && nextMeta.state) {
@@ -19943,21 +19795,20 @@ const powerRef = useRef(hud.power);
                   cueBall &&
                   hitBallId &&
                   isNewImpact &&
-                  lastShotPower >= MAX_POWER_BOUNCE_THRESHOLD &&
-                  !maxPowerLiftTriggeredRef.current
+                  lastShotPower >= MAX_POWER_BOUNCE_THRESHOLD
                 ) {
                   const bounceStrength = THREE.MathUtils.clamp(lastShotPower, 0, 1);
-                  const liftHeight = Math.min(
-                    MAX_POWER_LIFT_HEIGHT,
-                    MAX_POWER_BOUNCE_IMPULSE * 0.35
+                  cueBall.lift = Math.max(
+                    cueBall.lift ?? 0,
+                    Math.min(MAX_POWER_LIFT_HEIGHT, MAX_POWER_BOUNCE_IMPULSE * 0.45)
                   );
-                  const liftVelocity = Math.min(
-                    MAX_POWER_BOUNCE_IMPULSE * bounceStrength * 0.5,
-                    MAX_POWER_BOUNCE_IMPULSE * 0.42
+                  cueBall.liftVel = Math.max(
+                    cueBall.liftVel ?? 0,
+                    Math.min(
+                      MAX_POWER_BOUNCE_IMPULSE * bounceStrength,
+                      MAX_POWER_BOUNCE_IMPULSE * 0.55
+                    )
                   );
-                  cueBall.lift = Math.max(cueBall.lift ?? 0, liftHeight);
-                  cueBall.liftVel = Math.max(cueBall.liftVel ?? 0, liftVelocity);
-                  maxPowerLiftTriggeredRef.current = true;
                 }
                 if (
                   hitBallId &&
@@ -20478,7 +20329,6 @@ const powerRef = useRef(hud.power);
 
         return () => {
           disposed = true;
-          stopReplayStroke();
           cancelCameraBlendTween();
           applyWorldScaleRef.current = () => {};
           topViewControlsRef.current = { enter: () => {}, exit: () => {} };
@@ -21072,38 +20922,6 @@ const powerRef = useRef(hud.power);
       <div
         className={`absolute top-4 left-4 z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
       >
-        {replayReady && !replayActive && (
-          <button
-            type="button"
-            onClick={() => {
-              if (shotActive || replayPlaybackRef.current) return;
-              startManualReplayRef.current?.();
-            }}
-            className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/50 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-            aria-label="Replay last shot"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="h-6 w-6"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M4 11.5C4 7.358 7.358 4 11.5 4c2.005 0 3.837.755 5.22 2m1.28 3.5V5.5a.5.5 0 0 0-.5-.5H14"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M20 12.5C20 16.642 16.642 20 12.5 20c-2.005 0-3.837-.755-5.22-2M6 14v3.5a.5.5 0 0 0 .5.5H10"
-              />
-            </svg>
-          </button>
-        )}
         <button
           ref={configButtonRef}
           type="button"
