@@ -3,8 +3,11 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { clone as cloneSkinnedMesh } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { getOnlineCount } from '../utils/api.js';
 
 const WALL_REPEAT = new THREE.Vector2(10, 2.8); // tighter marble tiling around the hallway
@@ -25,6 +28,7 @@ const fallbackGameNames = [
 ];
 
 let modernLightBufferPromise = null;
+let sharedKTX2Loader = null;
 
 function buildModernCeilingLightBuffer() {
   if (!modernLightBufferPromise) {
@@ -109,6 +113,32 @@ function useBodyScrollLock(isLocked) {
   }, [isLocked]);
 }
 
+function createConfiguredGLTFLoader(renderer = null) {
+  const loader = new GLTFLoader();
+  loader.setCrossOrigin('anonymous');
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  loader.setDRACOLoader(draco);
+  loader.setMeshoptDecoder(MeshoptDecoder);
+
+  if (!sharedKTX2Loader) {
+    sharedKTX2Loader = new KTX2Loader();
+    sharedKTX2Loader.setTranscoderPath(
+      'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/'
+    );
+    if (renderer) {
+      try {
+        sharedKTX2Loader.detectSupport(renderer);
+      } catch (error) {
+        console.warn('GamesHallway: KTX2 support detection failed', error);
+      }
+    }
+  }
+
+  loader.setKTX2Loader(sharedKTX2Loader);
+  return loader;
+}
+
 export default function GamesHallway({ games, onClose }) {
   const containerRef = useRef(null);
   const navigate = useNavigate();
@@ -180,18 +210,25 @@ export default function GamesHallway({ games, onClose }) {
     const loader = new THREE.TextureLoader();
     loader.setCrossOrigin('anonymous');
 
-    const gltfLoader = new GLTFLoader();
-    gltfLoader.setCrossOrigin('anonymous');
+    const gltfLoader = createConfiguredGLTFLoader(renderer);
 
     const loadGltfWithFallbacks = async (urls) => {
+      let lastError = null;
       for (const url of urls) {
         try {
+          const resolvedUrl = new URL(url, window.location.href).href;
+          const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+          const isAbsolute = /^https?:\/\//i.test(resolvedUrl);
+          gltfLoader.setResourcePath(resourcePath);
+          gltfLoader.setPath(isAbsolute ? '' : resourcePath);
           // eslint-disable-next-line no-await-in-loop
-          return await gltfLoader.loadAsync(url);
+          return await gltfLoader.loadAsync(resolvedUrl);
         } catch (error) {
+          lastError = error;
           // try next fallback
         }
       }
+      if (lastError) throw lastError;
       throw new Error('All GLTF sources failed');
     };
 
@@ -829,6 +866,10 @@ export default function GamesHallway({ games, onClose }) {
                 } else {
                   child.material.map = potFallbackTexture;
                 }
+                if (child.material.emissiveMap) {
+                  child.material.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+                  child.material.emissiveMap.anisotropy = maxAnisotropy;
+                }
                 if (child.material.normalMap) {
                   child.material.normalMap.anisotropy = maxAnisotropy;
                 }
@@ -1099,25 +1140,32 @@ export default function GamesHallway({ games, onClose }) {
     renderer.domElement.addEventListener('contextmenu', contextMenuHandler);
     window.addEventListener('resize', handleResize);
 
-    const clock = new THREE.Clock();
+    const TARGET_FPS = 90;
+    const TARGET_FRAME_TIME = 1000 / TARGET_FPS;
+    const MAX_FRAME_TIME = TARGET_FRAME_TIME * 3;
+    let lastRenderTime = performance.now();
     let animationId = 0;
 
-    const animate = () => {
+    const animate = (time) => {
       animationId = requestAnimationFrame(animate);
-      const delta = clock.getDelta();
-      const now = performance.now();
+      const deltaMs = time - lastRenderTime;
+      if (deltaMs < TARGET_FRAME_TIME - 0.25) {
+        return;
+      }
+      const clampedDelta = Math.min(deltaMs, MAX_FRAME_TIME) / 1000;
+      lastRenderTime = time;
 
       targetPitch = clampPitch(targetPitch);
       targetRadius = clampRadius(targetRadius);
       targetYaw = wrapAngle(targetYaw);
 
-      if (!dragging && now - lastInteraction > 4500) {
-        targetYaw = wrapAngle(targetYaw - THREE.MathUtils.degToRad(4) * delta);
+      if (!dragging && time - lastInteraction > 4500) {
+        targetYaw = wrapAngle(targetYaw - THREE.MathUtils.degToRad(4) * clampedDelta);
       }
 
-      const yawLerp = 1 - Math.exp(-delta * 4.5);
-      const pitchLerp = 1 - Math.exp(-delta * 5.5);
-      const radiusLerp = 1 - Math.exp(-delta * 5);
+      const yawLerp = 1 - Math.exp(-clampedDelta * 4.5);
+      const pitchLerp = 1 - Math.exp(-clampedDelta * 5.5);
+      const radiusLerp = 1 - Math.exp(-clampedDelta * 5);
       yaw = lerpAngle(yaw, targetYaw, yawLerp);
       pitch = THREE.MathUtils.lerp(pitch, targetPitch, pitchLerp);
       radius = THREE.MathUtils.lerp(radius, targetRadius, radiusLerp);
@@ -1127,7 +1175,7 @@ export default function GamesHallway({ games, onClose }) {
     };
 
     updateCamera();
-    animate();
+    animate(performance.now());
 
     return () => {
       disposed = true;
