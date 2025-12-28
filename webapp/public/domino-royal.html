@@ -2826,7 +2826,7 @@ const walkwayWallTexture = textureLoader.load(
 walkwayWallTexture.wrapS = THREE.RepeatWrapping;
 walkwayWallTexture.wrapT = THREE.RepeatWrapping;
 walkwayWallTexture.colorSpace = THREE.SRGBColorSpace;
-walkwayWallTexture.repeat.set(ARENA_WALKWAY_LENGTH / 2.2, 1.4);
+walkwayWallTexture.repeat.set(ARENA_WALKWAY_LENGTH / 2.2 / 4, 1.4 / 4);
 const walkwaySideMat = new THREE.MeshStandardMaterial({
   map: walkwayWallTexture,
   roughness: 0.48,
