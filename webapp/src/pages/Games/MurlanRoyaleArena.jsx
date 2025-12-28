@@ -9,8 +9,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
-import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
@@ -61,8 +59,6 @@ const sharedTextureLoader = new THREE.TextureLoader();
 sharedTextureLoader.setCrossOrigin?.('anonymous');
 let maxTextureAnisotropy = 1;
 let fallbackTexture = null;
-let sharedKTX2Loader = null;
-let ktx2SupportChecked = false;
 
 function updateMaxTextureAnisotropy(value) {
   maxTextureAnisotropy = Math.max(1, value || 1);
@@ -458,58 +454,6 @@ function normalizeAppearance(value = {}) {
   return normalized;
 }
 
-function ensureKtx2Loader(renderer = null) {
-  if (!sharedKTX2Loader) {
-    sharedKTX2Loader = new KTX2Loader();
-    sharedKTX2Loader.setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/');
-  }
-  if (!ktx2SupportChecked) {
-    const supportRenderer =
-      renderer || (typeof document !== 'undefined' ? new THREE.WebGLRenderer({ antialias: false, alpha: true }) : null);
-    if (supportRenderer) {
-      try {
-        sharedKTX2Loader.detectSupport(supportRenderer);
-      } catch (error) {
-        console.warn('MurlanArena: KTX2 support detection failed', error);
-      } finally {
-        if (!renderer) supportRenderer.dispose();
-        ktx2SupportChecked = true;
-      }
-    }
-  }
-  return sharedKTX2Loader;
-}
-
-function createConfiguredGLTFLoader(renderer = null, manager = null) {
-  const loader = new GLTFLoader(manager);
-  loader.setCrossOrigin?.('anonymous');
-  const draco = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-  loader.setDRACOLoader(draco);
-  if (loader.setMeshoptDecoder) {
-    loader.setMeshoptDecoder(MeshoptDecoder);
-  }
-  const ktx2 = ensureKtx2Loader(renderer);
-  if (ktx2) {
-    loader.setKTX2Loader(ktx2);
-  }
-  return loader;
-}
-
-function configureLoaderResourcePaths(loader, url) {
-  if (!loader || !url) return;
-  try {
-    const resolvedUrl =
-      typeof window !== 'undefined' ? new URL(url, window.location.href).href : url;
-    const base = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
-    const isAbsolute = /^https?:\/\//i.test(resolvedUrl);
-    loader.setResourcePath?.(base);
-    loader.setPath?.(isAbsolute ? '' : base);
-  } catch (error) {
-    console.warn('Failed to configure loader paths', error);
-  }
-}
-
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
@@ -608,13 +552,15 @@ function shouldPreserveChairMaterials(theme) {
 }
 
 async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0) {
-  const loader = createConfiguredGLTFLoader();
+  const loader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  loader.setDRACOLoader(draco);
 
   let gltf = null;
   let lastError = null;
   for (const url of urls) {
     try {
-      configureLoaderResourcePaths(loader, url);
       gltf = await loader.loadAsync(url);
       break;
     } catch (error) {
@@ -682,7 +628,11 @@ async function loadPolyhavenModel(assetId) {
     }
 
     const manager = fileMap.size ? new THREE.LoadingManager() : undefined;
-    const loader = createConfiguredGLTFLoader(null, manager);
+    const loader = new GLTFLoader(manager);
+    const draco = new DRACOLoader();
+    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    loader.setDRACOLoader(draco);
+    loader.setCrossOrigin?.('anonymous');
 
     if (fileMap.size) {
       const base = stripQueryHash(modelUrlList[0]);
@@ -705,7 +655,6 @@ async function loadPolyhavenModel(assetId) {
     let lastError = null;
     for (const modelUrl of modelUrlList) {
       try {
-        configureLoaderResourcePaths(loader, modelUrl);
         gltf = await loader.loadAsync(modelUrl);
         break;
       } catch (error) {
