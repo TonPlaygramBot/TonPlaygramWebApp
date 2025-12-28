@@ -268,6 +268,7 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
+const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
 const POLYHAVEN_PLANT_ASSETS = ['potted_plant_01', 'potted_plant_02', 'potted_plant_04', 'planter_box_01'];
 const POLYHAVEN_MODEL_CACHE = new Map();
 const PLANT_TARGET_HEIGHT = 2.8 * MODEL_SCALE;
@@ -331,6 +332,167 @@ function pickBestModelUrl(urls) {
   gltfs.sort((a, b) => score(b) - score(a));
 
   return glbs[0] || gltfs[0] || null;
+}
+
+function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_TEXTURE_SIZES) {
+  if (!apiJson || typeof apiJson !== 'object') {
+    return { diffuse: null, normal: null, roughness: null };
+  }
+
+  const urls = [];
+
+  const walk = (value) => {
+    if (!value) {
+      return;
+    }
+    if (typeof value === 'string') {
+      const lower = value.toLowerCase();
+      if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
+        urls.push(value);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.values(value).forEach(walk);
+    }
+  };
+
+  walk(apiJson);
+
+  const pick = (keywords) => {
+    const scored = urls
+      .filter((url) => keywords.some((kw) => url.toLowerCase().includes(kw)))
+      .map((url) => {
+        const lower = url.toLowerCase();
+        let score = 0;
+        preferredSizes.forEach((size, index) => {
+          if (lower.includes(size)) {
+            score += (preferredSizes.length - index) * 10;
+          }
+        });
+        if (lower.includes('jpg')) score += 6;
+        if (lower.includes('png')) score += 3;
+        if (lower.includes('preview') || lower.includes('thumb')) score -= 50;
+        if (lower.includes('.exr')) score -= 100;
+        return { url, score };
+      })
+      .sort((a, b) => b.score - a.score);
+    return scored[0]?.url;
+  };
+
+  return {
+    diffuse: pick(['diff', 'diffuse', 'albedo', 'basecolor']),
+    normal: pick(['nor_gl', 'normal_gl', 'nor', 'normal']),
+    roughness: pick(['rough', 'roughness'])
+  };
+}
+
+async function loadTexture(textureLoader, url, isColor, maxAnisotropy = 1) {
+  return await new Promise((resolve, reject) => {
+    textureLoader.load(
+      url,
+      (texture) => {
+        if (isColor) {
+          applySRGBColorSpace(texture);
+        }
+        texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+        resolve(texture);
+      },
+      undefined,
+      () => reject(new Error('texture load failed'))
+    );
+  });
+}
+
+async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1, cache = null) {
+  if (!assetId || !textureLoader) return null;
+  const key = `${assetId.toLowerCase()}|${maxAnisotropy}`;
+  if (cache?.has(key)) {
+    return cache.get(key);
+  }
+
+  const promise = (async () => {
+    try {
+      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
+      if (!response.ok) {
+        return null;
+      }
+      const json = await response.json();
+      const urls = pickBestTextureUrls(json, PREFERRED_TEXTURE_SIZES);
+      if (!urls.diffuse) {
+        return null;
+      }
+
+      const [diffuse, normal, roughness] = await Promise.all([
+        loadTexture(textureLoader, urls.diffuse, true, maxAnisotropy),
+        urls.normal ? loadTexture(textureLoader, urls.normal, false, maxAnisotropy) : null,
+        urls.roughness ? loadTexture(textureLoader, urls.roughness, false, maxAnisotropy) : null
+      ]);
+
+      [diffuse, normal, roughness].filter(Boolean).forEach((tex) => {
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.anisotropy = Math.max(tex.anisotropy ?? 1, maxAnisotropy);
+      });
+
+      return { diffuse, normal, roughness };
+    } catch (error) {
+      return null;
+    }
+  })();
+
+  if (cache) {
+    cache.set(key, promise);
+    promise.catch(() => cache.delete(key));
+  }
+  return promise;
+}
+
+function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotropy = 1) {
+  const applyToMaterial = (material) => {
+    if (!material) return;
+    material.roughness = Math.max(material.roughness ?? 0.4, 0.4);
+    material.metalness = Math.min(material.metalness ?? 0.4, 0.4);
+
+    if (material.map) {
+      applySRGBColorSpace(material.map);
+      material.map.anisotropy = Math.max(material.map.anisotropy ?? 1, maxAnisotropy);
+    } else if (textureSet?.diffuse) {
+      material.map = textureSet.diffuse;
+      applySRGBColorSpace(material.map);
+      material.needsUpdate = true;
+    } else if (fallbackTexture) {
+      material.map = fallbackTexture;
+      applySRGBColorSpace(material.map);
+      material.needsUpdate = true;
+    }
+
+    if (material.emissiveMap) {
+      applySRGBColorSpace(material.emissiveMap);
+      material.emissiveMap.anisotropy = Math.max(material.emissiveMap.anisotropy ?? 1, maxAnisotropy);
+    }
+
+    if (!material.normalMap && textureSet?.normal) {
+      material.normalMap = textureSet.normal;
+    }
+    if (material.normalMap) {
+      material.normalMap.anisotropy = Math.max(material.normalMap.anisotropy ?? 1, maxAnisotropy);
+    }
+
+    if (!material.roughnessMap && textureSet?.roughness) {
+      material.roughnessMap = textureSet.roughness;
+    }
+  };
+
+  model.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach(applyToMaterial);
+  });
 }
 
 function prepareLoadedModel(model) {
@@ -493,10 +655,36 @@ function fitModelToHeight(model, targetHeight) {
   liftModelToGround(model, 0);
 }
 
-async function createPolyhavenInstance(assetId, targetHeight, rotationY = 0, renderer = null) {
+async function createPolyhavenInstance(
+  assetId,
+  targetHeight,
+  rotationY = 0,
+  renderer = null,
+  textureOptions = {}
+) {
   const root = await loadPolyhavenModel(assetId, renderer);
   const model = root.clone(true);
   prepareLoadedModel(model);
+  const {
+    textureLoader = null,
+    maxAnisotropy = 1,
+    fallbackTexture = null,
+    textureCache = null,
+    textureSet = null
+  } = textureOptions || {};
+  if (textureLoader) {
+    try {
+      const textures =
+        textureSet ?? (await loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy, textureCache));
+      if (textures || fallbackTexture) {
+        applyTextureSetToModel(model, textures, fallbackTexture, maxAnisotropy);
+      }
+    } catch (error) {
+      if (fallbackTexture) {
+        applyTextureSetToModel(model, null, fallbackTexture, maxAnisotropy);
+      }
+    }
+  }
   fitModelToHeight(model, targetHeight);
   if (rotationY) model.rotation.y += rotationY;
   return model;
@@ -739,14 +927,37 @@ function createProceduralChair(theme) {
   };
 }
 
-async function buildChairTemplate(theme, renderer = null) {
+async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
   const rotationY = theme?.modelRotation || 0;
   const preserveMaterials = shouldPreserveChairMaterials(theme);
+  const {
+    textureLoader = null,
+    maxAnisotropy = 1,
+    fallbackTexture = null,
+    textureCache = null
+  } = textureOptions || {};
   try {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
       const polyhavenRoot = await loadPolyhavenModel(theme.assetId, renderer);
       const model = polyhavenRoot.clone(true);
       prepareLoadedModel(model);
+      if (textureLoader) {
+        try {
+          const textures = await loadPolyhavenTextureSet(
+            theme.assetId,
+            textureLoader,
+            maxAnisotropy,
+            textureCache
+          );
+          if (textures || fallbackTexture) {
+            applyTextureSetToModel(model, textures, fallbackTexture, maxAnisotropy);
+          }
+        } catch (error) {
+          if (fallbackTexture) {
+            applyTextureSetToModel(model, null, fallbackTexture, maxAnisotropy);
+          }
+        }
+      }
       fitChairModelToFootprint(model);
       if (rotationY) model.rotation.y += rotationY;
       const materials = extractChairMaterials(model);
@@ -1042,6 +1253,10 @@ export default function MurlanRoyaleArena({ search }) {
     scene: null,
     camera: null,
     controls: null,
+    textureLoader: null,
+    textureCache: new Map(),
+    maxAnisotropy: 1,
+    fallbackTexture: null,
     arena: null,
     cardGeometry: null,
     cardMap: new Map(),
@@ -1348,11 +1563,16 @@ export default function MurlanRoyaleArena({ search }) {
     async (stoolTheme) => {
       if (!threeReady) return;
       const safe = stoolTheme || STOOL_THEMES[0];
-      const chairBuild = await buildChairTemplate(safe, threeStateRef.current.renderer);
+      const store = threeStateRef.current;
+      const chairBuild = await buildChairTemplate(safe, store.renderer, {
+        textureLoader: store.textureLoader,
+        maxAnisotropy: store.maxAnisotropy,
+        fallbackTexture: store.fallbackTexture,
+        textureCache: store.textureCache
+      });
       const currentAppearance = normalizeAppearance(appearanceRef.current);
       const expectedTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
       if (expectedTheme.id !== safe.id) return;
-      const store = threeStateRef.current;
       if (store.chairMaterials) {
         const mats = new Set([
           store.chairMaterials.seat,
@@ -1686,6 +1906,21 @@ export default function MurlanRoyaleArena({ search }) {
       mount.appendChild(renderer.domElement);
       dom = renderer.domElement;
       threeStateRef.current.renderer = renderer;
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.setCrossOrigin?.('anonymous');
+      const maxAnisotropy = renderer.capabilities.getMaxAnisotropy?.() ?? 1;
+      const fallbackTexture = textureLoader.load(
+        'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/uv_grid_opengl.jpg'
+      );
+      applySRGBColorSpace(fallbackTexture);
+      fallbackTexture.wrapS = THREE.RepeatWrapping;
+      fallbackTexture.wrapT = THREE.RepeatWrapping;
+      fallbackTexture.repeat.set(1.6, 1.6);
+      fallbackTexture.anisotropy = maxAnisotropy;
+      threeStateRef.current.textureLoader = textureLoader;
+      threeStateRef.current.textureCache = new Map();
+      threeStateRef.current.maxAnisotropy = maxAnisotropy;
+      threeStateRef.current.fallbackTexture = fallbackTexture;
       applyRendererQuality();
 
       scene = new THREE.Scene();
@@ -1773,10 +2008,31 @@ export default function MurlanRoyaleArena({ search }) {
       threeStateRef.current.decorPlants = [];
       const addCornerPlants = async () => {
         try {
+          const plantTextures = new Map(
+            (
+              await Promise.all(
+                POLYHAVEN_PLANT_ASSETS.map(async (assetId) => {
+                  const textures = await loadPolyhavenTextureSet(
+                    assetId,
+                    textureLoader,
+                    maxAnisotropy,
+                    threeStateRef.current.textureCache
+                  );
+                  return [assetId, textures];
+                })
+              )
+            ).filter((entry) => entry[1])
+          );
           const radius = wallInnerRadius * DECOR_PLANT_RADIUS_SCALE;
           for (let i = 0; i < POLYHAVEN_PLANT_ASSETS.length; i += 1) {
             const assetId = POLYHAVEN_PLANT_ASSETS[i];
-            const plant = await createPolyhavenInstance(assetId, PLANT_TARGET_HEIGHT, 0, renderer);
+            const plant = await createPolyhavenInstance(assetId, PLANT_TARGET_HEIGHT, 0, renderer, {
+              textureLoader,
+              maxAnisotropy,
+              fallbackTexture,
+              textureCache: threeStateRef.current.textureCache,
+              textureSet: plantTextures.get(assetId)
+            });
             if (disposed) return;
             const angle = (i / POLYHAVEN_PLANT_ASSETS.length) * Math.PI * 2 + Math.PI / 4;
             const pos = new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
@@ -1846,7 +2102,12 @@ export default function MurlanRoyaleArena({ search }) {
         -TABLE_RADIUS * 0.62
       );
 
-      const chairBuild = await buildChairTemplate(stoolTheme, renderer);
+      const chairBuild = await buildChairTemplate(stoolTheme, renderer, {
+        textureLoader,
+        maxAnisotropy,
+        fallbackTexture,
+        textureCache: threeStateRef.current.textureCache
+      });
       if (disposed) return;
       const chairTemplate = chairBuild.chairTemplate;
       threeStateRef.current.chairTemplate = chairTemplate;
@@ -2239,11 +2500,26 @@ export default function MurlanRoyaleArena({ search }) {
           if (mat && typeof mat.dispose === 'function') mat.dispose();
         });
       }
+      if (store.textureCache) {
+        store.textureCache.forEach((promise) => {
+          Promise.resolve(promise).then((set) => {
+            if (set) {
+              [set.diffuse, set.normal, set.roughness].forEach((tex) => tex?.dispose?.());
+            }
+          });
+        });
+        store.textureCache.clear();
+      }
+      store.fallbackTexture?.dispose?.();
       threeStateRef.current = {
         renderer: null,
         scene: null,
         camera: null,
         controls: null,
+        textureLoader: null,
+        textureCache: new Map(),
+        maxAnisotropy: 1,
+        fallbackTexture: null,
         arena: null,
         cardGeometry: null,
         cardMap: new Map(),
