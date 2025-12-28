@@ -51,6 +51,8 @@ import {
   MURLAN_STOOL_THEMES as STOOL_THEMES
 } from '../../config/murlanThemes.js';
 
+const FALLBACK_TEXTURE_URL = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/uv_grid_opengl.jpg';
+const textureLoader = new THREE.TextureLoader();
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.3;
@@ -72,6 +74,34 @@ const SUIT_COLORS = {
   '♦': '#cc2233',
   '🃏': '#111111'
 };
+
+let preferredAnisotropy = 1;
+let fallbackTexture = null;
+
+function resolvePreferredAnisotropy(renderer) {
+  const supported = renderer?.capabilities?.getMaxAnisotropy?.();
+  if (typeof supported === 'number' && supported > 0) {
+    preferredAnisotropy = supported;
+    if (fallbackTexture) {
+      fallbackTexture.anisotropy = preferredAnisotropy;
+      fallbackTexture.needsUpdate = true;
+    }
+  }
+  return preferredAnisotropy;
+}
+
+function getFallbackTexture(renderer) {
+  if (!fallbackTexture) {
+    fallbackTexture = textureLoader.load(FALLBACK_TEXTURE_URL);
+    applySRGBColorSpace(fallbackTexture);
+    fallbackTexture.wrapS = THREE.RepeatWrapping;
+    fallbackTexture.wrapT = THREE.RepeatWrapping;
+    fallbackTexture.repeat.set(1.6, 1.6);
+  }
+  fallbackTexture.anisotropy = resolvePreferredAnisotropy(renderer);
+  fallbackTexture.needsUpdate = true;
+  return fallbackTexture;
+}
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -327,7 +357,7 @@ function pickBestModelUrl(urls) {
   return glbs[0] || gltfs[0] || null;
 }
 
-function prepareLoadedModel(model) {
+function prepareLoadedModel(model, renderer) {
   model.traverse((obj) => {
     if (obj.isMesh) {
       obj.castShadow = true;
@@ -335,8 +365,25 @@ function prepareLoadedModel(model) {
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach((mat) => {
         if (!mat) return;
-        if (mat.map) applySRGBColorSpace(mat.map);
-        if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+        const anisotropy = resolvePreferredAnisotropy(renderer);
+        if (mat.map) {
+          applySRGBColorSpace(mat.map);
+          mat.map.anisotropy = anisotropy;
+          mat.map.needsUpdate = true;
+        } else {
+          mat.map = getFallbackTexture(renderer);
+        }
+        if (mat.emissiveMap) {
+          applySRGBColorSpace(mat.emissiveMap);
+          mat.emissiveMap.anisotropy = anisotropy;
+          mat.emissiveMap.needsUpdate = true;
+        }
+        if (mat.normalMap) {
+          mat.normalMap.anisotropy = anisotropy;
+          mat.normalMap.needsUpdate = true;
+        }
+        mat.roughness = Math.max(mat.roughness ?? 0.4, 0.4);
+        mat.metalness = Math.min(mat.metalness ?? 0.3, 0.3);
       });
     }
   });
@@ -490,7 +537,7 @@ function fitModelToHeight(model, targetHeight) {
 async function createPolyhavenInstance(assetId, targetHeight, rotationY = 0) {
   const root = await loadPolyhavenModel(assetId);
   const model = root.clone(true);
-  prepareLoadedModel(model);
+  prepareLoadedModel(model, threeStateRef.current.renderer);
   fitModelToHeight(model, targetHeight);
   if (rotationY) model.rotation.y += rotationY;
   return model;
@@ -533,7 +580,7 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0) {
     throw new Error('Chair model missing scene');
   }
 
-  prepareLoadedModel(model);
+  prepareLoadedModel(model, threeStateRef.current.renderer);
 
   fitChairModelToFootprint(model);
   if (rotationY) {
@@ -627,7 +674,7 @@ async function loadPolyhavenModel(assetId) {
     if (!root) {
       throw new Error(`Missing scene for ${assetId}`);
     }
-    prepareLoadedModel(root);
+    prepareLoadedModel(root, threeStateRef.current.renderer);
     return root;
   })();
 
@@ -717,7 +764,7 @@ async function buildChairTemplate(theme) {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
       const polyhavenRoot = await loadPolyhavenModel(theme.assetId);
       const model = polyhavenRoot.clone(true);
-      prepareLoadedModel(model);
+      prepareLoadedModel(model, threeStateRef.current.renderer);
       fitChairModelToFootprint(model);
       if (rotationY) model.rotation.y += rotationY;
       const materials = extractChairMaterials(model);
