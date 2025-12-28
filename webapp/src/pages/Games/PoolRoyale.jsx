@@ -5285,6 +5285,15 @@ const AI_CAMERA_DROP_BLEND = 0.65;
 const AI_CAMERA_DROP_DURATION_MS = 480;
 const AI_STROKE_TIME_SCALE = 1.25;
 const AI_STROKE_PULLBACK_FACTOR = 0.9;
+const AI_CUE_PULL_VISIBILITY_BOOST = 1.08;
+const AI_WARMUP_PULL_RATIO = 0.45;
+const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.12;
+const PLAYER_WARMUP_PULL_RATIO = 0.72;
+const PLAYER_STROKE_TIME_SCALE = 1.15;
+const PLAYER_STROKE_PULLBACK_FACTOR = 0.55;
+const PLAYER_PULLBACK_MIN_SCALE = 1.1;
+const MIN_PULLBACK_GAP = BALL_R * 0.5;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 48;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -17137,7 +17146,11 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          const pullTarget = computePullTargetFromPower(clampedPower, maxPull);
+          const isAiStroke = aiOpponentEnabled && hudRef.current?.turn === 1;
+          const pullVisibilityBoost = isAiStroke
+            ? AI_CUE_PULL_VISIBILITY_BOOST
+            : PLAYER_CUE_PULL_VISIBILITY_BOOST;
+          const pullTarget = computePullTargetFromPower(clampedPower, maxPull) * pullVisibilityBoost;
           const pull = computeCuePull(pullTarget, maxPull, {
             instant: true,
             preserveLarger: true
@@ -17168,10 +17181,12 @@ const powerRef = useRef(hud.power);
               CUE_Y + spinWorld.y,
               cue.pos.y - dir.z * (cueLen / 2 + pullAmount + CUE_TIP_GAP) + spinWorld.z
             );
-          const warmupPull =
-            aiOpponentEnabled && hudRef.current?.turn === 1
-              ? Math.max(0, Math.min(visualPull, BALL_R * 0.75))
-              : visualPull;
+          const warmupRatio = isAiStroke ? AI_WARMUP_PULL_RATIO : PLAYER_WARMUP_PULL_RATIO;
+          const minVisibleGap = Math.max(MIN_PULLBACK_GAP, visualPull * 0.08);
+          const warmupPull = Math.max(
+            0,
+            Math.min(visualPull - minVisibleGap, visualPull * warmupRatio)
+          );
           const startPos = buildCuePosition(visualPull);
           const warmupPos = buildCuePosition(warmupPull);
           const tiltAmount = hasSpin ? Math.abs(appliedSpin.y || 0) : 0;
@@ -17230,16 +17245,19 @@ const powerRef = useRef(hud.power);
           );
           const aiStrokeScale =
             aiOpponentEnabled && hudRef.current?.turn === 1 ? AI_STROKE_TIME_SCALE : 1;
-          const forwardDuration = forwardDurationBase * aiStrokeScale;
-          const settleDuration = settleDurationBase * aiStrokeScale;
-          const pullbackDuration =
-            aiOpponentEnabled && hudRef.current?.turn === 1
-              ? Math.max(
-                  CUE_STROKE_MIN_MS,
-                  forwardDuration * AI_STROKE_PULLBACK_FACTOR,
-                  AI_CAMERA_DROP_DURATION_MS * 0.9
-                )
-              : 0;
+          const playerStrokeScale = isAiStroke ? 1 : PLAYER_STROKE_TIME_SCALE;
+          const forwardDuration = forwardDurationBase * aiStrokeScale * playerStrokeScale;
+          const settleDuration = settleDurationBase * aiStrokeScale * playerStrokeScale;
+          const pullbackDuration = isAiStroke
+            ? Math.max(
+                CUE_STROKE_MIN_MS,
+                forwardDuration * AI_STROKE_PULLBACK_FACTOR,
+                AI_CAMERA_DROP_DURATION_MS * 0.9
+              )
+            : Math.max(
+                CUE_STROKE_MIN_MS * PLAYER_PULLBACK_MIN_SCALE,
+                forwardDuration * PLAYER_STROKE_PULLBACK_FACTOR
+              );
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
@@ -19661,7 +19679,11 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          const desiredPull = computePullTargetFromPower(powerTarget, maxPull);
+          const pullVisibilityBoost =
+            aiOpponentEnabled && hudRef.current?.turn === 1
+              ? AI_CUE_PULL_VISIBILITY_BOOST
+              : PLAYER_CUE_PULL_VISIBILITY_BOOST;
+          const desiredPull = computePullTargetFromPower(powerTarget, maxPull) * pullVisibilityBoost;
           const pull = computeCuePull(desiredPull, maxPull, { preserveLarger: true });
           const visualPull = applyVisualPullCompensation(pull, dir);
           const planSpin = activeAiPlan.spin ?? spinRef.current ?? { x: 0, y: 0 };
@@ -20614,7 +20636,7 @@ const powerRef = useRef(hud.power);
         const spinCenter = spinLeft + spinWidth / 2;
         const desiredCenter = (leftCenter + spinCenter) / 2;
         const screenCenter = viewportWidth / 2;
-        setBottomHudOffset(desiredCenter - screenCenter);
+        setBottomHudOffset(desiredCenter - screenCenter - PORTRAIT_HUD_HORIZONTAL_NUDGE_PX);
       } else {
         setBottomHudOffset(0);
       }
