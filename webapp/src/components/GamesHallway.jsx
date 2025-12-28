@@ -184,27 +184,12 @@ export default function GamesHallway({ games, onClose }) {
     gltfLoader.setCrossOrigin('anonymous');
 
     const loadGltfWithFallbacks = async (urls) => {
-      const resetLoaderPaths = () => {
-        gltfLoader.setPath('');
-        gltfLoader.setResourcePath('');
-      };
       for (const url of urls) {
         try {
-          const resolvedUrl = new URL(url, window.location.href).href;
-          const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
-          const isAbsolute = /^https?:\/\//i.test(resolvedUrl);
-          gltfLoader.setResourcePath(resourcePath);
-          gltfLoader.setPath(isAbsolute ? '' : resourcePath);
           // eslint-disable-next-line no-await-in-loop
-          const gltf = await new Promise((resolve, reject) => {
-            gltfLoader.load(resolvedUrl, resolve, undefined, reject);
-          });
-          resetLoaderPaths();
-          return gltf;
+          return await gltfLoader.loadAsync(url);
         } catch (error) {
           // try next fallback
-        } finally {
-          resetLoaderPaths();
         }
       }
       throw new Error('All GLTF sources failed');
@@ -1114,31 +1099,25 @@ export default function GamesHallway({ games, onClose }) {
     renderer.domElement.addEventListener('contextmenu', contextMenuHandler);
     window.addEventListener('resize', handleResize);
 
-    const targetFrameMs = 1000 / 90;
-    const maxFrameMs = targetFrameMs * 3;
+    const clock = new THREE.Clock();
     let animationId = 0;
-    let lastRenderTime = performance.now() - targetFrameMs;
 
-    const animate = (now) => {
+    const animate = () => {
       animationId = requestAnimationFrame(animate);
-      const elapsedMs = now - lastRenderTime;
-      if (elapsedMs < targetFrameMs - 0.5) {
-        return;
-      }
-      const clampedDelta = Math.min(elapsedMs, maxFrameMs) / 1000;
-      lastRenderTime = now - Math.max(0, elapsedMs - clampedDelta * 1000);
+      const delta = clock.getDelta();
+      const now = performance.now();
 
       targetPitch = clampPitch(targetPitch);
       targetRadius = clampRadius(targetRadius);
       targetYaw = wrapAngle(targetYaw);
 
       if (!dragging && now - lastInteraction > 4500) {
-        targetYaw = wrapAngle(targetYaw - THREE.MathUtils.degToRad(4) * clampedDelta);
+        targetYaw = wrapAngle(targetYaw - THREE.MathUtils.degToRad(4) * delta);
       }
 
-      const yawLerp = 1 - Math.exp(-clampedDelta * 4.5);
-      const pitchLerp = 1 - Math.exp(-clampedDelta * 5.5);
-      const radiusLerp = 1 - Math.exp(-clampedDelta * 5);
+      const yawLerp = 1 - Math.exp(-delta * 4.5);
+      const pitchLerp = 1 - Math.exp(-delta * 5.5);
+      const radiusLerp = 1 - Math.exp(-delta * 5);
       yaw = lerpAngle(yaw, targetYaw, yawLerp);
       pitch = THREE.MathUtils.lerp(pitch, targetPitch, pitchLerp);
       radius = THREE.MathUtils.lerp(radius, targetRadius, radiusLerp);
@@ -1148,7 +1127,7 @@ export default function GamesHallway({ games, onClose }) {
     };
 
     updateCamera();
-    animate(performance.now());
+    animate();
 
     return () => {
       disposed = true;
