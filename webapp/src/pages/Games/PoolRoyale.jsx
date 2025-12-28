@@ -4433,6 +4433,148 @@ const createCarpetTextures = (() => {
   };
 })();
 
+const WALL_TEXTURE_CONFIG = {
+  sourceId: 'white_planks_clean',
+  fallbackColor: 0xdedede,
+  repeat: new THREE.Vector2(7.5, 3.4),
+  anisotropy: 6
+};
+
+const loadWallPlankTextures = (() => {
+  let cache = null;
+  let pending = null;
+
+  const pickTextureUrls = (apiJson) => {
+    const urls = [];
+    const walk = (value) => {
+      if (!value) return;
+      if (typeof value === 'string') {
+        const lower = value.toLowerCase();
+        if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
+          urls.push(value);
+        }
+        return;
+      }
+      if (Array.isArray(value)) {
+        value.forEach(walk);
+        return;
+      }
+      if (typeof value === 'object') {
+        Object.values(value).forEach(walk);
+      }
+    };
+    walk(apiJson);
+    const scoreAndPick = (keywords) => {
+      const scored = urls
+        .filter((u) => keywords.some((kw) => u.toLowerCase().includes(kw)))
+        .map((u) => {
+          const lower = u.toLowerCase();
+          let score = 0;
+          if (lower.includes('4k')) score += 10;
+          if (lower.includes('2k')) score += 8;
+          if (lower.includes('1k')) score += 5;
+          if (lower.includes('jpg')) score += 3;
+          if (lower.includes('png')) score += 2;
+          if (lower.includes('diff') || lower.includes('albedo') || lower.includes('basecolor')) score += 2;
+          if (lower.includes('nor_gl') || lower.includes('normal_gl')) score += 2;
+          if (lower.includes('nor') || lower.includes('normal')) score += 1;
+          if (lower.includes('rough')) score += 1;
+          if (lower.includes('preview') || lower.includes('thumb')) score -= 8;
+          if (lower.includes('.exr')) score -= 20;
+          return { url: u, score };
+        })
+        .sort((a, b) => b.score - a.score);
+      return scored[0]?.url ?? null;
+    };
+    return {
+      diffuse: scoreAndPick(['diff', 'diffuse', 'albedo', 'basecolor']),
+      normal: scoreAndPick(['nor_gl', 'normal_gl', 'nor', 'normal']),
+      roughness: scoreAndPick(['rough', 'roughness'])
+    };
+  };
+
+  const loadTexture = (loader, url, isColor) =>
+    new Promise((resolve) => {
+      if (!url) {
+        resolve(null);
+        return;
+      }
+      loader.load(
+        url,
+        (texture) => {
+          if (isColor) {
+            applySRGBColorSpace(texture);
+          }
+          resolve(texture);
+        },
+        undefined,
+        () => resolve(null)
+      );
+    });
+
+  return async (anisotropy) => {
+    if (cache) return cache;
+    if (!pending) {
+      pending = (async () => {
+        if (typeof fetch !== 'function') return null;
+        try {
+          const response = await fetch(`https://api.polyhaven.com/files/${WALL_TEXTURE_CONFIG.sourceId}`);
+          if (!response?.ok) return null;
+          const json = await response.json();
+          const urls = pickTextureUrls(json);
+          if (!urls.diffuse) return null;
+          const loader = new THREE.TextureLoader();
+          loader.setCrossOrigin('anonymous');
+          const [map, normal, roughness] = await Promise.all([
+            loadTexture(loader, urls.diffuse, true),
+            loadTexture(loader, urls.normal, false),
+            loadTexture(loader, urls.roughness, false)
+          ]);
+          [map, normal, roughness].forEach((tex) => {
+            if (!tex) return;
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.anisotropy = Math.max(1, anisotropy ?? WALL_TEXTURE_CONFIG.anisotropy);
+            tex.needsUpdate = true;
+          });
+          cache = { map, normal, roughness };
+          return cache;
+        } catch (err) {
+          console.warn('Failed to load Poly Haven wall plank textures', err);
+          return null;
+        }
+      })();
+    }
+    return pending;
+  };
+})();
+
+async function applyWhitePlankWallMaterial(material, { repeat, anisotropy, isCancelled } = {}) {
+  if (!material || (typeof isCancelled === 'function' && isCancelled())) return null;
+  const targetRepeat = new THREE.Vector2(
+    repeat?.x ?? WALL_TEXTURE_CONFIG.repeat.x,
+    repeat?.y ?? WALL_TEXTURE_CONFIG.repeat.y
+  );
+  const textures = await loadWallPlankTextures(anisotropy);
+  if (!textures || (typeof isCancelled === 'function' && isCancelled())) return null;
+  const applyRepeat = (tex) => {
+    if (!tex) return;
+    tex.repeat.copy(targetRepeat);
+    tex.needsUpdate = true;
+  };
+  applyRepeat(textures.map);
+  applyRepeat(textures.normal);
+  applyRepeat(textures.roughness);
+  material.map = textures.map ?? material.map;
+  material.normalMap = textures.normal ?? material.normalMap;
+  material.roughnessMap = textures.roughness ?? material.roughnessMap;
+  material.color = new THREE.Color(0xffffff);
+  material.roughness = 0.78;
+  material.metalness = 0.03;
+  material.needsUpdate = true;
+  return textures;
+}
+
 function createBroadcastCameras({
   floorY,
   cameraHeight,
@@ -11435,6 +11577,7 @@ const powerRef = useRef(hud.power);
       return;
     }
     const cueRackDisposers = [];
+    const wallTextures = [];
     let disposed = false;
     try {
       const updatePocketCameraState = (active) => {
@@ -11932,10 +12075,28 @@ const powerRef = useRef(hud.power);
       world.add(carpet);
 
       const wallMat = new THREE.MeshStandardMaterial({
-        color: 0xb9ddff,
-        roughness: 0.94,
-        metalness: 0.02,
+        color: WALL_TEXTURE_CONFIG.fallbackColor,
+        roughness: 0.78,
+        metalness: 0.03,
         flatShading: true
+      });
+      const wallTextureRepeat = new THREE.Vector2(
+        Math.max(WALL_TEXTURE_CONFIG.repeat.x, roomWidth / 80),
+        Math.max(WALL_TEXTURE_CONFIG.repeat.y, wallHeight / 40)
+      );
+      const wallTextureAnisotropy =
+        renderer.capabilities?.getMaxAnisotropy?.() ?? WALL_TEXTURE_CONFIG.anisotropy;
+      applyWhitePlankWallMaterial(wallMat, {
+        repeat: wallTextureRepeat,
+        anisotropy: wallTextureAnisotropy,
+        isCancelled: () => disposed
+      }).then((textures) => {
+        if (disposed || !textures) return;
+        Object.values(textures).forEach((tex) => {
+          if (tex && !wallTextures.includes(tex)) {
+            wallTextures.push(tex);
+          }
+        });
       });
 
       const makeWall = (width, height, depth) => {
@@ -20116,6 +20277,7 @@ const powerRef = useRef(hud.power);
           cueMaterialsRef.current.buttRingMaterial = null;
           cueMaterialsRef.current.buttCapMaterial = null;
           cueMaterialsRef.current.styleIndex = null;
+          wallTextures.forEach((tex) => tex?.dispose?.());
           cueGalleryStateRef.current.active = false;
           cueGalleryStateRef.current.rackId = null;
           cueGalleryStateRef.current.prev = null;
