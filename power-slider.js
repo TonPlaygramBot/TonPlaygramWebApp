@@ -158,8 +158,7 @@ export class PowerSlider {
     this.powerFill.style.clipPath = `inset(0 0 ${100 - pct}% 0)`;
     this._updateHandleColor(ratio);
     if (this.handleText) {
-      const showPullLabel = ratio <= 0.05;
-      this.handleText.textContent = showPullLabel ? 'Pull' : `${Math.round(this.value)}%`;
+      this.handleText.textContent = `${Math.round(this.value)}%`;
     }
     this.tooltip.textContent = `${Math.round(this.value)}%`;
     this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
