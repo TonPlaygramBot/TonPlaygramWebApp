@@ -212,6 +212,47 @@ export default function GamesHallway({ games, onClose }) {
 
     const gltfLoader = createConfiguredGLTFLoader(renderer);
 
+    const potTextureCache = new Map();
+
+    const loadOriginalPlantTextures = async (assetId) => {
+      if (potTextureCache.has(assetId)) {
+        return potTextureCache.get(assetId);
+      }
+
+      const promise = (async () => {
+        try {
+          const response = await fetch(`https://api.polyhaven.com/files/${assetId}`);
+          if (!response.ok) {
+            return null;
+          }
+          const json = await response.json();
+          const urls = pickBestTextureUrls(json, PREFERRED_SIZES);
+          if (!urls.diffuse) {
+            return null;
+          }
+
+          const [diffuse, normal, roughness] = await Promise.all([
+            loadTexture(loader, urls.diffuse, true),
+            urls.normal ? loadTexture(loader, urls.normal, false) : null,
+            urls.roughness ? loadTexture(loader, urls.roughness, false) : null
+          ]);
+
+          [diffuse, normal, roughness].filter(Boolean).forEach((tex) => {
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.anisotropy = maxAnisotropy;
+          });
+
+          return { diffuse, normal, roughness };
+        } catch (error) {
+          return null;
+        }
+      })();
+
+      potTextureCache.set(assetId, promise);
+      return promise;
+    };
+
     const loadGltfWithFallbacks = async (urls) => {
       let lastError = null;
       for (const url of urls) {
@@ -780,14 +821,16 @@ export default function GamesHallway({ games, onClose }) {
           'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/potted_plant_01/potted_plant_01_2k.gltf',
           'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/potted_plant_01/potted_plant_01_1k.gltf'
         ],
-        scale: 2.35
+        scale: 2.35,
+        textureId: 'potted_plant_01'
       },
       {
         urls: [
           'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/potted_plant_02/potted_plant_02_2k.gltf',
           'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/potted_plant_02/potted_plant_02_1k.gltf'
         ],
-        scale: 2.15
+        scale: 2.15,
+        textureId: 'potted_plant_02'
       }
     ];
 
@@ -796,16 +839,6 @@ export default function GamesHallway({ games, onClose }) {
       metalness: 0.72,
       roughness: 0.32,
       map: carbonFiberTexture
-    });
-    const sconceShadeMat = new THREE.MeshStandardMaterial({
-      color: '#fff0cd',
-      emissive: '#ffe4b0',
-      emissiveIntensity: 0.8,
-      metalness: 0.25,
-      roughness: 0.22,
-      transparent: true,
-      opacity: 0.72,
-      side: THREE.DoubleSide
     });
     const sconceBulbMat = new THREE.MeshStandardMaterial({
       color: '#fff9ec',
@@ -823,6 +856,20 @@ export default function GamesHallway({ games, onClose }) {
       const potRadius = 16.6;
       const sconceRadius = 19.15;
       const twoPi = Math.PI * 2;
+
+      const plantTextures = new Map(
+        (
+          await Promise.all(
+            plantModelSources.map(async (source) => {
+              if (!source.textureId) {
+                return null;
+              }
+              const textures = await loadOriginalPlantTextures(source.textureId);
+              return [source.textureId, textures];
+            })
+          )
+        ).filter(Boolean)
+      );
 
       const loadedPlants = await Promise.all(
         plantModelSources.map(async (source) => {
@@ -853,6 +900,7 @@ export default function GamesHallway({ games, onClose }) {
         .filter(Boolean)
         .map(({ gltf, source }) => {
           const scene = gltf?.scene;
+          const textureSet = source.textureId ? plantTextures.get(source.textureId) : null;
           if (scene) {
             scene.traverse((child) => {
               if (child.isMesh && child.material) {
@@ -863,15 +911,26 @@ export default function GamesHallway({ games, onClose }) {
                 if (child.material.map) {
                   child.material.map.colorSpace = THREE.SRGBColorSpace;
                   child.material.map.anisotropy = maxAnisotropy;
+                } else if (textureSet?.diffuse) {
+                  child.material.map = textureSet.diffuse;
+                  child.material.map.colorSpace = THREE.SRGBColorSpace;
+                  child.material.needsUpdate = true;
                 } else {
                   child.material.map = potFallbackTexture;
+                  child.material.map.colorSpace = THREE.SRGBColorSpace;
                 }
                 if (child.material.emissiveMap) {
                   child.material.emissiveMap.colorSpace = THREE.SRGBColorSpace;
                   child.material.emissiveMap.anisotropy = maxAnisotropy;
                 }
+                if (!child.material.normalMap && textureSet?.normal) {
+                  child.material.normalMap = textureSet.normal;
+                }
                 if (child.material.normalMap) {
                   child.material.normalMap.anisotropy = maxAnisotropy;
+                }
+                if (!child.material.roughnessMap && textureSet?.roughness) {
+                  child.material.roughnessMap = textureSet.roughness;
                 }
                 child.material.needsUpdate = true;
               }
@@ -907,7 +966,7 @@ export default function GamesHallway({ games, onClose }) {
           potGroup.add(instance);
         }
 
-        const potAccent = new THREE.PointLight(0xc9f7d2, 0.48, 5.2, 2.6);
+        const potAccent = new THREE.PointLight(0xc9f7d2, 0.36, 3.8, 1.8);
         potAccent.position.set(0, 1.55, 0);
         potGroup.add(potAccent);
 
@@ -933,21 +992,9 @@ export default function GamesHallway({ games, onClose }) {
         bulb.castShadow = true;
         sconceGroup.add(bulb);
 
-        const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.35, 0.8, 26, 1, true), sconceShadeMat);
-        shade.position.set(0, 0.12, 0.65);
-        shade.castShadow = true;
-        shade.receiveShadow = true;
-        sconceGroup.add(shade);
-
-        const sconceGlow = new THREE.PointLight(0xffe4bf, 1.6, 10, 2.2);
-        sconceGlow.position.set(0, 0.35, 0.5);
-        sconceGroup.add(sconceGlow);
-
-        const sconceBeam = new THREE.SpotLight(0xffe9c8, 1.35, 11, Math.PI / 3.3, 0.55, 1.8);
-        sconceBeam.position.set(0, 0.3, 0.4);
-        sconceBeam.target.position.set(0, -1.8, -2.4);
-        sconceGroup.add(sconceBeam);
-        sconceGroup.add(sconceBeam.target);
+        const sconceLight = new THREE.PointLight(0xffe4bf, 1.05, 8, 2.05);
+        sconceLight.position.set(0, 0.32, 0.5);
+        sconceGroup.add(sconceLight);
 
         scene.add(sconceGroup);
       });
