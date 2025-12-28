@@ -341,6 +341,62 @@ function prepareLoadedModel(model) {
     }
   });
 }
+
+function cloneTexture(texture, { srgb = false } = {}) {
+  if (!texture?.isTexture) return texture ?? null;
+  const cloned = texture.clone();
+  if (srgb) applySRGBColorSpace(cloned);
+  cloned.needsUpdate = true;
+  return cloned;
+}
+
+function cloneMaterialWithTextures(material) {
+  if (!material?.clone) return material;
+  const cloned = material.clone();
+  const textureProps = [
+    ['map', true],
+    ['emissiveMap', true],
+    ['roughnessMap', false],
+    ['metalnessMap', false],
+    ['normalMap', false],
+    ['aoMap', false],
+    ['bumpMap', false],
+    ['alphaMap', false],
+    ['specularMap', false],
+    ['clearcoatMap', false],
+    ['clearcoatNormalMap', false],
+    ['clearcoatRoughnessMap', false],
+    ['transmissionMap', false]
+  ];
+  textureProps.forEach(([key, srgb]) => {
+    if (cloned[key]) {
+      cloned[key] = cloneTexture(cloned[key], { srgb });
+    }
+  });
+  cloned.needsUpdate = true;
+  return cloned;
+}
+
+function cloneModelWithTextures(source) {
+  if (!source) return null;
+  const clone = source.clone(true);
+  const materialMap = new Map();
+  clone.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const clonedMats = mats.map((mat) => {
+      if (!mat) return mat;
+      if (materialMap.has(mat)) return materialMap.get(mat);
+      const matClone = cloneMaterialWithTextures(mat);
+      materialMap.set(mat, matClone);
+      return matClone;
+    });
+    obj.material = Array.isArray(obj.material) ? clonedMats : clonedMats[0];
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+  });
+  return clone;
+}
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
 );
@@ -489,7 +545,7 @@ function fitModelToHeight(model, targetHeight) {
 
 async function createPolyhavenInstance(assetId, targetHeight, rotationY = 0) {
   const root = await loadPolyhavenModel(assetId);
-  const model = root.clone(true);
+  const model = cloneModelWithTextures(root);
   prepareLoadedModel(model);
   fitModelToHeight(model, targetHeight);
   if (rotationY) model.rotation.y += rotationY;
@@ -716,7 +772,7 @@ async function buildChairTemplate(theme) {
   try {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
       const polyhavenRoot = await loadPolyhavenModel(theme.assetId);
-      const model = polyhavenRoot.clone(true);
+      const model = cloneModelWithTextures(polyhavenRoot);
       prepareLoadedModel(model);
       fitChairModelToFootprint(model);
       if (rotationY) model.rotation.y += rotationY;
