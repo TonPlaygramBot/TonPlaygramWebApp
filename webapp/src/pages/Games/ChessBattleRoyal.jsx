@@ -486,7 +486,6 @@ const POLYGONAL_SET_URLS = [
   'https://raw.githubusercontent.com/quaterniusdev/ChessSet/master/Source/GLTF/ChessSet.glb',
   'https://cdn.jsdelivr.net/gh/quaterniusdev/ChessSet@master/Source/GLTF/ChessSet.glb'
 ];
-const POLYHAVEN_CHESS_ASSET_ID = 'chess_set';
 
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
@@ -683,7 +682,6 @@ const pieceStyleSignature = (style) => `${style?.white?.color ?? ''}|${style?.bl
 
 const DEFAULT_PIECE_STYLE = { ...BASE_PIECE_STYLE };
 const BEAUTIFUL_GAME_SWAP_SET_ID = 'beautifulGameSwapRanks';
-const POLYHAVEN_PIECE_SET_ID = 'polyhavenChessSet';
 const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_SWAP_SET_ID;
 
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
@@ -711,65 +709,6 @@ const STAUNTON_ASSET_SCALE = 1.02;
 const STAUNTON_TEXTURED_ASSET_SCALE = 1.02;
 
 const TEXTURE_CACHE = new Map();
-const DEFAULT_TEXTURE_ANISOTROPY = 4;
-
-function stripQueryHash(u = '') {
-  return u.split('#')[0].split('?')[0];
-}
-
-function isGlbUrl(u = '') {
-  return stripQueryHash(u).toLowerCase().endsWith('.glb');
-}
-
-function isGltfUrl(u = '') {
-  return stripQueryHash(u).toLowerCase().endsWith('.gltf');
-}
-
-function looksLikeFileUrl(u = '') {
-  const lu = u.toLowerCase();
-  if (!/^https?:\/\//i.test(u)) return false;
-  if (lu.includes('polyhaven.com') && lu.includes('/a/')) return false;
-  return true;
-}
-
-function extractUrls(apiJson) {
-  const out = [];
-  const seen = new Set();
-  const walk = (v) => {
-    if (!v) return;
-    if (typeof v === 'string') {
-      if (looksLikeFileUrl(v)) out.push(v);
-      return;
-    }
-    if (typeof v !== 'object') return;
-    if (seen.has(v)) return;
-    seen.add(v);
-    if (Array.isArray(v)) {
-      v.forEach(walk);
-      return;
-    }
-    Object.values(v).forEach(walk);
-  };
-  walk(apiJson);
-  return Array.from(new Set(out));
-}
-
-function pickBestModelUrl(urls = []) {
-  const candidates = urls.filter((u) => isGlbUrl(u) || isGltfUrl(u));
-  const score = (u) => {
-    const lu = u.toLowerCase();
-    let s = 0;
-    if (isGlbUrl(u)) s += 10;
-    if (isGltfUrl(u)) s += 4;
-    if (lu.includes('2k')) s += 3;
-    if (lu.includes('1k')) s += 2;
-    if (lu.includes('4k')) s += 1;
-    if (lu.includes('8k')) s -= 2;
-    return s;
-  };
-  candidates.sort((a, b) => score(b) - score(a));
-  return candidates[0] || null;
-}
 
 function createGraniteTexture(color = '#d9d7d1', seed = 1, repeat = 2.4) {
   if (typeof document === 'undefined') return null;
@@ -872,107 +811,6 @@ function loadTexture(url, fallbackColor = '#888888') {
   });
   TEXTURE_CACHE.set(url, promise);
   return promise;
-}
-
-async function fetchPolyhavenModelUrl(assetId) {
-  if (!assetId) return null;
-  try {
-    const res = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
-    if (!res.ok) return null;
-    const json = await res.json();
-    const urls = extractUrls(json);
-    return pickBestModelUrl(urls);
-  } catch (error) {
-    console.warn('Polyhaven chess fetch failed', error);
-    return null;
-  }
-}
-
-function applyTextureAnisotropy(root, anisotropy = DEFAULT_TEXTURE_ANISOTROPY) {
-  if (!root) return;
-  root.traverse((node) => {
-    if (!node?.isMesh) return;
-    const mats = Array.isArray(node.material) ? node.material : [node.material];
-    mats.forEach((mat) => {
-      if (!mat) return;
-      ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'].forEach((key) => {
-        const tex = mat[key];
-        if (!tex) return;
-        tex.anisotropy = Math.max(tex.anisotropy ?? 1, anisotropy);
-        tex.needsUpdate = true;
-        if (key === 'map' || key === 'emissiveMap') applySRGBColorSpace(tex);
-      });
-    });
-  });
-}
-
-async function loadPolyhavenChessAssets(targetBoardSize = RAW_BOARD_SIZE) {
-  const modelUrl = await fetchPolyhavenModelUrl(POLYHAVEN_CHESS_ASSET_ID);
-  if (!modelUrl) {
-    throw new Error('Polyhaven chess model unavailable');
-  }
-
-  const base = stripQueryHash(modelUrl);
-  const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
-  const manager = new THREE.LoadingManager();
-  manager.setURLModifier((requestedUrl) => {
-    if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
-    try {
-      return new URL(requestedUrl, baseDir).toString();
-    } catch {
-      return requestedUrl;
-    }
-  });
-
-  const loader = createConfiguredGLTFLoader(null, manager);
-  loader.setResourcePath(baseDir);
-  loader.setPath('');
-  const gltf = await loader.loadAsync(modelUrl);
-  const sceneRoot = gltf?.scene || gltf?.scenes?.[0];
-  if (!sceneRoot) {
-    throw new Error('Polyhaven chess scene missing');
-  }
-
-  sceneRoot.traverse((obj) => {
-    if (!obj?.isMesh) return;
-    obj.castShadow = true;
-    obj.receiveShadow = true;
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    mats.forEach((mat) => {
-      if (mat?.map) applySRGBColorSpace(mat.map);
-      if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
-    });
-  });
-  applyTextureAnisotropy(sceneRoot);
-
-  const assets = extractChessSetAssets(sceneRoot, {
-    targetBoardSize,
-    styleId: POLYHAVEN_PIECE_SET_ID,
-    assetScale: 1,
-    pieceFootprintRatio: PIECE_FOOTPRINT_RATIO,
-    pieceYOffset: PIECE_PLACEMENT_Y_OFFSET
-  });
-
-  return {
-    ...assets,
-    boardModel: assets?.boardModel
-      ? (() => {
-        assets.boardModel.userData = {
-          ...(assets.boardModel.userData || {}),
-          preserveOriginalMaterials: true,
-          styleId: POLYHAVEN_PIECE_SET_ID
-        };
-        return assets.boardModel;
-      })()
-      : null,
-    piecePrototypes: assets?.piecePrototypes,
-    userData: {
-      ...(assets?.userData || {}),
-      styleId: POLYHAVEN_PIECE_SET_ID,
-      preserveOriginalMaterials: true,
-      source: 'polyhaven'
-    }
-  };
 }
 
 const MAPLE_WOOD_TEXTURES = Object.freeze({
@@ -1398,7 +1236,7 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.id !== DIAMOND_SHAPE_ID);
 
-const PRESERVE_NATIVE_PIECE_IDS = new Set([BEAUTIFUL_GAME_SWAP_SET_ID, POLYHAVEN_PIECE_SET_ID]);
+const PRESERVE_NATIVE_PIECE_IDS = new Set([BEAUTIFUL_GAME_SWAP_SET_ID]);
 
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
@@ -2203,8 +2041,8 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
 
 let sharedKTX2Loader = null;
 
-function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
-  const loader = new GLTFLoader(manager);
+function createConfiguredGLTFLoader(renderer = null) {
+  const loader = new GLTFLoader();
   loader.setCrossOrigin('anonymous');
   const draco = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
@@ -6171,7 +6009,7 @@ function Chess3D({
     }
     const pieceSetOption =
       PIECE_STYLE_OPTIONS[normalized.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-    const nextPieceSetId = POLYHAVEN_PIECE_SET_ID;
+    const nextPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
     const isBeautifulGameSet = (arena.activePieceSetId || nextPieceSetId || '').startsWith('beautifulGame');
     const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
@@ -6181,8 +6019,7 @@ function Chess3D({
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
     const headPreset = palette.head ?? HEAD_PRESET_OPTIONS[0].preset;
-    const pieceSetLoader = (size) =>
-      loadPolyhavenChessAssets(size).catch(() => resolveBeautifulGameAssets(size));
+    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
 
     if (shapeOption) {
@@ -6247,10 +6084,7 @@ function Chess3D({
     }
 
     if (arena.boardModel) {
-      const preserveBoard = arena.boardModel?.userData?.preserveOriginalMaterials;
-      if (!preserveBoard) {
-        applyBeautifulGameBoardTheme(arena.boardModel, boardTheme);
-      }
+      applyBeautifulGameBoardTheme(arena.boardModel, boardTheme);
       arena.boardModel.visible = true;
       arena.setProceduralBoardVisible?.(false);
     }
@@ -6305,13 +6139,10 @@ function Chess3D({
     }
 
     if (arena.allPieceMeshes) {
-      if (preserveOriginalMaterials) {
-        // Keep native materials/textures intact.
-      } else if (isBeautifulGameSet) {
+      if (isBeautifulGameSet) {
         applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption);
         disposePieceMaterials(arena.pieceMaterials);
         arena.pieceMaterials = null;
-        applyHeadPresetToMeshes(arena.allPieceMeshes, headPreset);
       } else {
         const nextPieceMaterials = createPieceMaterials(pieceStyleOption);
         arena.allPieceMeshes.forEach((group) => {
@@ -6329,8 +6160,8 @@ function Chess3D({
         });
         disposePieceMaterials(arena.pieceMaterials);
         arena.pieceMaterials = nextPieceMaterials;
-        applyHeadPresetToMeshes(arena.allPieceMeshes, headPreset);
       }
+      applyHeadPresetToMeshes(arena.allPieceMeshes, headPreset);
     }
 
     const accentColor = palette.accent ?? '#4ce0c3';
@@ -6413,9 +6244,8 @@ function Chess3D({
       const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
       const pieceSetOption =
         PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-      const initialPieceSetId = POLYHAVEN_PIECE_SET_ID;
-      const pieceSetLoader = (size) =>
-        loadPolyhavenChessAssets(size).catch(() => resolveBeautifulGameAssets(size));
+      const initialPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
+      const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
       const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
       const initialPlayerFlag =
         playerFlag ||
@@ -7445,9 +7275,7 @@ function Chess3D({
         );
         currentPieceYOffset = preferredYOffset;
         boardGroup.add(boardModel);
-        if (!boardModel?.userData?.preserveOriginalMaterials) {
-          applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
-        }
+        applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
         setProceduralBoardVisible(false);
         currentBoardModel = boardModel;
         currentBoardCleanup = () => {
