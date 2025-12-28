@@ -455,23 +455,20 @@ async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1
 function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotropy = 1) {
   const applyToMaterial = (material) => {
     if (!material) return;
-    const diffuseMap = textureSet?.diffuse;
-    const normalMap = textureSet?.normal;
-    const roughnessMap = textureSet?.roughness;
     material.roughness = Math.max(material.roughness ?? 0.4, 0.4);
     material.metalness = Math.min(material.metalness ?? 0.4, 0.4);
-
-    if (diffuseMap && material.map !== diffuseMap) {
-      material.map = diffuseMap;
-      material.needsUpdate = true;
-    } else if (!material.map && fallbackTexture) {
-      material.map = fallbackTexture;
-      material.needsUpdate = true;
-    }
 
     if (material.map) {
       applySRGBColorSpace(material.map);
       material.map.anisotropy = Math.max(material.map.anisotropy ?? 1, maxAnisotropy);
+    } else if (textureSet?.diffuse) {
+      material.map = textureSet.diffuse;
+      applySRGBColorSpace(material.map);
+      material.needsUpdate = true;
+    } else if (fallbackTexture) {
+      material.map = fallbackTexture;
+      applySRGBColorSpace(material.map);
+      material.needsUpdate = true;
     }
 
     if (material.emissiveMap) {
@@ -479,23 +476,15 @@ function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotrop
       material.emissiveMap.anisotropy = Math.max(material.emissiveMap.anisotropy ?? 1, maxAnisotropy);
     }
 
-    if (normalMap && material.normalMap !== normalMap) {
-      material.normalMap = normalMap;
-      material.needsUpdate = true;
+    if (!material.normalMap && textureSet?.normal) {
+      material.normalMap = textureSet.normal;
     }
     if (material.normalMap) {
       material.normalMap.anisotropy = Math.max(material.normalMap.anisotropy ?? 1, maxAnisotropy);
     }
 
-    if (roughnessMap && material.roughnessMap !== roughnessMap) {
-      material.roughnessMap = roughnessMap;
-      material.needsUpdate = true;
-    }
-    if (material.roughnessMap) {
-      material.roughnessMap.anisotropy = Math.max(
-        material.roughnessMap.anisotropy ?? 1,
-        maxAnisotropy
-      );
+    if (!material.roughnessMap && textureSet?.roughness) {
+      material.roughnessMap = textureSet.roughness;
     }
   };
 
