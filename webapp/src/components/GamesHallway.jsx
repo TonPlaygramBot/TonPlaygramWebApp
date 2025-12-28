@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { getOnlineCount } from '../utils/api.js';
 
+const WALL_REPEAT = new THREE.Vector2(14, 8);
+const PREFERRED_SIZES = ['2k', '1k'];
+
 const fallbackGameNames = [
   'Chess Arena',
   'Ludo Royale',
@@ -145,22 +148,63 @@ export default function GamesHallway({ games, onClose }) {
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
 
-    const wallTex = loader.load('https://threejs.org/examples/textures/brick_diffuse.jpg');
-    wallTex.wrapS = THREE.RepeatWrapping;
-    wallTex.wrapT = THREE.RepeatWrapping;
-    wallTex.repeat.set(14, 8);
-    wallTex.colorSpace = THREE.SRGBColorSpace;
-
+    let disposed = false;
+    const marbleWallTextures = [];
     const wallMat = new THREE.MeshStandardMaterial({
-      color: '#fff5d8',
-      map: wallTex,
+      color: '#d8d6d1',
       side: THREE.BackSide,
-      roughness: 0.25,
-      metalness: 0.1
+      roughness: 0.52,
+      metalness: 0.02
     });
     const walls = new THREE.Mesh(new THREE.CylinderGeometry(20, 20, 8, 96, 1, true), wallMat);
     walls.position.y = 4;
     scene.add(walls);
+
+    const wrapTexture = (texture) => {
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.copy(WALL_REPEAT);
+      texture.needsUpdate = true;
+    };
+
+    const applyMarbleWalls = async () => {
+      try {
+        const response = await fetch('https://api.polyhaven.com/files/marble_01');
+        if (!response.ok) {
+          return;
+        }
+        const json = await response.json();
+        const urls = pickBestTextureUrls(json, PREFERRED_SIZES);
+        if (!urls.diffuse || !urls.normal || !urls.roughness) {
+          return;
+        }
+
+        const [albedo, normal, roughness] = await Promise.all([
+          loadTexture(loader, urls.diffuse, true),
+          loadTexture(loader, urls.normal, false),
+          loadTexture(loader, urls.roughness, false)
+        ]);
+        [albedo, normal, roughness].forEach((tex) => {
+          wrapTexture(tex);
+          marbleWallTextures.push(tex);
+        });
+
+        if (disposed) {
+          marbleWallTextures.forEach((tex) => tex.dispose?.());
+          return;
+        }
+
+        wallMat.map = albedo;
+        wallMat.normalMap = normal;
+        wallMat.roughnessMap = roughness;
+        wallMat.color = new THREE.Color(0xffffff);
+        wallMat.needsUpdate = true;
+      } catch (error) {
+        // ignore failed marble load and keep fallback material
+      }
+    };
+
+    void applyMarbleWalls();
 
     const cornice = new THREE.Mesh(
       new THREE.TorusGeometry(19.1, 0.12, 24, 256),
@@ -625,6 +669,7 @@ export default function GamesHallway({ games, onClose }) {
     animate();
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(animationId);
       renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
       renderer.domElement.removeEventListener('pointermove', handlePointerMove);
@@ -716,4 +761,73 @@ export default function GamesHallway({ games, onClose }) {
         )}
     </div>
   );
+}
+
+function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_SIZES) {
+  const urls = [];
+
+  const walk = (value) => {
+    if (!value) {
+      return;
+    }
+    if (typeof value === 'string') {
+      const lower = value.toLowerCase();
+      if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
+        urls.push(value);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.values(value).forEach(walk);
+    }
+  };
+
+  walk(apiJson);
+
+  const pick = (keywords) => {
+    const scored = urls
+      .filter((url) => keywords.some((kw) => url.toLowerCase().includes(kw)))
+      .map((url) => {
+        const lower = url.toLowerCase();
+        let score = 0;
+        preferredSizes.forEach((size, index) => {
+          if (lower.includes(size)) {
+            score += (preferredSizes.length - index) * 10;
+          }
+        });
+        if (lower.includes('jpg')) score += 6;
+        if (lower.includes('png')) score += 3;
+        if (lower.includes('preview') || lower.includes('thumb')) score -= 50;
+        if (lower.includes('.exr')) score -= 100;
+        return { url, score };
+      })
+      .sort((a, b) => b.score - a.score);
+    return scored[0]?.url;
+  };
+
+  return {
+    diffuse: pick(['diff', 'diffuse', 'albedo', 'basecolor']),
+    normal: pick(['nor_gl', 'normal_gl', 'nor', 'normal']),
+    roughness: pick(['rough', 'roughness'])
+  };
+}
+
+async function loadTexture(loader, url, isColor) {
+  return await new Promise((resolve, reject) => {
+    loader.load(
+      url,
+      (texture) => {
+        if (isColor) {
+          texture.colorSpace = THREE.SRGBColorSpace;
+        }
+        resolve(texture);
+      },
+      undefined,
+      () => reject(new Error('texture load failed'))
+    );
+  });
 }
