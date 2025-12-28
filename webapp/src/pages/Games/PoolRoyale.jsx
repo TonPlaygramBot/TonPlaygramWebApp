@@ -5101,6 +5101,7 @@ const AI_THINKING_BUDGET_MS =
 const AI_CAMERA_DROP_LEAD_MS = 420; // start lowering into cue view shortly before the AI pulls the trigger
 const AI_CAMERA_SETTLE_MS = 320; // allow time for the cue view to settle before firing
 const AI_CUE_VIEW_HOLD_MS = 3000;
+const AI_SHOT_FRAME_HOLD_MS = 2000;
 // Ease the AI camera just partway toward cue view (still above the stick) so the shot preview
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
@@ -10395,6 +10396,7 @@ const powerRef = useRef(hud.power);
   const aiShotCueDropTimeoutRef = useRef(null);
   const aiShotCueViewRef = useRef(false);
   const aiCueViewBlendRef = useRef(AI_CAMERA_DROP_BLEND);
+  const aiShotHoldUntilRef = useRef(0);
   const aiRetryTimeoutRef = useRef(null);
   const aiShotWindowRef = useRef({ startedAt: 0, duration: AI_MIN_SHOT_TIME_MS });
   const [aiTakingShot, setAiTakingShot] = useState(false);
@@ -11487,6 +11489,9 @@ const powerRef = useRef(hud.power);
         if (shooting === value) return;
         shooting = value;
         shotStartedAt = shooting ? getNow() : 0;
+        if (!shooting) {
+          aiShotHoldUntilRef.current = 0;
+        }
         if (shooting) {
           preShotTopViewRef.current = topViewRef.current;
           preShotTopViewLockRef.current = topViewLockedRef.current;
@@ -12866,6 +12871,8 @@ const powerRef = useRef(hud.power);
 
         const updateCamera = () => {
           const replayPlaybackActive = Boolean(replayPlaybackRef.current);
+          const aiFrameHoldActive =
+            shooting && aiShotHoldUntilRef.current > performance.now();
           let renderCamera = camera;
           let lookTarget = null;
           let broadcastArgs = {
@@ -14392,16 +14399,32 @@ const powerRef = useRef(hud.power);
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
+          const pocketReplayView =
+            activeShotView?.mode === 'pocket' && activeShotView.smoothedPos && activeShotView.smoothedTarget
+              ? {
+                  position: activeShotView.smoothedPos.clone(),
+                  target: activeShotView.smoothedTarget.clone(),
+                  fov: POCKET_CAMERA_FOV
+                }
+              : null;
           const overheadCamera = resolveRailOverheadReplayCamera({
             focusOverride: targetSnapshot,
             minTargetY
           });
-          const resolvedPosition = overheadCamera?.position?.clone?.() ??
-            fallbackCamera?.position?.clone?.() ?? null;
-          const resolvedTarget = overheadCamera?.target?.clone?.() ?? targetSnapshot;
-          const resolvedFov = Number.isFinite(overheadCamera?.fov)
-            ? overheadCamera.fov
-            : fovSnapshot;
+          const resolvedPosition =
+            pocketReplayView?.position ??
+            overheadCamera?.position?.clone?.() ??
+            fallbackCamera?.position?.clone?.() ??
+            null;
+          const resolvedTarget =
+            pocketReplayView?.target?.clone?.() ??
+            overheadCamera?.target?.clone?.() ??
+            targetSnapshot;
+          const resolvedFov = Number.isFinite(pocketReplayView?.fov)
+            ? pocketReplayView.fov
+            : Number.isFinite(overheadCamera?.fov)
+              ? overheadCamera.fov
+              : fovSnapshot;
           if (!resolvedPosition && !resolvedTarget) return null;
           const snapshot = {
             position: resolvedPosition,
@@ -15452,8 +15475,9 @@ const powerRef = useRef(hud.power);
         const len = info?.length ?? cueLen;
         const totalTilt = -(baseTilt + extraTilt);
         group.rotation.x = totalTilt;
+        const prevComp = info?.tipCompensation ?? 0;
         const tipComp = -Math.sin(totalTilt) * len * 0.5;
-        group.position.y += tipComp;
+        group.position.y += tipComp - prevComp;
         if (info) {
           info.tipCompensation = tipComp;
           info.current = totalTilt;
@@ -16444,6 +16468,11 @@ const powerRef = useRef(hud.power);
           cushionAfterContact: false
         };
         setShootingState(true);
+        if (hudRef.current?.turn === 1 && aiOpponentEnabled) {
+          aiShotHoldUntilRef.current = performance.now() + AI_SHOT_FRAME_HOLD_MS;
+        } else {
+          aiShotHoldUntilRef.current = 0;
+        }
         activeShotView = null;
         aimFocusRef.current = null;
         potted = [];
@@ -16579,6 +16608,13 @@ const powerRef = useRef(hud.power);
                 }
               )
             : null;
+          if (actionView && aiShotHoldUntilRef.current > 0) {
+            const holdUntil = aiShotHoldUntilRef.current;
+            actionView.activationDelay = Math.max(
+              actionView.activationDelay ?? 0,
+              holdUntil
+            );
+          }
           const earlyPocketView =
             !suppressPocketCameras && shotPrediction.ballId && followView
               ? makePocketCameraView(shotPrediction.ballId, followView, {
@@ -19581,6 +19617,7 @@ const powerRef = useRef(hud.power);
         if (
           !suppressPocketCameras &&
           shooting &&
+          !aiFrameHoldActive &&
           !pocketHoldActive &&
           !topViewRef.current &&
           (activeShotView?.mode !== 'pocket' || !activeShotView)
@@ -20140,6 +20177,7 @@ const powerRef = useRef(hud.power);
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
+  const showSpinHud = (showPlayerControls || aiTakingShot) && !replayActive;
 
   // Spin controller interactions
   useEffect(() => {
@@ -20513,41 +20551,16 @@ const powerRef = useRef(hud.power);
               <div className="absolute -right-14 bottom-0 h-2/3 w-1/2 -rotate-6 bg-gradient-to-l from-cyan-300/20 via-cyan-200/12 to-transparent" />
               <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
             </div>
-            <div className="relative flex items-center gap-3">
-              <span
-                className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${
-                  replaySlate.accent === 'power'
-                    ? 'from-amber-300 to-orange-400'
-                    : replaySlate.accent === 'spin'
-                      ? 'from-indigo-300 to-sky-400'
-                      : 'from-emerald-300 to-cyan-300'
-                } text-black shadow-[0_12px_28px_rgba(0,0,0,0.35)] ring-1 ring-white/40`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="h-6 w-6"
-                  aria-hidden="true"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m5 4 14 8-14 8V4z" />
-                </svg>
+            <div className="relative flex flex-col leading-tight">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-emerald-100">
+                Instant Replay
               </span>
-              <div className="flex flex-col leading-tight">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-emerald-100">
-                  Instant Replay
-                </span>
-                <span className="text-sm font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]">
-                  {replaySlate.label}
-                </span>
-              </div>
+              <span className="text-sm font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.45)]">
+                {replaySlate.label}
+              </span>
             </div>
             <div className="relative flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.26em] text-white/70">
-              <span className="h-px w-10 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
-              <span>TV</span>
-              <span className="h-px w-10 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+              <span className="h-px w-16 bg-gradient-to-r from-transparent via-white/40 to-transparent" />
             </div>
           </div>
         </div>
@@ -20559,28 +20572,6 @@ const powerRef = useRef(hud.power);
             className="flex items-center gap-3 rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300 px-6 py-2 text-sm font-bold uppercase tracking-[0.32em] text-slate-900 shadow-[0_12px_32px_rgba(0,0,0,0.45)] ring-2 ring-white/30"
             aria-live="polite"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/10 text-slate-900 shadow-inner">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="h-4 w-4"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M11 5V3a1 1 0 0 0-1.7-.7L4.6 7a1 1 0 0 0 0 1.4l4.7 4.7A1 1 0 0 0 11 12v-2a7 7 0 0 1 7 7"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M18 17a7 7 0 1 1-7-7"
-                />
-              </svg>
-            </span>
             <span className="drop-shadow-[0_1px_2px_rgba(255,255,255,0.35)]">
               {replayBanner}
             </span>
@@ -20605,12 +20596,9 @@ const powerRef = useRef(hud.power);
         <div className="pointer-events-none absolute inset-0 z-40">
           <div className="absolute inset-0 rounded-[28px] border border-white/12 shadow-[0_0_32px_rgba(0,0,0,0.55),0_0_0_8px_rgba(0,0,0,0.45)]" />
           <div className="absolute inset-0 rounded-[28px] bg-gradient-to-b from-black/55 via-transparent to-black/55" />
-          <div className="absolute inset-0 flex items-center justify-between px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.32em] text-white/80">
-            <span className="rounded-full border border-white/30 bg-black/50 px-4 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
+          <div className="absolute inset-0 flex items-start justify-end px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.32em] text-white/80">
+            <span className="rounded-full border border-white/30 bg-black/60 px-4 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
               Instant Replay
-            </span>
-            <span className="rounded-full border border-white/30 bg-black/50 px-4 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.55)]">
-              TV Mode
             </span>
           </div>
           <div className="absolute inset-x-10 top-6 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
@@ -21253,13 +21241,14 @@ const powerRef = useRef(hud.power);
       )}
 
       {/* Spin controller */}
-      {showPlayerControls && !replayActive && (
+      {showSpinHud && (
         <div
           ref={spinBoxRef}
           className="absolute bottom-4 right-4"
           style={{
             transform: `scale(${uiScale})`,
-            transformOrigin: 'bottom right'
+            transformOrigin: 'bottom right',
+            pointerEvents: aiTakingShot && !showPlayerControls ? 'none' : 'auto'
           }}
         >
           <div
