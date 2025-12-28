@@ -744,6 +744,91 @@ export default function GamesHallway({ games, onClose }) {
     potFallbackTexture.repeat.set(1.6, 1.6);
     potFallbackTexture.anisotropy = maxAnisotropy;
 
+    const potTextureCache = new Map();
+
+    const pickPolyhavenTextureUrl = (entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return null;
+      }
+      for (const size of PREFERRED_SIZES) {
+        if (entry[size]) {
+          return entry[size];
+        }
+      }
+      const values = Object.values(entry);
+      return typeof values[0] === 'string' ? values[0] : null;
+    };
+
+    const loadPolyhavenPotTextures = async (assetId, prefix = 'pot') => {
+      const cacheKey = `${assetId}-${prefix}`;
+      if (potTextureCache.has(cacheKey)) {
+        return potTextureCache.get(cacheKey);
+      }
+      const result = { map: null, normalMap: null, roughnessMap: null, aoMap: null };
+      try {
+        const response = await fetch(`https://api.polyhaven.com/files/${assetId}`);
+        if (!response.ok) {
+          return result;
+        }
+        const json = await response.json();
+        const diffuseUrl = pickPolyhavenTextureUrl(json[`${prefix}_diff`]);
+        const normalUrl = pickPolyhavenTextureUrl(json[`${prefix}_nor_gl`]);
+        const roughnessUrl = pickPolyhavenTextureUrl(json[`${prefix}_rough`]);
+        const aoUrl = pickPolyhavenTextureUrl(json[`${prefix}_ao`]);
+        const [map, normalMap, roughnessMap, aoMap] = await Promise.all([
+          diffuseUrl ? loadTexture(loader, diffuseUrl, true) : Promise.resolve(null),
+          normalUrl ? loadTexture(loader, normalUrl, false) : Promise.resolve(null),
+          roughnessUrl ? loadTexture(loader, roughnessUrl, false) : Promise.resolve(null),
+          aoUrl ? loadTexture(loader, aoUrl, false) : Promise.resolve(null)
+        ]);
+        result.map = map;
+        result.normalMap = normalMap;
+        result.roughnessMap = roughnessMap;
+        result.aoMap = aoMap;
+        potTextureCache.set(cacheKey, result);
+      } catch (error) {
+        // keep fallback textures when API lookup fails
+      }
+      return result;
+    };
+
+    const ensurePotTextures = async (scene, assetId) => {
+      if (!scene || !assetId) {
+        return;
+      }
+      const textures = await loadPolyhavenPotTextures(assetId, 'pot');
+      scene.traverse((child) => {
+        if (child.isMesh && child.material) {
+          const material = child.material;
+          const materialName = (material.name || '').toLowerCase();
+          const shouldUsePotTextures = materialName.includes('pot') || materialName.includes('pottery');
+          if (!shouldUsePotTextures) {
+            return;
+          }
+          const needsOriginalMap =
+            !material.map || material.map === potFallbackTexture || material.map === carbonFiberTexture;
+          if (needsOriginalMap && textures.map) {
+            material.map = textures.map;
+            material.map.colorSpace = THREE.SRGBColorSpace;
+            material.map.anisotropy = maxAnisotropy;
+          }
+          if (!material.normalMap && textures.normalMap) {
+            material.normalMap = textures.normalMap;
+            material.normalMap.anisotropy = maxAnisotropy;
+          }
+          if (!material.roughnessMap && textures.roughnessMap) {
+            material.roughnessMap = textures.roughnessMap;
+            material.roughnessMap.anisotropy = maxAnisotropy;
+          }
+          if (!material.aoMap && textures.aoMap) {
+            material.aoMap = textures.aoMap;
+            material.aoMap.anisotropy = maxAnisotropy;
+          }
+          material.needsUpdate = true;
+        }
+      });
+    };
+
     const buildProceduralPlant = () => {
       const pot = new THREE.Group();
       const potBody = new THREE.Mesh(
@@ -776,6 +861,7 @@ export default function GamesHallway({ games, onClose }) {
 
     const plantModelSources = [
       {
+        id: 'potted_plant_01',
         urls: [
           'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/potted_plant_01/potted_plant_01_2k.gltf',
           'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/potted_plant_01/potted_plant_01_1k.gltf'
@@ -783,6 +869,7 @@ export default function GamesHallway({ games, onClose }) {
         scale: 2.35
       },
       {
+        id: 'potted_plant_02',
         urls: [
           'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/potted_plant_02/potted_plant_02_2k.gltf',
           'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/potted_plant_02/potted_plant_02_1k.gltf'
@@ -797,16 +884,6 @@ export default function GamesHallway({ games, onClose }) {
       roughness: 0.32,
       map: carbonFiberTexture
     });
-    const sconceShadeMat = new THREE.MeshStandardMaterial({
-      color: '#fff0cd',
-      emissive: '#ffe4b0',
-      emissiveIntensity: 0.8,
-      metalness: 0.25,
-      roughness: 0.22,
-      transparent: true,
-      opacity: 0.72,
-      side: THREE.DoubleSide
-    });
     const sconceBulbMat = new THREE.MeshStandardMaterial({
       color: '#fff9ec',
       emissive: '#ffe7c4',
@@ -814,6 +891,14 @@ export default function GamesHallway({ games, onClose }) {
       metalness: 0.1,
       roughness: 0.1
     });
+    const sconceEmitterMat = new THREE.MeshBasicMaterial({
+      color: '#ffe5b0',
+      transparent: true,
+      opacity: 0.78
+    });
+    const sconcePlateGeom = new THREE.PlaneGeometry(1, 1.4);
+    const sconceArmGeom = new THREE.CylinderGeometry(0.06, 0.06, 0.5, 16);
+    const sconceEmitterGeom = new THREE.CapsuleGeometry(0.22, 0.55, 6, 12);
 
     const addFlowerPotsBetweenDoors = async () => {
       if (!doorAngles.length) {
@@ -835,22 +920,21 @@ export default function GamesHallway({ games, onClose }) {
         })
       );
 
+      const validPlants = loadedPlants.filter(Boolean);
+
       if (disposed) {
-        loadedPlants
-          .filter(Boolean)
-          .forEach(({ gltf }) => {
-            gltf?.scene?.traverse((child) => {
-              if (child.isMesh) {
-                child.geometry?.dispose?.();
-                disposeMeshMaterials(child.material);
-              }
-            });
+        validPlants.forEach(({ gltf }) => {
+          gltf?.scene?.traverse((child) => {
+            if (child.isMesh) {
+              child.geometry?.dispose?.();
+              disposeMeshMaterials(child.material);
+            }
           });
+        });
         return;
       }
 
-      const plantVariants = loadedPlants
-        .filter(Boolean)
+      const plantVariants = validPlants
         .map(({ gltf, source }) => {
           const scene = gltf?.scene;
           if (scene) {
@@ -877,9 +961,13 @@ export default function GamesHallway({ games, onClose }) {
               }
             });
           }
-          return scene ? { scene, scale: source.scale } : null;
+          return scene ? { scene, scale: source.scale, source } : null;
         })
         .filter(Boolean);
+
+      await Promise.all(
+        plantVariants.map((variant) => ensurePotTextures(variant.scene, variant.source?.id))
+      );
 
       if (!plantVariants.length) {
         plantVariants.push(buildProceduralPlant());
@@ -907,8 +995,8 @@ export default function GamesHallway({ games, onClose }) {
           potGroup.add(instance);
         }
 
-        const potAccent = new THREE.PointLight(0xc9f7d2, 0.48, 5.2, 2.6);
-        potAccent.position.set(0, 1.55, 0);
+        const potAccent = new THREE.PointLight(0xc9f7d2, 0.36, 4.8, 2.4);
+        potAccent.position.set(0, 1.5, 0);
         potGroup.add(potAccent);
 
         scene.add(potGroup);
@@ -919,35 +1007,26 @@ export default function GamesHallway({ games, onClose }) {
         sconceGroup.position.set(sconceX, 4.45, sconceZ);
         sconceGroup.rotation.y = -(midpointAngle + Math.PI / 2);
 
-        const backplate = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.5, 0.1), sconcePlateMat);
-        backplate.receiveShadow = true;
+        const backplate = new THREE.Mesh(sconcePlateGeom, sconcePlateMat);
         sconceGroup.add(backplate);
 
-        const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.55, 16), sconcePlateMat);
+        const arm = new THREE.Mesh(sconceArmGeom, sconcePlateMat);
         arm.rotation.x = Math.PI / 2;
-        arm.position.z = 0.33;
+        arm.position.z = 0.25;
         sconceGroup.add(arm);
 
-        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 18, 12), sconceBulbMat);
-        bulb.position.set(0, 0.12, 0.7);
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 10), sconceBulbMat);
+        bulb.position.set(0, 0.08, 0.55);
         bulb.castShadow = true;
         sconceGroup.add(bulb);
 
-        const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.35, 0.8, 26, 1, true), sconceShadeMat);
-        shade.position.set(0, 0.12, 0.65);
-        shade.castShadow = true;
-        shade.receiveShadow = true;
-        sconceGroup.add(shade);
+        const emitter = new THREE.Mesh(sconceEmitterGeom, sconceEmitterMat);
+        emitter.position.set(0, 0.08, 0.7);
+        sconceGroup.add(emitter);
 
-        const sconceGlow = new THREE.PointLight(0xffe4bf, 1.6, 10, 2.2);
-        sconceGlow.position.set(0, 0.35, 0.5);
+        const sconceGlow = new THREE.PointLight(0xffe4bf, 0.9, 7.5, 2);
+        sconceGlow.position.set(0, 0.25, 0.55);
         sconceGroup.add(sconceGlow);
-
-        const sconceBeam = new THREE.SpotLight(0xffe9c8, 1.35, 11, Math.PI / 3.3, 0.55, 1.8);
-        sconceBeam.position.set(0, 0.3, 0.4);
-        sconceBeam.target.position.set(0, -1.8, -2.4);
-        sconceGroup.add(sconceBeam);
-        sconceGroup.add(sconceBeam.target);
 
         scene.add(sconceGroup);
       });
