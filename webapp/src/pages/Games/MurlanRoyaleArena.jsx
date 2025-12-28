@@ -61,9 +61,9 @@ const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const CHAIR_COUNT = 4;
 const CUSTOM_SEAT_ANGLES = [
   THREE.MathUtils.degToRad(90),
-  THREE.MathUtils.degToRad(315),
+  THREE.MathUtils.degToRad(0),
   THREE.MathUtils.degToRad(270),
-  THREE.MathUtils.degToRad(225)
+  THREE.MathUtils.degToRad(180)
 ];
 
 const SUITS = ['♠', '♥', '♦', '♣'];
@@ -269,10 +269,12 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
-const POLYHAVEN_PLANT_ASSETS = ['potted_plant_01', 'potted_plant_02', 'potted_plant_04', 'planter_box_01'];
+const HALLWAY_PLANT_ASSETS = ['potted_plant_01', 'potted_plant_02', 'potted_plant_04'];
 const POLYHAVEN_MODEL_CACHE = new Map();
 const PLANT_TARGET_HEIGHT = 2.8 * MODEL_SCALE;
+const HALLWAY_PLANT_SCALE = 2;
 const DECOR_PLANT_RADIUS_SCALE = 0.9;
+const DECOR_PLANT_COUNT = 4;
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 
@@ -759,6 +761,27 @@ function shouldPreserveChairMaterials(theme) {
   return Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
 }
 
+function createHallwayCeilingWallMaterial(textureLoader, maxAnisotropy = 1) {
+  if (!textureLoader) {
+    return createArenaWallMaterial('#0b1120', '#1e293b');
+  }
+  const ceilingTex = textureLoader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/water.jpg');
+  ceilingTex.wrapS = THREE.RepeatWrapping;
+  ceilingTex.wrapT = THREE.RepeatWrapping;
+  ceilingTex.repeat.set(4, 4);
+  ceilingTex.colorSpace = THREE.SRGBColorSpace;
+  ceilingTex.anisotropy = Math.max(ceilingTex.anisotropy ?? 1, maxAnisotropy);
+
+  return new THREE.MeshStandardMaterial({
+    color: '#fdf8ef',
+    emissive: '#f0e8d0',
+    emissiveIntensity: 0.4,
+    metalness: 0.25,
+    roughness: 0.15,
+    map: ceilingTex
+  });
+}
+
 function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
   const loader = new GLTFLoader(manager);
   loader.setCrossOrigin?.('anonymous');
@@ -1079,10 +1102,10 @@ const AI_TURN_DELAY = 2000;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
-  { left: '22%', top: '74%' },
-  { left: '78%', top: '28%' },
-  { left: '24%', top: '24%' },
-  { left: '78%', top: '72%' }
+  { left: '50%', top: '78%' },
+  { left: '80%', top: '50%' },
+  { left: '20%', top: '50%' },
+  { left: '50%', top: '22%' }
 ];
 
 const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -2157,6 +2180,7 @@ export default function MurlanRoyaleArena({ search }) {
       arenaGroup.add(carpet);
 
       const wallInnerRadius = TABLE_RADIUS * ARENA_GROWTH * 2.4;
+      const wallMaterial = createHallwayCeilingWallMaterial(textureLoader, maxAnisotropy);
       const wall = new THREE.Mesh(
         new THREE.CylinderGeometry(
           wallInnerRadius,
@@ -2166,7 +2190,7 @@ export default function MurlanRoyaleArena({ search }) {
           1,
           true
         ),
-        createArenaWallMaterial('#0b1120', '#1e293b')
+        wallMaterial
       );
       wall.position.y = ARENA_WALL_CENTER_Y;
       wall.receiveShadow = false;
@@ -2183,7 +2207,7 @@ export default function MurlanRoyaleArena({ search }) {
           const plantTextures = new Map(
             (
               await Promise.all(
-                POLYHAVEN_PLANT_ASSETS.map(async (assetId) => {
+                HALLWAY_PLANT_ASSETS.map(async (assetId) => {
                   const textures = await loadPolyhavenTextureSet(
                     assetId,
                     textureLoader,
@@ -2196,8 +2220,8 @@ export default function MurlanRoyaleArena({ search }) {
             ).filter((entry) => entry[1])
           );
           const radius = wallInnerRadius * DECOR_PLANT_RADIUS_SCALE;
-          for (let i = 0; i < POLYHAVEN_PLANT_ASSETS.length; i += 1) {
-            const assetId = POLYHAVEN_PLANT_ASSETS[i];
+          for (let i = 0; i < DECOR_PLANT_COUNT; i += 1) {
+            const assetId = HALLWAY_PLANT_ASSETS[i % HALLWAY_PLANT_ASSETS.length];
             const plant = await createPolyhavenInstance(assetId, PLANT_TARGET_HEIGHT, 0, renderer, {
               textureLoader,
               maxAnisotropy,
@@ -2206,7 +2230,8 @@ export default function MurlanRoyaleArena({ search }) {
               textureSet: plantTextures.get(assetId)
             });
             if (disposed) return;
-            const angle = (i / POLYHAVEN_PLANT_ASSETS.length) * Math.PI * 2 + Math.PI / 4;
+            plant.scale.multiplyScalar(HALLWAY_PLANT_SCALE);
+            const angle = (i / DECOR_PLANT_COUNT) * Math.PI * 2 + Math.PI / 4;
             const pos = new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
             plant.position.add(pos);
             plant.lookAt(new THREE.Vector3(0, plant.position.y + 0.1, 0));
