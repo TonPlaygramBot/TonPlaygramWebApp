@@ -851,7 +851,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.58; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.22; // push the middle jaw reach a touch wider so the openings read larger
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // slightly tighten the middle jaw arc radius so the side-pocket jaws read smaller
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.05; // relax the middle jaw arc radius further so side-pocket jaws grow subtly
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.02; // lift the middle jaws so their rims sit level with the cloth like the corner pockets
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.072; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
@@ -1232,7 +1232,6 @@ const CUE_TIP_CLEARANCE = BALL_R * 0.12; // ensure a visible air gap so the tip 
 const CUE_TIP_GAP = BALL_R * 1.04 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 1.85;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.55; // guarantee a clear visible pull even when clearance is tight
-const CUE_PULL_PRESENTATION_MIN = CUE_PULL_MIN_VISUAL * 1.35; // keep a noticeable pull distance even when obstructions clamp the physical travel
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.2; // allow extra travel before obstructions cancel the pull
 const CUE_PULL_VISUAL_MULTIPLIER = 1.5;
 const CUE_PULL_SMOOTHING = 0.55;
@@ -1244,7 +1243,7 @@ const CUE_FOLLOW_MIN_MS = 180;
 const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.09; // lower the cue height so the tip meets the cue-ball equator instead of creeping toward topspin
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // lower the cue height so the tip meets the cue-ball equator instead of creeping toward topspin
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 5.2;
 const CUE_BUTT_LIFT = BALL_R * 0.64; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
@@ -16644,9 +16643,8 @@ const powerRef = useRef(hud.power);
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
-        const visualFloor = CUE_PULL_PRESENTATION_MIN;
-        const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL, visualFloor);
-        const visualMax = Math.max(effectiveMax + CUE_PULL_VISUAL_FUDGE, visualFloor);
+        const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
+        const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
         const target = amplifiedMax * ratio * CUE_PULL_VISUAL_MULTIPLIER;
         return Math.min(target, visualMax);
       };
@@ -19162,8 +19160,7 @@ const powerRef = useRef(hud.power);
             maxPull
           );
           const pull = computeCuePull(desiredPull, maxPull, {
-            instant: Boolean(sliderInstanceRef.current?.dragging),
-            preserveLarger: true
+            instant: Boolean(sliderInstanceRef.current?.dragging)
           });
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
@@ -19376,7 +19373,7 @@ const powerRef = useRef(hud.power);
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const desiredPull = computePullTargetFromPower(powerStrength, maxPull);
-          const pull = computeCuePull(desiredPull, maxPull, { preserveLarger: true });
+          const pull = computeCuePull(desiredPull, maxPull);
           const spinX = THREE.MathUtils.clamp(remoteAimState?.spin?.x ?? 0, -1, 1);
           const spinY = THREE.MathUtils.clamp(remoteAimState?.spin?.y ?? 0, -1, 1);
           const { side, vert, hasSpin } = computeSpinOffsets(
@@ -19471,10 +19468,7 @@ const powerRef = useRef(hud.power);
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           const desiredPull = computePullTargetFromPower(powerTarget, maxPull);
-          const pull = computeCuePull(desiredPull, maxPull, {
-            instant: true,
-            preserveLarger: true
-          });
+          const pull = computeCuePull(desiredPull, maxPull);
           const planSpin = activeAiPlan.spin ?? spinRef.current ?? { x: 0, y: 0 };
           const spinX = THREE.MathUtils.clamp(planSpin.x ?? 0, -1, 1);
           const spinY = THREE.MathUtils.clamp(planSpin.y ?? 0, -1, 1);
