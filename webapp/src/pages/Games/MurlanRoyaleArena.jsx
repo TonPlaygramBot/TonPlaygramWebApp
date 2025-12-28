@@ -674,25 +674,40 @@ function fitTableModelToArena(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const maxXZ = Math.max(size.x, size.z);
-  const footprintCap = Math.max(0.5, TABLE_MODEL_TARGET_DIAMETER - TABLE_MODEL_PADDING);
-  let scale = size.y > 0 ? TABLE_MODEL_TARGET_HEIGHT / size.y : 1;
-  if (maxXZ > 0 && maxXZ * scale > footprintCap) {
-    scale = footprintCap / maxXZ;
+  const targetHeight = TABLE_MODEL_TARGET_HEIGHT;
+  const targetDiameter = TABLE_MODEL_TARGET_DIAMETER;
+  const targetRadius = targetDiameter / 2;
+  const scaleY = size.y > 0 ? targetHeight / size.y : 1;
+  const scaleXZ = maxXZ > 0 ? targetDiameter / maxXZ : 1;
+
+  if (scaleY !== 1 || scaleXZ !== 1) {
+    model.scale.set(
+      model.scale.x * scaleXZ,
+      model.scale.y * scaleY,
+      model.scale.z * scaleXZ
+    );
   }
-  if (scale !== 1) {
-    model.scale.multiplyScalar(scale);
-  }
+
   const scaledBox = new THREE.Box3().setFromObject(model);
   const center = scaledBox.getCenter(new THREE.Vector3());
   model.position.add(new THREE.Vector3(-center.x, -scaledBox.min.y, -center.z));
+
+  const recenteredBox = new THREE.Box3().setFromObject(model);
+  const surfaceOffset = targetHeight - recenteredBox.max.y;
+  if (surfaceOffset !== 0) {
+    model.position.y += surfaceOffset;
+    recenteredBox.translate(new THREE.Vector3(0, surfaceOffset, 0));
+  }
+
   const radius = Math.max(
-    Math.abs(scaledBox.max.x),
-    Math.abs(scaledBox.min.x),
-    Math.abs(scaledBox.max.z),
-    Math.abs(scaledBox.min.z)
+    Math.abs(recenteredBox.max.x),
+    Math.abs(recenteredBox.min.x),
+    Math.abs(recenteredBox.max.z),
+    Math.abs(recenteredBox.min.z),
+    targetRadius
   );
   return {
-    surfaceY: scaledBox.max.y,
+    surfaceY: targetHeight,
     radius
   };
 }
@@ -1051,7 +1066,6 @@ const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
-const TABLE_MODEL_PADDING = 0.18 * MODEL_SCALE;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
