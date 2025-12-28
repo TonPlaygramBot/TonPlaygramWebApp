@@ -1228,19 +1228,21 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_GAP = BALL_R * 1.36; // pull cue stick slightly closer so the blue tip meets the cue ball centre line
+const CUE_TIP_GAP = BALL_R * 1.28; // pull cue stick closer so the blue tip locks to the cue-ball centre line
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
+const CUE_PULL_MIN_VISUAL = BALL_R * 0.9; // guarantee a small visible pull even when clearance is tight
+const CUE_PULL_VISUAL_FUDGE = BALL_R * 0.6; // allow a little extra travel before obstructions cancel the pull
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_Y = BALL_CENTER_Y; // align the cue height directly with the cue ball centre for precise strikes
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 4.6;
-const CUE_BUTT_LIFT = BALL_R * 0.7; // raise the butt a little more so the rear clears rails while the tip stays aligned
+const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 5.2;
+const CUE_BUTT_LIFT = BALL_R * 0.9; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.1;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.6;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.72;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(8.5);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
@@ -16381,10 +16383,11 @@ const powerRef = useRef(hud.power);
         const slider = sliderInstanceRef.current;
         const dragging = Boolean(slider?.dragging);
         const cappedMax = Number.isFinite(maxPull) ? Math.max(0, maxPull) : CUE_PULL_BASE;
+        const effectiveMax = Math.max(cappedMax + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL);
         const desiredTarget = preserveLarger
           ? Math.max(cuePullCurrentRef.current ?? 0, pullTarget ?? 0)
           : pullTarget ?? 0;
-        const clampedTarget = THREE.MathUtils.clamp(desiredTarget, 0, cappedMax);
+        const clampedTarget = THREE.MathUtils.clamp(desiredTarget, 0, effectiveMax);
         const smoothing = instant || dragging ? 1 : CUE_PULL_SMOOTHING;
         const nextPull =
           smoothing >= 1
@@ -16701,7 +16704,7 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          const pullTarget = Math.min(CUE_PULL_BASE * clampedPower, maxPull);
+          const pullTarget = CUE_PULL_BASE * clampedPower;
           const pull = computeCuePull(pullTarget, maxPull, {
             instant: true,
             preserveLarger: true
@@ -18836,8 +18839,7 @@ const powerRef = useRef(hud.power);
             balls
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-          const pullTarget = Math.min(desiredPull, maxPull);
-          const pull = computeCuePull(pullTarget, maxPull);
+          const pull = computeCuePull(desiredPull, maxPull);
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
           let side = appliedSpin.x * offsetSide;
@@ -19066,8 +19068,7 @@ const powerRef = useRef(hud.power);
             balls
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-          const pullTarget = Math.min(desiredPull, maxPull);
-          const pull = computeCuePull(pullTarget, maxPull);
+          const pull = computeCuePull(desiredPull, maxPull);
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
           const spinX = THREE.MathUtils.clamp(remoteAimState?.spin?.x ?? 0, -1, 1);
@@ -19166,8 +19167,7 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          const pullTarget = Math.min(desiredPull, maxPull);
-          const pull = computeCuePull(pullTarget, maxPull);
+          const pull = computeCuePull(desiredPull, maxPull);
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
           const planSpin = activeAiPlan.spin ?? spinRef.current ?? { x: 0, y: 0 };
@@ -20080,7 +20080,7 @@ const powerRef = useRef(hud.power);
     const computeInsets = () => {
       if (!isPortrait) {
         const left = uiScale * 150;
-        const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 130);
+        const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 150);
         setHudInsets({
           left: `${left}px`,
           right: `${right}px`
@@ -20090,7 +20090,10 @@ const powerRef = useRef(hud.power);
       const leftBox = leftControlsRef.current?.getBoundingClientRect();
       const spinBox = spinBoxRef.current?.getBoundingClientRect();
       const leftInset = (leftBox?.width ?? uiScale * 120) + 12;
-      const rightInset = (spinBox?.width ?? uiScale * (SPIN_CONTROL_DIAMETER_PX + 64)) + 12;
+      const rightInset =
+        (spinBox?.width ?? uiScale * (SPIN_CONTROL_DIAMETER_PX + 64)) +
+        uiScale * 32 +
+        12;
       setHudInsets({
         left: `${leftInset}px`,
         right: `${rightInset}px`
@@ -20122,6 +20125,7 @@ const powerRef = useRef(hud.power);
         fireRef.current?.();
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
+          applyPower(0);
         });
       }
     });
