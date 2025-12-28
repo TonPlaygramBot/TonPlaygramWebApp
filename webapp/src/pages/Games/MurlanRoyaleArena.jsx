@@ -399,13 +399,24 @@ async function loadTexture(textureLoader, url, isColor, maxAnisotropy = 1) {
         if (isColor) {
           applySRGBColorSpace(texture);
         }
+        texture.flipY = false;
         texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+        texture.needsUpdate = true;
         resolve(texture);
       },
       undefined,
       () => reject(new Error('texture load failed'))
     );
   });
+}
+
+function normalizePbrTexture(texture, maxAnisotropy = 1) {
+  if (!texture) return;
+  texture.flipY = false;
+  texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
+  texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+  texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+  texture.needsUpdate = true;
 }
 
 async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1, cache = null) {
@@ -433,11 +444,7 @@ async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1
         urls.roughness ? loadTexture(textureLoader, urls.roughness, false, maxAnisotropy) : null
       ]);
 
-      [diffuse, normal, roughness].filter(Boolean).forEach((tex) => {
-        tex.wrapS = THREE.RepeatWrapping;
-        tex.wrapT = THREE.RepeatWrapping;
-        tex.anisotropy = Math.max(tex.anisotropy ?? 1, maxAnisotropy);
-      });
+      [diffuse, normal, roughness].filter(Boolean).forEach((tex) => normalizePbrTexture(tex, maxAnisotropy));
 
       return { diffuse, normal, roughness };
     } catch (error) {
@@ -453,39 +460,43 @@ async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1
 }
 
 function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotropy = 1) {
+  const normalizeTexture = (texture, isColor = false) => {
+    if (!texture) return null;
+    if (isColor) applySRGBColorSpace(texture);
+    normalizePbrTexture(texture, maxAnisotropy);
+    return texture;
+  };
+
   const applyToMaterial = (material) => {
     if (!material) return;
     material.roughness = Math.max(material.roughness ?? 0.4, 0.4);
     material.metalness = Math.min(material.metalness ?? 0.4, 0.4);
 
     if (material.map) {
-      applySRGBColorSpace(material.map);
-      material.map.anisotropy = Math.max(material.map.anisotropy ?? 1, maxAnisotropy);
+      normalizeTexture(material.map, true);
     } else if (textureSet?.diffuse) {
-      material.map = textureSet.diffuse;
-      applySRGBColorSpace(material.map);
+      material.map = normalizeTexture(textureSet.diffuse, true);
       material.needsUpdate = true;
     } else if (fallbackTexture) {
-      material.map = fallbackTexture;
-      applySRGBColorSpace(material.map);
+      material.map = normalizeTexture(fallbackTexture, true);
       material.needsUpdate = true;
     }
 
     if (material.emissiveMap) {
-      applySRGBColorSpace(material.emissiveMap);
-      material.emissiveMap.anisotropy = Math.max(material.emissiveMap.anisotropy ?? 1, maxAnisotropy);
+      normalizeTexture(material.emissiveMap, true);
     }
 
     if (!material.normalMap && textureSet?.normal) {
       material.normalMap = textureSet.normal;
     }
     if (material.normalMap) {
-      material.normalMap.anisotropy = Math.max(material.normalMap.anisotropy ?? 1, maxAnisotropy);
+      normalizeTexture(material.normalMap, false);
     }
 
     if (!material.roughnessMap && textureSet?.roughness) {
       material.roughnessMap = textureSet.roughness;
     }
+    normalizeTexture(material.roughnessMap, false);
   };
 
   model.traverse((obj) => {
