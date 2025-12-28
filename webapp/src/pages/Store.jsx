@@ -309,7 +309,10 @@ const OPTION_SWATCH_OVERRIDES = {
   emeraldSide: ['#22c55e', '#16a34a'],
   royalIvory: ['#f8fafc', '#e2e8f0'],
   neonRush: ['#f472b6', '#22d3ee'],
-  duskMallet: ['#0f172a', '#1e3a8a']
+  duskMallet: ['#0f172a', '#1e3a8a'],
+  cinderBlaze: ['#ff6b35', '#2b1a12'],
+  arcticDrift: ['#bcd7ff', '#1f2f52'],
+  nebulaGlass: ['#e0f2fe', '#0b1024']
 };
 
 const PREVIEW_BY_TYPE = {

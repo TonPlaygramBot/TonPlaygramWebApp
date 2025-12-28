@@ -57,7 +57,9 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
     mintVale: 'Mint Vale',
     royalWave: 'Royal Wave',
     roseMist: 'Rose Mist',
-    amethyst: 'Amethyst'
+    amethyst: 'Amethyst',
+    cinderBlaze: 'Cinder Blaze',
+    arcticDrift: 'Arctic Drift'
   }),
   boardTheme: Object.freeze({
     classic: 'Classic',
@@ -66,7 +68,8 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
     sand: 'Sand/Brown',
     ocean: 'Ocean',
     violet: 'Violet',
-    chrome: 'Chrome'
+    chrome: 'Chrome',
+    nebulaGlass: 'Nebula Glass'
   }),
   headStyle: Object.freeze({
     current: 'Current',
@@ -112,12 +115,15 @@ export const CHESS_BATTLE_STORE_ITEMS = [
   { id: 'chess-side-royal', type: 'sideColor', optionId: 'royalWave', name: 'Royal Wave Pieces', price: 420, description: 'Royal blue quick-select palette.' },
   { id: 'chess-side-rose', type: 'sideColor', optionId: 'roseMist', name: 'Rose Mist Pieces', price: 420, description: 'Rosy quick-select palette with soft glow.' },
   { id: 'chess-side-amethyst', type: 'sideColor', optionId: 'amethyst', name: 'Amethyst Pieces', price: 460, description: 'Amethyst quick-select palette with sheen.' },
+  { id: 'chess-side-cinder', type: 'sideColor', optionId: 'cinderBlaze', name: 'Cinder Blaze Pieces', price: 480, description: 'Molten orange-on-charcoal palette for fiery showdowns.' },
+  { id: 'chess-side-arctic', type: 'sideColor', optionId: 'arcticDrift', name: 'Arctic Drift Pieces', price: 520, description: 'Icy stone palette with frosted metallic hints.' },
   { id: 'chess-board-ivorySlate', type: 'boardTheme', optionId: 'ivorySlate', name: 'Ivory/Slate Board', price: 380, description: 'Alternate board palette for fast swaps.' },
   { id: 'chess-board-forest', type: 'boardTheme', optionId: 'forest', name: 'Forest Board', price: 410, description: 'Alternate board palette for fast swaps.' },
   { id: 'chess-board-sand', type: 'boardTheme', optionId: 'sand', name: 'Sand/Brown Board', price: 440, description: 'Alternate board palette for fast swaps.' },
   { id: 'chess-board-ocean', type: 'boardTheme', optionId: 'ocean', name: 'Ocean Board', price: 470, description: 'Alternate board palette for fast swaps.' },
   { id: 'chess-board-violet', type: 'boardTheme', optionId: 'violet', name: 'Violet Board', price: 500, description: 'Alternate board palette for fast swaps.' },
   { id: 'chess-board-chrome', type: 'boardTheme', optionId: 'chrome', name: 'Chrome Board', price: 540, description: 'Alternate board palette for fast swaps.' },
+  { id: 'chess-board-nebula', type: 'boardTheme', optionId: 'nebulaGlass', name: 'Nebula Glass Board', price: 580, description: 'Cosmic glass palette with deep-space contrasts.' },
   { id: 'chess-head-ruby', type: 'headStyle', optionId: 'headRuby', name: 'Ruby Pawn Heads', price: 310, description: 'Unlocks an additional pawn head glass preset.' },
   { id: 'chess-head-sapphire', type: 'headStyle', optionId: 'headSapphire', name: 'Sapphire Pawn Heads', price: 335, description: 'Unlocks an additional pawn head glass preset.' },
   { id: 'chess-head-chrome', type: 'headStyle', optionId: 'headChrome', name: 'Chrome Pawn Heads', price: 360, description: 'Unlocks an additional pawn head glass preset.' },
