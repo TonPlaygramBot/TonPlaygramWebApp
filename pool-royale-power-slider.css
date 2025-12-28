@@ -57,3 +57,18 @@
   transform-origin: 50% 0%;
   filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.25));
 }
+
+.ps.ps-theme-pool-royale.ps-pull-ready .ps-handle {
+  background: linear-gradient(180deg, #0ea5e9, #22d3ee);
+  color: #0b172a;
+}
+
+.ps.ps-theme-pool-royale.ps-pull-ready .ps-handle-text {
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ps.ps-theme-pool-royale.ps-pull-ready .ps-tooltip {
+  opacity: 0.88;
+}
