@@ -20785,10 +20785,10 @@ const powerRef = useRef(hud.power);
         </div>
       )}
       {ruleToast && (
-        <div className="pointer-events-none absolute top-28 left-1/2 z-50 -translate-x-1/2 px-4">
-          <div className="rounded-full bg-black/80 px-5 py-2 text-sm font-bold uppercase tracking-[0.24em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] ring-1 ring-white/20">
+        <div className="pointer-events-none absolute left-1/2 top-6 z-50 -translate-x-1/2 px-3 text-center">
+          <span className="text-sm font-bold uppercase tracking-[0.24em] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]">
             {ruleToast}
-          </div>
+          </span>
         </div>
       )}
 
@@ -21306,7 +21306,8 @@ const powerRef = useRef(hud.power);
           aria-hidden={pocketCameraActive || replayActive}
           style={{
             left: hudInsets.left,
-            right: hudInsets.right
+            right: hudInsets.right,
+            transform: isPortrait ? 'translateX(-14px)' : undefined
           }}
         >
           <div
