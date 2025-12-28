@@ -9,8 +9,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
@@ -56,8 +54,6 @@ import {
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.3;
-let sharedKTX2Loader = null;
-let ktx2SupportConfigured = false;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const CHAIR_COUNT = 4;
@@ -120,57 +116,6 @@ function detectLowRefreshDisplay() {
     }
   }
   return false;
-}
-
-function createConfiguredGLTFLoader(renderer = null, manager) {
-  const loader = new GLTFLoader(manager);
-  loader.setCrossOrigin('anonymous');
-  const draco = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-  loader.setDRACOLoader(draco);
-  loader.setMeshoptDecoder(MeshoptDecoder);
-
-  if (!sharedKTX2Loader) {
-    sharedKTX2Loader = new KTX2Loader();
-    sharedKTX2Loader.setTranscoderPath(
-      'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/'
-    );
-  }
-
-  if (!ktx2SupportConfigured) {
-    const supportRenderer =
-      renderer ||
-      (typeof document !== 'undefined'
-        ? new THREE.WebGLRenderer({ antialias: false, alpha: true })
-        : null);
-    if (supportRenderer) {
-      try {
-        sharedKTX2Loader.detectSupport(supportRenderer);
-        ktx2SupportConfigured = true;
-      } catch (error) {
-        console.warn('MurlanRoyale: KTX2 support detection failed', error);
-      } finally {
-        if (supportRenderer !== renderer) {
-          supportRenderer.dispose?.();
-        }
-      }
-    }
-  }
-
-  if (renderer && sharedKTX2Loader && !ktx2SupportConfigured) {
-    try {
-      sharedKTX2Loader.detectSupport(renderer);
-      ktx2SupportConfigured = true;
-    } catch (error) {
-      console.warn('MurlanRoyale: KTX2 support detection refresh failed', error);
-    }
-  }
-
-  if (sharedKTX2Loader) {
-    loader.setKTX2Loader(sharedKTX2Loader);
-  }
-
-  return loader;
 }
 
 function detectHighRefreshDisplay() {
@@ -542,8 +487,8 @@ function fitModelToHeight(model, targetHeight) {
   liftModelToGround(model, 0);
 }
 
-async function createPolyhavenInstance(assetId, targetHeight, rotationY = 0, renderer = null) {
-  const root = await loadPolyhavenModel(assetId, renderer);
+async function createPolyhavenInstance(assetId, targetHeight, rotationY = 0) {
+  const root = await loadPolyhavenModel(assetId);
   const model = root.clone(true);
   prepareLoadedModel(model);
   fitModelToHeight(model, targetHeight);
@@ -563,21 +508,17 @@ function shouldPreserveChairMaterials(theme) {
   return Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
 }
 
-async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0, renderer = null) {
-  const loader = createConfiguredGLTFLoader(renderer);
+async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0) {
+  const loader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  loader.setDRACOLoader(draco);
 
   let gltf = null;
   let lastError = null;
   for (const url of urls) {
     try {
-      const resolvedUrl = typeof window !== 'undefined' ? new URL(url, window.location.href).href : url;
-      if (resolvedUrl) {
-        const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
-        const isAbsolute = /^https?:\/\//i.test(resolvedUrl);
-        loader.setResourcePath(resourcePath);
-        loader.setPath(isAbsolute ? '' : resourcePath);
-      }
-      gltf = await loader.loadAsync(resolvedUrl || url);
+      gltf = await loader.loadAsync(url);
       break;
     } catch (error) {
       lastError = error;
@@ -605,7 +546,7 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0, renderer = 
   };
 }
 
-async function loadPolyhavenModel(assetId, renderer = null) {
+async function loadPolyhavenModel(assetId) {
   if (!assetId) throw new Error('Missing Poly Haven asset id');
   const normalizedId = assetId.toLowerCase();
   const cacheKey = normalizedId;
@@ -644,7 +585,11 @@ async function loadPolyhavenModel(assetId, renderer = null) {
     }
 
     const manager = fileMap.size ? new THREE.LoadingManager() : undefined;
-    const loader = createConfiguredGLTFLoader(renderer, manager);
+    const loader = new GLTFLoader(manager);
+    const draco = new DRACOLoader();
+    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    loader.setDRACOLoader(draco);
+    loader.setCrossOrigin?.('anonymous');
 
     if (fileMap.size) {
       const base = stripQueryHash(modelUrlList[0]);
@@ -667,14 +612,7 @@ async function loadPolyhavenModel(assetId, renderer = null) {
     let lastError = null;
     for (const modelUrl of modelUrlList) {
       try {
-        const resolvedUrl = typeof window !== 'undefined' ? new URL(modelUrl, window.location.href).href : modelUrl;
-        if (resolvedUrl) {
-          const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
-          const isAbsolute = /^https?:\/\//i.test(resolvedUrl);
-          loader.setResourcePath(resourcePath);
-          loader.setPath(isAbsolute ? '' : resourcePath);
-        }
-        gltf = await loader.loadAsync(resolvedUrl || modelUrl);
+        gltf = await loader.loadAsync(modelUrl);
         break;
       } catch (error) {
         lastError = error;
