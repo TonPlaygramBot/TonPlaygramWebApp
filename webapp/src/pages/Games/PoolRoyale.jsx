@@ -1018,9 +1018,9 @@ const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up ca
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
-const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 0.35;
-const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.4;
-const MAX_POWER_BOUNCE_DAMPING = 0.9;
+const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 0.95;
+const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.2;
+const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
 const MAX_POWER_CAMERA_HOLD_MS = 2000;
 const POCKET_INTERIOR_CAPTURE_R =
@@ -1174,9 +1174,9 @@ const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
-const SPIN_STRENGTH = BALL_R * 0.0295 * 1.15;
+const SPIN_STRENGTH = BALL_R * 0.0295;
 const SPIN_DECAY = 0.9;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * 1.15;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_THRESHOLD = 0.7; // outer 30% of the spin control activates swerve behaviour
@@ -1186,8 +1186,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.1; // reapply stored sideways swerve once the cu
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_FORCE_BOOST =
-  1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * 1.15;
+const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -1229,8 +1228,8 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.16; // ensure a visible air gap so the tip never rests on the cue ball
-const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
+const CUE_TIP_CLEARANCE = BALL_R * 0.12; // ensure a visible air gap so the tip never rests on the cue ball
+const CUE_TIP_GAP = BALL_R * 1.04 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 1.85;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.55; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.2; // allow extra travel before obstructions cancel the pull
@@ -1248,9 +1247,9 @@ const CUE_FOLLOW_MIN_MS = 180;
 const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.02; // keep the cue aligned to the cue-ball centre line while keeping a small clearance
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.08; // lower the cue height further so the tip sits just below the topspin zone
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 2.6;
+const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 5.2;
 const CUE_BUTT_LIFT = BALL_R * 0.64; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
@@ -5277,7 +5276,6 @@ const AI_THINKING_BUDGET_MS =
 const AI_CAMERA_DROP_LEAD_MS = 420; // start lowering into cue view shortly before the AI pulls the trigger
 const AI_CAMERA_SETTLE_MS = 320; // allow time for the cue view to settle before firing
 const AI_CUE_VIEW_HOLD_MS = 3000;
-const AI_STROKE_WINDUP_MS = 700;
 // Ease the AI camera just partway toward cue view (still above the stick) so the shot preview
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
@@ -10402,8 +10400,6 @@ function PoolRoyaleGame({
   const replayBannerTimeoutRef = useRef(null);
   const [replaySlate, setReplaySlate] = useState(null);
   const replaySlateTimeoutRef = useRef(null);
-  const lastReplayDataRef = useRef(null);
-  const triggerStoredReplayRef = useRef(() => {});
   const shotCameraHoldTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
@@ -10450,7 +10446,6 @@ const lastShotReminderRef = useRef({ A: 0, B: 0 });
 const [ruleToast, setRuleToast] = useState(null);
 const ruleToastTimeoutRef = useRef(null);
 const [replayActive, setReplayActive] = useState(false);
-const [replayAvailable, setReplayAvailable] = useState(false);
 const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
 const [bottomHudOffset, setBottomHudOffset] = useState(0);
 const leftControlsRef = useRef(null);
@@ -10584,7 +10579,6 @@ const powerRef = useRef(hud.power);
   const aiShotCueViewRef = useRef(false);
   const aiCueViewBlendRef = useRef(AI_CAMERA_DROP_BLEND);
   const aiRetryTimeoutRef = useRef(null);
-  const aiWindupHandleRef = useRef(null);
   const aiShotWindowRef = useRef({ startedAt: 0, duration: AI_MIN_SHOT_TIME_MS });
   const [aiTakingShot, setAiTakingShot] = useState(false);
   const cameraBlendTweenRef = useRef(null);
@@ -10635,10 +10629,6 @@ const powerRef = useRef(hud.power);
     if (aiShotCueDropTimeoutRef.current) {
       clearTimeout(aiShotCueDropTimeoutRef.current);
       aiShotCueDropTimeoutRef.current = null;
-    }
-    if (aiWindupHandleRef.current) {
-      cancelAnimationFrame(aiWindupHandleRef.current);
-      aiWindupHandleRef.current = null;
     }
     cancelCameraBlendTween();
     aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
@@ -11677,7 +11667,6 @@ const powerRef = useRef(hud.power);
       const tmpReplayQuatB = new THREE.Quaternion();
       const tmpReplayScale = new THREE.Vector3();
       const tmpReplayPos = new THREE.Vector3();
-      const tmpReplayCuePos = new THREE.Vector3();
       const setShootingState = (value) => {
         if (shooting === value) return;
         shooting = value;
@@ -14829,87 +14818,12 @@ const powerRef = useRef(hud.power);
           replayTrail.visible = true;
         };
 
-        const applyReplayCueStroke = (playback, targetTime) => {
-          if (!cueStick) return;
-          const stroke = playback?.cueStroke;
-          if (
-            !stroke ||
-            !Number.isFinite(targetTime) ||
-            targetTime < (stroke.startOffset ?? 0) - 80
-          ) {
-            cueStick.visible = false;
-            return;
-          }
-          const forwardMs = Math.max(0, stroke.forwardMs ?? 0);
-          const settleMs = Math.max(0, stroke.settleMs ?? 0);
-          const startOffset = Math.max(0, stroke.startOffset ?? 0);
-          const forwardEnd = startOffset + forwardMs;
-          const settleEnd = forwardEnd + settleMs;
-          if (targetTime > settleEnd + 120) {
-            cueStick.visible = false;
-            return;
-          }
-          const start = stroke.start ?? null;
-          const impact = stroke.impact ?? start;
-          const settle = stroke.settle ?? impact;
-          if (!start || !impact || !settle) {
-            cueStick.visible = false;
-            return;
-          }
-          const resolveLerp = (from, to, alpha) => {
-            const clamped = THREE.MathUtils.clamp(alpha, 0, 1);
-            tmpReplayCuePos.set(
-              THREE.MathUtils.lerp(from.x, to.x, clamped),
-              THREE.MathUtils.lerp(from.y, to.y, clamped),
-              THREE.MathUtils.lerp(from.z, to.z, clamped)
-            );
-            cueStick.position.copy(tmpReplayCuePos);
-          };
-          if (targetTime <= forwardEnd && forwardMs > 0) {
-            resolveLerp(start, impact, (targetTime - startOffset) / forwardMs);
-          } else if (targetTime <= settleEnd && settleMs > 0) {
-            resolveLerp(impact, settle, (targetTime - forwardEnd) / settleMs);
-          } else {
-            cueStick.visible = false;
-            return;
-          }
-          if (stroke.rotation) {
-            cueStick.rotation.set(
-              stroke.rotation.x ?? cueStick.rotation.x,
-              stroke.rotation.y ?? cueStick.rotation.y,
-              stroke.rotation.z ?? cueStick.rotation.z
-            );
-          }
-          cueStick.visible = true;
-        };
-
         const trimReplayRecording = (recording) => {
           const frames = recording?.frames ?? [];
           const cuePath = recording?.cuePath ?? [];
           if (frames.length === 0) return { frames, cuePath, duration: 0 };
           const duration = frames[frames.length - 1]?.t ?? 0;
-          return {
-            frames,
-            cuePath,
-            duration,
-            cueStroke: recording?.cueStroke ?? null,
-            startState: recording?.startState ?? []
-          };
-        };
-
-        const persistLastReplay = (recording, postState) => {
-          if (!recording || !postState) {
-            lastReplayDataRef.current = null;
-            setReplayAvailable(false);
-            return;
-          }
-          const trimmed = trimReplayRecording(recording);
-          lastReplayDataRef.current = {
-            ...trimmed,
-            startState: recording.startState ?? trimmed.startState ?? [],
-            postState
-          };
-          setReplayAvailable(true);
+          return { frames, cuePath, duration };
         };
 
         const storeReplayCameraFrame = () => {
@@ -14958,7 +14872,6 @@ const powerRef = useRef(hud.power);
           replayPlayback = {
             frames: trimmed.frames,
             cuePath: trimmed.cuePath,
-            cueStroke: trimmed.cueStroke,
             duration,
             startedAt: performance.now(),
             lastIndex: 0,
@@ -14997,19 +14910,6 @@ const powerRef = useRef(hud.power);
           }
         };
 
-        triggerStoredReplayRef.current = () => {
-          if (replayPlaybackRef.current || shooting || shotRecording) return;
-          if (hudRef.current?.over) return;
-          const stored = lastReplayDataRef.current;
-          if (!stored || (stored.frames?.length ?? 0) < 2 || !stored.postState) return;
-          shotRecording = {
-            ...stored,
-            startTime: performance.now()
-          };
-          shotReplayRef.current = shotRecording;
-          startShotReplay(stored.postState);
-        };
-
         const waitMs = (ms = 0) =>
           new Promise((resolve) => window.setTimeout(resolve, Math.max(0, ms)));
 
@@ -15035,7 +14935,6 @@ const powerRef = useRef(hud.power);
           if (playback.postState) {
             applyBallSnapshot(playback.postState);
           }
-          cueStick.visible = false;
           replayTrail.visible = false;
           const storedReplayCamera = replayCameraRef.current;
           const targetFov = Number.isFinite(storedReplayCamera?.restoreFov)
@@ -16781,36 +16680,6 @@ const powerRef = useRef(hud.power);
         const maxScale = 1 + CUE_PULL_MAX_VISUAL_BONUS;
         return Math.min(compensated, basePull * maxScale);
       };
-      const animateCueWindup = (
-        pullTarget = 0,
-        maxPull = CUE_PULL_BASE,
-        durationMs = AI_STROKE_WINDUP_MS
-      ) => {
-        if (aiWindupHandleRef.current) {
-          cancelAnimationFrame(aiWindupHandleRef.current);
-          aiWindupHandleRef.current = null;
-        }
-        const clampedDuration = Math.max(0, durationMs ?? 0);
-        const target = Math.max(0, pullTarget ?? 0);
-        if (clampedDuration <= 0) {
-          computeCuePull(target, maxPull, { instant: true, preserveLarger: true });
-          return;
-        }
-        const started = performance.now();
-        const windupStep = () => {
-          const elapsed = performance.now() - started;
-          const t = Math.min(1, elapsed / clampedDuration);
-          const eased = t * t * (3 - 2 * t);
-          computeCuePull(target * eased, maxPull, { instant: true });
-          if (t < 1) {
-            aiWindupHandleRef.current = requestAnimationFrame(windupStep);
-          } else {
-            aiWindupHandleRef.current = null;
-            computeCuePull(target, maxPull, { instant: true, preserveLarger: true });
-          }
-        };
-        aiWindupHandleRef.current = requestAnimationFrame(windupStep);
-      };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
@@ -17113,8 +16982,21 @@ const powerRef = useRef(hud.power);
           resetSpinRef.current?.();
           cue.impacted = false;
           cue.launchDir = aimDir.clone().normalize();
-          cue.lift = 0;
-          cue.liftVel = 0;
+          if (isMaxPowerShot) {
+            const liftAmount = Math.min(
+              MAX_POWER_LIFT_HEIGHT,
+              Math.max(CUE_TIP_RADIUS, MAX_POWER_BOUNCE_IMPULSE * 0.45)
+            );
+            const liftVelocity = Math.min(
+              MAX_POWER_BOUNCE_IMPULSE * clampedPower,
+              MAX_POWER_BOUNCE_IMPULSE * 0.55
+            );
+            cue.lift = Math.max(cue.lift ?? 0, liftAmount);
+            cue.liftVel = Math.max(cue.liftVel ?? 0, liftVelocity);
+          } else {
+            cue.lift = 0;
+            cue.liftVel = 0;
+          }
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -17233,25 +17115,6 @@ const powerRef = useRef(hud.power);
           const startTime = performance.now();
           const impactTime = startTime + forwardDuration;
           const settleTime = impactTime + settleDuration;
-          if (shotRecording) {
-            const strokeStartOffset = Math.max(
-              0,
-              startTime - (shotRecording.startTime ?? startTime)
-            );
-            shotRecording.cueStroke = {
-              startOffset: strokeStartOffset,
-              forwardMs: forwardDuration,
-              settleMs: settleDuration,
-              start: startPos.clone(),
-              impact: impactPos.clone(),
-              settle: settlePos.clone(),
-              rotation: {
-                x: cueStick.rotation.x,
-                y: cueStick.rotation.y,
-                z: cueStick.rotation.z
-              }
-            };
-          }
           const animateStroke = (now) => {
             if (now <= impactTime) {
               const t = forwardDuration > 0 ? THREE.MathUtils.clamp((now - startTime) / forwardDuration, 0, 1) : 1;
@@ -18503,14 +18366,6 @@ const powerRef = useRef(hud.power);
             spinRef.current = { ...spinToApply };
             spinRequestRef.current = { ...spinToApply };
             resetSpinRef.current?.();
-            const backInfo = calcTarget(
-              cue,
-              dir.clone().multiplyScalar(-1),
-              balls
-            );
-            const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-            const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-            const pullTarget = computePullTargetFromPower(plan.power, maxPull);
             if (aiShotTimeoutRef.current) {
               clearTimeout(aiShotTimeoutRef.current);
               aiShotTimeoutRef.current = null;
@@ -18523,8 +18378,7 @@ const powerRef = useRef(hud.power);
             const dropDelay = Math.max(0, previewDelayMs - AI_CAMERA_DROP_LEAD_MS);
             const shotDelay = Math.max(
               previewDelayMs,
-              dropDelay + AI_CAMERA_SETTLE_MS + AI_CUE_VIEW_HOLD_MS,
-              AI_STROKE_WINDUP_MS + AI_CAMERA_SETTLE_MS
+              dropDelay + AI_CAMERA_SETTLE_MS + AI_CUE_VIEW_HOLD_MS
             );
             const beginCueView = () => {
               setAiShotCueViewActive(true);
@@ -18535,19 +18389,12 @@ const powerRef = useRef(hud.power);
                 clearTimeout(aiShotTimeoutRef.current);
               }
               const remaining = Math.max(0, shotDelay - dropDelay);
-              const fireDelay = Math.max(remaining, AI_STROKE_WINDUP_MS);
-              cuePullTargetRef.current = pullTarget;
-              animateCueWindup(
-                pullTarget,
-                maxPull,
-                Math.min(AI_STROKE_WINDUP_MS, fireDelay)
-              );
               aiShotTimeoutRef.current = window.setTimeout(() => {
                 aiShotTimeoutRef.current = null;
                 applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
                 updateCamera();
                 fire();
-              }, fireDelay);
+              }, remaining);
             };
             if (dropDelay <= 0) {
               beginCueView();
@@ -18882,14 +18729,6 @@ const powerRef = useRef(hud.power);
             if (shouldStartReplay) {
               postShotSnapshot = captureBallSnapshot();
             }
-            if (!postShotSnapshot) {
-              postShotSnapshot = captureBallSnapshot();
-            }
-            if (shotRecording && postShotSnapshot) {
-              persistLastReplay(shotRecording, postShotSnapshot);
-            } else {
-              persistLastReplay(null, null);
-            }
             const nextMeta = safeState.meta;
             if (nextMeta && typeof nextMeta === 'object') {
               if (nextMeta.variant === 'american' && nextMeta.state) {
@@ -19046,7 +18885,6 @@ const powerRef = useRef(hud.power);
             const alpha = frameB
               ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
               : 0;
-            applyReplayCueStroke(playback, targetTime);
             applyReplayFrame(frameA, frameB, alpha);
             updateReplayTrail(playback.cuePath, targetTime);
             replayFrameCameraRef.current = {
@@ -19960,17 +19798,17 @@ const powerRef = useRef(hud.power);
                   lastShotPower >= MAX_POWER_BOUNCE_THRESHOLD
                 ) {
                   const bounceStrength = THREE.MathUtils.clamp(lastShotPower, 0, 1);
-                  const liftCap = Math.min(
-                    MAX_POWER_LIFT_HEIGHT,
-                    MAX_POWER_BOUNCE_IMPULSE * 0.35
+                  cueBall.lift = Math.max(
+                    cueBall.lift ?? 0,
+                    Math.min(MAX_POWER_LIFT_HEIGHT, MAX_POWER_BOUNCE_IMPULSE * 0.45)
                   );
-                  const liftAmount = Math.max(CUE_TIP_RADIUS * 0.6, liftCap);
-                  const liftVelocity = Math.min(
-                    MAX_POWER_BOUNCE_IMPULSE * bounceStrength * 0.85,
-                    MAX_POWER_BOUNCE_IMPULSE * 0.45
+                  cueBall.liftVel = Math.max(
+                    cueBall.liftVel ?? 0,
+                    Math.min(
+                      MAX_POWER_BOUNCE_IMPULSE * bounceStrength,
+                      MAX_POWER_BOUNCE_IMPULSE * 0.55
+                    )
                   );
-                  cueBall.lift = Math.max(cueBall.lift ?? 0, liftAmount);
-                  cueBall.liftVel = Math.max(cueBall.liftVel ?? 0, liftVelocity);
                 }
                 if (
                   hitBallId &&
@@ -20492,10 +20330,6 @@ const powerRef = useRef(hud.power);
         return () => {
           disposed = true;
           cancelCameraBlendTween();
-          if (aiWindupHandleRef.current) {
-            cancelAnimationFrame(aiWindupHandleRef.current);
-            aiWindupHandleRef.current = null;
-          }
           applyWorldScaleRef.current = () => {};
           topViewControlsRef.current = { enter: () => {}, exit: () => {} };
           cameraUpdateRef.current = () => {};
@@ -20683,13 +20517,6 @@ const powerRef = useRef(hud.power);
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
   const showSpinController =
     !hud.over && !replayActive && (isPlayerTurn || aiTakingShot);
-  const replayButtonDisabled =
-    replayActive ||
-    shotActive ||
-    hud.over ||
-    shootingRef.current ||
-    aiTakingShot ||
-    !replayAvailable;
 
   // Spin controller interactions
   useEffect(() => {
@@ -21051,9 +20878,6 @@ const powerRef = useRef(hud.power);
     ),
     [avatarSizeClass]
   );
-  const handleReplayClick = useCallback(() => {
-    triggerStoredReplayRef.current?.();
-  }, []);
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
@@ -21098,39 +20922,6 @@ const powerRef = useRef(hud.power);
       <div
         className={`absolute top-4 left-4 z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
       >
-        <button
-          type="button"
-          onClick={handleReplayClick}
-          disabled={replayButtonDisabled}
-          aria-disabled={replayButtonDisabled}
-          className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-            replayButtonDisabled
-              ? 'cursor-not-allowed border-white/20 bg-white/5 text-white/50'
-              : 'border-emerald-300 bg-emerald-400/20 text-emerald-50 hover:bg-emerald-300/30'
-          }`}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            className="h-6 w-6"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M4 4v6h6"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M4.51 15a7 7 0 1 0 .49-7"
-            />
-          </svg>
-          <span className="sr-only">Replay last shot</span>
-        </button>
         <button
           ref={configButtonRef}
           type="button"
