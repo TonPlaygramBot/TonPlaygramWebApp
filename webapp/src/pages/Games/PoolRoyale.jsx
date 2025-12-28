@@ -1228,7 +1228,8 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_GAP = BALL_R * 1.04; // pull the blue tip into the cue-ball centre line so it stays level with the aim guide
+const CUE_TIP_CLEARANCE = BALL_R * 0.12; // ensure a visible air gap so the tip never rests on the cue ball
+const CUE_TIP_GAP = BALL_R * 1.04 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.55;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.55; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 1.7; // allow extra travel before obstructions cancel the pull
@@ -17014,16 +17015,26 @@ const powerRef = useRef(hud.power);
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           cueAnimating = true;
+          const topSpinWeight = Math.max(0, -(appliedSpin.y || 0));
+          const backSpinWeight = Math.max(0, appliedSpin.y || 0);
           const strokeDistance = Math.max(pull, CUE_PULL_MIN_VISUAL);
+          const topSpinFollowThrough =
+            BALL_R * (1 + 3 * clampedPower) * topSpinWeight;
+          const backSpinRetreat =
+            BALL_R * (1 + 2.25 * clampedPower) * backSpinWeight;
+          const forwardDistance = strokeDistance + topSpinFollowThrough;
           const startPos = cueStick.position.clone();
-          const impactPos = startPos.clone().add(dir.clone().multiplyScalar(Math.max(pull, 0)));
+          const impactPos = startPos
+            .clone()
+            .add(dir.clone().multiplyScalar(Math.max(forwardDistance, 0)));
           const retreatDistance = Math.max(
             BALL_R * 1.5,
             Math.min(strokeDistance, BALL_R * 8)
           );
+          const totalRetreat = retreatDistance + backSpinRetreat;
           const settlePos = impactPos
             .clone()
-            .sub(dir.clone().multiplyScalar(retreatDistance));
+            .sub(dir.clone().multiplyScalar(totalRetreat));
           cueStick.visible = true;
           cueStick.position.copy(startPos);
           const forwardSpeed = THREE.MathUtils.lerp(
@@ -17032,7 +17043,7 @@ const powerRef = useRef(hud.power);
             clampedPower
           );
           const forwardDuration = THREE.MathUtils.clamp(
-            (strokeDistance / Math.max(forwardSpeed, 1e-4)) * 1000,
+            (forwardDistance / Math.max(forwardSpeed, 1e-4)) * 1000,
             CUE_STROKE_MIN_MS,
             CUE_STROKE_MAX_MS
           );
@@ -17042,7 +17053,7 @@ const powerRef = useRef(hud.power);
             clampedPower
           );
           const settleDuration = THREE.MathUtils.clamp(
-            (retreatDistance / Math.max(settleSpeed, 1e-4)) * 1000,
+            (totalRetreat / Math.max(settleSpeed, 1e-4)) * 1000 * (backSpinWeight > 0 ? 0.82 : 1),
             CUE_FOLLOW_MIN_MS,
             CUE_FOLLOW_MAX_MS
           );
@@ -18931,6 +18942,7 @@ const powerRef = useRef(hud.power);
         const isPlayerTurn = currentHud?.turn === 0;
         const isAiTurn = aiOpponentEnabled && currentHud?.turn === 1;
         const previewingAiShot = aiShotPreviewRef.current;
+        const aiCueViewActive = aiShotCueViewRef.current;
         const remoteShotActive =
           currentHud?.turn === 1 && remoteShotActiveRef.current;
         const remoteAimState = remoteAimRef.current;
@@ -18944,7 +18956,8 @@ const powerRef = useRef(hud.power);
           !(currentHud?.over) &&
           !(inHandPlacementModeRef.current) &&
           (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current) &&
-          !remoteShotActive;
+          !remoteShotActive &&
+          (isPlayerTurn || previewingAiShot || aiCueViewActive);
         const remoteAimFresh =
           remoteAimState &&
           Number.isFinite(remoteAimState.updatedAt) &&
@@ -20383,7 +20396,7 @@ const powerRef = useRef(hud.power);
         const spinWidth = spinBox?.width ?? fallbackSpinWidth;
         const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
         const spinCenter = spinLeft + spinWidth / 2;
-        const desiredCenter = leftCenter * 0.6 + spinCenter * 0.4;
+        const desiredCenter = (leftCenter + spinCenter) / 2;
         const screenCenter = viewportWidth / 2;
         setBottomHudOffset(desiredCenter - screenCenter);
       } else {
