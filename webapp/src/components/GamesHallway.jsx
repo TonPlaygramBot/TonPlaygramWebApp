@@ -604,7 +604,13 @@ export default function GamesHallway({ games, onClose }) {
       metalness: 1,
       roughness: 0.1
     });
-    const frameMat = new THREE.MeshStandardMaterial({ color: '#c4a26c', metalness: 0.8, roughness: 0.2 });
+    const frameMat = new THREE.MeshStandardMaterial({
+      color: '#d7b56b',
+      metalness: 0.9,
+      roughness: 0.18,
+      emissive: '#a2752a',
+      emissiveIntensity: 0.08
+    });
 
     const signBackgroundColor = '#000000';
     const signBorderColor = '#d4af37';
@@ -868,22 +874,42 @@ export default function GamesHallway({ games, onClose }) {
       return { scene: pot, scale: 1.1 };
     };
 
+    const buildPolyhavenModelUrls = (assetId) => [
+      `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
+      `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`
+    ];
+
+    const PLANT_TARGET_HEIGHT = 2.1;
+
+    const fitModelToHeight = (model, targetHeight) => {
+      if (!model || !targetHeight) {
+        return;
+      }
+      const box = new THREE.Box3().setFromObject(model);
+      const currentHeight = box.max.y - box.min.y;
+      if (!currentHeight) {
+        return;
+      }
+      model.scale.multiplyScalar(targetHeight / currentHeight);
+      const scaledBox = new THREE.Box3().setFromObject(model);
+      model.position.y -= scaledBox.min.y;
+    };
+
     const plantModelSources = [
       {
-        urls: [
-          'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/potted_plant_01/potted_plant_01_2k.gltf',
-          'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/potted_plant_01/potted_plant_01_1k.gltf'
-        ],
-        scale: 2.35,
-        textureId: 'potted_plant_01'
+        urls: buildPolyhavenModelUrls('potted_plant_01'),
+        textureId: 'potted_plant_01',
+        targetHeight: PLANT_TARGET_HEIGHT
       },
       {
-        urls: [
-          'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/potted_plant_02/potted_plant_02_2k.gltf',
-          'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/potted_plant_02/potted_plant_02_1k.gltf'
-        ],
-        scale: 2.15,
-        textureId: 'potted_plant_02'
+        urls: buildPolyhavenModelUrls('potted_plant_02'),
+        textureId: 'potted_plant_02',
+        targetHeight: PLANT_TARGET_HEIGHT
+      },
+      {
+        urls: buildPolyhavenModelUrls('potted_plant_04'),
+        textureId: 'potted_plant_04',
+        targetHeight: PLANT_TARGET_HEIGHT
       }
     ];
 
@@ -894,11 +920,11 @@ export default function GamesHallway({ games, onClose }) {
       map: carbonFiberTexture
     });
     const sconceBulbMat = new THREE.MeshStandardMaterial({
-      color: '#fff9ec',
-      emissive: '#ffe7c4',
-      emissiveIntensity: 0.95,
+      color: '#fff6e3',
+      emissive: '#ffeac6',
+      emissiveIntensity: 0.82,
       metalness: 0.1,
-      roughness: 0.1
+      roughness: 0.12
     });
 
     const addFlowerPotsBetweenDoors = async () => {
@@ -964,7 +990,10 @@ export default function GamesHallway({ games, onClose }) {
               }
             });
           }
-          return scene ? { scene, scale: source.scale } : null;
+          if (scene && source.targetHeight) {
+            fitModelToHeight(scene, source.targetHeight);
+          }
+          return scene ? { scene, targetHeight: source.targetHeight } : null;
         })
         .filter(Boolean);
 
@@ -984,13 +1013,15 @@ export default function GamesHallway({ games, onClose }) {
         const potGroup = new THREE.Group();
         potGroup.position.set(potX, 0, potZ);
         potGroup.rotation.y = -(midpointAngle + Math.PI / 2);
-        potGroup.scale.setScalar(1.12);
+        potGroup.scale.setScalar(1);
 
         if (plantVariants.length) {
           const variant = plantVariants[index % plantVariants.length];
           const instance = cloneSkinnedMesh(variant.scene);
           instance.position.set(0, 0.05, 0);
-          instance.scale.setScalar(variant.scale * 1.08);
+          if (variant.targetHeight) {
+            fitModelToHeight(instance, variant.targetHeight);
+          }
           potGroup.add(instance);
         }
 
@@ -1020,7 +1051,7 @@ export default function GamesHallway({ games, onClose }) {
         bulb.castShadow = true;
         sconceGroup.add(bulb);
 
-        const sconceLight = new THREE.PointLight(0xffe4bf, 1.05, 8, 2.05);
+        const sconceLight = new THREE.PointLight(0xfff0d6, 0.85, 8, 2.05);
         sconceLight.position.set(0, 0.32, 0.5);
         sconceGroup.add(sconceLight);
 
