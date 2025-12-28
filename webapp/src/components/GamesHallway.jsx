@@ -214,6 +214,20 @@ export default function GamesHallway({ games, onClose }) {
 
     const potTextureCache = new Map();
 
+    const normalizePlantTexture = (texture, isColor = false) => {
+      if (!texture) {
+        return;
+      }
+      if (isColor) {
+        texture.colorSpace = THREE.SRGBColorSpace;
+      }
+      texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
+      texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+      texture.flipY = false;
+      texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+      texture.needsUpdate = true;
+    };
+
     const loadOriginalPlantTextures = async (assetId) => {
       if (potTextureCache.has(assetId)) {
         return potTextureCache.get(assetId);
@@ -238,9 +252,7 @@ export default function GamesHallway({ games, onClose }) {
           ]);
 
           [diffuse, normal, roughness].filter(Boolean).forEach((tex) => {
-            tex.wrapS = THREE.RepeatWrapping;
-            tex.wrapT = THREE.RepeatWrapping;
-            tex.anisotropy = maxAnisotropy;
+            normalizePlantTexture(tex, tex === diffuse);
           });
 
           return { diffuse, normal, roughness };
@@ -784,6 +796,47 @@ export default function GamesHallway({ games, onClose }) {
     potFallbackTexture.wrapT = THREE.RepeatWrapping;
     potFallbackTexture.repeat.set(1.6, 1.6);
     potFallbackTexture.anisotropy = maxAnisotropy;
+    potFallbackTexture.flipY = false;
+    potFallbackTexture.needsUpdate = true;
+
+    const applyPlantTexturesToMaterial = (material, textureSet) => {
+      if (!material) {
+        return;
+      }
+
+      material.roughness = Math.max(material.roughness ?? 0.4, 0.4);
+      material.metalness = Math.min(material.metalness ?? 0.3, 0.3);
+
+      if (material.map) {
+        normalizePlantTexture(material.map, true);
+      } else if (textureSet?.diffuse) {
+        material.map = textureSet.diffuse;
+        normalizePlantTexture(material.map, true);
+        material.needsUpdate = true;
+      } else {
+        material.map = potFallbackTexture;
+        normalizePlantTexture(material.map, true);
+        material.needsUpdate = true;
+      }
+
+      if (material.emissiveMap) {
+        normalizePlantTexture(material.emissiveMap, true);
+      }
+
+      if (!material.normalMap && textureSet?.normal) {
+        material.normalMap = textureSet.normal;
+      }
+      if (material.normalMap) {
+        normalizePlantTexture(material.normalMap, false);
+      }
+
+      if (!material.roughnessMap && textureSet?.roughness) {
+        material.roughnessMap = textureSet.roughness;
+      }
+      if (material.roughnessMap) {
+        normalizePlantTexture(material.roughnessMap, false);
+      }
+    };
 
     const buildProceduralPlant = () => {
       const pot = new THREE.Group();
@@ -906,33 +959,8 @@ export default function GamesHallway({ games, onClose }) {
               if (child.isMesh && child.material) {
                 child.castShadow = true;
                 child.receiveShadow = true;
-                child.material.roughness = Math.max(child.material.roughness ?? 0.4, 0.4);
-                child.material.metalness = Math.min(child.material.metalness ?? 0.3, 0.3);
-                if (child.material.map) {
-                  child.material.map.colorSpace = THREE.SRGBColorSpace;
-                  child.material.map.anisotropy = maxAnisotropy;
-                } else if (textureSet?.diffuse) {
-                  child.material.map = textureSet.diffuse;
-                  child.material.map.colorSpace = THREE.SRGBColorSpace;
-                  child.material.needsUpdate = true;
-                } else {
-                  child.material.map = potFallbackTexture;
-                  child.material.map.colorSpace = THREE.SRGBColorSpace;
-                }
-                if (child.material.emissiveMap) {
-                  child.material.emissiveMap.colorSpace = THREE.SRGBColorSpace;
-                  child.material.emissiveMap.anisotropy = maxAnisotropy;
-                }
-                if (!child.material.normalMap && textureSet?.normal) {
-                  child.material.normalMap = textureSet.normal;
-                }
-                if (child.material.normalMap) {
-                  child.material.normalMap.anisotropy = maxAnisotropy;
-                }
-                if (!child.material.roughnessMap && textureSet?.roughness) {
-                  child.material.roughnessMap = textureSet.roughness;
-                }
-                child.material.needsUpdate = true;
+                const materials = Array.isArray(child.material) ? child.material : [child.material];
+                materials.forEach((mat) => applyPlantTexturesToMaterial(mat, textureSet));
               }
             });
           }
