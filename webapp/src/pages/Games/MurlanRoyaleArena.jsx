@@ -61,9 +61,9 @@ const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const CHAIR_COUNT = 4;
 const CUSTOM_SEAT_ANGLES = [
   THREE.MathUtils.degToRad(90),
-  THREE.MathUtils.degToRad(315),
+  THREE.MathUtils.degToRad(0),
   THREE.MathUtils.degToRad(270),
-  THREE.MathUtils.degToRad(225)
+  THREE.MathUtils.degToRad(180)
 ];
 
 const SUITS = ['♠', '♥', '♦', '♣'];
@@ -269,10 +269,13 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
-const POLYHAVEN_PLANT_ASSETS = ['potted_plant_01', 'potted_plant_02', 'potted_plant_04', 'planter_box_01'];
+const HALLWAY_PLANT_ASSET = 'potted_plant_02';
+const POLYHAVEN_PLANT_ASSETS = Array(4).fill(HALLWAY_PLANT_ASSET);
 const POLYHAVEN_MODEL_CACHE = new Map();
-const PLANT_TARGET_HEIGHT = 2.8 * MODEL_SCALE;
+const PLANT_TARGET_HEIGHT = 2.1 * MODEL_SCALE;
 const DECOR_PLANT_RADIUS_SCALE = 0.9;
+const COFFEE_TABLE_WALL_ASSET_ID = 'coffee_table_round_01';
+const WALL_TEXTURE_REPEAT = new THREE.Vector2(3.4, 1.3);
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 
@@ -1079,10 +1082,10 @@ const AI_TURN_DELAY = 2000;
 
 const PLAYER_COLORS = ['#f97316', '#38bdf8', '#a78bfa', '#22c55e'];
 const FALLBACK_SEAT_POSITIONS = [
-  { left: '22%', top: '74%' },
-  { left: '78%', top: '28%' },
-  { left: '24%', top: '24%' },
-  { left: '78%', top: '72%' }
+  { left: '50%', top: '78%' },
+  { left: '82%', top: '50%' },
+  { left: '50%', top: '24%' },
+  { left: '18%', top: '50%' }
 ];
 
 const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -2157,6 +2160,20 @@ export default function MurlanRoyaleArena({ search }) {
       arenaGroup.add(carpet);
 
       const wallInnerRadius = TABLE_RADIUS * ARENA_GROWTH * 2.4;
+      const wallTextureSet = await loadPolyhavenTextureSet(
+        COFFEE_TABLE_WALL_ASSET_ID,
+        textureLoader,
+        maxAnisotropy,
+        threeStateRef.current.textureCache
+      );
+      const wallMaterial = createArenaWallMaterial('#0b1120', '#1e293b', wallTextureSet);
+      [wallMaterial.map, wallMaterial.normalMap, wallMaterial.roughnessMap].forEach((tex) => {
+        if (!tex) return;
+        tex.wrapS = tex.wrapS ?? THREE.RepeatWrapping;
+        tex.wrapT = tex.wrapT ?? THREE.RepeatWrapping;
+        tex.repeat?.set(WALL_TEXTURE_REPEAT.x, WALL_TEXTURE_REPEAT.y);
+        tex.needsUpdate = true;
+      });
       const wall = new THREE.Mesh(
         new THREE.CylinderGeometry(
           wallInnerRadius,
@@ -2166,7 +2183,7 @@ export default function MurlanRoyaleArena({ search }) {
           1,
           true
         ),
-        createArenaWallMaterial('#0b1120', '#1e293b')
+        wallMaterial
       );
       wall.position.y = ARENA_WALL_CENTER_Y;
       wall.receiveShadow = false;
@@ -2180,10 +2197,11 @@ export default function MurlanRoyaleArena({ search }) {
       threeStateRef.current.decorPlants = [];
       const addCornerPlants = async () => {
         try {
+          const uniquePlantAssets = [...new Set(POLYHAVEN_PLANT_ASSETS)];
           const plantTextures = new Map(
             (
               await Promise.all(
-                POLYHAVEN_PLANT_ASSETS.map(async (assetId) => {
+                uniquePlantAssets.map(async (assetId) => {
                   const textures = await loadPolyhavenTextureSet(
                     assetId,
                     textureLoader,
@@ -2197,13 +2215,17 @@ export default function MurlanRoyaleArena({ search }) {
           );
           const radius = wallInnerRadius * DECOR_PLANT_RADIUS_SCALE;
           for (let i = 0; i < POLYHAVEN_PLANT_ASSETS.length; i += 1) {
-            const assetId = POLYHAVEN_PLANT_ASSETS[i];
+            const assetId = POLYHAVEN_PLANT_ASSETS[i] ?? HALLWAY_PLANT_ASSET;
+            const textureSet =
+              plantTextures.get(assetId) ??
+              plantTextures.get(uniquePlantAssets[0] ?? '') ??
+              null;
             const plant = await createPolyhavenInstance(assetId, PLANT_TARGET_HEIGHT, 0, renderer, {
               textureLoader,
               maxAnisotropy,
               fallbackTexture,
               textureCache: threeStateRef.current.textureCache,
-              textureSet: plantTextures.get(assetId)
+              textureSet
             });
             if (disposed) return;
             const angle = (i / POLYHAVEN_PLANT_ASSETS.length) * Math.PI * 2 + Math.PI / 4;

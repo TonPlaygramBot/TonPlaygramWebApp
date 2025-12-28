@@ -144,11 +144,30 @@ export function createArenaCarpetMaterial() {
   return material;
 }
 
-export function createArenaWallMaterial() {
-  return new THREE.MeshStandardMaterial({
-    color: 0xeeeeee,
+export function createArenaWallMaterial(baseColor = '#eeeeee', accentColor = null, textureSet = null) {
+  const material = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(baseColor),
     roughness: 0.88,
     metalness: 0.06,
     side: THREE.DoubleSide
   });
+
+  if (accentColor) {
+    material.emissive = new THREE.Color(accentColor);
+    material.emissiveIntensity = 0.08;
+  }
+
+  if (textureSet?.diffuse) {
+    material.map = textureSet.diffuse;
+    applySRGBColorSpace(material.map);
+    material.color.set('#ffffff');
+  }
+  if (textureSet?.normal) {
+    material.normalMap = textureSet.normal;
+  }
+  if (textureSet?.roughness) {
+    material.roughnessMap = textureSet.roughness;
+  }
+
+  return material;
 }
