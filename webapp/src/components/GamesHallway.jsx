@@ -578,17 +578,17 @@ export default function GamesHallway({ games, onClose }) {
         ctx.fill();
       });
       ctx.fillStyle = signTextColor;
-      ctx.font = 'bold 240px "Inter", Arial';
+      ctx.font = 'bold 210px "Inter", Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      let fontSize = 240;
+      let fontSize = 210;
       const maxWidth = signCanvas.width - 360;
-      while (fontSize > 120) {
+      while (fontSize > 110) {
         ctx.font = `bold ${fontSize}px "Inter", Arial`;
         if (ctx.measureText(label).width <= maxWidth) {
           break;
         }
-        fontSize -= 10;
+        fontSize -= 8;
       }
       ctx.font = `bold ${fontSize}px "Inter", Arial`;
       ctx.fillText(label, signCanvas.width / 2, signCanvas.height / 2);
@@ -627,9 +627,21 @@ export default function GamesHallway({ games, onClose }) {
       return texture;
     })();
 
-    const flowerPotUrls = [
-      'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Flower/Flower.glb',
-      'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/gltf/Flower/Flower.glb'
+    const plantModelSources = [
+      {
+        urls: [
+          'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/potted_plant_01/potted_plant_01_2k.gltf',
+          'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/potted_plant_01/potted_plant_01_1k.gltf'
+        ],
+        scale: 2.05
+      },
+      {
+        urls: [
+          'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/potted_plant_02/potted_plant_02_2k.gltf',
+          'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/potted_plant_02/potted_plant_02_1k.gltf'
+        ],
+        scale: 1.9
+      }
     ];
 
     const sconcePlateMat = new THREE.MeshStandardMaterial({
@@ -665,40 +677,56 @@ export default function GamesHallway({ games, onClose }) {
       const sconceRadius = 19.15;
       const twoPi = Math.PI * 2;
 
-      let flowerGltf = null;
-      try {
-        flowerGltf = await loadGltfWithFallbacks(flowerPotUrls);
-      } catch (error) {
-        // keep hallway functional even if assets fail to load
-        flowerGltf = null;
-      }
+      const loadedPlants = await Promise.all(
+        plantModelSources.map(async (source) => {
+          try {
+            const gltf = await loadGltfWithFallbacks(source.urls);
+            return { gltf, source };
+          } catch (error) {
+            return null;
+          }
+        })
+      );
 
       if (disposed) {
-        flowerGltf?.scene?.traverse((child) => {
-          if (child.isMesh) {
-            child.geometry?.dispose?.();
-            disposeMeshMaterials(child.material);
-          }
-        });
+        loadedPlants
+          .filter(Boolean)
+          .forEach(({ gltf }) => {
+            gltf?.scene?.traverse((child) => {
+              if (child.isMesh) {
+                child.geometry?.dispose?.();
+                disposeMeshMaterials(child.material);
+              }
+            });
+          });
         return;
       }
 
-      const flowerModel = flowerGltf?.scene;
-      if (flowerModel) {
-        flowerModel.traverse((child) => {
-          if (child.isMesh && child.material) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-            child.material.roughness = Math.max(child.material.roughness ?? 0.42, 0.42);
-            child.material.metalness = Math.min(child.material.metalness ?? 0.25, 0.25);
-            if (child.material.map) {
-              child.material.map.colorSpace = THREE.SRGBColorSpace;
-              child.material.map.anisotropy = maxAnisotropy;
-            }
-            child.material.needsUpdate = true;
+      const plantVariants = loadedPlants
+        .filter(Boolean)
+        .map(({ gltf, source }) => {
+          const scene = gltf?.scene;
+          if (scene) {
+            scene.traverse((child) => {
+              if (child.isMesh && child.material) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+                child.material.roughness = Math.max(child.material.roughness ?? 0.4, 0.4);
+                child.material.metalness = Math.min(child.material.metalness ?? 0.3, 0.3);
+                if (child.material.map) {
+                  child.material.map.colorSpace = THREE.SRGBColorSpace;
+                  child.material.map.anisotropy = maxAnisotropy;
+                }
+                if (child.material.normalMap) {
+                  child.material.normalMap.anisotropy = maxAnisotropy;
+                }
+                child.material.needsUpdate = true;
+              }
+            });
           }
-        });
-      }
+          return scene ? { scene, scale: source.scale } : null;
+        })
+        .filter(Boolean);
 
       doorAngles.forEach((angle, index) => {
         let delta = wrapAngle(doorAngles[(index + 1) % doorAngles.length] - angle);
@@ -713,10 +741,11 @@ export default function GamesHallway({ games, onClose }) {
         potGroup.position.set(potX, 0, potZ);
         potGroup.rotation.y = -(midpointAngle + Math.PI / 2);
 
-        if (flowerModel) {
-          const instance = cloneSkinnedMesh(flowerModel);
+        if (plantVariants.length) {
+          const variant = plantVariants[index % plantVariants.length];
+          const instance = cloneSkinnedMesh(variant.scene);
           instance.position.set(0, 0.05, 0);
-          instance.scale.set(2.2, 2.2, 2.2);
+          instance.scale.setScalar(variant.scale);
           potGroup.add(instance);
         }
 
