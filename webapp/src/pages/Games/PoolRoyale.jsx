@@ -4436,8 +4436,9 @@ const createCarpetTextures = (() => {
 const WALL_TEXTURE_CONFIG = {
   sourceId: 'white_planks_clean',
   fallbackColor: 0xdedede,
-  repeat: new THREE.Vector2(7.5, 3.4),
-  anisotropy: 6
+  repeat: new THREE.Vector2(3.75, 3.4),
+  anisotropy: 12,
+  preferredResolutionK: 4
 };
 
 const loadWallPlankTextures = (() => {
@@ -4464,15 +4465,31 @@ const loadWallPlankTextures = (() => {
       }
     };
     walk(apiJson);
+
+    const scoreResolution = (url) => {
+      const match = url.toLowerCase().match(/(?:^|[^a-z0-9])(\d+)\s*k/);
+      if (!match) return 0;
+      const resolution = parseInt(match[1], 10);
+      if (Number.isNaN(resolution)) return 0;
+      if (resolution >= 16) return 24;
+      if (resolution >= 8) return 20;
+      if (resolution >= 4) return 16;
+      if (resolution >= 2) return 12;
+      if (resolution >= 1) return 8;
+      return 0;
+    };
+
     const scoreAndPick = (keywords) => {
       const scored = urls
         .filter((u) => keywords.some((kw) => u.toLowerCase().includes(kw)))
         .map((u) => {
           const lower = u.toLowerCase();
           let score = 0;
-          if (lower.includes('4k')) score += 10;
-          if (lower.includes('2k')) score += 8;
-          if (lower.includes('1k')) score += 5;
+          score += scoreResolution(lower);
+          if (WALL_TEXTURE_CONFIG.preferredResolutionK) {
+            const preferred = `${WALL_TEXTURE_CONFIG.preferredResolutionK}k`;
+            if (lower.includes(preferred)) score += 6;
+          }
           if (lower.includes('jpg')) score += 3;
           if (lower.includes('png')) score += 2;
           if (lower.includes('diff') || lower.includes('albedo') || lower.includes('basecolor')) score += 2;
