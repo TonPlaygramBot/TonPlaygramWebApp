@@ -61,9 +61,9 @@ const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const CHAIR_COUNT = 4;
 const CUSTOM_SEAT_ANGLES = [
   THREE.MathUtils.degToRad(90),
-  THREE.MathUtils.degToRad(315),
+  THREE.MathUtils.degToRad(0),
   THREE.MathUtils.degToRad(270),
-  THREE.MathUtils.degToRad(225)
+  THREE.MathUtils.degToRad(180)
 ];
 
 const SUITS = ['♠', '♥', '♦', '♣'];
@@ -269,7 +269,8 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
-const POLYHAVEN_PLANT_ASSETS = ['potted_plant_01', 'potted_plant_02', 'potted_plant_04', 'planter_box_01'];
+const POLYHAVEN_PLANT_ASSETS = ['potted_plant_01'];
+const COFFEE_TABLE_ASSET_ID = 'coffee_table_round_01';
 const POLYHAVEN_MODEL_CACHE = new Map();
 const PLANT_TARGET_HEIGHT = 2.8 * MODEL_SCALE;
 const DECOR_PLANT_RADIUS_SCALE = 0.9;
@@ -2157,6 +2158,7 @@ export default function MurlanRoyaleArena({ search }) {
       arenaGroup.add(carpet);
 
       const wallInnerRadius = TABLE_RADIUS * ARENA_GROWTH * 2.4;
+      const wallMaterial = createArenaWallMaterial('#0b1120', '#1e293b');
       const wall = new THREE.Mesh(
         new THREE.CylinderGeometry(
           wallInnerRadius,
@@ -2166,11 +2168,34 @@ export default function MurlanRoyaleArena({ search }) {
           1,
           true
         ),
-        createArenaWallMaterial('#0b1120', '#1e293b')
+        wallMaterial
       );
       wall.position.y = ARENA_WALL_CENTER_Y;
       wall.receiveShadow = false;
       arenaGroup.add(wall);
+
+      const applyCoffeeTableWallMaterial = async () => {
+        try {
+          const textureSet = await loadPolyhavenTextureSet(
+            COFFEE_TABLE_ASSET_ID,
+            textureLoader,
+            maxAnisotropy,
+            threeStateRef.current.textureCache
+          );
+          if (!textureSet || disposed) return;
+          const texturedMaterial = createArenaWallMaterial('#0b1120', '#1e293b', {
+            textureSet,
+            repeat: new THREE.Vector2(2.4, 1.25),
+            anisotropy: maxAnisotropy
+          });
+          const prevMaterial = wall.material;
+          wall.material = texturedMaterial;
+          prevMaterial?.dispose?.();
+        } catch (error) {
+          console.warn('Failed to apply coffee table wall material', error);
+        }
+      };
+      void applyCoffeeTableWallMaterial();
 
       const cameraBoundRadius = wallInnerRadius - CAMERA_WALL_PADDING;
 
