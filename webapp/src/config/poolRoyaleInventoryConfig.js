@@ -1,15 +1,164 @@
 import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
 
+export const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
+  {
+    id: 'neonPhotostudio',
+    name: 'Neon Photo Studio',
+    assetId: 'neon_photostudio',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '4k',
+    price: 1420,
+    exposure: 1.22,
+    environmentIntensity: 1.16,
+    backgroundIntensity: 1.1,
+    swatches: ['#0ea5e9', '#8b5cf6'],
+    description: 'Vibrant cyber studio wrap with strong rim accents.'
+  },
+  {
+    id: 'studioSoftbox08',
+    name: 'Studio Softbox 08',
+    assetId: 'studio_small_08',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '4k',
+    price: 1460,
+    exposure: 1.18,
+    environmentIntensity: 1.08,
+    backgroundIntensity: 1.04,
+    swatches: ['#cbd5e1', '#94a3b8'],
+    description: 'Neutral softbox studio with even wrap lighting.'
+  },
+  {
+    id: 'bronzePhotostudio',
+    name: 'Bronze Photo Loft',
+    assetId: 'brown_photostudio_02',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '4k',
+    price: 1490,
+    exposure: 1.2,
+    environmentIntensity: 1.14,
+    backgroundIntensity: 1.08,
+    swatches: ['#f59e0b', '#b45309'],
+    description: 'Warm loft studio with bronze-toned reflectors.'
+  },
+  {
+    id: 'adamsBridge',
+    name: 'Adams Bridge',
+    assetId: 'adams_place_bridge',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '4k',
+    price: 1520,
+    exposure: 1.16,
+    environmentIntensity: 1.12,
+    backgroundIntensity: 1.06,
+    swatches: ['#1d4ed8', '#0ea5e9'],
+    description: 'Cool twilight bridge lighting with crisp specular pickup.'
+  },
+  {
+    id: 'veniceSunset',
+    name: 'Venice Sunset',
+    assetId: 'venice_sunset',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '4k',
+    price: 1550,
+    exposure: 1.15,
+    environmentIntensity: 1.18,
+    backgroundIntensity: 1.1,
+    swatches: ['#f59e0b', '#ef4444'],
+    description: 'Golden-hour waterfront reflections with soft falloff.'
+  },
+  {
+    id: 'modernRooftops',
+    name: 'Modern Rooftops',
+    assetId: 'modern_buildings',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '4k',
+    price: 1580,
+    exposure: 1.14,
+    environmentIntensity: 1.1,
+    backgroundIntensity: 1.02,
+    swatches: ['#22d3ee', '#0ea5e9'],
+    description: 'Reflective skyline mix for sleek chrome highlights.'
+  },
+  {
+    id: 'kloofendalClouds',
+    name: 'Kloofendal Clouds',
+    assetId: 'kloofendal_48d_partly_cloudy',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '4k',
+    price: 1610,
+    exposure: 1.1,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1,
+    swatches: ['#0ea5e9', '#22c55e'],
+    description: 'Outdoor overcast balance for natural, even cloth response.'
+  },
+  {
+    id: 'ballroomHall',
+    name: 'Ballroom Hall',
+    assetId: 'ballroom',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '4k',
+    price: 1640,
+    exposure: 1.19,
+    environmentIntensity: 1.2,
+    backgroundIntensity: 1.12,
+    swatches: ['#fef3c7', '#a16207'],
+    description: 'Grand hall ambience with chandeliers for polished highlights.'
+  },
+  {
+    id: 'rooftopNight',
+    name: 'Rooftop Night',
+    assetId: 'rooftop_night',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '4k',
+    price: 1680,
+    exposure: 1.24,
+    environmentIntensity: 1.22,
+    backgroundIntensity: 1.16,
+    swatches: ['#0ea5e9', '#111827'],
+    description: 'Nocturnal rooftop glow with neon spill for chrome drama.'
+  },
+  {
+    id: 'industrialSunset',
+    name: 'Industrial Sunset',
+    assetId: 'industrial_sunset_02',
+    preferredResolutions: ['8k', '4k', '2k'],
+    fallbackResolution: '4k',
+    price: 1720,
+    exposure: 1.21,
+    environmentIntensity: 1.18,
+    backgroundIntensity: 1.1,
+    swatches: ['#f97316', '#1f2937'],
+    description: 'Rustic industrial dusk with warm rim and cool fill mix.'
+  }
+]);
+
+export const POOL_ROYALE_HDRI_VARIANT_MAP = Object.freeze(
+  POOL_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => {
+    acc[variant.id] = variant;
+    return acc;
+  }, {})
+);
+
+export const POOL_ROYALE_DEFAULT_HDRI_ID = POOL_ROYALE_HDRI_VARIANTS[0].id;
+
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: ['charredTimber'],
   chromeColor: ['gold'],
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
   cueStyle: ['birch-frost'],
-  pocketLiner: ['blackPocket']
+  pocketLiner: ['blackPocket'],
+  environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID]
 });
 
 export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
+  environmentHdri: Object.freeze(
+    POOL_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => {
+      acc[variant.id] = variant.name;
+      return acc;
+    }, {})
+  ),
   tableFinish: Object.freeze({
     rusticSplit: 'Pearl Cream',
     charredTimber: 'Charred Timber',
@@ -248,7 +397,15 @@ export const POOL_ROYALE_STORE_ITEMS = [
     name: 'Graphite Aurora Cue',
     price: 360,
     description: 'Graphite weave cue with aurora-inspired tint.'
-  }
+  },
+  ...POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
+    id: `hdri-${variant.id}`,
+    type: 'environmentHdri',
+    optionId: variant.id,
+    name: `${variant.name} HDRI`,
+    price: variant.price,
+    description: variant.description
+  }))
 ];
 
 export const POOL_ROYALE_DEFAULT_LOADOUT = [
@@ -261,5 +418,10 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
     label: POOL_ROYALE_CLOTH_VARIANTS[0].name
   },
   { type: 'cueStyle', optionId: 'birch-frost', label: 'Birch Frost Cue' },
-  { type: 'pocketLiner', optionId: 'blackPocket', label: 'Black Pocket Jaws' }
+  { type: 'pocketLiner', optionId: 'blackPocket', label: 'Black Pocket Jaws' },
+  {
+    type: 'environmentHdri',
+    optionId: POOL_ROYALE_DEFAULT_HDRI_ID,
+    label: POOL_ROYALE_OPTION_LABELS.environmentHdri[POOL_ROYALE_DEFAULT_HDRI_ID]
+  }
 ];

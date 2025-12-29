@@ -3,7 +3,8 @@ import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import {
   POOL_ROYALE_DEFAULT_LOADOUT,
   POOL_ROYALE_OPTION_LABELS,
-  POOL_ROYALE_STORE_ITEMS
+  POOL_ROYALE_STORE_ITEMS,
+  POOL_ROYALE_HDRI_VARIANTS
 } from '../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../config/poolRoyaleClothPresets.js';
 import {
@@ -119,7 +120,8 @@ const TYPE_LABELS = {
   railMarkerColor: 'Rail Markers',
   clothColor: 'Cloth Colors',
   cueStyle: 'Cue Styles',
-  pocketLiner: 'Pocket Jaws'
+  pocketLiner: 'Pocket Jaws',
+  environmentHdri: 'HDR Environments'
 };
 
 const SNOOKER_TYPE_LABELS = {
@@ -248,6 +250,7 @@ const TYPE_SWATCHES = {
   railMarkerColor: ['#9ca3af', '#fef3c7'],
   clothColor: ['#0f766e', '#22c55e'],
   cueStyle: ['#0f172a', '#1e293b'],
+  environmentHdri: ['#0ea5e9', '#312e81'],
   field: ['#22d3ee', '#0ea5e9'],
   table: ['#4b5563', '#94a3b8'],
   puck: ['#111827', '#4b5563'],
@@ -312,7 +315,13 @@ const OPTION_SWATCH_OVERRIDES = {
   duskMallet: ['#0f172a', '#1e3a8a'],
   cinderBlaze: ['#ff6b35', '#2b1a12'],
   arcticDrift: ['#bcd7ff', '#1f2f52'],
-  nebulaGlass: ['#e0f2fe', '#0b1024']
+  nebulaGlass: ['#e0f2fe', '#0b1024'],
+  ...POOL_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => {
+    if (Array.isArray(variant.swatches) && variant.swatches.length) {
+      acc[variant.id] = variant.swatches;
+    }
+    return acc;
+  }, {})
 };
 
 const PREVIEW_BY_TYPE = {
@@ -323,6 +332,7 @@ const PREVIEW_BY_TYPE = {
   sideColor: 'chess-royals',
   headStyle: 'pawn-head',
   chromeColor: 'chrome',
+  environmentHdri: 'table',
   cards: 'cards',
   dominoStyle: 'domino',
   tokenPalette: 'token-stack',
