@@ -11,6 +11,7 @@ import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -4272,6 +4273,11 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k', '2k']);
+const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.6;
+const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
+const DEFAULT_HDRI_RADIUS_MULTIPLIER = 14;
+const MIN_HDRI_RADIUS = 40;
+const HDRI_GROUNDED_RESOLUTION = 96;
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const urls = [];
@@ -4344,9 +4350,12 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
         pmrem.compileEquirectangularShader();
         const envMap = pmrem.fromEquirectangular(texture).texture;
         envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
-        texture.dispose();
+        const skyboxMap = texture;
+        skyboxMap.name = `${config?.assetId ?? 'polyhaven'}-skybox`;
+        skyboxMap.mapping = THREE.EquirectangularReflectionMapping;
+        skyboxMap.needsUpdate = true;
         pmrem.dispose();
-        resolve({ envMap, url });
+        resolve({ envMap, skyboxMap, url });
       },
       undefined,
       (error) => {
@@ -10518,6 +10527,8 @@ const powerRef = useRef(hud.power);
   const updateEnvironmentRef = useRef(() => {});
   const disposeEnvironmentRef = useRef(null);
   const envTextureRef = useRef(null);
+  const envSkyboxRef = useRef(null);
+  const envSkyboxTextureRef = useRef(null);
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
@@ -11471,18 +11482,64 @@ const powerRef = useRef(hud.power);
         const activeVariant = variantConfig || activeEnvironmentVariantRef.current;
         const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
         if (!envResult) return;
-        const { envMap } = envResult;
+        const { envMap, skyboxMap } = envResult;
         if (!envMap) return;
         if (disposed) {
           envMap.dispose?.();
+          skyboxMap?.dispose?.();
           return;
         }
         const prevDispose = disposeEnvironmentRef.current;
         const prevTexture = envTextureRef.current;
+        const worldOffsetY = worldRef.current?.position?.y ?? 0;
+        const tableScale = tableSizeRef.current?.scale ?? 1;
+        const resolvedWorldScale = Number.isFinite(worldScaleFactor) && worldScaleFactor > 0
+          ? worldScaleFactor
+          : WORLD_SCALE * tableScale;
+        const floorWorldY = FLOOR_Y * resolvedWorldScale + worldOffsetY;
+        const unitsPerMeter = MM_TO_UNITS * 1000 * resolvedWorldScale;
+        const cameraHeightMeters = Math.max(
+          activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M,
+          MIN_HDRI_CAMERA_HEIGHT_M
+        );
+        const skyboxHeight = cameraHeightMeters * unitsPerMeter;
+        const groundRadiusMultiplier =
+          typeof activeVariant?.groundRadiusMultiplier === 'number'
+            ? activeVariant.groundRadiusMultiplier
+            : DEFAULT_HDRI_RADIUS_MULTIPLIER;
+        const baseRadius =
+          Math.max(PLAY_W, PLAY_H) * resolvedWorldScale * groundRadiusMultiplier;
+        const skyboxRadius = Math.max(baseRadius, skyboxHeight * 2.5, MIN_HDRI_RADIUS);
+        const skyboxResolution = Math.max(
+          16,
+          Math.floor(activeVariant?.groundResolution ?? HDRI_GROUNDED_RESOLUTION)
+        );
+        let skybox = null;
+        if (skyboxMap && skyboxHeight > 0 && skyboxRadius > 0) {
+          try {
+            skybox = new GroundedSkybox(skyboxMap, skyboxHeight, skyboxRadius, skyboxResolution);
+            skybox.position.y = floorWorldY + skyboxHeight;
+            skybox.material.depthWrite = false;
+            sceneInstance.background = null;
+            sceneInstance.add(skybox);
+            envSkyboxRef.current = skybox;
+            envSkyboxTextureRef.current = skyboxMap;
+          } catch (error) {
+            console.warn('Failed to create grounded HDRI skybox', error);
+            skybox = null;
+          }
+        }
         sceneInstance.environment = envMap;
-        sceneInstance.background = envMap;
-        if ('backgroundIntensity' in sceneInstance && typeof activeVariant?.backgroundIntensity === 'number') {
-          sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
+        if (!skybox) {
+          sceneInstance.background = envMap;
+          envSkyboxRef.current = null;
+          envSkyboxTextureRef.current = null;
+          if (
+            'backgroundIntensity' in sceneInstance &&
+            typeof activeVariant?.backgroundIntensity === 'number'
+          ) {
+            sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
+          }
         }
         renderer.toneMappingExposure = activeVariant?.exposure ?? renderer.toneMappingExposure;
         envTextureRef.current = envMap;
@@ -11490,10 +11547,24 @@ const powerRef = useRef(hud.power);
           if (sceneRef.current?.environment === envMap) {
             sceneRef.current.environment = null;
           }
-          if (sceneRef.current?.background === envMap) {
+          if (!skybox && sceneRef.current?.background === envMap) {
             sceneRef.current.background = null;
           }
           envMap.dispose?.();
+          if (skybox) {
+            skybox.parent?.remove(skybox);
+            skybox.geometry?.dispose?.();
+            skybox.material?.dispose?.();
+            if (envSkyboxRef.current === skybox) {
+              envSkyboxRef.current = null;
+            }
+          }
+          if (skyboxMap) {
+            skyboxMap.dispose?.();
+            if (envSkyboxTextureRef.current === skyboxMap) {
+              envSkyboxTextureRef.current = null;
+            }
+          }
         };
         if (prevDispose && prevTexture !== envMap) {
           prevDispose();
@@ -11501,7 +11572,7 @@ const powerRef = useRef(hud.power);
       };
       updateEnvironmentRef.current = applyHdriEnvironment;
       void applyHdriEnvironment(activeEnvironmentVariantRef.current);
-      let worldScaleFactor = 1;
+      let worldScaleFactor = WORLD_SCALE * (tableSizeRef.current?.scale ?? 1);
       let cue;
       let clothMat;
       let cushionMat;
@@ -20447,6 +20518,8 @@ const powerRef = useRef(hud.power);
           disposeEnvironmentRef.current?.();
           disposeEnvironmentRef.current = null;
           envTextureRef.current = null;
+          envSkyboxRef.current = null;
+          envSkyboxTextureRef.current = null;
           cueGalleryStateRef.current.active = false;
           cueGalleryStateRef.current.rackId = null;
           cueGalleryStateRef.current.prev = null;
