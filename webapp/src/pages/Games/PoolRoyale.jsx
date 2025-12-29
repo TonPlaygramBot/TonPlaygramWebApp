@@ -4270,7 +4270,7 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 }
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k', '2k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['16k', '8k', '4k', '2k']);
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const urls = [];
@@ -4300,22 +4300,45 @@ function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
 }
 
 async function resolvePolyHavenHdriUrl(config = {}) {
-  const fallbackRes = config?.fallbackResolution || DEFAULT_HDRI_RESOLUTIONS[1] || '4k';
-  const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
-  if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
+  const fallbackRes = config?.fallbackResolution || DEFAULT_HDRI_RESOLUTIONS[1] || '8k';
+  const primaryAssetId = config?.assetId ?? 'neon_photostudio';
+  const fallbackAssetId = config?.fallbackAssetId ?? primaryAssetId;
+  const buildFallbackUrl = (assetId) =>
+    `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${assetId}_${fallbackRes}.hdr`;
+  const primaryFallbackUrl = buildFallbackUrl(primaryAssetId);
+  const secondaryFallbackUrl = buildFallbackUrl(fallbackAssetId);
+  if (!config?.assetId || typeof fetch !== 'function') return primaryFallbackUrl;
   try {
-    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
-    if (!response?.ok) return fallbackUrl;
-    const json = await response.json();
-    const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
-      ? config.preferredResolutions
-      : DEFAULT_HDRI_RESOLUTIONS;
-    const picked = pickPolyHavenHdriUrl(json, preferred);
-    return picked || fallbackUrl;
+    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(primaryAssetId)}`);
+    if (response?.ok) {
+      const json = await response.json();
+      const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+        ? config.preferredResolutions
+        : DEFAULT_HDRI_RESOLUTIONS;
+      const picked = pickPolyHavenHdriUrl(json, preferred);
+      if (picked) return picked;
+    }
   } catch (error) {
     console.warn('Failed to resolve Poly Haven HDRI url', error);
-    return fallbackUrl;
   }
+  if (fallbackAssetId && fallbackAssetId !== primaryAssetId) {
+    try {
+      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(fallbackAssetId)}`);
+      if (response?.ok) {
+        const json = await response.json();
+        const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+          ? config.preferredResolutions
+          : DEFAULT_HDRI_RESOLUTIONS;
+        const picked = pickPolyHavenHdriUrl(json, preferred);
+        if (picked) return picked;
+      }
+    } catch (error) {
+      console.warn('Failed to resolve fallback Poly Haven HDRI url', error);
+    }
+  }
+  const finalFallbackUrl =
+    fallbackAssetId && fallbackAssetId !== primaryAssetId ? secondaryFallbackUrl : primaryFallbackUrl;
+  return finalFallbackUrl || primaryFallbackUrl;
 }
 
 async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
