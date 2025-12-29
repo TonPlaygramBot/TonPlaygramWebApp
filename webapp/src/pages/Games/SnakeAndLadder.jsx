@@ -485,19 +485,19 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Adaptive quality for 120 Hz flagships and desktops.'
   },
   {
-    id: 'esports144',
-    label: 'Tournament (144 Hz)',
-    fps: 144,
-    renderScale: 0.86,
-    pixelRatioCap: 1.2,
-    resolution: '0.86x render • DPR 1.2 cap',
-    description: 'Aggressive scaling to keep 144 Hz stable on mobile chips.'
+    id: 'esports120',
+    label: 'Tournament (120 Hz)',
+    fps: 120,
+    renderScale: 0.9,
+    pixelRatioCap: 1.25,
+    resolution: '0.90x render • DPR 1.25 cap',
+    description: 'Performance-focused scaling capped at 120 Hz for stability.'
   }
 ]);
 const FRAME_RATE_ALIASES = Object.freeze({
   performance90: 'smooth90',
   ultra120: 'fast120',
-  elite144: 'esports144'
+  elite144: 'esports120'
 });
 
 const APPEARANCE_STORAGE_KEY = 'snakeAppearanceConfig';

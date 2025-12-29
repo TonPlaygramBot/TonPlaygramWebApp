@@ -244,7 +244,7 @@ function detectPreferredFrameRateId() {
   }
 
   if (rendererTier === 'desktopHigh' && highRefresh) {
-    return 'esports144';
+    return 'fast120';
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
@@ -2415,13 +2415,13 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: '4K-oriented profile for 120 Hz flagships and desktops.'
   },
   {
-    id: 'ultra144',
-    label: 'Ultra HD+ (144 Hz)',
-    fps: 144,
-    renderScale: 1.5,
-    pixelRatioCap: 2.2,
-    resolution: 'Ultra HD+ render • DPR 2.2 cap',
-    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+    id: 'ultra120',
+    label: 'Ultra HD (120 Hz, High)',
+    fps: 120,
+    renderScale: 1.45,
+    pixelRatioCap: 2.1,
+    resolution: 'Ultra HD render • DPR 2.1 cap',
+    description: 'Maximum clarity preset capped at 120 Hz for stability.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
