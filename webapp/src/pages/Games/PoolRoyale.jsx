@@ -2670,21 +2670,21 @@ const FRAME_RATE_OPTIONS = Object.freeze([
   },
   {
     id: 'uhd120',
-    label: 'Ultra HD (144 Hz)',
-    fps: 144,
+    label: 'Ultra HD (120 Hz cap)',
+    fps: 120,
     renderScale: 1.28,
     pixelRatioCap: 1.85,
     resolution: 'Ultra HD render • DPR 1.85 cap',
-    description: '4K-oriented profile for 144 Hz flagships and desktops.'
+    description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
   },
   {
     id: 'ultra144',
-    label: 'Ultra HD+ (165 Hz)',
-    fps: 165,
+    label: 'Ultra HD+ (120 Hz max)',
+    fps: 120,
     renderScale: 1.32,
     pixelRatioCap: 2,
     resolution: 'Ultra HD+ render • DPR 2.0 cap',
-    description: 'Maximum clarity preset that prioritizes UHD detail at 165 Hz.'
+    description: 'Maximum clarity preset while capping refresh at 120 Hz.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
@@ -4272,7 +4272,7 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 }
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k', '2k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.6;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 14;
@@ -4310,7 +4310,7 @@ async function resolvePolyHavenHdriUrl(config = {}) {
   const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
     ? config.preferredResolutions
     : DEFAULT_HDRI_RESOLUTIONS;
-  const fallbackRes = config?.fallbackResolution || preferred[0] || '8k';
+  const fallbackRes = config?.fallbackResolution || preferred[0] || '4k';
   const fallbackUrl =
     config?.fallbackUrl ||
     `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
