@@ -14,7 +14,6 @@ export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   chairColor: ['crimsonVelvet'],
   tableShape: [DEFAULT_TABLE_SHAPE_ID],
   sideColor: ['amberGlow', 'mintVale'],
-  pieceStyle: ['beautifulGameAuroraMetalSet', 'polyhavenChess', 'heritageWalnut'],
   boardTheme: ['classic'],
   headStyle: ['current']
 });
@@ -61,11 +60,6 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
     amethyst: 'Amethyst',
     cinderBlaze: 'Cinder Blaze',
     arcticDrift: 'Arctic Drift'
-  }),
-  pieceStyle: Object.freeze({
-    beautifulGameAuroraMetalSet: 'Modern Aurora Set',
-    polyhavenChess: 'Polyhaven Textured Set',
-    heritageWalnut: 'Walnut Staunton Set'
   }),
   boardTheme: Object.freeze({
     classic: 'Classic',
@@ -130,8 +124,6 @@ export const CHESS_BATTLE_STORE_ITEMS = [
   { id: 'chess-board-violet', type: 'boardTheme', optionId: 'violet', name: 'Violet Board', price: 500, description: 'Alternate board palette for fast swaps.' },
   { id: 'chess-board-chrome', type: 'boardTheme', optionId: 'chrome', name: 'Chrome Board', price: 540, description: 'Alternate board palette for fast swaps.' },
   { id: 'chess-board-nebula', type: 'boardTheme', optionId: 'nebulaGlass', name: 'Nebula Glass Board', price: 580, description: 'Cosmic glass palette with deep-space contrasts.' },
-  { id: 'chess-style-polyhaven', type: 'pieceStyle', optionId: 'polyhavenChess', name: 'Polyhaven Textured Set', price: 0, description: 'Original Polyhaven board and pieces with preserved materials.' },
-  { id: 'chess-style-walnut', type: 'pieceStyle', optionId: 'heritageWalnut', name: 'Walnut Staunton Set', price: 0, description: 'Walnut Staunton board and pieces kept at authentic scale and textures.' },
   { id: 'chess-head-ruby', type: 'headStyle', optionId: 'headRuby', name: 'Ruby Pawn Heads', price: 310, description: 'Unlocks an additional pawn head glass preset.' },
   { id: 'chess-head-sapphire', type: 'headStyle', optionId: 'headSapphire', name: 'Sapphire Pawn Heads', price: 335, description: 'Unlocks an additional pawn head glass preset.' },
   { id: 'chess-head-chrome', type: 'headStyle', optionId: 'headChrome', name: 'Chrome Pawn Heads', price: 360, description: 'Unlocks an additional pawn head glass preset.' },
@@ -146,7 +138,6 @@ export const CHESS_BATTLE_DEFAULT_LOADOUT = [
   { type: 'tableShape', optionId: DEFAULT_TABLE_SHAPE_ID, label: CHESS_BATTLE_OPTION_LABELS.tableShape[DEFAULT_TABLE_SHAPE_ID] },
   { type: 'sideColor', optionId: 'amberGlow', label: 'Amber Glow Pieces' },
   { type: 'sideColor', optionId: 'mintVale', label: 'Mint Vale Pieces' },
-  { type: 'pieceStyle', optionId: 'beautifulGameAuroraMetalSet', label: 'Modern Aurora Set' },
   { type: 'boardTheme', optionId: 'classic', label: 'Classic Board' },
   { type: 'headStyle', optionId: 'current', label: 'Current Pawn Heads' }
 ];
