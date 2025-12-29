@@ -42,7 +42,12 @@ import {
   applyWoodTextures,
   disposeMaterialWithWood,
 } from '../../utils/woodMaterials.js';
-import { POOL_ROYALE_DEFAULT_UNLOCKS } from '../../config/poolRoyaleInventoryConfig.js';
+import {
+  POOL_ROYALE_DEFAULT_HDRI_ID,
+  POOL_ROYALE_DEFAULT_UNLOCKS,
+  POOL_ROYALE_HDRI_VARIANTS,
+  POOL_ROYALE_HDRI_VARIANT_MAP
+} from '../../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
   getCachedPoolRoyalInventory,
@@ -4264,11 +4269,8 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
   return target;
 }
 
-const NEON_PHOTOSTUDIO_HDRI = {
-  assetId: 'neon_photostudio',
-  preferredResolutions: ['2k', '1k'],
-  fallbackResolution: '2k'
-};
+const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k', '2k']);
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const urls = [];
@@ -4297,15 +4299,18 @@ function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   return urls[0] ?? null;
 }
 
-async function resolvePolyHavenHdriUrl(config = NEON_PHOTOSTUDIO_HDRI) {
-  const fallbackRes = config?.fallbackResolution || '2k';
+async function resolvePolyHavenHdriUrl(config = {}) {
+  const fallbackRes = config?.fallbackResolution || DEFAULT_HDRI_RESOLUTIONS[1] || '4k';
   const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
   if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
   try {
     const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
     if (!response?.ok) return fallbackUrl;
     const json = await response.json();
-    const picked = pickPolyHavenHdriUrl(json, config.preferredResolutions);
+    const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+      ? config.preferredResolutions
+      : DEFAULT_HDRI_RESOLUTIONS;
+    const picked = pickPolyHavenHdriUrl(json, preferred);
     return picked || fallbackUrl;
   } catch (error) {
     console.warn('Failed to resolve Poly Haven HDRI url', error);
@@ -4313,7 +4318,7 @@ async function resolvePolyHavenHdriUrl(config = NEON_PHOTOSTUDIO_HDRI) {
   }
 }
 
-async function loadPolyHavenHdriEnvironment(renderer, config = NEON_PHOTOSTUDIO_HDRI) {
+async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   if (!renderer) return null;
   const url = await resolvePolyHavenHdriUrl(config);
   const loader = new RGBELoader();
@@ -4325,10 +4330,10 @@ async function loadPolyHavenHdriEnvironment(renderer, config = NEON_PHOTOSTUDIO_
         const pmrem = new THREE.PMREMGenerator(renderer);
         pmrem.compileEquirectangularShader();
         const envMap = pmrem.fromEquirectangular(texture).texture;
-        envMap.name = `${config.assetId}-env`;
+        envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
         texture.dispose();
         pmrem.dispose();
-        resolve(envMap);
+        resolve({ envMap, url });
       },
       undefined,
       (error) => {
@@ -9273,6 +9278,14 @@ function PoolRoyaleGame({
       DEFAULT_RAIL_MARKER_COLOR_ID
     );
   });
+  const [environmentHdriId, setEnvironmentHdriId] = useState(() => {
+    return resolveStoredSelection(
+      'environmentHdri',
+      HDRI_STORAGE_KEY,
+      (id) => Boolean(POOL_ROYALE_HDRI_VARIANT_MAP[id]),
+      POOL_ROYALE_DEFAULT_HDRI_ID
+    );
+  });
   const [lightingId, setLightingId] = useState(() => DEFAULT_LIGHTING_ID);
   const [chromeColorId, setChromeColorId] = useState(() => {
     return resolveStoredSelection(
@@ -9361,6 +9374,13 @@ function PoolRoyaleGame({
       ),
     [poolInventory]
   );
+  const availableEnvironmentHdris = useMemo(
+    () =>
+      POOL_ROYALE_HDRI_VARIANTS.filter((variant) =>
+        isPoolOptionUnlocked('environmentHdri', variant.id, poolInventory)
+      ),
+    [poolInventory]
+  );
   const availablePocketLiners = useMemo(
     () =>
       POCKET_LINER_OPTIONS.filter((option) =>
@@ -9389,6 +9409,13 @@ function PoolRoyaleGame({
       CLOTH_COLOR_OPTIONS[0],
     [availableClothOptions, clothColorId]
   );
+  const activeEnvironmentHdri = useMemo(
+    () =>
+      POOL_ROYALE_HDRI_VARIANT_MAP[environmentHdriId] ??
+      POOL_ROYALE_HDRI_VARIANT_MAP[POOL_ROYALE_DEFAULT_HDRI_ID] ??
+      POOL_ROYALE_HDRI_VARIANTS[0],
+    [environmentHdriId]
+  );
   const activePocketLinerOption = useMemo(
     () =>
       availablePocketLiners.find((opt) => opt?.id === pocketLinerId) ??
@@ -9412,9 +9439,13 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('pocketLiner', pocketLinerId, poolInventory)) {
       setPocketLinerId(DEFAULT_POCKET_LINER_OPTION_ID);
     }
+    if (!isPoolOptionUnlocked('environmentHdri', environmentHdriId, poolInventory)) {
+      setEnvironmentHdriId(POOL_ROYALE_DEFAULT_HDRI_ID);
+    }
   }, [
     chromeColorId,
     clothColorId,
+    environmentHdriId,
     pocketLinerId,
     poolInventory,
     railMarkerColorId,
@@ -9970,11 +10001,24 @@ function PoolRoyaleGame({
   }, [railMarkerColorId]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    window.localStorage.setItem(HDRI_STORAGE_KEY, environmentHdriId);
+  }, [environmentHdriId]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     window.localStorage.setItem(LIGHTING_STORAGE_KEY, lightingId);
   }, [lightingId]);
   useEffect(() => {
     applyRailMarkerStyleRef.current?.(railMarkerStyleRef.current);
   }, [railMarkerColorId, railMarkerShapeId]);
+  useEffect(() => {
+    environmentHdriRef.current = environmentHdriId;
+    activeEnvironmentVariantRef.current = activeEnvironmentHdri;
+  }, [activeEnvironmentHdri, environmentHdriId]);
+  useEffect(() => {
+    if (typeof updateEnvironmentRef.current === 'function') {
+      updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
+    }
+  }, [activeEnvironmentHdri, environmentHdriId]);
   const tableFinish = useMemo(() => {
     const baseFinish =
       TABLE_FINISHES[tableFinishId] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
@@ -10457,6 +10501,12 @@ const powerRef = useRef(hud.power);
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
+  const sceneRef = useRef(null);
+  const updateEnvironmentRef = useRef(() => {});
+  const disposeEnvironmentRef = useRef(null);
+  const envTextureRef = useRef(null);
+  const environmentHdriRef = useRef(environmentHdriId);
+  const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
@@ -11365,7 +11415,6 @@ const powerRef = useRef(hud.power);
       return;
     }
     const cueRackDisposers = [];
-    let disposeEnvironment = null;
     let disposed = false;
     try {
       const updatePocketCameraState = (active) => {
@@ -11399,26 +11448,46 @@ const powerRef = useRef(hud.power);
       // Scene & Camera
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x050505);
+      sceneRef.current = scene;
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
-      void (async () => {
-        const envMap = await loadPolyHavenHdriEnvironment(renderer);
-        if (disposed || !envMap) return;
-        const prevBackground = scene.background;
-        const prevEnvironment = scene.environment;
-        scene.environment = envMap;
-        scene.background = envMap;
-        disposeEnvironment = () => {
-          if (scene.environment === envMap) {
-            scene.environment = prevEnvironment ?? null;
+      const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
+        const sceneInstance = sceneRef.current;
+        if (!renderer || !sceneInstance) return;
+        const activeVariant = variantConfig || activeEnvironmentVariantRef.current;
+        const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
+        if (!envResult) return;
+        const { envMap } = envResult;
+        if (!envMap) return;
+        if (disposed) {
+          envMap.dispose?.();
+          return;
+        }
+        const prevDispose = disposeEnvironmentRef.current;
+        const prevTexture = envTextureRef.current;
+        sceneInstance.environment = envMap;
+        sceneInstance.background = envMap;
+        if ('backgroundIntensity' in sceneInstance && typeof activeVariant?.backgroundIntensity === 'number') {
+          sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
+        }
+        renderer.toneMappingExposure = activeVariant?.exposure ?? renderer.toneMappingExposure;
+        envTextureRef.current = envMap;
+        disposeEnvironmentRef.current = () => {
+          if (sceneRef.current?.environment === envMap) {
+            sceneRef.current.environment = null;
           }
-          if (scene.background === envMap) {
-            scene.background = prevBackground ?? null;
+          if (sceneRef.current?.background === envMap) {
+            sceneRef.current.background = null;
           }
           envMap.dispose?.();
         };
-      })();
+        if (prevDispose && prevTexture !== envMap) {
+          prevDispose();
+        }
+      };
+      updateEnvironmentRef.current = applyHdriEnvironment;
+      void applyHdriEnvironment(activeEnvironmentVariantRef.current);
       let worldScaleFactor = 1;
       let cue;
       let clothMat;
@@ -15119,6 +15188,11 @@ const powerRef = useRef(hud.power);
 
       // Lights
       const addMobileLighting = () => {
+        const useHdriOnly = true;
+        if (useHdriOnly) {
+          lightingRigRef.current = null;
+          return;
+        }
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
@@ -20357,12 +20431,15 @@ const powerRef = useRef(hud.power);
           cueMaterialsRef.current.buttRingMaterial = null;
           cueMaterialsRef.current.buttCapMaterial = null;
           cueMaterialsRef.current.styleIndex = null;
-          disposeEnvironment?.();
+          disposeEnvironmentRef.current?.();
+          disposeEnvironmentRef.current = null;
+          envTextureRef.current = null;
           cueGalleryStateRef.current.active = false;
           cueGalleryStateRef.current.rackId = null;
           cueGalleryStateRef.current.prev = null;
           cueGalleryStateRef.current.position?.set(0, 0, 0);
           cueGalleryStateRef.current.target?.set(0, 0, 0);
+          sceneRef.current = null;
         };
       } catch (e) {
         console.error(e);
@@ -20964,6 +21041,40 @@ const powerRef = useRef(hud.power);
                         }`}
                       >
                         {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  HDR Environment
+                </h3>
+                <div className="mt-2 grid grid-cols-1 gap-2">
+                  {availableEnvironmentHdris.map((variant) => {
+                    const active = variant.id === environmentHdriId;
+                    const swatchA = variant.swatches?.[0] ?? '#0ea5e9';
+                    const swatchB = variant.swatches?.[1] ?? '#111827';
+                    return (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        onClick={() => setEnvironmentHdriId(variant.id)}
+                        aria-pressed={active}
+                        className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span>{variant.name}</span>
+                        <span
+                          className="h-6 w-10 rounded-lg border border-white/30"
+                          aria-hidden="true"
+                          style={{
+                            background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
+                          }}
+                        />
                       </button>
                     );
                   })}
