@@ -1236,7 +1236,11 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.id !== DIAMOND_SHAPE_ID);
 
-const PRESERVE_NATIVE_PIECE_IDS = new Set([BEAUTIFUL_GAME_SWAP_SET_ID]);
+const PRESERVE_NATIVE_PIECE_IDS = new Set([
+  BEAUTIFUL_GAME_SWAP_SET_ID,
+  'kenneyWood',
+  'polygonalGraphite'
+]);
 
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
@@ -2041,8 +2045,12 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
 
 let sharedKTX2Loader = null;
 
-function createConfiguredGLTFLoader(renderer = null) {
-  const loader = new GLTFLoader();
+function stripQueryHash(u = '') {
+  return u.split('#')[0].split('?')[0];
+}
+
+function createConfiguredGLTFLoader(renderer = null, manager = null) {
+  const loader = new GLTFLoader(manager || undefined);
   loader.setCrossOrigin('anonymous');
   const draco = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
@@ -2106,13 +2114,41 @@ async function loadPieceSetFromUrlsStrict(urls = [], options = {}) {
 }
 
 async function loadPieceSetFromUrls(urls = [], options = {}) {
-  const loader = createConfiguredGLTFLoader();
   let lastError = null;
+  const {
+    targetBoardSize,
+    styleId = 'customPieces',
+    pieceStyle,
+    assetScale = 1,
+    name,
+    pieceFootprintRatio,
+    pieceYOffset,
+    useStrictTextureLoading = false,
+    preserveOriginalMaterials = false,
+    preserveBoardMaterials = false
+  } = options;
+  const wantsPreserveMaterials = Boolean(
+    preserveOriginalMaterials || pieceStyle?.preserveOriginalMaterials || pieceStyle?.keepTextures
+  );
+
   for (const url of urls) {
     try {
       const resolvedUrl = new URL(url, window.location.href).href;
-      const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+      const baseUrl = stripQueryHash(resolvedUrl);
+      const resourcePath = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1);
       const isAbsolute = /^https?:\/\//i.test(resolvedUrl);
+      const manager = useStrictTextureLoading ? new THREE.LoadingManager() : null;
+      if (manager) {
+        manager.setURLModifier((requestedUrl) => {
+          if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
+          try {
+            return new URL(requestedUrl, resourcePath).toString();
+          } catch {
+            return requestedUrl;
+          }
+        });
+      }
+      const loader = createConfiguredGLTFLoader(null, manager);
       loader.setResourcePath(resourcePath);
       loader.setPath(isAbsolute ? '' : resourcePath);
       // eslint-disable-next-line no-await-in-loop
@@ -2120,7 +2156,22 @@ async function loadPieceSetFromUrls(urls = [], options = {}) {
         loader.load(resolvedUrl, resolve, undefined, reject);
       });
       if (gltf?.scene) {
-        return extractChessSetAssets(gltf.scene, options);
+        gltf.scene.traverse(applyMaterialSettingsWithSRGB);
+        const assets = extractChessSetAssets(gltf.scene, {
+          targetBoardSize,
+          styleId,
+          assetScale,
+          name,
+          pieceFootprintRatio,
+          pieceYOffset
+        });
+        assets.userData = {
+          ...(assets.userData || {}),
+          styleId,
+          preserveOriginalMaterials: wantsPreserveMaterials,
+          preserveBoardMaterials: Boolean(preserveBoardMaterials)
+        };
+        return assets;
       }
     } catch (error) {
       lastError = error;
@@ -2685,18 +2736,33 @@ async function loadKenneyAssets(targetBoardSize = RAW_BOARD_SIZE) {
       styleId: 'kenneyWood',
       pieceStyle: KENNEY_WOOD_STYLE,
       assetScale: 1,
-      name: 'Kenney chess set'
+      name: 'Kenney chess set',
+      useStrictTextureLoading: true,
+      preserveOriginalMaterials: true,
+      preserveBoardMaterials: true
     }),
-    resolveBeautifulGameBoardStrict(targetBoardSize)
+    resolveBeautifulGameBoardStrict(targetBoardSize).catch(() => null)
   ]);
 
-  const boardModel = beautifulBoard?.boardModel || null;
-  if (!boardModel) throw new Error('A Beautiful Game board failed to load');
+  const boardModel = kenneyPieces?.boardModel || beautifulBoard?.boardModel || null;
+  if (!boardModel) throw new Error('Kenney chess board failed to load');
 
   const piecePrototypes = kenneyPieces?.piecePrototypes || null;
   if (!piecePrototypes) throw new Error('Kenney chess pieces failed to load');
 
-  return { boardModel, piecePrototypes };
+  return {
+    ...kenneyPieces,
+    boardModel,
+    piecePrototypes,
+    tileSize: kenneyPieces?.tileSize ?? beautifulBoard?.tileSize,
+    pieceYOffset: kenneyPieces?.pieceYOffset ?? beautifulBoard?.pieceYOffset,
+    userData: {
+      ...(kenneyPieces?.userData || {}),
+      styleId: 'kenneyWood',
+      preserveOriginalMaterials: true,
+      preserveBoardMaterials: true
+    }
+  };
 }
 
 async function loadPolygonalAssets(targetBoardSize = RAW_BOARD_SIZE) {
@@ -2705,7 +2771,10 @@ async function loadPolygonalAssets(targetBoardSize = RAW_BOARD_SIZE) {
     styleId: 'polygonalGraphite',
     pieceStyle: POLYGONAL_GRAPHITE_STYLE,
     assetScale: 0.98,
-    fallbackBuilder: buildPolygonalFallbackAssets
+    fallbackBuilder: buildPolygonalFallbackAssets,
+    useStrictTextureLoading: true,
+    preserveOriginalMaterials: true,
+    preserveBoardMaterials: true
   });
 }
 
@@ -6976,7 +7045,15 @@ function Chess3D({
     };
 
     const applySideColorHex = (sideKey = 'white', hex = QUICK_SIDE_COLORS[0]?.hex ?? 0xffffff) => {
-      const meshes = arenaRef.current?.allPieceMeshes || [];
+      const arenaState = arenaRef.current;
+      if (!arenaState) return;
+      if (
+        arenaState.preserveOriginalMaterials ||
+        PRESERVE_NATIVE_PIECE_IDS.has(arenaState.activePieceSetId)
+      ) {
+        return;
+      }
+      const meshes = arenaState.allPieceMeshes || [];
       const target = new THREE.Color(hex);
       meshes.forEach((piece) => {
         const isWhite = piece?.userData?.w ?? piece?.userData?.__pieceColor === 'white';
@@ -7086,7 +7163,7 @@ function Chess3D({
     const applyBoardThemePreset = (themeIndex = 0) => {
       const theme = QUICK_BOARD_THEMES[(themeIndex + QUICK_BOARD_THEMES.length) % QUICK_BOARD_THEMES.length];
       const arenaState = arenaRef.current;
-      if (!arenaState) return;
+      if (!arenaState || arenaState.preserveBoardMaterials) return;
       const boardModel = arenaState.boardModel;
       if (boardModel) {
         if (!boardMaterialCacheRef.current.gltf.size) {
@@ -7259,6 +7336,10 @@ function Chess3D({
           assets?.userData?.preserveOriginalMaterials ||
           PRESERVE_NATIVE_PIECE_IDS.has(resolvedSetId)
       );
+      const preserveBoardMaterials = Boolean(
+        (assets?.userData?.preserveBoardMaterials || assets?.userData?.preserveOriginalMaterials) &&
+          boardModel
+      );
       rankSwapAppliedRef.current = false;
       pawnHeadMaterialCacheRef.current.clear();
       boardMaterialCacheRef.current = { gltf: new Map(), procedural: null };
@@ -7275,7 +7356,9 @@ function Chess3D({
         );
         currentPieceYOffset = preferredYOffset;
         boardGroup.add(boardModel);
-        applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
+        if (!preserveBoardMaterials) {
+          applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
+        }
         setProceduralBoardVisible(false);
         currentBoardModel = boardModel;
         currentBoardCleanup = () => {
@@ -7320,6 +7403,8 @@ function Chess3D({
         arenaRef.current.applySideColorHex = applySideColorHex;
         arenaRef.current.applyPawnHeadPreset = applyPawnHeadPreset;
         arenaRef.current.applyBoardThemePreset = applyBoardThemePreset;
+        arenaRef.current.preserveOriginalMaterials = preserveOriginalMaterials;
+        arenaRef.current.preserveBoardMaterials = preserveBoardMaterials;
       }
 
       if (typeof window !== 'undefined') {
