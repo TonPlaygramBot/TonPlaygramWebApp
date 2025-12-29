@@ -45,6 +45,11 @@ import {
 import { POOL_ROYALE_DEFAULT_UNLOCKS } from '../../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
+  DEFAULT_POOL_HDRI_ID,
+  HDRI_OPTION_MAP,
+  POOL_ROYALE_HDRI_OPTIONS
+} from '../../config/poolRoyaleHdriPresets.js';
+import {
   getCachedPoolRoyalInventory,
   getPoolRoyalInventory,
   isPoolOptionUnlocked,
@@ -799,6 +804,7 @@ const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
 const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
+const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
 const DEFAULT_CUE_STYLE_ID =
   POOL_ROYALE_DEFAULT_UNLOCKS.cueStyle?.[0] ?? 'birch-frost';
 const DEFAULT_CUE_STYLE_INDEX = Math.max(
@@ -4264,11 +4270,38 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
   return target;
 }
 
-const NEON_PHOTOSTUDIO_HDRI = {
-  assetId: 'neon_photostudio',
-  preferredResolutions: ['2k', '1k'],
-  fallbackResolution: '2k'
-};
+const DEFAULT_HDRI_CONFIG =
+  HDRI_OPTION_MAP[DEFAULT_POOL_HDRI_ID] ??
+  POOL_ROYALE_HDRI_OPTIONS[0] ?? {
+    assetId: 'neon_photostudio',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.2,
+    environmentIntensity: 1.2,
+    backgroundIntensity: 1.08,
+    backgroundBlurriness: 0.12
+  };
+
+function normalizeHdriConfig(config = DEFAULT_HDRI_CONFIG) {
+  const base = config ?? DEFAULT_HDRI_CONFIG;
+  const fallback = DEFAULT_HDRI_CONFIG;
+  return {
+    assetId: base.assetId ?? fallback.assetId ?? 'neon_photostudio',
+    preferredResolutions:
+      Array.isArray(base.preferredResolutions) && base.preferredResolutions.length
+        ? base.preferredResolutions
+        : fallback.preferredResolutions ?? ['4k', '2k'],
+    fallbackResolution: base.fallbackResolution || fallback.fallbackResolution || '4k',
+    exposure: base.exposure ?? fallback.exposure ?? 1.2,
+    environmentIntensity: base.environmentIntensity ?? fallback.environmentIntensity ?? 1.2,
+    backgroundIntensity:
+      base.backgroundIntensity ??
+      base.environmentIntensity ??
+      fallback.backgroundIntensity ??
+      1.1,
+    backgroundBlurriness: base.backgroundBlurriness ?? fallback.backgroundBlurriness ?? 0.12
+  };
+}
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const urls = [];
@@ -4297,15 +4330,16 @@ function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   return urls[0] ?? null;
 }
 
-async function resolvePolyHavenHdriUrl(config = NEON_PHOTOSTUDIO_HDRI) {
-  const fallbackRes = config?.fallbackResolution || '2k';
-  const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
-  if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
+async function resolvePolyHavenHdriUrl(config = DEFAULT_HDRI_CONFIG) {
+  const normalized = normalizeHdriConfig(config);
+  const fallbackRes = normalized?.fallbackResolution || '4k';
+  const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${normalized?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
+  if (!normalized?.assetId || typeof fetch !== 'function') return fallbackUrl;
   try {
-    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
+    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(normalized.assetId)}`);
     if (!response?.ok) return fallbackUrl;
     const json = await response.json();
-    const picked = pickPolyHavenHdriUrl(json, config.preferredResolutions);
+    const picked = pickPolyHavenHdriUrl(json, normalized.preferredResolutions);
     return picked || fallbackUrl;
   } catch (error) {
     console.warn('Failed to resolve Poly Haven HDRI url', error);
@@ -4313,9 +4347,10 @@ async function resolvePolyHavenHdriUrl(config = NEON_PHOTOSTUDIO_HDRI) {
   }
 }
 
-async function loadPolyHavenHdriEnvironment(renderer, config = NEON_PHOTOSTUDIO_HDRI) {
+async function loadPolyHavenHdriEnvironment(renderer, config = DEFAULT_HDRI_CONFIG) {
   if (!renderer) return null;
-  const url = await resolvePolyHavenHdriUrl(config);
+  const normalized = normalizeHdriConfig(config);
+  const url = await resolvePolyHavenHdriUrl(normalized);
   const loader = new RGBELoader();
   loader.setCrossOrigin('anonymous');
   return new Promise((resolve) => {
@@ -4325,15 +4360,15 @@ async function loadPolyHavenHdriEnvironment(renderer, config = NEON_PHOTOSTUDIO_
         const pmrem = new THREE.PMREMGenerator(renderer);
         pmrem.compileEquirectangularShader();
         const envMap = pmrem.fromEquirectangular(texture).texture;
-        envMap.name = `${config.assetId}-env`;
+        envMap.name = `${normalized.assetId}-env`;
         texture.dispose();
         pmrem.dispose();
-        resolve(envMap);
+        resolve({ envMap, settings: normalized });
       },
       undefined,
       (error) => {
         console.warn('Failed to load Poly Haven HDRI', error);
-        resolve(null);
+        resolve({ envMap: null, settings: normalized });
       }
     );
   });
@@ -9256,6 +9291,14 @@ function PoolRoyaleGame({
     }
     return DEFAULT_POCKET_LINER_OPTION_ID;
   });
+  const [environmentHdriId, setEnvironmentHdriId] = useState(() => {
+    return resolveStoredSelection(
+      'environmentHdri',
+      HDRI_STORAGE_KEY,
+      (id) => Boolean(HDRI_OPTION_MAP[id]),
+      DEFAULT_POOL_HDRI_ID
+    );
+  });
   const [railMarkerShapeId, setRailMarkerShapeId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('poolRailMarkerShape');
@@ -9368,6 +9411,13 @@ function PoolRoyaleGame({
       ),
     [poolInventory]
   );
+  const availableHdriOptions = useMemo(
+    () =>
+      POOL_ROYALE_HDRI_OPTIONS.filter((option) =>
+        isPoolOptionUnlocked('environmentHdri', option.id, poolInventory)
+      ),
+    [poolInventory]
+  );
   const availableCueStyles = useMemo(
     () =>
       CUE_STYLE_PRESETS.map((preset, index) => ({ preset, index })).filter(({ preset }) =>
@@ -9396,6 +9446,14 @@ function PoolRoyaleGame({
       POCKET_LINER_OPTIONS[0],
     [availablePocketLiners, pocketLinerId]
   );
+  const activeHdriOption = useMemo(
+    () =>
+      availableHdriOptions.find((opt) => opt.id === environmentHdriId) ??
+      availableHdriOptions[0] ??
+      HDRI_OPTION_MAP[DEFAULT_POOL_HDRI_ID] ??
+      POOL_ROYALE_HDRI_OPTIONS[0],
+    [availableHdriOptions, environmentHdriId]
+  );
   useEffect(() => {
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
@@ -9412,9 +9470,13 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('pocketLiner', pocketLinerId, poolInventory)) {
       setPocketLinerId(DEFAULT_POCKET_LINER_OPTION_ID);
     }
+    if (!isPoolOptionUnlocked('environmentHdri', environmentHdriId, poolInventory)) {
+      setEnvironmentHdriId(DEFAULT_POOL_HDRI_ID);
+    }
   }, [
     chromeColorId,
     clothColorId,
+    environmentHdriId,
     pocketLinerId,
     poolInventory,
     railMarkerColorId,
@@ -10059,6 +10121,13 @@ function PoolRoyaleGame({
     }
   }, [pocketLinerId]);
   useEffect(() => {
+    hdriSelectionRef.current = activeHdriOption;
+    if (typeof window !== 'undefined' && activeHdriOption?.id) {
+      window.localStorage.setItem(HDRI_STORAGE_KEY, activeHdriOption.id);
+    }
+    applyHdriEnvironment(activeHdriOption);
+  }, [activeHdriOption, applyHdriEnvironment]);
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('poolChromeColor', chromeColorId);
     }
@@ -10482,6 +10551,9 @@ const powerRef = useRef(hud.power);
     standing: { phi: STANDING_VIEW.phi, radius: BREAK_VIEW.radius }
   });
   const rendererRef = useRef(null);
+  const sceneRef = useRef(null);
+  const environmentCleanupRef = useRef(() => {});
+  const hdriSelectionRef = useRef(activeHdriOption);
   const last3DRef = useRef({ phi: CAMERA.maxPhi, theta: Math.PI });
   const cushionHeightRef = useRef(TABLE.THICK + 0.4);
   const fitRef = useRef(() => {});
@@ -10535,6 +10607,54 @@ const powerRef = useRef(hud.power);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
   }, []);
+  const applyHdriEnvironment = useCallback(
+    async (option) => {
+      const renderer = rendererRef.current;
+      const scene = sceneRef.current;
+      if (!renderer || !scene) return;
+      const selection = option ?? hdriSelectionRef.current ?? DEFAULT_HDRI_CONFIG;
+      const normalized = normalizeHdriConfig(selection);
+      const result = await loadPolyHavenHdriEnvironment(renderer, normalized);
+      if (!result || sceneRef.current !== scene) {
+        result?.envMap?.dispose?.();
+        return;
+      }
+      const { envMap, settings } = result;
+      const finalSettings = normalizeHdriConfig(settings ?? normalized);
+      environmentCleanupRef.current?.();
+      if (envMap) {
+        const prevBackground = scene.background;
+        const prevEnvironment = scene.environment;
+        scene.environment = envMap;
+        scene.background = envMap;
+        if ('backgroundIntensity' in scene) {
+          scene.backgroundIntensity =
+            finalSettings.backgroundIntensity ?? scene.backgroundIntensity ?? 1.1;
+        }
+        if ('backgroundBlurriness' in scene) {
+          scene.backgroundBlurriness =
+            finalSettings.backgroundBlurriness ?? scene.backgroundBlurriness ?? 0.12;
+        }
+        renderer.toneMappingExposure =
+          finalSettings.exposure ?? renderer.toneMappingExposure ?? 1.2;
+        environmentCleanupRef.current = () => {
+          if (scene.environment === envMap) {
+            scene.environment = prevEnvironment ?? null;
+          }
+          if (scene.background === envMap) {
+            scene.background = prevBackground ?? null;
+          }
+          envMap.dispose?.();
+        };
+      } else {
+        renderer.toneMappingExposure =
+          finalSettings.exposure ?? renderer.toneMappingExposure ?? 1.2;
+        environmentCleanupRef.current = () => {};
+      }
+      hdriSelectionRef.current = selection;
+    },
+    []
+  );
   useEffect(() => {
     applyRendererQuality();
   }, [applyRendererQuality, frameQualityProfile]);
@@ -11365,7 +11485,6 @@ const powerRef = useRef(hud.power);
       return;
     }
     const cueRackDisposers = [];
-    let disposeEnvironment = null;
     let disposed = false;
     try {
       const updatePocketCameraState = (active) => {
@@ -11402,23 +11521,9 @@ const powerRef = useRef(hud.power);
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
-      void (async () => {
-        const envMap = await loadPolyHavenHdriEnvironment(renderer);
-        if (disposed || !envMap) return;
-        const prevBackground = scene.background;
-        const prevEnvironment = scene.environment;
-        scene.environment = envMap;
-        scene.background = envMap;
-        disposeEnvironment = () => {
-          if (scene.environment === envMap) {
-            scene.environment = prevEnvironment ?? null;
-          }
-          if (scene.background === envMap) {
-            scene.background = prevBackground ?? null;
-          }
-          envMap.dispose?.();
-        };
-      })();
+      sceneRef.current = scene;
+      hdriSelectionRef.current = activeHdriOption;
+      void applyHdriEnvironment(activeHdriOption);
       let worldScaleFactor = 1;
       let cue;
       let clothMat;
@@ -15120,86 +15225,11 @@ const powerRef = useRef(hud.power);
       // Lights
       const addMobileLighting = () => {
         const lightingRig = new THREE.Group();
+        lightingRig.name = 'environmentLightingRig';
         world.add(lightingRig);
-
-        const lightSpreadBoost = 1.12; // tighten the overhead footprint while keeping enough coverage for mobile
-        const previousLightRigHeight = tableSurfaceY + TABLE.THICK * 7.1; // baseline height used for the prior brightness target
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.6; // lift the rig slightly higher so the fixtures sit further above the felt
-        const brightnessCompensation =
-          ((lightRigHeight ** 2) / (previousLightRigHeight ** 2)) * 1.02; // preserve on-cloth brightness after the height change while keeping intensity stable
-        const lightOffsetX =
-          Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
-        const lightOffsetZ =
-          Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
-        const lightLineX = 0; // align fixtures down the center line instead of offsetting per side
-        const lightSpacing = Math.max(lightOffsetZ * 0.36, TABLE.THICK * 2); // pull fixtures closer together while keeping even coverage
-        const lightPositionsZ = [-1.1, -0.34, 0.34, 1.1].map((mult) => mult * lightSpacing);
-        const lightBrightnessTrim = 0.8; // lower the rig intensity a touch for gentler cloth highlights
-        const shadowHalfSpan =
-          Math.max(roomWidth, roomDepth) * 0.82 + TABLE.THICK * 3.5;
-        const targetY = tableSurfaceY + TABLE.THICK * 0.2;
-        const shadowDepth =
-          lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
-
-        const ambient = new THREE.AmbientLight(0xffffff, 0.3 * lightBrightnessTrim);
-        lightingRig.add(ambient);
-
-        const key = new THREE.DirectionalLight(
-          0xffffff,
-          1.68 * brightnessCompensation * lightBrightnessTrim
-        );
-        key.position.set(lightLineX, lightRigHeight, lightPositionsZ[0]);
-        key.target.position.set(0, targetY, 0);
-        key.castShadow = true;
-        key.shadow.mapSize.set(2048, 2048);
-        key.shadow.camera.near = 0.1;
-        key.shadow.camera.far = shadowDepth;
-        key.shadow.camera.left = -shadowHalfSpan;
-        key.shadow.camera.right = shadowHalfSpan;
-        key.shadow.camera.top = shadowHalfSpan;
-        key.shadow.camera.bottom = -shadowHalfSpan;
-        key.shadow.bias = -0.00006;
-        key.shadow.normalBias = 0.0006;
-        key.shadow.camera.updateProjectionMatrix();
-        lightingRig.add(key);
-        lightingRig.add(key.target);
-
-        const fill = new THREE.DirectionalLight(
-          0xffffff,
-          0.84 * brightnessCompensation * lightBrightnessTrim
-        );
-        fill.position.set(-lightLineX, lightRigHeight * 1.01, lightPositionsZ[1]);
-        fill.target.position.set(0, targetY, 0);
-        lightingRig.add(fill);
-        lightingRig.add(fill.target);
-
-        const wash = new THREE.DirectionalLight(
-          0xffffff,
-          0.76 * brightnessCompensation * lightBrightnessTrim
-        );
-        wash.position.set(lightLineX, lightRigHeight * 1.02, lightPositionsZ[2]);
-        wash.target.position.set(0, targetY, 0);
-        lightingRig.add(wash);
-        lightingRig.add(wash.target);
-
-        const rim = new THREE.DirectionalLight(
-          0xffffff,
-          0.68 * brightnessCompensation * lightBrightnessTrim
-        );
-        rim.position.set(-lightLineX, lightRigHeight * 1.03, lightPositionsZ[3]);
-        rim.target.position.set(0, targetY, 0);
-        lightingRig.add(rim);
-        lightingRig.add(rim.target);
-
         lightingRigRef.current = {
-          group: lightingRig,
-          key,
-          fill,
-          wash,
-          rim,
-          ambient
+          group: lightingRig
         };
-        applyLightingPreset();
       };
 
       addMobileLighting();
@@ -20301,6 +20331,8 @@ const powerRef = useRef(hud.power);
           remoteShotActiveRef.current = false;
           remoteShotUntilRef.current = 0;
           remoteAimRef.current = null;
+          environmentCleanupRef.current?.();
+          sceneRef.current = null;
           lightingRigRef.current = null;
           worldRef.current = null;
           activeRenderCameraRef.current = null;
@@ -20944,6 +20976,49 @@ const powerRef = useRef(hud.power);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  HDRI Domes
+                </h3>
+                <p className="mt-1 text-[0.7rem] text-white/70">
+                  4K reflections replace the arena lights so the table scale and chrome read correctly.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {availableHdriOptions.map((option) => {
+                    const active = option.id === environmentHdriId;
+                    const [primarySwatch, secondarySwatch] = option.swatches || [];
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setEnvironmentHdriId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[9rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <span className="flex h-3.5 w-6 items-center gap-0.5 rounded-full border border-white/30 bg-white/10 px-0.5">
+                            <span
+                              className="h-2.5 w-2.5 rounded-full"
+                              style={{ backgroundColor: toHexColor(primarySwatch || '#0f172a') }}
+                              aria-hidden="true"
+                            />
+                            <span
+                              className="h-2.5 w-2.5 rounded-full"
+                              style={{ backgroundColor: toHexColor(secondarySwatch || '#22c55e') }}
+                              aria-hidden="true"
+                            />
+                          </span>
+                          {option.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Table Finish
