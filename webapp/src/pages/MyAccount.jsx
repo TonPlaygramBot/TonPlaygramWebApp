@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   getAccountInfo,
   createAccount,
@@ -28,7 +29,6 @@ import DevTasksModal from '../components/DevTasksModal.jsx';
 import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
 import { loadGoogleProfile } from '../utils/google.js';
-import Magazine3D from '../components/Magazine3D.jsx';
 import {
   getDefaultPoolRoyalLoadout,
   getPoolRoyalInventory,
@@ -553,10 +553,22 @@ export default function MyAccount() {
               <span className="text-xs text-subtext">Dev only</span>
             </div>
             <p className="text-sm text-subtext">
-              Internal 3D magazine curated for Poly Haven assets with preserved materials. Items are
-              grouped by category with article numbers for quick reference.
+              Open the developer warehouse to browse all curated Poly Haven assets in order.
             </p>
-            <Magazine3D />
+            <div className="rounded-lg border border-dashed border-border bg-surface/60 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="space-y-1">
+                <p className="font-medium text-sm">Magazine Warehouse</p>
+                <p className="text-xs text-subtext">
+                  Launch the full-screen gallery with organized 3D models and tickets.
+                </p>
+              </div>
+              <Link
+                to="/dev/magazine-warehouse"
+                className="inline-flex items-center justify-center px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold"
+              >
+                Open
+              </Link>
+            </div>
           </div>
 
           <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
