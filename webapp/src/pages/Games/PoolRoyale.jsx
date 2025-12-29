@@ -9,7 +9,6 @@ import React, {
 import * as THREE from 'three';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
@@ -4273,8 +4272,6 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k', '2k']);
-const DEFAULT_HDRI_CAMERA_HEIGHT = 1.7;
-const DEFAULT_HDRI_SKYBOX_RADIUS = 220;
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const urls = [];
@@ -4345,12 +4342,11 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
       (texture) => {
         const pmrem = new THREE.PMREMGenerator(renderer);
         pmrem.compileEquirectangularShader();
-        texture.mapping = THREE.EquirectangularReflectionMapping;
-        texture.needsUpdate = true;
         const envMap = pmrem.fromEquirectangular(texture).texture;
         envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
+        texture.dispose();
         pmrem.dispose();
-        resolve({ envMap, url, skyTexture: texture });
+        resolve({ envMap, url });
       },
       undefined,
       (error) => {
@@ -10522,8 +10518,6 @@ const powerRef = useRef(hud.power);
   const updateEnvironmentRef = useRef(() => {});
   const disposeEnvironmentRef = useRef(null);
   const envTextureRef = useRef(null);
-  const skyboxRef = useRef(null);
-  const skyTextureRef = useRef(null);
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
@@ -11464,15 +11458,6 @@ const powerRef = useRef(hud.power);
       );
       renderer.domElement.style.transformOrigin = 'top left';
 
-      let worldScaleFactor = 1;
-      const resolveFloorWorldY = () => {
-        const scale =
-          Number.isFinite(worldScaleFactor) && worldScaleFactor > 0
-            ? worldScaleFactor
-            : WORLD_SCALE;
-        const worldY = worldRef.current?.position?.y ?? 0;
-        return worldY + FLOOR_Y * scale;
-      };
       // Scene & Camera
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x050505);
@@ -11495,38 +11480,7 @@ const powerRef = useRef(hud.power);
         const prevDispose = disposeEnvironmentRef.current;
         const prevTexture = envTextureRef.current;
         sceneInstance.environment = envMap;
-        const prevSkybox = skyboxRef.current;
-        if (prevSkybox) {
-          sceneInstance.remove(prevSkybox);
-          prevSkybox.geometry?.dispose?.();
-          prevSkybox.material?.dispose?.();
-          skyboxRef.current = null;
-        }
-        skyTextureRef.current = null;
-        if (envResult.skyTexture) {
-          const groundHeight = Number.isFinite(activeVariant?.groundHeight)
-            ? activeVariant.groundHeight
-            : DEFAULT_HDRI_CAMERA_HEIGHT;
-          const skyboxRadius = Number.isFinite(activeVariant?.skyboxRadius)
-            ? activeVariant.skyboxRadius
-            : DEFAULT_HDRI_SKYBOX_RADIUS;
-          const skybox = new GroundedSkybox(envResult.skyTexture, groundHeight, skyboxRadius);
-          skybox.name = 'poolHdriSkybox';
-          skybox.frustumCulled = false;
-          const cameraPos = cameraRef.current?.position;
-          const floorY = resolveFloorWorldY();
-          skybox.position.set(
-            cameraPos?.x ?? 0,
-            floorY + groundHeight,
-            cameraPos?.z ?? 0
-          );
-          sceneInstance.add(skybox);
-          skyboxRef.current = skybox;
-          skyTextureRef.current = envResult.skyTexture;
-          sceneInstance.background = null;
-        } else {
-          sceneInstance.background = envMap;
-        }
+        sceneInstance.background = envMap;
         if ('backgroundIntensity' in sceneInstance && typeof activeVariant?.backgroundIntensity === 'number') {
           sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
         }
@@ -11539,17 +11493,6 @@ const powerRef = useRef(hud.power);
           if (sceneRef.current?.background === envMap) {
             sceneRef.current.background = null;
           }
-          if (skyboxRef.current) {
-            const sb = skyboxRef.current;
-            sceneRef.current?.remove(sb);
-            sb.geometry?.dispose?.();
-            sb.material?.dispose?.();
-            skyboxRef.current = null;
-          }
-          if (skyTextureRef.current) {
-            skyTextureRef.current.dispose?.();
-            skyTextureRef.current = null;
-          }
           envMap.dispose?.();
         };
         if (prevDispose && prevTexture !== envMap) {
@@ -11558,6 +11501,7 @@ const powerRef = useRef(hud.power);
       };
       updateEnvironmentRef.current = applyHdriEnvironment;
       void applyHdriEnvironment(activeEnvironmentVariantRef.current);
+      let worldScaleFactor = 1;
       let cue;
       let clothMat;
       let cushionMat;
@@ -13932,19 +13876,6 @@ const powerRef = useRef(hud.power);
             ) {
               clothMat.bumpScale = clothMat.userData.bumpScale;
             }
-          }
-          const skybox = skyboxRef.current;
-          if (skybox && renderCamera) {
-            const activeVariant = activeEnvironmentVariantRef.current;
-            const groundHeight = Number.isFinite(activeVariant?.groundHeight)
-              ? activeVariant.groundHeight
-              : DEFAULT_HDRI_CAMERA_HEIGHT;
-            const floorY = resolveFloorWorldY();
-            skybox.position.set(
-              renderCamera.position.x,
-              floorY + groundHeight,
-              renderCamera.position.z
-            );
           }
           updateBroadcastCameras(broadcastArgs);
           activeRenderCameraRef.current = renderCamera;
@@ -20516,8 +20447,6 @@ const powerRef = useRef(hud.power);
           disposeEnvironmentRef.current?.();
           disposeEnvironmentRef.current = null;
           envTextureRef.current = null;
-          skyboxRef.current = null;
-          skyTextureRef.current = null;
           cueGalleryStateRef.current.active = false;
           cueGalleryStateRef.current.rackId = null;
           cueGalleryStateRef.current.prev = null;
