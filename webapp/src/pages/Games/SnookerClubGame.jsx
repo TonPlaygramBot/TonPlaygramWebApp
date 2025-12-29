@@ -1156,6 +1156,10 @@ const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned wi
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_SMOOTHING = 0.2;
+const CUE_STROKE_PULL_MULTIPLIER = 1.25; // draw the cue farther back before the final stroke
+const CUE_STROKE_EXTRA = BALL_R * 1.4; // minimum additional pull distance for the stroke animation
+const CUE_STROKE_FOLLOW_THROUGH = BALL_R * 0.9; // push the cue past contact so the hit is visible
+const CUE_STROKE_TIMING = Object.freeze({ pull: 6, push: 7, follow: 5 });
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
@@ -11394,6 +11398,21 @@ export function PoolRoyaleGame({
           if (broadcastSystem?.smoothing != null) {
             broadcastArgs.lerp = broadcastSystem.smoothing;
           }
+          if (replayPlaybackRef.current) {
+            const frozenCamera = activeRenderCameraRef.current ?? camera;
+            const frozenTarget =
+              lastCameraTargetRef.current?.clone() ??
+              ensureOrbitFocus()?.target?.clone() ??
+              null;
+            if (frozenTarget) {
+              frozenCamera.lookAt(frozenTarget);
+              broadcastArgs.targetWorld = frozenTarget.clone();
+              broadcastArgs.focusWorld = frozenTarget.clone();
+            }
+            updateBroadcastCameras({ ...broadcastArgs, lerp: 0 });
+            activeRenderCameraRef.current = frozenCamera;
+            return frozenCamera;
+          }
           const galleryState = cueGalleryStateRef.current;
           if (galleryState?.active) {
             const basePosition =
@@ -14553,11 +14572,14 @@ export function PoolRoyaleGame({
           setHud((prev) => ({ ...prev, inHand: false }));
         }
         const forcedCueView = aiShotCueViewRef.current;
-        setAiShotCueViewActive(false);
         setAiShotPreviewActive(false);
         alignStandingCameraToAim(cue, aimDirRef.current);
         applyCameraBlend(forcedCueView ? 0 : 1);
         updateCamera();
+        const clearAiCueView = () => {
+          setAiShotCueViewActive(false);
+          setAiShotPreviewActive(false);
+        };
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
         if (meta && typeof meta === 'object') {
@@ -14713,35 +14735,29 @@ export function PoolRoyaleGame({
             const storedTarget = lastCameraTargetRef.current?.clone();
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
-          let pocketViewActivated = false;
+          let pendingActionView = null;
+          let pendingSuspendedActionView = null;
+          let pendingPocketView = null;
           if (earlyPocketView) {
-            const now = performance.now();
-            earlyPocketView.lastUpdate = now;
+            pendingPocketView = earlyPocketView;
+            pendingPocketView.lastUpdate = performance.now();
             if (cameraRef.current) {
               const cam = cameraRef.current;
-              earlyPocketView.smoothedPos = cam.position.clone();
+              pendingPocketView.smoothedPos = cam.position.clone();
               const storedTarget = lastCameraTargetRef.current?.clone();
               if (storedTarget) {
-                earlyPocketView.smoothedTarget = storedTarget;
+                pendingPocketView.smoothedTarget = storedTarget;
               }
             }
             if (actionView) {
-              earlyPocketView.resumeAction = actionView;
-              suspendedActionView = actionView;
-            } else {
-              suspendedActionView = null;
+              pendingPocketView.resumeAction = actionView;
+              pendingSuspendedActionView = actionView;
             }
-            updatePocketCameraState(true);
-            activeShotView = earlyPocketView;
-            pocketViewActivated = true;
-          }
-          if (!pocketViewActivated && actionView) {
+          } else if (actionView) {
             if (isLongShot) {
-              suspendedActionView = actionView;
+              pendingSuspendedActionView = actionView;
             } else {
-              suspendedActionView = null;
-              activeShotView = actionView;
-              updateCamera();
+              pendingActionView = actionView;
             }
           }
           const appliedSpin = applySpinConstraints(aimDir, true);
@@ -14755,38 +14771,50 @@ export function PoolRoyaleGame({
             spinTop *= TOPSPIN_MULTIPLIER;
           }
           const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
-          cue.vel.copy(base);
-          if (cue.spin) {
-            cue.spin.set(
-              perp.x * spinSide + aimDir.x * spinTop,
-              perp.y * spinSide + aimDir.y * spinTop
-            );
-          }
-          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-          cue.spinMode =
-            spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
-          resetSpinRef.current?.();
-          cue.impacted = false;
-          cue.launchDir = aimDir.clone().normalize();
-
-          if (cameraRef.current && sphRef.current) {
-            topViewRef.current = false;
-            topViewLockedRef.current = false;
-            setIsTopDownView(false);
-            const sph = sphRef.current;
-            const bounds = cameraBoundsRef.current;
-            const standingView = bounds?.standing;
-            if (standingView) {
-              sph.radius = clampOrbitRadius(standingView.radius);
-              sph.phi = THREE.MathUtils.clamp(
-                standingView.phi,
-                CAMERA.minPhi,
-                CAMERA.maxPhi
-              );
-              syncBlendToSpherical();
+          const launchShot = () => {
+            if (cue.launchDir) return;
+            clearAiCueView();
+            suspendedActionView = pendingSuspendedActionView;
+            if (pendingPocketView) {
+              updatePocketCameraState(true);
+              activeShotView = pendingPocketView;
+            } else if (pendingActionView) {
+              suspendedActionView = null;
+              activeShotView = pendingActionView;
+              updateCamera();
             }
-            updateCamera();
-          }
+            cue.vel.copy(base);
+            if (cue.spin) {
+              cue.spin.set(
+                perp.x * spinSide + aimDir.x * spinTop,
+                perp.y * spinSide + aimDir.y * spinTop
+              );
+            }
+            if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+            cue.spinMode =
+              spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
+            resetSpinRef.current?.();
+            cue.impacted = false;
+            cue.launchDir = aimDir.clone().normalize();
+            if (cameraRef.current && sphRef.current) {
+              topViewRef.current = false;
+              topViewLockedRef.current = false;
+              setIsTopDownView(false);
+              const sph = sphRef.current;
+              const bounds = cameraBoundsRef.current;
+              const standingView = bounds?.standing;
+              if (standingView) {
+                sph.radius = clampOrbitRadius(standingView.radius);
+                sph.phi = THREE.MathUtils.clamp(
+                  standingView.phi,
+                  CAMERA.minPhi,
+                  CAMERA.maxPhi
+                );
+                syncBlendToSpherical();
+              }
+              updateCamera();
+            }
+          };
 
           // animate cue stick forward
           const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
@@ -14799,54 +14827,74 @@ export function PoolRoyaleGame({
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          cuePullTargetRef.current = Math.min(CUE_PULL_BASE * clampedPower, maxPull);
+          const pullTarget = Math.min(CUE_PULL_BASE * clampedPower, maxPull);
           const pull = THREE.MathUtils.clamp(
-            Math.max(cuePullCurrentRef.current ?? 0, cuePullTargetRef.current ?? 0),
+            Math.max(cuePullCurrentRef.current ?? 0, pullTarget),
             0,
             maxPull
           );
-          cuePullCurrentRef.current = pull;
+          const pullBackBoost = Math.min(
+            maxPull - pull,
+            Math.max(CUE_STROKE_EXTRA, pull * (CUE_STROKE_PULL_MULTIPLIER - 1))
+          );
+          const strokePullDistance = Math.min(maxPull, pull + pullBackBoost);
+          const followThroughDistance = Math.min(
+            Math.max(CUE_STROKE_FOLLOW_THROUGH, strokePullDistance * 0.25),
+            Math.max(0, maxPull - strokePullDistance)
+          );
+          cuePullTargetRef.current = strokePullDistance;
+          cuePullCurrentRef.current = strokePullDistance;
           cueAnimating = true;
           const startPos = cueStick.position.clone();
-          const endPos = startPos.clone().add(dir.clone().multiplyScalar(pull));
+          const prepPos = startPos.clone().sub(dir.clone().multiplyScalar(pullBackBoost));
+          const impactPos = prepPos
+            .clone()
+            .add(dir.clone().multiplyScalar(strokePullDistance + pullBackBoost));
+          const settlePos = impactPos
+            .clone()
+            .add(dir.clone().multiplyScalar(followThroughDistance));
+          let shotLaunched = false;
+          const totalFrames =
+            CUE_STROKE_TIMING.pull + CUE_STROKE_TIMING.push + CUE_STROKE_TIMING.follow;
           let animFrame = 0;
-          const animSteps = 5;
           const animateCue = () => {
             animFrame++;
-            cueStick.position.lerpVectors(
-              startPos,
-              endPos,
-              animFrame / animSteps
-            );
-            if (animFrame < animSteps) {
-              requestAnimationFrame(animateCue);
+            if (animFrame <= CUE_STROKE_TIMING.pull) {
+              const t = animFrame / CUE_STROKE_TIMING.pull;
+              cueStick.position.lerpVectors(startPos, prepPos, t);
+            } else if (animFrame <= CUE_STROKE_TIMING.pull + CUE_STROKE_TIMING.push) {
+              const t =
+                (animFrame - CUE_STROKE_TIMING.pull) / CUE_STROKE_TIMING.push;
+              cueStick.position.lerpVectors(prepPos, impactPos, t);
+              if (!shotLaunched && t >= 0.25) {
+                shotLaunched = true;
+                launchShot();
+              }
+            } else if (animFrame <= totalFrames) {
+              const t =
+                (animFrame - CUE_STROKE_TIMING.pull - CUE_STROKE_TIMING.push) /
+                CUE_STROKE_TIMING.follow;
+              cueStick.position.lerpVectors(impactPos, settlePos, t);
+              if (!shotLaunched) {
+                shotLaunched = true;
+                launchShot();
+              }
             } else {
-              let backFrame = 0;
-              const animateBack = () => {
-                backFrame++;
-                cueStick.position.lerpVectors(
-                  endPos,
-                  startPos,
-                  backFrame / animSteps
-                );
-                if (backFrame < animSteps) requestAnimationFrame(animateBack);
-                else {
-                  cuePullCurrentRef.current = 0;
-                  cuePullTargetRef.current = 0;
-                  cueStick.visible = false;
-                  cueAnimating = false;
-                  if (cameraRef.current && sphRef.current) {
-                    topViewRef.current = false;
-                    topViewLockedRef.current = false;
-                    setIsTopDownView(false);
-                    const sph = sphRef.current;
-                    sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-                    updateCamera();
-                  }
-                }
-              };
-              requestAnimationFrame(animateBack);
+              cuePullCurrentRef.current = 0;
+              cuePullTargetRef.current = 0;
+              cueStick.visible = false;
+              cueAnimating = false;
+              if (cameraRef.current && sphRef.current) {
+                topViewRef.current = false;
+                topViewLockedRef.current = false;
+                setIsTopDownView(false);
+                const sph = sphRef.current;
+                sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+                updateCamera();
+              }
+              return;
             }
+            requestAnimationFrame(animateCue);
           };
           animateCue();
         };
@@ -17816,8 +17864,8 @@ export function PoolRoyaleGame({
           className={`absolute bottom-4 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive}
           style={{
-            left: 'max(4.5rem, 11vw)',
-            right: 'max(8.5rem, 18vw)'
+            left: 'max(4.5rem, 10vw)',
+            right: 'max(6.5rem, 12vw)'
           }}
         >
           <div
