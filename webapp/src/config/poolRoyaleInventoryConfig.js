@@ -1,9 +1,4 @@
 import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
-import {
-  DEFAULT_POOL_HDRI_ID,
-  POOL_ROYALE_HDRI_LABELS,
-  POOL_ROYALE_HDRI_PRESETS
-} from './poolRoyaleHdriPresets.js';
 
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: ['charredTimber'],
@@ -11,8 +6,7 @@ export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
   cueStyle: ['birch-frost'],
-  pocketLiner: ['blackPocket'],
-  environmentHdri: [DEFAULT_POOL_HDRI_ID]
+  pocketLiner: ['blackPocket']
 });
 
 export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
@@ -59,8 +53,7 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     emeraldPocket: 'Emerald Pocket Jaws',
     rubyPocket: 'Ruby Pocket Jaws',
     pearlPocket: 'Pearl Pocket Jaws'
-  }),
-  environmentHdri: Object.freeze(POOL_ROYALE_HDRI_LABELS)
+  })
 });
 
 export const POOL_ROYALE_STORE_ITEMS = [
@@ -255,15 +248,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     name: 'Graphite Aurora Cue',
     price: 360,
     description: 'Graphite weave cue with aurora-inspired tint.'
-  },
-  ...POOL_ROYALE_HDRI_PRESETS.map((preset) => ({
-    id: `hdri-${preset.id}`,
-    type: 'environmentHdri',
-    optionId: preset.id,
-    name: preset.name,
-    price: preset.storePrice ?? 1600,
-    description: preset.storeDescription ?? preset.description
-  }))
+  }
 ];
 
 export const POOL_ROYALE_DEFAULT_LOADOUT = [
@@ -276,10 +261,5 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
     label: POOL_ROYALE_CLOTH_VARIANTS[0].name
   },
   { type: 'cueStyle', optionId: 'birch-frost', label: 'Birch Frost Cue' },
-  { type: 'pocketLiner', optionId: 'blackPocket', label: 'Black Pocket Jaws' },
-  {
-    type: 'environmentHdri',
-    optionId: DEFAULT_POOL_HDRI_ID,
-    label: POOL_ROYALE_HDRI_LABELS[DEFAULT_POOL_HDRI_ID]
-  }
+  { type: 'pocketLiner', optionId: 'blackPocket', label: 'Black Pocket Jaws' }
 ];
