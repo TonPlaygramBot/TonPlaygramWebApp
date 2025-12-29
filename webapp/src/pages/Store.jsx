@@ -119,8 +119,7 @@ const TYPE_LABELS = {
   railMarkerColor: 'Rail Markers',
   clothColor: 'Cloth Colors',
   cueStyle: 'Cue Styles',
-  pocketLiner: 'Pocket Jaws',
-  environmentHdri: 'HDRI Environments'
+  pocketLiner: 'Pocket Jaws'
 };
 
 const SNOOKER_TYPE_LABELS = {
@@ -339,8 +338,7 @@ const PREVIEW_BY_TYPE = {
   tableWood: 'table',
   tableCloth: 'table',
   tableBase: 'table',
-  tables: 'table',
-  environmentHdri: 'table'
+  tables: 'table'
 };
 
 const PREVIEW_BY_SLUG = {
