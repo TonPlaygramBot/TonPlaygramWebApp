@@ -125,6 +125,25 @@ const MATERIAL_SERIES = [
     blues: CABAN_OCEAN_BLUE_SWATCHES,
     greenShadeNames: NATURE_SHADE_NAMES,
     blueShadeNames: OCEAN_SHADE_NAMES
+  },
+  {
+    prefix: 'terryCloth',
+    label: 'Polyhaven Terry Cloth',
+    sourceId: 'terry_cloth',
+    basePrice: 740,
+    priceStep: 12,
+    bluePremium: 22,
+    sparkle: 1.05,
+    stray: 1.08,
+    detail: {
+      bumpMultiplier: 1.24,
+      sheen: 0.54,
+      sheenRoughness: 0.58,
+      emissiveIntensity: 0.26,
+      envMapIntensity: 0.17
+    },
+    greens: CABAN_GREEN_SWATCHES,
+    blues: CABAN_OCEAN_BLUE_SWATCHES
   }
 ];
 
