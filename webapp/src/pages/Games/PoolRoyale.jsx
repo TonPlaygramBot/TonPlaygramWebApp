@@ -1232,20 +1232,20 @@ const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned wi
 const CUE_TIP_CLEARANCE = BALL_R * 0.16; // widen the visible air gap so the blue tip never kisses the cue ball
 const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
-const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
+const CUE_PULL_MIN_VISUAL = BALL_R * 2.1; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
 const CUE_PULL_VISUAL_MULTIPLIER = 1.7;
 const CUE_PULL_SMOOTHING = 0.55;
-const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
+const CUE_PULL_ALIGNMENT_BOOST = 0.4; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.12; // trim the pull depth in cue view so the cue stays tight to the ball
-const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
-const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
-const CUE_STROKE_MIN_MS = 95;
+const CUE_PULL_STANDING_CAMERA_BONUS = 0.26; // add extra draw for higher orbit angles so the stroke feels weightier
+const CUE_PULL_MAX_VISUAL_BONUS = 0.42; // cap the compensation so the cue never overextends past the intended stroke
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.2; // ensure every stroke pulls slightly farther back for readability at all angles
+const CUE_STROKE_MIN_MS = 130;
 const CUE_STROKE_MAX_MS = 420;
-const CUE_STROKE_SPEED_MIN = BALL_R * 18;
-const CUE_STROKE_SPEED_MAX = BALL_R * 32;
-const CUE_FOLLOW_MIN_MS = 180;
+const CUE_STROKE_SPEED_MIN = BALL_R * 17;
+const CUE_STROKE_SPEED_MAX = BALL_R * 30;
+const CUE_FOLLOW_MIN_MS = 210;
 const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
@@ -1256,10 +1256,11 @@ const CUE_BUTT_LIFT = BALL_R * 0.64; // keep the butt elevated for clearance whi
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.35;
-const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.95;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(8.5);
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.65;
+const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 1.25;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(12);
+const CUE_CUSHION_CLEARANCE = BALL_R * 0.9;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -5283,17 +5284,18 @@ const AI_CUE_VIEW_HOLD_MS = 2000;
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
 const AI_CAMERA_DROP_DURATION_MS = 480;
-const AI_STROKE_TIME_SCALE = 1.25;
+const AI_STROKE_TIME_SCALE = 1.35;
 const AI_STROKE_PULLBACK_FACTOR = 0.9;
-const AI_CUE_PULL_VISIBILITY_BOOST = 1.08;
-const AI_WARMUP_PULL_RATIO = 0.45;
-const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.12;
-const PLAYER_WARMUP_PULL_RATIO = 0.72;
-const PLAYER_STROKE_TIME_SCALE = 1.15;
+const AI_CUE_PULL_VISIBILITY_BOOST = 1.18;
+const AI_WARMUP_PULL_RATIO = 0.6;
+const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.24;
+const PLAYER_WARMUP_PULL_RATIO = 0.85;
+const PLAYER_STROKE_TIME_SCALE = 1.3;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.55;
 const PLAYER_PULLBACK_MIN_SCALE = 1.1;
-const MIN_PULLBACK_GAP = BALL_R * 0.5;
+const MIN_PULLBACK_GAP = BALL_R * 0.7;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 48;
+const PORTRAIT_HUD_LEFT_WEIGHT = 0.2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -19221,6 +19223,30 @@ const powerRef = useRef(hud.power);
             const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
             strength = Math.max(strength, influence);
           });
+          const cushionMargin = CUE_CUSHION_CLEARANCE + CUE_CLEARANCE_PADDING;
+          const limitX = Math.max(0, RAIL_LIMIT_X - cushionMargin);
+          const limitY = Math.max(0, RAIL_LIMIT_Y - cushionMargin);
+          const cushionDistances = [];
+          if (Math.abs(backward.x) > 1e-8) {
+            const boundX = backward.x > 0 ? limitX : -limitX;
+            cushionDistances.push((boundX - origin.x) / backward.x);
+          }
+          if (Math.abs(backward.y) > 1e-8) {
+            const boundY = backward.y > 0 ? limitY : -limitY;
+            cushionDistances.push((boundY - origin.y) / backward.y);
+          }
+          const nearestCushion = cushionDistances
+            .filter((d) => Number.isFinite(d) && d >= 0)
+            .reduce((min, d) => Math.min(min, d), Infinity);
+          if (Number.isFinite(nearestCushion)) {
+            const cushionDepth = reach - Math.max(0, nearestCushion - CUE_CLEARANCE_PADDING);
+            const cushionInfluence = clamp(
+              cushionDepth / Math.max(reach, 1e-6),
+              0,
+              1
+            );
+            strength = Math.max(strength, cushionInfluence);
+          }
           return strength;
         }
 
@@ -20634,7 +20660,9 @@ const powerRef = useRef(hud.power);
         const spinWidth = spinBox?.width ?? fallbackSpinWidth;
         const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
         const spinCenter = spinLeft + spinWidth / 2;
-        const desiredCenter = (leftCenter + spinCenter) / 2;
+        const desiredCenter =
+          leftCenter +
+          (spinCenter - leftCenter) * PORTRAIT_HUD_LEFT_WEIGHT;
         const screenCenter = viewportWidth / 2;
         setBottomHudOffset(desiredCenter - screenCenter - PORTRAIT_HUD_HORIZONTAL_NUDGE_PX);
       } else {
@@ -20999,12 +21027,12 @@ const powerRef = useRef(hud.power);
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
-  const bottomHudScale = isPortrait ? uiScale * 0.95 : uiScale * 1.02;
+  const bottomHudScale = isPortrait ? uiScale * 0.86 : uiScale * 1.02;
   const avatarSizeClass = isPortrait ? 'h-8 w-8' : 'h-12 w-12';
-  const nameWidthClass = isPortrait ? 'max-w-[6.5rem]' : 'max-w-[8.75rem]';
+  const nameWidthClass = isPortrait ? 'max-w-[6rem]' : 'max-w-[8.75rem]';
   const nameTextClass = isPortrait ? 'text-xs' : 'text-sm';
-  const hudGapClass = isPortrait ? 'gap-3' : 'gap-5';
-  const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
+  const hudGapClass = isPortrait ? 'gap-2' : 'gap-5';
+  const bottomHudLayoutClass = isPortrait ? 'justify-start pl-3 pr-6 w-full' : 'justify-center';
   const playerPanelClass = isPortrait
     ? `flex min-w-0 items-center gap-2.5 rounded-full ${isPlayerTurn ? 'text-white' : 'text-white/80'}`
     : `flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
@@ -21611,7 +21639,7 @@ const powerRef = useRef(hud.power);
             style={{
               transform: `scale(${bottomHudScale})`,
               transformOrigin: 'bottom center',
-              maxWidth: isPortrait ? 'min(28rem, 100%)' : 'min(34rem, 100%)'
+              maxWidth: isPortrait ? 'min(22rem, 100%)' : 'min(34rem, 100%)'
             }}
           >
             <div
