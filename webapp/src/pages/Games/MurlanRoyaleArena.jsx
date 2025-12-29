@@ -11,8 +11,10 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
-import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+import {
+  createArenaCarpetMaterial,
+  createArenaWallMaterial
+} from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js';
@@ -50,11 +52,6 @@ import {
   MURLAN_STOOL_THEMES as STOOL_THEMES,
   MURLAN_TABLE_THEMES as TABLE_THEMES
 } from '../../config/murlanThemes.js';
-import {
-  MURLAN_DEFAULT_HDRI_ID,
-  MURLAN_HDRI_VARIANTS,
-  MURLAN_HDRI_VARIANT_MAP
-} from '../../config/murlanInventoryConfig.js';
 
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
@@ -272,7 +269,11 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
+const HALLWAY_PLANT_ASSETS = ['potted_plant_04'];
 const POLYHAVEN_MODEL_CACHE = new Map();
+const PLANT_TARGET_HEIGHT = 2.8 * MODEL_SCALE;
+const HALLWAY_PLANT_SCALE = 1;
+const DECOR_PLANT_COUNT = 4;
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 
@@ -530,14 +531,12 @@ const DEFAULT_APPEARANCE = {
   outfit: 0,
   stools: 0,
   tables: 0,
-  environmentHdri: DEFAULT_HDRI_INDEX,
   ...DEFAULT_TABLE_CUSTOMIZATION
 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const FRAME_RATE_STORAGE_KEY = 'murlanFrameRate';
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tables', label: 'Table Model', options: TABLE_THEMES },
-  { key: 'environmentHdri', label: 'HDR Environment', options: HDRI_OPTIONS },
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
@@ -567,21 +566,12 @@ function normalizeAppearance(value = {}) {
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['cards', CARD_THEMES.length],
     ['stools', STOOL_THEMES.length],
-    ['tables', TABLE_THEMES.length],
-    ['environmentHdri', HDRI_OPTIONS.length]
+    ['tables', TABLE_THEMES.length]
   ];
   entries.forEach(([key, max]) => {
-    const raw = value?.[key];
-    if (key === 'environmentHdri' && typeof raw === 'string') {
-      const idx = HDRI_INDEX_BY_ID[raw];
-      if (Number.isFinite(idx)) {
-        normalized[key] = idx;
-        return;
-      }
-    }
-    const numeric = Number(raw);
-    if (Number.isFinite(numeric)) {
-      const clamped = Math.min(Math.max(0, Math.round(numeric)), max - 1);
+    const raw = Number(value?.[key]);
+    if (Number.isFinite(raw)) {
+      const clamped = Math.min(Math.max(0, Math.round(raw)), max - 1);
       normalized[key] = clamped;
     }
   });
@@ -770,99 +760,182 @@ function shouldPreserveChairMaterials(theme) {
   return Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
 }
 
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k', '2k']);
-const HDRI_OPTIONS = MURLAN_HDRI_VARIANTS.map((variant) => ({
-  ...variant,
-  label: `${variant.name} HDRI`
-}));
-const HDRI_INDEX_BY_ID = HDRI_OPTIONS.reduce((acc, variant, idx) => {
-  acc[variant.id] = idx;
-  return acc;
-}, {});
-const DEFAULT_HDRI_INDEX = HDRI_INDEX_BY_ID[MURLAN_DEFAULT_HDRI_ID] ?? 0;
-
-const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
-  if (!json || typeof json !== 'object') return null;
-  const resolutions = Array.isArray(preferred) && preferred.length ? preferred : DEFAULT_HDRI_RESOLUTIONS;
-  for (const res of resolutions) {
-    const entry = json[res];
-    if (entry?.hdr) return entry.hdr;
-    if (entry?.exr) return entry.exr;
+function createHallwayCeilingWallMaterial(textureLoader, maxAnisotropy = 1) {
+  if (!textureLoader) {
+    return createArenaWallMaterial('#0b1120', '#1e293b');
   }
-  const fallback = Object.values(json).find((value) => value?.hdr || value?.exr);
-  if (!fallback) return null;
-  return fallback.hdr || fallback.exr || null;
-};
+  const ceilingTex = textureLoader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/water.jpg');
+  ceilingTex.wrapS = THREE.RepeatWrapping;
+  ceilingTex.wrapT = THREE.RepeatWrapping;
+  ceilingTex.repeat.set(4, 4);
+  ceilingTex.colorSpace = THREE.SRGBColorSpace;
+  ceilingTex.anisotropy = Math.max(ceilingTex.anisotropy ?? 1, maxAnisotropy);
 
-async function resolvePolyHavenHdriUrl(config = {}) {
-  const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
-    ? config.preferredResolutions
-    : DEFAULT_HDRI_RESOLUTIONS;
-  const fallbackRes = config?.fallbackResolution || preferred[0] || '8k';
-  const fallbackUrl =
-    config?.fallbackUrl ||
-    `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
-  if (config?.assetUrls && typeof config.assetUrls === 'object') {
-    for (const res of preferred) {
-      if (config.assetUrls[res]) return config.assetUrls[res];
-    }
-    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
-    if (manual) return manual;
-  }
-  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
-  if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
-  try {
-    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
-    if (!response?.ok) return fallbackUrl;
-    const json = await response.json();
-    const picked = pickPolyHavenHdriUrl(json, preferred);
-    return picked || fallbackUrl;
-  } catch (error) {
-    console.warn('Failed to resolve Poly Haven HDRI url', error);
-    return fallbackUrl;
-  }
-}
-
-async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
-  if (!renderer) return null;
-  const url = await resolvePolyHavenHdriUrl(config);
-  const lowerUrl = `${url ?? ''}`.toLowerCase();
-  const useExr = lowerUrl.endsWith('.exr');
-  const loader = useExr ? new EXRLoader() : new RGBELoader();
-  loader.setCrossOrigin?.('anonymous');
-  return new Promise((resolve) => {
-    loader.load(
-      url,
-      (texture) => {
-        const pmrem = new THREE.PMREMGenerator(renderer);
-        pmrem.compileEquirectangularShader();
-        const envMap = pmrem.fromEquirectangular(texture).texture;
-        envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
-        texture.dispose();
-        pmrem.dispose();
-        resolve({ envMap, url });
-      },
-      undefined,
-      (error) => {
-        console.warn('Failed to load Poly Haven HDRI', error);
-        resolve(null);
-      }
-    );
+  return new THREE.MeshStandardMaterial({
+    color: '#fdf8ef',
+    emissive: '#f0e8d0',
+    emissiveIntensity: 0.4,
+    metalness: 0.25,
+    roughness: 0.15,
+    map: ceilingTex
   });
 }
 
-function resolveHdriVariant(selection) {
-  if (selection && typeof selection === 'string') {
-    return MURLAN_HDRI_VARIANT_MAP[selection] || HDRI_OPTIONS.find((opt) => opt.id === selection) || HDRI_OPTIONS[0];
-  }
-  if (typeof selection === 'object' && selection?.id) {
-    return MURLAN_HDRI_VARIANT_MAP[selection.id] || HDRI_OPTIONS.find((opt) => opt.id === selection.id) || HDRI_OPTIONS[0];
-  }
-  const idx = Number(selection);
-  if (Number.isFinite(idx) && idx >= 0 && idx < HDRI_OPTIONS.length) {
-    return HDRI_OPTIONS[idx];
-  }
-  return HDRI_OPTIONS[DEFAULT_HDRI_INDEX] || HDRI_OPTIONS[0];
+const WALL_TEXTURE_CONFIG = {
+  sourceId: 'white_planks_clean',
+  fallbackColor: 0xdedede,
+  repeat: new THREE.Vector2(1.875, 3.4),
+  anisotropy: 12,
+  preferredResolutionK: 4
+};
+
+const loadWallPlankTextures = (() => {
+  let cache = null;
+  let pending = null;
+
+  const pickTextureUrls = (apiJson) => {
+    const urls = [];
+    const walk = (value) => {
+      if (!value) return;
+      if (typeof value === 'string') {
+        const lower = value.toLowerCase();
+        if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
+          urls.push(value);
+        }
+        return;
+      }
+      if (Array.isArray(value)) {
+        value.forEach(walk);
+        return;
+      }
+      if (typeof value === 'object') {
+        Object.values(value).forEach(walk);
+      }
+    };
+    walk(apiJson);
+    const pickTexture = (candidateUrls, preferredResolutions) => {
+      const lowerUrls = candidateUrls.map((u) => u.toLowerCase());
+      for (const res of preferredResolutions) {
+        const match = lowerUrls.find((u) => u.includes(`_${res}.`));
+        if (match) return candidateUrls[lowerUrls.indexOf(match)];
+      }
+      return candidateUrls[0] ?? null;
+    };
+    const scoreAndPick = (keys) => {
+      const candidates = [];
+      keys.forEach((key) => {
+        Object.entries(apiJson || {}).forEach(([k, v]) => {
+          if (k.toLowerCase().includes(key)) candidates.push(v);
+        });
+      });
+      const flat = [];
+      const flatten = (v) => {
+        if (!v) return;
+        if (typeof v === 'string') {
+          flat.push(v);
+          return;
+        }
+        if (Array.isArray(v)) {
+          v.forEach(flatten);
+          return;
+        }
+        if (typeof v === 'object') {
+          Object.values(v).forEach(flatten);
+        }
+      };
+      flatten(candidates);
+      return pickTexture(
+        flat,
+        WALL_TEXTURE_CONFIG.preferredResolutionK ? [`${WALL_TEXTURE_CONFIG.preferredResolutionK}k`, '4k', '2k'] : ['4k', '2k']
+      );
+    };
+    return {
+      diffuse: scoreAndPick(['diff', 'diffuse', 'albedo', 'basecolor']),
+      normal: scoreAndPick(['nor_gl', 'normal_gl', 'nor', 'normal']),
+      roughness: scoreAndPick(['rough', 'roughness'])
+    };
+  };
+
+  const loadTexture = (loader, url, isColor) =>
+    new Promise((resolve) => {
+      if (!url) {
+        resolve(null);
+        return;
+      }
+      loader.load(
+        url,
+        (texture) => {
+          if (isColor) {
+            applySRGBColorSpace(texture);
+          }
+          resolve(texture);
+        },
+        undefined,
+        () => resolve(null)
+      );
+    });
+
+  return async (anisotropy) => {
+    if (cache) return cache;
+    if (!pending) {
+      pending = (async () => {
+        if (typeof fetch !== 'function') return null;
+        try {
+          const response = await fetch(`https://api.polyhaven.com/files/${WALL_TEXTURE_CONFIG.sourceId}`);
+          if (!response?.ok) return null;
+          const json = await response.json();
+          const urls = pickTextureUrls(json);
+          if (!urls.diffuse) return null;
+          const loader = new THREE.TextureLoader();
+          loader.setCrossOrigin('anonymous');
+          const [map, normal, roughness] = await Promise.all([
+            loadTexture(loader, urls.diffuse, true),
+            loadTexture(loader, urls.normal, false),
+            loadTexture(loader, urls.roughness, false)
+          ]);
+          [map, normal, roughness].forEach((tex) => {
+            if (!tex) return;
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.anisotropy = Math.max(1, anisotropy ?? WALL_TEXTURE_CONFIG.anisotropy);
+            tex.needsUpdate = true;
+          });
+          cache = { map, normal, roughness };
+          return cache;
+        } catch (err) {
+          console.warn('Failed to load Poly Haven wall plank textures', err);
+          return null;
+        }
+      })();
+    }
+    return pending;
+  };
+})();
+
+async function applyPoolWallMaterial(material, { repeat, anisotropy, isCancelled } = {}) {
+  if (!material || (typeof isCancelled === 'function' && isCancelled())) return null;
+  const targetRepeat = new THREE.Vector2(
+    repeat?.x ?? WALL_TEXTURE_CONFIG.repeat.x,
+    repeat?.y ?? WALL_TEXTURE_CONFIG.repeat.y
+  );
+  const textures = await loadWallPlankTextures(anisotropy);
+  if (!textures || (typeof isCancelled === 'function' && isCancelled())) return null;
+  const applyRepeat = (tex) => {
+    if (!tex) return;
+    tex.repeat.copy(targetRepeat);
+    tex.needsUpdate = true;
+  };
+  applyRepeat(textures.map);
+  applyRepeat(textures.normal);
+  applyRepeat(textures.roughness);
+  material.map = textures.map ?? material.map;
+  material.normalMap = textures.normal ?? material.normalMap;
+  material.roughnessMap = textures.roughness ?? material.roughnessMap;
+  material.color = new THREE.Color(0xffffff);
+  material.roughness = 0.78;
+  material.metalness = 0.03;
+  material.needsUpdate = true;
+  return textures;
 }
 
 function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
@@ -1173,6 +1246,10 @@ const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_HEIGHT_RAISE = TABLE_HEIGHT - BASE_TABLE_HEIGHT;
+const ARENA_WALL_HEIGHT = 3.6 * 1.3;
+const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
+const ARENA_WALL_TOP_Y = ARENA_WALL_CENTER_Y + ARENA_WALL_HEIGHT / 2;
+const CAMERA_WALL_HEIGHT_MARGIN = 0.1 * MODEL_SCALE;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const CARD_ANIMATION_DURATION = 420;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
@@ -1362,8 +1439,7 @@ export default function MurlanRoyaleArena({ search }) {
         tableBase: TABLE_BASE_OPTIONS,
         cards: CARD_THEMES,
         stools: STOOL_THEMES,
-        tables: TABLE_THEMES,
-        environmentHdri: HDRI_OPTIONS
+        tables: TABLE_THEMES
       };
       let changed = false;
       const next = { ...normalized };
@@ -1438,10 +1514,8 @@ export default function MurlanRoyaleArena({ search }) {
     chairThemePreserve: false,
     chairThemeId: null,
     chairInstances: [],
-    environmentVariantId: null,
-    environmentTexture: null,
-    disposeEnvironment: null,
-    updateEnvironment: null,
+    decorPlants: [],
+    decorGroup: null,
     outfitParts: [],
     cardThemeId: '',
     appearance: { ...DEFAULT_APPEARANCE }
@@ -1867,16 +1941,10 @@ export default function MurlanRoyaleArena({ search }) {
       const outfitTheme = OUTFIT_THEMES[safe.outfit] ?? OUTFIT_THEMES[0];
       const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
       const tableTheme = TABLE_THEMES[safe.tables] ?? TABLE_THEMES[0];
-      const environmentOption = resolveHdriVariant(safe.environmentHdri);
 
       void (async () => {
         const three = threeStateRef.current;
         if (!three.scene) return;
-        if (environmentOption && typeof three.updateEnvironment === 'function') {
-          if (three.environmentVariantId !== environmentOption.id) {
-            await three.updateEnvironment(environmentOption);
-          }
-        }
         const tableChanged = three.tableThemeId !== tableTheme.id || !three.tableInfo;
         if (tableChanged) {
           await rebuildTable(tableTheme, woodOption, clothOption, baseOption);
@@ -2024,25 +2092,6 @@ export default function MurlanRoyaleArena({ search }) {
             )}
           </div>
         );
-      case 'environmentHdri': {
-        const swatches = Array.isArray(option?.swatches) && option.swatches.length ? option.swatches : ['#0f172a', '#1e293b'];
-        const primary = swatches[0];
-        const secondary = swatches[1] ?? swatches[0];
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/60">
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `linear-gradient(135deg, ${primary}, ${secondary})`
-              }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-br from-black/25 via-transparent to-black/55" />
-            <div className="absolute bottom-1 left-1 rounded-md bg-black/65 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-emerald-100/80">
-              {(option?.label || 'HDRI').slice(0, 24)}
-            </div>
-          </div>
-        );
-      }
       case 'outfit':
       default:
         return (
@@ -2226,7 +2275,6 @@ export default function MurlanRoyaleArena({ search }) {
 
       scene = new THREE.Scene();
       scene.background = new THREE.Color('#030712');
-      threeStateRef.current.scene = scene;
 
       const ambient = new THREE.AmbientLight(0xffffff, 0.35);
       scene.add(ambient);
@@ -2265,69 +2313,127 @@ export default function MurlanRoyaleArena({ search }) {
       const stoolTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
       const tableTheme = TABLE_THEMES[currentAppearance.tables] ?? TABLE_THEMES[0];
       const outfitTheme = OUTFIT_THEMES[currentAppearance.outfit] ?? OUTFIT_THEMES[0];
-      const environmentVariant = resolveHdriVariant(currentAppearance.environmentHdri);
 
       const arenaScale = 1.3 * ARENA_GROWTH;
       const boardSize = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * arenaScale;
       const camConfig = buildArenaCameraConfig(boardSize);
+      const wallThickness = 0.8 * MODEL_SCALE;
       const interiorWidth = Math.max(TABLE_RADIUS * ARENA_GROWTH * 3.6, CHAIR_RADIUS * 2 + 4 * MODEL_SCALE);
       const interiorDepth = interiorWidth;
-      const roomWidth = interiorWidth;
-      const roomDepth = interiorDepth;
+      const roomWidth = interiorWidth + wallThickness * 2;
+      const roomDepth = interiorDepth + wallThickness * 2;
+      const halfWidth = roomWidth / 2;
+      const halfDepth = roomDepth / 2;
       const innerHalfWidth = interiorWidth / 2;
       const innerHalfDepth = interiorDepth / 2;
 
-      const applyHdriEnvironment = async (variantConfig = environmentVariant || HDRI_OPTIONS[DEFAULT_HDRI_INDEX]) => {
-        const sceneInstance = threeStateRef.current.scene || scene;
-        if (!renderer || !sceneInstance) return;
-        const activeVariant = variantConfig || environmentVariant || HDRI_OPTIONS[DEFAULT_HDRI_INDEX];
-        const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
-        if (!envResult) return;
-        const { envMap } = envResult;
-        if (!envMap) return;
-        if (disposed) {
-          envMap.dispose?.();
-          return;
-        }
-        const prevDispose = threeStateRef.current.disposeEnvironment;
-        const prevTexture = threeStateRef.current.environmentTexture;
-        sceneInstance.environment = envMap;
-        sceneInstance.background = envMap;
-        if ('backgroundIntensity' in sceneInstance && typeof activeVariant?.backgroundIntensity === 'number') {
-          sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
-        }
-        if (typeof activeVariant?.environmentIntensity === 'number') {
-          sceneInstance.environmentIntensity = activeVariant.environmentIntensity;
-        }
-        renderer.toneMappingExposure = activeVariant?.exposure ?? renderer.toneMappingExposure;
-        threeStateRef.current.environmentVariantId = activeVariant.id;
-        threeStateRef.current.environmentTexture = envMap;
-        threeStateRef.current.disposeEnvironment = () => {
-          if (threeStateRef.current.scene?.environment === envMap) {
-            threeStateRef.current.scene.environment = null;
-          }
-          if (threeStateRef.current.scene?.background === envMap) {
-            threeStateRef.current.scene.background = null;
-          }
-          envMap.dispose?.();
-        };
-        if (prevDispose && prevTexture !== envMap) {
-          prevDispose();
-        }
-      };
-      threeStateRef.current.updateEnvironment = applyHdriEnvironment;
-
       const floor = new THREE.Mesh(
-        new THREE.PlaneGeometry(roomWidth * 1.1, roomDepth * 1.1),
-        new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.82, metalness: 0.12 })
+        new THREE.PlaneGeometry(roomWidth, roomDepth),
+        new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.9, metalness: 0.1 })
       );
       floor.rotation.x = -Math.PI / 2;
       floor.receiveShadow = true;
       arenaGroup.add(floor);
 
+      const carpet = new THREE.Mesh(
+        new THREE.PlaneGeometry(interiorWidth * 0.9, interiorDepth * 0.9),
+        createArenaCarpetMaterial(new THREE.Color('#0f172a'), new THREE.Color('#1e3a8a'))
+      );
+      carpet.rotation.x = -Math.PI / 2;
+      carpet.position.y = 0.01;
+      carpet.receiveShadow = true;
+      arenaGroup.add(carpet);
+
+      const wallMaterial = new THREE.MeshStandardMaterial({
+        color: WALL_TEXTURE_CONFIG.fallbackColor,
+        roughness: 0.78,
+        metalness: 0.03,
+        flatShading: true
+      });
+      void applyPoolWallMaterial(wallMaterial, {
+        repeat: new THREE.Vector2(
+          Math.max(WALL_TEXTURE_CONFIG.repeat.x, roomWidth / 160),
+          Math.max(WALL_TEXTURE_CONFIG.repeat.y, ARENA_WALL_HEIGHT / 40)
+        ),
+        anisotropy: maxAnisotropy,
+        isCancelled: () => disposed
+      });
+
+      const makeWall = (width, depth, position) => {
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(width, ARENA_WALL_HEIGHT, depth), wallMaterial);
+        wall.castShadow = false;
+        wall.receiveShadow = true;
+        wall.position.set(position.x, ARENA_WALL_CENTER_Y, position.z);
+        arenaGroup.add(wall);
+        return wall;
+      };
+
+      makeWall(roomWidth, wallThickness, { x: 0, z: halfDepth - wallThickness / 2 });
+      makeWall(roomWidth, wallThickness, { x: 0, z: -halfDepth + wallThickness / 2 });
+      makeWall(wallThickness, roomDepth, { x: -halfWidth + wallThickness / 2, z: 0 });
+      makeWall(wallThickness, roomDepth, { x: halfWidth - wallThickness / 2, z: 0 });
+
+      const ceilingMaterial = createHallwayCeilingWallMaterial(textureLoader, maxAnisotropy);
+      ceilingMaterial.side = THREE.DoubleSide;
+      const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(roomWidth, roomDepth), ceilingMaterial);
+      ceiling.rotation.x = Math.PI / 2;
+      ceiling.position.y = ARENA_WALL_HEIGHT;
+      ceiling.receiveShadow = false;
+      arenaGroup.add(ceiling);
+
       const cameraBoundRadius = Math.hypot(innerHalfWidth, innerHalfDepth) - CAMERA_WALL_PADDING;
 
-      void applyHdriEnvironment(environmentVariant);
+      const decorGroup = new THREE.Group();
+      arenaGroup.add(decorGroup);
+      threeStateRef.current.decorGroup = decorGroup;
+      threeStateRef.current.decorPlants = [];
+      const addCornerPlants = async () => {
+        try {
+          const plantTextures = new Map(
+            (
+              await Promise.all(
+                HALLWAY_PLANT_ASSETS.map(async (assetId) => {
+                  const textures = await loadPolyhavenTextureSet(
+                    assetId,
+                    textureLoader,
+                    maxAnisotropy,
+                    threeStateRef.current.textureCache
+                  );
+                  return [assetId, textures];
+                })
+              )
+            ).filter((entry) => entry[1])
+          );
+          const plantPadding = Math.max(0.8 * MODEL_SCALE, wallThickness * 1.1);
+          const cornerOffsets = [
+            new THREE.Vector3(innerHalfWidth - plantPadding, 0, innerHalfDepth - plantPadding),
+            new THREE.Vector3(-(innerHalfWidth - plantPadding), 0, innerHalfDepth - plantPadding),
+            new THREE.Vector3(innerHalfWidth - plantPadding, 0, -(innerHalfDepth - plantPadding)),
+            new THREE.Vector3(-(innerHalfWidth - plantPadding), 0, -(innerHalfDepth - plantPadding))
+          ];
+          const targetOffsets = cornerOffsets.slice(0, DECOR_PLANT_COUNT);
+          for (let i = 0; i < targetOffsets.length; i += 1) {
+            const assetId = HALLWAY_PLANT_ASSETS[0];
+            const plant = await createPolyhavenInstance(assetId, PLANT_TARGET_HEIGHT, 0, renderer, {
+              textureLoader,
+              maxAnisotropy,
+              fallbackTexture,
+              textureCache: threeStateRef.current.textureCache,
+              textureSet: plantTextures.get(assetId)
+            });
+            if (disposed) return;
+            plant.scale.multiplyScalar(HALLWAY_PLANT_SCALE);
+            const pos = targetOffsets[i];
+            plant.position.copy(pos);
+            plant.lookAt(new THREE.Vector3(0, plant.position.y + 0.1, 0));
+            decorGroup.add(plant);
+            threeStateRef.current.decorPlants.push(plant);
+          }
+        } catch (error) {
+          console.warn('Failed to load decor plants', error);
+        }
+      };
+      void addCornerPlants();
 
       const scoreboardCanvas = document.createElement('canvas');
       scoreboardCanvas.width = 1024;
@@ -2347,9 +2453,7 @@ export default function MurlanRoyaleArena({ search }) {
         const scoreboardHeight = scoreboardWidth * 0.42;
         const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
         const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-        const scoreboardY = TABLE_HEIGHT + 1.6 * MODEL_SCALE;
-        const scoreboardZ = -innerHalfDepth + 0.6 * MODEL_SCALE;
-        scoreboardMesh.position.set(0, scoreboardY, scoreboardZ);
+        scoreboardMesh.position.set(0, ARENA_WALL_HEIGHT * 0.6, -innerHalfDepth + wallThickness * 0.6);
         scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
         scoreboardMesh.renderOrder = 2;
         scoreboardMesh.visible = false;
@@ -2365,6 +2469,77 @@ export default function MurlanRoyaleArena({ search }) {
       } else {
         threeStateRef.current.scoreboard = null;
       }
+
+      const buildHallwayDoor = () => {
+        const woodTex = textureLoader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/wood/mahogany_diffuse.jpg');
+        applySRGBColorSpace(woodTex);
+        woodTex.wrapS = THREE.RepeatWrapping;
+        woodTex.wrapT = THREE.RepeatWrapping;
+        woodTex.anisotropy = maxAnisotropy;
+
+        const handleTex = textureLoader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/metal/Brass_Albedo.jpg');
+        applySRGBColorSpace(handleTex);
+
+        const doorMat = new THREE.MeshStandardMaterial({
+          map: woodTex,
+          color: '#0a0a0f',
+          roughness: 0.3,
+          metalness: 0.25
+        });
+        const handleMat = new THREE.MeshStandardMaterial({
+          map: handleTex,
+          color: '#ffd700',
+          metalness: 1,
+          roughness: 0.1
+        });
+        const frameMat = new THREE.MeshStandardMaterial({
+          color: '#d7b56b',
+          metalness: 0.9,
+          roughness: 0.18,
+          emissive: '#a2752a',
+          emissiveIntensity: 0.08
+        });
+        const doorGroup = new THREE.Group();
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(4.6, 5.2, 0.25), frameMat);
+        frame.castShadow = true;
+        frame.receiveShadow = true;
+        doorGroup.add(frame);
+
+        const doorMatGeometry = new THREE.BoxGeometry(2, 4.8, 0.12);
+        const leftDoor = new THREE.Mesh(doorMatGeometry, doorMat);
+        const rightDoor = new THREE.Mesh(doorMatGeometry, doorMat);
+        leftDoor.position.set(-1.05, 0, 0.12);
+        rightDoor.position.set(1.05, 0, 0.12);
+        const handleGeom = new THREE.CylinderGeometry(0.07, 0.07, 0.4, 32);
+        const leftHandle = new THREE.Mesh(handleGeom, handleMat);
+        const rightHandle = new THREE.Mesh(handleGeom, handleMat);
+        leftHandle.rotation.z = Math.PI / 2;
+        rightHandle.rotation.z = Math.PI / 2;
+        leftHandle.position.set(0.85, 0, 0.16);
+        rightHandle.position.set(-0.85, 0, 0.16);
+        leftDoor.add(leftHandle);
+        rightDoor.add(rightHandle);
+        [leftDoor, rightDoor].forEach((mesh) => {
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+        });
+        [leftHandle, rightHandle].forEach((mesh) => {
+          mesh.castShadow = true;
+          mesh.receiveShadow = false;
+        });
+        doorGroup.add(leftDoor);
+        doorGroup.add(rightDoor);
+
+        const frameHeight = 5.2;
+        return { doorGroup, frameHeight };
+      };
+
+      const { doorGroup, frameHeight } = buildHallwayDoor();
+      const doorScale = Math.min(1, (ARENA_WALL_HEIGHT * 0.92) / frameHeight);
+      doorGroup.scale.setScalar(doorScale);
+      doorGroup.position.set(0, (frameHeight * doorScale) / 2, innerHalfDepth - wallThickness * 0.55);
+      doorGroup.rotation.y = Math.PI;
+      decorGroup.add(doorGroup);
 
       updateScoreboardDisplay(computeUiState(gameStateRef.current).scoreboard);
 
@@ -2668,10 +2843,14 @@ export default function MurlanRoyaleArena({ search }) {
         });
         store.chairInstances = [];
       }
-      store.disposeEnvironment?.();
-      store.environmentTexture = null;
-      store.disposeEnvironment = null;
-      store.environmentVariantId = null;
+      if (store.decorGroup) {
+        disposeObjectResources(store.decorGroup);
+        if (store.decorGroup.parent) {
+          store.decorGroup.parent.remove(store.decorGroup);
+        }
+        store.decorGroup = null;
+        store.decorPlants = [];
+      }
       if (store.outfitParts) {
         store.outfitParts.forEach((mat) => {
           if (mat && typeof mat.dispose === 'function') mat.dispose();
@@ -2715,10 +2894,8 @@ export default function MurlanRoyaleArena({ search }) {
         chairThemePreserve: false,
         chairThemeId: null,
         chairInstances: [],
-        environmentVariantId: null,
-        environmentTexture: null,
-        disposeEnvironment: null,
-        updateEnvironment: null,
+        decorPlants: [],
+        decorGroup: null,
         outfitParts: [],
         cardThemeId: '',
         appearance: { ...DEFAULT_APPEARANCE }

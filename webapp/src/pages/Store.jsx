@@ -180,8 +180,7 @@ const MURLAN_TYPE_LABELS = {
   tableBase: 'Table Base',
   cards: 'Card Themes',
   stools: 'Stools & Chairs',
-  tables: 'Table Models',
-  environmentHdri: 'HDR Environments'
+  tables: 'Table Models'
 };
 
 const DOMINO_TYPE_LABELS = {
