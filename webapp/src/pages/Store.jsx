@@ -146,7 +146,6 @@ const CHESS_TYPE_LABELS = {
   chairColor: 'Chairs',
   tableShape: 'Table Shape',
   sideColor: 'Piece Colors',
-  pieceStyle: 'Piece Sets',
   boardTheme: 'Board Themes',
   headStyle: 'Pawn Heads'
 };
@@ -323,7 +322,6 @@ const PREVIEW_BY_TYPE = {
   boardTheme: 'chess-royals',
   sideColor: 'chess-royals',
   headStyle: 'pawn-head',
-  pieceStyle: 'chess-royals',
   chromeColor: 'chrome',
   cards: 'cards',
   dominoStyle: 'domino',
