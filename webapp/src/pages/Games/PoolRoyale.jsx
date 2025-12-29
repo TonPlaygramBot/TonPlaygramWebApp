@@ -3293,7 +3293,8 @@ const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
 const CLOTH_PATTERN_OVERRIDES = Object.freeze({
-  polar_fleece: { repeatScale: 0.94 } // 10% larger pattern to emphasize the fleece nap
+  polar_fleece: { repeatScale: 0.94 }, // 10% larger pattern to emphasize the fleece nap
+  terry_cloth: { repeatScale: 3 } // counter Polyhaven repeat scale so terry cloth matches the standard thread density
 });
 
 const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
