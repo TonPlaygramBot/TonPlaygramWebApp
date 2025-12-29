@@ -1,6 +1,13 @@
 import { TABLE_BASE_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_WOOD_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { CARD_THEMES } from '../utils/cardThemes.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
+import {
+  POOL_ROYALE_DEFAULT_HDRI_ID,
+  POOL_ROYALE_HDRI_VARIANT_MAP,
+  POOL_ROYALE_HDRI_VARIANTS
+} from './poolRoyaleInventoryConfig.js';
+
+const DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id;
 
 const mapLabels = (options) =>
   Object.freeze(
@@ -16,7 +23,8 @@ export const MURLAN_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableBase: [TABLE_BASE_OPTIONS[0].id],
   cards: [CARD_THEMES[0].id],
   stools: [MURLAN_STOOL_THEMES[0].id],
-  tables: [MURLAN_TABLE_THEMES[0].id]
+  tables: [MURLAN_TABLE_THEMES[0].id],
+  environmentHdri: [DEFAULT_HDRI_ID]
 });
 
 export const MURLAN_ROYALE_OPTION_LABELS = Object.freeze({
@@ -25,7 +33,13 @@ export const MURLAN_ROYALE_OPTION_LABELS = Object.freeze({
   tableBase: mapLabels(TABLE_BASE_OPTIONS),
   cards: mapLabels(CARD_THEMES),
   stools: mapLabels(MURLAN_STOOL_THEMES),
-  tables: mapLabels(MURLAN_TABLE_THEMES)
+  tables: mapLabels(MURLAN_TABLE_THEMES),
+  environmentHdri: Object.freeze(
+    POOL_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => {
+      acc[variant.id] = `${variant.name} HDRI`;
+      return acc;
+    }, {})
+  )
 });
 
 export const MURLAN_ROYALE_STORE_ITEMS = [
@@ -158,6 +172,18 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     name: theme.label,
     price: theme.price ?? 300 + idx * 20,
     description: theme.description || `Premium ${theme.label} seating with original finish.`
+  })),
+  ...POOL_ROYALE_HDRI_VARIANTS.map((variant, idx) => ({
+    id: `murlan-hdri-${variant.id}`,
+    type: 'environmentHdri',
+    optionId: variant.id,
+    name: `${variant.name} HDRI`,
+    price: variant.price ?? 1400 + idx * 30,
+    description: 'Pool Royale HDRI environment tuned for Murlan Royale promos.',
+    thumbnail:
+      variant.assetId || variant.id
+        ? `https://cdn.polyhaven.com/asset_img/thumbs/${variant.assetId || variant.id}.png?width=320&height=180`
+        : undefined
   }))
 );
 
@@ -167,5 +193,14 @@ export const MURLAN_ROYALE_DEFAULT_LOADOUT = [
   { type: 'tableBase', optionId: TABLE_BASE_OPTIONS[0].id, label: TABLE_BASE_OPTIONS[0].label },
   { type: 'cards', optionId: CARD_THEMES[0].id, label: CARD_THEMES[0].label },
   { type: 'tables', optionId: MURLAN_TABLE_THEMES[0].id, label: MURLAN_TABLE_THEMES[0].label },
-  { type: 'stools', optionId: MURLAN_STOOL_THEMES[0].id, label: MURLAN_STOOL_THEMES[0].label }
+  { type: 'stools', optionId: MURLAN_STOOL_THEMES[0].id, label: MURLAN_STOOL_THEMES[0].label },
+  {
+    type: 'environmentHdri',
+    optionId: DEFAULT_HDRI_ID,
+    label: MURLAN_ROYALE_OPTION_LABELS.environmentHdri[DEFAULT_HDRI_ID] || 'HDR Environment'
+  }
 ];
+
+export const MURLAN_HDRI_VARIANTS = POOL_ROYALE_HDRI_VARIANTS;
+export const MURLAN_HDRI_VARIANT_MAP = POOL_ROYALE_HDRI_VARIANT_MAP;
+export const MURLAN_DEFAULT_HDRI_ID = DEFAULT_HDRI_ID;
