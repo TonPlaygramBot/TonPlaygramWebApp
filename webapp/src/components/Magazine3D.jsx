@@ -15,15 +15,10 @@ const OFFSET_SKIP = 160;
 const MAX_IN_FLIGHT = 6;
 const PRODUCTION_NAME = 'Poly Haven Showroom';
 
-const TARGET_FOOTPRINT_XZ = 11.5;
+const TARGET_FOOTPRINT_XZ = 9.0;
 const GRID_COLS = 14;
 const GRID_SPACING = 13;
-const TICKET_Y_OFFSET = 1.35;
-const TARGET_RES_WIDTH = 1920;
-const TARGET_RES_HEIGHT = 1080;
-const TARGET_FPS = 90;
-const FRAME_DURATION_MS = 1000 / TARGET_FPS;
-const PRELOAD_WARMUP_COUNT = 24;
+const TICKET_Y_OFFSET = 1.0;
 
 const KEYWORDS = [
   'snooker',
@@ -136,8 +131,8 @@ function ensureVisible(root) {
 
 function makeTicket(text) {
   const c = document.createElement('canvas');
-  c.width = 1120;
-  c.height = 220;
+  c.width = 840;
+  c.height = 160;
   const g = c.getContext('2d');
 
   g.fillStyle = 'rgba(0,0,0,0.82)';
@@ -148,13 +143,13 @@ function makeTicket(text) {
   g.strokeRect(6, 6, c.width - 12, c.height - 12);
 
   g.fillStyle = '#e5ecff';
-  g.font = '800 34px system-ui';
-  g.fillText(text, 24, 116);
+  g.font = '800 26px system-ui';
+  g.fillText(text, 18, 86);
 
   const tex = new THREE.CanvasTexture(c);
   applySRGBColorSpace(tex);
   const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
-  spr.scale.set(7.8, 1.45, 1);
+  spr.scale.set(5.8, 1.1, 1);
   return spr;
 }
 
@@ -369,77 +364,6 @@ function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotrop
   });
 }
 
-const preloadState = {
-  ids: null,
-  promise: null,
-  files: new Map()
-};
-
-async function preloadMagazineAssets() {
-  if (preloadState.promise) return preloadState.promise;
-
-  preloadState.promise = (async () => {
-    const res = await fetch('https://api.polyhaven.com/assets?t=models');
-    const data = await res.json();
-    const idsAll = Array.isArray(data) ? data : Object.keys(data);
-
-    const kw = KEYWORDS.map((k) => k.toLowerCase());
-    let filtered = idsAll.filter((id) => {
-      const s = String(id).toLowerCase();
-      return kw.some((k) => s.includes(k));
-    });
-
-    const need = OFFSET_SKIP + TARGET_COUNT;
-    if (filtered.length < need) {
-      const extras = idsAll.filter((id) => !filtered.includes(id));
-      filtered = [...filtered, ...extras];
-    }
-
-    const ids = filtered.slice(OFFSET_SKIP, OFFSET_SKIP + TARGET_COUNT);
-    preloadState.ids = ids;
-
-    if (typeof caches !== 'undefined') {
-      try {
-        const cache = await caches.open('magazine-preload-v1');
-        await Promise.all(
-          ids.slice(0, PRELOAD_WARMUP_COUNT).map(async (id) => {
-            try {
-              const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(id)}`).then((r) => r.json());
-              preloadState.files.set(id, filesJson);
-              const urls = extractAllHttpUrls(filesJson);
-              const modelUrl = pickBestModelUrl(urls) || buildPolyhavenModelUrls(id)[0];
-              const texUrls = Object.values(pickBestTextureUrls(filesJson)).filter(Boolean);
-              const targets = [modelUrl, ...texUrls].filter(Boolean);
-              await Promise.all(
-                targets.map(async (u) => {
-                  try {
-                    const resp = await fetch(u, { mode: 'cors', cache: 'force-cache' });
-                    if (resp.ok) await cache.put(u, resp.clone());
-                  } catch {
-                    /* ignore */
-                  }
-                })
-              );
-            } catch {
-              /* ignore warmup errors */
-            }
-          })
-        );
-      } catch {
-        /* ignore caching errors */
-      }
-    }
-
-    return ids;
-  })();
-
-  return preloadState.promise;
-}
-
-if (typeof window !== 'undefined') {
-  preloadMagazineAssets().catch(() => {});
-}
-
 export default function Magazine3D() {
   const mountRef = useRef(null);
   const [status, setStatus] = useState('Initializing…');
@@ -473,7 +397,7 @@ export default function Magazine3D() {
 
     mount.innerHTML = '';
     mount.style.width = '100%';
-    mount.style.minHeight = '640px';
+    mount.style.minHeight = '520px';
     mount.style.position = 'relative';
 
     const hud = document.createElement('div');
@@ -497,15 +421,15 @@ export default function Magazine3D() {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0f1116);
 
-    const camera = new THREE.PerspectiveCamera(60, TARGET_RES_WIDTH / TARGET_RES_HEIGHT, 0.1, 20000);
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 20000);
     camera.position.set(0, 18, 120);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     applyRendererSRGB(renderer);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.5));
-    renderer.setSize(Math.max(TARGET_RES_WIDTH, mount.clientWidth), Math.max(TARGET_RES_HEIGHT, mount.clientHeight || TARGET_RES_HEIGHT), false);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(Math.max(1, mount.clientWidth), mount.clientHeight || 560, false);
     mount.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -540,30 +464,23 @@ export default function Magazine3D() {
     (async () => {
       try {
         setHud('Fetching model list…');
-        const ids = (await preloadMagazineAssets().catch(() => null)) ?? [];
-        if (!ids.length && preloadState.ids?.length) {
-          ids.push(...preloadState.ids);
+        const res = await fetch('https://api.polyhaven.com/assets?t=models');
+        const data = await res.json();
+        const idsAll = Array.isArray(data) ? data : Object.keys(data);
+
+        const kw = KEYWORDS.map((k) => k.toLowerCase());
+        let filtered = idsAll.filter((id) => {
+          const s = String(id).toLowerCase();
+          return kw.some((k) => s.includes(k));
+        });
+
+        const need = OFFSET_SKIP + TARGET_COUNT;
+        if (filtered.length < need) {
+          const extras = idsAll.filter((id) => !filtered.includes(id));
+          filtered = [...filtered, ...extras];
         }
-        if (!ids.length) {
-          const res = await fetch('https://api.polyhaven.com/assets?t=models');
-          const data = await res.json();
-          const idsAll = Array.isArray(data) ? data : Object.keys(data);
 
-          const kw = KEYWORDS.map((k) => k.toLowerCase());
-          let filtered = idsAll.filter((id) => {
-            const s = String(id).toLowerCase();
-            return kw.some((k) => s.includes(k));
-          });
-
-          const need = OFFSET_SKIP + TARGET_COUNT;
-          if (filtered.length < need) {
-            const extras = idsAll.filter((id) => !filtered.includes(id));
-            filtered = [...filtered, ...extras];
-          }
-
-          ids.push(...filtered.slice(OFFSET_SKIP, OFFSET_SKIP + TARGET_COUNT));
-          preloadState.ids = ids;
-        }
+        const ids = filtered.slice(OFFSET_SKIP, OFFSET_SKIP + TARGET_COUNT);
         setHud(`Loading ${ids.length} NEW items…`);
 
         let nextSlot = 0;
@@ -582,10 +499,7 @@ export default function Magazine3D() {
                 const anisotropy = renderer.capabilities.getMaxAnisotropy?.() ?? 1;
                 const textureLoader = ensureTextureLoader();
 
-                const filesJson =
-                  preloadState.files.get(id) ||
-                  (await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(id)}`).then((r) => r.json()));
-                preloadState.files.set(id, filesJson);
+                const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(id)}`).then((r) => r.json());
                 const allUrls = extractAllHttpUrls(filesJson);
                 const modelUrl = pickBestModelUrl(allUrls) || buildPolyhavenModelUrls(id)[0];
                 if (!modelUrl) return;
@@ -696,21 +610,14 @@ export default function Magazine3D() {
 
     const resize = () => {
       if (!mount) return;
-      const width = Math.max(TARGET_RES_WIDTH, mount.clientWidth);
-      const height = Math.max(TARGET_RES_HEIGHT, mount.clientHeight || TARGET_RES_HEIGHT);
-      camera.aspect = width / Math.max(1, height);
+      camera.aspect = mount.clientWidth / Math.max(1, mount.clientHeight);
       camera.updateProjectionMatrix();
-      renderer.setSize(width, height, false);
+      renderer.setSize(Math.max(1, mount.clientWidth), mount.clientHeight || 560, false);
     };
     window.addEventListener('resize', resize);
 
-    let lastFrame = performance.now();
     const tick = () => {
       raf = requestAnimationFrame(tick);
-      const now = performance.now();
-      const delta = now - lastFrame;
-      if (delta < FRAME_DURATION_MS) return;
-      lastFrame = now - (delta % FRAME_DURATION_MS);
       controls.update();
       renderer.render(scene, camera);
     };
@@ -738,19 +645,19 @@ export default function Magazine3D() {
             className="rounded-lg border border-border bg-surface/60 p-3"
           >
             <div className="flex items-center justify-between mb-2">
-              <h4 className="font-semibold text-lg">{category}</h4>
-              <span className="text-sm text-subtext">{items.length} items</span>
+              <h4 className="font-semibold text-base">{category}</h4>
+              <span className="text-xs text-subtext">{items.length} items</span>
             </div>
             <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
               {items.map((item) => (
                 <div
                   key={`${category}-${item.slot}-${item.id}`}
-                  className="flex items-center justify-between text-base"
+                  className="flex items-center justify-between text-sm"
                 >
-                  <span className="font-mono text-primary text-lg font-semibold">
+                  <span className="font-mono text-primary text-sm font-semibold">
                     #{String(item.slot).padStart(4, '0')}
                   </span>
-                  <span className="ml-2 truncate text-foreground font-semibold">{item.id}</span>
+                  <span className="ml-2 truncate text-foreground font-medium">{item.id}</span>
                 </div>
               ))}
             </div>
