@@ -6,7 +6,6 @@ import {
   POOL_ROYALE_STORE_ITEMS
 } from '../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../config/poolRoyaleClothPresets.js';
-import { POOL_ROYALE_HDRI_OPTIONS } from '../config/poolRoyaleHdriPresets.js';
 import {
   SNOOKER_CLUB_DEFAULT_LOADOUT,
   SNOOKER_CLUB_OPTION_LABELS,
@@ -120,8 +119,7 @@ const TYPE_LABELS = {
   railMarkerColor: 'Rail Markers',
   clothColor: 'Cloth Colors',
   cueStyle: 'Cue Styles',
-  pocketLiner: 'Pocket Jaws',
-  environmentHdri: 'HDRI Domes'
+  pocketLiner: 'Pocket Jaws'
 };
 
 const SNOOKER_TYPE_LABELS = {
@@ -288,16 +286,8 @@ const POOL_CLOTH_SWATCHES = POOL_ROYALE_CLOTH_VARIANTS.reduce((acc, cloth) => {
   return acc;
 }, {});
 
-const POOL_HDRI_SWATCHES = POOL_ROYALE_HDRI_OPTIONS.reduce((acc, hdri) => {
-  if (hdri?.swatches?.length) {
-    acc[hdri.id] = hdri.swatches;
-  }
-  return acc;
-}, {});
-
 const OPTION_SWATCH_OVERRIDES = {
   ...POOL_CLOTH_SWATCHES,
-  ...POOL_HDRI_SWATCHES,
   charredTimber: ['#2f2217', '#6b4226'],
   rusticSplit: ['#f3e8ff', '#fef3c7'],
   plankStudio: ['#e0e7ff', '#a78bfa'],
@@ -348,8 +338,7 @@ const PREVIEW_BY_TYPE = {
   tableWood: 'table',
   tableCloth: 'table',
   tableBase: 'table',
-  tables: 'table',
-  environmentHdri: 'table'
+  tables: 'table'
 };
 
 const PREVIEW_BY_SLUG = {
