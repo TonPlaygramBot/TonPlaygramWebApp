@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   getAccountInfo,
@@ -29,51 +29,8 @@ import DevTasksModal from '../components/DevTasksModal.jsx';
 import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
 import { loadGoogleProfile } from '../utils/google.js';
-import {
-  getDefaultPoolRoyalLoadout,
-  getPoolRoyalInventory,
-  listOwnedPoolRoyalOptions,
-  poolRoyalAccountId
-} from '../utils/poolRoyalInventory.js';
-import {
-  dominoRoyalAccountId,
-  getDefaultDominoRoyalLoadout,
-  listOwnedDominoOptions
-} from '../utils/dominoRoyalInventory.js';
 
 import { FiCopy } from 'react-icons/fi';
-
-const POOL_ROYALE_TYPE_LABELS = {
-  tableFinish: 'Table Finish',
-  chromeColor: 'Chrome Fascias',
-  railMarkerColor: 'Rail Markers',
-  clothColor: 'Cloth Color',
-  cueStyle: 'Cue Style'
-};
-
-const DOMINO_ROYALE_TYPE_LABELS = {
-  tableWood: 'Table Wood',
-  tableCloth: 'Table Cloth',
-  tableBase: 'Table Base',
-  dominoStyle: 'Domino Style',
-  highlightStyle: 'Highlight Style',
-  chairTheme: 'Chair Theme'
-};
-
-function formatValue(value, decimals = 2) {
-  if (typeof value !== 'number') {
-    const parsed = parseFloat(value);
-    if (isNaN(parsed)) return value;
-    return parsed.toLocaleString(undefined, {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals
-    });
-  }
-  return value.toLocaleString(undefined, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
-  });
-}
 
 export default function MyAccount() {
   let telegramId = null;
@@ -105,46 +62,6 @@ export default function MyAccount() {
   const [twitterLink, setTwitterLink] = useState('');
   const [unread, setUnread] = useState(0);
   const [googleLinked, setGoogleLinked] = useState(!!googleProfile?.id);
-  const [poolAccountId, setPoolAccountId] = useState(poolRoyalAccountId());
-  const [poolRoyaleInventory, setPoolRoyaleInventory] = useState(() =>
-    listOwnedPoolRoyalOptions(poolRoyalAccountId())
-  );
-  const [dominoAccountId, setDominoAccountId] = useState(dominoRoyalAccountId());
-  const [dominoInventory, setDominoInventory] = useState(() =>
-    listOwnedDominoOptions(dominoRoyalAccountId())
-  );
-  const refreshPoolRoyale = useCallback(async () => {
-    const resolved = poolRoyalAccountId();
-    setPoolAccountId(resolved);
-    const cachedOwned = listOwnedPoolRoyalOptions(resolved);
-    if (Array.isArray(cachedOwned) && cachedOwned.length > 0) {
-      setPoolRoyaleInventory(cachedOwned);
-    }
-    try {
-      const syncedInventory = await getPoolRoyalInventory(resolved);
-      const owned = listOwnedPoolRoyalOptions(syncedInventory);
-      if (Array.isArray(owned) && owned.length > 0) {
-        setPoolRoyaleInventory(owned);
-      } else {
-        setPoolRoyaleInventory(getDefaultPoolRoyalLoadout());
-      }
-    } catch (err) {
-      console.warn('Failed to refresh Pool Royale inventory', err);
-      if (!cachedOwned?.length) {
-        setPoolRoyaleInventory(getDefaultPoolRoyalLoadout());
-      }
-    }
-  }, []);
-  const refreshDominoRoyal = useCallback(() => {
-    const resolved = dominoRoyalAccountId();
-    setDominoAccountId(resolved);
-    const owned = listOwnedDominoOptions(resolved);
-    if (Array.isArray(owned) && owned.length > 0) {
-      setDominoInventory(owned);
-    } else {
-      setDominoInventory(getDefaultDominoRoyalLoadout());
-    }
-  }, []);
 
   useEffect(() => {
     async function load() {
@@ -214,7 +131,6 @@ export default function MyAccount() {
       if (!localStorage.getItem('avatarPromptShown')) {
         setShowAvatarPrompt(true);
       }
-      refreshPoolRoyale();
     }
 
     load();
@@ -239,28 +155,6 @@ export default function MyAccount() {
     window.addEventListener('profilePhotoUpdated', handler);
     return () => window.removeEventListener('profilePhotoUpdated', handler);
   }, [telegramId]);
-  useEffect(() => {
-    refreshPoolRoyale();
-    refreshDominoRoyal();
-  }, [profile, refreshPoolRoyale, refreshDominoRoyal]);
-  useEffect(() => {
-    const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === poolAccountId) {
-        refreshPoolRoyale();
-      }
-    };
-    window.addEventListener('poolRoyalInventoryUpdate', handler);
-    return () => window.removeEventListener('poolRoyalInventoryUpdate', handler);
-  }, [poolAccountId, refreshPoolRoyale]);
-  useEffect(() => {
-    const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === dominoAccountId) {
-        refreshDominoRoyal();
-      }
-    };
-    window.addEventListener('dominoRoyalInventoryUpdate', handler);
-    return () => window.removeEventListener('dominoRoyalInventoryUpdate', handler);
-  }, [dominoAccountId, refreshDominoRoyal]);
 
   if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
 
@@ -499,50 +393,27 @@ export default function MyAccount() {
       </div>
 
       <BalanceSummary className="bg-surface border border-border rounded-xl p-4 wide-card" />
-      <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
+      <div className="prism-box p-4 mt-4 space-y-3 mx-auto wide-card">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Pool Royale Inventory</h3>
-          <span className="text-xs text-subtext">Account: {poolAccountId}</span>
+          <h3 className="text-lg font-semibold">NFTs</h3>
+          <span className="text-xs text-subtext">Owned cosmetics & gifts</span>
         </div>
         <p className="text-sm text-subtext">
-          Defaults are applied automatically. Purchased NFTs show here and inside the Pool Royale
-          table setup menu.
+          View every NFT you own in one place. Starter cosmetics are hidden so you only see items you&apos;ve unlocked.
         </p>
-        <div className="space-y-1">
-          {poolRoyaleInventory.map((item) => (
-            <div
-              key={`${item.type}-${item.optionId}`}
-              className="flex items-center justify-between rounded-lg border border-border px-3 py-2 bg-surface/60"
-            >
-              <span className="font-medium">{item.label}</span>
-              <span className="text-[11px] uppercase text-subtext">
-                {POOL_ROYALE_TYPE_LABELS[item.type] || item.type}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Domino Royal Inventory</h3>
-          <span className="text-xs text-subtext">Account: {dominoAccountId}</span>
-        </div>
-        <p className="text-sm text-subtext">
-          First-look options are free. Purchased NFTs appear here and inside the Domino Royal table setup menu once
-          unlocked.
-        </p>
-        <div className="space-y-1">
-          {dominoInventory.map((item) => (
-            <div
-              key={`${item.type}-${item.optionId}`}
-              className="flex items-center justify-between rounded-lg border border-border px-3 py-2 bg-surface/60"
-            >
-              <span className="font-medium">{item.label}</span>
-              <span className="text-[11px] uppercase text-subtext">
-                {DOMINO_ROYALE_TYPE_LABELS[item.type] || item.type}
-              </span>
-            </div>
-          ))}
+        <div className="rounded-lg border border-dashed border-border bg-surface/60 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="space-y-1">
+            <p className="font-medium text-sm">Open NFT library</p>
+            <p className="text-xs text-subtext">
+              Browse Pool Royale, Domino Royal, and gift NFTs without the default freebies.
+            </p>
+          </div>
+          <Link
+            to="/nfts"
+            className="inline-flex items-center justify-center px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold"
+          >
+            Open
+          </Link>
         </div>
       </div>
       <div className="prism-box p-4 mt-4 space-y-3 mx-auto wide-card">
