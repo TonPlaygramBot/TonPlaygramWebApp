@@ -28,6 +28,7 @@ import DevTasksModal from '../components/DevTasksModal.jsx';
 import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
 import { loadGoogleProfile } from '../utils/google.js';
+import Magazine3D from '../components/Magazine3D.jsx';
 import {
   getDefaultPoolRoyalLoadout,
   getPoolRoyalInventory,
@@ -546,6 +547,18 @@ export default function MyAccount() {
       </div>
       {profile && profile.accountId === DEV_ACCOUNT_ID && (
         <>
+          <div className="prism-box p-4 mt-4 space-y-3 mx-auto wide-card">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Magazine 3d</h3>
+              <span className="text-xs text-subtext">Dev only</span>
+            </div>
+            <p className="text-sm text-subtext">
+              Internal 3D magazine curated for Poly Haven assets with preserved materials. Items are
+              grouped by category with article numbers for quick reference.
+            </p>
+            <Magazine3D />
+          </div>
+
           <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
             <label className="block font-semibold text-center">
               Top Up Developer Account
