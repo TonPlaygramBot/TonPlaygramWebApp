@@ -1232,21 +1232,21 @@ const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned wi
 const CUE_TIP_CLEARANCE = BALL_R * 0.16; // widen the visible air gap so the blue tip never kisses the cue ball
 const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
-const CUE_PULL_MIN_VISUAL = BALL_R * 2.25; // guarantee a clear visible pull even when clearance is tight
+const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_MULTIPLIER = 1.9;
+const CUE_PULL_VISUAL_MULTIPLIER = 1.7;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
-const CUE_PULL_CUE_CAMERA_DAMPING = 0.04; // trim the pull depth in cue view so the cue stays tight to the ball while keeping the pull readable
+const CUE_PULL_CUE_CAMERA_DAMPING = 0.12; // trim the pull depth in cue view so the cue stays tight to the ball
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.18; // ensure every stroke pulls slightly farther back for readability at all angles
-const CUE_STROKE_MIN_MS = 115;
-const CUE_STROKE_MAX_MS = 480;
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
+const CUE_STROKE_MIN_MS = 95;
+const CUE_STROKE_MAX_MS = 420;
 const CUE_STROKE_SPEED_MIN = BALL_R * 18;
 const CUE_STROKE_SPEED_MAX = BALL_R * 32;
-const CUE_FOLLOW_MIN_MS = 200;
-const CUE_FOLLOW_MAX_MS = 480;
+const CUE_FOLLOW_MIN_MS = 180;
+const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.02; // align the tip closer to the cue-ball equator so the contact reads front-and-centre
@@ -1256,10 +1256,10 @@ const CUE_BUTT_LIFT = BALL_R * 0.64; // keep the butt elevated for clearance whi
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.78;
-const CUE_OBSTRUCTION_RANGE = BALL_R * 10;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 1.25;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(11);
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.35;
+const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.95;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(8.5);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -5285,16 +5285,15 @@ const AI_CAMERA_DROP_BLEND = 0.65;
 const AI_CAMERA_DROP_DURATION_MS = 480;
 const AI_STROKE_TIME_SCALE = 1.25;
 const AI_STROKE_PULLBACK_FACTOR = 0.9;
-const AI_CUE_PULL_VISIBILITY_BOOST = 1.2;
+const AI_CUE_PULL_VISIBILITY_BOOST = 1.08;
 const AI_WARMUP_PULL_RATIO = 0.45;
 const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.12;
 const PLAYER_WARMUP_PULL_RATIO = 0.72;
-const PLAYER_STROKE_TIME_SCALE = 1.18;
+const PLAYER_STROKE_TIME_SCALE = 1.15;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.55;
 const PLAYER_PULLBACK_MIN_SCALE = 1.1;
 const MIN_PULLBACK_GAP = BALL_R * 0.5;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 48;
-const PORTRAIT_HUD_VERTICAL_NUDGE_PX = 46;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -21604,9 +21603,7 @@ const powerRef = useRef(hud.power);
           style={{
             left: hudInsets.left,
             right: hudInsets.right,
-            transform: isPortrait
-              ? `translate(${bottomHudOffset}px, ${PORTRAIT_HUD_VERTICAL_NUDGE_PX}px)`
-              : undefined
+            transform: isPortrait ? `translateX(${bottomHudOffset}px)` : undefined
           }}
         >
           <div
