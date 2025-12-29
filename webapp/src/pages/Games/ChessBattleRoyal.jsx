@@ -801,11 +801,8 @@ function loadTexture(url, fallbackColor = '#888888') {
   loader.setCrossOrigin('anonymous');
   const promise = new Promise((resolve) => {
     loader.load(url, (texture) => {
-      applySRGBColorSpace(texture);
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
-      texture.anisotropy = 8;
-      texture.needsUpdate = true;
       resolve(texture);
     }, undefined, (error) => {
       console.warn(`Chess Battle Royal: failed to load texture ${url}, using fallback`, error);
@@ -885,8 +882,8 @@ const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
   blackAccent: '#50b8d8'
 });
 
-const PIECE_STYLE_OPTIONS = Object.freeze([
-  ...[
+const PIECE_STYLE_OPTIONS = Object.freeze(
+  [
     { id: 'beautifulGameClassic', label: 'Classic (Ivory)', color: '#ffffff' },
     { id: 'beautifulGameMono', label: 'Mono (Onyx)', color: '#111827' },
     { id: 'beautifulGameAmber', label: 'Amber', color: '#f59e0b' },
@@ -908,22 +905,8 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
       blackAccent: BASE_PIECE_STYLE.blackAccent
     },
     loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
-  })),
-  {
-    id: HERITAGE_WALNUT_STYLE.id,
-    label: HERITAGE_WALNUT_STYLE.label,
-    color: HERITAGE_WALNUT_STYLE.accent,
-    style: { ...HERITAGE_WALNUT_STYLE, preserveOriginalMaterials: true, keepTextures: true },
-    loader: (targetBoardSize) => loadWalnutStauntonAssets(targetBoardSize)
-  },
-  {
-    id: MARBLE_ONYX_STYLE.id,
-    label: MARBLE_ONYX_STYLE.label,
-    color: MARBLE_ONYX_STYLE.accent,
-    style: { ...MARBLE_ONYX_STYLE, preserveOriginalMaterials: true, keepTextures: true },
-    loader: (targetBoardSize) => loadMarbleOnyxStauntonAssets(targetBoardSize)
-  }
-]);
+  }))
+);
 
 const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(
   0,
@@ -1253,7 +1236,7 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.id !== DIAMOND_SHAPE_ID);
 
-const PRESERVE_NATIVE_PIECE_IDS = new Set([BEAUTIFUL_GAME_SWAP_SET_ID, 'heritageWalnut', 'marbleOnyx']);
+const PRESERVE_NATIVE_PIECE_IDS = new Set([BEAUTIFUL_GAME_SWAP_SET_ID]);
 
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
@@ -1265,11 +1248,6 @@ const CUSTOMIZATION_SECTIONS = [
 
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
-  const clampIndex = (rawValue, max, fallbackIndex = 0) => {
-    const raw = Number(rawValue);
-    if (!Number.isFinite(raw)) return Math.min(Math.max(0, fallbackIndex), Math.max(0, max - 1));
-    return Math.min(Math.max(0, Math.round(raw)), Math.max(0, max - 1));
-  };
   const fallbackPieceStyleIndex = Number.isFinite(value?.pieceStyle)
     ? Math.min(Math.max(0, Math.round(value.pieceStyle)), PIECE_STYLE_OPTIONS.length - 1)
     : null;
@@ -1287,26 +1265,10 @@ function normalizeAppearance(value = {}) {
     const clamped = Math.min(Math.max(0, Math.round(source)), max - 1);
     normalized[key] = clamped;
   });
-  normalized.boardColor = clampIndex(
-    value?.boardColor,
-    BOARD_COLOR_BASE_OPTIONS.length,
-    DEFAULT_APPEARANCE.boardColor
-  );
-  normalized.whitePieceStyle = clampIndex(
-    value?.whitePieceStyle,
-    PIECE_STYLE_OPTIONS.length,
-    DEFAULT_APPEARANCE.whitePieceStyle
-  );
-  normalized.blackPieceStyle = clampIndex(
-    value?.blackPieceStyle,
-    PIECE_STYLE_OPTIONS.length,
-    DEFAULT_APPEARANCE.blackPieceStyle
-  );
-  normalized.headStyle = clampIndex(
-    value?.headStyle,
-    HEAD_PRESET_OPTIONS.length,
-    DEFAULT_APPEARANCE.headStyle
-  );
+  normalized.boardColor = DEFAULT_APPEARANCE.boardColor;
+  normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
+  normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
+  normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
   return normalized;
 }
 
@@ -2185,7 +2147,6 @@ async function resolveTextureSet(definition = {}) {
 function applyTextureSetToMaterial(baseMaterial, textureSet, { tint, roughness, metalness } = {}) {
   const material = baseMaterial?.clone ? baseMaterial.clone() : new THREE.MeshPhysicalMaterial();
   if (textureSet.map) {
-    applySRGBColorSpace(textureSet.map);
     material.map = textureSet.map;
     material.map.repeat.set(textureSet.repeat, textureSet.repeat);
     material.map.needsUpdate = true;
@@ -2684,27 +2645,12 @@ async function loadWalnutStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
     assetScale: STAUNTON_TEXTURED_ASSET_SCALE,
     fallbackBuilder: buildStauntonFallbackAssets
   });
-  const textured = (await applyTextureProfileToAssets(assets, {
+  return applyTextureProfileToAssets(assets, {
     white: MAPLE_WOOD_TEXTURES,
     black: WALNUT_WOOD_TEXTURES,
     whiteTint: '#f4ebd8',
     blackTint: '#2b1b10'
-  })) || assets;
-  if (!textured) return textured;
-  if (textured?.boardModel) {
-    textured.boardModel.userData = {
-      ...(textured.boardModel.userData || {}),
-      preserveOriginalMaterials: true,
-      styleId: 'heritageWalnut'
-    };
-  }
-  textured.userData = {
-    ...(textured.userData || {}),
-    preserveOriginalMaterials: true,
-    keepTextures: true,
-    styleId: 'heritageWalnut'
-  };
-  return textured;
+  });
 }
 
 async function loadMarbleOnyxStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
@@ -2715,27 +2661,12 @@ async function loadMarbleOnyxStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
     assetScale: STAUNTON_TEXTURED_ASSET_SCALE,
     fallbackBuilder: buildStauntonFallbackAssets
   });
-  const textured = (await applyTextureProfileToAssets(assets, {
+  return applyTextureProfileToAssets(assets, {
     white: MARBLE_WHITE_TEXTURES,
     black: EBONY_POLISH_TEXTURES,
     whiteTint: '#f5f5f5',
     blackTint: '#0f1012'
-  })) || assets;
-  if (!textured) return textured;
-  if (textured?.boardModel) {
-    textured.boardModel.userData = {
-      ...(textured.boardModel.userData || {}),
-      preserveOriginalMaterials: true,
-      styleId: 'marbleOnyx'
-    };
-  }
-  textured.userData = {
-    ...(textured.userData || {}),
-    preserveOriginalMaterials: true,
-    keepTextures: true,
-    styleId: 'marbleOnyx'
-  };
-  return textured;
+  });
 }
 
 async function resolveBeautifulGameBoardStrict(targetBoardSize) {
@@ -6078,7 +6009,7 @@ function Chess3D({
     }
     const pieceSetOption =
       PIECE_STYLE_OPTIONS[normalized.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-    const nextPieceSetId = pieceSetOption.id ?? BEAUTIFUL_GAME_SWAP_SET_ID;
+    const nextPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
     const isBeautifulGameSet = (arena.activePieceSetId || nextPieceSetId || '').startsWith('beautifulGame');
     const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
@@ -6088,13 +6019,8 @@ function Chess3D({
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
     const headPreset = palette.head ?? HEAD_PRESET_OPTIONS[0].preset;
-    const pieceSetLoader = pieceSetOption.loader ?? resolveBeautifulGameAssets;
+    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
-    const preserveNativeMaterials = Boolean(
-      pieceStyleOption?.preserveOriginalMaterials ||
-        pieceSetOption?.style?.preserveOriginalMaterials ||
-        PRESERVE_NATIVE_PIECE_IDS.has(nextPieceSetId)
-    );
 
     if (shapeOption) {
       const shapeChanged = shapeOption.id !== arena.tableShapeId;
@@ -6148,21 +6074,17 @@ function Chess3D({
       }
     }
 
-    if (arena.piecePrototypes && !preserveNativeMaterials) {
+    if (arena.piecePrototypes) {
       harmonizeBeautifulGamePieces(arena.piecePrototypes, pieceStyleOption);
       applyHeadPresetToPrototypes(arena.piecePrototypes, headPreset);
     }
-    if (arena.allPieceMeshes && !preserveNativeMaterials) {
+    if (arena.allPieceMeshes) {
       applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption);
       applyHeadPresetToMeshes(arena.allPieceMeshes, headPreset);
     }
 
     if (arena.boardModel) {
-      const preserveBoardMaterials =
-        preserveNativeMaterials || arena.boardModel.userData?.preserveOriginalMaterials;
-      if (!preserveBoardMaterials) {
-        applyBeautifulGameBoardTheme(arena.boardModel, boardTheme);
-      }
+      applyBeautifulGameBoardTheme(arena.boardModel, boardTheme);
       arena.boardModel.visible = true;
       arena.setProceduralBoardVisible?.(false);
     }
@@ -6212,40 +6134,34 @@ function Chess3D({
       });
     }
 
-    if (isBeautifulGameSet && arena.piecePrototypes && !preserveNativeMaterials) {
+    if (isBeautifulGameSet && arena.piecePrototypes) {
       harmonizeBeautifulGamePieces(arena.piecePrototypes, pieceStyleOption);
     }
 
     if (arena.allPieceMeshes) {
-      if (!preserveNativeMaterials) {
-        if (isBeautifulGameSet) {
-          applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption);
-          disposePieceMaterials(arena.pieceMaterials);
-          arena.pieceMaterials = null;
-        } else {
-          const nextPieceMaterials = createPieceMaterials(pieceStyleOption);
-          arena.allPieceMeshes.forEach((group) => {
-            const meshStyleId = group.userData?.__pieceStyleId;
-            if (meshStyleId && PRESERVE_NATIVE_PIECE_IDS.has(meshStyleId)) return;
-            const colorKey = group.userData?.__pieceColor === 'black' ? 'black' : 'white';
-            const materialSet = nextPieceMaterials[colorKey];
-            if (!materialSet) return;
-            group.traverse((child) => {
-              if (!child.isMesh) return;
-              const role = child.userData?.__pieceMaterialRole === 'accent' ? 'accent' : 'base';
-              const mat =
-                role === 'accent' && materialSet.accent ? materialSet.accent : materialSet.base;
-              if (mat) child.material = mat;
-            });
-          });
-          disposePieceMaterials(arena.pieceMaterials);
-          arena.pieceMaterials = nextPieceMaterials;
-        }
-        applyHeadPresetToMeshes(arena.allPieceMeshes, headPreset);
-      } else if (arena.pieceMaterials) {
+      if (isBeautifulGameSet) {
+        applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption);
         disposePieceMaterials(arena.pieceMaterials);
         arena.pieceMaterials = null;
+      } else {
+        const nextPieceMaterials = createPieceMaterials(pieceStyleOption);
+        arena.allPieceMeshes.forEach((group) => {
+          const meshStyleId = group.userData?.__pieceStyleId;
+          if (meshStyleId && PRESERVE_NATIVE_PIECE_IDS.has(meshStyleId)) return;
+          const colorKey = group.userData?.__pieceColor === 'black' ? 'black' : 'white';
+          const materialSet = nextPieceMaterials[colorKey];
+          if (!materialSet) return;
+          group.traverse((child) => {
+            if (!child.isMesh) return;
+            const role = child.userData?.__pieceMaterialRole === 'accent' ? 'accent' : 'base';
+            const mat = role === 'accent' && materialSet.accent ? materialSet.accent : materialSet.base;
+            if (mat) child.material = mat;
+          });
+        });
+        disposePieceMaterials(arena.pieceMaterials);
+        arena.pieceMaterials = nextPieceMaterials;
       }
+      applyHeadPresetToMeshes(arena.allPieceMeshes, headPreset);
     }
 
     const accentColor = palette.accent ?? '#4ce0c3';
@@ -6328,8 +6244,8 @@ function Chess3D({
       const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
       const pieceSetOption =
         PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-      const initialPieceSetId = pieceSetOption.id ?? BEAUTIFUL_GAME_SWAP_SET_ID;
-      const pieceSetLoader = pieceSetOption.loader ?? resolveBeautifulGameAssets;
+      const initialPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
+      const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
       const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
       const initialPlayerFlag =
         playerFlag ||
@@ -7343,8 +7259,6 @@ function Chess3D({
           assets?.userData?.preserveOriginalMaterials ||
           PRESERVE_NATIVE_PIECE_IDS.has(resolvedSetId)
       );
-      const preserveBoardMaterials =
-        preserveOriginalMaterials || boardModel?.userData?.preserveOriginalMaterials;
       rankSwapAppliedRef.current = false;
       pawnHeadMaterialCacheRef.current.clear();
       boardMaterialCacheRef.current = { gltf: new Map(), procedural: null };
@@ -7361,9 +7275,7 @@ function Chess3D({
         );
         currentPieceYOffset = preferredYOffset;
         boardGroup.add(boardModel);
-        if (!preserveBoardMaterials) {
-          applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
-        }
+        applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
         setProceduralBoardVisible(false);
         currentBoardModel = boardModel;
         currentBoardCleanup = () => {
