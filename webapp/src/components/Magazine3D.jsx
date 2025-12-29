@@ -205,6 +205,26 @@ function buildPolyhavenModelUrls(id) {
   ];
 }
 
+function buildPolyhavenThumbnailUrl(id, size = 512) {
+  if (!id) return '';
+  const safe = encodeURIComponent(id);
+  return `https://cdn.polyhaven.com/asset_img/thumbs/${safe}.png?width=${size}&height=${size}`;
+}
+
+function buildPolyhavenViewUrl(id) {
+  if (!id) return '#';
+  return `https://polyhaven.com/a/${encodeURIComponent(id)}`;
+}
+
+function formatAssetLabel(id) {
+  if (!id) return '';
+  return String(id)
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
 function createConfiguredGLTFLoader(renderer, manager) {
   const loader = new GLTFLoader(manager);
   loader.setCrossOrigin?.('anonymous');
@@ -362,6 +382,30 @@ function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotrop
       }
     });
   });
+}
+
+function pickBestPreviewUrl(allUrls, id) {
+  const images = allUrls.filter((u) => {
+    const lower = u.toLowerCase();
+    return lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.webp');
+  });
+
+  const scored = images
+    .map((url) => {
+      const lower = url.toLowerCase();
+      let score = 0;
+      if (lower.includes('thumb')) score += 8;
+      if (lower.includes('preview')) score += 6;
+      if (lower.includes('small')) score += 3;
+      if (lower.includes('cover')) score += 2;
+      if (lower.includes('polyhaven')) score += 2;
+      if (lower.includes('cdn.')) score += 1;
+      return { url, score };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  if (scored[0]) return scored[0].url;
+  return buildPolyhavenThumbnailUrl(id);
 }
 
 export default function Magazine3D() {
@@ -582,7 +626,17 @@ export default function Magazine3D() {
 
                 loadedCount += 1;
                 if (!cancelled) {
-                  setCatalog((prev) => [...prev, { slot: slot + 1, id, category: cat }]);
+                  const previewUrl = pickBestPreviewUrl(allUrls, id);
+                  const displayName = formatAssetLabel(id);
+                  const viewUrl = buildPolyhavenViewUrl(id);
+                  setCatalog((prev) => [...prev, {
+                    slot: slot + 1,
+                    id,
+                    category: cat,
+                    previewUrl,
+                    name: displayName,
+                    viewUrl
+                  }]);
                 }
               } catch (error) {
                 console.warn('Failed to load Poly Haven asset', id, error);
@@ -648,16 +702,35 @@ export default function Magazine3D() {
               <h4 className="font-semibold text-base">{category}</h4>
               <span className="text-xs text-subtext">{items.length} items</span>
             </div>
-            <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
               {items.map((item) => (
                 <div
                   key={`${category}-${item.slot}-${item.id}`}
-                  className="flex items-center justify-between text-sm"
+                  className="flex items-center gap-3 p-2 rounded-lg border border-border/70 bg-background/60"
                 >
-                  <span className="font-mono text-primary text-sm font-semibold">
-                    #{String(item.slot).padStart(4, '0')}
-                  </span>
-                  <span className="ml-2 truncate text-foreground font-medium">{item.id}</span>
+                  <img
+                    src={item.previewUrl}
+                    alt={`${item.name || item.id} thumbnail`}
+                    className="w-16 h-16 rounded object-cover flex-shrink-0 bg-surface"
+                    loading="lazy"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-primary text-sm font-semibold">
+                        #{String(item.slot).padStart(4, '0')}
+                      </span>
+                      <a
+                        href={item.viewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1 text-xs font-semibold rounded bg-primary hover:bg-primary-hover text-background transition"
+                      >
+                        View
+                      </a>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground truncate">{item.name || item.id}</p>
+                    <p className="text-xs text-subtext truncate">{item.id}</p>
+                  </div>
                 </div>
               ))}
             </div>
