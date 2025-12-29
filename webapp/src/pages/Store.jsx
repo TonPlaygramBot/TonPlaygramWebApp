@@ -145,6 +145,7 @@ const CHESS_TYPE_LABELS = {
   tableWood: 'Table Wood',
   tableCloth: 'Table Cloth',
   tableBase: 'Table Base',
+  tables: 'Table Models',
   chairColor: 'Chairs',
   tableShape: 'Table Shape',
   sideColor: 'Piece Colors',
