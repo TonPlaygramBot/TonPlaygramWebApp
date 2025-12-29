@@ -4,8 +4,13 @@ import {
   TABLE_BASE_OPTIONS
 } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
+import {
+  POOL_ROYALE_DEFAULT_HDRI_ID,
+  POOL_ROYALE_HDRI_VARIANTS
+} from './poolRoyaleInventoryConfig.js';
 
 const DEFAULT_TABLE_SHAPE_ID = TABLE_SHAPE_OPTIONS.find((opt) => opt.id !== 'diamondEdge')?.id;
+const DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id;
 
 export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   tableWood: [TABLE_WOOD_OPTIONS[0]?.id],
@@ -15,7 +20,8 @@ export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   tableShape: [DEFAULT_TABLE_SHAPE_ID],
   sideColor: ['amberGlow', 'mintVale'],
   boardTheme: ['classic'],
-  headStyle: ['current']
+  headStyle: ['current'],
+  environmentHdri: [DEFAULT_HDRI_ID]
 });
 
 export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
@@ -77,7 +83,13 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
     headSapphire: 'Sapphire',
     headChrome: 'Chrome',
     headGold: 'Gold'
-  })
+  }),
+  environmentHdri: Object.freeze(
+    POOL_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => {
+      acc[variant.id] = `${variant.name} HDRI`;
+      return acc;
+    }, {})
+  )
 });
 
 export const CHESS_BATTLE_STORE_ITEMS = [
@@ -127,7 +139,15 @@ export const CHESS_BATTLE_STORE_ITEMS = [
   { id: 'chess-head-ruby', type: 'headStyle', optionId: 'headRuby', name: 'Ruby Pawn Heads', price: 310, description: 'Unlocks an additional pawn head glass preset.' },
   { id: 'chess-head-sapphire', type: 'headStyle', optionId: 'headSapphire', name: 'Sapphire Pawn Heads', price: 335, description: 'Unlocks an additional pawn head glass preset.' },
   { id: 'chess-head-chrome', type: 'headStyle', optionId: 'headChrome', name: 'Chrome Pawn Heads', price: 360, description: 'Unlocks an additional pawn head glass preset.' },
-  { id: 'chess-head-gold', type: 'headStyle', optionId: 'headGold', name: 'Gold Pawn Heads', price: 385, description: 'Unlocks an additional pawn head glass preset.' }
+  { id: 'chess-head-gold', type: 'headStyle', optionId: 'headGold', name: 'Gold Pawn Heads', price: 385, description: 'Unlocks an additional pawn head glass preset.' },
+  ...POOL_ROYALE_HDRI_VARIANTS.map((variant, idx) => ({
+    id: `chess-hdri-${variant.id}`,
+    type: 'environmentHdri',
+    optionId: variant.id,
+    name: `${variant.name} HDRI`,
+    price: variant.price ?? 1400 + idx * 30,
+    description: 'Pool Royale HDRI environment, tuned for chess table promos.'
+  }))
 ];
 
 export const CHESS_BATTLE_DEFAULT_LOADOUT = [
@@ -139,5 +159,10 @@ export const CHESS_BATTLE_DEFAULT_LOADOUT = [
   { type: 'sideColor', optionId: 'amberGlow', label: 'Amber Glow Pieces' },
   { type: 'sideColor', optionId: 'mintVale', label: 'Mint Vale Pieces' },
   { type: 'boardTheme', optionId: 'classic', label: 'Classic Board' },
-  { type: 'headStyle', optionId: 'current', label: 'Current Pawn Heads' }
+  { type: 'headStyle', optionId: 'current', label: 'Current Pawn Heads' },
+  {
+    type: 'environmentHdri',
+    optionId: DEFAULT_HDRI_ID,
+    label: CHESS_BATTLE_OPTION_LABELS.environmentHdri[DEFAULT_HDRI_ID] || 'HDR Environment'
+  }
 ];

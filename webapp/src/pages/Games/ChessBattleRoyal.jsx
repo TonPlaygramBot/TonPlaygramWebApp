@@ -6,10 +6,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import {
-  createArenaCarpetMaterial,
-  createArenaWallMaterial
-} from '../../utils/arenaDecor.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
   createMurlanStyleTable,
@@ -35,6 +33,10 @@ import {
   WOOD_GRAIN_OPTIONS,
   WOOD_GRAIN_OPTIONS_BY_ID
 } from '../../utils/tableCustomizationOptions.js';
+import {
+  POOL_ROYALE_DEFAULT_HDRI_ID,
+  POOL_ROYALE_HDRI_VARIANTS
+} from '../../config/poolRoyaleInventoryConfig.js';
 import {
   chessBattleAccountId,
   getChessBattleInventory,
@@ -174,6 +176,23 @@ const BOARD_COLOR_BASE_OPTIONS = Object.freeze([
     frameMetalness: 0.18
   }
 ]);
+
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k', '2k']);
+const CHESS_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
+  ...variant,
+  label: `${variant.name} HDRI`
+}));
+const DEFAULT_HDRI_INDEX = Math.max(
+  0,
+  CHESS_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID)
+);
+const DEFAULT_HDRI_VARIANT =
+  CHESS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? CHESS_HDRI_OPTIONS[0] ?? null;
+const resolveHdriVariant = (index) => {
+  const max = CHESS_HDRI_OPTIONS.length - 1;
+  const idx = Number.isFinite(index) ? clamp(Math.round(index), 0, max) : DEFAULT_HDRI_INDEX;
+  return CHESS_HDRI_OPTIONS[idx] ?? CHESS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? CHESS_HDRI_OPTIONS[0];
+};
 
 const MODEL_SCALE = 0.75;
 const STOOL_SCALE = 1.5 * 1.3;
@@ -1043,20 +1062,77 @@ const QUICK_BOARD_THEMES = [
   { id: 'nebulaGlass', name: 'Nebula Glass', light: 0xe0f2fe, dark: 0x0b1024 }
 ];
 
-const SNOOKER_TABLE_SCALE = 1.3;
-const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
-const SNOOKER_TABLE_H = 132 * SNOOKER_TABLE_SCALE;
-const SNOOKER_ROOM_DEPTH = SNOOKER_TABLE_H * 3.6;
-const SNOOKER_SIDE_CLEARANCE = SNOOKER_ROOM_DEPTH / 2 - SNOOKER_TABLE_H / 2;
-const SNOOKER_ROOM_WIDTH = SNOOKER_TABLE_W + SNOOKER_SIDE_CLEARANCE * 2;
-const SNOOKER_SIZE_REDUCTION = 0.7;
-const SNOOKER_GLOBAL_SIZE_FACTOR = 0.85 * SNOOKER_SIZE_REDUCTION;
-const SNOOKER_WORLD_SCALE = 0.85 * SNOOKER_GLOBAL_SIZE_FACTOR * 0.7;
-// Match half of the scaled billiards arena footprint
-const CHESS_ARENA = Object.freeze({
-  width: (SNOOKER_ROOM_WIDTH * SNOOKER_WORLD_SCALE) / 2,
-  depth: (SNOOKER_ROOM_DEPTH * SNOOKER_WORLD_SCALE) / 2
-});
+const CHESS_ROOM_HALF_SPAN = TABLE_RADIUS + CHAIR_CLEARANCE + SEAT_DEPTH;
+
+const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
+  if (!json || typeof json !== 'object') return null;
+  const resolutions = Array.isArray(preferred) && preferred.length ? preferred : DEFAULT_HDRI_RESOLUTIONS;
+  for (const res of resolutions) {
+    const entry = json[res];
+    if (entry?.hdr) return entry.hdr;
+    if (entry?.exr) return entry.exr;
+  }
+  const fallback = Object.values(json).find((value) => value?.hdr || value?.exr);
+  if (!fallback) return null;
+  return fallback.hdr || fallback.exr || null;
+};
+
+async function resolvePolyHavenHdriUrl(config = {}) {
+  const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+    ? config.preferredResolutions
+    : DEFAULT_HDRI_RESOLUTIONS;
+  const fallbackRes = config?.fallbackResolution || preferred[0] || '8k';
+  const fallbackUrl =
+    config?.fallbackUrl ||
+    `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
+  if (config?.assetUrls && typeof config.assetUrls === 'object') {
+    for (const res of preferred) {
+      if (config.assetUrls[res]) return config.assetUrls[res];
+    }
+    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
+    if (manual) return manual;
+  }
+  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
+  if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
+  try {
+    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
+    if (!response?.ok) return fallbackUrl;
+    const json = await response.json();
+    const picked = pickPolyHavenHdriUrl(json, preferred);
+    return picked || fallbackUrl;
+  } catch (error) {
+    console.warn('Failed to resolve Poly Haven HDRI url', error);
+    return fallbackUrl;
+  }
+}
+
+async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
+  if (!renderer) return null;
+  const url = await resolvePolyHavenHdriUrl(config);
+  const lowerUrl = `${url ?? ''}`.toLowerCase();
+  const useExr = lowerUrl.endsWith('.exr');
+  const loader = useExr ? new EXRLoader() : new RGBELoader();
+  loader.setCrossOrigin?.('anonymous');
+  return new Promise((resolve) => {
+    loader.load(
+      url,
+      (texture) => {
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        pmrem.compileEquirectangularShader();
+        const envMap = pmrem.fromEquirectangular(texture).texture;
+        envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
+        texture.dispose();
+        pmrem.dispose();
+        resolve({ envMap, url });
+      },
+      undefined,
+      (error) => {
+        console.warn('Failed to load Poly Haven HDRI', error);
+        resolve(null);
+      }
+    );
+  });
+}
 
 const POOL_ROYALE_LIGHTING = Object.freeze({
   keyColor: 0xf6f8ff,
@@ -1187,7 +1263,8 @@ const DEFAULT_APPEARANCE = {
   boardColor: 0,
   whitePieceStyle: 0,
   blackPieceStyle: 1,
-  headStyle: 0
+  headStyle: 0,
+  environmentHdri: DEFAULT_HDRI_INDEX
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
 const CHAIR_COLOR_OPTIONS = Object.freeze([
@@ -1243,7 +1320,8 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
   { key: 'chairColor', label: 'Chairs', options: CHAIR_COLOR_OPTIONS },
-  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_MENU_OPTIONS }
+  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_MENU_OPTIONS },
+  { key: 'environmentHdri', label: 'HDR Environment', options: CHESS_HDRI_OPTIONS }
 ];
 
 function normalizeAppearance(value = {}) {
@@ -1256,7 +1334,8 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length]
+    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
+    ['environmentHdri', CHESS_HDRI_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -5302,6 +5381,12 @@ function Chess3D({
   const controlsRef = useRef(null);
   const fitRef = useRef(() => {});
   const arenaRef = useRef(null);
+  const sceneRef = useRef(null);
+  const rendererRef = useRef(null);
+  const envTextureRef = useRef(null);
+  const disposeEnvironmentRef = useRef(null);
+  const updateEnvironmentRef = useRef(() => {});
+  const hdriVariantRef = useRef(DEFAULT_HDRI_VARIANT);
   const clearHighlightsRef = useRef(() => {});
   const cameraViewRef = useRef(null);
   const viewModeRef = useRef('2d');
@@ -5625,7 +5710,8 @@ function Chess3D({
         tableCloth: TABLE_CLOTH_OPTIONS,
         tableBase: TABLE_BASE_OPTIONS,
         chairColor: CHAIR_COLOR_OPTIONS,
-        tableShape: TABLE_SHAPE_MENU_OPTIONS
+        tableShape: TABLE_SHAPE_MENU_OPTIONS,
+        environmentHdri: CHESS_HDRI_OPTIONS
       };
       let changed = false;
       const next = { ...normalized };
@@ -5699,6 +5785,17 @@ function Chess3D({
     }
     if (key === 'chairColor') {
       return dualSwatch(option.primary || '#1f2937', option.accent || option.highlight || '#38bdf8');
+    }
+    if (key === 'environmentHdri') {
+      const swatches = Array.isArray(option.swatches) && option.swatches.length >= 2
+        ? option.swatches
+        : [option.swatches?.[0] || '#0ea5e9', '#0f172a'];
+      return (
+        <span
+          className={swatchClass}
+          style={{ background: `linear-gradient(90deg, ${swatches[0]}, ${swatches[1]})` }}
+        />
+      );
     }
     if (key === 'tableShape') {
       const previewBackground = option.preview?.background || option.preview?.backgroundColor;
@@ -5800,6 +5897,10 @@ function Chess3D({
 
   useEffect(() => {
     appearanceRef.current = appearance;
+    hdriVariantRef.current = resolveHdriVariant(appearance.environmentHdri);
+    if (typeof updateEnvironmentRef.current === 'function') {
+      updateEnvironmentRef.current(hdriVariantRef.current);
+    }
     if (typeof window !== 'undefined') {
       try {
         window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
@@ -6240,6 +6341,8 @@ function Chess3D({
       const normalizedAppearance = normalizeAppearance(appearanceRef.current);
       const palette = createChessPalette(normalizedAppearance);
       paletteRef.current = palette;
+      const environmentOption = resolveHdriVariant(normalizedAppearance.environmentHdri);
+      hdriVariantRef.current = environmentOption;
       const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
       const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
       const pieceSetOption =
@@ -6330,113 +6433,76 @@ function Chess3D({
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
     host.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0b0f16);
-
+    sceneRef.current = scene;
     const arena = new THREE.Group();
     scene.add(arena);
 
-    const arenaHalfWidth = CHESS_ARENA.width / 2;
-    const arenaHalfDepth = CHESS_ARENA.depth / 2;
-    const wallInset = 0.5;
-    const halfRoomX = (arenaHalfWidth - wallInset) * WALL_PROXIMITY_FACTOR;
-    const halfRoomZ = (arenaHalfDepth - wallInset) * WALL_PROXIMITY_FACTOR;
-    const roomHalfWidth = halfRoomX + wallInset;
-    const roomHalfDepth = halfRoomZ + wallInset;
+    const roomHalfWidth = CHESS_ROOM_HALF_SPAN;
+    const roomHalfDepth = CHESS_ROOM_HALF_SPAN;
     const roomWidth = roomHalfWidth * 2;
     const roomDepth = roomHalfDepth * 2;
 
+    const applyHdriEnvironment = async (variantConfig = hdriVariantRef.current || DEFAULT_HDRI_VARIANT) => {
+      const sceneInstance = sceneRef.current;
+      if (!renderer || !sceneInstance) return;
+      const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
+      const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
+      if (!envResult) return;
+      const { envMap } = envResult;
+      if (!envMap) return;
+      if (cancelled) {
+        envMap.dispose?.();
+        return;
+      }
+      const prevDispose = disposeEnvironmentRef.current;
+      const prevTexture = envTextureRef.current;
+      sceneInstance.environment = envMap;
+      sceneInstance.background = envMap;
+      if ('backgroundIntensity' in sceneInstance && typeof activeVariant?.backgroundIntensity === 'number') {
+        sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
+      }
+      if (typeof activeVariant?.environmentIntensity === 'number') {
+        sceneInstance.environmentIntensity = activeVariant.environmentIntensity;
+      }
+      renderer.toneMappingExposure = activeVariant?.exposure ?? renderer.toneMappingExposure;
+      envTextureRef.current = envMap;
+      disposeEnvironmentRef.current = () => {
+        if (sceneRef.current?.environment === envMap) {
+          sceneRef.current.environment = null;
+        }
+        if (sceneRef.current?.background === envMap) {
+          sceneRef.current.background = null;
+        }
+        envMap.dispose?.();
+      };
+      if (prevDispose && prevTexture !== envMap) {
+        prevDispose();
+      }
+    };
+    updateEnvironmentRef.current = applyHdriEnvironment;
+    disposers.push(() => {
+      disposeEnvironmentRef.current?.();
+      envTextureRef.current = null;
+    });
+    void applyHdriEnvironment(hdriVariantRef.current || DEFAULT_HDRI_VARIANT);
+
+    const floorRadius = Math.max(roomHalfWidth, roomHalfDepth) * 1.15;
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(roomHalfWidth * 2, roomHalfDepth * 2),
+      new THREE.CircleGeometry(floorRadius, 72),
       new THREE.MeshStandardMaterial({
         color: 0x0f1222,
-        roughness: 0.95,
-        metalness: 0.05
+        roughness: 0.94,
+        metalness: 0.08
       })
     );
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     floor.castShadow = false;
     arena.add(floor);
-
-    const carpetMat = createArenaCarpetMaterial();
-    const carpet = new THREE.Mesh(
-      new THREE.PlaneGeometry(roomHalfWidth * 1.2, roomHalfDepth * 1.2),
-      carpetMat
-    );
-    carpet.rotation.x = -Math.PI / 2;
-    carpet.position.y = 0.002;
-    carpet.receiveShadow = true;
-    carpet.castShadow = false;
-    arena.add(carpet);
-
-    const wallH = 3 * WALL_HEIGHT_MULTIPLIER;
-    const wallT = 0.1;
-    const wallMat = createArenaWallMaterial();
-    const backWall = new THREE.Mesh(
-      new THREE.BoxGeometry(halfRoomX * 2, wallH, wallT),
-      wallMat
-    );
-    backWall.position.set(0, wallH / 2, halfRoomZ);
-    arena.add(backWall);
-    const frontWall = new THREE.Mesh(
-      new THREE.BoxGeometry(halfRoomX * 2, wallH, wallT),
-      wallMat
-    );
-    frontWall.position.set(0, wallH / 2, -halfRoomZ);
-    arena.add(frontWall);
-    const leftWall = new THREE.Mesh(
-      new THREE.BoxGeometry(wallT, wallH, halfRoomZ * 2),
-      wallMat
-    );
-    leftWall.position.set(-halfRoomX, wallH / 2, 0);
-    arena.add(leftWall);
-    const rightWall = new THREE.Mesh(
-      new THREE.BoxGeometry(wallT, wallH, halfRoomZ * 2),
-      wallMat
-    );
-    rightWall.position.set(halfRoomX, wallH / 2, 0);
-    arena.add(rightWall);
-
-    const ceilTrim = new THREE.Mesh(
-      new THREE.BoxGeometry(halfRoomX * 2, 0.02, halfRoomZ * 2),
-      new THREE.MeshStandardMaterial({
-        color: 0x1a233f,
-        roughness: 0.9,
-        metalness: 0.02,
-        side: THREE.DoubleSide
-      })
-    );
-    ceilTrim.position.set(0, wallH - 0.02, 0);
-    arena.add(ceilTrim);
-
-    const ledMat = new THREE.MeshStandardMaterial({
-      color: 0x00f7ff,
-      emissive: 0x0099aa,
-      emissiveIntensity: 0.4,
-      roughness: 0.6,
-      metalness: 0.2,
-      side: THREE.DoubleSide
-    });
-    const stripBack = new THREE.Mesh(
-      new THREE.BoxGeometry(halfRoomX * 2, 0.02, 0.01),
-      ledMat
-    );
-    stripBack.position.set(0, 0.05, halfRoomZ - wallT / 2);
-    arena.add(stripBack);
-    const stripFront = stripBack.clone();
-    stripFront.position.set(0, 0.05, -halfRoomZ + wallT / 2);
-    arena.add(stripFront);
-    const stripLeft = new THREE.Mesh(
-      new THREE.BoxGeometry(0.01, 0.02, halfRoomZ * 2),
-      ledMat
-    );
-    stripLeft.position.set(-halfRoomX + wallT / 2, 0.05, 0);
-    arena.add(stripLeft);
-    const stripRight = stripLeft.clone();
-    stripRight.position.set(halfRoomX - wallT / 2, 0.05, 0);
-    arena.add(stripRight);
 
     const tableInfo = createMurlanStyleTable({
       arena,
@@ -8183,6 +8249,11 @@ function Chess3D({
       controlsRef.current = null;
       controls?.dispose();
       controls = null;
+      updateEnvironmentRef.current = () => {};
+      disposeEnvironmentRef.current = null;
+      envTextureRef.current = null;
+      sceneRef.current = null;
+      rendererRef.current = null;
       isReplayingRef.current = false;
       lastMoveRef.current = null;
       const arenaState = arenaRef.current;

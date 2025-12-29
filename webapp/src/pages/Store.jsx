@@ -149,7 +149,8 @@ const CHESS_TYPE_LABELS = {
   tableShape: 'Table Shape',
   sideColor: 'Piece Colors',
   boardTheme: 'Board Themes',
-  headStyle: 'Pawn Heads'
+  headStyle: 'Pawn Heads',
+  environmentHdri: 'HDR Environments'
 };
 
 const BLACKJACK_TYPE_LABELS = {
