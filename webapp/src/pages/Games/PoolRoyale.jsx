@@ -10,7 +10,6 @@ import * as THREE from 'three';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
-import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -4271,7 +4270,7 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 }
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['16k', '8k', '4k', '2k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k', '2k']);
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const urls = [];
@@ -4301,17 +4300,16 @@ function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
 }
 
 async function resolvePolyHavenHdriUrl(config = {}) {
-  const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
-    ? config.preferredResolutions
-    : DEFAULT_HDRI_RESOLUTIONS;
-  const fallbackRes = config?.fallbackResolution || preferred[1] || '8k';
-  const fallbackUrl = config?.customUrl ||
-    `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
+  const fallbackRes = config?.fallbackResolution || DEFAULT_HDRI_RESOLUTIONS[1] || '4k';
+  const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
   if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
   try {
     const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
     if (!response?.ok) return fallbackUrl;
     const json = await response.json();
+    const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+      ? config.preferredResolutions
+      : DEFAULT_HDRI_RESOLUTIONS;
     const picked = pickPolyHavenHdriUrl(json, preferred);
     return picked || fallbackUrl;
   } catch (error) {
@@ -4320,26 +4318,15 @@ async function resolvePolyHavenHdriUrl(config = {}) {
   }
 }
 
-async function loadHdriTexture(url) {
-  const lower = `${url || ''}`.toLowerCase();
-  const loader = lower.endsWith('.exr') ? new EXRLoader() : new RGBELoader();
-  loader.setCrossOrigin('anonymous');
-  return new Promise((resolve, reject) => {
-    loader.load(
-      url,
-      (texture) => resolve(texture),
-      undefined,
-      (error) => reject(error)
-    );
-  });
-}
-
 async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   if (!renderer) return null;
   const url = await resolvePolyHavenHdriUrl(config);
+  const loader = new RGBELoader();
+  loader.setCrossOrigin('anonymous');
   return new Promise((resolve) => {
-    loadHdriTexture(url)
-      .then((texture) => {
+    loader.load(
+      url,
+      (texture) => {
         const pmrem = new THREE.PMREMGenerator(renderer);
         pmrem.compileEquirectangularShader();
         const envMap = pmrem.fromEquirectangular(texture).texture;
@@ -4347,11 +4334,13 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
         texture.dispose();
         pmrem.dispose();
         resolve({ envMap, url });
-      })
-      .catch((error) => {
+      },
+      undefined,
+      (error) => {
         console.warn('Failed to load Poly Haven HDRI', error);
         resolve(null);
-      });
+      }
+    );
   });
 }
 
