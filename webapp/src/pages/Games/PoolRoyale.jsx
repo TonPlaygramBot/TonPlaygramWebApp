@@ -5285,16 +5285,17 @@ const AI_CAMERA_DROP_BLEND = 0.65;
 const AI_CAMERA_DROP_DURATION_MS = 480;
 const AI_STROKE_TIME_SCALE = 1.35;
 const AI_STROKE_PULLBACK_FACTOR = 1.05;
-const AI_CUE_PULL_VISIBILITY_BOOST = 1.22;
-const AI_WARMUP_PULL_RATIO = 0.38;
-const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.2;
-const PLAYER_WARMUP_PULL_RATIO = 0.6;
+const AI_CUE_PULL_VISIBILITY_BOOST = 1.34;
+const AI_WARMUP_PULL_RATIO = 0.62;
+const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.32;
+const PLAYER_WARMUP_PULL_RATIO = 0.72;
 const PLAYER_STROKE_TIME_SCALE = 1.28;
-const PLAYER_FORWARD_SLOWDOWN = 1.12;
+const PLAYER_FORWARD_SLOWDOWN = 1.2;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
 const PLAYER_PULLBACK_MIN_SCALE = 1.1;
 const MIN_PULLBACK_GAP = BALL_R * 0.5;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 96;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 64;
+const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -13062,6 +13063,35 @@ const powerRef = useRef(hud.power);
           return { position, target, fov: STANDING_VIEW_FOV, minTargetY };
         };
 
+        const hasReplayCameraChanged = (previous, next) => {
+          if (!next) return false;
+          if (!previous) return true;
+          const dist = (a, b) => {
+            if (a && b && typeof a.distanceTo === 'function') return a.distanceTo(b);
+            if (a && b) {
+              const ax = Number.isFinite(a.x) ? a.x : 0;
+              const ay = Number.isFinite(a.y) ? a.y : 0;
+              const az = Number.isFinite(a.z) ? a.z : 0;
+              const bx = Number.isFinite(b.x) ? b.x : 0;
+              const by = Number.isFinite(b.y) ? b.y : 0;
+              const bz = Number.isFinite(b.z) ? b.z : 0;
+              return Math.hypot(ax - bx, ay - by, az - bz);
+            }
+            return Infinity;
+          };
+          const positionShift = dist(previous.position, next.position);
+          const targetShift = dist(previous.target, next.target);
+          const fovShift =
+            Number.isFinite(previous.fov) && Number.isFinite(next.fov)
+              ? Math.abs(previous.fov - next.fov)
+              : 0;
+          return (
+            positionShift > REPLAY_CAMERA_SWITCH_THRESHOLD ||
+            targetShift > REPLAY_CAMERA_SWITCH_THRESHOLD ||
+            fovShift > 1e-3
+          );
+        };
+
         const resolveReplayCameraView = (replayFrameCamera, storedReplayCamera) => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
@@ -17265,6 +17295,16 @@ const powerRef = useRef(hud.power);
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
           const settleTime = impactTime + settleDuration;
+          const forwardPreviewHold =
+            impactTime +
+            Math.min(
+              settleDuration,
+              Math.max(180, forwardDuration * 0.9)
+            );
+          powerImpactHoldRef.current = Math.max(
+            powerImpactHoldRef.current || 0,
+            forwardPreviewHold
+          );
           if (shotRecording) {
             const strokeStartOffset = Math.max(0, startTime - (shotRecording.startTime ?? startTime));
             shotRecording.cueStroke = {
@@ -19056,11 +19096,22 @@ const powerRef = useRef(hud.power);
             applyReplayFrame(frameA, frameB, alpha);
             applyReplayCueStroke(playback, targetTime);
             updateReplayTrail(playback.cuePath, targetTime);
-            replayFrameCameraRef.current = {
-              frameA: frameA?.camera ?? null,
-              frameB: frameB?.camera ?? frameA?.camera ?? null,
-              alpha
-            };
+            const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
+            const previousFrameCamera =
+              replayFrameCameraRef.current?.frameB ??
+              replayFrameCameraRef.current?.frameA ??
+              null;
+            if (
+              nextFrameCamera &&
+              (!replayFrameCameraRef.current ||
+                hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
+            ) {
+              replayFrameCameraRef.current = {
+                frameA: nextFrameCamera,
+                frameB: nextFrameCamera,
+                alpha: 0
+              };
+            }
             const frameCamera = updateCamera();
             renderer.render(scene, frameCamera ?? camera);
             const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
