@@ -545,32 +545,32 @@ export default function MyAccount() {
           ))}
         </div>
       </div>
+      <div className="prism-box p-4 mt-4 space-y-3 mx-auto wide-card">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Magazine 3D</h3>
+          <span className="text-xs text-subtext">Showroom</span>
+        </div>
+        <p className="text-sm text-subtext">
+          Explore the dedicated Magazine page with Poly Haven tables, chairs, and decor arranged by category.
+        </p>
+        <div className="rounded-lg border border-dashed border-border bg-surface/60 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="space-y-1">
+            <p className="font-medium text-sm">Open Magazine</p>
+            <p className="text-xs text-subtext">
+              Full-screen gallery with numbered tickets and original textures applied.
+            </p>
+          </div>
+          <Link
+            to="/magazine"
+            className="inline-flex items-center justify-center px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold"
+          >
+            Open
+          </Link>
+        </div>
+      </div>
+
       {profile && profile.accountId === DEV_ACCOUNT_ID && (
         <>
-          <div className="prism-box p-4 mt-4 space-y-3 mx-auto wide-card">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Magazine 3d</h3>
-              <span className="text-xs text-subtext">Dev only</span>
-            </div>
-            <p className="text-sm text-subtext">
-              Open the developer warehouse to browse all curated Poly Haven assets in order.
-            </p>
-            <div className="rounded-lg border border-dashed border-border bg-surface/60 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="space-y-1">
-                <p className="font-medium text-sm">Magazine Warehouse</p>
-                <p className="text-xs text-subtext">
-                  Launch the full-screen gallery with organized 3D models and tickets.
-                </p>
-              </div>
-              <Link
-                to="/dev/magazine-warehouse"
-                className="inline-flex items-center justify-center px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold"
-              >
-                Open
-              </Link>
-            </div>
-          </div>
-
           <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
             <label className="block font-semibold text-center">
               Top Up Developer Account

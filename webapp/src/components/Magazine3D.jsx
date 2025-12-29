@@ -52,6 +52,7 @@ const KEYWORDS = [
 ];
 
 let sharedKtx2Loader = null;
+let sharedTextureLoader = null;
 
 function stripQueryHash(u) {
   return u.split('#')[0].split('?')[0];
@@ -130,25 +131,25 @@ function ensureVisible(root) {
 
 function makeTicket(text) {
   const c = document.createElement('canvas');
-  c.width = 740;
-  c.height = 140;
+  c.width = 840;
+  c.height = 160;
   const g = c.getContext('2d');
 
-  g.fillStyle = 'rgba(0,0,0,0.72)';
+  g.fillStyle = 'rgba(0,0,0,0.82)';
   g.fillRect(0, 0, c.width, c.height);
 
-  g.strokeStyle = 'rgba(255,255,255,0.22)';
+  g.strokeStyle = 'rgba(255,255,255,0.28)';
   g.lineWidth = 2;
   g.strokeRect(6, 6, c.width - 12, c.height - 12);
 
-  g.fillStyle = '#fff';
-  g.font = '700 22px system-ui';
-  g.fillText(text, 18, 72);
+  g.fillStyle = '#e5ecff';
+  g.font = '800 26px system-ui';
+  g.fillText(text, 18, 86);
 
   const tex = new THREE.CanvasTexture(c);
   applySRGBColorSpace(tex);
   const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
-  spr.scale.set(5.0, 0.95, 1);
+  spr.scale.set(5.8, 1.1, 1);
   return spr;
 }
 
@@ -187,6 +188,15 @@ function categoryForId(id) {
   return 'Tables';
 }
 
+const CATEGORY_ORDER = [
+  'Billiards & Snooker',
+  'Poker & Casino',
+  'Tables',
+  'Chairs & Seating',
+  'Storage & Shelving',
+  'Decor'
+];
+
 function buildPolyhavenModelUrls(id) {
   const safe = encodeURIComponent(id);
   return [
@@ -221,6 +231,13 @@ function createConfiguredGLTFLoader(renderer, manager) {
   return loader;
 }
 
+function ensureTextureLoader() {
+  if (!sharedTextureLoader) {
+    sharedTextureLoader = new THREE.TextureLoader();
+  }
+  return sharedTextureLoader;
+}
+
 function prepareLoadedModel(root) {
   root.traverse((obj) => {
     if (!obj.isMesh) return;
@@ -237,6 +254,116 @@ function prepareLoadedModel(root) {
   });
 }
 
+function pickBestTextureUrls(apiJson) {
+  if (!apiJson || typeof apiJson !== 'object') {
+    return { diffuse: null, normal: null, roughness: null };
+  }
+  const urls = [];
+  const walk = (v) => {
+    if (!v) return;
+    if (typeof v === 'string' && v.startsWith('http')) {
+      const lower = v.toLowerCase();
+      if (lower.includes('.jpg') || lower.includes('.png')) {
+        urls.push(v);
+      }
+      return;
+    }
+    if (Array.isArray(v)) {
+      v.forEach(walk);
+      return;
+    }
+    if (typeof v === 'object') {
+      Object.values(v).forEach(walk);
+    }
+  };
+  walk(apiJson);
+
+  const pick = (needles) => {
+    const scored = urls
+      .filter((u) => needles.some((n) => u.toLowerCase().includes(n)))
+      .map((u) => {
+        let s = 0;
+        const lower = u.toLowerCase();
+        if (lower.includes('2k')) s += 3;
+        if (lower.includes('1k')) s += 2;
+        if (lower.includes('4k')) s += 1;
+        if (lower.includes('preview')) s -= 50;
+        if (lower.includes('.exr')) s -= 100;
+        return { url: u, score: s };
+      })
+      .sort((a, b) => b.score - a.score);
+    return scored[0]?.url || null;
+  };
+
+  return {
+    diffuse: pick(['diff', 'albedo', 'basecolor']),
+    normal: pick(['nor', 'normal']),
+    roughness: pick(['rough'])
+  };
+}
+
+async function loadTexture(textureLoader, url, isColor, maxAnisotropy = 1) {
+  return new Promise((resolve, reject) => {
+    textureLoader.load(
+      url,
+      (texture) => {
+        if (isColor) applySRGBColorSpace(texture);
+        texture.flipY = false;
+        texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
+        texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+        texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+        texture.needsUpdate = true;
+        resolve(texture);
+      },
+      undefined,
+      () => reject(new Error('texture load failed'))
+    );
+  });
+}
+
+function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotropy = 1) {
+  const normalizeTex = (tex, isColor = false) => {
+    if (!tex) return null;
+    if (isColor) applySRGBColorSpace(tex);
+    tex.flipY = false;
+    tex.wrapS = tex.wrapS ?? THREE.RepeatWrapping;
+    tex.wrapT = tex.wrapT ?? THREE.RepeatWrapping;
+    tex.anisotropy = Math.max(tex.anisotropy ?? 1, maxAnisotropy);
+    tex.needsUpdate = true;
+    return tex;
+  };
+
+  model.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((material) => {
+      if (!material) return;
+      material.roughness = Math.max(material.roughness ?? 0.4, 0.4);
+      material.metalness = Math.min(material.metalness ?? 0.4, 0.4);
+
+      if (material.map) {
+        normalizeTex(material.map, true);
+      } else if (textureSet?.diffuse) {
+        material.map = normalizeTex(textureSet.diffuse, true);
+      } else if (fallbackTexture) {
+        material.map = normalizeTex(fallbackTexture, true);
+      }
+
+      if (!material.normalMap && textureSet?.normal) {
+        material.normalMap = normalizeTex(textureSet.normal, false);
+      } else if (material.normalMap) {
+        normalizeTex(material.normalMap, false);
+      }
+
+      if (!material.roughnessMap && textureSet?.roughness) {
+        material.roughnessMap = normalizeTex(textureSet.roughness, false);
+      } else if (material.roughnessMap) {
+        normalizeTex(material.roughnessMap, false);
+      }
+    });
+  });
+}
+
 export default function Magazine3D() {
   const mountRef = useRef(null);
   const [status, setStatus] = useState('Initializing…');
@@ -249,7 +376,19 @@ export default function Magazine3D() {
       groups[item.category].push(item);
     });
     Object.values(groups).forEach((items) => items.sort((a, b) => a.slot - b.slot));
-    return groups;
+
+    const ordered = {};
+    CATEGORY_ORDER.forEach((cat) => {
+      if (groups[cat]) ordered[cat] = groups[cat];
+    });
+    Object.keys(groups)
+      .filter((cat) => !CATEGORY_ORDER.includes(cat))
+      .sort()
+      .forEach((cat) => {
+        ordered[cat] = groups[cat];
+      });
+
+    return ordered;
   }, [catalog]);
 
   useEffect(() => {
@@ -357,6 +496,9 @@ export default function Magazine3D() {
 
             (async () => {
               try {
+                const anisotropy = renderer.capabilities.getMaxAnisotropy?.() ?? 1;
+                const textureLoader = ensureTextureLoader();
+
                 const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(id)}`).then((r) => r.json());
                 const allUrls = extractAllHttpUrls(filesJson);
                 const modelUrl = pickBestModelUrl(allUrls) || buildPolyhavenModelUrls(id)[0];
@@ -383,8 +525,43 @@ export default function Magazine3D() {
                 const root = gltf?.scene || gltf?.scenes?.[0] || gltf;
                 if (!root) return;
 
+                let textures = null;
+                try {
+                  const urls = pickBestTextureUrls(filesJson);
+                  if (urls.diffuse) {
+                    const [diffuse, normal, roughness] = await Promise.all([
+                      loadTexture(textureLoader, urls.diffuse, true, anisotropy),
+                      urls.normal ? loadTexture(textureLoader, urls.normal, false, anisotropy) : null,
+                      urls.roughness ? loadTexture(textureLoader, urls.roughness, false, anisotropy) : null
+                    ]);
+                    textures = { diffuse, normal, roughness };
+                  }
+                } catch {
+                  // fall back below
+                }
+
+                const fallbackTexture = (() => {
+                  const canvas = document.createElement('canvas');
+                  canvas.width = 256;
+                  canvas.height = 256;
+                  const ctx = canvas.getContext('2d');
+                  ctx.fillStyle = '#dcdcdc';
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                  ctx.strokeStyle = '#a8b2c4';
+                  ctx.lineWidth = 6;
+                  ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+                  const tex = new THREE.CanvasTexture(canvas);
+                  applySRGBColorSpace(tex);
+                  tex.wrapS = THREE.RepeatWrapping;
+                  tex.wrapT = THREE.RepeatWrapping;
+                  tex.anisotropy = anisotropy;
+                  tex.needsUpdate = true;
+                  return tex;
+                })();
+
                 ensureVisible(root);
                 prepareLoadedModel(root);
+                applyTextureSetToModel(root, textures, fallbackTexture, anisotropy);
                 scaleToFootprint(root, TARGET_FOOTPRINT_XZ);
 
                 const slot = nextSlot;
@@ -468,17 +645,19 @@ export default function Magazine3D() {
             className="rounded-lg border border-border bg-surface/60 p-3"
           >
             <div className="flex items-center justify-between mb-2">
-              <h4 className="font-semibold text-sm">{category}</h4>
+              <h4 className="font-semibold text-base">{category}</h4>
               <span className="text-xs text-subtext">{items.length} items</span>
             </div>
             <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
               {items.map((item) => (
                 <div
                   key={`${category}-${item.slot}-${item.id}`}
-                  className="flex items-center justify-between text-xs"
+                  className="flex items-center justify-between text-sm"
                 >
-                  <span className="font-mono text-primary">#{String(item.slot).padStart(4, '0')}</span>
-                  <span className="ml-2 truncate text-subtext">{item.id}</span>
+                  <span className="font-mono text-primary text-sm font-semibold">
+                    #{String(item.slot).padStart(4, '0')}
+                  </span>
+                  <span className="ml-2 truncate text-foreground font-medium">{item.id}</span>
                 </div>
               ))}
             </div>

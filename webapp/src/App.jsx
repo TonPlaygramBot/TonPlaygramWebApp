@@ -142,7 +142,7 @@ export default function App() {
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/trending" element={<Trending />} />
             <Route path="/account" element={<MyAccount />} />
-            <Route path="/dev/magazine-warehouse" element={<MagazineWarehouse />} />
+            <Route path="/magazine" element={<MagazineWarehouse />} />
           </Routes>
         </Layout>
       </TonConnectUIProvider>
