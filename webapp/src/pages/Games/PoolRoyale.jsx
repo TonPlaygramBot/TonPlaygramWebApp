@@ -11,7 +11,6 @@ import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
-import { GroundProjectedEnv } from 'three/examples/jsm/objects/GroundProjectedEnv.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -968,7 +967,6 @@ console.assert(
   Math.abs(BALL_DIAMETER - BALL_R * 2) <= 0.1 * MM_TO_UNITS,
   'Ball diameter mismatch after scaling.'
 );
-const BALL_DIAMETER_M = BALL_D_REF / 1000;
 const CLOTH_LIFT = (() => {
   const ballR = BALL_R;
   const microEpsRatio = 0.022857142857142857;
@@ -4272,39 +4270,8 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
   return target;
 }
 
-const HDRI_CAPTURE_HEIGHT_M = 1.6; // Poly Haven rigs are photographed around 1.6 m eye height
-const HDRI_MIN_RADIUS_M = 10;
-const HDRI_RADIUS_TABLE_MULTIPLIER = 3.25; // keep the table footprint under ~30% of the HDRI ground span
-
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k', '2k']);
-
-function resolveMetersPerWorldUnit(worldScale = WORLD_SCALE) {
-  const diameterUnits = BALL_DIAMETER * worldScale;
-  if (!Number.isFinite(diameterUnits) || diameterUnits <= MICRO_EPS) {
-    return BALL_DIAMETER_M;
-  }
-  return BALL_DIAMETER_M / diameterUnits;
-}
-
-function resolveHdriGroundDimensions(worldScale = WORLD_SCALE, variantConfig = null) {
-  const metersPerUnit = resolveMetersPerWorldUnit(worldScale);
-  const unitsPerMeter = metersPerUnit > MICRO_EPS ? 1 / metersPerUnit : 1;
-  const tableLongWorld = Math.max(TABLE.W, TABLE.H) * worldScale;
-  const tableLongMeters = tableLongWorld * metersPerUnit;
-  const groundRadiusMeters =
-    variantConfig?.groundRadiusMeters ??
-    Math.max(HDRI_MIN_RADIUS_M, tableLongMeters * HDRI_RADIUS_TABLE_MULTIPLIER);
-  const groundHeightMeters =
-    variantConfig?.cameraHeightMeters ?? HDRI_CAPTURE_HEIGHT_M;
-  return {
-    metersPerUnit,
-    unitsPerMeter,
-    radiusUnits: groundRadiusMeters * unitsPerMeter,
-    heightUnits: groundHeightMeters * unitsPerMeter,
-    floorUnits: FLOOR_Y * worldScale
-  };
-}
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const urls = [];
@@ -10551,7 +10518,6 @@ const powerRef = useRef(hud.power);
   const updateEnvironmentRef = useRef(() => {});
   const disposeEnvironmentRef = useRef(null);
   const envTextureRef = useRef(null);
-  const envGroundRef = useRef(null);
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
@@ -11463,28 +11429,6 @@ const powerRef = useRef(hud.power);
     }
     const cueRackDisposers = [];
     let disposed = false;
-    let worldScaleFactor = WORLD_SCALE * (tableSizeRef.current?.scale ?? 1);
-
-    const disposeGroundProjection = () => {
-      const ground = envGroundRef.current;
-      if (ground && sceneRef.current) {
-        sceneRef.current.remove(ground);
-      }
-      ground?.geometry?.dispose?.();
-      ground?.material?.dispose?.();
-      envGroundRef.current = null;
-    };
-
-    const updateGroundProjection = (variant = activeEnvironmentVariantRef.current) => {
-      const ground = envGroundRef.current;
-      if (!ground) return;
-      const dims = resolveHdriGroundDimensions(worldScaleFactor, variant);
-      ground.radius = dims.radiusUnits;
-      ground.height = dims.heightUnits;
-      ground.position.y = dims.floorUnits;
-      ground.material.needsUpdate = true;
-    };
-
     try {
       const updatePocketCameraState = (active) => {
         if (pocketCameraStateRef.current === active) return;
@@ -11535,10 +11479,8 @@ const powerRef = useRef(hud.power);
         }
         const prevDispose = disposeEnvironmentRef.current;
         const prevTexture = envTextureRef.current;
-        disposeGroundProjection();
         sceneInstance.environment = envMap;
         sceneInstance.background = envMap;
-        sceneInstance.environmentIntensity = activeVariant?.environmentIntensity ?? 1;
         if ('backgroundIntensity' in sceneInstance && typeof activeVariant?.backgroundIntensity === 'number') {
           sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
         }
@@ -11551,19 +11493,15 @@ const powerRef = useRef(hud.power);
           if (sceneRef.current?.background === envMap) {
             sceneRef.current.background = null;
           }
-          disposeGroundProjection();
           envMap.dispose?.();
         };
         if (prevDispose && prevTexture !== envMap) {
           prevDispose();
         }
-        const groundEnv = new GroundProjectedEnv(envMap);
-        envGroundRef.current = groundEnv;
-        updateGroundProjection(activeVariant);
-        sceneInstance.add(groundEnv);
       };
       updateEnvironmentRef.current = applyHdriEnvironment;
       void applyHdriEnvironment(activeEnvironmentVariantRef.current);
+      let worldScaleFactor = 1;
       let cue;
       let clothMat;
       let cushionMat;
@@ -15426,7 +15364,6 @@ const powerRef = useRef(hud.power);
             });
           }
         }
-        updateGroundProjection();
         if (changed) {
           world.updateMatrixWorld(true);
         }
@@ -20510,7 +20447,6 @@ const powerRef = useRef(hud.power);
           disposeEnvironmentRef.current?.();
           disposeEnvironmentRef.current = null;
           envTextureRef.current = null;
-          disposeGroundProjection();
           cueGalleryStateRef.current.active = false;
           cueGalleryStateRef.current.rackId = null;
           cueGalleryStateRef.current.prev = null;
