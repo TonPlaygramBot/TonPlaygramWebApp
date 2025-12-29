@@ -4270,7 +4270,7 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 }
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k', '2k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['16k', '8k', '4k']);
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const urls = [];
@@ -4300,16 +4300,29 @@ function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
 }
 
 async function resolvePolyHavenHdriUrl(config = {}) {
-  const fallbackRes = config?.fallbackResolution || DEFAULT_HDRI_RESOLUTIONS[1] || '4k';
-  const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
+  const preferred =
+    Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+      ? config.preferredResolutions
+      : DEFAULT_HDRI_RESOLUTIONS;
+  const fallbackRes = config?.fallbackResolution || DEFAULT_HDRI_RESOLUTIONS[1] || '8k';
+  const fallbackAssetId = config?.fallbackAssetId || config?.assetId || 'neon_photostudio';
+  const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${fallbackAssetId}_${fallbackRes}.hdr`;
+  const pickCustomHdri = () => {
+    if (!config?.customUrls) return null;
+    for (const res of preferred) {
+      const normalized = String(res).toLowerCase();
+      if (config.customUrls[normalized]) return config.customUrls[normalized];
+    }
+    const urls = Object.values(config.customUrls).filter(Boolean);
+    return urls.length ? urls[0] : null;
+  };
+  const customUrl = pickCustomHdri();
+  if (customUrl) return customUrl;
   if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
   try {
     const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
     if (!response?.ok) return fallbackUrl;
     const json = await response.json();
-    const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
-      ? config.preferredResolutions
-      : DEFAULT_HDRI_RESOLUTIONS;
     const picked = pickPolyHavenHdriUrl(json, preferred);
     return picked || fallbackUrl;
   } catch (error) {
