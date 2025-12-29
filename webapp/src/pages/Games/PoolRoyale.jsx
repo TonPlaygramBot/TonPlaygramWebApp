@@ -1256,10 +1256,10 @@ const CUE_BUTT_LIFT = BALL_R * 0.64; // keep the butt elevated for clearance whi
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.6;
-const CUE_OBSTRUCTION_RANGE = BALL_R * 10;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 1.1;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(11);
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.35;
+const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.95;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(8.5);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -5283,17 +5283,17 @@ const AI_CUE_VIEW_HOLD_MS = 2000;
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
 const AI_CAMERA_DROP_DURATION_MS = 480;
-const AI_STROKE_TIME_SCALE = 1.4;
-const AI_STROKE_PULLBACK_FACTOR = 1.1;
-const AI_CUE_PULL_VISIBILITY_BOOST = 1.2;
-const AI_WARMUP_PULL_RATIO = 0.32;
-const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.24;
-const PLAYER_WARMUP_PULL_RATIO = 0.5;
-const PLAYER_STROKE_TIME_SCALE = 1.35;
-const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
-const PLAYER_PULLBACK_MIN_SCALE = 1.2;
-const MIN_PULLBACK_GAP = BALL_R * 0.6;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 84;
+const AI_STROKE_TIME_SCALE = 1.25;
+const AI_STROKE_PULLBACK_FACTOR = 0.9;
+const AI_CUE_PULL_VISIBILITY_BOOST = 1.08;
+const AI_WARMUP_PULL_RATIO = 0.45;
+const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.12;
+const PLAYER_WARMUP_PULL_RATIO = 0.72;
+const PLAYER_STROKE_TIME_SCALE = 1.15;
+const PLAYER_STROKE_PULLBACK_FACTOR = 0.55;
+const PLAYER_PULLBACK_MIN_SCALE = 1.1;
+const MIN_PULLBACK_GAP = BALL_R * 0.5;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 48;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -19221,30 +19221,6 @@ const powerRef = useRef(hud.power);
             const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
             strength = Math.max(strength, influence);
           });
-          const cushionMargin = CUE_OBSTRUCTION_CLEARANCE * 0.8;
-          const halfW = PLAY_W / 2;
-          const halfH = PLAY_H / 2;
-          const checkCushion = (coord, dirComp, limit) => {
-            if (Math.abs(coord) >= limit - cushionMargin || Math.abs(dirComp) > 1e-6) {
-              const distanceToEdge =
-                dirComp > 0 ? limit - coord : dirComp < 0 ? -limit - coord : Infinity;
-              if (Number.isFinite(distanceToEdge)) {
-                const along = distanceToEdge / (dirComp || 1);
-                if (along >= 0 && along <= reach) {
-                  const proximity = THREE.MathUtils.clamp(
-                    1 - Math.max(0, cushionMargin - (limit - Math.abs(coord))) / cushionMargin,
-                    0,
-                    1
-                  );
-                  const depth = THREE.MathUtils.clamp(1 - along / reach, 0, 1);
-                  const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
-                  strength = Math.max(strength, influence);
-                }
-              }
-            }
-          };
-          checkCushion(origin.x, backward.x, halfW);
-          checkCushion(origin.y, backward.y, halfH);
           return strength;
         }
 
