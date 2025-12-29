@@ -9,6 +9,7 @@ import React, {
 import * as THREE from 'three';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
@@ -4300,16 +4301,26 @@ function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
 }
 
 async function resolvePolyHavenHdriUrl(config = {}) {
-  const fallbackRes = config?.fallbackResolution || DEFAULT_HDRI_RESOLUTIONS[1] || '4k';
-  const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
+  const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+    ? config.preferredResolutions
+    : DEFAULT_HDRI_RESOLUTIONS;
+  const fallbackRes = config?.fallbackResolution || preferred[0] || '8k';
+  const fallbackUrl =
+    config?.fallbackUrl ||
+    `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
+  if (config?.assetUrls && typeof config.assetUrls === 'object') {
+    for (const res of preferred) {
+      if (config.assetUrls[res]) return config.assetUrls[res];
+    }
+    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
+    if (manual) return manual;
+  }
+  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
   if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
   try {
     const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
     if (!response?.ok) return fallbackUrl;
     const json = await response.json();
-    const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
-      ? config.preferredResolutions
-      : DEFAULT_HDRI_RESOLUTIONS;
     const picked = pickPolyHavenHdriUrl(json, preferred);
     return picked || fallbackUrl;
   } catch (error) {
@@ -4321,8 +4332,10 @@ async function resolvePolyHavenHdriUrl(config = {}) {
 async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   if (!renderer) return null;
   const url = await resolvePolyHavenHdriUrl(config);
-  const loader = new RGBELoader();
-  loader.setCrossOrigin('anonymous');
+  const lowerUrl = `${url ?? ''}`.toLowerCase();
+  const useExr = lowerUrl.endsWith('.exr');
+  const loader = useExr ? new EXRLoader() : new RGBELoader();
+  loader.setCrossOrigin?.('anonymous');
   return new Promise((resolve) => {
     loader.load(
       url,
