@@ -1,138 +1,12 @@
 import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
 
-export const POOL_ROYALE_HDRI_PRESETS = Object.freeze([
-  {
-    id: 'neonPhotostudio',
-    assetId: 'neon_photostudio',
-    name: 'Neon Photostudio',
-    description: 'Vibrant studio glow with glossy cyan and magenta accents.',
-    price: 1480,
-    fallbackResolution: '4k',
-    preferredResolutions: ['8k', '4k', '2k'],
-    backgroundIntensity: 1.18,
-    backgroundBlur: 0.18,
-    exposure: 1.24
-  },
-  {
-    id: 'studioSmall03',
-    assetId: 'studio_small_03',
-    name: 'Studio Small 03',
-    description: 'Clean studio softbox with neutral tone for balanced play.',
-    price: 1520,
-    fallbackResolution: '4k',
-    preferredResolutions: ['8k', '4k', '2k'],
-    backgroundIntensity: 1.08,
-    backgroundBlur: 0.16,
-    exposure: 1.18
-  },
-  {
-    id: 'studioSmall08',
-    assetId: 'studio_small_08',
-    name: 'Studio Small 08',
-    description: 'Cool studio rim light with subtle green highlights.',
-    price: 1540,
-    fallbackResolution: '4k',
-    preferredResolutions: ['8k', '4k', '2k'],
-    backgroundIntensity: 1.1,
-    backgroundBlur: 0.18,
-    exposure: 1.2
-  },
-  {
-    id: 'brownPhotostudio03',
-    assetId: 'brown_photostudio_03',
-    name: 'Bronze Studio',
-    description: 'Warm bronze studio sweep with smooth specular rolloff.',
-    price: 1560,
-    fallbackResolution: '4k',
-    preferredResolutions: ['8k', '4k', '2k'],
-    backgroundIntensity: 1.14,
-    backgroundBlur: 0.2,
-    exposure: 1.22
-  },
-  {
-    id: 'kiaraDawn',
-    assetId: 'kiara_1_dawn',
-    name: 'Kiara Dawn',
-    description: 'Soft morning sky with golden hour diffusion.',
-    price: 1600,
-    fallbackResolution: '4k',
-    preferredResolutions: ['8k', '4k', '2k'],
-    backgroundIntensity: 1.06,
-    backgroundBlur: 0.14,
-    exposure: 1.16
-  },
-  {
-    id: 'shanghaiBund',
-    assetId: 'shanghai_bund',
-    name: 'Shanghai Bund',
-    description: 'City waterfront nightscape with neon reflections.',
-    price: 1650,
-    fallbackResolution: '4k',
-    preferredResolutions: ['8k', '4k', '2k'],
-    backgroundIntensity: 1.24,
-    backgroundBlur: 0.22,
-    exposure: 1.3
-  },
-  {
-    id: 'veniceSunset',
-    assetId: 'venice_sunset',
-    name: 'Venice Sunset',
-    description: 'Warm lagoon horizon with deep orange skies.',
-    price: 1620,
-    fallbackResolution: '4k',
-    preferredResolutions: ['8k', '4k', '2k'],
-    backgroundIntensity: 1.12,
-    backgroundBlur: 0.2,
-    exposure: 1.24
-  },
-  {
-    id: 'emptyWarehouse',
-    assetId: 'empty_warehouse_01',
-    name: 'Warehouse Loft',
-    description: 'Industrial loft ambience with soft skylight wrap.',
-    price: 1580,
-    fallbackResolution: '4k',
-    preferredResolutions: ['8k', '4k', '2k'],
-    backgroundIntensity: 1.05,
-    backgroundBlur: 0.17,
-    exposure: 1.18
-  },
-  {
-    id: 'adamsBridge',
-    assetId: 'adams_place_bridge',
-    name: 'Adams Place Bridge',
-    description: 'Modern bridge canopy with cool skylight gradients.',
-    price: 1680,
-    fallbackResolution: '4k',
-    preferredResolutions: ['8k', '4k', '2k'],
-    backgroundIntensity: 1.08,
-    backgroundBlur: 0.16,
-    exposure: 1.2
-  },
-  {
-    id: 'kloofendal',
-    assetId: 'kloofendal_48d_partly_cloudy',
-    name: 'Kloofendal Midday',
-    description: 'Bright outdoor HDRI with crisp shadows and blue skies.',
-    price: 1700,
-    fallbackResolution: '4k',
-    preferredResolutions: ['8k', '4k', '2k'],
-    backgroundIntensity: 1.16,
-    backgroundBlur: 0.12,
-    exposure: 1.28
-  }
-]);
-
-export const POOL_ROYALE_DEFAULT_HDRI_ID = POOL_ROYALE_HDRI_PRESETS[0].id;
-
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: ['charredTimber'],
   chromeColor: ['gold'],
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
   cueStyle: ['birch-frost'],
-  pocketLiner: ['blackPocket'],
-  environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID]
+  pocketLiner: ['blackPocket']
 });
 
 export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
@@ -156,14 +30,8 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     gold: 'Gold'
   }),
   clothColor: Object.freeze(
-  POOL_ROYALE_CLOTH_VARIANTS.reduce((acc, variant) => {
-    acc[variant.id] = variant.name;
-    return acc;
-  }, {})
-  ),
-  environmentHdri: Object.freeze(
-    POOL_ROYALE_HDRI_PRESETS.reduce((acc, preset) => {
-      acc[preset.id] = preset.name;
+    POOL_ROYALE_CLOTH_VARIANTS.reduce((acc, variant) => {
+      acc[variant.id] = variant.name;
       return acc;
     }, {})
   ),
@@ -380,15 +248,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     name: 'Graphite Aurora Cue',
     price: 360,
     description: 'Graphite weave cue with aurora-inspired tint.'
-  },
-  ...POOL_ROYALE_HDRI_PRESETS.map((preset) => ({
-    id: `hdri-${preset.id}`,
-    type: 'environmentHdri',
-    optionId: preset.id,
-    name: `${preset.name} HDRI`,
-    price: preset.price,
-    description: preset.description
-  }))
+  }
 ];
 
 export const POOL_ROYALE_DEFAULT_LOADOUT = [
@@ -401,10 +261,5 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
     label: POOL_ROYALE_CLOTH_VARIANTS[0].name
   },
   { type: 'cueStyle', optionId: 'birch-frost', label: 'Birch Frost Cue' },
-  { type: 'pocketLiner', optionId: 'blackPocket', label: 'Black Pocket Jaws' },
-  {
-    type: 'environmentHdri',
-    optionId: POOL_ROYALE_DEFAULT_HDRI_ID,
-    label: POOL_ROYALE_HDRI_PRESETS[0].name
-  }
+  { type: 'pocketLiner', optionId: 'blackPocket', label: 'Black Pocket Jaws' }
 ];
