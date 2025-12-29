@@ -5250,7 +5250,12 @@ const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
-const AI_POST_SHOT_CAMERA_HOLD_MS = 2000;
+const AI_CUE_PULLBACK_DURATION_MS = 2500;
+const AI_CUE_FORWARD_DURATION_MS = 2500;
+const AI_STROKE_VISIBLE_DURATION_MS =
+  AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS;
+const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
+const AI_POST_SHOT_CAMERA_HOLD_MS = AI_STROKE_VISIBLE_DURATION_MS + AI_CAMERA_POST_STROKE_HOLD_MS;
 const SHOT_CAMERA_HOLD_MS = 2000;
 const REPLAY_BANNER_VARIANTS = {
   long: ['Long pot!', 'Full-table finish!', 'Cross-table clearance!'],
@@ -5276,13 +5281,14 @@ const AI_EARLY_SHOT_CUE_DISTANCE = PLAY_H * 0.55;
 const AI_EARLY_SHOT_DELAY_MS = AI_MIN_SHOT_TIME_MS; // never bypass the full telegraphed aim window
 const AI_THINKING_BUDGET_MS =
   AI_MAX_SHOT_TIME_MS - AI_MIN_AIM_PREVIEW_MS; // leave room for the cue preview while keeping decisions under 7 seconds
-const AI_CAMERA_DROP_LEAD_MS = 420; // start lowering into cue view shortly before the AI pulls the trigger
+const AI_CAMERA_DROP_DURATION_MS = 480;
 const AI_CAMERA_SETTLE_MS = 320; // allow time for the cue view to settle before firing
-const AI_CUE_VIEW_HOLD_MS = 2000;
+const AI_CAMERA_DROP_LEAD_MS =
+  AI_CAMERA_DROP_DURATION_MS + AI_CAMERA_SETTLE_MS; // start lowering into cue view early enough to finish before the stroke begins
+const AI_CUE_VIEW_HOLD_MS = 0;
 // Ease the AI camera just partway toward cue view (still above the stick) so the shot preview
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
-const AI_CAMERA_DROP_DURATION_MS = 480;
 const AI_STROKE_TIME_SCALE = 1.35;
 const AI_STROKE_PULLBACK_FACTOR = 1.05;
 const AI_CUE_PULL_VISIBILITY_BOOST = 1.34;
@@ -17304,15 +17310,14 @@ const powerRef = useRef(hud.power);
             aiOpponentEnabled && hudRef.current?.turn === 1 ? AI_STROKE_TIME_SCALE : 1;
           const playerStrokeScale = isAiStroke ? 1 : PLAYER_STROKE_TIME_SCALE;
           const playerForwardScale = isAiStroke ? 1 : PLAYER_FORWARD_SLOWDOWN;
-          const forwardDuration =
-            forwardDurationBase * aiStrokeScale * playerStrokeScale * playerForwardScale;
-          const settleDuration = settleDurationBase * aiStrokeScale * playerStrokeScale;
+          const forwardDuration = isAiStroke
+            ? AI_CUE_FORWARD_DURATION_MS
+            : forwardDurationBase * aiStrokeScale * playerStrokeScale * playerForwardScale;
+          const settleDuration = isAiStroke
+            ? 0
+            : settleDurationBase * aiStrokeScale * playerStrokeScale;
           const pullbackDuration = isAiStroke
-            ? Math.max(
-                CUE_STROKE_MIN_MS,
-                forwardDuration * AI_STROKE_PULLBACK_FACTOR,
-                AI_CAMERA_DROP_DURATION_MS * 0.9
-              )
+            ? AI_CUE_PULLBACK_DURATION_MS
             : Math.max(
                 CUE_STROKE_MIN_MS * PLAYER_PULLBACK_MIN_SCALE,
                 forwardDuration * PLAYER_STROKE_PULLBACK_FACTOR
