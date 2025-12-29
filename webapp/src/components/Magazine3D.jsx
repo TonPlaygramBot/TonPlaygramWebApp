@@ -238,6 +238,15 @@ function ensureTextureLoader() {
   return sharedTextureLoader;
 }
 
+function buildModelThumbnailUrl(id) {
+  const safeId = encodeURIComponent(id);
+  return `https://cdn.polyhaven.com/asset_img/primary/${safeId}.png?height=320`;
+}
+
+function buildModelViewUrl(id) {
+  return `https://polyhaven.com/a/${encodeURIComponent(id)}`;
+}
+
 function prepareLoadedModel(root) {
   root.traverse((obj) => {
     if (!obj.isMesh) return;
@@ -368,6 +377,11 @@ export default function Magazine3D() {
   const mountRef = useRef(null);
   const [status, setStatus] = useState('Initializing…');
   const [catalog, setCatalog] = useState([]);
+
+  const sortedCatalog = useMemo(
+    () => [...catalog].sort((a, b) => a.slot - b.slot),
+    [catalog]
+  );
 
   const groupedCatalog = useMemo(() => {
     const groups = {};
@@ -582,7 +596,16 @@ export default function Magazine3D() {
 
                 loadedCount += 1;
                 if (!cancelled) {
-                  setCatalog((prev) => [...prev, { slot: slot + 1, id, category: cat }]);
+                  setCatalog((prev) => [
+                    ...prev,
+                    {
+                      slot: slot + 1,
+                      id,
+                      category: cat,
+                      thumbnail: buildModelThumbnailUrl(id),
+                      viewUrl: buildModelViewUrl(id)
+                    }
+                  ]);
                 }
               } catch (error) {
                 console.warn('Failed to load Poly Haven asset', id, error);
@@ -663,6 +686,62 @@ export default function Magazine3D() {
             </div>
           </div>
         ))}
+      </div>
+      <div className="rounded-xl border border-border bg-surface/70 p-3 space-y-3">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="space-y-0.5">
+            <h3 className="font-semibold text-base">Catalogue</h3>
+            <p className="text-xs text-subtext">
+              Every loaded asset with its number, quick preview, and direct Poly Haven link.
+            </p>
+          </div>
+          <span className="text-xs text-subtext mt-1">{sortedCatalog.length} items</span>
+        </div>
+        {sortedCatalog.length === 0 ? (
+          <p className="text-sm text-subtext">Assets will appear here as they finish loading.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[560px] overflow-y-auto pr-1">
+            {sortedCatalog.map((item) => (
+              <div
+                key={`${item.slot}-${item.id}`}
+                className="flex gap-3 p-2 rounded-lg border border-border bg-black/20"
+              >
+                <div className="w-20 h-20 rounded-md overflow-hidden border border-border/60 bg-gradient-to-br from-surface to-surface/60 flex items-center justify-center shrink-0">
+                  <img
+                    src={item.thumbnail}
+                    alt={`${item.id} preview`}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'data:image/svg+xml;utf8,' +
+                        encodeURIComponent(
+                          '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160" fill="none"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%232A2F37"/><stop offset="1" stop-color="%23363C45"/></linearGradient></defs><rect width="160" height="160" rx="12" fill="url(#g)"/><path d="M32 112l26-32 20 24 18-20 32 40H32Z" stroke="%238A94A7" stroke-width="6" stroke-linejoin="round" fill="%23414A56"/><circle cx="52" cy="58" r="12" fill="%238A94A7"/></svg>'
+                        );
+                    }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-primary text-sm font-semibold">
+                      #{String(item.slot).padStart(4, '0')}
+                    </span>
+                    <a
+                      href={item.viewUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs px-2 py-1 rounded-md border border-primary text-primary hover:bg-primary/10"
+                    >
+                      View
+                    </a>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground truncate">{item.id}</p>
+                  <p className="text-xs text-subtext truncate">{item.category}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
