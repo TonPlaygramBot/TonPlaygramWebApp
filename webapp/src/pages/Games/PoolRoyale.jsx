@@ -5294,7 +5294,8 @@ const PLAYER_FORWARD_SLOWDOWN = 1.2;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
 const PLAYER_PULLBACK_MIN_SCALE = 1.1;
 const MIN_PULLBACK_GAP = BALL_R * 0.5;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 64;
+const CAMERA_SWITCH_MIN_HOLD_MS = 220;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 76;
 const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
@@ -11746,6 +11747,7 @@ const powerRef = useRef(hud.power);
       };
       let activeShotView = null;
       let suspendedActionView = null;
+      let queuedPocketView = null;
       let shotPrediction = null;
       let lastShotPower = 0;
       let prevCollisions = new Set();
@@ -13140,6 +13142,10 @@ const powerRef = useRef(hud.power);
           if (broadcastSystem?.smoothing != null) {
             broadcastArgs.lerp = broadcastSystem.smoothing;
           }
+          const cameraHoldActive =
+            shooting &&
+            powerImpactHoldRef.current &&
+            performance.now() < powerImpactHoldRef.current;
           const galleryState = cueGalleryStateRef.current;
           if (replayPlaybackActive) {
             const storedReplayCamera = replayCameraRef.current;
@@ -13223,7 +13229,7 @@ const powerRef = useRef(hud.power);
             broadcastArgs.focusWorld = resolvedTarget.clone();
             broadcastArgs.targetWorld = resolvedTarget.clone();
             broadcastArgs.lerp = 0.08;
-          } else if (activeShotView?.mode === 'action') {
+          } else if (!cameraHoldActive && activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
             if (!cueBall?.active) {
@@ -13620,7 +13626,7 @@ const powerRef = useRef(hud.power);
                 renderCamera = camera;
               }
             }
-          } else if (activeShotView?.mode === 'pocket') {
+          } else if (!cameraHoldActive && activeShotView?.mode === 'pocket') {
             const ballsList = ballsRef.current || [];
             const focusBall = ballsList.find(
               (b) => b.id === activeShotView.ballId
@@ -16898,6 +16904,7 @@ const powerRef = useRef(hud.power);
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
         }
+        const shotStartTime = performance.now();
         const forcedCueView = aiShotCueViewRef.current;
         setAiShotCueViewActive(false);
         setAiShotPreviewActive(false);
@@ -16923,7 +16930,12 @@ const powerRef = useRef(hud.power);
           cushionAfterContact: false
         };
         setShootingState(true);
+        powerImpactHoldRef.current = Math.max(
+          powerImpactHoldRef.current || 0,
+          shotStartTime + CAMERA_SWITCH_MIN_HOLD_MS
+        );
         activeShotView = null;
+        queuedPocketView = null;
         aimFocusRef.current = null;
         potted = [];
         firstHit = null;
@@ -17093,23 +17105,37 @@ const powerRef = useRef(hud.power);
             } else {
               suspendedActionView = null;
             }
-            updatePocketCameraState(true);
-            activeShotView = earlyPocketView;
-            pocketViewActivated = true;
+            const holdUntil = powerImpactHoldRef.current || 0;
+            const holdActive = holdUntil > performance.now();
+            if (holdUntil > 0) {
+              const baseDelay = earlyPocketView.activationDelay ?? 0;
+              earlyPocketView.activationDelay = Math.max(baseDelay, holdUntil);
+            }
+            earlyPocketView.pendingActivation = holdActive;
+            if (holdActive) {
+              queuedPocketView = earlyPocketView;
+              pocketViewActivated = true;
+            } else {
+              queuedPocketView = null;
+              updatePocketCameraState(true);
+              activeShotView = earlyPocketView;
+              pocketViewActivated = true;
+            }
           }
           if (!pocketViewActivated && actionView) {
             const shouldActivateActionView =
               (!isLongShot || forceActionActivation) && !isMaxPowerShot;
-            if (shouldActivateActionView) {
+            const holdUntil = powerImpactHoldRef.current || 0;
+            const holdActive = holdUntil > performance.now();
+            if (shouldActivateActionView && !holdActive) {
               suspendedActionView = null;
               activeShotView = actionView;
               updateCamera();
             } else {
               actionView.pendingActivation = true;
-              const holdUntil = powerImpactHoldRef.current || null;
               const baseDelay = actionView.activationDelay ?? null;
               const delayed = Math.max(baseDelay ?? 0, holdUntil ?? 0);
-              actionView.activationDelay = delayed;
+              actionView.activationDelay = delayed > 0 ? delayed : null;
               const baseTravel = actionView.activationTravel ?? 0;
               actionView.activationTravel = Math.max(
                 baseTravel,
@@ -17305,6 +17331,35 @@ const powerRef = useRef(hud.power);
             powerImpactHoldRef.current || 0,
             forwardPreviewHold
           );
+          const holdUntil = powerImpactHoldRef.current || 0;
+          const holdActive = holdUntil > performance.now();
+          if (holdActive) {
+            if (activeShotView?.mode === 'pocket') {
+              queuedPocketView = activeShotView;
+              queuedPocketView.pendingActivation = true;
+              queuedPocketView.activationDelay = Math.max(
+                queuedPocketView.activationDelay ?? 0,
+                holdUntil
+              );
+              activeShotView = null;
+              updatePocketCameraState(false);
+            } else if (queuedPocketView) {
+              queuedPocketView.pendingActivation = true;
+              queuedPocketView.activationDelay = Math.max(
+                queuedPocketView.activationDelay ?? 0,
+                holdUntil
+              );
+            }
+            if (activeShotView?.mode === 'action') {
+              suspendedActionView = activeShotView;
+              activeShotView = null;
+            }
+            if (suspendedActionView?.mode === 'action') {
+              suspendedActionView.pendingActivation = true;
+              const baseDelay = suspendedActionView.activationDelay ?? 0;
+              suspendedActionView.activationDelay = Math.max(baseDelay, holdUntil);
+            }
+          }
           if (shotRecording) {
             const strokeStartOffset = Math.max(0, startTime - (shotRecording.startTime ?? startTime));
             shotRecording.cueStroke = {
@@ -18973,6 +19028,7 @@ const powerRef = useRef(hud.power);
           shotPrediction = null;
           activeShotView = null;
           suspendedActionView = null;
+          queuedPocketView = null;
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
           updatePocketCameraState(false);
@@ -20153,106 +20209,128 @@ const powerRef = useRef(hud.power);
         const pocketHoldActive =
           powerImpactHoldRef.current &&
           performance.now() < powerImpactHoldRef.current;
+        if (pocketHoldActive && activeShotView?.mode === 'pocket') {
+          queuedPocketView = activeShotView;
+          queuedPocketView.pendingActivation = true;
+          activeShotView = null;
+          updatePocketCameraState(false);
+        }
         if (
           !suppressPocketCameras &&
           shooting &&
-          !pocketHoldActive &&
-          !topViewRef.current &&
-          (activeShotView?.mode !== 'pocket' || !activeShotView)
+          !topViewRef.current
         ) {
-          const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
-          const sph = sphRef.current;
-          const orbitSnapshot = sph
-            ? { radius: sph.radius, phi: sph.phi, theta: sph.theta }
-            : null;
-          const actionResume =
-            activeShotView?.mode === 'action'
-              ? activeShotView
-              : suspendedActionView?.mode === 'action'
-                ? suspendedActionView
-                : null;
-          const now = performance.now();
-          let pocketIntent = pocketSwitchIntentRef.current;
-          if (pocketIntent && now - pocketIntent.createdAt > POCKET_INTENT_TIMEOUT_MS) {
-            pocketIntent = null;
-            pocketSwitchIntentRef.current = null;
-          }
-          const movingBalls = ballsList.filter(
-            (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
-          );
-          const movingCount = movingBalls.length;
-          const lastPocketBall = lastPocketBallRef.current;
-          let bestPocketView = null;
-          for (const ball of ballsList) {
-            if (!ball.active) continue;
-            const resumeView = orbitSnapshot ? { orbitSnapshot } : null;
-            const matchesIntent = pocketIntent?.ballId === ball.id;
-            const candidate = makePocketCameraView(ball.id, resumeView, {
-              forceEarly: matchesIntent && pocketIntent?.allowEarly
-            });
-            if (!candidate) continue;
-            const matchesPrediction = shotPrediction?.ballId === ball.id;
-            const predictedAlignment = candidate.predictedAlignment ?? candidate.score ?? 0;
-            const isDirectPrediction =
-              matchesPrediction &&
-              (shotPrediction?.railNormal === null ||
-                shotPrediction?.railNormal === undefined);
-            const qualifiesAsGuaranteed =
-              isDirectPrediction && predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
-            const allowDuringChaos =
-              movingCount <= POCKET_CHAOS_MOVING_THRESHOLD ||
-              matchesIntent ||
-              qualifiesAsGuaranteed ||
-              (lastPocketBall && lastPocketBall === ball.id);
-            if (!allowDuringChaos) continue;
-            if (
-              movingCount > POCKET_CHAOS_MOVING_THRESHOLD &&
-              !matchesIntent &&
-              !qualifiesAsGuaranteed &&
-              lastPocketBall &&
-              lastPocketBall !== ball.id
-            ) {
-              continue;
-            }
-            const baseScore = candidate.score ?? 0;
-            let priority = baseScore;
-            if (matchesIntent && (pocketIntent?.forced ?? false)) priority += 1.2;
-            else if (matchesIntent) priority += 0.6;
-            if (qualifiesAsGuaranteed) priority += 0.4;
-            if (candidate.forcedEarly) priority += 0.3;
-            candidate.priority = priority;
-            candidate.intentMatched = matchesIntent;
-            candidate.guaranteed = qualifiesAsGuaranteed;
-            if (
-              !bestPocketView ||
-              (candidate.priority ?? baseScore) >
-                (bestPocketView.priority ?? bestPocketView.score ?? 0)
-            ) {
-              bestPocketView = candidate;
-            }
-          }
-          if (bestPocketView) {
-            if (bestPocketView.intentMatched) {
-              pocketSwitchIntentRef.current = null;
-            }
-            lastPocketBallRef.current = bestPocketView.ballId;
-            bestPocketView.lastUpdate = performance.now();
+          if (!pocketHoldActive && queuedPocketView) {
+            const view = queuedPocketView;
+            queuedPocketView = null;
+            view.pendingActivation = false;
+            view.activationDelay = null;
+            view.lastUpdate = performance.now();
             if (cameraRef.current) {
               const cam = cameraRef.current;
-              bestPocketView.smoothedPos = cam.position.clone();
+              view.smoothedPos = cam.position.clone();
               const storedTarget = lastCameraTargetRef.current?.clone();
               if (storedTarget) {
-                bestPocketView.smoothedTarget = storedTarget;
+                view.smoothedTarget = storedTarget;
               }
             }
-            if (actionResume) {
-              suspendedActionView = actionResume;
-              bestPocketView.resumeAction = actionResume;
-            } else {
-              suspendedActionView = null;
-            }
             updatePocketCameraState(true);
-            activeShotView = bestPocketView;
+            activeShotView = view;
+          } else if (!pocketHoldActive && (activeShotView?.mode !== 'pocket' || !activeShotView)) {
+            const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
+            const sph = sphRef.current;
+            const orbitSnapshot = sph
+              ? { radius: sph.radius, phi: sph.phi, theta: sph.theta }
+              : null;
+            const actionResume =
+              activeShotView?.mode === 'action'
+                ? activeShotView
+                : suspendedActionView?.mode === 'action'
+                  ? suspendedActionView
+                  : null;
+            const now = performance.now();
+            let pocketIntent = pocketSwitchIntentRef.current;
+            if (pocketIntent && now - pocketIntent.createdAt > POCKET_INTENT_TIMEOUT_MS) {
+              pocketIntent = null;
+              pocketSwitchIntentRef.current = null;
+            }
+            const movingBalls = ballsList.filter(
+              (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
+            );
+            const movingCount = movingBalls.length;
+            const lastPocketBall = lastPocketBallRef.current;
+            let bestPocketView = null;
+            for (const ball of ballsList) {
+              if (!ball.active) continue;
+              const resumeView = orbitSnapshot ? { orbitSnapshot } : null;
+              const matchesIntent = pocketIntent?.ballId === ball.id;
+              const candidate = makePocketCameraView(ball.id, resumeView, {
+                forceEarly: matchesIntent && pocketIntent?.allowEarly
+              });
+              if (!candidate) continue;
+              const matchesPrediction = shotPrediction?.ballId === ball.id;
+              const predictedAlignment = candidate.predictedAlignment ?? candidate.score ?? 0;
+              const isDirectPrediction =
+                matchesPrediction &&
+                (shotPrediction?.railNormal === null ||
+                  shotPrediction?.railNormal === undefined);
+              const qualifiesAsGuaranteed =
+                isDirectPrediction && predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
+              const allowDuringChaos =
+                movingCount <= POCKET_CHAOS_MOVING_THRESHOLD ||
+                matchesIntent ||
+                qualifiesAsGuaranteed ||
+                (lastPocketBall && lastPocketBall === ball.id);
+              if (!allowDuringChaos) continue;
+              if (
+                movingCount > POCKET_CHAOS_MOVING_THRESHOLD &&
+                !matchesIntent &&
+                !qualifiesAsGuaranteed &&
+                lastPocketBall &&
+                lastPocketBall !== ball.id
+              ) {
+                continue;
+              }
+              const baseScore = candidate.score ?? 0;
+              let priority = baseScore;
+              if (matchesIntent && (pocketIntent?.forced ?? false)) priority += 1.2;
+              else if (matchesIntent) priority += 0.6;
+              if (qualifiesAsGuaranteed) priority += 0.4;
+              if (candidate.forcedEarly) priority += 0.3;
+              candidate.priority = priority;
+              candidate.intentMatched = matchesIntent;
+              candidate.guaranteed = qualifiesAsGuaranteed;
+              if (
+                !bestPocketView ||
+                (candidate.priority ?? baseScore) >
+                  (bestPocketView.priority ?? bestPocketView.score ?? 0)
+              ) {
+                bestPocketView = candidate;
+              }
+            }
+            if (bestPocketView) {
+              if (bestPocketView.intentMatched) {
+                pocketSwitchIntentRef.current = null;
+              }
+              lastPocketBallRef.current = bestPocketView.ballId;
+              bestPocketView.lastUpdate = performance.now();
+              if (cameraRef.current) {
+                const cam = cameraRef.current;
+                bestPocketView.smoothedPos = cam.position.clone();
+                const storedTarget = lastCameraTargetRef.current?.clone();
+                if (storedTarget) {
+                  bestPocketView.smoothedTarget = storedTarget;
+                }
+              }
+              if (actionResume) {
+                suspendedActionView = actionResume;
+                bestPocketView.resumeAction = actionResume;
+              } else {
+                suspendedActionView = null;
+              }
+              updatePocketCameraState(true);
+              activeShotView = bestPocketView;
+            }
           }
         }
         // Pocket capture
