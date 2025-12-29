@@ -1256,10 +1256,10 @@ const CUE_BUTT_LIFT = BALL_R * 0.64; // keep the butt elevated for clearance whi
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.35;
-const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.95;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(8.5);
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.75;
+const CUE_OBSTRUCTION_RANGE = BALL_R * 10;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 1.2;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(12);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -5283,17 +5283,18 @@ const AI_CUE_VIEW_HOLD_MS = 2000;
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
 const AI_CAMERA_DROP_DURATION_MS = 480;
-const AI_STROKE_TIME_SCALE = 1.25;
-const AI_STROKE_PULLBACK_FACTOR = 0.9;
-const AI_CUE_PULL_VISIBILITY_BOOST = 1.08;
-const AI_WARMUP_PULL_RATIO = 0.45;
-const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.12;
-const PLAYER_WARMUP_PULL_RATIO = 0.72;
-const PLAYER_STROKE_TIME_SCALE = 1.15;
-const PLAYER_STROKE_PULLBACK_FACTOR = 0.55;
-const PLAYER_PULLBACK_MIN_SCALE = 1.1;
+const AI_STROKE_TIME_SCALE = 1.4;
+const AI_STROKE_PULLBACK_FACTOR = 1.15;
+const AI_CUE_PULL_VISIBILITY_BOOST = 1.18;
+const AI_WARMUP_PULL_RATIO = 0.62;
+const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.26;
+const PLAYER_WARMUP_PULL_RATIO = 0.82;
+const PLAYER_STROKE_TIME_SCALE = 1.3;
+const PLAYER_STROKE_PULLBACK_FACTOR = 0.72;
+const PLAYER_PULLBACK_MIN_SCALE = 1.2;
 const MIN_PULLBACK_GAP = BALL_R * 0.5;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 48;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 72;
+const PORTRAIT_HUD_LEFT_BIAS = 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -19221,6 +19222,24 @@ const powerRef = useRef(hud.power);
             const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
             strength = Math.max(strength, influence);
           });
+          const buttDistance = cueLen + pullDistance + CUE_TIP_GAP;
+          TMP_VEC2_A.copy(origin).addScaledVector(backward, buttDistance);
+          const railBuffer = CUE_OBSTRUCTION_CLEARANCE * 1.15;
+          const nearestRailClearance = Math.min(
+            PLAY_W / 2 - Math.abs(TMP_VEC2_A.x),
+            PLAY_H / 2 - Math.abs(TMP_VEC2_A.y)
+          );
+          if (Number.isFinite(nearestRailClearance)) {
+            const railInfluence =
+              nearestRailClearance <= 0
+                ? 1
+                : THREE.MathUtils.clamp(
+                    1 - nearestRailClearance / Math.max(railBuffer, 1e-4),
+                    0,
+                    1
+                  );
+            strength = Math.max(strength, railInfluence);
+          }
           return strength;
         }
 
@@ -20634,7 +20653,8 @@ const powerRef = useRef(hud.power);
         const spinWidth = spinBox?.width ?? fallbackSpinWidth;
         const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
         const spinCenter = spinLeft + spinWidth / 2;
-        const desiredCenter = (leftCenter + spinCenter) / 2;
+        const desiredCenter =
+          leftCenter + (spinCenter - leftCenter) * PORTRAIT_HUD_LEFT_BIAS;
         const screenCenter = viewportWidth / 2;
         setBottomHudOffset(desiredCenter - screenCenter - PORTRAIT_HUD_HORIZONTAL_NUDGE_PX);
       } else {
