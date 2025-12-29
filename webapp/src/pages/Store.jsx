@@ -145,6 +145,7 @@ const CHESS_TYPE_LABELS = {
   tableBase: 'Table Base',
   chairColor: 'Chairs',
   tableShape: 'Table Shape',
+  pieceSet: 'Piece Sets',
   sideColor: 'Piece Colors',
   boardTheme: 'Board Themes',
   headStyle: 'Pawn Heads'
