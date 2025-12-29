@@ -1073,6 +1073,13 @@ export default function Store() {
             <p>
               This NFT cosmetic will be unlocked instantly for your account. Please confirm the payment to continue.
             </p>
+            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+              {renderStoreThumbnail(confirmItem)}
+              <div className="grid gap-1 text-xs">
+                <div className="text-sm font-semibold text-white">{confirmItem.displayLabel}</div>
+                <div className="text-white/60">{gameName} • {confirmItem.typeLabel}</div>
+              </div>
+            </div>
             <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-white/80">
               <div className="flex items-center justify-between">
                 <span className="text-white/60">Game</span>
@@ -1149,9 +1156,12 @@ export default function Store() {
                   key={`${item.slug}-${item.id}-confirm`}
                   className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2"
                 >
-                  <div className="grid gap-0.5">
-                    <span className="text-white font-semibold">{item.displayLabel}</span>
-                    <span className="text-xs text-white/60">{storeMeta[item.slug]?.name || item.slug} • {item.typeLabel}</span>
+                  <div className="flex items-center gap-3">
+                    {renderStoreThumbnail(item)}
+                    <div className="grid gap-0.5">
+                      <span className="text-white font-semibold">{item.displayLabel}</span>
+                      <span className="text-xs text-white/60">{storeMeta[item.slug]?.name || item.slug} • {item.typeLabel}</span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1 text-sm font-semibold">
                     {item.price}
@@ -1492,6 +1502,115 @@ export default function Store() {
     );
   };
 
+  const renderStoreThumbnail = (item) => {
+    if (!item) return null;
+    const primary = item.swatches?.[0] || '#0f172a';
+    const secondary = item.swatches?.[1] || primary;
+    const accent = item.swatches?.[2] || '#f8fafc';
+    const previewShape = item.previewShape || 'default';
+    const label = (item.displayLabel || item.name || '').slice(0, 14);
+
+    const base = (children) => (
+      <div className="relative h-16 w-20 overflow-hidden rounded-2xl border border-white/10 bg-black/30 shadow-[0_16px_30px_-24px_rgba(0,0,0,0.9)]">
+        <div className="absolute inset-0 opacity-80" style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }} />
+        <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/50" />
+        <div className="absolute inset-[5px] rounded-xl border border-white/10 bg-black/40" />
+        <div className="relative z-10 flex h-full w-full items-center justify-center">{children}</div>
+      </div>
+    );
+
+    if (item.thumbnail) {
+      return (
+        <div className="relative h-16 w-20 overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_16px_30px_-24px_rgba(0,0,0,0.9)]">
+          <img src={item.thumbnail} alt={item.displayLabel || item.name} className="h-full w-full object-cover opacity-90" loading="lazy" />
+          <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-transparent to-black/60" />
+          <div className="absolute bottom-1 left-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/80">
+            {label}
+          </div>
+        </div>
+      );
+    }
+
+    switch (previewShape) {
+      case 'table':
+        return base(
+          <div className="relative h-9 w-16">
+            <div className="absolute inset-x-1 top-2 h-5 rounded-xl" style={{ background: `linear-gradient(90deg, ${primary}, ${secondary})` }} />
+            <div className="absolute inset-x-3 top-4 h-3 rounded-lg" style={{ background: accent, opacity: 0.25 }} />
+            <div className="absolute inset-x-4 bottom-2 h-2 rounded-full" style={{ background: accent, opacity: 0.3 }} />
+          </div>
+        );
+      case 'cue':
+        return base(
+          <div className="relative h-2 w-16 rounded-full" style={{ background: `linear-gradient(90deg, ${primary}, ${secondary})` }}>
+            <div className="absolute -left-2 -top-1 h-4 w-6 rounded-full" style={{ background: accent, opacity: 0.4 }} />
+            <div className="absolute right-0 top-0 h-2 w-4 rounded-full" style={{ background: accent, opacity: 0.9 }} />
+          </div>
+        );
+      case 'cards':
+        return base(
+          <div className="relative h-12 w-16">
+            <div className="absolute left-2 top-1 h-10 w-7 rotate-[-8deg] rounded-lg border border-white/20" style={{ background: secondary, opacity: 0.7 }} />
+            <div className="absolute left-5 top-2 h-10 w-7 rotate-[6deg] rounded-lg border border-white/40" style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})`, boxShadow: `0 0 0 2px ${accent} inset` }} />
+          </div>
+        );
+      case 'domino':
+        return base(
+          <div className="relative h-12 w-16 rounded-xl border border-white/15" style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }}>
+            <div className="absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-white/40" />
+            <div className="absolute left-4 top-3 h-3 w-3 rounded-full" style={{ background: accent }} />
+            <div className="absolute right-4 bottom-3 h-3 w-3 rounded-full" style={{ background: accent }} />
+            <div className="absolute right-4 top-3 h-2 w-2 rounded-full" style={{ background: accent, opacity: 0.7 }} />
+          </div>
+        );
+      case 'dice':
+        return base(
+          <div className="relative flex gap-1">
+            <div className="relative h-9 w-9 rounded-xl border border-white/15" style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }}>
+              <div className="absolute left-2 top-2 h-2 w-2 rounded-full" style={{ background: accent }} />
+              <div className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ background: accent }} />
+              <div className="absolute right-2 bottom-2 h-2 w-2 rounded-full" style={{ background: accent }} />
+            </div>
+            <div className="relative h-9 w-9 rounded-xl border border-white/15" style={{ background: `linear-gradient(135deg, ${secondary}, ${primary})` }}>
+              <div className="absolute left-2 top-2 h-2 w-2 rounded-full" style={{ background: accent }} />
+              <div className="absolute right-2 top-2 h-2 w-2 rounded-full" style={{ background: accent }} />
+              <div className="absolute left-2 bottom-2 h-2 w-2 rounded-full" style={{ background: accent }} />
+              <div className="absolute right-2 bottom-2 h-2 w-2 rounded-full" style={{ background: accent }} />
+            </div>
+          </div>
+        );
+      case 'puck':
+        return base(
+          <div className="relative h-10 w-10 rounded-full" style={{ background: `radial-gradient(circle at 40% 30%, ${accent}, ${secondary})` }}>
+            <div className="absolute inset-2 rounded-full" style={{ background: `linear-gradient(145deg, ${primary}, ${secondary})` }} />
+          </div>
+        );
+      case 'token-stack':
+        return base(
+          <div className="relative h-12 w-16">
+            <div className="absolute left-1 top-2 h-3 w-12 rounded-full" style={{ background: `linear-gradient(90deg, ${primary}, ${secondary})`, opacity: 0.85 }} />
+            <div className="absolute left-3 top-5 h-3 w-12 rounded-full" style={{ background: `linear-gradient(90deg, ${secondary}, ${primary})`, opacity: 0.9 }} />
+            <div className="absolute left-5 top-8 h-3 w-12 rounded-full" style={{ background: accent, opacity: 0.8 }} />
+          </div>
+        );
+      case 'chair':
+        return base(
+          <div className="relative h-12 w-14">
+            <div className="absolute inset-x-1 top-2 h-5 rounded-xl" style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }} />
+            <div className="absolute inset-x-2 top-5 h-4 rounded-lg" style={{ background: `linear-gradient(135deg, ${secondary}, ${primary})`, opacity: 0.9 }} />
+            <div className="absolute left-3 bottom-2 h-3 w-3 rounded-full" style={{ background: accent, opacity: 0.75 }} />
+            <div className="absolute right-3 bottom-2 h-3 w-3 rounded-full" style={{ background: accent, opacity: 0.75 }} />
+          </div>
+        );
+      default:
+        return base(
+          <div className="relative h-10 w-16 rounded-xl" style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }}>
+            <div className="absolute inset-2 rounded-lg" style={{ background: accent, opacity: 0.2 }} />
+          </div>
+        );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/80 backdrop-blur">
@@ -1808,10 +1927,8 @@ export default function Store() {
                         onChange={() => toggleSelection(item)}
                         disabled={item.owned}
                       />
-                      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-black/30 text-lg font-semibold">
-                        {item.gameName[0]}
-                      </div>
                     </label>
+                    {renderStoreThumbnail(item)}
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="text-sm font-semibold">{item.displayLabel}</div>
