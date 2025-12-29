@@ -13,6 +13,7 @@ export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   tableBase: [TABLE_BASE_OPTIONS[0]?.id],
   chairColor: ['crimsonVelvet'],
   tableShape: [DEFAULT_TABLE_SHAPE_ID],
+  pieceSet: ['beautifulGameClassic', 'polyHavenChess', 'stauntonWalnut'],
   sideColor: ['amberGlow', 'mintVale'],
   boardTheme: ['classic'],
   headStyle: ['current']
@@ -50,6 +51,11 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
       return acc;
     }, {})
   ),
+  pieceSet: Object.freeze({
+    beautifulGameClassic: 'A Beautiful Game (Default)',
+    polyHavenChess: 'PolyHaven Textured Set',
+    stauntonWalnut: 'Staunton Walnut Set'
+  }),
   sideColor: Object.freeze({
     marble: 'Marble',
     darkForest: 'Dark Forest',
@@ -110,6 +116,8 @@ export const CHESS_BATTLE_STORE_ITEMS = [
   { id: 'chess-chair-onyx', type: 'chairColor', optionId: 'onyxShadow', name: 'Onyx Shadow Chairs', price: 380, description: 'Shadow-black seating with steel-toned trim.' },
   { id: 'chess-chair-plum', type: 'chairColor', optionId: 'royalPlum', name: 'Royal Chestnut Chairs', price: 360, description: 'Chestnut-plum accent chairs for regal matches.' },
   { id: 'chess-shape-oval', type: 'tableShape', optionId: 'grandOval', name: 'Grand Oval Shape', price: 640, description: 'Smooth oval table outline for the chess board.' },
+  { id: 'chess-set-polyhaven', type: 'pieceSet', optionId: 'polyHavenChess', name: 'PolyHaven Textured Set', price: 1650, description: 'Import-ready textured chess set direct from PolyHaven.' },
+  { id: 'chess-set-staunton', type: 'pieceSet', optionId: 'stauntonWalnut', name: 'Staunton Walnut Set', price: 1500, description: 'Classic Staunton board + pieces with walnut/maple finish.' },
   { id: 'chess-side-marble', type: 'sideColor', optionId: 'marble', name: 'Marble Pieces', price: 1400, description: 'Premium marble-inspired pieces for either side.' },
   { id: 'chess-side-forest', type: 'sideColor', optionId: 'darkForest', name: 'Dark Forest Pieces', price: 1300, description: 'Deep forest hue pieces with luxe accents.' },
   { id: 'chess-side-royal', type: 'sideColor', optionId: 'royalWave', name: 'Royal Wave Pieces', price: 420, description: 'Royal blue quick-select palette.' },
@@ -136,6 +144,7 @@ export const CHESS_BATTLE_DEFAULT_LOADOUT = [
   { type: 'tableBase', optionId: TABLE_BASE_OPTIONS[0]?.id, label: TABLE_BASE_OPTIONS[0]?.label },
   { type: 'chairColor', optionId: 'crimsonVelvet', label: 'Crimson Velvet Chairs' },
   { type: 'tableShape', optionId: DEFAULT_TABLE_SHAPE_ID, label: CHESS_BATTLE_OPTION_LABELS.tableShape[DEFAULT_TABLE_SHAPE_ID] },
+  { type: 'pieceSet', optionId: 'beautifulGameClassic', label: CHESS_BATTLE_OPTION_LABELS.pieceSet.beautifulGameClassic },
   { type: 'sideColor', optionId: 'amberGlow', label: 'Amber Glow Pieces' },
   { type: 'sideColor', optionId: 'mintVale', label: 'Mint Vale Pieces' },
   { type: 'boardTheme', optionId: 'classic', label: 'Classic Board' },

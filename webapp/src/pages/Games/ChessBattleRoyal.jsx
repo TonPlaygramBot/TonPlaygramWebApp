@@ -891,21 +891,36 @@ const PIECE_STYLE_OPTIONS = Object.freeze(
     { id: 'beautifulGameBlue', label: 'Blue', color: '#3b82f6' },
     { id: 'beautifulGamePink', label: 'Pink', color: '#ef4444' },
     { id: 'beautifulGameTeal', label: 'Teal', color: '#8b5cf6' }
-  ].map((preset) => ({
-    ...preset,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: preset.color },
-      black: { ...BASE_PIECE_STYLE.black, color: preset.color },
-      accent: BASE_PIECE_STYLE.accent,
-      goldAccent: BASE_PIECE_STYLE.goldAccent,
-      whiteAccent: BASE_PIECE_STYLE.whiteAccent,
-      blackAccent: BASE_PIECE_STYLE.blackAccent
-    },
-    loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
-  }))
+  ]
+    .map((preset) => ({
+      ...preset,
+      style: {
+        ...BASE_PIECE_STYLE,
+        preserveOriginalMaterials: false,
+        keepTextures: true,
+        white: { ...BASE_PIECE_STYLE.white, color: preset.color },
+        black: { ...BASE_PIECE_STYLE.black, color: preset.color },
+        accent: BASE_PIECE_STYLE.accent,
+        goldAccent: BASE_PIECE_STYLE.goldAccent,
+        whiteAccent: BASE_PIECE_STYLE.whiteAccent,
+        blackAccent: BASE_PIECE_STYLE.blackAccent
+      },
+      loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
+    }))
+    .concat([
+      {
+        id: 'polyHavenChess',
+        label: 'PolyHaven Textured',
+        style: { preserveOriginalMaterials: true, keepTextures: true },
+        loader: (targetBoardSize) => loadPolyHavenChessAssets(targetBoardSize)
+      },
+      {
+        id: 'stauntonWalnut',
+        label: 'Staunton Walnut',
+        style: { preserveOriginalMaterials: true, keepTextures: true },
+        loader: (targetBoardSize) => loadWalnutStauntonAssets(targetBoardSize)
+      }
+    ])
 );
 
 const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(
@@ -1256,7 +1271,11 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length]
+    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
+    ['boardColor', BEAUTIFUL_GAME_BOARD_OPTIONS.length],
+    ['whitePieceStyle', PIECE_STYLE_OPTIONS.length],
+    ['blackPieceStyle', PIECE_STYLE_OPTIONS.length],
+    ['headStyle', HEAD_PRESET_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -1265,10 +1284,6 @@ function normalizeAppearance(value = {}) {
     const clamped = Math.min(Math.max(0, Math.round(source)), max - 1);
     normalized[key] = clamped;
   });
-  normalized.boardColor = DEFAULT_APPEARANCE.boardColor;
-  normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
-  normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
-  normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
   return normalized;
 }
 
@@ -2041,8 +2056,8 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
 
 let sharedKTX2Loader = null;
 
-function createConfiguredGLTFLoader(renderer = null) {
-  const loader = new GLTFLoader();
+function createConfiguredGLTFLoader(renderer = null, manager = null) {
+  const loader = new GLTFLoader(manager);
   loader.setCrossOrigin('anonymous');
   const draco = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
@@ -2106,7 +2121,10 @@ async function loadPieceSetFromUrlsStrict(urls = [], options = {}) {
 }
 
 async function loadPieceSetFromUrls(urls = [], options = {}) {
-  const loader = createConfiguredGLTFLoader();
+  const manager =
+    options?.loadingManager ||
+    new THREE.LoadingManager(() => {}, (itemUrl) => itemUrl, (itemUrl) => itemUrl);
+  const loader = createConfiguredGLTFLoader(null, manager);
   let lastError = null;
   for (const url of urls) {
     try {
@@ -2120,7 +2138,15 @@ async function loadPieceSetFromUrls(urls = [], options = {}) {
         loader.load(resolvedUrl, resolve, undefined, reject);
       });
       if (gltf?.scene) {
-        return extractChessSetAssets(gltf.scene, options);
+        const assets = extractChessSetAssets(gltf.scene, options);
+        assets.userData = {
+          ...(assets.userData || {}),
+          styleId: options?.styleId || options?.pieceStyle?.id || options?.name || DEFAULT_PIECE_SET_ID,
+          preserveOriginalMaterials: Boolean(
+            options?.pieceStyle?.preserveOriginalMaterials || options?.pieceStyle?.keepTextures
+          )
+        };
+        return assets;
       }
     } catch (error) {
       lastError = error;
@@ -2200,6 +2226,108 @@ async function applyTextureProfileToAssets(assets, profile) {
     applyToPiece(piece, blackTextures, profile.blackTint || null)
   );
 
+  return assets;
+}
+
+function stripQueryHash(u = '') {
+  return u.split('#')[0].split('?')[0];
+}
+
+function isGlbUrl(u = '') {
+  return stripQueryHash(u).toLowerCase().endsWith('.glb');
+}
+
+function isGltfUrl(u = '') {
+  return stripQueryHash(u).toLowerCase().endsWith('.gltf');
+}
+
+function looksLikeFileUrl(u = '') {
+  const lu = u.toLowerCase();
+  if (!/^https?:\/\//i.test(u)) return false;
+  if (lu.includes('polyhaven.com') && lu.includes('/a/')) return false;
+  return true;
+}
+
+function extractUrls(apiJson) {
+  const out = new Set();
+  const seen = new Set();
+  const walk = (v) => {
+    if (!v) return;
+    if (typeof v === 'string') {
+      if (looksLikeFileUrl(v)) out.add(v);
+      return;
+    }
+    if (typeof v !== 'object') return;
+    if (seen.has(v)) return;
+    seen.add(v);
+    if (Array.isArray(v)) v.forEach((x) => walk(x));
+    else Object.values(v).forEach((x) => walk(x));
+  };
+  walk(apiJson);
+  return Array.from(out);
+}
+
+function pickBestModelUrl(urls = []) {
+  const candidates = urls.filter((u) => isGlbUrl(u) || isGltfUrl(u));
+  const score = (u) => {
+    const lu = u.toLowerCase();
+    let s = 0;
+    if (isGlbUrl(u)) s += 10;
+    if (isGltfUrl(u)) s += 4;
+    if (lu.includes('2k')) s += 3;
+    if (lu.includes('1k')) s += 2;
+    if (lu.includes('4k')) s += 1;
+    if (lu.includes('8k')) s -= 2;
+    return s;
+  };
+  candidates.sort((a, b) => score(b) - score(a));
+  return candidates[0] || null;
+}
+
+async function fetchPolyHavenModelUrl(slug = '') {
+  if (!slug) return null;
+  const res = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(slug)}`);
+  if (!res.ok) return null;
+  const json = await res.json();
+  const urls = extractUrls(json);
+  return pickBestModelUrl(urls);
+}
+
+async function loadPolyHavenChessAssets(targetBoardSize = RAW_BOARD_SIZE, slug = 'chess_set') {
+  const modelUrl = await fetchPolyHavenModelUrl(slug);
+  if (!modelUrl) throw new Error('PolyHaven chess set unavailable');
+
+  const base = stripQueryHash(modelUrl);
+  const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
+  const manager = new THREE.LoadingManager();
+  manager.setURLModifier((requestedUrl) => {
+    if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
+    try {
+      return new URL(requestedUrl, baseDir).toString();
+    } catch {
+      return requestedUrl;
+    }
+  });
+
+  const loader = createConfiguredGLTFLoader(null, manager);
+  const gltf = await new Promise((resolve, reject) => {
+    loader.load(modelUrl, resolve, undefined, reject);
+  });
+  const root = gltf?.scene || gltf?.scenes?.[0];
+  if (!root) throw new Error('PolyHaven chess set failed to load');
+  root.traverse(applyMaterialSettingsWithSRGB);
+  const assets = extractChessSetAssets(root, {
+    targetBoardSize,
+    styleId: 'polyHavenChess',
+    assetScale: 1,
+    name: 'PolyHaven Chess Set',
+    pieceFootprintRatio: PIECE_FOOTPRINT_RATIO
+  });
+  assets.userData = {
+    ...(assets.userData || {}),
+    styleId: 'polyHavenChess',
+    preserveOriginalMaterials: true
+  };
   return assets;
 }
 
@@ -2640,7 +2768,7 @@ function adornPiecePrototypes(piecePrototypes, tileSize = BOARD.tile) {
 async function loadWalnutStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
   const assets = await loadPieceSetFromUrls(STAUNTON_SET_URLS, {
     targetBoardSize,
-    styleId: 'heritageWalnut',
+    styleId: 'stauntonWalnut',
     pieceStyle: HERITAGE_WALNUT_STYLE,
     assetScale: STAUNTON_TEXTURED_ASSET_SCALE,
     fallbackBuilder: buildStauntonFallbackAssets
@@ -2656,7 +2784,7 @@ async function loadWalnutStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
 async function loadMarbleOnyxStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
   const assets = await loadPieceSetFromUrls(STAUNTON_SET_URLS, {
     targetBoardSize,
-    styleId: 'marbleOnyx',
+    styleId: 'stauntonMarble',
     pieceStyle: MARBLE_ONYX_STYLE,
     assetScale: STAUNTON_TEXTURED_ASSET_SCALE,
     fallbackBuilder: buildStauntonFallbackAssets
@@ -5410,6 +5538,9 @@ function Chess3D({
   const [p2QuickIdx, setP2QuickIdx] = useState(3);
   const [headQuickIdx, setHeadQuickIdx] = useState(0);
   const [boardQuickIdx, setBoardQuickIdx] = useState(0);
+  const [pieceSetQuickIdx, setPieceSetQuickIdx] = useState(
+    Number.isFinite(appearance?.whitePieceStyle) ? appearance.whitePieceStyle : 0
+  );
   const [whiteTime, setWhiteTime] = useState(60);
   const [blackTime, setBlackTime] = useState(5);
   const whiteTimeRef = useRef(whiteTime);
@@ -5597,6 +5728,14 @@ function Chess3D({
     [chessInventory]
   );
 
+  const pieceSetOptions = useMemo(
+    () =>
+      PIECE_STYLE_OPTIONS.map((option, idx) => ({ ...option, idx })).filter(({ id }) =>
+        isChessOptionUnlocked('pieceSet', id, chessInventory)
+      ),
+    [chessInventory]
+  );
+
   const quickHeadOptions = useMemo(
     () =>
       QUICK_HEAD_PRESETS.map((option, idx) => ({ ...option, idx })).filter(({ id }) =>
@@ -5615,7 +5754,8 @@ function Chess3D({
     setP2QuickIdx((prev) => clampQuickSelection(prev, quickSideOptions, quickSideOptions[1]?.idx ?? 0));
     setHeadQuickIdx((prev) => clampQuickSelection(prev, quickHeadOptions));
     setBoardQuickIdx((prev) => clampQuickSelection(prev, quickBoardOptions));
-  }, [clampQuickSelection, quickBoardOptions, quickHeadOptions, quickSideOptions]);
+    setPieceSetQuickIdx((prev) => clampQuickSelection(prev, pieceSetOptions));
+  }, [clampQuickSelection, pieceSetOptions, quickBoardOptions, quickHeadOptions, quickSideOptions]);
 
   const ensureAppearanceUnlocked = useCallback(
     (value = DEFAULT_APPEARANCE) => {
@@ -5634,6 +5774,20 @@ function Chess3D({
         const option = options[idx];
         if (!option || !isChessOptionUnlocked(key, option.id, chessInventory)) {
           const fallbackIdx = options.findIndex((opt) => isChessOptionUnlocked(key, opt.id, chessInventory));
+          const safeIdx = fallbackIdx >= 0 ? fallbackIdx : 0;
+          if (safeIdx !== idx) {
+            next[key] = safeIdx;
+            changed = true;
+          }
+        }
+      });
+      ['whitePieceStyle', 'blackPieceStyle'].forEach((key) => {
+        const idx = Number.isFinite(next[key]) ? next[key] : 0;
+        const option = PIECE_STYLE_OPTIONS[idx];
+        if (!option || !isChessOptionUnlocked('pieceSet', option.id, chessInventory)) {
+          const fallbackIdx = PIECE_STYLE_OPTIONS.findIndex((opt) =>
+            isChessOptionUnlocked('pieceSet', opt.id, chessInventory)
+          );
           const safeIdx = fallbackIdx >= 0 ? fallbackIdx : 0;
           if (safeIdx !== idx) {
             next[key] = safeIdx;
@@ -5805,7 +5959,23 @@ function Chess3D({
         window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
       } catch {}
     }
-  }, [appearance]);
+  }, [
+    aiFlag,
+    appearance,
+    boardQuickIdx,
+    headQuickIdx,
+    p1QuickIdx,
+    p2QuickIdx,
+    pieceSetQuickIdx,
+    playerFlag,
+    resolvedInitialFlag,
+    updateSandTimerPlacement
+  ]);
+
+  useEffect(() => {
+    const idx = Number.isFinite(appearance.whitePieceStyle) ? appearance.whitePieceStyle : 0;
+    setPieceSetQuickIdx(idx);
+  }, [appearance.whitePieceStyle]);
 
   useEffect(() => {
     if (!playerFlag && resolvedInitialFlag) {
@@ -6008,8 +6178,8 @@ function Chess3D({
       arenaRef.current.boardMaterials = arena.boardMaterials;
     }
     const pieceSetOption =
-      PIECE_STYLE_OPTIONS[normalized.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-    const nextPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
+      PIECE_STYLE_OPTIONS[pieceSetQuickIdx] ?? PIECE_STYLE_OPTIONS[normalized.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
+    const nextPieceSetId = pieceSetOption?.id || BEAUTIFUL_GAME_SWAP_SET_ID;
     const isBeautifulGameSet = (arena.activePieceSetId || nextPieceSetId || '').startsWith('beautifulGame');
     const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
@@ -6017,9 +6187,11 @@ function Chess3D({
     const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalized.tableShape);
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
-    const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
+    const pieceStyleOption =
+      pieceSetOption?.style || palette.pieces || DEFAULT_PIECE_STYLE || BEAUTIFUL_GAME_PIECE_STYLE;
     const headPreset = palette.head ?? HEAD_PRESET_OPTIONS[0].preset;
-    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
+    const pieceSetLoader =
+      pieceSetOption?.loader || ((size) => resolveBeautifulGameAssets(size));
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
 
     if (shapeOption) {
@@ -6143,7 +6315,8 @@ function Chess3D({
         applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption);
         disposePieceMaterials(arena.pieceMaterials);
         arena.pieceMaterials = null;
-      } else {
+        applyHeadPresetToMeshes(arena.allPieceMeshes, headPreset);
+      } else if (!preserveOriginalMaterials) {
         const nextPieceMaterials = createPieceMaterials(pieceStyleOption);
         arena.allPieceMeshes.forEach((group) => {
           const meshStyleId = group.userData?.__pieceStyleId;
@@ -6160,8 +6333,8 @@ function Chess3D({
         });
         disposePieceMaterials(arena.pieceMaterials);
         arena.pieceMaterials = nextPieceMaterials;
+        applyHeadPresetToMeshes(arena.allPieceMeshes, headPreset);
       }
-      applyHeadPresetToMeshes(arena.allPieceMeshes, headPreset);
     }
 
     const accentColor = palette.accent ?? '#4ce0c3';
@@ -6241,11 +6414,15 @@ function Chess3D({
       const palette = createChessPalette(normalizedAppearance);
       paletteRef.current = palette;
       const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
-      const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
       const pieceSetOption =
-        PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-      const initialPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
-      const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
+        PIECE_STYLE_OPTIONS[pieceSetQuickIdx] ??
+        PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ??
+        PIECE_STYLE_OPTIONS[0];
+      const pieceStyleOption =
+        pieceSetOption?.style || palette.pieces || DEFAULT_PIECE_STYLE || BEAUTIFUL_GAME_PIECE_STYLE;
+      const initialPieceSetId = pieceSetOption?.id || BEAUTIFUL_GAME_SWAP_SET_ID;
+      const pieceSetLoader =
+        pieceSetOption?.loader || ((size) => resolveBeautifulGameAssets(size));
       const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
       const initialPlayerFlag =
         playerFlag ||
@@ -8527,6 +8704,35 @@ function Chess3D({
                                 .padStart(6, '0')} 50%)`
                             }} />
                             {theme.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[0.7rem] text-white/70">Piece set</p>
+                      <div className="mt-1 grid grid-cols-2 gap-2">
+                        {pieceSetOptions.map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => {
+                              setPieceSetQuickIdx(option.idx);
+                              setAppearance((prev) =>
+                                normalizeAppearance({
+                                  ...prev,
+                                  whitePieceStyle: option.idx,
+                                  blackPieceStyle: option.idx
+                                })
+                              );
+                            }}
+                            className={`flex items-center justify-between rounded-lg border px-3 py-2 text-[0.7rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              pieceSetQuickIdx === option.idx
+                                ? 'border-white/70 bg-white/10 text-white'
+                                : 'border-white/15 bg-white/5 text-white/80 hover:border-white/30 hover:text-white'
+                            }`}
+                          >
+                            <span>{option.label}</span>
+                            <span className="h-4 w-4 rounded-full border border-white/30 bg-white/30" />
                           </button>
                         ))}
                       </div>
