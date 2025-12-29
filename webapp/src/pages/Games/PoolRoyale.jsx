@@ -5283,17 +5283,18 @@ const AI_CUE_VIEW_HOLD_MS = 2000;
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
 const AI_CAMERA_DROP_DURATION_MS = 480;
-const AI_STROKE_TIME_SCALE = 1.25;
-const AI_STROKE_PULLBACK_FACTOR = 0.9;
-const AI_CUE_PULL_VISIBILITY_BOOST = 1.08;
-const AI_WARMUP_PULL_RATIO = 0.45;
-const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.12;
-const PLAYER_WARMUP_PULL_RATIO = 0.72;
-const PLAYER_STROKE_TIME_SCALE = 1.15;
-const PLAYER_STROKE_PULLBACK_FACTOR = 0.55;
+const AI_STROKE_TIME_SCALE = 1.35;
+const AI_STROKE_PULLBACK_FACTOR = 1.05;
+const AI_CUE_PULL_VISIBILITY_BOOST = 1.22;
+const AI_WARMUP_PULL_RATIO = 0.38;
+const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.2;
+const PLAYER_WARMUP_PULL_RATIO = 0.6;
+const PLAYER_STROKE_TIME_SCALE = 1.28;
+const PLAYER_FORWARD_SLOWDOWN = 1.12;
+const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
 const PLAYER_PULLBACK_MIN_SCALE = 1.1;
 const MIN_PULLBACK_GAP = BALL_R * 0.5;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 48;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 96;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -17246,7 +17247,9 @@ const powerRef = useRef(hud.power);
           const aiStrokeScale =
             aiOpponentEnabled && hudRef.current?.turn === 1 ? AI_STROKE_TIME_SCALE : 1;
           const playerStrokeScale = isAiStroke ? 1 : PLAYER_STROKE_TIME_SCALE;
-          const forwardDuration = forwardDurationBase * aiStrokeScale * playerStrokeScale;
+          const playerForwardScale = isAiStroke ? 1 : PLAYER_FORWARD_SLOWDOWN;
+          const forwardDuration =
+            forwardDurationBase * aiStrokeScale * playerStrokeScale * playerForwardScale;
           const settleDuration = settleDurationBase * aiStrokeScale * playerStrokeScale;
           const pullbackDuration = isAiStroke
             ? Math.max(
