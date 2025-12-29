@@ -15,14 +15,10 @@ const OFFSET_SKIP = 160;
 const MAX_IN_FLIGHT = 6;
 const PRODUCTION_NAME = 'Poly Haven Showroom';
 
-const TARGET_FOOTPRINT_XZ = 11.0;
+const TARGET_FOOTPRINT_XZ = 9.0;
 const GRID_COLS = 14;
 const GRID_SPACING = 13;
-const TICKET_Y_OFFSET = 1.6;
-const TARGET_FPS = 90;
-const FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
-const HD_WIDTH = 1920;
-const HD_HEIGHT = 1080;
+const TICKET_Y_OFFSET = 1.0;
 
 const KEYWORDS = [
   'snooker',
@@ -135,8 +131,8 @@ function ensureVisible(root) {
 
 function makeTicket(text) {
   const c = document.createElement('canvas');
-  c.width = 960;
-  c.height = 200;
+  c.width = 840;
+  c.height = 160;
   const g = c.getContext('2d');
 
   g.fillStyle = 'rgba(0,0,0,0.82)';
@@ -147,13 +143,13 @@ function makeTicket(text) {
   g.strokeRect(6, 6, c.width - 12, c.height - 12);
 
   g.fillStyle = '#e5ecff';
-  g.font = '800 30px system-ui';
-  g.fillText(text, 18, 108);
+  g.font = '800 26px system-ui';
+  g.fillText(text, 18, 86);
 
   const tex = new THREE.CanvasTexture(c);
   applySRGBColorSpace(tex);
   const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
-  spr.scale.set(6.8, 1.4, 1);
+  spr.scale.set(5.8, 1.1, 1);
   return spr;
 }
 
@@ -401,7 +397,7 @@ export default function Magazine3D() {
 
     mount.innerHTML = '';
     mount.style.width = '100%';
-    mount.style.minHeight = 'min(1080px, 80vh)';
+    mount.style.minHeight = '520px';
     mount.style.position = 'relative';
 
     const hud = document.createElement('div');
@@ -432,16 +428,9 @@ export default function Magazine3D() {
     applyRendererSRGB(renderer);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
-    renderer.setPixelRatio(1);
-    renderer.setSize(
-      Math.max(HD_WIDTH, mount.clientWidth),
-      Math.max(HD_HEIGHT, mount.clientHeight || HD_HEIGHT),
-      false
-    );
-    renderer.domElement.style.width = '100%';
-    renderer.domElement.style.height = 'auto';
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(Math.max(1, mount.clientWidth), mount.clientHeight || 560, false);
     mount.appendChild(renderer.domElement);
-    THREE.Cache.enabled = true;
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -517,12 +506,6 @@ export default function Magazine3D() {
 
                 const fileMap = new Map();
                 allUrls.forEach((u) => fileMap.set(basename(u), u));
-
-                await Promise.allSettled(
-                  [modelUrl, ...fileMap.values()].map((url) =>
-                    fetch(url, { mode: 'cors', cache: 'force-cache' }).catch(() => null)
-                  )
-                );
 
                 const manager = fileMap.size ? new THREE.LoadingManager() : undefined;
                 if (manager && fileMap.size) {
@@ -629,19 +612,12 @@ export default function Magazine3D() {
       if (!mount) return;
       camera.aspect = mount.clientWidth / Math.max(1, mount.clientHeight);
       camera.updateProjectionMatrix();
-      renderer.setSize(
-        Math.max(HD_WIDTH, mount.clientWidth),
-        Math.max(HD_HEIGHT, mount.clientHeight || HD_HEIGHT),
-        false
-      );
+      renderer.setSize(Math.max(1, mount.clientWidth), mount.clientHeight || 560, false);
     };
     window.addEventListener('resize', resize);
 
-    let lastFrameTime = performance.now();
-    const tick = (now) => {
+    const tick = () => {
       raf = requestAnimationFrame(tick);
-      if (now - lastFrameTime < FRAME_INTERVAL_MS) return;
-      lastFrameTime = now;
       controls.update();
       renderer.render(scene, camera);
     };
@@ -676,14 +652,12 @@ export default function Magazine3D() {
               {items.map((item) => (
                 <div
                   key={`${category}-${item.slot}-${item.id}`}
-                  className="flex items-center justify-between text-base"
+                  className="flex items-center justify-between text-sm"
                 >
-                  <span className="font-mono text-primary text-lg font-extrabold">
+                  <span className="font-mono text-primary text-sm font-semibold">
                     #{String(item.slot).padStart(4, '0')}
                   </span>
-                  <span className="ml-2 truncate text-foreground font-semibold text-base">
-                    {item.id}
-                  </span>
+                  <span className="ml-2 truncate text-foreground font-medium">{item.id}</span>
                 </div>
               ))}
             </div>
