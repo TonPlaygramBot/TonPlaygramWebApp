@@ -1,0 +1,490 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
+
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+
+const TARGET_COUNT = 220;
+const OFFSET_SKIP = 160;
+const MAX_IN_FLIGHT = 6;
+const PRODUCTION_NAME = 'Poly Haven Showroom';
+
+const TARGET_FOOTPRINT_XZ = 9.0;
+const GRID_COLS = 14;
+const GRID_SPACING = 13;
+const TICKET_Y_OFFSET = 1.0;
+
+const KEYWORDS = [
+  'snooker',
+  'billiard',
+  'billiards',
+  'pool',
+  'poker',
+  'casino',
+  'roulette',
+  'table',
+  'dining',
+  'coffee',
+  'desk',
+  'chair',
+  'armchair',
+  'stool',
+  'bench',
+  'seat',
+  'sofa',
+  'cabinet',
+  'shelf',
+  'dresser',
+  'drawer',
+  'cupboard',
+  'bookcase',
+  'lamp',
+  'plant',
+  'vase',
+  'rug',
+  'carpet'
+];
+
+let sharedKtx2Loader = null;
+
+function stripQueryHash(u) {
+  return u.split('#')[0].split('?')[0];
+}
+
+function basename(u) {
+  if (!u) return '';
+  const clean = stripQueryHash(u);
+  const idx = clean.lastIndexOf('/');
+  return idx >= 0 ? clean.slice(idx + 1) : clean;
+}
+
+function isModelUrl(u) {
+  const s = stripQueryHash(u).toLowerCase();
+  return s.endsWith('.glb') || s.endsWith('.gltf');
+}
+
+function extractAllHttpUrls(apiJson) {
+  const out = [];
+  const seen = new Set();
+  const walk = (v) => {
+    if (!v) return;
+    if (typeof v === 'string' && v.startsWith('http')) {
+      if (!seen.has(v)) {
+        seen.add(v);
+        out.push(v);
+      }
+      return;
+    }
+    if (Array.isArray(v)) {
+      v.forEach(walk);
+      return;
+    }
+    if (typeof v === 'object') {
+      Object.values(v).forEach(walk);
+    }
+  };
+  walk(apiJson);
+  return out;
+}
+
+function pickBestModelUrl(urls) {
+  const modelUrls = urls.filter(isModelUrl);
+  const glbs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.glb'));
+  const gltfs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.gltf'));
+  return glbs[0] || gltfs[0] || null;
+}
+
+function fallbackMaterial() {
+  return new THREE.MeshStandardMaterial({
+    color: 0xd0d6e2,
+    roughness: 0.85,
+    metalness: 0,
+    side: THREE.DoubleSide
+  });
+}
+
+function ensureVisible(root) {
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const materials = Array.isArray(o.material) ? o.material : [o.material];
+    materials.forEach((m, idx) => {
+      if (!m) {
+        materials[idx] = fallbackMaterial();
+        return;
+      }
+      if (m.map) applySRGBColorSpace(m.map);
+      if (m.emissiveMap) applySRGBColorSpace(m.emissiveMap);
+      if (!m.map && m.color?.getHex?.() === 0x000000) {
+        m.color.set(0xd0d6e2);
+      }
+      m.needsUpdate = true;
+    });
+  });
+}
+
+function makeTicket(text) {
+  const c = document.createElement('canvas');
+  c.width = 740;
+  c.height = 140;
+  const g = c.getContext('2d');
+
+  g.fillStyle = 'rgba(0,0,0,0.72)';
+  g.fillRect(0, 0, c.width, c.height);
+
+  g.strokeStyle = 'rgba(255,255,255,0.22)';
+  g.lineWidth = 2;
+  g.strokeRect(6, 6, c.width - 12, c.height - 12);
+
+  g.fillStyle = '#fff';
+  g.font = '700 22px system-ui';
+  g.fillText(text, 18, 72);
+
+  const tex = new THREE.CanvasTexture(c);
+  applySRGBColorSpace(tex);
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
+  spr.scale.set(5.0, 0.95, 1);
+  return spr;
+}
+
+function scaleToFootprint(root, targetXZ) {
+  const box = new THREE.Box3().setFromObject(root);
+  const size = new THREE.Vector3();
+  const center = new THREE.Vector3();
+  box.getSize(size);
+  box.getCenter(center);
+  root.position.sub(center);
+
+  const maxXZ = Math.max(size.x, size.z);
+  root.scale.setScalar(maxXZ > 0 ? targetXZ / maxXZ : 1);
+
+  const box2 = new THREE.Box3().setFromObject(root);
+  root.position.y -= box2.min.y;
+}
+
+function categoryForId(id) {
+  const s = String(id).toLowerCase();
+  if (s.includes('snooker') || s.includes('billiard') || s.includes('billiards') || s.includes('pool')) {
+    return 'Billiards & Snooker';
+  }
+  if (s.includes('poker') || s.includes('casino') || s.includes('roulette') || s.includes('blackjack')) {
+    return 'Poker & Casino';
+  }
+  if (s.includes('chair') || s.includes('armchair') || s.includes('stool') || s.includes('bench') || s.includes('seat') || s.includes('sofa')) {
+    return 'Chairs & Seating';
+  }
+  if (s.includes('cabinet') || s.includes('cupboard') || s.includes('dresser') || s.includes('drawer') || s.includes('shelf') || s.includes('bookcase')) {
+    return 'Storage & Shelving';
+  }
+  if (s.includes('lamp') || s.includes('plant') || s.includes('vase') || s.includes('rug') || s.includes('carpet')) {
+    return 'Decor';
+  }
+  return 'Tables';
+}
+
+function buildPolyhavenModelUrls(id) {
+  const safe = encodeURIComponent(id);
+  return [
+    `https://dl.polyhaven.org/file/ph-assets/models/gltf/${safe}/${safe}.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/models/gltf/${safe}/${safe}.glb`
+  ];
+}
+
+function createConfiguredGLTFLoader(renderer, manager) {
+  const loader = new GLTFLoader(manager);
+  loader.setCrossOrigin?.('anonymous');
+
+  const draco = new DRACOLoader();
+  draco.setDecoderPath(DRACO_DECODER_PATH);
+  loader.setDRACOLoader(draco);
+
+  if (!sharedKtx2Loader) {
+    sharedKtx2Loader = new KTX2Loader();
+    sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
+  }
+
+  if (renderer) {
+    try {
+      sharedKtx2Loader.detectSupport(renderer);
+    } catch (error) {
+      console.warn('Magazine KTX2 support detection failed', error);
+    }
+  }
+
+  loader.setKTX2Loader(sharedKtx2Loader);
+  loader.setMeshoptDecoder?.(MeshoptDecoder);
+  return loader;
+}
+
+function prepareLoadedModel(root) {
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+    materials.forEach((mat, idx) => {
+      if (!mat) {
+        materials[idx] = fallbackMaterial();
+        return;
+      }
+      if (mat.map) applySRGBColorSpace(mat.map);
+      if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+      mat.needsUpdate = true;
+    });
+  });
+}
+
+export default function Magazine3D() {
+  const mountRef = useRef(null);
+  const [status, setStatus] = useState('Initializing…');
+  const [catalog, setCatalog] = useState([]);
+
+  const groupedCatalog = useMemo(() => {
+    const groups = {};
+    catalog.forEach((item) => {
+      if (!groups[item.category]) groups[item.category] = [];
+      groups[item.category].push(item);
+    });
+    Object.values(groups).forEach((items) => items.sort((a, b) => a.slot - b.slot));
+    return groups;
+  }, [catalog]);
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return undefined;
+
+    mount.innerHTML = '';
+    mount.style.width = '100%';
+    mount.style.minHeight = '520px';
+    mount.style.position = 'relative';
+
+    const hud = document.createElement('div');
+    hud.style.position = 'absolute';
+    hud.style.top = '10px';
+    hud.style.left = '10px';
+    hud.style.padding = '8px 12px';
+    hud.style.background = 'rgba(0,0,0,0.6)';
+    hud.style.color = 'white';
+    hud.style.fontFamily = 'system-ui';
+    hud.style.borderRadius = '8px';
+    hud.style.zIndex = '10';
+    hud.innerText = status;
+    mount.appendChild(hud);
+
+    const setHud = (t) => {
+      if (hud) hud.innerText = t;
+      setStatus(t);
+    };
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f1116);
+
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 20000);
+    camera.position.set(0, 18, 120);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    applyRendererSRGB(renderer);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(Math.max(1, mount.clientWidth), mount.clientHeight || 560, false);
+    mount.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, 2.2, -80);
+    controls.maxDistance = 2600;
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x20242c, 1.05));
+
+    const key = new THREE.DirectionalLight(0xffffff, 1.6);
+    key.position.set(32, 44, 24);
+    scene.add(key);
+
+    const fill = new THREE.DirectionalLight(0xffffff, 0.9);
+    fill.position.set(-28, 18, 12);
+    scene.add(fill);
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(16000, 16000),
+      new THREE.MeshStandardMaterial({ color: 0x2b2f35, roughness: 1 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+
+    const group = new THREE.Group();
+    scene.add(group);
+
+    let cancelled = false;
+    let raf = 0;
+
+    (async () => {
+      try {
+        setHud('Fetching model list…');
+        const res = await fetch('https://api.polyhaven.com/assets?t=models');
+        const data = await res.json();
+        const idsAll = Array.isArray(data) ? data : Object.keys(data);
+
+        const kw = KEYWORDS.map((k) => k.toLowerCase());
+        let filtered = idsAll.filter((id) => {
+          const s = String(id).toLowerCase();
+          return kw.some((k) => s.includes(k));
+        });
+
+        const need = OFFSET_SKIP + TARGET_COUNT;
+        if (filtered.length < need) {
+          const extras = idsAll.filter((id) => !filtered.includes(id));
+          filtered = [...filtered, ...extras];
+        }
+
+        const ids = filtered.slice(OFFSET_SKIP, OFFSET_SKIP + TARGET_COUNT);
+        setHud(`Loading ${ids.length} NEW items…`);
+
+        let nextSlot = 0;
+        let loadedCount = 0;
+        let processed = 0;
+        const queue = [...ids];
+        let inFlight = 0;
+
+        const runNext = () => {
+          while (inFlight < MAX_IN_FLIGHT && queue.length && !cancelled) {
+            const id = queue.shift();
+            inFlight += 1;
+
+            (async () => {
+              try {
+                const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(id)}`).then((r) => r.json());
+                const allUrls = extractAllHttpUrls(filesJson);
+                const modelUrl = pickBestModelUrl(allUrls) || buildPolyhavenModelUrls(id)[0];
+                if (!modelUrl) return;
+
+                const fileMap = new Map();
+                allUrls.forEach((u) => fileMap.set(basename(u), u));
+
+                const manager = fileMap.size ? new THREE.LoadingManager() : undefined;
+                if (manager && fileMap.size) {
+                  manager.setURLModifier((requestedUrl) => {
+                    if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
+                    const b = basename(requestedUrl);
+                    return fileMap.get(b) || requestedUrl;
+                  });
+                }
+
+                const loader = createConfiguredGLTFLoader(renderer, manager);
+                const resourcePath = modelUrl.substring(0, modelUrl.lastIndexOf('/') + 1);
+                loader.setResourcePath?.(resourcePath);
+                loader.setPath?.('');
+
+                const gltf = await loader.loadAsync(modelUrl);
+                const root = gltf?.scene || gltf?.scenes?.[0] || gltf;
+                if (!root) return;
+
+                ensureVisible(root);
+                prepareLoadedModel(root);
+                scaleToFootprint(root, TARGET_FOOTPRINT_XZ);
+
+                const slot = nextSlot;
+                nextSlot += 1;
+                const col = slot % GRID_COLS;
+                const row = Math.floor(slot / GRID_COLS);
+
+                root.position.x += (col - (GRID_COLS - 1) / 2) * GRID_SPACING;
+                root.position.z += -row * GRID_SPACING;
+
+                const cat = categoryForId(id);
+                const ticket = makeTicket(`${PRODUCTION_NAME} | #${String(slot + 1).padStart(4, '0')} | ${cat} | ${id}`);
+                const box = new THREE.Box3().setFromObject(root);
+                ticket.position.set(root.position.x, box.max.y + TICKET_Y_OFFSET, root.position.z);
+
+                group.add(root);
+                group.add(ticket);
+
+                loadedCount += 1;
+                if (!cancelled) {
+                  setCatalog((prev) => [...prev, { slot: slot + 1, id, category: cat }]);
+                }
+              } catch (error) {
+                console.warn('Failed to load Poly Haven asset', id, error);
+              } finally {
+                processed += 1;
+                inFlight -= 1;
+                if (!cancelled) {
+                  setHud(`Loaded ${loadedCount} (processed ${processed}/${ids.length})`);
+                }
+                runNext();
+              }
+            })();
+          }
+
+          if (processed >= ids.length && !cancelled) {
+            setHud(`Done. Loaded ${loadedCount}/${ids.length} NEW items.`);
+          }
+        };
+
+        runNext();
+      } catch (e) {
+        setHud(`Error: ${e?.message || e}`);
+      }
+    })();
+
+    const resize = () => {
+      if (!mount) return;
+      camera.aspect = mount.clientWidth / Math.max(1, mount.clientHeight);
+      camera.updateProjectionMatrix();
+      renderer.setSize(Math.max(1, mount.clientWidth), mount.clientHeight || 560, false);
+    };
+    window.addEventListener('resize', resize);
+
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    tick();
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', resize);
+      renderer.dispose();
+      group.clear();
+    };
+  }, []);
+
+  return (
+    <div className="space-y-3">
+      <div
+        ref={mountRef}
+        className="w-full rounded-xl border border-border overflow-hidden bg-black/30"
+      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {Object.entries(groupedCatalog).map(([category, items]) => (
+          <div
+            key={category}
+            className="rounded-lg border border-border bg-surface/60 p-3"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-semibold text-sm">{category}</h4>
+              <span className="text-xs text-subtext">{items.length} items</span>
+            </div>
+            <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
+              {items.map((item) => (
+                <div
+                  key={`${category}-${item.slot}-${item.id}`}
+                  className="flex items-center justify-between text-xs"
+                >
+                  <span className="font-mono text-primary">#{String(item.slot).padStart(4, '0')}</span>
+                  <span className="ml-2 truncate text-subtext">{item.id}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
