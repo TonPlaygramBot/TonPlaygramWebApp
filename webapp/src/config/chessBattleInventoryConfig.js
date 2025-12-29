@@ -4,6 +4,7 @@ import {
   TABLE_BASE_OPTIONS
 } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
+import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS
@@ -12,11 +13,70 @@ import {
 const DEFAULT_TABLE_SHAPE_ID = TABLE_SHAPE_OPTIONS.find((opt) => opt.id !== 'diamondEdge')?.id;
 const DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id;
 
+const BASE_CHAIR_OPTIONS = [
+  {
+    id: 'crimsonVelvet',
+    label: 'Crimson Velvet',
+    primary: '#8b1538',
+    accent: '#5c0f26',
+    highlight: '#d35a7a',
+    legColor: '#1f1f1f'
+  },
+  {
+    id: 'midnightNavy',
+    label: 'Midnight Blue',
+    primary: '#153a8b',
+    accent: '#0c214f',
+    highlight: '#4d74d8',
+    legColor: '#10131c'
+  },
+  {
+    id: 'emeraldWave',
+    label: 'Emerald Wave',
+    primary: '#0f6a2f',
+    accent: '#063d1b',
+    highlight: '#48b26a',
+    legColor: '#142318'
+  },
+  {
+    id: 'onyxShadow',
+    label: 'Onyx Shadow',
+    primary: '#202020',
+    accent: '#101010',
+    highlight: '#6f6f6f',
+    legColor: '#080808'
+  },
+  {
+    id: 'royalPlum',
+    label: 'Royal Chestnut',
+    primary: '#3f1f5b',
+    accent: '#2c1340',
+    highlight: '#7c4ae0',
+    legColor: '#140a24'
+  }
+];
+
+const mapStoolThemeToChair = (theme) => ({
+  ...theme,
+  primary: theme.seatColor || theme.primary || '#7c3aed',
+  accent: theme.accent || theme.highlight || theme.seatColor,
+  legColor: theme.legColor || theme.baseColor || '#111827',
+  preserveMaterials: theme.preserveMaterials ?? theme.source === 'polyhaven'
+});
+
+export const CHESS_CHAIR_OPTIONS = Object.freeze([
+  ...BASE_CHAIR_OPTIONS,
+  ...MURLAN_STOOL_THEMES.map(mapStoolThemeToChair)
+]);
+
+export const CHESS_TABLE_OPTIONS = Object.freeze([...MURLAN_TABLE_THEMES]);
+
 export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   tableWood: [TABLE_WOOD_OPTIONS[0]?.id],
   tableCloth: [TABLE_CLOTH_OPTIONS[0]?.id],
   tableBase: [TABLE_BASE_OPTIONS[0]?.id],
-  chairColor: ['crimsonVelvet'],
+  chairColor: [CHESS_CHAIR_OPTIONS[0]?.id],
+  tables: [CHESS_TABLE_OPTIONS[0]?.id],
   tableShape: [DEFAULT_TABLE_SHAPE_ID],
   sideColor: ['amberGlow', 'mintVale'],
   boardTheme: ['classic'],
@@ -43,13 +103,18 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
       return acc;
     }, {})
   ),
-  chairColor: Object.freeze({
-    crimsonVelvet: 'Crimson Velvet',
-    midnightNavy: 'Midnight Blue',
-    emeraldWave: 'Emerald Wave',
-    onyxShadow: 'Onyx Shadow',
-    royalPlum: 'Royal Chestnut'
-  }),
+  chairColor: Object.freeze(
+    CHESS_CHAIR_OPTIONS.reduce((acc, option) => {
+      acc[option.id] = option.label;
+      return acc;
+    }, {})
+  ),
+  tables: Object.freeze(
+    CHESS_TABLE_OPTIONS.reduce((acc, option) => {
+      acc[option.id] = option.label;
+      return acc;
+    }, {})
+  ),
   tableShape: Object.freeze(
     TABLE_SHAPE_OPTIONS.reduce((acc, option) => {
       acc[option.id] = option.label;
@@ -117,10 +182,28 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     price: 410 + idx * 35,
     description: 'Upgrade the pedestal finish beneath your chess board.'
   })),
-  { id: 'chess-chair-midnight', type: 'chairColor', optionId: 'midnightNavy', name: 'Midnight Blue Chairs', price: 320, description: 'Deep navy lounge chairs for the battle table.' },
-  { id: 'chess-chair-emerald', type: 'chairColor', optionId: 'emeraldWave', name: 'Emerald Wave Chairs', price: 340, description: 'Emerald upholstery with rich contrast piping.' },
-  { id: 'chess-chair-onyx', type: 'chairColor', optionId: 'onyxShadow', name: 'Onyx Shadow Chairs', price: 380, description: 'Shadow-black seating with steel-toned trim.' },
-  { id: 'chess-chair-plum', type: 'chairColor', optionId: 'royalPlum', name: 'Royal Chestnut Chairs', price: 360, description: 'Chestnut-plum accent chairs for regal matches.' },
+  ...CHESS_TABLE_OPTIONS.slice(1).map((theme, idx) => ({
+    id: `chess-table-${theme.id}`,
+    type: 'tables',
+    optionId: theme.id,
+    name: theme.label,
+    price: theme.price ?? 980 + idx * 40,
+    description: theme.description || `${theme.label} table with preserved Poly Haven materials.`,
+    thumbnail: theme.thumbnail,
+    previewShape: 'table'
+  })),
+  ...CHESS_CHAIR_OPTIONS.slice(1).map((option, idx) => ({
+    id: `chess-chair-${option.id}`,
+    type: 'chairColor',
+    optionId: option.id,
+    name: option.label,
+    price: option.price ?? 320 + idx * 20,
+    description:
+      option.description ||
+      `${option.label} seating tuned for Chess Battle Royal.`,
+    thumbnail: option.thumbnail,
+    previewShape: 'chair'
+  })),
   { id: 'chess-shape-oval', type: 'tableShape', optionId: 'grandOval', name: 'Grand Oval Shape', price: 640, description: 'Smooth oval table outline for the chess board.' },
   { id: 'chess-side-marble', type: 'sideColor', optionId: 'marble', name: 'Marble Pieces', price: 1400, description: 'Premium marble-inspired pieces for either side.' },
   { id: 'chess-side-forest', type: 'sideColor', optionId: 'darkForest', name: 'Dark Forest Pieces', price: 1300, description: 'Deep forest hue pieces with luxe accents.' },
@@ -154,7 +237,8 @@ export const CHESS_BATTLE_DEFAULT_LOADOUT = [
   { type: 'tableWood', optionId: TABLE_WOOD_OPTIONS[0]?.id, label: TABLE_WOOD_OPTIONS[0]?.label },
   { type: 'tableCloth', optionId: TABLE_CLOTH_OPTIONS[0]?.id, label: TABLE_CLOTH_OPTIONS[0]?.label },
   { type: 'tableBase', optionId: TABLE_BASE_OPTIONS[0]?.id, label: TABLE_BASE_OPTIONS[0]?.label },
-  { type: 'chairColor', optionId: 'crimsonVelvet', label: 'Crimson Velvet Chairs' },
+  { type: 'tables', optionId: CHESS_TABLE_OPTIONS[0]?.id, label: CHESS_TABLE_OPTIONS[0]?.label },
+  { type: 'chairColor', optionId: CHESS_CHAIR_OPTIONS[0]?.id, label: CHESS_CHAIR_OPTIONS[0]?.label },
   { type: 'tableShape', optionId: DEFAULT_TABLE_SHAPE_ID, label: CHESS_BATTLE_OPTION_LABELS.tableShape[DEFAULT_TABLE_SHAPE_ID] },
   { type: 'sideColor', optionId: 'amberGlow', label: 'Amber Glow Pieces' },
   { type: 'sideColor', optionId: 'mintVale', label: 'Mint Vale Pieces' },

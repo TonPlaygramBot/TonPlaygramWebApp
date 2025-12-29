@@ -38,6 +38,10 @@ import {
   POOL_ROYALE_HDRI_VARIANTS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import {
+  CHESS_CHAIR_OPTIONS,
+  CHESS_TABLE_OPTIONS
+} from '../../config/chessBattleInventoryConfig.js';
+import {
   chessBattleAccountId,
   getChessBattleInventory,
   isChessOptionUnlocked
@@ -229,6 +233,8 @@ const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
+const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
+const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const AI_CHAIR_GAP = (0.4 * MODEL_SCALE * CARD_SCALE) * 0.4;
 const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
@@ -511,6 +517,151 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
+const POLYHAVEN_MODEL_CACHE = new Map();
+
+function extractAllHttpUrls(value) {
+  const urls = [];
+  const walk = (node) => {
+    if (!node) return;
+    if (typeof node === 'string') {
+      if (/^https?:\/\//i.test(node)) urls.push(node);
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    if (typeof node === 'object') {
+      Object.values(node).forEach(walk);
+    }
+  };
+  walk(value);
+  return urls;
+}
+
+function buildPolyhavenModelUrls(assetId) {
+  if (!assetId) return [];
+  return [
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}/${assetId}.glb`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${assetId}.glb`
+  ];
+}
+
+function pickBestModelUrl(urls = []) {
+  const preferred = urls.filter((u) => u.endsWith('.glb') || u.endsWith('.gltf'));
+  return preferred[0] || urls[0] || null;
+}
+
+function prepareLoadedModel(root) {
+  if (!root) return;
+  root.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((mat) => {
+        if (mat?.map) applySRGBColorSpace(mat.map);
+        if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+      });
+    }
+  });
+}
+
+function disposeObjectResources(object) {
+  if (!object) return;
+  const materials = new Set();
+  object.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => mat && materials.add(mat));
+    obj.geometry?.dispose?.();
+  });
+  materials.forEach((mat) => {
+    if (mat?.map) mat.map.dispose?.();
+    if (mat?.emissiveMap) mat.emissiveMap.dispose?.();
+    mat?.dispose?.();
+  });
+}
+
+function fitTableModelToArena(model) {
+  if (!model) return { surfaceY: TABLE_MODEL_TARGET_HEIGHT, radius: TABLE_RADIUS };
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const maxXZ = Math.max(size.x, size.z);
+  const targetHeight = TABLE_MODEL_TARGET_HEIGHT;
+  const targetDiameter = TABLE_MODEL_TARGET_DIAMETER;
+  const targetRadius = targetDiameter / 2;
+  const scaleY = size.y > 0 ? targetHeight / size.y : 1;
+  const scaleXZ = maxXZ > 0 ? targetDiameter / maxXZ : 1;
+  if (scaleY !== 1 || scaleXZ !== 1) {
+    model.scale.set(
+      model.scale.x * scaleXZ,
+      model.scale.y * scaleY,
+      model.scale.z * scaleXZ
+    );
+  }
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const center = scaledBox.getCenter(new THREE.Vector3());
+  model.position.add(new THREE.Vector3(-center.x, -scaledBox.min.y, -center.z));
+  const recenteredBox = new THREE.Box3().setFromObject(model);
+  const radius = Math.max(
+    Math.abs(recenteredBox.max.x),
+    Math.abs(recenteredBox.min.x),
+    Math.abs(recenteredBox.max.z),
+    Math.abs(recenteredBox.min.z),
+    targetRadius
+  );
+  return {
+    surfaceY: targetHeight,
+    radius
+  };
+}
+
+async function loadPolyhavenModel(assetId, renderer = null) {
+  if (!assetId) throw new Error('Missing Poly Haven asset id');
+  const normalizedId = assetId.toLowerCase();
+  const cacheKey = normalizedId;
+  if (POLYHAVEN_MODEL_CACHE.has(cacheKey)) {
+    return POLYHAVEN_MODEL_CACHE.get(cacheKey);
+  }
+
+  const promise = (async () => {
+    const modelCandidates = new Set(buildPolyhavenModelUrls(assetId));
+    try {
+      const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`).then((r) => r.json());
+      const allUrls = extractAllHttpUrls(filesJson);
+      const apiModelUrl = pickBestModelUrl(allUrls);
+      if (apiModelUrl) modelCandidates.add(apiModelUrl);
+    } catch (error) {
+      console.warn('Chess Battle Royal: Poly Haven file lookup failed, falling back to direct URLs', error);
+    }
+
+    const loader = createConfiguredGLTFLoader(renderer);
+    let lastError = null;
+    for (const modelUrl of modelCandidates) {
+      try {
+        const resolvedUrl = new URL(modelUrl, typeof window !== 'undefined' ? window.location?.href : modelUrl).href;
+        const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+        loader.setResourcePath?.(resourcePath);
+        loader.setPath?.('');
+        // eslint-disable-next-line no-await-in-loop
+        const gltf = await loader.loadAsync(resolvedUrl);
+        const root = gltf.scene || gltf.scenes?.[0] || gltf;
+        if (!root) continue;
+        return root;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error(`Failed to load Poly Haven model for ${assetId}`);
+  })();
+
+  POLYHAVEN_MODEL_CACHE.set(cacheKey, promise);
+  promise.catch(() => POLYHAVEN_MODEL_CACHE.delete(cacheKey));
+  return promise;
+}
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715);
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
@@ -1259,6 +1410,7 @@ const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
   tableCloth: 0,
   chairColor: 0,
+  tables: 0,
   tableShape: 0,
   boardColor: 0,
   whitePieceStyle: 0,
@@ -1267,48 +1419,8 @@ const DEFAULT_APPEARANCE = {
   environmentHdri: DEFAULT_HDRI_INDEX
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
-const CHAIR_COLOR_OPTIONS = Object.freeze([
-  {
-    id: 'crimsonVelvet',
-    label: 'Crimson Velvet',
-    primary: '#8b1538',
-    accent: '#5c0f26',
-    highlight: '#d35a7a',
-    legColor: '#1f1f1f'
-  },
-  {
-    id: 'midnightNavy',
-    label: 'Midnight Blue',
-    primary: '#153a8b',
-    accent: '#0c214f',
-    highlight: '#4d74d8',
-    legColor: '#10131c'
-  },
-  {
-    id: 'emeraldWave',
-    label: 'Emerald Wave',
-    primary: '#0f6a2f',
-    accent: '#063d1b',
-    highlight: '#48b26a',
-    legColor: '#142318'
-  },
-  {
-    id: 'onyxShadow',
-    label: 'Onyx Shadow',
-    primary: '#202020',
-    accent: '#101010',
-    highlight: '#6f6f6f',
-    legColor: '#080808'
-  },
-  {
-    id: 'royalPlum',
-    label: 'Royal Chestnut',
-    primary: '#3f1f5b',
-    accent: '#2c1340',
-    highlight: '#7c4ae0',
-    legColor: '#140a24'
-  }
-]);
+const CHAIR_COLOR_OPTIONS = Object.freeze([...CHESS_CHAIR_OPTIONS]);
+const TABLE_THEME_OPTIONS = Object.freeze([...CHESS_TABLE_OPTIONS]);
 
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.id !== DIAMOND_SHAPE_ID);
@@ -1319,6 +1431,7 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
+  { key: 'tables', label: 'Table Model', options: TABLE_THEME_OPTIONS },
   { key: 'chairColor', label: 'Chairs', options: CHAIR_COLOR_OPTIONS },
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_MENU_OPTIONS },
   { key: 'environmentHdri', label: 'HDR Environment', options: CHESS_HDRI_OPTIONS }
@@ -1333,6 +1446,7 @@ function normalizeAppearance(value = {}) {
     ['tableWood', TABLE_WOOD_OPTIONS.length],
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
+    ['tables', TABLE_THEME_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
     ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
     ['environmentHdri', CHESS_HDRI_OPTIONS.length]
@@ -1407,6 +1521,10 @@ function extractChairMaterials(model) {
 function applyChairThemeMaterials(chairAssets, theme) {
   const mats = chairAssets?.chairMaterials;
   if (!mats) return;
+  if (theme?.preserveMaterials) {
+    mats.chairId = theme.chairId ?? 'default';
+    return;
+  }
   const seatColor = theme.seatColor ?? '#2b314e';
   const legColor = theme.legColor ?? DEFAULT_CHAIR_THEME.legColor;
   mats.chairId = theme.chairId ?? 'default';
@@ -1483,7 +1601,8 @@ function mapChairOptionToTheme(chairOption) {
   return {
     seatColor: chairOption?.primary ?? '#2b314e',
     legColor: chairOption?.legColor ?? DEFAULT_CHAIR_THEME.legColor,
-    chairId: chairOption?.id ?? 'default'
+    chairId: chairOption?.id ?? 'default',
+    preserveMaterials: chairOption?.preserveMaterials
   };
 }
 
@@ -1562,6 +1681,15 @@ function createProceduralChair(theme) {
 
 async function buildChessChairTemplate(theme) {
   try {
+    if (theme?.source === 'polyhaven' && theme?.assetId) {
+      const root = await loadPolyhavenModel(theme.assetId);
+      const model = root.clone(true);
+      prepareLoadedModel(model);
+      fitChairModelToFootprint(model);
+      const materials = extractChairMaterials(model);
+      applyChairThemeMaterials({ chairMaterials: materials }, theme);
+      return { chairTemplate: model, materials };
+    }
     const gltfChair = await loadGltfChair();
     applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
     gltfChair.materials.chairId = theme.chairId ?? 'default';
@@ -1586,6 +1714,70 @@ function disposeChessChairMaterials(materials) {
   disposeMat(materials.leg);
   (materials.upholstery ?? []).forEach(disposeMat);
   (materials.metal ?? []).forEach(disposeMat);
+}
+
+async function buildTableFromTheme(theme, options = {}) {
+  const {
+    arena,
+    renderer = null,
+    tableRadius = TABLE_RADIUS,
+    tableHeight = TABLE_HEIGHT,
+    woodOption = TABLE_WOOD_OPTIONS[0],
+    clothOption = TABLE_CLOTH_OPTIONS[0],
+    baseOption = TABLE_BASE_OPTIONS[0],
+    shapeOption = TABLE_SHAPE_OPTIONS[0],
+    rotationY = 0
+  } = options;
+  if (!arena) throw new Error('buildTableFromTheme requires an arena group');
+  const selectedTheme = theme || TABLE_THEME_OPTIONS[0];
+  let tableInfo = null;
+
+  if (selectedTheme?.source === 'polyhaven' && selectedTheme?.assetId) {
+    try {
+      const root = await loadPolyhavenModel(selectedTheme.assetId, renderer);
+      const model = root.clone(true);
+      prepareLoadedModel(model);
+      const fitted = fitTableModelToArena(model);
+      if (selectedTheme.rotationY || rotationY) {
+        model.rotation.y += (selectedTheme.rotationY ?? 0) + (rotationY ?? 0);
+      }
+      const group = new THREE.Group();
+      group.add(model);
+      arena.add(group);
+      tableInfo = {
+        group,
+        surfaceY: fitted.surfaceY,
+        radius: fitted.radius,
+        dispose: () => {
+          disposeObjectResources(group);
+          group.removeFromParent();
+        },
+        materials: null,
+        shapeId: shapeOption?.id,
+        rotationY: rotationY ?? 0,
+        themeId: selectedTheme.id
+      };
+    } catch (error) {
+      console.warn('Chess Battle Royal: failed to load Poly Haven table', error);
+    }
+  }
+
+  if (!tableInfo) {
+    const fallback = createMurlanStyleTable({
+      arena,
+      renderer,
+      tableRadius,
+      tableHeight,
+      woodOption,
+      clothOption,
+      baseOption,
+      shapeOption,
+      rotationY
+    });
+    tableInfo = { ...fallback, themeId: selectedTheme?.id || fallback.shapeId };
+  }
+
+  return tableInfo;
 }
 
 function createSandTimer(accentColor = '#f4b400') {
@@ -5709,6 +5901,7 @@ function Chess3D({
         tableWood: TABLE_WOOD_OPTIONS,
         tableCloth: TABLE_CLOTH_OPTIONS,
         tableBase: TABLE_BASE_OPTIONS,
+        tables: TABLE_THEME_OPTIONS,
         chairColor: CHAIR_COLOR_OPTIONS,
         tableShape: TABLE_SHAPE_MENU_OPTIONS,
         environmentHdri: CHESS_HDRI_OPTIONS
@@ -5782,6 +5975,17 @@ function Chess3D({
           style={{ background: `linear-gradient(135deg, ${option.baseColor}, ${option.trimColor})` }}
         />
       );
+    }
+    if (key === 'tables') {
+      if (option.thumbnail) {
+        return (
+          <span
+            className={`${swatchClass} bg-cover bg-center`}
+            style={{ backgroundImage: `url(${option.thumbnail})` }}
+          />
+        );
+      }
+      return <span className={swatchClass} style={{ background: '#4b5563' }} />;
     }
     if (key === 'chairColor') {
       return dualSwatch(option.primary || '#1f2937', option.accent || option.highlight || '#38bdf8');
@@ -6116,6 +6320,7 @@ function Chess3D({
     const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[normalized.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+    const tableTheme = TABLE_THEME_OPTIONS[normalized.tables] ?? TABLE_THEME_OPTIONS[0];
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalized.tableShape);
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
@@ -6123,15 +6328,17 @@ function Chess3D({
     const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
 
-    if (shapeOption) {
-      const shapeChanged = shapeOption.id !== arena.tableShapeId;
+    if (shapeOption || tableTheme) {
+      const shapeChanged = shapeOption?.id !== arena.tableShapeId;
+      const themeChanged = tableTheme?.id !== arena.tableThemeId;
       const rotationChanged = Math.abs((arena.tableInfo?.rotationY ?? 0) - rotationY) > 1e-3;
-      if (shapeChanged || rotationChanged) {
+
+      const rebuildTable = async () => {
         const { boardGroup } = arena;
         if (boardGroup && arena.tableInfo?.group) {
           arena.tableInfo.group.remove(boardGroup);
         }
-        const nextTable = createMurlanStyleTable({
+        const nextTable = await buildTableFromTheme(tableTheme, {
           arena: arena.arenaGroup,
           renderer: arena.renderer,
           tableRadius: TABLE_RADIUS,
@@ -6142,18 +6349,25 @@ function Chess3D({
           shapeOption,
           rotationY
         });
-        applyTableMaterials(nextTable.materials, { woodOption, clothOption, baseOption }, arena.renderer);
-        if (boardGroup) {
+        if (!arenaRef.current) {
+          nextTable?.dispose?.();
+          return;
+        }
+        if (nextTable?.materials) {
+          applyTableMaterials(nextTable.materials, { woodOption, clothOption, baseOption }, arena.renderer);
+        }
+        if (boardGroup && nextTable?.group) {
           boardGroup.position.set(0, nextTable.surfaceY + 0.004 + BOARD_GROUP_Y_OFFSET, 0);
           nextTable.group.add(boardGroup);
         }
         arena.tableInfo?.dispose?.();
         arena.tableInfo = nextTable;
-        arena.tableShapeId = nextTable.shapeId;
+        arena.tableShapeId = nextTable?.shapeId;
+        arena.tableThemeId = tableTheme?.id;
         if (arena.boardLookTarget) {
           const targetY = boardGroup
             ? boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE
-            : nextTable.surfaceY + (BOARD.baseH + 0.12) * BOARD_SCALE;
+            : (nextTable?.surfaceY ?? TABLE_HEIGHT) + (BOARD.baseH + 0.12) * BOARD_SCALE;
           arena.boardLookTarget.set(0, targetY, 0);
         }
         arena.lightingRig?.updateTarget?.(arena.boardLookTarget ?? new THREE.Vector3());
@@ -6161,7 +6375,11 @@ function Chess3D({
         arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
         arena.controls?.update();
         fitRef.current?.();
-      } else if (arena.tableInfo?.materials) {
+      };
+
+      if (themeChanged || shapeChanged || rotationChanged || !arena.tableInfo) {
+        void rebuildTable();
+      } else if (arena.tableInfo?.materials && tableTheme?.source !== 'polyhaven') {
         applyTableMaterials(arena.tableInfo.materials, { woodOption, clothOption, baseOption }, arena.renderer);
       }
     }
@@ -6360,6 +6578,7 @@ function Chess3D({
       const clothOption = TABLE_CLOTH_OPTIONS[normalizedAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
       const baseOption = TABLE_BASE_OPTIONS[normalizedAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
       const chairOption = CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+      const tableTheme = TABLE_THEME_OPTIONS[normalizedAppearance.tables] ?? TABLE_THEME_OPTIONS[0];
       const { option: shapeOption, rotationY } = getEffectiveShapeConfig(
         normalizedAppearance.tableShape
       );
@@ -6504,7 +6723,7 @@ function Chess3D({
     floor.castShadow = false;
     arena.add(floor);
 
-    const tableInfo = createMurlanStyleTable({
+    const tableInfo = await buildTableFromTheme(tableTheme, {
       arena,
       renderer,
       tableRadius: TABLE_RADIUS,
@@ -6515,7 +6734,9 @@ function Chess3D({
       shapeOption,
       rotationY
     });
-    applyTableMaterials(tableInfo.materials, { woodOption, clothOption, baseOption }, renderer);
+    if (tableInfo?.materials) {
+      applyTableMaterials(tableInfo.materials, { woodOption, clothOption, baseOption }, renderer);
+    }
     if (tableInfo?.dispose) {
       disposers.push(() => {
         try {
@@ -6525,6 +6746,7 @@ function Chess3D({
         }
       });
     }
+    arena.tableThemeId = tableTheme.id;
 
     function makeChair(index) {
       const g = new THREE.Group();
