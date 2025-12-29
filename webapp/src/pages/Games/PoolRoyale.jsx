@@ -9,6 +9,7 @@ import React, {
 import * as THREE from 'three';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -4263,349 +4264,79 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
   return target;
 }
 
-const CARPET_QUALITY = (() => {
-  const defaults = {
-    textureSize: 1024,
-    anisotropy: 8,
-    bumpAnisotropy: 6,
-    generateMipmaps: true
-  };
-
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return {
-      ...defaults,
-      textureSize: 768,
-      anisotropy: 6,
-      bumpAnisotropy: 4
-    };
-  }
-
-  const dpr = window.devicePixelRatio ?? 1;
-  const ua = navigator.userAgent ?? '';
-  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
-  const isTouch = maxTouchPoints > 1;
-  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
-  const lowMemory = deviceMemory !== null && deviceMemory <= 4;
-  const lowRefresh = detectLowRefreshDisplay();
-
-  if (isMobileUA || isTouch || lowMemory || lowRefresh) {
-    const highDensity = dpr >= 3;
-    return {
-      textureSize: highDensity ? 896 : 640,
-      anisotropy: highDensity ? 6 : 4,
-      bumpAnisotropy: highDensity ? 4 : 3,
-      generateMipmaps: true
-    };
-  }
-
-  return defaults;
-})();
-
-const createCarpetTextures = (() => {
-  let cache = null;
-  const clamp01 = (v) => Math.min(1, Math.max(0, v));
-  const prng = (seed) => {
-    let value = seed;
-    return () => {
-      value = (value * 1664525 + 1013904223) % 4294967296;
-      return value / 4294967296;
-    };
-  };
-  const drawRoundedRect = (ctx, x, y, w, h, r) => {
-    const radius = Math.max(0, Math.min(r, Math.min(w, h) / 2));
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + w - radius, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-    ctx.lineTo(x + w, y + h - radius);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-    ctx.lineTo(x + radius, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
-  };
-  return () => {
-    if (cache) return cache;
-    if (typeof document === 'undefined') {
-      cache = { map: null, bump: null };
-      return cache;
-    }
-
-    const {
-      textureSize: size,
-      anisotropy: carpetAnisotropy,
-      bumpAnisotropy: carpetBumpAnisotropy,
-      generateMipmaps: carpetGenerateMipmaps
-    } = CARPET_QUALITY;
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = size;
-    const ctx = canvas.getContext('2d');
-
-    // rich crimson textile base to restore the original lounge mood
-    const gradient = ctx.createLinearGradient(0, 0, size, size);
-    gradient.addColorStop(0, '#7c242f');
-    gradient.addColorStop(1, '#9d3642');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, size, size);
-
-    const rand = prng(987654321);
-    const image = ctx.getImageData(0, 0, size, size);
-    const data = image.data;
-    const baseColor = { r: 112, g: 28, b: 34 };
-    const highlightColor = { r: 196, g: 72, b: 82 };
-    const toChannel = (component) =>
-      Math.round(clamp01(component / 255) * 255);
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const idx = (y * size + x) * 4;
-        const fiber = (Math.sin((x / size) * Math.PI * 14) +
-          Math.cos((y / size) * Math.PI * 16)) * 0.08;
-        const grain = (rand() - 0.5) * 0.12;
-        const shade = clamp01(0.55 + fiber * 0.75 + grain * 0.6);
-        const r =
-          baseColor.r + (highlightColor.r - baseColor.r) * shade;
-        const g =
-          baseColor.g + (highlightColor.g - baseColor.g) * shade;
-        const b =
-          baseColor.b + (highlightColor.b - baseColor.b) * shade;
-        data[idx] = toChannel(r);
-        data[idx + 1] = toChannel(g);
-        data[idx + 2] = toChannel(b);
-      }
-    }
-    ctx.putImageData(image, 0, 0);
-
-    // subtle horizontal ribbing for textile feel
-    ctx.globalAlpha = 0.04;
-    ctx.fillStyle = '#4f1119';
-    for (let row = 0; row < size; row += 3) {
-      ctx.fillRect(0, row, size, 1);
-    }
-    ctx.globalAlpha = 1;
-
-    // thin continuous pale stripe with rounded corners
-    const insetRatio = 0.055;
-    const stripeInset = size * insetRatio;
-    const stripeRadius = size * 0.08;
-    const stripeWidth = size * 0.012;
-    ctx.lineWidth = stripeWidth;
-    ctx.strokeStyle = '#f2b7b4';
-    ctx.shadowColor = 'rgba(80,20,30,0.18)';
-    ctx.shadowBlur = stripeWidth * 0.8;
-    drawRoundedRect(
-      ctx,
-      stripeInset,
-      stripeInset,
-      size - stripeInset * 2,
-      size - stripeInset * 2,
-      stripeRadius
-    );
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.anisotropy = carpetAnisotropy;
-    texture.minFilter = carpetGenerateMipmaps
-      ? THREE.LinearMipMapLinearFilter
-      : THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.generateMipmaps = carpetGenerateMipmaps;
-    applySRGBColorSpace(texture);
-
-    // bump map: derive from red base with extra fiber noise
-    const bumpCanvas = document.createElement('canvas');
-    bumpCanvas.width = bumpCanvas.height = size;
-    const bumpCtx = bumpCanvas.getContext('2d');
-    bumpCtx.drawImage(canvas, 0, 0);
-    const bumpImage = bumpCtx.getImageData(0, 0, size, size);
-    const bumpData = bumpImage.data;
-    const bumpRand = prng(246813579);
-    for (let i = 0; i < bumpData.length; i += 4) {
-      const r = bumpData[i];
-      const g = bumpData[i + 1];
-      const b = bumpData[i + 2];
-      const lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
-      const noise = (bumpRand() - 0.5) * 0.16;
-      const v = clamp01(0.62 + lum * 0.28 + noise);
-      const value = Math.floor(v * 255);
-      bumpData[i] = bumpData[i + 1] = bumpData[i + 2] = value;
-    }
-    bumpCtx.putImageData(bumpImage, 0, 0);
-
-    const bump = new THREE.CanvasTexture(bumpCanvas);
-    bump.wrapS = bump.wrapT = THREE.ClampToEdgeWrapping;
-    bump.anisotropy = carpetBumpAnisotropy;
-    bump.minFilter = carpetGenerateMipmaps
-      ? THREE.LinearMipMapLinearFilter
-      : THREE.LinearFilter;
-    bump.magFilter = THREE.LinearFilter;
-    bump.generateMipmaps = carpetGenerateMipmaps;
-
-    cache = { map: texture, bump };
-    return cache;
-  };
-})();
-
-const WALL_TEXTURE_CONFIG = {
-  sourceId: 'white_planks_clean',
-  fallbackColor: 0xdedede,
-  repeat: new THREE.Vector2(1.875, 3.4),
-  anisotropy: 12,
-  preferredResolutionK: 4
+const NEON_PHOTOSTUDIO_HDRI = {
+  assetId: 'neon_photostudio',
+  preferredResolutions: ['2k', '1k'],
+  fallbackResolution: '2k'
 };
 
-const loadWallPlankTextures = (() => {
-  let cache = null;
-  let pending = null;
-
-  const pickTextureUrls = (apiJson) => {
-    const urls = [];
-    const walk = (value) => {
-      if (!value) return;
-      if (typeof value === 'string') {
-        const lower = value.toLowerCase();
-        if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
-          urls.push(value);
-        }
-        return;
+function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
+  const urls = [];
+  const walk = (value) => {
+    if (!value) return;
+    if (typeof value === 'string') {
+      if (value.startsWith('http') && value.toLowerCase().includes('.hdr')) {
+        urls.push(value);
       }
-      if (Array.isArray(value)) {
-        value.forEach(walk);
-        return;
-      }
-      if (typeof value === 'object') {
-        Object.values(value).forEach(walk);
-      }
-    };
-    walk(apiJson);
-
-    const scoreResolution = (url) => {
-      const match = url.toLowerCase().match(/(?:^|[^a-z0-9])(\d+)\s*k/);
-      if (!match) return 0;
-      const resolution = parseInt(match[1], 10);
-      if (Number.isNaN(resolution)) return 0;
-      if (resolution >= 16) return 24;
-      if (resolution >= 8) return 20;
-      if (resolution >= 4) return 16;
-      if (resolution >= 2) return 12;
-      if (resolution >= 1) return 8;
-      return 0;
-    };
-
-    const scoreAndPick = (keywords) => {
-      const scored = urls
-        .filter((u) => keywords.some((kw) => u.toLowerCase().includes(kw)))
-        .map((u) => {
-          const lower = u.toLowerCase();
-          let score = 0;
-          score += scoreResolution(lower);
-          if (WALL_TEXTURE_CONFIG.preferredResolutionK) {
-            const preferred = `${WALL_TEXTURE_CONFIG.preferredResolutionK}k`;
-            if (lower.includes(preferred)) score += 6;
-          }
-          if (lower.includes('jpg')) score += 3;
-          if (lower.includes('png')) score += 2;
-          if (lower.includes('diff') || lower.includes('albedo') || lower.includes('basecolor')) score += 2;
-          if (lower.includes('nor_gl') || lower.includes('normal_gl')) score += 2;
-          if (lower.includes('nor') || lower.includes('normal')) score += 1;
-          if (lower.includes('rough')) score += 1;
-          if (lower.includes('preview') || lower.includes('thumb')) score -= 8;
-          if (lower.includes('.exr')) score -= 20;
-          return { url: u, score };
-        })
-        .sort((a, b) => b.score - a.score);
-      return scored[0]?.url ?? null;
-    };
-    return {
-      diffuse: scoreAndPick(['diff', 'diffuse', 'albedo', 'basecolor']),
-      normal: scoreAndPick(['nor_gl', 'normal_gl', 'nor', 'normal']),
-      roughness: scoreAndPick(['rough', 'roughness'])
-    };
-  };
-
-  const loadTexture = (loader, url, isColor) =>
-    new Promise((resolve) => {
-      if (!url) {
-        resolve(null);
-        return;
-      }
-      loader.load(
-        url,
-        (texture) => {
-          if (isColor) {
-            applySRGBColorSpace(texture);
-          }
-          resolve(texture);
-        },
-        undefined,
-        () => resolve(null)
-      );
-    });
-
-  return async (anisotropy) => {
-    if (cache) return cache;
-    if (!pending) {
-      pending = (async () => {
-        if (typeof fetch !== 'function') return null;
-        try {
-          const response = await fetch(`https://api.polyhaven.com/files/${WALL_TEXTURE_CONFIG.sourceId}`);
-          if (!response?.ok) return null;
-          const json = await response.json();
-          const urls = pickTextureUrls(json);
-          if (!urls.diffuse) return null;
-          const loader = new THREE.TextureLoader();
-          loader.setCrossOrigin('anonymous');
-          const [map, normal, roughness] = await Promise.all([
-            loadTexture(loader, urls.diffuse, true),
-            loadTexture(loader, urls.normal, false),
-            loadTexture(loader, urls.roughness, false)
-          ]);
-          [map, normal, roughness].forEach((tex) => {
-            if (!tex) return;
-            tex.wrapS = THREE.RepeatWrapping;
-            tex.wrapT = THREE.RepeatWrapping;
-            tex.anisotropy = Math.max(1, anisotropy ?? WALL_TEXTURE_CONFIG.anisotropy);
-            tex.needsUpdate = true;
-          });
-          cache = { map, normal, roughness };
-          return cache;
-        } catch (err) {
-          console.warn('Failed to load Poly Haven wall plank textures', err);
-          return null;
-        }
-      })();
+      return;
     }
-    return pending;
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.values(value).forEach(walk);
+    }
   };
-})();
+  walk(apiJson);
+  const lower = urls.map((u) => u.toLowerCase());
+  for (const res of preferredResolutions) {
+    const match = lower.find((u) => u.includes(`_${res}.`));
+    if (match) return urls[lower.indexOf(match)];
+  }
+  return urls[0] ?? null;
+}
 
-async function applyWhitePlankWallMaterial(material, { repeat, anisotropy, isCancelled } = {}) {
-  if (!material || (typeof isCancelled === 'function' && isCancelled())) return null;
-  const targetRepeat = new THREE.Vector2(
-    repeat?.x ?? WALL_TEXTURE_CONFIG.repeat.x,
-    repeat?.y ?? WALL_TEXTURE_CONFIG.repeat.y
-  );
-  const textures = await loadWallPlankTextures(anisotropy);
-  if (!textures || (typeof isCancelled === 'function' && isCancelled())) return null;
-  const applyRepeat = (tex) => {
-    if (!tex) return;
-    tex.repeat.copy(targetRepeat);
-    tex.needsUpdate = true;
-  };
-  applyRepeat(textures.map);
-  applyRepeat(textures.normal);
-  applyRepeat(textures.roughness);
-  material.map = textures.map ?? material.map;
-  material.normalMap = textures.normal ?? material.normalMap;
-  material.roughnessMap = textures.roughness ?? material.roughnessMap;
-  material.color = new THREE.Color(0xffffff);
-  material.roughness = 0.78;
-  material.metalness = 0.03;
-  material.needsUpdate = true;
-  return textures;
+async function resolvePolyHavenHdriUrl(config = NEON_PHOTOSTUDIO_HDRI) {
+  const fallbackRes = config?.fallbackResolution || '2k';
+  const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
+  if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
+  try {
+    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
+    if (!response?.ok) return fallbackUrl;
+    const json = await response.json();
+    const picked = pickPolyHavenHdriUrl(json, config.preferredResolutions);
+    return picked || fallbackUrl;
+  } catch (error) {
+    console.warn('Failed to resolve Poly Haven HDRI url', error);
+    return fallbackUrl;
+  }
+}
+
+async function loadPolyHavenHdriEnvironment(renderer, config = NEON_PHOTOSTUDIO_HDRI) {
+  if (!renderer) return null;
+  const url = await resolvePolyHavenHdriUrl(config);
+  const loader = new RGBELoader();
+  loader.setCrossOrigin('anonymous');
+  return new Promise((resolve) => {
+    loader.load(
+      url,
+      (texture) => {
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        pmrem.compileEquirectangularShader();
+        const envMap = pmrem.fromEquirectangular(texture).texture;
+        envMap.name = `${config.assetId}-env`;
+        texture.dispose();
+        pmrem.dispose();
+        resolve(envMap);
+      },
+      undefined,
+      (error) => {
+        console.warn('Failed to load Poly Haven HDRI', error);
+        resolve(null);
+      }
+    );
+  });
 }
 
 function createBroadcastCameras({
@@ -11634,7 +11365,7 @@ const powerRef = useRef(hud.power);
       return;
     }
     const cueRackDisposers = [];
-    const wallTextures = [];
+    let disposeEnvironment = null;
     let disposed = false;
     try {
       const updatePocketCameraState = (active) => {
@@ -11671,6 +11402,23 @@ const powerRef = useRef(hud.power);
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
+      void (async () => {
+        const envMap = await loadPolyHavenHdriEnvironment(renderer);
+        if (disposed || !envMap) return;
+        const prevBackground = scene.background;
+        const prevEnvironment = scene.environment;
+        scene.environment = envMap;
+        scene.background = envMap;
+        disposeEnvironment = () => {
+          if (scene.environment === envMap) {
+            scene.environment = prevEnvironment ?? null;
+          }
+          if (scene.background === envMap) {
+            scene.background = prevBackground ?? null;
+          }
+          envMap.dispose?.();
+        };
+      })();
       let worldScaleFactor = 1;
       let cue;
       let clothMat;
@@ -12105,120 +11853,13 @@ const powerRef = useRef(hud.power);
       const roomDepth = TABLE.H * 3.05;
       const sideClearance = roomDepth / 2 - TABLE.H / 2;
       const roomWidth = TABLE.W + sideClearance * 2;
-      const wallThickness = 1.2;
-      const wallHeightBase = legHeight + TABLE.THICK + 40;
-      const wallHeight = wallHeightBase * 1.3 * 1.3; // raise the arena walls an extra 30%
-      const carpetThickness = 1.2;
-      const carpetInset = wallThickness * 0.02;
-      const carpetWidth = roomWidth - wallThickness + carpetInset;
-      const carpetDepth = roomDepth - wallThickness + carpetInset;
-      const carpetTextures = createCarpetTextures();
-      const carpetMat = new THREE.MeshStandardMaterial({
-        color: 0x8c2a2e,
-        roughness: 0.9,
-        metalness: 0.025
-      });
-      if (carpetTextures.map) {
-        carpetMat.map = carpetTextures.map;
-        carpetMat.map.repeat.set(1, 1);
-        carpetMat.map.needsUpdate = true;
-      }
-      if (carpetTextures.bump) {
-        carpetMat.bumpMap = carpetTextures.bump;
-        carpetMat.bumpMap.repeat.set(1, 1);
-        carpetMat.bumpScale = 0.18;
-        carpetMat.bumpMap.needsUpdate = true;
-      }
-      const carpet = new THREE.Mesh(
-        new THREE.BoxGeometry(carpetWidth, carpetThickness, carpetDepth),
-        carpetMat
-      );
-      carpet.castShadow = false;
-      carpet.receiveShadow = false;
-      carpet.position.set(0, floorY - carpetThickness / 2, 0);
-      world.add(carpet);
-
-      const wallMat = new THREE.MeshStandardMaterial({
-        color: WALL_TEXTURE_CONFIG.fallbackColor,
-        roughness: 0.78,
-        metalness: 0.03,
-        flatShading: true
-      });
-      const wallTextureRepeat = new THREE.Vector2(
-        Math.max(WALL_TEXTURE_CONFIG.repeat.x, roomWidth / 160),
-        Math.max(WALL_TEXTURE_CONFIG.repeat.y, wallHeight / 40)
-      );
-      const wallTextureAnisotropy =
-        renderer.capabilities?.getMaxAnisotropy?.() ?? WALL_TEXTURE_CONFIG.anisotropy;
-      applyWhitePlankWallMaterial(wallMat, {
-        repeat: wallTextureRepeat,
-        anisotropy: wallTextureAnisotropy,
-        isCancelled: () => disposed
-      }).then((textures) => {
-        if (disposed || !textures) return;
-        Object.values(textures).forEach((tex) => {
-          if (tex && !wallTextures.includes(tex)) {
-            wallTextures.push(tex);
-          }
-        });
-      });
-
-      const makeWall = (width, height, depth) => {
-        const wall = new THREE.Mesh(
-          new THREE.BoxGeometry(width, height, depth),
-          wallMat
-        );
-        wall.castShadow = false;
-        wall.receiveShadow = true;
-        wall.position.y = floorY + height / 2;
-        world.add(wall);
-        return wall;
-      };
-
-      const backWall = makeWall(roomWidth, wallHeight, wallThickness);
-      backWall.position.z = roomDepth / 2;
-
-      const frontWall = makeWall(roomWidth, wallHeight, wallThickness);
-      frontWall.position.z = -roomDepth / 2;
-
-      const leftWall = makeWall(wallThickness, wallHeight, roomDepth);
-      leftWall.position.x = -roomWidth / 2;
-
-      const rightWall = makeWall(wallThickness, wallHeight, roomDepth);
-      rightWall.position.x = roomWidth / 2;
-
-      const wallInset = wallThickness / 2 + 0.2;
-      const frontInterior = -roomDepth / 2 + wallInset;
-      const backInterior = roomDepth / 2 - wallInset;
-      const leftInterior = -roomWidth / 2 + wallInset;
-      const rightInterior = roomWidth / 2 - wallInset;
-
-      const SHOW_SHORT_RAIL_MASKS = false;
-      const doorMaskHeight = wallHeight * 0.72;
-      const doorMaskDepth = Math.max(wallThickness * 0.65, 0.1);
-      const interiorMaskMat = new THREE.MeshStandardMaterial({
-        color: wallMat.color.clone(),
-        roughness: wallMat.roughness,
-        metalness: wallMat.metalness,
-        flatShading: true,
-        side: THREE.FrontSide
-      });
-      const addShortRailMask = (z) => {
-        if (!SHOW_SHORT_RAIL_MASKS) return;
-        const mask = new THREE.Mesh(
-          new THREE.BoxGeometry(roomWidth - wallThickness * 1.5, doorMaskHeight, doorMaskDepth),
-          interiorMaskMat
-        );
-        mask.castShadow = false;
-        mask.receiveShadow = true;
-        mask.position.set(0, floorY + doorMaskHeight / 2, z + Math.sign(z) * doorMaskDepth * 0.45);
-        world.add(mask);
-      };
-
-      if (SHOW_SHORT_RAIL_MASKS) {
-        addShortRailMask(frontInterior);
-        addShortRailMask(backInterior);
-      }
+      const arenaMargin = Math.max(TABLE.THICK * 2.2, BALL_R * 6);
+      const arenaHalfDepth = Math.max(roomDepth / 2 - arenaMargin, PLAY_H / 2 + BALL_R * 6);
+      const arenaHalfWidth = Math.max(roomWidth / 2 - arenaMargin, PLAY_W / 2 + BALL_R * 6);
+      const frontInterior = -arenaHalfDepth;
+      const backInterior = arenaHalfDepth;
+      const leftInterior = -arenaHalfWidth;
+      const rightInterior = arenaHalfWidth;
 
       cueRackGroupsRef.current = [];
       cueOptionGroupsRef.current = [];
@@ -12258,8 +11899,7 @@ const powerRef = useRef(hud.power);
         const baseRackEntry = createRackEntry();
         const cueRackDimensions = baseRackEntry.dimensions;
         const cueRackHalfWidth = cueRackDimensions.width / 2;
-        const availableHalfDepth =
-          roomDepth / 2 - wallThickness - cueRackHalfWidth - BALL_R * 2;
+        const availableHalfDepth = arenaHalfDepth - cueRackHalfWidth - BALL_R * 2;
         const desiredOffset = cueRackHalfWidth + BALL_R * 8;
         const cueRackOffset = Math.max(
           cueRackHalfWidth,
@@ -12309,10 +11949,10 @@ const powerRef = useRef(hud.power);
       };
       const { height: topDownHeight, horizontal: topDownHorizontal } =
         resolveTopDownCoords();
-      const broadcastClearance = wallThickness * 1.1 + BALL_R * 4;
+      const broadcastClearance = arenaMargin * 0.3 + BALL_R * 4;
       const shortRailTarget = Math.max(
         topDownHorizontal,
-        roomDepth / 2 - wallThickness - broadcastClearance
+        arenaHalfDepth - broadcastClearance
       );
       const shortRailSlideLimit = 0;
       const broadcastRig = createBroadcastCameras({
@@ -12320,7 +11960,7 @@ const powerRef = useRef(hud.power);
         cameraHeight: topDownHeight,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
-        arenaHalfDepth: roomDepth / 2 - wallThickness - BALL_R * 4
+        arenaHalfDepth: Math.max(arenaHalfDepth - BALL_R * 4, BALL_R * 4)
       });
       world.add(broadcastRig.group);
       broadcastCamerasRef.current = broadcastRig;
@@ -12335,7 +11975,7 @@ const powerRef = useRef(hud.power);
         const tripodDesiredZ =
           Math.max(PLAY_H / 2 + BALL_R * 12, shortRailTarget - BALL_R * 6) +
           tripodExtra;
-        const tripodMaxZ = roomDepth / 2 - wallThickness - BALL_R * 4;
+        const tripodMaxZ = arenaHalfDepth - BALL_R * 4;
         const tripodZOffset = Math.min(tripodMaxZ, tripodDesiredZ);
         const tripodTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
         const tripodPositions = [
@@ -12399,11 +12039,11 @@ const powerRef = useRef(hud.power);
       const furnitureScale = hospitalityScale * 1.18 * hospitalityUpscale;
       const hospitalitySizeMultiplier = 2.5;
       const toHospitalityUnits = (value = 0) => value * hospitalityScale;
-      const hospitalityTableHeightScale = 0.6; // drop the bistro table height by 40% so it sits lower on the carpet line
+      const hospitalityTableHeightScale = 0.6; // drop the bistro table height by 40% so it sits lower against the arena floor line
       const hospitalityChairGap =
         toHospitalityUnits(0.08) * hospitalityUpscale; // keep a slim clearance between each chair and table edge
-      const hospitalityCarpetPull =
-        toHospitalityUnits(0.18) * hospitalityUpscale; // shift hospitality props off the wall and onto the nearby carpet border
+      const hospitalityEdgePull =
+        toHospitalityUnits(0.18) * hospitalityUpscale; // keep hospitality props inset from the arena bounds
 
       const createTableSet = () => {
         const set = new THREE.Group();
@@ -12604,15 +12244,15 @@ const powerRef = useRef(hud.power);
         chair.rotation.y = baseAngle;
         group.add(chair);
 
-        const adjustForCarpet = (value) => {
+        const adjustForEdge = (value) => {
           const direction = Math.sign(value);
-          const magnitude = Math.max(Math.abs(value) - hospitalityCarpetPull, 0);
+          const magnitude = Math.max(Math.abs(value) - hospitalityEdgePull, 0);
           return direction * magnitude;
         };
         group.position.set(
-          adjustForCarpet(position[0]),
+          adjustForEdge(position[0]),
           floorY,
-          adjustForCarpet(position[1])
+          adjustForEdge(position[1])
         );
         group.rotation.y = rotationY;
         ensureHospitalityVisibility(group);
@@ -12622,7 +12262,7 @@ const powerRef = useRef(hud.power);
       const showHospitalityFurniture = false;
       if (showHospitalityFurniture) {
         const rawCornerInset =
-          toHospitalityUnits(0.58) * hospitalityUpscale + wallThickness * 0.5;
+          toHospitalityUnits(0.58) * hospitalityUpscale + arenaMargin * 0.15;
         const cornerInsetX = Math.min(rawCornerInset, Math.abs(leftInterior) * 0.92);
         const cornerInsetFront = Math.min(
           rawCornerInset,
@@ -20717,7 +20357,7 @@ const powerRef = useRef(hud.power);
           cueMaterialsRef.current.buttRingMaterial = null;
           cueMaterialsRef.current.buttCapMaterial = null;
           cueMaterialsRef.current.styleIndex = null;
-          wallTextures.forEach((tex) => tex?.dispose?.());
+          disposeEnvironment?.();
           cueGalleryStateRef.current.active = false;
           cueGalleryStateRef.current.rackId = null;
           cueGalleryStateRef.current.prev = null;
