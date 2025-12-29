@@ -4274,10 +4274,10 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
-const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.6;
+const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.0;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
-const DEFAULT_HDRI_RADIUS_MULTIPLIER = 10;
-const MIN_HDRI_RADIUS = 36;
+const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
+const MIN_HDRI_RADIUS = 24;
 const HDRI_GROUNDED_RESOLUTION = 96;
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
