@@ -15,13 +15,10 @@ const OFFSET_SKIP = 160;
 const MAX_IN_FLIGHT = 6;
 const PRODUCTION_NAME = 'Poly Haven Showroom';
 
-const TARGET_FOOTPRINT_XZ = 11.5;
+const TARGET_FOOTPRINT_XZ = 9.0;
 const GRID_COLS = 14;
-const GRID_SPACING = 15;
-const TICKET_Y_OFFSET = 1.4;
-const TARGET_RESOLUTION_WIDTH = 1920;
-const TARGET_RESOLUTION_HEIGHT = 1080;
-const TARGET_FPS = 90;
+const GRID_SPACING = 13;
+const TICKET_Y_OFFSET = 1.0;
 
 const KEYWORDS = [
   'snooker',
@@ -134,8 +131,8 @@ function ensureVisible(root) {
 
 function makeTicket(text) {
   const c = document.createElement('canvas');
-  c.width = 1100;
-  c.height = 200;
+  c.width = 840;
+  c.height = 160;
   const g = c.getContext('2d');
 
   g.fillStyle = 'rgba(0,0,0,0.82)';
@@ -146,13 +143,13 @@ function makeTicket(text) {
   g.strokeRect(6, 6, c.width - 12, c.height - 12);
 
   g.fillStyle = '#e5ecff';
-  g.font = '900 32px system-ui';
-  g.fillText(text, 22, 110);
+  g.font = '800 26px system-ui';
+  g.fillText(text, 18, 86);
 
   const tex = new THREE.CanvasTexture(c);
   applySRGBColorSpace(tex);
   const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
-  spr.scale.set(7.2, 1.6, 1);
+  spr.scale.set(5.8, 1.1, 1);
   return spr;
 }
 
@@ -239,16 +236,6 @@ function ensureTextureLoader() {
     sharedTextureLoader = new THREE.TextureLoader();
   }
   return sharedTextureLoader;
-}
-
-async function preloadResources(urls) {
-  const unique = Array.from(new Set(urls.filter(Boolean)));
-  if (!unique.length) return;
-  await Promise.allSettled(
-    unique.map((url) =>
-      fetch(url, { mode: 'cors', cache: 'force-cache' }).catch(() => Promise.resolve())
-    )
-  );
 }
 
 function prepareLoadedModel(root) {
@@ -410,8 +397,7 @@ export default function Magazine3D() {
 
     mount.innerHTML = '';
     mount.style.width = '100%';
-    mount.style.minHeight = '640px';
-    mount.style.aspectRatio = '16 / 9';
+    mount.style.minHeight = '520px';
     mount.style.position = 'relative';
 
     const hud = document.createElement('div');
@@ -435,22 +421,15 @@ export default function Magazine3D() {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0f1116);
 
-    const camera = new THREE.PerspectiveCamera(
-      60,
-      TARGET_RESOLUTION_WIDTH / TARGET_RESOLUTION_HEIGHT,
-      0.1,
-      20000
-    );
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 20000);
     camera.position.set(0, 18, 120);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     applyRendererSRGB(renderer);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
-    renderer.setPixelRatio(1);
-    renderer.setSize(TARGET_RESOLUTION_WIDTH, TARGET_RESOLUTION_HEIGHT, false);
-    renderer.domElement.style.width = '100%';
-    renderer.domElement.style.height = 'auto';
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(Math.max(1, mount.clientWidth), mount.clientHeight || 560, false);
     mount.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -458,16 +437,6 @@ export default function Magazine3D() {
     controls.dampingFactor = 0.08;
     controls.target.set(0, 2.2, -80);
     controls.maxDistance = 2600;
-
-    const updateCanvasDisplaySize = () => {
-      const displayWidth = mount.clientWidth || TARGET_RESOLUTION_WIDTH;
-      const displayHeight = (TARGET_RESOLUTION_HEIGHT / TARGET_RESOLUTION_WIDTH) * displayWidth;
-      renderer.domElement.style.width = `${displayWidth}px`;
-      renderer.domElement.style.height = `${displayHeight}px`;
-      camera.aspect = TARGET_RESOLUTION_WIDTH / TARGET_RESOLUTION_HEIGHT;
-      camera.updateProjectionMatrix();
-    };
-    updateCanvasDisplaySize();
 
     scene.add(new THREE.HemisphereLight(0xffffff, 0x20242c, 1.05));
 
@@ -491,7 +460,6 @@ export default function Magazine3D() {
 
     let cancelled = false;
     let raf = 0;
-    let lastFrameTime = 0;
 
     (async () => {
       try {
@@ -535,15 +503,6 @@ export default function Magazine3D() {
                 const allUrls = extractAllHttpUrls(filesJson);
                 const modelUrl = pickBestModelUrl(allUrls) || buildPolyhavenModelUrls(id)[0];
                 if (!modelUrl) return;
-                const textureUrls = pickBestTextureUrls(filesJson);
-
-                await preloadResources([
-                  modelUrl,
-                  ...allUrls,
-                  textureUrls.diffuse,
-                  textureUrls.normal,
-                  textureUrls.roughness
-                ]);
 
                 const fileMap = new Map();
                 allUrls.forEach((u) => fileMap.set(basename(u), u));
@@ -568,15 +527,12 @@ export default function Magazine3D() {
 
                 let textures = null;
                 try {
-                  if (textureUrls.diffuse) {
+                  const urls = pickBestTextureUrls(filesJson);
+                  if (urls.diffuse) {
                     const [diffuse, normal, roughness] = await Promise.all([
-                      loadTexture(textureLoader, textureUrls.diffuse, true, anisotropy),
-                      textureUrls.normal
-                        ? loadTexture(textureLoader, textureUrls.normal, false, anisotropy)
-                        : null,
-                      textureUrls.roughness
-                        ? loadTexture(textureLoader, textureUrls.roughness, false, anisotropy)
-                        : null
+                      loadTexture(textureLoader, urls.diffuse, true, anisotropy),
+                      urls.normal ? loadTexture(textureLoader, urls.normal, false, anisotropy) : null,
+                      urls.roughness ? loadTexture(textureLoader, urls.roughness, false, anisotropy) : null
                     ]);
                     textures = { diffuse, normal, roughness };
                   }
@@ -654,15 +610,14 @@ export default function Magazine3D() {
 
     const resize = () => {
       if (!mount) return;
-      updateCanvasDisplaySize();
+      camera.aspect = mount.clientWidth / Math.max(1, mount.clientHeight);
+      camera.updateProjectionMatrix();
+      renderer.setSize(Math.max(1, mount.clientWidth), mount.clientHeight || 560, false);
     };
     window.addEventListener('resize', resize);
 
-    const tick = (time) => {
+    const tick = () => {
       raf = requestAnimationFrame(tick);
-      const delta = time - lastFrameTime;
-      if (delta < 1000 / TARGET_FPS) return;
-      lastFrameTime = time;
       controls.update();
       renderer.render(scene, camera);
     };
@@ -690,19 +645,19 @@ export default function Magazine3D() {
             className="rounded-lg border border-border bg-surface/60 p-3"
           >
             <div className="flex items-center justify-between mb-2">
-              <h4 className="font-semibold text-lg">{category}</h4>
-              <span className="text-sm text-subtext">{items.length} items</span>
+              <h4 className="font-semibold text-base">{category}</h4>
+              <span className="text-xs text-subtext">{items.length} items</span>
             </div>
             <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
               {items.map((item) => (
                 <div
                   key={`${category}-${item.slot}-${item.id}`}
-                  className="flex items-center justify-between text-base"
+                  className="flex items-center justify-between text-sm"
                 >
-                  <span className="font-mono text-primary text-lg font-semibold">
+                  <span className="font-mono text-primary text-sm font-semibold">
                     #{String(item.slot).padStart(4, '0')}
                   </span>
-                  <span className="ml-2 truncate text-foreground font-semibold text-base">{item.id}</span>
+                  <span className="ml-2 truncate text-foreground font-medium">{item.id}</span>
                 </div>
               ))}
             </div>
