@@ -42,7 +42,11 @@ import {
   applyWoodTextures,
   disposeMaterialWithWood,
 } from '../../utils/woodMaterials.js';
-import { POOL_ROYALE_DEFAULT_UNLOCKS } from '../../config/poolRoyaleInventoryConfig.js';
+import {
+  POOL_ROYALE_DEFAULT_HDRI_ID,
+  POOL_ROYALE_DEFAULT_UNLOCKS,
+  POOL_ROYALE_HDRI_PRESETS
+} from '../../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
   getCachedPoolRoyalInventory,
@@ -796,6 +800,7 @@ const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
+const HDRI_STORAGE_KEY = 'poolRoyaleHdriEnvironment';
 const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
@@ -806,6 +811,7 @@ const DEFAULT_CUE_STYLE_INDEX = Math.max(
   0
 );
 const ENABLE_CUE_GALLERY = false;
+const ENABLE_ARTIFICIAL_LIGHTING = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
   const TABLE_BASE_SCALE = 1.17;
@@ -4264,11 +4270,49 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
   return target;
 }
 
+const HDRI_RESOLUTION_ORDER = ['8k', '4k', '2k'];
+
 const NEON_PHOTOSTUDIO_HDRI = {
   assetId: 'neon_photostudio',
-  preferredResolutions: ['2k', '1k'],
-  fallbackResolution: '2k'
+  preferredResolutions: HDRI_RESOLUTION_ORDER,
+  fallbackResolution: '4k',
+  backgroundIntensity: 1.18,
+  backgroundBlur: 0.18,
+  exposure: 1.24
 };
+
+const HDRI_OPTIONS = Object.freeze(
+  (POOL_ROYALE_HDRI_PRESETS || []).map((preset) => ({
+    id: preset.id,
+    assetId: preset.assetId,
+    label: preset.name,
+    description: preset.description,
+    preferredResolutions: preset.preferredResolutions || HDRI_RESOLUTION_ORDER,
+    fallbackResolution: preset.fallbackResolution || '4k',
+    backgroundIntensity: preset.backgroundIntensity ?? 1.14,
+    backgroundBlur: preset.backgroundBlur ?? 0.18,
+    exposure: preset.exposure ?? 1.22
+  }))
+);
+
+const HDRI_OPTION_MAP = Object.freeze(
+  HDRI_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
+
+const DEFAULT_HDRI_OPTION_ID =
+  POOL_ROYALE_DEFAULT_HDRI_ID ||
+  HDRI_OPTIONS[0]?.id ||
+  'neonPhotostudio';
+
+const FALLBACK_HDRI_OPTION_ID =
+  HDRI_OPTION_MAP[DEFAULT_HDRI_OPTION_ID]
+    ? DEFAULT_HDRI_OPTION_ID
+    : HDRI_OPTIONS[0]?.id || DEFAULT_HDRI_OPTION_ID;
+
+const DEFAULT_SCENE_BACKGROUND = new THREE.Color(0x050505);
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const urls = [];
@@ -4298,7 +4342,7 @@ function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
 }
 
 async function resolvePolyHavenHdriUrl(config = NEON_PHOTOSTUDIO_HDRI) {
-  const fallbackRes = config?.fallbackResolution || '2k';
+  const fallbackRes = config?.fallbackResolution || '4k';
   const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
   if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
   try {
@@ -9247,6 +9291,14 @@ function PoolRoyaleGame({
       DEFAULT_CLOTH_COLOR_ID
     );
   });
+  const [environmentHdriId, setEnvironmentHdriId] = useState(() => {
+    return resolveStoredSelection(
+      'environmentHdri',
+      HDRI_STORAGE_KEY,
+      (id) => Boolean(HDRI_OPTION_MAP[id]),
+      FALLBACK_HDRI_OPTION_ID
+    );
+  });
   const [pocketLinerId, setPocketLinerId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(POCKET_LINER_STORAGE_KEY);
@@ -9368,6 +9420,13 @@ function PoolRoyaleGame({
       ),
     [poolInventory]
   );
+  const availableHdriOptions = useMemo(
+    () =>
+      HDRI_OPTIONS.filter((option) =>
+        isPoolOptionUnlocked('environmentHdri', option.id, poolInventory)
+      ),
+    [poolInventory]
+  );
   const availableCueStyles = useMemo(
     () =>
       CUE_STYLE_PRESETS.map((preset, index) => ({ preset, index })).filter(({ preset }) =>
@@ -9396,12 +9455,24 @@ function PoolRoyaleGame({
       POCKET_LINER_OPTIONS[0],
     [availablePocketLiners, pocketLinerId]
   );
+  const activeHdriOption = useMemo(
+    () =>
+      availableHdriOptions.find((opt) => opt.id === environmentHdriId) ??
+      availableHdriOptions[0] ??
+      HDRI_OPTION_MAP[FALLBACK_HDRI_OPTION_ID] ??
+      HDRI_OPTIONS[0] ??
+      NEON_PHOTOSTUDIO_HDRI,
+    [availableHdriOptions, environmentHdriId]
+  );
   useEffect(() => {
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
     if (!isPoolOptionUnlocked('clothColor', clothColorId, poolInventory)) {
       setClothColorId(DEFAULT_CLOTH_COLOR_ID);
+    }
+    if (!isPoolOptionUnlocked('environmentHdri', environmentHdriId, poolInventory)) {
+      setEnvironmentHdriId(FALLBACK_HDRI_OPTION_ID);
     }
     if (!isPoolOptionUnlocked('chromeColor', chromeColorId, poolInventory)) {
       setChromeColorId(DEFAULT_CHROME_COLOR_ID);
@@ -9415,6 +9486,7 @@ function PoolRoyaleGame({
   }, [
     chromeColorId,
     clothColorId,
+    environmentHdriId,
     pocketLinerId,
     poolInventory,
     railMarkerColorId,
@@ -10055,6 +10127,11 @@ function PoolRoyaleGame({
   }, [clothColorId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      window.localStorage.setItem(HDRI_STORAGE_KEY, environmentHdriId);
+    }
+  }, [environmentHdriId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
       window.localStorage.setItem(POCKET_LINER_STORAGE_KEY, pocketLinerId);
     }
   }, [pocketLinerId]);
@@ -10461,6 +10538,7 @@ const powerRef = useRef(hud.power);
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
   const aimFocusRef = useRef(null);
+  const [renderSurfaceReady, setRenderSurfaceReady] = useState(false);
   const [pocketCameraActive, setPocketCameraActive] = useState(false);
   const pocketCameraStateRef = useRef(false);
   const pocketCamerasRef = useRef(new Map());
@@ -10481,7 +10559,9 @@ const powerRef = useRef(hud.power);
     cueShot: { phi: initialCuePhi, radius: initialCueRadius },
     standing: { phi: STANDING_VIEW.phi, radius: BREAK_VIEW.radius }
   });
+  const sceneRef = useRef(null);
   const rendererRef = useRef(null);
+  const disposeEnvironmentRef = useRef(() => {});
   const last3DRef = useRef({ phi: CAMERA.maxPhi, theta: Math.PI });
   const cushionHeightRef = useRef(TABLE.THICK + 0.4);
   const fitRef = useRef(() => {});
@@ -11365,7 +11445,7 @@ const powerRef = useRef(hud.power);
       return;
     }
     const cueRackDisposers = [];
-    let disposeEnvironment = null;
+    disposeEnvironmentRef.current = () => {};
     let disposed = false;
     try {
       const updatePocketCameraState = (active) => {
@@ -11398,27 +11478,12 @@ const powerRef = useRef(hud.power);
 
       // Scene & Camera
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x050505);
+      scene.background = DEFAULT_SCENE_BACKGROUND.clone();
       const world = new THREE.Group();
       scene.add(world);
+      sceneRef.current = scene;
       worldRef.current = world;
-      void (async () => {
-        const envMap = await loadPolyHavenHdriEnvironment(renderer);
-        if (disposed || !envMap) return;
-        const prevBackground = scene.background;
-        const prevEnvironment = scene.environment;
-        scene.environment = envMap;
-        scene.background = envMap;
-        disposeEnvironment = () => {
-          if (scene.environment === envMap) {
-            scene.environment = prevEnvironment ?? null;
-          }
-          if (scene.background === envMap) {
-            scene.background = prevBackground ?? null;
-          }
-          envMap.dispose?.();
-        };
-      })();
+      setRenderSurfaceReady(true);
       let worldScaleFactor = 1;
       let cue;
       let clothMat;
@@ -15202,7 +15267,12 @@ const powerRef = useRef(hud.power);
         applyLightingPreset();
       };
 
-      addMobileLighting();
+      if (ENABLE_ARTIFICIAL_LIGHTING) {
+        addMobileLighting();
+      } else {
+        lightingRigRef.current = null;
+        renderer.shadowMap.enabled = false;
+      }
 
       // Table
       const finishForScene = tableFinishRef.current;
@@ -20302,6 +20372,7 @@ const powerRef = useRef(hud.power);
           remoteShotUntilRef.current = 0;
           remoteAimRef.current = null;
           lightingRigRef.current = null;
+          sceneRef.current = null;
           worldRef.current = null;
           activeRenderCameraRef.current = null;
           cueBodyRef.current = null;
@@ -20357,7 +20428,8 @@ const powerRef = useRef(hud.power);
           cueMaterialsRef.current.buttRingMaterial = null;
           cueMaterialsRef.current.buttCapMaterial = null;
           cueMaterialsRef.current.styleIndex = null;
-          disposeEnvironment?.();
+          disposeEnvironmentRef.current?.();
+          disposeEnvironmentRef.current = () => {};
           cueGalleryStateRef.current.active = false;
           cueGalleryStateRef.current.rackId = null;
           cueGalleryStateRef.current.prev = null;
@@ -20369,6 +20441,48 @@ const powerRef = useRef(hud.power);
         setErr(e?.message || String(e));
       }
   }, []);
+
+  useEffect(() => {
+    const scene = sceneRef.current;
+    const renderer = rendererRef.current;
+    if (!scene || !renderer || !renderSurfaceReady || !activeHdriOption) return undefined;
+    let cancelled = false;
+    const applyEnvironment = async () => {
+      const envMap = await loadPolyHavenHdriEnvironment(renderer, activeHdriOption);
+      if (cancelled || !envMap) return;
+      const prevEnv = scene.environment;
+      const prevBackground = scene.background;
+      scene.environment = envMap;
+      scene.background = envMap;
+      if ('backgroundIntensity' in scene && typeof activeHdriOption.backgroundIntensity === 'number') {
+        scene.backgroundIntensity = activeHdriOption.backgroundIntensity;
+      }
+      if ('backgroundBlurriness' in scene && typeof activeHdriOption.backgroundBlur === 'number') {
+        scene.backgroundBlurriness = activeHdriOption.backgroundBlur;
+      }
+      if (typeof activeHdriOption.exposure === 'number') {
+        renderer.toneMappingExposure = activeHdriOption.exposure;
+      }
+      disposeEnvironmentRef.current?.();
+      disposeEnvironmentRef.current = () => {
+        if (scene.environment === envMap) {
+          scene.environment = null;
+        }
+        if (scene.background === envMap) {
+          scene.background = DEFAULT_SCENE_BACKGROUND.clone();
+        }
+        envMap.dispose?.();
+      };
+      if (prevEnv && prevEnv !== envMap) prevEnv.dispose?.();
+      if (prevBackground && prevBackground !== envMap && prevBackground?.isTexture) {
+        prevBackground.dispose?.();
+      }
+    };
+    applyEnvironment();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeHdriOption, renderSurfaceReady]);
 
   useEffect(() => {
     applyFinishRef.current?.(tableFinish);
@@ -20969,6 +21083,43 @@ const powerRef = useRef(hud.power);
                   })}
                 </div>
               </div>
+              {availableHdriOptions.length > 0 ? (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                    HDRI Environments
+                  </h3>
+                  <div className="mt-2 grid grid-cols-1 gap-2">
+                    {availableHdriOptions.map((option) => {
+                      const active = option.id === environmentHdriId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setEnvironmentHdriId(option.id)}
+                          aria-pressed={active}
+                          className={`w-full rounded-2xl border px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span>{option.label}</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-100/80">
+                              {option.exposure ? `${option.exposure.toFixed(2)} EV` : 'HDRI'}
+                            </span>
+                          </span>
+                          {option.description ? (
+                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                              {option.description}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Chrome Plates
