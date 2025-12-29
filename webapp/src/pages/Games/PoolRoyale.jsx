@@ -290,7 +290,7 @@ function detectPreferredFrameRateId() {
   }
 
   if (rendererTier === 'desktopHigh' && highRefresh) {
-    return 'ultra144';
+    return 'ultra120';
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
@@ -2678,13 +2678,13 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
   },
   {
-    id: 'ultra144',
-    label: 'Ultra HD+ (120 Hz max)',
+    id: 'ultra120',
+    label: 'Ultra HD (120 Hz, High)',
     fps: 120,
     renderScale: 1.32,
     pixelRatioCap: 2,
-    resolution: 'Ultra HD+ render • DPR 2.0 cap',
-    description: 'Maximum clarity preset while capping refresh at 120 Hz.'
+    resolution: 'Ultra HD render • DPR 2.0 cap',
+    description: 'Maximum clarity preset capped at 120 Hz.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
@@ -10584,7 +10584,7 @@ const powerRef = useRef(hud.power);
       timing && Number.isFinite(timing.targetMs) ? timing.targetMs : 1000 / 60;
     const targetFps = targetMs > 0 ? 1000 / targetMs : 60;
     const highFpsBias =
-      targetFps >= 144 ? 0.9 : targetFps >= 120 ? 0.92 : targetFps >= 90 ? 0.96 : 1;
+      targetFps >= 120 ? 0.9 : targetFps >= 90 ? 0.96 : 1;
     const dpr =
       typeof window !== 'undefined' && typeof window.devicePixelRatio === 'number'
         ? window.devicePixelRatio

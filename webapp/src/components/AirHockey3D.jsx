@@ -59,14 +59,14 @@ const GRAPHICS_OPTIONS = Object.freeze([
     description: '4K-oriented profile for 120 Hz flagships and desktops.'
   },
   {
-    id: 'ultra144',
-    label: 'Ultra HD+ (144 Hz)',
-    fps: 144,
-    renderScale: 1.5,
-    pixelRatioCap: 2.2,
+    id: 'ultra120',
+    label: 'Ultra HD (120 Hz)',
+    fps: 120,
+    renderScale: 1.45,
+    pixelRatioCap: 2.1,
     pixelRatioScale: 1,
-    resolution: 'Ultra HD+ render • DPR 2.2 cap',
-    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+    resolution: 'Ultra HD render • DPR 2.1 cap',
+    description: 'Maximum clarity preset capped at 120 Hz for stability.'
   }
 ]);
 const DEFAULT_GRAPHICS_ID = 'fhd60';
@@ -74,7 +74,6 @@ const DEFAULT_GRAPHICS_ID = 'fhd60';
 function detectRefreshRateHint() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return null;
   const queries = [
-    { query: '(min-refresh-rate: 143hz)', fps: 144 },
     { query: '(min-refresh-rate: 119hz)', fps: 120 },
     { query: '(min-refresh-rate: 89hz)', fps: 90 },
     { query: '(max-refresh-rate: 59hz)', fps: 60 },
@@ -93,15 +92,14 @@ function detectRefreshRateHint() {
 
 function resolveDefaultGraphicsId() {
   const hint = detectRefreshRateHint();
-  if (hint >= 144) return 'ultra144';
-  if (hint >= 120) return 'uhd120';
+  if (hint >= 120) return 'ultra120';
   if (hint >= 90) return 'qhd90';
   if (hint && hint <= 50) return 'hd50';
   return DEFAULT_GRAPHICS_ID;
 }
 
 function selectPerformanceProfile(option = null) {
-  const targetFps = clamp(option?.fps ?? detectRefreshRateHint() ?? 60, 45, 144);
+  const targetFps = clamp(option?.fps ?? detectRefreshRateHint() ?? 60, 45, 120);
   return {
     targetFps,
     renderScale: option?.renderScale ?? 1,
@@ -1687,4 +1685,3 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     </div>
   );
 }
-

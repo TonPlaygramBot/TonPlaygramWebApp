@@ -52,7 +52,7 @@ import {
   MURLAN_TABLE_THEMES as TABLE_THEMES
 } from '../../config/murlanThemes.js';
 
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k', '2k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
   label: `${variant.name} HDRI`
@@ -264,7 +264,7 @@ function detectPreferredFrameRateId() {
   }
 
   if (rendererTier === 'desktopHigh' && highRefresh) {
-    return 'ultra144';
+    return 'ultra120';
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
@@ -420,7 +420,7 @@ async function resolvePolyHavenHdriUrl(config = {}) {
   const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
     ? config.preferredResolutions
     : DEFAULT_HDRI_RESOLUTIONS;
-  const fallbackRes = config?.fallbackResolution || preferred[0] || '8k';
+  const fallbackRes = config?.fallbackResolution || preferred[0] || '4k';
   const fallbackUrl =
     config?.fallbackUrl ||
     `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
@@ -1208,13 +1208,13 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: '4K-oriented profile for 120 Hz flagships and desktops.'
   },
   {
-    id: 'ultra144',
-    label: 'Ultra HD+ (144 Hz)',
-    fps: 144,
-    renderScale: 1.5,
-    pixelRatioCap: 2.2,
-    resolution: 'Ultra HD+ render • DPR 2.2 cap',
-    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+    id: 'ultra120',
+    label: 'Ultra HD (120 Hz, High)',
+    fps: 120,
+    renderScale: 1.45,
+    pixelRatioCap: 2.1,
+    resolution: 'Ultra HD render • DPR 2.1 cap',
+    description: 'Maximum clarity preset capped at 120 Hz for stability.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';

@@ -181,7 +181,7 @@ const BOARD_COLOR_BASE_OPTIONS = Object.freeze([
   }
 ]);
 
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k', '2k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const CHESS_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
   label: `${variant.name} HDRI`
@@ -249,7 +249,7 @@ const CAMERA_INITIAL_PHI_EXTRA = 0;
 const CAMERA_TOPDOWN_LOCK = THREE.MathUtils.degToRad(4);
 const DEFAULT_TARGET_FPS = 90;
 const MIN_TARGET_FPS = 50;
-const MAX_TARGET_FPS = 144;
+const MAX_TARGET_FPS = 120;
 const DEFAULT_RENDER_PIXEL_RATIO_CAP = 1.25;
 const RENDER_PIXEL_RATIO_SCALE = 1.0;
 const MIN_RENDER_PIXEL_RATIO = 0.85;
@@ -316,7 +316,6 @@ function detectRefreshRateHint() {
     return null;
   }
   const queries = [
-    { query: '(min-refresh-rate: 143hz)', fps: 144 },
     { query: '(min-refresh-rate: 119hz)', fps: 120 },
     { query: '(min-refresh-rate: 89hz)', fps: 90 },
     { query: '(max-refresh-rate: 59hz)', fps: 60 },
@@ -378,22 +377,22 @@ const GRAPHICS_OPTIONS = Object.freeze([
     description: '4K-oriented profile for 120 Hz flagships and desktops.'
   },
   {
-    id: 'ultra144',
-    label: 'Ultra HD+ (144 Hz)',
-    fps: 144,
-    renderScale: 1.5,
-    pixelRatioCap: 2.2,
+    id: 'ultra120',
+    label: 'Ultra HD (120 Hz, High)',
+    fps: 120,
+    renderScale: 1.45,
+    pixelRatioCap: 2.1,
     pixelRatioScale: 1,
-    resolution: 'Ultra HD+ render • DPR 2.2 cap',
-    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+    resolution: 'Ultra HD render • DPR 2.1 cap',
+    description: 'Maximum clarity preset capped at 120 Hz for stability.'
   }
 ]);
 const DEFAULT_GRAPHICS_ID = 'fhd60';
 
 function resolveDefaultGraphicsId() {
   const hint = detectRefreshRateHint();
-  if (hint >= 144) return 'ultra144';
-  if (hint >= 120) return 'uhd120';
+  if (hint >= 120) return 'ultra120';
+  if (hint >= 100) return 'uhd120';
   if (hint >= 90) return 'qhd90';
   if (hint && hint <= 50) return 'hd50';
   return DEFAULT_GRAPHICS_ID;
@@ -1232,7 +1231,7 @@ async function resolvePolyHavenHdriUrl(config = {}) {
   const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
     ? config.preferredResolutions
     : DEFAULT_HDRI_RESOLUTIONS;
-  const fallbackRes = config?.fallbackResolution || preferred[0] || '8k';
+  const fallbackRes = config?.fallbackResolution || preferred[0] || '4k';
   const fallbackUrl =
     config?.fallbackUrl ||
     `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
