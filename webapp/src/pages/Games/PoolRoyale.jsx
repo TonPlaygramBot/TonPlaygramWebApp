@@ -5294,7 +5294,10 @@ const PLAYER_FORWARD_SLOWDOWN = 1.2;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
 const PLAYER_PULLBACK_MIN_SCALE = 1.1;
 const MIN_PULLBACK_GAP = BALL_R * 0.5;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 64;
+const SHOT_CUE_CAMERA_BLEND = 0.32; // drop into the low cue view before showing the stroke
+const SHOT_VIEW_MIN_HOLD_MS = 140; // keep the cue view on-screen long enough to see the forward push
+const SHOT_VIEW_ACTIVATION_TRAVEL = BALL_R * 1.1; // only switch cameras once the cue ball has visibly moved
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 76;
 const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
@@ -14334,15 +14337,22 @@ const powerRef = useRef(hud.power);
           });
           const preferRailOverhead = Boolean(railNormal);
           const now = performance.now();
-          const activationDelay = longShot
+          const activationDelayBase = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
             : null;
-          const activationTravel = longShot
-            ? Math.max(
-                BALL_R * 12,
-                Math.min(travelDistance * 0.5, LONG_SHOT_ACTIVATION_TRAVEL)
-              )
-            : 0;
+          const activationDelay = Math.max(
+            activationDelayBase ?? now,
+            now + SHOT_VIEW_MIN_HOLD_MS
+          );
+          const activationTravel = Math.max(
+            longShot
+              ? Math.max(
+                  BALL_R * 12,
+                  Math.min(travelDistance * 0.5, LONG_SHOT_ACTIVATION_TRAVEL)
+                )
+              : 0,
+            SHOT_VIEW_ACTIVATION_TRAVEL
+          );
           return {
             mode: 'action',
             cueId: cueBall.id,
@@ -16904,7 +16914,11 @@ const powerRef = useRef(hud.power);
         alignStandingCameraToAim(cue, aimDirRef.current);
         cancelCameraBlendTween();
         const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
-        applyCameraBlend(forcedCueView ? forcedCueBlend : 1);
+        const shotCueBlend = Math.min(
+          cameraBlendRef.current ?? 1,
+          forcedCueView ? forcedCueBlend : SHOT_CUE_CAMERA_BLEND
+        );
+        applyCameraBlend(shotCueBlend);
         updateCamera();
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
@@ -16923,6 +16937,10 @@ const powerRef = useRef(hud.power);
           cushionAfterContact: false
         };
         setShootingState(true);
+        powerImpactHoldRef.current = Math.max(
+          powerImpactHoldRef.current || 0,
+          shotStartedAt + SHOT_VIEW_MIN_HOLD_MS
+        );
         activeShotView = null;
         aimFocusRef.current = null;
         potted = [];
@@ -17098,25 +17116,17 @@ const powerRef = useRef(hud.power);
             pocketViewActivated = true;
           }
           if (!pocketViewActivated && actionView) {
-            const shouldActivateActionView =
-              (!isLongShot || forceActionActivation) && !isMaxPowerShot;
-            if (shouldActivateActionView) {
-              suspendedActionView = null;
-              activeShotView = actionView;
-              updateCamera();
-            } else {
-              actionView.pendingActivation = true;
-              const holdUntil = powerImpactHoldRef.current || null;
-              const baseDelay = actionView.activationDelay ?? null;
-              const delayed = Math.max(baseDelay ?? 0, holdUntil ?? 0);
-              actionView.activationDelay = delayed;
-              const baseTravel = actionView.activationTravel ?? 0;
-              actionView.activationTravel = Math.max(
-                baseTravel,
-                isMaxPowerShot ? BALL_R * 6 : 0
-              );
-              suspendedActionView = actionView;
-            }
+            actionView.pendingActivation = true;
+            const holdUntil = powerImpactHoldRef.current || 0;
+            const baseDelay = actionView.activationDelay ?? 0;
+            actionView.activationDelay = Math.max(baseDelay, holdUntil);
+            const baseTravel = actionView.activationTravel ?? 0;
+            actionView.activationTravel = Math.max(
+              baseTravel,
+              isMaxPowerShot ? BALL_R * 6 : 0,
+              SHOT_VIEW_ACTIVATION_TRAVEL
+            );
+            suspendedActionView = actionView;
           }
           const appliedSpin = applySpinConstraints(aimDir, true);
           const ranges = spinRangeRef.current || {};
