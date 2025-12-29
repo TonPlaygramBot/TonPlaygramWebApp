@@ -14,6 +14,7 @@ import Trending from './pages/Trending.jsx';
 import Notifications from './pages/Notifications.jsx';
 import InfluencerAdmin from './pages/InfluencerAdmin.jsx';
 import MagazineWarehouse from './pages/MagazineWarehouse.jsx';
+import Nfts from './pages/Nfts.jsx';
 
 import SnakeAndLadder from './pages/Games/SnakeAndLadder.jsx';
 import SnakeMultiplayer from './pages/Games/SnakeMultiplayer.jsx';
@@ -142,6 +143,7 @@ export default function App() {
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/trending" element={<Trending />} />
             <Route path="/account" element={<MyAccount />} />
+            <Route path="/nfts" element={<Nfts />} />
             <Route path="/magazine" element={<MagazineWarehouse />} />
           </Routes>
         </Layout>
