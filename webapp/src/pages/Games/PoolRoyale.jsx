@@ -4275,8 +4275,8 @@ const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.6;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
-const DEFAULT_HDRI_RADIUS_MULTIPLIER = 14;
-const MIN_HDRI_RADIUS = 40;
+const DEFAULT_HDRI_RADIUS_MULTIPLIER = 10;
+const MIN_HDRI_RADIUS = 36;
 const HDRI_GROUNDED_RESOLUTION = 96;
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
