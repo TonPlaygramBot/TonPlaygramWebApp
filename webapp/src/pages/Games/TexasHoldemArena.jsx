@@ -14,8 +14,7 @@ import {
   setCardFace,
   CARD_THEMES
 } from '../../utils/cards3d.js';
-import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../../config/murlanThemes.js';
-import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
+import { TEXAS_CHAIR_COLOR_OPTIONS } from '../../config/texasHoldemOptions.js';
 import { getTexasHoldemInventory, isTexasOptionUnlocked, texasHoldemAccountId } from '../../utils/texasHoldemInventory.js';
 import { createChipFactory } from '../../utils/chips3d.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
@@ -487,29 +486,45 @@ function setCardHighlight(mesh, highlighted) {
   }
 }
 
-const TEXAS_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
-  ...variant,
-  label: `${variant.name} HDRI`
-}));
-const DEFAULT_HDRI_INDEX = Math.max(
-  0,
-  TEXAS_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID)
-);
-
 const APPEARANCE_STORAGE_KEY = 'texasHoldemArenaAppearance';
 const DEFAULT_APPEARANCE = {
-  tables: 0,
-  stools: 0,
-  environmentHdri: DEFAULT_HDRI_INDEX,
-  cards: 0
+  ...DEFAULT_TABLE_CUSTOMIZATION,
+  tableCloth: 0,
+  chairColor: 0,
+  tableShape: 0
 };
 
 const CUSTOMIZATION_SECTIONS = [
-  { key: 'tables', label: 'Table Model', options: MURLAN_TABLE_THEMES },
-  { key: 'stools', label: 'Chairs', options: MURLAN_STOOL_THEMES },
-  { key: 'environmentHdri', label: 'HDR Environment', options: TEXAS_HDRI_OPTIONS },
+  { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
+  { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
+  { key: 'chairColor', label: 'Chair Color', options: TEXAS_CHAIR_COLOR_OPTIONS },
+  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
   { key: 'cards', label: 'Cards', options: CARD_THEMES }
 ];
+
+const NON_DIAMOND_SHAPE_INDEX = (() => {
+  const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id !== DIAMOND_SHAPE_ID);
+  return index >= 0 ? index : 0;
+})();
+
+function enforceShapeForPlayers(appearance, playerCount) {
+  const safe = { ...appearance };
+  const shapeOption = TABLE_SHAPE_OPTIONS[safe.tableShape];
+  if (playerCount > 4 && shapeOption?.id === DIAMOND_SHAPE_ID) {
+    safe.tableShape = NON_DIAMOND_SHAPE_INDEX;
+  }
+  return safe;
+}
+
+function getEffectiveShapeConfig(shapeIndex, playerCount) {
+  const fallback = TABLE_SHAPE_OPTIONS[NON_DIAMOND_SHAPE_INDEX] ?? TABLE_SHAPE_OPTIONS[0];
+  const requested = TABLE_SHAPE_OPTIONS[shapeIndex] ?? fallback;
+  if (requested?.id === DIAMOND_SHAPE_ID && playerCount > 4) {
+    return { option: fallback, rotationY: 0, forced: true };
+  }
+  const rotationY = requested?.id === DIAMOND_SHAPE_ID && playerCount <= 4 ? Math.PI / 4 : 0;
+  return { option: requested ?? fallback, rotationY, forced: false };
+}
 
 const REGION_NAMES = typeof Intl !== 'undefined' ? new Intl.DisplayNames(['en'], { type: 'region' }) : null;
 
@@ -638,9 +653,11 @@ function buildClassicOctagonAngles(count) {
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const entries = [
-    ['tables', MURLAN_TABLE_THEMES.length],
-    ['stools', MURLAN_STOOL_THEMES.length],
-    ['environmentHdri', TEXAS_HDRI_OPTIONS.length],
+    ['tableWood', TABLE_WOOD_OPTIONS.length],
+    ['tableCloth', TABLE_CLOTH_OPTIONS.length],
+    ['tableBase', TABLE_BASE_OPTIONS.length],
+    ['chairColor', TEXAS_CHAIR_COLOR_OPTIONS.length],
+    ['tableShape', TABLE_SHAPE_OPTIONS.length],
     ['cards', CARD_THEMES.length]
   ];
   entries.forEach(([key, max]) => {
@@ -2010,9 +2027,11 @@ function TexasHoldemArena({ search }) {
     (value = DEFAULT_APPEARANCE) => {
       const normalized = normalizeAppearance(value);
       const map = {
-        tables: MURLAN_TABLE_THEMES,
-        stools: MURLAN_STOOL_THEMES,
-        environmentHdri: TEXAS_HDRI_OPTIONS,
+        tableWood: TABLE_WOOD_OPTIONS,
+        tableCloth: TABLE_CLOTH_OPTIONS,
+        tableBase: TABLE_BASE_OPTIONS,
+        chairColor: TEXAS_CHAIR_COLOR_OPTIONS,
+        tableShape: TABLE_SHAPE_OPTIONS,
         cards: CARD_THEMES
       };
       let changed = false;
@@ -2033,6 +2052,20 @@ function TexasHoldemArena({ search }) {
     },
     [texasInventory]
   );
+  useEffect(() => {
+    if (effectivePlayerCount > 4) {
+      const currentShape = TABLE_SHAPE_OPTIONS[appearance.tableShape];
+      if (currentShape?.id === DIAMOND_SHAPE_ID && NON_DIAMOND_SHAPE_INDEX !== appearance.tableShape) {
+        setAppearance((prev) => {
+          const prevShape = TABLE_SHAPE_OPTIONS[prev.tableShape];
+          if (prevShape?.id !== DIAMOND_SHAPE_ID) {
+            return prev;
+          }
+          return { ...prev, tableShape: NON_DIAMOND_SHAPE_INDEX };
+        });
+      }
+    }
+  }, [effectivePlayerCount, appearance.tableShape]);
   useEffect(() => {
     setAppearance((prev) => ensureAppearanceUnlocked(prev));
   }, [ensureAppearanceUnlocked]);
@@ -2263,16 +2296,21 @@ function TexasHoldemArena({ search }) {
     const three = threeRef.current;
     if (!three) return;
     const normalized = normalizeAppearance(appearance);
-    const tableTheme = MURLAN_TABLE_THEMES[normalized.tables] ?? MURLAN_TABLE_THEMES[0];
-    const stoolTheme = MURLAN_STOOL_THEMES[normalized.stools] ?? MURLAN_STOOL_THEMES[0];
-    const hdriVariant = TEXAS_HDRI_OPTIONS[normalized.environmentHdri] ?? TEXAS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX];
-    const cardTheme = CARD_THEMES[normalized.cards] ?? CARD_THEMES[0];
-    const woodOption = TABLE_WOOD_OPTIONS[0];
-    const clothOption = TABLE_CLOTH_OPTIONS[0];
-    const baseOption = TABLE_BASE_OPTIONS[0];
-
-    const themeChanged = tableTheme?.id && three.tableThemeId !== tableTheme.id;
-    if (three.arenaGroup && themeChanged) {
+    const safe = enforceShapeForPlayers(normalized, effectivePlayerCount);
+    const woodOption = TABLE_WOOD_OPTIONS[safe.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+    const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+    const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
+    const chairOption = TEXAS_CHAIR_COLOR_OPTIONS[safe.chairColor] ?? TEXAS_CHAIR_COLOR_OPTIONS[0];
+    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(
+      safe.tableShape,
+      effectivePlayerCount
+    );
+    const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
+    const shapeChanged = shapeOption && three.tableShapeId !== shapeOption.id;
+    const rotationChanged = Number.isFinite(rotationY)
+      ? Math.abs((three.tableInfo?.rotationY ?? 0) - rotationY) > 1e-3
+      : false;
+    if (shapeOption && three.arenaGroup && (shapeChanged || rotationChanged)) {
       const nextTable = createMurlanStyleTable({
         arena: three.arenaGroup,
         renderer: three.renderer,
@@ -2281,12 +2319,12 @@ function TexasHoldemArena({ search }) {
         woodOption,
         clothOption,
         baseOption,
-        shapeOption: TABLE_SHAPE_OPTIONS[0],
-        rotationY: 0
+        shapeOption,
+        rotationY
       });
       three.tableInfo?.dispose?.();
       three.tableInfo = nextTable;
-      three.tableThemeId = tableTheme.id;
+      three.tableShapeId = shapeOption.id;
       if (three.deckAnchor) {
         const updatedDeckAnchor = DECK_POSITION.clone();
         if (nextTable.rotationY) {
@@ -2340,13 +2378,7 @@ function TexasHoldemArena({ search }) {
     if (three.tableInfo?.materials) {
       applyTableMaterials(three.tableInfo.materials, { woodOption, clothOption, baseOption }, three.renderer);
     }
-
-    const chairOption = {
-      id: stoolTheme?.id ?? 'default',
-      primary: stoolTheme?.seatColor ?? stoolTheme?.primary ?? '#7c3aed',
-      legColor: stoolTheme?.legColor ?? '#1f1f1f'
-    };
-    if (three.chairMaterials) {
+    if (chairOption && three.chairMaterials) {
       const previousSeat = three.chairMaterials.seat;
       applyChairThemeMaterials(three, chairOption, three.renderer);
       const updatedSeat = three.chairMaterials.seat;
@@ -2359,13 +2391,6 @@ function TexasHoldemArena({ search }) {
             mesh.material.needsUpdate = true;
           });
         });
-      }
-    }
-    if (hdriVariant) {
-      const bg = hdriVariant.backgroundColor || hdriVariant.ambientColor || hdriVariant.swatches?.[0] || '#030712';
-      three.scene.background = new THREE.Color(bg);
-      if (three.ambientLight) {
-        three.ambientLight.intensity = hdriVariant.backgroundIntensity ?? three.ambientLight.intensity;
       }
     }
     three.cardThemeId = cardTheme.id;
@@ -2397,51 +2422,78 @@ function TexasHoldemArena({ search }) {
 
   const renderPreview = useCallback((type, option) => {
     switch (type) {
-      case 'tables': {
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            {option?.thumbnail ? (
-              <img src={option.thumbnail} alt={option.label} className="absolute inset-0 h-full w-full object-cover opacity-80" />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-200/80 via-slate-100/70 to-slate-400/60 shadow-inner">
-                <span className="rounded-full bg-black/50 px-3 py-1 text-[0.55rem] font-semibold uppercase tracking-[0.2em] text-white/80">
-                  {option.label}
-                </span>
-              </div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
-          </div>
-        );
-      }
-      case 'stools': {
-        const seat = option?.seatColor || option?.primary || '#7c3aed';
-        const legs = option?.legColor || '#1f1f1f';
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="flex w-5/6 items-stretch overflow-hidden rounded-lg border border-white/15 shadow-inner">
-                <div className="flex-1" style={{ background: seat }} />
-                <div className="w-3" style={{ background: legs }} />
-              </div>
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
-          </div>
-        );
-      }
-      case 'environmentHdri': {
-        const swatches = option?.swatches?.length ? option.swatches : [option?.backgroundColor || '#0f172a', option?.ambientColor || '#1e3a8a'];
-        const [a, b] = swatches;
+      case 'tableWood': {
+        const preset = option?.presetId ? WOOD_PRESETS_BY_ID[option.presetId] : undefined;
+        const grain = option?.grainId ? WOOD_GRAIN_OPTIONS_BY_ID[option.grainId] : undefined;
+        const presetRef = preset || WOOD_FINISH_PRESETS?.[0];
+        const baseHex = presetRef ? `#${hslToHexNumber(presetRef.hue, presetRef.sat, presetRef.light).toString(16).padStart(6, '0')}` : '#8b5a2b';
+        const accentHex = presetRef
+          ? `#${hslToHexNumber(
+              presetRef.hue,
+              Math.min(1, presetRef.sat + 0.12),
+              Math.max(0, presetRef.light - 0.18)
+            )
+              .toString(16)
+              .padStart(6, '0')}`
+          : '#5a3820';
+        const grainLabel = grain?.label ?? WOOD_GRAIN_OPTIONS?.[0]?.label ?? '';
         return (
           <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
             <div
               className="absolute inset-0"
-              style={{ background: `linear-gradient(135deg, ${a}, ${b || a})` }}
+              style={{
+                backgroundImage: `repeating-linear-gradient(135deg, ${baseHex}, ${baseHex} 12%, ${accentHex} 12%, ${accentHex} 20%)`
+              }}
             />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="rounded-full bg-black/50 px-3 py-1 text-[0.55rem] font-semibold uppercase tracking-[0.2em] text-white/80">
-                {option.label}
-              </span>
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/40" />
+            <div className="absolute bottom-1 right-1 rounded-full bg-black/60 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-emerald-100/80">
+              {grainLabel.slice(0, 12)}
             </div>
+          </div>
+        );
+      }
+      case 'tableCloth':
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                className="h-12 w-20 rounded-[999px] border border-white/10"
+                style={{ background: `radial-gradient(circle at 35% 30%, ${option.feltTop}, ${option.feltBottom})` }}
+              />
+            </div>
+            <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-black/50 to-transparent" />
+          </div>
+        );
+      case 'chairColor':
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                className="h-12 w-20 rounded-3xl border border-white/10"
+                style={{
+                  background: `linear-gradient(135deg, ${option.primary}, ${option.accent})`,
+                  boxShadow: 'inset 0 0 12px rgba(0,0,0,0.35)'
+                }}
+              />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-black/40" />
+          </div>
+        );
+      case 'tableShape': {
+        const previewStyle = option.preview || {};
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                className="h-12 w-24 bg-gradient-to-br from-slate-300/70 via-slate-100/90 to-slate-400/60 shadow-inner"
+                style={{
+                  borderRadius: previewStyle.borderRadius ?? '999px',
+                  clipPath: previewStyle.clipPath,
+                  WebkitClipPath: previewStyle.clipPath
+                }}
+              />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
           </div>
         );
       }
@@ -2555,14 +2607,16 @@ function TexasHoldemArena({ search }) {
     wall.receiveShadow = false;
     arenaGroup.add(wall);
 
-    const initialAppearance = normalizeAppearance(appearanceRef.current);
-    const tableTheme = MURLAN_TABLE_THEMES[initialAppearance.tables] ?? MURLAN_TABLE_THEMES[0];
-    const stoolTheme = MURLAN_STOOL_THEMES[initialAppearance.stools] ?? MURLAN_STOOL_THEMES[0];
-    const envVariant = TEXAS_HDRI_OPTIONS[initialAppearance.environmentHdri] ?? TEXAS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX];
-    const initialWood = TABLE_WOOD_OPTIONS[0];
-    const initialCloth = TABLE_CLOTH_OPTIONS[0];
-    const initialBase = TABLE_BASE_OPTIONS[0];
-    const initialShape = TABLE_SHAPE_OPTIONS[0];
+    const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
+    const initialAppearance = enforceShapeForPlayers(initialAppearanceRaw, effectivePlayerCount);
+    const initialWood = TABLE_WOOD_OPTIONS[initialAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+    const initialCloth = TABLE_CLOTH_OPTIONS[initialAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+    const initialBase = TABLE_BASE_OPTIONS[initialAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
+    const initialChair = TEXAS_CHAIR_COLOR_OPTIONS[initialAppearance.chairColor] ?? TEXAS_CHAIR_COLOR_OPTIONS[0];
+    const { option: initialShape, rotationY: initialRotation } = getEffectiveShapeConfig(
+      initialAppearance.tableShape,
+      effectivePlayerCount
+    );
     const tableInfo = createMurlanStyleTable({
       arena: arenaGroup,
       renderer,
@@ -2572,14 +2626,9 @@ function TexasHoldemArena({ search }) {
       clothOption: initialCloth,
       baseOption: initialBase,
       shapeOption: initialShape,
-      rotationY: 0
+      rotationY: initialRotation
     });
     applyTableMaterials(tableInfo.materials, { woodOption: initialWood, clothOption: initialCloth, baseOption: initialBase }, renderer);
-    threeRef.current = { ...threeRef.current, tableThemeId: tableTheme.id };
-    if (envVariant) {
-      const bg = envVariant.backgroundColor || envVariant.ambientColor || envVariant.swatches?.[0] || '#030712';
-      scene.background = new THREE.Color(bg);
-    }
 
     const cardGeometry = createCardGeometry(CARD_W, CARD_H, CARD_D);
     const faceCache = new Map();
@@ -2588,7 +2637,8 @@ function TexasHoldemArena({ search }) {
     const chipFactory = createChipFactory(renderer, { cardWidth: CARD_W });
     const initialPlayers = gameState?.players ?? [];
     const initialPlayerCount = initialPlayers.length || effectivePlayerCount;
-    const seatLayout = createSeatLayout(initialPlayerCount, tableInfo, { useCardinal: false });
+    const useCardinalLayout = initialShape?.id === DIAMOND_SHAPE_ID && initialPlayerCount <= 4;
+    const seatLayout = createSeatLayout(initialPlayerCount, tableInfo, { useCardinal: useCardinalLayout });
     seatLayout.forEach((seat, idx) => {
       seat.player = initialPlayers[idx] || null;
     });
@@ -2757,16 +2807,11 @@ function TexasHoldemArena({ search }) {
     }
 
     (async () => {
-      const chairTheme = {
-        id: stoolTheme?.id ?? 'default',
-        primary: stoolTheme?.seatColor ?? stoolTheme?.primary ?? '#7c3aed',
-        legColor: stoolTheme?.legColor ?? '#1f1f1f'
-      };
-      const chairBuild = await buildChairTemplate(chairTheme, renderer);
+      const chairBuild = await buildChairTemplate(initialChair, renderer);
       if (!chairBuild) return;
       const chairTemplate = chairBuild.chairTemplate;
       const chairMaterials = chairBuild.materials;
-      applyChairThemeMaterials({ chairMaterials }, chairTheme, renderer);
+      applyChairThemeMaterials({ chairMaterials }, initialChair, renderer);
 
       seatLayout.forEach((seat, seatIndex) => {
         const group = new THREE.Group();
@@ -3054,12 +3099,9 @@ function TexasHoldemArena({ search }) {
           arenaGroup,
         turnIndicator,
         tableInfo,
-        tableThemeId: tableTheme.id,
+        tableShapeId: initialShape.id,
         cardThemeId: cardTheme.id,
-        communityRowRotation: resolvedCommunityRowRotation,
-        ambientLight: ambient,
-        spotLight: spot,
-        rimLight: rim
+        communityRowRotation: resolvedCommunityRowRotation
       };
 
       applyRendererQuality();
@@ -4072,17 +4114,21 @@ function TexasHoldemArena({ search }) {
                   <div className="grid grid-cols-2 gap-2">
                     {options.map((option) => {
                       const selected = appearance[key] === option.idx;
+                      const disabled =
+                        key === 'tableShape' && option.id === DIAMOND_SHAPE_ID && effectivePlayerCount > 4;
                       return (
                         <button
                           key={option.id}
                           type="button"
                           onClick={() => {
+                            if (disabled) return;
                             setAppearance((prev) => ({ ...prev, [key]: option.idx }));
                           }}
                           aria-pressed={selected}
+                          disabled={disabled}
                           className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                             selected ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]' : 'border-white/10 bg-white/5 hover:border-white/20'
-                          }`}
+                          } ${disabled ? 'cursor-not-allowed opacity-50 hover:border-white/10' : ''}`}
                         >
                           {renderPreview(key, option)}
                           <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">{option.label}</span>

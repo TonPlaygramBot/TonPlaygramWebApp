@@ -198,9 +198,11 @@ const SNAKE_TYPE_LABELS = {
 };
 
 const TEXAS_TYPE_LABELS = {
-  tables: 'Table Models',
-  stools: 'Chairs',
-  environmentHdri: 'HDR Environments',
+  tableWood: 'Table Wood',
+  tableCloth: 'Table Cloth',
+  tableBase: 'Table Base',
+  chairColor: 'Chairs',
+  tableShape: 'Table Shape',
   cards: 'Cards'
 };
 
