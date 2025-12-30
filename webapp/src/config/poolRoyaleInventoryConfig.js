@@ -750,6 +750,13 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     charredTimber: 'Charred Timber',
     plankStudio: 'Plank Studio',
     weatheredGrey: 'Weathered Grey',
+    peelingPaintWeathered: 'Wood Peeling Paint Weathered',
+    oakVeneer01: 'Oak Veneer 01',
+    woodTable001: 'Wood Table 001',
+    darkWood: 'Dark Wood',
+    rosewoodVeneer01: 'Rosewood Veneer 01',
+    kitchenWood: 'Kitchen Wood',
+    japaneseSycamore: 'Japanese Sycamore',
     jetBlackCarbon: 'Jet Black Carbon',
     frostedAsh: 'Frosted Ash',
     amberWharf: 'Amber Wharf',
@@ -815,6 +822,62 @@ export const POOL_ROYALE_STORE_ITEMS = [
     name: 'Weathered Grey Finish',
     price: 940,
     description: 'Driftwood grey rails with soft grain and cooled trim.'
+  },
+  {
+    id: 'finish-peelingPaintWeathered',
+    type: 'tableFinish',
+    optionId: 'peelingPaintWeathered',
+    name: 'Wood Peeling Paint Weathered Finish',
+    price: 980,
+    description: 'Weathered peeling paint wood rails with a reclaimed finish.'
+  },
+  {
+    id: 'finish-oakVeneer01',
+    type: 'tableFinish',
+    optionId: 'oakVeneer01',
+    name: 'Oak Veneer 01 Finish',
+    price: 990,
+    description: 'Warm oak veneer rails with smooth satin polish.'
+  },
+  {
+    id: 'finish-woodTable001',
+    type: 'tableFinish',
+    optionId: 'woodTable001',
+    name: 'Wood Table 001 Finish',
+    price: 1000,
+    description: 'Balanced walnut-brown rails inspired by classic table slabs.'
+  },
+  {
+    id: 'finish-darkWood',
+    type: 'tableFinish',
+    optionId: 'darkWood',
+    name: 'Dark Wood Finish',
+    price: 1010,
+    description: 'Deep espresso rails with strong grain contrast.'
+  },
+  {
+    id: 'finish-rosewoodVeneer01',
+    type: 'tableFinish',
+    optionId: 'rosewoodVeneer01',
+    name: 'Rosewood Veneer 01 Finish',
+    price: 1020,
+    description: 'Rosewood veneer rails with rich, reddish undertones.'
+  },
+  {
+    id: 'finish-kitchenWood',
+    type: 'tableFinish',
+    optionId: 'kitchenWood',
+    name: 'Kitchen Wood Finish',
+    price: 1030,
+    description: 'Golden kitchen wood rails with warm highlights.'
+  },
+  {
+    id: 'finish-japaneseSycamore',
+    type: 'tableFinish',
+    optionId: 'japaneseSycamore',
+    name: 'Japanese Sycamore Finish',
+    price: 1040,
+    description: 'Light sycamore rails with clean, refined grain.'
   },
   {
     id: 'finish-jetBlack',
