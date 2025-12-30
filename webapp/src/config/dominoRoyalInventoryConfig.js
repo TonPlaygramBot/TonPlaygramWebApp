@@ -1,6 +1,3 @@
-import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
-import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
-
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
   tableWood: [
     { id: 'oakEstate', label: 'Lis Estate' },
@@ -41,14 +38,8 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
     { id: 'midnightNavy', label: 'Midnight Blue Chairs' },
     { id: 'emeraldWave', label: 'Emerald Wave Chairs' },
     { id: 'onyxShadow', label: 'Onyx Shadow Chairs' },
-    { id: 'royalPlum', label: 'Royal Chestnut Chairs' },
-    ...MURLAN_STOOL_THEMES.map((theme) => ({ id: theme.id, label: theme.label }))
-  ],
-  tables: MURLAN_TABLE_THEMES.map((theme) => ({ id: theme.id, label: theme.label })),
-  environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
-    id: variant.id,
-    label: `${variant.name} HDRI`
-  }))
+    { id: 'royalPlum', label: 'Royal Chestnut Chairs' }
+  ]
 });
 
 export const DOMINO_ROYAL_DEFAULT_UNLOCKS = Object.freeze(
@@ -111,52 +102,20 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
     price: 260 + idx * 40,
     description: 'Unlocks a new tracer highlight for the table setup.'
   })),
-  ...DOMINO_ROYAL_OPTION_SETS.chairTheme.slice(1).map((option, idx) => {
-    const murlanTheme = MURLAN_STOOL_THEMES.find((theme) => theme.id === option.id);
-    return {
-      id: `domino-chair-${option.id}`,
-      type: 'chairTheme',
-      optionId: option.id,
-      name: option.label,
-      price: murlanTheme?.price ?? 300 + idx * 20,
-      description: murlanTheme?.description || 'Alternate spectator chair upholstery for the arena.',
-      thumbnail: murlanTheme?.thumbnail
-    };
-  }),
-  ...MURLAN_TABLE_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
-    id: `domino-table-${theme.id}`,
-    type: 'tables',
-    optionId: theme.id,
-    name: theme.label,
-    price: theme.price ?? 980 + idx * 40,
-    description: theme.description || `${theme.label} table with preserved materials.`,
-    thumbnail: theme.thumbnail
-  })),
-  ...POOL_ROYALE_HDRI_VARIANTS.map((variant, idx) => ({
-    id: `domino-hdri-${variant.id}`,
-    type: 'environmentHdri',
-    optionId: variant.id,
-    name: `${variant.name} HDRI`,
-    price: variant.price ?? 1400 + idx * 25,
-    description: variant.description || 'Pool Royale HDRI environment tuned for Domino Royale.',
-    swatches: variant.swatches,
-    previewShape: 'table'
+  ...DOMINO_ROYAL_OPTION_SETS.chairTheme.slice(1).map((option, idx) => ({
+    id: `domino-chair-${option.id}`,
+    type: 'chairTheme',
+    optionId: option.id,
+    name: option.label,
+    price: 300 + idx * 20,
+    description: 'Alternate spectator chair upholstery for the arena.'
   }))
 ];
 
 export const DOMINO_ROYAL_DEFAULT_LOADOUT = Object.entries(DOMINO_ROYAL_OPTION_SETS).map(
-  ([type, options]) => {
-    if (type === 'environmentHdri') {
-      return {
-        type,
-        optionId: POOL_ROYALE_DEFAULT_HDRI_ID,
-        label: `${POOL_ROYALE_HDRI_VARIANTS[0]?.name || 'Default'} HDRI`
-      };
-    }
-    return {
-      type,
-      optionId: options[0]?.id,
-      label: options[0]?.label
-    };
-  }
+  ([type, options]) => ({
+    type,
+    optionId: options[0]?.id,
+    label: options[0]?.label
+  })
 );
