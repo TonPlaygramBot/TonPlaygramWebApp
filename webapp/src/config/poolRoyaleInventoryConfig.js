@@ -33,12 +33,7 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
   loftPhotoStudioHall: { cameraHeightM: 1.54, groundRadiusMultiplier: 4.6, groundResolution: 120 },
   londonPhotoStudioHall: { cameraHeightM: 1.56, groundRadiusMultiplier: 4.8, groundResolution: 120 },
   schoolHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.6, groundResolution: 112 },
-  countryStudioHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.5, groundResolution: 112 },
-  royalGrandArena: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.4, groundResolution: 112 },
-  royalEventsArena: { cameraHeightM: 1.62, groundRadiusMultiplier: 5.5, groundResolution: 112 },
-  royalCinemaArena: { cameraHeightM: 1.58, groundRadiusMultiplier: 5.2, groundResolution: 112 },
-  royalDanceArena: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.3, groundResolution: 112 },
-  royalMusicArena: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.4, groundResolution: 112 }
+  countryStudioHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.5, groundResolution: 112 }
 });
 
 const RAW_POOL_ROYALE_HDRI_VARIANTS = [
@@ -475,81 +470,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1.02,
     swatches: ['#f472b6', '#16a34a'],
     description: 'Cozy country hall with warm wood bounce and soft window key light.'
-  },
-  {
-    id: 'royalGrandArena',
-    name: 'Royal Grand Arena',
-    assetId: 'ballroom',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2260,
-    exposure: 1.16,
-    environmentIntensity: 1.18,
-    backgroundIntensity: 1.1,
-    swatches: ['#f59e0b', '#f97316'],
-    motion: { rotationSpeed: 0.06, bobAmplitudeM: 0.12, bobSpeed: 0.18 },
-    sound: { url: '/assets/sounds/football-crowd-3-69245.mp3', volume: 0.18 },
-    description: 'Grand arena hall with subtle motion sweep and crowd ambience.'
-  },
-  {
-    id: 'royalEventsArena',
-    name: 'Royal Events Arena',
-    assetId: 'events_hall_interior',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2280,
-    exposure: 1.14,
-    environmentIntensity: 1.14,
-    backgroundIntensity: 1.08,
-    swatches: ['#f59e0b', '#e11d48'],
-    motion: { rotationSpeed: 0.05, bobAmplitudeM: 0.1, bobSpeed: 0.22 },
-    sound: { url: '/assets/sounds/crowd-cheering-383111.mp3', volume: 0.16 },
-    description: 'Public event arena with slow rotation and cheer floor-bed.'
-  },
-  {
-    id: 'royalCinemaArena',
-    name: 'Royal Cinema Arena',
-    assetId: 'cinema_hall',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2300,
-    exposure: 1.12,
-    environmentIntensity: 1.1,
-    backgroundIntensity: 1.06,
-    swatches: ['#ef4444', '#111827'],
-    motion: { rotationSpeed: 0.04, bobAmplitudeM: 0.08, bobSpeed: 0.24 },
-    sound: { url: '/assets/sounds/clock-ticking-60-second-countdown-118231.mp3', volume: 0.12 },
-    description: 'Cinematic arena sweep with gentle motion and timed ambience.'
-  },
-  {
-    id: 'royalDanceArena',
-    name: 'Royal Dance Arena',
-    assetId: 'dancing_hall',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2320,
-    exposure: 1.15,
-    environmentIntensity: 1.12,
-    backgroundIntensity: 1.08,
-    swatches: ['#22c55e', '#f97316'],
-    motion: { rotationSpeed: 0.07, bobAmplitudeM: 0.14, bobSpeed: 0.26 },
-    sound: { url: '/assets/sounds/fireworks-29629.mp3', volume: 0.14 },
-    description: 'Dance arena panorama with rhythmic motion and sparkle bursts.'
-  },
-  {
-    id: 'royalMusicArena',
-    name: 'Royal Music Arena',
-    assetId: 'music_hall_01',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2340,
-    exposure: 1.13,
-    environmentIntensity: 1.1,
-    backgroundIntensity: 1.06,
-    swatches: ['#a855f7', '#2563eb'],
-    motion: { rotationSpeed: 0.05, bobAmplitudeM: 0.1, bobSpeed: 0.2 },
-    sound: { url: '/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3', volume: 0.15 },
-    description: 'Concert arena with smooth motion drift and stadium roar.'
   }
 ];
 
