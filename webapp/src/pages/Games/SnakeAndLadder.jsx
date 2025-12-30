@@ -528,7 +528,9 @@ const DEFAULT_APPEARANCE = Object.freeze({
   environmentHdri: DEFAULT_HDRI_INDEX
 });
 
-const DEFAULT_FRAME_RATE_ID = FRAME_RATE_OPTIONS[0]?.id ?? 'balanced60';
+const DEFAULT_FRAME_RATE_ID = 'fast120';
+const DEFAULT_FRAME_RATE_OPTION =
+  FRAME_RATE_OPTIONS.find((option) => option.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
@@ -838,10 +840,10 @@ export default function SnakeAndLadder() {
   const appearanceKey = useMemo(() => buildAppearanceKey(appearance), [appearance]);
   const resolvedAppearance = useMemo(() => resolveAppearance(appearance), [appearance]);
   const activeFrameRateOption = useMemo(
-    () => FRAME_RATE_OPTIONS.find((option) => option.id === frameRateId) ?? FRAME_RATE_OPTIONS[0],
+    () => FRAME_RATE_OPTIONS.find((option) => option.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
   );
-  const frameRateValue = activeFrameRateOption?.fps ?? FRAME_RATE_OPTIONS[0]?.fps ?? 90;
+  const frameRateValue = activeFrameRateOption?.fps ?? DEFAULT_FRAME_RATE_OPTION?.fps ?? 90;
 
   useEffect(() => {
     setAppearance((prev) => {
