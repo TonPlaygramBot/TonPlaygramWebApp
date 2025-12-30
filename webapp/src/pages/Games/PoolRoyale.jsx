@@ -4274,7 +4274,7 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
-const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.0;
+const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const MIN_HDRI_RADIUS = 24;
@@ -11541,6 +11541,12 @@ const powerRef = useRef(hud.power);
           ) {
             sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
           }
+        }
+        if (
+          'environmentIntensity' in sceneInstance &&
+          typeof activeVariant?.environmentIntensity === 'number'
+        ) {
+          sceneInstance.environmentIntensity = activeVariant.environmentIntensity;
         }
         renderer.toneMappingExposure = activeVariant?.exposure ?? renderer.toneMappingExposure;
         envTextureRef.current = envMap;
