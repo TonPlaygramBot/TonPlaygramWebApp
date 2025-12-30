@@ -9439,6 +9439,33 @@ function PoolRoyaleGame({
       POOL_ROYALE_HDRI_VARIANTS[0],
     [environmentHdriId]
   );
+  useEffect(() => {
+    const motion = activeEnvironmentHdri?.motion ?? null;
+    hdriMotionConfigRef.current = motion;
+    hdriMotionRef.current = {
+      yaw: motion?.yawOffset ?? 0,
+      elapsed: 0,
+      lastTime: 0
+    };
+    const scene = sceneRef.current;
+    if (scene?.backgroundRotation) {
+      scene.backgroundRotation.set(0, motion?.yawOffset ?? 0, 0);
+    }
+    if (scene?.environmentRotation) {
+      scene.environmentRotation.set(0, motion?.yawOffset ?? 0, 0);
+    }
+    const ambientPath = activeEnvironmentHdri?.ambientSound;
+    desiredAmbientRef.current = ambientPath
+      ? {
+          id: `${activeEnvironmentHdri.id}-${ambientPath}`,
+          path: ambientPath,
+          volume: Number.isFinite(activeEnvironmentHdri?.ambientVolume)
+            ? activeEnvironmentHdri.ambientVolume
+            : 0.25
+        }
+      : null;
+    void ensureAmbientSound();
+  }, [activeEnvironmentHdri, ensureAmbientSound]);
   const activePocketLinerOption = useMemo(
     () =>
       availablePocketLiners.find((opt) => opt?.id === pocketLinerId) ??
@@ -10530,6 +10557,8 @@ const powerRef = useRef(hud.power);
   const envTextureRef = useRef(null);
   const envSkyboxRef = useRef(null);
   const envSkyboxTextureRef = useRef(null);
+  const hdriMotionRef = useRef({ yaw: 0, elapsed: 0, lastTime: 0 });
+  const hdriMotionConfigRef = useRef(null);
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
@@ -10678,6 +10707,9 @@ const powerRef = useRef(hud.power);
     cheer: null,
     shock: null
   });
+  const ambientBuffersRef = useRef(new Map());
+  const activeAmbientRef = useRef({ id: null, source: null, gain: null, baseVolume: 0 });
+  const desiredAmbientRef = useRef(null);
   const activeCrowdSoundRef = useRef(null);
   const muteRef = useRef(isGameMuted());
   const volumeRef = useRef(getGameVolume());
@@ -10710,6 +10742,85 @@ const powerRef = useRef(hud.power);
       activeCrowdSoundRef.current = null;
     }
   }, []);
+
+  const stopAmbientSound = useCallback(() => {
+    const current = activeAmbientRef.current;
+    if (current?.source) {
+      try {
+        current.source.stop();
+      } catch {}
+    }
+    if (current?.gain) {
+      try {
+        current.gain.disconnect();
+      } catch {}
+    }
+    activeAmbientRef.current = { id: null, source: null, gain: null, baseVolume: 0 };
+  }, []);
+
+  const updateAmbientGain = useCallback(() => {
+    const current = activeAmbientRef.current;
+    if (!current?.gain) return;
+    const baseVolume = Number.isFinite(current.baseVolume) ? current.baseVolume : 0;
+    const scaled = muteRef.current ? 0 : clamp(baseVolume * volumeRef.current, 0, 1);
+    current.gain.gain.value = scaled;
+  }, []);
+
+  const loadAudioBuffer = useCallback(async (path) => {
+    const ctx = audioContextRef.current;
+    if (!ctx) return null;
+    const response = await fetch(encodeURI(path));
+    if (!response.ok) throw new Error(`Failed to load ${path}`);
+    const arr = await response.arrayBuffer();
+    return await new Promise((resolve, reject) => {
+      ctx.decodeAudioData(arr, resolve, reject);
+    });
+  }, []);
+
+  const ensureAmbientSound = useCallback(async () => {
+    const desired = desiredAmbientRef.current;
+    if (!desired?.path) {
+      stopAmbientSound();
+      return;
+    }
+    if (activeAmbientRef.current.id === desired.id) {
+      updateAmbientGain();
+      return;
+    }
+    stopAmbientSound();
+    if (muteRef.current) return;
+    const ctx = audioContextRef.current;
+    if (!ctx) return;
+    let buffer = ambientBuffersRef.current.get(desired.path);
+    if (!buffer) {
+      try {
+        buffer = await loadAudioBuffer(desired.path);
+        if (buffer) {
+          ambientBuffersRef.current.set(desired.path, buffer);
+        }
+      } catch (err) {
+        console.warn('Pool ambient audio load failed:', desired.path, err);
+        return;
+      }
+    }
+    if (!buffer) return;
+    ctx.resume().catch(() => {});
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    const gain = ctx.createGain();
+    const scaled = clamp(desired.volume * volumeRef.current, 0, 1);
+    gain.gain.value = scaled;
+    source.connect(gain);
+    routeAudioNode(gain);
+    source.start(0);
+    activeAmbientRef.current = {
+      id: desired.id,
+      source,
+      gain,
+      baseVolume: desired.volume
+    };
+  }, [loadAudioBuffer, routeAudioNode, stopAmbientSound, updateAmbientGain]);
 
   const selectCueStyleFromMenu = useCallback(
     async (index) => {
@@ -10912,9 +11023,14 @@ const powerRef = useRef(hud.power);
     const handleMute = () => {
       muteRef.current = isGameMuted();
       if (muteRef.current) stopActiveCrowdSound();
+      if (!muteRef.current) {
+        void ensureAmbientSound();
+      }
+      updateAmbientGain();
     };
     const handleVolume = () => {
       volumeRef.current = getGameVolume();
+      updateAmbientGain();
     };
     window.addEventListener('gameMuteChanged', handleMute);
     window.addEventListener('gameVolumeChanged', handleVolume);
@@ -10922,13 +11038,14 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('gameMuteChanged', handleMute);
       window.removeEventListener('gameVolumeChanged', handleVolume);
     };
-  }, [stopActiveCrowdSound]);
+  }, [ensureAmbientSound, stopActiveCrowdSound, updateAmbientGain]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return undefined;
     const ctx = new AudioContextClass();
     audioContextRef.current = ctx;
+    void ensureAmbientSound();
     let cancelled = false;
     const decode = (arrayBuffer) =>
       new Promise((resolve, reject) => {
@@ -10965,6 +11082,7 @@ const powerRef = useRef(hud.power);
     return () => {
       cancelled = true;
       stopActiveCrowdSound();
+      stopAmbientSound();
       audioBuffersRef.current = {
         cue: null,
         ball: null,
@@ -10973,10 +11091,13 @@ const powerRef = useRef(hud.power);
         cheer: null,
         shock: null
       };
+      ambientBuffersRef.current.clear();
+      activeAmbientRef.current = { id: null, source: null, gain: null, baseVolume: 0 };
+      desiredAmbientRef.current = null;
       audioContextRef.current = null;
       ctx.close().catch(() => {});
     };
-  }, [stopActiveCrowdSound]);
+  }, [ensureAmbientSound, stopActiveCrowdSound, stopAmbientSound]);
   const formatBallOnLabel = useCallback(
     (rawList = []) => {
       const normalized = rawList
@@ -20366,6 +20487,33 @@ const powerRef = useRef(hud.power);
             fit(1 + edge * 0.08);
           }
           const frameCamera = updateCamera();
+          const motionConfig = hdriMotionConfigRef.current;
+          if (motionConfig && scene) {
+            const motionState = hdriMotionRef.current;
+            const lastTime = motionState.lastTime || now;
+            const delta = Math.min(0.05, Math.max(0, (now - lastTime) / 1000));
+            motionState.lastTime = now;
+            motionState.elapsed += delta;
+            const yawSpeed = motionConfig.yawSpeed ?? 0;
+            const pitchAmp = motionConfig.pitchAmplitude ?? 0;
+            const rollAmp = motionConfig.rollAmplitude ?? 0;
+            const pitchSpeed = motionConfig.pitchSpeed ?? 0.35;
+            const rollSpeed = motionConfig.rollSpeed ?? 0.3;
+            motionState.yaw += yawSpeed * delta;
+            const yaw = motionState.yaw + (motionConfig.yawOffset ?? 0);
+            const pitch = pitchAmp ? Math.sin(motionState.elapsed * pitchSpeed) * pitchAmp : 0;
+            const roll = rollAmp ? Math.cos(motionState.elapsed * rollSpeed) * rollAmp : 0;
+            if (scene.backgroundRotation) {
+              scene.backgroundRotation.set(pitch, yaw, roll);
+            }
+            if (scene.environmentRotation) {
+              scene.environmentRotation.set(pitch, yaw, roll);
+            }
+            const skybox = envSkyboxRef.current;
+            if (skybox) {
+              skybox.rotation.set(pitch, yaw, roll);
+            }
+          }
           renderer.render(scene, frameCamera ?? camera);
           const shouldStreamAim =
             isOnlineMatch &&
