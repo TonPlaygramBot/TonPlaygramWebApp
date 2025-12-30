@@ -5692,7 +5692,6 @@ function Chess3D({
   const laughSoundRef = useRef(null);
   const laughTimeoutRef = useRef(null);
   const lastBeepRef = useRef({ white: null, black: null });
-  const zoomRef = useRef({});
   const controlsRef = useRef(null);
   const fitRef = useRef(() => {});
   const arenaRef = useRef(null);
@@ -7070,8 +7069,8 @@ function Chess3D({
     controls.dampingFactor = 0.08;
     controls.enablePan = true;
     controls.screenSpacePanning = true;
-    controls.enableZoom = true;
-    controls.minDistance = CAM.minR;
+    controls.enableZoom = false;
+    controls.minDistance = CAMERA_SAFE_MAX_RADIUS;
     controls.maxDistance = CAMERA_SAFE_MAX_RADIUS;
     controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
     controls.maxPolarAngle = CAM.phiMax;
@@ -7142,11 +7141,7 @@ function Chess3D({
       );
       const theta = Number.isFinite(current.theta) ? current.theta : -Math.PI / 4;
 
-      const initialRadius = clamp(
-        CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.initialRadiusFactor * 1.24,
-        CAM.minR,
-        CAMERA_SAFE_MAX_RADIUS
-      );
+      const initialRadius = CAMERA_SAFE_MAX_RADIUS;
       const default3d = new THREE.Spherical(initialRadius, CAMERA_DEFAULT_PHI, theta);
 
       if (mode === '2d') {
@@ -7154,35 +7149,19 @@ function Chess3D({
         controls.enableRotate = false;
         controls.minPolarAngle = CAMERA_TOPDOWN_LOCK;
         controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
-        controls.minDistance = CAMERA_TOPDOWN_MIN_RADIUS;
+        controls.minDistance = CAMERA_TOPDOWN_MAX_RADIUS;
         controls.maxDistance = CAMERA_TOPDOWN_MAX_RADIUS;
-        const aspect = (host?.clientWidth ?? 1) / (host?.clientHeight ?? 1) || 1;
-        const boardSpan = RAW_BOARD_SIZE * BOARD_SCALE;
-        const desiredSpan = boardSpan * 1.18;
-        const halfFov = THREE.MathUtils.degToRad(CAM.fov) / 2;
-        const verticalRadius = desiredSpan / (2 * Math.tan(halfFov));
-        const horizontalRadius = verticalRadius / Math.max(aspect, 0.5);
-        const radius = clamp(
-          Math.max(
-            verticalRadius,
-            horizontalRadius,
-            CAMERA_TOPDOWN_MIN_RADIUS,
-            CAM.minR * 1.1
-          ),
-          CAMERA_TOPDOWN_MIN_RADIUS,
-          CAMERA_TOPDOWN_MAX_RADIUS
-        );
-        const target = new THREE.Spherical(radius, CAMERA_TOPDOWN_LOCK, 0);
+        const target = new THREE.Spherical(CAMERA_TOPDOWN_MAX_RADIUS, CAMERA_TOPDOWN_LOCK, 0);
         animateCameraTo(target, 360);
       } else {
         controls.enableRotate = true;
         controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
         controls.maxPolarAngle = CAM.phiMax;
-        controls.minDistance = CAM.minR;
+        controls.minDistance = CAMERA_SAFE_MAX_RADIUS;
         controls.maxDistance = CAMERA_SAFE_MAX_RADIUS;
         const restore = cameraMemory.last3d || default3d;
         const target = new THREE.Spherical(
-          clamp(restore.radius, CAM.minR, CAMERA_SAFE_MAX_RADIUS),
+          CAMERA_SAFE_MAX_RADIUS,
           clamp(restore.phi, CAMERA_PULL_FORWARD_MIN, CAM.phiMax),
           Number.isFinite(restore.theta) ? restore.theta : default3d.theta
         );
@@ -7202,16 +7181,9 @@ function Chess3D({
       renderer.setSize(renderW, renderH, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      const tableSpan = (tableInfo?.radius ?? TABLE_RADIUS) * CAMERA_TABLE_SPAN_FACTOR;
-      const boardSpan = RAW_BOARD_SIZE * BOARD_SCALE * 1.6;
-      const span = Math.max(tableSpan, boardSpan);
-      const needed = span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
-      const currentRadius = camera.position.distanceTo(boardLookTarget);
-      const radius = clamp(
-        Math.max(needed, currentRadius),
-        CAM.minR,
-        CAMERA_SAFE_MAX_RADIUS
-      );
+      const lockedRadius =
+        viewModeRef.current === '2d' ? CAMERA_TOPDOWN_MAX_RADIUS : CAMERA_SAFE_MAX_RADIUS;
+      const radius = lockedRadius;
       const dir = camera.position.clone().sub(boardLookTarget).normalize();
       camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
       controls.update();
@@ -7222,22 +7194,6 @@ function Chess3D({
     baseSkyboxScaleRef.current =
       envSkyboxRef.current?.scale?.x ?? baseSkyboxScaleRef.current ?? 1;
     syncSkyboxToCamera();
-
-    const dollyScale = 1 + CAMERA_WHEEL_FACTOR;
-    zoomRef.current = {
-      zoomIn: () => {
-        if (!controls) return;
-        controls.dollyIn(dollyScale);
-        controls.update();
-        syncSkyboxToCamera();
-      },
-      zoomOut: () => {
-        if (!controls) return;
-        controls.dollyOut(dollyScale);
-        controls.update();
-        syncSkyboxToCamera();
-      }
-    };
 
     const createExplosion = (pos) => {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -9087,20 +9043,6 @@ function Chess3D({
           <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
             {ui.winner ? `${ui.winner} Wins` : ui.status}
           </div>
-        </div>
-        <div className="absolute right-3 bottom-3 flex flex-col space-y-2 pointer-events-auto">
-          <button
-            onClick={() => zoomRef.current.zoomIn?.()}
-            className="text-xl bg-white/10 hover:bg-white/20 rounded px-2 py-1"
-          >
-            +
-          </button>
-          <button
-            onClick={() => zoomRef.current.zoomOut?.()}
-            className="text-xl bg-white/10 hover:bg-white/20 rounded px-2 py-1"
-          >
-            -
-          </button>
         </div>
       </div>
     </div>
