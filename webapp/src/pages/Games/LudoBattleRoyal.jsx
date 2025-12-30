@@ -308,9 +308,9 @@ const clampPlayerCount = (value) =>
   );
 const CUSTOM_CHAIR_ANGLES = [
   THREE.MathUtils.degToRad(90),
-  THREE.MathUtils.degToRad(315),
+  THREE.MathUtils.degToRad(0),
   THREE.MathUtils.degToRad(270),
-  THREE.MathUtils.degToRad(225)
+  THREE.MathUtils.degToRad(180)
 ];
 const AI_ROLL_DELAY_MS = 2000;
 const AI_EXTRA_TURN_DELAY_MS = 1100;
@@ -379,6 +379,7 @@ const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
 const POLYHAVEN_MODEL_CACHE = new Map();
 const resolveHdriVariant = (index) => {
   const max = LUDO_HDRI_OPTIONS.length - 1;
@@ -778,6 +779,59 @@ const buildPolyhavenModelUrls = (assetId) => {
   return urls;
 };
 
+function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_TEXTURE_SIZES) {
+  if (!apiJson || typeof apiJson !== 'object') {
+    return { diffuse: null, normal: null, roughness: null };
+  }
+
+  const urls = [];
+  const walk = (value) => {
+    if (!value) return;
+    if (typeof value === 'string') {
+      const lower = value.toLowerCase();
+      if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
+        urls.push(value);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.values(value).forEach(walk);
+    }
+  };
+  walk(apiJson);
+
+  const pick = (keywords) => {
+    const scored = urls
+      .filter((url) => keywords.some((kw) => url.toLowerCase().includes(kw)))
+      .map((url) => {
+        const lower = url.toLowerCase();
+        let score = 0;
+        preferredSizes.forEach((size, index) => {
+          if (lower.includes(size)) {
+            score += (preferredSizes.length - index) * 10;
+          }
+        });
+        if (lower.includes('jpg')) score += 6;
+        if (lower.includes('png')) score += 3;
+        if (lower.includes('preview') || lower.includes('thumb')) score -= 50;
+        if (lower.includes('.exr')) score -= 100;
+        return { url, score };
+      })
+      .sort((a, b) => b.score - a.score);
+    return scored[0]?.url;
+  };
+
+  return {
+    diffuse: pick(['diff', 'diffuse', 'albedo', 'basecolor']),
+    normal: pick(['nor_gl', 'normal_gl', 'nor', 'normal']),
+    roughness: pick(['rough', 'roughness'])
+  };
+}
+
 async function loadPolyhavenModel(assetId, renderer = null) {
   if (!assetId) throw new Error('Missing Poly Haven asset id');
   const cacheKey = assetId.toLowerCase();
@@ -812,6 +866,121 @@ async function loadPolyhavenModel(assetId, renderer = null) {
   POLYHAVEN_MODEL_CACHE.set(cacheKey, promise);
   promise.catch(() => POLYHAVEN_MODEL_CACHE.delete(cacheKey));
   return promise;
+}
+
+async function loadTexture(textureLoader, url, isColor, maxAnisotropy = 1) {
+  return await new Promise((resolve, reject) => {
+    textureLoader.load(
+      url,
+      (texture) => {
+        if (isColor) {
+          applySRGBColorSpace(texture);
+        }
+        texture.flipY = false;
+        texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+        texture.needsUpdate = true;
+        resolve(texture);
+      },
+      undefined,
+      () => reject(new Error('texture load failed'))
+    );
+  });
+}
+
+function normalizePbrTexture(texture, maxAnisotropy = 1) {
+  if (!texture) return;
+  texture.flipY = false;
+  texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
+  texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+  texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+  texture.needsUpdate = true;
+}
+
+async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1, cache = null) {
+  if (!assetId || !textureLoader) return null;
+  const key = `${assetId.toLowerCase()}|${maxAnisotropy}`;
+  if (cache?.has(key)) {
+    return cache.get(key);
+  }
+
+  const promise = (async () => {
+    try {
+      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
+      if (!response.ok) {
+        return null;
+      }
+      const json = await response.json();
+      const urls = pickBestTextureUrls(json, PREFERRED_TEXTURE_SIZES);
+      if (!urls.diffuse) {
+        return null;
+      }
+
+      const [diffuse, normal, roughness] = await Promise.all([
+        loadTexture(textureLoader, urls.diffuse, true, maxAnisotropy),
+        urls.normal ? loadTexture(textureLoader, urls.normal, false, maxAnisotropy) : null,
+        urls.roughness ? loadTexture(textureLoader, urls.roughness, false, maxAnisotropy) : null
+      ]);
+
+      [diffuse, normal, roughness].filter(Boolean).forEach((tex) => normalizePbrTexture(tex, maxAnisotropy));
+
+      return { diffuse, normal, roughness };
+    } catch (error) {
+      return null;
+    }
+  })();
+
+  if (cache) {
+    cache.set(key, promise);
+    promise.catch(() => cache.delete(key));
+  }
+  return promise;
+}
+
+function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotropy = 1) {
+  const normalizeTexture = (texture, isColor = false) => {
+    if (!texture) return null;
+    if (isColor) applySRGBColorSpace(texture);
+    normalizePbrTexture(texture, maxAnisotropy);
+    return texture;
+  };
+
+  const applyToMaterial = (material) => {
+    if (!material) return;
+    material.roughness = Math.max(material.roughness ?? 0.4, 0.4);
+    material.metalness = Math.min(material.metalness ?? 0.4, 0.4);
+
+    if (material.map) {
+      normalizeTexture(material.map, true);
+    } else if (textureSet?.diffuse) {
+      material.map = normalizeTexture(textureSet.diffuse, true);
+      material.needsUpdate = true;
+    } else if (fallbackTexture) {
+      material.map = normalizeTexture(fallbackTexture, true);
+      material.needsUpdate = true;
+    }
+
+    if (material.emissiveMap) {
+      normalizeTexture(material.emissiveMap, true);
+    }
+
+    if (!material.normalMap && textureSet?.normal) {
+      material.normalMap = textureSet.normal;
+    }
+    if (material.normalMap) {
+      normalizeTexture(material.normalMap, false);
+    }
+
+    if (!material.roughnessMap && textureSet?.roughness) {
+      material.roughnessMap = textureSet.roughness;
+    }
+    normalizeTexture(material.roughnessMap, false);
+  };
+
+  model.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach(applyToMaterial);
+  });
 }
 
 function liftModelToGround(model, targetMinY = 0) {
@@ -890,10 +1059,36 @@ function stripTableBase(model) {
 
 const shouldPreserveChairMaterials = (theme) => Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
 
-async function createPolyhavenInstance(assetId, targetHeight, rotationY = 0, renderer = null) {
+async function createPolyhavenInstance(
+  assetId,
+  targetHeight,
+  rotationY = 0,
+  renderer = null,
+  textureOptions = {}
+) {
   const root = await loadPolyhavenModel(assetId, renderer);
   const model = root.clone ? root.clone(true) : root;
   prepareLoadedModel(model);
+  const {
+    textureLoader = null,
+    maxAnisotropy = 1,
+    fallbackTexture = null,
+    textureCache = null,
+    textureSet = null
+  } = textureOptions || {};
+  if (textureLoader) {
+    try {
+      const textures =
+        textureSet ?? (await loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy, textureCache));
+      if (textures || fallbackTexture) {
+        applyTextureSetToModel(model, textures, fallbackTexture, maxAnisotropy);
+      }
+    } catch (error) {
+      if (fallbackTexture) {
+        applyTextureSetToModel(model, null, fallbackTexture, maxAnisotropy);
+      }
+    }
+  }
   fitModelToHeight(model, targetHeight);
   if (rotationY) model.rotation.y += rotationY;
   return model;
@@ -1088,7 +1283,7 @@ function createProceduralChair(theme) {
   };
 }
 
-async function buildChairTemplate(theme, renderer = null) {
+async function buildChairTemplate(theme, renderer = null, textureOptions = {}) {
   const preserve = shouldPreserveChairMaterials(theme);
   try {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
@@ -1096,7 +1291,8 @@ async function buildChairTemplate(theme, renderer = null) {
         theme.assetId,
         TARGET_CHAIR_SIZE.y - TARGET_CHAIR_MIN_Y,
         theme.modelRotation || 0,
-        renderer
+        renderer,
+        textureOptions
       );
       fitChairModelToFootprint(model);
       return {
@@ -2362,9 +2558,12 @@ function disposeBoardGroup(group) {
 function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const wrapRef = useRef(null);
   const rafRef = useRef(0);
-  const zoomRef = useRef({});
   const controlsRef = useRef(null);
   const rendererRef = useRef(null);
+  const textureLoaderRef = useRef(null);
+  const textureCacheRef = useRef(new Map());
+  const maxAnisotropyRef = useRef(1);
+  const fallbackTextureRef = useRef(null);
   const diceRef = useRef(null);
   const diceTransitionRef = useRef(null);
   const rollDiceRef = useRef(() => {});
@@ -2771,13 +2970,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       let tableInfo = null;
 
+      const textureOptions = {
+        textureLoader: textureLoaderRef.current,
+        maxAnisotropy: maxAnisotropyRef.current ?? 1,
+        fallbackTexture: fallbackTextureRef.current,
+        textureCache: textureCacheRef.current
+      };
+
       if (tableTheme?.source === 'polyhaven' && tableTheme?.assetId) {
         try {
           const model = await createPolyhavenInstance(
             tableTheme.assetId,
             TABLE_HEIGHT,
             tableTheme.rotationY || 0,
-            renderer
+            renderer,
+            textureOptions
           );
           stripTableBase(model);
           if (tableBuildTokenRef.current !== token) {
@@ -2852,8 +3059,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const arena = arenaRef.current;
       const renderer = rendererRef.current;
       if (!arena?.chairs || !renderer) return;
+      const textureOptions = {
+        textureLoader: textureLoaderRef.current,
+        maxAnisotropy: maxAnisotropyRef.current ?? 1,
+        fallbackTexture: fallbackTextureRef.current,
+        textureCache: textureCacheRef.current
+      };
       const token = ++chairBuildTokenRef.current;
-      const chairBuild = await buildChairTemplate(stoolTheme, renderer);
+      const chairBuild = await buildChairTemplate(stoolTheme, renderer, textureOptions);
       if (chairBuildTokenRef.current !== token || !chairBuild) return;
 
       arena.chairs.forEach(({ group }) => {
@@ -3717,6 +3930,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       renderer.domElement.style.touchAction = 'none';
       renderer.domElement.style.cursor = 'grab';
       host.appendChild(renderer.domElement);
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.setCrossOrigin?.('anonymous');
+      const maxAnisotropy = renderer.capabilities.getMaxAnisotropy?.() ?? 1;
+      const fallbackTexture = textureLoader.load(
+        'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/uv_grid_opengl.jpg'
+      );
+      applySRGBColorSpace(fallbackTexture);
+      fallbackTexture.wrapS = THREE.RepeatWrapping;
+      fallbackTexture.wrapT = THREE.RepeatWrapping;
+      fallbackTexture.repeat.set(1.6, 1.6);
+      fallbackTexture.anisotropy = maxAnisotropy;
+      fallbackTexture.needsUpdate = true;
+      textureLoaderRef.current = textureLoader;
+      textureCacheRef.current = new Map();
+      maxAnisotropyRef.current = maxAnisotropy;
+      fallbackTextureRef.current = fallbackTexture;
       applyRendererQuality();
 
       scene = new THREE.Scene();
@@ -3763,13 +3992,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     playerColorsRef.current = initialPlayerColors;
 
     let tableInfo = null;
+    const textureOptions = {
+      textureLoader: textureLoaderRef.current,
+      maxAnisotropy: maxAnisotropyRef.current ?? 1,
+      fallbackTexture: fallbackTextureRef.current,
+      textureCache: textureCacheRef.current
+    };
+
     if (tableTheme?.source === 'polyhaven' && tableTheme?.assetId) {
       try {
         const model = await createPolyhavenInstance(
           tableTheme.assetId,
           TABLE_HEIGHT,
           tableTheme.rotationY || 0,
-          renderer
+          renderer,
+          textureOptions
         );
         stripTableBase(model);
         const tableGroup = new THREE.Group();
@@ -3832,9 +4069,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
-    controls.enableZoom = true;
-    controls.minDistance = CAM.minR;
-    controls.maxDistance = CAM.maxR;
+    controls.enableZoom = false;
+    const lockedRadius = CAM.maxR;
+    controls.minDistance = lockedRadius;
+    controls.maxDistance = lockedRadius;
     controls.minPolarAngle = CAM.phiMin;
     controls.maxPolarAngle = CAM.phiMax;
     controls.target.copy(boardLookTarget);
@@ -3867,7 +4105,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const span = Math.max(tableSpan, boardSpan);
       const needed = span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
       const currentRadius = camera.position.distanceTo(boardLookTarget);
-      const radius = clamp(Math.max(needed, currentRadius), CAM.minR, CAM.maxR);
+      const radius = clamp(Math.max(needed, currentRadius), lockedRadius, lockedRadius);
       const dir = camera.position.clone().sub(boardLookTarget).normalize();
       camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
       if (baseCameraRadiusRef.current == null) {
@@ -3880,21 +4118,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     fitRef.current = fit;
     fit();
 
-    const dollyScale = 1 + CAMERA_DOLLY_FACTOR;
-    zoomRef.current = {
-      zoomIn: () => {
-        if (!controls) return;
-        controls.dollyIn(dollyScale);
-        controls.update();
-      },
-      zoomOut: () => {
-        if (!controls) return;
-        controls.dollyOut(dollyScale);
-        controls.update();
-      }
-    };
-
-    const chairBuild = await buildChairTemplate(stoolTheme, renderer);
+    const chairBuild = await buildChairTemplate(stoolTheme, renderer, textureOptions);
     if (cancelled || !chairBuild) return;
     const chairTemplate = chairBuild.chairTemplate;
     const chairMaterials = chairBuild.materials;
@@ -4267,6 +4491,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       envTextureRef.current = null;
       envSkyboxRef.current = null;
       envSkyboxTextureRef.current = null;
+      if (textureCacheRef.current) {
+        textureCacheRef.current.clear();
+      }
+      fallbackTextureRef.current?.dispose?.();
+      textureLoaderRef.current = null;
+      maxAnisotropyRef.current = 1;
+      fallbackTextureRef.current = null;
       arenaRef.current = null;
       rendererRef.current = null;
       renderer?.dispose?.();
@@ -5015,20 +5246,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               ? 'Your turn — dice rolling soon'
               : ui.status}
           </div>
-        </div>
-        <div className="absolute right-3 bottom-3 flex flex-col space-y-2">
-          <button
-            onClick={() => zoomRef.current.zoomIn?.()}
-            className="text-xl bg-white/10 hover:bg-white/20 rounded px-2 py-1"
-          >
-            +
-          </button>
-          <button
-            onClick={() => zoomRef.current.zoomOut?.()}
-            className="text-xl bg-white/10 hover:bg-white/20 rounded px-2 py-1"
-          >
-            -
-          </button>
         </div>
       </div>
     </div>
