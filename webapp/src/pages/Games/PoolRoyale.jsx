@@ -1210,7 +1210,7 @@ const POCKET_SOUND_TAIL = 1;
 // Pool Royale previously lifted the table surface dramatically; trim the legs so the playfield sits lower
 const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
-const LEG_HEIGHT_MULTIPLIER = 2.25;
+const LEG_HEIGHT_MULTIPLIER = 4.5;
 const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
 const TABLE_HEIGHT_REDUCTION = 1;
@@ -2654,13 +2654,13 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Minimum HD output with higher refresh for battery saver and 60 Hz displays.'
   },
   {
-    id: 'fhd60',
-    label: 'Full HD (75 Hz)',
-    fps: 75,
+    id: 'fhd90',
+    label: 'Full HD (90 Hz)',
+    fps: 90,
     renderScale: 1.12,
     pixelRatioCap: 1.55,
     resolution: 'Full HD render • DPR 1.55 cap',
-    description: '1080p-focused profile with extra headroom over the Snooker pacing.'
+    description: '1080p-focused profile with elevated headroom for 90 Hz displays.'
   },
   {
     id: 'qhd90',
@@ -2690,7 +2690,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Maximum clarity preset while capping refresh at 120 Hz.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const DEFAULT_FRAME_RATE_ID = 'fhd90';
 
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
@@ -4276,7 +4276,7 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 }
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k']);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
