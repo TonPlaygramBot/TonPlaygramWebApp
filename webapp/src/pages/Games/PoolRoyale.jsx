@@ -799,7 +799,6 @@ const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus 
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 0.88; // pull the entire table set ~12% closer so the arena feels more intimate without distorting proportions
-const TABLE_FOOTPRINT_SCALE = 1.22; // widen the table footprint ~22% while preserving proportions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -817,7 +816,7 @@ const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
   const TABLE_BASE_SCALE = 1.17;
-  const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_FOOTPRINT_SCALE; // widen Pool Royale footprint without altering proportions
+  const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
   const TABLE = {
     W: 72 * TABLE_SCALE,
     H: 132 * TABLE_SCALE,
@@ -1213,8 +1212,7 @@ const LEG_HEIGHT_MULTIPLIER = 2.25;
 const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
 const TABLE_HEIGHT_REDUCTION = 0.9;
-const TABLE_HEIGHT_SCALE = 1.3;
-const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION * TABLE_HEIGHT_SCALE; // physical height of table used for legs/skirt after a 30% height boost
+const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION; // physical height of table used for legs/skirt after a lighter 10% reduction to lift the stance
 const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
