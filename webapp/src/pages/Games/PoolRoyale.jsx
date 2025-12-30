@@ -9474,23 +9474,6 @@ function PoolRoyaleGame({
     railMarkerColorId,
     tableFinishId
   ]);
-  useEffect(() => {
-    const nextSpeed = Number.isFinite(activeEnvironmentHdri?.rotationSpeed)
-      ? activeEnvironmentHdri.rotationSpeed
-      : 0;
-    environmentMotionRef.current = { speed: nextSpeed };
-  }, [activeEnvironmentHdri]);
-  useEffect(() => {
-    const nextUrl = activeEnvironmentHdri?.ambientSoundUrl || '';
-    const nextVolume = Number.isFinite(activeEnvironmentHdri?.ambientVolume)
-      ? activeEnvironmentHdri.ambientVolume
-      : 0.35;
-    if (!nextUrl) {
-      stopAmbientLoop();
-      return;
-    }
-    playAmbientLoop(nextUrl, nextVolume);
-  }, [activeEnvironmentHdri, playAmbientLoop, stopAmbientLoop]);
   const isTraining = playType === 'training';
   const [trainingMenuOpen, setTrainingMenuOpen] = useState(false);
   const [trainingModeState, setTrainingModeState] = useState(
@@ -10547,7 +10530,6 @@ const powerRef = useRef(hud.power);
   const envTextureRef = useRef(null);
   const envSkyboxRef = useRef(null);
   const envSkyboxTextureRef = useRef(null);
-  const environmentMotionRef = useRef({ speed: 0 });
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
@@ -10695,13 +10677,6 @@ const powerRef = useRef(hud.power);
     knock: null,
     cheer: null,
     shock: null
-  });
-  const ambientBufferCacheRef = useRef(new Map());
-  const ambientAudioRef = useRef({
-    source: null,
-    gain: null,
-    url: null,
-    volume: 0
   });
   const activeCrowdSoundRef = useRef(null);
   const muteRef = useRef(isGameMuted());
@@ -10882,95 +10857,6 @@ const powerRef = useRef(hud.power);
     },
     [stopActiveCrowdSound]
   );
-
-  const stopAmbientLoop = useCallback(() => {
-    const current = ambientAudioRef.current;
-    if (!current?.source) return;
-    try {
-      current.source.stop();
-    } catch {}
-    try {
-      current.source.disconnect();
-    } catch {}
-    try {
-      current.gain?.disconnect?.();
-    } catch {}
-    ambientAudioRef.current = {
-      source: null,
-      gain: null,
-      url: null,
-      volume: 0
-    };
-  }, []);
-
-  const updateAmbientVolume = useCallback(() => {
-    const current = ambientAudioRef.current;
-    if (!current?.gain) return;
-    const baseVolume = Number.isFinite(current.volume) ? current.volume : 0;
-    const scaled = muteRef.current ? 0 : clamp(baseVolume * volumeRef.current, 0, 1);
-    current.gain.gain.value = scaled;
-  }, []);
-
-  const loadAmbientBuffer = useCallback(async (url) => {
-    const ctx = audioContextRef.current;
-    if (!ctx || !url) return null;
-    const cache = ambientBufferCacheRef.current;
-    if (cache.has(url)) return cache.get(url);
-    try {
-      const response = await fetch(encodeURI(url));
-      if (!response.ok) return null;
-      const arr = await response.arrayBuffer();
-      const buffer = await new Promise((resolve, reject) => {
-        ctx.decodeAudioData(arr, resolve, reject);
-      });
-      cache.set(url, buffer);
-      return buffer;
-    } catch (error) {
-      console.warn('Pool ambient audio load failed:', url, error);
-      return null;
-    }
-  }, []);
-
-  const playAmbientLoop = useCallback(
-    async (url, baseVolume = 0.4) => {
-      const ctx = audioContextRef.current;
-      if (!ctx || !url) return;
-      if (ambientAudioRef.current?.url === url) {
-        ambientAudioRef.current.volume = baseVolume;
-        updateAmbientVolume();
-        return;
-      }
-      stopAmbientLoop();
-      const buffer = await loadAmbientBuffer(url);
-      if (!buffer || muteRef.current) return;
-      ctx.resume().catch(() => {});
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      const gain = ctx.createGain();
-      source.connect(gain);
-      routeAudioNode(gain);
-      ambientAudioRef.current = {
-        source,
-        gain,
-        url,
-        volume: baseVolume
-      };
-      updateAmbientVolume();
-      source.start(0);
-      source.onended = () => {
-        if (ambientAudioRef.current?.source === source) {
-          ambientAudioRef.current = {
-            source: null,
-            gain: null,
-            url: null,
-            volume: 0
-          };
-        }
-      };
-    },
-    [loadAmbientBuffer, routeAudioNode, stopAmbientLoop, updateAmbientVolume]
-  );
   useEffect(() => {
     document.title = 'Pool Royale 3D';
   }, []);
@@ -11026,11 +10912,9 @@ const powerRef = useRef(hud.power);
     const handleMute = () => {
       muteRef.current = isGameMuted();
       if (muteRef.current) stopActiveCrowdSound();
-      updateAmbientVolume();
     };
     const handleVolume = () => {
       volumeRef.current = getGameVolume();
-      updateAmbientVolume();
     };
     window.addEventListener('gameMuteChanged', handleMute);
     window.addEventListener('gameVolumeChanged', handleVolume);
@@ -11038,7 +10922,7 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('gameMuteChanged', handleMute);
       window.removeEventListener('gameVolumeChanged', handleVolume);
     };
-  }, [stopActiveCrowdSound, updateAmbientVolume]);
+  }, [stopActiveCrowdSound]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -11081,8 +10965,6 @@ const powerRef = useRef(hud.power);
     return () => {
       cancelled = true;
       stopActiveCrowdSound();
-      stopAmbientLoop();
-      ambientBufferCacheRef.current.clear();
       audioBuffersRef.current = {
         cue: null,
         ball: null,
@@ -11094,7 +10976,7 @@ const powerRef = useRef(hud.power);
       audioContextRef.current = null;
       ctx.close().catch(() => {});
     };
-  }, [stopActiveCrowdSound, stopAmbientLoop]);
+  }, [stopActiveCrowdSound]);
   const formatBallOnLabel = useCallback(
     (rawList = []) => {
       const normalized = rawList
@@ -11638,7 +11520,6 @@ const powerRef = useRef(hud.power);
           try {
             skybox = new GroundedSkybox(skyboxMap, skyboxHeight, skyboxRadius, skyboxResolution);
             skybox.position.y = floorWorldY + skyboxHeight;
-            skybox.rotation.y = 0;
             skybox.material.depthWrite = false;
             sceneInstance.background = null;
             sceneInstance.add(skybox);
@@ -19160,11 +19041,6 @@ const powerRef = useRef(hud.power);
           entry.accumulator = 0;
           entry.update(elapsed);
         });
-        const envMotion = environmentMotionRef.current;
-        const skybox = envSkyboxRef.current;
-        if (skybox && envMotion?.speed) {
-          skybox.rotation.y += envMotion.speed * deltaSeconds;
-        }
         const frameScaleBase =
           targetFrameTime > 0 ? appliedDeltaMs / targetFrameTime : 1;
         const frameScale = Math.min(
