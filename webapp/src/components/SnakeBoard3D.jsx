@@ -3,6 +3,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 import { createArenaCarpetMaterial, createArenaWallMaterial } from '../utils/arenaDecor.js';
@@ -20,6 +23,10 @@ import {
 } from '../utils/tableCustomizationOptions.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const DEFAULT_HDRI_RESOLUTIONS = ['4k', '2k', '1k'];
 
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45;
@@ -44,7 +51,8 @@ const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
+const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
+const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 
@@ -777,6 +785,38 @@ function disposeChairMaterial(material) {
   material.dispose();
 }
 
+function createConfiguredGLTFLoader(renderer = null) {
+  const loader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath(DRACO_DECODER_PATH);
+  loader.setDRACOLoader(draco);
+  const ktx2 = new KTX2Loader();
+  ktx2.setTranscoderPath(BASIS_TRANSCODER_PATH);
+  if (renderer) {
+    try {
+      ktx2.detectSupport(renderer);
+    } catch (error) {
+      console.warn('KTX2 detection failed', error);
+    }
+  }
+  loader.setKTX2Loader(ktx2);
+  return loader;
+}
+
+function prepareLoadedModel(model) {
+  model.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((mat) => {
+        if (mat?.map) applySRGBColorSpace(mat.map);
+        if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+      });
+    }
+  });
+}
+
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
@@ -822,11 +862,114 @@ function extractChairMaterials(model) {
   };
 }
 
-async function loadGltfChair() {
-  const loader = new GLTFLoader();
-  const draco = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-  loader.setDRACOLoader(draco);
+function buildPolyhavenModelUrls(assetId) {
+  if (!assetId) return [];
+  const id = assetId.trim();
+  const lower = id.toLowerCase();
+  return [
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${id}/${id}_2k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${lower}/${lower}_2k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${id}/${id}_1k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${lower}/${lower}_1k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${id}.glb`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${lower}.glb`
+  ];
+}
+
+async function loadPolyhavenModel(assetId, renderer = null) {
+  if (!assetId) throw new Error('Missing Poly Haven asset id');
+  const loader = createConfiguredGLTFLoader(renderer);
+  const urls = buildPolyhavenModelUrls(assetId);
+  let gltf = null;
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      gltf = await loader.loadAsync(url);
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!gltf) {
+    throw lastError || new Error(`Failed to load model for ${assetId}`);
+  }
+  const root = gltf.scene || gltf.scenes?.[0] || gltf;
+  prepareLoadedModel(root);
+  return root;
+}
+
+function fitTableModelToArena(model) {
+  if (!model) return { surfaceY: TABLE_HEIGHT, radius: TABLE_RADIUS };
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const maxXZ = Math.max(size.x, size.z);
+  const targetHeight = TABLE_MODEL_TARGET_HEIGHT;
+  const targetDiameter = TABLE_MODEL_TARGET_DIAMETER;
+  const targetRadius = targetDiameter / 2;
+  const scaleY = size.y > 0 ? targetHeight / size.y : 1;
+  const scaleXZ = maxXZ > 0 ? targetDiameter / maxXZ : 1;
+
+  if (scaleY !== 1 || scaleXZ !== 1) {
+    model.scale.set(model.scale.x * scaleXZ, model.scale.y * scaleY, model.scale.z * scaleXZ);
+  }
+
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const center = scaledBox.getCenter(new THREE.Vector3());
+  model.position.add(new THREE.Vector3(-center.x, -scaledBox.min.y, -center.z));
+
+  const recenteredBox = new THREE.Box3().setFromObject(model);
+  const surfaceOffset = targetHeight - recenteredBox.max.y;
+  if (surfaceOffset !== 0) {
+    model.position.y += surfaceOffset;
+    recenteredBox.translate(new THREE.Vector3(0, surfaceOffset, 0));
+  }
+
+  const radius = Math.max(
+    Math.abs(recenteredBox.max.x),
+    Math.abs(recenteredBox.min.x),
+    Math.abs(recenteredBox.max.z),
+    Math.abs(recenteredBox.min.z),
+    targetRadius
+  );
+  return {
+    surfaceY: targetHeight,
+    radius
+  };
+}
+
+async function loadPolyHavenHdriEnvironment(renderer, variant = {}) {
+  if (!renderer || !variant) return null;
+  const assetId = variant.assetId || variant.id || 'neon_photostudio';
+  const resolutions =
+    Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
+      ? variant.preferredResolutions
+      : DEFAULT_HDRI_RESOLUTIONS;
+  const urls = [];
+  resolutions.forEach((res) => {
+    urls.push(`https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${res}/${assetId}_${res}.hdr`);
+    urls.push(`https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/${res}/${assetId}_${res}.exr`);
+  });
+
+  for (const url of urls) {
+    try {
+      const loader = url.endsWith('.exr') ? new EXRLoader() : new RGBELoader();
+      loader.setCrossOrigin?.('anonymous');
+      const texture = await loader.loadAsync(url);
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      pmrem.compileEquirectangularShader();
+      const envMap = pmrem.fromEquirectangular(texture).texture;
+      texture.dispose();
+      pmrem.dispose();
+      return { envMap, url };
+    } catch (error) {
+      // try next
+    }
+  }
+  return null;
+}
+
+async function loadGltfChair(renderer = null) {
+  const loader = createConfiguredGLTFLoader(renderer);
 
   let gltf = null;
   let lastError = null;
@@ -847,18 +990,7 @@ async function loadGltfChair() {
     throw new Error('Chair model missing scene');
   }
 
-  model.traverse((obj) => {
-    if (obj.isMesh) {
-      obj.castShadow = true;
-      obj.receiveShadow = true;
-      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      mats.forEach((mat) => {
-        if (mat?.map) applySRGBColorSpace(mat.map);
-        if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
-      });
-    }
-  });
-
+  prepareLoadedModel(model);
   fitChairModelToFootprint(model);
 
   return {
@@ -978,10 +1110,21 @@ function createProceduralChair(theme) {
   };
 }
 
-async function loadChairTemplate(theme) {
+async function loadChairTemplate(theme, renderer = null) {
   try {
-    const gltfChair = await loadGltfChair();
-    applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
+    if (theme?.source === 'polyhaven' && theme?.assetId) {
+      const polyhaven = await loadPolyhavenModel(theme.assetId, renderer);
+      fitChairModelToFootprint(polyhaven);
+      const mats = extractChairMaterials(polyhaven);
+      if (!theme?.preserveMaterials) {
+        applyChairThemeMaterials({ chairMaterials: mats }, theme);
+      }
+      return { chairTemplate: polyhaven, materials: mats };
+    }
+    const gltfChair = await loadGltfChair(renderer);
+    if (!theme?.preserveMaterials) {
+      applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
+    }
     return gltfChair;
   } catch (error) {
     console.error('Falling back to procedural chair', error);
@@ -2038,6 +2181,9 @@ function parseJumpMap(data = {}) {
 function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanceOptions = {}) {
   const arenaTheme = appearanceOptions.arena ?? {};
   const lightsTheme = arenaTheme.lights ?? {};
+  const tableTheme = appearanceOptions.tableTheme || {};
+  const stoolTheme = appearanceOptions.stoolTheme || DEFAULT_STOOL_THEME;
+  const environmentHdri = appearanceOptions.environmentHdri;
   let disposed = false;
 
   scene.background = toThreeColor(arenaTheme.background, '#030712');
@@ -2058,6 +2204,26 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   spot.position.set(3, 7, 3);
   spot.castShadow = true;
   scene.add(spot);
+  if (Number.isFinite(environmentHdri?.environmentIntensity)) {
+    ambient.intensity *= environmentHdri.environmentIntensity;
+  }
+  if (Number.isFinite(environmentHdri?.spotIntensity)) {
+    spot.intensity *= environmentHdri.spotIntensity;
+  }
+
+  let environmentCleanup = null;
+  if (environmentHdri) {
+    loadPolyHavenHdriEnvironment(renderer, environmentHdri).then((result) => {
+      if (!result || disposed) return;
+      scene.environment = result.envMap;
+      scene.background = result.envMap;
+      environmentCleanup = () => {
+        scene.environment = null;
+        scene.background = toThreeColor(arenaTheme.background, '#030712');
+        result.envMap?.dispose?.();
+      };
+    });
+  }
   const rim = new THREE.PointLight(
     toThreeColor(lightsTheme.rim, 0x33ccff),
     Number.isFinite(lightsTheme.rimIntensity) ? lightsTheme.rimIntensity : 1.728
@@ -2113,7 +2279,10 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   const shapeOption = TABLE_SHAPE_OPTIONS[0];
   const chairOption = DEFAULT_CHAIR_OPTION;
 
-  const tableInfo = createMurlanStyleTable({
+  const tableRoot = new THREE.Group();
+  arenaGroup.add(tableRoot);
+
+  let tableInfo = createMurlanStyleTable({
     arena: arenaGroup,
     renderer,
     tableRadius: TABLE_RADIUS,
@@ -2124,26 +2293,51 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     shapeOption,
     rotationY: 0
   });
+  tableInfo = { ...tableInfo, radius: tableInfo.radius ?? TABLE_RADIUS, themeId: tableTheme?.id };
   applyTableMaterials(tableInfo.materials, { woodOption, clothOption, baseOption }, renderer);
 
-  const boardGroup = new THREE.Group();
-  boardGroup.position.set(0, tableInfo.surfaceY + 0.004, 0);
-  boardGroup.scale.setScalar(BOARD_SCALE);
-  tableInfo.group.add(boardGroup);
+  let activeTableGroup = tableInfo.group;
+  tableRoot.add(activeTableGroup);
 
+  const boardGroup = new THREE.Group();
+  boardGroup.scale.setScalar(BOARD_SCALE);
   const boardLookTarget = new THREE.Vector3(
     0,
     tableInfo.surfaceY + CAMERA_TARGET_LIFT + 0.12 * MODEL_SCALE,
     0
   );
+  const attachBoard = (info, group) => {
+    boardGroup.position.set(0, info.surfaceY + 0.004, 0);
+    boardLookTarget.set(0, info.surfaceY + CAMERA_TARGET_LIFT + 0.12 * MODEL_SCALE, 0);
+    group.add(boardGroup);
+  };
+  attachBoard(tableInfo, activeTableGroup);
 
+  if (tableTheme?.source === 'polyhaven' && tableTheme?.assetId) {
+    loadPolyhavenModel(tableTheme.assetId, renderer)
+      .then((model) => {
+        if (!model || disposed) return;
+        const fitted = fitTableModelToArena(model);
+        const themed = new THREE.Group();
+        themed.add(model);
+        activeTableGroup.remove(boardGroup);
+        tableRoot.remove(activeTableGroup);
+        activeTableGroup = themed;
+        tableRoot.add(activeTableGroup);
+        tableInfo = { ...fitted, group: themed, themeId: tableTheme.id };
+        attachBoard(tableInfo, activeTableGroup);
+      })
+      .catch(() => {});
+  }
+
+  const chairRadius = (tableInfo.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
   const camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
   const isPortrait = host.clientHeight > host.clientWidth;
   const cameraSeatAngle = Math.PI / 2;
   const cameraBackOffset = isPortrait ? 1.65 : 1.05;
   const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
   const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
-  const cameraRadius = AI_CHAIR_RADIUS + cameraBackOffset - cameraForwardOffset;
+  const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
   camera.position.set(
     Math.cos(cameraSeatAngle) * cameraRadius,
     TABLE_HEIGHT + cameraHeightOffset,
@@ -2174,7 +2368,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     renderer.setSize(w, h, false);
     camera.aspect = w / h || 1;
     camera.updateProjectionMatrix();
-    const tableSpan = TABLE_RADIUS * 2.6;
+    const tableSpan = (tableInfo.radius ?? TABLE_RADIUS) * 2.6;
     const boardSpan = RAW_BOARD_SIZE * BOARD_SCALE * 1.6;
     const span = Math.max(tableSpan, boardSpan);
     const needed = span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
@@ -2189,8 +2383,14 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   cameraRef.current = camera;
 
   const chairTheme = {
-    seatColor: chairOption.primary,
-    legColor: chairOption.legColor ?? DEFAULT_STOOL_THEME.legColor
+    seatColor: stoolTheme.seatColor || stoolTheme.primary || chairOption.primary,
+    legColor: stoolTheme.legColor || chairOption.legColor || DEFAULT_STOOL_THEME.legColor,
+    primary: stoolTheme.primary || stoolTheme.seatColor,
+    accent: stoolTheme.accentColor || stoolTheme.accent,
+    highlight: stoolTheme.highlight,
+    source: stoolTheme.source,
+    assetId: stoolTheme.assetId,
+    preserveMaterials: stoolTheme.preserveMaterials
   };
   const initialChair = createProceduralChair(chairTheme);
   let chairTemplate = initialChair.chairTemplate;
@@ -2212,7 +2412,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     const fallbackAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / DEFAULT_PLAYER_COUNT) * Math.PI * 2;
     const angle = CUSTOM_CHAIR_ANGLES[i] ?? fallbackAngle;
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-    const seatPos = forward.clone().multiplyScalar(AI_CHAIR_RADIUS);
+    const seatPos = forward.clone().multiplyScalar(chairRadius);
     seatPos.y = CHAIR_BASE_HEIGHT;
     const group = new THREE.Group();
     group.position.copy(seatPos);
@@ -2230,7 +2430,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     chairs.push({ group, anchor: avatarAnchor, model: chairModel });
   }
 
-  loadChairTemplate(chairTheme)
+  loadChairTemplate(chairTheme, renderer)
     .then((nextBuild) => {
       if (!nextBuild || disposed) return;
       const prevMaterials = chairMaterials;
@@ -2259,6 +2459,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
       group.parent?.remove(group);
     });
     if (tableInfo?.dispose) tableInfo.dispose();
+    environmentCleanup?.();
     scene.remove(ambient, spot, rim);
     floor.geometry.dispose();
     floor.material.map?.dispose?.();

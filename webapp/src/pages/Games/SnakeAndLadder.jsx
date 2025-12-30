@@ -36,6 +36,8 @@ import {
   addTransaction,
   unseatTable
 } from "../../utils/api.js";
+import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from "../../config/poolRoyaleInventoryConfig.js";
+import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from "../../config/murlanThemes.js";
 // Developer accounts that receive shares of each pot
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -438,13 +440,24 @@ const SNAKE_SKIN_OPTIONS = Object.freeze([
   }
 ]);
 
+const TABLE_THEME_OPTIONS = Object.freeze(MURLAN_TABLE_THEMES);
+const STOOL_THEME_OPTIONS = Object.freeze(MURLAN_STOOL_THEMES);
+const HDRI_OPTIONS = Object.freeze(POOL_ROYALE_HDRI_VARIANTS);
+const DEFAULT_HDRI_INDEX = Math.max(
+  0,
+  HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID)
+);
+
 const SNAKE_CUSTOMIZATION_SECTIONS = [
   { key: 'arenaTheme', label: 'Arena Atmosphere', options: ARENA_THEME_OPTIONS },
   { key: 'boardPalette', label: 'Board Palette', options: BOARD_PALETTE_OPTIONS },
   { key: 'snakeSkin', label: 'Snake Skins', options: SNAKE_SKIN_OPTIONS },
   { key: 'diceTheme', label: 'Dice Finish', options: DICE_THEME_OPTIONS },
   { key: 'railTheme', label: 'Rails & Nets', options: RAIL_THEME_OPTIONS },
-  { key: 'tokenFinish', label: 'Token Finish', options: TOKEN_FINISH_OPTIONS }
+  { key: 'tokenFinish', label: 'Token Finish', options: TOKEN_FINISH_OPTIONS },
+  { key: 'tables', label: 'Table Models', options: TABLE_THEME_OPTIONS },
+  { key: 'stools', label: 'Chairs', options: STOOL_THEME_OPTIONS },
+  { key: 'environmentHdri', label: 'HDR Environments', options: HDRI_OPTIONS }
 ];
 
 const FRAME_RATE_OPTIONS = Object.freeze([
@@ -509,7 +522,10 @@ const DEFAULT_APPEARANCE = Object.freeze({
   snakeSkin: 0,
   diceTheme: 0,
   railTheme: 0,
-  tokenFinish: 0
+  tokenFinish: 0,
+  tables: 0,
+  stools: 0,
+  environmentHdri: DEFAULT_HDRI_INDEX
 });
 
 const DEFAULT_FRAME_RATE_ID = FRAME_RATE_OPTIONS[0]?.id ?? 'balanced60';
@@ -522,7 +538,10 @@ function normalizeAppearance(value = {}) {
     ['snakeSkin', SNAKE_SKIN_OPTIONS.length],
     ['diceTheme', DICE_THEME_OPTIONS.length],
     ['railTheme', RAIL_THEME_OPTIONS.length],
-    ['tokenFinish', TOKEN_FINISH_OPTIONS.length]
+    ['tokenFinish', TOKEN_FINISH_OPTIONS.length],
+    ['tables', TABLE_THEME_OPTIONS.length],
+    ['stools', STOOL_THEME_OPTIONS.length],
+    ['environmentHdri', HDRI_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -541,6 +560,12 @@ function resolveAppearance(appearance) {
   const rail = RAIL_THEME_OPTIONS[normalized.railTheme] ?? RAIL_THEME_OPTIONS[0];
   const token = TOKEN_FINISH_OPTIONS[normalized.tokenFinish] ?? TOKEN_FINISH_OPTIONS[0];
   const snakeSkin = SNAKE_SKIN_OPTIONS[normalized.snakeSkin] ?? SNAKE_SKIN_OPTIONS[0];
+  const tableTheme = TABLE_THEME_OPTIONS[normalized.tables] ?? TABLE_THEME_OPTIONS[0];
+  const stoolTheme = STOOL_THEME_OPTIONS[normalized.stools] ?? STOOL_THEME_OPTIONS[0];
+  const environmentHdri =
+    HDRI_OPTIONS[normalized.environmentHdri] ??
+    HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ??
+    HDRI_OPTIONS[0];
   return {
     arena: {
       floor: { ...arena.floor },
@@ -552,7 +577,10 @@ function resolveAppearance(appearance) {
     dice: { ...dice },
     rail: { ...rail },
     token: { ...token },
-    snakeSkin: { ...snakeSkin }
+    snakeSkin: { ...snakeSkin },
+    tableTheme,
+    stoolTheme,
+    environmentHdri
   };
 }
 
@@ -2548,6 +2576,68 @@ export default function SnakeAndLadder() {
                 className="absolute inset-2 rounded-full border border-white/20"
                 style={{ boxShadow: `inset 0 0 12px ${lightenHex(accent, 0.3)}55` }}
               />
+            </div>
+          </div>
+        );
+      }
+      case 'tables': {
+        const thumb = option.thumbnail;
+        const accent = option.accentColor || '#94a3b8';
+        return (
+          <div className="relative w-full h-20 overflow-hidden rounded-xl border border-white/10 bg-slate-800/50">
+            {thumb ? (
+              <img src={thumb} alt={option.label} className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              <div
+                className="absolute inset-0"
+                style={{
+                  background: `linear-gradient(135deg, ${accent}33, ${accent}88)`
+                }}
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-tr from-black/50 via-transparent to-transparent" />
+            <div className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-1 text-[0.6rem] font-semibold text-white/80">
+              Poly Haven
+            </div>
+          </div>
+        );
+      }
+      case 'stools': {
+        const seat = option.seatColor || option.primary || '#7c3aed';
+        const legs = option.legColor || '#111827';
+        return (
+          <div className="w-full h-16 rounded-xl border border-white/10 bg-gradient-to-br from-slate-900/80 to-slate-800/60 p-3">
+            <div className="flex h-full items-end gap-3">
+              <div
+                className="h-3 w-full rounded-full"
+                style={{ background: `linear-gradient(90deg, ${legs}, ${lightenHex(legs, 0.2)})` }}
+              />
+              <div
+                className="h-8 w-10 rounded-lg border border-white/10 shadow-lg"
+                style={{
+                  background: `linear-gradient(180deg, ${seat}, ${darkenHex(seat, 0.25)})`,
+                  boxShadow: `0 10px 20px ${seat}33`
+                }}
+              />
+            </div>
+          </div>
+        );
+      }
+      case 'environmentHdri': {
+        const swatches = Array.isArray(option.swatches) && option.swatches.length >= 2
+          ? option.swatches
+          : ['#0ea5e9', '#312e81'];
+        return (
+          <div
+            className="w-full h-16 rounded-xl border border-white/10"
+            style={{
+              background: `linear-gradient(120deg, ${swatches[0]}, ${swatches[1]})`,
+              boxShadow: `0 10px 25px ${swatches[0]}44`
+            }}
+          >
+            <div className="flex h-full items-center justify-center gap-2 text-[0.65rem] font-semibold text-white/80">
+              <span role="img" aria-label="sunset">🌇</span>
+              <span>HDR Lighting</span>
             </div>
           </div>
         );
