@@ -8,6 +8,7 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
+import { createArenaCarpetMaterial, createArenaWallMaterial } from '../utils/arenaDecor.js';
 import {
   createMurlanStyleTable,
   applyTableMaterials,
@@ -25,7 +26,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
+const DEFAULT_HDRI_RESOLUTIONS = ['4k', '2k', '1k'];
 
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45;
@@ -52,6 +53,8 @@ const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
+const ARENA_WALL_HEIGHT = 3.6 * 1.3;
+const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const CUSTOM_CHAIR_ANGLES = [
@@ -2177,6 +2180,7 @@ function parseJumpMap(data = {}) {
 
 function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanceOptions = {}) {
   const arenaTheme = appearanceOptions.arena ?? {};
+  const lightsTheme = arenaTheme.lights ?? {};
   const tableTheme = appearanceOptions.tableTheme || {};
   const stoolTheme = appearanceOptions.stoolTheme || DEFAULT_STOOL_THEME;
   const environmentHdri = appearanceOptions.environmentHdri;
@@ -2184,9 +2188,29 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
 
   scene.background = toThreeColor(arenaTheme.background, '#030712');
 
-  scene.environmentIntensity = Number.isFinite(environmentHdri?.environmentIntensity)
-    ? environmentHdri.environmentIntensity
-    : 1;
+  const ambient = new THREE.AmbientLight(
+    toThreeColor(lightsTheme.ambientColor, 0xffffff),
+    Number.isFinite(lightsTheme.ambient) ? lightsTheme.ambient : 1.08
+  );
+  scene.add(ambient);
+  const spot = new THREE.SpotLight(
+    toThreeColor(lightsTheme.spot, 0xffffff),
+    Number.isFinite(lightsTheme.spotIntensity) ? lightsTheme.spotIntensity : 4.8384,
+    TABLE_RADIUS * 10,
+    Math.PI / 3,
+    0.35,
+    1
+  );
+  spot.position.set(3, 7, 3);
+  spot.castShadow = true;
+  scene.add(spot);
+  if (Number.isFinite(environmentHdri?.environmentIntensity)) {
+    ambient.intensity *= environmentHdri.environmentIntensity;
+  }
+  if (Number.isFinite(environmentHdri?.spotIntensity)) {
+    spot.intensity *= environmentHdri.spotIntensity;
+  }
+
   let environmentCleanup = null;
   if (environmentHdri) {
     loadPolyHavenHdriEnvironment(renderer, environmentHdri).then((result) => {
@@ -2200,6 +2224,13 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
       };
     });
   }
+  const rim = new THREE.PointLight(
+    toThreeColor(lightsTheme.rim, 0x33ccff),
+    Number.isFinite(lightsTheme.rimIntensity) ? lightsTheme.rimIntensity : 1.728
+  );
+  rim.position.set(-4, 3, -4);
+  scene.add(rim);
+
   const arenaGroup = new THREE.Group();
   scene.add(arenaGroup);
 
@@ -2215,6 +2246,32 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   arenaGroup.add(floor);
+
+  const carpet = new THREE.Mesh(
+    new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 2.2, 64),
+    createArenaCarpetMaterial(
+      toThreeColor(arenaTheme.carpet?.primary, '#0f172a'),
+      toThreeColor(arenaTheme.carpet?.accent, '#1e3a8a')
+    )
+  );
+  carpet.rotation.x = -Math.PI / 2;
+  carpet.position.y = 0.01;
+  carpet.receiveShadow = true;
+  arenaGroup.add(carpet);
+
+  const wall = new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      TABLE_RADIUS * ARENA_GROWTH * 2.4,
+      TABLE_RADIUS * ARENA_GROWTH * 2.6,
+      ARENA_WALL_HEIGHT,
+      32,
+      1,
+      true
+    ),
+    createArenaWallMaterial(arenaTheme.wall?.base ?? '#1f2937', arenaTheme.wall?.accent ?? '#64748b')
+  );
+  wall.position.y = ARENA_WALL_CENTER_Y;
+  arenaGroup.add(wall);
 
   const woodOption = TABLE_WOOD_OPTIONS[DEFAULT_TABLE_CUSTOMIZATION.tableWood] ?? TABLE_WOOD_OPTIONS[0];
   const clothOption = TABLE_CLOTH_OPTIONS[DEFAULT_TABLE_CUSTOMIZATION.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
@@ -2403,9 +2460,14 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     });
     if (tableInfo?.dispose) tableInfo.dispose();
     environmentCleanup?.();
+    scene.remove(ambient, spot, rim);
     floor.geometry.dispose();
     floor.material.map?.dispose?.();
     floor.material.dispose();
+    carpet.geometry.dispose();
+    carpet.material.dispose();
+    wall.geometry.dispose();
+    wall.material.dispose();
     arenaGroup.parent?.remove(arenaGroup);
   });
 
@@ -2741,6 +2803,31 @@ function buildSnakeBoard(
     diceSet.push(die);
   }
   boardRoot.add(diceGroup);
+
+  const diceLightTarget = new THREE.Object3D();
+  diceLightTarget.position.set(0, diceBaseY, diceAnchorZ);
+  boardRoot.add(diceLightTarget);
+
+  const diceAccent = new THREE.SpotLight(
+    toThreeColor(diceTheme.rim, 0xfff1c1),
+    2.25,
+    RAW_BOARD_SIZE * 1.2,
+    Math.PI / 5,
+    0.42,
+    1.25
+  );
+  diceAccent.userData.offset = new THREE.Vector3(DICE_SIZE * 2.6, DICE_SIZE * 7.5, DICE_SIZE * 3.4);
+  diceAccent.target = diceLightTarget;
+  boardRoot.add(diceAccent);
+
+  const diceFill = new THREE.PointLight(
+    toThreeColor(diceTheme.body, 0xffe4a3),
+    1.18,
+    RAW_BOARD_SIZE * 0.9,
+    2.2
+  );
+  diceFill.userData.offset = new THREE.Vector3(-DICE_SIZE * 3.2, DICE_SIZE * 6.2, -DICE_SIZE * 3.6);
+  boardRoot.add(diceFill);
 
   disposeHandlers.push(() => {
     platformMeshes.forEach((mesh) => {
