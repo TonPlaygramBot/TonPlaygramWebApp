@@ -172,7 +172,7 @@ const BOARD_COLOR_BASE_OPTIONS = Object.freeze([
   }
 ]);
 
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k', '2k']);
 const CHESS_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
   label: `${variant.name} HDRI`
@@ -238,7 +238,7 @@ const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
 const CAMERA_TOPDOWN_LOCK = THREE.MathUtils.degToRad(4);
-const DEFAULT_TARGET_FPS = 120;
+const DEFAULT_TARGET_FPS = 90;
 const MIN_TARGET_FPS = 50;
 const MAX_TARGET_FPS = 144;
 const DEFAULT_RENDER_PIXEL_RATIO_CAP = 1.25;
@@ -379,7 +379,7 @@ const GRAPHICS_OPTIONS = Object.freeze([
     description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
   }
 ]);
-const DEFAULT_GRAPHICS_ID = 'uhd120';
+const DEFAULT_GRAPHICS_ID = 'fhd60';
 
 function resolveDefaultGraphicsId() {
   const hint = detectRefreshRateHint();
