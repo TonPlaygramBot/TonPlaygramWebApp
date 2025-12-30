@@ -180,11 +180,9 @@ const DOMINO_TYPE_LABELS = {
   tableWood: 'Table Wood',
   tableCloth: 'Table Cloth',
   tableBase: 'Table Base',
-  tables: 'Table Models',
   dominoStyle: 'Domino Styles',
   highlightStyle: 'Highlights',
-  chairTheme: 'Chairs',
-  environmentHdri: 'HDR Environments'
+  chairTheme: 'Chairs'
 };
 
 const SNAKE_TYPE_LABELS = {
