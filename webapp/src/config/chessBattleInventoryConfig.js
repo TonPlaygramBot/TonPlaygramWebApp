@@ -1,16 +1,9 @@
-import {
-  TABLE_WOOD_OPTIONS,
-  TABLE_CLOTH_OPTIONS,
-  TABLE_BASE_OPTIONS
-} from '../utils/tableCustomizationOptions.js';
-import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS
 } from './poolRoyaleInventoryConfig.js';
 
-const DEFAULT_TABLE_SHAPE_ID = TABLE_SHAPE_OPTIONS.find((opt) => opt.id !== 'diamondEdge')?.id;
 const DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id;
 
 const BASE_CHAIR_OPTIONS = [
@@ -72,12 +65,8 @@ export const CHESS_CHAIR_OPTIONS = Object.freeze([
 export const CHESS_TABLE_OPTIONS = Object.freeze([...MURLAN_TABLE_THEMES]);
 
 export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
-  tableWood: [TABLE_WOOD_OPTIONS[0]?.id],
-  tableCloth: [TABLE_CLOTH_OPTIONS[0]?.id],
-  tableBase: [TABLE_BASE_OPTIONS[0]?.id],
   chairColor: [CHESS_CHAIR_OPTIONS[0]?.id],
   tables: [CHESS_TABLE_OPTIONS[0]?.id],
-  tableShape: [DEFAULT_TABLE_SHAPE_ID],
   sideColor: ['amberGlow', 'mintVale'],
   boardTheme: ['classic'],
   headStyle: ['current'],
@@ -85,24 +74,6 @@ export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
 });
 
 export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
-  tableWood: Object.freeze(
-    TABLE_WOOD_OPTIONS.reduce((acc, option) => {
-      acc[option.id] = option.label;
-      return acc;
-    }, {})
-  ),
-  tableCloth: Object.freeze(
-    TABLE_CLOTH_OPTIONS.reduce((acc, option) => {
-      acc[option.id] = option.label;
-      return acc;
-    }, {})
-  ),
-  tableBase: Object.freeze(
-    TABLE_BASE_OPTIONS.reduce((acc, option) => {
-      acc[option.id] = option.label;
-      return acc;
-    }, {})
-  ),
   chairColor: Object.freeze(
     CHESS_CHAIR_OPTIONS.reduce((acc, option) => {
       acc[option.id] = option.label;
@@ -111,12 +82,6 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
   ),
   tables: Object.freeze(
     CHESS_TABLE_OPTIONS.reduce((acc, option) => {
-      acc[option.id] = option.label;
-      return acc;
-    }, {})
-  ),
-  tableShape: Object.freeze(
-    TABLE_SHAPE_OPTIONS.reduce((acc, option) => {
       acc[option.id] = option.label;
       return acc;
     }, {})
@@ -158,30 +123,6 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
 });
 
 export const CHESS_BATTLE_STORE_ITEMS = [
-  ...TABLE_WOOD_OPTIONS.slice(1).map((option, idx) => ({
-    id: `chess-wood-${option.id}`,
-    type: 'tableWood',
-    optionId: option.id,
-    name: option.label,
-    price: 520 + idx * 40,
-    description: 'Unlock an alternate table wood finish for Chess Battle Royal.'
-  })),
-  ...TABLE_CLOTH_OPTIONS.slice(1).map((option, idx) => ({
-    id: `chess-cloth-${option.id}`,
-    type: 'tableCloth',
-    optionId: option.id,
-    name: option.label,
-    price: 360 + idx * 30,
-    description: 'Swap in a new premium cloth hue for your chess arena.'
-  })),
-  ...TABLE_BASE_OPTIONS.slice(1).map((option, idx) => ({
-    id: `chess-base-${option.id}`,
-    type: 'tableBase',
-    optionId: option.id,
-    name: option.label,
-    price: 410 + idx * 35,
-    description: 'Upgrade the pedestal finish beneath your chess board.'
-  })),
   ...CHESS_TABLE_OPTIONS.slice(1).map((theme, idx) => ({
     id: `chess-table-${theme.id}`,
     type: 'tables',
@@ -204,7 +145,6 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     thumbnail: option.thumbnail,
     previewShape: 'chair'
   })),
-  { id: 'chess-shape-oval', type: 'tableShape', optionId: 'grandOval', name: 'Grand Oval Shape', price: 640, description: 'Smooth oval table outline for the chess board.' },
   { id: 'chess-side-marble', type: 'sideColor', optionId: 'marble', name: 'Marble Pieces', price: 1400, description: 'Premium marble-inspired pieces for either side.' },
   { id: 'chess-side-forest', type: 'sideColor', optionId: 'darkForest', name: 'Dark Forest Pieces', price: 1300, description: 'Deep forest hue pieces with luxe accents.' },
   { id: 'chess-side-royal', type: 'sideColor', optionId: 'royalWave', name: 'Royal Wave Pieces', price: 420, description: 'Royal blue quick-select palette.' },
@@ -234,12 +174,8 @@ export const CHESS_BATTLE_STORE_ITEMS = [
 ];
 
 export const CHESS_BATTLE_DEFAULT_LOADOUT = [
-  { type: 'tableWood', optionId: TABLE_WOOD_OPTIONS[0]?.id, label: TABLE_WOOD_OPTIONS[0]?.label },
-  { type: 'tableCloth', optionId: TABLE_CLOTH_OPTIONS[0]?.id, label: TABLE_CLOTH_OPTIONS[0]?.label },
-  { type: 'tableBase', optionId: TABLE_BASE_OPTIONS[0]?.id, label: TABLE_BASE_OPTIONS[0]?.label },
   { type: 'tables', optionId: CHESS_TABLE_OPTIONS[0]?.id, label: CHESS_TABLE_OPTIONS[0]?.label },
   { type: 'chairColor', optionId: CHESS_CHAIR_OPTIONS[0]?.id, label: CHESS_CHAIR_OPTIONS[0]?.label },
-  { type: 'tableShape', optionId: DEFAULT_TABLE_SHAPE_ID, label: CHESS_BATTLE_OPTION_LABELS.tableShape[DEFAULT_TABLE_SHAPE_ID] },
   { type: 'sideColor', optionId: 'amberGlow', label: 'Amber Glow Pieces' },
   { type: 'sideColor', optionId: 'mintVale', label: 'Mint Vale Pieces' },
   { type: 'boardTheme', optionId: 'classic', label: 'Classic Board' },
