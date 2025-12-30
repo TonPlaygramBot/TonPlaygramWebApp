@@ -33,7 +33,12 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
   loftPhotoStudioHall: { cameraHeightM: 1.54, groundRadiusMultiplier: 4.6, groundResolution: 120 },
   londonPhotoStudioHall: { cameraHeightM: 1.56, groundRadiusMultiplier: 4.8, groundResolution: 120 },
   schoolHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.6, groundResolution: 112 },
-  countryStudioHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.5, groundResolution: 112 }
+  countryStudioHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.5, groundResolution: 112 },
+  arenaGrandstand: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.4, groundResolution: 112 },
+  arenaRally: { cameraHeightM: 1.62, groundRadiusMultiplier: 5.6, groundResolution: 112 },
+  arenaSpotlight: { cameraHeightM: 1.58, groundRadiusMultiplier: 5.2, groundResolution: 112 },
+  arenaPulse: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.5, groundResolution: 112 },
+  arenaEcho: { cameraHeightM: 1.62, groundRadiusMultiplier: 5.7, groundResolution: 112 }
 });
 
 const RAW_POOL_ROYALE_HDRI_VARIANTS = [
@@ -470,6 +475,86 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1.02,
     swatches: ['#f472b6', '#16a34a'],
     description: 'Cozy country hall with warm wood bounce and soft window key light.'
+  },
+  {
+    id: 'arenaGrandstand',
+    name: 'Arena Grandstand',
+    assetId: 'ballroom',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2260,
+    exposure: 1.18,
+    environmentIntensity: 1.12,
+    backgroundIntensity: 1.05,
+    swatches: ['#fbbf24', '#0ea5e9'],
+    motionSpeed: 0.012,
+    ambientSound: '/assets/sounds/football-crowd-3-69245.mp3',
+    ambientVolume: 0.38,
+    description: 'Grandstand arena glow with a slow crowd sweep and moving rim highlights.'
+  },
+  {
+    id: 'arenaRally',
+    name: 'Arena Rally',
+    assetId: 'dancing_hall',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2310,
+    exposure: 1.16,
+    environmentIntensity: 1.14,
+    backgroundIntensity: 1.06,
+    swatches: ['#22c55e', '#0ea5e9'],
+    motionSpeed: 0.014,
+    ambientSound: '/assets/sounds/crowd-cheering-383111.mp3',
+    ambientVolume: 0.34,
+    description: 'Packed public hall with a rally-ready sweep across the upper decks.'
+  },
+  {
+    id: 'arenaSpotlight',
+    name: 'Arena Spotlight',
+    assetId: 'cinema_hall',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2360,
+    exposure: 1.2,
+    environmentIntensity: 1.16,
+    backgroundIntensity: 1.08,
+    swatches: ['#f59e0b', '#111827'],
+    motionSpeed: 0.011,
+    ambientSound: '/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3',
+    ambientVolume: 0.32,
+    description: 'Spotlit arena tiers with rotating glow and victory roar layers.'
+  },
+  {
+    id: 'arenaPulse',
+    name: 'Arena Pulse',
+    assetId: 'events_hall_interior',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2390,
+    exposure: 1.15,
+    environmentIntensity: 1.12,
+    backgroundIntensity: 1.04,
+    swatches: ['#a855f7', '#38bdf8'],
+    motionSpeed: 0.016,
+    ambientSound: '/assets/sounds/crowd-shocked-reaction-352766.mp3',
+    ambientVolume: 0.33,
+    description: 'Event arena pulse with rotating banners and electric crowd stings.'
+  },
+  {
+    id: 'arenaEcho',
+    name: 'Arena Echo',
+    assetId: 'leadenhall_market',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2420,
+    exposure: 1.17,
+    environmentIntensity: 1.1,
+    backgroundIntensity: 1.04,
+    swatches: ['#f97316', '#1d4ed8'],
+    motionSpeed: 0.013,
+    ambientSound: '/assets/sounds/football-crowd-3-69245.mp3',
+    ambientVolume: 0.36,
+    description: 'Echoing arena concourse with slow rotational sweep and crowd ambience.'
   }
 ];
 

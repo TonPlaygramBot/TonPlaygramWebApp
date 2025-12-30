@@ -66,6 +66,12 @@ import {
 } from '../../utils/poolRoyaleTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 
+const AMBIENT_SOUND_PATHS = Array.from(
+  new Set(
+    POOL_ROYALE_HDRI_VARIANTS.map((variant) => variant.ambientSound).filter(Boolean)
+  )
+);
+
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
   if (!valid.length) return [];
@@ -10042,6 +10048,18 @@ function PoolRoyaleGame({
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
     }
   }, [activeEnvironmentHdri, environmentHdriId]);
+  useEffect(() => {
+    const ambientPath = activeEnvironmentHdri?.ambientSound;
+    const ambientVolume =
+      typeof activeEnvironmentHdri?.ambientVolume === 'number'
+        ? activeEnvironmentHdri.ambientVolume
+        : 0.32;
+    if (ambientPath) {
+      playAmbientSound(ambientPath, ambientVolume);
+    } else {
+      stopAmbientSound();
+    }
+  }, [activeEnvironmentHdri, playAmbientSound, stopAmbientSound]);
   const tableFinish = useMemo(() => {
     const baseFinish =
       TABLE_FINISHES[tableFinishId] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
@@ -10530,6 +10548,7 @@ const powerRef = useRef(hud.power);
   const envTextureRef = useRef(null);
   const envSkyboxRef = useRef(null);
   const envSkyboxTextureRef = useRef(null);
+  const envSkyboxRotationRef = useRef(0);
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
@@ -10676,9 +10695,12 @@ const powerRef = useRef(hud.power);
     pocket: null,
     knock: null,
     cheer: null,
-    shock: null
+    shock: null,
+    ambient: {}
   });
   const activeCrowdSoundRef = useRef(null);
+  const activeAmbientSoundRef = useRef(null);
+  const activeAmbientPathRef = useRef(null);
   const muteRef = useRef(isGameMuted());
   const volumeRef = useRef(getGameVolume());
   const railSoundTimeRef = useRef(new Map());
@@ -10709,6 +10731,17 @@ const powerRef = useRef(hud.power);
       } catch {}
       activeCrowdSoundRef.current = null;
     }
+  }, []);
+
+  const stopAmbientSound = useCallback(() => {
+    const current = activeAmbientSoundRef.current;
+    if (current) {
+      try {
+        current.stop();
+      } catch {}
+      activeAmbientSoundRef.current = null;
+    }
+    activeAmbientPathRef.current = null;
   }, []);
 
   const selectCueStyleFromMenu = useCallback(
@@ -10857,6 +10890,40 @@ const powerRef = useRef(hud.power);
     },
     [stopActiveCrowdSound]
   );
+
+  const playAmbientSound = useCallback(
+    (path, vol = 0.32) => {
+      const ctx = audioContextRef.current;
+      if (!ctx || muteRef.current || !path) {
+        stopAmbientSound();
+        return;
+      }
+      if (activeAmbientPathRef.current === path && activeAmbientSoundRef.current) return;
+      const buffer = audioBuffersRef.current.ambient?.[path];
+      if (!buffer) return;
+      stopAmbientSound();
+      const scaled = clamp(vol * volumeRef.current, 0, 1);
+      if (scaled <= 0) return;
+      ctx.resume().catch(() => {});
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      const gain = ctx.createGain();
+      gain.gain.value = scaled;
+      source.connect(gain);
+      routeAudioNode(gain);
+      source.start(0);
+      activeAmbientSoundRef.current = source;
+      activeAmbientPathRef.current = path;
+      source.onended = () => {
+        if (activeAmbientSoundRef.current === source) {
+          activeAmbientSoundRef.current = null;
+          activeAmbientPathRef.current = null;
+        }
+      };
+    },
+    [routeAudioNode, stopAmbientSound]
+  );
   useEffect(() => {
     document.title = 'Pool Royale 3D';
   }, []);
@@ -10911,7 +10978,10 @@ const powerRef = useRef(hud.power);
     volumeRef.current = getGameVolume();
     const handleMute = () => {
       muteRef.current = isGameMuted();
-      if (muteRef.current) stopActiveCrowdSound();
+      if (muteRef.current) {
+        stopActiveCrowdSound();
+        stopAmbientSound();
+      }
     };
     const handleVolume = () => {
       volumeRef.current = getGameVolume();
@@ -10922,7 +10992,7 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('gameMuteChanged', handleMute);
       window.removeEventListener('gameVolumeChanged', handleVolume);
     };
-  }, [stopActiveCrowdSound]);
+  }, [stopActiveCrowdSound, stopAmbientSound]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -10950,6 +11020,7 @@ const powerRef = useRef(hud.power);
         ['shock', '/assets/sounds/crowd-shocked-reaction-352766.mp3']
       ];
       const loaded = {};
+      const loadedAmbient = {};
       for (const [key, path] of entries) {
         try {
           const buffer = await loadBuffer(path);
@@ -10958,25 +11029,47 @@ const powerRef = useRef(hud.power);
           console.warn('Pool audio load failed:', key, err);
         }
       }
+      for (const path of AMBIENT_SOUND_PATHS) {
+        try {
+          const buffer = await loadBuffer(path);
+          if (!cancelled) loadedAmbient[path] = buffer;
+        } catch (err) {
+          console.warn('Pool ambient load failed:', path, err);
+        }
+      }
       if (!cancelled) {
-        audioBuffersRef.current = { ...audioBuffersRef.current, ...loaded };
+        audioBuffersRef.current = {
+          ...audioBuffersRef.current,
+          ...loaded,
+          ambient: { ...audioBuffersRef.current.ambient, ...loadedAmbient }
+        };
+        const currentVariant = activeEnvironmentVariantRef.current;
+        if (currentVariant?.ambientSound) {
+          const ambientVolume =
+            typeof currentVariant.ambientVolume === 'number'
+              ? currentVariant.ambientVolume
+              : 0.32;
+          playAmbientSound(currentVariant.ambientSound, ambientVolume);
+        }
       }
     })();
     return () => {
       cancelled = true;
       stopActiveCrowdSound();
+      stopAmbientSound();
       audioBuffersRef.current = {
         cue: null,
         ball: null,
         pocket: null,
         knock: null,
         cheer: null,
-        shock: null
+        shock: null,
+        ambient: {}
       };
       audioContextRef.current = null;
       ctx.close().catch(() => {});
     };
-  }, [stopActiveCrowdSound]);
+  }, [playAmbientSound, stopActiveCrowdSound, stopAmbientSound]);
   const formatBallOnLabel = useCallback(
     (rawList = []) => {
       const normalized = rawList
@@ -11521,6 +11614,10 @@ const powerRef = useRef(hud.power);
             skybox = new GroundedSkybox(skyboxMap, skyboxHeight, skyboxRadius, skyboxResolution);
             skybox.position.y = floorWorldY + skyboxHeight;
             skybox.material.depthWrite = false;
+            const initialRotation =
+              typeof activeVariant?.motionRotation === 'number' ? activeVariant.motionRotation : 0;
+            skybox.rotation.y = initialRotation;
+            envSkyboxRotationRef.current = initialRotation;
             sceneInstance.background = null;
             sceneInstance.add(skybox);
             envSkyboxRef.current = skybox;
@@ -19031,6 +19128,13 @@ const powerRef = useRef(hud.power);
         const deltaMs = Math.min(rawDelta, maxFrameTime);
         const appliedDeltaMs = deltaMs;
         const deltaSeconds = appliedDeltaMs / 1000;
+        const envSkybox = envSkyboxRef.current;
+        const motionSpeed = activeEnvironmentVariantRef.current?.motionSpeed ?? 0;
+        if (envSkybox && motionSpeed) {
+          const nextRotation = envSkyboxRotationRef.current + motionSpeed * deltaSeconds;
+          envSkyboxRotationRef.current = nextRotation % (Math.PI * 2);
+          envSkybox.rotation.y = envSkyboxRotationRef.current;
+        }
         coinTicker.update(deltaSeconds);
         dynamicTextureEntries.forEach((entry) => {
           entry.accumulator += deltaSeconds;
