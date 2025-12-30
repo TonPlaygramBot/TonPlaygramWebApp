@@ -31,7 +31,6 @@ const tileableNoise = (x, y, width, height, scale, seed = 1) => {
 };
 
 const woodTextureLoader = new THREE.TextureLoader();
-woodTextureLoader.setCrossOrigin?.('anonymous');
 
 const makeSlabTexture = (width, height, hue, sat, light, contrast) => {
   const canvas = document.createElement('canvas');
@@ -185,10 +184,6 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
 const LARGE_SLAB_REPEAT_X = 0.009;
 const FRAME_SLAB_REPEAT_X = LARGE_SLAB_REPEAT_X * 1.18;
 
-const POLYHAVEN_TEXTURE_BASE = 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k';
-const getPolyhavenTextureUrl = (assetId) =>
-  `${POLYHAVEN_TEXTURE_BASE}/${assetId}/${assetId}_2K_Color.jpg`;
-
 export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
     id: 'acg_walnut_quarter',
@@ -218,125 +213,6 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       repeat: { x: FRAME_SLAB_REPEAT_X * 0.92, y: 0.9 },
       rotation: 0,
       textureSize: 4096
-    }
-  }),
-  Object.freeze({
-    id: 'ph_woodPeelingPaintWeathered',
-    label: 'Wood Peeling Paint Weathered',
-    source: 'Poly Haven — Wood Peeling Paint Weathered (CC0)',
-    rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X * 0.94, y: 0.88 },
-      rotation: 0,
-      textureSize: 4096,
-      mapUrl: getPolyhavenTextureUrl('WoodPeelingPaintWeathered')
-    },
-    frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X * 0.94, y: 0.86 },
-      rotation: 0,
-      textureSize: 4096,
-      mapUrl: getPolyhavenTextureUrl('WoodPeelingPaintWeathered')
-    }
-  }),
-  Object.freeze({
-    id: 'ph_oakVeneer01',
-    label: 'Oak Veneer 01',
-    source: 'Poly Haven — Oak Veneer 01 (CC0)',
-    rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X * 1.02, y: 0.92 },
-      rotation: 0,
-      textureSize: 4096,
-      mapUrl: getPolyhavenTextureUrl('OakVeneer01')
-    },
-    frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X * 1.02, y: 0.9 },
-      rotation: 0,
-      textureSize: 4096,
-      mapUrl: getPolyhavenTextureUrl('OakVeneer01')
-    }
-  }),
-  Object.freeze({
-    id: 'ph_woodTable001',
-    label: 'Wood Table 001',
-    source: 'Poly Haven — Wood Table 001 (CC0)',
-    rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X * 0.98, y: 0.9 },
-      rotation: 0,
-      textureSize: 4096,
-      mapUrl: getPolyhavenTextureUrl('WoodTable001')
-    },
-    frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X * 0.98, y: 0.88 },
-      rotation: 0,
-      textureSize: 4096,
-      mapUrl: getPolyhavenTextureUrl('WoodTable001')
-    }
-  }),
-  Object.freeze({
-    id: 'ph_darkWood',
-    label: 'Dark Wood',
-    source: 'Poly Haven — Dark Wood (CC0)',
-    rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X * 0.96, y: 0.9 },
-      rotation: 0,
-      textureSize: 4096,
-      mapUrl: getPolyhavenTextureUrl('DarkWood')
-    },
-    frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X * 0.96, y: 0.88 },
-      rotation: 0,
-      textureSize: 4096,
-      mapUrl: getPolyhavenTextureUrl('DarkWood')
-    }
-  }),
-  Object.freeze({
-    id: 'ph_rosewoodVeneer1',
-    label: 'Rosewood Veneer 1',
-    source: 'Poly Haven — Rosewood Veneer 1 (CC0)',
-    rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X * 1.04, y: 0.92 },
-      rotation: 0,
-      textureSize: 4096,
-      mapUrl: getPolyhavenTextureUrl('RosewoodVeneer1')
-    },
-    frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X * 1.04, y: 0.9 },
-      rotation: 0,
-      textureSize: 4096,
-      mapUrl: getPolyhavenTextureUrl('RosewoodVeneer1')
-    }
-  }),
-  Object.freeze({
-    id: 'ph_kitchenWood',
-    label: 'Kitchen Wood',
-    source: 'Poly Haven — Kitchen Wood (CC0)',
-    rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X * 1.02, y: 0.9 },
-      rotation: 0,
-      textureSize: 4096,
-      mapUrl: getPolyhavenTextureUrl('KitchenWood')
-    },
-    frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X * 1.02, y: 0.88 },
-      rotation: 0,
-      textureSize: 4096,
-      mapUrl: getPolyhavenTextureUrl('KitchenWood')
-    }
-  }),
-  Object.freeze({
-    id: 'ph_japaneseSycamore',
-    label: 'Japanese Sycamore',
-    source: 'Poly Haven — Japanese Sycamore (CC0)',
-    rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X * 1.06, y: 0.92 },
-      rotation: 0,
-      textureSize: 4096,
-      mapUrl: getPolyhavenTextureUrl('JapaneseSycamore')
-    },
-    frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X * 1.06, y: 0.9 },
-      rotation: 0,
-      textureSize: 4096,
-      mapUrl: getPolyhavenTextureUrl('JapaneseSycamore')
     }
   })
 ]);
@@ -588,3 +464,4 @@ export const disposeMaterialWithWood = (material) => {
     material.dispose();
   }
 };
+
