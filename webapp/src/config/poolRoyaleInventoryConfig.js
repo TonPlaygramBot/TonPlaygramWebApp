@@ -2,34 +2,21 @@ import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
 
 const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
   neonPhotostudio: { cameraHeightM: 1.52, groundRadiusMultiplier: 3.8, groundResolution: 120 },
-  studioSoftbox08: { cameraHeightM: 1.52, groundRadiusMultiplier: 3.7, groundResolution: 120 },
-  bronzePhotostudio: { cameraHeightM: 1.54, groundRadiusMultiplier: 3.9, groundResolution: 120 },
   adamsBridge: { cameraHeightM: 1.68, groundRadiusMultiplier: 6.5, groundResolution: 112 },
-  veniceSunset: { cameraHeightM: 1.68, groundRadiusMultiplier: 6.7, groundResolution: 112 },
-  modernRooftops: { cameraHeightM: 1.72, groundRadiusMultiplier: 7, groundResolution: 112 },
-  kloofendalClouds: { cameraHeightM: 1.66, groundRadiusMultiplier: 6.2, groundResolution: 104 },
   ballroomHall: { cameraHeightM: 1.58, groundRadiusMultiplier: 5.1, groundResolution: 112 },
-  rooftopNight: { cameraHeightM: 1.72, groundRadiusMultiplier: 7, groundResolution: 112 },
-  industrialSunset: { cameraHeightM: 1.7, groundRadiusMultiplier: 6.3, groundResolution: 112 },
-  snookerRoom: { cameraHeightM: 1.5, groundRadiusMultiplier: 4.4, groundResolution: 128 },
   emptyPlayRoom: { cameraHeightM: 1.5, groundRadiusMultiplier: 3.9, groundResolution: 120 },
   christmasPhotoStudio04: { cameraHeightM: 1.52, groundRadiusMultiplier: 3.9, groundResolution: 120 },
   billiardHall: { cameraHeightM: 1.54, groundRadiusMultiplier: 4.8, groundResolution: 128 },
   colorfulStudio: { cameraHeightM: 1.5, groundRadiusMultiplier: 4, groundResolution: 120 },
   dancingHall: { cameraHeightM: 1.58, groundRadiusMultiplier: 5, groundResolution: 112 },
   abandonedHall: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.2, groundResolution: 112 },
-  cinemaHall: { cameraHeightM: 1.58, groundRadiusMultiplier: 5, groundResolution: 112 },
   entranceHall: { cameraHeightM: 1.56, groundRadiusMultiplier: 4.8, groundResolution: 112 },
-  eventsHallInterior: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.3, groundResolution: 112 },
   hallOfFinfish: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.3, groundResolution: 112 },
   hallOfMammals: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.3, groundResolution: 112 },
-  leadenhallMarket: { cameraHeightM: 1.64, groundRadiusMultiplier: 6, groundResolution: 112 },
   marryHall: { cameraHeightM: 1.57, groundRadiusMultiplier: 4.9, groundResolution: 112 },
   mirroredHall: { cameraHeightM: 1.58, groundRadiusMultiplier: 5, groundResolution: 112 },
-  musicHall01: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.2, groundResolution: 112 },
   musicHall02: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.2, groundResolution: 112 },
   oldHall: { cameraHeightM: 1.58, groundRadiusMultiplier: 5, groundResolution: 112 },
-  broadwayPhotoStudioHall: { cameraHeightM: 1.54, groundRadiusMultiplier: 4.6, groundResolution: 120 },
   loftPhotoStudioHall: { cameraHeightM: 1.54, groundRadiusMultiplier: 4.6, groundResolution: 120 },
   londonPhotoStudioHall: { cameraHeightM: 1.56, groundRadiusMultiplier: 4.8, groundResolution: 120 },
   schoolHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.6, groundResolution: 112 },
@@ -51,32 +38,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     description: 'Vibrant cyber studio wrap with strong rim accents.'
   },
   {
-    id: 'studioSoftbox08',
-    name: 'Studio Softbox 08',
-    assetId: 'studio_small_08',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 1460,
-    exposure: 1.14,
-    environmentIntensity: 1.04,
-    backgroundIntensity: 1,
-    swatches: ['#cbd5e1', '#94a3b8'],
-    description: 'Neutral softbox studio with even wrap lighting.'
-  },
-  {
-    id: 'bronzePhotostudio',
-    name: 'Bronze Photo Loft',
-    assetId: 'brown_photostudio_02',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 1490,
-    exposure: 1.16,
-    environmentIntensity: 1.1,
-    backgroundIntensity: 1.04,
-    swatches: ['#f59e0b', '#b45309'],
-    description: 'Warm loft studio with bronze-toned reflectors.'
-  },
-  {
     id: 'adamsBridge',
     name: 'Adams Bridge',
     assetId: 'adams_place_bridge',
@@ -90,45 +51,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     description: 'Cool twilight bridge lighting with crisp specular pickup.'
   },
   {
-    id: 'veniceSunset',
-    name: 'Venice Sunset',
-    assetId: 'venice_sunset',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 1550,
-    exposure: 1.11,
-    environmentIntensity: 1.14,
-    backgroundIntensity: 1.06,
-    swatches: ['#f59e0b', '#ef4444'],
-    description: 'Golden-hour waterfront reflections with soft falloff.'
-  },
-  {
-    id: 'modernRooftops',
-    name: 'Modern Rooftops',
-    assetId: 'modern_buildings',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 1580,
-    exposure: 1.1,
-    environmentIntensity: 1.06,
-    backgroundIntensity: 0.98,
-    swatches: ['#22d3ee', '#0ea5e9'],
-    description: 'Reflective skyline mix for sleek chrome highlights.'
-  },
-  {
-    id: 'kloofendalClouds',
-    name: 'Kloofendal Clouds',
-    assetId: 'kloofendal_48d_partly_cloudy',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 1610,
-    exposure: 1.06,
-    environmentIntensity: 1.02,
-    backgroundIntensity: 0.96,
-    swatches: ['#0ea5e9', '#22c55e'],
-    description: 'Outdoor overcast balance for natural, even cloth response.'
-  },
-  {
     id: 'ballroomHall',
     name: 'Ballroom Hall',
     assetId: 'ballroom',
@@ -140,50 +62,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1.08,
     swatches: ['#fef3c7', '#a16207'],
     description: 'Grand hall ambience with chandeliers for polished highlights.'
-  },
-  {
-    id: 'rooftopNight',
-    name: 'Rooftop Night',
-    assetId: 'rooftop_night',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 1680,
-    exposure: 1.2,
-    environmentIntensity: 1.18,
-    backgroundIntensity: 1.12,
-    swatches: ['#0ea5e9', '#111827'],
-    description: 'Nocturnal rooftop glow with neon spill for chrome drama.'
-  },
-  {
-    id: 'industrialSunset',
-    name: 'Industrial Sunset',
-    assetId: 'industrial_sunset_02',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 1720,
-    exposure: 1.17,
-    environmentIntensity: 1.14,
-    backgroundIntensity: 1.06,
-    swatches: ['#f97316', '#1f2937'],
-    description: 'Rustic industrial dusk with warm rim and cool fill mix.'
-  },
-  {
-    id: 'snookerRoom',
-    name: 'Snooker Room',
-    assetUrls: {
-      '4k': 'https://public.blenderkit.com/assets/5484e9402a4c416da2c7f30a9912ca27/files/resolution_4K_5455ef52-a73c-4b55-bf22-a0a9378eb5eb.exr',
-      '2k': 'https://public.blenderkit.com/assets/5484e9402a4c416da2c7f30a9912ca27/files/resolution_2K_378ff822-6c29-4941-9bd1-74e05f220dae.exr',
-      '1k': 'https://public.blenderkit.com/assets/5484e9402a4c416da2c7f30a9912ca27/files/resolution_1K_110774df-afff-4216-aead-6d58b69e8c29.exr'
-    },
-    preferredResolutions: ['4k', '2k', '1k'],
-    fallbackResolution: '4k',
-    fallbackUrl: 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/billiard_hall_4k.hdr',
-    price: 1740,
-    exposure: 1.13,
-    environmentIntensity: 1.08,
-    backgroundIntensity: 1.04,
-    swatches: ['#22c55e', '#0ea5e9'],
-    description: 'BlenderKit free snooker hall mood with arcade-side fill.'
   },
   {
     id: 'emptyPlayRoom',
@@ -264,19 +142,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     description: 'Moody derelict hall with soft overhead spill and cool shadows.'
   },
   {
-    id: 'cinemaHall',
-    name: 'Cinema Hall',
-    assetId: 'cinema_hall',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 1880,
-    exposure: 1.11,
-    environmentIntensity: 1.07,
-    backgroundIntensity: 1.02,
-    swatches: ['#ef4444', '#111827'],
-    description: 'Cinematic auditorium lighting with rich red bounce and aisle glow.'
-  },
-  {
     id: 'entranceHall',
     name: 'Entrance Hall',
     assetId: 'entrance_hall',
@@ -288,19 +153,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1,
     swatches: ['#a3e635', '#22c55e'],
     description: 'Bright lobby ambience with balanced daylight fill and mild speculars.'
-  },
-  {
-    id: 'eventsHallInterior',
-    name: 'Events Hall Interior',
-    assetId: 'events_hall_interior',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 1920,
-    exposure: 1.13,
-    environmentIntensity: 1.08,
-    backgroundIntensity: 1.04,
-    swatches: ['#f59e0b', '#f97316'],
-    description: 'Warm event hall lighting with chandelier sheen and soft table reflections.'
   },
   {
     id: 'hallOfFinfish',
@@ -329,19 +181,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     description: 'Golden museum ambience with warm diorama bounce and soft roof fill.'
   },
   {
-    id: 'leadenhallMarket',
-    name: 'Leadenhall Market',
-    assetId: 'leadenhall_market',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 1980,
-    exposure: 1.14,
-    environmentIntensity: 1.12,
-    backgroundIntensity: 1.06,
-    swatches: ['#a855f7', '#0ea5e9'],
-    description: 'Historic market canopy with mixed warm and cool street reflections.'
-  },
-  {
     id: 'marryHall',
     name: 'Marry Hall',
     assetId: 'marry_hall',
@@ -368,19 +207,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     description: 'Reflective hall with bright symmetrical highlights for chrome polish.'
   },
   {
-    id: 'musicHall01',
-    name: 'Music Hall 01',
-    assetId: 'music_hall_01',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2040,
-    exposure: 1.09,
-    environmentIntensity: 1.06,
-    backgroundIntensity: 1.02,
-    swatches: ['#0ea5e9', '#9333ea'],
-    description: 'Concert hall fill with cool aisle lights and controlled stage bounce.'
-  },
-  {
     id: 'musicHall02',
     name: 'Music Hall 02',
     assetId: 'music_hall_02',
@@ -405,19 +231,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 0.99,
     swatches: ['#78350f', '#fbbf24'],
     description: 'Vintage hall ambience with warm wood bounce and subtle window fill.'
-  },
-  {
-    id: 'broadwayPhotoStudioHall',
-    name: 'Broadway Photo Studio Hall',
-    assetId: 'photo_studio_broadway_hall',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2100,
-    exposure: 1.13,
-    environmentIntensity: 1.09,
-    backgroundIntensity: 1.04,
-    swatches: ['#f472b6', '#0ea5e9'],
-    description: 'Studio hall with bright key lights and saturated accent gels.'
   },
   {
     id: 'loftPhotoStudioHall',
