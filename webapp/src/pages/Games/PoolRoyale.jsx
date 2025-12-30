@@ -4279,13 +4279,6 @@ const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const MIN_HDRI_RADIUS = 24;
 const HDRI_GROUNDED_RESOLUTION = 96;
-const HDRI_AMBIENT_SOUNDS = Object.freeze(
-  Array.from(
-    new Set(
-      POOL_ROYALE_HDRI_VARIANTS.map((variant) => variant?.ambientSound).filter(Boolean)
-    )
-  )
-);
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const urls = [];
@@ -10045,37 +10038,6 @@ function PoolRoyaleGame({
     activeEnvironmentVariantRef.current = activeEnvironmentHdri;
   }, [activeEnvironmentHdri, environmentHdriId]);
   useEffect(() => {
-    environmentMotionRef.current = {
-      rotationSpeed: Number.isFinite(activeEnvironmentHdri?.motionSpeed)
-        ? activeEnvironmentHdri.motionSpeed
-        : 0,
-      pulseSpeed: Number.isFinite(activeEnvironmentHdri?.pulseSpeed)
-        ? activeEnvironmentHdri.pulseSpeed
-        : 0,
-      pulseIntensity: Number.isFinite(activeEnvironmentHdri?.pulseIntensity)
-        ? activeEnvironmentHdri.pulseIntensity
-        : 0,
-      baseEnvironmentIntensity:
-        typeof activeEnvironmentHdri?.environmentIntensity === 'number'
-          ? activeEnvironmentHdri.environmentIntensity
-          : null,
-      baseBackgroundIntensity:
-        typeof activeEnvironmentHdri?.backgroundIntensity === 'number'
-          ? activeEnvironmentHdri.backgroundIntensity
-          : null,
-      backgroundPulseScale: Number.isFinite(activeEnvironmentHdri?.backgroundPulseScale)
-        ? activeEnvironmentHdri.backgroundPulseScale
-        : 0.6
-    };
-    activeAmbientVolumeRef.current =
-      Number.isFinite(activeEnvironmentHdri?.ambientVolume)
-        ? activeEnvironmentHdri.ambientVolume
-        : 0.2;
-  }, [activeEnvironmentHdri]);
-  useEffect(() => {
-    playAmbientSoundForVariant(activeEnvironmentHdri);
-  }, [activeEnvironmentHdri, ambientSoundReadyTick, playAmbientSoundForVariant]);
-  useEffect(() => {
     if (typeof updateEnvironmentRef.current === 'function') {
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
     }
@@ -10714,28 +10676,14 @@ const powerRef = useRef(hud.power);
     pocket: null,
     knock: null,
     cheer: null,
-    shock: null,
-    ambient: {}
+    shock: null
   });
   const activeCrowdSoundRef = useRef(null);
-  const activeAmbientSoundRef = useRef(null);
-  const activeAmbientGainRef = useRef(null);
-  const activeAmbientPathRef = useRef(null);
-  const activeAmbientVolumeRef = useRef(0.2);
   const muteRef = useRef(isGameMuted());
   const volumeRef = useRef(getGameVolume());
-  const [ambientSoundReadyTick, setAmbientSoundReadyTick] = useState(0);
   const railSoundTimeRef = useRef(new Map());
   const liftLandingTimeRef = useRef(new Map());
   const powerImpactHoldRef = useRef(0);
-  const environmentMotionRef = useRef({
-    rotationSpeed: 0,
-    pulseSpeed: 0,
-    pulseIntensity: 0,
-    baseEnvironmentIntensity: null,
-    baseBackgroundIntensity: null,
-    backgroundPulseScale: 0.6
-  });
   const [player, setPlayer] = useState({ name: '', avatar: '' });
   const playerInfoRef = useRef(player);
   useEffect(() => {
@@ -10763,18 +10711,6 @@ const powerRef = useRef(hud.power);
     }
   }, []);
 
-  const stopAmbientSound = useCallback(() => {
-    const current = activeAmbientSoundRef.current;
-    if (current) {
-      try {
-        current.stop();
-      } catch {}
-      activeAmbientSoundRef.current = null;
-    }
-    activeAmbientGainRef.current = null;
-    activeAmbientPathRef.current = null;
-  }, []);
-
   const selectCueStyleFromMenu = useCallback(
     async (index) => {
       const charged = await ensureCueFeePaid();
@@ -10799,61 +10735,6 @@ const powerRef = useRef(hud.power);
       node.connect(ctx.destination);
     } catch {}
   }, []);
-
-  const applyAmbientVolume = useCallback(() => {
-    const gain = activeAmbientGainRef.current;
-    if (!gain) return;
-    const volume = clamp(
-      volumeRef.current * (activeAmbientVolumeRef.current ?? 0),
-      0,
-      1
-    );
-    gain.gain.value = volume;
-  }, []);
-
-  const playAmbientSoundForVariant = useCallback(
-    (variant) => {
-      const path = variant?.ambientSound;
-      if (!path || muteRef.current) {
-        stopAmbientSound();
-        return;
-      }
-      const ctx = audioContextRef.current;
-      const buffer = audioBuffersRef.current.ambient?.[path];
-      if (!ctx || !buffer) {
-        stopAmbientSound();
-        return;
-      }
-      const volume =
-        Number.isFinite(variant?.ambientVolume) && variant.ambientVolume >= 0
-          ? variant.ambientVolume
-          : 0.2;
-      activeAmbientVolumeRef.current = volume;
-      if (activeAmbientPathRef.current === path && activeAmbientSoundRef.current) {
-        applyAmbientVolume();
-        return;
-      }
-      stopAmbientSound();
-      ctx.resume().catch(() => {});
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      const gain = ctx.createGain();
-      gain.gain.value = clamp(volumeRef.current * volume, 0, 1);
-      source.connect(gain);
-      routeAudioNode(gain);
-      source.start(0);
-      activeAmbientSoundRef.current = source;
-      activeAmbientGainRef.current = gain;
-      activeAmbientPathRef.current = path;
-      source.onended = () => {
-        if (activeAmbientSoundRef.current === source) {
-          activeAmbientSoundRef.current = null;
-        }
-      };
-    },
-    [applyAmbientVolume, routeAudioNode, stopAmbientSound]
-  );
 
   const playCueHit = useCallback((vol = 1) => {
     const ctx = audioContextRef.current;
@@ -11030,16 +10911,10 @@ const powerRef = useRef(hud.power);
     volumeRef.current = getGameVolume();
     const handleMute = () => {
       muteRef.current = isGameMuted();
-      if (muteRef.current) {
-        stopActiveCrowdSound();
-        stopAmbientSound();
-      } else {
-        playAmbientSoundForVariant(activeEnvironmentVariantRef.current);
-      }
+      if (muteRef.current) stopActiveCrowdSound();
     };
     const handleVolume = () => {
       volumeRef.current = getGameVolume();
-      applyAmbientVolume();
     };
     window.addEventListener('gameMuteChanged', handleMute);
     window.addEventListener('gameVolumeChanged', handleVolume);
@@ -11047,7 +10922,7 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('gameMuteChanged', handleMute);
       window.removeEventListener('gameVolumeChanged', handleVolume);
     };
-  }, [applyAmbientVolume, playAmbientSoundForVariant, stopActiveCrowdSound, stopAmbientSound]);
+  }, [stopActiveCrowdSound]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -11083,41 +10958,25 @@ const powerRef = useRef(hud.power);
           console.warn('Pool audio load failed:', key, err);
         }
       }
-      const ambientLoaded = {};
-      for (const path of HDRI_AMBIENT_SOUNDS) {
-        try {
-          const buffer = await loadBuffer(path);
-          if (!cancelled) ambientLoaded[path] = buffer;
-        } catch (err) {
-          console.warn('Pool ambient audio load failed:', path, err);
-        }
-      }
       if (!cancelled) {
-        audioBuffersRef.current = {
-          ...audioBuffersRef.current,
-          ...loaded,
-          ambient: { ...audioBuffersRef.current.ambient, ...ambientLoaded }
-        };
-        setAmbientSoundReadyTick((value) => value + 1);
+        audioBuffersRef.current = { ...audioBuffersRef.current, ...loaded };
       }
     })();
     return () => {
       cancelled = true;
       stopActiveCrowdSound();
-      stopAmbientSound();
       audioBuffersRef.current = {
         cue: null,
         ball: null,
         pocket: null,
         knock: null,
         cheer: null,
-        shock: null,
-        ambient: {}
+        shock: null
       };
       audioContextRef.current = null;
       ctx.close().catch(() => {});
     };
-  }, [stopActiveCrowdSound, stopAmbientSound]);
+  }, [stopActiveCrowdSound]);
   const formatBallOnLabel = useCallback(
     (rawList = []) => {
       const normalized = rawList
@@ -11662,7 +11521,6 @@ const powerRef = useRef(hud.power);
             skybox = new GroundedSkybox(skyboxMap, skyboxHeight, skyboxRadius, skyboxResolution);
             skybox.position.y = floorWorldY + skyboxHeight;
             skybox.material.depthWrite = false;
-            skybox.rotation.y = 0;
             sceneInstance.background = null;
             sceneInstance.add(skybox);
             envSkyboxRef.current = skybox;
@@ -19174,35 +19032,6 @@ const powerRef = useRef(hud.power);
         const appliedDeltaMs = deltaMs;
         const deltaSeconds = appliedDeltaMs / 1000;
         coinTicker.update(deltaSeconds);
-        const motion = environmentMotionRef.current;
-        if (motion) {
-          const skybox = envSkyboxRef.current;
-          if (skybox && motion.rotationSpeed) {
-            skybox.rotation.y += motion.rotationSpeed * deltaSeconds;
-          }
-          if (motion.pulseSpeed && motion.pulseIntensity) {
-            const sceneInstance = sceneRef.current;
-            if (sceneInstance) {
-              const baseEnvironmentIntensity =
-                typeof motion.baseEnvironmentIntensity === 'number'
-                  ? motion.baseEnvironmentIntensity
-                  : sceneInstance.environmentIntensity ?? 1;
-              const baseBackgroundIntensity =
-                typeof motion.baseBackgroundIntensity === 'number'
-                  ? motion.baseBackgroundIntensity
-                  : sceneInstance.backgroundIntensity ?? 1;
-              const pulse =
-                Math.sin(now * 0.001 * motion.pulseSpeed) * motion.pulseIntensity;
-              if ('environmentIntensity' in sceneInstance) {
-                sceneInstance.environmentIntensity = baseEnvironmentIntensity + pulse;
-              }
-              if ('backgroundIntensity' in sceneInstance) {
-                sceneInstance.backgroundIntensity =
-                  baseBackgroundIntensity + pulse * motion.backgroundPulseScale;
-              }
-            }
-          }
-        }
         dynamicTextureEntries.forEach((entry) => {
           entry.accumulator += deltaSeconds;
           if (entry.accumulator < entry.minInterval) {
