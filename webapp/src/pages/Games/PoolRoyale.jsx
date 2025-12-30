@@ -1221,8 +1221,9 @@ const TABLE_LIFT =
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
-const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension by 20% to lower the playfield
-const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE;
+const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
+const LEG_LENGTH_SHRINK = 0.85; // additional 15% trim to shorten the legs
+const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
 const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
 const BASE_LEG_ROOM_HEIGHT =
@@ -1878,9 +1879,8 @@ const WOOD_PRESETS_BY_ID = Object.freeze(
 );
 const DEFAULT_WOOD_PRESET_ID = 'walnut';
 
-// Pool Royale no longer exposes wood grain customization and should render the
-// rails as a plain material without any texture maps.
-const WOOD_TEXTURES_ENABLED = false;
+// Pool Royale keeps wood grain textures enabled for the original table finishes.
+const WOOD_TEXTURES_ENABLED = true;
 
 const DEFAULT_TABLE_FINISH_ID =
   POOL_ROYALE_DEFAULT_UNLOCKS.tableFinish?.[0] ?? 'charredTimber';
@@ -4416,11 +4416,33 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k']);
+const HDRI_RESOLUTION_STORAGE_KEY = 'poolHdriResolution';
+const DEFAULT_HDRI_RESOLUTION_MODE = 'auto';
+const HDRI_RESOLUTION_OPTIONS = Object.freeze([
+  { id: 'auto', label: 'Match Table' },
+  { id: '8k', label: '8K' },
+  { id: '4k', label: '4K' },
+  { id: '2k', label: '2K' }
+]);
+const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
+  HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const MIN_HDRI_RADIUS = 24;
 const HDRI_GROUNDED_RESOLUTION = 96;
+
+function resolveHdriResolutionForTable(tableSizeMeta) {
+  const widthMm = tableSizeMeta?.playfield?.widthMm;
+  if (Number.isFinite(widthMm) && widthMm >= 2540) {
+    return '8k';
+  }
+  return '4k';
+}
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const urls = [];
@@ -8316,7 +8338,7 @@ function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 1.02;
+  const railMarkerOutset = longRailW * 0.92;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -9451,6 +9473,15 @@ function PoolRoyaleGame({
       POOL_ROYALE_DEFAULT_HDRI_ID
     );
   });
+  const [hdriResolutionId, setHdriResolutionId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(HDRI_RESOLUTION_STORAGE_KEY);
+      if (stored && HDRI_RESOLUTION_OPTION_MAP[stored]) {
+        return stored;
+      }
+    }
+    return DEFAULT_HDRI_RESOLUTION_MODE;
+  });
   const [lightingId, setLightingId] = useState(() => DEFAULT_LIGHTING_ID);
   const [chromeColorId, setChromeColorId] = useState(() => {
     return resolveStoredSelection(
@@ -9479,6 +9510,12 @@ function PoolRoyaleGame({
       FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ??
       FRAME_RATE_OPTIONS[0],
     [frameRateId]
+  );
+  const activeHdriResolutionOption = useMemo(
+    () =>
+      HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId] ??
+      HDRI_RESOLUTION_OPTIONS[0],
+    [hdriResolutionId]
   );
   const frameQualityProfile = useMemo(() => {
     const option = activeFrameRateOption ?? FRAME_RATE_OPTIONS[0];
@@ -9574,12 +9611,39 @@ function PoolRoyaleGame({
       CLOTH_COLOR_OPTIONS[0],
     [availableClothOptions, clothColorId]
   );
+  const resolvedHdriResolution = useMemo(() => {
+    if (hdriResolutionId === 'auto') {
+      return resolveHdriResolutionForTable(responsiveTableSize);
+    }
+    if (HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]) {
+      return hdriResolutionId;
+    }
+    return resolveHdriResolutionForTable(responsiveTableSize);
+  }, [hdriResolutionId, responsiveTableSize]);
   const activeEnvironmentHdri = useMemo(
-    () =>
-      POOL_ROYALE_HDRI_VARIANT_MAP[environmentHdriId] ??
-      POOL_ROYALE_HDRI_VARIANT_MAP[POOL_ROYALE_DEFAULT_HDRI_ID] ??
-      POOL_ROYALE_HDRI_VARIANTS[0],
-    [environmentHdriId]
+    () => {
+      const variant =
+        POOL_ROYALE_HDRI_VARIANT_MAP[environmentHdriId] ??
+        POOL_ROYALE_HDRI_VARIANT_MAP[POOL_ROYALE_DEFAULT_HDRI_ID] ??
+        POOL_ROYALE_HDRI_VARIANTS[0];
+      if (!variant) return null;
+      const basePreferred =
+        Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
+          ? variant.preferredResolutions
+          : DEFAULT_HDRI_RESOLUTIONS;
+      const resolved = resolvedHdriResolution ?? basePreferred[0];
+      if (!resolved) return variant;
+      const preferredResolutions = [
+        resolved,
+        ...basePreferred.filter((res) => res !== resolved)
+      ];
+      return {
+        ...variant,
+        preferredResolutions,
+        fallbackResolution: resolved
+      };
+    },
+    [environmentHdriId, resolvedHdriResolution]
   );
   const activePocketLinerOption = useMemo(
     () =>
@@ -10170,6 +10234,10 @@ function PoolRoyaleGame({
   }, [environmentHdriId]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    window.localStorage.setItem(HDRI_RESOLUTION_STORAGE_KEY, hdriResolutionId);
+  }, [hdriResolutionId]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     window.localStorage.setItem(LIGHTING_STORAGE_KEY, lightingId);
   }, [lightingId]);
   useEffect(() => {
@@ -10205,10 +10273,10 @@ function PoolRoyaleGame({
         cloth: clothSelection.color,
         cushion: clothSelection.cushionColor ?? clothSelection.color
       },
-      woodTexture: null,
-      woodTextureEnabled: WOOD_TEXTURES_ENABLED,
-      woodTextureId: null,
-      woodRepeatScale: DEFAULT_WOOD_REPEAT_SCALE,
+      woodTexture: baseFinish?.woodTexture ?? null,
+      woodTextureEnabled: baseFinish?.woodTextureEnabled ?? WOOD_TEXTURES_ENABLED,
+      woodTextureId: baseFinish?.woodTextureId ?? null,
+      woodRepeatScale: baseFinish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE,
       createMaterials: () => {
         const baseMaterials = baseCreateMaterials();
         const materials = { ...baseMaterials };
@@ -21507,6 +21575,34 @@ const powerRef = useRef(hud.power);
                 <p className="mt-1 text-[0.7rem] text-white/70">
                   Match the Murlan Royale quality presets for identical FPS and clarity choices.
                 </p>
+                <div className="mt-3">
+                  <h4 className="text-[10px] uppercase tracking-[0.32em] text-emerald-100/70">
+                    HDRI Resolution
+                  </h4>
+                  <p className="mt-1 text-[0.7rem] text-white/60">
+                    Active: {resolvedHdriResolution?.toUpperCase() || activeHdriResolutionOption.label}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {HDRI_RESOLUTION_OPTIONS.map((option) => {
+                      const active = option.id === hdriResolutionId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setHdriResolutionId(option.id)}
+                          aria-pressed={active}
+                          className={`flex-1 min-w-[7.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <div className="mt-2 grid gap-2">
                   {FRAME_RATE_OPTIONS.map((option) => {
                     const active = option.id === frameRateId;
