@@ -55,6 +55,8 @@ const resolveHdriVariant = (index) => {
   return MURLAN_HDRI_OPTIONS[idx] ?? MURLAN_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? MURLAN_HDRI_OPTIONS[0];
 };
 
+const DEFAULT_FRAME_RATE_ID = 'uhd120';
+
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.3;
@@ -216,7 +218,7 @@ function resolveDefaultPixelRatioCap() {
 
 function detectPreferredFrameRateId() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return 'fhd60';
+    return DEFAULT_FRAME_RATE_ID;
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
@@ -247,7 +249,7 @@ function detectPreferredFrameRateId() {
     ) {
       return 'qhd90';
     }
-    return 'fhd60';
+    return DEFAULT_FRAME_RATE_ID;
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
@@ -258,7 +260,7 @@ function detectPreferredFrameRateId() {
     return 'qhd90';
   }
 
-  return 'fhd60';
+  return DEFAULT_FRAME_RATE_ID;
 }
 
 const CHAIR_MODEL_URLS = [
@@ -1160,7 +1162,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: '4K-oriented profile for 120 Hz flagships and desktops.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const DEFAULT_FRAME_RATE_OPTION =
+  FRAME_RATE_OPTIONS.find((opt) => opt.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
 const GAME_CONFIG = { ...BASE_CONFIG };
 const START_CARD = { rank: '3', suit: '♠' };
@@ -1221,15 +1224,15 @@ export default function MurlanRoyaleArena({ search }) {
         return detected;
       }
     }
-    return DEFAULT_FRAME_RATE_ID;
+    return DEFAULT_FRAME_RATE_ID || DEFAULT_FRAME_RATE_OPTION.id;
   });
   const activeFrameRateOption = useMemo(
-    () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? FRAME_RATE_OPTIONS[0],
+    () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
   );
   const frameQualityProfile = useMemo(() => {
-    const option = activeFrameRateOption ?? FRAME_RATE_OPTIONS[0];
-    const fallback = FRAME_RATE_OPTIONS[0];
+    const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
+    const fallback = DEFAULT_FRAME_RATE_OPTION;
     const fps =
       Number.isFinite(option?.fps) && option.fps > 0
         ? option.fps
@@ -1257,8 +1260,8 @@ export default function MurlanRoyaleArena({ search }) {
   }, [frameQualityProfile]);
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
-      Number.isFinite(FRAME_RATE_OPTIONS[0]?.fps) && FRAME_RATE_OPTIONS[0].fps > 0
-        ? FRAME_RATE_OPTIONS[0].fps
+      Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) && DEFAULT_FRAME_RATE_OPTION.fps > 0
+        ? DEFAULT_FRAME_RATE_OPTION.fps
         : 60;
     const fps =
       Number.isFinite(frameQualityProfile?.fps) && frameQualityProfile.fps > 0
@@ -1266,7 +1269,7 @@ export default function MurlanRoyaleArena({ search }) {
         : fallbackFps;
     const targetMs = 1000 / fps;
     return {
-      id: frameQualityProfile?.id ?? FRAME_RATE_OPTIONS[0]?.id ?? DEFAULT_FRAME_RATE_ID,
+      id: frameQualityProfile?.id ?? DEFAULT_FRAME_RATE_OPTION?.id ?? DEFAULT_FRAME_RATE_ID,
       fps,
       targetMs,
       maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
