@@ -120,6 +120,108 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundRadiusMultiplier: 4.5,
     groundResolution: 112,
     arenaScale: 1.18
+  },
+  blockyPhotoStudio: {
+    cameraHeightM: 1.5,
+    groundRadiusMultiplier: 3.9,
+    groundResolution: 120,
+    arenaScale: 1.14
+  },
+  bluePhotoStudio: {
+    cameraHeightM: 1.52,
+    groundRadiusMultiplier: 4,
+    groundResolution: 120,
+    arenaScale: 1.16
+  },
+  smallEmptyRoom: {
+    cameraHeightM: 1.48,
+    groundRadiusMultiplier: 3.7,
+    groundResolution: 128,
+    arenaScale: 1.12
+  },
+  lebombo: {
+    cameraHeightM: 1.62,
+    groundRadiusMultiplier: 5.4,
+    groundResolution: 112,
+    arenaScale: 1.3
+  },
+  cycloramaHardLight: {
+    cameraHeightM: 1.5,
+    groundRadiusMultiplier: 3.8,
+    groundResolution: 120,
+    arenaScale: 1.15
+  },
+  brownPhotostudio06: {
+    cameraHeightM: 1.51,
+    groundRadiusMultiplier: 4,
+    groundResolution: 120,
+    arenaScale: 1.15
+  },
+  christmasPhotoStudio05: {
+    cameraHeightM: 1.52,
+    groundRadiusMultiplier: 3.9,
+    groundResolution: 120,
+    arenaScale: 1.15
+  },
+  abandonedGarage: {
+    cameraHeightM: 1.6,
+    groundRadiusMultiplier: 5.1,
+    groundResolution: 112,
+    arenaScale: 1.26
+  },
+  vestibule: {
+    cameraHeightM: 1.56,
+    groundRadiusMultiplier: 4.7,
+    groundResolution: 112,
+    arenaScale: 1.2
+  },
+  countryClub: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 4.9,
+    groundResolution: 112,
+    arenaScale: 1.24
+  },
+  brownPhotostudio03: {
+    cameraHeightM: 1.5,
+    groundRadiusMultiplier: 3.9,
+    groundResolution: 120,
+    arenaScale: 1.14
+  },
+  aftLounge: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 5,
+    groundResolution: 112,
+    arenaScale: 1.26
+  },
+  sepulchralChapelRotunda: {
+    cameraHeightM: 1.62,
+    groundRadiusMultiplier: 5.6,
+    groundResolution: 112,
+    arenaScale: 1.32
+  },
+  smallEmptyRoom2: {
+    cameraHeightM: 1.48,
+    groundRadiusMultiplier: 3.7,
+    groundResolution: 128,
+    arenaScale: 1.12
+  },
+  squashCourt: {
+    cameraHeightM: 1.5,
+    groundRadiusMultiplier: 4.1,
+    groundResolution: 120,
+    arenaScale: 1.18
+  },
+  garage: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 4.9,
+    groundResolution: 112,
+    arenaScale: 1.24
+  },
+  smallEmptyHouse: {
+    cameraHeightM: 1.5,
+    groundRadiusMultiplier: 4,
+    groundResolution: 120,
+    arenaScale: 1.16
   }
 });
 
@@ -383,6 +485,227 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1.02,
     swatches: ['#f472b6', '#16a34a'],
     description: 'Cozy country hall with warm wood bounce and soft window key light.'
+  },
+  {
+    id: 'blockyPhotoStudio',
+    name: 'Blocky Photo Studio',
+    assetId: 'blocky_photo_studio',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2200,
+    exposure: 1.12,
+    environmentIntensity: 1.1,
+    backgroundIntensity: 1.05,
+    swatches: ['#60a5fa', '#a855f7'],
+    description: 'Graphic studio blocks with crisp edges and balanced bounce.'
+  },
+  {
+    id: 'bluePhotoStudio',
+    name: 'Blue Photo Studio',
+    assetId: 'blue_photo_studio',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2220,
+    exposure: 1.13,
+    environmentIntensity: 1.11,
+    backgroundIntensity: 1.06,
+    swatches: ['#38bdf8', '#1e40af'],
+    description: 'Cool blue studio lighting with bright fills and soft kickers.'
+  },
+  {
+    id: 'smallEmptyRoom',
+    name: 'Small Empty Room',
+    assetId: 'small_empty_room',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2240,
+    exposure: 1.08,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 1,
+    swatches: ['#cbd5f5', '#94a3b8'],
+    description: 'Minimal interior light with subtle reflections and quiet ambience.'
+  },
+  {
+    id: 'lebombo',
+    name: 'Lebombo',
+    assetId: 'lebombo',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2320,
+    exposure: 1.09,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1.01,
+    swatches: ['#84cc16', '#f97316'],
+    description: 'Outdoor rocky landscape with warm sun highlights and open sky fill.'
+  },
+  {
+    id: 'cycloramaHardLight',
+    name: 'Cyclorama Hard Light',
+    assetId: 'cyclorama_hard_light',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2260,
+    exposure: 1.16,
+    environmentIntensity: 1.12,
+    backgroundIntensity: 1.08,
+    swatches: ['#f8fafc', '#94a3b8'],
+    description: 'Studio cyc with punchy hard light and sharp specular falloff.'
+  },
+  {
+    id: 'brownPhotostudio06',
+    name: 'Brown Photostudio 06',
+    assetId: 'brown_photostudio_06',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2280,
+    exposure: 1.11,
+    environmentIntensity: 1.07,
+    backgroundIntensity: 1.03,
+    swatches: ['#a16207', '#f59e0b'],
+    description: 'Warm brown studio wrap with soft amber highlights.'
+  },
+  {
+    id: 'christmasPhotoStudio05',
+    name: 'Christmas Photo Studio 05',
+    assetId: 'christmas_photo_studio_05',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2300,
+    exposure: 1.13,
+    environmentIntensity: 1.1,
+    backgroundIntensity: 1.05,
+    swatches: ['#ef4444', '#22c55e'],
+    description: 'Holiday studio glow with warm reds and festive green accents.'
+  },
+  {
+    id: 'abandonedGarage',
+    name: 'Abandoned Garage',
+    assetId: 'abandoned_garage',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2340,
+    exposure: 1.07,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 0.98,
+    swatches: ['#334155', '#94a3b8'],
+    description: 'Gritty garage mood with diffused skylight and cool steel reflections.'
+  },
+  {
+    id: 'vestibule',
+    name: 'Vestibule',
+    assetId: 'vestibule',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2360,
+    exposure: 1.1,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.02,
+    swatches: ['#e2e8f0', '#64748b'],
+    description: 'Elegant entry lighting with neutral stone bounce and soft fill.'
+  },
+  {
+    id: 'countryClub',
+    name: 'Country Club',
+    assetId: 'country_club',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2380,
+    exposure: 1.11,
+    environmentIntensity: 1.08,
+    backgroundIntensity: 1.03,
+    swatches: ['#f8fafc', '#22c55e'],
+    description: 'Upscale lounge ambience with bright daylight and warm interiors.'
+  },
+  {
+    id: 'brownPhotostudio03',
+    name: 'Brown Photostudio 03',
+    assetId: 'brown_photostudio_03',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2400,
+    exposure: 1.1,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.02,
+    swatches: ['#92400e', '#fbbf24'],
+    description: 'Rich brown studio tones with smooth amber reflections.'
+  },
+  {
+    id: 'aftLounge',
+    name: 'Aft Lounge',
+    assetId: 'aft_lounge',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2420,
+    exposure: 1.12,
+    environmentIntensity: 1.09,
+    backgroundIntensity: 1.04,
+    swatches: ['#0ea5e9', '#f472b6'],
+    description: 'Stylish lounge with colored accents and glossy highlight sweep.'
+  },
+  {
+    id: 'sepulchralChapelRotunda',
+    name: 'Sepulchral Chapel Rotunda',
+    assetId: 'sepulchral_chapel_rotunda',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2480,
+    exposure: 1.06,
+    environmentIntensity: 1.03,
+    backgroundIntensity: 0.98,
+    swatches: ['#1f2937', '#6b7280'],
+    description: 'Stone rotunda with dramatic overhead light and deep shadows.'
+  },
+  {
+    id: 'smallEmptyRoom2',
+    name: 'Small Empty Room 2',
+    assetId: 'small_empty_room_2',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2260,
+    exposure: 1.08,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 1,
+    swatches: ['#e5e7eb', '#94a3b8'],
+    description: 'Quiet neutral room with soft overhead fill and mild reflections.'
+  },
+  {
+    id: 'squashCourt',
+    name: 'Squash Court',
+    assetId: 'squash_court',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2440,
+    exposure: 1.1,
+    environmentIntensity: 1.06,
+    backgroundIntensity: 1.02,
+    swatches: ['#f8fafc', '#f97316'],
+    description: 'Bright court lighting with clean white walls and strong bounce.'
+  },
+  {
+    id: 'garage',
+    name: 'Garage',
+    assetId: 'garage',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2460,
+    exposure: 1.07,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1,
+    swatches: ['#94a3b8', '#475569'],
+    description: 'Neutral garage light with subtle industrial reflections.'
+  },
+  {
+    id: 'smallEmptyHouse',
+    name: 'Small Empty House',
+    assetId: 'small_empty_house',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2480,
+    exposure: 1.09,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1.01,
+    swatches: ['#f1f5f9', '#a1a1aa'],
+    description: 'Soft residential interior light with gentle neutral bounce.'
   }
 ];
 
