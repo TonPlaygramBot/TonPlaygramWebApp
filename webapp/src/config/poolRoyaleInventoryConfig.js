@@ -32,10 +32,10 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     arenaScale: 1.15
   },
   billiardHall: {
-    cameraHeightM: 1.54,
-    groundRadiusMultiplier: 4.8,
+    cameraHeightM: 1.62,
+    groundRadiusMultiplier: 5.6,
     groundResolution: 128,
-    arenaScale: 1.25
+    arenaScale: 1.34
   },
   colorfulStudio: {
     cameraHeightM: 1.5,
