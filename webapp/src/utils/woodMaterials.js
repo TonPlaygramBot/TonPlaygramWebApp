@@ -31,6 +31,7 @@ const tileableNoise = (x, y, width, height, scale, seed = 1) => {
 };
 
 const woodTextureLoader = new THREE.TextureLoader();
+woodTextureLoader.setCrossOrigin?.('anonymous');
 
 const makeSlabTexture = (width, height, hue, sat, light, contrast) => {
   const canvas = document.createElement('canvas');
