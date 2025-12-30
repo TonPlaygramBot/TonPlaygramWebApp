@@ -1,126 +1,26 @@
 import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
 
 const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
-  neonPhotostudio: {
-    cameraHeightM: 1.52,
-    groundRadiusMultiplier: 3.8,
-    groundResolution: 120,
-    rotationY: 0
-  },
-  adamsBridge: {
-    cameraHeightM: 1.68,
-    groundRadiusMultiplier: 6.5,
-    groundResolution: 112,
-    rotationY: Math.PI / 2
-  },
-  ballroomHall: {
-    cameraHeightM: 1.58,
-    groundRadiusMultiplier: 5.1,
-    groundResolution: 112,
-    rotationY: 0
-  },
-  emptyPlayRoom: {
-    cameraHeightM: 1.5,
-    groundRadiusMultiplier: 3.9,
-    groundResolution: 120,
-    rotationY: 0
-  },
-  christmasPhotoStudio04: {
-    cameraHeightM: 1.52,
-    groundRadiusMultiplier: 3.9,
-    groundResolution: 120,
-    rotationY: 0
-  },
-  billiardHall: {
-    cameraHeightM: 1.54,
-    groundRadiusMultiplier: 4.8,
-    groundResolution: 128,
-    rotationY: 0
-  },
-  colorfulStudio: {
-    cameraHeightM: 1.5,
-    groundRadiusMultiplier: 4,
-    groundResolution: 120,
-    rotationY: 0
-  },
-  dancingHall: {
-    cameraHeightM: 1.58,
-    groundRadiusMultiplier: 5,
-    groundResolution: 112,
-    rotationY: 0
-  },
-  abandonedHall: {
-    cameraHeightM: 1.6,
-    groundRadiusMultiplier: 5.2,
-    groundResolution: 112,
-    rotationY: 0
-  },
-  entranceHall: {
-    cameraHeightM: 1.56,
-    groundRadiusMultiplier: 4.8,
-    groundResolution: 112,
-    rotationY: Math.PI / 2
-  },
-  hallOfFinfish: {
-    cameraHeightM: 1.6,
-    groundRadiusMultiplier: 5.3,
-    groundResolution: 112,
-    rotationY: 0
-  },
-  hallOfMammals: {
-    cameraHeightM: 1.6,
-    groundRadiusMultiplier: 5.3,
-    groundResolution: 112,
-    rotationY: 0
-  },
-  marryHall: {
-    cameraHeightM: 1.57,
-    groundRadiusMultiplier: 4.9,
-    groundResolution: 112,
-    rotationY: 0
-  },
-  mirroredHall: {
-    cameraHeightM: 1.58,
-    groundRadiusMultiplier: 5,
-    groundResolution: 112,
-    rotationY: 0
-  },
-  musicHall02: {
-    cameraHeightM: 1.6,
-    groundRadiusMultiplier: 5.2,
-    groundResolution: 112,
-    rotationY: 0
-  },
-  oldHall: {
-    cameraHeightM: 1.58,
-    groundRadiusMultiplier: 5,
-    groundResolution: 112,
-    rotationY: 0
-  },
-  loftPhotoStudioHall: {
-    cameraHeightM: 1.54,
-    groundRadiusMultiplier: 4.6,
-    groundResolution: 120,
-    rotationY: 0
-  },
-  londonPhotoStudioHall: {
-    cameraHeightM: 1.56,
-    groundRadiusMultiplier: 4.8,
-    groundResolution: 120,
-    rotationY: Math.PI / 2
-  },
-  schoolHall: {
-    cameraHeightM: 1.55,
-    groundRadiusMultiplier: 4.6,
-    groundResolution: 112,
-    rotationY: 0
-  },
-  countryStudioHall: {
-    cameraHeightM: 1.55,
-    groundRadiusMultiplier: 4.5,
-    groundResolution: 112,
-    rotationY: 0
-  }
+  neonPhotostudio: { cameraHeightM: 1.52, groundRadiusMultiplier: 3.8, groundResolution: 120 },
+  adamsBridge: { cameraHeightM: 1.68, groundRadiusMultiplier: 6.5, groundResolution: 112 },
+  ballroomHall: { cameraHeightM: 1.58, groundRadiusMultiplier: 5.1, groundResolution: 112 },
+  emptyPlayRoom: { cameraHeightM: 1.5, groundRadiusMultiplier: 3.9, groundResolution: 120 },
+  christmasPhotoStudio04: { cameraHeightM: 1.52, groundRadiusMultiplier: 3.9, groundResolution: 120 },
+  billiardHall: { cameraHeightM: 1.54, groundRadiusMultiplier: 4.8, groundResolution: 128 },
+  colorfulStudio: { cameraHeightM: 1.5, groundRadiusMultiplier: 4, groundResolution: 120 },
+  dancingHall: { cameraHeightM: 1.58, groundRadiusMultiplier: 5, groundResolution: 112 },
+  abandonedHall: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.2, groundResolution: 112 },
+  entranceHall: { cameraHeightM: 1.56, groundRadiusMultiplier: 4.8, groundResolution: 112 },
+  hallOfFinfish: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.3, groundResolution: 112 },
+  hallOfMammals: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.3, groundResolution: 112 },
+  marryHall: { cameraHeightM: 1.57, groundRadiusMultiplier: 4.9, groundResolution: 112 },
+  mirroredHall: { cameraHeightM: 1.58, groundRadiusMultiplier: 5, groundResolution: 112 },
+  musicHall02: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.2, groundResolution: 112 },
+  oldHall: { cameraHeightM: 1.58, groundRadiusMultiplier: 5, groundResolution: 112 },
+  loftPhotoStudioHall: { cameraHeightM: 1.54, groundRadiusMultiplier: 4.6, groundResolution: 120 },
+  londonPhotoStudioHall: { cameraHeightM: 1.56, groundRadiusMultiplier: 4.8, groundResolution: 120 },
+  schoolHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.6, groundResolution: 112 },
+  countryStudioHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.5, groundResolution: 112 }
 });
 
 const RAW_POOL_ROYALE_HDRI_VARIANTS = [
