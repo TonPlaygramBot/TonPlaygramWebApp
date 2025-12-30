@@ -197,6 +197,7 @@ let dragging=false, dragNode=null, dragFromSq=null, selectedSq=null; let down={x
 const THREE_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module.js','https://unpkg.com/three@0.159.0/build/three.module.js','https://esm.sh/three@0.159.0','https://cdn.skypack.dev/three@0.159.0'];
 const ORBIT_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://unpkg.com/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://esm.sh/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/controls/OrbitControls.js'];
 const GLTF_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://unpkg.com/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://esm.sh/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/loaders/GLTFLoader.js'];
+const RGBE_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/loaders/RGBELoader.js','https://unpkg.com/three@0.159.0/examples/jsm/loaders/RGBELoader.js','https://esm.sh/three@0.159.0/examples/jsm/loaders/RGBELoader.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/loaders/RGBELoader.js'];
 const MODEL_URLS=['https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'];
 const BOARD_GROWTH=1.02;
 const PIECE_SPACING_SCALE=0.92;
@@ -268,6 +269,7 @@ function boot(){
   tryUrls(THREE_URLS,u=>import(u))
   .then(NS=>{ THREE=((dst,src)=>{ for(const k in src){ try{ if(Object.prototype.hasOwnProperty.call(src,k)) dst[k]=src[k]; }catch(_){} } return dst; })({},NS); window.THREE=THREE; return tryUrls(ORBIT_URLS,u=>import(u)); })
   .then(m1=>{ const OrbitControls=m1.OrbitControls; return tryUrls(GLTF_URLS,u=>import(u)).then(m2=>({OrbitControls,GLTFLoader:m2.GLTFLoader})); })
+  .then(mods=>tryUrls(RGBE_URLS,u=>import(u)).then(m3=>({ ...mods, RGBELoader: m3.RGBELoader })))
   .then(mod=>{
     const mount=document.getElementById('mount');
     renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2)); renderer.setSize(mount.clientWidth||innerWidth, mount.clientHeight||innerHeight); renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.85; renderer.shadowMap.enabled=true; mount.appendChild(renderer.domElement);
@@ -278,6 +280,15 @@ function boot(){
     const key=new THREE.DirectionalLight(0xffffff,1.1); key.position.set(12,16,10); key.castShadow=true; scene.add(key);
     const fill=new THREE.DirectionalLight(0xffffff,.7); fill.position.set(-10,8,4); scene.add(fill);
     const rim=new THREE.DirectionalLight(0xffffff,.8); rim.position.set(0,10,-12); scene.add(rim);
+    const pmrem=new THREE.PMREMGenerator(renderer);
+    const rgbeLoader=new mod.RGBELoader();
+    rgbeLoader.load('https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_08_1k.hdr', (hdr)=>{
+      hdr.mapping=THREE.EquirectangularReflectionMapping;
+      const env=pmrem.fromEquirectangular(hdr).texture;
+      scene.environment=env;
+      hdr.dispose();
+      pmrem.dispose();
+    });
     ray=new THREE.Raycaster(); window.addEventListener('resize',onResize);
     startLoopOnce();
     const loader=new mod.GLTFLoader();
@@ -298,10 +309,96 @@ function ascendWhile(node,pred){ let t=node; while(t.parent && pred(t.parent)) t
 function onModel(gltf){
   modelRoot=gltf.scene; modelRoot.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; }});
   const bb0=new THREE.Box3().setFromObject(modelRoot); const ctr0=new THREE.Vector3(); bb0.getCenter(ctr0); const size0=new THREE.Vector3(); bb0.getSize(size0);
-  const s=.85*(12/Math.max(size0.x,size0.z))*GLOBAL_SCALE; modelRoot.scale.setScalar(s); modelRoot.position.sub(ctr0.multiplyScalar(s)); modelRoot.position.y=.02+BOARD_Y_OFFSET; scene.add(modelRoot);
+  const s=.85*(12/Math.max(size0.x,size0.z))*GLOBAL_SCALE; modelRoot.scale.setScalar(s); modelRoot.position.sub(ctr0.multiplyScalar(s)); modelRoot.position.y=BOARD_Y_OFFSET;
+  const arenaGroup=new THREE.Group(); scene.add(arenaGroup);
   const boards=[]; modelRoot.traverse(node=>{ const n=(node.name||'').toLowerCase(); if(/board|chessboard/.test(n)) boards.push(node); });
   boards.forEach(node=>{ node.scale.x*=BOARD_GROWTH; node.scale.z*=BOARD_GROWTH; });
+  const boardBox=new THREE.Box3();
+  if(boards.length){ boards.forEach(node=>boardBox.expandByObject(node)); }
+  if(boardBox.isEmpty()) boardBox.setFromObject(modelRoot);
+  const boardSize=new THREE.Vector3(); boardBox.getSize(boardSize);
+  const boardCenter=new THREE.Vector3(); boardBox.getCenter(boardCenter);
+  const tableHeight=0.9;
+  const tableTopThickness=0.08;
+  const tableTopY=tableHeight;
+  const tablePadding=0.7;
+  const tableWidth=boardSize.x+tablePadding;
+  const tableDepth=boardSize.z+tablePadding;
+  const tableMat=new THREE.MeshStandardMaterial({ color: 0x3a2a1f, roughness: 0.65, metalness: 0.1 });
+  const tableTop=new THREE.Mesh(new THREE.BoxGeometry(tableWidth, tableTopThickness, tableDepth), tableMat);
+  tableTop.position.set(boardCenter.x, tableTopY - tableTopThickness * 0.5, boardCenter.z);
+  tableTop.castShadow=true; tableTop.receiveShadow=true;
+  const legRadius=0.06;
+  const legHeight=tableHeight - tableTopThickness;
+  const legGeo=new THREE.CylinderGeometry(legRadius, legRadius, legHeight, 16);
+  const legOffsets=[
+    [tableWidth*0.5-legRadius*2, tableDepth*0.5-legRadius*2],
+    [-tableWidth*0.5+legRadius*2, tableDepth*0.5-legRadius*2],
+    [tableWidth*0.5-legRadius*2, -tableDepth*0.5+legRadius*2],
+    [-tableWidth*0.5+legRadius*2, -tableDepth*0.5+legRadius*2]
+  ];
+  const legs=legOffsets.map(([x,z])=>{
+    const leg=new THREE.Mesh(legGeo, tableMat);
+    leg.position.set(boardCenter.x+x, legHeight*0.5, boardCenter.z+z);
+    leg.castShadow=true; leg.receiveShadow=true;
+    return leg;
+  });
+  const floorMat=new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9, metalness: 0 });
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(80,80), floorMat);
+  floor.rotation.x=-Math.PI/2;
+  floor.position.y=0;
+  floor.receiveShadow=true;
+  arenaGroup.add(floor, tableTop, ...legs, modelRoot);
+  const boardLift=0.01;
+  const alignDelta=tableTopY + boardLift - boardBox.min.y;
+  modelRoot.position.y+=alignDelta;
   const bb2=new THREE.Box3().setFromObject(modelRoot); boardY=(bb2.min.y+bb2.max.y)/2;
+  const chairGroup=new THREE.Group();
+  const chairMat=new THREE.MeshStandardMaterial({ color: 0x23304a, roughness: 0.7, metalness: 0.05 });
+  const chairSeatW=0.38, chairSeatD=0.38, chairSeatT=0.06;
+  const chairLegH=0.44, chairLegR=0.03;
+  function makeChair(){
+    const g=new THREE.Group();
+    const seat=new THREE.Mesh(new THREE.BoxGeometry(chairSeatW, chairSeatT, chairSeatD), chairMat);
+    seat.position.y=chairLegH + chairSeatT*0.5;
+    seat.castShadow=true; seat.receiveShadow=true;
+    const back=new THREE.Mesh(new THREE.BoxGeometry(chairSeatW, 0.5, 0.05), chairMat);
+    back.position.set(0, chairLegH + 0.25, -chairSeatD*0.5 + 0.02);
+    back.castShadow=true; back.receiveShadow=true;
+    const legGeo=new THREE.CylinderGeometry(chairLegR, chairLegR, chairLegH, 12);
+    const legOffsets=[
+      [chairSeatW*0.5-chairLegR*1.2, chairSeatD*0.5-chairLegR*1.2],
+      [-chairSeatW*0.5+chairLegR*1.2, chairSeatD*0.5-chairLegR*1.2],
+      [chairSeatW*0.5-chairLegR*1.2, -chairSeatD*0.5+chairLegR*1.2],
+      [-chairSeatW*0.5+chairLegR*1.2, -chairSeatD*0.5+chairLegR*1.2]
+    ];
+    legOffsets.forEach(([x,z])=>{
+      const leg=new THREE.Mesh(legGeo, chairMat);
+      leg.position.set(x, chairLegH*0.5, z);
+      leg.castShadow=true; leg.receiveShadow=true;
+      g.add(leg);
+    });
+    g.add(seat, back);
+    return g;
+  }
+  const chairDistance=0.48;
+  const chairPositions=[
+    [0, tableDepth*0.5+chairDistance, Math.PI],
+    [0, -tableDepth*0.5-chairDistance, 0],
+    [tableWidth*0.5+chairDistance, 0, -Math.PI*0.5],
+    [-tableWidth*0.5-chairDistance, 0, Math.PI*0.5]
+  ];
+  chairPositions.forEach(([x,z,ry])=>{
+    const chair=makeChair();
+    chair.position.set(boardCenter.x+x, 0, boardCenter.z+z);
+    chair.rotation.y=ry;
+    chairGroup.add(chair);
+  });
+  arenaGroup.add(chairGroup);
+  if(controls){
+    controls.target.set(boardCenter.x, tableTopY*0.6, boardCenter.z);
+    controls.update();
+  }
   const pool={w:{p:[],r:[],n:[],b:[],q:[],k:[]}, b:{p:[],r:[],n:[],b:[],q:[],k:[]}}; const whiteRooks=[], blackRooks=[]; const seen=new Set();
   modelRoot.traverse(node=>{ const t=pieceTypeFromName(node.name); if(!t) return; const c=colorFromNameOrAnc(node); if(!c) return; const root=ascendWhile(node,p=>pieceTypeFromName(p.name)===t); if(seen.has(root)) return; seen.add(root); pool[c][t].push(root); if(t==='r'){ if(c==='w') whiteRooks.push(root); else blackRooks.push(root);} if(!proto[c][t]) proto[c][t]=root; });
   function nodeXZ(o){ const b=new THREE.Box3().setFromObject(o); const c=new THREE.Vector3(); b.getCenter(c); return [c.x,c.z]; }
