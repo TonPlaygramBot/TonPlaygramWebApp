@@ -12012,7 +12012,13 @@ const powerRef = useRef(hud.power);
       };
       const legHeight = LEG_ROOM_HEIGHT;
       const floorY = FLOOR_Y;
-      const roomDepth = TABLE.H * 3.05;
+      const arenaScale = Math.max(
+        1,
+        Number.isFinite(activeEnvironmentVariantRef.current?.arenaScale)
+          ? activeEnvironmentVariantRef.current.arenaScale
+          : 1
+      );
+      const roomDepth = TABLE.H * 3.05 * arenaScale;
       const sideClearance = roomDepth / 2 - TABLE.H / 2;
       const roomWidth = TABLE.W + sideClearance * 2;
       const arenaMargin = Math.max(TABLE.THICK * 2.2, BALL_R * 6);
