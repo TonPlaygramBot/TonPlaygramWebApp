@@ -194,7 +194,10 @@ const SNAKE_TYPE_LABELS = {
   snakeSkin: 'Snake Skins',
   diceTheme: 'Dice Finish',
   railTheme: 'Rails & Nets',
-  tokenFinish: 'Token Finish'
+  tokenFinish: 'Token Finish',
+  tables: 'Table Models',
+  stools: 'Chairs',
+  environmentHdri: 'HDR Environments'
 };
 
 const TEXAS_TYPE_LABELS = {
@@ -259,6 +262,7 @@ const TYPE_SWATCHES = {
   tableCloth: ['#0f172a', '#34d399'],
   tableBase: ['#0f172a', '#1f2937'],
   tables: ['#0f172a', '#94a3b8'],
+  stools: ['#111827', '#eab308'],
   chairColor: ['#111827', '#f59e0b'],
   tableShape: ['#334155', '#64748b'],
   sideColor: ['#f8fafc', '#1f2937'],
