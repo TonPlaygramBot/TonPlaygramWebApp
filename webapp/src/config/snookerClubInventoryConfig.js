@@ -1,4 +1,8 @@
 import { CUE_STYLE_PRESETS } from './cueStyles.js';
+import {
+  POOL_ROYALE_DEFAULT_HDRI_ID,
+  POOL_ROYALE_HDRI_VARIANTS
+} from './poolRoyaleInventoryConfig.js';
 
 export const SNOOKER_CLUB_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: ['rusticSplit'],
@@ -6,10 +10,17 @@ export const SNOOKER_CLUB_DEFAULT_UNLOCKS = Object.freeze({
   railMarkerColor: ['chrome'],
   clothColor: ['freshGreen'],
   cueStyle: [CUE_STYLE_PRESETS[0]?.id],
-  pocketLiner: ['blackPocket']
+  pocketLiner: ['blackPocket'],
+  environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID]
 });
 
 export const SNOOKER_CLUB_OPTION_LABELS = Object.freeze({
+  environmentHdri: Object.freeze(
+    POOL_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => {
+      acc[variant.id] = `${variant.name} HDRI`;
+      return acc;
+    }, {})
+  ),
   tableFinish: Object.freeze({
     rusticSplit: 'Pearl Cream',
     charredTimber: 'Charred Timber',
@@ -119,6 +130,14 @@ export const SNOOKER_CLUB_STORE_ITEMS = [
     name: `${preset.label} Cue`,
     price: 320 + idx * 25,
     description: 'Unlock an alternate cue butt finish for Snooker Club.'
+  })),
+  ...POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
+    id: `snooker-hdri-${variant.id}`,
+    type: 'environmentHdri',
+    optionId: variant.id,
+    name: `${variant.name} HDRI`,
+    price: variant.price,
+    description: variant.description
   }))
 ];
 
@@ -127,5 +146,12 @@ export const SNOOKER_CLUB_DEFAULT_LOADOUT = [
   { type: 'chromeColor', optionId: 'chrome', label: 'Chrome Fascias' },
   { type: 'railMarkerColor', optionId: 'chrome', label: 'Chrome Rail Markers' },
   { type: 'clothColor', optionId: 'freshGreen', label: 'Tour Green Cloth' },
-  { type: 'cueStyle', optionId: CUE_STYLE_PRESETS[0]?.id, label: CUE_STYLE_PRESETS[0]?.label }
+  { type: 'cueStyle', optionId: CUE_STYLE_PRESETS[0]?.id, label: CUE_STYLE_PRESETS[0]?.label },
+  {
+    type: 'environmentHdri',
+    optionId: POOL_ROYALE_DEFAULT_HDRI_ID,
+    label:
+      SNOOKER_CLUB_OPTION_LABELS.environmentHdri[POOL_ROYALE_DEFAULT_HDRI_ID] ||
+      'HDR Environment'
+  }
 ];
