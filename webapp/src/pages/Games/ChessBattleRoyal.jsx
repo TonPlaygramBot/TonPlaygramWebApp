@@ -28,7 +28,8 @@ import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { TABLE_WOOD_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_BASE_OPTIONS } from '../../utils/tableCustomizationOptions.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
-  POOL_ROYALE_HDRI_VARIANTS
+  POOL_ROYALE_HDRI_VARIANTS,
+  POOL_ROYALE_HDRI_VARIANT_MAP
 } from '../../config/poolRoyaleInventoryConfig.js';
 import {
   CHESS_CHAIR_OPTIONS,
@@ -190,9 +191,17 @@ const DEFAULT_HDRI_INDEX = Math.max(
 );
 const DEFAULT_HDRI_VARIANT =
   CHESS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? CHESS_HDRI_OPTIONS[0] ?? null;
-const resolveHdriVariant = (index) => {
+const resolveHdriVariant = (value) => {
+  if (typeof value === 'string') {
+    return (
+      POOL_ROYALE_HDRI_VARIANT_MAP[value] ??
+      CHESS_HDRI_OPTIONS.find((variant) => variant.id === value) ??
+      CHESS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ??
+      CHESS_HDRI_OPTIONS[0]
+    );
+  }
   const max = CHESS_HDRI_OPTIONS.length - 1;
-  const idx = Number.isFinite(index) ? clamp(Math.round(index), 0, max) : DEFAULT_HDRI_INDEX;
+  const idx = Number.isFinite(value) ? clamp(Math.round(value), 0, max) : DEFAULT_HDRI_INDEX;
   return CHESS_HDRI_OPTIONS[idx] ?? CHESS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? CHESS_HDRI_OPTIONS[0];
 };
 
@@ -1491,6 +1500,44 @@ function computeGroupFloorY(objects = []) {
   });
   if (!hasObject) return 0;
   return box.min.y;
+}
+
+function alignGroupToFloorY(group, floorY = 0) {
+  if (!group) return 0;
+  const box = new THREE.Box3().setFromObject(group);
+  if (!Number.isFinite(box.min.y)) return 0;
+  const offset = floorY - box.min.y;
+  if (Math.abs(offset) > 1e-4) {
+    group.position.y += offset;
+  }
+  return offset;
+}
+
+function alignArenaContentsToRoom(groups = [], roomHalfWidth, roomHalfDepth) {
+  const box = new THREE.Box3();
+  let hasObject = false;
+  groups.forEach((obj) => {
+    if (!obj) return;
+    box.expandByObject(obj);
+    hasObject = true;
+  });
+  if (!hasObject) return new THREE.Vector3();
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  const minShiftX = -roomHalfWidth - box.min.x;
+  const maxShiftX = roomHalfWidth - box.max.x;
+  const minShiftZ = -roomHalfDepth - box.min.z;
+  const maxShiftZ = roomHalfDepth - box.max.z;
+  const shiftX = clamp(-center.x, minShiftX, maxShiftX);
+  const shiftZ = clamp(-center.z, minShiftZ, maxShiftZ);
+  if (Math.abs(shiftX) > 1e-4 || Math.abs(shiftZ) > 1e-4) {
+    groups.forEach((obj) => {
+      if (!obj) return;
+      obj.position.x += shiftX;
+      obj.position.z += shiftZ;
+    });
+  }
+  return new THREE.Vector3(shiftX, 0, shiftZ);
 }
 
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_DISPLAY_SIZE / 2);
@@ -6463,6 +6510,10 @@ function Chess3D({
         if (nextTable?.materials) {
           applyTableMaterials(nextTable.materials, { woodOption, clothOption, baseOption }, arena.renderer);
         }
+        const tableFloorOffset = alignGroupToFloorY(nextTable?.group, 0);
+        if (nextTable?.surfaceY != null) {
+          nextTable.surfaceY += tableFloorOffset;
+        }
         if (boardGroup && nextTable?.group) {
           boardGroup.position.set(0, nextTable.surfaceY + 0.004 + BOARD_GROUP_Y_OFFSET, 0);
           nextTable.group.add(boardGroup);
@@ -6477,6 +6528,30 @@ function Chess3D({
             : (nextTable?.surfaceY ?? TABLE_HEIGHT) + (BOARD.baseH + 0.12) * BOARD_SCALE;
           arena.boardLookTarget.set(0, targetY, 0);
         }
+        (arena.chairs || []).forEach((chair) => alignGroupToFloorY(chair.group, 0));
+        const roomHalfWidth = arena.roomHalfWidth ?? CHESS_ROOM_HALF_SPAN;
+        const roomHalfDepth = arena.roomHalfDepth ?? CHESS_ROOM_HALF_SPAN;
+        const prevPlacement = arena.tablePlacementOffset ?? new THREE.Vector3();
+        const placementOffset = alignArenaContentsToRoom(
+          [nextTable?.group, ...(arena.chairs || []).map((chair) => chair.group)],
+          roomHalfWidth,
+          roomHalfDepth
+        );
+        const placementDelta = placementOffset.clone().sub(prevPlacement);
+        arena.tablePlacementOffset = placementOffset.clone();
+        if (arena.boardLookTarget) {
+          arena.boardLookTarget.x = placementOffset.x;
+          arena.boardLookTarget.z = placementOffset.z;
+        }
+        if (arena.camera && (Math.abs(placementDelta.x) > 1e-4 || Math.abs(placementDelta.z) > 1e-4)) {
+          arena.camera.position.x += placementDelta.x;
+          arena.camera.position.z += placementDelta.z;
+        }
+        arena.studioCameras?.forEach((cam) => {
+          if (!cam) return;
+          cam.position.x += placementDelta.x;
+          cam.position.z += placementDelta.z;
+        });
         const updatedFloorY = computeGroupFloorY([
           nextTable?.group,
           ...(arena.chairs || []).map((chair) => chair.group)
@@ -6797,6 +6872,8 @@ function Chess3D({
     const roomHalfDepth = CHESS_ROOM_HALF_SPAN;
     const roomWidth = roomHalfWidth * 2;
     const roomDepth = roomHalfDepth * 2;
+    arena.roomHalfWidth = roomHalfWidth;
+    arena.roomHalfDepth = roomHalfDepth;
 
     let syncSkyboxToCamera = () => {};
 
@@ -6911,6 +6988,10 @@ function Chess3D({
     if (tableInfo?.materials) {
       applyTableMaterials(tableInfo.materials, { woodOption, clothOption, baseOption }, renderer);
     }
+    const tableFloorOffset = alignGroupToFloorY(tableInfo?.group, 0);
+    if (tableInfo?.surfaceY != null) {
+      tableInfo.surfaceY += tableFloorOffset;
+    }
     if (tableInfo?.dispose) {
       disposers.push(() => {
         try {
@@ -6949,11 +7030,20 @@ function Chess3D({
     chairA.group.position.set(0, CHAIR_BASE_HEIGHT, chairDistance + PLAYER_CHAIR_EXTRA_CLEARANCE);
     chairA.group.rotation.y = Math.PI;
     arena.add(chairA.group);
+    alignGroupToFloorY(chairA.group, 0);
     chairs.push(chairA);
     const chairB = makeChair(1);
     chairB.group.position.set(0, CHAIR_BASE_HEIGHT, -chairDistance);
     arena.add(chairB.group);
+    alignGroupToFloorY(chairB.group, 0);
     chairs.push(chairB);
+
+    const tablePlacementOffset = alignArenaContentsToRoom(
+      [tableInfo?.group, chairA.group, chairB.group],
+      roomHalfWidth,
+      roomHalfDepth
+    );
+    arena.tablePlacementOffset = tablePlacementOffset.clone();
 
     const environmentFloorY = computeGroupFloorY([tableInfo?.group, chairA.group, chairB.group]);
     environmentFloorRef.current = environmentFloorY;
@@ -7027,10 +7117,18 @@ function Chess3D({
     const cameraRigOffsetX = (tableInfo?.radius ?? TABLE_RADIUS) + 1.4;
     const cameraRigOffsetZ = (tableInfo?.radius ?? TABLE_RADIUS) + 1.2;
     const studioCamA = makeStudioCamera();
-    studioCamA.position.set(-cameraRigOffsetX, 0, -cameraRigOffsetZ);
+    studioCamA.position.set(
+      -cameraRigOffsetX + tablePlacementOffset.x,
+      0,
+      -cameraRigOffsetZ + tablePlacementOffset.z
+    );
     arena.add(studioCamA);
     const studioCamB = makeStudioCamera();
-    studioCamB.position.set(cameraRigOffsetX, 0, cameraRigOffsetZ);
+    studioCamB.position.set(
+      cameraRigOffsetX + tablePlacementOffset.x,
+      0,
+      cameraRigOffsetZ + tablePlacementOffset.z
+    );
     arena.add(studioCamB);
 
     const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
@@ -7042,9 +7140,9 @@ function Chess3D({
     boardVisualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
     boardGroup.add(boardVisualGroup);
     const boardLookTarget = new THREE.Vector3(
-      0,
+      tablePlacementOffset.x,
       boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE,
-      0
+      tablePlacementOffset.z
     );
     studioCamA.lookAt(boardLookTarget);
     studioCamB.lookAt(boardLookTarget);
@@ -7058,9 +7156,9 @@ function Chess3D({
     const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
     const cameraRadius = chairDistance + cameraBackOffset - cameraForwardOffset;
     camera.position.set(
-      Math.cos(cameraSeatAngle) * cameraRadius,
+      Math.cos(cameraSeatAngle) * cameraRadius + tablePlacementOffset.x,
       tableSurfaceY + cameraHeightOffset,
-      Math.sin(cameraSeatAngle) * cameraRadius
+      Math.sin(cameraSeatAngle) * cameraRadius + tablePlacementOffset.z
     );
     camera.lookAt(boardLookTarget);
 
