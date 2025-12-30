@@ -8,6 +8,7 @@ import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
   createMurlanStyleTable,
@@ -177,6 +178,12 @@ const CHESS_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
   label: `${variant.name} HDRI`
 }));
+const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
+const MIN_HDRI_CAMERA_HEIGHT_M = 0.9;
+const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
+const MIN_HDRI_RADIUS = 24;
+const HDRI_GROUNDED_RESOLUTION = 96;
+const HDRI_UNITS_PER_METER = 1;
 const DEFAULT_HDRI_INDEX = Math.max(
   0,
   CHESS_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID)
@@ -1263,9 +1270,12 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
         pmrem.compileEquirectangularShader();
         const envMap = pmrem.fromEquirectangular(texture).texture;
         envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
-        texture.dispose();
+        const skyboxMap = texture;
+        skyboxMap.name = `${config?.assetId ?? 'polyhaven'}-skybox`;
+        skyboxMap.mapping = THREE.EquirectangularReflectionMapping;
+        skyboxMap.needsUpdate = true;
         pmrem.dispose();
-        resolve({ envMap, url });
+        resolve({ envMap, skyboxMap, url });
       },
       undefined,
       (error) => {
@@ -1276,92 +1286,16 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   });
 }
 
-const POOL_ROYALE_LIGHTING = Object.freeze({
-  keyColor: 0xf6f8ff,
-  keyIntensity: 1.72,
-  fillColor: 0xf6f8ff,
-  fillIntensity: 0.9,
-  rimColor: 0xffffff,
-  rimIntensity: 0.64,
-  ambientIntensity: 0.22
-});
-
-function createPoolRoyaleLightingRig({
-  scene,
-  tableSurfaceY,
-  roomWidth,
-  roomDepth,
-  target
-}) {
-  const lightingRig = new THREE.Group();
-  scene.add(lightingRig);
-
-  const lightRigHeight = tableSurfaceY + TABLE_HEIGHT * 5.8;
-  const lightOffsetX = Math.max(roomWidth * 0.18, TABLE_RADIUS * 1.6);
-  const lightOffsetZ = Math.max(roomDepth * 0.16, TABLE_RADIUS * 1.4);
-  const shadowHalfSpan = Math.max(roomWidth, roomDepth) / 2 + TABLE_RADIUS * 0.5;
-  const targetY = target?.y ?? tableSurfaceY + TABLE_HEIGHT * 0.25;
-  const shadowDepth = lightRigHeight + Math.abs(targetY) + TABLE_HEIGHT * 12;
-
-  const ambient = new THREE.AmbientLight(0xffffff, POOL_ROYALE_LIGHTING.ambientIntensity);
-  lightingRig.add(ambient);
-
-  const key = new THREE.DirectionalLight(
-    POOL_ROYALE_LIGHTING.keyColor,
-    POOL_ROYALE_LIGHTING.keyIntensity
-  );
-  key.position.set(lightOffsetX * 0.28, lightRigHeight, lightOffsetZ * 0.2);
-  key.target.position.set(0, targetY, 0);
-  key.castShadow = true;
-  key.shadow.mapSize.set(2048, 2048);
-  key.shadow.camera.near = 0.1;
-  key.shadow.camera.far = shadowDepth;
-  key.shadow.camera.left = -shadowHalfSpan;
-  key.shadow.camera.right = shadowHalfSpan;
-  key.shadow.camera.top = shadowHalfSpan;
-  key.shadow.camera.bottom = -shadowHalfSpan;
-  key.shadow.bias = -0.00006;
-  key.shadow.normalBias = 0.0006;
-  key.shadow.camera.updateProjectionMatrix();
-  lightingRig.add(key);
-  lightingRig.add(key.target);
-
-  const fill = new THREE.DirectionalLight(
-    POOL_ROYALE_LIGHTING.fillColor,
-    POOL_ROYALE_LIGHTING.fillIntensity
-  );
-  fill.position.set(-lightOffsetX * 0.32, lightRigHeight * 0.98, lightOffsetZ * 0.24);
-  fill.target.position.set(0, targetY, 0);
-  lightingRig.add(fill);
-  lightingRig.add(fill.target);
-
-  const rim = new THREE.DirectionalLight(
-    POOL_ROYALE_LIGHTING.rimColor,
-    POOL_ROYALE_LIGHTING.rimIntensity
-  );
-  rim.position.set(0, lightRigHeight * 1.04, -lightOffsetZ * 0.34);
-  rim.target.position.set(0, targetY, 0);
-  lightingRig.add(rim);
-  lightingRig.add(rim.target);
-
-  const updateTarget = (nextTarget = target) => {
-    if (!nextTarget) return;
-    const { x, y, z } = nextTarget;
-    if (key?.target) {
-      key.target.position.set(x, y, z);
-      key.target.updateMatrixWorld();
-    }
-    if (fill?.target) {
-      fill.target.position.set(x, y, z);
-      fill.target.updateMatrixWorld();
-    }
-    if (rim?.target) {
-      rim.target.position.set(x, y, z);
-      rim.target.updateMatrixWorld();
-    }
-  };
-
-  return { group: lightingRig, ambient, key, fill, rim, updateTarget };
+function computeGroupFloorY(objects = []) {
+  const box = new THREE.Box3();
+  let hasObject = false;
+  objects.forEach((obj) => {
+    if (!obj) return;
+    box.expandByObject(obj);
+    hasObject = true;
+  });
+  if (!hasObject) return 0;
+  return box.min.y;
 }
 
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_DISPLAY_SIZE / 2);
@@ -5559,9 +5493,12 @@ function Chess3D({
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
   const envTextureRef = useRef(null);
+  const envSkyboxRef = useRef(null);
+  const envSkyboxTextureRef = useRef(null);
   const disposeEnvironmentRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
   const hdriVariantRef = useRef(DEFAULT_HDRI_VARIANT);
+  const environmentFloorRef = useRef(0);
   const clearHighlightsRef = useRef(() => {});
   const cameraViewRef = useRef(null);
   const viewModeRef = useRef('2d');
@@ -6328,7 +6265,13 @@ function Chess3D({
             : (nextTable?.surfaceY ?? TABLE_HEIGHT) + (BOARD.baseH + 0.12) * BOARD_SCALE;
           arena.boardLookTarget.set(0, targetY, 0);
         }
-        arena.lightingRig?.updateTarget?.(arena.boardLookTarget ?? new THREE.Vector3());
+        const updatedFloorY = computeGroupFloorY([
+          nextTable?.group,
+          ...(arena.chairs || []).map((chair) => chair.group)
+        ]);
+        environmentFloorRef.current = updatedFloorY;
+        arena.environmentFloorY = updatedFloorY;
+        updateEnvironmentRef.current?.(hdriVariantRef.current);
         arena.studioCameras?.forEach((cam) => cam?.lookAt?.(arena.boardLookTarget ?? new THREE.Vector3()));
         arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
         arena.controls?.update();
@@ -6494,7 +6437,6 @@ function Chess3D({
     let stopCameraTween = () => {};
     let onResize = null;
     let onClick = null;
-    let lightingRig = null;
 
     const clearLaughTimeout = () => {
       if (laughTimeoutRef.current) {
@@ -6583,6 +6525,8 @@ function Chess3D({
       powerPreference: 'high-performance'
     });
     applyRendererSRGB(renderer);
+    renderer.useLegacyLights = false;
+    renderer.physicallyCorrectLights = true;
     if (sharedKTX2Loader) {
       try {
         sharedKTX2Loader.detectSupport(renderer);
@@ -6596,8 +6540,7 @@ function Chess3D({
     const scaledPixelRatio = devicePixelRatio * pixelRatioScale;
     const pixelRatio = Math.max(MIN_RENDER_PIXEL_RATIO, Math.min(pixelRatioCap, scaledPixelRatio));
     renderer.setPixelRatio(pixelRatio);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.enabled = false;
     // Ensure the canvas covers the entire host element so the board is centered
     renderer.domElement.style.position = 'absolute';
     renderer.domElement.style.top = '0';
@@ -6627,18 +6570,54 @@ function Chess3D({
       const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
       const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
       if (!envResult) return;
-      const { envMap } = envResult;
+      const { envMap, skyboxMap } = envResult;
       if (!envMap) return;
       if (cancelled) {
         envMap.dispose?.();
+        skyboxMap?.dispose?.();
         return;
       }
       const prevDispose = disposeEnvironmentRef.current;
       const prevTexture = envTextureRef.current;
+      const prevSkybox = envSkyboxRef.current;
+      const floorY = environmentFloorRef.current ?? 0;
+      const cameraHeight =
+        Math.max(activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M, MIN_HDRI_CAMERA_HEIGHT_M) *
+        HDRI_UNITS_PER_METER;
+      const radiusMultiplier =
+        typeof activeVariant?.groundRadiusMultiplier === 'number'
+          ? activeVariant.groundRadiusMultiplier
+          : DEFAULT_HDRI_RADIUS_MULTIPLIER;
+      const sceneSpan = Math.max(roomHalfWidth, roomHalfDepth);
+      const groundRadius = Math.max(sceneSpan * radiusMultiplier, MIN_HDRI_RADIUS);
+      const skyboxResolution = Math.max(
+        16,
+        Math.floor(activeVariant?.groundResolution ?? HDRI_GROUNDED_RESOLUTION)
+      );
+      const skyboxRadius = Math.max(groundRadius, cameraHeight * 2.5, MIN_HDRI_RADIUS);
+      let skybox = null;
+      if (skyboxMap && skyboxRadius > 0 && cameraHeight > 0) {
+        try {
+          skybox = new GroundedSkybox(skyboxMap, cameraHeight, skyboxRadius, skyboxResolution);
+          skybox.position.y = floorY + cameraHeight;
+          skybox.material.depthWrite = false;
+          sceneInstance.background = null;
+          sceneInstance.add(skybox);
+          envSkyboxRef.current = skybox;
+          envSkyboxTextureRef.current = skyboxMap;
+        } catch (error) {
+          console.warn('Failed to create grounded HDRI skybox', error);
+          skybox = null;
+        }
+      }
       sceneInstance.environment = envMap;
-      sceneInstance.background = envMap;
-      if ('backgroundIntensity' in sceneInstance && typeof activeVariant?.backgroundIntensity === 'number') {
-        sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
+      if (!skybox) {
+        sceneInstance.background = envMap;
+        envSkyboxRef.current = null;
+        envSkyboxTextureRef.current = null;
+        if ('backgroundIntensity' in sceneInstance && typeof activeVariant?.backgroundIntensity === 'number') {
+          sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
+        }
       }
       if (typeof activeVariant?.environmentIntensity === 'number') {
         sceneInstance.environmentIntensity = activeVariant.environmentIntensity;
@@ -6649,12 +6628,26 @@ function Chess3D({
         if (sceneRef.current?.environment === envMap) {
           sceneRef.current.environment = null;
         }
-        if (sceneRef.current?.background === envMap) {
+        if (!skybox && sceneRef.current?.background === envMap) {
           sceneRef.current.background = null;
         }
         envMap.dispose?.();
+        if (skybox) {
+          skybox.parent?.remove(skybox);
+          skybox.geometry?.dispose?.();
+          skybox.material?.dispose?.();
+          if (envSkyboxRef.current === skybox) {
+            envSkyboxRef.current = null;
+          }
+        }
+        if (skyboxMap) {
+          skyboxMap.dispose?.();
+          if (envSkyboxTextureRef.current === skyboxMap) {
+            envSkyboxTextureRef.current = null;
+          }
+        }
       };
-      if (prevDispose && prevTexture !== envMap) {
+      if (prevDispose && (prevTexture !== envMap || prevSkybox !== skybox)) {
         prevDispose();
       }
     };
@@ -6662,22 +6655,9 @@ function Chess3D({
     disposers.push(() => {
       disposeEnvironmentRef.current?.();
       envTextureRef.current = null;
+      envSkyboxRef.current = null;
+      envSkyboxTextureRef.current = null;
     });
-    void applyHdriEnvironment(hdriVariantRef.current || DEFAULT_HDRI_VARIANT);
-
-    const floorRadius = Math.max(roomHalfWidth, roomHalfDepth) * 1.15;
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(floorRadius, 72),
-      new THREE.MeshStandardMaterial({
-        color: 0x0f1222,
-        roughness: 0.94,
-        metalness: 0.08
-      })
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    floor.castShadow = false;
-    arena.add(floor);
 
     const tableInfo = await buildTableFromTheme(tableTheme, {
       arena,
@@ -6736,6 +6716,11 @@ function Chess3D({
     chairB.group.position.set(0, CHAIR_BASE_HEIGHT, -chairDistance);
     arena.add(chairB.group);
     chairs.push(chairB);
+
+    const environmentFloorY = computeGroupFloorY([tableInfo?.group, chairA.group, chairB.group]);
+    environmentFloorRef.current = environmentFloorY;
+    arena.environmentFloorY = environmentFloorY;
+    void applyHdriEnvironment(hdriVariantRef.current || DEFAULT_HDRI_VARIANT);
 
     const sandTimer = null;
 
@@ -6823,18 +6808,6 @@ function Chess3D({
       boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE,
       0
     );
-    lightingRig = createPoolRoyaleLightingRig({
-      scene,
-      tableSurfaceY,
-      roomWidth,
-      roomDepth,
-      target: boardLookTarget
-    });
-    if (lightingRig?.group) {
-      disposers.push(() => {
-        lightingRig.group.removeFromParent();
-      });
-    }
     studioCamA.lookAt(boardLookTarget);
     studioCamB.lookAt(boardLookTarget);
 
@@ -7619,7 +7592,7 @@ function Chess3D({
         chairs,
         seatAnchors: chairs.map((chair) => chair.anchor),
         sandTimer,
-        lightingRig,
+        environmentFloorY,
         studioCameras: [studioCamA, studioCamB],
         boardMaterials: arena.boardMaterials,
         pieceMaterials,
@@ -7638,12 +7611,13 @@ function Chess3D({
       };
       arenaRef.current.sandTimer = sandTimer;
       arenaRef.current.palette = palette;
+      arenaRef.current.environmentFloorY = environmentFloorY;
 
       arena.sandTimer = sandTimer;
       arena.palette = palette;
       arena.playerFlag = initialPlayerFlag;
       arena.aiFlag = initialAiFlagValue;
-      arena.lightingRig = lightingRig;
+      arena.environmentFloorY = environmentFloorY;
 
     // Raycaster for picking
     ray = new THREE.Raycaster();
@@ -8430,6 +8404,9 @@ function Chess3D({
       updateEnvironmentRef.current = () => {};
       disposeEnvironmentRef.current = null;
       envTextureRef.current = null;
+      envSkyboxRef.current = null;
+      envSkyboxTextureRef.current = null;
+      environmentFloorRef.current = 0;
       sceneRef.current = null;
       rendererRef.current = null;
       isReplayingRef.current = false;
