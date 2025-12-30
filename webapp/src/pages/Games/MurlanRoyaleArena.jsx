@@ -39,7 +39,7 @@ import {
   MURLAN_TABLE_THEMES as TABLE_THEMES
 } from '../../config/murlanThemes.js';
 
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k', '2k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
   label: `${variant.name} HDRI`
@@ -248,10 +248,6 @@ function detectPreferredFrameRateId() {
       return 'qhd90';
     }
     return 'fhd60';
-  }
-
-  if (rendererTier === 'desktopHigh' && highRefresh) {
-    return 'ultra144';
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
@@ -1162,15 +1158,6 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     pixelRatioCap: 2,
     resolution: 'Ultra HD render • DPR 2.0 cap',
     description: '4K-oriented profile for 120 Hz flagships and desktops.'
-  },
-  {
-    id: 'ultra144',
-    label: 'Ultra HD+ (144 Hz)',
-    fps: 144,
-    renderScale: 1.5,
-    pixelRatioCap: 2.2,
-    resolution: 'Ultra HD+ render • DPR 2.2 cap',
-    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
@@ -2182,13 +2169,6 @@ export default function MurlanRoyaleArena({ search }) {
       const innerHalfDepth = interiorDepth / 2;
 
       const floorRadius = Math.max(innerHalfWidth, innerHalfDepth) * 1.35;
-      const floor = new THREE.Mesh(
-        new THREE.CircleGeometry(floorRadius, 64),
-        new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.92, metalness: 0.08 })
-      );
-      floor.rotation.x = -Math.PI / 2;
-      floor.receiveShadow = true;
-      arenaGroup.add(floor);
 
       const cameraBoundRadius = Math.hypot(innerHalfWidth, innerHalfDepth);
       void applyHdriEnvironment(environmentVariant);
