@@ -753,7 +753,14 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     jetBlackCarbon: 'Jet Black Carbon',
     frostedAsh: 'Frosted Ash',
     amberWharf: 'Amber Wharf',
-    obsidianMist: 'Obsidian Mist'
+    obsidianMist: 'Obsidian Mist',
+    peelingPaintWeathered: 'Wood Peeling Paint Weathered',
+    oakVeneer01: 'Oak Veneer 01',
+    woodTable001: 'Wood Table 001',
+    darkWood: 'Dark Wood',
+    rosewoodVeneer1: 'Rosewood Veneer 1',
+    kitchenWood: 'Kitchen Wood',
+    japaneseSycamore: 'Japanese Sycamore'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -847,6 +854,62 @@ export const POOL_ROYALE_STORE_ITEMS = [
     name: 'Obsidian Mist Finish',
     price: 1050,
     description: 'Smoked obsidian rails with misted graphite accents.'
+  },
+  {
+    id: 'finish-peelingPaintWeathered',
+    type: 'tableFinish',
+    optionId: 'peelingPaintWeathered',
+    name: 'Wood Peeling Paint Weathered Finish',
+    price: 1080,
+    description: 'Weathered paint woodgrain with soft pastel undertones.'
+  },
+  {
+    id: 'finish-oakVeneer01',
+    type: 'tableFinish',
+    optionId: 'oakVeneer01',
+    name: 'Oak Veneer 01 Finish',
+    price: 1040,
+    description: 'Clean oak veneer planks with warm, balanced grain.'
+  },
+  {
+    id: 'finish-woodTable001',
+    type: 'tableFinish',
+    optionId: 'woodTable001',
+    name: 'Wood Table 001 Finish',
+    price: 1030,
+    description: 'Classic table timber tone with rich mid-brown depth.'
+  },
+  {
+    id: 'finish-darkWood',
+    type: 'tableFinish',
+    optionId: 'darkWood',
+    name: 'Dark Wood Finish',
+    price: 1100,
+    description: 'Deep espresso wood with strong contrast and low gloss.'
+  },
+  {
+    id: 'finish-rosewoodVeneer1',
+    type: 'tableFinish',
+    optionId: 'rosewoodVeneer1',
+    name: 'Rosewood Veneer 1 Finish',
+    price: 1120,
+    description: 'Rich rosewood veneer with warm red undertones.'
+  },
+  {
+    id: 'finish-kitchenWood',
+    type: 'tableFinish',
+    optionId: 'kitchenWood',
+    name: 'Kitchen Wood Finish',
+    price: 1020,
+    description: 'Bright kitchen-grade wood with soft golden hues.'
+  },
+  {
+    id: 'finish-japaneseSycamore',
+    type: 'tableFinish',
+    optionId: 'japaneseSycamore',
+    name: 'Japanese Sycamore Finish',
+    price: 1060,
+    description: 'Pale sycamore finish with refined linear grain.'
   },
   {
     id: 'chrome-chrome',
