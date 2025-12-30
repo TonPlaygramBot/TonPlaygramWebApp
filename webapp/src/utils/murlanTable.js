@@ -472,19 +472,7 @@ export function createMurlanStyleTable({
   rimMesh.receiveShadow = true;
   tableGroup.add(rimMesh);
 
-  const baseGeometry = new ThreeNamespace.CylinderGeometry(0.68 * scaleFactor, 0.95 * scaleFactor, baseHeight, 8, 1, false);
-  const baseMesh = new ThreeNamespace.Mesh(baseGeometry, baseMat);
-  baseMesh.position.y = tableY - baseHeight / 2;
-  baseMesh.castShadow = true;
-  baseMesh.receiveShadow = true;
-  tableGroup.add(baseMesh);
-
-  const trimGeometry = new ThreeNamespace.CylinderGeometry(tableRadius * 0.985, tableRadius, trimHeight, 64, 1, false);
-  const trimMesh = new ThreeNamespace.Mesh(trimGeometry, trimMat);
-  trimMesh.position.y = tableY - trimOffset;
-  trimMesh.castShadow = true;
-  trimMesh.receiveShadow = true;
-  tableGroup.add(trimMesh);
+  // Rounded pedestal removed for a sleeker profile
 
   const normalizedRotation = Number.isFinite(rotationY) ? rotationY : 0;
   tableGroup.position.y = 0;
