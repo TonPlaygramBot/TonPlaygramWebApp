@@ -31,8 +31,8 @@ export default function LudoBattleRoyalLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [table, setTable] = useState(TABLES[0]);
   const [avatar, setAvatar] = useState('');
-  const [aiCount, setAiCount] = useState(0);
-  const [aiType, setAiType] = useState('');
+  const [aiCount, setAiCount] = useState(1);
+  const [aiType, setAiType] = useState('flags');
   const [flags, setFlags] = useState([]);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [online, setOnline] = useState(0);
@@ -89,6 +89,22 @@ export default function LudoBattleRoyalLobby() {
     setShowFlagPicker(true);
   };
 
+  const buildAutoFlags = (count, selection = []) => {
+    const desired = Math.max(1, count || 1);
+    const pool = FLAG_EMOJIS.map((_, idx) => idx);
+    const chosen = selection.filter((value) => Number.isFinite(value));
+    const remaining = pool.filter((idx) => !chosen.includes(idx));
+    while (chosen.length < desired) {
+      if (!remaining.length) {
+        chosen.push(Math.floor(Math.random() * FLAG_EMOJIS.length));
+        continue;
+      }
+      const pickIndex = Math.floor(Math.random() * remaining.length);
+      chosen.push(remaining.splice(pickIndex, 1)[0]);
+    }
+    return chosen.slice(0, desired);
+  };
+
   const startGame = async (flagOverride = flags) => {
     let tgId;
     let accountId;
@@ -118,10 +134,12 @@ export default function LudoBattleRoyalLobby() {
     if (accountId) params.set('accountId', accountId);
 
     if (table?.id === 'practice') {
+      const aiSlotCount = aiCount || 1;
       const aiFlagSelection = flagOverride && flagOverride.length ? flagOverride : flags;
-      params.set('ai', aiCount || 1);
+      const resolvedFlags = buildAutoFlags(aiSlotCount, aiFlagSelection);
+      params.set('ai', aiSlotCount);
       params.set('avatars', aiType || 'flags');
-      if (aiFlagSelection.length) params.set('flags', aiFlagSelection.join(','));
+      params.set('flags', resolvedFlags.join(','));
     }
 
     if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
@@ -136,8 +154,7 @@ export default function LudoBattleRoyalLobby() {
     !stake ||
     !stake.token ||
     !stake.amount ||
-    (table?.id === 'practice' &&
-      (!aiType || (aiType === 'flags' && flags.length !== (aiCount || 1))));
+    (table?.id === 'practice' && !aiType);
 
   const flagPickerCount = table?.id === 'practice' ? aiCount || 1 : Math.max(aiCount || 1, 1);
 

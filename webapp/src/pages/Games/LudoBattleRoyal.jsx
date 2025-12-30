@@ -859,6 +859,35 @@ function fitTableModelToArena(model) {
   };
 }
 
+function applyBoardGroupScale(boardGroup, tableInfo) {
+  if (!boardGroup) return;
+  const scale = tableInfo?.group?.scale;
+  const scaleX = scale?.x ?? 1;
+  const scaleY = scale?.y ?? 1;
+  const scaleZ = scale?.z ?? 1;
+  if (scaleX && scaleY && scaleZ) {
+    boardGroup.scale.set(BOARD_SCALE / scaleX, BOARD_SCALE / scaleY, BOARD_SCALE / scaleZ);
+  } else {
+    boardGroup.scale.setScalar(BOARD_SCALE);
+  }
+}
+
+function stripTableBase(model) {
+  if (!model) return;
+  const toRemove = [];
+  model.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const name = (obj.name || '').toLowerCase();
+    if (name.includes('base') || name.includes('pedestal') || name.includes('stand')) {
+      toRemove.push(obj);
+    }
+  });
+  toRemove.forEach((mesh) => {
+    disposeObjectResources(mesh);
+    mesh.parent?.remove(mesh);
+  });
+}
+
 const shouldPreserveChairMaterials = (theme) => Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
 
 async function createPolyhavenInstance(assetId, targetHeight, rotationY = 0, renderer = null) {
@@ -2750,6 +2779,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             tableTheme.rotationY || 0,
             renderer
           );
+          stripTableBase(model);
           if (tableBuildTokenRef.current !== token) {
             disposeObjectResources(model);
             return null;
@@ -2807,6 +2837,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
       if (boardGroup) {
         boardGroup.position.set(0, tableInfo.surfaceY + 0.004, 0);
+        applyBoardGroupScale(boardGroup, tableInfo);
         tableInfo.group.add(boardGroup);
       }
 
@@ -3521,7 +3552,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (!arenaState?.tableInfo?.group) return;
       const nextBoardGroup = new THREE.Group();
       nextBoardGroup.position.set(0, arenaState.tableInfo.surfaceY + 0.004, 0);
-      nextBoardGroup.scale.setScalar(BOARD_SCALE);
+      applyBoardGroupScale(nextBoardGroup, arenaState.tableInfo);
       nextBoardGroup.rotation.y = BOARD_ROTATION_Y;
       arenaState.tableInfo.group.add(nextBoardGroup);
 
@@ -3533,10 +3564,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         headOption,
         tokenPieceOption
       );
-      if (arenaState.boardGroup) {
-        arenaState.tableInfo.group.remove(arenaState.boardGroup);
-        disposeBoardGroup(arenaState.boardGroup);
-      }
+        if (arenaState.boardGroup) {
+          arenaState.tableInfo.group.remove(arenaState.boardGroup);
+          disposeBoardGroup(arenaState.boardGroup);
+        }
       arenaState.boardGroup = nextBoardGroup;
       diceRef.current = boardData.dice;
       turnIndicatorRef.current = boardData.turnIndicator;
@@ -3588,6 +3619,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
           arena.controls?.update();
           fitRef.current?.();
+          applyBoardGroupScale(arena.boardGroup, arena.tableInfo);
           configureDiceAnchors({ tableInfo: arena.tableInfo, boardGroup: arena.boardGroup, chairs: arena.chairs });
           const currentTurn = stateRef.current?.turn ?? 0;
           moveDiceToRail(currentTurn, true);
@@ -3660,7 +3692,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     let onPointerUp = null;
     let onResize = null;
 
-    const setupScene = async () => {
+  const setupScene = async () => {
 
       const baseVolume = settingsRef.current.soundEnabled ? getGameVolume() : 0;
       [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef].forEach((ref) => {
@@ -3739,6 +3771,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           tableTheme.rotationY || 0,
           renderer
         );
+        stripTableBase(model);
         const tableGroup = new THREE.Group();
         tableGroup.add(model);
         const { surfaceY, radius } = fitTableModelToArena(tableGroup);
@@ -3784,7 +3817,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     const boardGroup = new THREE.Group();
     boardGroup.position.set(0, tableInfo.surfaceY + 0.004, 0);
-    boardGroup.scale.setScalar(BOARD_SCALE);
+    applyBoardGroupScale(boardGroup, tableInfo);
     boardGroup.rotation.y = BOARD_ROTATION_Y;
     tableInfo.group.add(boardGroup);
 
