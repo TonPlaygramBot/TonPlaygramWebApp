@@ -33,12 +33,7 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
   loftPhotoStudioHall: { cameraHeightM: 1.54, groundRadiusMultiplier: 4.6, groundResolution: 120 },
   londonPhotoStudioHall: { cameraHeightM: 1.56, groundRadiusMultiplier: 4.8, groundResolution: 120 },
   schoolHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.6, groundResolution: 112 },
-  countryStudioHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.5, groundResolution: 112 },
-  arenaGrandstand: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.4, groundResolution: 128 },
-  arenaPulse: { cameraHeightM: 1.62, groundRadiusMultiplier: 5.6, groundResolution: 128 },
-  arenaMetropolis: { cameraHeightM: 1.64, groundRadiusMultiplier: 5.7, groundResolution: 128 },
-  arenaSkybox: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.3, groundResolution: 128 },
-  arenaRoyalExpo: { cameraHeightM: 1.58, groundRadiusMultiplier: 5.2, groundResolution: 128 }
+  countryStudioHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.5, groundResolution: 112 }
 });
 
 const RAW_POOL_ROYALE_HDRI_VARIANTS = [
@@ -475,91 +470,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1.02,
     swatches: ['#f472b6', '#16a34a'],
     description: 'Cozy country hall with warm wood bounce and soft window key light.'
-  },
-  {
-    id: 'arenaGrandstand',
-    name: 'Arena Grandstand',
-    assetId: 'billiard_hall',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2220,
-    exposure: 1.16,
-    environmentIntensity: 1.12,
-    backgroundIntensity: 1.06,
-    swatches: ['#38bdf8', '#1d4ed8'],
-    description: 'Public grandstand arena glow with slow crowd movement and sharp rim light.',
-    ambientSoundUrl: '/assets/sounds/football-crowd-3-69245.mp3',
-    ambientVolume: 0.26,
-    skyboxRotationSpeed: 0.035,
-    skyboxRotation: 0.3
-  },
-  {
-    id: 'arenaPulse',
-    name: 'Arena Pulse',
-    assetId: 'music_hall_02',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2260,
-    exposure: 1.18,
-    environmentIntensity: 1.14,
-    backgroundIntensity: 1.08,
-    swatches: ['#f97316', '#db2777'],
-    description: 'Neon-lit arena interior with animated light sweeps and bassy ambience.',
-    ambientSoundUrl: '/assets/sounds/football-game-sound-effects-359284.mp3',
-    ambientVolume: 0.22,
-    skyboxRotationSpeed: 0.045,
-    skyboxRotation: -0.2
-  },
-  {
-    id: 'arenaMetropolis',
-    name: 'Arena Metropolis',
-    assetId: 'leadenhall_market',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2300,
-    exposure: 1.15,
-    environmentIntensity: 1.1,
-    backgroundIntensity: 1.04,
-    swatches: ['#22d3ee', '#8b5cf6'],
-    description: 'Open market arena with public footfall motion and sweeping skylights.',
-    ambientSoundUrl: '/assets/sounds/race-care-151963.mp3',
-    ambientVolume: 0.2,
-    skyboxRotationSpeed: 0.03,
-    skyboxRotation: 0.15
-  },
-  {
-    id: 'arenaSkybox',
-    name: 'Arena Skybox',
-    assetId: 'events_hall_interior',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2340,
-    exposure: 1.17,
-    environmentIntensity: 1.12,
-    backgroundIntensity: 1.06,
-    swatches: ['#f59e0b', '#84cc16'],
-    description: 'Festival arena canopy with rotating light rigs and open-floor motion.',
-    ambientSoundUrl: '/assets/sounds/fireworks-29629.mp3',
-    ambientVolume: 0.18,
-    skyboxRotationSpeed: 0.04,
-    skyboxRotation: 0.45
-  },
-  {
-    id: 'arenaRoyalExpo',
-    name: 'Arena Royal Expo',
-    assetId: 'ballroom',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2380,
-    exposure: 1.19,
-    environmentIntensity: 1.15,
-    backgroundIntensity: 1.08,
-    swatches: ['#fbbf24', '#f472b6'],
-    description: 'Royal exhibition arena with drifting highlights and ceremonial crowd motion.',
-    ambientSoundUrl: '/assets/sounds/crowd-cheering-383111.mp3',
-    ambientVolume: 0.24,
-    skyboxRotationSpeed: 0.032,
-    skyboxRotation: -0.35
   }
 ];
 
