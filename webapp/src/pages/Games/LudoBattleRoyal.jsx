@@ -10,7 +10,6 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
-import { createArenaCarpetMaterial, createArenaWallMaterial } from '../../utils/arenaDecor.js';
 import {
   createMurlanStyleTable,
   applyTableMaterials
@@ -277,7 +276,6 @@ const ABG_COLOR_B = /\b(black|ebony|dark|b)\b/i;
 
 const ARENA_SCALE = 0.85;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
-const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const STOOL_SCALE = 1.5 * 1.3;
@@ -299,8 +297,6 @@ const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
-const ARENA_WALL_HEIGHT = 3.6 * 1.3;
-const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const clampPlayerCount = (value) =>
@@ -450,7 +446,9 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const DEFAULT_FRAME_RATE_ID = 'uhd120';
+const DEFAULT_FRAME_RATE_OPTION =
+  FRAME_RATE_OPTIONS.find((option) => option.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
@@ -2382,12 +2380,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return DEFAULT_FRAME_RATE_ID;
   });
   const activeFrameRateOption = useMemo(
-    () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? FRAME_RATE_OPTIONS[0],
+    () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
   );
   const frameQualityProfile = useMemo(() => {
-    const option = activeFrameRateOption ?? FRAME_RATE_OPTIONS[0];
-    const fallback = FRAME_RATE_OPTIONS[0];
+    const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
+    const fallback = DEFAULT_FRAME_RATE_OPTION;
     const fps =
       Number.isFinite(option?.fps) && option.fps > 0
         ? option.fps
@@ -2415,8 +2413,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, [frameQualityProfile]);
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
-      Number.isFinite(FRAME_RATE_OPTIONS[0]?.fps) && FRAME_RATE_OPTIONS[0].fps > 0
-        ? FRAME_RATE_OPTIONS[0].fps
+      Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) && DEFAULT_FRAME_RATE_OPTION.fps > 0
+        ? DEFAULT_FRAME_RATE_OPTION.fps
         : 60;
     const fps =
       Number.isFinite(frameQualityProfile?.fps) && frameQualityProfile.fps > 0
@@ -2424,7 +2422,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         : fallbackFps;
     const targetMs = 1000 / fps;
     return {
-      id: frameQualityProfile?.id ?? FRAME_RATE_OPTIONS[0]?.id ?? DEFAULT_FRAME_RATE_ID,
+      id: frameQualityProfile?.id ?? DEFAULT_FRAME_RATE_OPTION?.id ?? DEFAULT_FRAME_RATE_ID,
       fps,
       targetMs,
       maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
@@ -3601,49 +3599,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         Math.sin(cameraSeatAngle) * cameraRadius
       );
 
-      const ambient = new THREE.AmbientLight(0xffffff, 1.08);
-      scene.add(ambient);
-      const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
-      spot.position.set(3, 7, 3);
-      spot.castShadow = true;
-      scene.add(spot);
-      const rim = new THREE.PointLight(0x33ccff, 1.728);
-      rim.position.set(-4, 3, -4);
-      scene.add(rim);
-
       const arenaGroup = new THREE.Group();
       scene.add(arenaGroup);
-
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 3.2, 64),
-      new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.9, metalness: 0.1 })
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    arenaGroup.add(floor);
-
-    const carpet = new THREE.Mesh(
-      new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 2.2, 64),
-      createArenaCarpetMaterial(new THREE.Color('#0f172a'), new THREE.Color('#1e3a8a'))
-    );
-    carpet.rotation.x = -Math.PI / 2;
-    carpet.position.y = 0.01;
-    carpet.receiveShadow = true;
-    arenaGroup.add(carpet);
-
-    const wall = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        TABLE_RADIUS * ARENA_GROWTH * 2.4,
-        TABLE_RADIUS * ARENA_GROWTH * 2.6,
-        ARENA_WALL_HEIGHT,
-        32,
-        1,
-        true
-      ),
-      createArenaWallMaterial('#0b1120', '#1e293b')
-    );
-    wall.position.y = ARENA_WALL_CENTER_Y;
-    arenaGroup.add(wall);
 
     const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
     const initialAppearance = ensureAppearanceUnlocked(initialAppearanceRaw);
@@ -5069,24 +5026,6 @@ async function buildLudoBoard(
   dice.userData.isRolling = false;
   dice.userData.railPads = Array.from({ length: playerCount }, () => null);
   scene.add(dice);
-
-  const diceLightTarget = new THREE.Object3D();
-  scene.add(diceLightTarget);
-
-  const diceAccent = new THREE.SpotLight(0xffffff, 2.1, 3.4, Math.PI / 5, 0.42, 1.25);
-  diceAccent.userData.offset = new THREE.Vector3(0.45, 1.55, 1.05);
-  diceAccent.target = diceLightTarget;
-  scene.add(diceAccent);
-
-  const diceFill = new THREE.PointLight(0xfff8e1, 1.05, 2.6, 2.2);
-  diceFill.userData.offset = new THREE.Vector3(-0.65, 1.25, -0.75);
-  scene.add(diceFill);
-
-  dice.userData.lights = {
-    accent: diceAccent,
-    fill: diceFill,
-    target: diceLightTarget
-  };
 
   const indicatorMat = new THREE.MeshStandardMaterial({
     color: playerColors[0],
