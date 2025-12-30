@@ -5,12 +5,15 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
 import { createArenaCarpetMaterial, createArenaWallMaterial } from '../../utils/arenaDecor.js';
 import {
   createMurlanStyleTable,
-  applyTableMaterials,
-  TABLE_SHAPE_OPTIONS
+  applyTableMaterials
 } from '../../utils/murlanTable.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
@@ -33,20 +36,16 @@ import { avatarToName } from '../../utils/avatarUtils.js';
 import {
   TABLE_WOOD_OPTIONS,
   TABLE_CLOTH_OPTIONS,
-  TABLE_BASE_OPTIONS,
-  DEFAULT_TABLE_CUSTOMIZATION,
-  WOOD_PRESETS_BY_ID,
-  WOOD_GRAIN_OPTIONS,
-  WOOD_GRAIN_OPTIONS_BY_ID
+  TABLE_BASE_OPTIONS
 } from '../../utils/tableCustomizationOptions.js';
-import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.js';
 import {
-  CHAIR_COLOR_OPTIONS,
   HEAD_PRESET_OPTIONS,
   TOKEN_PALETTE_OPTIONS,
   TOKEN_PIECE_OPTIONS,
   TOKEN_STYLE_OPTIONS
 } from '../../config/ludoBattleOptions.js';
+import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../../config/murlanThemes.js';
+import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
 import { TOKEN_TYPE_SEQUENCE } from '../../utils/ludoTokenConstants.js';
 import {
   getLudoBattleInventory,
@@ -363,36 +362,45 @@ const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
+const LUDO_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
+  ...variant,
+  label: `${variant.name} HDRI`
+}));
+const DEFAULT_HDRI_INDEX = Math.max(
+  0,
+  LUDO_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID)
+);
+const DEFAULT_HDRI_VARIANT = LUDO_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? LUDO_HDRI_OPTIONS[0] ?? null;
+const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
+const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
+const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const POLYHAVEN_MODEL_CACHE = new Map();
+const resolveHdriVariant = (index) => {
+  const max = LUDO_HDRI_OPTIONS.length - 1;
+  const idx = Number.isFinite(index) ? Math.min(Math.max(Math.round(index), 0), max) : DEFAULT_HDRI_INDEX;
+  return LUDO_HDRI_OPTIONS[idx] ?? LUDO_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? LUDO_HDRI_OPTIONS[0];
+};
 
 const APPEARANCE_STORAGE_KEY = 'ludoBattleRoyalArenaAppearance';
 const DEFAULT_APPEARANCE = {
-  ...DEFAULT_TABLE_CUSTOMIZATION,
-  tableCloth: 0,
-  chairColor: 0,
-  tableShape: 0,
+  tables: 0,
+  stools: 0,
+  environmentHdri: DEFAULT_HDRI_INDEX,
   tokenPalette: 0,
   tokenStyle: 0,
-  tokenPiece: 0,
-  headStyle: 0
+  tokenPiece: 0
 };
 
 const CUSTOMIZATION_SECTIONS = [
-  { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
-  { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
-  { key: 'chairColor', label: 'Chair Color', options: CHAIR_COLOR_OPTIONS },
-  { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
-  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
+  { key: 'tables', label: 'Table Model', options: MURLAN_TABLE_THEMES },
+  { key: 'stools', label: 'Chairs', options: MURLAN_STOOL_THEMES },
+  { key: 'environmentHdri', label: 'HDR Environment', options: LUDO_HDRI_OPTIONS },
   { key: 'tokenPalette', label: 'Token Palette', options: TOKEN_PALETTE_OPTIONS },
   { key: 'tokenStyle', label: 'Token Style', options: TOKEN_STYLE_OPTIONS },
-  { key: 'tokenPiece', label: 'Token Piece', options: TOKEN_PIECE_OPTIONS },
-  { key: 'headStyle', label: 'Heads (Pawn & Bishop)', options: HEAD_PRESET_OPTIONS }
+  { key: 'tokenPiece', label: 'Token Piece', options: TOKEN_PIECE_OPTIONS }
 ];
-
-const DIAMOND_SHAPE_ID = 'diamondEdge';
-const NON_DIAMOND_SHAPE_INDEX = (() => {
-  const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id !== DIAMOND_SHAPE_ID);
-  return index >= 0 ? index : 0;
-})();
 
 const FRAME_RATE_STORAGE_KEY = 'ludoFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
@@ -447,15 +455,12 @@ const DEFAULT_FRAME_RATE_ID = 'fhd60';
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const entries = [
-    ['tableWood', TABLE_WOOD_OPTIONS.length],
-    ['tableCloth', TABLE_CLOTH_OPTIONS.length],
-    ['tableBase', TABLE_BASE_OPTIONS.length],
-    ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_OPTIONS.length],
+    ['tables', MURLAN_TABLE_THEMES.length],
+    ['stools', MURLAN_STOOL_THEMES.length],
+    ['environmentHdri', LUDO_HDRI_OPTIONS.length],
     ['tokenPalette', TOKEN_PALETTE_OPTIONS.length],
     ['tokenStyle', TOKEN_STYLE_OPTIONS.length],
-    ['tokenPiece', TOKEN_PIECE_OPTIONS.length],
-    ['headStyle', HEAD_PRESET_OPTIONS.length]
+    ['tokenPiece', TOKEN_PIECE_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -465,25 +470,6 @@ function normalizeAppearance(value = {}) {
     }
   });
   return normalized;
-}
-
-function enforceShapeForPlayers(appearance, playerCount) {
-  const safe = { ...appearance };
-  const shapeOption = TABLE_SHAPE_OPTIONS[safe.tableShape];
-  if (playerCount > 4 && shapeOption?.id === DIAMOND_SHAPE_ID) {
-    safe.tableShape = NON_DIAMOND_SHAPE_INDEX;
-  }
-  return safe;
-}
-
-function getEffectiveShapeConfig(shapeIndex, playerCount) {
-  const fallback = TABLE_SHAPE_OPTIONS[NON_DIAMOND_SHAPE_INDEX] ?? TABLE_SHAPE_OPTIONS[0];
-  const requested = TABLE_SHAPE_OPTIONS[shapeIndex] ?? fallback;
-  if (requested?.id === DIAMOND_SHAPE_ID && playerCount > 4) {
-    return { option: fallback, rotationY: 0, forced: true };
-  }
-  const rotationY = requested?.id === DIAMOND_SHAPE_ID && playerCount <= 4 ? Math.PI / 4 : 0;
-  return { option: requested ?? fallback, rotationY, forced: false };
 }
 
 function adjustHexColor(hex, amount) {
@@ -713,6 +699,172 @@ function cloneBoardMaterial(base, color) {
   return mat;
 }
 
+let sharedKtx2Loader = null;
+
+function createConfiguredGLTFLoader(renderer = null) {
+  const loader = new GLTFLoader();
+  loader.setCrossOrigin('anonymous');
+  const draco = new DRACOLoader();
+  draco.setDecoderPath(DRACO_DECODER_PATH);
+  loader.setDRACOLoader(draco);
+  loader.setMeshoptDecoder(MeshoptDecoder);
+
+  if (!sharedKtx2Loader) {
+    sharedKtx2Loader = new KTX2Loader();
+    sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
+    const supportRenderer =
+      renderer || (typeof document !== 'undefined' ? new THREE.WebGLRenderer({ antialias: false, alpha: true }) : null);
+    if (supportRenderer) {
+      try {
+        sharedKtx2Loader.detectSupport(supportRenderer);
+      } catch (error) {
+        console.warn('KTX2 detection failed', error);
+      }
+      if (!renderer) supportRenderer.dispose();
+    }
+  }
+
+  loader.setKTX2Loader(sharedKtx2Loader);
+  return loader;
+}
+
+function prepareLoadedModel(model) {
+  if (!model) return;
+  model.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((mat) => {
+        if (!mat) return;
+        if (mat.map) applySRGBColorSpace(mat.map);
+        if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+      });
+    }
+  });
+}
+
+function disposeObjectResources(object) {
+  if (!object) return;
+  const materials = new Set();
+  object.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => mat && materials.add(mat));
+    obj.geometry?.dispose?.();
+  });
+  materials.forEach((mat) => {
+    if (mat?.map) mat.map.dispose?.();
+    if (mat?.emissiveMap) mat.emissiveMap.dispose?.();
+    mat?.dispose?.();
+  });
+}
+
+const buildPolyhavenModelUrls = (assetId) => {
+  const ids = Array.from(new Set([assetId, assetId?.toLowerCase?.()]));
+  const urls = [];
+  ids.forEach((id) => {
+    if (!id) return;
+    urls.push(
+      `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${id}/${id}_2k.gltf`,
+      `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${id}/${id}_1k.gltf`
+    );
+  });
+  return urls;
+};
+
+async function loadPolyhavenModel(assetId, renderer = null) {
+  if (!assetId) throw new Error('Missing Poly Haven asset id');
+  const cacheKey = assetId.toLowerCase();
+  if (POLYHAVEN_MODEL_CACHE.has(cacheKey)) {
+    return POLYHAVEN_MODEL_CACHE.get(cacheKey);
+  }
+
+  const promise = (async () => {
+    const loader = createConfiguredGLTFLoader(renderer);
+    const candidates = buildPolyhavenModelUrls(assetId);
+    let lastError = null;
+    for (const modelUrl of candidates) {
+      try {
+        const resolvedUrl = new URL(modelUrl, typeof window !== 'undefined' ? window.location?.href : modelUrl).href;
+        const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+        loader.setResourcePath(resourcePath);
+        loader.setPath('');
+        // eslint-disable-next-line no-await-in-loop
+        const gltf = await loader.loadAsync(resolvedUrl);
+        const root = gltf.scene || gltf.scenes?.[0] || gltf;
+        if (root) {
+          prepareLoadedModel(root);
+          return root;
+        }
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error(`Failed to load Poly Haven model for ${assetId}`);
+  })();
+
+  POLYHAVEN_MODEL_CACHE.set(cacheKey, promise);
+  promise.catch(() => POLYHAVEN_MODEL_CACHE.delete(cacheKey));
+  return promise;
+}
+
+function liftModelToGround(model, targetMinY = 0) {
+  const box = new THREE.Box3().setFromObject(model);
+  model.position.y += targetMinY - box.min.y;
+}
+
+function fitModelToHeight(model, targetHeight) {
+  const box = new THREE.Box3().setFromObject(model);
+  const currentHeight = box.max.y - box.min.y;
+  if (currentHeight > 0) {
+    const scale = targetHeight / currentHeight;
+    model.scale.multiplyScalar(scale);
+  }
+  liftModelToGround(model, 0);
+}
+
+function fitTableModelToArena(model) {
+  if (!model) return { surfaceY: TABLE_MODEL_TARGET_HEIGHT, radius: TABLE_RADIUS };
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const maxXZ = Math.max(size.x, size.z);
+  const targetHeight = TABLE_MODEL_TARGET_HEIGHT;
+  const targetDiameter = TABLE_MODEL_TARGET_DIAMETER;
+  const targetRadius = targetDiameter / 2;
+  const scaleY = size.y > 0 ? targetHeight / size.y : 1;
+  const scaleXZ = maxXZ > 0 ? targetDiameter / maxXZ : 1;
+  if (scaleY !== 1 || scaleXZ !== 1) {
+    model.scale.set(model.scale.x * scaleXZ, model.scale.y * scaleY, model.scale.z * scaleXZ);
+  }
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const center = scaledBox.getCenter(new THREE.Vector3());
+  model.position.add(new THREE.Vector3(-center.x, -scaledBox.min.y, -center.z));
+  const recenteredBox = new THREE.Box3().setFromObject(model);
+  const radius = Math.max(
+    Math.abs(recenteredBox.max.x),
+    Math.abs(recenteredBox.min.x),
+    Math.abs(recenteredBox.max.z),
+    Math.abs(recenteredBox.min.z),
+    targetRadius
+  );
+  return {
+    surfaceY: targetHeight,
+    radius
+  };
+}
+
+const shouldPreserveChairMaterials = (theme) => Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
+
+async function createPolyhavenInstance(assetId, targetHeight, rotationY = 0, renderer = null) {
+  const root = await loadPolyhavenModel(assetId, renderer);
+  const model = root.clone ? root.clone(true) : root;
+  prepareLoadedModel(model);
+  fitModelToHeight(model, targetHeight);
+  if (rotationY) model.rotation.y += rotationY;
+  return model;
+}
+
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
@@ -759,6 +911,7 @@ function extractChairMaterials(model) {
 }
 
 function applyChairThemeMaterials(three, theme) {
+  if (shouldPreserveChairMaterials(theme)) return;
   const mats = three?.chairMaterials;
   if (!mats) return;
   if (mats.seat?.color) {
@@ -901,15 +1054,105 @@ function createProceduralChair(theme) {
   };
 }
 
-async function buildChairTemplate(theme) {
+async function buildChairTemplate(theme, renderer = null) {
+  const preserve = shouldPreserveChairMaterials(theme);
   try {
+    if (theme?.source === 'polyhaven' && theme?.assetId) {
+      const model = await createPolyhavenInstance(
+        theme.assetId,
+        TARGET_CHAIR_SIZE.y - TARGET_CHAIR_MIN_Y,
+        theme.modelRotation || 0,
+        renderer
+      );
+      fitChairModelToFootprint(model);
+      return {
+        chairTemplate: model,
+        materials: extractChairMaterials(model),
+        preserveOriginal: true
+      };
+    }
+
     const gltfChair = await loadGltfChair();
-    applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
-    return gltfChair;
+    if (!preserve) {
+      applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
+    }
+    return { ...gltfChair, preserveOriginal: preserve };
   } catch (error) {
     console.error('Falling back to procedural chair', error);
   }
-  return createProceduralChair(theme);
+  const procedural = createProceduralChair(theme);
+  return { ...procedural, preserveOriginal: false };
+}
+
+const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
+  if (!json || typeof json !== 'object') return null;
+  const resolutions = Array.isArray(preferred) && preferred.length ? preferred : DEFAULT_HDRI_RESOLUTIONS;
+  for (const res of resolutions) {
+    const entry = json[res];
+    if (entry?.hdr) return entry.hdr;
+    if (entry?.exr) return entry.exr;
+  }
+  const fallback = Object.values(json).find((value) => value?.hdr || value?.exr);
+  if (!fallback) return null;
+  return fallback.hdr || fallback.exr || null;
+};
+
+async function resolvePolyHavenHdriUrl(config = {}) {
+  const preferred =
+    Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+      ? config.preferredResolutions
+      : DEFAULT_HDRI_RESOLUTIONS;
+  const fallbackRes = config?.fallbackResolution || preferred[0] || '8k';
+  const fallbackUrl =
+    config?.fallbackUrl ||
+    `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
+  if (config?.assetUrls && typeof config.assetUrls === 'object') {
+    for (const res of preferred) {
+      if (config.assetUrls[res]) return config.assetUrls[res];
+    }
+    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
+    if (manual) return manual;
+  }
+  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
+  if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
+  try {
+    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
+    if (!response?.ok) return fallbackUrl;
+    const json = await response.json();
+    const picked = pickPolyHavenHdriUrl(json, preferred);
+    return picked || fallbackUrl;
+  } catch (error) {
+    console.warn('Failed to resolve Poly Haven HDRI url', error);
+    return fallbackUrl;
+  }
+}
+
+async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
+  if (!renderer) return null;
+  const url = await resolvePolyHavenHdriUrl(config);
+  const lowerUrl = `${url ?? ''}`.toLowerCase();
+  const useExr = lowerUrl.endsWith('.exr');
+  const loader = useExr ? new EXRLoader() : new RGBELoader();
+  loader.setCrossOrigin?.('anonymous');
+  return new Promise((resolve) => {
+    loader.load(
+      url,
+      (texture) => {
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        pmrem.compileEquirectangularShader();
+        const envMap = pmrem.fromEquirectangular(texture).texture;
+        envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
+        texture.dispose();
+        pmrem.dispose();
+        resolve({ envMap, url });
+      },
+      undefined,
+      (error) => {
+        console.warn('Failed to load Poly Haven HDRI', error);
+        resolve(null);
+      }
+    );
+  });
 }
 
 function disposeChairAssets(chairTemplate, chairMaterials) {
@@ -2204,20 +2447,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
   });
   const appearanceRef = useRef(appearance);
+  const hdriVariantRef = useRef(DEFAULT_HDRI_VARIANT);
+  const disposeEnvironmentRef = useRef(() => {});
+  const envTextureRef = useRef(null);
+  const tableBuildTokenRef = useRef(0);
+  const chairBuildTokenRef = useRef(0);
   const playerColorsRef = useRef(resolvePlayerColors(appearance));
   const ensureAppearanceUnlocked = useCallback(
     (value = DEFAULT_APPEARANCE) => {
       const normalized = normalizeAppearance(value);
       const map = {
-        tableWood: TABLE_WOOD_OPTIONS,
-        tableCloth: TABLE_CLOTH_OPTIONS,
-        tableBase: TABLE_BASE_OPTIONS,
-        chairColor: CHAIR_COLOR_OPTIONS,
-        tableShape: TABLE_SHAPE_OPTIONS,
+        tables: MURLAN_TABLE_THEMES,
+        stools: MURLAN_STOOL_THEMES,
+        environmentHdri: LUDO_HDRI_OPTIONS,
         tokenPalette: TOKEN_PALETTE_OPTIONS,
         tokenStyle: TOKEN_STYLE_OPTIONS,
-        tokenPiece: TOKEN_PIECE_OPTIONS,
-        headStyle: HEAD_PRESET_OPTIONS
+        tokenPiece: TOKEN_PIECE_OPTIONS
       };
       let changed = false;
       const next = { ...normalized };
@@ -2343,6 +2588,173 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   useEffect(() => {
     applyRendererQuality();
   }, [applyRendererQuality, frameQualityProfile]);
+
+  const applyHdriEnvironment = useCallback(
+    async (variantConfig = hdriVariantRef.current || DEFAULT_HDRI_VARIANT) => {
+      const renderer = rendererRef.current;
+      const arena = arenaRef.current;
+      if (!renderer || !arena?.scene) return;
+      const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
+      if (!activeVariant) return;
+      const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
+      if (!envResult?.envMap) return;
+      const prevDispose = disposeEnvironmentRef.current;
+      const prevTexture = envTextureRef.current;
+      arena.scene.environment = envResult.envMap;
+      arena.scene.background = envResult.envMap;
+      if ('backgroundIntensity' in arena.scene && typeof activeVariant?.backgroundIntensity === 'number') {
+        arena.scene.backgroundIntensity = activeVariant.backgroundIntensity;
+      }
+      if (typeof activeVariant?.environmentIntensity === 'number') {
+        arena.scene.environmentIntensity = activeVariant.environmentIntensity;
+      }
+      renderer.toneMappingExposure = activeVariant?.exposure ?? renderer.toneMappingExposure;
+      envTextureRef.current = envResult.envMap;
+      disposeEnvironmentRef.current = () => {
+        if (arena.scene) {
+          if (arena.scene.environment === envResult.envMap) {
+            arena.scene.environment = null;
+          }
+          if (arena.scene.background === envResult.envMap) {
+            arena.scene.background = null;
+          }
+        }
+        envResult.envMap.dispose?.();
+      };
+      if (prevDispose && prevTexture !== envResult.envMap) {
+        prevDispose();
+      }
+    },
+    []
+  );
+
+  const rebuildTable = useCallback(
+    async (tableTheme) => {
+      const arena = arenaRef.current;
+      const renderer = rendererRef.current;
+      if (!arena?.arenaGroup || !renderer) return null;
+      const token = ++tableBuildTokenRef.current;
+      const previous = arena.tableInfo;
+      const boardGroup = arena.boardGroup;
+      if (boardGroup && previous?.group) {
+        previous.group.remove(boardGroup);
+      }
+      previous?.dispose?.();
+
+      let tableInfo = null;
+
+      if (tableTheme?.source === 'polyhaven' && tableTheme?.assetId) {
+        try {
+          const model = await createPolyhavenInstance(
+            tableTheme.assetId,
+            TABLE_HEIGHT,
+            tableTheme.rotationY || 0,
+            renderer
+          );
+          if (tableBuildTokenRef.current !== token) {
+            disposeObjectResources(model);
+            return null;
+          }
+          const tableGroup = new THREE.Group();
+          tableGroup.add(model);
+          const { surfaceY, radius } = fitTableModelToArena(tableGroup);
+          arena.arenaGroup.add(tableGroup);
+          tableInfo = {
+            group: tableGroup,
+            surfaceY,
+            tableHeight: surfaceY,
+            radius,
+            dispose: () => {
+              disposeObjectResources(tableGroup);
+              if (tableGroup.parent) tableGroup.parent.remove(tableGroup);
+            },
+            materials: null,
+            shapeId: tableTheme.id,
+            rotationY: tableTheme.rotationY ?? 0,
+            themeId: tableTheme.id,
+            getOuterRadius: () => radius,
+            getInnerRadius: () => radius * 0.72
+          };
+        } catch (error) {
+          console.warn('Failed to load Poly Haven table', error);
+        }
+      }
+
+      if (!tableInfo) {
+        const woodOption = TABLE_WOOD_OPTIONS[0];
+        const clothOption = TABLE_CLOTH_OPTIONS[0];
+        const baseOption = TABLE_BASE_OPTIONS[0];
+        const procedural = createMurlanStyleTable({
+          arena: arena.arenaGroup,
+          renderer,
+          tableRadius: TABLE_RADIUS,
+          tableHeight: TABLE_HEIGHT,
+          woodOption,
+          clothOption,
+          baseOption
+        });
+        applyTableMaterials(procedural.materials, { woodOption, clothOption, baseOption }, renderer);
+        tableInfo = { ...procedural, themeId: tableTheme?.id || procedural.shapeId };
+      }
+
+      if (tableBuildTokenRef.current !== token) {
+        tableInfo.dispose?.();
+        return null;
+      }
+
+      arena.tableInfo = tableInfo;
+      arena.tableThemeId = tableTheme?.id || 'murlan-default';
+
+      if (boardGroup) {
+        boardGroup.position.set(0, tableInfo.surfaceY + 0.004, 0);
+        tableInfo.group.add(boardGroup);
+      }
+
+      return tableInfo;
+    },
+    []
+  );
+
+  const rebuildChairs = useCallback(
+    async (stoolTheme) => {
+      const arena = arenaRef.current;
+      const renderer = rendererRef.current;
+      if (!arena?.chairs || !renderer) return;
+      const token = ++chairBuildTokenRef.current;
+      const chairBuild = await buildChairTemplate(stoolTheme, renderer);
+      if (chairBuildTokenRef.current !== token || !chairBuild) return;
+
+      arena.chairs.forEach(({ group }) => {
+        const previous = group?.userData?.chairModel;
+        if (previous) {
+          disposeObjectResources(previous);
+          group.remove(previous);
+        }
+      });
+
+      if (arena.chairTemplate && arena.chairTemplate !== chairBuild.chairTemplate) {
+        disposeChairAssets(arena.chairTemplate, arena.chairMaterials);
+      }
+
+      const preserve = chairBuild.preserveOriginal ?? shouldPreserveChairMaterials(stoolTheme);
+      const chairMaterials = chairBuild.materials;
+      if (!preserve && chairMaterials) {
+        applyChairThemeMaterials({ chairMaterials }, stoolTheme);
+      }
+
+      arena.chairTemplate = chairBuild.chairTemplate;
+      arena.chairMaterials = chairMaterials;
+      arena.chairThemePreserve = preserve;
+      arena.chairThemeId = stoolTheme?.id;
+
+      arena.chairs.forEach(({ group }) => {
+        const clone = chairBuild.chairTemplate.clone(true);
+        group.add(clone);
+        group.userData.chairModel = clone;
+      });
+    },
+    []
+  );
 
   const clearHumanRollTimeout = useCallback(() => {
     if (humanRollTimeoutRef.current) {
@@ -2492,60 +2904,53 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
   const renderPreview = useCallback((type, option) => {
     switch (type) {
-      case 'tableWood': {
-        const preset = option?.presetId ? WOOD_PRESETS_BY_ID[option.presetId] : undefined;
-        const grain = option?.grainId ? WOOD_GRAIN_OPTIONS_BY_ID[option.grainId] : undefined;
-        const presetRef = preset || WOOD_FINISH_PRESETS?.[0];
-        const baseHex = presetRef
-          ? `#${hslToHexNumber(presetRef.hue, presetRef.sat, presetRef.light)
-              .toString(16)
-              .padStart(6, '0')}`
-          : '#8b5a2b';
-        const accentHex = presetRef
-          ? `#${hslToHexNumber(
-              presetRef.hue,
-              Math.min(1, presetRef.sat + 0.12),
-              Math.max(0, presetRef.light - 0.18)
-            )
-              .toString(16)
-              .padStart(6, '0')}`
-          : '#5a3820';
-        const grainLabel = grain?.label ?? WOOD_GRAIN_OPTIONS?.[0]?.label ?? '';
+      case 'tables': {
+        const thumb = option?.thumbnail;
         return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `repeating-linear-gradient(135deg, ${baseHex}, ${baseHex} 12%, ${accentHex} 12%, ${accentHex} 20%)`
-              }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/40" />
-            <div className="absolute bottom-1 right-1 rounded-full bg-black/60 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-emerald-100/80">
-              {grainLabel.slice(0, 12)}
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/60">
+            {thumb ? (
+              <img
+                src={thumb}
+                alt={option?.label || 'Table model'}
+                className="h-full w-full object-cover opacity-80"
+                loading="lazy"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-slate-100/80">
+                {option?.label || 'Table'}
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-transparent to-black/50" />
+            <div className="absolute bottom-1 left-1 rounded-md bg-black/60 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-emerald-100/80">
+              {(option?.label || 'Table').slice(0, 22)}
             </div>
           </div>
         );
       }
-      case 'tableCloth':
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="h-12 w-20 rounded-[999px] border border-white/10"
-                style={{ background: `radial-gradient(circle at 35% 30%, ${option.feltTop}, ${option.feltBottom})` }}
+      case 'stools': {
+        if (option?.thumbnail) {
+          return (
+            <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/60">
+              <img
+                src={option.thumbnail}
+                alt={option?.label || 'Chair'}
+                className="h-full w-full object-cover opacity-80"
+                loading="lazy"
               />
+              <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-transparent to-black/50" />
+              <div className="absolute bottom-1 left-1 rounded-md bg-black/60 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-emerald-100/80">
+                {(option?.label || 'Chair').slice(0, 22)}
+              </div>
             </div>
-            <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-black/50 to-transparent" />
-          </div>
-        );
-      case 'chairColor':
+          );
+        }
         return (
           <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
             <div className="absolute inset-0 flex items-center justify-center">
               <div
                 className="h-12 w-20 rounded-3xl border border-white/10"
                 style={{
-                  background: `linear-gradient(135deg, ${option.primary}, ${option.accent})`,
+                  background: `linear-gradient(135deg, ${option.seatColor || '#7c3aed'}, ${option.legColor || '#111827'})`,
                   boxShadow: 'inset 0 0 12px rgba(0,0,0,0.35)'
                 }}
               />
@@ -2553,36 +2958,24 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-black/40" />
           </div>
         );
-      case 'tableBase':
+      }
+      case 'environmentHdri': {
+        const swatches = option?.swatches || option?.preview || [];
+        const fallbackSwatches = [0x0ea5e9, 0x1e293b, 0xfbbf24, 0x111827];
+        const palette = swatches.length ? swatches : fallbackSwatches;
         return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="h-10 w-24 rounded-full border border-white/10"
-                style={{
-                  background: `linear-gradient(135deg, ${option.baseColor}, ${option.trimColor ?? option.baseColor})`,
-                  boxShadow: 'inset 0 0 10px rgba(0,0,0,0.35)'
-                }}
-              />
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/50">
+            <div className="absolute inset-0 grid grid-cols-4">
+              {palette.map((swatch, idx) => (
+                // eslint-disable-next-line react/no-array-index-key
+                <div
+                  key={`${option?.id}-swatch-${idx}`}
+                  className="h-full w-full"
+                  style={{ backgroundColor: colorNumberToHex(normalizeColorValue(swatch, DEFAULT_PLAYER_COLORS[idx] || swatch)) }}
+                />
+              ))}
             </div>
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
-          </div>
-        );
-      case 'tableShape': {
-        const previewStyle = option.preview || {};
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="h-12 w-24 bg-gradient-to-br from-slate-300/70 via-slate-100/90 to-slate-400/60 shadow-inner"
-                style={{
-                  borderRadius: previewStyle.borderRadius ?? '999px',
-                  clipPath: previewStyle.clipPath,
-                  WebkitClipPath: previewStyle.clipPath
-                }}
-              />
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/50" />
           </div>
         );
       }
@@ -2624,19 +3017,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               <span className="text-xl">{option.symbol}</span>
               <span className="text-[0.6rem] text-slate-200/80">{option.label}</span>
             </div>
-          </div>
-        );
-      case 'headStyle':
-        return (
-          <div className="relative flex h-14 w-full items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-slate-950/40 px-3 text-center text-[0.7rem] leading-tight text-slate-100">
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
-            <div
-              className="relative h-8 w-8 rounded-full shadow-inner"
-              style={{
-                background: `radial-gradient(circle at 30% 30%, ${option.preset.color}, #000)`
-              }}
-            />
-            <span className="ml-3 text-[0.7rem] font-semibold">{option.label}</span>
           </div>
         );
       default:
@@ -3017,72 +3397,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (!arena) return;
 
     const normalized = normalizeAppearance(appearance);
-    const safe = enforceShapeForPlayers(normalized, activePlayerCount);
-    const woodOption = TABLE_WOOD_OPTIONS[safe.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-    const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-    const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const chairOption = CHAIR_COLOR_OPTIONS[safe.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(safe.tableShape, activePlayerCount);
+    const safe = ensureAppearanceUnlocked(normalized);
+    const tableTheme = MURLAN_TABLE_THEMES[safe.tables] ?? MURLAN_TABLE_THEMES[0];
+    const stoolTheme = MURLAN_STOOL_THEMES[safe.stools] ?? MURLAN_STOOL_THEMES[0];
+    const envVariant = resolveHdriVariant(safe.environmentHdri);
     const tokenStyleOption = TOKEN_STYLE_OPTIONS[safe.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
     const tokenPieceOption = TOKEN_PIECE_OPTIONS[safe.tokenPiece] ?? TOKEN_PIECE_OPTIONS[0];
-    const headOption = HEAD_PRESET_OPTIONS[safe.headStyle] ?? HEAD_PRESET_OPTIONS[0];
+    const headOption = HEAD_PRESET_OPTIONS[0] ?? null;
     const previousAppearance = appearanceRef.current || DEFAULT_APPEARANCE;
     const previousColors = resolvePlayerColors(previousAppearance);
     const nextColors = resolvePlayerColors(safe);
     const paletteChanged = !areColorArraysEqual(previousColors, nextColors);
     const tokenStyleChanged = previousAppearance.tokenStyle !== safe.tokenStyle;
     const tokenPieceChanged = previousAppearance.tokenPiece !== safe.tokenPiece;
-    const headStyleChanged = previousAppearance.headStyle !== safe.headStyle;
-
-    if (shapeOption) {
-      const shapeChanged = shapeOption.id !== arena.tableShapeId;
-      const rotationChanged = Math.abs((arena.tableInfo?.rotationY ?? 0) - rotationY) > 1e-3;
-      if (shapeChanged || rotationChanged) {
-        const boardGroup = arena.boardGroup;
-        if (boardGroup && arena.tableInfo?.group) {
-          arena.tableInfo.group.remove(boardGroup);
-        }
-        const nextTable = createMurlanStyleTable({
-          arena: arena.arenaGroup,
-          renderer: arena.renderer,
-          tableRadius: TABLE_RADIUS,
-          tableHeight: TABLE_HEIGHT,
-          woodOption,
-          clothOption,
-          baseOption,
-          shapeOption,
-          rotationY
-        });
-        applyTableMaterials(nextTable.materials, { woodOption, clothOption, baseOption }, arena.renderer);
-        if (boardGroup) {
-          boardGroup.position.set(0, nextTable.surfaceY + 0.004, 0);
-          nextTable.group.add(boardGroup);
-        }
-        arena.tableInfo?.dispose?.();
-        arena.tableInfo = nextTable;
-        arena.tableShapeId = nextTable.shapeId;
-        if (arena.boardLookTarget) {
-          arena.boardLookTarget.set(0, nextTable.surfaceY + CAMERA_TARGET_LIFT, 0);
-          arena.defaultLookTarget = arena.boardLookTarget.clone();
-        }
-        arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
-        arena.controls?.update();
-        fitRef.current?.();
-        configureDiceAnchors({ tableInfo: nextTable, boardGroup, chairs: arena.chairs });
-        const currentTurn = stateRef.current?.turn ?? 0;
-        moveDiceToRail(currentTurn, true);
-      } else if (arena.tableInfo?.materials) {
-        applyTableMaterials(arena.tableInfo.materials, { woodOption, clothOption, baseOption }, arena.renderer);
-      }
-    }
-
-    if (chairOption) {
-      const chairTheme = {
-        seatColor: chairOption.primary,
-        legColor: chairOption.legColor ?? DEFAULT_STOOL_THEME.legColor
-      };
-      applyChairThemeMaterials(arena, chairTheme);
-    }
+    const tableChanged = arena.tableThemeId !== tableTheme.id || !arena.tableInfo;
+    const stoolChanged = arena.chairThemeId !== stoolTheme.id || !arena.chairs?.length;
+    const hdriChanged = (hdriVariantRef.current?.id || hdriVariantRef.current?.name) !== envVariant?.id;
 
     const refreshBoardTokens = async () => {
       const arenaState = arenaRef.current;
@@ -3138,10 +3468,61 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     playerColorsRef.current = nextColors;
     appearanceRef.current = safe;
-    if (paletteChanged || tokenStyleChanged || tokenPieceChanged || headStyleChanged) {
-      refreshBoardTokens();
-    }
-  }, [appearance, activePlayerCount, applyRailLayout, scheduleHumanAutoRoll, updateTurnIndicator]);
+    hdriVariantRef.current = envVariant || hdriVariantRef.current;
+
+    const woodOption = TABLE_WOOD_OPTIONS[0];
+    const clothOption = TABLE_CLOTH_OPTIONS[0];
+    const baseOption = TABLE_BASE_OPTIONS[0];
+
+    (async () => {
+      if (tableChanged) {
+        await rebuildTable(tableTheme);
+        if (arena.tableInfo) {
+          if (!arena.boardLookTarget) {
+            arena.boardLookTarget = new THREE.Vector3();
+          }
+          arena.boardLookTarget.set(0, arena.tableInfo.surfaceY + CAMERA_TARGET_LIFT, 0);
+          arena.defaultLookTarget = arena.boardLookTarget.clone();
+          arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
+          arena.controls?.update();
+          fitRef.current?.();
+          configureDiceAnchors({ tableInfo: arena.tableInfo, boardGroup: arena.boardGroup, chairs: arena.chairs });
+          const currentTurn = stateRef.current?.turn ?? 0;
+          moveDiceToRail(currentTurn, true);
+        }
+      } else if (arena.tableInfo?.materials) {
+        applyTableMaterials(arena.tableInfo.materials, { woodOption, clothOption, baseOption }, rendererRef.current);
+      }
+
+      if (stoolChanged) {
+        await rebuildChairs(stoolTheme);
+        configureDiceAnchors({ tableInfo: arena.tableInfo, boardGroup: arena.boardGroup, chairs: arena.chairs });
+      } else if (!shouldPreserveChairMaterials(stoolTheme) && arena.chairMaterials) {
+        applyChairThemeMaterials(
+          { chairMaterials: arena.chairMaterials },
+          { seatColor: stoolTheme.seatColor, legColor: stoolTheme.legColor ?? DEFAULT_STOOL_THEME.legColor }
+        );
+      }
+
+      if (hdriChanged) {
+        await applyHdriEnvironment(envVariant);
+      }
+
+      if (paletteChanged || tokenStyleChanged || tokenPieceChanged || tableChanged) {
+        await refreshBoardTokens();
+      }
+    })();
+  }, [
+    appearance,
+    activePlayerCount,
+    applyHdriEnvironment,
+    applyRailLayout,
+    ensureAppearanceUnlocked,
+    rebuildChairs,
+    rebuildTable,
+    scheduleHumanAutoRoll,
+    updateTurnIndicator
+  ]);
 
   useEffect(() => {
     settingsRef.current.soundEnabled = soundEnabled;
@@ -3265,36 +3646,67 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     arenaGroup.add(wall);
 
     const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
-    const initialAppearance = enforceShapeForPlayers(initialAppearanceRaw, activePlayerCount);
-    const woodOption = TABLE_WOOD_OPTIONS[initialAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-    const clothOption = TABLE_CLOTH_OPTIONS[initialAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-    const baseOption = TABLE_BASE_OPTIONS[initialAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const chairOption = CHAIR_COLOR_OPTIONS[initialAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-    const tokenStyleOption =
-      TOKEN_STYLE_OPTIONS[initialAppearance.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
-    const tokenPieceOption =
-      TOKEN_PIECE_OPTIONS[initialAppearance.tokenPiece] ?? TOKEN_PIECE_OPTIONS[0];
-    const headOption = HEAD_PRESET_OPTIONS[initialAppearance.headStyle] ?? HEAD_PRESET_OPTIONS[0];
+    const initialAppearance = ensureAppearanceUnlocked(initialAppearanceRaw);
+    const tableTheme = MURLAN_TABLE_THEMES[initialAppearance.tables] ?? MURLAN_TABLE_THEMES[0];
+    const stoolTheme = MURLAN_STOOL_THEMES[initialAppearance.stools] ?? MURLAN_STOOL_THEMES[0];
+    const envVariant = resolveHdriVariant(initialAppearance.environmentHdri);
+    const tokenStyleOption = TOKEN_STYLE_OPTIONS[initialAppearance.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
+    const tokenPieceOption = TOKEN_PIECE_OPTIONS[initialAppearance.tokenPiece] ?? TOKEN_PIECE_OPTIONS[0];
+    const headOption = HEAD_PRESET_OPTIONS[0] ?? null;
     const initialPlayerColors = resolvePlayerColors(initialAppearance);
     appearanceRef.current = initialAppearance;
     playerColorsRef.current = initialPlayerColors;
-    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(
-      initialAppearance.tableShape,
-      activePlayerCount
-    );
 
-    const tableInfo = createMurlanStyleTable({
-      arena: arenaGroup,
-      renderer,
-      tableRadius: TABLE_RADIUS,
-      tableHeight: TABLE_HEIGHT,
-      woodOption,
-      clothOption,
-      baseOption,
-      shapeOption,
-      rotationY
-    });
-    applyTableMaterials(tableInfo.materials, { woodOption, clothOption, baseOption }, renderer);
+    let tableInfo = null;
+    if (tableTheme?.source === 'polyhaven' && tableTheme?.assetId) {
+      try {
+        const model = await createPolyhavenInstance(
+          tableTheme.assetId,
+          TABLE_HEIGHT,
+          tableTheme.rotationY || 0,
+          renderer
+        );
+        const tableGroup = new THREE.Group();
+        tableGroup.add(model);
+        const { surfaceY, radius } = fitTableModelToArena(tableGroup);
+        arenaGroup.add(tableGroup);
+        tableInfo = {
+          group: tableGroup,
+          surfaceY,
+          tableHeight: surfaceY,
+          radius,
+          dispose: () => {
+            disposeObjectResources(tableGroup);
+            if (tableGroup.parent) tableGroup.parent.remove(tableGroup);
+          },
+          materials: null,
+          shapeId: tableTheme.id,
+          rotationY: tableTheme.rotationY ?? 0,
+          themeId: tableTheme.id,
+          getOuterRadius: () => radius,
+          getInnerRadius: () => radius * 0.72
+        };
+      } catch (error) {
+        console.warn('Failed to load Poly Haven table', error);
+      }
+    }
+
+    if (!tableInfo) {
+      const woodOption = TABLE_WOOD_OPTIONS[0];
+      const clothOption = TABLE_CLOTH_OPTIONS[0];
+      const baseOption = TABLE_BASE_OPTIONS[0];
+      const procedural = createMurlanStyleTable({
+        arena: arenaGroup,
+        renderer,
+        tableRadius: TABLE_RADIUS,
+        tableHeight: TABLE_HEIGHT,
+        woodOption,
+        clothOption,
+        baseOption
+      });
+      applyTableMaterials(procedural.materials, { woodOption, clothOption, baseOption }, renderer);
+      tableInfo = { ...procedural, themeId: tableTheme?.id || procedural.shapeId };
+    }
 
     const boardGroup = new THREE.Group();
     boardGroup.position.set(0, tableInfo.surfaceY + 0.004, 0);
@@ -3354,15 +3766,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
     };
 
-    const chairTheme = {
-      seatColor: chairOption.primary,
-      legColor: chairOption.legColor ?? DEFAULT_STOOL_THEME.legColor
-    };
-    const chairBuild = await buildChairTemplate(chairTheme);
+    const chairBuild = await buildChairTemplate(stoolTheme, renderer);
     if (cancelled || !chairBuild) return;
     const chairTemplate = chairBuild.chairTemplate;
     const chairMaterials = chairBuild.materials;
-    applyChairThemeMaterials({ chairMaterials }, chairTheme);
+    const preserveChairMats = chairBuild.preserveOriginal ?? shouldPreserveChairMaterials(stoolTheme);
+    if (!preserveChairMats && chairMaterials) {
+      applyChairThemeMaterials({ chairMaterials }, stoolTheme);
+    }
 
     const chairs = [];
     for (let i = 0; i < activePlayerCount; i += 1) {
@@ -3383,6 +3794,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       });
       group.add(chairModel);
+      group.userData.chairModel = chairModel;
 
       const avatarAnchor = new THREE.Object3D();
       avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
@@ -3434,15 +3846,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       controls,
       arenaGroup,
       tableInfo,
-      tableShapeId: tableInfo.shapeId,
+      tableThemeId: tableInfo.themeId,
       boardGroup,
       boardLookTarget,
       defaultLookTarget: boardLookTarget.clone(),
       chairTemplate,
       chairMaterials,
+      chairThemeId: stoolTheme?.id,
+      chairThemePreserve: preserveChairMats,
       chairs,
       seatAnchors: chairs.map((chair) => chair.anchor)
     };
+
+    hdriVariantRef.current = envVariant || DEFAULT_HDRI_VARIANT;
+    void applyHdriEnvironment(envVariant);
 
     const attemptDiceRoll = (clientX, clientY) => {
       const dice = diceRef.current;
@@ -3714,6 +4131,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         disposeChairAssets(arena.chairTemplate, arena.chairMaterials);
         arena.tableInfo?.dispose?.();
       }
+      disposeEnvironmentRef.current?.();
+      envTextureRef.current = null;
       arenaRef.current = null;
       rendererRef.current = null;
       renderer?.dispose?.();
@@ -4304,16 +4723,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                     <div className="grid grid-cols-2 gap-2">
                       {options.map((option) => {
                         const selected = appearance[key] === option.idx;
-                        const disabled =
-                          key === 'tableShape' && option.id === DIAMOND_SHAPE_ID && DEFAULT_PLAYER_COUNT > 4;
+                        const disabled = false;
                         return (
                           <button
                             key={option.id ?? option.idx}
                             type="button"
-                            onClick={() => {
-                              if (disabled) return;
-                              setAppearance((prev) => ({ ...prev, [key]: option.idx }));
-                            }}
+                            onClick={() => setAppearance((prev) => ({ ...prev, [key]: option.idx }))}
                             aria-pressed={selected}
                             disabled={disabled}
                             className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${

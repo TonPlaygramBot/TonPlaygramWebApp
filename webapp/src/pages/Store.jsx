@@ -160,15 +160,12 @@ const BLACKJACK_TYPE_LABELS = {
 };
 
 const LUDO_TYPE_LABELS = {
-  tableWood: 'Table Wood',
-  tableCloth: 'Table Cloth',
-  tableBase: 'Table Base',
-  chairColor: 'Chairs',
-  tableShape: 'Table Shape',
+  tables: 'Table Models',
+  stools: 'Stools & Chairs',
+  environmentHdri: 'HDR Environments',
   tokenPalette: 'Token Palette',
   tokenStyle: 'Token Style',
-  tokenPiece: 'Token Piece',
-  headStyle: 'Heads'
+  tokenPiece: 'Token Piece'
 };
 
 const MURLAN_TYPE_LABELS = {
