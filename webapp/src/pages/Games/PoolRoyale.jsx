@@ -11517,11 +11517,14 @@ const powerRef = useRef(hud.power);
           16,
           Math.floor(activeVariant?.groundResolution ?? HDRI_GROUNDED_RESOLUTION)
         );
+        const envRotation =
+          typeof activeVariant?.rotationY === 'number' ? activeVariant.rotationY : 0;
         let skybox = null;
         if (skyboxMap && skyboxHeight > 0 && skyboxRadius > 0) {
           try {
             skybox = new GroundedSkybox(skyboxMap, skyboxHeight, skyboxRadius, skyboxResolution);
             skybox.position.y = floorWorldY + skyboxHeight;
+            skybox.rotation.y = envRotation;
             skybox.material.depthWrite = false;
             sceneInstance.background = null;
             sceneInstance.add(skybox);
@@ -11543,6 +11546,12 @@ const powerRef = useRef(hud.power);
           ) {
             sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
           }
+        }
+        if (sceneInstance.backgroundRotation) {
+          sceneInstance.backgroundRotation.set(0, envRotation, 0);
+        }
+        if (sceneInstance.environmentRotation) {
+          sceneInstance.environmentRotation.set(0, envRotation, 0);
         }
         if (
           'environmentIntensity' in sceneInstance &&
