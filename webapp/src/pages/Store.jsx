@@ -177,14 +177,12 @@ const MURLAN_TYPE_LABELS = {
 };
 
 const DOMINO_TYPE_LABELS = {
-  tableModel: 'Table Models',
   tableWood: 'Table Wood',
   tableCloth: 'Table Cloth',
   tableBase: 'Table Base',
   dominoStyle: 'Domino Styles',
   highlightStyle: 'Highlights',
-  chairTheme: 'Chairs',
-  environmentHdri: 'HDR Environments'
+  chairTheme: 'Chairs'
 };
 
 const SNAKE_TYPE_LABELS = {
@@ -349,8 +347,7 @@ const PREVIEW_BY_TYPE = {
   tableWood: 'table',
   tableCloth: 'table',
   tableBase: 'table',
-  tables: 'table',
-  tableModel: 'table'
+  tables: 'table'
 };
 
 const PREVIEW_BY_SLUG = {
