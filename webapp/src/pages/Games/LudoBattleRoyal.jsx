@@ -9,6 +9,7 @@ import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
 import {
   createMurlanStyleTable,
@@ -361,8 +362,16 @@ const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const LUDO_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
+  preferredResolutions: ['4k'],
+  fallbackResolution: '4k',
   label: `${variant.name} HDRI`
 }));
+const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
+const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
+const DEFAULT_HDRI_RADIUS_MULTIPLIER = 5.5;
+const MIN_HDRI_RADIUS = 18;
+const HDRI_GROUNDED_RESOLUTION = 96;
+const HDRI_UNITS_PER_METER = 1;
 const DEFAULT_HDRI_INDEX = Math.max(
   0,
   LUDO_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID)
@@ -1140,9 +1149,12 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
         pmrem.compileEquirectangularShader();
         const envMap = pmrem.fromEquirectangular(texture).texture;
         envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
-        texture.dispose();
+        const skyboxMap = texture;
+        skyboxMap.name = `${config?.assetId ?? 'polyhaven'}-skybox`;
+        skyboxMap.mapping = THREE.EquirectangularReflectionMapping;
+        skyboxMap.needsUpdate = true;
         pmrem.dispose();
-        resolve({ envMap, url });
+        resolve({ envMap, skyboxMap, url });
       },
       undefined,
       (error) => {
@@ -1151,6 +1163,18 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
       }
     );
   });
+}
+
+function computeGroupFloorY(objects = []) {
+  const box = new THREE.Box3();
+  let hasObject = false;
+  objects.forEach((obj) => {
+    if (!obj) return;
+    box.expandByObject(obj);
+    hasObject = true;
+  });
+  if (!hasObject) return 0;
+  return box.min.y;
 }
 
 function disposeChairAssets(chairTemplate, chairMaterials) {
@@ -2448,6 +2472,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const hdriVariantRef = useRef(DEFAULT_HDRI_VARIANT);
   const disposeEnvironmentRef = useRef(() => {});
   const envTextureRef = useRef(null);
+  const envSkyboxRef = useRef(null);
+  const envSkyboxTextureRef = useRef(null);
+  const environmentFloorRef = useRef(0);
+  const baseSkyboxScaleRef = useRef(1);
+  const baseCameraRadiusRef = useRef(0);
   const tableBuildTokenRef = useRef(0);
   const chairBuildTokenRef = useRef(0);
   const playerColorsRef = useRef(resolvePlayerColors(appearance));
@@ -2596,35 +2625,113 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (!activeVariant) return;
       const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
       if (!envResult?.envMap) return;
+      const { envMap, skyboxMap } = envResult;
       const prevDispose = disposeEnvironmentRef.current;
       const prevTexture = envTextureRef.current;
-      arena.scene.environment = envResult.envMap;
-      arena.scene.background = envResult.envMap;
-      if ('backgroundIntensity' in arena.scene && typeof activeVariant?.backgroundIntensity === 'number') {
-        arena.scene.backgroundIntensity = activeVariant.backgroundIntensity;
+      const prevSkybox = envSkyboxRef.current;
+      const floorY = environmentFloorRef.current ?? 0;
+      const cameraHeight =
+        Math.max(activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M, MIN_HDRI_CAMERA_HEIGHT_M) *
+        HDRI_UNITS_PER_METER;
+      const radiusMultiplier =
+        typeof activeVariant?.groundRadiusMultiplier === 'number'
+          ? activeVariant.groundRadiusMultiplier
+          : DEFAULT_HDRI_RADIUS_MULTIPLIER;
+      const sceneSpan = Math.max(arena.tableInfo?.radius ?? TABLE_RADIUS, BOARD_RADIUS);
+      const groundRadius = Math.max(sceneSpan * radiusMultiplier, MIN_HDRI_RADIUS);
+      const skyboxResolution = Math.max(
+        16,
+        Math.floor(activeVariant?.groundResolution ?? HDRI_GROUNDED_RESOLUTION)
+      );
+      const skyboxRadius = Math.max(groundRadius, cameraHeight * 2.5, MIN_HDRI_RADIUS);
+      let skybox = null;
+      if (skyboxMap && skyboxRadius > 0 && cameraHeight > 0) {
+        try {
+          skybox = new GroundedSkybox(skyboxMap, cameraHeight, skyboxRadius, skyboxResolution);
+          skybox.position.y = floorY + cameraHeight;
+          skybox.material.depthWrite = false;
+          arena.scene.background = null;
+          arena.scene.add(skybox);
+          envSkyboxRef.current = skybox;
+          envSkyboxTextureRef.current = skyboxMap;
+          baseSkyboxScaleRef.current = skybox.scale?.x ?? 1;
+        } catch (error) {
+          console.warn('Failed to create grounded HDRI skybox', error);
+          skybox = null;
+        }
+      }
+      arena.scene.environment = envMap;
+      if (!skybox) {
+        arena.scene.background = envMap;
+        envSkyboxRef.current = null;
+        envSkyboxTextureRef.current = null;
+        if ('backgroundIntensity' in arena.scene && typeof activeVariant?.backgroundIntensity === 'number') {
+          arena.scene.backgroundIntensity = activeVariant.backgroundIntensity;
+        }
       }
       if (typeof activeVariant?.environmentIntensity === 'number') {
         arena.scene.environmentIntensity = activeVariant.environmentIntensity;
       }
       renderer.toneMappingExposure = activeVariant?.exposure ?? renderer.toneMappingExposure;
-      envTextureRef.current = envResult.envMap;
+      envTextureRef.current = envMap;
+      if (skybox && arena.camera && arena.boardLookTarget) {
+        const radius = arena.camera.position.distanceTo(arena.boardLookTarget);
+        const baseRadius = baseCameraRadiusRef.current || radius || 1;
+        const baseScale = baseSkyboxScaleRef.current || 1;
+        const scale = clamp(radius / baseRadius, 0.35, 3.5);
+        skybox.scale.setScalar(baseScale * scale);
+      }
       disposeEnvironmentRef.current = () => {
         if (arena.scene) {
-          if (arena.scene.environment === envResult.envMap) {
+          if (arena.scene.environment === envMap) {
             arena.scene.environment = null;
           }
-          if (arena.scene.background === envResult.envMap) {
+          if (!skybox && arena.scene.background === envMap) {
             arena.scene.background = null;
           }
         }
-        envResult.envMap.dispose?.();
+        envMap.dispose?.();
+        if (skybox) {
+          skybox.parent?.remove(skybox);
+          skybox.geometry?.dispose?.();
+          skybox.material?.dispose?.();
+          if (envSkyboxRef.current === skybox) {
+            envSkyboxRef.current = null;
+          }
+        }
+        if (skyboxMap) {
+          skyboxMap.dispose?.();
+          if (envSkyboxTextureRef.current === skyboxMap) {
+            envSkyboxTextureRef.current = null;
+          }
+        }
       };
-      if (prevDispose && prevTexture !== envResult.envMap) {
+      if (prevDispose && (prevTexture !== envMap || prevSkybox !== skybox)) {
         prevDispose();
       }
     },
     []
   );
+
+  const updateHdriPlacement = useCallback(() => {
+    const arena = arenaRef.current;
+    const skybox = envSkyboxRef.current;
+    if (!arena || !skybox) return;
+    const activeVariant = hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
+    if (!activeVariant) return;
+    const floorY = environmentFloorRef.current ?? 0;
+    const cameraHeight =
+      Math.max(activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M, MIN_HDRI_CAMERA_HEIGHT_M) *
+      HDRI_UNITS_PER_METER;
+    skybox.position.y = floorY + cameraHeight;
+    if (arena.camera && arena.boardLookTarget) {
+      const radius = arena.camera.position.distanceTo(arena.boardLookTarget);
+      const baseRadius = baseCameraRadiusRef.current || radius || 1;
+      const baseScale = baseSkyboxScaleRef.current || 1;
+      const scale = clamp(radius / baseRadius, 0.35, 3.5);
+      skybox.scale.setScalar(baseScale * scale);
+    }
+  }, []);
 
   const rebuildTable = useCallback(
     async (tableTheme) => {
@@ -3472,6 +3579,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const clothOption = TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[0];
 
+    const refreshEnvironmentFloor = () => {
+      const arenaState = arenaRef.current;
+      if (!arenaState) return;
+      const objects = [
+        arenaState.tableInfo?.group,
+        ...(arenaState.chairs ?? []).map((chair) => chair.group)
+      ];
+      const floorY = computeGroupFloorY(objects);
+      environmentFloorRef.current = floorY;
+      arenaState.environmentFloorY = floorY;
+      updateHdriPlacement();
+    };
+
     (async () => {
       if (tableChanged) {
         await rebuildTable(tableTheme);
@@ -3500,6 +3620,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           { chairMaterials: arena.chairMaterials },
           { seatColor: stoolTheme.seatColor, legColor: stoolTheme.legColor ?? DEFAULT_STOOL_THEME.legColor }
         );
+      }
+
+      if (tableChanged || stoolChanged) {
+        refreshEnvironmentFloor();
       }
 
       if (hdriChanged) {
@@ -3555,6 +3679,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     let onPointerDown = null;
     let onPointerUp = null;
     let onResize = null;
+    let syncSkyboxToCamera = () => {};
 
     const setupScene = async () => {
 
@@ -3689,6 +3814,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.maxPolarAngle = CAM.phiMax;
     controls.target.copy(boardLookTarget);
     controlsRef.current = controls;
+    syncSkyboxToCamera = () => {
+      if (!camera || !boardLookTarget) return;
+      const skybox = envSkyboxRef.current;
+      if (!skybox) return;
+      const radius = camera.position.distanceTo(boardLookTarget);
+      const baseRadius = baseCameraRadiusRef.current || radius || 1;
+      const baseScale = baseSkyboxScaleRef.current || 1;
+      const scale = clamp(radius / baseRadius, 0.35, 3.5);
+      skybox.scale.setScalar(baseScale * scale);
+    };
+    controls.addEventListener('change', syncSkyboxToCamera);
 
     const fit = () => {
       const w = host.clientWidth;
@@ -3705,9 +3841,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
       controls.update();
       applyRendererQuality();
+      syncSkyboxToCamera();
     };
     fitRef.current = fit;
     fit();
+    baseCameraRadiusRef.current = camera.position.distanceTo(boardLookTarget);
+    baseSkyboxScaleRef.current = envSkyboxRef.current?.scale?.x ?? baseSkyboxScaleRef.current ?? 1;
+    syncSkyboxToCamera();
 
     const dollyScale = 1 + CAMERA_DOLLY_FACTOR;
     zoomRef.current = {
@@ -3715,11 +3855,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (!controls) return;
         controls.dollyIn(dollyScale);
         controls.update();
+        syncSkyboxToCamera();
       },
       zoomOut: () => {
         if (!controls) return;
         controls.dollyOut(dollyScale);
         controls.update();
+        syncSkyboxToCamera();
       }
     };
 
@@ -3760,6 +3902,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       arenaGroup.add(group);
       chairs.push({ group, anchor: avatarAnchor });
     }
+
+    const environmentFloorY = computeGroupFloorY([
+      tableInfo?.group,
+      ...chairs.map((chair) => chair.group)
+    ]);
+    environmentFloorRef.current = environmentFloorY;
+    arenaGroup.userData.environmentFloorY = environmentFloorY;
 
     const boardData = await buildLudoBoard(
       boardGroup,
@@ -3812,6 +3961,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       chairThemeId: stoolTheme?.id,
       chairThemePreserve: preserveChairMats,
       chairs,
+      environmentFloorY,
       seatAnchors: chairs.map((chair) => chair.anchor)
     };
 
@@ -4073,6 +4223,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         window.removeEventListener('pointerup', onPointerUp);
         window.removeEventListener('pointercancel', onPointerUp);
       }
+      controls?.removeEventListener('change', syncSkyboxToCamera);
       controlsRef.current = null;
       controls?.dispose();
       controls = null;
@@ -4090,6 +4241,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
       disposeEnvironmentRef.current?.();
       envTextureRef.current = null;
+      envSkyboxRef.current = null;
+      envSkyboxTextureRef.current = null;
       arenaRef.current = null;
       rendererRef.current = null;
       renderer?.dispose?.();
