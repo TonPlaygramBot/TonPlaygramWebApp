@@ -552,6 +552,65 @@ function pickBestModelUrl(urls = []) {
   return preferred[0] || urls[0] || null;
 }
 
+const PREFERRED_POLYHAVEN_TEXTURE_SIZES = Object.freeze(['4k', '2k', '1k']);
+
+function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_POLYHAVEN_TEXTURE_SIZES) {
+  if (!apiJson || typeof apiJson !== 'object') {
+    return { diffuse: null, normal: null, roughness: null };
+  }
+
+  const urls = [];
+
+  const walk = (value) => {
+    if (!value) {
+      return;
+    }
+    if (typeof value === 'string') {
+      const lower = value.toLowerCase();
+      if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
+        urls.push(value);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.values(value).forEach(walk);
+    }
+  };
+
+  walk(apiJson);
+
+  const pick = (keywords) => {
+    const scored = urls
+      .filter((url) => keywords.some((kw) => url.toLowerCase().includes(kw)))
+      .map((url) => {
+        const lower = url.toLowerCase();
+        let score = 0;
+        preferredSizes.forEach((size, index) => {
+          if (lower.includes(size)) {
+            score += (preferredSizes.length - index) * 10;
+          }
+        });
+        if (lower.includes('jpg')) score += 6;
+        if (lower.includes('png')) score += 3;
+        if (lower.includes('preview') || lower.includes('thumb')) score -= 50;
+        if (lower.includes('.exr')) score -= 100;
+        return { url, score };
+      })
+      .sort((a, b) => b.score - a.score);
+    return scored[0]?.url;
+  };
+
+  return {
+    diffuse: pick(['diff', 'diffuse', 'albedo', 'basecolor']),
+    normal: pick(['nor_gl', 'normal_gl', 'nor', 'normal']),
+    roughness: pick(['rough', 'roughness'])
+  };
+}
+
 function prepareLoadedModel(root) {
   if (!root) return;
   root.traverse((obj) => {
@@ -659,6 +718,142 @@ async function loadPolyhavenModel(assetId, renderer = null) {
   POLYHAVEN_MODEL_CACHE.set(cacheKey, promise);
   promise.catch(() => POLYHAVEN_MODEL_CACHE.delete(cacheKey));
   return promise;
+}
+
+function normalizePbrTexture(texture, maxAnisotropy = 1) {
+  if (!texture) return;
+  texture.flipY = false;
+  texture.wrapS = texture.wrapS ?? THREE.RepeatWrapping;
+  texture.wrapT = texture.wrapT ?? THREE.RepeatWrapping;
+  texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
+  texture.needsUpdate = true;
+}
+
+async function loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy = 1, cache = null) {
+  if (!assetId || !textureLoader) return null;
+  const key = `${assetId.toLowerCase()}|${maxAnisotropy}`;
+  if (cache?.has(key)) {
+    return cache.get(key);
+  }
+
+  const promise = (async () => {
+    try {
+      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
+      if (!response.ok) {
+        return null;
+      }
+      const json = await response.json();
+      const urls = pickBestTextureUrls(json, PREFERRED_POLYHAVEN_TEXTURE_SIZES);
+      if (!urls.diffuse) {
+        return null;
+      }
+
+      const loadTextureFromLoader = (url, isColor = false) =>
+        new Promise((resolve, reject) => {
+          textureLoader.load(
+            url,
+            (texture) => {
+              if (isColor) applySRGBColorSpace(texture);
+              normalizePbrTexture(texture, maxAnisotropy);
+              resolve(texture);
+            },
+            undefined,
+            () => reject(new Error('texture load failed'))
+          );
+        });
+
+      const [diffuse, normal, roughness] = await Promise.all([
+        loadTextureFromLoader(urls.diffuse, true),
+        urls.normal ? loadTextureFromLoader(urls.normal, false) : null,
+        urls.roughness ? loadTextureFromLoader(urls.roughness, false) : null
+      ]);
+
+      [diffuse, normal, roughness].filter(Boolean).forEach((tex) => normalizePbrTexture(tex, maxAnisotropy));
+
+      return { diffuse, normal, roughness };
+    } catch (error) {
+      return null;
+    }
+  })();
+
+  if (cache) {
+    cache.set(key, promise);
+    promise.catch(() => cache.delete(key));
+  }
+  return promise;
+}
+
+function applyTextureSetToModel(model, textureSet, fallbackTexture, maxAnisotropy = 1) {
+  const normalizeTexture = (texture, isColor = false) => {
+    if (!texture) return null;
+    if (isColor) applySRGBColorSpace(texture);
+    normalizePbrTexture(texture, maxAnisotropy);
+    return texture;
+  };
+
+  const applyToMaterial = (material) => {
+    if (!material) return;
+    material.roughness = Math.max(material.roughness ?? 0.4, 0.4);
+    material.metalness = Math.min(material.metalness ?? 0.4, 0.4);
+
+    if (material.map) {
+      normalizeTexture(material.map, true);
+    } else if (textureSet?.diffuse) {
+      material.map = normalizeTexture(textureSet.diffuse, true);
+      material.needsUpdate = true;
+    } else if (fallbackTexture) {
+      material.map = normalizeTexture(fallbackTexture, true);
+      material.needsUpdate = true;
+    }
+
+    if (material.emissiveMap) {
+      normalizeTexture(material.emissiveMap, true);
+    }
+
+    if (!material.normalMap && textureSet?.normal) {
+      material.normalMap = textureSet.normal;
+      material.needsUpdate = true;
+    }
+
+    if (!material.roughnessMap && textureSet?.roughness) {
+      material.roughnessMap = textureSet.roughness;
+      material.needsUpdate = true;
+    }
+  };
+
+  model?.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach(applyToMaterial);
+  });
+}
+
+async function createPolyhavenInstance(assetId, rotationY = 0, renderer = null, textureOptions = {}) {
+  const root = await loadPolyhavenModel(assetId, renderer);
+  const model = root.clone ? root.clone(true) : root;
+  prepareLoadedModel(model);
+  const {
+    textureLoader = null,
+    maxAnisotropy = 1,
+    fallbackTexture = null,
+    textureCache = null,
+    textureSet = null
+  } = textureOptions || {};
+  if (textureLoader) {
+    try {
+      const textures =
+        textureSet ?? (await loadPolyhavenTextureSet(assetId, textureLoader, maxAnisotropy, textureCache));
+      if (textures || fallbackTexture) {
+        applyTextureSetToModel(model, textures, fallbackTexture, maxAnisotropy);
+      }
+    } catch (error) {
+      if (fallbackTexture) {
+        applyTextureSetToModel(model, null, fallbackTexture, maxAnisotropy);
+      }
+    }
+  }
+  if (rotationY) model.rotation.y += rotationY;
+  return model;
 }
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715);
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
@@ -1643,7 +1838,11 @@ async function buildTableFromTheme(theme, options = {}) {
     clothOption = TABLE_CLOTH_OPTIONS[0],
     baseOption = TABLE_BASE_OPTIONS[0],
     shapeOption = TABLE_SHAPE_OPTIONS[0],
-    rotationY = 0
+    rotationY = 0,
+    textureLoader = null,
+    maxAnisotropy = 1,
+    textureCache = null,
+    fallbackTexture = null
   } = options;
   if (!arena) throw new Error('buildTableFromTheme requires an arena group');
   const selectedTheme = theme || TABLE_THEME_OPTIONS[0];
@@ -1651,9 +1850,12 @@ async function buildTableFromTheme(theme, options = {}) {
 
   if (selectedTheme?.source === 'polyhaven' && selectedTheme?.assetId) {
     try {
-      const root = await loadPolyhavenModel(selectedTheme.assetId, renderer);
-      const model = root.clone(true);
-      prepareLoadedModel(model);
+      const model = await createPolyhavenInstance(selectedTheme.assetId, 0, renderer, {
+        textureLoader,
+        maxAnisotropy,
+        textureCache,
+        fallbackTexture
+      });
       const fitted = fitTableModelToArena(model);
       if (selectedTheme.rotationY || rotationY) {
         model.rotation.y += (selectedTheme.rotationY ?? 0) + (rotationY ?? 0);
@@ -1689,7 +1891,11 @@ async function buildTableFromTheme(theme, options = {}) {
       clothOption,
       baseOption,
       shapeOption,
-      rotationY
+      rotationY,
+      textureLoader,
+      maxAnisotropy,
+      textureCache,
+      fallbackTexture
     });
     tableInfo = { ...fallback, themeId: selectedTheme?.id || fallback.shapeId };
   }
@@ -5496,6 +5702,9 @@ function Chess3D({
   const envSkyboxRef = useRef(null);
   const envSkyboxTextureRef = useRef(null);
   const disposeEnvironmentRef = useRef(null);
+  const baseCameraRadiusRef = useRef(1);
+  const baseSkyboxScaleRef = useRef(1);
+  const lastCameraRadiusRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
   const hdriVariantRef = useRef(DEFAULT_HDRI_VARIANT);
   const environmentFloorRef = useRef(0);
@@ -6242,7 +6451,11 @@ function Chess3D({
           clothOption,
           baseOption,
           shapeOption,
-          rotationY
+          rotationY,
+          textureLoader: arena.textureLoader,
+          maxAnisotropy: arena.maxAnisotropy,
+          textureCache: arena.textureCache,
+          fallbackTexture: arena.fallbackTexture
         });
         if (!arenaRef.current) {
           nextTable?.dispose?.();
@@ -6553,16 +6766,40 @@ function Chess3D({
     host.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.setCrossOrigin?.('anonymous');
+    const textureCache = new Map();
+    const maxAnisotropy = renderer.capabilities.getMaxAnisotropy?.() ?? 1;
+    const fallbackTexture = textureLoader.load(
+      'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/uv_grid_opengl.jpg'
+    );
+    applySRGBColorSpace(fallbackTexture);
+    fallbackTexture.wrapS = THREE.RepeatWrapping;
+    fallbackTexture.wrapT = THREE.RepeatWrapping;
+    fallbackTexture.repeat?.set?.(1.6, 1.6);
+    fallbackTexture.anisotropy = maxAnisotropy;
+    fallbackTexture.needsUpdate = true;
+    disposers.push(() => {
+      fallbackTexture?.dispose?.();
+      textureCache.clear?.();
+    });
+
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0b0f16);
     sceneRef.current = scene;
     const arena = new THREE.Group();
     scene.add(arena);
+    arena.textureLoader = textureLoader;
+    arena.textureCache = textureCache;
+    arena.maxAnisotropy = maxAnisotropy;
+    arena.fallbackTexture = fallbackTexture;
 
     const roomHalfWidth = CHESS_ROOM_HALF_SPAN;
     const roomHalfDepth = CHESS_ROOM_HALF_SPAN;
     const roomWidth = roomHalfWidth * 2;
     const roomDepth = roomHalfDepth * 2;
+
+    let syncSkyboxToCamera = () => {};
 
     const applyHdriEnvironment = async (variantConfig = hdriVariantRef.current || DEFAULT_HDRI_VARIANT) => {
       const sceneInstance = sceneRef.current;
@@ -6605,6 +6842,7 @@ function Chess3D({
           sceneInstance.add(skybox);
           envSkyboxRef.current = skybox;
           envSkyboxTextureRef.current = skyboxMap;
+          baseSkyboxScaleRef.current = skybox.scale?.x ?? 1;
         } catch (error) {
           console.warn('Failed to create grounded HDRI skybox', error);
           skybox = null;
@@ -6624,6 +6862,7 @@ function Chess3D({
       }
       renderer.toneMappingExposure = activeVariant?.exposure ?? renderer.toneMappingExposure;
       envTextureRef.current = envMap;
+      syncSkyboxToCamera();
       disposeEnvironmentRef.current = () => {
         if (sceneRef.current?.environment === envMap) {
           sceneRef.current.environment = null;
@@ -6842,6 +7081,19 @@ function Chess3D({
     controls.target.copy(boardLookTarget);
     controls.update();
     controlsRef.current = controls;
+    syncSkyboxToCamera = () => {
+      if (!camera || !boardLookTarget) return;
+      const skybox = envSkyboxRef.current;
+      if (!skybox) return;
+      const radius = camera.position.distanceTo(boardLookTarget);
+      const baseRadius = baseCameraRadiusRef.current || radius || 1;
+      const baseScale = baseSkyboxScaleRef.current || 1;
+      const scale = clamp(radius / baseRadius, 0.35, 3.5);
+      skybox.scale.setScalar(baseScale * scale);
+      lastCameraRadiusRef.current = radius;
+    };
+    controls.addEventListener('change', syncSkyboxToCamera);
+    disposers.push(() => controls?.removeEventListener('change', syncSkyboxToCamera));
 
     stopCameraTween = () => {
       if (cameraTweenRef.current) {
@@ -6966,6 +7218,10 @@ function Chess3D({
     };
     fitRef.current = fit;
     fit();
+    baseCameraRadiusRef.current = camera.position.distanceTo(boardLookTarget);
+    baseSkyboxScaleRef.current =
+      envSkyboxRef.current?.scale?.x ?? baseSkyboxScaleRef.current ?? 1;
+    syncSkyboxToCamera();
 
     const dollyScale = 1 + CAMERA_WHEEL_FACTOR;
     zoomRef.current = {
@@ -6973,11 +7229,13 @@ function Chess3D({
         if (!controls) return;
         controls.dollyIn(dollyScale);
         controls.update();
+        syncSkyboxToCamera();
       },
       zoomOut: () => {
         if (!controls) return;
         controls.dollyOut(dollyScale);
         controls.update();
+        syncSkyboxToCamera();
       }
     };
 
@@ -7597,6 +7855,10 @@ function Chess3D({
         boardMaterials: arena.boardMaterials,
         pieceMaterials,
         allPieceMeshes,
+        textureLoader,
+        textureCache,
+        maxAnisotropy,
+        fallbackTexture,
         capturedByWhite,
         capturedByBlack,
         palette,
@@ -7618,6 +7880,10 @@ function Chess3D({
       arena.playerFlag = initialPlayerFlag;
       arena.aiFlag = initialAiFlagValue;
       arena.environmentFloorY = environmentFloorY;
+      arena.textureLoader = textureLoader;
+      arena.textureCache = textureCache;
+      arena.maxAnisotropy = maxAnisotropy;
+      arena.fallbackTexture = fallbackTexture;
 
     // Raycaster for picking
     ray = new THREE.Raycaster();
@@ -8279,6 +8545,16 @@ function Chess3D({
       const animDt = Math.min(0.5, rawDt);
       lastTime = now;
       const arenaState = arenaRef.current;
+      if (camera && boardLookTarget) {
+        const radius = camera.position.distanceTo(boardLookTarget);
+        if (
+          lastCameraRadiusRef.current == null ||
+          Math.abs(radius - lastCameraRadiusRef.current) > 1e-4
+        ) {
+          lastCameraRadiusRef.current = radius;
+          syncSkyboxToCamera();
+        }
+      }
       if (arenaState?.seatAnchors?.length && camera) {
         const positions = arenaState.seatAnchors.map((anchor, index) => {
           anchor.getWorldPosition(seatWorld);
