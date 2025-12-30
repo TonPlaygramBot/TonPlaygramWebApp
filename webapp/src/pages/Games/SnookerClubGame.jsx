@@ -6,6 +6,9 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
+import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import polygonClipping from 'polygon-clipping';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
@@ -21,6 +24,11 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { SnookerClubRules as PoolRoyaleRules } from '../../../../src/rules/SnookerClubRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/snookerClubTables.js';
+import {
+  POOL_ROYALE_DEFAULT_HDRI_ID,
+  POOL_ROYALE_HDRI_VARIANT_MAP,
+  POOL_ROYALE_HDRI_VARIANTS
+} from '../../config/poolRoyaleInventoryConfig.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
@@ -3562,191 +3570,107 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
   return target;
 }
 
-const CARPET_QUALITY = (() => {
-  const defaults = {
-    textureSize: 1024,
-    anisotropy: 8,
-    bumpAnisotropy: 6,
-    generateMipmaps: true
-  };
+const HDRI_STORAGE_KEY = 'snookerHdriEnvironment';
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
+const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
+const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
+const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
+const MIN_HDRI_RADIUS = 24;
+const HDRI_GROUNDED_RESOLUTION = 96;
 
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return {
-      ...defaults,
-      textureSize: 768,
-      anisotropy: 6,
-      bumpAnisotropy: 4
-    };
-  }
-
-  const dpr = window.devicePixelRatio ?? 1;
-  const ua = navigator.userAgent ?? '';
-  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
-  const isTouch = maxTouchPoints > 1;
-  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
-  const lowMemory = deviceMemory !== null && deviceMemory <= 4;
-  const lowRefresh = detectLowRefreshDisplay();
-
-  if (isMobileUA || isTouch || lowMemory || lowRefresh) {
-    const highDensity = dpr >= 3;
-    return {
-      textureSize: highDensity ? 896 : 640,
-      anisotropy: highDensity ? 6 : 4,
-      bumpAnisotropy: highDensity ? 4 : 3,
-      generateMipmaps: true
-    };
-  }
-
-  return defaults;
-})();
-
-const createCarpetTextures = (() => {
-  let cache = null;
-  const clamp01 = (v) => Math.min(1, Math.max(0, v));
-  const prng = (seed) => {
-    let value = seed;
-    return () => {
-      value = (value * 1664525 + 1013904223) % 4294967296;
-      return value / 4294967296;
-    };
-  };
-  const drawRoundedRect = (ctx, x, y, w, h, r) => {
-    const radius = Math.max(0, Math.min(r, Math.min(w, h) / 2));
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + w - radius, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-    ctx.lineTo(x + w, y + h - radius);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-    ctx.lineTo(x + radius, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
-  };
-  return () => {
-    if (cache) return cache;
-    if (typeof document === 'undefined') {
-      cache = { map: null, bump: null };
-      return cache;
-    }
-
-    const {
-      textureSize: size,
-      anisotropy: carpetAnisotropy,
-      bumpAnisotropy: carpetBumpAnisotropy,
-      generateMipmaps: carpetGenerateMipmaps
-    } = CARPET_QUALITY;
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = size;
-    const ctx = canvas.getContext('2d');
-
-    // rich crimson textile base to restore the original lounge mood
-    const gradient = ctx.createLinearGradient(0, 0, size, size);
-    gradient.addColorStop(0, '#7c242f');
-    gradient.addColorStop(1, '#9d3642');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, size, size);
-
-    const rand = prng(987654321);
-    const image = ctx.getImageData(0, 0, size, size);
-    const data = image.data;
-    const baseColor = { r: 112, g: 28, b: 34 };
-    const highlightColor = { r: 196, g: 72, b: 82 };
-    const toChannel = (component) =>
-      Math.round(clamp01(component / 255) * 255);
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const idx = (y * size + x) * 4;
-        const fiber = (Math.sin((x / size) * Math.PI * 14) +
-          Math.cos((y / size) * Math.PI * 16)) * 0.08;
-        const grain = (rand() - 0.5) * 0.12;
-        const shade = clamp01(0.55 + fiber * 0.75 + grain * 0.6);
-        const r =
-          baseColor.r + (highlightColor.r - baseColor.r) * shade;
-        const g =
-          baseColor.g + (highlightColor.g - baseColor.g) * shade;
-        const b =
-          baseColor.b + (highlightColor.b - baseColor.b) * shade;
-        data[idx] = toChannel(r);
-        data[idx + 1] = toChannel(g);
-        data[idx + 2] = toChannel(b);
+function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
+  const urls = [];
+  const walk = (value) => {
+    if (!value) return;
+    if (typeof value === 'string') {
+      if (value.startsWith('http') && value.toLowerCase().includes('.hdr')) {
+        urls.push(value);
       }
+      return;
     }
-    ctx.putImageData(image, 0, 0);
-
-    // subtle horizontal ribbing for textile feel
-    ctx.globalAlpha = 0.04;
-    ctx.fillStyle = '#4f1119';
-    for (let row = 0; row < size; row += 3) {
-      ctx.fillRect(0, row, size, 1);
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
     }
-    ctx.globalAlpha = 1;
-
-    // thin continuous pale stripe with rounded corners
-    const insetRatio = 0.055;
-    const stripeInset = size * insetRatio;
-    const stripeRadius = size * 0.08;
-    const stripeWidth = size * 0.012;
-    ctx.lineWidth = stripeWidth;
-    ctx.strokeStyle = '#f2b7b4';
-    ctx.shadowColor = 'rgba(80,20,30,0.18)';
-    ctx.shadowBlur = stripeWidth * 0.8;
-    drawRoundedRect(
-      ctx,
-      stripeInset,
-      stripeInset,
-      size - stripeInset * 2,
-      size - stripeInset * 2,
-      stripeRadius
-    );
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.anisotropy = carpetAnisotropy;
-    texture.minFilter = carpetGenerateMipmaps
-      ? THREE.LinearMipMapLinearFilter
-      : THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.generateMipmaps = carpetGenerateMipmaps;
-    applySRGBColorSpace(texture);
-
-    // bump map: derive from red base with extra fiber noise
-    const bumpCanvas = document.createElement('canvas');
-    bumpCanvas.width = bumpCanvas.height = size;
-    const bumpCtx = bumpCanvas.getContext('2d');
-    bumpCtx.drawImage(canvas, 0, 0);
-    const bumpImage = bumpCtx.getImageData(0, 0, size, size);
-    const bumpData = bumpImage.data;
-    const bumpRand = prng(246813579);
-    for (let i = 0; i < bumpData.length; i += 4) {
-      const r = bumpData[i];
-      const g = bumpData[i + 1];
-      const b = bumpData[i + 2];
-      const lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
-      const noise = (bumpRand() - 0.5) * 0.16;
-      const v = clamp01(0.62 + lum * 0.28 + noise);
-      const value = Math.floor(v * 255);
-      bumpData[i] = bumpData[i + 1] = bumpData[i + 2] = value;
+    if (typeof value === 'object') {
+      Object.values(value).forEach(walk);
     }
-    bumpCtx.putImageData(bumpImage, 0, 0);
-
-    const bump = new THREE.CanvasTexture(bumpCanvas);
-    bump.wrapS = bump.wrapT = THREE.ClampToEdgeWrapping;
-    bump.anisotropy = carpetBumpAnisotropy;
-    bump.minFilter = carpetGenerateMipmaps
-      ? THREE.LinearMipMapLinearFilter
-      : THREE.LinearFilter;
-    bump.magFilter = THREE.LinearFilter;
-    bump.generateMipmaps = carpetGenerateMipmaps;
-
-    cache = { map: texture, bump };
-    return cache;
   };
-})();
+  walk(apiJson);
+  const lower = urls.map((u) => u.toLowerCase());
+  for (const res of preferredResolutions) {
+    const match = lower.find((u) => u.includes(`_${res}.`));
+    if (match) return urls[lower.indexOf(match)];
+  }
+  return urls[0] ?? null;
+}
+
+async function resolvePolyHavenHdriUrl(config = {}) {
+  const preferred =
+    Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+      ? config.preferredResolutions
+      : DEFAULT_HDRI_RESOLUTIONS;
+  const fallbackRes = config?.fallbackResolution || preferred[0] || '4k';
+  const fallbackUrl =
+    config?.fallbackUrl ||
+    `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${
+      config?.assetId ?? 'neon_photostudio'
+    }_${fallbackRes}.hdr`;
+  if (config?.assetUrls && typeof config.assetUrls === 'object') {
+    for (const res of preferred) {
+      if (config.assetUrls[res]) return config.assetUrls[res];
+    }
+    const manual = Object.values(config.assetUrls).find(
+      (value) => typeof value === 'string' && value.length
+    );
+    if (manual) return manual;
+  }
+  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
+  if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
+  try {
+    const response = await fetch(
+      `https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`
+    );
+    if (!response?.ok) return fallbackUrl;
+    const json = await response.json();
+    const picked = pickPolyHavenHdriUrl(json, preferred);
+    return picked || fallbackUrl;
+  } catch (error) {
+    console.warn('Failed to resolve Poly Haven HDRI url', error);
+    return fallbackUrl;
+  }
+}
+
+async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
+  if (!renderer) return null;
+  const url = await resolvePolyHavenHdriUrl(config);
+  const lowerUrl = `${url ?? ''}`.toLowerCase();
+  const useExr = lowerUrl.endsWith('.exr');
+  const loader = useExr ? new EXRLoader() : new RGBELoader();
+  loader.setCrossOrigin?.('anonymous');
+  return new Promise((resolve) => {
+    loader.load(
+      url,
+      (texture) => {
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        pmrem.compileEquirectangularShader();
+        const envMap = pmrem.fromEquirectangular(texture).texture;
+        envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
+        const skyboxMap = texture;
+        skyboxMap.name = `${config?.assetId ?? 'polyhaven'}-skybox`;
+        skyboxMap.mapping = THREE.EquirectangularReflectionMapping;
+        skyboxMap.needsUpdate = true;
+        pmrem.dispose();
+        resolve({ envMap, skyboxMap, url });
+      },
+      undefined,
+      (error) => {
+        console.warn('Failed to load Poly Haven HDRI', error);
+        resolve(null);
+      }
+    );
+  });
+}
 
 function createBroadcastCameras({
   floorY,
@@ -8331,6 +8255,7 @@ export function PoolRoyaleGame({
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
+  const sceneRef = useRef(null);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey),
@@ -8412,6 +8337,14 @@ export function PoolRoyaleGame({
       'poolRailMarkerColor',
       (id) => RAIL_MARKER_COLOR_OPTIONS.some((opt) => opt.id === id),
       DEFAULT_RAIL_MARKER_COLOR_ID
+    );
+  });
+  const [environmentHdriId, setEnvironmentHdriId] = useState(() => {
+    return resolveStoredSelection(
+      'environmentHdri',
+      HDRI_STORAGE_KEY,
+      (id) => Boolean(POOL_ROYALE_HDRI_VARIANT_MAP[id]),
+      POOL_ROYALE_DEFAULT_HDRI_ID
     );
   });
   const [lightingId, setLightingId] = useState(() => DEFAULT_LIGHTING_ID);
@@ -8502,6 +8435,13 @@ export function PoolRoyaleGame({
       ),
     [snookerInventory]
   );
+  const availableEnvironmentHdris = useMemo(
+    () =>
+      POOL_ROYALE_HDRI_VARIANTS.filter((variant) =>
+        isSnookerOptionUnlocked('environmentHdri', variant.id, snookerInventory)
+      ),
+    [snookerInventory]
+  );
   const availablePocketLiners = useMemo(
     () =>
       POCKET_LINER_OPTIONS.filter((option) =>
@@ -8530,6 +8470,13 @@ export function PoolRoyaleGame({
       CLOTH_COLOR_OPTIONS[0],
     [availableClothOptions, clothColorId]
   );
+  const activeEnvironmentHdri = useMemo(
+    () =>
+      POOL_ROYALE_HDRI_VARIANT_MAP[environmentHdriId] ??
+      POOL_ROYALE_HDRI_VARIANT_MAP[POOL_ROYALE_DEFAULT_HDRI_ID] ??
+      POOL_ROYALE_HDRI_VARIANTS[0],
+    [environmentHdriId]
+  );
   const activePocketLinerOption = useMemo(
     () =>
       availablePocketLiners.find((opt) => opt?.id === pocketLinerId) ??
@@ -8553,9 +8500,13 @@ export function PoolRoyaleGame({
     if (!isSnookerOptionUnlocked('pocketLiner', pocketLinerId, snookerInventory)) {
       setPocketLinerId(DEFAULT_POCKET_LINER_OPTION_ID);
     }
+    if (!isSnookerOptionUnlocked('environmentHdri', environmentHdriId, snookerInventory)) {
+      setEnvironmentHdriId(POOL_ROYALE_DEFAULT_HDRI_ID);
+    }
   }, [
     chromeColorId,
     clothColorId,
+    environmentHdriId,
     pocketLinerId,
     railMarkerColorId,
     snookerInventory,
@@ -9124,6 +9075,15 @@ export function PoolRoyaleGame({
   useEffect(() => {
     activeVariantRef.current = activeVariant;
   }, [activeVariant]);
+  const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
+  useEffect(() => {
+    activeEnvironmentVariantRef.current = activeEnvironmentHdri;
+  }, [activeEnvironmentHdri]);
+  const envSkyboxRef = useRef(null);
+  const envSkyboxTextureRef = useRef(null);
+  const envTextureRef = useRef(null);
+  const disposeEnvironmentRef = useRef(null);
+  const updateEnvironmentRef = useRef(() => {});
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(TABLE_FINISH_STORAGE_KEY, tableFinishId);
@@ -9139,6 +9099,14 @@ export function PoolRoyaleGame({
       window.localStorage.setItem(POCKET_LINER_STORAGE_KEY, pocketLinerId);
     }
   }, [pocketLinerId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(HDRI_STORAGE_KEY, environmentHdriId);
+    }
+    if (typeof updateEnvironmentRef.current === 'function') {
+      updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
+    }
+  }, [activeEnvironmentHdri, environmentHdriId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('poolChromeColor', chromeColorId);
@@ -10084,6 +10052,7 @@ export function PoolRoyaleGame({
       return;
     }
     const cueRackDisposers = [];
+    let disposed = false;
     try {
       const updatePocketCameraState = (active) => {
         if (pocketCameraStateRef.current === active) return;
@@ -10111,17 +10080,127 @@ export function PoolRoyaleGame({
       renderer.domElement.addEventListener('webglcontextlost', (e) =>
         e.preventDefault()
       );
-      rendererRef.current = renderer;
       applyRendererQuality();
       renderer.domElement.style.transformOrigin = 'top left';
+      rendererRef.current = renderer;
 
       // Scene & Camera
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x050505);
+      sceneRef.current = scene;
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
-      let worldScaleFactor = 1;
+      let worldScaleFactor = WORLD_SCALE * (tableSizeRef.current?.scale ?? 1);
+      const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
+        const rendererInstance = rendererRef.current || renderer;
+        const sceneInstance = sceneRef.current || scene;
+        if (!rendererInstance || !sceneInstance) return;
+        const activeVariant =
+          variantConfig ||
+          activeEnvironmentVariantRef.current ||
+          POOL_ROYALE_HDRI_VARIANT_MAP[POOL_ROYALE_DEFAULT_HDRI_ID] ||
+          POOL_ROYALE_HDRI_VARIANTS[0];
+        const envResult = await loadPolyHavenHdriEnvironment(rendererInstance, activeVariant);
+        if (!envResult) return;
+        const { envMap, skyboxMap } = envResult;
+        if (!envMap) return;
+        if (disposed) {
+          envMap.dispose?.();
+          skyboxMap?.dispose?.();
+          return;
+        }
+        const prevDispose = disposeEnvironmentRef.current;
+        const prevTexture = envTextureRef.current;
+        const worldOffsetY = worldRef.current?.position?.y ?? 0;
+        const tableScale = tableSizeRef.current?.scale ?? 1;
+        const resolvedWorldScale =
+          Number.isFinite(worldScaleFactor) && worldScaleFactor > 0
+            ? worldScaleFactor
+            : WORLD_SCALE * tableScale;
+        const floorWorldY = FLOOR_Y * resolvedWorldScale + worldOffsetY;
+        const unitsPerMeter = MM_TO_UNITS * 1000 * resolvedWorldScale;
+        const cameraHeightMeters = Math.max(
+          activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M,
+          MIN_HDRI_CAMERA_HEIGHT_M
+        );
+        const skyboxHeight = cameraHeightMeters * unitsPerMeter;
+        const groundRadiusMultiplier =
+          typeof activeVariant?.groundRadiusMultiplier === 'number'
+            ? activeVariant.groundRadiusMultiplier
+            : DEFAULT_HDRI_RADIUS_MULTIPLIER;
+        const baseRadius =
+          Math.max(PLAY_W, PLAY_H) * resolvedWorldScale * groundRadiusMultiplier;
+        const skyboxRadius = Math.max(baseRadius, skyboxHeight * 2.5, MIN_HDRI_RADIUS);
+        const skyboxResolution = Math.max(
+          16,
+          Math.floor(activeVariant?.groundResolution ?? HDRI_GROUNDED_RESOLUTION)
+        );
+        let skybox = null;
+        if (skyboxMap && skyboxHeight > 0 && skyboxRadius > 0) {
+          try {
+            skybox = new GroundedSkybox(skyboxMap, skyboxHeight, skyboxRadius, skyboxResolution);
+            skybox.position.y = floorWorldY + skyboxHeight;
+            skybox.material.depthWrite = false;
+            sceneInstance.background = null;
+            sceneInstance.add(skybox);
+            envSkyboxRef.current = skybox;
+            envSkyboxTextureRef.current = skyboxMap;
+          } catch (error) {
+            console.warn('Failed to create grounded HDRI skybox', error);
+            skybox = null;
+          }
+        }
+        sceneInstance.environment = envMap;
+        if (!skybox) {
+          sceneInstance.background = envMap;
+          envSkyboxRef.current = null;
+          envSkyboxTextureRef.current = null;
+          if (
+            'backgroundIntensity' in sceneInstance &&
+            typeof activeVariant?.backgroundIntensity === 'number'
+          ) {
+            sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
+          }
+        }
+        if (
+          'environmentIntensity' in sceneInstance &&
+          typeof activeVariant?.environmentIntensity === 'number'
+        ) {
+          sceneInstance.environmentIntensity = activeVariant.environmentIntensity;
+        }
+        rendererInstance.toneMappingExposure =
+          activeVariant?.exposure ?? rendererInstance.toneMappingExposure;
+        envTextureRef.current = envMap;
+        disposeEnvironmentRef.current = () => {
+          if (sceneRef.current?.environment === envMap) {
+            sceneRef.current.environment = null;
+          }
+          if (!skybox && sceneRef.current?.background === envMap) {
+            sceneRef.current.background = null;
+          }
+          envMap.dispose?.();
+          if (skybox) {
+            skybox.parent?.remove(skybox);
+            skybox.geometry?.dispose?.();
+            skybox.material?.dispose?.();
+            if (envSkyboxRef.current === skybox) {
+              envSkyboxRef.current = null;
+            }
+          }
+          if (skyboxMap) {
+            skyboxMap.dispose?.();
+            if (envSkyboxTextureRef.current === skyboxMap) {
+              envSkyboxTextureRef.current = null;
+            }
+          }
+        };
+        if (prevDispose && prevTexture !== envMap) {
+          prevDispose();
+        }
+      };
+      updateEnvironmentRef.current = applyHdriEnvironment;
+      void applyHdriEnvironment(activeEnvironmentVariantRef.current);
       let cue;
       let clothMat;
       let cushionMat;
@@ -10492,107 +10571,11 @@ export function PoolRoyaleGame({
           }
         };
       };
-      const legHeight = LEG_ROOM_HEIGHT;
       const floorY = FLOOR_Y;
       const roomDepth = TABLE.H * 3.05;
       const sideClearance = roomDepth / 2 - TABLE.H / 2;
       const roomWidth = TABLE.W + sideClearance * 2;
       const wallThickness = 1.2;
-      const wallHeightBase = legHeight + TABLE.THICK + 40;
-      const wallHeight = wallHeightBase * 1.3 * 1.3; // raise the arena walls an extra 30%
-      const carpetThickness = 1.2;
-      const carpetInset = wallThickness * 0.02;
-      const carpetWidth = roomWidth - wallThickness + carpetInset;
-      const carpetDepth = roomDepth - wallThickness + carpetInset;
-      const carpetTextures = createCarpetTextures();
-      const carpetMat = new THREE.MeshStandardMaterial({
-        color: 0x8c2a2e,
-        roughness: 0.9,
-        metalness: 0.025
-      });
-      if (carpetTextures.map) {
-        carpetMat.map = carpetTextures.map;
-        carpetMat.map.repeat.set(1, 1);
-        carpetMat.map.needsUpdate = true;
-      }
-      if (carpetTextures.bump) {
-        carpetMat.bumpMap = carpetTextures.bump;
-        carpetMat.bumpMap.repeat.set(1, 1);
-        carpetMat.bumpScale = 0.18;
-        carpetMat.bumpMap.needsUpdate = true;
-      }
-      const carpet = new THREE.Mesh(
-        new THREE.BoxGeometry(carpetWidth, carpetThickness, carpetDepth),
-        carpetMat
-      );
-      carpet.castShadow = false;
-      carpet.receiveShadow = true;
-      carpet.position.set(0, floorY - carpetThickness / 2, 0);
-      world.add(carpet);
-
-      const wallMat = new THREE.MeshStandardMaterial({
-        color: 0xb9ddff,
-        roughness: 0.94,
-        metalness: 0.02,
-        flatShading: true
-      });
-
-      const makeWall = (width, height, depth) => {
-        const wall = new THREE.Mesh(
-          new THREE.BoxGeometry(width, height, depth),
-          wallMat
-        );
-        wall.castShadow = false;
-        wall.receiveShadow = true;
-        wall.position.y = floorY + height / 2;
-        world.add(wall);
-        return wall;
-      };
-
-      const backWall = makeWall(roomWidth, wallHeight, wallThickness);
-      backWall.position.z = roomDepth / 2;
-
-      const frontWall = makeWall(roomWidth, wallHeight, wallThickness);
-      frontWall.position.z = -roomDepth / 2;
-
-      const leftWall = makeWall(wallThickness, wallHeight, roomDepth);
-      leftWall.position.x = -roomWidth / 2;
-
-      const rightWall = makeWall(wallThickness, wallHeight, roomDepth);
-      rightWall.position.x = roomWidth / 2;
-
-      const wallInset = wallThickness / 2 + 0.2;
-      const frontInterior = -roomDepth / 2 + wallInset;
-      const backInterior = roomDepth / 2 - wallInset;
-      const leftInterior = -roomWidth / 2 + wallInset;
-      const rightInterior = roomWidth / 2 - wallInset;
-
-      const SHOW_SHORT_RAIL_MASKS = false;
-      const doorMaskHeight = wallHeight * 0.72;
-      const doorMaskDepth = Math.max(wallThickness * 0.65, 0.1);
-      const interiorMaskMat = new THREE.MeshStandardMaterial({
-        color: wallMat.color.clone(),
-        roughness: wallMat.roughness,
-        metalness: wallMat.metalness,
-        flatShading: true,
-        side: THREE.FrontSide
-      });
-      const addShortRailMask = (z) => {
-        if (!SHOW_SHORT_RAIL_MASKS) return;
-        const mask = new THREE.Mesh(
-          new THREE.BoxGeometry(roomWidth - wallThickness * 1.5, doorMaskHeight, doorMaskDepth),
-          interiorMaskMat
-        );
-        mask.castShadow = false;
-        mask.receiveShadow = true;
-        mask.position.set(0, floorY + doorMaskHeight / 2, z + Math.sign(z) * doorMaskDepth * 0.45);
-        world.add(mask);
-      };
-
-      if (SHOW_SHORT_RAIL_MASKS) {
-        addShortRailMask(frontInterior);
-        addShortRailMask(backInterior);
-      }
 
       cueRackGroupsRef.current = [];
       cueOptionGroupsRef.current = [];
@@ -13219,100 +13202,7 @@ export function PoolRoyaleGame({
 
       // Lights
       const addMobileLighting = () => {
-        const lightingRig = new THREE.Group();
-        world.add(lightingRig);
-
-        const lightSpreadBoost = 1.6; // widen the footprint so the larger snooker layout stays evenly lit
-        const previousLightRigHeight = tableSurfaceY + TABLE.THICK * 7.1;
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.05;
-        const brightnessCompensation =
-          ((lightRigHeight ** 2) / (previousLightRigHeight ** 2)) * 0.9;
-        const lightOffsetX =
-          Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
-        const lightOffsetZ =
-          Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
-        const lightLineX = lightOffsetX * 0.5;
-        const lightSpacing = lightOffsetZ * 0.6;
-        const lightPositionsZ = [-1.8, -0.9, 0, 0.9, 1.8].map(
-          (mult) => mult * lightSpacing
-        );
-        const shadowHalfSpan =
-          Math.max(roomWidth, roomDepth) * 0.82 + TABLE.THICK * 3.5;
-        const targetY = tableSurfaceY + TABLE.THICK * 0.2;
-        const shadowDepth =
-          lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
-
-        const ambient = new THREE.AmbientLight(0xffffff, 0.32);
-        lightingRig.add(ambient);
-
-        const registerLight = (
-          x,
-          z,
-          intensity,
-          heightMultiplier = 1,
-          shadowBias = -0.00006,
-          normalBias = 0.0006
-        ) => {
-          const light = new THREE.DirectionalLight(0xffffff, intensity);
-          light.userData = { ...(light.userData || {}), baseIntensity: intensity };
-          light.position.set(x, lightRigHeight * heightMultiplier, z);
-          light.target.position.set(0, targetY, 0);
-          light.castShadow = false;
-          light.shadow.mapSize.set(2048, 2048);
-          light.shadow.camera.near = 0.1;
-          light.shadow.camera.far = shadowDepth;
-          light.shadow.camera.left = -shadowHalfSpan;
-          light.shadow.camera.right = shadowHalfSpan;
-          light.shadow.camera.top = shadowHalfSpan;
-          light.shadow.camera.bottom = -shadowHalfSpan;
-          light.shadow.bias = shadowBias;
-          light.shadow.normalBias = normalBias;
-          light.shadow.camera.updateProjectionMatrix();
-          lightingRig.add(light);
-          lightingRig.add(light.target);
-          return light;
-        };
-
-        const key = registerLight(
-          lightLineX,
-          lightPositionsZ[0],
-          1.78 * brightnessCompensation
-        );
-        const fill = registerLight(
-          -lightLineX,
-          lightPositionsZ[1],
-          0.9 * brightnessCompensation,
-          1.01
-        );
-        const center = registerLight(
-          0,
-          lightPositionsZ[2],
-          0.88 * brightnessCompensation,
-          1.025
-        );
-        const wash = registerLight(
-          lightLineX,
-          lightPositionsZ[3],
-          0.82 * brightnessCompensation,
-          1.02
-        );
-        const rim = registerLight(
-          -lightLineX,
-          lightPositionsZ[4],
-          0.74 * brightnessCompensation,
-          1.03
-        );
-
-        lightingRigRef.current = {
-          group: lightingRig,
-          key,
-          fill,
-          center,
-          wash,
-          rim,
-          ambient
-        };
-        applyLightingPreset();
+        lightingRigRef.current = null;
       };
 
       addMobileLighting();
@@ -17140,8 +17030,15 @@ export function PoolRoyaleGame({
           updatePocketCameraState(false);
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
+          disposed = true;
+          disposeEnvironmentRef.current?.();
+          disposeEnvironmentRef.current = null;
+          envSkyboxRef.current = null;
+          envSkyboxTextureRef.current = null;
+          envTextureRef.current = null;
           lightingRigRef.current = null;
           worldRef.current = null;
+          sceneRef.current = null;
           activeRenderCameraRef.current = null;
           cueBodyRef.current = null;
           tipGroupRef.current = null;
@@ -17507,6 +17404,40 @@ export function PoolRoyaleGame({
                         }`}
                       >
                         {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  HDR Environment
+                </h3>
+                <div className="mt-2 grid grid-cols-1 gap-2">
+                  {availableEnvironmentHdris.map((variant) => {
+                    const active = variant.id === environmentHdriId;
+                    const swatchA = variant.swatches?.[0] ?? '#0ea5e9';
+                    const swatchB = variant.swatches?.[1] ?? '#111827';
+                    return (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        onClick={() => setEnvironmentHdriId(variant.id)}
+                        aria-pressed={active}
+                        className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span>{variant.name}</span>
+                        <span
+                          className="h-6 w-10 rounded-lg border border-white/30"
+                          aria-hidden="true"
+                          style={{
+                            background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
+                          }}
+                        />
                       </button>
                     );
                   })}
