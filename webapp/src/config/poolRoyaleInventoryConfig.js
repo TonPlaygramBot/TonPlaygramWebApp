@@ -1,6 +1,42 @@
 import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
 
-export const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
+const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
+  neonPhotostudio: { cameraHeightM: 1.52, groundRadiusMultiplier: 3.8, groundResolution: 120 },
+  studioSoftbox08: { cameraHeightM: 1.52, groundRadiusMultiplier: 3.7, groundResolution: 120 },
+  bronzePhotostudio: { cameraHeightM: 1.54, groundRadiusMultiplier: 3.9, groundResolution: 120 },
+  adamsBridge: { cameraHeightM: 1.68, groundRadiusMultiplier: 6.5, groundResolution: 112 },
+  veniceSunset: { cameraHeightM: 1.68, groundRadiusMultiplier: 6.7, groundResolution: 112 },
+  modernRooftops: { cameraHeightM: 1.72, groundRadiusMultiplier: 7, groundResolution: 112 },
+  kloofendalClouds: { cameraHeightM: 1.66, groundRadiusMultiplier: 6.2, groundResolution: 104 },
+  ballroomHall: { cameraHeightM: 1.58, groundRadiusMultiplier: 5.1, groundResolution: 112 },
+  rooftopNight: { cameraHeightM: 1.72, groundRadiusMultiplier: 7, groundResolution: 112 },
+  industrialSunset: { cameraHeightM: 1.7, groundRadiusMultiplier: 6.3, groundResolution: 112 },
+  snookerRoom: { cameraHeightM: 1.5, groundRadiusMultiplier: 4.4, groundResolution: 128 },
+  emptyPlayRoom: { cameraHeightM: 1.5, groundRadiusMultiplier: 3.9, groundResolution: 120 },
+  christmasPhotoStudio04: { cameraHeightM: 1.52, groundRadiusMultiplier: 3.9, groundResolution: 120 },
+  billiardHall: { cameraHeightM: 1.54, groundRadiusMultiplier: 4.8, groundResolution: 128 },
+  colorfulStudio: { cameraHeightM: 1.5, groundRadiusMultiplier: 4, groundResolution: 120 },
+  dancingHall: { cameraHeightM: 1.58, groundRadiusMultiplier: 5, groundResolution: 112 },
+  abandonedHall: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.2, groundResolution: 112 },
+  cinemaHall: { cameraHeightM: 1.58, groundRadiusMultiplier: 5, groundResolution: 112 },
+  entranceHall: { cameraHeightM: 1.56, groundRadiusMultiplier: 4.8, groundResolution: 112 },
+  eventsHallInterior: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.3, groundResolution: 112 },
+  hallOfFinfish: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.3, groundResolution: 112 },
+  hallOfMammals: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.3, groundResolution: 112 },
+  leadenhallMarket: { cameraHeightM: 1.64, groundRadiusMultiplier: 6, groundResolution: 112 },
+  marryHall: { cameraHeightM: 1.57, groundRadiusMultiplier: 4.9, groundResolution: 112 },
+  mirroredHall: { cameraHeightM: 1.58, groundRadiusMultiplier: 5, groundResolution: 112 },
+  musicHall01: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.2, groundResolution: 112 },
+  musicHall02: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.2, groundResolution: 112 },
+  oldHall: { cameraHeightM: 1.58, groundRadiusMultiplier: 5, groundResolution: 112 },
+  broadwayPhotoStudioHall: { cameraHeightM: 1.54, groundRadiusMultiplier: 4.6, groundResolution: 120 },
+  loftPhotoStudioHall: { cameraHeightM: 1.54, groundRadiusMultiplier: 4.6, groundResolution: 120 },
+  londonPhotoStudioHall: { cameraHeightM: 1.56, groundRadiusMultiplier: 4.8, groundResolution: 120 },
+  schoolHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.6, groundResolution: 112 },
+  countryStudioHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.5, groundResolution: 112 }
+});
+
+const RAW_POOL_ROYALE_HDRI_VARIANTS = [
   {
     id: 'neonPhotostudio',
     name: 'Neon Photo Studio',
@@ -435,7 +471,14 @@ export const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     swatches: ['#f472b6', '#16a34a'],
     description: 'Cozy country hall with warm wood bounce and soft window key light.'
   }
-]);
+];
+
+export const POOL_ROYALE_HDRI_VARIANTS = Object.freeze(
+  RAW_POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
+    ...variant,
+    ...(POOL_ROYALE_HDRI_PLACEMENTS[variant.id] || {})
+  }))
+);
 
 export const POOL_ROYALE_HDRI_VARIANT_MAP = Object.freeze(
   POOL_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => {
