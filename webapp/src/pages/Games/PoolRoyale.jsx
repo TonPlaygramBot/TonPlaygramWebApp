@@ -10530,6 +10530,7 @@ const powerRef = useRef(hud.power);
   const envTextureRef = useRef(null);
   const envSkyboxRef = useRef(null);
   const envSkyboxTextureRef = useRef(null);
+  const environmentMotionRef = useRef(null);
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
@@ -10679,6 +10680,8 @@ const powerRef = useRef(hud.power);
     shock: null
   });
   const activeCrowdSoundRef = useRef(null);
+  const environmentAudioRef = useRef(null);
+  const environmentAudioUrlRef = useRef(null);
   const muteRef = useRef(isGameMuted());
   const volumeRef = useRef(getGameVolume());
   const railSoundTimeRef = useRef(new Map());
@@ -10708,6 +10711,65 @@ const powerRef = useRef(hud.power);
         current.stop();
       } catch {}
       activeCrowdSoundRef.current = null;
+    }
+  }, []);
+
+  const stopEnvironmentAudio = useCallback(() => {
+    const current = environmentAudioRef.current;
+    if (current) {
+      try {
+        current.pause();
+        current.currentTime = 0;
+      } catch {}
+    }
+    environmentAudioRef.current = null;
+    environmentAudioUrlRef.current = null;
+  }, []);
+
+  const updateEnvironmentAudio = useCallback(
+    (variant = null) => {
+      const active = variant ?? activeEnvironmentVariantRef.current;
+      const sound = active?.ambientSound;
+      if (!sound?.url) {
+        stopEnvironmentAudio();
+        return;
+      }
+      const scaled = clamp((sound.volume ?? 0.25) * volumeRef.current, 0, 1);
+      const muted = muteRef.current || scaled <= 0;
+      let audio = environmentAudioRef.current;
+      if (!audio || environmentAudioUrlRef.current !== sound.url) {
+        stopEnvironmentAudio();
+        audio = new Audio(sound.url);
+        audio.loop = true;
+        audio.preload = 'auto';
+        environmentAudioRef.current = audio;
+        environmentAudioUrlRef.current = sound.url;
+      }
+      if (!audio) return;
+      audio.volume = muted ? 0 : scaled;
+      if (muted) {
+        audio.pause();
+      } else {
+        audio.play().catch(() => {});
+      }
+    },
+    [stopEnvironmentAudio]
+  );
+
+  const applyEnvironmentMotion = useCallback((nowMs) => {
+    const motion = environmentMotionRef.current;
+    const skybox = envSkyboxRef.current;
+    if (!motion || !skybox) return;
+    const elapsed = Math.max(0, nowMs - motion.startTime) / 1000;
+    const yaw = motion.baseRotation.y + elapsed * motion.yawSpeed;
+    const pitch =
+      motion.baseRotation.x +
+      Math.sin(elapsed * motion.pitchSpeed) * motion.pitchAmplitude;
+    skybox.rotation.set(pitch, yaw, motion.baseRotation.z);
+    if (motion.bobAmplitude) {
+      skybox.position.y =
+        motion.basePositionY +
+        Math.sin(elapsed * motion.bobSpeed) * motion.bobAmplitude;
     }
   }, []);
 
@@ -10912,9 +10974,11 @@ const powerRef = useRef(hud.power);
     const handleMute = () => {
       muteRef.current = isGameMuted();
       if (muteRef.current) stopActiveCrowdSound();
+      updateEnvironmentAudio();
     };
     const handleVolume = () => {
       volumeRef.current = getGameVolume();
+      updateEnvironmentAudio();
     };
     window.addEventListener('gameMuteChanged', handleMute);
     window.addEventListener('gameVolumeChanged', handleVolume);
@@ -10922,7 +10986,13 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('gameMuteChanged', handleMute);
       window.removeEventListener('gameVolumeChanged', handleVolume);
     };
-  }, [stopActiveCrowdSound]);
+  }, [stopActiveCrowdSound, updateEnvironmentAudio]);
+  useEffect(() => {
+    updateEnvironmentAudio(activeEnvironmentHdri);
+  }, [activeEnvironmentHdri, updateEnvironmentAudio]);
+  useEffect(() => () => {
+    stopEnvironmentAudio();
+  }, [stopEnvironmentAudio]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -11529,6 +11599,21 @@ const powerRef = useRef(hud.power);
             console.warn('Failed to create grounded HDRI skybox', error);
             skybox = null;
           }
+        }
+        if (skybox && activeVariant?.motion) {
+          const motion = activeVariant.motion || {};
+          environmentMotionRef.current = {
+            yawSpeed: Number.isFinite(motion.yawSpeed) ? motion.yawSpeed : 0,
+            pitchAmplitude: Number.isFinite(motion.pitchAmplitude) ? motion.pitchAmplitude : 0,
+            pitchSpeed: Number.isFinite(motion.pitchSpeed) ? motion.pitchSpeed : 0,
+            bobAmplitude: Number.isFinite(motion.bobAmplitude) ? motion.bobAmplitude : 0,
+            bobSpeed: Number.isFinite(motion.bobSpeed) ? motion.bobSpeed : 0,
+            baseRotation: { x: skybox.rotation.x, y: skybox.rotation.y, z: skybox.rotation.z },
+            basePositionY: skybox.position.y,
+            startTime: typeof performance !== 'undefined' ? performance.now() : Date.now()
+          };
+        } else {
+          environmentMotionRef.current = null;
         }
         sceneInstance.environment = envMap;
         if (!skybox) {
@@ -18923,74 +19008,75 @@ const powerRef = useRef(hud.power);
   const step = (now) => {
     if (disposed) return;
     const playback = replayPlaybackRef.current;
-        if (playback) {
-          const frameTiming = frameTimingRef.current;
-          const targetReplayFrameTime =
-            frameTiming && Number.isFinite(frameTiming.targetMs)
-              ? frameTiming.targetMs
-              : 1000 / 60;
-          if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
-            rafRef.current = requestAnimationFrame(step);
-            return;
-          }
-          lastReplayFrameAt = now;
-          const scheduleNext = () => {
-            if (disposed) return;
-            rafRef.current = requestAnimationFrame(step);
-          };
-          const frames = playback.frames || [];
-          const duration = Number.isFinite(playback.duration) ? playback.duration : 0;
-          const elapsed = now - playback.startedAt;
-          if (frames.length === 0) {
-            finishReplayPlayback(playback);
-            scheduleNext();
-            return;
-          }
-          try {
-            const targetTime = Math.min(elapsed, duration);
-            let frameIndex = playback.lastIndex ?? 0;
-            while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
-              frameIndex += 1;
-            }
-            playback.lastIndex = frameIndex;
-            const frameA = frames[frameIndex];
-            const frameB = frames[Math.min(frameIndex + 1, frames.length - 1)] ?? null;
-            const span = frameB ? Math.max(frameB.t - frameA.t, 1e-6) : 1;
-            const alpha = frameB
-              ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
-              : 0;
-            applyReplayFrame(frameA, frameB, alpha);
-            applyReplayCueStroke(playback, targetTime);
-            updateReplayTrail(playback.cuePath, targetTime);
-            const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
-            const previousFrameCamera =
-              replayFrameCameraRef.current?.frameB ??
-              replayFrameCameraRef.current?.frameA ??
-              null;
-            if (
-              nextFrameCamera &&
-              (!replayFrameCameraRef.current ||
-                hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
-            ) {
-              replayFrameCameraRef.current = {
-                frameA: nextFrameCamera,
-                frameB: nextFrameCamera,
-                alpha: 0
-              };
-            }
-            const frameCamera = updateCamera();
-            renderer.render(scene, frameCamera ?? camera);
-            const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
-            if (finished) {
-              finishReplayPlayback(playback);
-            }
-          } catch (err) {
-            console.error('Pool Royale replay playback failed; skipping.', err);
-            finishReplayPlayback(playback);
-          }
-          scheduleNext();
-          return;
+    applyEnvironmentMotion(now);
+    if (playback) {
+      const frameTiming = frameTimingRef.current;
+      const targetReplayFrameTime =
+        frameTiming && Number.isFinite(frameTiming.targetMs)
+          ? frameTiming.targetMs
+          : 1000 / 60;
+      if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
+        rafRef.current = requestAnimationFrame(step);
+        return;
+      }
+      lastReplayFrameAt = now;
+      const scheduleNext = () => {
+        if (disposed) return;
+        rafRef.current = requestAnimationFrame(step);
+      };
+      const frames = playback.frames || [];
+      const duration = Number.isFinite(playback.duration) ? playback.duration : 0;
+      const elapsed = now - playback.startedAt;
+      if (frames.length === 0) {
+        finishReplayPlayback(playback);
+        scheduleNext();
+        return;
+      }
+      try {
+        const targetTime = Math.min(elapsed, duration);
+        let frameIndex = playback.lastIndex ?? 0;
+        while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
+          frameIndex += 1;
         }
+        playback.lastIndex = frameIndex;
+        const frameA = frames[frameIndex];
+        const frameB = frames[Math.min(frameIndex + 1, frames.length - 1)] ?? null;
+        const span = frameB ? Math.max(frameB.t - frameA.t, 1e-6) : 1;
+        const alpha = frameB
+          ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
+          : 0;
+        applyReplayFrame(frameA, frameB, alpha);
+        applyReplayCueStroke(playback, targetTime);
+        updateReplayTrail(playback.cuePath, targetTime);
+        const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
+        const previousFrameCamera =
+          replayFrameCameraRef.current?.frameB ??
+          replayFrameCameraRef.current?.frameA ??
+          null;
+        if (
+          nextFrameCamera &&
+          (!replayFrameCameraRef.current ||
+            hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
+        ) {
+          replayFrameCameraRef.current = {
+            frameA: nextFrameCamera,
+            frameB: nextFrameCamera,
+            alpha: 0
+          };
+        }
+        const frameCamera = updateCamera();
+        renderer.render(scene, frameCamera ?? camera);
+        const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
+        if (finished) {
+          finishReplayPlayback(playback);
+        }
+      } catch (err) {
+        console.error('Pool Royale replay playback failed; skipping.', err);
+        finishReplayPlayback(playback);
+      }
+      scheduleNext();
+      return;
+    }
         const nowMs = now;
         if (remoteShotActiveRef.current && remoteShotUntilRef.current > 0 && nowMs > remoteShotUntilRef.current) {
           remoteShotActiveRef.current = false;

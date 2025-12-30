@@ -139,7 +139,9 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     environmentIntensity: 1.16,
     backgroundIntensity: 1.08,
     swatches: ['#fef3c7', '#a16207'],
-    description: 'Grand hall ambience with chandeliers for polished highlights.'
+    description: 'Grand hall ambience with chandeliers for polished highlights.',
+    motion: { yawSpeed: 0.015, pitchAmplitude: 0.025, pitchSpeed: 0.18, bobAmplitude: 0.35, bobSpeed: 0.22 },
+    ambientSound: { url: '/assets/sounds/football-crowd-3-69245.mp3', volume: 0.32 }
   },
   {
     id: 'rooftopNight',
@@ -248,7 +250,9 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     environmentIntensity: 1.08,
     backgroundIntensity: 1.04,
     swatches: ['#22c55e', '#f97316'],
-    description: 'Spacious dance hall bounce light for soft, even sheen.'
+    description: 'Spacious dance hall bounce light for soft, even sheen.',
+    motion: { yawSpeed: 0.018, pitchAmplitude: 0.02, pitchSpeed: 0.2, bobAmplitude: 0.28, bobSpeed: 0.26 },
+    ambientSound: { url: '/assets/sounds/football-game-sound-effects-359284.mp3', volume: 0.28 }
   },
   {
     id: 'abandonedHall',
@@ -274,7 +278,9 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     environmentIntensity: 1.07,
     backgroundIntensity: 1.02,
     swatches: ['#ef4444', '#111827'],
-    description: 'Cinematic auditorium lighting with rich red bounce and aisle glow.'
+    description: 'Cinematic auditorium lighting with rich red bounce and aisle glow.',
+    motion: { yawSpeed: 0.012, pitchAmplitude: 0.02, pitchSpeed: 0.16, bobAmplitude: 0.24, bobSpeed: 0.2 },
+    ambientSound: { url: '/assets/sounds/clock-ticking-60-second-countdown-118231.mp3', volume: 0.22 }
   },
   {
     id: 'entranceHall',
@@ -300,7 +306,9 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     environmentIntensity: 1.08,
     backgroundIntensity: 1.04,
     swatches: ['#f59e0b', '#f97316'],
-    description: 'Warm event hall lighting with chandelier sheen and soft table reflections.'
+    description: 'Warm event hall lighting with chandelier sheen and soft table reflections.',
+    motion: { yawSpeed: 0.016, pitchAmplitude: 0.018, pitchSpeed: 0.17, bobAmplitude: 0.3, bobSpeed: 0.24 },
+    ambientSound: { url: '/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3', volume: 0.26 }
   },
   {
     id: 'hallOfFinfish',
@@ -378,7 +386,9 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     environmentIntensity: 1.06,
     backgroundIntensity: 1.02,
     swatches: ['#0ea5e9', '#9333ea'],
-    description: 'Concert hall fill with cool aisle lights and controlled stage bounce.'
+    description: 'Concert hall fill with cool aisle lights and controlled stage bounce.',
+    motion: { yawSpeed: 0.02, pitchAmplitude: 0.022, pitchSpeed: 0.22, bobAmplitude: 0.26, bobSpeed: 0.28 },
+    ambientSound: { url: '/assets/sounds/happy-noisesmp3-14568.mp3', volume: 0.24 }
   },
   {
     id: 'musicHall02',
