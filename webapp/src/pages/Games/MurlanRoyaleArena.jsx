@@ -15,20 +15,7 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
-import { createMurlanStyleTable, applyTableMaterials } from '../../utils/murlanTable.js';
-import {
-  WOOD_FINISH_PRESETS,
-  WOOD_GRAIN_OPTIONS,
-  WOOD_GRAIN_OPTIONS_BY_ID,
-  hslToHexNumber
-} from '../../utils/woodMaterials.js';
-import {
-  TABLE_WOOD_OPTIONS,
-  TABLE_CLOTH_OPTIONS,
-  TABLE_BASE_OPTIONS,
-  DEFAULT_TABLE_CUSTOMIZATION,
-  WOOD_PRESETS_BY_ID
-} from '../../utils/tableCustomizationOptions.js';
+import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 import { CARD_THEMES } from '../../utils/cardThemes.js';
 import {
   getMurlanInventory,
@@ -613,18 +600,15 @@ const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
 const DEFAULT_APPEARANCE = {
   outfit: 0,
+  cards: 0,
   stools: 0,
   tables: 0,
-  environmentHdri: DEFAULT_HDRI_INDEX,
-  ...DEFAULT_TABLE_CUSTOMIZATION
+  environmentHdri: DEFAULT_HDRI_INDEX
 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const FRAME_RATE_STORAGE_KEY = 'murlanFrameRate';
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tables', label: 'Table Model', options: TABLE_THEMES },
-  { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
-  { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
-  { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
   { key: 'cards', label: 'Cards', options: CARD_THEMES },
   { key: 'stools', label: 'Stools', options: STOOL_THEMES },
   { key: 'environmentHdri', label: 'HDR Environment', options: MURLAN_HDRI_OPTIONS }
@@ -647,9 +631,6 @@ function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const entries = [
     ['outfit', OUTFIT_THEMES.length],
-    ['tableWood', TABLE_WOOD_OPTIONS.length],
-    ['tableCloth', TABLE_CLOTH_OPTIONS.length],
-    ['tableBase', TABLE_BASE_OPTIONS.length],
     ['cards', CARD_THEMES.length],
     ['stools', STOOL_THEMES.length],
     ['tables', TABLE_THEMES.length],
@@ -662,22 +643,6 @@ function normalizeAppearance(value = {}) {
       normalized[key] = clamped;
     }
   });
-  const legacyTable = Number(value?.table);
-  if (Number.isFinite(legacyTable)) {
-    const legacyIndex = Math.min(
-      Math.max(0, Math.round(legacyTable)),
-      Math.min(TABLE_CLOTH_OPTIONS.length, TABLE_BASE_OPTIONS.length) - 1
-    );
-    if (!Number.isFinite(Number(value?.tableWood))) {
-      normalized.tableWood = Math.min(legacyIndex, TABLE_WOOD_OPTIONS.length - 1);
-    }
-    if (!Number.isFinite(Number(value?.tableCloth))) {
-      normalized.tableCloth = Math.min(legacyIndex, TABLE_CLOTH_OPTIONS.length - 1);
-    }
-    if (!Number.isFinite(Number(value?.tableBase))) {
-      normalized.tableBase = Math.min(legacyIndex, TABLE_BASE_OPTIONS.length - 1);
-    }
-  }
   return normalized;
 }
 
@@ -1051,15 +1016,6 @@ function createProceduralChair(theme) {
   legMesh.receiveShadow = true;
   chair.add(legMesh);
 
-  const foot = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.32 * MODEL_SCALE * STOOL_SCALE, 0.32 * MODEL_SCALE * STOOL_SCALE, 0.08 * MODEL_SCALE, 24),
-    legMaterial
-  );
-  foot.position.y = legMesh.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
-  foot.castShadow = true;
-  foot.receiveShadow = true;
-  chair.add(foot);
-
   return {
     chairTemplate: chair,
     materials: {
@@ -1143,7 +1099,7 @@ const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
 const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
-const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
+const BASE_COLUMN_HEIGHT = MODEL_SCALE * (0.5 * STOOL_SCALE + 0.08);
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const BASE_HUMAN_CHAIR_RADIUS = 4.8 * MODEL_SCALE * ARENA_GROWTH * 0.72 * CHAIR_SIZE_SCALE;
 const HUMAN_CHAIR_PULLBACK = 0;
@@ -1341,9 +1297,7 @@ export default function MurlanRoyaleArena({ search }) {
     (value = DEFAULT_APPEARANCE) => {
       const normalized = normalizeAppearance(value);
       const map = {
-        tableWood: TABLE_WOOD_OPTIONS,
-        tableCloth: TABLE_CLOTH_OPTIONS,
-        tableBase: TABLE_BASE_OPTIONS,
+        outfit: OUTFIT_THEMES,
         cards: CARD_THEMES,
         stools: STOOL_THEMES,
         tables: TABLE_THEMES,
@@ -1712,7 +1666,7 @@ export default function MurlanRoyaleArena({ search }) {
   }, []);
 
   const rebuildTable = useCallback(
-    async (tableTheme, woodOption, clothOption, baseOption) => {
+    async (tableTheme) => {
       const three = threeStateRef.current;
       if (!three?.arena || !three.renderer) return null;
       const token = ++tableBuildTokenRef.current;
@@ -1769,11 +1723,8 @@ export default function MurlanRoyaleArena({ search }) {
           renderer: three.renderer,
           tableRadius: TABLE_RADIUS,
           tableHeight: TABLE_HEIGHT,
-          woodOption,
-          clothOption,
-          baseOption
+          includeBase: false
         });
-        applyTableMaterials(procedural.materials, { woodOption, clothOption, baseOption }, three.renderer);
         tableInfo = { ...procedural, themeId: theme?.id || 'murlan-default' };
       }
 
@@ -1883,9 +1834,6 @@ export default function MurlanRoyaleArena({ search }) {
     (nextAppearance, { refreshCards = false } = {}) => {
       if (!threeReady) return;
       const safe = normalizeAppearance(nextAppearance);
-      const woodOption = TABLE_WOOD_OPTIONS[safe.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-      const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-      const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
       const stoolTheme = STOOL_THEMES[safe.stools] ?? STOOL_THEMES[0];
       const outfitTheme = OUTFIT_THEMES[safe.outfit] ?? OUTFIT_THEMES[0];
       const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
@@ -1898,9 +1846,7 @@ export default function MurlanRoyaleArena({ search }) {
         if (!three.scene) return;
         const tableChanged = three.tableThemeId !== tableTheme.id || !three.tableInfo;
         if (tableChanged) {
-          await rebuildTable(tableTheme, woodOption, clothOption, baseOption);
-        } else if (three.tableInfo?.materials) {
-          applyTableMaterials(three.tableInfo.materials, { woodOption, clothOption, baseOption }, three.renderer);
+          await rebuildTable(tableTheme);
         }
 
         const preserveRequested = shouldPreserveChairMaterials(stoolTheme);
@@ -1948,60 +1894,6 @@ export default function MurlanRoyaleArena({ search }) {
           </div>
         );
       }
-      case 'tableWood': {
-        const presetId = option?.presetId;
-        const grainId = option?.grainId;
-        const preset = (presetId && WOOD_PRESETS_BY_ID[presetId]) || WOOD_FINISH_PRESETS[0];
-        const grain = (grainId && WOOD_GRAIN_OPTIONS_BY_ID[grainId]) || WOOD_GRAIN_OPTIONS[0];
-        const baseHex = `#${hslToHexNumber(preset.hue, preset.sat, preset.light)
-          .toString(16)
-          .padStart(6, '0')}`;
-        const accentHex = `#${hslToHexNumber(preset.hue, Math.min(1, preset.sat + 0.12), Math.max(0, preset.light - 0.18))
-          .toString(16)
-          .padStart(6, '0')}`;
-        const grainLabel = grain?.label ?? '';
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `repeating-linear-gradient(135deg, ${baseHex}, ${baseHex} 12%, ${accentHex} 12%, ${accentHex} 20%)`
-              }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/40" />
-            <div className="absolute bottom-1 right-1 rounded-full bg-black/60 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-emerald-100/80">
-              {grainLabel.slice(0, 10)}
-            </div>
-          </div>
-        );
-      }
-      case 'tableCloth':
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="h-12 w-20 rounded-[999px] border border-white/10"
-                style={{
-                  background: `radial-gradient(circle at 35% 30%, ${option.feltTop}, ${option.feltBottom})`
-                }}
-              />
-            </div>
-            <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-black/50 to-transparent" />
-          </div>
-        );
-      case 'tableBase':
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-              <div className="h-3 w-16 rounded-full" style={{ background: option.trimColor }} />
-              <div className="h-4 w-20 rounded-full" style={{ background: option.baseColor }} />
-              <div
-                className="absolute bottom-2 h-3 w-14 rounded-full opacity-80"
-                style={{ background: option.columnColor }}
-              />
-            </div>
-          </div>
-        );
       case 'cards':
         return (
           <div className="flex items-center justify-center gap-2">
@@ -2275,12 +2167,6 @@ export default function MurlanRoyaleArena({ search }) {
       scene.add(arenaGroup);
 
       const currentAppearance = normalizeAppearance(appearanceRef.current);
-      const woodOption =
-        TABLE_WOOD_OPTIONS[currentAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-      const clothOption =
-        TABLE_CLOTH_OPTIONS[currentAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-      const baseOption =
-        TABLE_BASE_OPTIONS[currentAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
       const stoolTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
       const tableTheme = TABLE_THEMES[currentAppearance.tables] ?? TABLE_THEMES[0];
       const outfitTheme = OUTFIT_THEMES[currentAppearance.outfit] ?? OUTFIT_THEMES[0];
@@ -2346,7 +2232,7 @@ export default function MurlanRoyaleArena({ search }) {
 
       updateScoreboardDisplay(computeUiState(gameStateRef.current).scoreboard);
 
-      await rebuildTable(tableTheme, woodOption, clothOption, baseOption);
+      await rebuildTable(tableTheme);
       if (disposed) return;
 
       const chairBuild = await buildChairTemplate(stoolTheme, renderer, {

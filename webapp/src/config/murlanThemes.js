@@ -84,7 +84,7 @@ export const MURLAN_TABLE_THEMES = [
     source: 'procedural',
     price: 0,
     thumbnail: POLYHAVEN_THUMB('WoodenTable_01'),
-    description: 'Standard Murlan Royale table with customizable wood, cloth, and base.'
+    description: 'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
   },
   ...POLYHAVEN_TABLE_THEMES
 ];
