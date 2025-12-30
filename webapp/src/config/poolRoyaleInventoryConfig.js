@@ -33,12 +33,7 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
   loftPhotoStudioHall: { cameraHeightM: 1.54, groundRadiusMultiplier: 4.6, groundResolution: 120 },
   londonPhotoStudioHall: { cameraHeightM: 1.56, groundRadiusMultiplier: 4.8, groundResolution: 120 },
   schoolHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.6, groundResolution: 112 },
-  countryStudioHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.5, groundResolution: 112 },
-  arenaBallroomMotion: { cameraHeightM: 1.58, groundRadiusMultiplier: 5.1, groundResolution: 112 },
-  arenaCinemaMotion: { cameraHeightM: 1.58, groundRadiusMultiplier: 5, groundResolution: 112 },
-  arenaConcertMotion: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.2, groundResolution: 112 },
-  arenaEventMotion: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.3, groundResolution: 112 },
-  arenaDanceMotion: { cameraHeightM: 1.58, groundRadiusMultiplier: 5, groundResolution: 112 }
+  countryStudioHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.5, groundResolution: 112 }
 });
 
 const RAW_POOL_ROYALE_HDRI_VARIANTS = [
@@ -475,86 +470,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1.02,
     swatches: ['#f472b6', '#16a34a'],
     description: 'Cozy country hall with warm wood bounce and soft window key light.'
-  },
-  {
-    id: 'arenaBallroomMotion',
-    name: 'Arena Ballroom Motion',
-    assetId: 'ballroom',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2260,
-    exposure: 1.16,
-    environmentIntensity: 1.16,
-    backgroundIntensity: 1.08,
-    rotationSpeed: 0.025,
-    ambientSoundUrl: '/assets/sounds/football-crowd-3-69245.mp3',
-    ambientSoundVolume: 0.28,
-    swatches: ['#fde68a', '#f97316'],
-    description: 'Animated ballroom arena with crowd shimmer and rotating highlights.'
-  },
-  {
-    id: 'arenaCinemaMotion',
-    name: 'Arena Cinema Motion',
-    assetId: 'cinema_hall',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2290,
-    exposure: 1.12,
-    environmentIntensity: 1.08,
-    backgroundIntensity: 1.03,
-    rotationSpeed: 0.03,
-    ambientSoundUrl: '/assets/sounds/football-game-sound-effects-359284.mp3',
-    ambientSoundVolume: 0.26,
-    swatches: ['#ef4444', '#111827'],
-    description: 'Crowd-lit cinema arena with subtle panorama drift and stadium buzz.'
-  },
-  {
-    id: 'arenaConcertMotion',
-    name: 'Arena Concert Motion',
-    assetId: 'music_hall_01',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2320,
-    exposure: 1.1,
-    environmentIntensity: 1.1,
-    backgroundIntensity: 1.04,
-    rotationSpeed: 0.028,
-    ambientSoundUrl: '/assets/sounds/man-cheering-in-victory-epic-stock-media-1-00-01.mp3',
-    ambientSoundVolume: 0.3,
-    swatches: ['#0ea5e9', '#9333ea'],
-    description: 'Concert arena ambience with animated lighting drift and live crowd roar.'
-  },
-  {
-    id: 'arenaEventMotion',
-    name: 'Arena Event Motion',
-    assetId: 'events_hall_interior',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2350,
-    exposure: 1.14,
-    environmentIntensity: 1.1,
-    backgroundIntensity: 1.06,
-    rotationSpeed: 0.022,
-    ambientSoundUrl: '/assets/sounds/race-care-151963.mp3',
-    ambientSoundVolume: 0.24,
-    swatches: ['#f59e0b', '#f97316'],
-    description: 'Event arena ambience with flowing crowd motion and glowing chandeliers.'
-  },
-  {
-    id: 'arenaDanceMotion',
-    name: 'Arena Dance Motion',
-    assetId: 'dancing_hall',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2380,
-    exposure: 1.13,
-    environmentIntensity: 1.08,
-    backgroundIntensity: 1.04,
-    rotationSpeed: 0.032,
-    ambientSoundUrl: '/assets/sounds/metal-whistle-6121.mp3',
-    ambientSoundVolume: 0.2,
-    swatches: ['#22c55e', '#f97316'],
-    description: 'Dance arena spotlight swirl with animated reflections and whistle cues.'
   }
 ];
 

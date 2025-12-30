@@ -10036,14 +10036,7 @@ function PoolRoyaleGame({
   useEffect(() => {
     environmentHdriRef.current = environmentHdriId;
     activeEnvironmentVariantRef.current = activeEnvironmentHdri;
-    resetEnvironmentAnimation();
-    void syncEnvironmentAmbience(activeEnvironmentHdri);
-  }, [
-    activeEnvironmentHdri,
-    environmentHdriId,
-    resetEnvironmentAnimation,
-    syncEnvironmentAmbience
-  ]);
+  }, [activeEnvironmentHdri, environmentHdriId]);
   useEffect(() => {
     if (typeof updateEnvironmentRef.current === 'function') {
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
@@ -10532,8 +10525,6 @@ const powerRef = useRef(hud.power);
   const [err, setErr] = useState(null);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const sceneRef = useRef(null);
-  const environmentRotationRef = useRef(new THREE.Euler(0, 0, 0));
-  const environmentAnimationRef = useRef({ angle: 0, lastTime: 0 });
   const updateEnvironmentRef = useRef(() => {});
   const disposeEnvironmentRef = useRef(null);
   const envTextureRef = useRef(null);
@@ -10583,44 +10574,6 @@ const powerRef = useRef(hud.power);
   const topViewControlsRef = useRef({ enter: () => {}, exit: () => {} });
   const cameraUpdateRef = useRef(() => {});
   const orbitRadiusLimitRef = useRef(null);
-  const applyEnvironmentRotation = useCallback((angle) => {
-    const scene = sceneRef.current;
-    if (!scene) return;
-    const rotation = environmentRotationRef.current;
-    rotation.set(0, angle, 0);
-    if ('environmentRotation' in scene) scene.environmentRotation = rotation;
-    if ('backgroundRotation' in scene) scene.backgroundRotation = rotation;
-    const skybox = envSkyboxRef.current;
-    if (skybox) {
-      skybox.rotation.y = angle;
-    }
-  }, []);
-  const resetEnvironmentAnimation = useCallback(() => {
-    environmentAnimationRef.current = { angle: 0, lastTime: 0 };
-    applyEnvironmentRotation(0);
-  }, [applyEnvironmentRotation]);
-  const updateEnvironmentAnimation = useCallback(
-    (nowMs) => {
-      const variant = activeEnvironmentVariantRef.current;
-      const speed =
-        typeof variant?.rotationSpeed === 'number' ? variant.rotationSpeed : 0;
-      const state = environmentAnimationRef.current;
-      const last = state.lastTime || nowMs;
-      const deltaSeconds = Math.max((nowMs - last) / 1000, 0);
-      state.lastTime = nowMs;
-      if (!speed) {
-        if (state.angle !== 0) {
-          state.angle = 0;
-          applyEnvironmentRotation(0);
-        }
-        return;
-      }
-      if (deltaSeconds <= 0) return;
-      state.angle = (state.angle + deltaSeconds * speed) % (Math.PI * 2);
-      applyEnvironmentRotation(state.angle);
-    },
-    [applyEnvironmentRotation]
-  );
   const applyRendererQuality = useCallback(() => {
     const renderer = rendererRef.current;
     const host = mountRef.current;
@@ -10725,11 +10678,7 @@ const powerRef = useRef(hud.power);
     cheer: null,
     shock: null
   });
-  const audioBufferLoaderRef = useRef(null);
-  const ambientSoundBuffersRef = useRef(new Map());
   const activeCrowdSoundRef = useRef(null);
-  const environmentAmbienceRef = useRef(null);
-  const environmentAmbienceRequestRef = useRef(0);
   const muteRef = useRef(isGameMuted());
   const volumeRef = useRef(getGameVolume());
   const railSoundTimeRef = useRef(new Map());
@@ -10761,74 +10710,6 @@ const powerRef = useRef(hud.power);
       activeCrowdSoundRef.current = null;
     }
   }, []);
-
-  const stopEnvironmentAmbience = useCallback(() => {
-    const current = environmentAmbienceRef.current;
-    if (current?.source) {
-      try {
-        current.source.stop();
-      } catch {}
-    }
-    environmentAmbienceRef.current = null;
-  }, []);
-
-  const syncEnvironmentAmbience = useCallback(
-    async (variant = activeEnvironmentVariantRef.current) => {
-      const url = variant?.ambientSoundUrl;
-      const ctx = audioContextRef.current;
-      if (!url || !ctx || muteRef.current) {
-        stopEnvironmentAmbience();
-        return;
-      }
-      const volume = clamp(
-        (variant?.ambientSoundVolume ?? 0.25) * volumeRef.current,
-        0,
-        1
-      );
-      if (volume <= 0) {
-        stopEnvironmentAmbience();
-        return;
-      }
-      const current = environmentAmbienceRef.current;
-      if (current?.url === url && current?.gain) {
-        current.gain.gain.value = volume;
-        return;
-      }
-      stopEnvironmentAmbience();
-      const loader = audioBufferLoaderRef.current;
-      if (typeof loader !== 'function') return;
-      const requestId = environmentAmbienceRequestRef.current + 1;
-      environmentAmbienceRequestRef.current = requestId;
-      let buffer = ambientSoundBuffersRef.current.get(url);
-      if (!buffer) {
-        try {
-          buffer = await loader(url);
-          if (buffer) ambientSoundBuffersRef.current.set(url, buffer);
-        } catch (error) {
-          console.warn('Pool ambience load failed:', url, error);
-          return;
-        }
-      }
-      if (
-        requestId !== environmentAmbienceRequestRef.current ||
-        !buffer ||
-        muteRef.current
-      ) {
-        return;
-      }
-      ctx.resume().catch(() => {});
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      const gain = ctx.createGain();
-      gain.gain.value = volume;
-      source.connect(gain);
-      routeAudioNode(gain);
-      source.start(0);
-      environmentAmbienceRef.current = { source, gain, url };
-    },
-    [routeAudioNode, stopEnvironmentAmbience]
-  );
 
   const selectCueStyleFromMenu = useCallback(
     async (index) => {
@@ -11030,16 +10911,10 @@ const powerRef = useRef(hud.power);
     volumeRef.current = getGameVolume();
     const handleMute = () => {
       muteRef.current = isGameMuted();
-      if (muteRef.current) {
-        stopActiveCrowdSound();
-        stopEnvironmentAmbience();
-      } else {
-        void syncEnvironmentAmbience();
-      }
+      if (muteRef.current) stopActiveCrowdSound();
     };
     const handleVolume = () => {
       volumeRef.current = getGameVolume();
-      void syncEnvironmentAmbience();
     };
     window.addEventListener('gameMuteChanged', handleMute);
     window.addEventListener('gameVolumeChanged', handleVolume);
@@ -11047,11 +10922,7 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('gameMuteChanged', handleMute);
       window.removeEventListener('gameVolumeChanged', handleVolume);
     };
-  }, [
-    stopActiveCrowdSound,
-    stopEnvironmentAmbience,
-    syncEnvironmentAmbience
-  ]);
+  }, [stopActiveCrowdSound]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -11069,7 +10940,6 @@ const powerRef = useRef(hud.power);
       const arr = await response.arrayBuffer();
       return await decode(arr);
     };
-    audioBufferLoaderRef.current = loadBuffer;
     (async () => {
       const entries = [
         ['cue', '/assets/sounds/billiard-pool-hit-371618.mp3'],
@@ -11095,7 +10965,6 @@ const powerRef = useRef(hud.power);
     return () => {
       cancelled = true;
       stopActiveCrowdSound();
-      stopEnvironmentAmbience();
       audioBuffersRef.current = {
         cue: null,
         ball: null,
@@ -11104,12 +10973,10 @@ const powerRef = useRef(hud.power);
         cheer: null,
         shock: null
       };
-      ambientSoundBuffersRef.current.clear();
-      audioBufferLoaderRef.current = null;
       audioContextRef.current = null;
       ctx.close().catch(() => {});
     };
-  }, [stopActiveCrowdSound, stopEnvironmentAmbience]);
+  }, [stopActiveCrowdSound]);
   const formatBallOnLabel = useCallback(
     (rawList = []) => {
       const normalized = rawList
@@ -11683,7 +11550,6 @@ const powerRef = useRef(hud.power);
         }
         renderer.toneMappingExposure = activeVariant?.exposure ?? renderer.toneMappingExposure;
         envTextureRef.current = envMap;
-        applyEnvironmentRotation(environmentAnimationRef.current.angle ?? 0);
         disposeEnvironmentRef.current = () => {
           if (sceneRef.current?.environment === envMap) {
             sceneRef.current.environment = null;
@@ -19056,7 +18922,6 @@ const powerRef = useRef(hud.power);
   let lastLiveAimSentAt = 0;
   const step = (now) => {
     if (disposed) return;
-    updateEnvironmentAnimation(now);
     const playback = replayPlaybackRef.current;
         if (playback) {
           const frameTiming = frameTimingRef.current;
