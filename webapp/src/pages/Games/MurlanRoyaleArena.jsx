@@ -26,7 +26,6 @@ import {
   TABLE_WOOD_OPTIONS,
   TABLE_CLOTH_OPTIONS,
   TABLE_BASE_OPTIONS,
-  DEFAULT_TABLE_CUSTOMIZATION,
   WOOD_PRESETS_BY_ID
 } from '../../utils/tableCustomizationOptions.js';
 import { CARD_THEMES } from '../../utils/cardThemes.js';
@@ -615,16 +614,13 @@ const DEFAULT_APPEARANCE = {
   outfit: 0,
   stools: 0,
   tables: 0,
-  environmentHdri: DEFAULT_HDRI_INDEX,
-  ...DEFAULT_TABLE_CUSTOMIZATION
+  cards: 0,
+  environmentHdri: DEFAULT_HDRI_INDEX
 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const FRAME_RATE_STORAGE_KEY = 'murlanFrameRate';
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tables', label: 'Table Model', options: TABLE_THEMES },
-  { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
-  { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
-  { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
   { key: 'cards', label: 'Cards', options: CARD_THEMES },
   { key: 'stools', label: 'Stools', options: STOOL_THEMES },
   { key: 'environmentHdri', label: 'HDR Environment', options: MURLAN_HDRI_OPTIONS }
@@ -647,9 +643,6 @@ function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const entries = [
     ['outfit', OUTFIT_THEMES.length],
-    ['tableWood', TABLE_WOOD_OPTIONS.length],
-    ['tableCloth', TABLE_CLOTH_OPTIONS.length],
-    ['tableBase', TABLE_BASE_OPTIONS.length],
     ['cards', CARD_THEMES.length],
     ['stools', STOOL_THEMES.length],
     ['tables', TABLE_THEMES.length],
@@ -662,22 +655,6 @@ function normalizeAppearance(value = {}) {
       normalized[key] = clamped;
     }
   });
-  const legacyTable = Number(value?.table);
-  if (Number.isFinite(legacyTable)) {
-    const legacyIndex = Math.min(
-      Math.max(0, Math.round(legacyTable)),
-      Math.min(TABLE_CLOTH_OPTIONS.length, TABLE_BASE_OPTIONS.length) - 1
-    );
-    if (!Number.isFinite(Number(value?.tableWood))) {
-      normalized.tableWood = Math.min(legacyIndex, TABLE_WOOD_OPTIONS.length - 1);
-    }
-    if (!Number.isFinite(Number(value?.tableCloth))) {
-      normalized.tableCloth = Math.min(legacyIndex, TABLE_CLOTH_OPTIONS.length - 1);
-    }
-    if (!Number.isFinite(Number(value?.tableBase))) {
-      normalized.tableBase = Math.min(legacyIndex, TABLE_BASE_OPTIONS.length - 1);
-    }
-  }
   return normalized;
 }
 
@@ -1051,15 +1028,6 @@ function createProceduralChair(theme) {
   legMesh.receiveShadow = true;
   chair.add(legMesh);
 
-  const foot = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.32 * MODEL_SCALE * STOOL_SCALE, 0.32 * MODEL_SCALE * STOOL_SCALE, 0.08 * MODEL_SCALE, 24),
-    legMaterial
-  );
-  foot.position.y = legMesh.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
-  foot.castShadow = true;
-  foot.receiveShadow = true;
-  chair.add(foot);
-
   return {
     chairTemplate: chair,
     materials: {
@@ -1341,9 +1309,6 @@ export default function MurlanRoyaleArena({ search }) {
     (value = DEFAULT_APPEARANCE) => {
       const normalized = normalizeAppearance(value);
       const map = {
-        tableWood: TABLE_WOOD_OPTIONS,
-        tableCloth: TABLE_CLOTH_OPTIONS,
-        tableBase: TABLE_BASE_OPTIONS,
         cards: CARD_THEMES,
         stools: STOOL_THEMES,
         tables: TABLE_THEMES,
@@ -1883,9 +1848,9 @@ export default function MurlanRoyaleArena({ search }) {
     (nextAppearance, { refreshCards = false } = {}) => {
       if (!threeReady) return;
       const safe = normalizeAppearance(nextAppearance);
-      const woodOption = TABLE_WOOD_OPTIONS[safe.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-      const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-      const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
+      const woodOption = TABLE_WOOD_OPTIONS[0];
+      const clothOption = TABLE_CLOTH_OPTIONS[0];
+      const baseOption = TABLE_BASE_OPTIONS[0];
       const stoolTheme = STOOL_THEMES[safe.stools] ?? STOOL_THEMES[0];
       const outfitTheme = OUTFIT_THEMES[safe.outfit] ?? OUTFIT_THEMES[0];
       const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
@@ -2275,12 +2240,9 @@ export default function MurlanRoyaleArena({ search }) {
       scene.add(arenaGroup);
 
       const currentAppearance = normalizeAppearance(appearanceRef.current);
-      const woodOption =
-        TABLE_WOOD_OPTIONS[currentAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-      const clothOption =
-        TABLE_CLOTH_OPTIONS[currentAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-      const baseOption =
-        TABLE_BASE_OPTIONS[currentAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
+      const woodOption = TABLE_WOOD_OPTIONS[0];
+      const clothOption = TABLE_CLOTH_OPTIONS[0];
+      const baseOption = TABLE_BASE_OPTIONS[0];
       const stoolTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
       const tableTheme = TABLE_THEMES[currentAppearance.tables] ?? TABLE_THEMES[0];
       const outfitTheme = OUTFIT_THEMES[currentAppearance.outfit] ?? OUTFIT_THEMES[0];
