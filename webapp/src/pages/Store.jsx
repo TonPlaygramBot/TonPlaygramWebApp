@@ -177,9 +177,6 @@ const MURLAN_TYPE_LABELS = {
 };
 
 const DOMINO_TYPE_LABELS = {
-  environmentHdri: 'HDR Environments',
-  tableModel: 'Table Models',
-  chairModel: 'Chair Models',
   tableWood: 'Table Wood',
   tableCloth: 'Table Cloth',
   tableBase: 'Table Base',
