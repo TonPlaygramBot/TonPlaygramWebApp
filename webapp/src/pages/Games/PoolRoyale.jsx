@@ -255,7 +255,7 @@ function classifyRendererTier(rendererString) {
 
 function detectPreferredFrameRateId() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return 'fhd90';
+    return 'fhd60';
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
@@ -286,7 +286,7 @@ function detectPreferredFrameRateId() {
     ) {
       return 'qhd90';
     }
-    return 'fhd90';
+    return 'fhd60';
   }
 
   if (rendererTier === 'desktopHigh' && highRefresh) {
@@ -301,7 +301,7 @@ function detectPreferredFrameRateId() {
     return 'qhd90';
   }
 
-  return 'fhd90';
+  return 'fhd60';
 }
 
 function resolveDefaultPixelRatioCap() {
@@ -1207,7 +1207,7 @@ const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
 const POCKET_SOUND_TAIL = 1;
-// Pool Royale previously lifted the table surface dramatically; extend the legs for a taller table stance
+// Pool Royale previously lifted the table surface dramatically; trim the legs so the playfield sits lower
 const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 2.25;
@@ -1221,7 +1221,7 @@ const TABLE_LIFT =
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
-const LEG_ELEVATION_SCALE = 1.92; // double the current leg extension so the table sits higher
+const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension by 20% to lower the playfield
 const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
 const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
@@ -2654,13 +2654,13 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Minimum HD output with higher refresh for battery saver and 60 Hz displays.'
   },
   {
-    id: 'fhd90',
-    label: 'Full HD (90 Hz)',
-    fps: 90,
+    id: 'fhd60',
+    label: 'Full HD (75 Hz)',
+    fps: 75,
     renderScale: 1.12,
     pixelRatioCap: 1.55,
     resolution: 'Full HD render • DPR 1.55 cap',
-    description: '1080p-focused profile tuned for smooth 90 Hz play.'
+    description: '1080p-focused profile with extra headroom over the Snooker pacing.'
   },
   {
     id: 'qhd90',
@@ -2690,7 +2690,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Maximum clarity preset while capping refresh at 120 Hz.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'fhd90';
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
@@ -4276,12 +4276,12 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 }
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const MIN_HDRI_RADIUS = 24;
-const HDRI_GROUNDED_RESOLUTION = 128;
+const HDRI_GROUNDED_RESOLUTION = 96;
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const urls = [];
@@ -9324,9 +9324,8 @@ function PoolRoyaleGame({
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
-      const normalizedStored = stored === 'fhd60' ? 'fhd90' : stored;
-      if (normalizedStored && FRAME_RATE_OPTIONS.some((opt) => opt.id === normalizedStored)) {
-        return normalizedStored;
+      if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
       }
       const detected = detectPreferredFrameRateId();
       if (detected && FRAME_RATE_OPTIONS.some((opt) => opt.id === detected)) {
