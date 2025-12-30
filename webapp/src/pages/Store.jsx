@@ -175,9 +175,7 @@ const LUDO_TYPE_LABELS = {
 };
 
 const MURLAN_TYPE_LABELS = {
-  tableWood: 'Table Wood',
-  tableCloth: 'Table Cloth',
-  tableBase: 'Table Base',
+  outfit: 'Outfits',
   cards: 'Card Themes',
   stools: 'Stools & Chairs',
   tables: 'Table Models',

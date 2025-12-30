@@ -355,6 +355,7 @@ export function createMurlanStyleTable({
   woodOption = DEFAULT_TABLE_WOOD_OPTION,
   clothOption = DEFAULT_TABLE_CLOTH_OPTION,
   baseOption = DEFAULT_TABLE_BASE_OPTION,
+  includeBase = true,
   shapeOption = TABLE_SHAPE_OPTIONS[0],
   rotationY = 0
 } = {}) {
@@ -374,20 +375,24 @@ export function createMurlanStyleTable({
     baseHeight = minBaseHeight;
   }
 
-  const baseMat = new ThreeNamespace.MeshPhysicalMaterial({
-    color: new ThreeNamespace.Color(baseOption.baseColor),
-    metalness: baseOption.metalness ?? 0.74,
-    roughness: baseOption.roughness ?? 0.34,
-    clearcoat: 0.62,
-    clearcoatRoughness: 0.22
-  });
-  const trimMat = new ThreeNamespace.MeshPhysicalMaterial({
-    color: new ThreeNamespace.Color(baseOption.trimColor ?? baseOption.baseColor),
-    metalness: Math.min(1, (baseOption.metalness ?? 0.74) + 0.08),
-    roughness: Math.max(0.2, (baseOption.roughness ?? 0.34) - 0.1),
-    clearcoat: 0.58,
-    clearcoatRoughness: 0.18
-  });
+  const baseMat = includeBase
+    ? new ThreeNamespace.MeshPhysicalMaterial({
+        color: new ThreeNamespace.Color(baseOption.baseColor),
+        metalness: baseOption.metalness ?? 0.74,
+        roughness: baseOption.roughness ?? 0.34,
+        clearcoat: 0.62,
+        clearcoatRoughness: 0.22
+      })
+    : null;
+  const trimMat = includeBase
+    ? new ThreeNamespace.MeshPhysicalMaterial({
+        color: new ThreeNamespace.Color(baseOption.trimColor ?? baseOption.baseColor),
+        metalness: Math.min(1, (baseOption.metalness ?? 0.74) + 0.08),
+        roughness: Math.max(0.2, (baseOption.roughness ?? 0.34) - 0.1),
+        clearcoat: 0.58,
+        clearcoatRoughness: 0.18
+      })
+    : null;
   const topWoodMat = new ThreeNamespace.MeshPhysicalMaterial({
     color: 0xffffff,
     roughness: 0.42,
@@ -472,19 +477,35 @@ export function createMurlanStyleTable({
   rimMesh.receiveShadow = true;
   tableGroup.add(rimMesh);
 
-  const baseGeometry = new ThreeNamespace.CylinderGeometry(0.68 * scaleFactor, 0.95 * scaleFactor, baseHeight, 8, 1, false);
-  const baseMesh = new ThreeNamespace.Mesh(baseGeometry, baseMat);
-  baseMesh.position.y = tableY - baseHeight / 2;
-  baseMesh.castShadow = true;
-  baseMesh.receiveShadow = true;
-  tableGroup.add(baseMesh);
+  if (includeBase) {
+    const baseGeometry = new ThreeNamespace.CylinderGeometry(
+      0.68 * scaleFactor,
+      0.95 * scaleFactor,
+      baseHeight,
+      8,
+      1,
+      false
+    );
+    const baseMesh = new ThreeNamespace.Mesh(baseGeometry, baseMat);
+    baseMesh.position.y = tableY - baseHeight / 2;
+    baseMesh.castShadow = true;
+    baseMesh.receiveShadow = true;
+    tableGroup.add(baseMesh);
 
-  const trimGeometry = new ThreeNamespace.CylinderGeometry(tableRadius * 0.985, tableRadius, trimHeight, 64, 1, false);
-  const trimMesh = new ThreeNamespace.Mesh(trimGeometry, trimMat);
-  trimMesh.position.y = tableY - trimOffset;
-  trimMesh.castShadow = true;
-  trimMesh.receiveShadow = true;
-  tableGroup.add(trimMesh);
+    const trimGeometry = new ThreeNamespace.CylinderGeometry(
+      tableRadius * 0.985,
+      tableRadius,
+      trimHeight,
+      64,
+      1,
+      false
+    );
+    const trimMesh = new ThreeNamespace.Mesh(trimGeometry, trimMat);
+    trimMesh.position.y = tableY - trimOffset;
+    trimMesh.castShadow = true;
+    trimMesh.receiveShadow = true;
+    tableGroup.add(trimMesh);
+  }
 
   const normalizedRotation = Number.isFinite(rotationY) ? rotationY : 0;
   tableGroup.position.y = 0;
