@@ -1,28 +1,4 @@
-import {
-  POOL_ROYALE_DEFAULT_HDRI_ID,
-  POOL_ROYALE_HDRI_VARIANTS
-} from './poolRoyaleInventoryConfig.js';
-import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
-
-const DEFAULT_TABLE_MODEL = Object.freeze({
-  id: 'domino-default',
-  label: 'Domino Default Table',
-  source: 'procedural'
-});
-
-const DEFAULT_CHAIR_MODEL = Object.freeze({
-  id: 'domino-default',
-  label: 'Domino Classic Chair',
-  source: 'procedural'
-});
-
 export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
-  environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
-    id: variant.id,
-    label: `${variant.name} HDRI`
-  })),
-  tableModel: [DEFAULT_TABLE_MODEL, ...MURLAN_TABLE_THEMES.map(({ id, label }) => ({ id, label }))],
-  chairModel: [DEFAULT_CHAIR_MODEL, ...MURLAN_STOOL_THEMES.map(({ id, label }) => ({ id, label }))],
   tableWood: [
     { id: 'oakEstate', label: 'Lis Estate' },
     { id: 'teakStudio', label: 'Tik Studio' }
@@ -86,30 +62,6 @@ export const DOMINO_ROYAL_OPTION_LABELS = Object.freeze(
 );
 
 export const DOMINO_ROYAL_STORE_ITEMS = [
-  ...POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
-    id: `domino-hdri-${variant.id}`,
-    type: 'environmentHdri',
-    optionId: variant.id,
-    name: `${variant.name} HDRI`,
-    price: variant.price ?? 1400,
-    description: variant.description ?? 'Premium HDR environment for Domino Royal.'
-  })).slice(1),
-  ...MURLAN_TABLE_THEMES.filter((theme) => theme.id !== DEFAULT_TABLE_MODEL.id).map((theme, idx) => ({
-    id: `domino-table-${theme.id}`,
-    type: 'tableModel',
-    optionId: theme.id,
-    name: theme.label,
-    price: theme.price ?? 900 + idx * 35,
-    description: theme.description ?? 'Alternate table model with preserved materials.'
-  })),
-  ...MURLAN_STOOL_THEMES.filter((theme) => theme.id !== DEFAULT_CHAIR_MODEL.id).map((theme, idx) => ({
-    id: `domino-chair-model-${theme.id}`,
-    type: 'chairModel',
-    optionId: theme.id,
-    name: theme.label,
-    price: theme.price ?? 480 + idx * 20,
-    description: theme.description ?? 'Alternate chair model with preserved materials.'
-  })),
   ...DOMINO_ROYAL_OPTION_SETS.tableWood.slice(1).map((option) => ({
     id: `domino-wood-${option.id}`,
     type: 'tableWood',
@@ -163,13 +115,7 @@ export const DOMINO_ROYAL_STORE_ITEMS = [
 export const DOMINO_ROYAL_DEFAULT_LOADOUT = Object.entries(DOMINO_ROYAL_OPTION_SETS).map(
   ([type, options]) => ({
     type,
-    optionId:
-      type === 'environmentHdri'
-        ? POOL_ROYALE_DEFAULT_HDRI_ID
-        : options[0]?.id,
-    label:
-      type === 'environmentHdri'
-        ? DOMINO_ROYAL_OPTION_SETS.environmentHdri.find((option) => option.id === POOL_ROYALE_DEFAULT_HDRI_ID)?.label
-        : options[0]?.label
+    optionId: options[0]?.id,
+    label: options[0]?.label
   })
 );
