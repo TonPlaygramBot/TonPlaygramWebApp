@@ -33,7 +33,12 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
   loftPhotoStudioHall: { cameraHeightM: 1.54, groundRadiusMultiplier: 4.6, groundResolution: 120 },
   londonPhotoStudioHall: { cameraHeightM: 1.56, groundRadiusMultiplier: 4.8, groundResolution: 120 },
   schoolHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.6, groundResolution: 112 },
-  countryStudioHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.5, groundResolution: 112 }
+  countryStudioHall: { cameraHeightM: 1.55, groundRadiusMultiplier: 4.5, groundResolution: 112 },
+  crowdPulseStudio: { cameraHeightM: 1.52, groundRadiusMultiplier: 4.2, groundResolution: 120 },
+  grandstandGlow: { cameraHeightM: 1.6, groundRadiusMultiplier: 5.4, groundResolution: 112 },
+  spectatorSpotlights: { cameraHeightM: 1.54, groundRadiusMultiplier: 5.1, groundResolution: 128 },
+  majesticEventHall: { cameraHeightM: 1.62, groundRadiusMultiplier: 5.6, groundResolution: 112 },
+  royalArenaNight: { cameraHeightM: 1.7, groundRadiusMultiplier: 6.4, groundResolution: 112 }
 });
 
 const RAW_POOL_ROYALE_HDRI_VARIANTS = [
@@ -470,6 +475,91 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1.02,
     swatches: ['#f472b6', '#16a34a'],
     description: 'Cozy country hall with warm wood bounce and soft window key light.'
+  },
+  {
+    id: 'crowdPulseStudio',
+    name: 'Crowd Pulse Studio',
+    assetId: 'neon_photostudio',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2260,
+    exposure: 1.16,
+    environmentIntensity: 1.12,
+    backgroundIntensity: 1.08,
+    animated: true,
+    rotationSpeed: 0.012,
+    ambientSoundUrl: '/assets/sounds/crowd-cheering-383111.mp3',
+    ambientVolume: 0.32,
+    swatches: ['#22d3ee', '#f472b6'],
+    description: 'Animated arena sweep with pulsing neon crowd strips and slow-motion rig turns.'
+  },
+  {
+    id: 'grandstandGlow',
+    name: 'Grandstand Glow',
+    assetId: 'ballroom',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2320,
+    exposure: 1.15,
+    environmentIntensity: 1.14,
+    backgroundIntensity: 1.09,
+    animated: true,
+    rotationSpeed: 0.01,
+    ambientSoundUrl: '/assets/sounds/crowd-cheering-383111.mp3',
+    ambientVolume: 0.3,
+    swatches: ['#fde68a', '#f97316'],
+    description: 'Warm arena seating glow with animated public motion and slow spotlight drift.'
+  },
+  {
+    id: 'spectatorSpotlights',
+    name: 'Spectator Spotlights',
+    assetId: 'billiard_hall',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2380,
+    exposure: 1.13,
+    environmentIntensity: 1.1,
+    backgroundIntensity: 1.04,
+    animated: true,
+    rotationSpeed: 0.014,
+    ambientSoundUrl: '/assets/sounds/crowd-cheering-383111.mp3',
+    ambientVolume: 0.28,
+    swatches: ['#0ea5e9', '#22c55e'],
+    description: 'Arena lighting sweep with moving public reflections and gentle crowd ambience.'
+  },
+  {
+    id: 'majesticEventHall',
+    name: 'Majestic Event Hall',
+    assetId: 'events_hall_interior',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2440,
+    exposure: 1.18,
+    environmentIntensity: 1.16,
+    backgroundIntensity: 1.1,
+    animated: true,
+    rotationSpeed: 0.009,
+    ambientSoundUrl: '/assets/sounds/crowd-cheering-383111.mp3',
+    ambientVolume: 0.26,
+    swatches: ['#f59e0b', '#f97316'],
+    description: 'Public hall ambience with moving chandelier glints and soft crowd motion.'
+  },
+  {
+    id: 'royalArenaNight',
+    name: 'Royal Arena Night',
+    assetId: 'rooftop_night',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2520,
+    exposure: 1.2,
+    environmentIntensity: 1.18,
+    backgroundIntensity: 1.12,
+    animated: true,
+    rotationSpeed: 0.016,
+    ambientSoundUrl: '/assets/sounds/crowd-shocked-reaction-352766.mp3',
+    ambientVolume: 0.24,
+    swatches: ['#38bdf8', '#0f172a'],
+    description: 'Night arena loop with moving crowd glows and reactive public hush tones.'
   }
 ];
 

@@ -10038,6 +10038,33 @@ function PoolRoyaleGame({
     activeEnvironmentVariantRef.current = activeEnvironmentHdri;
   }, [activeEnvironmentHdri, environmentHdriId]);
   useEffect(() => {
+    const nextUrl = activeEnvironmentHdri?.ambientSoundUrl;
+    const nextVolume = Number.isFinite(activeEnvironmentHdri?.ambientVolume)
+      ? activeEnvironmentHdri.ambientVolume
+      : 0.3;
+    if (!nextUrl) {
+      stopEnvironmentAudio();
+      return;
+    }
+    if (environmentAudioConfigRef.current.url !== nextUrl) {
+      stopEnvironmentAudio();
+      const audio = new Audio(nextUrl);
+      audio.loop = true;
+      audio.preload = 'auto';
+      audio.crossOrigin = 'anonymous';
+      environmentAudioRef.current = audio;
+      environmentAudioConfigRef.current = { url: nextUrl, volume: nextVolume };
+      audio.play().catch(() => {});
+    } else {
+      environmentAudioConfigRef.current = {
+        url: nextUrl,
+        volume: nextVolume
+      };
+    }
+    updateEnvironmentAudioVolume();
+  }, [activeEnvironmentHdri, stopEnvironmentAudio, updateEnvironmentAudioVolume]);
+  useEffect(() => () => stopEnvironmentAudio(), [stopEnvironmentAudio]);
+  useEffect(() => {
     if (typeof updateEnvironmentRef.current === 'function') {
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
     }
@@ -10532,6 +10559,7 @@ const powerRef = useRef(hud.power);
   const envSkyboxTextureRef = useRef(null);
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
+  const environmentMotionRef = useRef({ speed: 0, direction: 1 });
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
@@ -10679,6 +10707,8 @@ const powerRef = useRef(hud.power);
     shock: null
   });
   const activeCrowdSoundRef = useRef(null);
+  const environmentAudioRef = useRef(null);
+  const environmentAudioConfigRef = useRef({ url: null, volume: 0.3 });
   const muteRef = useRef(isGameMuted());
   const volumeRef = useRef(getGameVolume());
   const railSoundTimeRef = useRef(new Map());
@@ -10708,6 +10738,28 @@ const powerRef = useRef(hud.power);
         current.stop();
       } catch {}
       activeCrowdSoundRef.current = null;
+    }
+  }, []);
+  const stopEnvironmentAudio = useCallback(() => {
+    const audio = environmentAudioRef.current;
+    if (!audio) return;
+    try {
+      audio.pause();
+    } catch {}
+    audio.src = '';
+    environmentAudioRef.current = null;
+    environmentAudioConfigRef.current = { url: null, volume: 0.3 };
+  }, []);
+  const updateEnvironmentAudioVolume = useCallback(() => {
+    const audio = environmentAudioRef.current;
+    if (!audio) return;
+    const baseVolume = environmentAudioConfigRef.current.volume ?? 0.3;
+    const muted = muteRef.current;
+    const scaled = clamp(baseVolume * volumeRef.current, 0, 1);
+    audio.muted = muted;
+    audio.volume = muted ? 0 : scaled;
+    if (!muted && audio.paused) {
+      audio.play().catch(() => {});
     }
   }, []);
 
@@ -10912,9 +10964,11 @@ const powerRef = useRef(hud.power);
     const handleMute = () => {
       muteRef.current = isGameMuted();
       if (muteRef.current) stopActiveCrowdSound();
+      updateEnvironmentAudioVolume();
     };
     const handleVolume = () => {
       volumeRef.current = getGameVolume();
+      updateEnvironmentAudioVolume();
     };
     window.addEventListener('gameMuteChanged', handleMute);
     window.addEventListener('gameVolumeChanged', handleVolume);
@@ -10922,7 +10976,7 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('gameMuteChanged', handleMute);
       window.removeEventListener('gameVolumeChanged', handleVolume);
     };
-  }, [stopActiveCrowdSound]);
+  }, [stopActiveCrowdSound, updateEnvironmentAudioVolume]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -11481,6 +11535,18 @@ const powerRef = useRef(hud.power);
         const sceneInstance = sceneRef.current;
         if (!renderer || !sceneInstance) return;
         const activeVariant = variantConfig || activeEnvironmentVariantRef.current;
+        const rotationSpeed = Number.isFinite(activeVariant?.rotationSpeed)
+          ? activeVariant.rotationSpeed
+          : activeVariant?.animated
+            ? 0.01
+            : 0;
+        const rotationDirection = Number.isFinite(activeVariant?.rotationDirection)
+          ? activeVariant.rotationDirection
+          : 1;
+        environmentMotionRef.current = {
+          speed: rotationSpeed,
+          direction: rotationDirection
+        };
         const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
         if (!envResult) return;
         const { envMap, skyboxMap } = envResult;
@@ -19031,6 +19097,11 @@ const powerRef = useRef(hud.power);
         const deltaMs = Math.min(rawDelta, maxFrameTime);
         const appliedDeltaMs = deltaMs;
         const deltaSeconds = appliedDeltaMs / 1000;
+        const envMotion = environmentMotionRef.current;
+        if (envMotion?.speed && envSkyboxRef.current) {
+          envSkyboxRef.current.rotation.y +=
+            envMotion.speed * (envMotion.direction ?? 1) * deltaSeconds;
+        }
         coinTicker.update(deltaSeconds);
         dynamicTextureEntries.forEach((entry) => {
           entry.accumulator += deltaSeconds;
