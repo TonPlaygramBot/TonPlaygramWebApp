@@ -10042,29 +10042,6 @@ function PoolRoyaleGame({
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
     }
   }, [activeEnvironmentHdri, environmentHdriId]);
-  useEffect(() => {
-    const rotationBase =
-      typeof activeEnvironmentHdri?.skyboxRotation === 'number'
-        ? activeEnvironmentHdri.skyboxRotation
-        : 0;
-    const rotationSpeed =
-      typeof activeEnvironmentHdri?.skyboxRotationSpeed === 'number'
-        ? activeEnvironmentHdri.skyboxRotationSpeed
-        : 0;
-    environmentMotionRef.current = {
-      rotationSpeed,
-      baseRotation: rotationBase
-    };
-    if (envSkyboxRef.current) {
-      envSkyboxRef.current.rotation.y = rotationBase;
-    }
-  }, [activeEnvironmentHdri, environmentHdriId]);
-  useEffect(() => {
-    stopEnvironmentAmbience();
-    if (!muteRef.current) {
-      void startEnvironmentAmbience(activeEnvironmentHdri);
-    }
-  }, [activeEnvironmentHdri, environmentHdriId, startEnvironmentAmbience, stopEnvironmentAmbience]);
   const tableFinish = useMemo(() => {
     const baseFinish =
       TABLE_FINISHES[tableFinishId] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
@@ -10553,7 +10530,6 @@ const powerRef = useRef(hud.power);
   const envTextureRef = useRef(null);
   const envSkyboxRef = useRef(null);
   const envSkyboxTextureRef = useRef(null);
-  const environmentMotionRef = useRef({ rotationSpeed: 0, baseRotation: 0 });
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
@@ -10702,13 +10678,6 @@ const powerRef = useRef(hud.power);
     cheer: null,
     shock: null
   });
-  const environmentAmbienceRef = useRef({
-    source: null,
-    gain: null,
-    url: null,
-    baseVolume: null
-  });
-  const environmentSoundRequestRef = useRef(0);
   const activeCrowdSoundRef = useRef(null);
   const muteRef = useRef(isGameMuted());
   const volumeRef = useRef(getGameVolume());
@@ -10741,79 +10710,6 @@ const powerRef = useRef(hud.power);
       activeCrowdSoundRef.current = null;
     }
   }, []);
-
-  const stopEnvironmentAmbience = useCallback(() => {
-    const current = environmentAmbienceRef.current;
-    if (current?.source) {
-      try {
-        current.source.stop();
-      } catch {}
-    }
-    environmentAmbienceRef.current = {
-      source: null,
-      gain: null,
-      url: null,
-      baseVolume: null
-    };
-  }, []);
-
-  const loadEnvironmentBuffer = useCallback(async (path) => {
-    const ctx = audioContextRef.current;
-    if (!ctx || !path) return null;
-    const response = await fetch(encodeURI(path));
-    if (!response.ok) throw new Error(`Failed to load ${path}`);
-    const arr = await response.arrayBuffer();
-    return await new Promise((resolve, reject) => {
-      ctx.decodeAudioData(arr, resolve, reject);
-    });
-  }, []);
-
-  const startEnvironmentAmbience = useCallback(
-    async (variant) => {
-      const ctx = audioContextRef.current;
-      const soundUrl = variant?.ambientSoundUrl;
-      if (!ctx || !soundUrl || muteRef.current) return;
-      const requestId = ++environmentSoundRequestRef.current;
-      try {
-        const buffer = await loadEnvironmentBuffer(soundUrl);
-        if (!buffer || requestId !== environmentSoundRequestRef.current) return;
-        if (!audioContextRef.current || muteRef.current) return;
-        stopEnvironmentAmbience();
-        const baseVolume =
-          typeof variant?.ambientVolume === 'number' ? variant.ambientVolume : 0.24;
-        const scaled = clamp(baseVolume * volumeRef.current, 0, 1);
-        if (scaled <= 0) return;
-        ctx.resume().catch(() => {});
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        source.loop = true;
-        const gain = ctx.createGain();
-        gain.gain.value = scaled;
-        source.connect(gain);
-        routeAudioNode(gain);
-        source.start(0);
-        environmentAmbienceRef.current = {
-          source,
-          gain,
-          url: soundUrl,
-          baseVolume
-        };
-        source.onended = () => {
-          if (environmentAmbienceRef.current?.source === source) {
-            environmentAmbienceRef.current = {
-              source: null,
-              gain: null,
-              url: null,
-              baseVolume: null
-            };
-          }
-        };
-      } catch (err) {
-        console.warn('Pool ambience load failed:', err);
-      }
-    },
-    [loadEnvironmentBuffer, routeAudioNode, stopEnvironmentAmbience]
-  );
 
   const selectCueStyleFromMenu = useCallback(
     async (index) => {
@@ -11015,23 +10911,10 @@ const powerRef = useRef(hud.power);
     volumeRef.current = getGameVolume();
     const handleMute = () => {
       muteRef.current = isGameMuted();
-      if (muteRef.current) {
-        stopActiveCrowdSound();
-        stopEnvironmentAmbience();
-      } else {
-        void startEnvironmentAmbience(activeEnvironmentVariantRef.current);
-      }
+      if (muteRef.current) stopActiveCrowdSound();
     };
     const handleVolume = () => {
       volumeRef.current = getGameVolume();
-      const ambience = environmentAmbienceRef.current;
-      if (ambience?.gain && typeof ambience.baseVolume === 'number') {
-        ambience.gain.gain.value = clamp(
-          ambience.baseVolume * volumeRef.current,
-          0,
-          1
-        );
-      }
     };
     window.addEventListener('gameMuteChanged', handleMute);
     window.addEventListener('gameVolumeChanged', handleVolume);
@@ -11039,7 +10922,7 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('gameMuteChanged', handleMute);
       window.removeEventListener('gameVolumeChanged', handleVolume);
     };
-  }, [startEnvironmentAmbience, stopActiveCrowdSound, stopEnvironmentAmbience]);
+  }, [stopActiveCrowdSound]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -11047,9 +10930,6 @@ const powerRef = useRef(hud.power);
     const ctx = new AudioContextClass();
     audioContextRef.current = ctx;
     let cancelled = false;
-    if (!muteRef.current) {
-      void startEnvironmentAmbience(activeEnvironmentVariantRef.current);
-    }
     const decode = (arrayBuffer) =>
       new Promise((resolve, reject) => {
         ctx.decodeAudioData(arrayBuffer, resolve, reject);
@@ -11085,7 +10965,6 @@ const powerRef = useRef(hud.power);
     return () => {
       cancelled = true;
       stopActiveCrowdSound();
-      stopEnvironmentAmbience();
       audioBuffersRef.current = {
         cue: null,
         ball: null,
@@ -11097,7 +10976,7 @@ const powerRef = useRef(hud.power);
       audioContextRef.current = null;
       ctx.close().catch(() => {});
     };
-  }, [startEnvironmentAmbience, stopActiveCrowdSound, stopEnvironmentAmbience]);
+  }, [stopActiveCrowdSound]);
   const formatBallOnLabel = useCallback(
     (rawList = []) => {
       const normalized = rawList
@@ -11641,9 +11520,6 @@ const powerRef = useRef(hud.power);
           try {
             skybox = new GroundedSkybox(skyboxMap, skyboxHeight, skyboxRadius, skyboxResolution);
             skybox.position.y = floorWorldY + skyboxHeight;
-            if (typeof activeVariant?.skyboxRotation === 'number') {
-              skybox.rotation.y = activeVariant.skyboxRotation;
-            }
             skybox.material.depthWrite = false;
             sceneInstance.background = null;
             sceneInstance.add(skybox);
@@ -19155,11 +19031,6 @@ const powerRef = useRef(hud.power);
         const deltaMs = Math.min(rawDelta, maxFrameTime);
         const appliedDeltaMs = deltaMs;
         const deltaSeconds = appliedDeltaMs / 1000;
-        const envMotion = environmentMotionRef.current;
-        const envSkybox = envSkyboxRef.current;
-        if (envSkybox && envMotion?.rotationSpeed) {
-          envSkybox.rotation.y += envMotion.rotationSpeed * deltaSeconds;
-        }
         coinTicker.update(deltaSeconds);
         dynamicTextureEntries.forEach((entry) => {
           entry.accumulator += deltaSeconds;
