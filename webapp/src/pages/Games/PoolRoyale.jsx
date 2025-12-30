@@ -4276,143 +4276,9 @@ const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.0;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
-const MAX_HDRI_CAMERA_HEIGHT_M = 2.4;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const MIN_HDRI_RADIUS = 24;
 const HDRI_GROUNDED_RESOLUTION = 96;
-const HDRI_INFO_BASE_URL = 'https://api.polyhaven.com/info/';
-const HDRI_META_CACHE = new Map();
-const MIN_HDRI_RADIUS_MULTIPLIER = 3.5;
-const MAX_HDRI_RADIUS_MULTIPLIER = 14;
-const HDRI_RESOLUTION_SCALE_MIN = 0.75;
-const HDRI_RESOLUTION_SCALE_MAX = 1.6;
-
-const clampHdriCameraHeight = (value) =>
-  THREE.MathUtils.clamp(
-    Number.isFinite(value) ? value : DEFAULT_HDRI_CAMERA_HEIGHT_M,
-    MIN_HDRI_CAMERA_HEIGHT_M,
-    MAX_HDRI_CAMERA_HEIGHT_M
-  );
-
-const clampHdriRadiusMultiplier = (value) =>
-  THREE.MathUtils.clamp(
-    Number.isFinite(value) ? value : DEFAULT_HDRI_RADIUS_MULTIPLIER,
-    MIN_HDRI_RADIUS_MULTIPLIER,
-    MAX_HDRI_RADIUS_MULTIPLIER
-  );
-
-function normalizeHdriCategories(categories) {
-  if (!Array.isArray(categories)) return [];
-  return categories
-    .map((entry) => (typeof entry === 'string' ? entry.toLowerCase() : `${entry}`.toLowerCase()))
-    .filter(Boolean);
-}
-
-function inferHdriResolutionScale(info = {}) {
-  const maxResolution = Array.isArray(info?.max_resolution) ? info.max_resolution : [];
-  const width = Number.isFinite(maxResolution?.[0]) ? maxResolution[0] : null;
-  if (!width) return 1;
-  return THREE.MathUtils.clamp(width / 8192, HDRI_RESOLUTION_SCALE_MIN, HDRI_RESOLUTION_SCALE_MAX);
-}
-
-function inferHdriPlacementFromInfo(info = {}) {
-  const categories = normalizeHdriCategories(info?.categories);
-  const resolutionScale = inferHdriResolutionScale(info);
-  const isIndoor = categories.includes('indoor');
-  const isUrban = categories.includes('urban');
-  const isOutdoor = categories.includes('outdoor') || categories.includes('nature');
-  const isSky = categories.includes('skies');
-
-  let cameraHeightM = DEFAULT_HDRI_CAMERA_HEIGHT_M;
-  if (isSky) {
-    cameraHeightM = 1.72;
-  } else if (isOutdoor) {
-    cameraHeightM = 1.64;
-  } else if (isUrban) {
-    cameraHeightM = 1.56;
-  } else if (isIndoor) {
-    cameraHeightM = 1.4;
-  }
-
-  let groundRadiusMultiplier = DEFAULT_HDRI_RADIUS_MULTIPLIER;
-  if (isSky) {
-    groundRadiusMultiplier = 10.5;
-  } else if (isOutdoor) {
-    groundRadiusMultiplier = 8.4;
-  } else if (isUrban) {
-    groundRadiusMultiplier = 6.2;
-  } else if (isIndoor) {
-    groundRadiusMultiplier = 4.6;
-  }
-
-  const groundResolution = Math.max(
-    24,
-    Math.round(HDRI_GROUNDED_RESOLUTION * resolutionScale)
-  );
-
-  return {
-    cameraHeightM,
-    groundRadiusMultiplier: groundRadiusMultiplier * resolutionScale,
-    groundResolution
-  };
-}
-
-async function resolveHdriPlacementMetadata(variant = {}) {
-  const fallbackMeta = {
-    cameraHeightM: DEFAULT_HDRI_CAMERA_HEIGHT_M,
-    groundRadiusMultiplier: DEFAULT_HDRI_RADIUS_MULTIPLIER,
-    groundResolution: HDRI_GROUNDED_RESOLUTION
-  };
-  const manualMeta = {
-    cameraHeightM: Number.isFinite(variant?.cameraHeightM) ? variant.cameraHeightM : null,
-    groundRadiusMultiplier: Number.isFinite(variant?.groundRadiusMultiplier)
-      ? variant.groundRadiusMultiplier
-      : null,
-    groundResolution: Number.isFinite(variant?.groundResolution) ? variant.groundResolution : null
-  };
-  let derivedMeta = {};
-  const assetId = variant?.assetId;
-  if (assetId && typeof fetch === 'function') {
-    if (!HDRI_META_CACHE.has(assetId)) {
-      const promise = (async () => {
-        try {
-          const response = await fetch(`${HDRI_INFO_BASE_URL}${encodeURIComponent(assetId)}`);
-          if (!response?.ok) return null;
-          return response.json();
-        } catch (error) {
-          console.warn('Failed to query Poly Haven HDRI metadata', error);
-          return null;
-        }
-      })();
-      HDRI_META_CACHE.set(assetId, promise);
-    }
-    try {
-      const info = await HDRI_META_CACHE.get(assetId);
-      if (info) {
-        derivedMeta = inferHdriPlacementFromInfo(info);
-      }
-    } catch (error) {
-      console.warn('Failed to resolve HDRI placement metadata', error);
-    }
-  }
-
-  const merged = {
-    cameraHeightM:
-      manualMeta.cameraHeightM ?? derivedMeta.cameraHeightM ?? fallbackMeta.cameraHeightM,
-    groundRadiusMultiplier:
-      manualMeta.groundRadiusMultiplier ??
-      derivedMeta.groundRadiusMultiplier ??
-      fallbackMeta.groundRadiusMultiplier,
-    groundResolution:
-      manualMeta.groundResolution ?? derivedMeta.groundResolution ?? fallbackMeta.groundResolution
-  };
-
-  return {
-    cameraHeightM: clampHdriCameraHeight(merged.cameraHeightM),
-    groundRadiusMultiplier: clampHdriRadiusMultiplier(merged.groundRadiusMultiplier),
-    groundResolution: Math.max(16, Math.floor(merged.groundResolution))
-  };
-}
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const urls = [];
@@ -11615,13 +11481,10 @@ const powerRef = useRef(hud.power);
         const sceneInstance = sceneRef.current;
         if (!renderer || !sceneInstance) return;
         const activeVariant = variantConfig || activeEnvironmentVariantRef.current;
-        const placementMetaPromise = resolveHdriPlacementMetadata(activeVariant);
         const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
         if (!envResult) return;
         const { envMap, skyboxMap } = envResult;
         if (!envMap) return;
-        const placementMeta = await placementMetaPromise;
-        if (!placementMeta) return;
         if (disposed) {
           envMap.dispose?.();
           skyboxMap?.dispose?.();
@@ -11636,24 +11499,21 @@ const powerRef = useRef(hud.power);
           : WORLD_SCALE * tableScale;
         const floorWorldY = FLOOR_Y * resolvedWorldScale + worldOffsetY;
         const unitsPerMeter = MM_TO_UNITS * 1000 * resolvedWorldScale;
-        const cameraHeightMeters = clampHdriCameraHeight(
-          placementMeta?.cameraHeightM ?? activeVariant?.cameraHeightM
+        const cameraHeightMeters = Math.max(
+          activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M,
+          MIN_HDRI_CAMERA_HEIGHT_M
         );
         const skyboxHeight = cameraHeightMeters * unitsPerMeter;
         const groundRadiusMultiplier =
-          Number.isFinite(placementMeta?.groundRadiusMultiplier)
-            ? placementMeta.groundRadiusMultiplier
+          typeof activeVariant?.groundRadiusMultiplier === 'number'
+            ? activeVariant.groundRadiusMultiplier
             : DEFAULT_HDRI_RADIUS_MULTIPLIER;
         const baseRadius =
           Math.max(PLAY_W, PLAY_H) * resolvedWorldScale * groundRadiusMultiplier;
         const skyboxRadius = Math.max(baseRadius, skyboxHeight * 2.5, MIN_HDRI_RADIUS);
         const skyboxResolution = Math.max(
           16,
-          Math.floor(
-            Number.isFinite(placementMeta?.groundResolution)
-              ? placementMeta.groundResolution
-              : activeVariant?.groundResolution ?? HDRI_GROUNDED_RESOLUTION
-          )
+          Math.floor(activeVariant?.groundResolution ?? HDRI_GROUNDED_RESOLUTION)
         );
         let skybox = null;
         if (skyboxMap && skyboxHeight > 0 && skyboxRadius > 0) {
