@@ -2330,7 +2330,8 @@ export default function MurlanRoyaleArena({ search }) {
       const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, cameraBoundRadius);
       const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
       const minOrbitRadius = Math.max(2.4 * MODEL_SCALE, maxOrbitRadius * 0.55);
-      spherical.radius = maxOrbitRadius;
+      const desiredRadius = THREE.MathUtils.clamp(spherical.radius * 1.05, minOrbitRadius, maxOrbitRadius);
+      spherical.radius = desiredRadius;
       spherical.phi = THREE.MathUtils.clamp(
         spherical.phi,
         ARENA_CAMERA_DEFAULTS.phiMin,
@@ -2343,13 +2344,13 @@ export default function MurlanRoyaleArena({ search }) {
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.enablePan = true;
-      controls.enableZoom = false;
+      controls.enableZoom = true;
       controls.enableRotate = true;
       controls.minPolarAngle = ARENA_CAMERA_DEFAULTS.phiMin;
       controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
       controls.minAzimuthAngle = -Infinity;
       controls.maxAzimuthAngle = Infinity;
-      controls.minDistance = maxOrbitRadius;
+      controls.minDistance = minOrbitRadius;
       controls.maxDistance = maxOrbitRadius;
       controls.rotateSpeed = 0.6;
       controls.target.copy(target);
