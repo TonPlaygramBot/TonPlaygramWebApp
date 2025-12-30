@@ -10042,9 +10042,6 @@ function PoolRoyaleGame({
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
     }
   }, [activeEnvironmentHdri, environmentHdriId]);
-  useEffect(() => {
-    startEnvironmentSound(activeEnvironmentHdri);
-  }, [activeEnvironmentHdri, environmentHdriId, startEnvironmentSound]);
   const tableFinish = useMemo(() => {
     const baseFinish =
       TABLE_FINISHES[tableFinishId] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
@@ -10533,14 +10530,6 @@ const powerRef = useRef(hud.power);
   const envTextureRef = useRef(null);
   const envSkyboxRef = useRef(null);
   const envSkyboxTextureRef = useRef(null);
-  const envMotionRef = useRef({
-    enabled: false,
-    rotationSpeed: 0,
-    bobAmplitude: 0,
-    bobSpeed: 0,
-    baseY: 0
-  });
-  const envMotionTimeRef = useRef(0);
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
@@ -10687,13 +10676,9 @@ const powerRef = useRef(hud.power);
     pocket: null,
     knock: null,
     cheer: null,
-    shock: null,
-    environment: {}
+    shock: null
   });
   const activeCrowdSoundRef = useRef(null);
-  const activeEnvironmentSoundRef = useRef(null);
-  const activeEnvironmentSoundIdRef = useRef(null);
-  const environmentGainRef = useRef(null);
   const muteRef = useRef(isGameMuted());
   const volumeRef = useRef(getGameVolume());
   const railSoundTimeRef = useRef(new Map());
@@ -10726,17 +10711,6 @@ const powerRef = useRef(hud.power);
     }
   }, []);
 
-  const stopActiveEnvironmentSound = useCallback(() => {
-    const current = activeEnvironmentSoundRef.current;
-    if (current) {
-      try {
-        current.stop();
-      } catch {}
-      activeEnvironmentSoundRef.current = null;
-      activeEnvironmentSoundIdRef.current = null;
-    }
-  }, []);
-
   const selectCueStyleFromMenu = useCallback(
     async (index) => {
       const charged = await ensureCueFeePaid();
@@ -10761,59 +10735,6 @@ const powerRef = useRef(hud.power);
       node.connect(ctx.destination);
     } catch {}
   }, []);
-
-  const startEnvironmentSound = useCallback(
-    (variant) => {
-      const soundConfig = variant?.sound ?? null;
-      const soundUrl =
-        typeof soundConfig === 'string' ? soundConfig : soundConfig?.url;
-      if (!soundUrl) {
-        stopActiveEnvironmentSound();
-        return;
-      }
-      const ctx = audioContextRef.current;
-      const buffer = audioBuffersRef.current.environment?.[soundUrl];
-      if (!ctx || !buffer || muteRef.current) return;
-      const baseVolume =
-        typeof soundConfig === 'object' && Number.isFinite(soundConfig.volume)
-          ? soundConfig.volume
-          : 0.15;
-      const scaled = clamp(baseVolume * volumeRef.current, 0, 1);
-      if (scaled <= 0) {
-        stopActiveEnvironmentSound();
-        return;
-      }
-      if (
-        activeEnvironmentSoundIdRef.current === soundUrl &&
-        activeEnvironmentSoundRef.current
-      ) {
-        if (environmentGainRef.current) {
-          environmentGainRef.current.gain.value = scaled;
-        }
-        return;
-      }
-      stopActiveEnvironmentSound();
-      ctx.resume().catch(() => {});
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      const gain = ctx.createGain();
-      gain.gain.value = scaled;
-      source.connect(gain);
-      routeAudioNode(gain);
-      source.start(0);
-      activeEnvironmentSoundRef.current = source;
-      activeEnvironmentSoundIdRef.current = soundUrl;
-      environmentGainRef.current = gain;
-      source.onended = () => {
-        if (activeEnvironmentSoundRef.current === source) {
-          activeEnvironmentSoundRef.current = null;
-          activeEnvironmentSoundIdRef.current = null;
-        }
-      };
-    },
-    [routeAudioNode, stopActiveEnvironmentSound]
-  );
 
   const playCueHit = useCallback((vol = 1) => {
     const ctx = audioContextRef.current;
@@ -10990,16 +10911,10 @@ const powerRef = useRef(hud.power);
     volumeRef.current = getGameVolume();
     const handleMute = () => {
       muteRef.current = isGameMuted();
-      if (muteRef.current) {
-        stopActiveCrowdSound();
-        stopActiveEnvironmentSound();
-      } else {
-        startEnvironmentSound(activeEnvironmentVariantRef.current);
-      }
+      if (muteRef.current) stopActiveCrowdSound();
     };
     const handleVolume = () => {
       volumeRef.current = getGameVolume();
-      startEnvironmentSound(activeEnvironmentVariantRef.current);
     };
     window.addEventListener('gameMuteChanged', handleMute);
     window.addEventListener('gameVolumeChanged', handleVolume);
@@ -11007,7 +10922,7 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('gameMuteChanged', handleMute);
       window.removeEventListener('gameVolumeChanged', handleVolume);
     };
-  }, [startEnvironmentSound, stopActiveCrowdSound, stopActiveEnvironmentSound]);
+  }, [stopActiveCrowdSound]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -11046,47 +10961,22 @@ const powerRef = useRef(hud.power);
       if (!cancelled) {
         audioBuffersRef.current = { ...audioBuffersRef.current, ...loaded };
       }
-      const environmentSounds = [
-        ...new Set(
-          POOL_ROYALE_HDRI_VARIANTS.map((variant) =>
-            typeof variant.sound === 'string' ? variant.sound : variant.sound?.url
-          ).filter(Boolean)
-        )
-      ];
-      const environmentBuffers = {};
-      for (const url of environmentSounds) {
-        try {
-          const buffer = await loadBuffer(url);
-          if (!cancelled) environmentBuffers[url] = buffer;
-        } catch (err) {
-          console.warn('Pool environment audio load failed:', url, err);
-        }
-      }
-      if (!cancelled) {
-        audioBuffersRef.current = {
-          ...audioBuffersRef.current,
-          environment: { ...audioBuffersRef.current.environment, ...environmentBuffers }
-        };
-        startEnvironmentSound(activeEnvironmentVariantRef.current);
-      }
     })();
     return () => {
       cancelled = true;
       stopActiveCrowdSound();
-      stopActiveEnvironmentSound();
       audioBuffersRef.current = {
         cue: null,
         ball: null,
         pocket: null,
         knock: null,
         cheer: null,
-        shock: null,
-        environment: {}
+        shock: null
       };
       audioContextRef.current = null;
       ctx.close().catch(() => {});
     };
-  }, [startEnvironmentSound, stopActiveCrowdSound, stopActiveEnvironmentSound]);
+  }, [stopActiveCrowdSound]);
   const formatBallOnLabel = useCallback(
     (rawList = []) => {
       const normalized = rawList
@@ -11659,29 +11549,6 @@ const powerRef = useRef(hud.power);
           sceneInstance.environmentIntensity = activeVariant.environmentIntensity;
         }
         renderer.toneMappingExposure = activeVariant?.exposure ?? renderer.toneMappingExposure;
-        const motionConfig =
-          activeVariant?.motion && typeof activeVariant.motion === 'object'
-            ? activeVariant.motion
-            : null;
-        const rotationSpeed = Number.isFinite(motionConfig?.rotationSpeed)
-          ? motionConfig.rotationSpeed
-          : 0;
-        const bobAmplitudeM = Number.isFinite(motionConfig?.bobAmplitudeM)
-          ? motionConfig.bobAmplitudeM
-          : 0;
-        const bobSpeed = Number.isFinite(motionConfig?.bobSpeed) ? motionConfig.bobSpeed : 0;
-        const bobAmplitude = bobAmplitudeM > 0 ? bobAmplitudeM * unitsPerMeter : 0;
-        if (skybox) {
-          skybox.rotation.set(0, 0, 0);
-        }
-        envMotionRef.current = {
-          enabled: Boolean(motionConfig) && (rotationSpeed !== 0 || bobAmplitude !== 0),
-          rotationSpeed,
-          bobAmplitude,
-          bobSpeed,
-          baseY: skybox?.position.y ?? 0
-        };
-        envMotionTimeRef.current = 0;
         envTextureRef.current = envMap;
         disposeEnvironmentRef.current = () => {
           if (sceneRef.current?.environment === envMap) {
@@ -11705,13 +11572,6 @@ const powerRef = useRef(hud.power);
               envSkyboxTextureRef.current = null;
             }
           }
-          envMotionRef.current = {
-            enabled: false,
-            rotationSpeed: 0,
-            bobAmplitude: 0,
-            bobSpeed: 0,
-            baseY: 0
-          };
         };
         if (prevDispose && prevTexture !== envMap) {
           prevDispose();
@@ -19171,20 +19031,6 @@ const powerRef = useRef(hud.power);
         const deltaMs = Math.min(rawDelta, maxFrameTime);
         const appliedDeltaMs = deltaMs;
         const deltaSeconds = appliedDeltaMs / 1000;
-        const envMotion = envMotionRef.current;
-        const envSkybox = envSkyboxRef.current;
-        if (envMotion?.enabled && envSkybox) {
-          envMotionTimeRef.current += deltaSeconds;
-          if (envMotion.rotationSpeed) {
-            envSkybox.rotation.y += envMotion.rotationSpeed * deltaSeconds;
-          }
-          if (envMotion.bobAmplitude && envMotion.bobSpeed) {
-            envSkybox.position.y =
-              envMotion.baseY +
-              Math.sin(envMotionTimeRef.current * envMotion.bobSpeed * Math.PI * 2) *
-                envMotion.bobAmplitude;
-          }
-        }
         coinTicker.update(deltaSeconds);
         dynamicTextureEntries.forEach((entry) => {
           entry.accumulator += deltaSeconds;
