@@ -1953,6 +1953,82 @@ const createPocketMaterials = () => ({
   })
 });
 
+const createStandardWoodFinish = ({
+  id,
+  label,
+  cloth = 0x2d7f4b,
+  rail,
+  base,
+  trim,
+  accent,
+  woodTextureId
+}) => ({
+  id,
+  label,
+  colors: makeColorPalette({
+    cloth,
+    rail,
+    base
+  }),
+  woodTextureId,
+  createMaterials: () => {
+    const frameColor = new THREE.Color(base);
+    const railColor = new THREE.Color(rail);
+    const trimColor =
+      trim != null
+        ? new THREE.Color(trim)
+        : railColor.clone().offsetHSL(0.02, 0.08, 0.18);
+    const frame = new THREE.MeshPhysicalMaterial({
+      color: frameColor,
+      metalness: 0.2,
+      roughness: 0.32,
+      clearcoat: 0.42,
+      clearcoatRoughness: 0.22,
+      sheen: 0.2,
+      sheenRoughness: 0.44,
+      reflectivity: 0.56,
+      envMapIntensity: 0.88
+    });
+    const railMat = new THREE.MeshPhysicalMaterial({
+      color: railColor,
+      metalness: 0.24,
+      roughness: 0.34,
+      clearcoat: 0.46,
+      clearcoatRoughness: 0.2,
+      sheen: 0.22,
+      sheenRoughness: 0.46,
+      reflectivity: 0.6,
+      envMapIntensity: 0.94
+    });
+    const trimMat = new THREE.MeshPhysicalMaterial({
+      color: trimColor,
+      metalness: 0.72,
+      roughness: 0.32,
+      clearcoat: 0.44,
+      clearcoatRoughness: 0.18,
+      envMapIntensity: 1.02
+    });
+    const materials = {
+      frame,
+      rail: railMat,
+      leg: frame,
+      trim: trimMat,
+      accent: null
+    };
+    if (accent != null) {
+      materials.accent = new THREE.MeshPhysicalMaterial({
+        color: accent,
+        metalness: 0.32,
+        roughness: 0.48,
+        clearcoat: 0.22,
+        clearcoatRoughness: 0.32,
+        envMapIntensity: 0.72
+      });
+    }
+    applySnookerStyleWoodPreset(materials, id);
+    return { ...materials, ...createPocketMaterials() };
+  }
+});
 
 const TABLE_FINISHES = Object.freeze({
   rusticSplit: {
@@ -2181,6 +2257,62 @@ const TABLE_FINISHES = Object.freeze({
       return { ...materials, ...createPocketMaterials() };
     }
   },
+  peelingPaintWeathered: createStandardWoodFinish({
+    id: 'peelingPaintWeathered',
+    label: 'Wood Peeling Paint Weathered',
+    rail: 0xb8b3aa,
+    base: 0xa89f95,
+    trim: 0xd6d0c7,
+    woodTextureId: 'wood_peeling_paint_weathered'
+  }),
+  oakVeneer01: createStandardWoodFinish({
+    id: 'oakVeneer01',
+    label: 'Oak Veneer 01',
+    rail: 0xc89a64,
+    base: 0xb9854e,
+    trim: 0xe0bb7a,
+    woodTextureId: 'oak_veneer_01'
+  }),
+  woodTable001: createStandardWoodFinish({
+    id: 'woodTable001',
+    label: 'Wood Table 001',
+    rail: 0xa4724f,
+    base: 0x8f6243,
+    trim: 0xc89a64,
+    woodTextureId: 'wood_table_001'
+  }),
+  darkWood: createStandardWoodFinish({
+    id: 'darkWood',
+    label: 'Dark Wood',
+    rail: 0x3d2f2a,
+    base: 0x2f241f,
+    trim: 0x6a5a52,
+    woodTextureId: 'dark_wood'
+  }),
+  rosewoodVeneer01: createStandardWoodFinish({
+    id: 'rosewoodVeneer01',
+    label: 'Rosewood Veneer 01',
+    rail: 0x6f3a2f,
+    base: 0x5b2f26,
+    trim: 0x9b5a44,
+    woodTextureId: 'rosewood_veneer_01'
+  }),
+  kitchenWood: createStandardWoodFinish({
+    id: 'kitchenWood',
+    label: 'Kitchen Wood',
+    rail: 0xd2b28a,
+    base: 0xc39c73,
+    trim: 0xe6c79e,
+    woodTextureId: 'kitchen_wood'
+  }),
+  japaneseSycamore: createStandardWoodFinish({
+    id: 'japaneseSycamore',
+    label: 'Japanese Sycamore',
+    rail: 0xe2d4b6,
+    base: 0xd6c6a4,
+    trim: 0xf1e2c6,
+    woodTextureId: 'japanese_sycamore'
+  }),
   jetBlackCarbon: {
     id: 'jetBlackCarbon',
     label: 'Jet Black Matte Carbon Fibre',
@@ -2429,6 +2561,13 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.charredTimber,
     TABLE_FINISHES.plankStudio,
     TABLE_FINISHES.weatheredGrey,
+    TABLE_FINISHES.peelingPaintWeathered,
+    TABLE_FINISHES.oakVeneer01,
+    TABLE_FINISHES.woodTable001,
+    TABLE_FINISHES.darkWood,
+    TABLE_FINISHES.rosewoodVeneer01,
+    TABLE_FINISHES.kitchenWood,
+    TABLE_FINISHES.japaneseSycamore,
     TABLE_FINISHES.jetBlackCarbon,
     TABLE_FINISHES.frostedAsh,
     TABLE_FINISHES.amberWharf,
