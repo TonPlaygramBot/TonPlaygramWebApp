@@ -729,7 +729,7 @@ export const POOL_ROYALE_HDRI_VARIANT_MAP = Object.freeze(
 export const POOL_ROYALE_DEFAULT_HDRI_ID = POOL_ROYALE_HDRI_VARIANTS[0].id;
 
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
-  tableFinish: ['charredTimber'],
+  tableFinish: ['peelingPaintWeathered'],
   chromeColor: ['gold'],
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
@@ -746,21 +746,13 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     }, {})
   ),
   tableFinish: Object.freeze({
-    rusticSplit: 'Pearl Cream',
-    charredTimber: 'Charred Timber',
-    plankStudio: 'Plank Studio',
-    weatheredGrey: 'Weathered Grey',
     peelingPaintWeathered: 'Wood Peeling Paint Weathered',
     oakVeneer01: 'Oak Veneer 01',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
     rosewoodVeneer01: 'Rosewood Veneer 01',
     kitchenWood: 'Kitchen Wood',
-    japaneseSycamore: 'Japanese Sycamore',
-    jetBlackCarbon: 'Jet Black Carbon',
-    frostedAsh: 'Frosted Ash',
-    amberWharf: 'Amber Wharf',
-    obsidianMist: 'Obsidian Mist'
+    japaneseSycamore: 'Japanese Sycamore'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -799,30 +791,6 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
 });
 
 export const POOL_ROYALE_STORE_ITEMS = [
-  {
-    id: 'finish-rusticSplit',
-    type: 'tableFinish',
-    optionId: 'rusticSplit',
-    name: 'Pearl Cream Finish',
-    price: 820,
-    description: 'Warm cream split rails with matching legs and trim.'
-  },
-  {
-    id: 'finish-plankStudio',
-    type: 'tableFinish',
-    optionId: 'plankStudio',
-    name: 'Plank Studio Finish',
-    price: 910,
-    description: 'Crisp plank-style oak studio rails with satin sheen.'
-  },
-  {
-    id: 'finish-weatheredGrey',
-    type: 'tableFinish',
-    optionId: 'weatheredGrey',
-    name: 'Weathered Grey Finish',
-    price: 940,
-    description: 'Driftwood grey rails with soft grain and cooled trim.'
-  },
   {
     id: 'finish-peelingPaintWeathered',
     type: 'tableFinish',
@@ -878,38 +846,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     name: 'Japanese Sycamore Finish',
     price: 1040,
     description: 'Light sycamore rails with clean, refined grain.'
-  },
-  {
-    id: 'finish-jetBlack',
-    type: 'tableFinish',
-    optionId: 'jetBlackCarbon',
-    name: 'Jet Black Carbon Finish',
-    price: 1020,
-    description: 'Carbon-inspired black rails with smoked metallic trim.'
-  },
-  {
-    id: 'finish-frostedAsh',
-    type: 'tableFinish',
-    optionId: 'frostedAsh',
-    name: 'Frosted Ash Finish',
-    price: 980,
-    description: 'Cool ash rails with satin silver trim and pale skirt.'
-  },
-  {
-    id: 'finish-amberWharf',
-    type: 'tableFinish',
-    optionId: 'amberWharf',
-    name: 'Amber Wharf Finish',
-    price: 990,
-    description: 'Warm amber planks with bronzed trim and deep grain.'
-  },
-  {
-    id: 'finish-obsidianMist',
-    type: 'tableFinish',
-    optionId: 'obsidianMist',
-    name: 'Obsidian Mist Finish',
-    price: 1050,
-    description: 'Smoked obsidian rails with misted graphite accents.'
   },
   {
     id: 'chrome-chrome',
@@ -1058,7 +994,11 @@ export const POOL_ROYALE_STORE_ITEMS = [
 ];
 
 export const POOL_ROYALE_DEFAULT_LOADOUT = [
-  { type: 'tableFinish', optionId: 'charredTimber', label: 'Charred Timber Finish' },
+  {
+    type: 'tableFinish',
+    optionId: 'peelingPaintWeathered',
+    label: 'Wood Peeling Paint Weathered Finish'
+  },
   { type: 'chromeColor', optionId: 'gold', label: 'Gold Chrome Plates' },
   { type: 'railMarkerColor', optionId: 'gold', label: 'Gold Diamond Markers' },
   {
