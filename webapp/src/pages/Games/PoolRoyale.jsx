@@ -4162,6 +4162,16 @@ function ensureMaterialWoodOptions(material, targetSettings) {
     typeof targetSettings?.mapUrl === 'string' && targetSettings.mapUrl.trim().length > 0
       ? targetSettings.mapUrl.trim()
       : undefined;
+  const roughnessMapUrl =
+    typeof targetSettings?.roughnessMapUrl === 'string' &&
+    targetSettings.roughnessMapUrl.trim().length > 0
+      ? targetSettings.roughnessMapUrl.trim()
+      : undefined;
+  const normalMapUrl =
+    typeof targetSettings?.normalMapUrl === 'string' &&
+    targetSettings.normalMapUrl.trim().length > 0
+      ? targetSettings.normalMapUrl.trim()
+      : undefined;
   applyWoodTextures(material, {
     hue: preset.hue,
     sat: preset.sat,
@@ -4171,6 +4181,8 @@ function ensureMaterialWoodOptions(material, targetSettings) {
     rotation,
     textureSize,
     mapUrl,
+    roughnessMapUrl,
+    normalMapUrl,
     sharedKey: `pool-wood-${preset.id}`,
     ...SHARED_WOOD_SURFACE_PROPS
   });
@@ -4187,6 +4199,14 @@ function applyWoodTextureToMaterial(material, repeat) {
     typeof repeat?.mapUrl === 'string' && repeat.mapUrl.trim().length > 0
       ? repeat.mapUrl.trim()
       : undefined;
+  const roughnessMapUrl =
+    typeof repeat?.roughnessMapUrl === 'string' && repeat.roughnessMapUrl.trim().length > 0
+      ? repeat.roughnessMapUrl.trim()
+      : undefined;
+  const normalMapUrl =
+    typeof repeat?.normalMapUrl === 'string' && repeat.normalMapUrl.trim().length > 0
+      ? repeat.normalMapUrl.trim()
+      : undefined;
   const repeatScale = clampWoodRepeatScaleValue(repeat?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE);
   const scaledRepeat = scaleWoodRepeatVector(repeatVec, repeatScale);
   const hadOptions = Boolean(material.userData?.__woodOptions);
@@ -4194,7 +4214,9 @@ function applyWoodTextureToMaterial(material, repeat) {
     repeat: scaledRepeat,
     rotation,
     textureSize,
-    mapUrl
+    mapUrl,
+    roughnessMapUrl,
+    normalMapUrl
   });
   if (options) {
     const repeatChanged =
@@ -4205,14 +4227,19 @@ function applyWoodTextureToMaterial(material, repeat) {
     const textureSizeChanged =
       typeof textureSize === 'number' &&
       Math.abs((options.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE) - textureSize) > 1e-6;
-    const mapChanged = options.mapUrl !== mapUrl;
+    const mapChanged =
+      options.mapUrl !== mapUrl ||
+      options.roughnessMapUrl !== roughnessMapUrl ||
+      options.normalMapUrl !== normalMapUrl;
     if (hadOptions && (repeatChanged || rotationChanged || textureSizeChanged || mapChanged)) {
       applyWoodTextures(material, {
         ...options,
         repeat: { x: scaledRepeat.x, y: scaledRepeat.y },
         rotation,
         textureSize: textureSize ?? options.textureSize,
-        mapUrl: mapUrl ?? options.mapUrl
+        mapUrl: mapUrl ?? options.mapUrl,
+        roughnessMapUrl: roughnessMapUrl ?? options.roughnessMapUrl,
+        normalMapUrl: normalMapUrl ?? options.normalMapUrl
       });
     }
   } else {
@@ -4254,6 +4281,8 @@ function toPlainWoodSurfaceConfig(settings) {
   let repeatX = null;
   let repeatY = null;
   let mapUrl = null;
+  let roughnessMapUrl = null;
+  let normalMapUrl = null;
   if (repeatSource?.isVector2) {
     repeatX = repeatSource.x;
     repeatY = repeatSource.y;
@@ -4271,6 +4300,15 @@ function toPlainWoodSurfaceConfig(settings) {
   if (typeof settings.mapUrl === 'string' && settings.mapUrl.trim().length > 0) {
     mapUrl = settings.mapUrl.trim();
   }
+  if (
+    typeof settings.roughnessMapUrl === 'string' &&
+    settings.roughnessMapUrl.trim().length > 0
+  ) {
+    roughnessMapUrl = settings.roughnessMapUrl.trim();
+  }
+  if (typeof settings.normalMapUrl === 'string' && settings.normalMapUrl.trim().length > 0) {
+    normalMapUrl = settings.normalMapUrl.trim();
+  }
   return {
     repeat: {
       x: Number.isFinite(repeatX) ? repeatX : 1,
@@ -4278,7 +4316,9 @@ function toPlainWoodSurfaceConfig(settings) {
     },
     rotation,
     textureSize,
-    mapUrl
+    mapUrl,
+    roughnessMapUrl,
+    normalMapUrl
   };
 }
 
@@ -4294,7 +4334,9 @@ function resolveWoodSurfaceConfig(option, fallback) {
     },
     rotation: resolvedOption?.rotation ?? base.rotation,
     textureSize: resolvedOption?.textureSize ?? base.textureSize,
-    mapUrl: resolvedOption?.mapUrl ?? base.mapUrl
+    mapUrl: resolvedOption?.mapUrl ?? base.mapUrl,
+    roughnessMapUrl: resolvedOption?.roughnessMapUrl ?? base.roughnessMapUrl,
+    normalMapUrl: resolvedOption?.normalMapUrl ?? base.normalMapUrl
   };
 }
 
@@ -4309,6 +4351,9 @@ function cloneWoodSurfaceConfig(config) {
     textureSize:
       typeof config.textureSize === 'number' ? config.textureSize : undefined,
     mapUrl: typeof config.mapUrl === 'string' ? config.mapUrl : undefined,
+    roughnessMapUrl:
+      typeof config.roughnessMapUrl === 'string' ? config.roughnessMapUrl : undefined,
+    normalMapUrl: typeof config.normalMapUrl === 'string' ? config.normalMapUrl : undefined,
     woodRepeatScale: clampWoodRepeatScaleValue(config.woodRepeatScale)
   };
 }
@@ -4328,7 +4373,11 @@ function orientRailWoodSurface(surface) {
     rotation: typeof surface.rotation === 'number' ? surface.rotation : 0,
     textureSize:
       typeof surface.textureSize === 'number' ? surface.textureSize : undefined,
-    mapUrl: typeof surface.mapUrl === 'string' ? surface.mapUrl : undefined
+    mapUrl: typeof surface.mapUrl === 'string' ? surface.mapUrl : undefined,
+    roughnessMapUrl:
+      typeof surface.roughnessMapUrl === 'string' ? surface.roughnessMapUrl : undefined,
+    normalMapUrl:
+      typeof surface.normalMapUrl === 'string' ? surface.normalMapUrl : undefined
   };
 }
 
@@ -6548,6 +6597,8 @@ function Table3D(
     rotation: initialFrameSurface.rotation,
     textureSize: initialFrameSurface.textureSize,
     mapUrl: initialFrameSurface.mapUrl,
+    roughnessMapUrl: initialFrameSurface.roughnessMapUrl,
+    normalMapUrl: initialFrameSurface.normalMapUrl,
     woodRepeatScale
   };
   const synchronizedFrameSurface = {
@@ -6558,6 +6609,8 @@ function Table3D(
     rotation: initialFrameSurface.rotation,
     textureSize: initialFrameSurface.textureSize,
     mapUrl: initialFrameSurface.mapUrl,
+    roughnessMapUrl: initialFrameSurface.roughnessMapUrl,
+    normalMapUrl: initialFrameSurface.normalMapUrl,
     woodRepeatScale
   };
 
@@ -7224,6 +7277,8 @@ function Table3D(
     rotation: alignedRailSurface.rotation,
     textureSize: alignedRailSurface.textureSize,
     mapUrl: alignedRailSurface.mapUrl,
+    roughnessMapUrl: alignedRailSurface.roughnessMapUrl,
+    normalMapUrl: alignedRailSurface.normalMapUrl,
     woodRepeatScale
   });
   finishParts.underlayMeshes.forEach((mesh) => {
@@ -7237,6 +7292,8 @@ function Table3D(
       rotation: underlaySurface.rotation,
       textureSize: underlaySurface.textureSize,
       mapUrl: underlaySurface.mapUrl,
+      roughnessMapUrl: underlaySurface.roughnessMapUrl,
+      normalMapUrl: underlaySurface.normalMapUrl,
       woodRepeatScale
     });
     mesh.material.needsUpdate = true;
@@ -9005,7 +9062,12 @@ function Table3D(
     rotation: 0,
     textureSize:
       resolvedWoodOption?.frame?.textureSize ?? resolvedWoodOption?.rail?.textureSize,
-    mapUrl: resolvedWoodOption?.frame?.mapUrl ?? resolvedWoodOption?.rail?.mapUrl
+    mapUrl: resolvedWoodOption?.frame?.mapUrl ?? resolvedWoodOption?.rail?.mapUrl,
+    roughnessMapUrl:
+      resolvedWoodOption?.frame?.roughnessMapUrl ??
+      resolvedWoodOption?.rail?.roughnessMapUrl,
+    normalMapUrl:
+      resolvedWoodOption?.frame?.normalMapUrl ?? resolvedWoodOption?.rail?.normalMapUrl
   };
   const woodFrameSurface = resolveWoodSurfaceConfig(
     resolvedWoodOption?.frame,
@@ -9016,6 +9078,8 @@ function Table3D(
     rotation: woodFrameSurface.rotation,
     textureSize: woodFrameSurface.textureSize,
     mapUrl: woodFrameSurface.mapUrl,
+    roughnessMapUrl: woodFrameSurface.roughnessMapUrl,
+    normalMapUrl: woodFrameSurface.normalMapUrl,
     woodRepeatScale
   };
 
@@ -9239,6 +9303,8 @@ function applyTableFinishToTable(table, finish) {
       rotation: nextFrameSurface.rotation,
       textureSize: nextFrameSurface.textureSize,
       mapUrl: nextFrameSurface.mapUrl,
+      roughnessMapUrl: nextFrameSurface.roughnessMapUrl,
+      normalMapUrl: nextFrameSurface.normalMapUrl,
       woodRepeatScale
     };
     const synchronizedFrameSurface = {
@@ -9246,6 +9312,8 @@ function applyTableFinishToTable(table, finish) {
       rotation: nextFrameSurface.rotation,
       textureSize: nextFrameSurface.textureSize,
       mapUrl: nextFrameSurface.mapUrl,
+      roughnessMapUrl: nextFrameSurface.roughnessMapUrl,
+      normalMapUrl: nextFrameSurface.normalMapUrl,
       woodRepeatScale
     };
 

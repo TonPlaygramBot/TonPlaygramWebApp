@@ -44,8 +44,15 @@ const normalizeExternalTexture = (texture, isColor = false, anisotropy = 16) => 
   texture.needsUpdate = true;
 };
 
-const resolveExternalWoodTextureUrls = (mapUrl) => {
+const resolveExternalWoodTextureUrls = ({ mapUrl, roughnessMapUrl, normalMapUrl }) => {
   if (!mapUrl) return null;
+  if (roughnessMapUrl || normalMapUrl) {
+    return {
+      color: mapUrl,
+      roughness: roughnessMapUrl ?? null,
+      normal: normalMapUrl ?? null
+    };
+  }
   const match = mapUrl.match(/_color\.(jpg|jpeg|png)$/i);
   if (match) {
     const extension = match[1];
@@ -68,22 +75,25 @@ const loadExternalTexture = (url, isColor, anisotropy) => {
   return texture;
 };
 
-const getExternalWoodTextures = (mapUrl, anisotropy = 16) => {
-  if (!mapUrl) return null;
-  const cached = WOOD_EXTERNAL_TEXTURE_CACHE.get(mapUrl);
+const getExternalWoodTextures = (urls, anisotropy = 16) => {
+  if (!urls?.mapUrl) return null;
+  const cacheKey = [urls.mapUrl, urls.roughnessMapUrl, urls.normalMapUrl]
+    .filter(Boolean)
+    .join('|');
+  const cached = WOOD_EXTERNAL_TEXTURE_CACHE.get(cacheKey);
   if (cached) return cached;
-  const urls = resolveExternalWoodTextureUrls(mapUrl);
-  if (!urls?.color) return null;
+  const resolved = resolveExternalWoodTextureUrls(urls);
+  if (!resolved?.color) return null;
   const entry = {
-    map: loadExternalTexture(urls.color, true, anisotropy),
-    roughnessMap: urls.roughness
-      ? loadExternalTexture(urls.roughness, false, anisotropy)
+    map: loadExternalTexture(resolved.color, true, anisotropy),
+    roughnessMap: resolved.roughness
+      ? loadExternalTexture(resolved.roughness, false, anisotropy)
       : null,
-    normalMap: urls.normal
-      ? loadExternalTexture(urls.normal, false, anisotropy)
+    normalMap: resolved.normal
+      ? loadExternalTexture(resolved.normal, false, anisotropy)
       : null
   };
-  WOOD_EXTERNAL_TEXTURE_CACHE.set(mapUrl, entry);
+  WOOD_EXTERNAL_TEXTURE_CACHE.set(cacheKey, entry);
   return entry;
 };
 
@@ -245,8 +255,14 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
 // with no visible tiling seams.
 const LARGE_SLAB_REPEAT_X = 0.009;
 const FRAME_SLAB_REPEAT_X = LARGE_SLAB_REPEAT_X * 1.18;
-const polyHavenTextureUrl = (assetId) =>
-  `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${assetId}/${assetId}_2k_Color.jpg`;
+const polyHavenTextureSet = (assetId) => {
+  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${assetId}/${assetId}_2k`;
+  return {
+    mapUrl: `${base}_Color.jpg`,
+    roughnessMapUrl: `${base}_Roughness.jpg`,
+    normalMapUrl: `${base}_NormalGL.jpg`
+  };
+};
 
 export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
@@ -287,13 +303,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
       rotation: 0,
       textureSize: 2048,
-      mapUrl: polyHavenTextureUrl('wood_peeling_paint_weathered')
+      ...polyHavenTextureSet('wood_peeling_paint_weathered')
     },
     frame: {
       repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
       rotation: 0,
       textureSize: 2048,
-      mapUrl: polyHavenTextureUrl('wood_peeling_paint_weathered')
+      ...polyHavenTextureSet('wood_peeling_paint_weathered')
     }
   }),
   Object.freeze({
@@ -304,13 +320,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
       rotation: 0,
       textureSize: 2048,
-      mapUrl: polyHavenTextureUrl('oak_veneer_01')
+      ...polyHavenTextureSet('oak_veneer_01')
     },
     frame: {
       repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
       rotation: 0,
       textureSize: 2048,
-      mapUrl: polyHavenTextureUrl('oak_veneer_01')
+      ...polyHavenTextureSet('oak_veneer_01')
     }
   }),
   Object.freeze({
@@ -321,13 +337,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
       rotation: 0,
       textureSize: 2048,
-      mapUrl: polyHavenTextureUrl('wood_table_001')
+      ...polyHavenTextureSet('wood_table_001')
     },
     frame: {
       repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
       rotation: 0,
       textureSize: 2048,
-      mapUrl: polyHavenTextureUrl('wood_table_001')
+      ...polyHavenTextureSet('wood_table_001')
     }
   }),
   Object.freeze({
@@ -338,13 +354,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
       rotation: 0,
       textureSize: 2048,
-      mapUrl: polyHavenTextureUrl('dark_wood')
+      ...polyHavenTextureSet('dark_wood')
     },
     frame: {
       repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
       rotation: 0,
       textureSize: 2048,
-      mapUrl: polyHavenTextureUrl('dark_wood')
+      ...polyHavenTextureSet('dark_wood')
     }
   }),
   Object.freeze({
@@ -355,13 +371,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
       rotation: 0,
       textureSize: 2048,
-      mapUrl: polyHavenTextureUrl('rosewood_veneer_01')
+      ...polyHavenTextureSet('rosewood_veneer_01')
     },
     frame: {
       repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
       rotation: 0,
       textureSize: 2048,
-      mapUrl: polyHavenTextureUrl('rosewood_veneer_01')
+      ...polyHavenTextureSet('rosewood_veneer_01')
     }
   }),
   Object.freeze({
@@ -372,13 +388,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
       rotation: 0,
       textureSize: 2048,
-      mapUrl: polyHavenTextureUrl('kitchen_wood')
+      ...polyHavenTextureSet('kitchen_wood')
     },
     frame: {
       repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
       rotation: 0,
       textureSize: 2048,
-      mapUrl: polyHavenTextureUrl('kitchen_wood')
+      ...polyHavenTextureSet('kitchen_wood')
     }
   }),
   Object.freeze({
@@ -389,13 +405,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
       rotation: 0,
       textureSize: 2048,
-      mapUrl: polyHavenTextureUrl('japanese_sycamore')
+      ...polyHavenTextureSet('japanese_sycamore')
     },
     frame: {
       repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
       rotation: 0,
       textureSize: 2048,
-      mapUrl: polyHavenTextureUrl('japanese_sycamore')
+      ...polyHavenTextureSet('japanese_sycamore')
     }
   })
 ]);
@@ -515,6 +531,8 @@ export const applyWoodTextures = (
     light,
     contrast,
     mapUrl,
+    roughnessMapUrl,
+    normalMapUrl,
     repeat = { x: 1, y: 1 },
     rotation = 0,
     textureSize = DEFAULT_WOOD_TEXTURE_SIZE,
@@ -528,7 +546,10 @@ export const applyWoodTextures = (
   disposeWoodTextures(material);
   const baseTextures = mapUrl
     ? (() => {
-        const external = getExternalWoodTextures(mapUrl, 16);
+        const external = getExternalWoodTextures(
+          { mapUrl, roughnessMapUrl, normalMapUrl },
+          16
+        );
         return {
           map: external?.map ?? makeSlabTexture(textureSize, textureSize, hue, sat, light, contrast),
           roughnessMap:
@@ -588,6 +609,8 @@ export const applyWoodTextures = (
     light,
     contrast,
     mapUrl,
+    roughnessMapUrl,
+    normalMapUrl,
     repeat: { x: repeatVec.x, y: repeatVec.y },
     rotation,
     textureSize,
