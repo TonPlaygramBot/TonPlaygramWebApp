@@ -4376,6 +4376,56 @@ function projectRailUVs(geometry, bounds) {
   return target;
 }
 
+function projectFrameUVs(geometry, bounds) {
+  if (!geometry?.attributes?.position) return geometry;
+  const { outerHalfW = 1, outerHalfH = 1, frameH = 1 } = bounds ?? {};
+  const target = geometry.index ? geometry.toNonIndexed() : geometry;
+  const positions = target.attributes.position;
+  const uv = new Float32Array(positions.count * 2);
+  const extents = {
+    x: Math.max(outerHalfW * 2, MICRO_EPS),
+    y: Math.max(outerHalfH * 2, MICRO_EPS),
+    z: Math.max(frameH, MICRO_EPS)
+  };
+
+  const faceNormal = new THREE.Vector3();
+  const edgeA = new THREE.Vector3();
+  const edgeB = new THREE.Vector3();
+
+  for (let i = 0; i < positions.count; i += 3) {
+    const verts = [0, 1, 2].map((offset) =>
+      new THREE.Vector3().fromBufferAttribute(positions, i + offset)
+    );
+    edgeA.subVectors(verts[1], verts[0]);
+    edgeB.subVectors(verts[2], verts[0]);
+    faceNormal.crossVectors(edgeA, edgeB).normalize();
+
+    const dominantX = Math.abs(faceNormal.x) >= Math.max(Math.abs(faceNormal.y), Math.abs(faceNormal.z));
+    const dominantY = Math.abs(faceNormal.y) >= Math.max(Math.abs(faceNormal.x), Math.abs(faceNormal.z));
+
+    verts.forEach((v, idx) => {
+      let u = 0;
+      let vCoord = 0;
+      if (dominantY) {
+        u = (v.x + extents.x / 2) / extents.x;
+        vCoord = (v.y + extents.y / 2) / extents.y;
+      } else if (dominantX) {
+        u = (v.y + extents.y / 2) / extents.y;
+        vCoord = (v.z + extents.z / 2) / extents.z;
+      } else {
+        u = (v.x + extents.x / 2) / extents.x;
+        vCoord = (v.z + extents.z / 2) / extents.z;
+      }
+      const uvIndex = (i + idx) * 2;
+      uv[uvIndex] = u;
+      uv[uvIndex + 1] = vCoord;
+    });
+  }
+
+  target.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  return target;
+}
+
 function enhanceChromeMaterial(material) {
   if (!material) return;
   const ensure = (key, value, transform) => {
@@ -8941,6 +8991,7 @@ function Table3D(
     depth: skirtH,
     bevelEnabled: false
   });
+  projectFrameUVs(skirtGeo, { outerHalfW, outerHalfH, frameH: skirtH });
   const skirt = new THREE.Mesh(skirtGeo, frameMat);
   skirt.rotation.x = -Math.PI / 2;
   skirt.position.y = frameTopY - skirtH + SKIRT_RAIL_GAP_FILL + MICRO_EPS * 0.5;
