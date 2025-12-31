@@ -94,7 +94,8 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     cameraHeightM: 1.54,
     groundRadiusMultiplier: 4.6,
     groundResolution: 120,
-    arenaScale: 1.18
+    arenaScale: 1.18,
+    rotationY: Math.PI / 2
   },
   londonPhotoStudioHall: {
     cameraHeightM: 1.56,
@@ -106,19 +107,22 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     cameraHeightM: 1.55,
     groundRadiusMultiplier: 4.6,
     groundResolution: 112,
-    arenaScale: 1.2
+    arenaScale: 1.2,
+    rotationY: Math.PI
   },
   countryStudioHall: {
     cameraHeightM: 1.55,
     groundRadiusMultiplier: 4.5,
     groundResolution: 112,
-    arenaScale: 1.18
+    arenaScale: 1.18,
+    rotationY: Math.PI / 2
   },
   blockyPhotoStudio: {
     cameraHeightM: 1.5,
     groundRadiusMultiplier: 3.9,
     groundResolution: 120,
-    arenaScale: 1.14
+    arenaScale: 1.14,
+    rotationY: -Math.PI / 2
   },
   bluePhotoStudio: {
     cameraHeightM: 1.52,
