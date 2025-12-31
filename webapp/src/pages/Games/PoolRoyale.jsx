@@ -1833,6 +1833,17 @@ const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
   envMapIntensity: 0.5
 });
 
+const TABLE_FINISH_SHINE_TUNING = Object.freeze({
+  roughnessBoost: 0.08,
+  clearcoatScale: 0.72,
+  clearcoatRoughnessBoost: 0.08,
+  envMapScale: 0.7,
+  reflectivityScale: 0.78,
+  sheenScale: 0.7,
+  sheenRoughnessBoost: 0.08,
+  maxMetalness: 0.45
+});
+
 const clampWoodRepeatScaleValue = () => DEFAULT_WOOD_REPEAT_SCALE;
 
 function scaleWoodRepeatVector (repeatVec, scale) {
@@ -1868,6 +1879,48 @@ function applySharedWoodSurfaceProps(material) {
   }
   if ('envMapIntensity' in material) {
     material.envMapIntensity = props.envMapIntensity;
+  }
+  material.needsUpdate = true;
+}
+
+function softenTableFinishMaterial(material) {
+  if (!material) return;
+  if (typeof material.metalness === 'number' &&
+      material.metalness > TABLE_FINISH_SHINE_TUNING.maxMetalness) {
+    return;
+  }
+  if (typeof material.roughness === 'number') {
+    material.roughness = clampToUnit(
+      material.roughness + TABLE_FINISH_SHINE_TUNING.roughnessBoost
+    );
+  }
+  if (typeof material.clearcoat === 'number') {
+    material.clearcoat = clampToUnit(
+      material.clearcoat * TABLE_FINISH_SHINE_TUNING.clearcoatScale
+    );
+  }
+  if (typeof material.clearcoatRoughness === 'number') {
+    material.clearcoatRoughness = clampToUnit(
+      material.clearcoatRoughness + TABLE_FINISH_SHINE_TUNING.clearcoatRoughnessBoost
+    );
+  }
+  if (typeof material.envMapIntensity === 'number') {
+    material.envMapIntensity *= TABLE_FINISH_SHINE_TUNING.envMapScale;
+  }
+  if (typeof material.reflectivity === 'number') {
+    material.reflectivity = clampToUnit(
+      material.reflectivity * TABLE_FINISH_SHINE_TUNING.reflectivityScale
+    );
+  }
+  if (typeof material.sheen === 'number') {
+    material.sheen = clampToUnit(
+      material.sheen * TABLE_FINISH_SHINE_TUNING.sheenScale
+    );
+  }
+  if (typeof material.sheenRoughness === 'number') {
+    material.sheenRoughness = clampToUnit(
+      material.sheenRoughness + TABLE_FINISH_SHINE_TUNING.sheenRoughnessBoost
+    );
   }
   material.needsUpdate = true;
 }
@@ -9142,6 +9195,8 @@ function applyTableFinishToTable(table, finish) {
   const pocketJawMat = rawMaterials.pocketJaw ?? getFallbackMaterial('pocketJaw');
   const pocketRimMat = rawMaterials.pocketRim ?? getFallbackMaterial('pocketRim');
   const accentConfig = rawMaterials.accent ?? null;
+  const accentMat = accentConfig?.material ?? accentConfig ?? null;
+  [frameMat, railMat, legMat, accentMat].forEach(softenTableFinishMaterial);
   frameMat.needsUpdate = true;
   railMat.needsUpdate = true;
   legMat.needsUpdate = true;
