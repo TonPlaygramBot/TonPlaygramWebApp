@@ -56,39 +56,28 @@ const resolveExternalWoodTextureUrls = (mapUrl) => {
   return { color: mapUrl };
 };
 
-const loadExternalTexture = (url, isColor, anisotropy, fallbackTexture) => {
+const loadExternalTexture = (url, isColor, anisotropy) => {
   const texture = woodTextureLoader.load(
     url,
-    (loaded) => normalizeExternalTexture(loaded, isColor, anisotropy),
-    undefined,
-    () => {
-      if (fallbackTexture?.image) {
-        texture.image = fallbackTexture.image;
-        normalizeExternalTexture(texture, isColor, anisotropy);
-        texture.needsUpdate = true;
-      }
-    }
+    (loaded) => normalizeExternalTexture(loaded, isColor, anisotropy)
   );
-  if (fallbackTexture?.image && !texture.image) {
-    texture.image = fallbackTexture.image;
-  }
   normalizeExternalTexture(texture, isColor, anisotropy);
   return texture;
 };
 
-const getExternalWoodTextures = (mapUrl, anisotropy = 16, fallback = null) => {
+const getExternalWoodTextures = (mapUrl, anisotropy = 16) => {
   if (!mapUrl) return null;
   const cached = WOOD_EXTERNAL_TEXTURE_CACHE.get(mapUrl);
   if (cached) return cached;
   const urls = resolveExternalWoodTextureUrls(mapUrl);
   if (!urls?.color) return null;
   const entry = {
-    map: loadExternalTexture(urls.color, true, anisotropy, fallback?.map),
+    map: loadExternalTexture(urls.color, true, anisotropy),
     roughnessMap: urls.roughness
-      ? loadExternalTexture(urls.roughness, false, anisotropy, fallback?.roughnessMap)
+      ? loadExternalTexture(urls.roughness, false, anisotropy)
       : null,
     normalMap: urls.normal
-      ? loadExternalTexture(urls.normal, false, anisotropy, fallback?.normalMap)
+      ? loadExternalTexture(urls.normal, false, anisotropy)
       : null
   };
   WOOD_EXTERNAL_TEXTURE_CACHE.set(mapUrl, entry);
@@ -536,21 +525,13 @@ export const applyWoodTextures = (
   disposeWoodTextures(material);
   const baseTextures = mapUrl
     ? (() => {
-        const fallback = {
-          map: makeSlabTexture(textureSize, textureSize, hue, sat, light, contrast),
-          roughnessMap: makeRoughnessMap(
-            roughnessSize,
-            roughnessSize,
-            roughnessBase,
-            roughnessVariance
-          ),
-          normalMap: null
-        };
-        const external = getExternalWoodTextures(mapUrl, 16, fallback);
+        const external = getExternalWoodTextures(mapUrl, 16);
         return {
-          map: external?.map ?? fallback.map,
-          roughnessMap: external?.roughnessMap ?? fallback.roughnessMap,
-          normalMap: external?.normalMap ?? fallback.normalMap
+          map: external?.map ?? makeSlabTexture(textureSize, textureSize, hue, sat, light, contrast),
+          roughnessMap:
+            external?.roughnessMap ??
+            makeRoughnessMap(roughnessSize, roughnessSize, roughnessBase, roughnessVariance),
+          normalMap: external?.normalMap ?? null
         };
       })()
     : sharedKey
