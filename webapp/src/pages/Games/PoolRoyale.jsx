@@ -255,7 +255,7 @@ function classifyRendererTier(rendererString) {
 
 function detectPreferredFrameRateId() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return 'fhd60';
+    return DEFAULT_FRAME_RATE_ID;
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
@@ -289,10 +289,6 @@ function detectPreferredFrameRateId() {
     return 'fhd60';
   }
 
-  if (rendererTier === 'desktopHigh' && highRefresh) {
-    return 'ultra144';
-  }
-
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
     return 'uhd120';
   }
@@ -301,7 +297,7 @@ function detectPreferredFrameRateId() {
     return 'qhd90';
   }
 
-  return 'fhd60';
+  return DEFAULT_FRAME_RATE_ID;
 }
 
 function resolveDefaultPixelRatioCap() {
@@ -915,7 +911,7 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const ENABLE_BALL_FLOOR_SHADOWS = true;
+const ENABLE_BALL_FLOOR_SHADOWS = false;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
@@ -1223,7 +1219,7 @@ const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
 const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
-const LEG_LENGTH_SHRINK = 0.85; // additional 15% trim to shorten the legs
+const LEG_LENGTH_SHRINK = 0.7225; // shorten legs by an additional 15%
 const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
 const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
@@ -1233,7 +1229,7 @@ const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
-const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads much deeper beneath the rails
+const SKIRT_DROP_MULTIPLIER = 2.72; // shorten the apron drop by 15% to reduce the base height
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
@@ -1824,22 +1820,31 @@ const SHARED_WOOD_REPEAT = Object.freeze({
 const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
   roughnessBase: 0.18,
   roughnessVariance: 0.26,
-  roughness: 0.48,
-  metalness: 0.08,
-  clearcoat: 0.28,
-  clearcoatRoughness: 0.32,
-  sheen: 0.12,
-  sheenRoughness: 0.5,
-  envMapIntensity: 0.6
+  roughness: 0.62,
+  metalness: 0.04,
+  clearcoat: 0.18,
+  clearcoatRoughness: 0.55,
+  sheen: 0.06,
+  sheenRoughness: 0.6,
+  envMapIntensity: 0.4
+});
+const POLYHAVEN_WOOD_SURFACE_PROPS = Object.freeze({
+  roughness: 0.68,
+  metalness: 0,
+  clearcoat: 0.08,
+  clearcoatRoughness: 0.75,
+  sheen: 0,
+  sheenRoughness: 0.8,
+  envMapIntensity: 0.32
 });
 const TABLE_FINISH_DULLING = Object.freeze({
-  roughnessLift: 0.22,
-  clearcoatScale: 0.5,
-  clearcoatRoughnessLift: 0.32,
-  envMapScale: 0.45,
+  roughnessLift: 0.3,
+  clearcoatScale: 0.4,
+  clearcoatRoughnessLift: 0.36,
+  envMapScale: 0.35,
   reflectivityScale: 0.5,
-  sheenScale: 0.45,
-  sheenRoughnessLift: 0.28
+  sheenScale: 0.35,
+  sheenRoughnessLift: 0.32
 });
 
 const clampWoodRepeatScaleValue = () => DEFAULT_WOOD_REPEAT_SCALE;
@@ -1856,7 +1861,10 @@ function scaleWoodRepeatVector (repeatVec, scale) {
 
 function applySharedWoodSurfaceProps(material) {
   if (!material) return;
-  const props = SHARED_WOOD_SURFACE_PROPS;
+  const mapUrl = material.userData?.__woodOptions?.mapUrl;
+  const props = mapUrl && mapUrl.includes('polyhaven.org')
+    ? POLYHAVEN_WOOD_SURFACE_PROPS
+    : SHARED_WOOD_SURFACE_PROPS;
   if ('roughness' in material) {
     material.roughness = props.roughness;
   }
@@ -2371,12 +2379,12 @@ const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'hd50',
-    label: 'HD Performance (60 Hz)',
-    fps: 60,
-    renderScale: 1.05,
-    pixelRatioCap: 1.4,
-    resolution: 'HD render • DPR 1.4 cap',
-    description: 'Minimum HD output with higher refresh for battery saver and 60 Hz displays.'
+    label: 'HD Performance (50 Hz)',
+    fps: 50,
+    renderScale: 1,
+    pixelRatioCap: 1.35,
+    resolution: 'HD render • DPR 1.35 cap',
+    description: 'Low-power 50 Hz profile for battery saver and thermal relief.'
   },
   {
     id: 'fhd90',
@@ -2404,15 +2412,6 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     pixelRatioCap: 1.85,
     resolution: 'Ultra HD render • DPR 1.85 cap',
     description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
-  },
-  {
-    id: 'ultra144',
-    label: 'Ultra HD+ (120 Hz max)',
-    fps: 120,
-    renderScale: 1.32,
-    pixelRatioCap: 2,
-    resolution: 'Ultra HD+ render • DPR 2.0 cap',
-    description: 'Maximum clarity preset while capping refresh at 120 Hz.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd90';
@@ -4106,12 +4105,13 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 }
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '6k', '4k']);
 const HDRI_RESOLUTION_STORAGE_KEY = 'poolHdriResolution';
 const DEFAULT_HDRI_RESOLUTION_MODE = 'auto';
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
   { id: 'auto', label: 'Match Table' },
   { id: '8k', label: '8K' },
+  { id: '6k', label: '6K' },
   { id: '4k', label: '4K' },
   { id: '2k', label: '2K' }
 ]);
@@ -11442,11 +11442,21 @@ const powerRef = useRef(hud.power);
           16,
           Math.floor(activeVariant?.groundResolution ?? HDRI_GROUNDED_RESOLUTION)
         );
+        const hdriRotationY = Number.isFinite(activeVariant?.rotationY)
+          ? activeVariant.rotationY
+          : 0;
+        if ('backgroundRotation' in sceneInstance) {
+          sceneInstance.backgroundRotation = new THREE.Euler(0, hdriRotationY, 0);
+        }
+        if ('environmentRotation' in sceneInstance) {
+          sceneInstance.environmentRotation = new THREE.Euler(0, hdriRotationY, 0);
+        }
         let skybox = null;
         if (skyboxMap && skyboxHeight > 0 && skyboxRadius > 0) {
           try {
             skybox = new GroundedSkybox(skyboxMap, skyboxHeight, skyboxRadius, skyboxResolution);
             skybox.position.y = floorWorldY + skyboxHeight;
+            skybox.rotation.y = hdriRotationY;
             skybox.material.depthWrite = false;
             sceneInstance.background = null;
             sceneInstance.add(skybox);
