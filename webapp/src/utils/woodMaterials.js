@@ -46,15 +46,12 @@ const normalizeExternalTexture = (texture, isColor = false, anisotropy = 16) => 
 
 const resolveExternalWoodTextureUrls = (mapUrl) => {
   if (!mapUrl) return null;
-  const tokens = ['_Color', '_BaseColor', '_Albedo', '_Diffuse'];
-  for (const token of tokens) {
-    if (mapUrl.includes(token)) {
-      return {
-        color: mapUrl,
-        roughness: mapUrl.replace(token, '_Roughness'),
-        normal: mapUrl.replace(token, '_NormalGL')
-      };
-    }
+  if (mapUrl.includes('_Color')) {
+    return {
+      color: mapUrl,
+      roughness: mapUrl.replace('_Color', '_Roughness'),
+      normal: mapUrl.replace('_Color', '_NormalGL')
+    };
   }
   return { color: mapUrl };
 };

@@ -1824,13 +1824,13 @@ const SHARED_WOOD_REPEAT = Object.freeze({
 const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
   roughnessBase: 0.16,
   roughnessVariance: 0.22,
-  roughness: 0.58,
-  metalness: 0.08,
-  clearcoat: 0.22,
-  clearcoatRoughness: 0.28,
-  sheen: 0.12,
-  sheenRoughness: 0.48,
-  envMapIntensity: 0.72
+  roughness: 0.34,
+  metalness: 0.12,
+  clearcoat: 0.46,
+  clearcoatRoughness: 0.16,
+  sheen: 0.18,
+  sheenRoughness: 0.36,
+  envMapIntensity: 1.05
 });
 
 const clampWoodRepeatScaleValue = () => DEFAULT_WOOD_REPEAT_SCALE;
@@ -4364,16 +4364,10 @@ function projectRailUVs(geometry, bounds) {
     const dominantZ = absZ >= Math.max(absX, absY);
     const uAxis = dominantZ ? 'x' : absX >= absY ? 'y' : 'x';
     const vAxis = dominantZ ? 'y' : 'z';
-    const flipU =
-      (dominantZ && faceNormal.z < 0) ||
-      (!dominantZ && absX >= absY ? faceNormal.x < 0 : faceNormal.y < 0);
 
     verts.forEach((v, idx) => {
-      let u = (v[uAxis] + extents[uAxis] / 2) / extents[uAxis];
+      const u = (v[uAxis] + extents[uAxis] / 2) / extents[uAxis];
       const vCoord = (v[vAxis] + extents[vAxis] / 2) / extents[vAxis];
-      if (flipU) {
-        u = 1 - u;
-      }
       const uvIndex = (i + idx) * 2;
       uv[uvIndex] = u;
       uv[uvIndex + 1] = vCoord;
