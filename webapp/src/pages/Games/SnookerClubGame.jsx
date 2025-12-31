@@ -931,7 +931,7 @@ const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
-const ENABLE_BALL_FLOOR_SHADOWS = false;
+const ENABLE_BALL_FLOOR_SHADOWS = true;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
@@ -1142,7 +1142,7 @@ const TABLE_LIFT =
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
-const LEG_ELEVATION_SCALE = 0.816; // shorten the current leg extension by 15% to lower the playfield
+const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension by 20% to lower the playfield
 const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
 const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
@@ -1152,7 +1152,7 @@ const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
-const SKIRT_DROP_MULTIPLIER = 2.72; // drop the apron by 15% so the base reads shorter beneath the rails
+const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads much deeper beneath the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
@@ -1702,15 +1702,15 @@ const SHARED_WOOD_REPEAT = Object.freeze({
   y: 5.5
 });
 const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
-  roughnessBase: 0.2,
-  roughnessVariance: 0.3,
-  roughness: 0.62,
-  metalness: 0.04,
-  clearcoat: 0.22,
-  clearcoatRoughness: 0.32,
-  sheen: 0.12,
-  sheenRoughness: 0.42,
-  envMapIntensity: 0.55
+  roughnessBase: 0.16,
+  roughnessVariance: 0.22,
+  roughness: 0.34,
+  metalness: 0.12,
+  clearcoat: 0.46,
+  clearcoatRoughness: 0.16,
+  sheen: 0.18,
+  sheenRoughness: 0.36,
+  envMapIntensity: 1.05
 });
 
 const clampWoodRepeatScaleValue = () => DEFAULT_WOOD_REPEAT_SCALE;
@@ -1760,8 +1760,9 @@ const WOOD_PRESETS_BY_ID = Object.freeze(
 );
 const DEFAULT_WOOD_PRESET_ID = 'walnut';
 
-// Pool Royale uses Poly Haven wood grain textures to match the original table finish mapping.
-const WOOD_TEXTURES_ENABLED = true;
+// Pool Royale no longer exposes wood grain customization and should render the
+// rails as a plain material without any texture maps.
+const WOOD_TEXTURES_ENABLED = false;
 
 const DEFAULT_TABLE_FINISH_ID =
   SNOOKER_CLUB_DEFAULT_UNLOCKS.tableFinish?.[0] ?? 'rusticSplit';
@@ -1844,7 +1845,7 @@ const TABLE_FINISHES = Object.freeze({
       rail: 0xf2eadf,
       base: 0xefe5d6
     }),
-    woodTextureId: 'wood_peeling_paint_weathered',
+    woodTextureId: 'frameRusticSplit',
     createMaterials: () => {
       const frameColor = new THREE.Color('#efe5d6');
       const railColor = new THREE.Color('#f2eadf');
@@ -1897,7 +1898,7 @@ const TABLE_FINISHES = Object.freeze({
       rail: 0x3c2c22,
       base: 0x302118
     }),
-    woodTextureId: 'dark_wood',
+    woodTextureId: 'frameCharred',
     createMaterials: () => {
       const frameColor = new THREE.Color('#302118');
       const railColor = new THREE.Color('#3c2c22');
@@ -1957,7 +1958,7 @@ const TABLE_FINISHES = Object.freeze({
       rail: 0xb88452,
       base: 0xae7a46
     }),
-    woodTextureId: 'wood_table_001',
+    woodTextureId: 'framePlank',
     createMaterials: () => {
       const frameColor = new THREE.Color('#ae7a46');
       const railColor = new THREE.Color('#b88452');
@@ -2010,7 +2011,7 @@ const TABLE_FINISHES = Object.freeze({
       rail: 0x5f5750,
       base: 0x4e463f
     }),
-    woodTextureId: 'oak_veneer_01',
+    woodTextureId: 'frameWeathered',
     createMaterials: () => {
       const frameColor = new THREE.Color('#4e463f');
       const railColor = new THREE.Color('#5f5750');
@@ -2070,7 +2071,7 @@ const TABLE_FINISHES = Object.freeze({
       rail: 0x16181c,
       base: 0x0d0f12
     }),
-    woodTextureId: 'rosewood_veneer_01',
+    woodTextureId: null,
     createMaterials: () => {
       const frameColor = new THREE.Color('#0d0f12');
       const railColor = new THREE.Color('#16181c');
@@ -2420,6 +2421,15 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     pixelRatioCap: 2,
     resolution: 'Ultra HD render • DPR 2.0 cap',
     description: '4K-oriented profile for 120 Hz flagships and desktops.'
+  },
+  {
+    id: 'ultra144',
+    label: 'Ultra HD+ (144 Hz)',
+    fps: 144,
+    renderScale: 1.5,
+    pixelRatioCap: 2.2,
+    resolution: 'Ultra HD+ render • DPR 2.2 cap',
+    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
@@ -3253,16 +3263,6 @@ function ensureMaterialWoodOptions(material, targetSettings) {
     typeof targetSettings?.mapUrl === 'string' && targetSettings.mapUrl.trim().length > 0
       ? targetSettings.mapUrl.trim()
       : undefined;
-  const roughnessMapUrl =
-    typeof targetSettings?.roughnessMapUrl === 'string' &&
-    targetSettings.roughnessMapUrl.trim().length > 0
-      ? targetSettings.roughnessMapUrl.trim()
-      : undefined;
-  const normalMapUrl =
-    typeof targetSettings?.normalMapUrl === 'string' &&
-    targetSettings.normalMapUrl.trim().length > 0
-      ? targetSettings.normalMapUrl.trim()
-      : undefined;
   applyWoodTextures(material, {
     hue: preset.hue,
     sat: preset.sat,
@@ -3272,8 +3272,6 @@ function ensureMaterialWoodOptions(material, targetSettings) {
     rotation,
     textureSize,
     mapUrl,
-    roughnessMapUrl,
-    normalMapUrl,
     sharedKey: `pool-wood-${preset.id}`,
     ...SHARED_WOOD_SURFACE_PROPS
   });
@@ -3290,14 +3288,6 @@ function applyWoodTextureToMaterial(material, repeat) {
     typeof repeat?.mapUrl === 'string' && repeat.mapUrl.trim().length > 0
       ? repeat.mapUrl.trim()
       : undefined;
-  const roughnessMapUrl =
-    typeof repeat?.roughnessMapUrl === 'string' && repeat.roughnessMapUrl.trim().length > 0
-      ? repeat.roughnessMapUrl.trim()
-      : undefined;
-  const normalMapUrl =
-    typeof repeat?.normalMapUrl === 'string' && repeat.normalMapUrl.trim().length > 0
-      ? repeat.normalMapUrl.trim()
-      : undefined;
   const repeatScale = clampWoodRepeatScaleValue(repeat?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE);
   const scaledRepeat = scaleWoodRepeatVector(repeatVec, repeatScale);
   const hadOptions = Boolean(material.userData?.__woodOptions);
@@ -3305,9 +3295,7 @@ function applyWoodTextureToMaterial(material, repeat) {
     repeat: scaledRepeat,
     rotation,
     textureSize,
-    mapUrl,
-    roughnessMapUrl,
-    normalMapUrl
+    mapUrl
   });
   if (options) {
     const repeatChanged =
@@ -3319,25 +3307,13 @@ function applyWoodTextureToMaterial(material, repeat) {
       typeof textureSize === 'number' &&
       Math.abs((options.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE) - textureSize) > 1e-6;
     const mapChanged = options.mapUrl !== mapUrl;
-    const roughnessMapChanged = options.roughnessMapUrl !== roughnessMapUrl;
-    const normalMapChanged = options.normalMapUrl !== normalMapUrl;
-    if (
-      hadOptions &&
-      (repeatChanged ||
-        rotationChanged ||
-        textureSizeChanged ||
-        mapChanged ||
-        roughnessMapChanged ||
-        normalMapChanged)
-    ) {
+    if (hadOptions && (repeatChanged || rotationChanged || textureSizeChanged || mapChanged)) {
       applyWoodTextures(material, {
         ...options,
         repeat: { x: scaledRepeat.x, y: scaledRepeat.y },
         rotation,
         textureSize: textureSize ?? options.textureSize,
-        mapUrl: mapUrl ?? options.mapUrl,
-        roughnessMapUrl: roughnessMapUrl ?? options.roughnessMapUrl,
-        normalMapUrl: normalMapUrl ?? options.normalMapUrl
+        mapUrl: mapUrl ?? options.mapUrl
       });
     }
   } else {
@@ -3379,8 +3355,6 @@ function toPlainWoodSurfaceConfig(settings) {
   let repeatX = null;
   let repeatY = null;
   let mapUrl = null;
-  let roughnessMapUrl = null;
-  let normalMapUrl = null;
   if (repeatSource?.isVector2) {
     repeatX = repeatSource.x;
     repeatY = repeatSource.y;
@@ -3398,18 +3372,6 @@ function toPlainWoodSurfaceConfig(settings) {
   if (typeof settings.mapUrl === 'string' && settings.mapUrl.trim().length > 0) {
     mapUrl = settings.mapUrl.trim();
   }
-  if (
-    typeof settings.roughnessMapUrl === 'string' &&
-    settings.roughnessMapUrl.trim().length > 0
-  ) {
-    roughnessMapUrl = settings.roughnessMapUrl.trim();
-  }
-  if (
-    typeof settings.normalMapUrl === 'string' &&
-    settings.normalMapUrl.trim().length > 0
-  ) {
-    normalMapUrl = settings.normalMapUrl.trim();
-  }
   return {
     repeat: {
       x: Number.isFinite(repeatX) ? repeatX : 1,
@@ -3417,9 +3379,7 @@ function toPlainWoodSurfaceConfig(settings) {
     },
     rotation,
     textureSize,
-    mapUrl,
-    roughnessMapUrl,
-    normalMapUrl
+    mapUrl
   };
 }
 
@@ -3435,9 +3395,7 @@ function resolveWoodSurfaceConfig(option, fallback) {
     },
     rotation: resolvedOption?.rotation ?? base.rotation,
     textureSize: resolvedOption?.textureSize ?? base.textureSize,
-    mapUrl: resolvedOption?.mapUrl ?? base.mapUrl,
-    roughnessMapUrl: resolvedOption?.roughnessMapUrl ?? base.roughnessMapUrl,
-    normalMapUrl: resolvedOption?.normalMapUrl ?? base.normalMapUrl
+    mapUrl: resolvedOption?.mapUrl ?? base.mapUrl
   };
 }
 
@@ -3452,10 +3410,6 @@ function cloneWoodSurfaceConfig(config) {
     textureSize:
       typeof config.textureSize === 'number' ? config.textureSize : undefined,
     mapUrl: typeof config.mapUrl === 'string' ? config.mapUrl : undefined,
-    roughnessMapUrl:
-      typeof config.roughnessMapUrl === 'string' ? config.roughnessMapUrl : undefined,
-    normalMapUrl:
-      typeof config.normalMapUrl === 'string' ? config.normalMapUrl : undefined,
     woodRepeatScale: clampWoodRepeatScaleValue(config.woodRepeatScale)
   };
 }
@@ -3475,11 +3429,7 @@ function orientRailWoodSurface(surface) {
     rotation: typeof surface.rotation === 'number' ? surface.rotation : 0,
     textureSize:
       typeof surface.textureSize === 'number' ? surface.textureSize : undefined,
-    mapUrl: typeof surface.mapUrl === 'string' ? surface.mapUrl : undefined,
-    roughnessMapUrl:
-      typeof surface.roughnessMapUrl === 'string' ? surface.roughnessMapUrl : undefined,
-    normalMapUrl:
-      typeof surface.normalMapUrl === 'string' ? surface.normalMapUrl : undefined
+    mapUrl: typeof surface.mapUrl === 'string' ? surface.mapUrl : undefined
   };
 }
 
@@ -3702,15 +3652,6 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
     loader.load(
       url,
       (texture) => {
-        const rotation =
-          typeof config?.rotation === 'number' && Number.isFinite(config.rotation)
-            ? config.rotation
-            : 0;
-        if (rotation) {
-          texture.center.set(0.5, 0.5);
-          texture.rotation = rotation;
-          texture.needsUpdate = true;
-        }
         const pmrem = new THREE.PMREMGenerator(renderer);
         pmrem.compileEquirectangularShader();
         const envMap = pmrem.fromEquirectangular(texture).texture;
