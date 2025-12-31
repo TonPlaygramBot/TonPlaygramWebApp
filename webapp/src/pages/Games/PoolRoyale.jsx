@@ -1739,7 +1739,7 @@ const CLOTH_SOFT_BLEND = 0.42;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 5632,
+    textureSize: 4096,
     anisotropy: 72,
     generateMipmaps: true,
     bumpScaleMultiplier: 1.16,
@@ -1750,7 +1750,7 @@ const CLOTH_QUALITY = (() => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
       ...defaults,
-      textureSize: 2304,
+      textureSize: 2048,
       anisotropy: 20,
       bumpScaleMultiplier: 1,
       sheen: 0.9,
@@ -1771,7 +1771,7 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 2048 : 1536,
+      textureSize: highDensity ? 2048 : 1024,
       anisotropy: highDensity ? 22 : 18,
       generateMipmaps: true,
       bumpScaleMultiplier: highDensity ? 1.02 : 0.94,
@@ -1822,24 +1822,24 @@ const SHARED_WOOD_REPEAT = Object.freeze({
   y: 5.5
 });
 const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
-  roughnessBase: 0.16,
-  roughnessVariance: 0.22,
-  roughness: 0.34,
-  metalness: 0.12,
-  clearcoat: 0.46,
-  clearcoatRoughness: 0.16,
-  sheen: 0.18,
-  sheenRoughness: 0.36,
-  envMapIntensity: 1.05
+  roughnessBase: 0.18,
+  roughnessVariance: 0.26,
+  roughness: 0.48,
+  metalness: 0.08,
+  clearcoat: 0.28,
+  clearcoatRoughness: 0.32,
+  sheen: 0.12,
+  sheenRoughness: 0.5,
+  envMapIntensity: 0.6
 });
 const TABLE_FINISH_DULLING = Object.freeze({
-  roughnessLift: 0.14,
-  clearcoatScale: 0.7,
-  clearcoatRoughnessLift: 0.22,
-  envMapScale: 0.62,
-  reflectivityScale: 0.7,
-  sheenScale: 0.6,
-  sheenRoughnessLift: 0.18
+  roughnessLift: 0.22,
+  clearcoatScale: 0.5,
+  clearcoatRoughnessLift: 0.32,
+  envMapScale: 0.45,
+  reflectivityScale: 0.5,
+  sheenScale: 0.45,
+  sheenRoughnessLift: 0.28
 });
 
 const clampWoodRepeatScaleValue = () => DEFAULT_WOOD_REPEAT_SCALE;
