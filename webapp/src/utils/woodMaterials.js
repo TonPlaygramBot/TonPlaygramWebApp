@@ -32,6 +32,57 @@ const tileableNoise = (x, y, width, height, scale, seed = 1) => {
 
 const woodTextureLoader = new THREE.TextureLoader();
 woodTextureLoader.setCrossOrigin?.('anonymous');
+const WOOD_EXTERNAL_TEXTURE_CACHE = new Map();
+
+const normalizeExternalTexture = (texture, isColor = false, anisotropy = 16) => {
+  if (!texture) return;
+  if (isColor) {
+    applySRGBColorSpace(texture);
+  }
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = Math.max(texture.anisotropy ?? 1, anisotropy);
+  texture.needsUpdate = true;
+};
+
+const resolveExternalWoodTextureUrls = (mapUrl) => {
+  if (!mapUrl) return null;
+  if (mapUrl.includes('_Color')) {
+    return {
+      color: mapUrl,
+      roughness: mapUrl.replace('_Color', '_Roughness'),
+      normal: mapUrl.replace('_Color', '_NormalGL')
+    };
+  }
+  return { color: mapUrl };
+};
+
+const loadExternalTexture = (url, isColor, anisotropy) => {
+  const texture = woodTextureLoader.load(
+    url,
+    (loaded) => normalizeExternalTexture(loaded, isColor, anisotropy)
+  );
+  normalizeExternalTexture(texture, isColor, anisotropy);
+  return texture;
+};
+
+const getExternalWoodTextures = (mapUrl, anisotropy = 16) => {
+  if (!mapUrl) return null;
+  const cached = WOOD_EXTERNAL_TEXTURE_CACHE.get(mapUrl);
+  if (cached) return cached;
+  const urls = resolveExternalWoodTextureUrls(mapUrl);
+  if (!urls?.color) return null;
+  const entry = {
+    map: loadExternalTexture(urls.color, true, anisotropy),
+    roughnessMap: urls.roughness
+      ? loadExternalTexture(urls.roughness, false, anisotropy)
+      : null,
+    normalMap: urls.normal
+      ? loadExternalTexture(urls.normal, false, anisotropy)
+      : null
+  };
+  WOOD_EXTERNAL_TEXTURE_CACHE.set(mapUrl, entry);
+  return entry;
+};
 
 const makeSlabTexture = (width, height, hue, sat, light, contrast) => {
   const canvas = document.createElement('canvas');
@@ -151,10 +202,13 @@ const disposeWoodTextures = (material) => {
   if (!material) return;
   const textures = material.userData?.__woodTextures;
   if (textures) {
-    const { map, roughnessMap } = textures;
+    const { map, roughnessMap, normalMap } = textures;
     if (map?.dispose) map.dispose();
     if (roughnessMap && roughnessMap !== map && roughnessMap.dispose) {
       roughnessMap.dispose();
+    }
+    if (normalMap && normalMap !== map && normalMap.dispose) {
+      normalMap.dispose();
     }
     delete material.userData.__woodTextures;
   }
@@ -164,8 +218,12 @@ const disposeWoodTextures = (material) => {
   if (material.roughnessMap && material.roughnessMap !== material.map && material.roughnessMap.dispose) {
     material.roughnessMap.dispose();
   }
+  if (material.normalMap && material.normalMap !== material.map && material.normalMap.dispose) {
+    material.normalMap.dispose();
+  }
   material.map = null;
   material.roughnessMap = null;
+  material.normalMap = null;
 };
 
 export const WOOD_FINISH_PRESETS = Object.freeze([
@@ -467,26 +525,13 @@ export const applyWoodTextures = (
   disposeWoodTextures(material);
   const baseTextures = mapUrl
     ? (() => {
-        const map = woodTextureLoader.load(mapUrl, (texture) => {
-          applySRGBColorSpace(texture);
-          texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-          texture.center.set(0.5, 0.5);
-          texture.anisotropy = 16;
-          texture.needsUpdate = true;
-        });
-        applySRGBColorSpace(map);
-        map.wrapS = map.wrapT = THREE.RepeatWrapping;
-        map.center.set(0.5, 0.5);
-        map.anisotropy = 16;
-        map.needsUpdate = true;
+        const external = getExternalWoodTextures(mapUrl, 16);
         return {
-          map,
-          roughnessMap: makeRoughnessMap(
-            roughnessSize,
-            roughnessSize,
-            roughnessBase,
-            roughnessVariance
-          )
+          map: external?.map ?? makeSlabTexture(textureSize, textureSize, hue, sat, light, contrast),
+          roughnessMap:
+            external?.roughnessMap ??
+            makeRoughnessMap(roughnessSize, roughnessSize, roughnessBase, roughnessVariance),
+          normalMap: external?.normalMap ?? null
         };
       })()
     : sharedKey
@@ -508,25 +553,32 @@ export const applyWoodTextures = (
             roughnessSize,
             roughnessBase,
             roughnessVariance
-          )
+          ),
+          normalMap: null
         };
   const repeatVec = new THREE.Vector2(repeat?.x ?? 1, repeat?.y ?? 1);
   const map = cloneWoodTexture(baseTextures.map, repeatVec, rotation);
   const roughnessMap = cloneWoodTexture(baseTextures.roughnessMap, repeatVec, rotation);
+  const normalMap = cloneWoodTexture(baseTextures.normalMap, repeatVec, rotation);
   if (map) {
     map.wrapS = map.wrapT = THREE.RepeatWrapping;
   }
   if (roughnessMap) {
     roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
   }
+  if (normalMap) {
+    normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
+  }
   material.map = map;
   material.roughnessMap = roughnessMap;
+  material.normalMap = normalMap;
   material.color.setHex(0xffffff);
   material.needsUpdate = true;
   if (material.map) material.map.needsUpdate = true;
   if (material.roughnessMap) material.roughnessMap.needsUpdate = true;
+  if (material.normalMap) material.normalMap.needsUpdate = true;
   material.userData = material.userData || {};
-  material.userData.__woodTextures = { map, roughnessMap };
+  material.userData.__woodTextures = { map, roughnessMap, normalMap };
   material.userData.__woodOptions = {
     hue,
     sat,
