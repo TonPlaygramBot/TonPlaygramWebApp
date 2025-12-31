@@ -453,27 +453,31 @@ export default function GamesHallway({ games, onClose }) {
     chandelier.position.y = 6.6;
     scene.add(chandelier);
 
-    const centerLanternUrls = [
-      'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb',
-      'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Lantern/glTF-Binary/Lantern.glb'
+    const chandelierFallback = new THREE.Group();
+    chandelier.add(chandelierFallback);
+
+    const buildPolyhavenModelUrls = (assetId) => [
+      `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
+      `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`
     ];
-    const lanternEmissiveColor = new THREE.Color('#b48440');
-    const blackColor = new THREE.Color(0x000000);
+
+    const fitModelToHeight = (model, targetHeight) => {
+      if (!model || !targetHeight) {
+        return;
+      }
+      const box = new THREE.Box3().setFromObject(model);
+      const currentHeight = box.max.y - box.min.y;
+      if (!currentHeight) {
+        return;
+      }
+      model.scale.multiplyScalar(targetHeight / currentHeight);
+      const scaledBox = new THREE.Box3().setFromObject(model);
+      model.position.y -= scaledBox.min.y;
+    };
 
     const loadCenterLantern = async () => {
       try {
-        let gltf = null;
-        for (const url of centerLanternUrls) {
-          try {
-            gltf = await gltfLoader.loadAsync(url);
-            break;
-          } catch (error) {
-            // try next fallback
-          }
-        }
-        if (!gltf) {
-          throw new Error('Lantern glTF failed to load from all sources');
-        }
+        const gltf = await loadGltfWithFallbacks(buildPolyhavenModelUrls('chandelier_01'));
         if (disposed) {
           gltf.scene?.traverse((child) => {
             if (child.isMesh) {
@@ -488,26 +492,40 @@ export default function GamesHallway({ games, onClose }) {
             child.castShadow = true;
             child.receiveShadow = true;
             const material = child.material;
-            if (material?.isMaterial) {
-              if (material.emissive?.equals?.(blackColor)) {
-                material.emissive = lanternEmissiveColor.clone();
+            const materials = Array.isArray(material) ? material : [material];
+            materials.forEach((mat) => {
+              if (!mat) return;
+              if (mat.map) {
+                mat.map.colorSpace = THREE.SRGBColorSpace;
+                mat.map.anisotropy = maxAnisotropy;
+                mat.map.flipY = false;
               }
-              if (typeof material.emissiveIntensity === 'number') {
-                material.emissiveIntensity = Math.max(material.emissiveIntensity, 0.6);
+              if (mat.emissiveMap) {
+                mat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+                mat.emissiveMap.anisotropy = maxAnisotropy;
+                mat.emissiveMap.flipY = false;
               }
-              if (typeof material.envMapIntensity === 'number') {
-                material.envMapIntensity = Math.max(material.envMapIntensity, 1.2);
+              if (mat.normalMap) {
+                mat.normalMap.anisotropy = maxAnisotropy;
+                mat.normalMap.flipY = false;
               }
-              material.roughness = Math.min(material.roughness ?? 0.6, 0.6);
-              material.metalness = Math.max(material.metalness ?? 0.35, 0.35);
-              material.needsUpdate = true;
-            }
+              if (mat.roughnessMap) {
+                mat.roughnessMap.anisotropy = maxAnisotropy;
+                mat.roughnessMap.flipY = false;
+              }
+              if (mat.metalnessMap) {
+                mat.metalnessMap.anisotropy = maxAnisotropy;
+                mat.metalnessMap.flipY = false;
+              }
+              mat.needsUpdate = true;
+            });
           }
         });
-        gltf.scene.scale.set(0.78, 0.78, 0.78);
-        gltf.scene.position.set(0, -0.55, 0);
+        fitModelToHeight(gltf.scene, 3.1);
+        gltf.scene.position.set(0, -0.2, 0);
         gltf.scene.rotation.y = Math.PI;
         chandelier.add(gltf.scene);
+        chandelierFallback.visible = false;
 
         const lanternHighlight = new THREE.PointLight(0xffe8c4, 1.35, 9, 2.1);
         lanternHighlight.position.set(0, -0.35, 0);
@@ -533,7 +551,7 @@ export default function GamesHallway({ games, onClose }) {
       })
     );
     chandelierShade.position.y = -0.05;
-    chandelier.add(chandelierShade);
+    chandelierFallback.add(chandelierShade);
 
     const chandelierShadeInner = new THREE.Mesh(
       new THREE.CylinderGeometry(1.15, 1.55, 1.1, 64, 1, true),
@@ -549,7 +567,7 @@ export default function GamesHallway({ games, onClose }) {
       })
     );
     chandelierShadeInner.position.y = -0.05;
-    chandelier.add(chandelierShadeInner);
+    chandelierFallback.add(chandelierShadeInner);
 
     const chandelierDiffuser = new THREE.Mesh(
       new THREE.CircleGeometry(1.35, 48),
@@ -566,14 +584,14 @@ export default function GamesHallway({ games, onClose }) {
     );
     chandelierDiffuser.rotation.x = Math.PI / 2;
     chandelierDiffuser.position.y = -0.6;
-    chandelier.add(chandelierDiffuser);
+    chandelierFallback.add(chandelierDiffuser);
 
     const chandelierCap = new THREE.Mesh(
       new THREE.CylinderGeometry(0.4, 0.6, 0.3, 32),
       new THREE.MeshStandardMaterial({ color: '#d8b070', metalness: 0.9, roughness: 0.25 })
     );
     chandelierCap.position.y = 0.55;
-    chandelier.add(chandelierCap);
+    chandelierFallback.add(chandelierCap);
 
     const chandelierGlow = new THREE.PointLight(0xffe6b0, 2.6, 28, 1.6);
     chandelierGlow.position.set(0, chandelier.position.y - 0.15, 0);
@@ -850,26 +868,67 @@ export default function GamesHallway({ games, onClose }) {
       return { scene: pot, scale: 1.1 };
     };
 
-    const buildPolyhavenModelUrls = (assetId) => [
-      `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
-      `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`
-    ];
+    const applyPolyhavenMaterials = (model) => {
+      model?.traverse((child) => {
+        if (!child.isMesh) {
+          return;
+        }
+        child.castShadow = true;
+        child.receiveShadow = true;
+        const materials = Array.isArray(child.material) ? child.material : [child.material];
+        materials.forEach((material) => {
+          if (!material) return;
+          if (material.map) {
+            material.map.colorSpace = THREE.SRGBColorSpace;
+            material.map.anisotropy = maxAnisotropy;
+            material.map.flipY = false;
+          }
+          if (material.emissiveMap) {
+            material.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+            material.emissiveMap.anisotropy = maxAnisotropy;
+            material.emissiveMap.flipY = false;
+          }
+          if (material.normalMap) {
+            material.normalMap.anisotropy = maxAnisotropy;
+            material.normalMap.flipY = false;
+          }
+          if (material.roughnessMap) {
+            material.roughnessMap.anisotropy = maxAnisotropy;
+            material.roughnessMap.flipY = false;
+          }
+          if (material.metalnessMap) {
+            material.metalnessMap.anisotropy = maxAnisotropy;
+            material.metalnessMap.flipY = false;
+          }
+          material.needsUpdate = true;
+        });
+      });
+    };
+
+    const loadPolyhavenModel = async (assetId, targetHeight) => {
+      try {
+        const gltf = await loadGltfWithFallbacks(buildPolyhavenModelUrls(assetId));
+        if (disposed) {
+          gltf.scene?.traverse((child) => {
+            if (child.isMesh) {
+              child.geometry?.dispose?.();
+              disposeMeshMaterials(child.material);
+            }
+          });
+          return null;
+        }
+        const sceneRoot = gltf.scene || new THREE.Group();
+        applyPolyhavenMaterials(sceneRoot);
+        if (targetHeight) {
+          fitModelToHeight(sceneRoot, targetHeight);
+        }
+        return sceneRoot;
+      } catch (error) {
+        return null;
+      }
+    };
 
     const PLANT_TARGET_HEIGHT = 2.1;
-
-    const fitModelToHeight = (model, targetHeight) => {
-      if (!model || !targetHeight) {
-        return;
-      }
-      const box = new THREE.Box3().setFromObject(model);
-      const currentHeight = box.max.y - box.min.y;
-      if (!currentHeight) {
-        return;
-      }
-      model.scale.multiplyScalar(targetHeight / currentHeight);
-      const scaledBox = new THREE.Box3().setFromObject(model);
-      model.position.y -= scaledBox.min.y;
-    };
 
     const plantModelSources = [
       {
@@ -895,6 +954,7 @@ export default function GamesHallway({ games, onClose }) {
       }
 
       const potRadius = 16.6;
+      const wallRadius = 19.2;
       const twoPi = Math.PI * 2;
 
       const findDoorIndex = (predicate) =>
@@ -929,6 +989,21 @@ export default function GamesHallway({ games, onClose }) {
           }
         })
       );
+
+      const wallDecorModels = await Promise.all([
+        loadPolyhavenModel('industrial_wall_sconce', 0.85),
+        loadPolyhavenModel('security_camera_01', 0.55),
+        loadPolyhavenModel('korean_fire_extinguisher_01', 1.05),
+        loadPolyhavenModel('fancy_picture_frame_01', 0.85),
+        loadPolyhavenModel('fancy_picture_frame_02', 0.85),
+        loadPolyhavenModel('hanging_picture_frame_02', 0.85),
+        loadPolyhavenModel('standing_picture_frame_01', 0.85),
+        loadPolyhavenModel('standing_picture_frame_02', 0.85),
+        loadPolyhavenModel('hanging_picture_frame_03', 0.85)
+      ]);
+
+      const [wallSconce, securityCamera, fireExtinguisher, ...pictureFrames] = wallDecorModels;
+      const availableFrames = pictureFrames.filter(Boolean);
 
       if (disposed) {
         loadedPlants
@@ -1001,6 +1076,47 @@ export default function GamesHallway({ games, onClose }) {
         potGroup.add(instance);
 
         scene.add(potGroup);
+
+        const rotationY = -(midpointAngle + Math.PI / 2);
+        const wallX = Math.cos(midpointAngle) * wallRadius;
+        const wallZ = Math.sin(midpointAngle) * wallRadius;
+
+        if (wallSconce) {
+          const sconce = cloneSkinnedMesh(wallSconce);
+          sconce.position.set(wallX, 3, wallZ);
+          sconce.rotation.y = rotationY;
+          scene.add(sconce);
+        }
+
+        if (availableFrames.length) {
+          const frameModel = availableFrames[i % availableFrames.length];
+          if (frameModel) {
+            const frame = cloneSkinnedMesh(frameModel);
+            frame.position.set(wallX, 2.3, wallZ);
+            frame.rotation.y = rotationY;
+            scene.add(frame);
+          }
+        }
+
+        if (securityCamera) {
+          const cameraModel = cloneSkinnedMesh(securityCamera);
+          cameraModel.position.set(wallX, 3.8, wallZ);
+          cameraModel.rotation.y = rotationY;
+          scene.add(cameraModel);
+        }
+
+        if (fireExtinguisher) {
+          const extinguisher = cloneSkinnedMesh(fireExtinguisher);
+          const tangentX = -Math.sin(midpointAngle);
+          const tangentZ = Math.cos(midpointAngle);
+          extinguisher.position.set(
+            Math.cos(midpointAngle) * (potRadius + 0.4) + tangentX * 0.8,
+            0,
+            Math.sin(midpointAngle) * (potRadius + 0.4) + tangentZ * 0.8
+          );
+          extinguisher.rotation.y = rotationY;
+          scene.add(extinguisher);
+        }
       }
     };
 
@@ -1255,6 +1371,18 @@ export default function GamesHallway({ games, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 backdrop-blur">
+      <div className="relative flex-1">
+        <div ref={containerRef} className="absolute inset-0" />
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute top-6 inset-x-0 flex justify-center">
+            <div className="inline-flex items-center gap-2 rounded-full bg-black/55 px-4 py-2 text-xs font-semibold tracking-wide text-white shadow-lg shadow-black/40 backdrop-blur-sm">
+              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+              <span className="text-sm font-semibold text-white">{onlineCount}</span>
+              <span className="text-[0.65rem] uppercase text-white/80">online</span>
+            </div>
+          </div>
+        </div>
+      </div>
       <div className="flex items-center justify-between px-4 py-3 text-text">
         <div>
           <h3 className="text-lg font-semibold">TonPlaygram Luxury Hallway</h3>
@@ -1269,18 +1397,6 @@ export default function GamesHallway({ games, onClose }) {
         >
           Close
         </button>
-      </div>
-      <div className="relative flex-1">
-        <div ref={containerRef} className="absolute inset-0" />
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute top-6 inset-x-0 flex justify-center">
-            <div className="inline-flex items-center gap-2 rounded-full bg-black/55 px-4 py-2 text-xs font-semibold tracking-wide text-white shadow-lg shadow-black/40 backdrop-blur-sm">
-              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
-              <span className="text-sm font-semibold text-white">{onlineCount}</span>
-              <span className="text-[0.65rem] uppercase text-white/80">online</span>
-            </div>
-          </div>
-        </div>
       </div>
       {selectedGame && overlayRootRef.current &&
         createPortal(
