@@ -1880,8 +1880,8 @@ const WOOD_PRESETS_BY_ID = Object.freeze(
 );
 const DEFAULT_WOOD_PRESET_ID = 'walnut';
 
-// Pool Royale keeps wood grain textures enabled for the original table finishes.
-const WOOD_TEXTURES_ENABLED = true;
+// Align Pool Royale wood finishes with the Snooker Club's matte treatment.
+const WOOD_TEXTURES_ENABLED = false;
 
 const DEFAULT_TABLE_FINISH_ID =
   POOL_ROYALE_DEFAULT_UNLOCKS.tableFinish?.[0] ?? 'charredTimber';
