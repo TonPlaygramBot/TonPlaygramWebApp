@@ -3459,14 +3459,38 @@ function projectRailUVs(geometry, bounds) {
     faceNormal.crossVectors(edgeA, edgeB).normalize();
     center.set(0, 0, 0).add(verts[0]).add(verts[1]).add(verts[2]).multiplyScalar(1 / 3);
 
-    const dominantZ = Math.abs(faceNormal.z) >= Math.max(Math.abs(faceNormal.x), Math.abs(faceNormal.y));
+    const absX = Math.abs(faceNormal.x);
+    const absY = Math.abs(faceNormal.y);
+    const absZ = Math.abs(faceNormal.z);
+    const dominantZ = absZ >= Math.max(absX, absY);
     const alignWithLongRail = Math.abs(center.y) > Math.abs(center.x);
-    const uAxis = dominantZ ? (alignWithLongRail ? 'x' : 'y') : Math.abs(faceNormal.x) >= Math.abs(faceNormal.y) ? 'z' : 'x';
-    const vAxis = dominantZ ? (alignWithLongRail ? 'y' : 'x') : Math.abs(faceNormal.x) >= Math.abs(faceNormal.y) ? 'y' : 'z';
+    let uAxis;
+    let vAxis;
+    let flipU = false;
+    let flipV = false;
+    if (dominantZ) {
+      uAxis = alignWithLongRail ? 'x' : 'y';
+      vAxis = alignWithLongRail ? 'y' : 'x';
+      flipU = faceNormal.z < 0;
+    } else if (absX >= absY) {
+      uAxis = 'z';
+      vAxis = 'y';
+      flipU = faceNormal.x < 0;
+    } else {
+      uAxis = 'x';
+      vAxis = 'z';
+      flipV = faceNormal.y < 0;
+    }
 
     verts.forEach((v, idx) => {
-      const u = (v[uAxis] + extents[uAxis] / 2) / extents[uAxis];
-      const vCoord = (v[vAxis] + extents[vAxis] / 2) / extents[vAxis];
+      let u = (v[uAxis] + extents[uAxis] / 2) / extents[uAxis];
+      let vCoord = (v[vAxis] + extents[vAxis] / 2) / extents[vAxis];
+      if (flipU) {
+        u = 1 - u;
+      }
+      if (flipV) {
+        vCoord = 1 - vCoord;
+      }
       const uvIndex = (i + idx) * 2;
       uv[uvIndex] = u;
       uv[uvIndex + 1] = vCoord;
