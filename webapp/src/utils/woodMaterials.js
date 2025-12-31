@@ -397,7 +397,7 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
   })
 ]);
 
-export const DEFAULT_WOOD_GRAIN_ID = WOOD_GRAIN_OPTIONS[0].id;
+export const DEFAULT_WOOD_GRAIN_ID = 'wood_table_001';
 
 export const WOOD_GRAIN_OPTIONS_BY_ID = Object.freeze(
   WOOD_GRAIN_OPTIONS.reduce((acc, option) => {
