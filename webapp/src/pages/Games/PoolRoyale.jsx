@@ -1830,16 +1830,16 @@ const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
   clearcoatRoughness: 0.16,
   sheen: 0.18,
   sheenRoughness: 0.36,
-  envMapIntensity: 1.05
+  envMapIntensity: 0.88
 });
 const TABLE_FINISH_DULLING = Object.freeze({
-  roughnessLift: 0.14,
-  clearcoatScale: 0.7,
-  clearcoatRoughnessLift: 0.22,
-  envMapScale: 0.62,
-  reflectivityScale: 0.7,
-  sheenScale: 0.6,
-  sheenRoughnessLift: 0.18
+  roughnessLift: 0.22,
+  clearcoatScale: 0.5,
+  clearcoatRoughnessLift: 0.32,
+  envMapScale: 0.48,
+  reflectivityScale: 0.55,
+  sheenScale: 0.45,
+  sheenRoughnessLift: 0.28
 });
 
 const clampWoodRepeatScaleValue = () => DEFAULT_WOOD_REPEAT_SCALE;
@@ -3669,8 +3669,8 @@ const createClothTextures = (() => {
   const buildPolyHavenTextureUrls = (sourceId, resolution) => {
     if (!sourceId) return null;
     const normalized = String(sourceId).replace(/\s+/g, '_');
-    const res = resolution.toUpperCase();
-    const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${resolution}/${normalized}/${normalized}_${res}`;
+    const res = resolution.toLowerCase();
+    const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${res}/${normalized}/${normalized}_${res}`;
     return {
       diffuse: `${base}_Color.jpg`,
       normal: `${base}_NormalGL.jpg`,
