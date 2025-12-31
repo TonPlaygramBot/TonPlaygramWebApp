@@ -1832,6 +1832,15 @@ const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
   sheenRoughness: 0.36,
   envMapIntensity: 1.05
 });
+const TABLE_FINISH_DULLING = Object.freeze({
+  roughnessLift: 0.14,
+  clearcoatScale: 0.7,
+  clearcoatRoughnessLift: 0.22,
+  envMapScale: 0.62,
+  reflectivityScale: 0.7,
+  sheenScale: 0.6,
+  sheenRoughnessLift: 0.18
+});
 
 const clampWoodRepeatScaleValue = () => DEFAULT_WOOD_REPEAT_SCALE;
 
@@ -1868,6 +1877,53 @@ function applySharedWoodSurfaceProps(material) {
   }
   if ('envMapIntensity' in material) {
     material.envMapIntensity = props.envMapIntensity;
+  }
+  material.needsUpdate = true;
+}
+
+function applyTableFinishDulling(material) {
+  if (!material) return;
+  const props = TABLE_FINISH_DULLING;
+  if ('roughness' in material) {
+    material.roughness = THREE.MathUtils.clamp(
+      material.roughness + props.roughnessLift,
+      0,
+      1
+    );
+  }
+  if ('clearcoat' in material) {
+    material.clearcoat = THREE.MathUtils.clamp(
+      material.clearcoat * props.clearcoatScale,
+      0,
+      1
+    );
+  }
+  if ('clearcoatRoughness' in material) {
+    material.clearcoatRoughness = THREE.MathUtils.clamp(
+      material.clearcoatRoughness + props.clearcoatRoughnessLift,
+      0,
+      1
+    );
+  }
+  if ('sheen' in material) {
+    material.sheen = THREE.MathUtils.clamp(material.sheen * props.sheenScale, 0, 1);
+  }
+  if ('sheenRoughness' in material) {
+    material.sheenRoughness = THREE.MathUtils.clamp(
+      material.sheenRoughness + props.sheenRoughnessLift,
+      0,
+      1
+    );
+  }
+  if ('envMapIntensity' in material) {
+    material.envMapIntensity = Math.max(0, material.envMapIntensity * props.envMapScale);
+  }
+  if ('reflectivity' in material) {
+    material.reflectivity = THREE.MathUtils.clamp(
+      material.reflectivity * props.reflectivityScale,
+      0,
+      1
+    );
   }
   material.needsUpdate = true;
 }
@@ -9332,6 +9388,8 @@ function applyTableFinishToTable(table, finish) {
 
     applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
     applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
+    applyTableFinishDulling(railMat);
+    applyTableFinishDulling(frameMat);
     finishInfo.parts.underlayMeshes.forEach((mesh) => {
       if (!mesh) return;
       const baseMaterialKey = mesh.userData?.baseMaterialKey === 'frame' ? 'frame' : 'rail';
@@ -9347,6 +9405,7 @@ function applyTableFinishToTable(table, finish) {
       const underlaySurface =
         baseMaterialKey === 'frame' ? synchronizedFrameSurface : synchronizedRailSurface;
       applyWoodTextureToMaterial(mesh.material, underlaySurface);
+      applyTableFinishDulling(mesh.material);
       if (mesh.material.color && sourceMaterial?.color) {
         mesh.material.color.copy(sourceMaterial.color);
       }
@@ -9358,6 +9417,7 @@ function applyTableFinishToTable(table, finish) {
         rotation: synchronizedFrameSurface.rotation + Math.PI / 2
       });
     }
+    applyTableFinishDulling(legMat);
     woodSurfaces.rail = cloneWoodSurfaceConfig(synchronizedRailSurface);
     woodSurfaces.frame = cloneWoodSurfaceConfig(synchronizedFrameSurface);
     finishInfo.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
@@ -9367,9 +9427,13 @@ function applyTableFinishToTable(table, finish) {
     stripWoodTextures(railMat);
     stripWoodTextures(frameMat);
     stripWoodTextures(legMat);
+    applyTableFinishDulling(railMat);
+    applyTableFinishDulling(frameMat);
+    applyTableFinishDulling(legMat);
     finishInfo.parts.underlayMeshes.forEach((mesh) => {
       if (!mesh?.material) return;
       stripWoodTextures(mesh.material);
+      applyTableFinishDulling(mesh.material);
       if (mesh.material.color && railMat.color) {
         mesh.material.color.copy(railMat.color);
       }
