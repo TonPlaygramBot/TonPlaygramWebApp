@@ -1300,7 +1300,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3.4, 0.44 / 3.4); // enlarge grain 3× so rails, skirts, and legs read at table scale
-const FIXED_WOOD_REPEAT_SCALE = 500; // locked to 25000% for consistent oversized grain
+const FIXED_WOOD_REPEAT_SCALE = 1;
 const WOOD_REPEAT_SCALE_MIN = FIXED_WOOD_REPEAT_SCALE;
 const WOOD_REPEAT_SCALE_MAX = FIXED_WOOD_REPEAT_SCALE;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
@@ -1891,7 +1891,17 @@ const POOL_ROYALE_WOOD_PRESET_FOR_FINISH = Object.freeze({
   charredTimber: 'wenge',
   plankStudio: 'oak',
   weatheredGrey: 'smokedOak',
-  jetBlackCarbon: 'ebony'
+  peelingPaintWeathered: 'smokedOak',
+  oakVeneer01: 'oak',
+  woodTable001: 'walnut',
+  darkWood: 'wenge',
+  rosewoodVeneer01: 'cherry',
+  kitchenWood: 'maple',
+  japaneseSycamore: 'birch',
+  jetBlackCarbon: 'ebony',
+  frostedAsh: 'birch',
+  amberWharf: 'teak',
+  obsidianMist: 'ebony'
 });
 
 const POOL_ROYALE_WOOD_REPEAT = Object.freeze({
