@@ -915,7 +915,7 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const ENABLE_BALL_FLOOR_SHADOWS = true;
+const ENABLE_BALL_FLOOR_SHADOWS = false;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
@@ -1223,7 +1223,7 @@ const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
 const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
-const LEG_LENGTH_SHRINK = 0.85; // additional 15% trim to shorten the legs
+const LEG_LENGTH_SHRINK = 0.72; // trim the legs by another 15% to shorten the stance
 const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
 const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
@@ -1233,7 +1233,7 @@ const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
-const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads much deeper beneath the rails
+const SKIRT_DROP_MULTIPLIER = 2.72; // shorten the apron drop by 15% while keeping the deep base profile
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
@@ -2371,6 +2371,15 @@ const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'hd50',
+    label: 'HD Performance (50 Hz)',
+    fps: 50,
+    renderScale: 1,
+    pixelRatioCap: 1.3,
+    resolution: 'HD render • DPR 1.3 cap',
+    description: 'Lower refresh profile aimed at 50 Hz screens and battery saver play.'
+  },
+  {
+    id: 'hd60',
     label: 'HD Performance (60 Hz)',
     fps: 60,
     renderScale: 1.05,
@@ -2404,15 +2413,6 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     pixelRatioCap: 1.85,
     resolution: 'Ultra HD render • DPR 1.85 cap',
     description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
-  },
-  {
-    id: 'ultra144',
-    label: 'Ultra HD+ (120 Hz max)',
-    fps: 120,
-    renderScale: 1.32,
-    pixelRatioCap: 2,
-    resolution: 'Ultra HD+ render • DPR 2.0 cap',
-    description: 'Maximum clarity preset while capping refresh at 120 Hz.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd90';
@@ -3792,7 +3792,10 @@ function applyWoodTextureToMaterial(material, repeat) {
     typeof repeat?.normalMapUrl === 'string' && repeat.normalMapUrl.trim().length > 0
       ? repeat.normalMapUrl.trim()
       : undefined;
-  const repeatScale = clampWoodRepeatScaleValue(repeat?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE);
+  const hasExternalMaps = Boolean(mapUrl || roughnessMapUrl || normalMapUrl);
+  const repeatScale = hasExternalMaps
+    ? 1
+    : clampWoodRepeatScaleValue(repeat?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE);
   const scaledRepeat = scaleWoodRepeatVector(repeatVec, repeatScale);
   const hadOptions = Boolean(material.userData?.__woodOptions);
   const options = ensureMaterialWoodOptions(material, {
@@ -4106,12 +4109,13 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 }
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '4k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '6k', '4k']);
 const HDRI_RESOLUTION_STORAGE_KEY = 'poolHdriResolution';
 const DEFAULT_HDRI_RESOLUTION_MODE = 'auto';
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
   { id: 'auto', label: 'Match Table' },
   { id: '8k', label: '8K' },
+  { id: '6k', label: '6K' },
   { id: '4k', label: '4K' },
   { id: '2k', label: '2K' }
 ]);
@@ -6174,16 +6178,21 @@ function Table3D(
     resolvedWoodOption?.frame,
     resolvedWoodOption?.rail ?? defaultWoodOption.frame ?? defaultWoodOption.rail
   );
+  const initialRailSurface = resolveWoodSurfaceConfig(
+    resolvedWoodOption?.rail,
+    resolvedWoodOption?.frame ?? defaultWoodOption.rail ?? defaultWoodOption.frame
+  );
+  const alignedRailSurface = orientRailWoodSurface(initialRailSurface);
   const synchronizedRailSurface = {
     repeat: new THREE.Vector2(
-      initialFrameSurface.repeat.x,
-      initialFrameSurface.repeat.y
+      alignedRailSurface.repeat.x,
+      alignedRailSurface.repeat.y
     ),
-    rotation: initialFrameSurface.rotation,
-    textureSize: initialFrameSurface.textureSize,
-    mapUrl: initialFrameSurface.mapUrl,
-    roughnessMapUrl: initialFrameSurface.roughnessMapUrl,
-    normalMapUrl: initialFrameSurface.normalMapUrl,
+    rotation: alignedRailSurface.rotation,
+    textureSize: alignedRailSurface.textureSize,
+    mapUrl: alignedRailSurface.mapUrl,
+    roughnessMapUrl: alignedRailSurface.roughnessMapUrl,
+    normalMapUrl: alignedRailSurface.normalMapUrl,
     woodRepeatScale
   };
   const synchronizedFrameSurface = {
@@ -6850,10 +6859,6 @@ function Table3D(
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
   // Force the table rails to reuse the exact cue butt wood scale so the grain
   // is just as visible as it is on the stick finish in cue view.
-  const alignedRailSurface = resolveWoodSurfaceConfig(
-    resolvedWoodOption?.frame,
-    initialFrameSurface
-  );
   applyWoodTextureToMaterial(railMat, {
     repeat: new THREE.Vector2(
       alignedRailSurface.repeat.x,
@@ -8658,6 +8663,12 @@ function Table3D(
     resolvedWoodOption?.frame,
     resolvedWoodOption?.rail ?? baseFrameFallback
   );
+  const woodRailSurface = orientRailWoodSurface(
+    resolveWoodSurfaceConfig(
+      resolvedWoodOption?.rail,
+      resolvedWoodOption?.frame ?? baseFrameFallback
+    )
+  );
   const synchronizedWoodSurface = {
     repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
     rotation: woodFrameSurface.rotation,
@@ -8681,7 +8692,15 @@ function Table3D(
 
   // Force the rail grain direction and scale to match the skirt/apron below so
   // every side shares the exact same wood flow and texture density.
-  const railSurfaceFromFrame = { ...synchronizedWoodSurface };
+  const railSurfaceFromFrame = {
+    repeat: new THREE.Vector2(woodRailSurface.repeat.x, woodRailSurface.repeat.y),
+    rotation: woodRailSurface.rotation,
+    textureSize: woodRailSurface.textureSize,
+    mapUrl: woodRailSurface.mapUrl,
+    roughnessMapUrl: woodRailSurface.roughnessMapUrl,
+    normalMapUrl: woodRailSurface.normalMapUrl,
+    woodRepeatScale
+  };
 
   applyWoodTextureToMaterial(railMat, railSurfaceFromFrame);
 
@@ -8872,24 +8891,32 @@ function applyTableFinishToTable(table, finish) {
       defaultWoodOption;
     const nextFrameSurface = resolveWoodSurfaceConfig(
       resolvedWoodOption?.frame,
-      woodSurfaces.frame ?? woodSurfaces.rail ?? resolvedWoodOption?.rail ?? {
+      woodSurfaces.frame ?? resolvedWoodOption?.rail ?? {
         repeat: { x: 1, y: 1 },
         rotation: 0
       }
     );
+    const nextRailSurface = resolveWoodSurfaceConfig(
+      resolvedWoodOption?.rail,
+      woodSurfaces.rail ?? woodSurfaces.frame ?? resolvedWoodOption?.frame ?? {
+        repeat: { x: 1, y: 1 },
+        rotation: 0
+      }
+    );
+    const alignedRailSurface = orientRailWoodSurface(nextRailSurface);
     const woodRepeatScale = clampWoodRepeatScaleValue(
       resolvedFinish?.woodRepeatScale ?? finishInfo.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
     );
     const synchronizedRailSurface = {
       repeat: new THREE.Vector2(
-        nextFrameSurface.repeat.x,
-        nextFrameSurface.repeat.y
+        alignedRailSurface.repeat.x,
+        alignedRailSurface.repeat.y
       ),
-      rotation: nextFrameSurface.rotation,
-      textureSize: nextFrameSurface.textureSize,
-      mapUrl: nextFrameSurface.mapUrl,
-      roughnessMapUrl: nextFrameSurface.roughnessMapUrl,
-      normalMapUrl: nextFrameSurface.normalMapUrl,
+      rotation: alignedRailSurface.rotation,
+      textureSize: alignedRailSurface.textureSize,
+      mapUrl: alignedRailSurface.mapUrl,
+      roughnessMapUrl: alignedRailSurface.roughnessMapUrl,
+      normalMapUrl: alignedRailSurface.normalMapUrl,
       woodRepeatScale
     };
     const synchronizedFrameSurface = {
@@ -11476,6 +11503,11 @@ const powerRef = useRef(hud.power);
           sceneInstance.environmentIntensity = activeVariant.environmentIntensity;
         }
         renderer.toneMappingExposure = activeVariant?.exposure ?? renderer.toneMappingExposure;
+        const tableRotationY =
+          typeof activeVariant?.tableRotationY === 'number' ? activeVariant.tableRotationY : 0;
+        if (worldRef.current) {
+          worldRef.current.rotation.y = tableRotationY;
+        }
         envTextureRef.current = envMap;
         disposeEnvironmentRef.current = () => {
           if (sceneRef.current?.environment === envMap) {

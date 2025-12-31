@@ -41,7 +41,8 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     cameraHeightM: 1.5,
     groundRadiusMultiplier: 4,
     groundResolution: 120,
-    arenaScale: 1.15
+    arenaScale: 1.15,
+    tableRotationY: Math.PI / 2
   },
   dancingHall: {
     cameraHeightM: 1.58,
@@ -311,9 +312,9 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     preferredResolutions: ['4k', '2k'],
     fallbackResolution: '4k',
     price: 1820,
-    exposure: 1.11,
-    environmentIntensity: 1.07,
-    backgroundIntensity: 1.03,
+    exposure: 1.08,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 1.01,
     swatches: ['#ec4899', '#a855f7'],
     description: 'Playful multi-hue studio for glossy highlight variety.'
   },
@@ -709,7 +710,7 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
   }
 ];
 
-const HDRI_RESOLUTION_STACK = Object.freeze(['8k', '4k', '2k']);
+const HDRI_RESOLUTION_STACK = Object.freeze(['8k', '6k', '4k', '2k']);
 
 export const POOL_ROYALE_HDRI_VARIANTS = Object.freeze(
   RAW_POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
