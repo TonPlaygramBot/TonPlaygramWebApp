@@ -1299,7 +1299,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3.4, 0.44 / 3.4); // enlarge grain 3× so rails, skirts, and legs read at table scale
-const FIXED_WOOD_REPEAT_SCALE = 100; // locked to 10000% so the grain reads 5x larger on the table finish
+const FIXED_WOOD_REPEAT_SCALE = 20; // locked to 2000% for consistent oversized grain
 const WOOD_REPEAT_SCALE_MIN = FIXED_WOOD_REPEAT_SCALE;
 const WOOD_REPEAT_SCALE_MAX = FIXED_WOOD_REPEAT_SCALE;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
@@ -6505,7 +6505,10 @@ function Table3D(
   applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
   applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
   if (legMat !== frameMat) {
-    applyWoodTextureToMaterial(legMat, synchronizedFrameSurface);
+    applyWoodTextureToMaterial(legMat, {
+      ...synchronizedFrameSurface,
+      rotation: synchronizedFrameSurface.rotation + Math.PI / 2
+    });
   }
   finishParts.woodSurfaces = {
     frame: cloneWoodSurfaceConfig(synchronizedFrameSurface),
@@ -7142,7 +7145,7 @@ function Table3D(
   const railsTopY = frameTopY + railH;
   const longRailW = ORIGINAL_RAIL_WIDTH; // keep the long rail caps as wide as the end rails so side pockets match visually
   const endRailW = ORIGINAL_RAIL_WIDTH;
-  const frameExpansion = TABLE.WALL * 0.12;
+  const frameExpansion = TABLE.WALL * 0.08;
   const frameWidthEnd =
     Math.max(0, ORIGINAL_OUTER_HALF_H - halfH - 2 * endRailW) + frameExpansion;
   const frameWidthLong = frameWidthEnd; // force side rails to carry the same exterior thickness as the short rails
@@ -8954,7 +8957,10 @@ function Table3D(
 
   applyWoodTextureToMaterial(frameMat, synchronizedWoodSurface);
   if (legMat !== frameMat) {
-    applyWoodTextureToMaterial(legMat, synchronizedWoodSurface);
+    applyWoodTextureToMaterial(legMat, {
+      ...synchronizedWoodSurface,
+      rotation: synchronizedWoodSurface.rotation + Math.PI / 2
+    });
   }
   finishParts.woodSurfaces.frame = cloneWoodSurfaceConfig({
     ...woodFrameSurface,
@@ -9201,7 +9207,10 @@ function applyTableFinishToTable(table, finish) {
       mesh.material.needsUpdate = true;
     });
     if (legMat !== frameMat) {
-      applyWoodTextureToMaterial(legMat, synchronizedFrameSurface);
+      applyWoodTextureToMaterial(legMat, {
+        ...synchronizedFrameSurface,
+        rotation: synchronizedFrameSurface.rotation + Math.PI / 2
+      });
     }
     woodSurfaces.rail = cloneWoodSurfaceConfig(synchronizedRailSurface);
     woodSurfaces.frame = cloneWoodSurfaceConfig(synchronizedFrameSurface);
