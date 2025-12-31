@@ -815,7 +815,7 @@ const DEFAULT_CUE_STYLE_INDEX = Math.max(
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
-  const TABLE_BASE_SCALE = 1.17;
+  const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
@@ -1299,7 +1299,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3.4, 0.44 / 3.4); // enlarge grain 3× so rails, skirts, and legs read at table scale
-const FIXED_WOOD_REPEAT_SCALE = 20; // locked to 2000% for consistent oversized grain
+const FIXED_WOOD_REPEAT_SCALE = 100; // locked to 5000% for consistent oversized grain
 const WOOD_REPEAT_SCALE_MIN = FIXED_WOOD_REPEAT_SCALE;
 const WOOD_REPEAT_SCALE_MAX = FIXED_WOOD_REPEAT_SCALE;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
@@ -2039,7 +2039,7 @@ const TABLE_FINISHES = Object.freeze({
       rail: 0xf2eadf,
       base: 0xefe5d6
     }),
-    woodTextureId: 'frameRusticSplit',
+    woodTextureId: 'oak_veneer_01',
     createMaterials: () => {
       const frameColor = new THREE.Color('#efe5d6');
       const railColor = new THREE.Color('#f2eadf');
@@ -2092,7 +2092,7 @@ const TABLE_FINISHES = Object.freeze({
       rail: 0x3c2c22,
       base: 0x302118
     }),
-    woodTextureId: 'frameCharred',
+    woodTextureId: 'dark_wood',
     createMaterials: () => {
       const frameColor = new THREE.Color('#302118');
       const railColor = new THREE.Color('#3c2c22');
@@ -2152,7 +2152,7 @@ const TABLE_FINISHES = Object.freeze({
       rail: 0xb88452,
       base: 0xae7a46
     }),
-    woodTextureId: 'framePlank',
+    woodTextureId: 'wood_table_001',
     createMaterials: () => {
       const frameColor = new THREE.Color('#ae7a46');
       const railColor = new THREE.Color('#b88452');
@@ -2205,7 +2205,7 @@ const TABLE_FINISHES = Object.freeze({
       rail: 0x5f5750,
       base: 0x4e463f
     }),
-    woodTextureId: 'frameWeathered',
+    woodTextureId: 'wood_peeling_paint_weathered',
     createMaterials: () => {
       const frameColor = new THREE.Color('#4e463f');
       const railColor = new THREE.Color('#5f5750');
@@ -6490,6 +6490,7 @@ function Table3D(
     ),
     rotation: initialFrameSurface.rotation,
     textureSize: initialFrameSurface.textureSize,
+    mapUrl: initialFrameSurface.mapUrl,
     woodRepeatScale
   };
   const synchronizedFrameSurface = {
@@ -6499,6 +6500,7 @@ function Table3D(
     ),
     rotation: initialFrameSurface.rotation,
     textureSize: initialFrameSurface.textureSize,
+    mapUrl: initialFrameSurface.mapUrl,
     woodRepeatScale
   };
 
@@ -6506,8 +6508,7 @@ function Table3D(
   applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
   if (legMat !== frameMat) {
     applyWoodTextureToMaterial(legMat, {
-      ...synchronizedFrameSurface,
-      rotation: synchronizedFrameSurface.rotation + Math.PI / 2
+      ...synchronizedFrameSurface
     });
   }
   finishParts.woodSurfaces = {
@@ -8941,8 +8942,10 @@ function Table3D(
   // clearly from the player perspective.
   const baseFrameFallback = {
     repeat: TABLE_WOOD_REPEAT,
-    rotation: Math.PI / 2,
-    textureSize: resolvedWoodOption?.frame?.textureSize ?? woodRailSurface.textureSize
+    rotation: 0,
+    textureSize:
+      resolvedWoodOption?.frame?.textureSize ?? resolvedWoodOption?.rail?.textureSize,
+    mapUrl: resolvedWoodOption?.frame?.mapUrl ?? resolvedWoodOption?.rail?.mapUrl
   };
   const woodFrameSurface = resolveWoodSurfaceConfig(
     resolvedWoodOption?.frame,
@@ -8952,14 +8955,14 @@ function Table3D(
     repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
     rotation: woodFrameSurface.rotation,
     textureSize: woodFrameSurface.textureSize,
+    mapUrl: woodFrameSurface.mapUrl,
     woodRepeatScale
   };
 
   applyWoodTextureToMaterial(frameMat, synchronizedWoodSurface);
   if (legMat !== frameMat) {
     applyWoodTextureToMaterial(legMat, {
-      ...synchronizedWoodSurface,
-      rotation: synchronizedWoodSurface.rotation + Math.PI / 2
+      ...synchronizedWoodSurface
     });
   }
   finishParts.woodSurfaces.frame = cloneWoodSurfaceConfig({
