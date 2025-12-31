@@ -1300,7 +1300,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3.4, 0.44 / 3.4); // enlarge grain 3× so rails, skirts, and legs read at table scale
-const FIXED_WOOD_REPEAT_SCALE = 500; // locked to 25000% for consistent oversized grain
+const FIXED_WOOD_REPEAT_SCALE = 2500;
 const WOOD_REPEAT_SCALE_MIN = FIXED_WOOD_REPEAT_SCALE;
 const WOOD_REPEAT_SCALE_MAX = FIXED_WOOD_REPEAT_SCALE;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
@@ -1822,15 +1822,15 @@ const SHARED_WOOD_REPEAT = Object.freeze({
   y: 5.5
 });
 const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
-  roughnessBase: 0.16,
-  roughnessVariance: 0.22,
-  roughness: 0.34,
-  metalness: 0.12,
-  clearcoat: 0.46,
-  clearcoatRoughness: 0.16,
-  sheen: 0.18,
-  sheenRoughness: 0.36,
-  envMapIntensity: 1.05
+  roughnessBase: 0.22,
+  roughnessVariance: 0.38,
+  roughness: 0.52,
+  metalness: 0.06,
+  clearcoat: 0.2,
+  clearcoatRoughness: 0.5,
+  sheen: 0.08,
+  sheenRoughness: 0.6,
+  envMapIntensity: 0.5
 });
 
 const clampWoodRepeatScaleValue = () => DEFAULT_WOOD_REPEAT_SCALE;
@@ -1900,8 +1900,8 @@ const POOL_ROYALE_WOOD_REPEAT = Object.freeze({
 });
 
 const POOL_ROYALE_WOOD_SURFACE_PROPS = Object.freeze({
-  roughnessBase: 0.16,
-  roughnessVariance: 0.22
+  roughnessBase: 0.2,
+  roughnessVariance: 0.36
 });
 
 const applySnookerStyleWoodPreset = (materials, finishId) => {
