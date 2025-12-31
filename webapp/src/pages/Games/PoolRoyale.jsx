@@ -4164,6 +4164,12 @@ const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const MIN_HDRI_RADIUS = 24;
 const HDRI_GROUNDED_RESOLUTION = 96;
+const DEFAULT_ARENA_OFFSET = Object.freeze({ x: 0, z: 0 });
+
+const resolveArenaOffset = (variant) => ({
+  x: Number.isFinite(variant?.arenaOffsetX) ? variant.arenaOffsetX : 0,
+  z: Number.isFinite(variant?.arenaOffsetZ) ? variant.arenaOffsetZ : 0
+});
 
 function resolveHdriResolutionForTable(tableSizeMeta) {
   const widthMm = tableSizeMeta?.playfield?.widthMm;
@@ -10015,6 +10021,10 @@ function PoolRoyaleGame({
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
     }
   }, [activeEnvironmentHdri, environmentHdriId]);
+  useEffect(() => {
+    arenaOffsetRef.current = resolveArenaOffset(activeEnvironmentHdri);
+    applyWorldScaleRef.current?.();
+  }, [activeEnvironmentHdri, environmentHdriId]);
   const tableFinish = useMemo(() => {
     const baseFinish =
       TABLE_FINISHES[tableFinishId] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
@@ -10505,6 +10515,7 @@ const powerRef = useRef(hud.power);
   const envSkyboxTextureRef = useRef(null);
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
+  const arenaOffsetRef = useRef(DEFAULT_ARENA_OFFSET);
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
@@ -12923,6 +12934,16 @@ const powerRef = useRef(hud.power);
         };
 
         const updateCamera = () => {
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const arenaOffset = arenaOffsetRef.current ?? DEFAULT_ARENA_OFFSET;
+          const arenaOffsetWorld =
+            arenaOffset.x || arenaOffset.z
+              ? new THREE.Vector3(
+                  arenaOffset.x * scale,
+                  0,
+                  arenaOffset.z * scale
+                )
+              : null;
           const replayPlaybackActive = Boolean(replayPlaybackRef.current);
           let renderCamera = camera;
           let lookTarget = null;
@@ -12944,7 +12965,6 @@ const powerRef = useRef(hud.power);
           const galleryState = cueGalleryStateRef.current;
           if (replayPlaybackActive) {
             const storedReplayCamera = replayCameraRef.current;
-            const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
             const replayCamera = resolveReplayCameraView(
               replayFrameCameraRef.current,
               storedReplayCamera
@@ -12965,10 +12985,13 @@ const powerRef = useRef(hud.power);
             const { position, target, fov: replayFov, minTargetY } = appliedReplayCamera;
             const focusTarget = target ??
               new THREE.Vector3(
-                playerOffsetRef.current * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE),
+                playerOffsetRef.current * scale,
                 minTargetY,
                 0
               );
+            if (arenaOffsetWorld) {
+              focusTarget.add(arenaOffsetWorld);
+            }
             focusTarget.y = Math.max(focusTarget.y, minTargetY);
             const safePosition = position?.clone?.() ?? position ?? camera.position.clone();
             const minCameraY = minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale;
@@ -13592,6 +13615,9 @@ const powerRef = useRef(hud.power);
                 focusTarget.add(TMP_VEC3_A);
               }
             }
+            if (arenaOffsetWorld) {
+              focusTarget.add(arenaOffsetWorld);
+            }
             const pocketDirection2D = pocketCenter2D.clone();
             if (pocketDirection2D.lengthSq() < 1e-6) {
               pocketDirection2D.copy(outward.lengthSq() > 1e-6 ? outward : new THREE.Vector2(0, -1));
@@ -13723,6 +13749,9 @@ const powerRef = useRef(hud.power);
             focusTarget = store.target.clone();
           }
           focusTarget.multiplyScalar(worldScaleFactor);
+          if (arenaOffsetWorld) {
+            focusTarget.add(arenaOffsetWorld);
+          }
           lookTarget = focusTarget;
           if (topViewRef.current) {
             const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
@@ -13730,6 +13759,9 @@ const powerRef = useRef(hud.power);
               ORBIT_FOCUS_BASE_Y,
               TOP_VIEW_SCREEN_OFFSET.z
             ).multiplyScalar(worldScaleFactor);
+            if (arenaOffsetWorld) {
+              topFocusTarget.add(arenaOffsetWorld);
+            }
             let resolvedTarget = topFocusTarget.clone();
             const topRadius = clampOrbitRadius(
               Math.max(
@@ -15418,11 +15450,20 @@ const powerRef = useRef(hud.power);
         worldScaleFactor = nextScale;
         world.scale.setScalar(nextScale);
         const surfaceOffset = baseSurfaceWorldY - tableSurfaceY * nextScale;
-        world.position.y = surfaceOffset;
+        const arenaOffset = resolveArenaOffset(activeEnvironmentVariantRef.current);
+        arenaOffsetRef.current = arenaOffset;
+        world.position.set(
+          arenaOffset.x * nextScale,
+          surfaceOffset,
+          arenaOffset.z * nextScale
+        );
         const rig = broadcastCamerasRef.current;
         if (rig) {
           const focusWorld = rig.defaultFocus
-            ? rig.defaultFocus.clone().multiplyScalar(nextScale)
+            ? rig.defaultFocus
+                .clone()
+                .add(new THREE.Vector3(arenaOffset.x, 0, arenaOffset.z))
+                .multiplyScalar(nextScale)
             : new THREE.Vector3();
           rig.defaultFocusWorld = focusWorld;
           if (rig.cameras) {
