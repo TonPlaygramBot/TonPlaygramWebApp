@@ -1298,7 +1298,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
-const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3, 0.44 / 3); // enlarge grain 3× so rails, skirts, and legs read at table scale
+const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3.4, 0.44 / 3.4); // enlarge grain 3× so rails, skirts, and legs read at table scale
 const FIXED_WOOD_REPEAT_SCALE = 20; // locked to 2000% for consistent oversized grain
 const WOOD_REPEAT_SCALE_MIN = FIXED_WOOD_REPEAT_SCALE;
 const WOOD_REPEAT_SCALE_MAX = FIXED_WOOD_REPEAT_SCALE;
@@ -6483,19 +6483,13 @@ function Table3D(
     resolvedWoodOption?.frame,
     resolvedWoodOption?.rail ?? defaultWoodOption.frame ?? defaultWoodOption.rail
   );
-  const initialRailSurface = orientRailWoodSurface(
-    resolveWoodSurfaceConfig(
-      resolvedWoodOption?.rail,
-      resolvedWoodOption?.frame ?? initialFrameSurface
-    )
-  );
   const synchronizedRailSurface = {
     repeat: new THREE.Vector2(
-      initialRailSurface.repeat.x,
-      initialRailSurface.repeat.y
+      initialFrameSurface.repeat.x,
+      initialFrameSurface.repeat.y
     ),
-    rotation: initialRailSurface.rotation,
-    textureSize: initialRailSurface.textureSize,
+    rotation: initialFrameSurface.rotation,
+    textureSize: initialFrameSurface.textureSize,
     woodRepeatScale
   };
   const synchronizedFrameSurface = {
@@ -6511,7 +6505,10 @@ function Table3D(
   applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
   applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
   if (legMat !== frameMat) {
-    applyWoodTextureToMaterial(legMat, synchronizedFrameSurface);
+    applyWoodTextureToMaterial(legMat, {
+      ...synchronizedFrameSurface,
+      rotation: synchronizedFrameSurface.rotation + Math.PI / 2
+    });
   }
   finishParts.woodSurfaces = {
     frame: cloneWoodSurfaceConfig(synchronizedFrameSurface),
@@ -7157,29 +7154,22 @@ function Table3D(
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
   // Force the table rails to reuse the exact cue butt wood scale so the grain
   // is just as visible as it is on the stick finish in cue view.
-  const baseRailFallback = {
-    repeat: TABLE_WOOD_REPEAT,
-    rotation: 0,
-    textureSize: resolvedWoodOption?.rail?.textureSize
-  };
-  const woodRailSurface = resolveWoodSurfaceConfig(
-    resolvedWoodOption?.rail,
-    resolvedWoodOption?.frame ?? baseRailFallback
+  const alignedRailSurface = resolveWoodSurfaceConfig(
+    resolvedWoodOption?.frame,
+    initialFrameSurface
   );
-  const orientedRailSurface = orientRailWoodSurface(woodRailSurface);
   applyWoodTextureToMaterial(railMat, {
     repeat: new THREE.Vector2(
-      orientedRailSurface.repeat.x,
-      orientedRailSurface.repeat.y
+      alignedRailSurface.repeat.x,
+      alignedRailSurface.repeat.y
     ),
-    rotation: orientedRailSurface.rotation,
-    textureSize: orientedRailSurface.textureSize,
+    rotation: alignedRailSurface.rotation,
+    textureSize: alignedRailSurface.textureSize,
     woodRepeatScale
   });
   finishParts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
-    const underlaySurface =
-      mesh.userData?.baseMaterialKey === 'frame' ? initialFrameSurface : orientedRailSurface;
+    const underlaySurface = initialFrameSurface;
     applyWoodTextureToMaterial(mesh.material, {
       repeat: new THREE.Vector2(
         underlaySurface.repeat.x,
@@ -7191,7 +7181,7 @@ function Table3D(
     });
     mesh.material.needsUpdate = true;
   });
-  finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(orientedRailSurface);
+  finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(alignedRailSurface);
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.07; // push the cushions further outward so they meet the wooden rails without a gap
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
@@ -8967,7 +8957,10 @@ function Table3D(
 
   applyWoodTextureToMaterial(frameMat, synchronizedWoodSurface);
   if (legMat !== frameMat) {
-    applyWoodTextureToMaterial(legMat, synchronizedWoodSurface);
+    applyWoodTextureToMaterial(legMat, {
+      ...synchronizedWoodSurface,
+      rotation: synchronizedWoodSurface.rotation + Math.PI / 2
+    });
   }
   finishParts.woodSurfaces.frame = cloneWoodSurfaceConfig({
     ...woodFrameSurface,
@@ -8976,21 +8969,21 @@ function Table3D(
 
   // Force the rail grain direction and scale to match the skirt/apron below so
   // every side shares the exact same wood flow and texture density.
-  const alignedRailSurface = { ...synchronizedWoodSurface };
+  const railSurfaceFromFrame = { ...synchronizedWoodSurface };
 
-  applyWoodTextureToMaterial(railMat, alignedRailSurface);
+  applyWoodTextureToMaterial(railMat, railSurfaceFromFrame);
 
   finishParts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
     const underlaySurface =
       mesh.userData?.baseMaterialKey === 'frame'
         ? synchronizedWoodSurface
-        : alignedRailSurface;
+        : railSurfaceFromFrame;
     applyWoodTextureToMaterial(mesh.material, underlaySurface);
     mesh.material.needsUpdate = true;
   });
 
-  finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(alignedRailSurface);
+  finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(railSurfaceFromFrame);
   [...finishParts.railMeshes, ...finishParts.frameMeshes].forEach((mesh) => {
     if (!mesh) return;
     mesh.castShadow = true;
@@ -9172,21 +9165,16 @@ function applyTableFinishToTable(table, finish) {
         rotation: 0
       }
     );
-    const nextRailSurface = resolveWoodSurfaceConfig(
-      resolvedWoodOption?.rail,
-      resolvedWoodOption?.frame ?? woodSurfaces.rail ?? woodSurfaces.frame ?? nextFrameSurface
-    );
-    const orientedNextRailSurface = orientRailWoodSurface(nextRailSurface);
     const woodRepeatScale = clampWoodRepeatScaleValue(
       resolvedFinish?.woodRepeatScale ?? finishInfo.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
     );
     const synchronizedRailSurface = {
       repeat: new THREE.Vector2(
-        orientedNextRailSurface.repeat.x,
-        orientedNextRailSurface.repeat.y
+        nextFrameSurface.repeat.x,
+        nextFrameSurface.repeat.y
       ),
-      rotation: orientedNextRailSurface.rotation,
-      textureSize: orientedNextRailSurface.textureSize,
+      rotation: nextFrameSurface.rotation,
+      textureSize: nextFrameSurface.textureSize,
       woodRepeatScale
     };
     const synchronizedFrameSurface = {
@@ -9219,7 +9207,10 @@ function applyTableFinishToTable(table, finish) {
       mesh.material.needsUpdate = true;
     });
     if (legMat !== frameMat) {
-      applyWoodTextureToMaterial(legMat, synchronizedFrameSurface);
+      applyWoodTextureToMaterial(legMat, {
+        ...synchronizedFrameSurface,
+        rotation: synchronizedFrameSurface.rotation + Math.PI / 2
+      });
     }
     woodSurfaces.rail = cloneWoodSurfaceConfig(synchronizedRailSurface);
     woodSurfaces.frame = cloneWoodSurfaceConfig(synchronizedFrameSurface);
