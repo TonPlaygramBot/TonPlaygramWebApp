@@ -12,21 +12,21 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundRadiusMultiplier: 6.5,
     groundResolution: 112,
     arenaScale: 1.35,
-    rotationY: 0
+    rotationY: Math.PI / 2
   },
   ballroomHall: {
     cameraHeightM: 1.58,
     groundRadiusMultiplier: 5.1,
     groundResolution: 112,
     arenaScale: 1.3,
-    rotationY: Math.PI / 2
+    rotationY: Math.PI
   },
   emptyPlayRoom: {
     cameraHeightM: 1.5,
     groundRadiusMultiplier: 3.9,
     groundResolution: 120,
     arenaScale: 1.15,
-    rotationY: 0
+    rotationY: -Math.PI / 2
   },
   christmasPhotoStudio04: {
     cameraHeightM: 1.52,
@@ -58,7 +58,13 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundRadiusMultiplier: 4.8,
     groundResolution: 112,
     arenaScale: 1.2,
-    rotationY: Math.PI / 2
+    rotationY: 0.2
+  },
+  hallOfFinfish: {
+    cameraHeightM: 1.6,
+    groundRadiusMultiplier: 5.3,
+    groundResolution: 112,
+    arenaScale: 1.28
   },
   marryHall: {
     cameraHeightM: 1.57,
@@ -89,7 +95,7 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundRadiusMultiplier: 4.6,
     groundResolution: 120,
     arenaScale: 1.18,
-    rotationY: 0
+    rotationY: Math.PI / 2
   },
   londonPhotoStudioHall: {
     cameraHeightM: 1.56,
@@ -97,12 +103,19 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundResolution: 120,
     arenaScale: 1.18
   },
+  schoolHall: {
+    cameraHeightM: 1.55,
+    groundRadiusMultiplier: 4.6,
+    groundResolution: 112,
+    arenaScale: 1.2,
+    rotationY: Math.PI
+  },
   countryStudioHall: {
     cameraHeightM: 1.55,
     groundRadiusMultiplier: 4.5,
     groundResolution: 112,
     arenaScale: 1.18,
-    rotationY: 0
+    rotationY: Math.PI / 2
   },
   blockyPhotoStudio: {
     cameraHeightM: 1.5,
@@ -117,6 +130,18 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundResolution: 120,
     arenaScale: 1.16
   },
+  smallEmptyRoom: {
+    cameraHeightM: 1.48,
+    groundRadiusMultiplier: 3.7,
+    groundResolution: 128,
+    arenaScale: 1.12
+  },
+  lebombo: {
+    cameraHeightM: 1.62,
+    groundRadiusMultiplier: 5.4,
+    groundResolution: 112,
+    arenaScale: 1.3
+  },
   cycloramaHardLight: {
     cameraHeightM: 1.5,
     groundRadiusMultiplier: 3.8,
@@ -127,42 +152,43 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     cameraHeightM: 1.51,
     groundRadiusMultiplier: 4,
     groundResolution: 120,
-    arenaScale: 1.15,
-    rotationY: Math.PI / 2
+    arenaScale: 1.15
   },
   christmasPhotoStudio05: {
     cameraHeightM: 1.52,
     groundRadiusMultiplier: 3.9,
     groundResolution: 120,
-    arenaScale: 1.15,
-    rotationY: Math.PI / 2
+    arenaScale: 1.15
   },
   abandonedGarage: {
     cameraHeightM: 1.6,
     groundRadiusMultiplier: 5.1,
     groundResolution: 112,
-    arenaScale: 1.26,
-    rotationY: Math.PI / 2
+    arenaScale: 1.26
   },
   vestibule: {
     cameraHeightM: 1.56,
     groundRadiusMultiplier: 4.7,
     groundResolution: 112,
-    arenaScale: 1.2,
-    rotationY: Math.PI / 2
+    arenaScale: 1.2
   },
   countryClub: {
     cameraHeightM: 1.58,
     groundRadiusMultiplier: 4.9,
     groundResolution: 112,
-    arenaScale: 1.24,
-    rotationY: Math.PI / 2
+    arenaScale: 1.24
   },
   brownPhotostudio03: {
     cameraHeightM: 1.5,
     groundRadiusMultiplier: 3.9,
     groundResolution: 120,
-    arenaScale: 1.14,
+    arenaScale: 1.14
+  },
+  aftLounge: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 5,
+    groundResolution: 112,
+    arenaScale: 1.26,
     rotationY: Math.PI / 2
   },
   sepulchralChapelRotunda: {
@@ -171,29 +197,33 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundResolution: 112,
     arenaScale: 1.32
   },
+  smallEmptyRoom2: {
+    cameraHeightM: 1.48,
+    groundRadiusMultiplier: 3.7,
+    groundResolution: 128,
+    arenaScale: 1.12
+  },
   squashCourt: {
     cameraHeightM: 1.5,
     groundRadiusMultiplier: 4.1,
     groundResolution: 120,
-    arenaScale: 1.18,
-    rotationY: Math.PI / 2
+    arenaScale: 1.18
+  },
+  garage: {
+    cameraHeightM: 1.58,
+    groundRadiusMultiplier: 4.9,
+    groundResolution: 112,
+    arenaScale: 1.24
+  },
+  smallEmptyHouse: {
+    cameraHeightM: 1.5,
+    groundRadiusMultiplier: 4,
+    groundResolution: 120,
+    arenaScale: 1.16
   }
 });
 
 const RAW_POOL_ROYALE_HDRI_VARIANTS = [
-  {
-    id: 'colorfulStudio',
-    name: 'Colorful Studio',
-    assetId: 'colorful_studio',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 0,
-    exposure: 1.02,
-    environmentIntensity: 0.92,
-    backgroundIntensity: 0.92,
-    swatches: ['#ec4899', '#a855f7'],
-    description: 'Playful multi-hue studio for glossy highlight variety.'
-  },
   {
     id: 'neonPhotostudio',
     name: 'Neon Photo Studio',
@@ -260,6 +290,19 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     description: 'Festive studio wraps with warm gift-light accents.'
   },
   {
+    id: 'colorfulStudio',
+    name: 'Colorful Studio',
+    assetId: 'colorful_studio',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 1820,
+    exposure: 1.02,
+    environmentIntensity: 0.92,
+    backgroundIntensity: 0.92,
+    swatches: ['#ec4899', '#a855f7'],
+    description: 'Playful multi-hue studio for glossy highlight variety.'
+  },
+  {
     id: 'dancingHall',
     name: 'Dancing Hall',
     assetId: 'dancing_hall',
@@ -297,6 +340,19 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1,
     swatches: ['#a3e635', '#22c55e'],
     description: 'Bright lobby ambience with balanced daylight fill and mild speculars.'
+  },
+  {
+    id: 'hallOfFinfish',
+    name: 'Hall of Finfish',
+    assetId: 'hall_of_finfish',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 1940,
+    exposure: 1.1,
+    environmentIntensity: 1.07,
+    backgroundIntensity: 1.02,
+    swatches: ['#22d3ee', '#2563eb'],
+    description: 'Museum hall mood with blue-toned accents and glass case reflections.'
   },
   {
     id: 'marryHall',
@@ -377,6 +433,19 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     description: 'London studio hall ambiance with cool skylight and warm edge kickers.'
   },
   {
+    id: 'schoolHall',
+    name: 'School Hall',
+    assetId: 'school_hall',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2160,
+    exposure: 1.07,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 0.98,
+    swatches: ['#22c55e', '#94a3b8'],
+    description: 'Clean institutional hall with neutral overhead bounce and even fill.'
+  },
+  {
     id: 'countryStudioHall',
     name: 'Country Studio Hall',
     assetId: 'studio_country_hall',
@@ -414,6 +483,32 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1.06,
     swatches: ['#38bdf8', '#1e40af'],
     description: 'Cool blue studio lighting with bright fills and soft kickers.'
+  },
+  {
+    id: 'smallEmptyRoom',
+    name: 'Small Empty Room',
+    assetId: 'small_empty_room',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2240,
+    exposure: 1.08,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 1,
+    swatches: ['#cbd5f5', '#94a3b8'],
+    description: 'Minimal interior light with subtle reflections and quiet ambience.'
+  },
+  {
+    id: 'lebombo',
+    name: 'Lebombo',
+    assetId: 'lebombo',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2320,
+    exposure: 1.09,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1.01,
+    swatches: ['#84cc16', '#f97316'],
+    description: 'Outdoor rocky landscape with warm sun highlights and open sky fill.'
   },
   {
     id: 'cycloramaHardLight',
@@ -507,6 +602,19 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     description: 'Rich brown studio tones with smooth amber reflections.'
   },
   {
+    id: 'aftLounge',
+    name: 'Aft Lounge',
+    assetId: 'aft_lounge',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2420,
+    exposure: 1.12,
+    environmentIntensity: 1.09,
+    backgroundIntensity: 1.04,
+    swatches: ['#0ea5e9', '#f472b6'],
+    description: 'Stylish lounge with colored accents and glossy highlight sweep.'
+  },
+  {
     id: 'sepulchralChapelRotunda',
     name: 'Sepulchral Chapel Rotunda',
     assetId: 'sepulchral_chapel_rotunda',
@@ -518,6 +626,19 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 0.98,
     swatches: ['#1f2937', '#6b7280'],
     description: 'Stone rotunda with dramatic overhead light and deep shadows.'
+  },
+  {
+    id: 'smallEmptyRoom2',
+    name: 'Small Empty Room 2',
+    assetId: 'small_empty_room_2',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2260,
+    exposure: 1.08,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 1,
+    swatches: ['#e5e7eb', '#94a3b8'],
+    description: 'Quiet neutral room with soft overhead fill and mild reflections.'
   },
   {
     id: 'squashCourt',
@@ -532,6 +653,32 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     swatches: ['#f8fafc', '#f97316'],
     description: 'Bright court lighting with clean white walls and strong bounce.'
   },
+  {
+    id: 'garage',
+    name: 'Garage',
+    assetId: 'garage',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2460,
+    exposure: 1.07,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1,
+    swatches: ['#94a3b8', '#475569'],
+    description: 'Neutral garage light with subtle industrial reflections.'
+  },
+  {
+    id: 'smallEmptyHouse',
+    name: 'Small Empty House',
+    assetId: 'small_empty_house',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 2480,
+    exposure: 1.09,
+    environmentIntensity: 1.05,
+    backgroundIntensity: 1.01,
+    swatches: ['#f1f5f9', '#a1a1aa'],
+    description: 'Soft residential interior light with gentle neutral bounce.'
+  }
 ];
 
 const HDRI_RESOLUTION_STACK = Object.freeze(['8k', '6k', '4k', '2k']);
