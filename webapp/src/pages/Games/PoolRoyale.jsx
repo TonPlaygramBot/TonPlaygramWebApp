@@ -819,20 +819,11 @@ const SHOW_SHORT_RAIL_TRIPODS = false;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
-  const BASE_TABLE_THICK = 1.8 * TABLE_SCALE;
-  const BASE_TABLE_WALL = 2.6 * TABLE_SCALE;
-  const BASE_TABLE = {
+  const TABLE = {
     W: 72 * TABLE_SCALE,
     H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE,
-    THICK: BASE_TABLE_THICK,
-    WALL: BASE_TABLE_WALL
-  };
-  const TABLE_OUTER_EXPANSION = BASE_TABLE.THICK * 0.32;
-  const TABLE = {
-    W: BASE_TABLE.W + TABLE_OUTER_EXPANSION * 2,
-    H: BASE_TABLE.H + TABLE_OUTER_EXPANSION * 2,
-    THICK: BASE_TABLE.THICK,
-    WALL: BASE_TABLE.WALL
+    THICK: 1.8 * TABLE_SCALE,
+    WALL: 2.6 * TABLE_SCALE
   };
 const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
@@ -900,16 +891,15 @@ const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
   const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses (Pool Royale match)
   const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
   const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
-  const BASE_SIDE_RAIL_INNER_THICKNESS = BASE_TABLE.WALL * SIDE_RAIL_INNER_SCALE;
-  const SIDE_RAIL_INNER_THICKNESS = BASE_SIDE_RAIL_INNER_THICKNESS + TABLE_OUTER_EXPANSION;
+  const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
   // Relax the aspect ratio so the table reads wider on screen while keeping the playfield height untouched
   // and preserving pocket proportions from the previous build.
   const TARGET_RATIO = 1.83;
 const END_RAIL_INNER_SCALE =
-  (BASE_TABLE.H - TARGET_RATIO * (BASE_TABLE.W - 2 * BASE_SIDE_RAIL_INNER_THICKNESS)) /
-  (2 * BASE_TABLE.WALL);
+  (TABLE.H - TARGET_RATIO * (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS)) /
+  (2 * TABLE.WALL);
 const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
-const END_RAIL_INNER_THICKNESS = BASE_TABLE.WALL * END_RAIL_INNER_SCALE + TABLE_OUTER_EXPANSION;
+const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
 const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
 const PLAY_H = TABLE.H - 2 * END_RAIL_INNER_THICKNESS;
 const innerLong = Math.max(PLAY_W, PLAY_H);
@@ -3571,16 +3561,6 @@ const createClothTextures = (() => {
       roughness: scoreAndPick(['rough', 'roughness'])
     };
   };
-  const resolvePolyHavenFallbackUrls = (sourceId, resolution = '2k') => {
-    if (!sourceId) return { diffuse: null, normal: null, roughness: null };
-    const resUpper = resolution.toUpperCase();
-    const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${resolution}/${sourceId}/${sourceId}_${resUpper}_`;
-    return {
-      diffuse: `${base}Color.jpg`,
-      normal: `${base}NormalGL.jpg`,
-      roughness: `${base}Roughness.jpg`
-    };
-  };
 
   const loadTexture = (loader, url, isColor) =>
     new Promise((resolve, reject) => {
@@ -3600,8 +3580,6 @@ const createClothTextures = (() => {
         (err) => reject(err || new Error('Texture load failed'))
       );
     });
-  const loadTextureSafe = (loader, url, isColor) =>
-    loadTexture(loader, url, isColor).catch(() => null);
 
   const applyTextureDefaults = (texture, { isPolyHaven = false } = {}) => {
     if (!texture) return;
@@ -3841,22 +3819,18 @@ const createClothTextures = (() => {
 
     const promise = (async () => {
       try {
-        let urls = null;
         const response = await fetch(`https://api.polyhaven.com/files/${preset.sourceId}`);
-        if (response?.ok) {
-          const json = await response.json();
-          urls = pickPolyHavenTextureUrls(json);
-        }
-        if (!urls?.diffuse) {
-          urls = resolvePolyHavenFallbackUrls(preset.sourceId, '2k');
-        }
+        if (!response?.ok) return;
+        const json = await response.json();
+        const urls = pickPolyHavenTextureUrls(json);
+        if (!urls.diffuse) return;
         const loader = new THREE.TextureLoader();
         loader.setCrossOrigin('anonymous');
 
         let [map, normal, roughness] = await Promise.all([
-          loadTextureSafe(loader, urls.diffuse, true),
-          loadTextureSafe(loader, urls.normal, false),
-          loadTextureSafe(loader, urls.roughness, false)
+          loadTexture(loader, urls.diffuse, true),
+          loadTexture(loader, urls.normal, false),
+          loadTexture(loader, urls.roughness, false)
         ]);
 
         if (map) {
@@ -8358,7 +8332,6 @@ function Table3D(
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
   const railMarkerOutset = longRailW * 0.8;
-  const railMarkerInset = TABLE.THICK * 0.35;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -8451,8 +8424,8 @@ function Table3D(
     clearRailMarkerMeshes();
     const longDiamondSpacing = PLAY_H / 8;
     const shortDiamondSpacing = PLAY_W / 4;
-    const longRailX = halfW + longRailW + railMarkerOutset - railMarkerInset;
-    const shortRailZ = halfH + endRailW + railMarkerOutset - railMarkerInset;
+    const longRailX = halfW + longRailW + railMarkerOutset;
+    const shortRailZ = halfH + endRailW + railMarkerOutset;
     const addMarker = (x, z, rotation = 0) => {
       const mesh = new THREE.Mesh(geometry, railMarkerMat);
       mesh.position.set(x, railMarkerLift, z);
