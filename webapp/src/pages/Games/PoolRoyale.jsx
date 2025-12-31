@@ -1833,13 +1833,13 @@ const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
   envMapIntensity: 0.6
 });
 const TABLE_FINISH_DULLING = Object.freeze({
-  roughnessLift: 0.22,
-  clearcoatScale: 0.5,
-  clearcoatRoughnessLift: 0.32,
-  envMapScale: 0.45,
-  reflectivityScale: 0.5,
-  sheenScale: 0.45,
-  sheenRoughnessLift: 0.28
+  roughnessLift: 0.36,
+  clearcoatScale: 0.35,
+  clearcoatRoughnessLift: 0.42,
+  envMapScale: 0.22,
+  reflectivityScale: 0.35,
+  sheenScale: 0.32,
+  sheenRoughnessLift: 0.36
 });
 
 const clampWoodRepeatScaleValue = () => DEFAULT_WOOD_REPEAT_SCALE;
