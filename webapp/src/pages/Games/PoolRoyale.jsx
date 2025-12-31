@@ -1845,6 +1845,16 @@ function scaleWoodRepeatVector (repeatVec, scale) {
   return vec
 }
 
+function resolveWoodRepeatScaleValue (finish, woodOption) {
+  const hasExternalMap = Boolean(
+    woodOption?.frame?.mapUrl || woodOption?.rail?.mapUrl
+  );
+  if (hasExternalMap && !Number.isFinite(finish?.woodRepeatScale)) {
+    return 1;
+  }
+  return clampWoodRepeatScaleValue(finish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE);
+}
+
 function applySharedWoodSurfaceProps(material) {
   if (!material) return;
   const props = SHARED_WOOD_SURFACE_PROPS;
@@ -6476,9 +6486,7 @@ function Table3D(
       : (typeof finish === 'string' && TABLE_FINISHES[finish]) ||
         (finish?.id && TABLE_FINISHES[finish.id]) ||
         TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
-  const woodRepeatScale = clampWoodRepeatScaleValue(
-    resolvedFinish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
-  );
+  const woodRepeatScale = resolveWoodRepeatScaleValue(resolvedFinish, resolvedWoodOption);
   const clothTextureKey =
     resolvedFinish?.clothTextureKey ?? DEFAULT_CLOTH_TEXTURE_KEY;
   const palette = resolvedFinish?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
@@ -9228,8 +9236,12 @@ function applyTableFinishToTable(table, finish) {
         rotation: 0
       }
     );
-    const woodRepeatScale = clampWoodRepeatScaleValue(
-      resolvedFinish?.woodRepeatScale ?? finishInfo.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
+    const woodRepeatScale = resolveWoodRepeatScaleValue(
+      {
+        woodRepeatScale:
+          resolvedFinish?.woodRepeatScale ?? finishInfo.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
+      },
+      resolvedWoodOption
     );
     const synchronizedRailSurface = {
       repeat: new THREE.Vector2(
