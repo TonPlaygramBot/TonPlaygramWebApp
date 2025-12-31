@@ -46,11 +46,14 @@ const normalizeExternalTexture = (texture, isColor = false, anisotropy = 16) => 
 
 const resolveExternalWoodTextureUrls = (mapUrl) => {
   if (!mapUrl) return null;
-  if (mapUrl.includes('_Color')) {
+  const match = mapUrl.match(/_color\.(jpg|jpeg|png)$/i);
+  if (match) {
+    const extension = match[1];
+    const base = mapUrl.slice(0, match.index);
     return {
       color: mapUrl,
-      roughness: mapUrl.replace('_Color', '_Roughness'),
-      normal: mapUrl.replace('_Color', '_NormalGL')
+      roughness: `${base}_Roughness.${extension}`,
+      normal: `${base}_NormalGL.${extension}`
     };
   }
   return { color: mapUrl };
@@ -243,7 +246,7 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
 const LARGE_SLAB_REPEAT_X = 0.009;
 const FRAME_SLAB_REPEAT_X = LARGE_SLAB_REPEAT_X * 1.18;
 const polyHavenTextureUrl = (assetId) =>
-  `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${assetId}/${assetId}_2K_Color.jpg`;
+  `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${assetId}/${assetId}_2k_Color.jpg`;
 
 export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
