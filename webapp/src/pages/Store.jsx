@@ -290,11 +290,13 @@ const POOL_CLOTH_SWATCHES = POOL_ROYALE_CLOTH_VARIANTS.reduce((acc, cloth) => {
 
 const OPTION_SWATCH_OVERRIDES = {
   ...POOL_CLOTH_SWATCHES,
-  charredTimber: ['#2f2217', '#6b4226'],
-  rusticSplit: ['#f3e8ff', '#fef3c7'],
-  plankStudio: ['#e0e7ff', '#a78bfa'],
-  weatheredGrey: ['#94a3b8', '#e2e8f0'],
-  jetBlackCarbon: ['#0b1220', '#111827'],
+  peelingPaintWeathered: ['#a89f95', '#b8b3aa'],
+  oakVeneer01: ['#b9854e', '#c89a64'],
+  woodTable001: ['#8f6243', '#a4724f'],
+  darkWood: ['#2f241f', '#3d2f2a'],
+  rosewoodVeneer01: ['#5b2f26', '#6f3a2f'],
+  kitchenWood: ['#c39c73', '#d2b28a'],
+  japaneseSycamore: ['#d6c6a4', '#e2d4b6'],
   gold: ['#f59e0b', '#fbbf24'],
   chrome: ['#e5e7eb', '#a1a1aa'],
   pearl: ['#f5f3ff', '#e2e8f0'],
