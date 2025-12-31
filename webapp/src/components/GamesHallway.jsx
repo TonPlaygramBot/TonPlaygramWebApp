@@ -213,7 +213,6 @@ export default function GamesHallway({ games, onClose }) {
     const gltfLoader = createConfiguredGLTFLoader(renderer);
 
     const potTextureCache = new Map();
-    const assetTextureCache = new Map();
 
     const normalizePlantTexture = (texture, isColor = false) => {
       if (!texture) {
@@ -229,9 +228,9 @@ export default function GamesHallway({ games, onClose }) {
       texture.needsUpdate = true;
     };
 
-    const loadOriginalAssetTextures = async (assetId, cache = assetTextureCache) => {
-      if (cache.has(assetId)) {
-        return cache.get(assetId);
+    const loadOriginalPlantTextures = async (assetId) => {
+      if (potTextureCache.has(assetId)) {
+        return potTextureCache.get(assetId);
       }
 
       const promise = (async () => {
@@ -262,7 +261,7 @@ export default function GamesHallway({ games, onClose }) {
         }
       })();
 
-      cache.set(assetId, promise);
+      potTextureCache.set(assetId, promise);
       return promise;
     };
 
@@ -454,9 +453,6 @@ export default function GamesHallway({ games, onClose }) {
     chandelier.position.y = 6.6;
     scene.add(chandelier);
 
-    const proceduralChandelier = new THREE.Group();
-    chandelier.add(proceduralChandelier);
-
     const centerLanternUrls = [
       'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb',
       'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Lantern/glTF-Binary/Lantern.glb'
@@ -511,12 +507,14 @@ export default function GamesHallway({ games, onClose }) {
         gltf.scene.scale.set(0.78, 0.78, 0.78);
         gltf.scene.position.set(0, -0.55, 0);
         gltf.scene.rotation.y = Math.PI;
-        proceduralChandelier.add(gltf.scene);
+        chandelier.add(gltf.scene);
 
         const lanternHighlight = new THREE.PointLight(0xffe8c4, 1.35, 9, 2.1);
         lanternHighlight.position.set(0, -0.35, 0);
-        proceduralChandelier.add(lanternHighlight);
-      } catch (error) {}
+        chandelier.add(lanternHighlight);
+      } catch (error) {
+        // keep procedural chandelier as fallback
+      }
     };
 
     void loadCenterLantern();
@@ -535,7 +533,7 @@ export default function GamesHallway({ games, onClose }) {
       })
     );
     chandelierShade.position.y = -0.05;
-    proceduralChandelier.add(chandelierShade);
+    chandelier.add(chandelierShade);
 
     const chandelierShadeInner = new THREE.Mesh(
       new THREE.CylinderGeometry(1.15, 1.55, 1.1, 64, 1, true),
@@ -551,7 +549,7 @@ export default function GamesHallway({ games, onClose }) {
       })
     );
     chandelierShadeInner.position.y = -0.05;
-    proceduralChandelier.add(chandelierShadeInner);
+    chandelier.add(chandelierShadeInner);
 
     const chandelierDiffuser = new THREE.Mesh(
       new THREE.CircleGeometry(1.35, 48),
@@ -568,33 +566,18 @@ export default function GamesHallway({ games, onClose }) {
     );
     chandelierDiffuser.rotation.x = Math.PI / 2;
     chandelierDiffuser.position.y = -0.6;
-    proceduralChandelier.add(chandelierDiffuser);
+    chandelier.add(chandelierDiffuser);
 
     const chandelierCap = new THREE.Mesh(
       new THREE.CylinderGeometry(0.4, 0.6, 0.3, 32),
       new THREE.MeshStandardMaterial({ color: '#d8b070', metalness: 0.9, roughness: 0.25 })
     );
     chandelierCap.position.y = 0.55;
-    proceduralChandelier.add(chandelierCap);
+    chandelier.add(chandelierCap);
 
     const chandelierGlow = new THREE.PointLight(0xffe6b0, 2.6, 28, 1.6);
     chandelierGlow.position.set(0, chandelier.position.y - 0.15, 0);
     scene.add(chandelierGlow);
-
-    const loadChandelier01 = async () => {
-      try {
-        const model = await loadPolyhavenAssetVariant('chandelier_01', 3.4);
-        if (!model || disposed) {
-          return;
-        }
-        model.position.set(0, -1.1, 0);
-        model.rotation.y = Math.PI;
-        chandelier.add(model);
-        proceduralChandelier.visible = false;
-      } catch (error) {
-        // keep procedural chandelier as fallback
-      }
-    };
 
     const floorGlow = new THREE.PointLight(0xffc890, 0.6, 16, 2.2);
     floorGlow.position.set(0, 1.2, 0);
@@ -837,39 +820,6 @@ export default function GamesHallway({ games, onClose }) {
       }
     };
 
-    const applyAssetTexturesToMaterial = (material, textureSet) => {
-      if (!material || !textureSet) {
-        return;
-      }
-
-      if (textureSet.diffuse) {
-        material.map = textureSet.diffuse;
-        if (material.color) {
-          material.color.set(0xffffff);
-        }
-      }
-
-      if (textureSet.normal) {
-        material.normalMap = textureSet.normal;
-      }
-
-      if (textureSet.roughness) {
-        material.roughnessMap = textureSet.roughness;
-      }
-
-      if (material.map) {
-        normalizePlantTexture(material.map, true);
-      }
-      if (material.normalMap) {
-        normalizePlantTexture(material.normalMap, false);
-      }
-      if (material.roughnessMap) {
-        normalizePlantTexture(material.roughnessMap, false);
-      }
-
-      material.needsUpdate = true;
-    };
-
     const buildProceduralPlant = () => {
       const pot = new THREE.Group();
       const potBody = new THREE.Mesh(
@@ -904,36 +854,6 @@ export default function GamesHallway({ games, onClose }) {
       `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
       `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`
     ];
-
-    const loadPolyhavenAssetVariant = async (assetId, targetHeight = null) => {
-      const gltf = await loadGltfWithFallbacks(buildPolyhavenModelUrls(assetId));
-      const textureSet = await loadOriginalAssetTextures(assetId);
-      const modelScene = gltf?.scene;
-      if (modelScene) {
-        modelScene.traverse((child) => {
-          if (child.isMesh && child.material) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-            const materials = Array.isArray(child.material) ? child.material : [child.material];
-            materials.forEach((mat) => applyAssetTexturesToMaterial(mat, textureSet));
-          }
-        });
-        if (targetHeight) {
-          fitModelToHeight(modelScene, targetHeight);
-        }
-      }
-      return modelScene;
-    };
-
-    void loadChandelier01();
-
-    const safeLoadPolyhavenAsset = async (assetId, targetHeight) => {
-      try {
-        return await loadPolyhavenAssetVariant(assetId, targetHeight);
-      } catch (error) {
-        return null;
-      }
-    };
 
     const PLANT_TARGET_HEIGHT = 2.1;
 
@@ -992,7 +912,7 @@ export default function GamesHallway({ games, onClose }) {
               if (!source.textureId) {
                 return null;
               }
-              const textures = await loadOriginalAssetTextures(source.textureId, potTextureCache);
+              const textures = await loadOriginalPlantTextures(source.textureId);
               return [source.textureId, textures];
             })
           )
@@ -1050,47 +970,6 @@ export default function GamesHallway({ games, onClose }) {
         plantVariants.push(buildProceduralPlant());
       }
 
-      const frameAssetIds = [
-        'fancy_picture_frame_01',
-        'fancy_picture_frame_02',
-        'hanging_picture_frame_02',
-        'standing_picture_frame_01',
-        'standing_picture_frame_02',
-        'hanging_picture_frame_03'
-      ];
-
-      const [wallSconceModel, securityCameraModel, extinguisherModel, frameModels] = await Promise.all([
-        safeLoadPolyhavenAsset('industrial_wall_sconce', 1.2),
-        safeLoadPolyhavenAsset('security_camera_01', 0.8),
-        safeLoadPolyhavenAsset('korean_fire_extinguisher_01', 1.25),
-        Promise.all(frameAssetIds.map((assetId) => safeLoadPolyhavenAsset(assetId, 1.1)))
-      ]);
-      const usableFrames = frameModels.filter(Boolean);
-
-      if (disposed) {
-        [wallSconceModel, securityCameraModel, extinguisherModel]
-          .filter(Boolean)
-          .forEach((model) => {
-            model.traverse((child) => {
-              if (child.isMesh) {
-                child.geometry?.dispose?.();
-                disposeMeshMaterials(child.material);
-              }
-            });
-          });
-        frameModels
-          .filter(Boolean)
-          .forEach((model) => {
-            model.traverse((child) => {
-              if (child.isMesh) {
-                child.geometry?.dispose?.();
-                disposeMeshMaterials(child.material);
-              }
-            });
-          });
-        return;
-      }
-
       const referenceIndex = poolIndex !== -1 ? poolIndex % plantVariants.length : 0;
       const referenceVariant = plantVariants[referenceIndex];
 
@@ -1120,35 +999,6 @@ export default function GamesHallway({ games, onClose }) {
           fitModelToHeight(instance, referenceVariant.targetHeight);
         }
         potGroup.add(instance);
-
-        if (wallSconceModel) {
-          const sconceInstance = cloneSkinnedMesh(wallSconceModel);
-          sconceInstance.position.set(0, 3, -1.25);
-          sconceInstance.rotation.y = Math.PI;
-          potGroup.add(sconceInstance);
-        }
-
-      const frameSource = usableFrames.length ? usableFrames[i % usableFrames.length] : null;
-        if (frameSource) {
-          const frameInstance = cloneSkinnedMesh(frameSource);
-          frameInstance.position.set(0, 2.15, -0.7);
-          frameInstance.rotation.y = Math.PI;
-          potGroup.add(frameInstance);
-        }
-
-        if (securityCameraModel) {
-          const cameraInstance = cloneSkinnedMesh(securityCameraModel);
-          cameraInstance.position.set(0, 3.75, -1.35);
-          cameraInstance.rotation.y = Math.PI;
-          potGroup.add(cameraInstance);
-        }
-
-        if (extinguisherModel) {
-          const extinguisherInstance = cloneSkinnedMesh(extinguisherModel);
-          extinguisherInstance.position.set(1.1, 0, 0.35);
-          extinguisherInstance.rotation.y = Math.PI / 2;
-          potGroup.add(extinguisherInstance);
-        }
 
         scene.add(potGroup);
       }
@@ -1405,18 +1255,6 @@ export default function GamesHallway({ games, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 backdrop-blur">
-      <div className="relative flex-1">
-        <div ref={containerRef} className="absolute inset-0" />
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute top-6 inset-x-0 flex justify-center">
-            <div className="inline-flex items-center gap-2 rounded-full bg-black/55 px-4 py-2 text-xs font-semibold tracking-wide text-white shadow-lg shadow-black/40 backdrop-blur-sm">
-              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
-              <span className="text-sm font-semibold text-white">{onlineCount}</span>
-              <span className="text-[0.65rem] uppercase text-white/80">online</span>
-            </div>
-          </div>
-        </div>
-      </div>
       <div className="flex items-center justify-between px-4 py-3 text-text">
         <div>
           <h3 className="text-lg font-semibold">TonPlaygram Luxury Hallway</h3>
@@ -1431,6 +1269,18 @@ export default function GamesHallway({ games, onClose }) {
         >
           Close
         </button>
+      </div>
+      <div className="relative flex-1">
+        <div ref={containerRef} className="absolute inset-0" />
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute top-6 inset-x-0 flex justify-center">
+            <div className="inline-flex items-center gap-2 rounded-full bg-black/55 px-4 py-2 text-xs font-semibold tracking-wide text-white shadow-lg shadow-black/40 backdrop-blur-sm">
+              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+              <span className="text-sm font-semibold text-white">{onlineCount}</span>
+              <span className="text-[0.65rem] uppercase text-white/80">online</span>
+            </div>
+          </div>
+        </div>
       </div>
       {selectedGame && overlayRootRef.current &&
         createPortal(
