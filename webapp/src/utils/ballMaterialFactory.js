@@ -305,14 +305,14 @@ export function getBallMaterial({
   const material = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
     map,
-    clearcoat: 0.7,
-    clearcoatRoughness: 0.18,
-    metalness: 0.08,
-    roughness: 0.28,
-    reflectivity: 0.5,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.28,
+    metalness: 0.04,
+    roughness: 0.36,
+    reflectivity: 0.32,
     sheen: 0.08,
     sheenColor: new THREE.Color(0xf8f9ff),
-    envMapIntensity: 0.6
+    envMapIntensity: 0.42
   });
   material.needsUpdate = true;
   BALL_MATERIAL_CACHE.set(cacheKey, material);
