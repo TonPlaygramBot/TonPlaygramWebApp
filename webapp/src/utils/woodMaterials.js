@@ -256,7 +256,7 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
 const LARGE_SLAB_REPEAT_X = 0.009;
 const FRAME_SLAB_REPEAT_X = LARGE_SLAB_REPEAT_X * 1.18;
 const polyHavenTextureSet = (assetId) => {
-  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${assetId}/${assetId}_2k`;
+  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${assetId}/${assetId}_2K`;
   return {
     mapUrl: `${base}_Color.jpg`,
     roughnessMapUrl: `${base}_Roughness.jpg`,
