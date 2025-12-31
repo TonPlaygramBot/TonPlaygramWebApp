@@ -2033,33 +2033,33 @@ const createStandardWoodFinish = ({
         : railColor.clone().offsetHSL(0.02, 0.08, 0.18);
     const frame = new THREE.MeshPhysicalMaterial({
       color: frameColor,
-      metalness: 0.2,
-      roughness: 0.32,
-      clearcoat: 0.42,
-      clearcoatRoughness: 0.22,
-      sheen: 0.2,
-      sheenRoughness: 0.44,
-      reflectivity: 0.56,
-      envMapIntensity: 0.88
+      metalness: 0.08,
+      roughness: 0.58,
+      clearcoat: 0.22,
+      clearcoatRoughness: 0.4,
+      sheen: 0.14,
+      sheenRoughness: 0.58,
+      reflectivity: 0.22,
+      envMapIntensity: 0.45
     });
     const railMat = new THREE.MeshPhysicalMaterial({
       color: railColor,
-      metalness: 0.24,
-      roughness: 0.34,
-      clearcoat: 0.46,
-      clearcoatRoughness: 0.2,
-      sheen: 0.22,
-      sheenRoughness: 0.46,
-      reflectivity: 0.6,
-      envMapIntensity: 0.94
+      metalness: 0.1,
+      roughness: 0.55,
+      clearcoat: 0.26,
+      clearcoatRoughness: 0.38,
+      sheen: 0.18,
+      sheenRoughness: 0.6,
+      reflectivity: 0.24,
+      envMapIntensity: 0.5
     });
     const trimMat = new THREE.MeshPhysicalMaterial({
       color: trimColor,
-      metalness: 0.72,
-      roughness: 0.32,
-      clearcoat: 0.44,
-      clearcoatRoughness: 0.18,
-      envMapIntensity: 1.02
+      metalness: 0.16,
+      roughness: 0.5,
+      clearcoat: 0.28,
+      clearcoatRoughness: 0.36,
+      envMapIntensity: 0.55
     });
     const materials = {
       frame,
