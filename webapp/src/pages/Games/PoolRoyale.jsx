@@ -1299,7 +1299,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3.4, 0.44 / 3.4); // enlarge grain 3× so rails, skirts, and legs read at table scale
-const FIXED_WOOD_REPEAT_SCALE = 500; // locked to 25000% for consistent oversized grain
+const FIXED_WOOD_REPEAT_SCALE = 100; // locked to 5000% for consistent oversized grain
 const WOOD_REPEAT_SCALE_MIN = FIXED_WOOD_REPEAT_SCALE;
 const WOOD_REPEAT_SCALE_MAX = FIXED_WOOD_REPEAT_SCALE;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
@@ -7146,7 +7146,7 @@ function Table3D(
   const railsTopY = frameTopY + railH;
   const longRailW = ORIGINAL_RAIL_WIDTH; // keep the long rail caps as wide as the end rails so side pockets match visually
   const endRailW = ORIGINAL_RAIL_WIDTH;
-  const frameExpansion = TABLE.WALL * 0.12;
+  const frameExpansion = TABLE.WALL * 0.08;
   const frameWidthEnd =
     Math.max(0, ORIGINAL_OUTER_HALF_H - halfH - 2 * endRailW) + frameExpansion;
   const frameWidthLong = frameWidthEnd; // force side rails to carry the same exterior thickness as the short rails
@@ -8329,7 +8329,7 @@ function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.72;
+  const railMarkerOutset = longRailW * 0.92;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -9178,14 +9178,12 @@ function applyTableFinishToTable(table, finish) {
       ),
       rotation: nextFrameSurface.rotation,
       textureSize: nextFrameSurface.textureSize,
-      mapUrl: nextFrameSurface.mapUrl,
       woodRepeatScale
     };
     const synchronizedFrameSurface = {
       repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
       rotation: nextFrameSurface.rotation,
       textureSize: nextFrameSurface.textureSize,
-      mapUrl: nextFrameSurface.mapUrl,
       woodRepeatScale
     };
 
