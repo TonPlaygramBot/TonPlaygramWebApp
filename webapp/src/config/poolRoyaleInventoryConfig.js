@@ -11,31 +11,30 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     cameraHeightM: 1.68,
     groundRadiusMultiplier: 6.5,
     groundResolution: 112,
-    arenaScale: 1.35
+    arenaScale: 1.35,
+    rotationY: Math.PI / 2
   },
   ballroomHall: {
     cameraHeightM: 1.58,
     groundRadiusMultiplier: 5.1,
     groundResolution: 112,
-    arenaScale: 1.3
+    arenaScale: 1.3,
+    arenaOffsetZ: -10
   },
   emptyPlayRoom: {
     cameraHeightM: 1.5,
     groundRadiusMultiplier: 3.9,
     groundResolution: 120,
-    arenaScale: 1.15
+    arenaScale: 1.15,
+    arenaOffsetX: -24,
+    arenaOffsetZ: 8,
+    rotationY: Math.PI / 2
   },
   christmasPhotoStudio04: {
     cameraHeightM: 1.52,
     groundRadiusMultiplier: 3.9,
     groundResolution: 120,
     arenaScale: 1.15
-  },
-  billiardHall: {
-    cameraHeightM: 1.54,
-    groundRadiusMultiplier: 4.8,
-    groundResolution: 128,
-    arenaScale: 1.25
   },
   colorfulStudio: {
     cameraHeightM: 1.5,
@@ -60,15 +59,10 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     cameraHeightM: 1.56,
     groundRadiusMultiplier: 4.8,
     groundResolution: 112,
-    arenaScale: 1.2
+    arenaScale: 1.2,
+    rotationY: Math.PI / 14
   },
   hallOfFinfish: {
-    cameraHeightM: 1.6,
-    groundRadiusMultiplier: 5.3,
-    groundResolution: 112,
-    arenaScale: 1.28
-  },
-  hallOfMammals: {
     cameraHeightM: 1.6,
     groundRadiusMultiplier: 5.3,
     groundResolution: 112,
@@ -192,7 +186,8 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     cameraHeightM: 1.58,
     groundRadiusMultiplier: 5,
     groundResolution: 112,
-    arenaScale: 1.26
+    arenaScale: 1.26,
+    arenaOffsetZ: -16
   },
   sepulchralChapelRotunda: {
     cameraHeightM: 1.62,
@@ -293,19 +288,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     description: 'Festive studio wraps with warm gift-light accents.'
   },
   {
-    id: 'billiardHall',
-    name: 'Billiard Hall',
-    assetId: 'billiard_hall',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 1800,
-    exposure: 1.11,
-    environmentIntensity: 1.06,
-    backgroundIntensity: 1.02,
-    swatches: ['#0ea5e9', '#22c55e'],
-    description: 'Realistic billiard hall lighting with focused overheads.'
-  },
-  {
     id: 'colorfulStudio',
     name: 'Colorful Studio',
     assetId: 'colorful_studio',
@@ -369,19 +351,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1.02,
     swatches: ['#22d3ee', '#2563eb'],
     description: 'Museum hall mood with blue-toned accents and glass case reflections.'
-  },
-  {
-    id: 'hallOfMammals',
-    name: 'Hall of Mammals',
-    assetId: 'hall_of_mammals',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 1960,
-    exposure: 1.12,
-    environmentIntensity: 1.09,
-    backgroundIntensity: 1.03,
-    swatches: ['#facc15', '#a16207'],
-    description: 'Golden museum ambience with warm diorama bounce and soft roof fill.'
   },
   {
     id: 'marryHall',
