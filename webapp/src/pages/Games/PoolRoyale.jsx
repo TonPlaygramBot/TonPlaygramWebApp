@@ -1829,30 +1829,30 @@ const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
   envMapIntensity: 0.4
 });
 const POLYHAVEN_WOOD_SURFACE_PROPS = Object.freeze({
-  roughness: 0.74,
+  roughness: 0.68,
   metalness: 0,
-  clearcoat: 0.05,
-  clearcoatRoughness: 0.82,
+  clearcoat: 0.08,
+  clearcoatRoughness: 0.75,
   sheen: 0,
-  sheenRoughness: 0.86,
-  envMapIntensity: 0.22
+  sheenRoughness: 0.8,
+  envMapIntensity: 0.32
 });
 const TABLE_FINISH_DULLING = Object.freeze({
-  roughnessLift: 0.34,
-  clearcoatScale: 0.3,
-  clearcoatRoughnessLift: 0.42,
-  envMapScale: 0.25,
-  reflectivityScale: 0.4,
-  sheenScale: 0.28,
-  sheenRoughnessLift: 0.38
+  roughnessLift: 0.3,
+  clearcoatScale: 0.4,
+  clearcoatRoughnessLift: 0.36,
+  envMapScale: 0.35,
+  reflectivityScale: 0.5,
+  sheenScale: 0.35,
+  sheenRoughnessLift: 0.32
 });
 const TABLE_WOOD_VISIBILITY_TUNING = Object.freeze({
-  roughnessMin: 0.62,
-  metalnessMax: 0.12,
-  clearcoatMax: 0.14,
-  clearcoatRoughnessMin: 0.58,
-  envMapIntensityMax: 0.22,
-  normalScale: 0.45
+  roughnessMin: 0.45,
+  metalnessMax: 0.2,
+  clearcoatMax: 0.22,
+  clearcoatRoughnessMin: 0.4,
+  envMapIntensityMax: 0.35,
+  normalScale: 0.65
 });
 
 const clampWoodRepeatScaleValue = () => DEFAULT_WOOD_REPEAT_SCALE;
@@ -4143,40 +4143,34 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 }
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['6k', '4k', '2k', '1k']);
-const HDRI_TIER_PROFILE_DESKTOP = Object.freeze({
-  under: '1k',
-  near: '6k',
-  mid: '4k',
-  far: '2k'
-});
-const HDRI_TIER_PROFILE_MOBILE = Object.freeze({
-  under: '1k',
-  near: '4k',
-  mid: '2k',
-  far: '2k'
-});
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '6k', '4k']);
+const HDRI_RESOLUTION_STORAGE_KEY = 'poolHdriResolution';
+const DEFAULT_HDRI_RESOLUTION_MODE = 'auto';
+const HDRI_RESOLUTION_OPTIONS = Object.freeze([
+  { id: 'auto', label: 'Match Table' },
+  { id: '8k', label: '8K' },
+  { id: '6k', label: '6K' },
+  { id: '4k', label: '4K' },
+  { id: '2k', label: '2K' }
+]);
+const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
+  HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const MIN_HDRI_RADIUS = 24;
 const HDRI_GROUNDED_RESOLUTION = 96;
 
-function resolveHdriTierProfile() {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return { ...HDRI_TIER_PROFILE_DESKTOP };
+function resolveHdriResolutionForTable(tableSizeMeta) {
+  const widthMm = tableSizeMeta?.playfield?.widthMm;
+  if (Number.isFinite(widthMm) && widthMm >= 2540) {
+    return '8k';
   }
-  const ua = navigator.userAgent ?? '';
-  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
-  const isTouch = maxTouchPoints > 1;
-  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
-  const lowMemory = deviceMemory !== null && deviceMemory <= 4;
-  const lowRefresh = detectLowRefreshDisplay();
-  if (isMobileUA || isTouch || lowMemory || lowRefresh) {
-    return { ...HDRI_TIER_PROFILE_MOBILE };
-  }
-  return { ...HDRI_TIER_PROFILE_DESKTOP };
+  return '4k';
 }
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
@@ -9242,6 +9236,15 @@ function PoolRoyaleGame({
       POOL_ROYALE_DEFAULT_HDRI_ID
     );
   });
+  const [hdriResolutionId, setHdriResolutionId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(HDRI_RESOLUTION_STORAGE_KEY);
+      if (stored && HDRI_RESOLUTION_OPTION_MAP[stored]) {
+        return stored;
+      }
+    }
+    return DEFAULT_HDRI_RESOLUTION_MODE;
+  });
   const [lightingId, setLightingId] = useState(() => DEFAULT_LIGHTING_ID);
   const [chromeColorId, setChromeColorId] = useState(() => {
     return resolveStoredSelection(
@@ -9271,7 +9274,12 @@ function PoolRoyaleGame({
       FRAME_RATE_OPTIONS[0],
     [frameRateId]
   );
-  const hdriTierProfile = useMemo(() => resolveHdriTierProfile(), []);
+  const activeHdriResolutionOption = useMemo(
+    () =>
+      HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId] ??
+      HDRI_RESOLUTION_OPTIONS[0],
+    [hdriResolutionId]
+  );
   const frameQualityProfile = useMemo(() => {
     const option = activeFrameRateOption ?? FRAME_RATE_OPTIONS[0];
     const fallback = FRAME_RATE_OPTIONS[0];
@@ -9296,13 +9304,9 @@ function PoolRoyaleGame({
     };
   }, [activeFrameRateOption]);
   const frameQualityRef = useRef(frameQualityProfile);
-  const hdriTierProfileRef = useRef(hdriTierProfile);
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
   }, [frameQualityProfile]);
-  useEffect(() => {
-    hdriTierProfileRef.current = hdriTierProfile;
-  }, [hdriTierProfile]);
   const activeBroadcastSystem = useMemo(
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
@@ -9370,6 +9374,15 @@ function PoolRoyaleGame({
       CLOTH_COLOR_OPTIONS[0],
     [availableClothOptions, clothColorId]
   );
+  const resolvedHdriResolution = useMemo(() => {
+    if (hdriResolutionId === 'auto') {
+      return resolveHdriResolutionForTable(responsiveTableSize);
+    }
+    if (HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]) {
+      return hdriResolutionId;
+    }
+    return resolveHdriResolutionForTable(responsiveTableSize);
+  }, [hdriResolutionId, responsiveTableSize]);
   const activeEnvironmentHdri = useMemo(
     () => {
       const variant =
@@ -9381,22 +9394,19 @@ function PoolRoyaleGame({
         Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
           ? variant.preferredResolutions
           : DEFAULT_HDRI_RESOLUTIONS;
-      const tierResolutions = [
-        hdriTierProfile.near,
-        hdriTierProfile.mid,
-        hdriTierProfile.far,
-        hdriTierProfile.under
-      ].filter(Boolean);
-      const preferredResolutions = Array.from(
-        new Set([...tierResolutions, ...basePreferred])
-      );
+      const resolved = resolvedHdriResolution ?? basePreferred[0];
+      if (!resolved) return variant;
+      const preferredResolutions = [
+        resolved,
+        ...basePreferred.filter((res) => res !== resolved)
+      ];
       return {
         ...variant,
         preferredResolutions,
-        fallbackResolution: preferredResolutions[0]
+        fallbackResolution: resolved
       };
     },
-    [environmentHdriId, hdriTierProfile]
+    [environmentHdriId, resolvedHdriResolution]
   );
   const activePocketLinerOption = useMemo(
     () =>
@@ -9987,6 +9997,10 @@ function PoolRoyaleGame({
   }, [environmentHdriId]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    window.localStorage.setItem(HDRI_RESOLUTION_STORAGE_KEY, hdriResolutionId);
+  }, [hdriResolutionId]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     window.localStorage.setItem(LIGHTING_STORAGE_KEY, lightingId);
   }, [lightingId]);
   useEffect(() => {
@@ -10489,10 +10503,6 @@ const powerRef = useRef(hud.power);
   const envTextureRef = useRef(null);
   const envSkyboxRef = useRef(null);
   const envSkyboxTextureRef = useRef(null);
-  const envTierMapsRef = useRef(null);
-  const applyHdriTieredEnvRef = useRef(() => {});
-  const arenaBoundsRef = useRef(null);
-  const tableSurfaceWorldYRef = useRef(null);
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
@@ -11440,130 +11450,17 @@ const powerRef = useRef(hud.power);
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
-      const applyHdriTiersToWorld = () => {
-        const envMaps = envTierMapsRef.current?.envMaps;
-        const worldInstance = worldRef.current;
-        if (!envMaps || !worldInstance) return;
-        const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-        const arenaBounds = arenaBoundsRef.current;
-        const arenaRadius = arenaBounds
-          ? Math.max(arenaBounds.halfWidth, arenaBounds.halfDepth) * scale
-          : Math.max(PLAY_W, PLAY_H) * scale;
-        const tableRadius = Math.max(PLAY_W, PLAY_H) * scale * 0.5;
-        const nearRadius = Math.max(arenaRadius * 0.2, tableRadius * 1.05);
-        const midRadius = Math.max(arenaRadius * 0.4, nearRadius * 1.6);
-        const tableSurfaceWorldY = tableSurfaceWorldYRef.current;
-        const underThreshold = Number.isFinite(tableSurfaceWorldY)
-          ? tableSurfaceWorldY - TABLE.THICK * scale * 0.6
-          : null;
-        const tempPos = new THREE.Vector3();
-        const applyEnvMap = (material, envMap) => {
-          if (!material || !envMap) return;
-          if (!('envMap' in material)) return;
-          if (material.envMap === envMap) return;
-          material.envMap = envMap;
-          material.needsUpdate = true;
-        };
-        worldInstance.traverse((node) => {
-          if (!node.isMesh) return;
-          node.getWorldPosition(tempPos);
-          const dist = Math.hypot(tempPos.x, tempPos.z);
-          let tier = 'far';
-          if (underThreshold !== null && tempPos.y < underThreshold) {
-            tier = 'under';
-          } else if (dist <= nearRadius) {
-            tier = 'near';
-          } else if (dist <= midRadius) {
-            tier = 'mid';
-          }
-          const envMap = envMaps[tier] ?? envMaps.far ?? envMaps.near ?? null;
-          const materials = Array.isArray(node.material) ? node.material : [node.material];
-          materials.forEach((material) => {
-            if (
-              material?.isMeshStandardMaterial ||
-              material?.isMeshPhysicalMaterial ||
-              material?.isMeshLambertMaterial ||
-              material?.isMeshPhongMaterial
-            ) {
-              applyEnvMap(material, envMap);
-            }
-          });
-        });
-      };
-      applyHdriTieredEnvRef.current = applyHdriTiersToWorld;
       const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
         const sceneInstance = sceneRef.current;
         if (!renderer || !sceneInstance) return;
         const activeVariant = variantConfig || activeEnvironmentVariantRef.current;
-        const tierProfile = hdriTierProfileRef.current ?? HDRI_TIER_PROFILE_DESKTOP;
-        const tierResolutions = {
-          under: tierProfile.under,
-          near: tierProfile.near,
-          mid: tierProfile.mid,
-          far: tierProfile.far
-        };
-        const orderedResolutions = [
-          tierResolutions.near,
-          tierResolutions.mid,
-          tierResolutions.far,
-          tierResolutions.under
-        ].filter(Boolean);
-        const uniqueResolutions = Array.from(new Set(orderedResolutions));
-        const loadedResults = await Promise.all(
-          uniqueResolutions.map((resolution) =>
-            loadPolyHavenHdriEnvironment(renderer, {
-              ...activeVariant,
-              preferredResolutions: [resolution],
-              fallbackResolution: resolution
-            })
-          )
-        );
-        const resolvedResults = new Map();
-        uniqueResolutions.forEach((resolution, index) => {
-          const result = loadedResults[index];
-          if (result?.envMap) {
-            resolvedResults.set(resolution, result);
-          }
-        });
-        const pickResult = (resolution) => {
-          if (resolution && resolvedResults.has(resolution)) {
-            return resolvedResults.get(resolution);
-          }
-          for (const fallbackResolution of uniqueResolutions) {
-            if (resolvedResults.has(fallbackResolution)) {
-              return resolvedResults.get(fallbackResolution);
-            }
-          }
-          return null;
-        };
-        const nearResult = pickResult(tierResolutions.near);
-        const midResult = pickResult(tierResolutions.mid);
-        const farResult = pickResult(tierResolutions.far);
-        const underResult = pickResult(tierResolutions.under);
-        const envMapNear = nearResult?.envMap ?? null;
-        const envMapMid = midResult?.envMap ?? envMapNear ?? null;
-        const envMapFar = farResult?.envMap ?? envMapMid ?? envMapNear ?? null;
-        const envMapUnder = underResult?.envMap ?? envMapFar ?? envMapMid ?? envMapNear ?? null;
-        const skyboxMap =
-          farResult?.skyboxMap ??
-          midResult?.skyboxMap ??
-          nearResult?.skyboxMap ??
-          underResult?.skyboxMap ??
-          null;
-        resolvedResults.forEach((result) => {
-          if (result?.skyboxMap && result.skyboxMap !== skyboxMap) {
-            result.skyboxMap.dispose?.();
-            result.skyboxMap = null;
-          }
-        });
-        if (!envMapFar) return;
+        const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
+        if (!envResult) return;
+        const { envMap, skyboxMap } = envResult;
+        if (!envMap) return;
         if (disposed) {
-          [envMapNear, envMapMid, envMapFar, envMapUnder].forEach((map) =>
-            map?.dispose?.()
-          );
-          if (skyboxMap?.dispose) {
-            skyboxMap.dispose();
-          }
+          envMap.dispose?.();
+          skyboxMap?.dispose?.();
           return;
         }
         const prevDispose = disposeEnvironmentRef.current;
@@ -11616,9 +11513,9 @@ const powerRef = useRef(hud.power);
             skybox = null;
           }
         }
-        sceneInstance.environment = envMapFar;
+        sceneInstance.environment = envMap;
         if (!skybox) {
-          sceneInstance.background = envMapFar;
+          sceneInstance.background = envMap;
           envSkyboxRef.current = null;
           envSkyboxTextureRef.current = null;
           if (
@@ -11635,27 +11532,15 @@ const powerRef = useRef(hud.power);
           sceneInstance.environmentIntensity = activeVariant.environmentIntensity;
         }
         renderer.toneMappingExposure = activeVariant?.exposure ?? renderer.toneMappingExposure;
-        envTextureRef.current = envMapFar;
-        envTierMapsRef.current = {
-          envMaps: {
-            under: envMapUnder,
-            near: envMapNear,
-            mid: envMapMid,
-            far: envMapFar
-          },
-          skyboxMap
-        };
+        envTextureRef.current = envMap;
         disposeEnvironmentRef.current = () => {
-          if (sceneRef.current?.environment === envMapFar) {
+          if (sceneRef.current?.environment === envMap) {
             sceneRef.current.environment = null;
           }
-          if (!skybox && sceneRef.current?.background === envMapFar) {
+          if (!skybox && sceneRef.current?.background === envMap) {
             sceneRef.current.background = null;
           }
-          [envMapNear, envMapMid, envMapFar, envMapUnder].forEach((map) => {
-            map?.dispose?.();
-          });
-          envTierMapsRef.current = null;
+          envMap.dispose?.();
           if (skybox) {
             skybox.parent?.remove(skybox);
             skybox.geometry?.dispose?.();
@@ -11664,18 +11549,15 @@ const powerRef = useRef(hud.power);
               envSkyboxRef.current = null;
             }
           }
-          if (skyboxMap?.dispose) {
-            skyboxMap.dispose();
-          }
-          if (envSkyboxTextureRef.current === skyboxMap) {
-            envSkyboxTextureRef.current = null;
+          if (skyboxMap) {
+            skyboxMap.dispose?.();
+            if (envSkyboxTextureRef.current === skyboxMap) {
+              envSkyboxTextureRef.current = null;
+            }
           }
         };
-        if (prevDispose && prevTexture !== envMapFar) {
+        if (prevDispose && prevTexture !== envMap) {
           prevDispose();
-        }
-        if (typeof applyHdriTieredEnvRef.current === 'function') {
-          applyHdriTieredEnvRef.current();
         }
       };
       updateEnvironmentRef.current = applyHdriEnvironment;
@@ -12127,10 +12009,6 @@ const powerRef = useRef(hud.power);
       const backInterior = arenaHalfDepth;
       const leftInterior = -arenaHalfWidth;
       const rightInterior = arenaHalfWidth;
-      arenaBoundsRef.current = { halfWidth: arenaHalfWidth, halfDepth: arenaHalfDepth };
-      if (typeof applyHdriTieredEnvRef.current === 'function') {
-        applyHdriTieredEnvRef.current();
-      }
 
       cueRackGroupsRef.current = [];
       cueOptionGroupsRef.current = [];
@@ -15541,7 +15419,6 @@ const powerRef = useRef(hud.power);
         world.scale.setScalar(nextScale);
         const surfaceOffset = baseSurfaceWorldY - tableSurfaceY * nextScale;
         world.position.y = surfaceOffset;
-        tableSurfaceWorldYRef.current = tableSurfaceY * nextScale + world.position.y;
         const rig = broadcastCamerasRef.current;
         if (rig) {
           const focusWorld = rig.defaultFocus
@@ -15556,9 +15433,6 @@ const powerRef = useRef(hud.power);
         }
         if (changed) {
           world.updateMatrixWorld(true);
-        }
-        if (typeof applyHdriTieredEnvRef.current === 'function') {
-          applyHdriTieredEnvRef.current();
         }
         return changed;
       };
@@ -20642,7 +20516,6 @@ const powerRef = useRef(hud.power);
           envTextureRef.current = null;
           envSkyboxRef.current = null;
           envSkyboxTextureRef.current = null;
-          envTierMapsRef.current = null;
           cueGalleryStateRef.current.active = false;
           cueGalleryStateRef.current.rackId = null;
           cueGalleryStateRef.current.prev = null;
@@ -20659,9 +20532,6 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     applyFinishRef.current?.(tableFinish);
     applyRailMarkerStyleRef.current?.(railMarkerStyleRef.current);
-    if (typeof applyHdriTieredEnvRef.current === 'function') {
-      applyHdriTieredEnvRef.current();
-    }
   }, [tableFinish]);
 
   useLayoutEffect(() => {
@@ -21478,6 +21348,34 @@ const powerRef = useRef(hud.power);
                 <p className="mt-1 text-[0.7rem] text-white/70">
                   Match the Murlan Royale quality presets for identical FPS and clarity choices.
                 </p>
+                <div className="mt-3">
+                  <h4 className="text-[10px] uppercase tracking-[0.32em] text-emerald-100/70">
+                    HDRI Resolution
+                  </h4>
+                  <p className="mt-1 text-[0.7rem] text-white/60">
+                    Active: {resolvedHdriResolution?.toUpperCase() || activeHdriResolutionOption.label}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {HDRI_RESOLUTION_OPTIONS.map((option) => {
+                      const active = option.id === hdriResolutionId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setHdriResolutionId(option.id)}
+                          aria-pressed={active}
+                          className={`flex-1 min-w-[7.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <div className="mt-2 grid gap-2">
                   {FRAME_RATE_OPTIONS.map((option) => {
                     const active = option.id === frameRateId;
