@@ -1962,7 +1962,8 @@ const createStandardWoodFinish = ({
   base,
   trim,
   accent,
-  woodTextureId
+  woodTextureId,
+  woodRepeatScale
 }) => ({
   id,
   label,
@@ -1972,6 +1973,7 @@ const createStandardWoodFinish = ({
     base
   }),
   woodTextureId,
+  woodRepeatScale,
   createMaterials: () => {
     const frameColor = new THREE.Color(base);
     const railColor = new THREE.Color(rail);
@@ -2041,6 +2043,7 @@ const TABLE_FINISHES = Object.freeze({
       base: 0xefe5d6
     }),
     woodTextureId: 'oak_veneer_01',
+    woodRepeatScale: 1,
     createMaterials: () => {
       const frameColor = new THREE.Color('#efe5d6');
       const railColor = new THREE.Color('#f2eadf');
@@ -2094,6 +2097,7 @@ const TABLE_FINISHES = Object.freeze({
       base: 0x302118
     }),
     woodTextureId: 'dark_wood',
+    woodRepeatScale: 1,
     createMaterials: () => {
       const frameColor = new THREE.Color('#302118');
       const railColor = new THREE.Color('#3c2c22');
@@ -2154,6 +2158,7 @@ const TABLE_FINISHES = Object.freeze({
       base: 0xae7a46
     }),
     woodTextureId: 'wood_table_001',
+    woodRepeatScale: 1,
     createMaterials: () => {
       const frameColor = new THREE.Color('#ae7a46');
       const railColor = new THREE.Color('#b88452');
@@ -2207,6 +2212,7 @@ const TABLE_FINISHES = Object.freeze({
       base: 0x4e463f
     }),
     woodTextureId: 'wood_peeling_paint_weathered',
+    woodRepeatScale: 1,
     createMaterials: () => {
       const frameColor = new THREE.Color('#4e463f');
       const railColor = new THREE.Color('#5f5750');
@@ -2264,7 +2270,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xb8b3aa,
     base: 0xa89f95,
     trim: 0xd6d0c7,
-    woodTextureId: 'wood_peeling_paint_weathered'
+    woodTextureId: 'wood_peeling_paint_weathered',
+    woodRepeatScale: 1
   }),
   oakVeneer01: createStandardWoodFinish({
     id: 'oakVeneer01',
@@ -2272,7 +2279,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xc89a64,
     base: 0xb9854e,
     trim: 0xe0bb7a,
-    woodTextureId: 'oak_veneer_01'
+    woodTextureId: 'oak_veneer_01',
+    woodRepeatScale: 1
   }),
   woodTable001: createStandardWoodFinish({
     id: 'woodTable001',
@@ -2280,7 +2288,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xa4724f,
     base: 0x8f6243,
     trim: 0xc89a64,
-    woodTextureId: 'wood_table_001'
+    woodTextureId: 'wood_table_001',
+    woodRepeatScale: 1
   }),
   darkWood: createStandardWoodFinish({
     id: 'darkWood',
@@ -2288,7 +2297,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x3d2f2a,
     base: 0x2f241f,
     trim: 0x6a5a52,
-    woodTextureId: 'dark_wood'
+    woodTextureId: 'dark_wood',
+    woodRepeatScale: 1
   }),
   rosewoodVeneer01: createStandardWoodFinish({
     id: 'rosewoodVeneer01',
@@ -2296,7 +2306,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0x6f3a2f,
     base: 0x5b2f26,
     trim: 0x9b5a44,
-    woodTextureId: 'rosewood_veneer_01'
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: 1
   }),
   kitchenWood: createStandardWoodFinish({
     id: 'kitchenWood',
@@ -2304,7 +2315,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xd2b28a,
     base: 0xc39c73,
     trim: 0xe6c79e,
-    woodTextureId: 'kitchen_wood'
+    woodTextureId: 'kitchen_wood',
+    woodRepeatScale: 1
   }),
   japaneseSycamore: createStandardWoodFinish({
     id: 'japaneseSycamore',
@@ -2312,7 +2324,8 @@ const TABLE_FINISHES = Object.freeze({
     rail: 0xe2d4b6,
     base: 0xd6c6a4,
     trim: 0xf1e2c6,
-    woodTextureId: 'japanese_sycamore'
+    woodTextureId: 'japanese_sycamore',
+    woodRepeatScale: 1
   }),
   jetBlackCarbon: {
     id: 'jetBlackCarbon',

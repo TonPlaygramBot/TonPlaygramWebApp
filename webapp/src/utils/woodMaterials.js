@@ -300,13 +300,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     label: 'Wood Peeling Paint Weathered',
     source: 'Poly Haven — Wood Peeling Paint Weathered (CC0)',
     rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('wood_peeling_paint_weathered')
     },
     frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('wood_peeling_paint_weathered')
@@ -317,13 +317,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     label: 'Oak Veneer 01',
     source: 'Poly Haven — Oak Veneer 01 (CC0)',
     rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('oak_veneer_01')
     },
     frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('oak_veneer_01')
@@ -334,13 +334,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     label: 'Wood Table 001',
     source: 'Poly Haven — Wood Table 001 (CC0)',
     rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('wood_table_001')
     },
     frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('wood_table_001')
@@ -351,13 +351,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     label: 'Dark Wood',
     source: 'Poly Haven — Dark Wood (CC0)',
     rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('dark_wood')
     },
     frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('dark_wood')
@@ -368,13 +368,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     label: 'Rosewood Veneer 01',
     source: 'Poly Haven — Rosewood Veneer 01 (CC0)',
     rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('rosewood_veneer_01')
     },
     frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('rosewood_veneer_01')
@@ -385,13 +385,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     label: 'Kitchen Wood',
     source: 'Poly Haven — Kitchen Wood (CC0)',
     rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('kitchen_wood')
     },
     frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('kitchen_wood')
@@ -402,13 +402,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     label: 'Japanese Sycamore',
     source: 'Poly Haven — Japanese Sycamore (CC0)',
     rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('japanese_sycamore')
     },
     frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('japanese_sycamore')
