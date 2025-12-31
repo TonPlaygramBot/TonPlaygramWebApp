@@ -825,6 +825,7 @@ const SHOW_SHORT_RAIL_TRIPODS = false;
     THICK: 1.8 * TABLE_SCALE,
     WALL: 2.6 * TABLE_SCALE
   };
+const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.18;
 const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
@@ -3520,7 +3521,10 @@ const createClothTextures = (() => {
       if (!v) return;
       if (typeof v === 'string') {
         const lower = v.toLowerCase();
-        if (v.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
+        if (
+          v.startsWith('http') &&
+          (lower.includes('.jpg') || lower.includes('.jpeg') || lower.includes('.png'))
+        ) {
           urls.push(v);
         }
         return;
@@ -3580,6 +3584,30 @@ const createClothTextures = (() => {
         (err) => reject(err || new Error('Texture load failed'))
       );
     });
+
+  const loadTextureWithFallbacks = async (loader, urls, isColor) => {
+    for (const url of urls) {
+      try {
+        const texture = await loadTexture(loader, url, isColor);
+        if (texture) return texture;
+      } catch (error) {
+        continue;
+      }
+    }
+    return null;
+  };
+
+  const buildPolyHavenTextureUrls = (sourceId, resolution) => {
+    if (!sourceId) return null;
+    const normalized = String(sourceId).replace(/\s+/g, '_');
+    const res = resolution.toUpperCase();
+    const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${resolution}/${normalized}/${normalized}_${res}`;
+    return {
+      diffuse: `${base}_Color.jpg`,
+      normal: `${base}_NormalGL.jpg`,
+      roughness: `${base}_Roughness.jpg`
+    };
+  };
 
   const applyTextureDefaults = (texture, { isPolyHaven = false } = {}) => {
     if (!texture) return;
@@ -3819,18 +3847,45 @@ const createClothTextures = (() => {
 
     const promise = (async () => {
       try {
-        const response = await fetch(`https://api.polyhaven.com/files/${preset.sourceId}`);
-        if (!response?.ok) return;
-        const json = await response.json();
-        const urls = pickPolyHavenTextureUrls(json);
-        if (!urls.diffuse) return;
+        let urls = {};
+        try {
+          const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(preset.sourceId)}`);
+          if (response?.ok) {
+            const json = await response.json();
+            urls = pickPolyHavenTextureUrls(json);
+          }
+        } catch (error) {
+          urls = {};
+        }
+
+        const fallback2k = buildPolyHavenTextureUrls(preset.sourceId, '2k');
+        const fallback1k = buildPolyHavenTextureUrls(preset.sourceId, '1k');
         const loader = new THREE.TextureLoader();
         loader.setCrossOrigin('anonymous');
 
-        let [map, normal, roughness] = await Promise.all([
-          loadTexture(loader, urls.diffuse, true),
-          loadTexture(loader, urls.normal, false),
-          loadTexture(loader, urls.roughness, false)
+        const diffuseCandidates = [
+          urls.diffuse,
+          fallback2k?.diffuse,
+          fallback1k?.diffuse
+        ].filter(Boolean);
+        const normalCandidates = [
+          urls.normal,
+          fallback2k?.normal,
+          fallback1k?.normal
+        ].filter(Boolean);
+        const roughnessCandidates = [
+          urls.roughness,
+          fallback2k?.roughness,
+          fallback1k?.roughness
+        ].filter(Boolean);
+
+        let map = null;
+        let normal = null;
+        let roughness = null;
+        [map, normal, roughness] = await Promise.all([
+          loadTextureWithFallbacks(loader, diffuseCandidates, true),
+          loadTextureWithFallbacks(loader, normalCandidates, false),
+          loadTextureWithFallbacks(loader, roughnessCandidates, false)
         ]);
 
         if (map) {
@@ -7146,7 +7201,7 @@ function Table3D(
   const railsTopY = frameTopY + railH;
   const longRailW = ORIGINAL_RAIL_WIDTH; // keep the long rail caps as wide as the end rails so side pockets match visually
   const endRailW = ORIGINAL_RAIL_WIDTH;
-  const frameExpansion = TABLE.WALL * 0.12;
+  const frameExpansion = TABLE.WALL * 0.12 + TABLE_OUTER_EXPANSION;
   const frameWidthEnd =
     Math.max(0, ORIGINAL_OUTER_HALF_H - halfH - 2 * endRailW) + frameExpansion;
   const frameWidthLong = frameWidthEnd; // force side rails to carry the same exterior thickness as the short rails
@@ -8331,7 +8386,7 @@ function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.8;
+  const railMarkerOutset = longRailW * 0.62;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
