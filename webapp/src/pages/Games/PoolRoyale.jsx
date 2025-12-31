@@ -1846,6 +1846,14 @@ const TABLE_FINISH_DULLING = Object.freeze({
   sheenScale: 0.35,
   sheenRoughnessLift: 0.32
 });
+const TABLE_WOOD_VISIBILITY_TUNING = Object.freeze({
+  roughnessMin: 0.45,
+  metalnessMax: 0.2,
+  clearcoatMax: 0.22,
+  clearcoatRoughnessMin: 0.4,
+  envMapIntensityMax: 0.35,
+  normalScale: 0.65
+});
 
 const clampWoodRepeatScaleValue = () => DEFAULT_WOOD_REPEAT_SCALE;
 
@@ -1932,6 +1940,36 @@ function applyTableFinishDulling(material) {
       0,
       1
     );
+  }
+  material.needsUpdate = true;
+}
+
+function applyTableWoodVisibilityTuning(material) {
+  if (!material) return;
+  const props = TABLE_WOOD_VISIBILITY_TUNING;
+  if ('roughness' in material) {
+    material.roughness = Math.max(material.roughness ?? 0, props.roughnessMin);
+  }
+  if ('metalness' in material) {
+    material.metalness = Math.min(material.metalness ?? 0, props.metalnessMax);
+  }
+  if ('clearcoat' in material) {
+    material.clearcoat = Math.min(material.clearcoat ?? 0, props.clearcoatMax);
+  }
+  if ('clearcoatRoughness' in material) {
+    material.clearcoatRoughness = Math.max(
+      material.clearcoatRoughness ?? 0,
+      props.clearcoatRoughnessMin
+    );
+  }
+  if ('envMapIntensity' in material) {
+    material.envMapIntensity = Math.min(
+      material.envMapIntensity ?? 0,
+      props.envMapIntensityMax
+    );
+  }
+  if (material.normalMap) {
+    material.normalScale = new THREE.Vector2(props.normalScale, props.normalScale);
   }
   material.needsUpdate = true;
 }
@@ -8906,6 +8944,8 @@ function applyTableFinishToTable(table, finish) {
     applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
     applyTableFinishDulling(railMat);
     applyTableFinishDulling(frameMat);
+    applyTableWoodVisibilityTuning(railMat);
+    applyTableWoodVisibilityTuning(frameMat);
     finishInfo.parts.underlayMeshes.forEach((mesh) => {
       if (!mesh) return;
       const baseMaterialKey = mesh.userData?.baseMaterialKey === 'frame' ? 'frame' : 'rail';
@@ -8922,6 +8962,7 @@ function applyTableFinishToTable(table, finish) {
         baseMaterialKey === 'frame' ? synchronizedFrameSurface : synchronizedRailSurface;
       applyWoodTextureToMaterial(mesh.material, underlaySurface);
       applyTableFinishDulling(mesh.material);
+      applyTableWoodVisibilityTuning(mesh.material);
       if (mesh.material.color && sourceMaterial?.color) {
         mesh.material.color.copy(sourceMaterial.color);
       }
@@ -8934,6 +8975,7 @@ function applyTableFinishToTable(table, finish) {
       });
     }
     applyTableFinishDulling(legMat);
+    applyTableWoodVisibilityTuning(legMat);
     woodSurfaces.rail = cloneWoodSurfaceConfig(synchronizedRailSurface);
     woodSurfaces.frame = cloneWoodSurfaceConfig(synchronizedFrameSurface);
     finishInfo.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
@@ -8946,10 +8988,14 @@ function applyTableFinishToTable(table, finish) {
     applyTableFinishDulling(railMat);
     applyTableFinishDulling(frameMat);
     applyTableFinishDulling(legMat);
+    applyTableWoodVisibilityTuning(railMat);
+    applyTableWoodVisibilityTuning(frameMat);
+    applyTableWoodVisibilityTuning(legMat);
     finishInfo.parts.underlayMeshes.forEach((mesh) => {
       if (!mesh?.material) return;
       stripWoodTextures(mesh.material);
       applyTableFinishDulling(mesh.material);
+      applyTableWoodVisibilityTuning(mesh.material);
       if (mesh.material.color && railMat.color) {
         mesh.material.color.copy(railMat.color);
       }

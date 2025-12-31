@@ -312,9 +312,9 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     preferredResolutions: ['4k', '2k'],
     fallbackResolution: '4k',
     price: 1820,
-    exposure: 1.06,
-    environmentIntensity: 1.0,
-    backgroundIntensity: 0.98,
+    exposure: 1.02,
+    environmentIntensity: 0.92,
+    backgroundIntensity: 0.92,
     swatches: ['#ec4899', '#a855f7'],
     description: 'Playful multi-hue studio for glossy highlight variety.'
   },
