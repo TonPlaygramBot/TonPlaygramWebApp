@@ -39,7 +39,6 @@ import {
   WOOD_FINISH_PRESETS,
   WOOD_GRAIN_OPTIONS,
   WOOD_GRAIN_OPTIONS_BY_ID,
-  DEFAULT_WOOD_GRAIN_ID,
   DEFAULT_WOOD_TEXTURE_SIZE,
   applyWoodTextures,
   disposeMaterialWithWood,
@@ -794,7 +793,7 @@ function addPocketCuts(
 // separate scales for table and balls
 // Dimensions tuned for an official 9ft pool table footprint while globally reduced
 // to fit comfortably inside the existing mobile arena presentation.
-const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
+const TABLE_SIZE_SHRINK = 0.88; // tighten the table footprint slightly to add breathing room without altering proportions
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
@@ -1299,10 +1298,11 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3.4, 0.44 / 3.4); // enlarge grain 3× so rails, skirts, and legs read at table scale
-const FIXED_WOOD_REPEAT_SCALE = 20; // locked to 2000% for consistent oversized grain
+const FIXED_WOOD_REPEAT_SCALE = 100; // locked to 10000% for consistent oversized grain
 const WOOD_REPEAT_SCALE_MIN = FIXED_WOOD_REPEAT_SCALE;
 const WOOD_REPEAT_SCALE_MAX = FIXED_WOOD_REPEAT_SCALE;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
+const POOL_ROYALE_DEFAULT_WOOD_GRAIN_ID = 'oak_veneer_01';
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
@@ -6426,13 +6426,13 @@ function Table3D(
     resolvedFinish?.clothTextureKey ?? DEFAULT_CLOTH_TEXTURE_KEY;
   const palette = resolvedFinish?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
   const defaultWoodOption =
-    WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
+    WOOD_GRAIN_OPTIONS_BY_ID[POOL_ROYALE_DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
   const resolvedWoodOption =
     resolvedFinish?.woodTexture ||
     (resolvedFinish?.woodTextureId &&
       WOOD_GRAIN_OPTIONS_BY_ID[resolvedFinish.woodTextureId]) ||
     defaultWoodOption;
-  finishParts.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
+  finishParts.woodTextureId = resolvedWoodOption?.id ?? POOL_ROYALE_DEFAULT_WOOD_GRAIN_ID;
 
   const createMaterialsFn =
     typeof resolvedFinish?.createMaterials === 'function'
@@ -6490,6 +6490,7 @@ function Table3D(
     ),
     rotation: initialFrameSurface.rotation,
     textureSize: initialFrameSurface.textureSize,
+    mapUrl: initialFrameSurface.mapUrl,
     woodRepeatScale
   };
   const synchronizedFrameSurface = {
@@ -6499,16 +6500,14 @@ function Table3D(
     ),
     rotation: initialFrameSurface.rotation,
     textureSize: initialFrameSurface.textureSize,
+    mapUrl: initialFrameSurface.mapUrl,
     woodRepeatScale
   };
 
   applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
   applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
   if (legMat !== frameMat) {
-    applyWoodTextureToMaterial(legMat, {
-      ...synchronizedFrameSurface,
-      rotation: synchronizedFrameSurface.rotation + Math.PI / 2
-    });
+    applyWoodTextureToMaterial(legMat, synchronizedFrameSurface);
   }
   finishParts.woodSurfaces = {
     frame: cloneWoodSurfaceConfig(synchronizedFrameSurface),
@@ -7165,6 +7164,7 @@ function Table3D(
     ),
     rotation: alignedRailSurface.rotation,
     textureSize: alignedRailSurface.textureSize,
+    mapUrl: alignedRailSurface.mapUrl,
     woodRepeatScale
   });
   finishParts.underlayMeshes.forEach((mesh) => {
@@ -7177,6 +7177,7 @@ function Table3D(
       ),
       rotation: underlaySurface.rotation,
       textureSize: underlaySurface.textureSize,
+      mapUrl: underlaySurface.mapUrl,
       woodRepeatScale
     });
     mesh.material.needsUpdate = true;
@@ -8941,8 +8942,9 @@ function Table3D(
   // clearly from the player perspective.
   const baseFrameFallback = {
     repeat: TABLE_WOOD_REPEAT,
-    rotation: Math.PI / 2,
-    textureSize: resolvedWoodOption?.frame?.textureSize ?? woodRailSurface.textureSize
+    rotation: 0,
+    textureSize: resolvedWoodOption?.frame?.textureSize ?? woodRailSurface.textureSize,
+    mapUrl: resolvedWoodOption?.frame?.mapUrl ?? resolvedWoodOption?.rail?.mapUrl
   };
   const woodFrameSurface = resolveWoodSurfaceConfig(
     resolvedWoodOption?.frame,
@@ -8952,15 +8954,13 @@ function Table3D(
     repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
     rotation: woodFrameSurface.rotation,
     textureSize: woodFrameSurface.textureSize,
+    mapUrl: woodFrameSurface.mapUrl,
     woodRepeatScale
   };
 
   applyWoodTextureToMaterial(frameMat, synchronizedWoodSurface);
   if (legMat !== frameMat) {
-    applyWoodTextureToMaterial(legMat, {
-      ...synchronizedWoodSurface,
-      rotation: synchronizedWoodSurface.rotation + Math.PI / 2
-    });
+    applyWoodTextureToMaterial(legMat, synchronizedWoodSurface);
   }
   finishParts.woodSurfaces.frame = cloneWoodSurfaceConfig({
     ...woodFrameSurface,
@@ -9150,7 +9150,7 @@ function applyTableFinishToTable(table, finish) {
   finishInfo.parts.woodSurfaces = woodSurfaces;
   if (woodTextureEnabled) {
     const defaultWoodOption =
-      WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
+      WOOD_GRAIN_OPTIONS_BY_ID[POOL_ROYALE_DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
     const resolvedWoodOption =
       resolvedFinish?.woodTexture ||
       (resolvedFinish?.woodTextureId &&
@@ -9175,12 +9175,14 @@ function applyTableFinishToTable(table, finish) {
       ),
       rotation: nextFrameSurface.rotation,
       textureSize: nextFrameSurface.textureSize,
+      mapUrl: nextFrameSurface.mapUrl,
       woodRepeatScale
     };
     const synchronizedFrameSurface = {
       repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
       rotation: nextFrameSurface.rotation,
       textureSize: nextFrameSurface.textureSize,
+      mapUrl: nextFrameSurface.mapUrl,
       woodRepeatScale
     };
 
@@ -9207,14 +9209,11 @@ function applyTableFinishToTable(table, finish) {
       mesh.material.needsUpdate = true;
     });
     if (legMat !== frameMat) {
-      applyWoodTextureToMaterial(legMat, {
-        ...synchronizedFrameSurface,
-        rotation: synchronizedFrameSurface.rotation + Math.PI / 2
-      });
+      applyWoodTextureToMaterial(legMat, synchronizedFrameSurface);
     }
     woodSurfaces.rail = cloneWoodSurfaceConfig(synchronizedRailSurface);
     woodSurfaces.frame = cloneWoodSurfaceConfig(synchronizedFrameSurface);
-    finishInfo.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
+    finishInfo.woodTextureId = resolvedWoodOption?.id ?? POOL_ROYALE_DEFAULT_WOOD_GRAIN_ID;
     finishInfo.parts.woodTextureId = finishInfo.woodTextureId;
     finishInfo.woodRepeatScale = woodRepeatScale;
   } else {
