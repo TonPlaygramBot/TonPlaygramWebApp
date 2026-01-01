@@ -48,7 +48,8 @@ import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_DEFAULT_UNLOCKS,
   POOL_ROYALE_HDRI_VARIANTS,
-  POOL_ROYALE_HDRI_VARIANT_MAP
+  POOL_ROYALE_HDRI_VARIANT_MAP,
+  POOL_ROYALE_TABLE_BASE_OPTIONS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
@@ -799,9 +800,20 @@ const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
+const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
+const TABLE_BASE_VARIANT_MAP = Object.freeze(
+  POOL_ROYALE_TABLE_BASE_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
+const DEFAULT_TABLE_BASE_ID =
+  POOL_ROYALE_DEFAULT_UNLOCKS.tableBase?.[0] ??
+  POOL_ROYALE_TABLE_BASE_OPTIONS[0]?.id ??
+  'classicSkirt';
 const DEFAULT_CUE_STYLE_ID =
   POOL_ROYALE_DEFAULT_UNLOCKS.cueStyle?.[0] ?? 'birch-frost';
 const DEFAULT_CUE_STYLE_INDEX = Math.max(
@@ -6103,11 +6115,625 @@ function createAccentMesh(accent, dims) {
   return mesh;
 }
 
+function markBaseMesh(mesh) {
+  if (!mesh) return;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+}
+
+function buildClassicBase(context) {
+  const {
+    frameOuterX,
+    frameOuterZ,
+    baseOverhang,
+    skirtH,
+    frameTopY,
+    hasRoundedRailCorners,
+    outerCornerRadius,
+    frameMat,
+    legMat,
+    legR,
+    legH,
+    legInset,
+    legY,
+    skirtBaseY
+  } = context;
+  const group = new THREE.Group();
+  group.name = 'base-classicSkirt';
+  const frameMeshes = [];
+  const legMeshes = [];
+
+  const skirtShape = new THREE.Shape();
+  const outW = frameOuterX + baseOverhang;
+  const outZ = frameOuterZ + baseOverhang;
+  const skirtOuterRadius = hasRoundedRailCorners
+    ? Math.min(outerCornerRadius + baseOverhang * 0.4, Math.min(outW, outZ))
+    : 0;
+  if (skirtOuterRadius > MICRO_EPS) {
+    skirtShape.moveTo(outW, -outZ + skirtOuterRadius);
+    skirtShape.lineTo(outW, outZ - skirtOuterRadius);
+    skirtShape.absarc(
+      outW - skirtOuterRadius,
+      outZ - skirtOuterRadius,
+      skirtOuterRadius,
+      0,
+      Math.PI / 2,
+      false
+    );
+    skirtShape.lineTo(-outW + skirtOuterRadius, outZ);
+    skirtShape.absarc(
+      -outW + skirtOuterRadius,
+      outZ - skirtOuterRadius,
+      skirtOuterRadius,
+      Math.PI / 2,
+      Math.PI,
+      false
+    );
+    skirtShape.lineTo(-outW, -outZ + skirtOuterRadius);
+    skirtShape.absarc(
+      -outW + skirtOuterRadius,
+      -outZ + skirtOuterRadius,
+      skirtOuterRadius,
+      Math.PI,
+      1.5 * Math.PI,
+      false
+    );
+    skirtShape.lineTo(outW - skirtOuterRadius, -outZ);
+    skirtShape.absarc(
+      outW - skirtOuterRadius,
+      -outZ + skirtOuterRadius,
+      skirtOuterRadius,
+      -Math.PI / 2,
+      0,
+      false
+    );
+  } else {
+    skirtShape.moveTo(outW, -outZ);
+    skirtShape.lineTo(outW, outZ);
+    skirtShape.lineTo(-outW, outZ);
+    skirtShape.lineTo(-outW, -outZ);
+    skirtShape.lineTo(outW, -outZ);
+  }
+  const skirtInnerRadius = hasRoundedRailCorners ? Math.max(outerCornerRadius - baseOverhang, 0) : 0;
+  const inner = new THREE.Path();
+  if (skirtInnerRadius > MICRO_EPS) {
+    inner.moveTo(frameOuterX, -frameOuterZ + skirtInnerRadius);
+    inner.lineTo(frameOuterX, frameOuterZ - skirtInnerRadius);
+    inner.absarc(
+      frameOuterX - skirtInnerRadius,
+      frameOuterZ - skirtInnerRadius,
+      skirtInnerRadius,
+      0,
+      Math.PI / 2,
+      false
+    );
+    inner.lineTo(-frameOuterX + skirtInnerRadius, frameOuterZ);
+    inner.absarc(
+      -frameOuterX + skirtInnerRadius,
+      frameOuterZ - skirtInnerRadius,
+      skirtInnerRadius,
+      Math.PI / 2,
+      Math.PI,
+      false
+    );
+    inner.lineTo(-frameOuterX, -frameOuterZ + skirtInnerRadius);
+    inner.absarc(
+      -frameOuterX + skirtInnerRadius,
+      -frameOuterZ + skirtInnerRadius,
+      skirtInnerRadius,
+      Math.PI,
+      1.5 * Math.PI,
+      false
+    );
+    inner.lineTo(frameOuterX - skirtInnerRadius, -frameOuterZ);
+    inner.absarc(
+      frameOuterX - skirtInnerRadius,
+      -frameOuterZ + skirtInnerRadius,
+      skirtInnerRadius,
+      -Math.PI / 2,
+      0,
+      false
+    );
+  } else {
+    inner.moveTo(frameOuterX, -frameOuterZ);
+    inner.lineTo(frameOuterX, frameOuterZ);
+    inner.lineTo(-frameOuterX, frameOuterZ);
+    inner.lineTo(-frameOuterX, -frameOuterZ);
+    inner.lineTo(frameOuterX, -frameOuterZ);
+  }
+  skirtShape.holes.push(inner);
+  const skirtGeo = new THREE.ExtrudeGeometry(skirtShape, {
+    depth: skirtH,
+    bevelEnabled: false
+  });
+  const skirt = new THREE.Mesh(skirtGeo, frameMat);
+  skirt.rotation.x = -Math.PI / 2;
+  skirt.position.y = skirtBaseY;
+  markBaseMesh(skirt);
+  group.add(skirt);
+  frameMeshes.push(skirt);
+
+  const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
+  const legPositions = [
+    [-frameOuterX + legInset, -frameOuterZ + legInset],
+    [frameOuterX - legInset, -frameOuterZ + legInset],
+    [-frameOuterX + legInset, 0],
+    [frameOuterX - legInset, 0],
+    [-frameOuterX + legInset, frameOuterZ - legInset],
+    [frameOuterX - legInset, frameOuterZ - legInset]
+  ];
+  legPositions.forEach(([lx, lz]) => {
+    const leg = new THREE.Mesh(legGeo, legMat);
+    leg.position.set(lx, legY, lz);
+    markBaseMesh(leg);
+    group.add(leg);
+    legMeshes.push(leg);
+  });
+
+  return { group, frameMeshes, legMeshes };
+}
+
+function buildLoopPedestalBase(context) {
+  const {
+    frameOuterX,
+    frameOuterZ,
+    frameMat,
+    legMat,
+    legR,
+    legH,
+    localFloorY,
+    supportTopY,
+    skirtH
+  } = context;
+  const group = new THREE.Group();
+  group.name = 'base-loopPedestal';
+  const frameMeshes = [];
+  const legMeshes = [];
+
+  const baseRadius = Math.max(frameOuterX, frameOuterZ) * 0.62;
+  const lowerH = Math.max(legR * 1.8, 0.32);
+  const lower = new THREE.Mesh(
+    new THREE.CylinderGeometry(baseRadius, baseRadius * 0.96, lowerH, 48),
+    frameMat
+  );
+  lower.scale.x = 1.1;
+  lower.position.y = localFloorY + lowerH / 2;
+  markBaseMesh(lower);
+  group.add(lower);
+  frameMeshes.push(lower);
+
+  const loopRadius = Math.min(frameOuterX, frameOuterZ) * 0.55;
+  const loopThickness = Math.max(legR * 0.7, 0.2);
+  const loop = new THREE.Mesh(
+    new THREE.TorusGeometry(loopRadius, loopThickness, 30, 80),
+    legMat
+  );
+  loop.rotation.x = Math.PI / 2;
+  loop.position.y = localFloorY + legH * 0.42;
+  loop.scale.set(1.2, 1, 1);
+  markBaseMesh(loop);
+  group.add(loop);
+  legMeshes.push(loop);
+
+  const spineHeight = Math.max(MICRO_EPS, supportTopY - loop.position.y - loopThickness * 0.6);
+  const spine = new THREE.Mesh(
+    new THREE.CylinderGeometry(loopThickness * 1.2, loopThickness * 1.2, spineHeight, 28),
+    legMat
+  );
+  spine.position.y = loop.position.y + spineHeight / 2;
+  markBaseMesh(spine);
+  group.add(spine);
+  legMeshes.push(spine);
+
+  const topDeckH = Math.max(skirtH * 0.55, 0.2);
+  const topDeck = new THREE.Mesh(
+    new THREE.CylinderGeometry(baseRadius * 0.78, baseRadius * 0.82, topDeckH, 48),
+    frameMat
+  );
+  topDeck.scale.x = 1.05;
+  topDeck.position.y = supportTopY - topDeckH / 2;
+  markBaseMesh(topDeck);
+  group.add(topDeck);
+  frameMeshes.push(topDeck);
+
+  const plinth = new THREE.Mesh(
+    new THREE.BoxGeometry(frameOuterX * 1.6, skirtH * 0.32, frameOuterZ * 1.05),
+    frameMat
+  );
+  plinth.position.y = supportTopY - topDeckH - skirtH * 0.2;
+  markBaseMesh(plinth);
+  group.add(plinth);
+  frameMeshes.push(plinth);
+
+  return { group, frameMeshes, legMeshes };
+}
+
+function buildZPedestalBase(context) {
+  const {
+    frameOuterX,
+    frameOuterZ,
+    frameMat,
+    legMat,
+    legR,
+    localFloorY,
+    supportTopY,
+    skirtH
+  } = context;
+  const group = new THREE.Group();
+  group.name = 'base-zPedestal';
+  const frameMeshes = [];
+  const legMeshes = [];
+
+  const pedestalHeight = Math.max(MICRO_EPS, supportTopY - localFloorY);
+  const column = new THREE.Mesh(
+    new THREE.BoxGeometry(frameOuterX * 1.6, pedestalHeight * 0.86, frameOuterZ * 0.7),
+    legMat
+  );
+  column.position.y = localFloorY + pedestalHeight * 0.5;
+  column.rotation.z = -Math.PI / 12;
+  markBaseMesh(column);
+  group.add(column);
+  legMeshes.push(column);
+
+  const basePadH = Math.max(legR * 1.3, 0.22);
+  const basePad = new THREE.Mesh(
+    new THREE.BoxGeometry(frameOuterX * 1.6, basePadH, frameOuterZ * 0.9),
+    frameMat
+  );
+  basePad.position.set(0, localFloorY + basePadH / 2, -frameOuterZ * 0.12);
+  markBaseMesh(basePad);
+  group.add(basePad);
+  frameMeshes.push(basePad);
+
+  const topPad = new THREE.Mesh(
+    new THREE.BoxGeometry(frameOuterX * 1.45, skirtH * 0.42, frameOuterZ * 0.98),
+    frameMat
+  );
+  topPad.position.set(0, supportTopY - skirtH * 0.21, frameOuterZ * 0.08);
+  markBaseMesh(topPad);
+  group.add(topPad);
+  frameMeshes.push(topPad);
+
+  return { group, frameMeshes, legMeshes };
+}
+
+function buildArcBridgeBase(context) {
+  const {
+    frameOuterX,
+    frameOuterZ,
+    frameMat,
+    legMat,
+    legR,
+    localFloorY,
+    supportTopY,
+    skirtH
+  } = context;
+  const group = new THREE.Group();
+  group.name = 'base-arcBridge';
+  const frameMeshes = [];
+  const legMeshes = [];
+
+  const archRadius = Math.min(frameOuterX, frameOuterZ) * 0.9;
+  const archThickness = Math.max(legR * 0.7, 0.18);
+  const arch = new THREE.Mesh(
+    new THREE.TorusGeometry(archRadius, archThickness, 28, 80, Math.PI),
+    legMat
+  );
+  arch.rotation.x = Math.PI / 2;
+  arch.rotation.y = Math.PI;
+  arch.position.y = localFloorY + archThickness + (supportTopY - localFloorY) * 0.28;
+  arch.scale.set(1, 0.86, 1.05);
+  markBaseMesh(arch);
+  group.add(arch);
+  legMeshes.push(arch);
+
+  const baseSlab = new THREE.Mesh(
+    new THREE.BoxGeometry(frameOuterX * 1.8, archThickness * 1.6, frameOuterZ * 1.2),
+    frameMat
+  );
+  baseSlab.position.y = localFloorY + archThickness * 0.8;
+  markBaseMesh(baseSlab);
+  group.add(baseSlab);
+  frameMeshes.push(baseSlab);
+
+  const topCap = new THREE.Mesh(
+    new THREE.BoxGeometry(frameOuterX * 1.75, skirtH * 0.45, frameOuterZ * 1.05),
+    frameMat
+  );
+  topCap.position.y = supportTopY - skirtH * 0.22;
+  markBaseMesh(topCap);
+  group.add(topCap);
+  frameMeshes.push(topCap);
+
+  return { group, frameMeshes, legMeshes };
+}
+
+function buildModernBridgeBase(context) {
+  const {
+    frameOuterX,
+    frameOuterZ,
+    frameMat,
+    legMat,
+    legR,
+    localFloorY,
+    supportTopY
+  } = context;
+  const group = new THREE.Group();
+  group.name = 'base-modernBridge';
+  const frameMeshes = [];
+  const legMeshes = [];
+
+  const legHeight = Math.max(MICRO_EPS, supportTopY - localFloorY);
+  const legSpan = frameOuterX * 0.8;
+  const legDepth = frameOuterZ * 0.18;
+  const beamThickness = Math.max(legR * 1.1, 0.18);
+
+  const legGeom = new THREE.BoxGeometry(beamThickness, legHeight * 0.92, legDepth);
+  const leftLeg = new THREE.Mesh(legGeom, legMat);
+  leftLeg.position.set(-legSpan, localFloorY + legHeight * 0.46, 0);
+  leftLeg.rotation.z = Math.PI / 18;
+  markBaseMesh(leftLeg);
+  group.add(leftLeg);
+  legMeshes.push(leftLeg);
+
+  const rightLeg = leftLeg.clone();
+  rightLeg.position.x = legSpan;
+  rightLeg.rotation.z = -Math.PI / 18;
+  group.add(rightLeg);
+  legMeshes.push(rightLeg);
+
+  const baseBeam = new THREE.Mesh(
+    new THREE.BoxGeometry(legSpan * 2 + beamThickness * 1.2, beamThickness * 0.7, legDepth * 1.4),
+    frameMat
+  );
+  baseBeam.position.y = localFloorY + beamThickness * 0.35;
+  markBaseMesh(baseBeam);
+  group.add(baseBeam);
+  frameMeshes.push(baseBeam);
+
+  const topBeam = new THREE.Mesh(
+    new THREE.BoxGeometry(legSpan * 2, beamThickness * 0.95, legDepth * 1.2),
+    frameMat
+  );
+  topBeam.position.y = supportTopY - beamThickness * 0.45;
+  markBaseMesh(topBeam);
+  group.add(topBeam);
+  frameMeshes.push(topBeam);
+
+  return { group, frameMeshes, legMeshes };
+}
+
+function buildArcadeBlockBase(context) {
+  const {
+    frameOuterX,
+    frameOuterZ,
+    frameMat,
+    legMat,
+    trimMat,
+    legR,
+    localFloorY,
+    supportTopY,
+    skirtH
+  } = context;
+  const group = new THREE.Group();
+  group.name = 'base-arcadeBlock';
+  const frameMeshes = [];
+  const legMeshes = [];
+  const trimMeshes = [];
+
+  const blockHeight = Math.max(MICRO_EPS, supportTopY - localFloorY);
+  const block = new THREE.Mesh(
+    new THREE.BoxGeometry(frameOuterX * 1.6, blockHeight * 0.92, frameOuterZ * 0.85),
+    legMat
+  );
+  block.position.y = localFloorY + blockHeight * 0.46;
+  markBaseMesh(block);
+  group.add(block);
+  legMeshes.push(block);
+
+  const baseTrimH = Math.max(legR * 0.9, 0.16);
+  const baseTrim = new THREE.Mesh(
+    new THREE.BoxGeometry(frameOuterX * 1.7, baseTrimH, frameOuterZ * 0.96),
+    trimMat
+  );
+  baseTrim.position.y = localFloorY + baseTrimH / 2;
+  markBaseMesh(baseTrim);
+  group.add(baseTrim);
+  trimMeshes.push(baseTrim);
+
+  const topLip = new THREE.Mesh(
+    new THREE.BoxGeometry(frameOuterX * 1.7, skirtH * 0.36, frameOuterZ * 0.98),
+    frameMat
+  );
+  topLip.position.y = supportTopY - skirtH * 0.18;
+  markBaseMesh(topLip);
+  group.add(topLip);
+  frameMeshes.push(topLip);
+
+  return { group, frameMeshes, legMeshes, trimMeshes };
+}
+
+function buildHeritageCarvedBase(context) {
+  const {
+    frameOuterX,
+    frameOuterZ,
+    frameMat,
+    legMat,
+    legR,
+    localFloorY,
+    supportTopY,
+    skirtH
+  } = context;
+  const group = new THREE.Group();
+  group.name = 'base-heritageCarved';
+  const frameMeshes = [];
+  const legMeshes = [];
+
+  const profile = [];
+  const legHeight = Math.max(MICRO_EPS, supportTopY - localFloorY);
+  const baseOffset = Math.max(legR * 0.4, 0.08);
+  const legWidth = Math.max(legR * 1.4, 0.22);
+  const points = [
+    [0, 0],
+    [legWidth * 0.2, baseOffset],
+    [legWidth * 0.5, legHeight * 0.08],
+    [legWidth * 0.32, legHeight * 0.22],
+    [legWidth * 0.55, legHeight * 0.36],
+    [legWidth * 0.36, legHeight * 0.56],
+    [legWidth * 0.58, legHeight * 0.74],
+    [legWidth * 0.28, legHeight * 0.92],
+    [0, legHeight]
+  ];
+  points.forEach(([x, y]) => profile.push(new THREE.Vector2(x, y)));
+  const legGeo = new THREE.LatheGeometry(profile, 28);
+  const positions = [
+    [-frameOuterX * 0.85, -frameOuterZ * 0.65],
+    [frameOuterX * 0.85, -frameOuterZ * 0.65],
+    [-frameOuterX * 0.85, frameOuterZ * 0.65],
+    [frameOuterX * 0.85, frameOuterZ * 0.65]
+  ];
+  positions.forEach(([x, z]) => {
+    const leg = new THREE.Mesh(legGeo, legMat);
+    leg.position.set(x, localFloorY, z);
+    markBaseMesh(leg);
+    group.add(leg);
+    legMeshes.push(leg);
+  });
+
+  const apron = new THREE.Mesh(
+    new THREE.BoxGeometry(frameOuterX * 1.8, skirtH * 0.7, frameOuterZ * 0.16),
+    frameMat
+  );
+  apron.position.y = supportTopY - skirtH * 0.35;
+  markBaseMesh(apron);
+  group.add(apron);
+  frameMeshes.push(apron);
+
+  const apronLong = new THREE.Mesh(
+    new THREE.BoxGeometry(frameOuterX * 0.18, skirtH * 0.7, frameOuterZ * 1.8),
+    frameMat
+  );
+  apronLong.position.y = apron.position.y;
+  markBaseMesh(apronLong);
+  group.add(apronLong);
+  frameMeshes.push(apronLong);
+
+  return { group, frameMeshes, legMeshes };
+}
+
+function buildTimberCrossBase(context) {
+  const {
+    frameOuterX,
+    frameOuterZ,
+    frameMat,
+    legMat,
+    legR,
+    localFloorY,
+    supportTopY,
+    skirtH
+  } = context;
+  const group = new THREE.Group();
+  group.name = 'base-timberCross';
+  const frameMeshes = [];
+  const legMeshes = [];
+
+  const legHeight = Math.max(MICRO_EPS, supportTopY - localFloorY);
+  const braceThickness = Math.max(legR * 1.1, 0.18);
+  const braceDepth = frameOuterZ * 0.18;
+
+  const leftBrace = new THREE.Mesh(
+    new THREE.BoxGeometry(braceThickness, legHeight * 0.98, braceDepth),
+    legMat
+  );
+  leftBrace.position.set(-frameOuterX * 0.55, localFloorY + legHeight * 0.48, 0);
+  leftBrace.rotation.z = Math.PI / 7;
+  markBaseMesh(leftBrace);
+  group.add(leftBrace);
+  legMeshes.push(leftBrace);
+
+  const rightBrace = leftBrace.clone();
+  rightBrace.position.x = frameOuterX * 0.55;
+  rightBrace.rotation.z = -Math.PI / 7;
+  group.add(rightBrace);
+  legMeshes.push(rightBrace);
+
+  const stretcher = new THREE.Mesh(
+    new THREE.BoxGeometry(frameOuterX * 0.75, braceThickness * 0.6, braceDepth * 1.1),
+    frameMat
+  );
+  stretcher.position.y = localFloorY + braceThickness * 0.3;
+  markBaseMesh(stretcher);
+  group.add(stretcher);
+  frameMeshes.push(stretcher);
+
+  const topShelf = new THREE.Mesh(
+    new THREE.BoxGeometry(frameOuterX * 1.8, skirtH * 0.4, frameOuterZ * 0.9),
+    frameMat
+  );
+  topShelf.position.y = supportTopY - skirtH * 0.2;
+  markBaseMesh(topShelf);
+  group.add(topShelf);
+  frameMeshes.push(topShelf);
+
+  return { group, frameMeshes, legMeshes };
+}
+
+const TABLE_BASE_BUILDERS = Object.freeze({
+  classicSkirt: buildClassicBase,
+  loopPedestal: buildLoopPedestalBase,
+  zPedestal: buildZPedestalBase,
+  arcBridge: buildArcBridgeBase,
+  modernBridge: buildModernBridgeBase,
+  arcadeBlock: buildArcadeBlockBase,
+  heritageCarved: buildHeritageCarvedBase,
+  timberCross: buildTimberCrossBase
+});
+
+function buildTableBaseVariants(context, activeBaseId = DEFAULT_TABLE_BASE_ID) {
+  const resolvedActive = TABLE_BASE_VARIANT_MAP[activeBaseId] ? activeBaseId : DEFAULT_TABLE_BASE_ID;
+  const baseGroups = {};
+  const { table, finishParts } = context;
+
+  const registerMeshes = (meshes, key) => {
+    if (!Array.isArray(meshes) || !finishParts[key]) return;
+    meshes.forEach((mesh) => {
+      if (mesh) finishParts[key].push(mesh);
+    });
+  };
+
+  POOL_ROYALE_TABLE_BASE_OPTIONS.forEach((option) => {
+    const builder = TABLE_BASE_BUILDERS[option.id] || TABLE_BASE_BUILDERS[DEFAULT_TABLE_BASE_ID];
+    if (!builder) return;
+    const result = builder(context) || {};
+    const { group } = result;
+    if (!group) return;
+    group.visible = option.id === resolvedActive;
+    table.add(group);
+    baseGroups[option.id] = group;
+    registerMeshes(result.frameMeshes, 'frameMeshes');
+    registerMeshes(result.legMeshes, 'legMeshes');
+    registerMeshes(result.trimMeshes, 'trimMeshes');
+    registerMeshes(result.underlayMeshes, 'underlayMeshes');
+  });
+
+  const applyBaseStyle = (nextId) => {
+    const resolved = TABLE_BASE_VARIANT_MAP[nextId] ? nextId : resolvedActive;
+    Object.entries(baseGroups).forEach(([id, group]) => {
+      if (group) group.visible = id === resolved;
+    });
+    return resolved;
+  };
+
+  applyBaseStyle(resolvedActive);
+  return { baseGroups, applyBaseStyle, activeId: resolvedActive };
+}
+
 function Table3D(
   parent,
   finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID],
   tableSpecMeta = null,
-  railMarkerStyle = null
+  railMarkerStyle = null,
+  baseStyleId = DEFAULT_TABLE_BASE_ID
 ) {
   const tableSizeMeta =
     tableSpecMeta && typeof tableSpecMeta === 'object' ? tableSpecMeta : null;
@@ -8520,117 +9146,45 @@ function Table3D(
   const skirtH = TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER;
   const baseRailWidth = endRailW;
   const baseOverhang = baseRailWidth * SKIRT_SIDE_OVERHANG;
-  const skirtShape = new THREE.Shape();
-  const outW = frameOuterX + baseOverhang;
-  const outZ = frameOuterZ + baseOverhang;
-  const skirtOuterRadius = hasRoundedRailCorners
-    ? Math.min(outerCornerRadius + baseOverhang * 0.4, Math.min(outW, outZ))
-    : 0;
-  if (skirtOuterRadius > MICRO_EPS) {
-    skirtShape.moveTo(outW, -outZ + skirtOuterRadius);
-    skirtShape.lineTo(outW, outZ - skirtOuterRadius);
-    skirtShape.absarc(
-      outW - skirtOuterRadius,
-      outZ - skirtOuterRadius,
-      skirtOuterRadius,
-      0,
-      Math.PI / 2,
-      false
-    );
-    skirtShape.lineTo(-outW + skirtOuterRadius, outZ);
-    skirtShape.absarc(
-      -outW + skirtOuterRadius,
-      outZ - skirtOuterRadius,
-      skirtOuterRadius,
-      Math.PI / 2,
-      Math.PI,
-      false
-    );
-    skirtShape.lineTo(-outW, -outZ + skirtOuterRadius);
-    skirtShape.absarc(
-      -outW + skirtOuterRadius,
-      -outZ + skirtOuterRadius,
-      skirtOuterRadius,
-      Math.PI,
-      1.5 * Math.PI,
-      false
-    );
-    skirtShape.lineTo(outW - skirtOuterRadius, -outZ);
-    skirtShape.absarc(
-      outW - skirtOuterRadius,
-      -outZ + skirtOuterRadius,
-      skirtOuterRadius,
-      -Math.PI / 2,
-      0,
-      false
-    );
-  } else {
-    skirtShape.moveTo(outW, -outZ);
-    skirtShape.lineTo(outW, outZ);
-    skirtShape.lineTo(-outW, outZ);
-    skirtShape.lineTo(-outW, -outZ);
-    skirtShape.lineTo(outW, -outZ);
-  }
-  const inner = new THREE.Path();
-  const skirtInnerRadius = Math.max(outerCornerRadius - baseOverhang, 0);
-  if (skirtInnerRadius > 1e-4) {
-    inner.moveTo(frameOuterX, -frameOuterZ + skirtInnerRadius);
-    inner.lineTo(frameOuterX, frameOuterZ - skirtInnerRadius);
-    inner.absarc(
-      frameOuterX - skirtInnerRadius,
-      frameOuterZ - skirtInnerRadius,
-      skirtInnerRadius,
-      0,
-      Math.PI / 2,
-      false
-    );
-    inner.lineTo(-frameOuterX + skirtInnerRadius, frameOuterZ);
-    inner.absarc(
-      -frameOuterX + skirtInnerRadius,
-      frameOuterZ - skirtInnerRadius,
-      skirtInnerRadius,
-      Math.PI / 2,
-      Math.PI,
-      false
-    );
-    inner.lineTo(-frameOuterX, -frameOuterZ + skirtInnerRadius);
-    inner.absarc(
-      -frameOuterX + skirtInnerRadius,
-      -frameOuterZ + skirtInnerRadius,
-      skirtInnerRadius,
-      Math.PI,
-      1.5 * Math.PI,
-      false
-    );
-    inner.lineTo(frameOuterX - skirtInnerRadius, -frameOuterZ);
-    inner.absarc(
-      frameOuterX - skirtInnerRadius,
-      -frameOuterZ + skirtInnerRadius,
-      skirtInnerRadius,
-      -Math.PI / 2,
-      0,
-      false
-    );
-  } else {
-    inner.moveTo(frameOuterX, -frameOuterZ);
-    inner.lineTo(frameOuterX, frameOuterZ);
-    inner.lineTo(-frameOuterX, frameOuterZ);
-    inner.lineTo(-frameOuterX, -frameOuterZ);
-    inner.lineTo(frameOuterX, -frameOuterZ);
-  }
-  skirtShape.holes.push(inner);
-  const skirtGeo = new THREE.ExtrudeGeometry(skirtShape, {
-    depth: skirtH,
-    bevelEnabled: false
-  });
-  projectRailUVs(skirtGeo, { outerHalfW: outW, outerHalfH: outZ, railH: skirtH });
-  const skirt = new THREE.Mesh(skirtGeo, frameMat);
-  skirt.rotation.x = -Math.PI / 2;
-  skirt.position.y = frameTopY - skirtH + SKIRT_RAIL_GAP_FILL + MICRO_EPS * 0.5;
-  skirt.castShadow = true;
-  skirt.receiveShadow = true;
-  table.add(skirt);
-  finishParts.frameMeshes.push(skirt);
+  const legR = Math.min(TABLE.W, TABLE.H) * 0.055 * LEG_RADIUS_SCALE;
+  const legTopLocal = frameTopY - TABLE.THICK;
+  const legTopWorld = legTopLocal + TABLE_Y;
+  const legBottomWorld = FLOOR_Y;
+  const legReach = Math.max(legTopWorld - legBottomWorld, TABLE_H);
+  const legH = legReach + LEG_TOP_OVERLAP;
+  const legInset = baseRailWidth * 2.85;
+  const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
+  const baseContext = {
+    table,
+    finishParts,
+    frameMat,
+    legMat,
+    trimMat,
+    frameOuterX,
+    frameOuterZ,
+    baseOverhang,
+    skirtH,
+    frameTopY,
+    hasRoundedRailCorners,
+    outerCornerRadius,
+    legR,
+    legH,
+    legInset,
+    legY,
+    localFloorY: FLOOR_Y - TABLE_Y,
+    supportTopY: frameTopY - TABLE.THICK,
+    skirtBaseY: frameTopY - skirtH + SKIRT_RAIL_GAP_FILL + MICRO_EPS * 0.5
+  };
+  const { applyBaseStyle, activeId: activeBaseId } = buildTableBaseVariants(
+    baseContext,
+    baseStyleId
+  );
+  table.userData.baseStyleId = activeBaseId;
+  table.userData.applyBaseStyle = (nextId) => {
+    const resolved = applyBaseStyle(nextId);
+    table.userData.baseStyleId = resolved;
+    return resolved;
+  };
 
   if (PLYWOOD_ENABLED && plywoodDepth > MICRO_EPS) {
     const plywoodShape = buildSurfaceShape(PLYWOOD_HOLE_R, -baseOverhang);
@@ -8660,24 +9214,6 @@ function Table3D(
     finishParts.underlayMeshes.push(plywoodPlate);
   }
 
-  const legR = Math.min(TABLE.W, TABLE.H) * 0.055 * LEG_RADIUS_SCALE;
-  const legTopLocal = frameTopY - TABLE.THICK;
-  const legTopWorld = legTopLocal + TABLE_Y;
-  const legBottomWorld = FLOOR_Y;
-  const legReach = Math.max(legTopWorld - legBottomWorld, TABLE_H);
-  const legH = legReach + LEG_TOP_OVERLAP;
-  const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
-  const legInset = baseRailWidth * 2.85;
-  const legPositions = [
-    [-frameOuterX + legInset, -frameOuterZ + legInset],
-    [frameOuterX - legInset, -frameOuterZ + legInset],
-    [-frameOuterX + legInset, 0],
-    [frameOuterX - legInset, 0],
-    [-frameOuterX + legInset, frameOuterZ - legInset],
-    [frameOuterX - legInset, frameOuterZ - legInset]
-  ];
-  const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
-  const legCircumference = 2 * Math.PI * legR;
   // Match the skirt/apron wood grain with the cue butt so the pattern reads
   // clearly from the player perspective.
   const baseFrameFallback = {
@@ -9186,6 +9722,14 @@ function PoolRoyaleGame({
     },
     [poolInventory]
   );
+  const [tableBaseId, setTableBaseId] = useState(() => {
+    return resolveStoredSelection(
+      'tableBase',
+      TABLE_BASE_STORAGE_KEY,
+      (id) => Boolean(TABLE_BASE_VARIANT_MAP[id]),
+      DEFAULT_TABLE_BASE_ID
+    );
+  });
   const [tableFinishId, setTableFinishId] = useState(() => {
     return resolveStoredSelection(
       'tableFinish',
@@ -9311,6 +9855,13 @@ function PoolRoyaleGame({
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
   );
+  const availableTableBases = useMemo(
+    () =>
+      POOL_ROYALE_TABLE_BASE_OPTIONS.filter((option) =>
+        isPoolOptionUnlocked('tableBase', option.id, poolInventory)
+      ),
+    [poolInventory]
+  );
   const availableTableFinishes = useMemo(
     () =>
       TABLE_FINISH_OPTIONS.filter((option) =>
@@ -9416,6 +9967,9 @@ function PoolRoyaleGame({
     [availablePocketLiners, pocketLinerId]
   );
   useEffect(() => {
+    if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
+      setTableBaseId(DEFAULT_TABLE_BASE_ID);
+    }
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
@@ -9441,6 +9995,7 @@ function PoolRoyaleGame({
     pocketLinerId,
     poolInventory,
     railMarkerColorId,
+    tableBaseId,
     tableFinishId
   ]);
   const isTraining = playType === 'training';
@@ -10085,6 +10640,11 @@ function PoolRoyaleGame({
   }, [activeVariant]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      window.localStorage.setItem(TABLE_BASE_STORAGE_KEY, tableBaseId);
+    }
+  }, [tableBaseId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
       window.localStorage.setItem(TABLE_FINISH_STORAGE_KEY, tableFinishId);
     }
   }, [tableFinishId]);
@@ -10136,6 +10696,7 @@ function PoolRoyaleGame({
     };
   }, [configOpen]);
   const applyFinishRef = useRef(() => {});
+  const applyBaseStyleRef = useRef(() => {});
   const playerLabel = playerName || 'Player';
   const effectiveMode = isTraining ? trainingModeState : mode;
   const opponentLabel =
@@ -15368,7 +15929,13 @@ const powerRef = useRef(hud.power);
         clothMat: tableCloth,
         cushionMat: tableCushion,
         railMarkers
-      } = Table3D(world, finishForScene, tableSizeMeta, railMarkerStyleRef.current);
+      } = Table3D(
+        world,
+        finishForScene,
+        tableSizeMeta,
+        railMarkerStyleRef.current,
+        tableBaseId
+      );
       clothMat = tableCloth;
       cushionMat = tableCushion;
       chalkMeshesRef.current = Array.isArray(table?.userData?.chalks)
@@ -15376,6 +15943,11 @@ const powerRef = useRef(hud.power);
         : [];
       visibleChalkIndexRef.current = null;
       highlightChalks(activeChalkIndexRef.current);
+      applyBaseStyleRef.current = (nextBaseId) => {
+        if (table?.userData?.applyBaseStyle) {
+          table.userData.applyBaseStyle(nextBaseId);
+        }
+      };
       applyFinishRef.current = (nextFinish) => {
         if (table && nextFinish) {
           applyTableFinishToTable(table, nextFinish);
@@ -20476,6 +21048,7 @@ const powerRef = useRef(hud.power);
           dom.removeEventListener('pointercancel', endInHandDrag);
           window.removeEventListener('pointercancel', endInHandDrag);
           applyFinishRef.current = () => {};
+          applyBaseStyleRef.current = () => {};
           applyRailMarkerStyleRef.current = () => {};
           chalkMeshesRef.current = [];
           chalkAreaRef.current = null;
@@ -20533,6 +21106,9 @@ const powerRef = useRef(hud.power);
     applyFinishRef.current?.(tableFinish);
     applyRailMarkerStyleRef.current?.(railMarkerStyleRef.current);
   }, [tableFinish]);
+  useEffect(() => {
+    applyBaseStyleRef.current?.(tableBaseId);
+  }, [tableBaseId]);
 
   useLayoutEffect(() => {
     const computeInsets = () => {
@@ -21103,6 +21679,31 @@ const powerRef = useRef(hud.power);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Table Base
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {availableTableBases.map((option) => {
+                    const active = option.id === tableBaseId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setTableBaseId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[8.5rem] rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {option.name || option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Table Finish
