@@ -113,6 +113,7 @@ export default function DominoRoyalLobby() {
       params.set('avatars', 'flags');
       if (aiFlagSelection.length) params.set('flags', aiFlagSelection.join(','));
     }
+    params.set('entry', 'hallway');
     if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
     const initData = window.Telegram?.WebApp?.initData;
