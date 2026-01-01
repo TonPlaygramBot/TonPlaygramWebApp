@@ -812,6 +812,7 @@ const CAMERA_INITIAL_PHI = THREE.MathUtils.lerp(CAMERA_MIN_POLAR, CAMERA_MAX_POL
 const CAMERA_BASE_RADIUS = TABLE_RADIUS;
 const CAMERA_MIN_RADIUS = CAMERA_BASE_RADIUS * 0.55;
 const CAMERA_MAX_RADIUS = CAMERA_BASE_RADIUS * 3.2;
+const CAMERA_LOCKED_RADIUS = CAMERA_MIN_RADIUS;
 const CAMERA_DEFAULT_AZIMUTH = CHAIR_SEAT_ANGLES[HUMAN_SEAT_INDEX] ?? Math.PI / 2;
 const CAMERA_LATERAL_OFFSET = { portrait: 0.78, landscape: 0.58 };
 const CAMERA_REAR_OFFSET = { portrait: 1.85, landscape: 1.35 };
@@ -820,6 +821,7 @@ const CAMERA_TARGET = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT + C
 const CAMERA_TOPDOWN_RADIUS = TABLE_RADIUS * 2.35;
 const CAMERA_TOPDOWN_MIN_RADIUS = TABLE_RADIUS * 1.2;
 const CAMERA_TOPDOWN_MAX_RADIUS = TABLE_RADIUS * 3.6;
+const CAMERA_TOPDOWN_LOCKED_RADIUS = CAMERA_TOPDOWN_RADIUS;
 const CAMERA_TOPDOWN_MIN_POLAR = THREE.MathUtils.degToRad(2);
 const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
 const CAMERA_TOPDOWN_FRAMING = Object.freeze({
@@ -997,18 +999,18 @@ fitCamera();
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.enableZoom = true;
+controls.enableZoom = false;
 controls.zoomSpeed = 1.05;
 controls.enablePan = true;
 controls.panSpeed = 0.9;
 controls.screenSpacePanning = true;
 controls.enableRotate = true;
-controls.minDistance = CAMERA_MIN_RADIUS;
-controls.maxDistance = CAMERA_MAX_RADIUS;
+controls.minDistance = CAMERA_LOCKED_RADIUS;
+controls.maxDistance = CAMERA_LOCKED_RADIUS;
 controls.minPolarAngle = CAMERA_MIN_POLAR;
 controls.maxPolarAngle = CAMERA_MAX_POLAR;
 controls.touches.ONE = THREE.TOUCH.ROTATE;
-controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+controls.touches.TWO = THREE.TOUCH.PAN;
 controls.touches.THREE = THREE.TOUCH.PAN;
 controls.target.copy(CAMERA_TARGET);
 
@@ -1073,19 +1075,21 @@ function computeTopDownCameraPosition(target = CAMERA_TARGET) {
 
 function getActiveCameraConstraints() {
   if (cameraViewMode === VIEW_MODES.twoD) {
+    const lockedRadius = CAMERA_TOPDOWN_LOCKED_RADIUS;
     return {
       minPolar: CAMERA_TOPDOWN_MIN_POLAR,
       maxPolar: CAMERA_TOPDOWN_MAX_POLAR,
-      minRadius: CAMERA_TOPDOWN_MIN_RADIUS,
-      maxRadius: CAMERA_TOPDOWN_MAX_RADIUS
+      minRadius: lockedRadius,
+      maxRadius: lockedRadius
     };
   }
 
+  const lockedRadius = CAMERA_LOCKED_RADIUS;
   return {
     minPolar: CAMERA_MIN_POLAR,
     maxPolar: CAMERA_MAX_POLAR,
-    minRadius: CAMERA_MIN_RADIUS,
-    maxRadius: CAMERA_MAX_RADIUS
+    minRadius: lockedRadius,
+    maxRadius: lockedRadius
   };
 }
 
@@ -1418,6 +1422,18 @@ const CHAIR_MODEL_URLS = [
 ];
 const polyhavenModelCache = new Map();
 
+function applyColorTextureProps(texture) {
+  if (!texture) return;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  if (renderer?.capabilities?.getMaxAnisotropy) {
+    const maxAniso = renderer.capabilities.getMaxAnisotropy();
+    if (Number.isFinite(maxAniso) && maxAniso > 0) {
+      texture.anisotropy = Math.max(texture.anisotropy || 1, Math.min(maxAniso, 8));
+    }
+  }
+  texture.needsUpdate = true;
+}
+
 async function loadPolyhavenModel(assetId) {
   if (!assetId) return null;
   if (polyhavenModelCache.has(assetId)) {
@@ -1455,8 +1471,8 @@ async function loadPolyhavenModel(assetId) {
     obj.receiveShadow = true;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     mats.forEach((mat) => {
-      if (mat?.map) mat.map.colorSpace = THREE.SRGBColorSpace;
-      if (mat?.emissiveMap) mat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+      if (mat?.map) applyColorTextureProps(mat.map);
+      if (mat?.emissiveMap) applyColorTextureProps(mat.emissiveMap);
     });
   });
   polyhavenModelCache.set(assetId, root);
@@ -1506,8 +1522,8 @@ function extractChairMaterials(model) {
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     mats.forEach((mat) => {
       if (!mat) return;
-      if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
-      if (mat.emissiveMap) mat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+      if (mat.map) applyColorTextureProps(mat.map);
+      if (mat.emissiveMap) applyColorTextureProps(mat.emissiveMap);
       const bucket = (mat.metalness ?? 0) > 0.35 ? metal : upholstery;
       bucket.add(mat);
     });
@@ -2463,14 +2479,12 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
   return options.filter((option) => isDominoOptionUnlocked(key, option.id, inventory));
 }
 
-const HDRI_RESOLUTION_ORDER = Object.freeze(['4k', '2k']);
+const HDRI_RESOLUTION_ORDER = Object.freeze(['4k']);
 let activeEnvironmentHdri = null;
 
 async function loadHdriEnvironment(variant) {
   if (!variant?.assetId) return null;
-  const order = Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
-    ? variant.preferredResolutions
-    : HDRI_RESOLUTION_ORDER;
+  const order = ['4k'];
   let lastError = null;
   for (const res of order) {
     const cacheKey = `${variant.id}:${res}`;
@@ -3605,13 +3619,16 @@ async function applyTableTheme(option = TABLE_THEME_OPTIONS[appearance.tableThem
   }
   const token = ++tableThemeToken;
   if (!theme || theme.id === 'murlan-default') {
+    setProceduralTableVisible(true);
     activeTableThemeId = 'murlan-default';
     return;
   }
+  setProceduralTableVisible(false);
   try {
     const model = await loadPolyhavenModel(theme.assetId || theme.id);
     if (token !== tableThemeToken || !model) {
       disposeObjectResources(model);
+      setProceduralTableVisible(true);
       return;
     }
     fitTableModelToFootprint(model);
@@ -3620,6 +3637,9 @@ async function applyTableTheme(option = TABLE_THEME_OPTIONS[appearance.tableThem
     activeTableThemeId = theme.id;
   } catch (error) {
     console.warn('Failed to load table theme', error);
+    setProceduralTableVisible(true);
+    tableThemeG.visible = false;
+    activeTableThemeId = 'murlan-default';
   }
 }
 
@@ -4002,25 +4022,16 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   tableG.add(column);
   tableParts.column = column;
 
-  const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(TABLE_OUTER_RADIUS * 1.02, TABLE_OUTER_RADIUS * 1.18, 0.22, 64),
-    tableMaterials.base
-  );
-  base.position.y = column.position.y - columnHeight / 2 - 0.11;
-  base.castShadow = true;
-  base.receiveShadow = true;
-  tableG.add(base);
-  tableParts.base = base;
-
-  const trim = new THREE.Mesh(
-    new THREE.TorusGeometry(TABLE_OUTER_RADIUS * 1.08, 0.04, 16, 64),
-    tableMaterials.trim
-  );
-  trim.rotation.x = Math.PI / 2;
-  trim.position.y = base.position.y + 0.11;
-  tableG.add(trim);
-  tableParts.trim = trim;
 })();
+
+function setProceduralTableVisible(visible = true) {
+  Object.values(tableParts).forEach((part) => {
+    if (part && typeof part.visible === "boolean") {
+      part.visible = visible;
+    }
+  });
+}
+setProceduralTableVisible(true);
 
 const SCALE = MODEL_SCALE * 0.92;
 const DOMINO_SCALE = 1.5 * 1.22; // upscale tiles for stronger readability
