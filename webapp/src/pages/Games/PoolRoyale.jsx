@@ -10611,7 +10611,10 @@ function PoolRoyaleGame({
   const applyTableSlotRef = useRef(() => {});
   const updateDecorTablesRef = useRef(() => {});
   const clearDecorTablesRef = useRef(() => {});
+  const updateHospitalityLayoutRef = useRef(() => {});
+  const clearHospitalityLayoutRef = useRef(() => {});
   const decorativeTablesRef = useRef([]);
+  const hospitalityGroupsRef = useRef([]);
   const refreshSecondaryTableDecorRef = useRef(() => {});
   const clearSecondaryTableDecorRef = useRef(() => {});
   const secondaryTableDecorRef = useRef({ group: null, dispose: null });
@@ -12834,6 +12837,105 @@ const powerRef = useRef(hud.power);
         });
       };
 
+      const adjustHospitalityForEdge = (value) => {
+        const direction = Math.sign(value);
+        const magnitude = Math.max(Math.abs(value) - hospitalityEdgePull, 0);
+        return direction * magnitude;
+      };
+
+      const decorateTableWithCheeseBoard = (tableSet) => {
+        if (!tableSet) return;
+        const cheeseBoard = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.18, 0.18, 0.02, 24),
+          hospitalityMats.wood
+        );
+        cheeseBoard.position.set(0.06, 0.79, -0.02);
+        cheeseBoard.castShadow = true;
+        cheeseBoard.receiveShadow = true;
+
+        const cheeseWedge = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.05, 0.14, 0.06, 16, 1, false, 0, Math.PI * 0.75),
+          new THREE.MeshStandardMaterial({
+            color: 0xffe59f,
+            roughness: 0.28,
+            metalness: 0.04
+          })
+        );
+        cheeseWedge.position.set(0.02, 0.04, 0.03);
+        cheeseWedge.rotation.x = Math.PI / 2;
+        cheeseWedge.castShadow = true;
+        cheeseWedge.receiveShadow = true;
+        cheeseBoard.add(cheeseWedge);
+
+        const garnish = new THREE.Mesh(
+          new THREE.SphereGeometry(0.028, 14, 12),
+          new THREE.MeshStandardMaterial({
+            color: 0x6fbf73,
+            roughness: 0.35
+          })
+        );
+        garnish.position.set(-0.08, 0.02, -0.02);
+        garnish.castShadow = true;
+        garnish.receiveShadow = true;
+        cheeseBoard.add(garnish);
+
+        tableSet.add(cheeseBoard);
+      };
+
+      const createCheeseTableSet = () => {
+        const tableSet = createTableSet();
+        decorateTableWithCheeseBoard(tableSet);
+        return tableSet;
+      };
+
+      const createCheeseServiceSet = ({
+        chairOffsets,
+        position = [0, 0],
+        rotationY = 0
+      } = {}) => {
+        const group = new THREE.Group();
+        const scaledFurniture = furnitureScale * hospitalitySizeMultiplier;
+
+        const tableSet = createCheeseTableSet();
+        tableSet.scale.set(
+          scaledFurniture,
+          scaledFurniture * hospitalityTableHeightScale,
+          scaledFurniture
+        );
+        group.add(tableSet);
+
+        const resolvedOffsets =
+          Array.isArray(chairOffsets) && chairOffsets.length
+            ? chairOffsets
+            : [
+                [
+                  toHospitalityUnits(0.44) * hospitalityUpscale,
+                  -toHospitalityUnits(0.62) * hospitalityUpscale
+                ],
+                [
+                  -toHospitalityUnits(0.44) * hospitalityUpscale,
+                  -toHospitalityUnits(0.62) * hospitalityUpscale
+                ]
+              ];
+        resolvedOffsets.forEach(([x, z]) => {
+          const chair = createChair();
+          chair.scale.setScalar(scaledFurniture);
+          chair.position.set(x, 0, z);
+          const toCenter = new THREE.Vector2(x, z).multiplyScalar(-1);
+          chair.rotation.y = Math.atan2(toCenter.x, toCenter.y);
+          group.add(chair);
+        });
+
+        group.position.set(
+          adjustHospitalityForEdge(position[0] ?? 0),
+          floorY,
+          adjustHospitalityForEdge(position[1] ?? 0)
+        );
+        group.rotation.y = rotationY;
+        ensureHospitalityVisibility(group);
+        return group;
+      };
+
       const createCornerHospitalitySet = ({ chairOffset, position, rotationY }) => {
         const group = new THREE.Group();
         const scaledFurniture = furnitureScale * hospitalitySizeMultiplier;
@@ -12874,16 +12976,10 @@ const powerRef = useRef(hud.power);
         const baseAngle = Math.atan2(toCenter.x, toCenter.y);
         chair.rotation.y = baseAngle;
         group.add(chair);
-
-        const adjustForEdge = (value) => {
-          const direction = Math.sign(value);
-          const magnitude = Math.max(Math.abs(value) - hospitalityEdgePull, 0);
-          return direction * magnitude;
-        };
         group.position.set(
-          adjustForEdge(position[0]),
+          adjustHospitalityForEdge(position[0]),
           floorY,
-          adjustForEdge(position[1])
+          adjustHospitalityForEdge(position[1])
         );
         group.rotation.y = rotationY;
         ensureHospitalityVisibility(group);
@@ -15839,8 +15935,14 @@ const powerRef = useRef(hud.power);
       } = Table3D(world, finishForScene, tableSizeMeta, railMarkerStyleRef.current, activeTableBase);
       const SPOTS = spotPositions(baulkZ);
       const longestSide = Math.max(PLAY_W, PLAY_H);
-      const secondarySpacing =
+      const secondarySpacingBase =
         Math.max(longestSide * 2.4, Math.max(TABLE.W, TABLE.H) * 2.6) * TABLE_DISPLAY_SCALE;
+      const resolveSecondarySpacing = (environmentId = environmentHdriRef.current) => {
+        if (environmentId === 'musicHall02') {
+          return secondarySpacingBase * 0.86; // pull the dual tables closer in the music hall to open up the short-rail edges
+        }
+        return secondarySpacingBase;
+      };
       const secondaryTableEntry = Table3D(
         world,
         finishForScene,
@@ -15997,7 +16099,8 @@ const powerRef = useRef(hud.power);
         const secondary = secondaryTableRef.current;
         if (!secondary) return;
         secondary.visible = enabled;
-        const targetZ = enabled ? (slotIndex === 0 ? -secondarySpacing : secondarySpacing) : 0;
+        const spacing = resolveSecondarySpacing(environmentHdriRef.current);
+        const targetZ = enabled ? (slotIndex === 0 ? -spacing : spacing) : 0;
         secondary.position.set(0, secondary.position.y, targetZ);
       };
       applyTableSlotRef.current = applySecondarySlot;
@@ -16049,6 +16152,7 @@ const powerRef = useRef(hud.power);
       };
       const layoutDecorativeTables = (environmentId = environmentHdriRef.current) => {
         disposeDecorativeTables();
+        const spacing = resolveSecondarySpacing(environmentId);
         const tableFootprint = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE;
         const placementMargin = Math.max(tableFootprint * 0.6, arenaMargin);
         const maxX = Math.max(0, arenaHalfWidth - placementMargin);
@@ -16056,7 +16160,7 @@ const powerRef = useRef(hud.power);
         const clampX = (x = 0) => THREE.MathUtils.clamp(x, -maxX, maxX);
         const clampZ = (z = 0) => THREE.MathUtils.clamp(z, -maxZ, maxZ);
         if (environmentId === 'oldHall') {
-          const offsetZ = secondarySpacing;
+          const offsetZ = spacing;
           createDecorativeTable({
             variant: 'pool',
             position: { x: 0, z: clampZ(-offsetZ) }
@@ -16065,10 +16169,20 @@ const powerRef = useRef(hud.power);
             variant: 'snooker',
             position: { x: 0, z: clampZ(offsetZ) }
           });
+        } else if (environmentId === 'emptyPlayRoom') {
+          const sideOffset = clampX(tableFootprint * 0.95);
+          createDecorativeTable({
+            variant: 'pool',
+            position: { x: -sideOffset, z: 0 }
+          });
+          createDecorativeTable({
+            variant: 'snooker',
+            position: { x: sideOffset, z: 0 }
+          });
         } else if (environmentId === 'mirroredHall') {
-          const lateralSpacing = clampX(secondarySpacing * 0.6);
-          const depthSpacing = clampZ(secondarySpacing * 0.55);
-          const rearSpacing = clampZ(secondarySpacing * 0.9);
+          const lateralSpacing = clampX(spacing * 0.6);
+          const depthSpacing = clampZ(spacing * 0.55);
+          const rearSpacing = clampZ(spacing * 0.9);
           createDecorativeTable({
             variant: 'snooker',
             position: { x: -lateralSpacing, z: -depthSpacing }
@@ -16086,6 +16200,62 @@ const powerRef = useRef(hud.power);
       updateDecorTablesRef.current = layoutDecorativeTables;
       clearDecorTablesRef.current = disposeDecorativeTables;
       layoutDecorativeTables(environmentHdriRef.current);
+      const disposeHospitalityGroups = () => {
+        hospitalityGroupsRef.current.forEach((group) => {
+          if (group) {
+            group.traverse((child) => {
+              if (child?.isMesh) {
+                child.geometry?.dispose?.();
+              }
+            });
+            if (group.parent) {
+              group.parent.remove(group);
+            }
+          }
+        });
+        hospitalityGroupsRef.current = [];
+      };
+      const addHospitalityGroup = (group) => {
+        if (!group) return;
+        hospitalityGroupsRef.current.push(group);
+        world.add(group);
+      };
+      const layoutHospitalityGroups = (environmentId = environmentHdriRef.current) => {
+        disposeHospitalityGroups();
+        if (environmentId !== 'musicHall02') return;
+        const spacing = resolveSecondarySpacing(environmentId);
+        const tableHalfDepth = (TABLE.H / 2) * TABLE_DISPLAY_SCALE;
+        const outerShortRailZ = spacing + tableHalfDepth;
+        const availableOuterSpace = Math.max(0, arenaHalfDepth - outerShortRailZ);
+        const serviceGap = Math.max(
+          toHospitalityUnits(0.32) * hospitalityUpscale,
+          BALL_R * 8
+        );
+        const desiredZ =
+          outerShortRailZ + serviceGap + availableOuterSpace * 0.5;
+        const placementZ = Math.max(
+          outerShortRailZ + serviceGap * 0.5,
+          Math.min(arenaHalfDepth - hospitalityEdgePull, desiredZ)
+        );
+        const chairSpread = toHospitalityUnits(0.44) * hospitalityUpscale;
+        const chairDepth = toHospitalityUnits(0.64) * hospitalityUpscale;
+        [placementZ, -placementZ].forEach((z) => {
+          const facingCenter = Math.atan2(0, -z);
+          addHospitalityGroup(
+            createCheeseServiceSet({
+              chairOffsets: [
+                [-chairSpread, -chairDepth],
+                [chairSpread, -chairDepth]
+              ],
+              position: [0, z],
+              rotationY: facingCenter
+            })
+          );
+        });
+      };
+      updateHospitalityLayoutRef.current = layoutHospitalityGroups;
+      clearHospitalityLayoutRef.current = disposeHospitalityGroups;
+      layoutHospitalityGroups(environmentHdriRef.current);
       setSecondaryTableReady(true);
       clothMat = tableCloth;
       cushionMat = tableCushion;
@@ -21242,6 +21412,10 @@ const powerRef = useRef(hud.power);
           decorativeTablesRef.current = [];
           updateDecorTablesRef.current = () => {};
           clearDecorTablesRef.current = () => {};
+          clearHospitalityLayoutRef.current?.();
+          hospitalityGroupsRef.current = [];
+          updateHospitalityLayoutRef.current = () => {};
+          clearHospitalityLayoutRef.current = () => {};
           applyRailMarkerStyleRef.current = () => {};
           secondaryTableRef.current = null;
           secondaryBaseSetterRef.current = null;
@@ -21314,6 +21488,7 @@ const powerRef = useRef(hud.power);
   }, [environmentHdriId, secondaryTableReady]);
   useEffect(() => {
     updateDecorTablesRef.current?.(environmentHdriId);
+    updateHospitalityLayoutRef.current?.(environmentHdriId);
   }, [environmentHdriId]);
 
   useLayoutEffect(() => {
