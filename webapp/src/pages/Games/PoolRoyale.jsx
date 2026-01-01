@@ -13048,6 +13048,59 @@ const powerRef = useRef(hud.power);
         return { group, height: boardThickness };
       };
 
+      const addFallbackChessPieces = (boardGroup, boardSize = 0.9, boardThickness = 0.05) => {
+        if (!boardGroup) return;
+        const tile = boardSize / 8;
+        const pieceHeight = tile * 0.9;
+        const pieceRadius = tile * 0.22;
+        const headRadius = pieceRadius * 0.7;
+        const bodyGeom = new THREE.CylinderGeometry(pieceRadius, pieceRadius * 0.85, pieceHeight, 14);
+        const headGeom = new THREE.SphereGeometry(headRadius, 12, 12);
+        const lightMaterial = tagHospitalityMaterial(new THREE.MeshStandardMaterial({
+          color: 0xe7e2d3,
+          roughness: 0.52,
+          metalness: 0.12
+        }));
+        const darkMaterial = tagHospitalityMaterial(new THREE.MeshStandardMaterial({
+          color: 0x2b314e,
+          roughness: 0.48,
+          metalness: 0.18
+        }));
+        const placePiece = (material, x, z) => {
+          const piece = new THREE.Group();
+          const body = new THREE.Mesh(bodyGeom, material);
+          body.position.y = pieceHeight / 2;
+          body.castShadow = true;
+          body.receiveShadow = true;
+          piece.add(body);
+          const head = new THREE.Mesh(headGeom, material);
+          head.position.y = pieceHeight + headRadius * 0.6;
+          head.castShadow = true;
+          head.receiveShadow = true;
+          piece.add(head);
+          piece.position.set(x, boardThickness + 0.01, z);
+          piece.castShadow = true;
+          piece.receiveShadow = true;
+          return piece;
+        };
+        const piecesGroup = new THREE.Group();
+        const origin = -boardSize / 2 + tile / 2;
+        const rows = [
+          { zIndex: 1, material: lightMaterial },
+          { zIndex: 6, material: darkMaterial }
+        ];
+        rows.forEach(({ zIndex, material }) => {
+          for (let c = 0; c < 8; c += 1) {
+            const x = origin + c * tile;
+            const z = origin + zIndex * tile;
+            const pawn = placePiece(material, x, z);
+            piecesGroup.add(pawn);
+          }
+        });
+        piecesGroup.position.y = boardThickness * 0.5;
+        boardGroup.add(piecesGroup);
+      };
+
       const createChessChair = () => {
         const chair = new THREE.Group();
         const legMaterial = tagHospitalityMaterial(new THREE.MeshStandardMaterial({
@@ -13106,10 +13159,10 @@ const powerRef = useRef(hud.power);
       };
 
       const CHESS_LOUNGE_SET_URLS = [
-        'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-        'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-        'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
-        'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
+        'https://raw.githubusercontent.com/cx20/gltf-test/master/sampleModels/Chess/glTF-Binary/Chess.glb',
+        'https://cdn.jsdelivr.net/gh/cx20/gltf-test@master/sampleModels/Chess/glTF-Binary/Chess.glb',
+        'https://raw.githubusercontent.com/quaterniusdev/ChessSet/master/Source/GLTF/ChessSet.glb',
+        'https://cdn.jsdelivr.net/gh/quaterniusdev/ChessSet@master/Source/GLTF/ChessSet.glb'
       ];
       const CHESS_LOUNGE_CHAIR_URLS = [
         'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
@@ -13237,6 +13290,7 @@ const powerRef = useRef(hud.power);
         table.add(tabletop);
         const board = createChessBoard(0.72, 0.045);
         board.group.position.y = tableHeight + board.height * 0.5 + 0.01;
+        addFallbackChessPieces(board.group, 0.72, 0.045);
         table.add(board.group);
         group.add(table);
 
