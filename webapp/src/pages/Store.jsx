@@ -180,6 +180,8 @@ const DOMINO_TYPE_LABELS = {
   tableWood: 'Table Wood',
   tableCloth: 'Table Cloth',
   tableBase: 'Table Base',
+  tableTheme: 'Table Models',
+  environmentHdri: 'HDR Environments',
   dominoStyle: 'Domino Styles',
   highlightStyle: 'Highlights',
   chairTheme: 'Chairs'
@@ -258,8 +260,10 @@ const TYPE_SWATCHES = {
   tableWood: ['#4b3621', '#9a7b4f'],
   tableCloth: ['#0f172a', '#34d399'],
   tableBase: ['#0f172a', '#1f2937'],
+  tableTheme: ['#0f172a', '#e5e7eb'],
   tables: ['#0f172a', '#94a3b8'],
   stools: ['#111827', '#eab308'],
+  chairTheme: ['#0f172a', '#f59e0b'],
   chairColor: ['#111827', '#f59e0b'],
   tableShape: ['#334155', '#64748b'],
   sideColor: ['#f8fafc', '#1f2937'],
@@ -268,7 +272,6 @@ const TYPE_SWATCHES = {
   cards: ['#f8fafc', '#e5e7eb'],
   dominoStyle: ['#f8fafc', '#d1d5db'],
   highlightStyle: ['#22d3ee', '#818cf8'],
-  chairTheme: ['#0f172a', '#eab308'],
   tokenPalette: ['#ef4444', '#22c55e', '#3b82f6'],
   tokenStyle: ['#eab308', '#6366f1'],
   tokenPiece: ['#0f172a', '#e11d48'],
@@ -349,6 +352,8 @@ const PREVIEW_BY_TYPE = {
   tableWood: 'table',
   tableCloth: 'table',
   tableBase: 'table',
+  tableTheme: 'table',
+  chairTheme: 'chair',
   tables: 'table'
 };
 
