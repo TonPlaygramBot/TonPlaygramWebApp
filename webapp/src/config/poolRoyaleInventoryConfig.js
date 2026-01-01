@@ -552,28 +552,9 @@ export const POOL_ROYALE_HDRI_VARIANT_MAP = Object.freeze(
 );
 
 export const POOL_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
-export const POOL_ROYALE_BASE_OPTIONS = Object.freeze([
-  { id: 'classicColumns', name: 'Classic Cylinders' },
-  { id: 'loopPedestal', name: 'Loop Pedestal' },
-  { id: 'zSculpt', name: 'Z Pedestal' },
-  { id: 'archBridge', name: 'Arc Bridge' },
-  { id: 'openTrestle', name: 'Open Trestle' },
-  { id: 'coinOpClassic', name: 'Coin-Op Taper' },
-  { id: 'modernPedestal', name: 'Sculpted Pedestal' },
-  { id: 'industrialX', name: 'Industrial X-Frame' },
-  { id: 'heritageClaw', name: 'Heritage Claw Legs' }
-]);
-export const POOL_ROYALE_BASE_OPTION_MAP = Object.freeze(
-  POOL_ROYALE_BASE_OPTIONS.reduce((acc, option) => {
-    acc[option.id] = option;
-    return acc;
-  }, {})
-);
-export const POOL_ROYALE_DEFAULT_BASE_ID = POOL_ROYALE_BASE_OPTIONS[0].id;
 
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: ['peelingPaintWeathered'],
-  tableBase: POOL_ROYALE_BASE_OPTIONS.map((option) => option.id),
   chromeColor: ['gold'],
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
@@ -607,12 +588,6 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     pearl: 'Pearl',
     gold: 'Gold'
   }),
-  tableBase: Object.freeze(
-    POOL_ROYALE_BASE_OPTIONS.reduce((acc, option) => {
-      acc[option.id] = option.name;
-      return acc;
-    }, {})
-  ),
   clothColor: Object.freeze(
     POOL_ROYALE_CLOTH_VARIANTS.reduce((acc, variant) => {
       acc[variant.id] = variant.name;
@@ -848,11 +823,6 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
     type: 'tableFinish',
     optionId: 'peelingPaintWeathered',
     label: 'Wood Peeling Paint Weathered Finish'
-  },
-  {
-    type: 'tableBase',
-    optionId: POOL_ROYALE_DEFAULT_BASE_ID,
-    label: POOL_ROYALE_OPTION_LABELS.tableBase[POOL_ROYALE_DEFAULT_BASE_ID]
   },
   { type: 'chromeColor', optionId: 'gold', label: 'Gold Chrome Plates' },
   { type: 'railMarkerColor', optionId: 'gold', label: 'Gold Diamond Markers' },
