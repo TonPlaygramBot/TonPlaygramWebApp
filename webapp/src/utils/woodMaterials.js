@@ -53,15 +53,23 @@ const resolveExternalWoodTextureUrls = ({ mapUrl, roughnessMapUrl, normalMapUrl 
       normal: normalMapUrl ?? null
     };
   }
-  const match = mapUrl.match(/_color\.(jpg|jpeg|png)$/i);
-  if (match) {
-    const extension = match[1];
-    const base = mapUrl.slice(0, match.index);
-    return {
-      color: mapUrl,
-      roughness: `${base}_Roughness.${extension}`,
-      normal: `${base}_NormalGL.${extension}`
-    };
+  const matchers = [
+    { regex: /_(color|col)\.(jpg|jpeg|png)$/i, rough: '_Roughness', normal: '_NormalGL' },
+    { regex: /_(diff|diffuse)\.(jpg|jpeg|png)$/i, rough: '_rough', normal: '_nor_gl' },
+    { regex: /_basecolor\.(jpg|jpeg|png)$/i, rough: '_rough', normal: '_nor_gl' },
+    { regex: /_albedo\.(jpg|jpeg|png)$/i, rough: '_rough', normal: '_nor_gl' }
+  ];
+  for (const { regex, rough, normal } of matchers) {
+    const match = mapUrl.match(regex);
+    if (match) {
+      const extension = match[2] ?? match[1];
+      const base = mapUrl.slice(0, match.index);
+      return {
+        color: mapUrl,
+        roughness: `${base}${rough}.${extension}`,
+        normal: `${base}${normal}.${extension}`
+      };
+    }
   }
   return { color: mapUrl };
 };
@@ -258,9 +266,9 @@ const FRAME_SLAB_REPEAT_X = LARGE_SLAB_REPEAT_X * 1.18;
 const polyHavenTextureSet = (assetId) => {
   const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${assetId}/${assetId}_2k`;
   return {
-    mapUrl: `${base}_Color.jpg`,
-    roughnessMapUrl: `${base}_Roughness.jpg`,
-    normalMapUrl: `${base}_NormalGL.jpg`
+    mapUrl: `${base}_diff.jpg`,
+    roughnessMapUrl: `${base}_rough.jpg`,
+    normalMapUrl: `${base}_nor_gl.jpg`
   };
 };
 
