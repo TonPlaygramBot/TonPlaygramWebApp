@@ -744,6 +744,7 @@ renderer.domElement.style.touchAction = 'none';
 
 const scene = new THREE.Scene();
 const textureLoader = new THREE.TextureLoader();
+textureLoader.setCrossOrigin('anonymous');
 const pmrem = new THREE.PMREMGenerator(renderer);
 const hdriLoader = new RGBELoader();
 const hdriTextureCache = new Map();
@@ -757,11 +758,11 @@ const LIGHT_INTENSITY_FACTOR = 1;
 const dimIntensity = (value = 1) => value * LIGHT_INTENSITY_FACTOR;
 
 const MODEL_SCALE = 0.75;
-const TABLE_SCALE = 0.85;
+const TABLE_SCALE = 0.95;
 const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE * TABLE_SCALE;
-const STOOL_SCALE = 1.5 * 1.3;
+const STOOL_SCALE = 1.5 * 1.38;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -777,8 +778,8 @@ const COLUMN_RADIUS_BOTTOM = 0.26 * MODEL_SCALE;
 const BASE_RADIUS = 0.72 * MODEL_SCALE;
 const FOOT_RING_RADIUS = 0.52 * MODEL_SCALE;
 const FOOT_RING_TUBE = 0.04 * MODEL_SCALE;
-const CHAIR_GAP = 0.12 * MODEL_SCALE;
-const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + CHAIR_GAP;
+const CHAIR_GAP = 0.04 * MODEL_SCALE;
+const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH * 0.38 + CHAIR_GAP;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE * TABLE_SCALE;
@@ -1427,6 +1428,7 @@ async function loadPolyhavenModel(assetId) {
   const loader = new GLTFLoader();
   const draco = new DRACOLoader();
   draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+  loader.setCrossOrigin('anonymous');
   loader.setDRACOLoader(draco);
 
   const candidates = [
@@ -1534,6 +1536,7 @@ async function ensureMurlanChairTemplate(theme = null) {
     const loader = new GLTFLoader();
     const draco = new DRACOLoader();
     draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+    loader.setCrossOrigin('anonymous');
     loader.setDRACOLoader(draco);
 
     let gltf = null;
@@ -1910,6 +1913,7 @@ function applyWoodTextures(
     map = cloneWoodTexture(baseTextures.map, repeatVec, rotation);
     roughnessMap = cloneWoodTexture(baseTextures.roughnessMap, repeatVec, rotation);
     if (map) {
+      map.colorSpace = THREE.SRGBColorSpace;
       map.wrapS = map.wrapT = THREE.RepeatWrapping;
       map.needsUpdate = true;
     }
@@ -3470,8 +3474,13 @@ function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(18 * 5 * 3, 18 * 5 * 3);
-  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  const maxAnisotropy =
+    renderer?.capabilities?.getMaxAnisotropy?.() ??
+    renderer?.capabilities?.anisotropy ??
+    4;
+  texture.anisotropy = Math.min(maxAnisotropy, 16);
   texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
   return texture;
 }
 
