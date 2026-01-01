@@ -125,6 +125,8 @@ import { RoundedBoxGeometry } from "https://esm.sh/three@0.160.0/examples/jsm/ge
 import { GLTFLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/RGBELoader.js";
 import { DRACOLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/DRACOLoader.js";
+import { KTX2Loader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/KTX2Loader.js";
+import { MeshoptDecoder } from "https://esm.sh/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js";
 import "./flag-emojis.js";
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -188,6 +190,8 @@ const FRAME_DROP_THRESHOLD = 1.35;
 const FRAME_DROP_WINDOW_MS = 3200;
 const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
 const FEEDBACK_STORAGE_KEY = 'dominoRoyalFeedback';
+const DRACO_DECODER_PATH = "https://www.gstatic.com/draco/v1/decoders/";
+const BASIS_TRANSCODER_PATH = "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/";
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -997,7 +1001,7 @@ fitCamera();
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.enableZoom = true;
+controls.enableZoom = false;
 controls.zoomSpeed = 1.05;
 controls.enablePan = true;
 controls.panSpeed = 0.9;
@@ -1008,7 +1012,7 @@ controls.maxDistance = CAMERA_MAX_RADIUS;
 controls.minPolarAngle = CAMERA_MIN_POLAR;
 controls.maxPolarAngle = CAMERA_MAX_POLAR;
 controls.touches.ONE = THREE.TOUCH.ROTATE;
-controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+controls.touches.TWO = THREE.TOUCH.PAN;
 controls.touches.THREE = THREE.TOUCH.PAN;
 controls.target.copy(CAMERA_TARGET);
 
@@ -1323,6 +1327,29 @@ const DEFAULT_CHAIR_THEME = Object.freeze({
 
 const POLYHAVEN_THUMB = (id) => `https://cdn.polyhaven.com/asset_img/thumbs/${id}.png?width=256&height=256`;
 
+function createConfiguredGLTFLoader(renderer = null) {
+  const loader = new GLTFLoader();
+  loader.setCrossOrigin?.("anonymous");
+
+  const draco = new DRACOLoader();
+  draco.setDecoderPath(DRACO_DECODER_PATH);
+  loader.setDRACOLoader(draco);
+
+  const ktx2 = new KTX2Loader();
+  ktx2.setTranscoderPath(BASIS_TRANSCODER_PATH);
+  if (renderer) {
+    try {
+      ktx2.detectSupport(renderer);
+    } catch (error) {
+      console.warn("Domino KTX2 support detection failed", error);
+    }
+  }
+  loader.setKTX2Loader(ktx2);
+  loader.setMeshoptDecoder?.(MeshoptDecoder);
+
+  return loader;
+}
+
 const MURLAN_BASE_STOOL_THEMES = [
   { id: 'ruby', label: 'Ruby', seatColor: '#8b0000', legColor: '#1f1f1f', price: 0, description: 'Default ruby cushions with noir legs.' },
   { id: 'slate', label: 'Slate', seatColor: '#374151', legColor: '#0f172a', price: 210, description: 'Slate seats with midnight legs.' },
@@ -1418,16 +1445,13 @@ const CHAIR_MODEL_URLS = [
 ];
 const polyhavenModelCache = new Map();
 
-async function loadPolyhavenModel(assetId) {
+async function loadPolyhavenModel(assetId, renderer = null) {
   if (!assetId) return null;
   if (polyhavenModelCache.has(assetId)) {
     const cached = polyhavenModelCache.get(assetId);
     return cached.clone(true);
   }
-  const loader = new GLTFLoader();
-  const draco = new DRACOLoader();
-  draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
-  loader.setDRACOLoader(draco);
+  const loader = createConfiguredGLTFLoader(renderer);
 
   const candidates = [
     `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
@@ -1526,15 +1550,12 @@ async function ensureMurlanChairTemplate(theme = null) {
   if (chairTemplatePromise) return chairTemplatePromise;
   chairTemplatePromise = (async () => {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
-      const model = await loadPolyhavenModel(theme.assetId);
+      const model = await loadPolyhavenModel(theme.assetId, renderer);
       fitChairModelToFootprint(model);
       chairTemplateBounds = new THREE.Box3().setFromObject(model);
       return { chairTemplate: model, materials: extractChairMaterials(model), preserveMaterials: theme.preserveMaterials ?? true };
     }
-    const loader = new GLTFLoader();
-    const draco = new DRACOLoader();
-    draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
-    loader.setDRACOLoader(draco);
+    const loader = createConfiguredGLTFLoader(renderer);
 
     let gltf = null;
     let lastError = null;
@@ -1581,7 +1602,7 @@ async function ensureChairTemplateForTheme(theme) {
   const promise = (async () => {
     if (theme?.source === 'polyhaven' && theme?.assetId) {
       try {
-        const model = await loadPolyhavenModel(theme.assetId);
+        const model = await loadPolyhavenModel(theme.assetId, renderer);
         fitChairModelToFootprint(model);
         chairTemplateBounds = new THREE.Box3().setFromObject(model);
         return { chairTemplate: model, materials: extractChairMaterials(model), preserveMaterials: theme.preserveMaterials ?? true };
@@ -2463,14 +2484,12 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
   return options.filter((option) => isDominoOptionUnlocked(key, option.id, inventory));
 }
 
-const HDRI_RESOLUTION_ORDER = Object.freeze(['4k', '2k']);
+const HDRI_RESOLUTION_ORDER = Object.freeze(['4k']);
 let activeEnvironmentHdri = null;
 
 async function loadHdriEnvironment(variant) {
   if (!variant?.assetId) return null;
-  const order = Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
-    ? variant.preferredResolutions
-    : HDRI_RESOLUTION_ORDER;
+  const order = HDRI_RESOLUTION_ORDER;
   let lastError = null;
   for (const res of order) {
     const cacheKey = `${variant.id}:${res}`;
@@ -3598,6 +3617,7 @@ let activeTableThemeId = null;
 async function applyTableTheme(option = TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TABLE_THEME_OPTIONS[0]) {
   const theme = option || TABLE_THEME_OPTIONS[0];
   tableThemeG.visible = false;
+  tableG.visible = true;
   while (tableThemeG.children.length) {
     const child = tableThemeG.children.pop();
     disposeObjectResources(child);
@@ -3609,7 +3629,7 @@ async function applyTableTheme(option = TABLE_THEME_OPTIONS[appearance.tableThem
     return;
   }
   try {
-    const model = await loadPolyhavenModel(theme.assetId || theme.id);
+    const model = await loadPolyhavenModel(theme.assetId || theme.id, renderer);
     if (token !== tableThemeToken || !model) {
       disposeObjectResources(model);
       return;
@@ -3617,9 +3637,12 @@ async function applyTableTheme(option = TABLE_THEME_OPTIONS[appearance.tableThem
     fitTableModelToFootprint(model);
     tableThemeG.add(model);
     tableThemeG.visible = true;
+    tableG.visible = false;
     activeTableThemeId = theme.id;
   } catch (error) {
     console.warn('Failed to load table theme', error);
+    tableG.visible = true;
+    tableThemeG.visible = false;
   }
 }
 
@@ -4002,24 +4025,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   tableG.add(column);
   tableParts.column = column;
 
-  const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(TABLE_OUTER_RADIUS * 1.02, TABLE_OUTER_RADIUS * 1.18, 0.22, 64),
-    tableMaterials.base
-  );
-  base.position.y = column.position.y - columnHeight / 2 - 0.11;
-  base.castShadow = true;
-  base.receiveShadow = true;
-  tableG.add(base);
-  tableParts.base = base;
-
-  const trim = new THREE.Mesh(
-    new THREE.TorusGeometry(TABLE_OUTER_RADIUS * 1.08, 0.04, 16, 64),
-    tableMaterials.trim
-  );
-  trim.rotation.x = Math.PI / 2;
-  trim.position.y = base.position.y + 0.11;
-  tableG.add(trim);
-  tableParts.trim = trim;
+  // Omit the rounded pedestal base and trim ring to match the slimmer Murlan profile
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
