@@ -1,42 +1,67 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { applySRGBColorSpace } from './colorSpace.js';
 import { makeRoughClothTexture, DEFAULT_TABLE_CLOTH_OPTION } from './murlanTable.js';
 
+const MODEL_SCALE = 0.75;
+const TABLE_SCALE = 0.85;
+const STOOL_SCALE = 1.5 * 1.3;
+
+const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
+const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE * TABLE_SCALE;
+const CHAIR_GAP = 0.12 * MODEL_SCALE;
+const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
+const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
+const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
+const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE;
+const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
+const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
+const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
+const ARM_DEPTH = SEAT_DEPTH * 0.75;
+const COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
+const BASE_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
+const COLUMN_RADIUS_TOP = 0.2 * MODEL_SCALE;
+const COLUMN_RADIUS_BOTTOM = 0.26 * MODEL_SCALE;
+const BASE_RADIUS = 0.72 * MODEL_SCALE;
+const FOOT_RING_RADIUS = 0.52 * MODEL_SCALE;
+const FOOT_RING_TUBE = 0.04 * MODEL_SCALE;
+const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
+
 const ROOM_DIMENSIONS = Object.freeze({
-  width: 6.2,
-  depth: 6.2,
+  width: TABLE_RADIUS * 3.2,
+  depth: TABLE_RADIUS * 3.2,
   wallThickness: 0.45,
-  wallHeight: 3.4,
-  carpetThickness: 0.12
+  wallHeight: 3.6,
+  carpetThickness: 0.14
 });
 
 const TABLE_DIMENSIONS = Object.freeze({
-  baseY: 0.64,
-  outerHalfWidth: 0.95,
-  innerHalfWidth: 0.76,
-  clothHalfWidth: 0.7,
-  rimThickness: 0.07,
-  clothRise: 0.022,
-  baseSkirtInset: 0.05,
-  skirtHeight: 0.6
+  baseY: BASE_TABLE_HEIGHT,
+  outerHalfWidth: TABLE_RADIUS,
+  innerHalfWidth: TABLE_RADIUS * 0.8,
+  clothHalfWidth: TABLE_RADIUS * 0.74,
+  rimThickness: TABLE_RADIUS * 0.055,
+  clothRise: BASE_TABLE_HEIGHT * 0.07,
+  baseSkirtInset: TABLE_RADIUS * 0.055,
+  skirtHeight: BASE_TABLE_HEIGHT * 1.35
 });
 
 const CHAIR_DIMENSIONS = Object.freeze({
-  seatWidth: 0.72,
-  seatDepth: 0.72,
-  seatThickness: 0.12,
-  backHeight: 0.78,
-  backThickness: 0.08,
-  armHeight: 0.36,
-  armThickness: 0.1,
-  armDepth: 0.76,
-  columnHeight: 0.46,
-  baseThickness: 0.08,
-  columnRadiusTop: 0.11,
-  columnRadiusBottom: 0.15,
-  baseRadius: 0.46,
-  footRingRadius: 0.34,
-  footRingTube: 0.03
+  seatWidth: SEAT_WIDTH,
+  seatDepth: SEAT_DEPTH,
+  seatThickness: SEAT_THICKNESS,
+  backHeight: BACK_HEIGHT,
+  backThickness: BACK_THICKNESS,
+  armHeight: ARM_HEIGHT,
+  armThickness: ARM_THICKNESS,
+  armDepth: ARM_DEPTH,
+  columnHeight: COLUMN_HEIGHT,
+  baseThickness: BASE_THICKNESS,
+  columnRadiusTop: COLUMN_RADIUS_TOP,
+  columnRadiusBottom: COLUMN_RADIUS_BOTTOM,
+  baseRadius: BASE_RADIUS,
+  footRingRadius: FOOT_RING_RADIUS,
+  footRingTube: FOOT_RING_TUBE
 });
 
 const DEFAULT_CHAIR_OPTION = Object.freeze({
@@ -47,12 +72,12 @@ const DEFAULT_CHAIR_OPTION = Object.freeze({
 });
 
 const CAMERA_CONFIG = Object.freeze({
-  fov: 56,
+  fov: 52,
   near: 0.05,
-  far: 100,
-  minRadius: 1.1,
-  maxRadius: 4,
-  targetY: 0.64,
+  far: 120,
+  minRadius: TABLE_DIMENSIONS.outerHalfWidth * 0.55,
+  maxRadius: TABLE_DIMENSIONS.outerHalfWidth * 3,
+  targetY: TABLE_DIMENSIONS.baseY,
   maxPolarAngle: Math.PI * 0.49
 });
 
@@ -352,7 +377,7 @@ function ensureChairTexture(option, renderer) {
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   map.repeat.set(4, 4);
   map.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 8;
-  map.colorSpace = THREE.SRGBColorSpace;
+  applySRGBColorSpace(map);
   map.needsUpdate = true;
 
   const normalMap = new THREE.CanvasTexture(bumpCanvas);
@@ -539,6 +564,7 @@ function buildDominoTable(renderer) {
     clothOption.feltBottom,
     renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
   );
+  applySRGBColorSpace(feltTexture);
   feltMat.map = feltTexture;
   feltMat.needsUpdate = true;
 
@@ -769,7 +795,8 @@ export function buildDominoArena({ scene, renderer }) {
     if (material) trackedMaterials.add(material);
   });
 
-  const chairRadius = TABLE_DIMENSIONS.outerHalfWidth + 0.55;
+  const chairRadius =
+    TABLE_DIMENSIONS.outerHalfWidth + CHAIR_DIMENSIONS.seatDepth / 2 + CHAIR_GAP;
   const chairHeight =
     CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight + CHAIR_DIMENSIONS.seatThickness;
   const lookTarget = new THREE.Vector3(0, chairHeight, 0);
