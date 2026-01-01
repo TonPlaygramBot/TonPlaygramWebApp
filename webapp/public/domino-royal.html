@@ -756,9 +756,8 @@ scene.background = null;
 const LIGHT_INTENSITY_FACTOR = 1;
 const dimIntensity = (value = 1) => value * LIGHT_INTENSITY_FACTOR;
 
-const ARENA_SCALE = 0.85;
-const MODEL_SCALE = 0.75 * ARENA_SCALE;
-const TABLE_SCALE = 1;
+const MODEL_SCALE = 0.75;
+const TABLE_SCALE = 0.85;
 const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE * TABLE_SCALE;
@@ -3549,10 +3548,6 @@ function updateTableMaterials() {
     tableMaterials.felt.map.dispose();
   }
   tableMaterials.felt.map = makeClothTexture({ top: cloth.feltTop, bottom: cloth.feltBottom, border: cloth.border });
-  if (tableMaterials.felt.map) {
-    tableMaterials.felt.map.colorSpace = THREE.SRGBColorSpace;
-    tableMaterials.felt.map.anisotropy = renderer.capabilities.getMaxAnisotropy?.() ?? 8;
-  }
   tableMaterials.felt.map.needsUpdate = true;
   tableMaterials.felt.needsUpdate = true;
 
