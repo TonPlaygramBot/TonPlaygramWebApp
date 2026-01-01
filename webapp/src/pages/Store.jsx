@@ -115,7 +115,6 @@ import { getAccountBalance, sendAccountTpc } from '../utils/api.js';
 import { DEV_INFO } from '../utils/constants.js';
 
 const TYPE_LABELS = {
-  tableBase: 'Table Bases',
   tableFinish: 'Table Finishes',
   chromeColor: 'Chrome Fascias',
   railMarkerColor: 'Rail Markers',

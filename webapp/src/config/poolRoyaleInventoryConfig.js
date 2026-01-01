@@ -552,19 +552,8 @@ export const POOL_ROYALE_HDRI_VARIANT_MAP = Object.freeze(
 );
 
 export const POOL_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
-export const POOL_ROYALE_TABLE_BASE_OPTIONS = Object.freeze([
-  { id: 'classicSkirt', name: 'Classic Skirt' },
-  { id: 'loopPedestal', name: 'Loop Pedestal' },
-  { id: 'zPedestal', name: 'Z Pedestal' },
-  { id: 'arcBridge', name: 'Arc Bridge' },
-  { id: 'modernBridge', name: 'Modern Bridge' },
-  { id: 'arcadeBlock', name: 'Arcade Block' },
-  { id: 'heritageCarved', name: 'Heritage Carved' },
-  { id: 'timberCross', name: 'Timber Cross' }
-]);
 
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
-  tableBase: POOL_ROYALE_TABLE_BASE_OPTIONS.map((variant) => variant.id),
   tableFinish: ['peelingPaintWeathered'],
   chromeColor: ['gold'],
   railMarkerColor: ['gold'],
@@ -590,12 +579,6 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     kitchenWood: 'Kitchen Wood',
     japaneseSycamore: 'Japanese Sycamore'
   }),
-  tableBase: Object.freeze(
-    POOL_ROYALE_TABLE_BASE_OPTIONS.reduce((acc, option) => {
-      acc[option.id] = option.name;
-      return acc;
-    }, {})
-  ),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
     gold: 'Gold'
@@ -836,11 +819,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
 ];
 
 export const POOL_ROYALE_DEFAULT_LOADOUT = [
-  {
-    type: 'tableBase',
-    optionId: POOL_ROYALE_TABLE_BASE_OPTIONS[0].id,
-    label: POOL_ROYALE_TABLE_BASE_OPTIONS[0].name
-  },
   {
     type: 'tableFinish',
     optionId: 'peelingPaintWeathered',
