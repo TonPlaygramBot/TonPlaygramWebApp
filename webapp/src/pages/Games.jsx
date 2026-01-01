@@ -1,37 +1,59 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LeaderboardCard from '../components/LeaderboardCard.jsx';
 import GameTransactionsCard from '../components/GameTransactionsCard.jsx';
-import GamesHallway from '../components/GamesHallway.jsx';
 import gamesCatalog from '../config/gamesCatalog.js';
+import GamesCatalogCard from '../components/GamesCatalogCard.jsx';
 
 export default function Games() {
   useTelegramBackButton();
-  const [showHallway, setShowHallway] = useState(false);
+
+  const categories = useMemo(() => {
+    const group = gamesCatalog.reduce((acc, game) => {
+      acc[game.category] = acc[game.category] || [];
+      acc[game.category].push(game);
+      return acc;
+    }, {});
+    return Object.entries(group);
+  }, []);
+
   return (
     <div className="relative space-y-4 text-text">
-      <h2 className="text-2xl font-bold text-center mt-4">Games</h2>
-      <p className="text-center text-sm text-subtext">Online games are under construction and will be available soon.</p>
-      <div className="space-y-4">
-        <div className="relative bg-surface border border-border rounded-xl p-6 shadow-lg overflow-hidden wide-card space-y-4 text-center">
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold">3D Hallway Experience</h3>
+      <div className="wide-card">
+        <div className="relative overflow-hidden rounded-2xl border border-border bg-surface p-5 shadow-lg">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-amber-500/10" aria-hidden />
+          <div className="relative space-y-2 text-center">
+            <h2 className="text-2xl font-extrabold">Games Hub</h2>
             <p className="text-sm text-subtext">
-              Explore the luxury hallway and pick your favorite game by stepping through its golden door or tapping the illuminated sign.
+              Browse every game and jump straight into its lobby or a quick play session. Optimized for portrait mobile screens.
             </p>
+            <div className="mt-3 flex flex-wrap justify-center gap-2 text-xs font-semibold">
+              <span className="rounded-full bg-background px-3 py-1 border border-border">No 3D hallway—faster access</span>
+              <span className="rounded-full bg-background px-3 py-1 border border-border">Dedicated Pool Royale variants</span>
+              <span className="rounded-full bg-background px-3 py-1 border border-border">Mobile-friendly layout</span>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowHallway(true)}
-            className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-base font-semibold text-black shadow-lg shadow-primary/40"
-          >
-            Enter Games
-          </button>
         </div>
       </div>
+
+      <section className="space-y-6">
+        {categories.map(([category, games]) => (
+          <div key={category} className="space-y-3">
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-lg font-bold">{category}</h3>
+              <span className="text-xs text-subtext">{games.length} games</span>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {games.map((game) => (
+                <GamesCatalogCard key={game.slug} game={game} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </section>
+
       <GameTransactionsCard />
       <LeaderboardCard />
-      {showHallway && <GamesHallway games={gamesCatalog} onClose={() => setShowHallway(false)} />}
     </div>
   );
 }
