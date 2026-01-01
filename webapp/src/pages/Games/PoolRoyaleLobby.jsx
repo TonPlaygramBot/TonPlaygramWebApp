@@ -33,7 +33,10 @@ export default function PoolRoyaleLobby() {
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
-  const [variant, setVariant] = useState('uk');
+  const [variant, setVariant] = useState(() => {
+    const requestedVariant = (searchParams.get('variant') || '').toLowerCase();
+    return ['uk', 'american', '9ball'].includes(requestedVariant) ? requestedVariant : 'uk';
+  });
   const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
@@ -90,6 +93,14 @@ export default function PoolRoyaleLobby() {
       setUkBallSet('uk');
     }
   }, [variant]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    const requestedVariant = (params.get('variant') || '').toLowerCase();
+    if (['uk', 'american', '9ball'].includes(requestedVariant) && requestedVariant !== variant) {
+      setVariant(requestedVariant);
+    }
+  }, [search, variant]);
 
   const navigateToPoolRoyale = ({ tableId: startedId, roster = [], accountId, currentTurn }) => {
     const selfId = accountId || accountIdRef.current;
