@@ -997,7 +997,7 @@ fitCamera();
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.enableZoom = false;
+controls.enableZoom = true;
 controls.zoomSpeed = 1.05;
 controls.enablePan = true;
 controls.panSpeed = 0.9;
@@ -1008,7 +1008,7 @@ controls.maxDistance = CAMERA_MAX_RADIUS;
 controls.minPolarAngle = CAMERA_MIN_POLAR;
 controls.maxPolarAngle = CAMERA_MAX_POLAR;
 controls.touches.ONE = THREE.TOUCH.ROTATE;
-controls.touches.TWO = THREE.TOUCH.PAN;
+controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
 controls.touches.THREE = THREE.TOUCH.PAN;
 controls.target.copy(CAMERA_TARGET);
 
@@ -1323,70 +1323,6 @@ const DEFAULT_CHAIR_THEME = Object.freeze({
 
 const POLYHAVEN_THUMB = (id) => `https://cdn.polyhaven.com/asset_img/thumbs/${id}.png?width=256&height=256`;
 
-const MATERIAL_TEXTURE_PROPS = Object.freeze([
-  'map',
-  'normalMap',
-  'roughnessMap',
-  'metalnessMap',
-  'aoMap',
-  'alphaMap',
-  'emissiveMap',
-  'bumpMap',
-  'displacementMap',
-  'clearcoatMap',
-  'clearcoatRoughnessMap',
-  'clearcoatNormalMap',
-  'specularMap',
-  'sheenColorMap',
-  'sheenRoughnessMap'
-]);
-
-function cloneTextureWithSettings(texture) {
-  if (!texture?.isTexture) return null;
-  const clone = texture.clone();
-  clone.needsUpdate = true;
-  clone.colorSpace = texture.colorSpace;
-  clone.offset?.copy?.(texture.offset ?? new THREE.Vector2(0, 0));
-  clone.repeat?.copy?.(texture.repeat ?? new THREE.Vector2(1, 1));
-  clone.center?.copy?.(texture.center ?? new THREE.Vector2(0.5, 0.5));
-  clone.rotation = texture.rotation ?? 0;
-  clone.wrapS = texture.wrapS;
-  clone.wrapT = texture.wrapT;
-  clone.anisotropy = texture.anisotropy;
-  return clone;
-}
-
-function cloneMaterialWithTextures(material) {
-  if (!material) return null;
-  const cloned = material.clone();
-  MATERIAL_TEXTURE_PROPS.forEach((prop) => {
-    if (!material[prop]?.isTexture) return;
-    const texClone = cloneTextureWithSettings(material[prop]);
-    cloned[prop] = texClone;
-  });
-  return cloned;
-}
-
-function cloneModelWithMaterials(root) {
-  const clone = root.clone(true);
-  const materialCache = new Map();
-  clone.traverse((obj) => {
-    if (!obj.isMesh) return;
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    const nextMats = mats.map((mat) => {
-      if (!mat) return mat;
-      if (materialCache.has(mat)) return materialCache.get(mat);
-      const clonedMat = cloneMaterialWithTextures(mat);
-      materialCache.set(mat, clonedMat);
-      return clonedMat;
-    });
-    obj.material = Array.isArray(obj.material) ? nextMats : nextMats[0];
-    obj.castShadow = true;
-    obj.receiveShadow = true;
-  });
-  return clone;
-}
-
 const MURLAN_BASE_STOOL_THEMES = [
   { id: 'ruby', label: 'Ruby', seatColor: '#8b0000', legColor: '#1f1f1f', price: 0, description: 'Default ruby cushions with noir legs.' },
   { id: 'slate', label: 'Slate', seatColor: '#374151', legColor: '#0f172a', price: 210, description: 'Slate seats with midnight legs.' },
@@ -1486,7 +1422,7 @@ async function loadPolyhavenModel(assetId) {
   if (!assetId) return null;
   if (polyhavenModelCache.has(assetId)) {
     const cached = polyhavenModelCache.get(assetId);
-    return cloneModelWithMaterials(cached);
+    return cached.clone(true);
   }
   const loader = new GLTFLoader();
   const draco = new DRACOLoader();
@@ -1524,7 +1460,7 @@ async function loadPolyhavenModel(assetId) {
     });
   });
   polyhavenModelCache.set(assetId, root);
-  return cloneModelWithMaterials(root);
+  return root.clone(true);
 }
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715);
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
@@ -1661,7 +1597,7 @@ async function ensureChairTemplateForTheme(theme) {
 
 function cloneChairWithTheme(chairData, option) {
   const { chairTemplate, materials, preserveMaterials } = chairData;
-  const clone = cloneModelWithMaterials(chairTemplate);
+  const clone = chairTemplate.clone(true);
   const upholsterySet = new Set(materials.upholstery);
   const metalSet = new Set(materials.metal);
 
@@ -1670,8 +1606,8 @@ function cloneChairWithTheme(chairData, option) {
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     const themed = mats.map((mat) => {
       if (!mat) return mat;
-      const next = cloneMaterialWithTextures(mat);
-      if (preserveMaterials) return next;
+      const next = mat.clone();
+      if (preserveMaterials) return mat;
       if (upholsterySet.has(mat)) {
         if (next.color) next.color.set(option?.seatColor ?? DEFAULT_CHAIR_THEME.seatColor);
         if (next.emissive) next.emissive.set(option?.highlight ?? option?.seatColor ?? DEFAULT_CHAIR_THEME.highlight);
@@ -2527,13 +2463,13 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
   return options.filter((option) => isDominoOptionUnlocked(key, option.id, inventory));
 }
 
-const HDRI_RESOLUTION_ORDER = Object.freeze(['4k']);
+const HDRI_RESOLUTION_ORDER = Object.freeze(['4k', '2k']);
 let activeEnvironmentHdri = null;
 
 async function loadHdriEnvironment(variant) {
   if (!variant?.assetId) return null;
   const order = Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
-    ? (variant.preferredResolutions.includes('4k') ? ['4k'] : [variant.preferredResolutions[0]])
+    ? variant.preferredResolutions
     : HDRI_RESOLUTION_ORDER;
   let lastError = null;
   for (const res of order) {
@@ -3662,7 +3598,6 @@ let activeTableThemeId = null;
 async function applyTableTheme(option = TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TABLE_THEME_OPTIONS[0]) {
   const theme = option || TABLE_THEME_OPTIONS[0];
   tableThemeG.visible = false;
-  tableG.visible = true;
   while (tableThemeG.children.length) {
     const child = tableThemeG.children.pop();
     disposeObjectResources(child);
@@ -3682,7 +3617,6 @@ async function applyTableTheme(option = TABLE_THEME_OPTIONS[appearance.tableThem
     fitTableModelToFootprint(model);
     tableThemeG.add(model);
     tableThemeG.visible = true;
-    tableG.visible = false;
     activeTableThemeId = theme.id;
   } catch (error) {
     console.warn('Failed to load table theme', error);
@@ -4057,16 +3991,35 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   tableG.add(accentMesh);
   tableParts.accent = accentMesh;
 
-  const columnHeight = TABLE_BASE_Y;
+  const columnHeight = TABLE_HEIGHT + 0.25;
   const column = new THREE.Mesh(
     new THREE.CylinderGeometry(TABLE_OUTER_RADIUS * 0.34, TABLE_OUTER_RADIUS * 0.48, columnHeight, 48),
     tableMaterials.column
   );
-  column.position.y = columnHeight / 2;
+  column.position.y = TABLE_BASE_Y - columnHeight / 2;
   column.castShadow = true;
   column.receiveShadow = true;
   tableG.add(column);
   tableParts.column = column;
+
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(TABLE_OUTER_RADIUS * 1.02, TABLE_OUTER_RADIUS * 1.18, 0.22, 64),
+    tableMaterials.base
+  );
+  base.position.y = column.position.y - columnHeight / 2 - 0.11;
+  base.castShadow = true;
+  base.receiveShadow = true;
+  tableG.add(base);
+  tableParts.base = base;
+
+  const trim = new THREE.Mesh(
+    new THREE.TorusGeometry(TABLE_OUTER_RADIUS * 1.08, 0.04, 16, 64),
+    tableMaterials.trim
+  );
+  trim.rotation.x = Math.PI / 2;
+  trim.position.y = base.position.y + 0.11;
+  tableG.add(trim);
+  tableParts.trim = trim;
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
