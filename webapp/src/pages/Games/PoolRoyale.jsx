@@ -48,7 +48,10 @@ import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_DEFAULT_UNLOCKS,
   POOL_ROYALE_HDRI_VARIANTS,
-  POOL_ROYALE_HDRI_VARIANT_MAP
+  POOL_ROYALE_HDRI_VARIANT_MAP,
+  POOL_ROYALE_BASE_OPTIONS,
+  POOL_ROYALE_BASE_OPTION_MAP,
+  POOL_ROYALE_DEFAULT_BASE_ID
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
@@ -2206,6 +2209,11 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.japaneseSycamore
   ].filter(Boolean)
 );
+
+const TABLE_BASE_OPTIONS = POOL_ROYALE_BASE_OPTIONS;
+const TABLE_BASE_OPTION_MAP = POOL_ROYALE_BASE_OPTION_MAP;
+const DEFAULT_TABLE_BASE_ID =
+  POOL_ROYALE_DEFAULT_UNLOCKS.tableBase?.[0] ?? POOL_ROYALE_DEFAULT_BASE_ID;
 
 const DEFAULT_CHROME_COLOR_ID =
   POOL_ROYALE_DEFAULT_UNLOCKS.chromeColor?.[0] ?? 'gold';
@@ -6107,7 +6115,8 @@ function Table3D(
   parent,
   finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID],
   tableSpecMeta = null,
-  railMarkerStyle = null
+  railMarkerStyle = null,
+  baseStyleId = DEFAULT_TABLE_BASE_ID
 ) {
   const tableSizeMeta =
     tableSpecMeta && typeof tableSpecMeta === 'object' ? tableSpecMeta : null;
@@ -8677,7 +8686,6 @@ function Table3D(
     [frameOuterX - legInset, frameOuterZ - legInset]
   ];
   const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
-  const legCircumference = 2 * Math.PI * legR;
   // Match the skirt/apron wood grain with the cue butt so the pattern reads
   // clearly from the player perspective.
   const baseFrameFallback = {
@@ -8739,14 +8747,319 @@ function Table3D(
     mesh.castShadow = true;
     mesh.receiveShadow = true;
   });
-  legPositions.forEach(([lx, lz]) => {
-    const leg = new THREE.Mesh(legGeo, legMat);
-    leg.position.set(lx, legY, lz);
-    leg.castShadow = true;
-    leg.receiveShadow = true;
-    table.add(leg);
-    finishParts.legMeshes.push(leg);
-  });
+  const legBottomLocal = legBottomWorld - TABLE_Y;
+  const baseRoot = new THREE.Group();
+  baseRoot.name = 'tableBase';
+  table.add(baseRoot);
+
+  const disposeBaseGeometry = () => {
+    finishParts.legMeshes.length = 0;
+    while (baseRoot.children.length > 0) {
+      baseRoot.remove(baseRoot.children[0]);
+    }
+  };
+
+  const registerBaseObject = (object) => {
+    if (!object) return;
+    baseRoot.add(object);
+    if (object.traverse) {
+      object.traverse((child) => {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        if (child.isMesh) {
+          finishParts.legMeshes.push(child);
+        }
+      });
+    } else if (object.isMesh) {
+      object.castShadow = true;
+      object.receiveShadow = true;
+      finishParts.legMeshes.push(object);
+    }
+  };
+
+  const resolveBaseMaterials = () => {
+    const materials = table.userData?.finish?.materials ?? finishInfo.materials;
+    const frameMaterial = materials?.frame ?? frameMat;
+    const legMaterial = materials?.leg ?? materials?.frame ?? legMat;
+    return { frameMaterial, legMaterial };
+  };
+
+  const buildBaseStyle = (styleId = DEFAULT_TABLE_BASE_ID) => {
+    const resolvedId = TABLE_BASE_OPTION_MAP[styleId]?.id ? styleId : DEFAULT_TABLE_BASE_ID;
+    disposeBaseGeometry();
+    const { legMaterial } = resolveBaseMaterials();
+    const baseTopLocal = legTopLocal + LEG_TOP_OVERLAP;
+    const baseHeight = Math.max(baseTopLocal - legBottomLocal, TABLE_H * 0.6);
+    const baseCenterY = legBottomLocal + baseHeight / 2;
+    const baseThickness = Math.max(baseHeight * 0.12, TABLE.THICK * 0.85);
+    const baseWidth = frameOuterX * 1.1;
+    const baseDepth = frameOuterZ * 0.9;
+
+    const buildClassicColumns = () => {
+      const footH = Math.max(TABLE.THICK * 0.25, baseThickness * 0.6);
+      const footGeo = new THREE.CylinderGeometry(legR * 1.12, legR * 1.12, footH, 48);
+      legPositions.forEach(([lx, lz]) => {
+        const leg = new THREE.Mesh(legGeo, legMaterial);
+        leg.position.set(lx, legY, lz);
+        registerBaseObject(leg);
+        const foot = new THREE.Mesh(footGeo, legMaterial);
+        foot.position.set(lx, legBottomLocal + footH / 2, lz);
+        registerBaseObject(foot);
+      });
+    };
+
+    const buildLoopPedestal = () => {
+      const plateH = baseThickness * 0.9;
+      const lower = new THREE.Mesh(
+        new THREE.CylinderGeometry(baseWidth * 0.65, baseWidth * 0.65, plateH, 64),
+        legMaterial
+      );
+      lower.scale.z = Math.max(0.62, (frameOuterZ / frameOuterX) * 0.7);
+      lower.position.y = legBottomLocal + plateH / 2;
+      registerBaseObject(lower);
+
+      const upper = lower.clone();
+      upper.scale.multiplyScalar(0.8);
+      upper.position.y = baseTopLocal - plateH * 0.4;
+      registerBaseObject(upper);
+
+      const loopRadius = Math.min(frameOuterX, frameOuterZ) * 0.58;
+      const loopThickness = legR * 0.95;
+      const loop = new THREE.Mesh(
+        new THREE.TorusGeometry(loopRadius, loopThickness, 36, 96),
+        legMaterial
+      );
+      loop.rotation.z = Math.PI / 2;
+      loop.scale.set(1.2, 1, 0.82);
+      loop.position.y = baseCenterY;
+      registerBaseObject(loop);
+
+      const spine = new THREE.Mesh(
+        new THREE.CylinderGeometry(loopThickness * 0.9, loopThickness * 0.9, baseHeight * 0.55, 24),
+        legMaterial
+      );
+      spine.position.y = baseCenterY;
+      registerBaseObject(spine);
+    };
+
+    const buildZSculpt = () => {
+      const slabDepth = baseDepth * 0.78;
+      const bottom = new THREE.Mesh(
+        new THREE.BoxGeometry(baseWidth * 0.98, baseThickness, slabDepth),
+        legMaterial
+      );
+      bottom.position.set(0, legBottomLocal + baseThickness / 2, 0);
+      registerBaseObject(bottom);
+
+      const top = new THREE.Mesh(
+        new THREE.BoxGeometry(baseWidth * 0.9, baseThickness * 0.8, slabDepth * 0.92),
+        legMaterial
+      );
+      top.position.set(0, baseTopLocal - baseThickness * 0.45, slabDepth * 0.08);
+      registerBaseObject(top);
+
+      const mid = new THREE.Mesh(
+        new THREE.BoxGeometry(baseWidth * 0.46, baseHeight * 0.78, slabDepth * 0.72),
+        legMaterial
+      );
+      mid.position.set(0, baseCenterY, slabDepth * -0.05);
+      mid.rotation.z = -Math.PI / 12;
+      registerBaseObject(mid);
+    };
+
+    const buildArchBridge = () => {
+      const archHeight = baseHeight * 0.68;
+      const archWidth = frameOuterX * 1.08;
+      const archThickness = Math.max(TABLE.THICK * 0.6, baseDepth * 0.6);
+      const shape = new THREE.Shape();
+      shape.moveTo(-archWidth / 2, 0);
+      shape.lineTo(-archWidth / 2, archHeight * 0.45);
+      shape.quadraticCurveTo(0, archHeight, archWidth / 2, archHeight * 0.45);
+      shape.lineTo(archWidth / 2, 0);
+      shape.lineTo(-archWidth / 2, 0);
+      const hole = new THREE.Path();
+      const holeHeight = archHeight * 0.62;
+      hole.absellipse(0, holeHeight * 0.55, archWidth * 0.32, holeHeight * 0.55, 0, Math.PI, true);
+      shape.holes.push(hole);
+      const archGeo = new THREE.ExtrudeGeometry(shape, {
+        depth: archThickness,
+        bevelEnabled: false,
+        steps: 1,
+        curveSegments: 32
+      });
+      archGeo.translate(0, 0, -archThickness / 2);
+      const arch = new THREE.Mesh(archGeo, legMaterial);
+      arch.position.set(0, legBottomLocal, 0);
+      registerBaseObject(arch);
+    };
+
+    const buildOpenTrestle = () => {
+      const frameHeight = baseHeight * 0.82;
+      const frameWidthTop = frameOuterX * 0.64;
+      const frameWidthBottom = frameOuterX * 0.82;
+      const frameThickness = baseThickness * 0.8;
+      const frameDepth = baseDepth * 0.38;
+      const frameSpacing = frameOuterZ * 0.66;
+      const frameShape = new THREE.Shape();
+      frameShape.moveTo(-frameWidthBottom / 2, 0);
+      frameShape.lineTo(frameWidthBottom / 2, 0);
+      frameShape.lineTo(frameWidthTop / 2, frameHeight);
+      frameShape.lineTo(-frameWidthTop / 2, frameHeight);
+      frameShape.lineTo(-frameWidthBottom / 2, 0);
+      const frameHole = new THREE.Path();
+      frameHole.moveTo(-frameWidthBottom * 0.36, frameHeight * 0.2);
+      frameHole.lineTo(frameWidthBottom * 0.36, frameHeight * 0.2);
+      frameHole.lineTo(frameWidthTop * 0.42, frameHeight * 0.74);
+      frameHole.lineTo(-frameWidthTop * 0.42, frameHeight * 0.74);
+      frameHole.lineTo(-frameWidthBottom * 0.36, frameHeight * 0.2);
+      frameShape.holes.push(frameHole);
+      const frameGeo = new THREE.ExtrudeGeometry(frameShape, {
+        depth: frameDepth,
+        bevelEnabled: false,
+        steps: 1
+      });
+      frameGeo.translate(0, 0, -frameDepth / 2);
+      [-frameSpacing, frameSpacing].forEach((z) => {
+        const frame = new THREE.Mesh(frameGeo, legMaterial);
+        frame.position.set(0, legBottomLocal, z);
+        registerBaseObject(frame);
+      });
+      const stretcher = new THREE.Mesh(
+        new THREE.BoxGeometry(frameWidthBottom * 0.9, frameThickness, frameSpacing * 1.9),
+        legMaterial
+      );
+      stretcher.position.set(0, legBottomLocal + frameThickness / 2, 0);
+      registerBaseObject(stretcher);
+    };
+
+    const buildCoinOpClassic = () => {
+      const bodyHeight = baseHeight * 0.55;
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(baseWidth * 0.96, bodyHeight, baseDepth * 0.86),
+        legMaterial
+      );
+      body.position.y = legBottomLocal + bodyHeight / 2 + baseThickness * 0.2;
+      registerBaseObject(body);
+      const legHeight = baseHeight * 0.4;
+      const footGeo = new THREE.CylinderGeometry(legR * 0.9, legR * 0.65, legHeight, 20);
+      const footY = legBottomLocal + legHeight / 2;
+      const legOffsetX = frameOuterX * 0.62;
+      const legOffsetZ = frameOuterZ * 0.62;
+      [
+        [-legOffsetX, -legOffsetZ],
+        [legOffsetX, -legOffsetZ],
+        [-legOffsetX, legOffsetZ],
+        [legOffsetX, legOffsetZ]
+      ].forEach(([lx, lz]) => {
+        const foot = new THREE.Mesh(footGeo, legMaterial);
+        foot.position.set(lx, footY, lz);
+        registerBaseObject(foot);
+      });
+    };
+
+    const buildModernPedestal = () => {
+      const pedestal = new THREE.Mesh(
+        new THREE.BoxGeometry(baseWidth * 0.86, baseHeight * 0.78, baseDepth * 0.72),
+        legMaterial
+      );
+      pedestal.position.set(0, baseCenterY, 0);
+      pedestal.rotation.z = Math.PI / 16;
+      registerBaseObject(pedestal);
+      const cap = new THREE.Mesh(
+        new THREE.BoxGeometry(baseWidth * 0.92, baseThickness * 0.8, baseDepth * 0.8),
+        legMaterial
+      );
+      cap.position.set(0, baseTopLocal - baseThickness * 0.4, 0);
+      registerBaseObject(cap);
+      const plinth = new THREE.Mesh(
+        new THREE.CylinderGeometry(baseWidth * 0.48, baseWidth * 0.62, baseThickness, 48),
+        legMaterial
+      );
+      plinth.scale.z = Math.max(0.65, (frameOuterZ / frameOuterX) * 0.7);
+      plinth.position.y = legBottomLocal + baseThickness / 2;
+      registerBaseObject(plinth);
+    };
+
+    const buildIndustrialX = () => {
+      const beamThickness = baseThickness * 0.9;
+      const beamDepth = baseDepth * 0.42;
+      const beamHeight = baseHeight * 0.6;
+      const offsetX = frameOuterX * 0.6;
+      [-1, 1].forEach((side) => {
+        const crossA = new THREE.Mesh(
+          new THREE.BoxGeometry(beamThickness, beamHeight, beamDepth),
+          legMaterial
+        );
+        crossA.position.set(side * offsetX, baseCenterY, 0);
+        crossA.rotation.z = side * (Math.PI / 8);
+        registerBaseObject(crossA);
+        const crossB = crossA.clone();
+        crossB.rotation.z = side * (-Math.PI / 8);
+        registerBaseObject(crossB);
+      });
+      const spine = new THREE.Mesh(
+        new THREE.BoxGeometry(baseWidth * 0.48, beamThickness, beamDepth * 1.4),
+        legMaterial
+      );
+      spine.position.y = legBottomLocal + beamThickness / 2;
+      registerBaseObject(spine);
+    };
+
+    const buildHeritageClaw = () => {
+      const profile = [];
+      const footRadius = legR * 1.2;
+      const kneeHeight = baseHeight * 0.6;
+      profile.push(new THREE.Vector2(0, 0));
+      profile.push(new THREE.Vector2(footRadius, footRadius * 0.4));
+      profile.push(new THREE.Vector2(footRadius * 1.05, footRadius * 0.7));
+      profile.push(new THREE.Vector2(legR * 0.9, kneeHeight * 0.3));
+      profile.push(new THREE.Vector2(legR * 0.8, kneeHeight * 0.62));
+      profile.push(new THREE.Vector2(legR * 0.7, kneeHeight * 0.9));
+      profile.push(new THREE.Vector2(legR * 0.7, kneeHeight));
+      const clawGeo = new THREE.LatheGeometry(profile, 28);
+      const posY = legBottomLocal + kneeHeight / 2;
+      const offsets = [
+        [-frameOuterX + legInset, -frameOuterZ + legInset],
+        [frameOuterX - legInset, -frameOuterZ + legInset],
+        [-frameOuterX + legInset, frameOuterZ - legInset],
+        [frameOuterX - legInset, frameOuterZ - legInset]
+      ];
+      offsets.forEach(([lx, lz]) => {
+        const claw = new THREE.Mesh(clawGeo, legMaterial);
+        claw.position.set(lx, posY, lz);
+        registerBaseObject(claw);
+      });
+      const apron = new THREE.Mesh(
+        new THREE.BoxGeometry(baseWidth * 0.95, baseThickness, baseDepth * 0.78),
+        legMaterial
+      );
+      apron.position.y = baseTopLocal - baseThickness / 2;
+      registerBaseObject(apron);
+    };
+
+    const builders = {
+      classicColumns: buildClassicColumns,
+      loopPedestal: buildLoopPedestal,
+      zSculpt: buildZSculpt,
+      archBridge: buildArchBridge,
+      openTrestle: buildOpenTrestle,
+      coinOpClassic: buildCoinOpClassic,
+      modernPedestal: buildModernPedestal,
+      industrialX: buildIndustrialX,
+      heritageClaw: buildHeritageClaw
+    };
+    const builder = builders[resolvedId] || builders.classicColumns;
+    builder();
+    finishInfo.baseStyleId = resolvedId;
+    finishParts.baseStyleId = resolvedId;
+    table.userData.baseStyleId = resolvedId;
+  };
+
+  buildBaseStyle(baseStyleId);
+  table.userData.applyBaseStyle = (styleId) => {
+    buildBaseStyle(styleId);
+    applyTableFinishToTable(table, table.userData.finish ?? finishInfo);
+  };
 
   table.updateMatrixWorld(true);
   let cushionTopLocal = frameTopY;
@@ -9194,6 +9507,14 @@ function PoolRoyaleGame({
       DEFAULT_TABLE_FINISH_ID
     );
   });
+  const [tableBaseId, setTableBaseId] = useState(() => {
+    return resolveStoredSelection(
+      'tableBase',
+      'poolTableBase',
+      (id) => Boolean(TABLE_BASE_OPTION_MAP[id]),
+      DEFAULT_TABLE_BASE_ID
+    );
+  });
   const [clothColorId, setClothColorId] = useState(() => {
     return resolveStoredSelection(
       'clothColor',
@@ -9318,6 +9639,13 @@ function PoolRoyaleGame({
       ),
     [poolInventory]
   );
+  const availableTableBases = useMemo(
+    () =>
+      TABLE_BASE_OPTIONS.filter((option) =>
+        isPoolOptionUnlocked('tableBase', option.id, poolInventory)
+      ),
+    [poolInventory]
+  );
   const availableChromeOptions = useMemo(
     () =>
       CHROME_COLOR_OPTIONS.filter((option) =>
@@ -9360,6 +9688,11 @@ function PoolRoyaleGame({
       ),
     [poolInventory]
   );
+  const resolvedTableBaseId = useMemo(() => {
+    const direct = availableTableBases.find((opt) => opt.id === tableBaseId);
+    if (direct) return direct.id;
+    return availableTableBases[0]?.id ?? DEFAULT_TABLE_BASE_ID;
+  }, [availableTableBases, tableBaseId]);
   const activeChromeOption = useMemo(
     () =>
       availableChromeOptions.find((opt) => opt.id === chromeColorId) ??
@@ -9419,6 +9752,9 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
+    if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
+      setTableBaseId(DEFAULT_TABLE_BASE_ID);
+    }
     if (!isPoolOptionUnlocked('clothColor', clothColorId, poolInventory)) {
       setClothColorId(DEFAULT_CLOTH_COLOR_ID);
     }
@@ -9440,6 +9776,7 @@ function PoolRoyaleGame({
     environmentHdriId,
     pocketLinerId,
     poolInventory,
+    tableBaseId,
     railMarkerColorId,
     tableFinishId
   ]);
@@ -10090,6 +10427,11 @@ function PoolRoyaleGame({
   }, [tableFinishId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      window.localStorage.setItem('poolTableBase', resolvedTableBaseId);
+    }
+  }, [resolvedTableBaseId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
       window.localStorage.setItem(CLOTH_COLOR_STORAGE_KEY, clothColorId);
     }
   }, [clothColorId]);
@@ -10136,6 +10478,7 @@ function PoolRoyaleGame({
     };
   }, [configOpen]);
   const applyFinishRef = useRef(() => {});
+  const applyBaseStyleRef = useRef(() => {});
   const playerLabel = playerName || 'Player';
   const effectiveMode = isTraining ? trainingModeState : mode;
   const opponentLabel =
@@ -15368,7 +15711,13 @@ const powerRef = useRef(hud.power);
         clothMat: tableCloth,
         cushionMat: tableCushion,
         railMarkers
-      } = Table3D(world, finishForScene, tableSizeMeta, railMarkerStyleRef.current);
+      } = Table3D(
+        world,
+        finishForScene,
+        tableSizeMeta,
+        railMarkerStyleRef.current,
+        resolvedTableBaseId
+      );
       clothMat = tableCloth;
       cushionMat = tableCushion;
       chalkMeshesRef.current = Array.isArray(table?.userData?.chalks)
@@ -15379,6 +15728,11 @@ const powerRef = useRef(hud.power);
       applyFinishRef.current = (nextFinish) => {
         if (table && nextFinish) {
           applyTableFinishToTable(table, nextFinish);
+        }
+      };
+      applyBaseStyleRef.current = (baseId) => {
+        if (table?.userData?.applyBaseStyle) {
+          table.userData.applyBaseStyle(baseId);
         }
       };
       applyRailMarkerStyleRef.current = (style) => {
@@ -20476,6 +20830,7 @@ const powerRef = useRef(hud.power);
           dom.removeEventListener('pointercancel', endInHandDrag);
           window.removeEventListener('pointercancel', endInHandDrag);
           applyFinishRef.current = () => {};
+          applyBaseStyleRef.current = () => {};
           applyRailMarkerStyleRef.current = () => {};
           chalkMeshesRef.current = [];
           chalkAreaRef.current = null;
@@ -20533,6 +20888,9 @@ const powerRef = useRef(hud.power);
     applyFinishRef.current?.(tableFinish);
     applyRailMarkerStyleRef.current?.(railMarkerStyleRef.current);
   }, [tableFinish]);
+  useEffect(() => {
+    applyBaseStyleRef.current?.(resolvedTableBaseId);
+  }, [resolvedTableBaseId]);
 
   useLayoutEffect(() => {
     const computeInsets = () => {
@@ -21123,6 +21481,31 @@ const powerRef = useRef(hud.power);
                         }`}
                       >
                         {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Table Base
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {availableTableBases.map((option) => {
+                    const active = option.id === resolvedTableBaseId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setTableBaseId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[9rem] rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {option.name || option.label || option.id}
                       </button>
                     );
                   })}
