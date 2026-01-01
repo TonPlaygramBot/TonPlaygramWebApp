@@ -30,17 +30,22 @@ const tileableNoise = (x, y, width, height, scale, seed = 1) => {
   return (nx + ny + nxy + 3) / 6; // normalize to [0,1]
 };
 
+const WOOD_TEXTURE_ANISOTROPY = 12;
+
 const woodTextureLoader = new THREE.TextureLoader();
 woodTextureLoader.setCrossOrigin?.('anonymous');
 const WOOD_EXTERNAL_TEXTURE_CACHE = new Map();
 
-const normalizeExternalTexture = (texture, isColor = false, anisotropy = 16) => {
+const normalizeExternalTexture = (texture, isColor = false, anisotropy = WOOD_TEXTURE_ANISOTROPY) => {
   if (!texture) return;
   if (isColor) {
     applySRGBColorSpace(texture);
   }
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.anisotropy = Math.max(texture.anisotropy ?? 1, anisotropy);
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
   texture.needsUpdate = true;
 };
 
@@ -531,6 +536,18 @@ const cloneWoodTexture = (texture, repeat, rotation) => {
   return clone;
 };
 
+const boostWoodTextureSampling = (texture, { isColor = false } = {}) => {
+  if (!texture) return;
+  if (isColor) {
+    applySRGBColorSpace(texture);
+  }
+  texture.anisotropy = Math.max(texture.anisotropy ?? 1, WOOD_TEXTURE_ANISOTROPY);
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+};
+
 export const applyWoodTextures = (
   material,
   {
@@ -594,12 +611,15 @@ export const applyWoodTextures = (
   const normalMap = cloneWoodTexture(baseTextures.normalMap, repeatVec, rotation);
   if (map) {
     map.wrapS = map.wrapT = THREE.RepeatWrapping;
+    boostWoodTextureSampling(map, { isColor: true });
   }
   if (roughnessMap) {
     roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
+    boostWoodTextureSampling(roughnessMap);
   }
   if (normalMap) {
     normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
+    boostWoodTextureSampling(normalMap);
   }
   material.map = map;
   material.roughnessMap = roughnessMap;
