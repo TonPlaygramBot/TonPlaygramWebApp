@@ -906,6 +906,10 @@ const PLAY_H = TABLE.H - 2 * END_RAIL_INNER_THICKNESS;
 const innerLong = Math.max(PLAY_W, PLAY_H);
 const innerShort = Math.min(PLAY_W, PLAY_H);
 const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
+const MUSIC_HALL_DUAL_TABLE_ID = 'musicHall02';
+const MUSIC_HALL_TABLE_SPACING = Math.max(PLAY_W, PLAY_H) * 2.2;
+const SINGLE_TABLE_ANCHOR_ID = 'center';
+const MUSIC_HALL_DEFAULT_ANCHOR_ID = 'left';
   console.assert(
     Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
     'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
@@ -1851,12 +1855,12 @@ const TABLE_FINISH_DULLING = Object.freeze({
   sheenRoughnessLift: 0.32
 });
 const TABLE_WOOD_VISIBILITY_TUNING = Object.freeze({
-  roughnessMin: 0.45,
-  metalnessMax: 0.2,
-  clearcoatMax: 0.22,
-  clearcoatRoughnessMin: 0.4,
-  envMapIntensityMax: 0.35,
-  normalScale: 0.65
+  roughnessMin: 0.56,
+  metalnessMax: 0.12,
+  clearcoatMax: 0.18,
+  clearcoatRoughnessMin: 0.5,
+  envMapIntensityMax: 0.22,
+  normalScale: 0.82
 });
 
 const clampWoodRepeatScaleValue = () => DEFAULT_WOOD_REPEAT_SCALE;
@@ -1992,7 +1996,15 @@ const WOOD_TEXTURES_ENABLED = true;
 const DEFAULT_TABLE_FINISH_ID =
   POOL_ROYALE_DEFAULT_UNLOCKS.tableFinish?.[0] ?? 'peelingPaintWeathered';
 
-const POOL_ROYALE_WOOD_PRESET_FOR_FINISH = Object.freeze({});
+const POOL_ROYALE_WOOD_PRESET_FOR_FINISH = Object.freeze({
+  peelingPaintWeathered: 'walnut',
+  oakVeneer01: 'oak',
+  woodTable001: 'walnut',
+  darkWood: 'smokedOak',
+  rosewoodVeneer01: 'cherry',
+  kitchenWood: 'maple',
+  japaneseSycamore: 'birch'
+});
 
 const POOL_ROYALE_WOOD_REPEAT = Object.freeze({
   x: CUE_WOOD_REPEAT.x,
@@ -8878,42 +8890,47 @@ function Table3D(
     },
     arcBridge: (ctx) => {
       const meshes = [];
-      const archRadius = ctx.frameOuterZ * 1.15;
-      const archThickness = Math.max(ctx.legR * 1.2, ctx.frameOuterZ * 0.22);
+      const archRadius = ctx.frameOuterX * 0.9;
+      const archThickness = Math.max(ctx.legR * 1.05, ctx.frameOuterZ * 0.24);
       const archGeom = new THREE.TorusGeometry(
         archRadius,
-        archThickness * 0.35,
-        42,
-        160,
-        Math.PI
+        archThickness * 0.32,
+        48,
+        192,
+        Math.PI * 0.98
       );
       const arch = new THREE.Mesh(archGeom, ctx.legMat);
       arch.rotation.x = Math.PI / 2;
       arch.rotation.z = Math.PI;
-      arch.position.set(0, ctx.floorY + archRadius * 0.35, 0);
+      arch.position.set(0, ctx.floorY + archThickness * 0.6, 0);
       arch.castShadow = true;
       arch.receiveShadow = true;
       arch.userData = { ...(arch.userData || {}), __basePart: true };
       meshes.push(arch);
 
-      const capsGeom = new THREE.BoxGeometry(ctx.frameOuterX * 1.02, archThickness * 0.6, archThickness);
+      const capHalfSpan = ctx.frameOuterX - ctx.legInset * 0.3;
+      const capsGeom = new THREE.BoxGeometry(
+        ctx.frameOuterZ * 0.48,
+        archThickness * 0.72,
+        archThickness * 1.1
+      );
       const leftCap = new THREE.Mesh(capsGeom, ctx.legMat);
-      leftCap.position.set(-ctx.frameOuterX * 0.9, ctx.floorY + archThickness * 0.3, 0);
+      leftCap.position.set(-capHalfSpan, ctx.floorY + archThickness * 0.36, 0);
       leftCap.castShadow = true;
       leftCap.receiveShadow = true;
       leftCap.userData = { ...(leftCap.userData || {}), __basePart: true };
       meshes.push(leftCap);
       const rightCap = leftCap.clone();
-      rightCap.position.x = ctx.frameOuterX * 0.9;
+      rightCap.position.x = capHalfSpan;
       meshes.push(rightCap);
       return { meshes, legMeshes: meshes };
     },
     openPortal: (ctx) => {
       const meshes = [];
-      const frameWidth = ctx.frameOuterX * 0.4;
-      const frameDepth = ctx.frameOuterZ * 0.36;
-      const frameHeight = ctx.legH * 0.82;
-      const thickness = ctx.legR * 0.9;
+      const frameWidth = ctx.frameOuterX * 0.36;
+      const frameDepth = ctx.frameOuterZ * 0.3;
+      const frameHeight = ctx.legH * 0.88;
+      const thickness = ctx.legR * 0.82;
       const createPortal = (x) => {
         const shape = new THREE.Shape();
         const w = frameWidth;
@@ -8939,14 +8956,15 @@ function Table3D(
         geo.translate(0, 0, -frameDepth / 2);
         const mesh = new THREE.Mesh(geo, ctx.legMat);
         mesh.position.set(x, ctx.floorY, 0);
-        mesh.rotation.z = x < 0 ? Math.PI / 18 : -Math.PI / 18;
+        mesh.rotation.z = x < 0 ? Math.PI / 24 : -Math.PI / 24;
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         mesh.userData = { ...(mesh.userData || {}), __basePart: true };
         return mesh;
       };
-      meshes.push(createPortal(-ctx.frameOuterX * 0.8));
-      meshes.push(createPortal(ctx.frameOuterX * 0.8));
+      const portalInset = ctx.frameOuterX - ctx.legInset * 0.6;
+      meshes.push(createPortal(-portalInset));
+      meshes.push(createPortal(portalInset));
       return { meshes, legMeshes: meshes };
     },
     coinAngled: (ctx) => {
@@ -9041,9 +9059,9 @@ function Table3D(
     },
     rusticCross: (ctx) => {
       const meshes = [];
-      const beamWidth = ctx.frameOuterX * 0.8;
-      const beamDepth = ctx.frameOuterZ * 0.22;
-      const beamHeight = ctx.legH * 0.8;
+      const beamWidth = ctx.frameOuterX * 0.7;
+      const beamDepth = ctx.frameOuterZ * 0.18;
+      const beamHeight = ctx.legH * 0.72;
       const legMeshes = [];
       const createCross = (x) => {
         const group = new THREE.Group();
@@ -9051,8 +9069,8 @@ function Table3D(
           new THREE.BoxGeometry(beamWidth, beamDepth, beamDepth),
           ctx.legMat
         );
-        diagonal.rotation.z = Math.PI / 6;
-        diagonal.position.set(0, beamHeight * 0.25, 0);
+        diagonal.rotation.z = Math.PI / 7;
+        diagonal.position.set(0, beamHeight * 0.22, 0);
         diagonal.userData = { ...(diagonal.userData || {}), __basePart: true };
         diagonal.castShadow = true;
         diagonal.receiveShadow = true;
@@ -9060,21 +9078,22 @@ function Table3D(
         legMeshes.push(diagonal);
 
         const diagonal2 = diagonal.clone();
-        diagonal2.rotation.z = -Math.PI / 6;
-        diagonal2.position.y = beamHeight * 0.75;
+        diagonal2.rotation.z = -Math.PI / 7;
+        diagonal2.position.y = beamHeight * 0.78;
         group.add(diagonal2);
         legMeshes.push(diagonal2);
 
         group.position.set(x, ctx.floorY, 0);
         meshes.push(group);
       };
-      createCross(-ctx.frameOuterX * 0.8);
-      createCross(ctx.frameOuterX * 0.8);
+      const crossOffset = ctx.frameOuterX - ctx.legInset * 0.45;
+      createCross(-crossOffset);
+      createCross(crossOffset);
       const stretcher = new THREE.Mesh(
-        new THREE.BoxGeometry(ctx.frameOuterX * 1.6, ctx.legR * 0.6, ctx.legR * 0.9),
+        new THREE.BoxGeometry(ctx.frameOuterX * 1.4, ctx.legR * 0.6, ctx.legR * 0.9),
         ctx.legMat
       );
-      stretcher.position.y = ctx.floorY + ctx.legR * 0.5;
+      stretcher.position.y = ctx.floorY + ctx.legR * 0.48;
       stretcher.castShadow = true;
       stretcher.receiveShadow = true;
       stretcher.userData = { ...(stretcher.userData || {}), __basePart: true };
@@ -9644,6 +9663,11 @@ function PoolRoyaleGame({
       POOL_ROYALE_DEFAULT_HDRI_ID
     );
   });
+  const [tableAnchorId, setTableAnchorId] = useState(() =>
+    environmentHdriId === MUSIC_HALL_DUAL_TABLE_ID
+      ? MUSIC_HALL_DEFAULT_ANCHOR_ID
+      : SINGLE_TABLE_ANCHOR_ID
+  );
   const [hdriResolutionId, setHdriResolutionId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(HDRI_RESOLUTION_STORAGE_KEY);
@@ -9747,6 +9771,53 @@ function PoolRoyaleGame({
       ),
     [poolInventory]
   );
+  const isDualTableEnvironment = environmentHdriId === MUSIC_HALL_DUAL_TABLE_ID;
+  const resolveAnchorOffset = useCallback(
+    (anchorId) => {
+      if (!isDualTableEnvironment) return 0;
+      const halfSpan = MUSIC_HALL_TABLE_SPACING / 2;
+      return anchorId === 'right' ? halfSpan : -halfSpan;
+    },
+    [isDualTableEnvironment]
+  );
+  useEffect(() => {
+    if (!isDualTableEnvironment) {
+      setTableAnchorId(SINGLE_TABLE_ANCHOR_ID);
+      return;
+    }
+    setTableAnchorId((prev) =>
+      prev === 'left' || prev === 'right' ? prev : MUSIC_HALL_DEFAULT_ANCHOR_ID
+    );
+  }, [isDualTableEnvironment]);
+  const activeTableOffset = useMemo(
+    () => resolveAnchorOffset(tableAnchorId),
+    [resolveAnchorOffset, tableAnchorId]
+  );
+  const secondaryTableOffset = useMemo(() => {
+    if (!isDualTableEnvironment) return 0;
+    const fallback = tableAnchorId === 'left' ? 'right' : 'left';
+    const otherAnchor = tableAnchorId === 'right' ? 'left' : fallback;
+    return resolveAnchorOffset(otherAnchor);
+  }, [isDualTableEnvironment, resolveAnchorOffset, tableAnchorId]);
+  useEffect(() => {
+    const arenaGroup = arenaGroupRef.current;
+    if (arenaGroup) {
+      arenaGroup.position.x = activeTableOffset;
+    }
+    const secondaryTable = secondaryTableRef.current;
+    if (secondaryTable) {
+      secondaryTable.position.x = secondaryTableOffset - activeTableOffset;
+    }
+    playerOffsetRef.current = activeTableOffset;
+    if (orbitFocusRef.current?.target) {
+      orbitFocusRef.current.target.x = activeTableOffset;
+    }
+    if (lastCameraTargetRef.current?.set) {
+      const target = lastCameraTargetRef.current;
+      target.set(activeTableOffset, target.y ?? ORBIT_FOCUS_BASE_Y, target.z ?? 0);
+    }
+    cameraUpdateRef.current?.();
+  }, [activeTableOffset, secondaryTableOffset]);
   const availableClothOptions = useMemo(
     () =>
       CLOTH_COLOR_OPTIONS.filter((option) =>
@@ -10525,6 +10596,43 @@ function PoolRoyaleGame({
     }
   }, [clothColorId]);
   useEffect(() => {
+    const arenaGroup = arenaGroupRef.current;
+    const world = worldRef.current;
+    if (!arenaGroup || !world) return;
+    if (isDualTableEnvironment) {
+      if (!secondaryTableRef.current) {
+        const secondary = Table3D(
+          arenaGroup,
+          tableFinishRef.current ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID],
+          tableSizeRef.current,
+          railMarkerStyleRef.current,
+          activeTableBase
+        );
+        secondaryTableRef.current = secondary?.group ?? null;
+        secondaryTableBaseSetterRef.current = secondary?.setBaseVariant ?? null;
+      }
+      if (secondaryTableRef.current) {
+        secondaryTableRef.current.visible = true;
+        secondaryTableRef.current.position.x = secondaryTableOffset - activeTableOffset;
+        if (tableFinishRef.current) {
+          applyTableFinishToTable(secondaryTableRef.current, tableFinishRef.current);
+        }
+      }
+      if (secondaryTableBaseSetterRef.current) {
+        secondaryTableBaseSetterRef.current(activeTableBase?.id ?? tableBaseId);
+      }
+    } else if (secondaryTableRef.current) {
+      secondaryTableRef.current.visible = false;
+    }
+  }, [
+    activeTableBase,
+    activeTableOffset,
+    isDualTableEnvironment,
+    secondaryTableOffset,
+    tableBaseId,
+    tableFinishId
+  ]);
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(POCKET_LINER_STORAGE_KEY, pocketLinerId);
     }
@@ -10945,6 +11053,9 @@ const powerRef = useRef(hud.power);
   const pocketCameraStateRef = useRef(false);
   const pocketCamerasRef = useRef(new Map());
   const broadcastCamerasRef = useRef(null);
+  const arenaGroupRef = useRef(null);
+  const secondaryTableRef = useRef(null);
+  const secondaryTableBaseSetterRef = useRef(null);
   const lightingRigRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
   const pocketSwitchIntentRef = useRef(null);
@@ -11882,6 +11993,9 @@ const powerRef = useRef(hud.power);
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
+      const arenaGroup = new THREE.Group();
+      world.add(arenaGroup);
+      arenaGroupRef.current = arenaGroup;
       const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
         const sceneInstance = sceneRef.current;
         if (!renderer || !sceneInstance) return;
@@ -12499,7 +12613,7 @@ const powerRef = useRef(hud.power);
           if (!rack) return;
           rack.position.set(placement.x, cueRackY, placement.z);
           rack.rotation.y = placement.rotationY;
-          world.add(rack);
+          arenaGroup.add(rack);
           registerCueRack(rack, entry.dispose, entry.dimensions);
           if (typeof entry.dispose === 'function') {
             cueRackDisposers.push(entry.dispose);
@@ -12543,7 +12657,7 @@ const powerRef = useRef(hud.power);
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: Math.max(arenaHalfDepth - BALL_R * 4, BALL_R * 4)
       });
-      world.add(broadcastRig.group);
+      arenaGroup.add(broadcastRig.group);
       broadcastCamerasRef.current = broadcastRig;
 
       if (ENABLE_TRIPOD_CAMERAS) {
@@ -12574,7 +12688,7 @@ const powerRef = useRef(hud.power);
             const yaw = Math.atan2(toTarget.z, toTarget.x);
             tripodGroup.rotation.y = yaw;
           }
-          world.add(tripodGroup);
+          arenaGroup.add(tripodGroup);
           tripodGroup.updateWorldMatrix(true, false);
           headPivot.up.set(0, 1, 0);
           headPivot.lookAt(tripodTarget);
@@ -12869,7 +12983,7 @@ const powerRef = useRef(hud.power);
           }
         ].forEach((config) => {
           const hospitalitySet = createCornerHospitalitySet(config);
-          world.add(hospitalitySet);
+          arenaGroup.add(hospitalitySet);
         });
       }
 
@@ -15691,7 +15805,7 @@ const powerRef = useRef(hud.power);
           return;
         }
         const lightingRig = new THREE.Group();
-        world.add(lightingRig);
+        arenaGroup.add(lightingRig);
 
         const lightSpreadBoost = 1.12; // tighten the overhead footprint while keeping enough coverage for mobile
         const previousLightRigHeight = tableSurfaceY + TABLE.THICK * 7.1; // baseline height used for the prior brightness target
@@ -15786,7 +15900,31 @@ const powerRef = useRef(hud.power);
         cushionMat: tableCushion,
         railMarkers,
         setBaseVariant
-      } = Table3D(world, finishForScene, tableSizeMeta, railMarkerStyleRef.current, activeTableBase);
+      } = Table3D(
+        arenaGroup,
+        finishForScene,
+        tableSizeMeta,
+        railMarkerStyleRef.current,
+        activeTableBase
+      );
+      let secondaryTable = null;
+      let secondaryBaseSetter = null;
+      if (isDualTableEnvironment) {
+        const secondary = Table3D(
+          arenaGroup,
+          finishForScene,
+          tableSizeMeta,
+          railMarkerStyleRef.current,
+          activeTableBase
+        );
+        secondaryTable = secondary?.group ?? null;
+        secondaryBaseSetter = secondary?.setBaseVariant ?? null;
+        secondaryTableRef.current = secondaryTable;
+        secondaryTableBaseSetterRef.current = secondaryBaseSetter;
+      } else {
+        secondaryTableRef.current = null;
+        secondaryTableBaseSetterRef.current = null;
+      }
       clothMat = tableCloth;
       cushionMat = tableCushion;
       chalkMeshesRef.current = Array.isArray(table?.userData?.chalks)
@@ -15797,6 +15935,9 @@ const powerRef = useRef(hud.power);
       applyFinishRef.current = (nextFinish) => {
         if (table && nextFinish) {
           applyTableFinishToTable(table, nextFinish);
+          if (secondaryTableRef.current) {
+            applyTableFinishToTable(secondaryTableRef.current, nextFinish);
+          }
         }
       };
       applyRailMarkerStyleRef.current = (style) => {
@@ -15809,6 +15950,9 @@ const powerRef = useRef(hud.power);
       applyBaseRef.current = (variant) => {
         if (table && setBaseVariant) {
           setBaseVariant(variant);
+        }
+        if (secondaryTableRef.current && secondaryTableBaseSetterRef.current) {
+          secondaryTableBaseSetterRef.current(variant);
         }
       };
       if (railMarkers?.applyStyle) {
@@ -20883,6 +21027,9 @@ const powerRef = useRef(hud.power);
           remoteShotUntilRef.current = 0;
           remoteAimRef.current = null;
           lightingRigRef.current = null;
+          secondaryTableRef.current = null;
+          secondaryTableBaseSetterRef.current = null;
+          arenaGroupRef.current = null;
           worldRef.current = null;
           activeRenderCameraRef.current = null;
           cueBodyRef.current = null;
@@ -21466,6 +21613,34 @@ const powerRef = useRef(hud.power);
         <div className="pointer-events-none absolute top-4 right-4 z-50 flex justify-end">
           <div className="rounded-full border border-white/25 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
             Replay
+          </div>
+        </div>
+      )}
+
+      {isDualTableEnvironment && (
+        <div className="pointer-events-auto absolute left-1/2 top-4 z-40 -translate-x-1/2 space-y-2 rounded-2xl border border-emerald-400/50 bg-black/80 px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.32em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.6)] backdrop-blur">
+          <div className="text-[10px] uppercase tracking-[0.4em] text-emerald-100/80">
+            Pick your table
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            {['left', 'right'].map((anchor) => {
+              const active = tableAnchorId === anchor;
+              return (
+                <button
+                  key={anchor}
+                  type="button"
+                  onClick={() => setTableAnchorId(anchor)}
+                  aria-pressed={active}
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold tracking-[0.28em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                    active
+                      ? 'bg-emerald-300 text-black shadow-[0_0_12px_rgba(16,185,129,0.55)]'
+                      : 'bg-white/10 text-white/80 hover:bg-white/20'
+                  }`}
+                >
+                  {anchor === 'left' ? 'Left table' : 'Right table'}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
