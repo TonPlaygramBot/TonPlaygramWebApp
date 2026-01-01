@@ -8882,34 +8882,40 @@ function Table3D(
     },
     arcBridge: (ctx) => {
       const meshes = [];
-      const archRadius = ctx.frameOuterZ * 1.15;
-      const archThickness = Math.max(ctx.legR * 1.2, ctx.frameOuterZ * 0.22);
-      const archGeom = new THREE.TorusGeometry(
-        archRadius,
-        archThickness * 0.35,
-        42,
-        160,
-        Math.PI
+      const archSpan = ctx.frameOuterZ * 0.92;
+      const archHeight = ctx.legH * 0.9;
+      const archThickness = Math.max(ctx.legR * 1.2, ctx.frameOuterZ * 0.18);
+      const archCurve = new THREE.QuadraticBezierCurve3(
+        new THREE.Vector3(0, ctx.floorY, -archSpan),
+        new THREE.Vector3(0, ctx.floorY + archHeight, 0),
+        new THREE.Vector3(0, ctx.floorY, archSpan)
+      );
+      const archGeom = new THREE.TubeGeometry(
+        archCurve,
+        120,
+        archThickness * 0.3,
+        48,
+        false
       );
       const arch = new THREE.Mesh(archGeom, ctx.legMat);
-      arch.rotation.x = Math.PI / 2;
-      arch.rotation.y = Math.PI / 2;
-      arch.rotation.z = Math.PI;
-      arch.position.set(0, ctx.floorY + archRadius * 0.35, 0);
       arch.castShadow = true;
       arch.receiveShadow = true;
       arch.userData = { ...(arch.userData || {}), __basePart: true };
       meshes.push(arch);
 
-      const capsGeom = new THREE.BoxGeometry(ctx.frameOuterX * 1.02, archThickness * 0.6, archThickness);
+      const capsGeom = new THREE.BoxGeometry(
+        ctx.frameOuterX * 1.02,
+        archThickness * 0.6,
+        archThickness * 1.2
+      );
       const leftCap = new THREE.Mesh(capsGeom, ctx.legMat);
-      leftCap.position.set(0, ctx.floorY + archThickness * 0.3, -ctx.frameOuterZ * 0.9);
+      leftCap.position.set(0, ctx.floorY + archThickness * 0.3, -archSpan);
       leftCap.castShadow = true;
       leftCap.receiveShadow = true;
       leftCap.userData = { ...(leftCap.userData || {}), __basePart: true };
       meshes.push(leftCap);
       const rightCap = leftCap.clone();
-      rightCap.position.z = ctx.frameOuterZ * 0.9;
+      rightCap.position.z = archSpan;
       meshes.push(rightCap);
       return { meshes, legMeshes: meshes };
     },
@@ -8919,39 +8925,44 @@ function Table3D(
       const frameDepth = ctx.frameOuterZ * 0.26;
       const frameHeight = ctx.legH * 0.86;
       const thickness = ctx.legR;
-      const createPortal = (z) => {
-        const shape = new THREE.Shape();
-        const w = frameWidth;
-        const h = frameHeight;
-        shape.moveTo(-w, -thickness);
-        shape.lineTo(w, -thickness);
-        shape.lineTo(w, h);
-        shape.lineTo(-w, h);
-        shape.lineTo(-w, -thickness);
-        const hole = new THREE.Path();
-        const hw = w * 0.55;
-        const hh = h * 0.7;
-        hole.moveTo(-hw, thickness);
-        hole.lineTo(hw, thickness);
-        hole.lineTo(hw, hh);
-        hole.lineTo(-hw, hh);
-        hole.lineTo(-hw, thickness);
-        shape.holes.push(hole);
-        const geo = new THREE.ExtrudeGeometry(shape, {
-          depth: frameDepth,
-          bevelEnabled: false
-        });
-        geo.translate(0, 0, -frameDepth / 2);
-        const mesh = new THREE.Mesh(geo, ctx.legMat);
-        mesh.position.set(0, ctx.floorY, z);
-        mesh.rotation.x = z < 0 ? -Math.PI / 18 : Math.PI / 18;
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        mesh.userData = { ...(mesh.userData || {}), __basePart: true };
-        return mesh;
+      const legWidth = thickness * 1.35;
+      const legHeight = frameHeight * 0.92;
+      const beamHeight = Math.max(thickness * 1.25, ctx.legH * 0.12);
+      const footHeight = Math.max(thickness * 0.4, ctx.legH * 0.05);
+      const beamDepth = frameDepth * 1.02;
+      const legGeom = new THREE.BoxGeometry(legWidth, legHeight, frameDepth);
+      const beamGeom = new THREE.BoxGeometry(
+        frameWidth * 2 - legWidth * 1.35,
+        beamHeight,
+        beamDepth
+      );
+      const footGeom = new THREE.BoxGeometry(legWidth * 1.15, footHeight, frameDepth * 1.12);
+      const legOffsetX = frameWidth - legWidth * 0.65;
+      const legBaseY = ctx.floorY + footHeight / 2;
+      const legY = legBaseY + legHeight / 2;
+      const beamY = legBaseY + legHeight + beamHeight / 2;
+      const placeLeg = (side) => {
+        const leg = new THREE.Mesh(legGeom, ctx.legMat);
+        leg.position.set(side * legOffsetX, legY, 0);
+        leg.castShadow = true;
+        leg.receiveShadow = true;
+        leg.userData = { ...(leg.userData || {}), __basePart: true };
+        meshes.push(leg);
+        const foot = new THREE.Mesh(footGeom, ctx.legMat);
+        foot.position.set(side * legOffsetX, legBaseY, 0);
+        foot.castShadow = true;
+        foot.receiveShadow = true;
+        foot.userData = { ...(foot.userData || {}), __basePart: true };
+        meshes.push(foot);
       };
-      meshes.push(createPortal(-ctx.frameOuterZ * 0.82));
-      meshes.push(createPortal(ctx.frameOuterZ * 0.82));
+      placeLeg(-1);
+      placeLeg(1);
+      const beam = new THREE.Mesh(beamGeom, ctx.legMat);
+      beam.position.set(0, beamY, 0);
+      beam.castShadow = true;
+      beam.receiveShadow = true;
+      beam.userData = { ...(beam.userData || {}), __basePart: true };
+      meshes.push(beam);
       return { meshes, legMeshes: meshes };
     },
     coinAngled: (ctx) => {
@@ -10598,6 +10609,9 @@ function PoolRoyaleGame({
   const applyBaseRef = useRef(() => {});
   const applyFinishRef = useRef(() => {});
   const applyTableSlotRef = useRef(() => {});
+  const updateDecorTablesRef = useRef(() => {});
+  const clearDecorTablesRef = useRef(() => {});
+  const decorativeTablesRef = useRef([]);
   const refreshSecondaryTableDecorRef = useRef(() => {});
   const clearSecondaryTableDecorRef = useRef(() => {});
   const secondaryTableDecorRef = useRef({ group: null, dispose: null });
@@ -15848,23 +15862,22 @@ const powerRef = useRef(hud.power);
         }
         secondaryTableDecorRef.current = { group: null, dispose: null };
       };
-      const buildSecondaryDecor = () => {
-        const table = secondaryTableRef.current;
+      const buildDecorGroup = ({ table, variant = 'pool' } = {}) => {
         if (!table) return null;
         const decorGroup = new THREE.Group();
-        decorGroup.name = 'secondary-table-decor';
+        decorGroup.name = `${variant}-table-decor`;
         const disposables = [];
         const registerDisposable = (item) => {
           if (item && typeof item.dispose === 'function') {
             disposables.push(item);
           }
         };
-        const addDecorBall = (color, number, pattern, pos) => {
+        const addDecorBall = (color, number, pattern, pos, variantKey = variant === 'pool' ? 'pool' : 'snooker') => {
           const material = getBilliardBallMaterial({
             color,
             pattern,
             number,
-            variantKey: 'pool'
+            variantKey
           });
           const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
           mesh.position.set(pos.x ?? 0, BALL_CENTER_Y, pos.z ?? 0);
@@ -15873,24 +15886,6 @@ const powerRef = useRef(hud.power);
           mesh.userData = { ...(mesh.userData || {}), decorative: true };
           decorGroup.add(mesh);
         };
-        const rackColors = POOL_VARIANT_COLOR_SETS.american.objectColors || [];
-        const rackNumbers = POOL_VARIANT_COLOR_SETS.american.objectNumbers || [];
-        const rackPatterns = POOL_VARIANT_COLOR_SETS.american.objectPatterns || [];
-        const rackStartZ = SPOTS.pink[1] + BALL_R * 2;
-        const rackPositions = generateRackPositions(
-          rackColors.length,
-          'triangle',
-          BALL_R,
-          rackStartZ
-        );
-        rackColors.forEach((color, index) => {
-          const pos =
-            rackPositions[index] ||
-            rackPositions[rackPositions.length - 1] || { x: 0, z: rackStartZ };
-          addDecorBall(color, rackNumbers[index], rackPatterns[index], pos);
-        });
-        addDecorBall(0xffffff, null, 'cue', { x: 0, z: baulkZ - BALL_R * 5.5 });
-
         const cueScale = BALL_R / 0.0525;
         const cueLen = 1.5 * cueScale * CUE_LENGTH_MULTIPLIER;
         const cueBodyRadius = 0.025 * cueScale;
@@ -15920,11 +15915,58 @@ const powerRef = useRef(hud.power);
           cueMesh.userData = { ...(cueMesh.userData || {}), decorative: true };
           decorGroup.add(cueMesh);
         };
-        addCueStick(-PLAY_W * 0.18, rackStartZ + BALL_R * 4.5, -Math.PI * 0.06);
-        addCueStick(PLAY_W * 0.22, baulkZ - BALL_R * 1.5, Math.PI * 0.08);
-
+        if (variant === 'snooker') {
+          const rackStartZ = SPOTS.pink[1] + BALL_R * 1.6;
+          const rackPositions = generateRackPositions(15, 'triangle', BALL_R, rackStartZ);
+          const snookerPalette = {
+            red: 0xb1262c,
+            yellow: 0xf7d000,
+            green: 0x0d7f46,
+            brown: 0x6a4126,
+            blue: 0x1d5fb3,
+            pink: 0xe24578,
+            black: 0x101010,
+            cue: 0xfafafa
+          };
+          rackPositions.forEach((pos, index) => {
+            const placement = pos || rackPositions[rackPositions.length - 1] || { x: 0, z: rackStartZ + index * BALL_R * 1.6 };
+            addDecorBall(snookerPalette.red, null, 'solid', placement, 'snooker');
+          });
+          [
+            { color: snookerPalette.yellow, spot: SPOTS.yellow },
+            { color: snookerPalette.green, spot: SPOTS.green },
+            { color: snookerPalette.brown, spot: SPOTS.brown },
+            { color: snookerPalette.blue, spot: SPOTS.blue },
+            { color: snookerPalette.pink, spot: SPOTS.pink },
+            { color: snookerPalette.black, spot: SPOTS.black }
+          ].forEach(({ color, spot }) => {
+            addDecorBall(color, null, 'solid', { x: spot[0], z: spot[1] }, 'snooker');
+          });
+          addDecorBall(snookerPalette.cue, null, 'solid', { x: -BALL_R * 3, z: baulkZ - BALL_R * 5 }, 'snooker');
+          addCueStick(-PLAY_W * 0.2, rackStartZ + BALL_R * 4.2, -Math.PI * 0.04);
+          addCueStick(PLAY_W * 0.22, baulkZ - BALL_R * 1.2, Math.PI * 0.06);
+        } else {
+          const rackColors = POOL_VARIANT_COLOR_SETS.american.objectColors || [];
+          const rackNumbers = POOL_VARIANT_COLOR_SETS.american.objectNumbers || [];
+          const rackPatterns = POOL_VARIANT_COLOR_SETS.american.objectPatterns || [];
+          const rackStartZ = SPOTS.pink[1] + BALL_R * 2;
+          const rackPositions = generateRackPositions(
+            rackColors.length,
+            'triangle',
+            BALL_R,
+            rackStartZ
+          );
+          rackColors.forEach((color, index) => {
+            const pos =
+              rackPositions[index] ||
+              rackPositions[rackPositions.length - 1] || { x: 0, z: rackStartZ };
+            addDecorBall(color, rackNumbers[index], rackPatterns[index], pos, 'pool');
+          });
+          addDecorBall(0xffffff, null, 'cue', { x: 0, z: baulkZ - BALL_R * 5.5 }, 'pool');
+          addCueStick(-PLAY_W * 0.18, rackStartZ + BALL_R * 4.5, -Math.PI * 0.06);
+          addCueStick(PLAY_W * 0.22, baulkZ - BALL_R * 1.5, Math.PI * 0.08);
+        }
         table.add(decorGroup);
-
         return {
           group: decorGroup,
           dispose() {
@@ -15937,6 +15979,7 @@ const powerRef = useRef(hud.power);
           }
         };
       };
+      const buildSecondaryDecor = () => buildDecorGroup({ table: secondaryTableRef.current, variant: 'pool' });
       const refreshSecondaryDecor = () => {
         disposeSecondaryDecor();
         if (environmentHdriRef.current !== 'musicHall02') return;
@@ -15960,6 +16003,89 @@ const powerRef = useRef(hud.power);
       applyTableSlotRef.current = applySecondarySlot;
       applySecondarySlot(activeTableSlotRef.current, environmentHdriRef.current === 'musicHall02');
       refreshSecondaryDecor();
+      const disposeDecorativeTables = () => {
+        decorativeTablesRef.current.forEach((entry) => {
+          entry?.decor?.dispose?.();
+          if (entry?.group?.parent) {
+            entry.group.parent.remove(entry.group);
+          }
+        });
+        decorativeTablesRef.current = [];
+      };
+      const markDecorativeTable = (tableGroup) => {
+        if (!tableGroup) return;
+        tableGroup.userData = { ...(tableGroup.userData || {}), decorative: true };
+        tableGroup.traverse((child) => {
+          child.userData = { ...(child.userData || {}), decorative: true };
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+      };
+      const createDecorativeTable = ({ variant = 'pool', position = { x: 0, z: 0 }, rotationY = 0 } = {}) => {
+        const finishForLayout = tableFinishRef.current;
+        const entry = Table3D(
+          world,
+          finishForLayout,
+          tableSizeMeta,
+          railMarkerStyleRef.current,
+          activeTableBase
+        );
+        const tableGroup = entry?.group;
+        if (!tableGroup) return null;
+        tableGroup.position.set(position.x ?? 0, tableGroup.position.y, position.z ?? 0);
+        tableGroup.rotation.y = rotationY;
+        markDecorativeTable(tableGroup);
+        applyTableFinishToTable(tableGroup, finishForLayout);
+        const decor = buildDecorGroup({ table: tableGroup, variant });
+        decorativeTablesRef.current.push({
+          group: tableGroup,
+          setBaseVariant: entry?.setBaseVariant ?? null,
+          decor,
+          variant
+        });
+        return tableGroup;
+      };
+      const layoutDecorativeTables = (environmentId = environmentHdriRef.current) => {
+        disposeDecorativeTables();
+        const tableFootprint = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE;
+        const placementMargin = Math.max(tableFootprint * 0.6, arenaMargin);
+        const maxX = Math.max(0, arenaHalfWidth - placementMargin);
+        const maxZ = Math.max(0, arenaHalfDepth - placementMargin);
+        const clampX = (x = 0) => THREE.MathUtils.clamp(x, -maxX, maxX);
+        const clampZ = (z = 0) => THREE.MathUtils.clamp(z, -maxZ, maxZ);
+        if (environmentId === 'oldHall') {
+          const offsetZ = secondarySpacing;
+          createDecorativeTable({
+            variant: 'pool',
+            position: { x: 0, z: clampZ(-offsetZ) }
+          });
+          createDecorativeTable({
+            variant: 'snooker',
+            position: { x: 0, z: clampZ(offsetZ) }
+          });
+        } else if (environmentId === 'mirroredHall') {
+          const lateralSpacing = clampX(secondarySpacing * 0.6);
+          const depthSpacing = clampZ(secondarySpacing * 0.55);
+          const rearSpacing = clampZ(secondarySpacing * 0.9);
+          createDecorativeTable({
+            variant: 'snooker',
+            position: { x: -lateralSpacing, z: -depthSpacing }
+          });
+          createDecorativeTable({
+            variant: 'snooker',
+            position: { x: lateralSpacing, z: depthSpacing }
+          });
+          createDecorativeTable({
+            variant: 'pool',
+            position: { x: 0, z: rearSpacing }
+          });
+        }
+      };
+      updateDecorTablesRef.current = layoutDecorativeTables;
+      clearDecorTablesRef.current = disposeDecorativeTables;
+      layoutDecorativeTables(environmentHdriRef.current);
       setSecondaryTableReady(true);
       clothMat = tableCloth;
       cushionMat = tableCushion;
@@ -15975,6 +16101,11 @@ const powerRef = useRef(hud.power);
         if (secondaryTableRef.current && nextFinish) {
           applyTableFinishToTable(secondaryTableRef.current, nextFinish);
         }
+        decorativeTablesRef.current.forEach((entry) => {
+          if (entry?.group && nextFinish) {
+            applyTableFinishToTable(entry.group, nextFinish);
+          }
+        });
       };
       applyRailMarkerStyleRef.current = (style) => {
         if (table?.userData?.railMarkers?.applyStyle) {
@@ -15988,6 +16119,14 @@ const powerRef = useRef(hud.power);
             trimMaterial: secondaryTableRef.current?.userData?.finish?.materials?.trim
           });
         }
+        decorativeTablesRef.current.forEach((entry) => {
+          const markers = entry?.group?.userData?.railMarkers;
+          if (markers?.applyStyle) {
+            markers.applyStyle(style, {
+              trimMaterial: entry.group?.userData?.finish?.materials?.trim
+            });
+          }
+        });
       };
       applyBaseRef.current = (variant) => {
         if (table && setBaseVariant) {
@@ -15996,6 +16135,11 @@ const powerRef = useRef(hud.power);
         if (secondaryBaseSetterRef.current) {
           secondaryBaseSetterRef.current(variant);
         }
+        decorativeTablesRef.current.forEach((entry) => {
+          if (entry?.setBaseVariant) {
+            entry.setBaseVariant(variant);
+          }
+        });
       };
       if (railMarkers?.applyStyle) {
         railMarkers.applyStyle(railMarkerStyleRef.current, {
@@ -21094,6 +21238,10 @@ const powerRef = useRef(hud.power);
           refreshSecondaryTableDecorRef.current = () => {};
           clearSecondaryTableDecorRef.current = () => {};
           secondaryTableDecorRef.current = { group: null, dispose: null };
+          clearDecorTablesRef.current?.();
+          decorativeTablesRef.current = [];
+          updateDecorTablesRef.current = () => {};
+          clearDecorTablesRef.current = () => {};
           applyRailMarkerStyleRef.current = () => {};
           secondaryTableRef.current = null;
           secondaryBaseSetterRef.current = null;
@@ -21164,6 +21312,9 @@ const powerRef = useRef(hud.power);
       clearSecondaryTableDecorRef.current?.();
     }
   }, [environmentHdriId, secondaryTableReady]);
+  useEffect(() => {
+    updateDecorTablesRef.current?.(environmentHdriId);
+  }, [environmentHdriId]);
 
   useLayoutEffect(() => {
     const computeInsets = () => {
