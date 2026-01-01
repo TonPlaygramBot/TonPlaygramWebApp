@@ -997,8 +997,7 @@ fitCamera();
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.enableZoom = true;
-controls.zoomSpeed = 1.05;
+controls.enableZoom = false;
 controls.enablePan = true;
 controls.panSpeed = 0.9;
 controls.screenSpacePanning = true;
@@ -1008,7 +1007,7 @@ controls.maxDistance = CAMERA_MAX_RADIUS;
 controls.minPolarAngle = CAMERA_MIN_POLAR;
 controls.maxPolarAngle = CAMERA_MAX_POLAR;
 controls.touches.ONE = THREE.TOUCH.ROTATE;
-controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+controls.touches.TWO = THREE.TOUCH.PAN;
 controls.touches.THREE = THREE.TOUCH.PAN;
 controls.target.copy(CAMERA_TARGET);
 
@@ -1596,8 +1595,9 @@ async function ensureChairTemplateForTheme(theme) {
 }
 
 function cloneChairWithTheme(chairData, option) {
-  const { chairTemplate, materials, preserveMaterials } = chairData;
+  const { chairTemplate, materials, preserveMaterials = false } = chairData;
   const clone = chairTemplate.clone(true);
+  clone.userData.preserveTextures = !!preserveMaterials;
   const upholsterySet = new Set(materials.upholstery);
   const metalSet = new Set(materials.metal);
 
@@ -1993,38 +1993,38 @@ const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
     id: 'neonPhotostudio',
     name: 'Neon Photo Studio',
     assetId: 'neon_photostudio',
-    preferredResolutions: ['4k', '2k'],
+    preferredResolutions: ['4k'],
     fallbackResolution: '4k',
     exposure: 1.18,
     environmentIntensity: 1.12,
     backgroundIntensity: 1.06
   },
-  { id: 'adamsBridge', name: 'Adams Bridge', assetId: 'adams_place_bridge', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.02 },
-  { id: 'ballroomHall', name: 'Ballroom Hall', assetId: 'ballroom', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.15, environmentIntensity: 1.16, backgroundIntensity: 1.08 },
-  { id: 'emptyPlayRoom', name: 'Empty Play Room', assetId: 'empty_play_room', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.09, environmentIntensity: 1.04, backgroundIntensity: 1 },
-  { id: 'christmasPhotoStudio04', name: 'Christmas Photo Studio 04', assetId: 'christmas_photo_studio_04', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
-  { id: 'colorfulStudio', name: 'Colorful Studio', assetId: 'colorful_studio', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.02, environmentIntensity: 0.92, backgroundIntensity: 0.92 },
-  { id: 'dancingHall', name: 'Dancing Hall', assetId: 'dancing_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
-  { id: 'abandonedHall', name: 'Abandoned Hall', assetId: 'abandoned_hall_01', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.08, environmentIntensity: 1.05, backgroundIntensity: 0.98 },
-  { id: 'entranceHall', name: 'Entrance Hall', assetId: 'entrance_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.09, environmentIntensity: 1.06, backgroundIntensity: 1 },
-  { id: 'marryHall', name: 'Marry Hall', assetId: 'marry_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
-  { id: 'mirroredHall', name: 'Mirrored Hall', assetId: 'mirrored_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.15, environmentIntensity: 1.12, backgroundIntensity: 1.06 },
-  { id: 'musicHall02', name: 'Music Hall 02', assetId: 'music_hall_02', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
-  { id: 'oldHall', name: 'Old Hall', assetId: 'old_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.08, environmentIntensity: 1.05, backgroundIntensity: 0.99 },
-  { id: 'loftPhotoStudioHall', name: 'Loft Photo Studio Hall', assetId: 'photo_studio_loft_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.03 },
-  { id: 'londonPhotoStudioHall', name: 'London Photo Studio Hall', assetId: 'photo_studio_london_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.14, environmentIntensity: 1.1, backgroundIntensity: 1.05 },
-  { id: 'countryStudioHall', name: 'Country Studio Hall', assetId: 'studio_country_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.02 },
-  { id: 'blockyPhotoStudio', name: 'Blocky Photo Studio', assetId: 'blocky_photo_studio', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.1, backgroundIntensity: 1.05 },
-  { id: 'bluePhotoStudio', name: 'Blue Photo Studio', assetId: 'blue_photo_studio', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.13, environmentIntensity: 1.11, backgroundIntensity: 1.06 },
-  { id: 'cycloramaHardLight', name: 'Cyclorama Hard Light', assetId: 'cyclorama_hard_light', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.16, environmentIntensity: 1.12, backgroundIntensity: 1.08 },
-  { id: 'brownPhotostudio06', name: 'Brown Photostudio 06', assetId: 'brown_photostudio_06', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.07, backgroundIntensity: 1.03 },
-  { id: 'christmasPhotoStudio05', name: 'Christmas Photo Studio 05', assetId: 'christmas_photo_studio_05', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.13, environmentIntensity: 1.1, backgroundIntensity: 1.05 },
-  { id: 'abandonedGarage', name: 'Abandoned Garage', assetId: 'abandoned_garage', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.07, environmentIntensity: 1.04, backgroundIntensity: 0.98 },
-  { id: 'vestibule', name: 'Vestibule', assetId: 'vestibule', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 },
-  { id: 'countryClub', name: 'Country Club', assetId: 'country_club', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.03 },
-  { id: 'brownPhotostudio03', name: 'Brown Photostudio 03', assetId: 'brown_photostudio_03', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 },
-  { id: 'sepulchralChapelRotunda', name: 'Sepulchral Chapel Rotunda', assetId: 'sepulchral_chapel_rotunda', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.06, environmentIntensity: 1.03, backgroundIntensity: 0.98 },
-  { id: 'squashCourt', name: 'Squash Court', assetId: 'squash_court', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 }
+  { id: 'adamsBridge', name: 'Adams Bridge', assetId: 'adams_place_bridge', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.02 },
+  { id: 'ballroomHall', name: 'Ballroom Hall', assetId: 'ballroom', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.15, environmentIntensity: 1.16, backgroundIntensity: 1.08 },
+  { id: 'emptyPlayRoom', name: 'Empty Play Room', assetId: 'empty_play_room', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.09, environmentIntensity: 1.04, backgroundIntensity: 1 },
+  { id: 'christmasPhotoStudio04', name: 'Christmas Photo Studio 04', assetId: 'christmas_photo_studio_04', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
+  { id: 'colorfulStudio', name: 'Colorful Studio', assetId: 'colorful_studio', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.02, environmentIntensity: 0.92, backgroundIntensity: 0.92 },
+  { id: 'dancingHall', name: 'Dancing Hall', assetId: 'dancing_hall', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
+  { id: 'abandonedHall', name: 'Abandoned Hall', assetId: 'abandoned_hall_01', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.08, environmentIntensity: 1.05, backgroundIntensity: 0.98 },
+  { id: 'entranceHall', name: 'Entrance Hall', assetId: 'entrance_hall', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.09, environmentIntensity: 1.06, backgroundIntensity: 1 },
+  { id: 'marryHall', name: 'Marry Hall', assetId: 'marry_hall', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
+  { id: 'mirroredHall', name: 'Mirrored Hall', assetId: 'mirrored_hall', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.15, environmentIntensity: 1.12, backgroundIntensity: 1.06 },
+  { id: 'musicHall02', name: 'Music Hall 02', assetId: 'music_hall_02', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
+  { id: 'oldHall', name: 'Old Hall', assetId: 'old_hall', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.08, environmentIntensity: 1.05, backgroundIntensity: 0.99 },
+  { id: 'loftPhotoStudioHall', name: 'Loft Photo Studio Hall', assetId: 'photo_studio_loft_hall', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.03 },
+  { id: 'londonPhotoStudioHall', name: 'London Photo Studio Hall', assetId: 'photo_studio_london_hall', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.14, environmentIntensity: 1.1, backgroundIntensity: 1.05 },
+  { id: 'countryStudioHall', name: 'Country Studio Hall', assetId: 'studio_country_hall', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.02 },
+  { id: 'blockyPhotoStudio', name: 'Blocky Photo Studio', assetId: 'blocky_photo_studio', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.1, backgroundIntensity: 1.05 },
+  { id: 'bluePhotoStudio', name: 'Blue Photo Studio', assetId: 'blue_photo_studio', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.13, environmentIntensity: 1.11, backgroundIntensity: 1.06 },
+  { id: 'cycloramaHardLight', name: 'Cyclorama Hard Light', assetId: 'cyclorama_hard_light', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.16, environmentIntensity: 1.12, backgroundIntensity: 1.08 },
+  { id: 'brownPhotostudio06', name: 'Brown Photostudio 06', assetId: 'brown_photostudio_06', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.07, backgroundIntensity: 1.03 },
+  { id: 'christmasPhotoStudio05', name: 'Christmas Photo Studio 05', assetId: 'christmas_photo_studio_05', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.13, environmentIntensity: 1.1, backgroundIntensity: 1.05 },
+  { id: 'abandonedGarage', name: 'Abandoned Garage', assetId: 'abandoned_garage', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.07, environmentIntensity: 1.04, backgroundIntensity: 0.98 },
+  { id: 'vestibule', name: 'Vestibule', assetId: 'vestibule', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 },
+  { id: 'countryClub', name: 'Country Club', assetId: 'country_club', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.03 },
+  { id: 'brownPhotostudio03', name: 'Brown Photostudio 03', assetId: 'brown_photostudio_03', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 },
+  { id: 'sepulchralChapelRotunda', name: 'Sepulchral Chapel Rotunda', assetId: 'sepulchral_chapel_rotunda', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.06, environmentIntensity: 1.03, backgroundIntensity: 0.98 },
+  { id: 'squashCourt', name: 'Squash Court', assetId: 'squash_court', preferredResolutions: ['4k'], fallbackResolution: '4k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 }
 ]);
 
 const TABLE_THEME_OPTIONS = MURLAN_TABLE_THEMES.map((theme) => ({
@@ -2463,7 +2463,7 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
   return options.filter((option) => isDominoOptionUnlocked(key, option.id, inventory));
 }
 
-const HDRI_RESOLUTION_ORDER = Object.freeze(['4k', '2k']);
+const HDRI_RESOLUTION_ORDER = Object.freeze(['4k']);
 let activeEnvironmentHdri = null;
 
 async function loadHdriEnvironment(variant) {
@@ -2504,17 +2504,13 @@ async function applyEnvironmentHdri(option = ENVIRONMENT_HDRI_OPTIONS[0]) {
   try {
     const envMap = await loadHdriEnvironment(variant);
     if (token !== environmentApplyToken) {
-      envMap?.dispose?.();
       return;
-    }
-    if (scene.environment && scene.environment !== fallbackEnvTexture) {
-      scene.environment.dispose?.();
-    }
-    if (hdriBackground && hdriBackground !== envMap && hdriBackground !== fallbackEnvTexture) {
-      hdriBackground.dispose?.();
     }
     scene.environment = envMap || fallbackEnvTexture;
     scene.background = envMap || null;
+    scene.environmentIntensity = variant.environmentIntensity ?? 1;
+    scene.backgroundIntensity = variant.backgroundIntensity ?? scene.environmentIntensity ?? 1;
+    scene.backgroundBlurriness = 0.18;
     hdriBackground = envMap || fallbackEnvTexture;
     renderer.toneMappingExposure = variant.exposure ?? renderer.toneMappingExposure;
     activeEnvironmentHdri = variant;
@@ -2523,6 +2519,8 @@ async function applyEnvironmentHdri(option = ENVIRONMENT_HDRI_OPTIONS[0]) {
     if (token !== environmentApplyToken) return;
     scene.environment = fallbackEnvTexture;
     scene.background = null;
+    scene.environmentIntensity = 1;
+    scene.backgroundIntensity = 1;
     renderer.toneMappingExposure = 1.75;
     activeEnvironmentHdri = null;
   }
@@ -3557,18 +3555,28 @@ function updateTableMaterials() {
 }
 updateTableMaterials();
 
-function disposeObjectResources(object) {
+function disposeObjectResources(object, { disposeTextures = true, preserveMaterials = false } = {}) {
   if (!object) return;
+  const preserve = preserveMaterials || object?.userData?.preserveTextures;
   object.traverse((child) => {
     if (!child.isMesh) return;
-    if (child.geometry?.dispose) child.geometry.dispose();
+    if (!preserve && child.geometry?.dispose) child.geometry.dispose();
     const mats = Array.isArray(child.material) ? child.material : [child.material];
     mats.forEach((mat) => {
       if (!mat) return;
-      if (mat.map && mat.map.dispose) {
-        mat.map.dispose();
+      if (disposeTextures && !preserve) {
+        if (mat.map && mat.map.dispose) {
+          mat.map.dispose();
+        }
+        if (mat.emissiveMap?.dispose) mat.emissiveMap.dispose();
+        if (mat.normalMap?.dispose) mat.normalMap.dispose();
+        if (mat.roughnessMap?.dispose) mat.roughnessMap.dispose();
+        if (mat.metalnessMap?.dispose) mat.metalnessMap.dispose();
+        if (mat.aoMap?.dispose) mat.aoMap.dispose();
       }
-      mat.dispose?.();
+      if (!preserve && mat.dispose) {
+        mat.dispose();
+      }
     });
   });
 }
@@ -3600,26 +3608,33 @@ async function applyTableTheme(option = TABLE_THEME_OPTIONS[appearance.tableThem
   tableThemeG.visible = false;
   while (tableThemeG.children.length) {
     const child = tableThemeG.children.pop();
-    disposeObjectResources(child);
+    const preserve = !!child.userData?.preserveTextures;
+    disposeObjectResources(child, { disposeTextures: !preserve, preserveMaterials: preserve });
     child?.removeFromParent?.();
   }
   const token = ++tableThemeToken;
   if (!theme || theme.id === 'murlan-default') {
     activeTableThemeId = 'murlan-default';
+    tableG.visible = true;
     return;
   }
   try {
     const model = await loadPolyhavenModel(theme.assetId || theme.id);
+    if (model) {
+      model.userData.preserveTextures = true;
+    }
     if (token !== tableThemeToken || !model) {
-      disposeObjectResources(model);
+      disposeObjectResources(model, { disposeTextures: false, preserveMaterials: true });
       return;
     }
     fitTableModelToFootprint(model);
     tableThemeG.add(model);
+    tableG.visible = false;
     tableThemeG.visible = true;
     activeTableThemeId = theme.id;
   } catch (error) {
     console.warn('Failed to load table theme', error);
+    tableG.visible = true;
   }
 }
 
@@ -3991,35 +4006,16 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   tableG.add(accentMesh);
   tableParts.accent = accentMesh;
 
-  const columnHeight = TABLE_HEIGHT + 0.25;
+  const columnHeight = Math.max(TABLE_BASE_Y, TABLE_HEIGHT * 0.98);
   const column = new THREE.Mesh(
     new THREE.CylinderGeometry(TABLE_OUTER_RADIUS * 0.34, TABLE_OUTER_RADIUS * 0.48, columnHeight, 48),
     tableMaterials.column
   );
-  column.position.y = TABLE_BASE_Y - columnHeight / 2;
+  column.position.y = TABLE_BASE_Y - columnHeight / 2 + 0.01;
   column.castShadow = true;
   column.receiveShadow = true;
   tableG.add(column);
   tableParts.column = column;
-
-  const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(TABLE_OUTER_RADIUS * 1.02, TABLE_OUTER_RADIUS * 1.18, 0.22, 64),
-    tableMaterials.base
-  );
-  base.position.y = column.position.y - columnHeight / 2 - 0.11;
-  base.castShadow = true;
-  base.receiveShadow = true;
-  tableG.add(base);
-  tableParts.base = base;
-
-  const trim = new THREE.Mesh(
-    new THREE.TorusGeometry(TABLE_OUTER_RADIUS * 1.08, 0.04, 16, 64),
-    tableMaterials.trim
-  );
-  trim.rotation.x = Math.PI / 2;
-  trim.position.y = base.position.y + 0.11;
-  tableG.add(trim);
-  tableParts.trim = trim;
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
@@ -4708,23 +4704,26 @@ const CHAIR_TEXTURE_PROPS = Object.freeze([
   'sheenRoughnessMap'
 ]);
 
-function disposeChairResources(root) {
+function disposeChairResources(root, { preserveMaterials = false } = {}) {
+  const preserve = preserveMaterials || root?.userData?.preserveTextures;
   root.traverse((child) => {
     if (!child.isMesh) return;
-    if (child.geometry?.dispose) {
+    if (!preserve && child.geometry?.dispose) {
       child.geometry.dispose();
     }
     const materials = Array.isArray(child.material) ? child.material : [child.material];
     materials.forEach((material) => {
       if (!material) return;
-      CHAIR_TEXTURE_PROPS.forEach((prop) => {
-        const texture = material[prop];
-        if (texture?.isTexture) {
-          texture.dispose();
+      if (!preserve) {
+        CHAIR_TEXTURE_PROPS.forEach((prop) => {
+          const texture = material[prop];
+          if (texture?.isTexture) {
+            texture.dispose();
+          }
+        });
+        if (material.dispose) {
+          material.dispose();
         }
-      });
-      if (material.dispose) {
-        material.dispose();
       }
     });
   });
@@ -4742,7 +4741,7 @@ function placeChairsWithOption(option, chairData, token) {
   while (chairs.length) {
     const chair = chairs.pop();
     chair.parent?.remove(chair);
-    disposeChairResources(chair);
+    disposeChairResources(chair, { preserveMaterials: !!chair.userData?.preserveTextures });
   }
 
   const lookTarget = new THREE.Vector3(0, TABLE_HEIGHT, 0);
@@ -4784,6 +4783,8 @@ function placeChairsWithOption(option, chairData, token) {
     const chair = chairData
       ? cloneChairWithTheme(chairData, option)
       : createDominoChair(option, renderer, sharedMaterials);
+    chair.userData.preserveTextures = !!chairData?.preserveMaterials;
+    wrapper.userData.preserveTextures = chair.userData.preserveTextures;
     chair.position.y = -seatBottomOffset;
     wrapper.add(chair);
 
