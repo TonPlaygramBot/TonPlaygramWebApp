@@ -12723,6 +12723,17 @@ const powerRef = useRef(hud.power);
         toHospitalityUnits(0.08) * hospitalityUpscale; // keep a slim clearance between each chair and table edge
       const hospitalityEdgePull =
         toHospitalityUnits(0.18) * hospitalityUpscale; // keep hospitality props inset from the arena bounds
+      const CHESS_BATTLE_TABLE_HEIGHT_UNITS = 0.867;
+      const CHESS_BATTLE_TABLE_SPAN_UNITS = 5.1;
+      const CHESS_BATTLE_BOARD_SPAN_UNITS = 1.9008;
+      const CHESS_BATTLE_CHAIR_MAX_DIM = 1.917;
+      const chessBattleScale = TABLE_H / CHESS_BATTLE_TABLE_HEIGHT_UNITS;
+      const chessBattleTargetSpan =
+        CHESS_BATTLE_TABLE_SPAN_UNITS * chessBattleScale;
+      const chessBattleTargetBoard =
+        CHESS_BATTLE_BOARD_SPAN_UNITS * chessBattleScale;
+      const chessBattleTargetChair =
+        CHESS_BATTLE_CHAIR_MAX_DIM * chessBattleScale;
 
       const createTableSet = () => {
         const set = new THREE.Group();
@@ -12882,6 +12893,26 @@ const powerRef = useRef(hud.power);
         });
       };
 
+      const resolveTextureAnisotropy = () => {
+        const renderer = rendererRef.current;
+        if (!renderer?.capabilities?.getMaxAnisotropy) return 4;
+        return renderer.capabilities.getMaxAnisotropy();
+      };
+
+      const sharpenTexture = (texture, { wrapRepeat = true } = {}) => {
+        if (!texture) return;
+        applySRGBColorSpace(texture);
+        const maxAniso = resolveTextureAnisotropy();
+        if (Number.isFinite(maxAniso)) {
+          texture.anisotropy = Math.max(texture.anisotropy || 1, maxAniso);
+        }
+        if (wrapRepeat) {
+          texture.wrapS = THREE.RepeatWrapping;
+          texture.wrapT = THREE.RepeatWrapping;
+        }
+        texture.needsUpdate = true;
+      };
+
       const adjustHospitalityForEdge = (value) => {
         const direction = Math.sign(value);
         const magnitude = Math.max(Math.abs(value) - hospitalityEdgePull, 0);
@@ -13006,6 +13037,7 @@ const powerRef = useRef(hud.power);
         ctx.strokeRect(ctx.lineWidth / 2, ctx.lineWidth / 2, size - ctx.lineWidth, size - ctx.lineWidth);
         const texture = new THREE.CanvasTexture(canvas);
         texture.colorSpace = THREE.SRGBColorSpace;
+        sharpenTexture(texture);
         chessBoardTextureRef.current = texture;
         return texture;
       };
@@ -13198,8 +13230,8 @@ const powerRef = useRef(hud.power);
             if (!mat) return mat;
             const material = mat.clone ? mat.clone() : mat;
             material.userData = { ...(material.userData || {}), disposableHospitality: true };
-            if (material.map) applySRGBColorSpace(material.map);
-            if (material.emissiveMap) applySRGBColorSpace(material.emissiveMap);
+            if (material.map) sharpenTexture(material.map);
+            if (material.emissiveMap) sharpenTexture(material.emissiveMap);
             material.needsUpdate = true;
             return material;
           });
@@ -13289,7 +13321,20 @@ const powerRef = useRef(hud.power);
         tabletop.receiveShadow = true;
         table.add(tabletop);
         const board = createChessBoard(0.72, 0.045);
-        board.group.position.y = tableHeight + board.height * 0.5 + 0.01;
+        const boardBox = new THREE.Box3().setFromObject(board.group);
+        const boardSize = boardBox.getSize(new THREE.Vector3());
+        const boardSpan = Math.max(boardSize.x || 1, boardSize.z || 1);
+        const boardTarget = Math.min(
+          chessBattleTargetBoard,
+          chessBattleTargetSpan * 0.42
+        );
+        const boardScale =
+          boardSpan > 1e-6 && Number.isFinite(boardTarget) && boardTarget > 0
+            ? boardTarget / boardSpan
+            : 1;
+        board.group.scale.setScalar(boardScale);
+        const scaledBoardHeight = board.height * boardScale;
+        board.group.position.y = tableHeight + scaledBoardHeight * 0.5 + 0.01;
         addFallbackChessPieces(board.group, 0.72, 0.045);
         table.add(board.group);
         group.add(table);
@@ -13303,7 +13348,14 @@ const powerRef = useRef(hud.power);
               ];
         resolvedOffsets.forEach(([x, z]) => {
           const chair = createChessChair();
-          chair.scale.setScalar(furnitureScale * hospitalitySizeMultiplier * 0.26);
+          const chairBox = new THREE.Box3().setFromObject(chair);
+          const chairSize = chairBox.getSize(new THREE.Vector3());
+          const maxSize = Math.max(chairSize.x || 1, chairSize.y || 1, chairSize.z || 1);
+          const targetMax = Math.max(
+            chessBattleTargetChair,
+            toHospitalityUnits(0.92) * hospitalityUpscale
+          );
+          chair.scale.multiplyScalar(targetMax / maxSize);
           chair.position.set(x, 0, z);
           const toCenter = new THREE.Vector2(x, z).multiplyScalar(-1);
           chair.rotation.y = Math.atan2(toCenter.x, toCenter.y);
@@ -13316,6 +13368,22 @@ const powerRef = useRef(hud.power);
           adjustHospitalityForEdge(position[1] ?? 0)
         );
         group.rotation.y = rotationY;
+        const scaleFallbackLounge = () => {
+          const loungeBounds = new THREE.Box3().setFromObject(group);
+          const loungeSize = loungeBounds.getSize(new THREE.Vector3());
+          const span = Math.max(loungeSize.x || 1, loungeSize.z || 1);
+          const maxSpan = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE * 0.82;
+          const minSpan = Math.max(TABLE.W * TABLE_DISPLAY_SCALE * 0.4, arenaMargin * 0.9);
+          const clampedTarget = THREE.MathUtils.clamp(
+            chessBattleTargetSpan,
+            minSpan,
+            maxSpan
+          );
+          if (span > 1e-6) {
+            group.scale.multiplyScalar(clampedTarget / span);
+          }
+        };
+        scaleFallbackLounge();
         ensureHospitalityVisibility(group);
         return group;
       };
@@ -13340,8 +13408,8 @@ const powerRef = useRef(hud.power);
             if (!mat) return mat;
             const clone = mat.clone ? mat.clone() : mat;
             clone.userData = { ...(clone.userData || {}), disposableHospitality: true };
-            if (clone.map) applySRGBColorSpace(clone.map);
-            if (clone.emissiveMap) applySRGBColorSpace(clone.emissiveMap);
+            if (clone.map) sharpenTexture(clone.map);
+            if (clone.emissiveMap) sharpenTexture(clone.emissiveMap);
             clone.needsUpdate = true;
             return clone;
           });
@@ -13350,12 +13418,22 @@ const powerRef = useRef(hud.power);
           child.receiveShadow = true;
         });
 
-        const box = new THREE.Box3().setFromObject(lounge);
-        const size = box.getSize(new THREE.Vector3());
-        const span = Math.max(size.x || 1, size.z || 1);
-        const targetSpan = Math.max(TABLE.W * TABLE_DISPLAY_SCALE * 0.55, arenaMargin * 1.1);
-        const scale = targetSpan / span;
-        lounge.scale.multiplyScalar(scale);
+        const scaleLoungeToChessBattle = () => {
+          const box = new THREE.Box3().setFromObject(lounge);
+          const size = box.getSize(new THREE.Vector3());
+          const span = Math.max(size.x || 1, size.z || 1);
+          const maxSpan = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE * 0.82;
+          const minSpan = Math.max(TABLE.W * TABLE_DISPLAY_SCALE * 0.4, arenaMargin * 0.9);
+          const clampedTarget = THREE.MathUtils.clamp(
+            chessBattleTargetSpan,
+            minSpan,
+            maxSpan
+          );
+          if (span > 1e-6) {
+            lounge.scale.multiplyScalar(clampedTarget / span);
+          }
+        };
+        scaleLoungeToChessBattle();
         lounge.position.set(0, floorY, 0);
         lounge.rotation.y = rotationY;
         ensureHospitalityVisibility(lounge);
@@ -13375,7 +13453,10 @@ const powerRef = useRef(hud.power);
           const chairBox = new THREE.Box3().setFromObject(chairModel);
           const chairSize = chairBox.getSize(new THREE.Vector3());
           const maxSize = Math.max(chairSize.x || 1, chairSize.y || 1, chairSize.z || 1);
-          const targetMax = toHospitalityUnits(0.92) * hospitalityUpscale;
+          const targetMax = Math.max(
+            chessBattleTargetChair,
+            toHospitalityUnits(0.92) * hospitalityUpscale
+          );
           chairModel.scale.multiplyScalar(targetMax / maxSize);
           chairModel.traverse((child) => {
             if (!child?.isMesh) return;
@@ -13386,8 +13467,8 @@ const powerRef = useRef(hud.power);
               if (!mat) return mat;
               const clone = mat.clone ? mat.clone() : mat;
               clone.userData = { ...(clone.userData || {}), disposableHospitality: true };
-              if (clone.map) applySRGBColorSpace(clone.map);
-              if (clone.emissiveMap) applySRGBColorSpace(clone.emissiveMap);
+              if (clone.map) sharpenTexture(clone.map);
+              if (clone.emissiveMap) sharpenTexture(clone.emissiveMap);
               clone.needsUpdate = true;
               return clone;
             });
@@ -13443,6 +13524,7 @@ const powerRef = useRef(hud.power);
             DARTBOARD_TEXTURE_URL,
             (tex) => {
               dartboardTextureRef.current = tex;
+              sharpenTexture(tex);
               applyDartboardTexture(tex);
             },
             undefined,
@@ -16806,7 +16888,8 @@ const powerRef = useRef(hud.power);
         if (environmentId !== 'musicHall02') return;
         const spacing = resolveSecondarySpacing(environmentId);
         const tableHalfDepth = (TABLE.H / 2) * TABLE_DISPLAY_SCALE;
-        const outerShortRailZ = spacing + tableHalfDepth;
+        const shortRailDirection = Math.sign(spacing || 1) || 1;
+        const outerShortRailZ = shortRailDirection * (Math.abs(spacing) + tableHalfDepth);
         const availableOuterSpace = Math.max(0, arenaHalfDepth - outerShortRailZ);
         const serviceGap = Math.max(
           toHospitalityUnits(0.32) * hospitalityUpscale,
@@ -16814,8 +16897,8 @@ const powerRef = useRef(hud.power);
         );
         const farInteriorZ = arenaHalfDepth - hospitalityEdgePull;
         const placementZ = THREE.MathUtils.clamp(
+          outerShortRailZ + serviceGap * 1.25,
           outerShortRailZ + serviceGap,
-          outerShortRailZ + serviceGap * 0.5,
           farInteriorZ
         );
         const chairSpread = toHospitalityUnits(0.44) * hospitalityUpscale;
@@ -16838,11 +16921,14 @@ const powerRef = useRef(hud.power);
           });
         const dartboardZ = Math.min(
           farInteriorZ,
-          Math.max(outerShortRailZ + serviceGap * 0.5, spacing + tableHalfDepth + availableOuterSpace * 0.8)
+          Math.max(
+            placementZ + serviceGap * 0.35,
+            spacing + tableHalfDepth + availableOuterSpace * 0.8
+          )
         );
-        const dartboardX = arenaHalfWidth - hospitalityEdgePull * 0.6;
+        const dartboardX = arenaHalfWidth - hospitalityEdgePull * 0.4;
         const dartboard = createDartboard({
-          position: [dartboardX, floorY + 1.78, dartboardZ],
+          position: [dartboardX, floorY + 1.96, dartboardZ],
           faceCenter: true
         });
         if (dartboard) {
