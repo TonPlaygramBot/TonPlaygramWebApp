@@ -1,23 +1,8 @@
-import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
-import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
-
-const FALLBACK_SEAT = '#7c3aed';
-const FALLBACK_LEG = '#1f1f1f';
-
-const withColorFallbacks = (theme) => {
-  const seat = theme.seatColor || theme.primary || FALLBACK_SEAT;
-  return {
-    ...theme,
-    primary: seat,
-    accent: theme.accent || seat,
-    highlight: theme.highlight || seat,
-    legColor: theme.legColor || FALLBACK_LEG
-  };
-};
-
-export const TEXAS_CHAIR_COLOR_OPTIONS = Object.freeze(MURLAN_STOOL_THEMES.map(withColorFallbacks));
-export const TEXAS_TABLE_THEME_OPTIONS = Object.freeze(MURLAN_TABLE_THEMES);
-export const TEXAS_HDRI_OPTIONS = Object.freeze(
-  POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({ ...variant, label: `${variant.name} HDRI` }))
-);
-export const TEXAS_DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID;
+export const TEXAS_CHAIR_COLOR_OPTIONS = Object.freeze([
+  { id: 'ruby', label: 'Ruby', primary: '#8b0000', accent: '#8b0000', highlight: '#b22222', legColor: '#1f1f1f' },
+  { id: 'slate', label: 'Slate', primary: '#374151', accent: '#374151', highlight: '#6b7280', legColor: '#0f172a' },
+  { id: 'teal', label: 'Teal', primary: '#0f766e', accent: '#0f766e', highlight: '#38b2ac', legColor: '#082f2a' },
+  { id: 'amber', label: 'Amber', primary: '#b45309', accent: '#b45309', highlight: '#f59e0b', legColor: '#2f2410' },
+  { id: 'violet', label: 'Violet', primary: '#7c3aed', accent: '#7c3aed', highlight: '#c084fc', legColor: '#2b1059' },
+  { id: 'frost', label: 'Ice', primary: '#1f2937', accent: '#1f2937', highlight: '#9ca3af', legColor: '#0f172a' }
+]);
