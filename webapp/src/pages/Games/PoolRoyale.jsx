@@ -43,6 +43,7 @@ import {
   DEFAULT_WOOD_TEXTURE_SIZE,
   applyWoodTextures,
   disposeMaterialWithWood,
+  hslToHexNumber
 } from '../../utils/woodMaterials.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
@@ -66,6 +67,8 @@ import {
   resolvePlayableTrainingLevel
 } from '../../utils/poolRoyaleTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import { CHESS_CHAIR_OPTIONS } from '../../config/chessBattleInventoryConfig.js';
+import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -9692,7 +9695,7 @@ function PoolRoyaleGame({
     return DEFAULT_FRAME_RATE_ID;
   });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
-  const initialTableSlot = environmentHdriId === 'musicHall02' ? 1 : 0;
+  const initialTableSlot = 0;
   const [activeTableSlot, setActiveTableSlot] = useState(initialTableSlot);
   const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
   const [secondaryTableReady, setSecondaryTableReady] = useState(false);
@@ -10474,13 +10477,14 @@ function PoolRoyaleGame({
   }, [activeTableSlot, dualTablesEnabled]);
   useEffect(() => {
     if (dualTablesEnabled) {
-      setActiveTableSlot(1);
+      const desiredSlot = environmentHdriId === 'musicHall02' ? 0 : 1;
+      setActiveTableSlot(desiredSlot);
       setTableSelectionOpen(false);
     } else {
       setTableSelectionOpen(false);
       setActiveTableSlot(0);
     }
-  }, [dualTablesEnabled]);
+  }, [dualTablesEnabled, environmentHdriId]);
   const tableFinish = useMemo(() => {
     const baseFinish =
       TABLE_FINISHES[tableFinishId] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
@@ -12668,6 +12672,79 @@ const powerRef = useRef(hud.power);
         })
       };
 
+      const chessChairDefault =
+        CHESS_CHAIR_OPTIONS[0] || {
+          primary: '#8b1538',
+          accent: '#5c0f26',
+          highlight: '#d35a7a',
+          legColor: '#1f1f1f'
+        };
+      const chessHospitalityMats = {
+        tableWood: new THREE.MeshStandardMaterial({
+          color: 0x3a2d23,
+          roughness: 0.78,
+          metalness: 0.1
+        }),
+        tableTrim: new THREE.MeshStandardMaterial({
+          color: 0xd2b48c,
+          roughness: 0.62,
+          metalness: 0.16
+        }),
+        boardFrame: new THREE.MeshStandardMaterial({
+          color: 0x3a2d23,
+          roughness: 0.72,
+          metalness: 0.12
+        }),
+        boardEdge: new THREE.MeshStandardMaterial({
+          color: 0xd2b48c,
+          roughness: 0.62,
+          metalness: 0.18
+        }),
+        chairPrimary: new THREE.MeshStandardMaterial({
+          color: chessChairDefault.primary,
+          roughness: 0.78
+        }),
+        chairAccent: new THREE.MeshStandardMaterial({
+          color: chessChairDefault.accent,
+          roughness: 0.82
+        }),
+        chairHighlight: new THREE.MeshStandardMaterial({
+          color: chessChairDefault.highlight,
+          roughness: 0.56
+        }),
+        chairLeg: new THREE.MeshStandardMaterial({
+          color: chessChairDefault.legColor ?? '#1f1f1f',
+          roughness: 0.38,
+          metalness: 0.22
+        })
+      };
+      let cachedChessBoardTexture = null;
+      const getChessBoardTexture = () => {
+        if (cachedChessBoardTexture) return cachedChessBoardTexture;
+        if (typeof document === 'undefined') return null;
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const light = '#e7e2d3';
+        const dark = '#776a5a';
+        const tile = size / 8;
+        for (let row = 0; row < 8; row += 1) {
+          for (let col = 0; col < 8; col += 1) {
+            ctx.fillStyle = (row + col) % 2 === 0 ? light : dark;
+            ctx.fillRect(col * tile, row * tile, tile, tile);
+          }
+        }
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.anisotropy = 8;
+        texture.minFilter = THREE.LinearMipMapLinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        applySRGBColorSpace(texture);
+        cachedChessBoardTexture = texture;
+        return cachedChessBoardTexture;
+      };
+
       const hospitalityScale = (TABLE_H * 0.48) / 0.75;
       const hospitalityUpscale = 6;
       const furnitureScale = hospitalityScale * 1.18 * hospitalityUpscale;
@@ -12843,89 +12920,177 @@ const powerRef = useRef(hud.power);
         return direction * magnitude;
       };
 
-      const decorateTableWithCheeseBoard = (tableSet) => {
-        if (!tableSet) return;
-        const cheeseBoard = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.18, 0.18, 0.02, 24),
-          hospitalityMats.wood
+      const createChessBoardMesh = () => {
+        const boardGroup = new THREE.Group();
+        const rim = new THREE.Mesh(
+          new THREE.BoxGeometry(0.78, 0.02, 0.78),
+          chessHospitalityMats.boardEdge
         );
-        cheeseBoard.position.set(0.06, 0.79, -0.02);
-        cheeseBoard.castShadow = true;
-        cheeseBoard.receiveShadow = true;
+        rim.position.y = 0.05;
+        rim.castShadow = true;
+        rim.receiveShadow = true;
+        boardGroup.add(rim);
 
-        const cheeseWedge = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.05, 0.14, 0.06, 16, 1, false, 0, Math.PI * 0.75),
+        const frame = new THREE.Mesh(
+          new THREE.BoxGeometry(0.72, 0.06, 0.72),
+          chessHospitalityMats.boardFrame
+        );
+        frame.position.y = 0.03;
+        frame.castShadow = true;
+        frame.receiveShadow = true;
+        boardGroup.add(frame);
+
+        const boardTexture = getChessBoardTexture();
+        const board = new THREE.Mesh(
+          new THREE.BoxGeometry(0.64, 0.04, 0.64),
           new THREE.MeshStandardMaterial({
-            color: 0xffe59f,
-            roughness: 0.28,
-            metalness: 0.04
+            color: boardTexture ? 0xffffff : 0xe7e2d3,
+            map: boardTexture ?? undefined,
+            roughness: 0.42,
+            metalness: 0.08
           })
         );
-        cheeseWedge.position.set(0.02, 0.04, 0.03);
-        cheeseWedge.rotation.x = Math.PI / 2;
-        cheeseWedge.castShadow = true;
-        cheeseWedge.receiveShadow = true;
-        cheeseBoard.add(cheeseWedge);
+        board.position.y = 0.06;
+        board.castShadow = true;
+        board.receiveShadow = true;
+        boardGroup.add(board);
 
-        const garnish = new THREE.Mesh(
-          new THREE.SphereGeometry(0.028, 14, 12),
-          new THREE.MeshStandardMaterial({
-            color: 0x6fbf73,
-            roughness: 0.35
-          })
+        return boardGroup;
+      };
+
+      const createChessChair = () => {
+        const chair = new THREE.Group();
+
+        const base = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.22, 0.24, 0.12, 18),
+          chessHospitalityMats.chairLeg
         );
-        garnish.position.set(-0.08, 0.02, -0.02);
-        garnish.castShadow = true;
-        garnish.receiveShadow = true;
-        cheeseBoard.add(garnish);
+        base.position.y = 0.12;
+        base.castShadow = true;
+        base.receiveShadow = true;
+        chair.add(base);
 
-        tableSet.add(cheeseBoard);
+        const stem = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.08, 0.09, 0.28, 14),
+          chessHospitalityMats.chairLeg
+        );
+        stem.position.y = 0.28;
+        stem.castShadow = true;
+        stem.receiveShadow = true;
+        chair.add(stem);
+
+        const seat = new THREE.Mesh(
+          new THREE.BoxGeometry(0.58, 0.08, 0.54),
+          chessHospitalityMats.chairPrimary
+        );
+        seat.position.y = 0.48;
+        seat.castShadow = true;
+        seat.receiveShadow = true;
+        chair.add(seat);
+
+        const cushion = new THREE.Mesh(
+          new THREE.BoxGeometry(0.56, 0.06, 0.52),
+          chessHospitalityMats.chairHighlight
+        );
+        cushion.position.y = 0.53;
+        cushion.castShadow = true;
+        cushion.receiveShadow = true;
+        chair.add(cushion);
+
+        const back = new THREE.Mesh(
+          new THREE.BoxGeometry(0.58, 0.62, 0.08),
+          chessHospitalityMats.chairPrimary
+        );
+        back.position.set(0, 0.83, 0.26);
+        back.rotation.x = Math.PI * 0.06;
+        back.castShadow = true;
+        back.receiveShadow = true;
+        chair.add(back);
+
+        const accent = new THREE.Mesh(
+          new THREE.BoxGeometry(0.58, 0.18, 0.04),
+          chessHospitalityMats.chairAccent
+        );
+        accent.position.set(0, 1.05, 0.28);
+        accent.castShadow = true;
+        accent.receiveShadow = true;
+        chair.add(accent);
+
+        const armGeom = new THREE.BoxGeometry(0.08, 0.08, 0.5);
+        const armL = new THREE.Mesh(armGeom, chessHospitalityMats.chairPrimary);
+        armL.position.set(-0.3, 0.58, 0);
+        armL.castShadow = true;
+        armL.receiveShadow = true;
+        chair.add(armL);
+        const armR = armL.clone();
+        armR.position.x = 0.3;
+        chair.add(armR);
+
+        return chair;
       };
 
-      const createCheeseTableSet = () => {
-        const tableSet = createTableSet();
-        decorateTableWithCheeseBoard(tableSet);
-        return tableSet;
-      };
-
-      const createCheeseServiceSet = ({
-        chairOffsets,
-        position = [0, 0],
-        rotationY = 0
-      } = {}) => {
+      const createChessServiceSet = ({ position = [0, 0], rotationY = 0 } = {}) => {
         const group = new THREE.Group();
         const scaledFurniture = furnitureScale * hospitalitySizeMultiplier;
 
-        const tableSet = createCheeseTableSet();
-        tableSet.scale.set(
-          scaledFurniture,
-          scaledFurniture * hospitalityTableHeightScale,
-          scaledFurniture
+        const tableTop = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.46, 0.52, 0.08, 28),
+          chessHospitalityMats.tableWood
         );
-        group.add(tableSet);
+        tableTop.position.y = 0.82;
+        tableTop.castShadow = true;
+        tableTop.receiveShadow = true;
+        group.add(tableTop);
 
-        const resolvedOffsets =
-          Array.isArray(chairOffsets) && chairOffsets.length
-            ? chairOffsets
-            : [
-                [
-                  toHospitalityUnits(0.44) * hospitalityUpscale,
-                  -toHospitalityUnits(0.62) * hospitalityUpscale
-                ],
-                [
-                  -toHospitalityUnits(0.44) * hospitalityUpscale,
-                  -toHospitalityUnits(0.62) * hospitalityUpscale
-                ]
-              ];
-        resolvedOffsets.forEach(([x, z]) => {
-          const chair = createChair();
-          chair.scale.setScalar(scaledFurniture);
+        const tableTrim = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.46, 0.48, 0.04, 28, 1, true),
+          chessHospitalityMats.tableTrim
+        );
+        tableTrim.position.y = 0.82;
+        tableTrim.castShadow = true;
+        tableTrim.receiveShadow = true;
+        group.add(tableTrim);
+
+        const tableStem = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.08, 0.12, 0.62, 18),
+          chessHospitalityMats.tableTrim
+        );
+        tableStem.position.y = 0.48;
+        tableStem.castShadow = true;
+        tableStem.receiveShadow = true;
+        group.add(tableStem);
+
+        const tableBase = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.34, 0.34, 0.08, 24),
+          chessHospitalityMats.tableWood
+        );
+        tableBase.position.y = 0.08;
+        tableBase.castShadow = true;
+        tableBase.receiveShadow = true;
+        group.add(tableBase);
+
+        const board = createChessBoardMesh();
+        board.position.set(0, tableTop.position.y + 0.05, 0);
+        group.add(board);
+
+        const chairSpread = toHospitalityUnits(0.46) * hospitalityUpscale;
+        const chairDepth = toHospitalityUnits(0.66) * hospitalityUpscale;
+        [
+          [-chairSpread, -chairDepth],
+          [chairSpread, -chairDepth]
+        ].forEach(([x, z]) => {
+          const chair = createChessChair();
           chair.position.set(x, 0, z);
           const toCenter = new THREE.Vector2(x, z).multiplyScalar(-1);
           chair.rotation.y = Math.atan2(toCenter.x, toCenter.y);
           group.add(chair);
         });
 
+        group.scale.set(
+          scaledFurniture,
+          scaledFurniture * hospitalityTableHeightScale,
+          scaledFurniture
+        );
         group.position.set(
           adjustHospitalityForEdge(position[0] ?? 0),
           floorY,
@@ -15933,6 +16098,10 @@ const powerRef = useRef(hud.power);
         railMarkers,
         setBaseVariant
       } = Table3D(world, finishForScene, tableSizeMeta, railMarkerStyleRef.current, activeTableBase);
+      const snookerDecorMeta = {
+        ...resolveSnookerTableSize(),
+        componentPreset: 'snooker'
+      };
       const SPOTS = spotPositions(baulkZ);
       const longestSide = Math.max(PLAY_W, PLAY_H);
       const secondarySpacingBase =
@@ -15942,6 +16111,15 @@ const powerRef = useRef(hud.power);
           return secondarySpacingBase * 0.86; // pull the dual tables closer in the music hall to open up the short-rail edges
         }
         return secondarySpacingBase;
+      };
+      const resolveSideRailOffset = (environmentId = environmentHdriRef.current) => {
+        const spacing = resolveSecondarySpacing(environmentId);
+        const tableFootprint = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE;
+        const placementMargin = Math.max(tableFootprint * 0.6, arenaMargin);
+        const maxX = Math.max(0, arenaHalfWidth - placementMargin);
+        const railClearance = (TABLE.W / 2) * TABLE_DISPLAY_SCALE + BALL_R * 10;
+        const offset = Math.max(railClearance, spacing * 0.5);
+        return THREE.MathUtils.clamp(offset, 0, maxX);
       };
       const secondaryTableEntry = Table3D(
         world,
@@ -15992,6 +16170,12 @@ const powerRef = useRef(hud.power);
         const cueLen = 1.5 * cueScale * CUE_LENGTH_MULTIPLIER;
         const cueBodyRadius = 0.025 * cueScale;
         const cueTipRadius = CUE_TIP_RADIUS * 0.82;
+        const snookerCuePreset = CUE_STYLE_PRESETS[0];
+        const snookerCueColor = hslToHexNumber(
+          snookerCuePreset?.hue ?? 35,
+          snookerCuePreset?.sat ?? 0.32,
+          snookerCuePreset?.light ?? 0.5
+        );
         const cueGeometry = new THREE.CylinderGeometry(
           cueTipRadius,
           cueBodyRadius,
@@ -15999,7 +16183,7 @@ const powerRef = useRef(hud.power);
           32
         );
         const cueMaterial = new THREE.MeshPhysicalMaterial({
-          color: 0xe6c9a1,
+          color: variant === 'snooker' ? snookerCueColor : 0xe6c9a1,
           roughness: 0.32,
           metalness: 0.08,
           clearcoat: 0.35,
@@ -16098,10 +16282,12 @@ const powerRef = useRef(hud.power);
       const applySecondarySlot = (slotIndex = 0, enabled = false) => {
         const secondary = secondaryTableRef.current;
         if (!secondary) return;
-        secondary.visible = enabled;
+        secondary.visible = enabled && environmentHdriRef.current !== 'musicHall02';
         const spacing = resolveSecondarySpacing(environmentHdriRef.current);
-        const targetZ = enabled ? (slotIndex === 0 ? -spacing : spacing) : 0;
-        secondary.position.set(0, secondary.position.y, targetZ);
+        if (environmentHdriRef.current !== 'musicHall02') {
+          const targetZ = enabled ? (slotIndex === 0 ? -spacing : spacing) : 0;
+          secondary.position.set(0, secondary.position.y, targetZ);
+        }
       };
       applyTableSlotRef.current = applySecondarySlot;
       applySecondarySlot(activeTableSlotRef.current, environmentHdriRef.current === 'musicHall02');
@@ -16128,10 +16314,11 @@ const powerRef = useRef(hud.power);
       };
       const createDecorativeTable = ({ variant = 'pool', position = { x: 0, z: 0 }, rotationY = 0 } = {}) => {
         const finishForLayout = tableFinishRef.current;
+        const resolvedMeta = variant === 'snooker' ? snookerDecorMeta : tableSizeMeta;
         const entry = Table3D(
           world,
           finishForLayout,
-          tableSizeMeta,
+          resolvedMeta,
           railMarkerStyleRef.current,
           activeTableBase
         );
@@ -16159,7 +16346,19 @@ const powerRef = useRef(hud.power);
         const maxZ = Math.max(0, arenaHalfDepth - placementMargin);
         const clampX = (x = 0) => THREE.MathUtils.clamp(x, -maxX, maxX);
         const clampZ = (z = 0) => THREE.MathUtils.clamp(z, -maxZ, maxZ);
-        if (environmentId === 'oldHall') {
+        if (environmentId === 'musicHall02') {
+          const lateralSpacing = resolveSideRailOffset(environmentId);
+          createDecorativeTable({
+            variant: 'snooker',
+            position: { x: clampX(-lateralSpacing), z: 0 },
+            rotationY: 0
+          });
+          createDecorativeTable({
+            variant: 'snooker',
+            position: { x: clampX(lateralSpacing), z: 0 },
+            rotationY: Math.PI / 2
+          });
+        } else if (environmentId === 'oldHall') {
           const offsetZ = spacing;
           createDecorativeTable({
             variant: 'pool',
@@ -16237,21 +16436,13 @@ const powerRef = useRef(hud.power);
           outerShortRailZ + serviceGap * 0.5,
           Math.min(arenaHalfDepth - hospitalityEdgePull, desiredZ)
         );
-        const chairSpread = toHospitalityUnits(0.44) * hospitalityUpscale;
-        const chairDepth = toHospitalityUnits(0.64) * hospitalityUpscale;
-        [placementZ, -placementZ].forEach((z) => {
-          const facingCenter = Math.atan2(0, -z);
-          addHospitalityGroup(
-            createCheeseServiceSet({
-              chairOffsets: [
-                [-chairSpread, -chairDepth],
-                [chairSpread, -chairDepth]
-              ],
-              position: [0, z],
-              rotationY: facingCenter
-            })
-          );
-        });
+        const facingCenter = Math.atan2(0, -placementZ);
+        addHospitalityGroup(
+          createChessServiceSet({
+            position: [0, placementZ],
+            rotationY: facingCenter
+          })
+        );
       };
       updateHospitalityLayoutRef.current = layoutHospitalityGroups;
       clearHospitalityLayoutRef.current = disposeHospitalityGroups;
