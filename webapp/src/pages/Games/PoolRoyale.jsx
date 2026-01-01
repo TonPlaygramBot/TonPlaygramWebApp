@@ -9682,7 +9682,8 @@ function PoolRoyaleGame({
   });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
   const [activeTableSlot, setActiveTableSlot] = useState(0);
-  const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
+  const [tableSelectionOpen, setTableSelectionOpen] = useState(() => environmentHdriId === 'musicHall02');
+  const activeTableSlotLabel = activeTableSlot === 0 ? 'near' : 'far';
   const activeFrameRateOption = useMemo(
     () =>
       FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ??
@@ -15816,8 +15817,9 @@ const powerRef = useRef(hud.power);
         railMarkers,
         setBaseVariant
       } = Table3D(world, finishForScene, tableSizeMeta, railMarkerStyleRef.current, activeTableBase);
+      const longestSide = Math.max(PLAY_W, PLAY_H);
       const secondarySpacing =
-        Math.max(PLAY_W * 2.4, TABLE.W * 2.6) * TABLE_DISPLAY_SCALE;
+        Math.max(longestSide * 2.4, Math.max(TABLE.W, TABLE.H) * 2.6) * TABLE_DISPLAY_SCALE;
       const secondaryTableEntry = Table3D(
         world,
         finishForScene,
@@ -15831,8 +15833,8 @@ const powerRef = useRef(hud.power);
         const secondary = secondaryTableRef.current;
         if (!secondary) return;
         secondary.visible = enabled;
-        const targetX = enabled ? (slotIndex === 0 ? secondarySpacing : -secondarySpacing) : 0;
-        secondary.position.set(targetX, secondary.position.y, 0);
+        const targetZ = enabled ? (slotIndex === 0 ? -secondarySpacing : secondarySpacing) : 0;
+        secondary.position.set(0, secondary.position.y, targetZ);
       };
       applyTableSlotRef.current = applySecondarySlot;
       applySecondarySlot(activeTableSlotRef.current, environmentHdriRef.current === 'musicHall02');
@@ -21511,24 +21513,6 @@ const powerRef = useRef(hud.power);
           </span>
         </div>
       )}
-      {dualTablesEnabled && !replayActive && !tableSelectionOpen && (
-        <div className="pointer-events-auto absolute left-1/2 top-16 z-40 -translate-x-1/2 px-4">
-          <button
-            type="button"
-            onClick={() => setTableSelectionOpen(true)}
-            className="flex items-center gap-3 rounded-full border border-emerald-300/60 bg-black/70 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-white shadow-[0_12px_28px_rgba(0,0,0,0.45)] backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-          >
-            <span className="rounded-full bg-emerald-400/20 px-2 py-1 text-[10px] font-bold text-emerald-100 ring-1 ring-emerald-200/60">
-              Music Hall 02
-            </span>
-            <span className="flex items-center gap-2">
-              Playing on {activeTableSlot === 0 ? 'left' : 'right'} table
-              <span aria-hidden="true" className="text-emerald-200">⇄</span>
-            </span>
-          </button>
-        </div>
-      )}
-
       {dualTablesEnabled && tableSelectionOpen && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl border border-emerald-300/60 bg-slate-900/95 p-5 shadow-[0_18px_46px_rgba(0,0,0,0.55)]">
@@ -21538,7 +21522,11 @@ const powerRef = useRef(hud.power);
                   Choose your table
                 </p>
                 <p className="mt-1 text-sm text-slate-100">
-                  Music Hall 02 now shows two tables. Pick where you want to play.
+                  Music Hall 02 lines both tables along the long side. Pick your spot to start;
+                  the chooser hides after you decide.
+                </p>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.26em] text-emerald-200/80">
+                  Current pick: {activeTableSlotLabel} table
                 </p>
               </div>
               <button
@@ -21563,8 +21551,8 @@ const powerRef = useRef(hud.power);
                     : 'border-white/20 bg-white/10 text-white/85 hover:bg-white/15'
                 }`}
               >
-                Play on left table
-                <span className="ml-2" aria-hidden="true">⬅️</span>
+                Play on near table
+                <span className="ml-2" aria-hidden="true">⬆️</span>
               </button>
               <button
                 type="button"
@@ -21578,8 +21566,8 @@ const powerRef = useRef(hud.power);
                     : 'border-white/20 bg-white/10 text-white/85 hover:bg-white/15'
                 }`}
               >
-                Play on right table
-                <span className="ml-2" aria-hidden="true">➡️</span>
+                Play on far table
+                <span className="ml-2" aria-hidden="true">⬇️</span>
               </button>
             </div>
           </div>
