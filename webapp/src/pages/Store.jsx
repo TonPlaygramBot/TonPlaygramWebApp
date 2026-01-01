@@ -205,9 +205,11 @@ const TEXAS_TYPE_LABELS = {
   tableWood: 'Table Wood',
   tableCloth: 'Table Cloth',
   tableBase: 'Table Base',
-  chairColor: 'Chairs',
+  chairTheme: 'Chairs',
+  tableTheme: 'Table Models',
   tableShape: 'Table Shape',
-  cards: 'Cards'
+  cards: 'Cards',
+  environmentHdri: 'HDR Environments'
 };
 
 const TPC_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
