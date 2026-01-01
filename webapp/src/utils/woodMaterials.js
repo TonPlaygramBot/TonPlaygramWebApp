@@ -30,19 +30,32 @@ const tileableNoise = (x, y, width, height, scale, seed = 1) => {
   return (nx + ny + nxy + 3) / 6; // normalize to [0,1]
 };
 
-const WOOD_TEXTURE_ANISOTROPY = 12;
+const DEFAULT_WOOD_TEXTURE_ANISOTROPY = 12;
+let woodTextureAnisotropy = DEFAULT_WOOD_TEXTURE_ANISOTROPY;
+
+export const setWoodTextureAnisotropy = (value) => {
+  if (!Number.isFinite(value) || value <= 0) return;
+  woodTextureAnisotropy = Math.max(DEFAULT_WOOD_TEXTURE_ANISOTROPY, value);
+};
 
 const woodTextureLoader = new THREE.TextureLoader();
 woodTextureLoader.setCrossOrigin?.('anonymous');
 const WOOD_EXTERNAL_TEXTURE_CACHE = new Map();
 
-const normalizeExternalTexture = (texture, isColor = false, anisotropy = WOOD_TEXTURE_ANISOTROPY) => {
+const normalizeExternalTexture = (
+  texture,
+  isColor = false,
+  anisotropy = woodTextureAnisotropy
+) => {
   if (!texture) return;
   if (isColor) {
     applySRGBColorSpace(texture);
   }
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.anisotropy = Math.max(texture.anisotropy ?? 1, anisotropy);
+  const targetAnisotropy = Number.isFinite(anisotropy)
+    ? Math.max(anisotropy, woodTextureAnisotropy)
+    : woodTextureAnisotropy;
+  texture.anisotropy = Math.max(texture.anisotropy ?? 1, targetAnisotropy);
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
@@ -95,7 +108,7 @@ const loadExternalTexture = (url, isColor, anisotropy, onError) => {
   return texture;
 };
 
-const getExternalWoodTextures = (urls, anisotropy = 16, fallbacks = null) => {
+const getExternalWoodTextures = (urls, anisotropy = woodTextureAnisotropy, fallbacks = null) => {
   if (!urls?.mapUrl) return null;
   const cacheKey = [urls.mapUrl, urls.roughnessMapUrl, urls.normalMapUrl]
     .filter(Boolean)
@@ -573,7 +586,7 @@ const boostWoodTextureSampling = (texture, { isColor = false } = {}) => {
   if (isColor) {
     applySRGBColorSpace(texture);
   }
-  texture.anisotropy = Math.max(texture.anisotropy ?? 1, WOOD_TEXTURE_ANISOTROPY);
+  texture.anisotropy = Math.max(texture.anisotropy ?? 1, woodTextureAnisotropy);
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
