@@ -12,7 +12,7 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundRadiusMultiplier: 6.5,
     groundResolution: 112,
     arenaScale: 1.35,
-    rotationY: Math.PI / 2
+    rotationY: 0
   },
   ballroomHall: {
     cameraHeightM: 1.58,
@@ -20,6 +20,13 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundResolution: 112,
     arenaScale: 1.3,
     rotationY: Math.PI / 2
+  },
+  emptyPlayRoom: {
+    cameraHeightM: 1.5,
+    groundRadiusMultiplier: 3.9,
+    groundResolution: 120,
+    arenaScale: 1.15,
+    rotationY: 0
   },
   christmasPhotoStudio04: {
     cameraHeightM: 1.52,
@@ -212,6 +219,19 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1.08,
     swatches: ['#fef3c7', '#a16207'],
     description: 'Grand hall ambience with chandeliers for polished highlights.'
+  },
+  {
+    id: 'emptyPlayRoom',
+    name: 'Empty Play Room',
+    assetId: 'empty_play_room',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    price: 1760,
+    exposure: 1.09,
+    environmentIntensity: 1.04,
+    backgroundIntensity: 1,
+    swatches: ['#a855f7', '#22c55e'],
+    description: 'Quiet game room ambience with even indoor bounce.'
   },
   {
     id: 'christmasPhotoStudio04',

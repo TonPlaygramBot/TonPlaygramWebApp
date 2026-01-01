@@ -12943,15 +12943,6 @@ const powerRef = useRef(hud.power);
         return group;
       };
 
-      const CHESS_BATTLE_THEME = Object.freeze({
-        boardLight: '#e7e2d3',
-        boardDark: '#776a5a',
-        boardRim: '#3a2d23',
-        boardAccent: '#00e5ff',
-        pieceLight: '#e7e2d3',
-        pieceDark: '#1a1d27'
-      });
-
       const getChessBoardTexture = () => {
         if (chessBoardTextureRef.current) return chessBoardTextureRef.current;
         const size = 512;
@@ -12959,8 +12950,8 @@ const powerRef = useRef(hud.power);
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext('2d');
-        const light = CHESS_BATTLE_THEME.boardLight;
-        const dark = CHESS_BATTLE_THEME.boardDark;
+        const light = '#EEE8D5';
+        const dark = '#2B2F36';
         const tile = size / 8;
         ctx.fillStyle = light;
         ctx.fillRect(0, 0, size, size);
@@ -12971,7 +12962,7 @@ const powerRef = useRef(hud.power);
             ctx.fillRect(c * tile, r * tile, tile, tile);
           }
         }
-        const border = CHESS_BATTLE_THEME.boardRim;
+        const border = '#141b2f';
         ctx.strokeStyle = border;
         ctx.lineWidth = tile * 0.12;
         ctx.strokeRect(ctx.lineWidth / 2, ctx.lineWidth / 2, size - ctx.lineWidth, size - ctx.lineWidth);
@@ -12981,91 +12972,13 @@ const powerRef = useRef(hud.power);
         return texture;
       };
 
-      const createChessPiece = (type = 'P', color = 'white') => {
-        const group = new THREE.Group();
-        const baseColor =
-          color === 'white'
-            ? CHESS_BATTLE_THEME.pieceLight
-            : CHESS_BATTLE_THEME.pieceDark;
-        const material = new THREE.MeshStandardMaterial({
-          color: baseColor,
-          roughness: 0.32,
-          metalness: 0.22
-        });
-        material.userData = { ...(material.userData || {}), disposableHospitality: true };
-        const accent = new THREE.MeshStandardMaterial({
-          color: CHESS_BATTLE_THEME.boardAccent,
-          emissive: CHESS_BATTLE_THEME.boardAccent,
-          emissiveIntensity: 0.15,
-          roughness: 0.28,
-          metalness: 0.42
-        });
-        accent.userData = { ...(accent.userData || {}), disposableHospitality: true };
-        const addSection = (geometry, mat = material, position = { x: 0, y: 0, z: 0 }) => {
-          const mesh = new THREE.Mesh(geometry, mat);
-          mesh.position.set(position.x ?? 0, position.y ?? 0, position.z ?? 0);
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-          group.add(mesh);
-          return mesh;
-        };
-        const base = new THREE.CylinderGeometry(0.14, 0.16, 0.08, 24);
-        addSection(base, material, { y: 0.04 });
-        const body = new THREE.CylinderGeometry(0.12, 0.13, 0.24, 20);
-        addSection(body, material, { y: 0.2 });
-        if (type === 'R') {
-          addSection(new THREE.CylinderGeometry(0.12, 0.12, 0.06, 20), accent, { y: 0.32 });
-          addSection(new THREE.CylinderGeometry(0.16, 0.12, 0.06, 16), material, { y: 0.38 });
-        } else if (type === 'N') {
-          addSection(new THREE.SphereGeometry(0.12, 16, 16), material, { y: 0.36 });
-          addSection(new THREE.CylinderGeometry(0.08, 0.12, 0.12, 14), accent, { y: 0.48 });
-        } else if (type === 'B') {
-          addSection(new THREE.ConeGeometry(0.11, 0.28, 18), material, { y: 0.46 });
-          addSection(new THREE.SphereGeometry(0.05, 12, 12), accent, { y: 0.62 });
-        } else if (type === 'Q') {
-          addSection(new THREE.ConeGeometry(0.12, 0.34, 24), material, { y: 0.48 });
-          addSection(new THREE.CylinderGeometry(0.08, 0.08, 0.06, 16), accent, { y: 0.64 });
-          addSection(new THREE.SphereGeometry(0.05, 12, 12), material, { y: 0.7 });
-        } else if (type === 'K') {
-          addSection(new THREE.CylinderGeometry(0.11, 0.12, 0.12, 20), material, { y: 0.36 });
-          addSection(new THREE.ConeGeometry(0.1, 0.22, 18), material, { y: 0.48 });
-          addSection(new THREE.CylinderGeometry(0.04, 0.04, 0.16, 8), accent, { y: 0.62 });
-        } else {
-          addSection(new THREE.SphereGeometry(0.11, 14, 12), material, { y: 0.34 });
-        }
-        group.userData = { ...(group.userData || {}), disposableHospitality: true };
-        return group;
-      };
-
-      const populateChessPieces = (boardGroup, boardSize, boardThickness) => {
-        const tile = boardSize / 8;
-        const startX = -boardSize / 2 + tile / 2;
-        const startZ = -boardSize / 2 + tile / 2;
-        const addPiece = (type, color, file, rank) => {
-          const piece = createChessPiece(type, color);
-          piece.position.set(startX + file * tile, boardThickness + 0.08, startZ + rank * tile);
-          boardGroup.add(piece);
-        };
-        const files = [0, 1, 2, 3, 4, 5, 6, 7];
-        files.forEach((file) => {
-          addPiece('P', 'white', file, 6);
-          addPiece('P', 'black', file, 1);
-        });
-        [['R', 0], ['N', 1], ['B', 2], ['Q', 3], ['K', 4], ['B', 5], ['N', 6], ['R', 7]].forEach(
-          ([type, file]) => {
-            addPiece(type, 'white', file, 7);
-            addPiece(type, 'black', file, 0);
-          }
-        );
-      };
-
       const createChessBoard = (boardSize = 0.9, boardThickness = 0.05) => {
         const group = new THREE.Group();
         const boardTexture = getChessBoardTexture();
         const boardMaterial = new THREE.MeshStandardMaterial({
           map: boardTexture,
-          roughness: 0.32,
-          metalness: 0.16
+          roughness: 0.44,
+          metalness: 0.12
         });
         boardMaterial.userData = { ...(boardMaterial.userData || {}), disposableHospitality: true };
         const top = new THREE.Mesh(
@@ -13077,9 +12990,9 @@ const powerRef = useRef(hud.power);
         top.receiveShadow = true;
         group.add(top);
         const rimMaterial = new THREE.MeshStandardMaterial({
-          color: CHESS_BATTLE_THEME.boardRim,
-          roughness: 0.54,
-          metalness: 0.22
+          color: 0x141b2f,
+          roughness: 0.62,
+          metalness: 0.18
         });
         rimMaterial.userData = { ...(rimMaterial.userData || {}), disposableHospitality: true };
         const rim = new THREE.Mesh(
@@ -13090,8 +13003,7 @@ const powerRef = useRef(hud.power);
         rim.castShadow = true;
         rim.receiveShadow = true;
         group.add(rim);
-        populateChessPieces(group, boardSize, boardThickness);
-        return { group, height: boardThickness, tileSize: boardSize / 8 };
+        return { group, height: boardThickness };
       };
 
       const createChessChair = () => {
@@ -16512,9 +16424,6 @@ const powerRef = useRef(hud.power);
         tableGroup.position.set(position.x ?? 0, tableGroup.position.y, position.z ?? 0);
         tableGroup.rotation.y = rotationY;
         markDecorativeTable(tableGroup);
-        if (entry?.setBaseVariant) {
-          entry.setBaseVariant(activeTableBase);
-        }
         applyTableFinishToTable(tableGroup, finishForLayout);
         const decor = buildDecorGroup({ table: tableGroup, variant });
         decorativeTablesRef.current.push({
@@ -16534,7 +16443,17 @@ const powerRef = useRef(hud.power);
         const maxZ = Math.max(0, arenaHalfDepth - placementMargin);
         const clampX = (x = 0) => THREE.MathUtils.clamp(x, -maxX, maxX);
         const clampZ = (z = 0) => THREE.MathUtils.clamp(z, -maxZ, maxZ);
-        const placeSideBySideSet = () => {
+        if (environmentId === 'oldHall') {
+          const offsetZ = spacing;
+          createDecorativeTable({
+            variant: 'pool',
+            position: { x: 0, z: clampZ(-offsetZ) }
+          });
+          createDecorativeTable({
+            variant: 'snooker',
+            position: { x: 0, z: clampZ(offsetZ) }
+          });
+        } else if (environmentId === 'emptyPlayRoom') {
           const tableHalfWidth = (TABLE.W / 2) * TABLE_DISPLAY_SCALE;
           const snookerHalfWidth = tableHalfWidth * snookerDecorScale;
           const sideGap = Math.max(BALL_R * 8, spacing * 0.35);
@@ -16549,9 +16468,6 @@ const powerRef = useRef(hud.power);
             position: { x: rightOffset, z: 0 },
             scale: { x: snookerDecorScale, y: 1, z: snookerDecorScale }
           });
-        };
-        if (environmentId === 'oldHall' || environmentId === 'adamsBridge') {
-          placeSideBySideSet();
         } else if (environmentId === 'mirroredHall') {
           const lateralSpacing = clampX(spacing * 0.6);
           const depthSpacing = clampZ(spacing * 0.55);
@@ -16617,16 +16533,11 @@ const powerRef = useRef(hud.power);
           toHospitalityUnits(0.32) * hospitalityUpscale,
           BALL_R * 8
         );
-        const wallZ = arenaHalfDepth - hospitalityEdgePull;
-        const desiredZ = THREE.MathUtils.lerp(
+        const desiredZ =
+          outerShortRailZ + serviceGap + availableOuterSpace * 0.5;
+        const placementZ = Math.max(
           outerShortRailZ + serviceGap * 0.5,
-          wallZ,
-          0.6
-        );
-        const placementZ = THREE.MathUtils.clamp(
-          desiredZ,
-          outerShortRailZ + serviceGap * 0.5,
-          wallZ
+          Math.min(arenaHalfDepth - hospitalityEdgePull, desiredZ)
         );
         const chairSpread = toHospitalityUnits(0.44) * hospitalityUpscale;
         const chairDepth = toHospitalityUnits(0.64) * hospitalityUpscale;
@@ -16641,9 +16552,10 @@ const powerRef = useRef(hud.power);
             rotationY: facingCenter
           })
         );
+        const dartboardX = arenaHalfWidth - hospitalityEdgePull * 0.6;
         addHospitalityGroup(
           createDartboard({
-            position: [0, floorY + 1.86, wallZ],
+            position: [dartboardX, floorY + 1.78, spacing * 0.25],
             faceCenter: true
           })
         );
