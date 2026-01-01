@@ -11171,6 +11171,7 @@ const powerRef = useRef(hud.power);
   const audioContextRef = useRef(null);
   const audioBuffersRef = useRef({
     cue: null,
+    chalk: null,
     ball: null,
     pocket: null,
     knock: null,
@@ -11241,7 +11242,8 @@ const powerRef = useRef(hud.power);
     const ctx = audioContextRef.current;
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
-    const scaled = clamp(vol * volumeRef.current, 0, 1);
+    const power = clamp(vol, 0, 1);
+    const scaled = clamp(volumeRef.current * power, 0, 1);
     if (scaled <= 0) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11250,7 +11252,35 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    source.start(0, 0, 0.5);
+    const cueOffset = 7;
+    const cueDuration = 1;
+    const maxOffset = Math.max(0, buffer.duration - cueDuration);
+    const boundedOffset = Math.min(maxOffset, Math.max(0, cueOffset));
+    const playbackDuration = Math.max(
+      0,
+      Math.min(cueDuration, buffer.duration - boundedOffset)
+    );
+    if (playbackDuration > 0) {
+      source.start(0, boundedOffset, playbackDuration);
+    } else {
+      source.start(0);
+    }
+  }, []);
+
+  const playChalkTap = useCallback(() => {
+    const ctx = audioContextRef.current;
+    const buffer = audioBuffersRef.current.chalk;
+    if (!ctx || !buffer || muteRef.current) return;
+    const scaled = clamp(volumeRef.current * 0.72, 0, 1);
+    if (scaled <= 0) return;
+    ctx.resume().catch(() => {});
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = scaled;
+    source.connect(gain);
+    routeAudioNode(gain);
+    source.start(0);
   }, []);
 
   const playBallHit = useCallback((vol = 1) => {
@@ -11443,7 +11473,8 @@ const powerRef = useRef(hud.power);
     };
     (async () => {
       const entries = [
-        ['cue', '/assets/sounds/billiard-pool-hit-371618.mp3'],
+        ['cue', '/assets/sounds/Control_the_Cue_Ball_Control_the_Black_snooker_billiard_tipsandtrick.mp3'],
+        ['chalk', '/assets/sounds/adding-chalk-to-a-snooker-cue-102468.mp3'],
         ['ball', '/assets/sounds/billiard-sound newhit.mp3'],
         ['pocket', '/assets/sounds/billiard-sound-6-288417.mp3'],
         ['knock', '/assets/sounds/wooden-door-knock-102902.mp3'],
@@ -11468,6 +11499,7 @@ const powerRef = useRef(hud.power);
       stopActiveCrowdSound();
       audioBuffersRef.current = {
         cue: null,
+        chalk: null,
         ball: null,
         pocket: null,
         knock: null,
@@ -12734,6 +12766,12 @@ const powerRef = useRef(hud.power);
         CHESS_BATTLE_BOARD_SPAN_UNITS * chessBattleScale;
       const chessBattleTargetChair =
         CHESS_BATTLE_CHAIR_MAX_DIM * chessBattleScale;
+      const resolveChessLoungeSpanTarget = () => {
+        const maxSpan = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE * 0.82;
+        const minSpan = Math.max(TABLE.W * TABLE_DISPLAY_SCALE * 0.4, arenaMargin * 0.9);
+        return THREE.MathUtils.clamp(chessBattleTargetSpan, minSpan, maxSpan);
+      };
+      const chessLoungeSpanTarget = resolveChessLoungeSpanTarget();
 
       const createTableSet = () => {
         const set = new THREE.Group();
@@ -13204,6 +13242,7 @@ const powerRef = useRef(hud.power);
       const loadFirstAvailableGltf = async (urls = []) => {
         if (!hospitalityLoaderRef.current) {
           hospitalityLoaderRef.current = new GLTFLoader();
+          hospitalityLoaderRef.current.setCrossOrigin?.('anonymous');
         }
         const loader = hospitalityLoaderRef.current;
         let lastError = null;
@@ -13230,8 +13269,8 @@ const powerRef = useRef(hud.power);
             if (!mat) return mat;
             const material = mat.clone ? mat.clone() : mat;
             material.userData = { ...(material.userData || {}), disposableHospitality: true };
-            if (material.map) sharpenTexture(material.map);
-            if (material.emissiveMap) sharpenTexture(material.emissiveMap);
+            if (material.map) sharpenTexture(material.map, { wrapRepeat: false });
+            if (material.emissiveMap) sharpenTexture(material.emissiveMap, { wrapRepeat: false });
             material.needsUpdate = true;
             return material;
           });
@@ -13351,10 +13390,7 @@ const powerRef = useRef(hud.power);
           const chairBox = new THREE.Box3().setFromObject(chair);
           const chairSize = chairBox.getSize(new THREE.Vector3());
           const maxSize = Math.max(chairSize.x || 1, chairSize.y || 1, chairSize.z || 1);
-          const targetMax = Math.max(
-            chessBattleTargetChair,
-            toHospitalityUnits(0.92) * hospitalityUpscale
-          );
+          const targetMax = chessBattleTargetChair;
           chair.scale.multiplyScalar(targetMax / maxSize);
           chair.position.set(x, 0, z);
           const toCenter = new THREE.Vector2(x, z).multiplyScalar(-1);
@@ -13372,13 +13408,7 @@ const powerRef = useRef(hud.power);
           const loungeBounds = new THREE.Box3().setFromObject(group);
           const loungeSize = loungeBounds.getSize(new THREE.Vector3());
           const span = Math.max(loungeSize.x || 1, loungeSize.z || 1);
-          const maxSpan = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE * 0.82;
-          const minSpan = Math.max(TABLE.W * TABLE_DISPLAY_SCALE * 0.4, arenaMargin * 0.9);
-          const clampedTarget = THREE.MathUtils.clamp(
-            chessBattleTargetSpan,
-            minSpan,
-            maxSpan
-          );
+          const clampedTarget = chessLoungeSpanTarget;
           if (span > 1e-6) {
             group.scale.multiplyScalar(clampedTarget / span);
           }
@@ -13404,17 +13434,17 @@ const powerRef = useRef(hud.power);
           const materials = Array.isArray(child.material)
             ? child.material
             : [child.material];
-          const clonedMaterials = materials.map((mat) => {
-            if (!mat) return mat;
-            const clone = mat.clone ? mat.clone() : mat;
-            clone.userData = { ...(clone.userData || {}), disposableHospitality: true };
-            if (clone.map) sharpenTexture(clone.map);
-            if (clone.emissiveMap) sharpenTexture(clone.emissiveMap);
-            clone.needsUpdate = true;
-            return clone;
-          });
-          child.material = Array.isArray(child.material) ? clonedMaterials : clonedMaterials[0];
-          child.castShadow = true;
+            const clonedMaterials = materials.map((mat) => {
+              if (!mat) return mat;
+              const clone = mat.clone ? mat.clone() : mat;
+              clone.userData = { ...(clone.userData || {}), disposableHospitality: true };
+              if (clone.map) sharpenTexture(clone.map, { wrapRepeat: false });
+              if (clone.emissiveMap) sharpenTexture(clone.emissiveMap, { wrapRepeat: false });
+              clone.needsUpdate = true;
+              return clone;
+            });
+            child.material = Array.isArray(child.material) ? clonedMaterials : clonedMaterials[0];
+            child.castShadow = true;
           child.receiveShadow = true;
         });
 
@@ -13422,13 +13452,7 @@ const powerRef = useRef(hud.power);
           const box = new THREE.Box3().setFromObject(lounge);
           const size = box.getSize(new THREE.Vector3());
           const span = Math.max(size.x || 1, size.z || 1);
-          const maxSpan = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE * 0.82;
-          const minSpan = Math.max(TABLE.W * TABLE_DISPLAY_SCALE * 0.4, arenaMargin * 0.9);
-          const clampedTarget = THREE.MathUtils.clamp(
-            chessBattleTargetSpan,
-            minSpan,
-            maxSpan
-          );
+          const clampedTarget = chessLoungeSpanTarget;
           if (span > 1e-6) {
             lounge.scale.multiplyScalar(clampedTarget / span);
           }
@@ -13453,10 +13477,7 @@ const powerRef = useRef(hud.power);
           const chairBox = new THREE.Box3().setFromObject(chairModel);
           const chairSize = chairBox.getSize(new THREE.Vector3());
           const maxSize = Math.max(chairSize.x || 1, chairSize.y || 1, chairSize.z || 1);
-          const targetMax = Math.max(
-            chessBattleTargetChair,
-            toHospitalityUnits(0.92) * hospitalityUpscale
-          );
+          const targetMax = chessBattleTargetChair;
           chairModel.scale.multiplyScalar(targetMax / maxSize);
           chairModel.traverse((child) => {
             if (!child?.isMesh) return;
@@ -13467,8 +13488,8 @@ const powerRef = useRef(hud.power);
               if (!mat) return mat;
               const clone = mat.clone ? mat.clone() : mat;
               clone.userData = { ...(clone.userData || {}), disposableHospitality: true };
-              if (clone.map) sharpenTexture(clone.map);
-              if (clone.emissiveMap) sharpenTexture(clone.emissiveMap);
+              if (clone.map) sharpenTexture(clone.map, { wrapRepeat: false });
+              if (clone.emissiveMap) sharpenTexture(clone.emissiveMap, { wrapRepeat: false });
               clone.needsUpdate = true;
               return clone;
             });
@@ -16239,6 +16260,7 @@ const powerRef = useRef(hud.power);
             hit = hit.parent;
           }
           if (!hit?.userData?.isChalk) return false;
+          playChalkTap();
           toggleChalkAssist(hit.userData?.chalkIndex ?? null);
           return true;
         };
@@ -16888,19 +16910,22 @@ const powerRef = useRef(hud.power);
         if (environmentId !== 'musicHall02') return;
         const spacing = resolveSecondarySpacing(environmentId);
         const tableHalfDepth = (TABLE.H / 2) * TABLE_DISPLAY_SCALE;
-        const shortRailDirection = Math.sign(spacing || 1) || 1;
-        const outerShortRailZ = shortRailDirection * (Math.abs(spacing) + tableHalfDepth);
-        const availableOuterSpace = Math.max(0, arenaHalfDepth - outerShortRailZ);
+        const inactiveSlot = activeTableSlotRef.current === 0 ? 1 : 0;
+        const shortRailDirection = inactiveSlot === 0 ? -1 : 1;
+        const slotSpacing = Math.max(Math.abs(spacing), 0);
+        const outerShortRailDistance = slotSpacing + tableHalfDepth;
+        const farInteriorZ = arenaHalfDepth - hospitalityEdgePull;
+        const availableOuterSpace = Math.max(0, farInteriorZ - outerShortRailDistance);
         const serviceGap = Math.max(
           toHospitalityUnits(0.32) * hospitalityUpscale,
           BALL_R * 8
         );
-        const farInteriorZ = arenaHalfDepth - hospitalityEdgePull;
-        const placementZ = THREE.MathUtils.clamp(
-          outerShortRailZ + serviceGap * 1.25,
-          outerShortRailZ + serviceGap,
+        const placementDistance = THREE.MathUtils.clamp(
+          outerShortRailDistance + serviceGap * 1.25,
+          outerShortRailDistance + serviceGap,
           farInteriorZ
         );
+        const placementZ = shortRailDirection * placementDistance;
         const chairSpread = toHospitalityUnits(0.44) * hospitalityUpscale;
         const chairDepth = toHospitalityUnits(0.64) * hospitalityUpscale;
         const facingCenter = Math.atan2(0, -placementZ);
@@ -16922,13 +16947,13 @@ const powerRef = useRef(hud.power);
         const dartboardZ = Math.min(
           farInteriorZ,
           Math.max(
-            placementZ + serviceGap * 0.35,
-            spacing + tableHalfDepth + availableOuterSpace * 0.8
+            placementDistance + serviceGap * 0.35,
+            outerShortRailDistance + availableOuterSpace * 0.8
           )
         );
         const dartboardX = arenaHalfWidth - hospitalityEdgePull * 0.4;
         const dartboard = createDartboard({
-          position: [dartboardX, floorY + 1.96, dartboardZ],
+          position: [dartboardX, floorY + 1.96, shortRailDirection * dartboardZ],
           faceCenter: true
         });
         if (dartboard) {
