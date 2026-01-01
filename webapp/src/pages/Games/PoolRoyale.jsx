@@ -12491,7 +12491,6 @@ const powerRef = useRef(hud.power);
       const backInterior = arenaHalfDepth;
       const leftInterior = -arenaHalfWidth;
       const rightInterior = arenaHalfWidth;
-      const isMusicHallEnvironment = environmentHdriRef.current === 'musicHall02';
 
       cueRackGroupsRef.current = [];
       cueOptionGroupsRef.current = [];
@@ -12663,16 +12662,6 @@ const powerRef = useRef(hud.power);
           metalness: 0,
           transparent: true,
           opacity: 0.55
-        }),
-        cheese: new THREE.MeshStandardMaterial({
-          color: 0xf6d365,
-          roughness: 0.42,
-          metalness: 0.05
-        }),
-        grapes: new THREE.MeshStandardMaterial({
-          color: 0x7c3aed,
-          roughness: 0.65,
-          metalness: 0.04
         })
       };
 
@@ -12686,7 +12675,6 @@ const powerRef = useRef(hud.power);
         toHospitalityUnits(0.08) * hospitalityUpscale; // keep a slim clearance between each chair and table edge
       const hospitalityEdgePull =
         toHospitalityUnits(0.18) * hospitalityUpscale; // keep hospitality props inset from the arena bounds
-      const hospitalityTableFootprint = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE;
 
       const createTableSet = () => {
         const set = new THREE.Group();
@@ -12783,54 +12771,6 @@ const powerRef = useRef(hud.power);
         glassWater.castShadow = true;
         set.add(glassWater);
 
-        const cheeseBoard = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.18, 0.18, 0.015, 24),
-          hospitalityMats.wood
-        );
-        cheeseBoard.position.set(-0.02, 0.78, -0.04);
-        cheeseBoard.castShadow = true;
-        cheeseBoard.receiveShadow = true;
-        set.add(cheeseBoard);
-
-        const cheeseWheel = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.08, 0.08, 0.04, 18, 1, false, 0, Math.PI * 1.15),
-          hospitalityMats.cheese
-        );
-        cheeseWheel.position.set(-0.02, 0.805, -0.04);
-        cheeseWheel.rotation.z = Math.PI * 0.06;
-        cheeseWheel.castShadow = true;
-        cheeseWheel.receiveShadow = true;
-        set.add(cheeseWheel);
-
-        const cheeseWedge = new THREE.Mesh(
-          new THREE.ConeGeometry(0.055, 0.05, 16),
-          hospitalityMats.cheese
-        );
-        cheeseWedge.position.set(0.08, 0.81, -0.03);
-        cheeseWedge.rotation.set(Math.PI * 0.5, 0, Math.PI * 0.65);
-        cheeseWedge.castShadow = true;
-        cheeseWedge.receiveShadow = true;
-        set.add(cheeseWedge);
-
-        const grapeCluster = new THREE.Group();
-        const grapeGeom = new THREE.SphereGeometry(0.018, 10, 10);
-        const grapeOffsets = [
-          [0, 0, 0],
-          [0.028, 0.004, -0.01],
-          [-0.022, -0.002, 0.016],
-          [0.014, 0.018, 0.018],
-          [-0.014, 0.016, -0.014]
-        ];
-        grapeOffsets.forEach(([gx, gy, gz]) => {
-          const grape = new THREE.Mesh(grapeGeom, hospitalityMats.grapes);
-          grape.position.set(gx, gy, gz);
-          grape.castShadow = true;
-          grape.receiveShadow = true;
-          grapeCluster.add(grape);
-        });
-        grapeCluster.position.set(-0.12, 0.81, -0.08);
-        set.add(grapeCluster);
-
         return set;
       };
 
@@ -12894,7 +12834,7 @@ const powerRef = useRef(hud.power);
         });
       };
 
-      const createCornerHospitalitySet = ({ chairOffset, chairOffsets, position, rotationY }) => {
+      const createCornerHospitalitySet = ({ chairOffset, position, rotationY }) => {
         const group = new THREE.Group();
         const scaledFurniture = furnitureScale * hospitalitySizeMultiplier;
 
@@ -12904,20 +12844,8 @@ const powerRef = useRef(hud.power);
           scaledFurniture * hospitalityTableHeightScale,
           scaledFurniture
         );
-        const chairVectors = (Array.isArray(chairOffsets) && chairOffsets.length
-          ? chairOffsets
-          : chairOffset
-            ? [chairOffset]
-            : []).map(([x = 0, z = 0]) => new THREE.Vector2(x, z));
-        const chairCentroid = chairVectors.reduce(
-          (acc, vec) => acc.add(vec.clone()),
-          new THREE.Vector2()
-        );
-        const pullDirection =
-          chairVectors.length > 0
-            ? chairCentroid.clone().multiplyScalar(1 / chairVectors.length)
-            : new THREE.Vector2();
-        const chairDistance = pullDirection.length();
+        const chairVector = new THREE.Vector2(chairOffset[0], chairOffset[1]);
+        const chairDistance = chairVector.length();
         if (chairDistance > 1e-6) {
           const maxPull = Math.max(chairDistance - hospitalityChairGap, 0);
           const tablePull = Math.min(
@@ -12926,26 +12854,26 @@ const powerRef = useRef(hud.power);
           );
           const pullScale = tablePull / chairDistance;
           tableSet.position.set(
-            pullDirection.x * pullScale,
+            chairVector.x * pullScale,
             0,
-            pullDirection.y * pullScale
+            chairVector.y * pullScale
           );
         } else {
           tableSet.position.set(0, 0, 0);
         }
         group.add(tableSet);
 
+        const chair = createChair();
+        chair.scale.setScalar(scaledFurniture);
         const chairClearanceMultiplier = 1.1;
-        chairVectors.forEach((chairVector) => {
-          const chair = createChair();
-          chair.scale.setScalar(scaledFurniture);
-          const chairPlacement = chairVector.clone().multiplyScalar(chairClearanceMultiplier);
-          chair.position.set(chairPlacement.x, 0, chairPlacement.y);
-          const toCenter = chairPlacement.clone().multiplyScalar(-1);
-          const baseAngle = Math.atan2(toCenter.x, toCenter.y);
-          chair.rotation.y = baseAngle;
-          group.add(chair);
-        });
+        const chairPlacement = chairVector
+          .clone()
+          .multiplyScalar(chairClearanceMultiplier);
+        chair.position.set(chairPlacement.x, 0, chairPlacement.y);
+        const toCenter = chairPlacement.clone().multiplyScalar(-1);
+        const baseAngle = Math.atan2(toCenter.x, toCenter.y);
+        chair.rotation.y = baseAngle;
+        group.add(chair);
 
         const adjustForEdge = (value) => {
           const direction = Math.sign(value);
@@ -12962,35 +12890,32 @@ const powerRef = useRef(hud.power);
         return group;
       };
 
-      const showHospitalityFurniture = isMusicHallEnvironment;
+      const showHospitalityFurniture = false;
       if (showHospitalityFurniture) {
+        const rawCornerInset =
+          toHospitalityUnits(0.58) * hospitalityUpscale + arenaMargin * 0.15;
+        const cornerInsetX = Math.min(rawCornerInset, Math.abs(leftInterior) * 0.92);
+        const cornerInsetFront = Math.min(
+          rawCornerInset,
+          Math.abs(frontInterior) * 0.92
+        );
+        const cornerInsetBack = Math.min(
+          rawCornerInset,
+          Math.abs(backInterior) * 0.92
+        );
         const chairSideOffset = toHospitalityUnits(0.44) * hospitalityUpscale;
         const chairForwardOffset = toHospitalityUnits(0.62) * hospitalityUpscale;
 
-        const hospitalityDepthInset = Math.max(
-          hospitalityTableFootprint * 0.72,
-          arenaMargin * 0.9
-        );
-        const frontHospitalityZ = frontInterior + hospitalityDepthInset;
-        const backHospitalityZ = backInterior - hospitalityDepthInset;
-        const chairSpread = chairSideOffset * 1.06;
-
         [
           {
-            position: [0, frontHospitalityZ],
-            rotationY: 0,
-            chairOffsets: [
-              [chairSpread, -chairForwardOffset],
-              [-chairSpread, -chairForwardOffset]
-            ]
+            position: [leftInterior + cornerInsetX, frontInterior + cornerInsetFront],
+            rotationY: Math.PI / 4,
+            chairOffset: [chairSideOffset, -chairForwardOffset]
           },
           {
-            position: [0, backHospitalityZ],
-            rotationY: Math.PI,
-            chairOffsets: [
-              [chairSpread, chairForwardOffset],
-              [-chairSpread, chairForwardOffset]
-            ]
+            position: [rightInterior - cornerInsetX, backInterior - cornerInsetBack],
+            rotationY: -3 * Math.PI / 4,
+            chairOffset: [-chairSideOffset, chairForwardOffset]
           }
         ].forEach((config) => {
           const hospitalitySet = createCornerHospitalitySet(config);
@@ -15914,9 +15839,8 @@ const powerRef = useRef(hud.power);
       } = Table3D(world, finishForScene, tableSizeMeta, railMarkerStyleRef.current, activeTableBase);
       const SPOTS = spotPositions(baulkZ);
       const longestSide = Math.max(PLAY_W, PLAY_H);
-      const secondarySpacingBase =
+      const secondarySpacing =
         Math.max(longestSide * 2.4, Math.max(TABLE.W, TABLE.H) * 2.6) * TABLE_DISPLAY_SCALE;
-      const secondarySpacing = secondarySpacingBase * (isMusicHallEnvironment ? 0.86 : 1);
       const secondaryTableEntry = Table3D(
         world,
         finishForScene,
@@ -16156,16 +16080,6 @@ const powerRef = useRef(hud.power);
           createDecorativeTable({
             variant: 'pool',
             position: { x: 0, z: rearSpacing }
-          });
-        } else if (environmentId === 'emptyPlayRoom') {
-          const sideSpacing = clampX(Math.max(tableFootprint * 1.15, placementMargin * 0.9));
-          createDecorativeTable({
-            variant: 'pool',
-            position: { x: -sideSpacing, z: 0 }
-          });
-          createDecorativeTable({
-            variant: 'snooker',
-            position: { x: sideSpacing, z: 0 }
           });
         }
       };
