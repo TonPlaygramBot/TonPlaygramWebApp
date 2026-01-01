@@ -30,7 +30,7 @@ const tileableNoise = (x, y, width, height, scale, seed = 1) => {
   return (nx + ny + nxy + 3) / 6; // normalize to [0,1]
 };
 
-const WOOD_TEXTURE_ANISOTROPY = 12;
+const WOOD_TEXTURE_ANISOTROPY = 32;
 
 const woodTextureLoader = new THREE.TextureLoader();
 woodTextureLoader.setCrossOrigin?.('anonymous');
@@ -95,7 +95,7 @@ const loadExternalTexture = (url, isColor, anisotropy, onError) => {
   return texture;
 };
 
-const getExternalWoodTextures = (urls, anisotropy = 16, fallbacks = null) => {
+const getExternalWoodTextures = (urls, anisotropy = WOOD_TEXTURE_ANISOTROPY, fallbacks = null) => {
   if (!urls?.mapUrl) return null;
   const cacheKey = [urls.mapUrl, urls.roughnessMapUrl, urls.normalMapUrl]
     .filter(Boolean)
@@ -233,7 +233,7 @@ const makeSlabTexture = (width, height, hue, sat, light, contrast) => {
 
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
-  texture.anisotropy = 16;
+  texture.anisotropy = WOOD_TEXTURE_ANISOTROPY;
   return texture;
 };
 
@@ -615,7 +615,7 @@ export const applyWoodTextures = (
   if (mapUrl) {
     const external = getExternalWoodTextures(
       { mapUrl, roughnessMapUrl, normalMapUrl },
-      16,
+      WOOD_TEXTURE_ANISOTROPY,
       fallbackTextures
     );
     baseTextures = {
