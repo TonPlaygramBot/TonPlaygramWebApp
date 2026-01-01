@@ -123,6 +123,7 @@ import { OrbitControls } from "https://esm.sh/three@0.160.0/examples/jsm/control
 import { RoomEnvironment } from "https://esm.sh/three@0.160.0/examples/jsm/environments/RoomEnvironment.js";
 import { RoundedBoxGeometry } from "https://esm.sh/three@0.160.0/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { GLTFLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+import { RGBELoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/RGBELoader.js";
 import { DRACOLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/DRACOLoader.js";
 import "./flag-emojis.js";
 
@@ -744,8 +745,13 @@ renderer.domElement.style.touchAction = 'none';
 const scene = new THREE.Scene();
 const textureLoader = new THREE.TextureLoader();
 const pmrem = new THREE.PMREMGenerator(renderer);
-const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environment = envTex;
+const hdriLoader = new RGBELoader();
+const hdriTextureCache = new Map();
+let hdriBackground = null;
+let environmentApplyToken = 0;
+const fallbackEnvTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environment = fallbackEnvTexture;
+scene.background = null;
 
 const LIGHT_INTENSITY_FACTOR = 1;
 const dimIntensity = (value = 1) => value * LIGHT_INTENSITY_FACTOR;
@@ -821,6 +827,7 @@ const CAMERA_TOPDOWN_FRAMING = Object.freeze({
   landscape: { right: TABLE_RADIUS * 0.07, forward: TABLE_RADIUS * 0.05 }
 });
 const UP = new THREE.Vector3(0, 1, 0);
+const USE_MINIMAL_STAGE = true;
 
 const VIEW_MODES = Object.freeze({ threeD: '3d', twoD: '2d' });
 let cameraViewMode = VIEW_MODES.threeD;
@@ -838,7 +845,7 @@ function normalizeAvatarSource(src = '') {
 }
 
 const entryMode = (urlParams.get('entry') || '').toLowerCase();
-const shouldRunHallwayEntry = entryMode === 'hallway';
+const shouldRunHallwayEntry = !USE_MINIMAL_STAGE && entryMode === 'hallway';
 const shouldShowSeatLabel = shouldRunHallwayEntry;
 
 const accountId = (urlParams.get('accountId') || '').trim();
@@ -1314,19 +1321,147 @@ const DEFAULT_CHAIR_THEME = Object.freeze({
   highlight: "#d35a7a"
 });
 
-const CHAIR_THEME_OPTIONS = Object.freeze([
-  DEFAULT_CHAIR_THEME,
-  { id: "midnightNavy", label: "Midnight Blue", seatColor: "#153a8b", legColor: "#10131c", highlight: "#4d74d8" },
-  { id: "emeraldWave", label: "Emerald Wave", seatColor: "#0f6a2f", legColor: "#142318", highlight: "#48b26a" },
-  { id: "onyxShadow", label: "Onyx Shadow", seatColor: "#202020", legColor: "#080808", highlight: "#6f6f6f" },
-  { id: "royalPlum", label: "Royal Chestnut", seatColor: "#3f1f5b", legColor: "#140a24", highlight: "#7c4ae0" }
-]);
+const POLYHAVEN_THUMB = (id) => `https://cdn.polyhaven.com/asset_img/thumbs/${id}.png?width=256&height=256`;
+
+const MURLAN_BASE_STOOL_THEMES = [
+  { id: 'ruby', label: 'Ruby', seatColor: '#8b0000', legColor: '#1f1f1f', price: 0, description: 'Default ruby cushions with noir legs.' },
+  { id: 'slate', label: 'Slate', seatColor: '#374151', legColor: '#0f172a', price: 210, description: 'Slate seats with midnight legs.' },
+  { id: 'teal', label: 'Teal', seatColor: '#0f766e', legColor: '#082f2a', price: 230, description: 'Teal cushions with deep green support.' },
+  { id: 'amber', label: 'Amber', seatColor: '#b45309', legColor: '#2f2410', price: 250, description: 'Amber seats with rich brown legs.' },
+  { id: 'violet', label: 'Violet', seatColor: '#7c3aed', legColor: '#2b1059', price: 270, description: 'Violet cushions with twilight framing.' },
+  { id: 'frost', label: 'Ice', seatColor: '#1f2937', legColor: '#0f172a', price: 290, description: 'Frosted charcoal seats with dark legs.' },
+  { id: 'leather', label: 'Leather', seatColor: '#6a4a32', legColor: '#1a1410', price: 320, description: 'Leather-wrapped seats with dark studio legs.' }
+];
+
+const MURLAN_POLYHAVEN_CHAIR_THEMES = [
+  { id: 'ArmChair_01', label: 'Arm Chair 01', source: 'polyhaven', assetId: 'ArmChair_01' },
+  { id: 'BarberShopChair_01', label: 'Barber Shop Chair 01', source: 'polyhaven', assetId: 'BarberShopChair_01' },
+  { id: 'GreenChair_01', label: 'Green Chair 01', source: 'polyhaven', assetId: 'GreenChair_01' },
+  { id: 'Rockingchair_01', label: 'Rockingchair 01', source: 'polyhaven', assetId: 'Rockingchair_01' },
+  { id: 'SchoolChair_01', label: 'School Chair 01', source: 'polyhaven', assetId: 'SchoolChair_01' },
+  { id: 'WoodenChair_01', label: 'Wooden Chair 01', source: 'polyhaven', assetId: 'WoodenChair_01' },
+  { id: 'bar_chair_round_01', label: 'Bar Chair Round', source: 'polyhaven', assetId: 'bar_chair_round_01' },
+  { id: 'chinese_armchair', label: 'Chinese Armchair', source: 'polyhaven', assetId: 'chinese_armchair' },
+  { id: 'dining_chair_02', label: 'Dining Chair 02', source: 'polyhaven', assetId: 'dining_chair_02' },
+  { id: 'gallinera_chair', label: 'Gallinera Chair', source: 'polyhaven', assetId: 'gallinera_chair' },
+  { id: 'mid_century_lounge_chair', label: 'Mid-Century Lounge', source: 'polyhaven', assetId: 'mid_century_lounge_chair' },
+  { id: 'modern_arm_chair_01', label: 'Modern Arm Chair', source: 'polyhaven', assetId: 'modern_arm_chair_01' },
+  { id: 'outdoor_table_chair_set_01', label: 'Outdoor Chair Set 01', source: 'polyhaven', assetId: 'outdoor_table_chair_set_01' },
+  { id: 'painted_wooden_chair_01', label: 'Painted Wooden Chair 01', source: 'polyhaven', assetId: 'painted_wooden_chair_01' },
+  { id: 'painted_wooden_chair_02', label: 'Painted Wooden Chair 02', source: 'polyhaven', assetId: 'painted_wooden_chair_02' },
+  { id: 'plastic_monobloc_chair_01', label: 'Plastic Monobloc Chair', source: 'polyhaven', assetId: 'plastic_monobloc_chair_01' },
+  { id: 'wheelchair_01', label: 'Wheelchair 01', source: 'polyhaven', assetId: 'wheelchair_01' }
+].map((option, index) => ({
+  ...option,
+  thumbnail: POLYHAVEN_THUMB(option.assetId),
+  price: 520 + index * 35,
+  description: `${option.label} with preserved original materials.`,
+  preserveMaterials: true
+}));
+
+const MURLAN_STOOL_THEMES = Object.freeze([...MURLAN_BASE_STOOL_THEMES, ...MURLAN_POLYHAVEN_CHAIR_THEMES]);
+
+const MURLAN_TABLE_THEMES = Object.freeze([
+  {
+    id: 'murlan-default',
+    label: 'Murlan Default Table',
+    source: 'procedural',
+    price: 0,
+    thumbnail: POLYHAVEN_THUMB('WoodenTable_01'),
+    description: 'Standard Murlan Royale table with a streamlined, pedestal-free setup.'
+  },
+  { id: 'CoffeeTable_01', label: 'Coffee Table 01' },
+  { id: 'WoodenTable_01', label: 'Wooden Table 01' },
+  { id: 'WoodenTable_02', label: 'Wooden Table 02' },
+  { id: 'WoodenTable_03', label: 'Wooden Table 03' },
+  { id: 'chinese_console_table', label: 'Chinese Console Table' },
+  { id: 'chinese_tea_table', label: 'Chinese Tea Table' },
+  { id: 'coffee_table_round_01', label: 'Coffee Table Round 01' },
+  { id: 'gallinera_table', label: 'Gallinera Table' },
+  { id: 'gothic_coffee_table', label: 'Gothic Coffee Table' },
+  { id: 'industrial_coffee_table', label: 'Industrial Coffee Table' },
+  { id: 'modern_coffee_table_01', label: 'Modern Coffee Table 01' },
+  { id: 'modern_coffee_table_02', label: 'Modern Coffee Table 02' },
+  { id: 'outdoor_table_chair_set_01', label: 'Outdoor Table Chair Set 01' },
+  { id: 'painted_wooden_table', label: 'Painted Wooden Table' },
+  { id: 'round_wooden_table_01', label: 'Round Wooden Table 01' },
+  { id: 'round_wooden_table_02', label: 'Round Wooden Table 02' },
+  { id: 'side_table_01', label: 'Side Table 01' },
+  { id: 'side_table_tall_01', label: 'Side Table Tall 01' },
+  { id: 'small_wooden_table_01', label: 'Small Wooden Table 01' },
+  { id: 'wooden_picnic_table', label: 'Wooden Picnic Table' },
+  { id: 'wooden_table_02', label: 'Wooden Table 02 (Alt)' }
+].map((option, index) => ({
+  ...option,
+  assetId: option.assetId || option.id,
+  source: option.source || 'polyhaven',
+  thumbnail: option.thumbnail || POLYHAVEN_THUMB(option.id),
+  price: option.price ?? 980 + index * 40,
+  preserveMaterials: option.preserveMaterials ?? true,
+  description: option.description || `${option.label} with preserved Poly Haven materials.`
+})));
+
+const CHAIR_THEME_OPTIONS = Object.freeze(
+  MURLAN_STOOL_THEMES.map((theme, idx) => ({
+    ...theme,
+    seatColor: theme.seatColor || theme.baseColor || DEFAULT_CHAIR_THEME.seatColor,
+    legColor: theme.legColor || '#1f1f1f',
+    highlight: theme.highlight || theme.accentColor || adjustHexColor(theme.seatColor || DEFAULT_CHAIR_THEME.seatColor, 0.22),
+    idx
+  }))
+);
 
 const CHAIR_MODEL_URLS = [
   "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb",
   "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb",
   "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb"
 ];
+const polyhavenModelCache = new Map();
+
+async function loadPolyhavenModel(assetId) {
+  if (!assetId) return null;
+  if (polyhavenModelCache.has(assetId)) {
+    const cached = polyhavenModelCache.get(assetId);
+    return cached.clone(true);
+  }
+  const loader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+  loader.setDRACOLoader(draco);
+
+  const candidates = [
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${assetId}/${assetId}_2k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${assetId}/${assetId}_1k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${assetId}.glb`
+  ];
+  let gltf = null;
+  let lastError = null;
+  for (const url of candidates) {
+    try {
+      gltf = await loader.loadAsync(url);
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!gltf) {
+    throw lastError || new Error(`Failed to load Poly Haven model for ${assetId}`);
+  }
+  const root = gltf.scene || gltf.scenes?.[0];
+  if (!root) throw new Error(`Poly Haven model missing scene for ${assetId}`);
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      if (mat?.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+      if (mat?.emissiveMap) mat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+    });
+  });
+  polyhavenModelCache.set(assetId, root);
+  return root.clone(true);
+}
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715);
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
@@ -1341,6 +1476,7 @@ const normalizeHue = (h) => {
 let chairTemplatePromise = null;
 let chairTemplateBounds = null;
 let chairBuildToken = 0;
+const chairTemplateCache = new Map();
 
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
@@ -1386,9 +1522,15 @@ function extractChairMaterials(model) {
   };
 }
 
-async function ensureMurlanChairTemplate() {
+async function ensureMurlanChairTemplate(theme = null) {
   if (chairTemplatePromise) return chairTemplatePromise;
   chairTemplatePromise = (async () => {
+    if (theme?.source === 'polyhaven' && theme?.assetId) {
+      const model = await loadPolyhavenModel(theme.assetId);
+      fitChairModelToFootprint(model);
+      chairTemplateBounds = new THREE.Box3().setFromObject(model);
+      return { chairTemplate: model, materials: extractChairMaterials(model), preserveMaterials: theme.preserveMaterials ?? true };
+    }
     const loader = new GLTFLoader();
     const draco = new DRACOLoader();
     draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
@@ -1433,8 +1575,28 @@ async function ensureMurlanChairTemplate() {
   return chairTemplatePromise;
 }
 
+async function ensureChairTemplateForTheme(theme) {
+  const key = theme?.id || 'default';
+  if (chairTemplateCache.has(key)) return chairTemplateCache.get(key);
+  const promise = (async () => {
+    if (theme?.source === 'polyhaven' && theme?.assetId) {
+      try {
+        const model = await loadPolyhavenModel(theme.assetId);
+        fitChairModelToFootprint(model);
+        chairTemplateBounds = new THREE.Box3().setFromObject(model);
+        return { chairTemplate: model, materials: extractChairMaterials(model), preserveMaterials: theme.preserveMaterials ?? true };
+      } catch (error) {
+        console.warn('Poly Haven chair load failed, falling back', error);
+      }
+    }
+    return ensureMurlanChairTemplate(theme);
+  })();
+  chairTemplateCache.set(key, promise);
+  return promise;
+}
+
 function cloneChairWithTheme(chairData, option) {
-  const { chairTemplate, materials } = chairData;
+  const { chairTemplate, materials, preserveMaterials } = chairData;
   const clone = chairTemplate.clone(true);
   const upholsterySet = new Set(materials.upholstery);
   const metalSet = new Set(materials.metal);
@@ -1445,6 +1607,7 @@ function cloneChairWithTheme(chairData, option) {
     const themed = mats.map((mat) => {
       if (!mat) return mat;
       const next = mat.clone();
+      if (preserveMaterials) return mat;
       if (upholsterySet.has(mat)) {
         if (next.color) next.color.set(option?.seatColor ?? DEFAULT_CHAIR_THEME.seatColor);
         if (next.emissive) next.emissive.set(option?.highlight ?? option?.seatColor ?? DEFAULT_CHAIR_THEME.highlight);
@@ -1825,6 +1988,54 @@ const TABLE_BASE_OPTIONS = Object.freeze([
   { id: "desertGold", label: "Desert Base", base: "#1c1a12", column: "#0f0d06", trim: "#5a4524" }
 ]);
 
+const POOL_ROYALE_HDRI_VARIANTS = Object.freeze([
+  {
+    id: 'neonPhotostudio',
+    name: 'Neon Photo Studio',
+    assetId: 'neon_photostudio',
+    preferredResolutions: ['4k', '2k'],
+    fallbackResolution: '4k',
+    exposure: 1.18,
+    environmentIntensity: 1.12,
+    backgroundIntensity: 1.06
+  },
+  { id: 'adamsBridge', name: 'Adams Bridge', assetId: 'adams_place_bridge', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.02 },
+  { id: 'ballroomHall', name: 'Ballroom Hall', assetId: 'ballroom', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.15, environmentIntensity: 1.16, backgroundIntensity: 1.08 },
+  { id: 'emptyPlayRoom', name: 'Empty Play Room', assetId: 'empty_play_room', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.09, environmentIntensity: 1.04, backgroundIntensity: 1 },
+  { id: 'christmasPhotoStudio04', name: 'Christmas Photo Studio 04', assetId: 'christmas_photo_studio_04', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
+  { id: 'colorfulStudio', name: 'Colorful Studio', assetId: 'colorful_studio', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.02, environmentIntensity: 0.92, backgroundIntensity: 0.92 },
+  { id: 'dancingHall', name: 'Dancing Hall', assetId: 'dancing_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
+  { id: 'abandonedHall', name: 'Abandoned Hall', assetId: 'abandoned_hall_01', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.08, environmentIntensity: 1.05, backgroundIntensity: 0.98 },
+  { id: 'entranceHall', name: 'Entrance Hall', assetId: 'entrance_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.09, environmentIntensity: 1.06, backgroundIntensity: 1 },
+  { id: 'marryHall', name: 'Marry Hall', assetId: 'marry_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
+  { id: 'mirroredHall', name: 'Mirrored Hall', assetId: 'mirrored_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.15, environmentIntensity: 1.12, backgroundIntensity: 1.06 },
+  { id: 'musicHall02', name: 'Music Hall 02', assetId: 'music_hall_02', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.04 },
+  { id: 'oldHall', name: 'Old Hall', assetId: 'old_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.08, environmentIntensity: 1.05, backgroundIntensity: 0.99 },
+  { id: 'loftPhotoStudioHall', name: 'Loft Photo Studio Hall', assetId: 'photo_studio_loft_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.08, backgroundIntensity: 1.03 },
+  { id: 'londonPhotoStudioHall', name: 'London Photo Studio Hall', assetId: 'photo_studio_london_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.14, environmentIntensity: 1.1, backgroundIntensity: 1.05 },
+  { id: 'countryStudioHall', name: 'Country Studio Hall', assetId: 'studio_country_hall', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.02 },
+  { id: 'blockyPhotoStudio', name: 'Blocky Photo Studio', assetId: 'blocky_photo_studio', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.12, environmentIntensity: 1.1, backgroundIntensity: 1.05 },
+  { id: 'bluePhotoStudio', name: 'Blue Photo Studio', assetId: 'blue_photo_studio', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.13, environmentIntensity: 1.11, backgroundIntensity: 1.06 },
+  { id: 'cycloramaHardLight', name: 'Cyclorama Hard Light', assetId: 'cyclorama_hard_light', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.16, environmentIntensity: 1.12, backgroundIntensity: 1.08 },
+  { id: 'brownPhotostudio06', name: 'Brown Photostudio 06', assetId: 'brown_photostudio_06', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.07, backgroundIntensity: 1.03 },
+  { id: 'christmasPhotoStudio05', name: 'Christmas Photo Studio 05', assetId: 'christmas_photo_studio_05', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.13, environmentIntensity: 1.1, backgroundIntensity: 1.05 },
+  { id: 'abandonedGarage', name: 'Abandoned Garage', assetId: 'abandoned_garage', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.07, environmentIntensity: 1.04, backgroundIntensity: 0.98 },
+  { id: 'vestibule', name: 'Vestibule', assetId: 'vestibule', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 },
+  { id: 'countryClub', name: 'Country Club', assetId: 'country_club', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.11, environmentIntensity: 1.08, backgroundIntensity: 1.03 },
+  { id: 'brownPhotostudio03', name: 'Brown Photostudio 03', assetId: 'brown_photostudio_03', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 },
+  { id: 'sepulchralChapelRotunda', name: 'Sepulchral Chapel Rotunda', assetId: 'sepulchral_chapel_rotunda', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.06, environmentIntensity: 1.03, backgroundIntensity: 0.98 },
+  { id: 'squashCourt', name: 'Squash Court', assetId: 'squash_court', preferredResolutions: ['4k', '2k'], fallbackResolution: '4k', exposure: 1.1, environmentIntensity: 1.06, backgroundIntensity: 1.02 }
+]);
+
+const TABLE_THEME_OPTIONS = MURLAN_TABLE_THEMES.map((theme) => ({
+  ...theme,
+  label: theme.label || theme.name || theme.id
+}));
+const ENVIRONMENT_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
+  ...variant,
+  label: variant.label || `${variant.name} HDRI` || variant.id
+}));
+
 const HIGHLIGHT_STYLE_OPTIONS = Object.freeze([
   {
     id: 'marksmanAmber',
@@ -2101,6 +2312,8 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
 ]);
 
 const TABLE_SETUP_SECTIONS = [
+  { key: "environmentHdri", label: "HDR Environments", options: ENVIRONMENT_HDRI_OPTIONS },
+  { key: "tableTheme", label: "Table Theme", options: TABLE_THEME_OPTIONS },
   { key: "tableWood", label: "Table Wood", options: TABLE_WOOD_OPTIONS },
   { key: "tableCloth", label: "Table Cloth", options: TABLE_CLOTH_OPTIONS },
   { key: "tableBase", label: "Bazamenti", options: TABLE_BASE_OPTIONS },
@@ -2110,6 +2323,8 @@ const TABLE_SETUP_SECTIONS = [
 ];
 
 const DOMINO_OPTIONS_BY_KEY = Object.freeze({
+  environmentHdri: ENVIRONMENT_HDRI_OPTIONS,
+  tableTheme: TABLE_THEME_OPTIONS,
   tableWood: TABLE_WOOD_OPTIONS,
   tableCloth: TABLE_CLOTH_OPTIONS,
   tableBase: TABLE_BASE_OPTIONS,
@@ -2212,6 +2427,8 @@ function normalizeAppearance(raw) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const source = raw && typeof raw === "object" ? raw : {};
   const limits = [
+    ["environmentHdri", ENVIRONMENT_HDRI_OPTIONS.length],
+    ["tableTheme", TABLE_THEME_OPTIONS.length],
     ["tableWood", TABLE_WOOD_OPTIONS.length],
     ["tableCloth", TABLE_CLOTH_OPTIONS.length],
     ["tableBase", TABLE_BASE_OPTIONS.length],
@@ -2244,6 +2461,71 @@ function sanitizeAppearance(rawAppearance, inventory = dominoInventory) {
 function getUnlockedOptions(key, inventory = dominoInventory) {
   const options = DOMINO_OPTIONS_BY_KEY[key] || [];
   return options.filter((option) => isDominoOptionUnlocked(key, option.id, inventory));
+}
+
+const HDRI_RESOLUTION_ORDER = Object.freeze(['4k', '2k']);
+let activeEnvironmentHdri = null;
+
+async function loadHdriEnvironment(variant) {
+  if (!variant?.assetId) return null;
+  const order = Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
+    ? variant.preferredResolutions
+    : HDRI_RESOLUTION_ORDER;
+  let lastError = null;
+  for (const res of order) {
+    const cacheKey = `${variant.id}:${res}`;
+    if (hdriTextureCache.has(cacheKey)) {
+      return hdriTextureCache.get(cacheKey);
+    }
+    const urls = [
+      `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${res}/${variant.assetId}_${res}.hdr`,
+      `https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/${res}/${variant.assetId}_${res}.exr`
+    ];
+    for (const url of urls) {
+      try {
+        const texture = await hdriLoader.loadAsync(url);
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        const envMap = pmrem.fromEquirectangular(texture).texture;
+        hdriTextureCache.set(cacheKey, envMap);
+        texture.dispose?.();
+        return envMap;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+  }
+  if (lastError) throw lastError;
+  return null;
+}
+
+async function applyEnvironmentHdri(option = ENVIRONMENT_HDRI_OPTIONS[0]) {
+  const variant = option || ENVIRONMENT_HDRI_OPTIONS[0];
+  const token = ++environmentApplyToken;
+  try {
+    const envMap = await loadHdriEnvironment(variant);
+    if (token !== environmentApplyToken) {
+      envMap?.dispose?.();
+      return;
+    }
+    if (scene.environment && scene.environment !== fallbackEnvTexture) {
+      scene.environment.dispose?.();
+    }
+    if (hdriBackground && hdriBackground !== envMap && hdriBackground !== fallbackEnvTexture) {
+      hdriBackground.dispose?.();
+    }
+    scene.environment = envMap || fallbackEnvTexture;
+    scene.background = envMap || null;
+    hdriBackground = envMap || fallbackEnvTexture;
+    renderer.toneMappingExposure = variant.exposure ?? renderer.toneMappingExposure;
+    activeEnvironmentHdri = variant;
+  } catch (error) {
+    console.warn("Failed to apply Domino HDRI", error);
+    if (token !== environmentApplyToken) return;
+    scene.environment = fallbackEnvTexture;
+    scene.background = null;
+    renderer.toneMappingExposure = 1.75;
+    activeEnvironmentHdri = null;
+  }
 }
 
 try {
@@ -2603,402 +2885,408 @@ arenaG.add(tableG);
 tableG.rotation.y = 0;
 const piecesG = new THREE.Group();
 tableG.add(piecesG);
+const tableThemeG = new THREE.Group();
+arenaG.add(tableThemeG);
 
 /* ---------- Arena Dressings (Carpet & Walls) ---------- */
-const floor = new THREE.Mesh(
-  new THREE.CircleGeometry(FLOOR_RADIUS, 96),
-  new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.92, metalness: 0.12 })
-);
-floor.rotation.x = -Math.PI / 2;
-floor.position.y = 0;
-floor.receiveShadow = true;
-arenaG.add(floor);
+let hallwayDoorState = null;
+let hallwayDoorZ = 0;
+let walkwayEntryZ = TABLE_RADIUS * 2.4;
 
-const carpetTextures = getPoolCarpetTextures(renderer);
-// Match Pool Royale's red carpet finish.
-const carpetMat = new THREE.MeshStandardMaterial({
-  color: 0x8c2a2e,
-  roughness: 0.9,
-  metalness: 0.025
-});
-if (carpetTextures.map) {
-  carpetMat.map = carpetTextures.map;
-  carpetMat.map.needsUpdate = true;
-  carpetMat.map.repeat.set(5, 5);
-}
-if (carpetTextures.bump) {
-  carpetMat.bumpMap = carpetTextures.bump;
-  carpetMat.bumpScale = 0.18;
-  carpetMat.bumpMap.needsUpdate = true;
-  carpetMat.bumpMap.repeat.set(5, 5);
-}
-const carpet = new THREE.Mesh(new THREE.CircleGeometry(CARPET_RADIUS, 96), carpetMat);
-carpet.rotation.x = -Math.PI / 2;
-carpet.position.y = 0.01;
-carpet.receiveShadow = true;
-arenaG.add(carpet);
+if (!USE_MINIMAL_STAGE) {
+  const floor = new THREE.Mesh(
+    new THREE.CircleGeometry(FLOOR_RADIUS, 96),
+    new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.92, metalness: 0.12 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = 0;
+  floor.receiveShadow = true;
+  arenaG.add(floor);
 
-// Align the arena walls with Pool Royale's light blue tone.
-const wallMaterial = new THREE.MeshStandardMaterial({
-  color: 0xb9ddff,
-  roughness: 0.88,
-  metalness: 0.06,
-  side: THREE.DoubleSide
-});
-const wall = new THREE.Mesh(
-  new THREE.CylinderGeometry(
-    ARENA_WALL_INNER_RADIUS,
-    ARENA_WALL_INNER_RADIUS * 1.02,
-    ARENA_WALL_HEIGHT,
-    80,
-    1,
-    true
-  ),
-  wallMaterial
-);
-wall.position.y = ARENA_WALL_CENTER_Y;
-wall.receiveShadow = false;
-wall.castShadow = false;
-arenaG.add(wall);
-
-const ARENA_DOOR_DIMENSIONS = Object.freeze({ width: 2.8, height: 3.4, thickness: 0.12 });
-const carbonFiberTextureBase = createCarbonFiberTexture(renderer, { tile: 4.5 });
-const hallwayDoorTexture = carbonFiberTextureBase ? carbonFiberTextureBase.clone() : null;
-if (hallwayDoorTexture) {
-  hallwayDoorTexture.repeat.set(2.6, 2.8);
-  hallwayDoorTexture.needsUpdate = true;
-}
-const hallwayDoorMaterialConfig = {
-  color: 0x1a1f26,
-  roughness: 0.32,
-  metalness: 0.55,
-  envMapIntensity: 1.05
-};
-if (hallwayDoorTexture) {
-  hallwayDoorMaterialConfig.map = hallwayDoorTexture;
-}
-const hallwayDoorMaterial = new THREE.MeshStandardMaterial(hallwayDoorMaterialConfig);
-const hallwayHandleMaterial = new THREE.MeshStandardMaterial({
-  color: 0xffd87c,
-  metalness: 1,
-  roughness: 0.18,
-  emissive: 0xffeab5,
-  emissiveIntensity: dimIntensity(0.28)
-});
-const hallwayDoorZ = ARENA_WALL_INNER_RADIUS - ARENA_DOOR_DIMENSIONS.thickness * 0.5;
-const hallwayDoorPivot = new THREE.Group();
-hallwayDoorPivot.position.set(-ARENA_DOOR_DIMENSIONS.width / 2, ARENA_DOOR_DIMENSIONS.height / 2, hallwayDoorZ);
-
-const hallwayDoor = new THREE.Mesh(
-  new THREE.BoxGeometry(
-    ARENA_DOOR_DIMENSIONS.width,
-    ARENA_DOOR_DIMENSIONS.height,
-    ARENA_DOOR_DIMENSIONS.thickness
-  ),
-  hallwayDoorMaterial
-);
-hallwayDoor.castShadow = true;
-hallwayDoor.receiveShadow = true;
-hallwayDoor.position.set(ARENA_DOOR_DIMENSIONS.width / 2, 0, 0);
-hallwayDoorPivot.add(hallwayDoor);
-
-const hallwayHandlePlate = new THREE.Mesh(
-  new THREE.BoxGeometry(0.16, 0.46, 0.02),
-  new THREE.MeshStandardMaterial({
-    color: 0xffd87c,
-    metalness: 0.95,
-    roughness: 0.18,
-    emissive: 0xffe6aa,
-    emissiveIntensity: dimIntensity(0.32)
-  })
-);
-hallwayHandlePlate.position.set(
-  ARENA_DOOR_DIMENSIONS.width - 0.6,
-  -0.35,
-  ARENA_DOOR_DIMENSIONS.thickness / 2 - 0.005
-);
-hallwayHandlePlate.castShadow = false;
-hallwayHandlePlate.receiveShadow = false;
-hallwayDoor.add(hallwayHandlePlate);
-
-const hallwayHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 24), hallwayHandleMaterial);
-hallwayHandle.rotation.z = Math.PI / 2;
-hallwayHandle.position.set(ARENA_DOOR_DIMENSIONS.width - 0.6, -0.35, ARENA_DOOR_DIMENSIONS.thickness / 2 + 0.03);
-hallwayHandle.castShadow = true;
-hallwayHandle.receiveShadow = false;
-hallwayDoor.add(hallwayHandle);
-
-const hallwayDoorFrame = new THREE.Mesh(
-  new THREE.BoxGeometry(
-    ARENA_DOOR_DIMENSIONS.width + 0.32,
-    ARENA_DOOR_DIMENSIONS.height + 0.28,
-    ARENA_DOOR_DIMENSIONS.thickness * 0.8
-  ),
-  new THREE.MeshStandardMaterial({
-    color: 0xf2d79b,
-    roughness: 0.18,
-    metalness: 0.94,
-    emissive: 0xffe4b5,
-    emissiveIntensity: dimIntensity(0.4)
-  })
-);
-hallwayDoorFrame.position.set(ARENA_DOOR_DIMENSIONS.width / 2, 0, -ARENA_DOOR_DIMENSIONS.thickness * 0.45);
-hallwayDoorFrame.castShadow = false;
-hallwayDoorFrame.receiveShadow = false;
-hallwayDoorPivot.add(hallwayDoorFrame);
-
-const hallwayDoorGroup = new THREE.Group();
-hallwayDoorGroup.add(hallwayDoorPivot);
-arenaG.add(hallwayDoorGroup);
-
-const ARENA_WALKWAY_LENGTH = 14;
-const ARENA_WALKWAY_WIDTH = 4.2;
-const walkwayFloorMaterial = new THREE.MeshStandardMaterial({
-  color: 0x08090f,
-  roughness: 0.24,
-  metalness: 0.72,
-  envMapIntensity: 1.1
-});
-const walkwayFloor = new THREE.Mesh(
-  new THREE.PlaneGeometry(ARENA_WALKWAY_WIDTH, ARENA_WALKWAY_LENGTH),
-  walkwayFloorMaterial
-);
-walkwayFloor.rotation.x = -Math.PI / 2;
-walkwayFloor.position.set(
-  0,
-  0.005,
-  hallwayDoorZ + ARENA_WALKWAY_LENGTH / 2 - ARENA_DOOR_DIMENSIONS.thickness * 0.5
-);
-walkwayFloor.receiveShadow = true;
-arenaG.add(walkwayFloor);
-
-const walkwayRunnerMaterialConfig = {
-  color: new THREE.Color(carpetMat.color.getHex()),
-  roughness: carpetMat.roughness,
-  metalness: carpetMat.metalness
-};
-if (carpetTextures.map) {
-  const walkwayMap = carpetTextures.map.clone();
-  walkwayMap.wrapS = walkwayMap.wrapT = THREE.RepeatWrapping;
-  walkwayMap.repeat.set(ARENA_WALKWAY_WIDTH / 1.6, ARENA_WALKWAY_LENGTH / 3.2);
-  walkwayMap.colorSpace = THREE.SRGBColorSpace;
-  walkwayMap.needsUpdate = true;
-  walkwayRunnerMaterialConfig.map = walkwayMap;
-}
-if (carpetTextures.bump) {
-  const walkwayBump = carpetTextures.bump.clone();
-  walkwayBump.wrapS = walkwayBump.wrapT = THREE.RepeatWrapping;
-  walkwayBump.repeat.set(ARENA_WALKWAY_WIDTH / 1.6, ARENA_WALKWAY_LENGTH / 3.2);
-  walkwayBump.needsUpdate = true;
-  walkwayRunnerMaterialConfig.bumpMap = walkwayBump;
-  walkwayRunnerMaterialConfig.bumpScale = 0.18;
-}
-const walkwayRunner = new THREE.Mesh(
-  new THREE.PlaneGeometry(ARENA_WALKWAY_WIDTH * 0.42, ARENA_WALKWAY_LENGTH * 0.92),
-  new THREE.MeshStandardMaterial(walkwayRunnerMaterialConfig)
-);
-walkwayRunner.rotation.x = -Math.PI / 2;
-walkwayRunner.position.set(0, walkwayFloor.position.y + 0.008, walkwayFloor.position.z);
-walkwayRunner.receiveShadow = true;
-arenaG.add(walkwayRunner);
-
-const walkwayTrimMat = new THREE.MeshStandardMaterial({
-  color: 0xba7c2c,
-  roughness: 0.26,
-  metalness: 0.88,
-  emissive: 0xffc978,
-  emissiveIntensity: dimIntensity(0.25)
-});
-const walkwayTrimGeo = new THREE.BoxGeometry(ARENA_WALKWAY_WIDTH + 0.2, 0.12, 0.4);
-const walkwayFrontTrim = new THREE.Mesh(walkwayTrimGeo, walkwayTrimMat);
-walkwayFrontTrim.position.set(0, 0.06, hallwayDoorZ - 0.2);
-walkwayFrontTrim.castShadow = false;
-walkwayFrontTrim.receiveShadow = false;
-arenaG.add(walkwayFrontTrim);
-const walkwayOuterTrim = walkwayFrontTrim.clone();
-walkwayOuterTrim.position.z = walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2 - 0.2;
-arenaG.add(walkwayOuterTrim);
-
-const walkwaySideGeo = new THREE.BoxGeometry(0.35, 1.2, ARENA_WALKWAY_LENGTH);
-const walkwayWallTexture = textureLoader.load(
-  'https://images.unsplash.com/photo-1549187774-b4e9b0445b41?auto=format&fit=crop&w=1600&q=80'
-);
-walkwayWallTexture.wrapS = THREE.RepeatWrapping;
-walkwayWallTexture.wrapT = THREE.RepeatWrapping;
-walkwayWallTexture.colorSpace = THREE.SRGBColorSpace;
-walkwayWallTexture.repeat.set(ARENA_WALKWAY_LENGTH / 2.2, 1.4);
-const walkwaySideMat = new THREE.MeshStandardMaterial({
-  map: walkwayWallTexture,
-  roughness: 0.48,
-  metalness: 0.4,
-  envMapIntensity: 0.8
-});
-const walkwaySideAccentGeo = new THREE.BoxGeometry(0.12, 0.9, ARENA_WALKWAY_LENGTH - 0.6);
-const walkwaySideAccentMat = new THREE.MeshStandardMaterial({
-  color: 0x321c46,
-  roughness: 0.32,
-  metalness: 0.58,
-  emissive: 0xffb964,
-  emissiveIntensity: dimIntensity(0.4)
-});
-const walkwaySideCrownGeo = new THREE.BoxGeometry(0.38, 0.1, ARENA_WALKWAY_LENGTH);
-const walkwaySideCrownMat = new THREE.MeshStandardMaterial({
-  color: 0xf2c36b,
-  roughness: 0.22,
-  metalness: 0.94
-});
-
-function createWalkwaySide(offsetX) {
-  const sideGroup = new THREE.Group();
-  const base = new THREE.Mesh(walkwaySideGeo, walkwaySideMat);
-  base.castShadow = true;
-  base.receiveShadow = true;
-  sideGroup.add(base);
-
-  const accent = new THREE.Mesh(walkwaySideAccentGeo, walkwaySideAccentMat);
-  accent.position.set(offsetX > 0 ? -0.11 : 0.11, 0, 0);
-  accent.castShadow = false;
-  accent.receiveShadow = true;
-  sideGroup.add(accent);
-
-  const crown = new THREE.Mesh(walkwaySideCrownGeo, walkwaySideCrownMat);
-  crown.position.y = 0.55;
-  crown.castShadow = true;
-  crown.receiveShadow = false;
-  sideGroup.add(crown);
-
-  const lightStripGeo = new THREE.BoxGeometry(0.18, 0.08, ARENA_WALKWAY_LENGTH - 0.4);
-  const lightStripMat = new THREE.MeshStandardMaterial({
-    color: 0xffd27e,
-    emissive: 0xfff1b5,
-    emissiveIntensity: dimIntensity(0.85),
-    metalness: 0.7,
-    roughness: 0.18
+  const carpetTextures = getPoolCarpetTextures(renderer);
+  const carpetMat = new THREE.MeshStandardMaterial({
+    color: 0x8c2a2e,
+    roughness: 0.9,
+    metalness: 0.025
   });
-  const lightStrip = new THREE.Mesh(lightStripGeo, lightStripMat);
-  lightStrip.position.set(offsetX > 0 ? -0.14 : 0.14, -0.25, 0);
-  lightStrip.castShadow = false;
-  lightStrip.receiveShadow = false;
-  sideGroup.add(lightStrip);
+  if (carpetTextures.map) {
+    carpetMat.map = carpetTextures.map;
+    carpetMat.map.needsUpdate = true;
+    carpetMat.map.repeat.set(5, 5);
+  }
+  if (carpetTextures.bump) {
+    carpetMat.bumpMap = carpetTextures.bump;
+    carpetMat.bumpScale = 0.18;
+    carpetMat.bumpMap.needsUpdate = true;
+    carpetMat.bumpMap.repeat.set(5, 5);
+  }
+  const carpet = new THREE.Mesh(new THREE.CircleGeometry(CARPET_RADIUS, 96), carpetMat);
+  carpet.rotation.x = -Math.PI / 2;
+  carpet.position.y = 0.01;
+  carpet.receiveShadow = true;
+  arenaG.add(carpet);
 
-  sideGroup.position.set(offsetX, 0.6, walkwayFloor.position.z);
-  arenaG.add(sideGroup);
-  return sideGroup;
-}
+  const wallMaterial = new THREE.MeshStandardMaterial({
+    color: 0xb9ddff,
+    roughness: 0.88,
+    metalness: 0.06,
+    side: THREE.DoubleSide
+  });
+  const wall = new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      ARENA_WALL_INNER_RADIUS,
+      ARENA_WALL_INNER_RADIUS * 1.02,
+      ARENA_WALL_HEIGHT,
+      80,
+      1,
+      true
+    ),
+    wallMaterial
+  );
+  wall.position.y = ARENA_WALL_CENTER_Y;
+  wall.receiveShadow = false;
+  wall.castShadow = false;
+  arenaG.add(wall);
 
-const walkwaySideLeft = createWalkwaySide(-ARENA_WALKWAY_WIDTH / 2 - 0.175);
-const walkwaySideRight = createWalkwaySide(ARENA_WALKWAY_WIDTH / 2 + 0.175);
-
-const walkwayPortalHeaderTexture = carbonFiberTextureBase ? carbonFiberTextureBase.clone() : null;
-if (walkwayPortalHeaderTexture) {
-  walkwayPortalHeaderTexture.repeat.set((ARENA_WALKWAY_WIDTH + 0.4) / 1.4, 1.6);
-  walkwayPortalHeaderTexture.needsUpdate = true;
-}
-const walkwayPortalHeaderMaterialConfig = {
-  color: 0x1c1f26,
-  metalness: 0.68,
-  roughness: 0.28,
-  emissive: 0x140812,
-  emissiveIntensity: dimIntensity(0.35),
-  envMapIntensity: 0.9
-};
-if (walkwayPortalHeaderTexture) {
-  walkwayPortalHeaderMaterialConfig.map = walkwayPortalHeaderTexture;
-}
-const walkwayPortalHeader = new THREE.Mesh(
-  new THREE.BoxGeometry(ARENA_WALKWAY_WIDTH + 0.4, 0.22, 0.5),
-  new THREE.MeshStandardMaterial(walkwayPortalHeaderMaterialConfig)
-);
-walkwayPortalHeader.position.set(0, 1.42, hallwayDoorZ - 0.05);
-walkwayPortalHeader.castShadow = true;
-arenaG.add(walkwayPortalHeader);
-
-const walkwayPortalCrown = new THREE.Mesh(
-  new THREE.TorusGeometry((ARENA_WALKWAY_WIDTH + 0.4) / 2, 0.05, 16, 48),
-  new THREE.MeshStandardMaterial({
-    color: 0xf7d891,
-    emissive: 0xffeeba,
-    emissiveIntensity: dimIntensity(0.6),
-    metalness: 0.92,
-    roughness: 0.15
-  })
-);
-walkwayPortalCrown.rotation.x = Math.PI / 2;
-walkwayPortalCrown.position.set(0, 1.52, hallwayDoorZ - 0.12);
-walkwayPortalCrown.castShadow = false;
-arenaG.add(walkwayPortalCrown);
-
-const walkwayCeiling = new THREE.Mesh(
-  new THREE.PlaneGeometry(ARENA_WALKWAY_WIDTH + 0.8, ARENA_WALKWAY_LENGTH + 1.2),
-  new THREE.MeshStandardMaterial({
-    color: 0x18111f,
-    side: THREE.DoubleSide,
-    roughness: 0.35,
-    metalness: 0.45,
-    emissive: 0x1a0a13,
+  const ARENA_DOOR_DIMENSIONS = Object.freeze({ width: 2.8, height: 3.4, thickness: 0.12 });
+  const carbonFiberTextureBase = createCarbonFiberTexture(renderer, { tile: 4.5 });
+  const hallwayDoorTexture = carbonFiberTextureBase ? carbonFiberTextureBase.clone() : null;
+  if (hallwayDoorTexture) {
+    hallwayDoorTexture.repeat.set(2.6, 2.8);
+    hallwayDoorTexture.needsUpdate = true;
+  }
+  const hallwayDoorMaterialConfig = {
+    color: 0x1a1f26,
+    roughness: 0.32,
+    metalness: 0.55,
+    envMapIntensity: 1.05
+  };
+  if (hallwayDoorTexture) {
+    hallwayDoorMaterialConfig.map = hallwayDoorTexture;
+  }
+  const hallwayDoorMaterial = new THREE.MeshStandardMaterial(hallwayDoorMaterialConfig);
+  const hallwayHandleMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffd87c,
+    metalness: 1,
+    roughness: 0.18,
+    emissive: 0xffeab5,
     emissiveIntensity: dimIntensity(0.28)
-  })
-);
-walkwayCeiling.rotation.x = Math.PI / 2;
-walkwayCeiling.position.set(0, 1.95, walkwayFloor.position.z);
-walkwayCeiling.receiveShadow = false;
-arenaG.add(walkwayCeiling);
+  });
+  hallwayDoorZ = ARENA_WALL_INNER_RADIUS - ARENA_DOOR_DIMENSIONS.thickness * 0.5;
+  const hallwayDoorPivot = new THREE.Group();
+  hallwayDoorPivot.position.set(-ARENA_DOOR_DIMENSIONS.width / 2, ARENA_DOOR_DIMENSIONS.height / 2, hallwayDoorZ);
 
-const chandelier = new THREE.Group();
-const chandelierRing = new THREE.Mesh(
-  new THREE.TorusGeometry(0.95, 0.08, 24, 64),
-  new THREE.MeshStandardMaterial({
-    color: 0xf2d79b,
-    emissive: 0xfff0c5,
-    emissiveIntensity: dimIntensity(0.8),
-    metalness: 0.9,
-    roughness: 0.18
-  })
-);
-chandelier.add(chandelierRing);
-const chandelierCore = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.08, 0.16, 0.6, 24),
-  new THREE.MeshStandardMaterial({
-    color: 0x21142d,
-    metalness: 0.65,
+  const hallwayDoor = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      ARENA_DOOR_DIMENSIONS.width,
+      ARENA_DOOR_DIMENSIONS.height,
+      ARENA_DOOR_DIMENSIONS.thickness
+    ),
+    hallwayDoorMaterial
+  );
+  hallwayDoor.castShadow = true;
+  hallwayDoor.receiveShadow = true;
+  hallwayDoor.position.set(ARENA_DOOR_DIMENSIONS.width / 2, 0, 0);
+  hallwayDoorPivot.add(hallwayDoor);
+
+  const hallwayHandlePlate = new THREE.Mesh(
+    new THREE.BoxGeometry(0.16, 0.46, 0.02),
+    new THREE.MeshStandardMaterial({
+      color: 0xffd87c,
+      metalness: 0.95,
+      roughness: 0.18,
+      emissive: 0xffe6aa,
+      emissiveIntensity: dimIntensity(0.32)
+    })
+  );
+  hallwayHandlePlate.position.set(
+    ARENA_DOOR_DIMENSIONS.width - 0.6,
+    -0.35,
+    ARENA_DOOR_DIMENSIONS.thickness / 2 - 0.005
+  );
+  hallwayHandlePlate.castShadow = false;
+  hallwayHandlePlate.receiveShadow = false;
+  hallwayDoor.add(hallwayHandlePlate);
+
+  const hallwayHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 24), hallwayHandleMaterial);
+  hallwayHandle.rotation.z = Math.PI / 2;
+  hallwayHandle.position.set(ARENA_DOOR_DIMENSIONS.width - 0.6, -0.35, ARENA_DOOR_DIMENSIONS.thickness / 2 + 0.03);
+  hallwayHandle.castShadow = true;
+  hallwayHandle.receiveShadow = false;
+  hallwayDoor.add(hallwayHandle);
+
+  const hallwayDoorFrame = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      ARENA_DOOR_DIMENSIONS.width + 0.32,
+      ARENA_DOOR_DIMENSIONS.height + 0.28,
+      ARENA_DOOR_DIMENSIONS.thickness * 0.8
+    ),
+    new THREE.MeshStandardMaterial({
+      color: 0xf2d79b,
+      roughness: 0.18,
+      metalness: 0.94,
+      emissive: 0xffe4b5,
+      emissiveIntensity: dimIntensity(0.4)
+    })
+  );
+  hallwayDoorFrame.position.set(ARENA_DOOR_DIMENSIONS.width / 2, 0, -ARENA_DOOR_DIMENSIONS.thickness * 0.45);
+  hallwayDoorFrame.castShadow = false;
+  hallwayDoorFrame.receiveShadow = false;
+  hallwayDoorPivot.add(hallwayDoorFrame);
+
+  const hallwayDoorGroup = new THREE.Group();
+  hallwayDoorGroup.add(hallwayDoorPivot);
+  arenaG.add(hallwayDoorGroup);
+
+  const ARENA_WALKWAY_LENGTH = 14;
+  const ARENA_WALKWAY_WIDTH = 4.2;
+  const walkwayFloorMaterial = new THREE.MeshStandardMaterial({
+    color: 0x08090f,
+    roughness: 0.24,
+    metalness: 0.72,
+    envMapIntensity: 1.1
+  });
+  const walkwayFloor = new THREE.Mesh(
+    new THREE.PlaneGeometry(ARENA_WALKWAY_WIDTH, ARENA_WALKWAY_LENGTH),
+    walkwayFloorMaterial
+  );
+  walkwayFloor.rotation.x = -Math.PI / 2;
+  walkwayFloor.position.set(
+    0,
+    0.005,
+    hallwayDoorZ + ARENA_WALKWAY_LENGTH / 2 - ARENA_DOOR_DIMENSIONS.thickness * 0.5
+  );
+  walkwayFloor.receiveShadow = true;
+  arenaG.add(walkwayFloor);
+
+  const walkwayRunnerMaterialConfig = {
+    color: new THREE.Color(carpetMat.color.getHex()),
+    roughness: carpetMat.roughness,
+    metalness: carpetMat.metalness
+  };
+  if (carpetTextures.map) {
+    const walkwayMap = carpetTextures.map.clone();
+    walkwayMap.wrapS = walkwayMap.wrapT = THREE.RepeatWrapping;
+    walkwayMap.repeat.set(ARENA_WALKWAY_WIDTH / 1.6, ARENA_WALKWAY_LENGTH / 3.2);
+    walkwayMap.colorSpace = THREE.SRGBColorSpace;
+    walkwayMap.needsUpdate = true;
+    walkwayRunnerMaterialConfig.map = walkwayMap;
+  }
+  if (carpetTextures.bump) {
+    const walkwayBump = carpetTextures.bump.clone();
+    walkwayBump.wrapS = walkwayBump.wrapT = THREE.RepeatWrapping;
+    walkwayBump.repeat.set(ARENA_WALKWAY_WIDTH / 1.6, ARENA_WALKWAY_LENGTH / 3.2);
+    walkwayBump.needsUpdate = true;
+    walkwayRunnerMaterialConfig.bumpMap = walkwayBump;
+    walkwayRunnerMaterialConfig.bumpScale = 0.18;
+  }
+  const walkwayRunner = new THREE.Mesh(
+    new THREE.PlaneGeometry(ARENA_WALKWAY_WIDTH * 0.42, ARENA_WALKWAY_LENGTH * 0.92),
+    new THREE.MeshStandardMaterial(walkwayRunnerMaterialConfig)
+  );
+  walkwayRunner.rotation.x = -Math.PI / 2;
+  walkwayRunner.position.set(0, walkwayFloor.position.y + 0.008, walkwayFloor.position.z);
+  walkwayRunner.receiveShadow = true;
+  arenaG.add(walkwayRunner);
+
+  const walkwayTrimMat = new THREE.MeshStandardMaterial({
+    color: 0xba7c2c,
+    roughness: 0.26,
+    metalness: 0.88,
+    emissive: 0xffc978,
+    emissiveIntensity: dimIntensity(0.25)
+  });
+  const walkwayTrimGeo = new THREE.BoxGeometry(ARENA_WALKWAY_WIDTH + 0.2, 0.12, 0.4);
+  const walkwayFrontTrim = new THREE.Mesh(walkwayTrimGeo, walkwayTrimMat);
+  walkwayFrontTrim.position.set(0, 0.06, hallwayDoorZ - 0.2);
+  walkwayFrontTrim.castShadow = false;
+  walkwayFrontTrim.receiveShadow = false;
+  arenaG.add(walkwayFrontTrim);
+  const walkwayOuterTrim = walkwayFrontTrim.clone();
+  walkwayOuterTrim.position.z = walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2 - 0.2;
+  arenaG.add(walkwayOuterTrim);
+
+  const walkwaySideGeo = new THREE.BoxGeometry(0.35, 1.2, ARENA_WALKWAY_LENGTH);
+  const walkwayWallTexture = textureLoader.load(
+    'https://images.unsplash.com/photo-1549187774-b4e9b0445b41?auto=format&fit=crop&w=1600&q=80'
+  );
+  walkwayWallTexture.wrapS = THREE.RepeatWrapping;
+  walkwayWallTexture.wrapT = THREE.RepeatWrapping;
+  walkwayWallTexture.colorSpace = THREE.SRGBColorSpace;
+  walkwayWallTexture.repeat.set(ARENA_WALKWAY_LENGTH / 2.2, 1.4);
+  const walkwaySideMat = new THREE.MeshStandardMaterial({
+    map: walkwayWallTexture,
+    roughness: 0.48,
+    metalness: 0.4,
+    envMapIntensity: 0.8
+  });
+  const walkwaySideAccentGeo = new THREE.BoxGeometry(0.12, 0.9, ARENA_WALKWAY_LENGTH - 0.6);
+  const walkwaySideAccentMat = new THREE.MeshStandardMaterial({
+    color: 0x321c46,
+    roughness: 0.32,
+    metalness: 0.58,
+    emissive: 0xffb964,
+    emissiveIntensity: dimIntensity(0.4)
+  });
+  const walkwaySideCrownGeo = new THREE.BoxGeometry(0.38, 0.1, ARENA_WALKWAY_LENGTH);
+  const walkwaySideCrownMat = new THREE.MeshStandardMaterial({
+    color: 0xf2c36b,
+    roughness: 0.22,
+    metalness: 0.94
+  });
+
+  function createWalkwaySide(offsetX) {
+    const sideGroup = new THREE.Group();
+    const base = new THREE.Mesh(walkwaySideGeo, walkwaySideMat);
+    base.castShadow = true;
+    base.receiveShadow = true;
+    sideGroup.add(base);
+
+    const accent = new THREE.Mesh(walkwaySideAccentGeo, walkwaySideAccentMat);
+    accent.position.set(offsetX > 0 ? -0.11 : 0.11, 0, 0);
+    accent.castShadow = false;
+    accent.receiveShadow = true;
+    sideGroup.add(accent);
+
+    const crown = new THREE.Mesh(walkwaySideCrownGeo, walkwaySideCrownMat);
+    crown.position.y = 0.55;
+    crown.castShadow = true;
+    crown.receiveShadow = false;
+    sideGroup.add(crown);
+
+    const lightStripGeo = new THREE.BoxGeometry(0.18, 0.08, ARENA_WALKWAY_LENGTH - 0.4);
+    const lightStripMat = new THREE.MeshStandardMaterial({
+      color: 0xffd27e,
+      emissive: 0xfff1b5,
+      emissiveIntensity: dimIntensity(0.85),
+      metalness: 0.7,
+      roughness: 0.18
+    });
+    const lightStrip = new THREE.Mesh(lightStripGeo, lightStripMat);
+    lightStrip.position.set(offsetX > 0 ? -0.14 : 0.14, -0.25, 0);
+    lightStrip.castShadow = false;
+    lightStrip.receiveShadow = false;
+    sideGroup.add(lightStrip);
+
+    sideGroup.position.set(offsetX, 0.6, walkwayFloor.position.z);
+    arenaG.add(sideGroup);
+    return sideGroup;
+  }
+
+  const walkwaySideLeft = createWalkwaySide(-ARENA_WALKWAY_WIDTH / 2 - 0.175);
+  const walkwaySideRight = createWalkwaySide(ARENA_WALKWAY_WIDTH / 2 + 0.175);
+
+  const walkwayPortalHeaderTexture = carbonFiberTextureBase ? carbonFiberTextureBase.clone() : null;
+  if (walkwayPortalHeaderTexture) {
+    walkwayPortalHeaderTexture.repeat.set((ARENA_WALKWAY_WIDTH + 0.4) / 1.4, 1.6);
+    walkwayPortalHeaderTexture.needsUpdate = true;
+  }
+  const walkwayPortalHeaderMaterialConfig = {
+    color: 0x1c1f26,
+    metalness: 0.68,
     roughness: 0.28,
-    emissive: 0x110712,
-    emissiveIntensity: dimIntensity(0.3)
-  })
-);
-chandelierCore.position.y = -0.35;
-chandelier.add(chandelierCore);
-chandelier.position.set(0, walkwayCeiling.position.y - 0.18, walkwayFloor.position.z);
-arenaG.add(chandelier);
+    emissive: 0x140812,
+    emissiveIntensity: dimIntensity(0.35),
+    envMapIntensity: 0.9
+  };
+  if (walkwayPortalHeaderTexture) {
+    walkwayPortalHeaderMaterialConfig.map = walkwayPortalHeaderTexture;
+  }
+  const walkwayPortalHeader = new THREE.Mesh(
+    new THREE.BoxGeometry(ARENA_WALKWAY_WIDTH + 0.4, 0.22, 0.5),
+    new THREE.MeshStandardMaterial(walkwayPortalHeaderMaterialConfig)
+  );
+  walkwayPortalHeader.position.set(0, 1.42, hallwayDoorZ - 0.05);
+  walkwayPortalHeader.castShadow = true;
+  arenaG.add(walkwayPortalHeader);
 
-const walkwayFrontLight = new THREE.Mesh(
-  new THREE.BoxGeometry(ARENA_WALKWAY_WIDTH + 0.25, 0.08, 0.12),
-  new THREE.MeshStandardMaterial({
-    color: 0xffd89a,
-    emissive: 0xffecb3,
-    emissiveIntensity: dimIntensity(0.9),
-    metalness: 0.78,
-    roughness: 0.22
-  })
-);
-walkwayFrontLight.position.set(0, 0.18, hallwayDoorZ + 0.18);
-arenaG.add(walkwayFrontLight);
-const walkwayRearLight = walkwayFrontLight.clone();
-walkwayRearLight.position.z = walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2 - 0.25;
-arenaG.add(walkwayRearLight);
+  const walkwayPortalCrown = new THREE.Mesh(
+    new THREE.TorusGeometry((ARENA_WALKWAY_WIDTH + 0.4) / 2, 0.05, 16, 48),
+    new THREE.MeshStandardMaterial({
+      color: 0xf7d891,
+      emissive: 0xffeeba,
+      emissiveIntensity: dimIntensity(0.6),
+      metalness: 0.92,
+      roughness: 0.15
+    })
+  );
+  walkwayPortalCrown.rotation.x = Math.PI / 2;
+  walkwayPortalCrown.position.set(0, 1.52, hallwayDoorZ - 0.12);
+  walkwayPortalCrown.castShadow = false;
+  arenaG.add(walkwayPortalCrown);
 
-const hallwayAmbient = new THREE.PointLight(0xffe2b5, dimIntensity(1.3), 18, 1.8);
-hallwayAmbient.position.set(0, walkwayCeiling.position.y - 0.05, walkwayFloor.position.z);
-hallwayAmbient.castShadow = true;
-arenaG.add(hallwayAmbient);
+  const walkwayCeiling = new THREE.Mesh(
+    new THREE.PlaneGeometry(ARENA_WALKWAY_WIDTH + 0.8, ARENA_WALKWAY_LENGTH + 1.2),
+    new THREE.MeshStandardMaterial({
+      color: 0x18111f,
+      side: THREE.DoubleSide,
+      roughness: 0.35,
+      metalness: 0.45,
+      emissive: 0x1a0a13,
+      emissiveIntensity: dimIntensity(0.28)
+    })
+  );
+  walkwayCeiling.rotation.x = Math.PI / 2;
+  walkwayCeiling.position.set(0, 1.95, walkwayFloor.position.z);
+  walkwayCeiling.receiveShadow = false;
+  arenaG.add(walkwayCeiling);
 
-const hallwayDoorState = {
-  pivot: hallwayDoorPivot,
-  openAngle: THREE.MathUtils.degToRad(100),
-  closedAngle: 0
-};
-const walkwayFarZ = walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2;
-const walkwayEntryZ = walkwayFarZ + 1.5;
+  const chandelier = new THREE.Group();
+  const chandelierRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.95, 0.08, 24, 64),
+    new THREE.MeshStandardMaterial({
+      color: 0xf2d79b,
+      emissive: 0xfff0c5,
+      emissiveIntensity: dimIntensity(0.8),
+      metalness: 0.9,
+      roughness: 0.18
+    })
+  );
+  chandelier.add(chandelierRing);
+  const chandelierCore = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.08, 0.16, 0.6, 24),
+    new THREE.MeshStandardMaterial({
+      color: 0x21142d,
+      metalness: 0.65,
+      roughness: 0.28,
+      emissive: 0x110712,
+      emissiveIntensity: dimIntensity(0.3)
+    })
+  );
+  chandelierCore.position.y = -0.35;
+  chandelier.add(chandelierCore);
+  chandelier.position.set(0, walkwayCeiling.position.y - 0.18, walkwayFloor.position.z);
+  arenaG.add(chandelier);
+
+  const walkwayFrontLight = new THREE.Mesh(
+    new THREE.BoxGeometry(ARENA_WALKWAY_WIDTH + 0.25, 0.08, 0.12),
+    new THREE.MeshStandardMaterial({
+      color: 0xffd89a,
+      emissive: 0xffecb3,
+      emissiveIntensity: dimIntensity(0.9),
+      metalness: 0.78,
+      roughness: 0.22
+    })
+  );
+  walkwayFrontLight.position.set(0, 0.18, hallwayDoorZ + 0.18);
+  arenaG.add(walkwayFrontLight);
+  const walkwayRearLight = walkwayFrontLight.clone();
+  walkwayRearLight.position.z = walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2 - 0.25;
+  arenaG.add(walkwayRearLight);
+
+  const hallwayAmbient = new THREE.PointLight(0xffe2b5, dimIntensity(1.3), 18, 1.8);
+  hallwayAmbient.position.set(0, walkwayCeiling.position.y - 0.05, walkwayFloor.position.z);
+  hallwayAmbient.castShadow = true;
+  arenaG.add(hallwayAmbient);
+
+  hallwayDoorState = {
+    pivot: hallwayDoorPivot,
+    openAngle: THREE.MathUtils.degToRad(100),
+    closedAngle: 0
+  };
+  const walkwayFarZ = walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2;
+  walkwayEntryZ = walkwayFarZ + 1.5;
+}
 
 function easeInOutCubic(t) {
   if (t <= 0) return 0;
@@ -3268,6 +3556,72 @@ function updateTableMaterials() {
   tableMaterials.trim.color.set(base.trim);
 }
 updateTableMaterials();
+
+function disposeObjectResources(object) {
+  if (!object) return;
+  object.traverse((child) => {
+    if (!child.isMesh) return;
+    if (child.geometry?.dispose) child.geometry.dispose();
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      if (mat.map && mat.map.dispose) {
+        mat.map.dispose();
+      }
+      mat.dispose?.();
+    });
+  });
+}
+
+function fitTableModelToFootprint(model) {
+  if (!model) return;
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const targetDiameter = TABLE_RADIUS * 2.1;
+  const targetHeight = TABLE_HEIGHT * 1.05;
+  const maxSide = Math.max(size.x, size.z, 0.0001);
+  const heightScale = targetHeight / Math.max(size.y, 0.0001);
+  const scale = Math.min(targetDiameter / maxSide, heightScale);
+  model.scale.multiplyScalar(scale);
+  const scaled = new THREE.Box3().setFromObject(model);
+  const offset = new THREE.Vector3(
+    -(scaled.min.x + scaled.max.x) / 2,
+    -scaled.min.y,
+    -(scaled.min.z + scaled.max.z) / 2
+  );
+  model.position.add(offset);
+}
+
+let tableThemeToken = 0;
+let activeTableThemeId = null;
+
+async function applyTableTheme(option = TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TABLE_THEME_OPTIONS[0]) {
+  const theme = option || TABLE_THEME_OPTIONS[0];
+  tableThemeG.visible = false;
+  while (tableThemeG.children.length) {
+    const child = tableThemeG.children.pop();
+    disposeObjectResources(child);
+    child?.removeFromParent?.();
+  }
+  const token = ++tableThemeToken;
+  if (!theme || theme.id === 'murlan-default') {
+    activeTableThemeId = 'murlan-default';
+    return;
+  }
+  try {
+    const model = await loadPolyhavenModel(theme.assetId || theme.id);
+    if (token !== tableThemeToken || !model) {
+      disposeObjectResources(model);
+      return;
+    }
+    fitTableModelToFootprint(model);
+    tableThemeG.add(model);
+    tableThemeG.visible = true;
+    activeTableThemeId = theme.id;
+  } catch (error) {
+    console.warn('Failed to load table theme', error);
+  }
+}
 
 const tableParts = {};
 const chairs = [];
@@ -3963,6 +4317,8 @@ function saveAppearance() {
 
 function applyAppearanceChange({ refresh = true } = {}) {
   appearance = sanitizeAppearance(appearance);
+  applyEnvironmentHdri(ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ?? ENVIRONMENT_HDRI_OPTIONS[0]);
+  applyTableTheme(TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TABLE_THEME_OPTIONS[0]);
   clearExistingDominoMeshes();
   updateTableMaterials();
   applyDominoStyle(DOMINO_STYLE_OPTIONS[appearance.dominoStyle] ?? DOMINO_STYLE_OPTIONS[0]);
@@ -4018,6 +4374,40 @@ function createOptionPreview(key, option) {
   swatch.style.borderRadius = '0.75rem';
   swatch.style.border = '1px solid rgba(255,255,255,0.12)';
   switch (key) {
+    case 'environmentHdri': {
+      swatch.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(0,0,0,0.4))';
+      const badge = document.createElement('span');
+      badge.textContent = option?.name || option?.label || 'HDRI';
+      badge.style.display = 'inline-block';
+      badge.style.padding = '0.12rem 0.4rem';
+      badge.style.borderRadius = '999px';
+      badge.style.background = 'rgba(0,0,0,0.35)';
+      badge.style.fontSize = '0.65rem';
+      badge.style.fontWeight = '700';
+      badge.style.letterSpacing = '0.08em';
+      badge.style.textTransform = 'uppercase';
+      badge.style.margin = '0.2rem';
+      badge.style.pointerEvents = 'none';
+      swatch.appendChild(badge);
+      if (Array.isArray(option?.swatches) && option.swatches.length >= 2) {
+        swatch.style.background = `linear-gradient(135deg, ${option.swatches[0]}, ${option.swatches[1]})`;
+      }
+      break;
+    }
+    case 'tableTheme': {
+      swatch.style.background = 'linear-gradient(135deg, #0f172a, #1f2937)';
+      const label = document.createElement('span');
+      label.textContent = option?.label || 'Table';
+      label.style.display = 'inline-block';
+      label.style.padding = '0.12rem 0.4rem';
+      label.style.borderRadius = '0.5rem';
+      label.style.background = 'rgba(255,255,255,0.08)';
+      label.style.fontSize = '0.72rem';
+      label.style.fontWeight = '700';
+      label.style.letterSpacing = '0.04em';
+      swatch.appendChild(label);
+      break;
+    }
     case 'tableWood':
       swatch.style.position = 'relative';
       swatch.style.overflow = 'hidden';
@@ -4414,7 +4804,7 @@ function placeChairsWithOption(option, chairData, token) {
 
 async function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME) {
   const token = ++chairBuildToken;
-  const chairDataPromise = ensureMurlanChairTemplate().catch((error) => {
+  const chairDataPromise = ensureChairTemplateForTheme(option).catch((error) => {
     console.warn("Falling back to procedural chair for Domino", error);
     return null;
   });

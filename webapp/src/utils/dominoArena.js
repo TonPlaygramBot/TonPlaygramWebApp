@@ -59,6 +59,7 @@ const CAMERA_CONFIG = Object.freeze({
 let cachedCarpet = null;
 let cachedChairTextures = null;
 let cachedEnvTexture = null;
+const INCLUDE_ROOM_ENCLOSURE = false;
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 
@@ -697,48 +698,56 @@ export function buildDominoArena({ scene, renderer }) {
   const trackedGeometries = new Set();
   const trackedMaterials = new Set();
 
-  const carpetTex = ensureCarpetTextures(renderer);
-  const carpetMat = new THREE.MeshStandardMaterial({ color: 0x8c2a2e, roughness: 0.9, metalness: 0.025 });
-  if (carpetTex.map) {
-    carpetMat.map = carpetTex.map;
-    carpetMat.map.needsUpdate = true;
+  let carpet = null;
+  let wallMat = null;
+  let backWall = null;
+  let frontWall = null;
+  let leftWall = null;
+  let rightWall = null;
+  if (INCLUDE_ROOM_ENCLOSURE) {
+    const carpetTex = ensureCarpetTextures(renderer);
+    const carpetMat = new THREE.MeshStandardMaterial({ color: 0x8c2a2e, roughness: 0.9, metalness: 0.025 });
+    if (carpetTex.map) {
+      carpetMat.map = carpetTex.map;
+      carpetMat.map.needsUpdate = true;
+    }
+    if (carpetTex.bump) {
+      carpetMat.bumpMap = carpetTex.bump;
+      carpetMat.bumpScale = 0.18;
+      carpetMat.bumpMap.needsUpdate = true;
+    }
+
+    carpet = new THREE.Mesh(
+      new THREE.BoxGeometry(
+        ROOM_DIMENSIONS.width - ROOM_DIMENSIONS.wallThickness,
+        ROOM_DIMENSIONS.carpetThickness,
+        ROOM_DIMENSIONS.depth - ROOM_DIMENSIONS.wallThickness
+      ),
+      carpetMat
+    );
+    carpet.position.y = -ROOM_DIMENSIONS.carpetThickness / 2;
+    carpet.receiveShadow = true;
+    arena.add(carpet);
+
+    wallMat = new THREE.MeshStandardMaterial({ color: 0xb9ddff, roughness: 0.88, metalness: 0.06 });
+
+    const makeWall = (width, height, depth) => {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), wallMat);
+      wall.position.y = height / 2;
+      wall.receiveShadow = true;
+      arena.add(wall);
+      return wall;
+    };
+
+    backWall = makeWall(ROOM_DIMENSIONS.width, ROOM_DIMENSIONS.wallHeight, ROOM_DIMENSIONS.wallThickness);
+    backWall.position.z = ROOM_DIMENSIONS.depth / 2 - ROOM_DIMENSIONS.wallThickness / 2;
+    frontWall = makeWall(ROOM_DIMENSIONS.width, ROOM_DIMENSIONS.wallHeight, ROOM_DIMENSIONS.wallThickness);
+    frontWall.position.z = -ROOM_DIMENSIONS.depth / 2 + ROOM_DIMENSIONS.wallThickness / 2;
+    leftWall = makeWall(ROOM_DIMENSIONS.wallThickness, ROOM_DIMENSIONS.wallHeight, ROOM_DIMENSIONS.depth);
+    leftWall.position.x = -ROOM_DIMENSIONS.width / 2 + ROOM_DIMENSIONS.wallThickness / 2;
+    rightWall = makeWall(ROOM_DIMENSIONS.wallThickness, ROOM_DIMENSIONS.wallHeight, ROOM_DIMENSIONS.depth);
+    rightWall.position.x = ROOM_DIMENSIONS.width / 2 - ROOM_DIMENSIONS.wallThickness / 2;
   }
-  if (carpetTex.bump) {
-    carpetMat.bumpMap = carpetTex.bump;
-    carpetMat.bumpScale = 0.18;
-    carpetMat.bumpMap.needsUpdate = true;
-  }
-
-  const carpet = new THREE.Mesh(
-    new THREE.BoxGeometry(
-      ROOM_DIMENSIONS.width - ROOM_DIMENSIONS.wallThickness,
-      ROOM_DIMENSIONS.carpetThickness,
-      ROOM_DIMENSIONS.depth - ROOM_DIMENSIONS.wallThickness
-    ),
-    carpetMat
-  );
-  carpet.position.y = -ROOM_DIMENSIONS.carpetThickness / 2;
-  carpet.receiveShadow = true;
-  arena.add(carpet);
-
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0xb9ddff, roughness: 0.88, metalness: 0.06 });
-
-  const makeWall = (width, height, depth) => {
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), wallMat);
-    wall.position.y = height / 2;
-    wall.receiveShadow = true;
-    arena.add(wall);
-    return wall;
-  };
-
-  const backWall = makeWall(ROOM_DIMENSIONS.width, ROOM_DIMENSIONS.wallHeight, ROOM_DIMENSIONS.wallThickness);
-  backWall.position.z = ROOM_DIMENSIONS.depth / 2 - ROOM_DIMENSIONS.wallThickness / 2;
-  const frontWall = makeWall(ROOM_DIMENSIONS.width, ROOM_DIMENSIONS.wallHeight, ROOM_DIMENSIONS.wallThickness);
-  frontWall.position.z = -ROOM_DIMENSIONS.depth / 2 + ROOM_DIMENSIONS.wallThickness / 2;
-  const leftWall = makeWall(ROOM_DIMENSIONS.wallThickness, ROOM_DIMENSIONS.wallHeight, ROOM_DIMENSIONS.depth);
-  leftWall.position.x = -ROOM_DIMENSIONS.width / 2 + ROOM_DIMENSIONS.wallThickness / 2;
-  const rightWall = makeWall(ROOM_DIMENSIONS.wallThickness, ROOM_DIMENSIONS.wallHeight, ROOM_DIMENSIONS.depth);
-  rightWall.position.x = ROOM_DIMENSIONS.width / 2 - ROOM_DIMENSIONS.wallThickness / 2;
 
   const table = buildDominoTable(renderer);
   arena.add(table.group);
@@ -811,13 +820,13 @@ export function buildDominoArena({ scene, renderer }) {
       spotTarget.parent.remove(spotTarget);
     }
     const disposables = [
-      carpet.geometry,
-      carpet.material,
+      carpet?.geometry,
+      carpet?.material,
       wallMat,
-      backWall.geometry,
-      frontWall.geometry,
-      leftWall.geometry,
-      rightWall.geometry,
+      backWall?.geometry,
+      frontWall?.geometry,
+      leftWall?.geometry,
+      rightWall?.geometry,
       table
     ];
     disposables.forEach((item) => {
