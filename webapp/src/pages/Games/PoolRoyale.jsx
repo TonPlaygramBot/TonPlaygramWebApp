@@ -9681,8 +9681,10 @@ function PoolRoyaleGame({
     return DEFAULT_FRAME_RATE_ID;
   });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
-  const [activeTableSlot, setActiveTableSlot] = useState(0);
-  const [tableSelectionOpen, setTableSelectionOpen] = useState(() => environmentHdriId === 'musicHall02');
+  const initialTableSlot = environmentHdriId === 'musicHall02' ? 1 : 0;
+  const [activeTableSlot, setActiveTableSlot] = useState(initialTableSlot);
+  const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
+  const [secondaryTableReady, setSecondaryTableReady] = useState(false);
   const activeTableSlotLabel = activeTableSlot === 0 ? 'near' : 'far';
   const activeFrameRateOption = useMemo(
     () =>
@@ -10461,7 +10463,8 @@ function PoolRoyaleGame({
   }, [activeTableSlot, dualTablesEnabled]);
   useEffect(() => {
     if (dualTablesEnabled) {
-      setTableSelectionOpen(true);
+      setActiveTableSlot(1);
+      setTableSelectionOpen(false);
     } else {
       setTableSelectionOpen(false);
       setActiveTableSlot(0);
@@ -10595,9 +10598,12 @@ function PoolRoyaleGame({
   const applyBaseRef = useRef(() => {});
   const applyFinishRef = useRef(() => {});
   const applyTableSlotRef = useRef(() => {});
+  const refreshSecondaryTableDecorRef = useRef(() => {});
+  const clearSecondaryTableDecorRef = useRef(() => {});
+  const secondaryTableDecorRef = useRef({ group: null, dispose: null });
   const secondaryTableRef = useRef(null);
   const secondaryBaseSetterRef = useRef(null);
-  const activeTableSlotRef = useRef(0);
+  const activeTableSlotRef = useRef(initialTableSlot);
   const playerLabel = playerName || 'Player';
   const effectiveMode = isTraining ? trainingModeState : mode;
   const opponentLabel =
@@ -15817,6 +15823,7 @@ const powerRef = useRef(hud.power);
         railMarkers,
         setBaseVariant
       } = Table3D(world, finishForScene, tableSizeMeta, railMarkerStyleRef.current, activeTableBase);
+      const SPOTS = spotPositions(baulkZ);
       const longestSide = Math.max(PLAY_W, PLAY_H);
       const secondarySpacing =
         Math.max(longestSide * 2.4, Math.max(TABLE.W, TABLE.H) * 2.6) * TABLE_DISPLAY_SCALE;
@@ -15829,6 +15836,120 @@ const powerRef = useRef(hud.power);
       );
       secondaryTableRef.current = secondaryTableEntry?.group ?? null;
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
+      const disposeSecondaryDecor = () => {
+        const currentDecor = secondaryTableDecorRef.current;
+        if (currentDecor?.group?.parent) {
+          currentDecor.group.parent.remove(currentDecor.group);
+        }
+        if (typeof currentDecor?.dispose === 'function') {
+          try {
+            currentDecor.dispose();
+          } catch {}
+        }
+        secondaryTableDecorRef.current = { group: null, dispose: null };
+      };
+      const buildSecondaryDecor = () => {
+        const table = secondaryTableRef.current;
+        if (!table) return null;
+        const decorGroup = new THREE.Group();
+        decorGroup.name = 'secondary-table-decor';
+        const disposables = [];
+        const registerDisposable = (item) => {
+          if (item && typeof item.dispose === 'function') {
+            disposables.push(item);
+          }
+        };
+        const addDecorBall = (color, number, pattern, pos) => {
+          const material = getBilliardBallMaterial({
+            color,
+            pattern,
+            number,
+            variantKey: 'pool'
+          });
+          const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
+          mesh.position.set(pos.x ?? 0, BALL_CENTER_Y, pos.z ?? 0);
+          mesh.castShadow = false;
+          mesh.receiveShadow = true;
+          mesh.userData = { ...(mesh.userData || {}), decorative: true };
+          decorGroup.add(mesh);
+        };
+        const rackColors = POOL_VARIANT_COLOR_SETS.american.objectColors || [];
+        const rackNumbers = POOL_VARIANT_COLOR_SETS.american.objectNumbers || [];
+        const rackPatterns = POOL_VARIANT_COLOR_SETS.american.objectPatterns || [];
+        const rackStartZ = SPOTS.pink[1] + BALL_R * 2;
+        const rackPositions = generateRackPositions(
+          rackColors.length,
+          'triangle',
+          BALL_R,
+          rackStartZ
+        );
+        rackColors.forEach((color, index) => {
+          const pos =
+            rackPositions[index] ||
+            rackPositions[rackPositions.length - 1] || { x: 0, z: rackStartZ };
+          addDecorBall(color, rackNumbers[index], rackPatterns[index], pos);
+        });
+        addDecorBall(0xffffff, null, 'cue', { x: 0, z: baulkZ - BALL_R * 5.5 });
+
+        const cueScale = BALL_R / 0.0525;
+        const cueLen = 1.5 * cueScale * CUE_LENGTH_MULTIPLIER;
+        const cueBodyRadius = 0.025 * cueScale;
+        const cueTipRadius = CUE_TIP_RADIUS * 0.82;
+        const cueGeometry = new THREE.CylinderGeometry(
+          cueTipRadius,
+          cueBodyRadius,
+          cueLen,
+          32
+        );
+        const cueMaterial = new THREE.MeshPhysicalMaterial({
+          color: 0xe6c9a1,
+          roughness: 0.32,
+          metalness: 0.08,
+          clearcoat: 0.35,
+          clearcoatRoughness: 0.42
+        });
+        registerDisposable(cueGeometry);
+        registerDisposable(cueMaterial);
+        const addCueStick = (x, z, rotationY) => {
+          const cueMesh = new THREE.Mesh(cueGeometry, cueMaterial);
+          cueMesh.rotation.x = Math.PI / 2;
+          cueMesh.rotation.y = rotationY;
+          cueMesh.position.set(x, CUE_Y, z);
+          cueMesh.castShadow = false;
+          cueMesh.receiveShadow = true;
+          cueMesh.userData = { ...(cueMesh.userData || {}), decorative: true };
+          decorGroup.add(cueMesh);
+        };
+        addCueStick(-PLAY_W * 0.18, rackStartZ + BALL_R * 4.5, -Math.PI * 0.06);
+        addCueStick(PLAY_W * 0.22, baulkZ - BALL_R * 1.5, Math.PI * 0.08);
+
+        table.add(decorGroup);
+
+        return {
+          group: decorGroup,
+          dispose() {
+            decorGroup.parent?.remove(decorGroup);
+            disposables.forEach((item) => {
+              try {
+                item.dispose();
+              } catch {}
+            });
+          }
+        };
+      };
+      const refreshSecondaryDecor = () => {
+        disposeSecondaryDecor();
+        if (environmentHdriRef.current !== 'musicHall02') return;
+        const decor = buildSecondaryDecor();
+        if (decor?.group) {
+          secondaryTableDecorRef.current = {
+            group: decor.group,
+            dispose: decor.dispose
+          };
+        }
+      };
+      refreshSecondaryTableDecorRef.current = refreshSecondaryDecor;
+      clearSecondaryTableDecorRef.current = disposeSecondaryDecor;
       const applySecondarySlot = (slotIndex = 0, enabled = false) => {
         const secondary = secondaryTableRef.current;
         if (!secondary) return;
@@ -15838,6 +15959,8 @@ const powerRef = useRef(hud.power);
       };
       applyTableSlotRef.current = applySecondarySlot;
       applySecondarySlot(activeTableSlotRef.current, environmentHdriRef.current === 'musicHall02');
+      refreshSecondaryDecor();
+      setSecondaryTableReady(true);
       clothMat = tableCloth;
       cushionMat = tableCushion;
       chalkMeshesRef.current = Array.isArray(table?.userData?.chalks)
@@ -15942,7 +16065,6 @@ const powerRef = useRef(hud.power);
       };
       const cueColor = variantConfig?.cueColor ?? finishPalette.cue;
       cue = add('cue', cueColor, -BALL_R * 2, baulkZ);
-      const SPOTS = spotPositions(baulkZ);
 
       if (variantConfig?.disableSnookerMarkings && table?.userData?.markings) {
         const { dArc, spots } = table.userData.markings;
@@ -20968,6 +21090,10 @@ const powerRef = useRef(hud.power);
           applyBaseRef.current = () => {};
           applyFinishRef.current = () => {};
           applyTableSlotRef.current = () => {};
+          clearSecondaryTableDecorRef.current?.();
+          refreshSecondaryTableDecorRef.current = () => {};
+          clearSecondaryTableDecorRef.current = () => {};
+          secondaryTableDecorRef.current = { group: null, dispose: null };
           applyRailMarkerStyleRef.current = () => {};
           secondaryTableRef.current = null;
           secondaryBaseSetterRef.current = null;
@@ -21030,6 +21156,14 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     applyBaseRef.current?.(activeTableBase);
   }, [activeTableBase]);
+  useEffect(() => {
+    if (!secondaryTableReady) return;
+    if (environmentHdriId === 'musicHall02') {
+      refreshSecondaryTableDecorRef.current?.();
+    } else {
+      clearSecondaryTableDecorRef.current?.();
+    }
+  }, [environmentHdriId, secondaryTableReady]);
 
   useLayoutEffect(() => {
     const computeInsets = () => {
