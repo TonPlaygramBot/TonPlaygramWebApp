@@ -1304,12 +1304,6 @@ const FIXED_WOOD_REPEAT_SCALE = 500; // locked to 25000% for consistent oversize
 const WOOD_REPEAT_SCALE_MIN = FIXED_WOOD_REPEAT_SCALE;
 const WOOD_REPEAT_SCALE_MAX = FIXED_WOOD_REPEAT_SCALE;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
-const MUSIC_HALL_HDRI_ID = 'musicHall02';
-const MUSIC_HALL_TABLE_SPREAD = TABLE.H * 0.68;
-const MUSIC_HALL_TABLE_OFFSETS = Object.freeze({
-  left: new THREE.Vector3(-MUSIC_HALL_TABLE_SPREAD / 2, 0, 0),
-  right: new THREE.Vector3(MUSIC_HALL_TABLE_SPREAD / 2, 0, 0)
-});
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
@@ -1822,64 +1816,47 @@ const mixHexColors = (fromHex, toHex, t) => {
 
 const hexNumberToCss = (hex) => `#${hex.toString(16).padStart(6, '0')}`;
 
-const resolveMusicHallTableOffsets = (slotId = 'left', dualEnabled = false) => {
-  if (!dualEnabled) {
-    return {
-      primary: new THREE.Vector3(),
-      secondary: new THREE.Vector3(),
-      showSecondary: false
-    };
-  }
-  const primaryKey = slotId === 'right' ? 'right' : 'left';
-  const secondaryKey = primaryKey === 'right' ? 'left' : 'right';
-  return {
-    primary: MUSIC_HALL_TABLE_OFFSETS[primaryKey].clone(),
-    secondary: MUSIC_HALL_TABLE_OFFSETS[secondaryKey].clone(),
-    showSecondary: true
-  };
-};
-
 
 const SHARED_WOOD_REPEAT = Object.freeze({
   x: 1,
   y: 5.5
 });
 const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
-  roughnessBase: 0.24,
-  roughnessVariance: 0.32,
-  roughness: 0.72,
-  metalness: 0.02,
-  clearcoat: 0.1,
-  clearcoatRoughness: 0.68,
-  sheen: 0.04,
-  sheenRoughness: 0.72,
-  envMapIntensity: 0.22
+  roughnessBase: 0.18,
+  roughnessVariance: 0.26,
+  roughness: 0.62,
+  metalness: 0.04,
+  clearcoat: 0.18,
+  clearcoatRoughness: 0.55,
+  sheen: 0.06,
+  sheenRoughness: 0.6,
+  envMapIntensity: 0.4
 });
 const POLYHAVEN_WOOD_SURFACE_PROPS = Object.freeze({
-  roughness: 0.74,
+  roughness: 0.68,
   metalness: 0,
-  clearcoat: 0.06,
-  clearcoatRoughness: 0.82,
+  clearcoat: 0.08,
+  clearcoatRoughness: 0.75,
   sheen: 0,
-  sheenRoughness: 0.85,
-  envMapIntensity: 0.18
+  sheenRoughness: 0.8,
+  envMapIntensity: 0.32
 });
 const TABLE_FINISH_DULLING = Object.freeze({
-  roughnessLift: 0.38,
-  clearcoatScale: 0.32,
-  clearcoatRoughnessLift: 0.42,
-  envMapScale: 0.18,
-  reflectivityScale: 0.36,
-  sheenScale: 0.28,
-  sheenRoughnessLift: 0.4
+  roughnessLift: 0.3,
+  clearcoatScale: 0.4,
+  clearcoatRoughnessLift: 0.36,
+  envMapScale: 0.35,
+  reflectivityScale: 0.5,
+  sheenScale: 0.35,
+  sheenRoughnessLift: 0.32
 });
 const TABLE_WOOD_VISIBILITY_TUNING = Object.freeze({
-  roughnessMin: 0.6,
-  metalnessMax: 0.14,
-  clearcoatMax: 0.14,
-  clearcoatRoughnessMin: 0.52,
-  envMapIntensityMax: 0.22,
-  normalScale: 0.9
+  roughnessMin: 0.45,
+  metalnessMax: 0.2,
+  clearcoatMax: 0.22,
+  clearcoatRoughnessMin: 0.4,
+  envMapIntensityMax: 0.35,
+  normalScale: 0.65
 });
 
 const clampWoodRepeatScaleValue = () => DEFAULT_WOOD_REPEAT_SCALE;
@@ -8901,49 +8878,43 @@ function Table3D(
     },
     arcBridge: (ctx) => {
       const meshes = [];
-      const archRadius = ctx.frameOuterZ * 0.92;
-      const archThickness = Math.max(ctx.legR * 1.2, ctx.frameOuterX * 0.18);
-      const tubeRadius = archThickness * 0.35;
+      const archRadius = ctx.frameOuterZ * 1.15;
+      const archThickness = Math.max(ctx.legR * 1.2, ctx.frameOuterZ * 0.22);
       const archGeom = new THREE.TorusGeometry(
         archRadius,
-        tubeRadius,
+        archThickness * 0.35,
         42,
         160,
         Math.PI
       );
       const arch = new THREE.Mesh(archGeom, ctx.legMat);
-      arch.rotation.y = Math.PI / 2;
+      arch.rotation.x = Math.PI / 2;
       arch.rotation.z = Math.PI;
-      arch.position.set(0, ctx.floorY + tubeRadius * 0.9, 0);
+      arch.position.set(0, ctx.floorY + archRadius * 0.35, 0);
       arch.castShadow = true;
       arch.receiveShadow = true;
       arch.userData = { ...(arch.userData || {}), __basePart: true };
       meshes.push(arch);
 
-      const padDepth = tubeRadius * 1.6;
-      const padWidth = ctx.frameOuterX * 0.5;
-      const padHeight = tubeRadius * 0.9;
-      [-1, 1].forEach((dir) => {
-        const pad = new THREE.Mesh(
-          new THREE.BoxGeometry(padWidth, padHeight, padDepth),
-          ctx.legMat
-        );
-        pad.position.set(0, ctx.floorY + padHeight / 2, dir * archRadius * 0.8);
-        pad.castShadow = true;
-        pad.receiveShadow = true;
-        pad.userData = { ...(pad.userData || {}), __basePart: true };
-        meshes.push(pad);
-      });
+      const capsGeom = new THREE.BoxGeometry(ctx.frameOuterX * 1.02, archThickness * 0.6, archThickness);
+      const leftCap = new THREE.Mesh(capsGeom, ctx.legMat);
+      leftCap.position.set(-ctx.frameOuterX * 0.9, ctx.floorY + archThickness * 0.3, 0);
+      leftCap.castShadow = true;
+      leftCap.receiveShadow = true;
+      leftCap.userData = { ...(leftCap.userData || {}), __basePart: true };
+      meshes.push(leftCap);
+      const rightCap = leftCap.clone();
+      rightCap.position.x = ctx.frameOuterX * 0.9;
+      meshes.push(rightCap);
       return { meshes, legMeshes: meshes };
     },
     openPortal: (ctx) => {
       const meshes = [];
-      const frameWidth = ctx.frameOuterX * 0.42;
-      const frameDepth = ctx.frameOuterX * 0.26;
+      const frameWidth = ctx.frameOuterX * 0.4;
+      const frameDepth = ctx.frameOuterZ * 0.36;
       const frameHeight = ctx.legH * 0.82;
       const thickness = ctx.legR * 0.9;
-      const portalOffset = ctx.frameOuterZ * 0.78;
-      const createPortal = (z, yaw) => {
+      const createPortal = (x) => {
         const shape = new THREE.Shape();
         const w = frameWidth;
         const h = frameHeight;
@@ -8967,15 +8938,15 @@ function Table3D(
         });
         geo.translate(0, 0, -frameDepth / 2);
         const mesh = new THREE.Mesh(geo, ctx.legMat);
-        mesh.position.set(0, ctx.floorY, z);
-        mesh.rotation.y = yaw;
+        mesh.position.set(x, ctx.floorY, 0);
+        mesh.rotation.z = x < 0 ? Math.PI / 18 : -Math.PI / 18;
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         mesh.userData = { ...(mesh.userData || {}), __basePart: true };
         return mesh;
       };
-      meshes.push(createPortal(-portalOffset, Math.PI / 20));
-      meshes.push(createPortal(portalOffset, -Math.PI / 20));
+      meshes.push(createPortal(-ctx.frameOuterX * 0.8));
+      meshes.push(createPortal(ctx.frameOuterX * 0.8));
       return { meshes, legMeshes: meshes };
     },
     coinAngled: (ctx) => {
@@ -9074,7 +9045,7 @@ function Table3D(
       const beamDepth = ctx.frameOuterZ * 0.22;
       const beamHeight = ctx.legH * 0.8;
       const legMeshes = [];
-      const createCross = (z) => {
+      const createCross = (x) => {
         const group = new THREE.Group();
         const diagonal = new THREE.Mesh(
           new THREE.BoxGeometry(beamWidth, beamDepth, beamDepth),
@@ -9094,13 +9065,13 @@ function Table3D(
         group.add(diagonal2);
         legMeshes.push(diagonal2);
 
-        group.position.set(0, ctx.floorY, z);
+        group.position.set(x, ctx.floorY, 0);
         meshes.push(group);
       };
-      createCross(-ctx.frameOuterZ * 0.75);
-      createCross(ctx.frameOuterZ * 0.75);
+      createCross(-ctx.frameOuterX * 0.8);
+      createCross(ctx.frameOuterX * 0.8);
       const stretcher = new THREE.Mesh(
-        new THREE.BoxGeometry(ctx.legR * 0.9, ctx.legR * 0.6, ctx.frameOuterZ * 1.6),
+        new THREE.BoxGeometry(ctx.frameOuterX * 1.6, ctx.legR * 0.6, ctx.legR * 0.9),
         ctx.legMat
       );
       stretcher.position.y = ctx.floorY + ctx.legR * 0.5;
@@ -9673,7 +9644,6 @@ function PoolRoyaleGame({
       POOL_ROYALE_DEFAULT_HDRI_ID
     );
   });
-  const [tableSlotId, setTableSlotId] = useState('left');
   const [hdriResolutionId, setHdriResolutionId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(HDRI_RESOLUTION_STORAGE_KEY);
@@ -9859,10 +9829,6 @@ function PoolRoyaleGame({
       };
     },
     [environmentHdriId, resolvedHdriResolution]
-  );
-  const isMusicHallDual = useMemo(
-    () => activeEnvironmentHdri?.id === MUSIC_HALL_HDRI_ID,
-    [activeEnvironmentHdri?.id]
   );
   const activePocketLinerOption = useMemo(
     () =>
@@ -10471,20 +10437,6 @@ function PoolRoyaleGame({
     activeEnvironmentVariantRef.current = activeEnvironmentHdri;
   }, [activeEnvironmentHdri, environmentHdriId]);
   useEffect(() => {
-    tableSlotRef.current = tableSlotId;
-    repositionTablesRef.current?.(tableSlotId, musicHallDualRef.current);
-  }, [tableSlotId]);
-  useEffect(() => {
-    musicHallDualRef.current = isMusicHallDual;
-    if (!isMusicHallDual) {
-      setTableSlotId('left');
-    }
-    repositionTablesRef.current?.(tableSlotRef.current, isMusicHallDual);
-    if (secondaryTableAnchorRef.current) {
-      secondaryTableAnchorRef.current.visible = isMusicHallDual;
-    }
-  }, [isMusicHallDual]);
-  useEffect(() => {
     if (typeof updateEnvironmentRef.current === 'function') {
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
     }
@@ -11020,20 +10972,8 @@ const powerRef = useRef(hud.power);
   const sidePocketAimRef = useRef(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const playerOffsetRef = useRef(0);
-  const activeTableOriginRef = useRef(new THREE.Vector3(0, 0, 0));
-  const tableSlotRef = useRef('left');
-  const repositionTablesRef = useRef(() => {});
-  const musicHallDualRef = useRef(false);
-  const secondaryTableRef = useRef(null);
-  const secondaryBaseSetterRef = useRef(null);
-  const secondaryRailMarkersRef = useRef(null);
-  const secondaryTableAnchorRef = useRef(null);
   const orbitFocusRef = useRef({
-    target: new THREE.Vector3(
-      activeTableOriginRef.current.x,
-      ORBIT_FOCUS_BASE_Y + activeTableOriginRef.current.y,
-      activeTableOriginRef.current.z
-    ),
+    target: new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0),
     ballId: null
   });
   const topViewControlsRef = useRef({ enter: () => {}, exit: () => {} });
@@ -11942,12 +11882,6 @@ const powerRef = useRef(hud.power);
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
-      const primaryTableAnchor = new THREE.Group();
-      const secondaryTableAnchor = new THREE.Group();
-      world.add(primaryTableAnchor);
-      world.add(secondaryTableAnchor);
-      secondaryTableAnchor.visible = musicHallDualRef.current;
-      secondaryTableAnchorRef.current = secondaryTableAnchor;
       const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
         const sceneInstance = sceneRef.current;
         if (!renderer || !sceneInstance) return;
@@ -13008,14 +12942,8 @@ const powerRef = useRef(hud.power);
           return pocketCamerasRef.current.get(anchorId) ?? null;
         };
 
-        const getDefaultOrbitTarget = () => {
-          const origin = activeTableOriginRef.current;
-          return new THREE.Vector3(
-            (origin?.x ?? 0) + playerOffsetRef.current,
-            ORBIT_FOCUS_BASE_Y + (origin?.y ?? 0),
-            origin?.z ?? 0
-          );
-        };
+        const getDefaultOrbitTarget = () =>
+          new THREE.Vector3(playerOffsetRef.current, ORBIT_FOCUS_BASE_Y, 0);
 
         activeRenderCameraRef.current = camera;
 
@@ -15858,27 +15786,7 @@ const powerRef = useRef(hud.power);
         cushionMat: tableCushion,
         railMarkers,
         setBaseVariant
-      } = Table3D(
-        primaryTableAnchor,
-        finishForScene,
-        tableSizeMeta,
-        railMarkerStyleRef.current,
-        activeTableBase
-      );
-      const {
-        group: secondaryTable,
-        railMarkers: secondaryRailMarkers,
-        setBaseVariant: setSecondaryBase
-      } = Table3D(
-        secondaryTableAnchor,
-        finishForScene,
-        tableSizeMeta,
-        railMarkerStyleRef.current,
-        activeTableBase
-      );
-      secondaryTableRef.current = secondaryTable;
-      secondaryBaseSetterRef.current = setSecondaryBase;
-      secondaryRailMarkersRef.current = secondaryRailMarkers;
+      } = Table3D(world, finishForScene, tableSizeMeta, railMarkerStyleRef.current, activeTableBase);
       clothMat = tableCloth;
       cushionMat = tableCushion;
       chalkMeshesRef.current = Array.isArray(table?.userData?.chalks)
@@ -15890,9 +15798,6 @@ const powerRef = useRef(hud.power);
         if (table && nextFinish) {
           applyTableFinishToTable(table, nextFinish);
         }
-        if (secondaryTableRef.current && nextFinish) {
-          applyTableFinishToTable(secondaryTableRef.current, nextFinish);
-        }
       };
       applyRailMarkerStyleRef.current = (style) => {
         if (table?.userData?.railMarkers?.applyStyle) {
@@ -15900,28 +15805,15 @@ const powerRef = useRef(hud.power);
             trimMaterial: table.userData.finish?.materials?.trim
           });
         }
-        if (secondaryRailMarkersRef.current?.applyStyle && secondaryTableRef.current) {
-          secondaryRailMarkersRef.current.applyStyle(style, {
-            trimMaterial: secondaryTableRef.current.userData?.finish?.materials?.trim
-          });
-        }
       };
       applyBaseRef.current = (variant) => {
         if (table && setBaseVariant) {
           setBaseVariant(variant);
         }
-        if (secondaryTableRef.current && secondaryBaseSetterRef.current) {
-          secondaryBaseSetterRef.current(variant);
-        }
       };
       if (railMarkers?.applyStyle) {
         railMarkers.applyStyle(railMarkerStyleRef.current, {
           trimMaterial: table.userData.finish?.materials?.trim
-        });
-      }
-      if (secondaryRailMarkers?.applyStyle && secondaryTable) {
-        secondaryRailMarkers.applyStyle(railMarkerStyleRef.current, {
-          trimMaterial: secondaryTable.userData.finish?.materials?.trim
         });
       }
       if (table?.userData) {
@@ -15942,30 +15834,6 @@ const powerRef = useRef(hud.power);
       }
       // ensure the camera respects the configured zoom limits
       sph.radius = clampOrbitRadius(sph.radius);
-      const syncTableAnchors = (slotId = tableSlotRef.current, dualEnabled = musicHallDualRef.current) => {
-        const offsets = resolveMusicHallTableOffsets(slotId, dualEnabled);
-        primaryTableAnchor.position.copy(offsets.primary);
-        secondaryTableAnchor.position.copy(offsets.secondary);
-        secondaryTableAnchor.visible = offsets.showSecondary && dualEnabled;
-        world.updateMatrixWorld(true);
-        const origin = new THREE.Vector3();
-        table.getWorldPosition(origin);
-        activeTableOriginRef.current.copy(origin);
-        const focus = orbitFocusRef.current?.target;
-        if (focus) {
-          focus.set(
-            origin.x + playerOffsetRef.current,
-            ORBIT_FOCUS_BASE_Y + origin.y,
-            origin.z
-          );
-          lastCameraTargetRef.current?.copy?.(focus);
-        }
-      };
-      syncTableAnchors();
-      repositionTablesRef.current = (slotId, dualEnabled = musicHallDualRef.current) => {
-        syncTableAnchors(slotId, dualEnabled);
-        updateCamera();
-      };
       const applyWorldScale = () => {
         const tableScale = tableSizeRef.current?.scale ?? 1;
         const nextScale = WORLD_SCALE * tableScale;
@@ -15988,7 +15856,6 @@ const powerRef = useRef(hud.power);
         }
         if (changed) {
           world.updateMatrixWorld(true);
-          syncTableAnchors(tableSlotRef.current, musicHallDualRef.current);
         }
         return changed;
       };
@@ -21038,11 +20905,6 @@ const powerRef = useRef(hud.power);
           applyBaseRef.current = () => {};
           applyFinishRef.current = () => {};
           applyRailMarkerStyleRef.current = () => {};
-          secondaryTableRef.current = null;
-          secondaryBaseSetterRef.current = null;
-          secondaryRailMarkersRef.current = null;
-          secondaryTableAnchorRef.current = null;
-          repositionTablesRef.current = () => {};
           chalkMeshesRef.current = [];
           chalkAreaRef.current = null;
           visibleChalkIndexRef.current = null;
@@ -21565,39 +21427,6 @@ const powerRef = useRef(hud.power);
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      {isMusicHallDual && (
-        <div className="pointer-events-none absolute inset-x-0 top-16 z-40 flex justify-center">
-          <div className="pointer-events-auto flex max-w-md flex-col gap-2 rounded-2xl border border-emerald-300/40 bg-black/70 px-4 py-3 text-white shadow-[0_12px_28px_rgba(0,0,0,0.55)] backdrop-blur">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-100/80">
-              Choose your table
-            </span>
-            <div className="flex gap-2">
-              {[
-                { id: 'left', label: 'Left Table' },
-                { id: 'right', label: 'Right Table' }
-              ].map((entry) => {
-                const active = tableSlotId === entry.id;
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    onClick={() => setTableSlotId(entry.id)}
-                    aria-pressed={active}
-                    className={`flex-1 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                      active
-                        ? 'bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
-                        : 'bg-white/10 text-white/80 hover:bg-white/20'
-                    }`}
-                  >
-                    {entry.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-4 right-4 z-50">
