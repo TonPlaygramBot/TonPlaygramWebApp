@@ -11175,8 +11175,7 @@ const powerRef = useRef(hud.power);
     pocket: null,
     knock: null,
     cheer: null,
-    shock: null,
-    chalk: null
+    shock: null
   });
   const chessBoardTextureRef = useRef(null);
   const dartboardTextureRef = useRef(null);
@@ -11238,24 +11237,11 @@ const powerRef = useRef(hud.power);
     } catch {}
   }, []);
 
-  const CUE_SHOT_OFFSET_SECONDS = 7;
-  const CUE_SHOT_WINDOW_SECONDS = 1;
-  const CUE_MIN_VOLUME = 0.18;
-  const CUE_BOUNCE_WINDOW_SECONDS = 0.6;
-  const CUE_BOUNCE_VOLUME_SCALE = 0.7;
-
-  const playCueHit = useCallback((power = 1, options = {}) => {
+  const playCueHit = useCallback((vol = 1) => {
     const ctx = audioContextRef.current;
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
-    const normalizedPower = clamp(power ?? 0, 0, 1);
-    const baseVolume = clamp(options.minVolume ?? CUE_MIN_VOLUME, 0, 1);
-    const volumeScale = clamp(options.volumeScale ?? 1, 0, 1.5);
-    const scaled = clamp(
-      volumeRef.current * volumeScale * (baseVolume + (1 - baseVolume) * normalizedPower),
-      0,
-      1
-    );
+    const scaled = clamp(vol * volumeRef.current, 0, 1);
     if (scaled <= 0) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11264,18 +11250,7 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    const duration = Math.max(buffer.duration || 0, 0);
-    const requestedWindow = clamp(options.duration ?? CUE_SHOT_WINDOW_SECONDS, 0, duration || 1);
-    const desiredOffset = clamp(
-      options.offset ?? CUE_SHOT_OFFSET_SECONDS,
-      0,
-      Math.max(duration - requestedWindow, 0)
-    );
-    if (requestedWindow > 0) {
-      source.start(0, desiredOffset, requestedWindow);
-    } else {
-      source.start(0, desiredOffset);
-    }
+    source.start(0, 0, 0.5);
   }, []);
 
   const playBallHit = useCallback((vol = 1) => {
@@ -11383,24 +11358,6 @@ const powerRef = useRef(hud.power);
     },
     [stopActiveCrowdSound]
   );
-
-  const playChalkPress = useCallback(() => {
-    const ctx = audioContextRef.current;
-    const buffer = audioBuffersRef.current.chalk;
-    if (!ctx || !buffer || muteRef.current) return;
-    const scaled = clamp(volumeRef.current * 0.85, 0, 1);
-    if (scaled <= 0) return;
-    ctx.resume().catch(() => {});
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    const gain = ctx.createGain();
-    gain.gain.value = scaled;
-    source.connect(gain);
-    routeAudioNode(gain);
-    const duration = buffer.duration || 0;
-    const window = Math.min(0.6, duration || 0.6);
-    source.start(0, 0, window);
-  }, []);
   useEffect(() => {
     document.title = 'Pool Royale 3D';
   }, []);
@@ -11486,13 +11443,12 @@ const powerRef = useRef(hud.power);
     };
     (async () => {
       const entries = [
-        ['cue', '/assets/sounds/Control_the_Cue_Ball_Control_the_Black_snooker_billiard_tipsandtrick.mp3'],
+        ['cue', '/assets/sounds/billiard-pool-hit-371618.mp3'],
         ['ball', '/assets/sounds/billiard-sound newhit.mp3'],
         ['pocket', '/assets/sounds/billiard-sound-6-288417.mp3'],
         ['knock', '/assets/sounds/wooden-door-knock-102902.mp3'],
         ['cheer', '/assets/sounds/crowd-cheering-383111.mp3'],
-        ['shock', '/assets/sounds/crowd-shocked-reaction-352766.mp3'],
-        ['chalk', '/assets/sounds/adding-chalk-to-a-snooker-cue-102468.mp3']
+        ['shock', '/assets/sounds/crowd-shocked-reaction-352766.mp3']
       ];
       const loaded = {};
       for (const [key, path] of entries) {
@@ -11516,8 +11472,7 @@ const powerRef = useRef(hud.power);
         pocket: null,
         knock: null,
         cheer: null,
-        shock: null,
-        chalk: null
+        shock: null
       };
       audioContextRef.current = null;
       ctx.close().catch(() => {});
@@ -13249,7 +13204,6 @@ const powerRef = useRef(hud.power);
       const loadFirstAvailableGltf = async (urls = []) => {
         if (!hospitalityLoaderRef.current) {
           hospitalityLoaderRef.current = new GLTFLoader();
-          hospitalityLoaderRef.current.setCrossOrigin?.('anonymous');
         }
         const loader = hospitalityLoaderRef.current;
         let lastError = null;
@@ -13263,20 +13217,6 @@ const powerRef = useRef(hud.power);
         }
         throw lastError || new Error('Failed to load GLTF asset');
       };
-      const cloneHospitalityMaterial = (mat) => {
-        if (!mat) return mat;
-        const material = mat.clone ? mat.clone() : mat;
-        material.userData = { ...(material.userData || {}), disposableHospitality: true };
-        const applyMaps = (texture) => {
-          if (!texture) return;
-          applySRGBColorSpace(texture);
-          sharpenTexture(texture, { wrapRepeat: false });
-        };
-        applyMaps(material.map);
-        applyMaps(material.emissiveMap);
-        material.needsUpdate = true;
-        return material;
-      };
       const markHospitalityMaterials = (root) => {
         if (!root) return;
         root.traverse((child) => {
@@ -13286,23 +13226,16 @@ const powerRef = useRef(hud.power);
             : [child.material];
           child.castShadow = true;
           child.receiveShadow = true;
-          child.material = materials.map(cloneHospitalityMaterial);
+          child.material = materials.map((mat) => {
+            if (!mat) return mat;
+            const material = mat.clone ? mat.clone() : mat;
+            material.userData = { ...(material.userData || {}), disposableHospitality: true };
+            if (material.map) sharpenTexture(material.map);
+            if (material.emissiveMap) sharpenTexture(material.emissiveMap);
+            material.needsUpdate = true;
+            return material;
+          });
         });
-      };
-      const scaleChessHospitalityGroup = (group) => {
-        if (!group) return;
-        const loungeBounds = new THREE.Box3().setFromObject(group);
-        const loungeSize = loungeBounds.getSize(new THREE.Vector3());
-        const span = Math.max(loungeSize.x || 1, loungeSize.z || 1);
-        const tableSpan = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE;
-        const targetSpan = THREE.MathUtils.clamp(
-          chessBattleTargetSpan,
-          tableSpan * 0.42,
-          tableSpan * 0.9
-        );
-        if (span > 1e-6) {
-          group.scale.multiplyScalar(targetSpan / span);
-        }
       };
       const ensureChessLoungeAssets = async () => {
         if (chessLoungeTemplateRef.current && chessChairTemplateRef.current) {
@@ -13435,7 +13368,22 @@ const powerRef = useRef(hud.power);
           adjustHospitalityForEdge(position[1] ?? 0)
         );
         group.rotation.y = rotationY;
-        scaleChessHospitalityGroup(group);
+        const scaleFallbackLounge = () => {
+          const loungeBounds = new THREE.Box3().setFromObject(group);
+          const loungeSize = loungeBounds.getSize(new THREE.Vector3());
+          const span = Math.max(loungeSize.x || 1, loungeSize.z || 1);
+          const maxSpan = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE * 0.82;
+          const minSpan = Math.max(TABLE.W * TABLE_DISPLAY_SCALE * 0.4, arenaMargin * 0.9);
+          const clampedTarget = THREE.MathUtils.clamp(
+            chessBattleTargetSpan,
+            minSpan,
+            maxSpan
+          );
+          if (span > 1e-6) {
+            group.scale.multiplyScalar(clampedTarget / span);
+          }
+        };
+        scaleFallbackLounge();
         ensureHospitalityVisibility(group);
         return group;
       };
@@ -13456,15 +13404,37 @@ const powerRef = useRef(hud.power);
           const materials = Array.isArray(child.material)
             ? child.material
             : [child.material];
-          const clonedMaterials = materials.map(cloneHospitalityMaterial);
-          child.material = Array.isArray(child.material)
-            ? clonedMaterials
-            : clonedMaterials[0];
+          const clonedMaterials = materials.map((mat) => {
+            if (!mat) return mat;
+            const clone = mat.clone ? mat.clone() : mat;
+            clone.userData = { ...(clone.userData || {}), disposableHospitality: true };
+            if (clone.map) sharpenTexture(clone.map);
+            if (clone.emissiveMap) sharpenTexture(clone.emissiveMap);
+            clone.needsUpdate = true;
+            return clone;
+          });
+          child.material = Array.isArray(child.material) ? clonedMaterials : clonedMaterials[0];
           child.castShadow = true;
           child.receiveShadow = true;
         });
 
-        lounge.position.set(0, 0, 0);
+        const scaleLoungeToChessBattle = () => {
+          const box = new THREE.Box3().setFromObject(lounge);
+          const size = box.getSize(new THREE.Vector3());
+          const span = Math.max(size.x || 1, size.z || 1);
+          const maxSpan = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE * 0.82;
+          const minSpan = Math.max(TABLE.W * TABLE_DISPLAY_SCALE * 0.4, arenaMargin * 0.9);
+          const clampedTarget = THREE.MathUtils.clamp(
+            chessBattleTargetSpan,
+            minSpan,
+            maxSpan
+          );
+          if (span > 1e-6) {
+            lounge.scale.multiplyScalar(clampedTarget / span);
+          }
+        };
+        scaleLoungeToChessBattle();
+        lounge.position.set(0, floorY, 0);
         lounge.rotation.y = rotationY;
         ensureHospitalityVisibility(lounge);
 
@@ -13493,7 +13463,15 @@ const powerRef = useRef(hud.power);
             const materials = Array.isArray(child.material)
               ? child.material
               : [child.material];
-            const clonedMaterials = materials.map(cloneHospitalityMaterial);
+            const clonedMaterials = materials.map((mat) => {
+              if (!mat) return mat;
+              const clone = mat.clone ? mat.clone() : mat;
+              clone.userData = { ...(clone.userData || {}), disposableHospitality: true };
+              if (clone.map) sharpenTexture(clone.map);
+              if (clone.emissiveMap) sharpenTexture(clone.emissiveMap);
+              clone.needsUpdate = true;
+              return clone;
+            });
             child.material = Array.isArray(child.material)
               ? clonedMaterials
               : clonedMaterials[0];
@@ -13508,10 +13486,9 @@ const powerRef = useRef(hud.power);
 
         group.position.set(
           adjustHospitalityForEdge(position[0] ?? 0),
-          floorY,
+          0,
           adjustHospitalityForEdge(position[1] ?? 0)
         );
-        scaleChessHospitalityGroup(group);
         ensureHospitalityVisibility(group);
         return group;
       };
@@ -16262,7 +16239,6 @@ const powerRef = useRef(hud.power);
             hit = hit.parent;
           }
           if (!hit?.userData?.isChalk) return false;
-          playChalkPress();
           toggleChalkAssist(hit.userData?.chalkIndex ?? null);
           return true;
         };
@@ -16921,7 +16897,7 @@ const powerRef = useRef(hud.power);
         );
         const farInteriorZ = arenaHalfDepth - hospitalityEdgePull;
         const placementZ = THREE.MathUtils.clamp(
-          outerShortRailZ + Math.max(serviceGap * 1.4, availableOuterSpace * 0.72),
+          outerShortRailZ + serviceGap * 1.25,
           outerShortRailZ + serviceGap,
           farInteriorZ
         );
@@ -18434,12 +18410,7 @@ const powerRef = useRef(hud.power);
           const shouldRecordReplay = true;
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
-          playCueHit(clampedPower, {
-            offset: CUE_SHOT_OFFSET_SECONDS,
-            duration: CUE_SHOT_WINDOW_SECONDS,
-            minVolume: CUE_MIN_VOLUME,
-            volumeScale: 1
-          });
+          playCueHit(clampedPower * 0.6);
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
@@ -21316,12 +21287,7 @@ const powerRef = useRef(hud.power);
                     1
                   );
                   const cueLandingVol = Math.max(0.45, landingVol * 0.95);
-                  playCueHit(cueLandingVol, {
-                    offset: CUE_SHOT_OFFSET_SECONDS,
-                    duration: CUE_BOUNCE_WINDOW_SECONDS,
-                    volumeScale: CUE_BOUNCE_VOLUME_SCALE,
-                    minVolume: 0.12
-                  });
+                  playCueHit(cueLandingVol);
                   liftLandingTimeRef.current.set(b.id, nowLanding);
                 }
               }
@@ -21528,12 +21494,7 @@ const powerRef = useRef(hud.power);
                   const liftBoost = 1.2;
                   maxPowerLiftTriggered = true;
                   const liftSoundVol = Math.max(0.7, bounceStrength * 0.95);
-                  playCueHit(liftSoundVol, {
-                    offset: CUE_SHOT_OFFSET_SECONDS,
-                    duration: CUE_BOUNCE_WINDOW_SECONDS,
-                    volumeScale: CUE_BOUNCE_VOLUME_SCALE,
-                    minVolume: 0.12
-                  });
+                  playCueHit(liftSoundVol);
                   cueBall.lift = Math.max(
                     cueBall.lift ?? 0,
                     Math.min(MAX_POWER_LIFT_HEIGHT * liftBoost, MAX_POWER_BOUNCE_IMPULSE * 0.65)
