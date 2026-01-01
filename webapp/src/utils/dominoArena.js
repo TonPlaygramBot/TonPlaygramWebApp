@@ -1,42 +1,6 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { makeRoughClothTexture, DEFAULT_TABLE_CLOTH_OPTION } from './murlanTable.js';
-import {
-  applyWoodTextures,
-  DEFAULT_WOOD_GRAIN_ID,
-  WOOD_FINISH_PRESETS,
-  WOOD_GRAIN_OPTIONS,
-  WOOD_GRAIN_OPTIONS_BY_ID
-} from './woodMaterials.js';
-
-const ARENA_SCALE = 0.85;
-const MODEL_SCALE = 0.75 * ARENA_SCALE;
-const TABLE_SCALE = 1;
-const STOOL_SCALE = 1.5 * 1.3;
-const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
-const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE * TABLE_SCALE;
-const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
-const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
-const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
-const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE;
-const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
-const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
-const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
-const ARM_DEPTH = SEAT_DEPTH * 0.75;
-const COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
-const BASE_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
-const COLUMN_RADIUS_TOP = 0.2 * MODEL_SCALE;
-const COLUMN_RADIUS_BOTTOM = 0.26 * MODEL_SCALE;
-const BASE_RADIUS = 0.72 * MODEL_SCALE;
-const FOOT_RING_RADIUS = 0.52 * MODEL_SCALE;
-const FOOT_RING_TUBE = 0.04 * MODEL_SCALE;
-const CHAIR_GAP = 0.12 * MODEL_SCALE;
-const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
-const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE * TABLE_SCALE;
-const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const TABLE_TOP_DEPTH = 0.06 * MODEL_SCALE * TABLE_SCALE;
-const TABLE_BASE_Y = TABLE_HEIGHT - TABLE_TOP_DEPTH;
 
 const ROOM_DIMENSIONS = Object.freeze({
   width: 6.2,
@@ -47,32 +11,32 @@ const ROOM_DIMENSIONS = Object.freeze({
 });
 
 const TABLE_DIMENSIONS = Object.freeze({
-  baseY: TABLE_BASE_Y,
-  outerHalfWidth: TABLE_RADIUS,
-  innerHalfWidth: TABLE_RADIUS * 0.84,
-  clothHalfWidth: TABLE_RADIUS * 0.72,
-  rimThickness: 0.08 * MODEL_SCALE,
-  clothRise: TABLE_HEIGHT - TABLE_BASE_Y,
+  baseY: 0.64,
+  outerHalfWidth: 0.95,
+  innerHalfWidth: 0.76,
+  clothHalfWidth: 0.7,
+  rimThickness: 0.07,
+  clothRise: 0.022,
   baseSkirtInset: 0.05,
-  skirtHeight: 0.6 * MODEL_SCALE
+  skirtHeight: 0.6
 });
 
 const CHAIR_DIMENSIONS = Object.freeze({
-  seatWidth: SEAT_WIDTH,
-  seatDepth: SEAT_DEPTH,
-  seatThickness: SEAT_THICKNESS,
-  backHeight: BACK_HEIGHT,
-  backThickness: BACK_THICKNESS,
-  armHeight: ARM_HEIGHT,
-  armThickness: ARM_THICKNESS,
-  armDepth: ARM_DEPTH,
-  columnHeight: COLUMN_HEIGHT,
-  baseThickness: BASE_THICKNESS,
-  columnRadiusTop: COLUMN_RADIUS_TOP,
-  columnRadiusBottom: COLUMN_RADIUS_BOTTOM,
-  baseRadius: BASE_RADIUS,
-  footRingRadius: FOOT_RING_RADIUS,
-  footRingTube: FOOT_RING_TUBE
+  seatWidth: 0.72,
+  seatDepth: 0.72,
+  seatThickness: 0.12,
+  backHeight: 0.78,
+  backThickness: 0.08,
+  armHeight: 0.36,
+  armThickness: 0.1,
+  armDepth: 0.76,
+  columnHeight: 0.46,
+  baseThickness: 0.08,
+  columnRadiusTop: 0.11,
+  columnRadiusBottom: 0.15,
+  baseRadius: 0.46,
+  footRingRadius: 0.34,
+  footRingTube: 0.03
 });
 
 const DEFAULT_CHAIR_OPTION = Object.freeze({
@@ -82,20 +46,13 @@ const DEFAULT_CHAIR_OPTION = Object.freeze({
   legColor: '#151515'
 });
 
-const DEFAULT_WOOD_FINISH =
-  WOOD_FINISH_PRESETS.find((preset) => preset.id === 'oak') ?? WOOD_FINISH_PRESETS[0];
-const DEFAULT_WOOD_GRAIN =
-  WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ??
-  WOOD_GRAIN_OPTIONS.find(Boolean) ??
-  null;
-
 const CAMERA_CONFIG = Object.freeze({
   fov: 56,
   near: 0.05,
   far: 100,
-  minRadius: Math.max(1.1, TABLE_RADIUS * 0.55),
-  maxRadius: TABLE_RADIUS * 2,
-  targetY: TABLE_HEIGHT,
+  minRadius: 1.1,
+  maxRadius: 4,
+  targetY: 0.64,
   maxPolarAngle: Math.PI * 0.49
 });
 
@@ -562,37 +519,8 @@ function buildDominoTable(renderer) {
   const tableY = TABLE_DIMENSIONS.baseY;
   const clothTop = tableY + TABLE_DIMENSIONS.clothRise;
 
-  const woodMat = new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.12 });
-  const woodDark = new THREE.MeshStandardMaterial({ roughness: 0.65, metalness: 0.12 });
-  const woodPreset = DEFAULT_WOOD_FINISH;
-  const woodGrain = DEFAULT_WOOD_GRAIN;
-  const sharedWoodKey = 'domino-table-wood';
-  applyWoodTextures(woodMat, {
-    hue: woodPreset?.hue,
-    sat: woodPreset?.sat,
-    light: woodPreset?.light,
-    contrast: woodPreset?.contrast,
-    repeat: woodGrain?.frame?.repeat ?? woodGrain?.rail?.repeat ?? { x: 0.24, y: 0.38 },
-    rotation: woodGrain?.frame?.rotation ?? 0,
-    textureSize: woodGrain?.frame?.textureSize,
-    sharedKey: `${sharedWoodKey}-top`
-  });
-  applyWoodTextures(woodDark, {
-    hue: woodPreset?.hue,
-    sat: woodPreset?.sat,
-    light: woodPreset?.light,
-    contrast: woodPreset?.contrast,
-    repeat: woodGrain?.rail?.repeat ?? woodGrain?.frame?.repeat ?? { x: 0.14, y: 0.6 },
-    rotation: woodGrain?.rail?.rotation ?? 0,
-    textureSize: woodGrain?.rail?.textureSize,
-    sharedKey: `${sharedWoodKey}-rim`
-  });
-  if (!woodMat.map) {
-    woodMat.color.set('#5a3a19');
-  }
-  if (!woodDark.map) {
-    woodDark.color.set('#4a3115');
-  }
+  const woodMat = new THREE.MeshStandardMaterial({ color: '#5a3a19', roughness: 0.55, metalness: 0.08 });
+  const woodDark = new THREE.MeshStandardMaterial({ color: '#4a3115', roughness: 0.7, metalness: 0.05 });
   const clothOption = DEFAULT_TABLE_CLOTH_OPTION;
   const feltMat = new THREE.MeshStandardMaterial({
     color: '#ffffff',
@@ -603,7 +531,7 @@ function buildDominoTable(renderer) {
       ? clothOption.emissiveIntensity
       : 0.08
   });
-  const baseMat = new THREE.MeshStandardMaterial({ color: '#0f3e2d', roughness: 0.85, metalness: 0.08 });
+  const baseMat = new THREE.MeshStandardMaterial({ color: '#0f3e2d', roughness: 0.85, metalness: 0.05 });
 
   const feltTexture = makeRoughClothTexture(
     1024,
@@ -612,9 +540,6 @@ function buildDominoTable(renderer) {
     renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
   );
   feltMat.map = feltTexture;
-  if (feltMat.map) {
-    feltMat.map.colorSpace = THREE.SRGBColorSpace;
-  }
   feltMat.needsUpdate = true;
 
   disposables.push(woodMat, woodDark, feltMat, baseMat, feltTexture);
@@ -844,9 +769,9 @@ export function buildDominoArena({ scene, renderer }) {
     if (material) trackedMaterials.add(material);
   });
 
-  const chairRadius =
-    TABLE_DIMENSIONS.outerHalfWidth + CHAIR_DIMENSIONS.seatDepth / 2 + CHAIR_GAP;
-  const chairHeight = STOOL_HEIGHT + BACK_HEIGHT * 0.5;
+  const chairRadius = TABLE_DIMENSIONS.outerHalfWidth + 0.55;
+  const chairHeight =
+    CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight + CHAIR_DIMENSIONS.seatThickness;
   const lookTarget = new THREE.Vector3(0, chairHeight, 0);
   const dominoFacing = new THREE.Vector3(1, 0, 0);
   const chairs = [
