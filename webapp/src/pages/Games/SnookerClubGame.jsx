@@ -9575,7 +9575,9 @@ export function PoolRoyaleGame({
     const gain = ctx.createGain();
     gain.gain.value = scaled;
     source.connect(gain).connect(ctx.destination);
-    source.start(0, 0, 0.5);
+    const duration = Number.isFinite(buffer?.duration) ? buffer.duration : 0;
+    const playbackDuration = duration > 0 ? duration * 0.5 : 0.5;
+    source.start(0, 0, playbackDuration);
   }, []);
 
   const playBallHit = useCallback((vol = 1) => {
@@ -9750,7 +9752,7 @@ export function PoolRoyaleGame({
     };
     (async () => {
       const entries = [
-        ['cue', '/assets/sounds/billiard-pool-hit-371618.mp3'],
+        ['cue', '/assets/sounds/snooker-cue-put-on-table-81295.mp3'],
         ['ball', '/assets/sounds/billiard-sound newhit.mp3'],
         ['pocket', '/assets/sounds/billiard-sound-6-288417.mp3'],
         ['knock', '/assets/sounds/wooden-door-knock-102902.mp3'],
