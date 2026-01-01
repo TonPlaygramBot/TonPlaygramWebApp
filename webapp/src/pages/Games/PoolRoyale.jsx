@@ -42,8 +42,9 @@ import {
   DEFAULT_WOOD_GRAIN_ID,
   DEFAULT_WOOD_TEXTURE_SIZE,
   applyWoodTextures,
-  disposeMaterialWithWood,
+  disposeMaterialWithWood
 } from '../../utils/woodMaterials.js';
+import { CHESS_CHAIR_OPTIONS } from '../../config/chessBattleInventoryConfig.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_DEFAULT_UNLOCKS,
@@ -12936,6 +12937,213 @@ const powerRef = useRef(hud.power);
         return group;
       };
 
+      const chessDefaultChair =
+        CHESS_CHAIR_OPTIONS[0] || {
+          primary: '#8b1538',
+          accent: '#5c0f26',
+          legColor: '#1f1f1f'
+        };
+      const createChessBoardTexture = (light = '#e6c9a1', dark = '#8b5a2b') => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        const tile = canvas.width / 8;
+        ctx.fillStyle = light;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = dark;
+        for (let x = 0; x < 8; x += 1) {
+          for (let y = 0; y < 8; y += 1) {
+            if ((x + y) % 2 === 1) {
+              ctx.fillRect(x * tile, y * tile, tile, tile);
+            }
+          }
+        }
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = 4;
+        applySRGBColorSpace(texture);
+        return texture;
+      };
+
+      const createChessHospitalitySet = ({ position = [0, 0], rotationY = 0 } = {}) => {
+        const group = new THREE.Group();
+        const scaledFurniture = furnitureScale * hospitalitySizeMultiplier;
+        const chairPalette = {
+          seat: chessDefaultChair.primary || '#8b1538',
+          accent: chessDefaultChair.accent || chessDefaultChair.primary || '#8b1538',
+          leg: chessDefaultChair.legColor || '#1f1f1f'
+        };
+        const chessMaterials = {
+          wood: new THREE.MeshStandardMaterial({
+            color: 0x3b2a1a,
+            roughness: 0.58,
+            metalness: 0.1
+          }),
+          accent: new THREE.MeshStandardMaterial({
+            color: 0x1d1209,
+            roughness: 0.42,
+            metalness: 0.18
+          }),
+          seat: new THREE.MeshStandardMaterial({
+            color: new THREE.Color(chairPalette.seat),
+            roughness: 0.64
+          }),
+          accentFabric: new THREE.MeshStandardMaterial({
+            color: new THREE.Color(chairPalette.accent),
+            roughness: 0.6
+          }),
+          leg: new THREE.MeshStandardMaterial({
+            color: new THREE.Color(chairPalette.leg),
+            roughness: 0.32,
+            metalness: 0.52
+          })
+        };
+
+        const buildChessTable = () => {
+          const table = new THREE.Group();
+          const baseRadius = 0.32;
+          const topRadius = 0.4;
+          const tableHeight = 0.74;
+          const rim = new THREE.Mesh(
+            new THREE.CylinderGeometry(topRadius + 0.1, topRadius + 0.1, 0.06, 24),
+            chessMaterials.accent
+          );
+          rim.position.y = tableHeight + 0.01;
+          rim.castShadow = true;
+          rim.receiveShadow = true;
+          table.add(rim);
+
+          const top = new THREE.Mesh(
+            new THREE.CylinderGeometry(topRadius, topRadius, 0.04, 32),
+            chessMaterials.wood
+          );
+          top.position.y = tableHeight + 0.06;
+          top.castShadow = true;
+          top.receiveShadow = true;
+          table.add(top);
+
+          const stem = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.06, 0.12, tableHeight, 18),
+            chessMaterials.wood
+          );
+          stem.position.y = tableHeight / 2 + 0.02;
+          stem.castShadow = true;
+          stem.receiveShadow = true;
+          table.add(stem);
+
+          const foot = new THREE.Mesh(
+            new THREE.CylinderGeometry(baseRadius, baseRadius, 0.08, 24),
+            chessMaterials.accent
+          );
+          foot.position.y = 0.04;
+          foot.castShadow = true;
+          foot.receiveShadow = true;
+          table.add(foot);
+          table.userData.surfaceY = top.position.y + 0.04;
+          return table;
+        };
+
+        const buildChessChair = () => {
+          const chair = new THREE.Group();
+          const legGeometry = new THREE.CylinderGeometry(0.02, 0.024, 0.44, 12);
+          [
+            [-0.18, -0.18],
+            [0.18, -0.18],
+            [-0.18, 0.18],
+            [0.18, 0.18]
+          ].forEach(([x, z]) => {
+            const leg = new THREE.Mesh(legGeometry, chessMaterials.leg);
+            leg.position.set(x, 0.22, z);
+            leg.castShadow = true;
+            leg.receiveShadow = true;
+            chair.add(leg);
+          });
+
+          const seat = new THREE.Mesh(
+            new THREE.BoxGeometry(0.46, 0.06, 0.46),
+            chessMaterials.seat
+          );
+          seat.position.set(0, 0.47, 0);
+          seat.castShadow = true;
+          seat.receiveShadow = true;
+          chair.add(seat);
+
+          const back = new THREE.Mesh(
+            new THREE.BoxGeometry(0.46, 0.48, 0.06),
+            chessMaterials.accentFabric
+          );
+          back.position.set(0, 0.74, 0.2);
+          back.rotation.x = Math.PI * 0.06;
+          back.castShadow = true;
+          back.receiveShadow = true;
+          chair.add(back);
+
+          const armGeom = new THREE.BoxGeometry(0.08, 0.06, 0.46);
+          const armL = new THREE.Mesh(armGeom, chessMaterials.accentFabric);
+          armL.position.set(-0.24, 0.58, 0);
+          armL.castShadow = true;
+          armL.receiveShadow = true;
+          chair.add(armL);
+          const armR = armL.clone();
+          armR.position.x = 0.24;
+          chair.add(armR);
+          return chair;
+        };
+
+        const chessTable = buildChessTable();
+        chessTable.scale.setScalar(scaledFurniture);
+        group.add(chessTable);
+
+        const boardTexture = createChessBoardTexture();
+        const boardSize = toHospitalityUnits(0.88) * hospitalityUpscale * scaledFurniture;
+        const boardThickness = 0.05 * hospitalityUpscale * scaledFurniture;
+        const board = new THREE.Mesh(
+          new THREE.BoxGeometry(boardSize, boardThickness, boardSize),
+          new THREE.MeshStandardMaterial({
+            map: boardTexture,
+            color: 0xffffff,
+            roughness: 0.32,
+            metalness: 0.12
+          })
+        );
+        board.position.set(
+          0,
+          (chessTable.userData?.surfaceY || 0.8 * scaledFurniture) + boardThickness * 0.5,
+          0
+        );
+        board.castShadow = true;
+        board.receiveShadow = true;
+        if (boardTexture) {
+          group.userData = group.userData || {};
+          group.userData.disposables = group.userData.disposables || [];
+          group.userData.disposables.push(boardTexture);
+        }
+        group.add(board);
+
+        const chairSpread = toHospitalityUnits(0.5) * hospitalityUpscale * scaledFurniture;
+        const chairDepth = toHospitalityUnits(0.62) * hospitalityUpscale * scaledFurniture;
+        [
+          [0, chairDepth],
+          [0, -chairDepth]
+        ].forEach(([x, z]) => {
+          const chair = buildChessChair();
+          chair.scale.setScalar(scaledFurniture);
+          chair.position.set(x, 0, z);
+          chair.rotation.y = Math.atan2(-x, -z);
+          group.add(chair);
+        });
+
+        group.position.set(
+          adjustHospitalityForEdge(position[0] ?? 0),
+          floorY,
+          adjustHospitalityForEdge(position[1] ?? 0)
+        );
+        group.rotation.y = rotationY;
+        ensureHospitalityVisibility(group);
+        return group;
+      };
+
       const createCornerHospitalitySet = ({ chairOffset, position, rotationY }) => {
         const group = new THREE.Group();
         const scaledFurniture = furnitureScale * hospitalitySizeMultiplier;
@@ -15998,13 +16206,22 @@ const powerRef = useRef(hud.power);
           cueLen,
           32
         );
-        const cueMaterial = new THREE.MeshPhysicalMaterial({
-          color: 0xe6c9a1,
-          roughness: 0.32,
-          metalness: 0.08,
-          clearcoat: 0.35,
-          clearcoatRoughness: 0.42
-        });
+        const cueMaterial =
+          variant === 'snooker'
+            ? new THREE.MeshPhysicalMaterial({
+                color: 0xc8a474,
+                roughness: 0.28,
+                metalness: 0.1,
+                clearcoat: 0.42,
+                clearcoatRoughness: 0.38
+              })
+            : new THREE.MeshPhysicalMaterial({
+                color: 0xe6c9a1,
+                roughness: 0.32,
+                metalness: 0.08,
+                clearcoat: 0.35,
+                clearcoatRoughness: 0.42
+              });
         registerDisposable(cueGeometry);
         registerDisposable(cueMaterial);
         const addCueStick = (x, z, rotationY) => {
@@ -16152,50 +16369,24 @@ const powerRef = useRef(hud.power);
       };
       const layoutDecorativeTables = (environmentId = environmentHdriRef.current) => {
         disposeDecorativeTables();
-        const spacing = resolveSecondarySpacing(environmentId);
         const tableFootprint = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE;
         const placementMargin = Math.max(tableFootprint * 0.6, arenaMargin);
         const maxX = Math.max(0, arenaHalfWidth - placementMargin);
         const maxZ = Math.max(0, arenaHalfDepth - placementMargin);
         const clampX = (x = 0) => THREE.MathUtils.clamp(x, -maxX, maxX);
         const clampZ = (z = 0) => THREE.MathUtils.clamp(z, -maxZ, maxZ);
-        if (environmentId === 'oldHall') {
-          const offsetZ = spacing;
-          createDecorativeTable({
-            variant: 'pool',
-            position: { x: 0, z: clampZ(-offsetZ) }
-          });
-          createDecorativeTable({
-            variant: 'snooker',
-            position: { x: 0, z: clampZ(offsetZ) }
-          });
-        } else if (environmentId === 'emptyPlayRoom') {
-          const sideOffset = clampX(tableFootprint * 0.95);
-          createDecorativeTable({
-            variant: 'pool',
-            position: { x: -sideOffset, z: 0 }
-          });
-          createDecorativeTable({
-            variant: 'snooker',
-            position: { x: sideOffset, z: 0 }
-          });
-        } else if (environmentId === 'mirroredHall') {
-          const lateralSpacing = clampX(spacing * 0.6);
-          const depthSpacing = clampZ(spacing * 0.55);
-          const rearSpacing = clampZ(spacing * 0.9);
-          createDecorativeTable({
-            variant: 'snooker',
-            position: { x: -lateralSpacing, z: -depthSpacing }
-          });
-          createDecorativeTable({
-            variant: 'snooker',
-            position: { x: lateralSpacing, z: depthSpacing }
-          });
-          createDecorativeTable({
-            variant: 'pool',
-            position: { x: 0, z: rearSpacing }
-          });
-        }
+        const sideRailReach = (TABLE.W / 2 + SIDE_RAIL_INNER_THICKNESS) * TABLE_DISPLAY_SCALE;
+        const walkwayGap = Math.max(tableFootprint * 0.32, arenaMargin * 0.75, BALL_R * 10);
+        const lateralOffset = clampX(sideRailReach + walkwayGap + tableFootprint * 0.5);
+        const slightDepthOffset = clampZ(resolveSecondarySpacing(environmentId) * 0.08);
+        createDecorativeTable({
+          variant: 'pool',
+          position: { x: -lateralOffset, z: -slightDepthOffset }
+        });
+        createDecorativeTable({
+          variant: 'snooker',
+          position: { x: lateralOffset, z: slightDepthOffset }
+        });
       };
       updateDecorTablesRef.current = layoutDecorativeTables;
       clearDecorTablesRef.current = disposeDecorativeTables;
@@ -16206,8 +16397,24 @@ const powerRef = useRef(hud.power);
             group.traverse((child) => {
               if (child?.isMesh) {
                 child.geometry?.dispose?.();
+                const mats = Array.isArray(child.material)
+                  ? child.material
+                  : [child.material];
+                mats.forEach((mat) => {
+                  if (!mat) return;
+                  if (mat.map?.dispose) mat.map.dispose();
+                  mat.dispose?.();
+                });
               }
             });
+            const disposables = group.userData?.disposables;
+            if (Array.isArray(disposables)) {
+              disposables.forEach((item) => {
+                try {
+                  item?.dispose?.();
+                } catch {}
+              });
+            }
             if (group.parent) {
               group.parent.remove(group);
             }
@@ -16237,21 +16444,13 @@ const powerRef = useRef(hud.power);
           outerShortRailZ + serviceGap * 0.5,
           Math.min(arenaHalfDepth - hospitalityEdgePull, desiredZ)
         );
-        const chairSpread = toHospitalityUnits(0.44) * hospitalityUpscale;
-        const chairDepth = toHospitalityUnits(0.64) * hospitalityUpscale;
-        [placementZ, -placementZ].forEach((z) => {
-          const facingCenter = Math.atan2(0, -z);
-          addHospitalityGroup(
-            createCheeseServiceSet({
-              chairOffsets: [
-                [-chairSpread, -chairDepth],
-                [chairSpread, -chairDepth]
-              ],
-              position: [0, z],
-              rotationY: facingCenter
-            })
-          );
-        });
+        const facingCenter = Math.atan2(0, -placementZ);
+        addHospitalityGroup(
+          createChessHospitalitySet({
+            position: [0, placementZ],
+            rotationY: facingCenter
+          })
+        );
       };
       updateHospitalityLayoutRef.current = layoutHospitalityGroups;
       clearHospitalityLayoutRef.current = disposeHospitalityGroups;
