@@ -13016,252 +13016,36 @@ const powerRef = useRef(hud.power);
         return material;
       };
 
-      const BEAUTIFUL_GAME_BOARD_THEME = Object.freeze({
-        light: '#e7e2d3',
-        dark: '#776a5a',
-        frameLight: '#d2b48c',
-        frameDark: '#3a2d23',
-        surfaceRoughness: 0.74,
-        surfaceMetalness: 0.04,
-        frameRoughness: 0.86,
-        frameMetalness: 0.05
-      });
-
-      const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
-        white: {
-          color: '#ffffff',
-          roughness: 0.22,
-          metalness: 0.42,
-          sheen: 0.32,
-          sheenColor: '#f7fbff',
-          clearcoat: 0.4,
-          clearcoatRoughness: 0.18,
-          specularIntensity: 0.78
-        },
-        black: {
-          color: '#111827',
-          roughness: 0.24,
-          metalness: 0.44,
-          sheen: 0.28,
-          sheenColor: '#b8c6ff',
-          clearcoat: 0.42,
-          clearcoatRoughness: 0.2,
-          specularIntensity: 0.78,
-          emissive: '#0a1020',
-          emissiveIntensity: 0.18
-        },
-        accent: '#d4af78'
-      });
-
-      const createChessPieceMaterials = (style = BEAUTIFUL_GAME_PIECE_STYLE) => ({
-        white: tagHospitalityMaterial(new THREE.MeshPhysicalMaterial({
-          color: new THREE.Color(style.white.color),
-          roughness: style.white.roughness,
-          metalness: style.white.metalness,
-          sheen: style.white.sheen,
-          sheenColor: new THREE.Color(style.white.sheenColor),
-          clearcoat: style.white.clearcoat,
-          clearcoatRoughness: style.white.clearcoatRoughness,
-          specularIntensity: style.white.specularIntensity
-        })),
-        black: tagHospitalityMaterial(new THREE.MeshPhysicalMaterial({
-          color: new THREE.Color(style.black.color),
-          roughness: style.black.roughness,
-          metalness: style.black.metalness,
-          sheen: style.black.sheen,
-          sheenColor: new THREE.Color(style.black.sheenColor),
-          clearcoat: style.black.clearcoat,
-          clearcoatRoughness: style.black.clearcoatRoughness,
-          specularIntensity: style.black.specularIntensity,
-          emissive: new THREE.Color(style.black.emissive ?? 0x000000),
-          emissiveIntensity: style.black.emissiveIntensity ?? 0
-        })),
-        accent: tagHospitalityMaterial(new THREE.MeshPhysicalMaterial({
-          color: new THREE.Color(style.accent ?? '#ffffff'),
-          roughness: 0.2,
-          metalness: 0.36,
-          clearcoat: 0.4,
-          clearcoatRoughness: 0.2,
-          sheen: 0.12
-        }))
-      });
-
-      const createChessPiece = (type, colorKey, tile, materials) => {
-        const baseRadius = tile * 0.34;
-        const baseHeight = tile * 0.16;
-        const neckRadius = tile * 0.18;
-        const headRadius = tile * 0.18;
-        const material = materials[colorKey] ?? materials.white;
-        const accent = materials.accent ?? material;
-        const piece = new THREE.Group();
-        const base = new THREE.Mesh(
-          new THREE.CylinderGeometry(baseRadius * 0.85, baseRadius, baseHeight, 24),
-          material
-        );
-        base.castShadow = true;
-        base.receiveShadow = true;
-        piece.add(base);
-        const makeBody = (radius, height, segments = 20) =>
-          new THREE.Mesh(
-            new THREE.CylinderGeometry(radius * 0.72, radius, height, segments, 1, false),
-            material
-          );
-
-        if (type === 'P') {
-          const body = makeBody(neckRadius * 1.2, tile * 0.36);
-          body.position.y = baseHeight + body.geometry.parameters.height / 2;
-          const head = new THREE.Mesh(new THREE.SphereGeometry(headRadius * 0.78, 18, 14), material);
-          head.position.y = body.position.y + body.geometry.parameters.height / 2 + headRadius * 0.8;
-          piece.add(body, head);
-        } else if (type === 'R') {
-          const body = makeBody(neckRadius * 1.35, tile * 0.42);
-          body.position.y = baseHeight + body.geometry.parameters.height / 2;
-          const crown = new THREE.Mesh(
-            new THREE.BoxGeometry(tile * 0.42, tile * 0.14, tile * 0.42),
-            accent
-          );
-          crown.position.y = body.position.y + body.geometry.parameters.height / 2 + tile * 0.08;
-          piece.add(body, crown);
-        } else if (type === 'N') {
-          const body = makeBody(neckRadius * 1.25, tile * 0.34, 10);
-          body.position.y = baseHeight + body.geometry.parameters.height / 2;
-          const head = new THREE.Mesh(
-            new THREE.BoxGeometry(tile * 0.32, tile * 0.32, tile * 0.46),
-            material
-          );
-          head.position.set(0, body.position.y + body.geometry.parameters.height / 2 + tile * 0.14, -tile * 0.08);
-          head.rotation.y = Math.PI / 6;
-          piece.add(body, head);
-        } else if (type === 'B') {
-          const body = makeBody(neckRadius * 1.15, tile * 0.52);
-          body.position.y = baseHeight + body.geometry.parameters.height / 2;
-          const finial = new THREE.Mesh(new THREE.SphereGeometry(headRadius * 0.64, 16, 12), accent);
-          finial.position.y = body.position.y + body.geometry.parameters.height / 2 + headRadius * 0.64;
-          piece.add(body, finial);
-        } else if (type === 'Q' || type === 'K') {
-          const body = makeBody(neckRadius * 1.45, tile * 0.58);
-          body.position.y = baseHeight + body.geometry.parameters.height / 2;
-          const collar = new THREE.Mesh(
-            new THREE.TorusGeometry(tile * 0.18, tile * 0.04, 12, 32),
-            accent
-          );
-          collar.rotation.x = Math.PI / 2;
-          collar.position.y = body.position.y + body.geometry.parameters.height / 2;
-          const crown = new THREE.Mesh(
-            new THREE.ConeGeometry(tile * 0.32, tile * 0.24, 16),
-            accent
-          );
-          crown.position.y = collar.position.y + tile * 0.18;
-          piece.add(body, collar, crown);
-          if (type === 'K') {
-            const cross = new THREE.Group();
-            const vert = new THREE.Mesh(new THREE.BoxGeometry(tile * 0.06, tile * 0.24, tile * 0.08), accent);
-            const horiz = new THREE.Mesh(new THREE.BoxGeometry(tile * 0.22, tile * 0.06, tile * 0.08), accent);
-            vert.position.y = tile * 0.12;
-            cross.add(vert, horiz);
-            cross.position.y = crown.position.y + tile * 0.16;
-            piece.add(cross);
-          }
-        }
-
-        piece.traverse((child) => {
-          if (child?.isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-          }
-        });
-        const bounds = new THREE.Box3().setFromObject(piece);
-        const lift = -bounds.min.y;
-        piece.position.y = lift;
-        return piece;
-      };
-
-      const createChessDisplay = (boardSize = 0.82, boardThickness = 0.06) => {
+      const createChessBoard = (boardSize = 0.9, boardThickness = 0.05) => {
         const group = new THREE.Group();
-        const theme = BEAUTIFUL_GAME_BOARD_THEME;
-        const tile = boardSize / 8;
-        const baseHeight = boardThickness;
-        const rimHeight = boardThickness * 0.6;
-        const tileHeight = boardThickness * 0.5;
-        const half = boardSize / 2;
-        const base = new THREE.Mesh(
-          new THREE.BoxGeometry(boardSize * 1.12, baseHeight, boardSize * 1.12),
-          tagHospitalityMaterial(
-            new THREE.MeshPhysicalMaterial({
-              color: new THREE.Color(theme.frameDark),
-              roughness: theme.frameRoughness,
-              metalness: theme.frameMetalness
-            })
-          )
+        const boardTexture = getChessBoardTexture();
+        const boardMaterial = tagHospitalityMaterial(new THREE.MeshStandardMaterial({
+          map: boardTexture,
+          roughness: 0.44,
+          metalness: 0.12
+        }));
+        const top = new THREE.Mesh(
+          new THREE.BoxGeometry(boardSize, boardThickness, boardSize),
+          boardMaterial
         );
-        base.position.y = baseHeight / 2;
-        base.castShadow = true;
-        base.receiveShadow = true;
-        group.add(base);
+        top.position.y = boardThickness / 2;
+        top.castShadow = true;
+        top.receiveShadow = true;
+        group.add(top);
+        const rimMaterial = tagHospitalityMaterial(new THREE.MeshStandardMaterial({
+          color: 0x141b2f,
+          roughness: 0.62,
+          metalness: 0.18
+        }));
         const rim = new THREE.Mesh(
-          new THREE.BoxGeometry(boardSize, rimHeight, boardSize),
-          tagHospitalityMaterial(
-            new THREE.MeshPhysicalMaterial({
-              color: new THREE.Color(theme.frameLight),
-              roughness: theme.surfaceRoughness,
-              metalness: theme.surfaceMetalness
-            })
-          )
+          new THREE.BoxGeometry(boardSize * 1.08, boardThickness * 0.6, boardSize * 1.08),
+          rimMaterial
         );
-        rim.position.y = baseHeight + rimHeight / 2;
+        rim.position.y = boardThickness * 0.3;
         rim.castShadow = true;
         rim.receiveShadow = true;
         group.add(rim);
-
-        const tiles = new THREE.Group();
-        const tileMaterial = (isDark) =>
-          tagHospitalityMaterial(
-            new THREE.MeshPhysicalMaterial({
-              color: new THREE.Color(isDark ? theme.dark : theme.light),
-              roughness: theme.surfaceRoughness,
-              metalness: theme.surfaceMetalness,
-              clearcoat: 0,
-              reflectivity: 0
-            })
-          );
-        for (let r = 0; r < 8; r += 1) {
-          for (let c = 0; c < 8; c += 1) {
-            const isDark = (r + c) % 2 === 1;
-            const mat = tileMaterial(isDark);
-            const tileMesh = new THREE.Mesh(new THREE.BoxGeometry(tile, tileHeight, tile), mat);
-            tileMesh.position.set(
-              c * tile - half + tile / 2,
-              baseHeight + rimHeight + tileHeight / 2,
-              r * tile - half + tile / 2
-            );
-            tileMesh.castShadow = true;
-            tileMesh.receiveShadow = true;
-            tiles.add(tileMesh);
-          }
-        }
-        group.add(tiles);
-
-        const pieces = new THREE.Group();
-        const pieceMaterials = createChessPieceMaterials(BEAUTIFUL_GAME_PIECE_STYLE);
-        const boardTop = baseHeight + rimHeight + tileHeight;
-        const placePiece = (type, color, file, rank) => {
-          const p = createChessPiece(type, color, tile, pieceMaterials);
-          p.position.set(
-            (file - 3.5) * tile,
-            boardTop,
-            (rank - 3.5) * tile
-          );
-          pieces.add(p);
-        };
-        const backRank = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'];
-        for (let i = 0; i < 8; i += 1) {
-          placePiece('P', 'white', i, 6);
-          placePiece('P', 'black', i, 1);
-          placePiece(backRank[i], 'white', i, 7);
-          placePiece(backRank[i], 'black', i, 0);
-        }
-        group.add(pieces);
-        return { group, height: baseHeight + rimHeight + tileHeight + tile * 0.2 };
+        return { group, height: boardThickness };
       };
 
       const createChessChair = () => {
@@ -13410,9 +13194,9 @@ const powerRef = useRef(hud.power);
         const table = new THREE.Group();
         const tableStemMaterial = tagHospitalityMaterial(
           new THREE.MeshStandardMaterial({
-            color: 0x3a2d23,
-            roughness: 0.58,
-            metalness: 0.18
+            color: 0x1b2435,
+            roughness: 0.52,
+            metalness: 0.16
           })
         );
         const tableStem = new THREE.Mesh(
@@ -13425,9 +13209,9 @@ const powerRef = useRef(hud.power);
         table.add(tableStem);
         const tableBaseMaterial = tagHospitalityMaterial(
           new THREE.MeshStandardMaterial({
-            color: 0xd2b48c,
-            roughness: 0.36,
-            metalness: 0.48
+            color: 0xcbd5e1,
+            roughness: 0.34,
+            metalness: 0.65
           })
         );
         const tableBase = new THREE.Mesh(
@@ -13439,9 +13223,9 @@ const powerRef = useRef(hud.power);
         tableBase.receiveShadow = true;
         table.add(tableBase);
         const tabletopMaterial = tagHospitalityMaterial(new THREE.MeshStandardMaterial({
-          color: 0x111827,
-          roughness: 0.48,
-          metalness: 0.18
+          color: 0x141b2f,
+          roughness: 0.5,
+          metalness: 0.14
         }));
         const tabletop = new THREE.Mesh(
           new THREE.CylinderGeometry(0.5, 0.52, 0.08, 32),
@@ -13451,9 +13235,9 @@ const powerRef = useRef(hud.power);
         tabletop.castShadow = true;
         tabletop.receiveShadow = true;
         table.add(tabletop);
-        const display = createChessDisplay(0.76, 0.05);
-        display.group.position.y = tableHeight;
-        table.add(display.group);
+        const board = createChessBoard(0.72, 0.045);
+        board.group.position.y = tableHeight + board.height * 0.5 + 0.01;
+        table.add(board.group);
         group.add(table);
 
         const resolvedOffsets =
@@ -13485,7 +13269,94 @@ const powerRef = useRef(hud.power);
         chairOffsets,
         position = [0, 0],
         rotationY = 0
-      } = {}) => createFallbackChessLoungeSet({ chairOffsets, position, rotationY });
+      } = {}) => {
+        const assets = await ensureChessLoungeAssets();
+        const loungeTemplate = assets?.lounge;
+        const chairTemplate = assets?.chair;
+        if (!loungeTemplate) {
+          return createFallbackChessLoungeSet({ chairOffsets, position, rotationY });
+        }
+        const lounge = loungeTemplate.clone(true);
+        lounge.traverse((child) => {
+          if (!child?.isMesh) return;
+          const materials = Array.isArray(child.material)
+            ? child.material
+            : [child.material];
+          const clonedMaterials = materials.map((mat) => {
+            if (!mat) return mat;
+            const clone = mat.clone ? mat.clone() : mat;
+            clone.userData = { ...(clone.userData || {}), disposableHospitality: true };
+            if (clone.map) applySRGBColorSpace(clone.map);
+            if (clone.emissiveMap) applySRGBColorSpace(clone.emissiveMap);
+            clone.needsUpdate = true;
+            return clone;
+          });
+          child.material = Array.isArray(child.material) ? clonedMaterials : clonedMaterials[0];
+          child.castShadow = true;
+          child.receiveShadow = true;
+        });
+
+        const box = new THREE.Box3().setFromObject(lounge);
+        const size = box.getSize(new THREE.Vector3());
+        const span = Math.max(size.x || 1, size.z || 1);
+        const targetSpan = Math.max(TABLE.W * TABLE_DISPLAY_SCALE * 0.55, arenaMargin * 1.1);
+        const scale = targetSpan / span;
+        lounge.scale.multiplyScalar(scale);
+        lounge.position.set(0, floorY, 0);
+        lounge.rotation.y = rotationY;
+        ensureHospitalityVisibility(lounge);
+
+        const resolvedOffsets =
+          Array.isArray(chairOffsets) && chairOffsets.length
+            ? chairOffsets
+            : [
+                [-toHospitalityUnits(0.52) * hospitalityUpscale, -toHospitalityUnits(0.78) * hospitalityUpscale],
+                [toHospitalityUnits(0.52) * hospitalityUpscale, -toHospitalityUnits(0.78) * hospitalityUpscale]
+              ];
+        const group = new THREE.Group();
+        group.add(lounge);
+        resolvedOffsets.forEach(([x, z]) => {
+          const chairModel = chairTemplate?.clone?.(true);
+          if (!chairModel) return;
+          const chairBox = new THREE.Box3().setFromObject(chairModel);
+          const chairSize = chairBox.getSize(new THREE.Vector3());
+          const maxSize = Math.max(chairSize.x || 1, chairSize.y || 1, chairSize.z || 1);
+          const targetMax = toHospitalityUnits(0.92) * hospitalityUpscale;
+          chairModel.scale.multiplyScalar(targetMax / maxSize);
+          chairModel.traverse((child) => {
+            if (!child?.isMesh) return;
+            const materials = Array.isArray(child.material)
+              ? child.material
+              : [child.material];
+            const clonedMaterials = materials.map((mat) => {
+              if (!mat) return mat;
+              const clone = mat.clone ? mat.clone() : mat;
+              clone.userData = { ...(clone.userData || {}), disposableHospitality: true };
+              if (clone.map) applySRGBColorSpace(clone.map);
+              if (clone.emissiveMap) applySRGBColorSpace(clone.emissiveMap);
+              clone.needsUpdate = true;
+              return clone;
+            });
+            child.material = Array.isArray(child.material)
+              ? clonedMaterials
+              : clonedMaterials[0];
+            child.castShadow = true;
+            child.receiveShadow = true;
+          });
+          chairModel.position.set(x, 0, z);
+          const toCenter = new THREE.Vector2(x, z).multiplyScalar(-1);
+          chairModel.rotation.y = Math.atan2(toCenter.x, toCenter.y) + rotationY;
+          group.add(chairModel);
+        });
+
+        group.position.set(
+          adjustHospitalityForEdge(position[0] ?? 0),
+          0,
+          adjustHospitalityForEdge(position[1] ?? 0)
+        );
+        ensureHospitalityVisibility(group);
+        return group;
+      };
 
       const createDartboard = ({
         position = [0, 0, 0],
