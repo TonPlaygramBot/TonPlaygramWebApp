@@ -7,20 +7,6 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundResolution: 120,
     arenaScale: 1.1
   },
-  adamsBridge: {
-    cameraHeightM: 1.68,
-    groundRadiusMultiplier: 6.5,
-    groundResolution: 112,
-    arenaScale: 1.35,
-    rotationY: 0
-  },
-  ballroomHall: {
-    cameraHeightM: 1.58,
-    groundRadiusMultiplier: 5.1,
-    groundResolution: 112,
-    arenaScale: 1.3,
-    rotationY: Math.PI / 2
-  },
   christmasPhotoStudio04: {
     cameraHeightM: 1.52,
     groundRadiusMultiplier: 3.9,
@@ -186,32 +172,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1.06,
     swatches: ['#0ea5e9', '#8b5cf6'],
     description: 'Vibrant cyber studio wrap with strong rim accents.'
-  },
-  {
-    id: 'adamsBridge',
-    name: 'Adams Bridge',
-    assetId: 'adams_place_bridge',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 1520,
-    exposure: 1.12,
-    environmentIntensity: 1.08,
-    backgroundIntensity: 1.02,
-    swatches: ['#1d4ed8', '#0ea5e9'],
-    description: 'Cool twilight bridge lighting with crisp specular pickup.'
-  },
-  {
-    id: 'ballroomHall',
-    name: 'Ballroom Hall',
-    assetId: 'ballroom',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 1640,
-    exposure: 1.15,
-    environmentIntensity: 1.16,
-    backgroundIntensity: 1.08,
-    swatches: ['#fef3c7', '#a16207'],
-    description: 'Grand hall ambience with chandeliers for polished highlights.'
   },
   {
     id: 'christmasPhotoStudio04',

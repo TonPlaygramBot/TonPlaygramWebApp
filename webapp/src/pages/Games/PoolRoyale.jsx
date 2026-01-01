@@ -1031,7 +1031,7 @@ const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up ca
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
-const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 0.95;
+const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.1;
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
@@ -1266,7 +1266,7 @@ const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.02; // align the tip closer to the cue-ball equator so the contact reads front-and-centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 5.2;
+const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 5.8;
 const CUE_BUTT_LIFT = BALL_R * 0.64; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
@@ -16655,7 +16655,6 @@ const powerRef = useRef(hud.power);
         };
         if (
           environmentId === 'oldHall' ||
-          environmentId === 'adamsBridge' ||
           environmentId === 'emptyPlayRoom'
         ) {
           placeSideLayout();
@@ -21115,7 +21114,8 @@ const powerRef = useRef(hud.power);
                     0,
                     1
                   );
-                  playBallHit(Math.max(0.35, landingVol * 0.85));
+                  const cueLandingVol = Math.max(0.45, landingVol * 0.95);
+                  playCueHit(cueLandingVol);
                   liftLandingTimeRef.current.set(b.id, nowLanding);
                 }
               }
@@ -21321,6 +21321,8 @@ const powerRef = useRef(hud.power);
                   const bounceStrength = THREE.MathUtils.clamp(lastShotPower, 0, 1);
                   const liftBoost = 1.2;
                   maxPowerLiftTriggered = true;
+                  const liftSoundVol = Math.max(0.7, bounceStrength * 0.95);
+                  playCueHit(liftSoundVol);
                   cueBall.lift = Math.max(
                     cueBall.lift ?? 0,
                     Math.min(MAX_POWER_LIFT_HEIGHT * liftBoost, MAX_POWER_BOUNCE_IMPULSE * 0.65)
