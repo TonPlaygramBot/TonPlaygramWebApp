@@ -1,12 +1,7 @@
 import { TABLE_BASE_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_WOOD_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { CARD_THEMES } from '../utils/cards3d.js';
-import {
-  TEXAS_CHAIR_COLOR_OPTIONS,
-  TEXAS_DEFAULT_HDRI_ID,
-  TEXAS_HDRI_OPTIONS,
-  TEXAS_TABLE_THEME_OPTIONS
-} from './texasHoldemOptions.js';
+import { TEXAS_CHAIR_COLOR_OPTIONS } from './texasHoldemOptions.js';
 
 const reduceLabels = (items) =>
   items.reduce((acc, option) => {
@@ -20,8 +15,6 @@ export const TEXAS_HOLDEM_DEFAULT_UNLOCKS = Object.freeze({
   tableBase: [TABLE_BASE_OPTIONS[0]?.id],
   chairColor: [TEXAS_CHAIR_COLOR_OPTIONS[0]?.id],
   tableShape: [TABLE_SHAPE_OPTIONS[0]?.id],
-  tableTheme: [TEXAS_TABLE_THEME_OPTIONS[0]?.id],
-  environmentHdri: [TEXAS_DEFAULT_HDRI_ID],
   cards: [CARD_THEMES[0]?.id]
 });
 
@@ -31,10 +24,6 @@ export const TEXAS_HOLDEM_OPTION_LABELS = Object.freeze({
   tableBase: Object.freeze(reduceLabels(TABLE_BASE_OPTIONS)),
   chairColor: Object.freeze(reduceLabels(TEXAS_CHAIR_COLOR_OPTIONS)),
   tableShape: Object.freeze(reduceLabels(TABLE_SHAPE_OPTIONS)),
-  tableTheme: Object.freeze(reduceLabels(TEXAS_TABLE_THEME_OPTIONS)),
-  environmentHdri: Object.freeze(
-    reduceLabels(TEXAS_HDRI_OPTIONS.map((option) => ({ ...option, label: option.label || `${option.name} HDRI` })))
-  ),
   cards: Object.freeze(reduceLabels(CARD_THEMES))
 });
 
@@ -79,25 +68,6 @@ export const TEXAS_HOLDEM_STORE_ITEMS = [
     price: 680 + idx * 80,
     description: 'Change the poker table silhouette.'
   })),
-  ...TEXAS_TABLE_THEME_OPTIONS.slice(1).map((option, idx) => ({
-    id: `texas-table-${option.id}`,
-    type: 'tableTheme',
-    optionId: option.id,
-    name: option.label,
-    price: option.price ?? 980 + idx * 45,
-    description: option.description || 'Apply the Murlan Royale table collection to Hold\'em.',
-    thumbnail: option.thumbnail
-  })),
-  ...TEXAS_HDRI_OPTIONS.map((option, idx) => ({
-    id: `texas-hdri-${option.id}`,
-    type: 'environmentHdri',
-    optionId: option.id,
-    name: option.label || `${option.name} HDRI`,
-    price: option.price ?? 1400 + idx * 35,
-    description: option.description || 'HDRI environment from the Pool/Murlan Royale library.',
-    swatches: option.swatches,
-    previewShape: 'table'
-  })),
   ...CARD_THEMES.slice(1).map((option, idx) => ({
     id: `texas-card-${option.id}`,
     type: 'cards',
@@ -114,11 +84,5 @@ export const TEXAS_HOLDEM_DEFAULT_LOADOUT = [
   { type: 'tableBase', optionId: TABLE_BASE_OPTIONS[0]?.id, label: TABLE_BASE_OPTIONS[0]?.label },
   { type: 'chairColor', optionId: TEXAS_CHAIR_COLOR_OPTIONS[0]?.id, label: `${TEXAS_CHAIR_COLOR_OPTIONS[0]?.label} Chairs` },
   { type: 'tableShape', optionId: TABLE_SHAPE_OPTIONS[0]?.id, label: TABLE_SHAPE_OPTIONS[0]?.label },
-  { type: 'tableTheme', optionId: TEXAS_TABLE_THEME_OPTIONS[0]?.id, label: TEXAS_TABLE_THEME_OPTIONS[0]?.label },
-  {
-    type: 'environmentHdri',
-    optionId: TEXAS_DEFAULT_HDRI_ID,
-    label: TEXAS_HOLDEM_OPTION_LABELS.environmentHdri[TEXAS_DEFAULT_HDRI_ID] || 'HDR Environment'
-  },
   { type: 'cards', optionId: CARD_THEMES[0]?.id, label: `${CARD_THEMES[0]?.label} Cards` }
 ];

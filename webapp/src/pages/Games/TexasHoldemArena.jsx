@@ -2,11 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
-import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 
+import { createArenaCarpetMaterial, createArenaWallMaterial } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 import { createMurlanStyleTable, applyTableMaterials, TABLE_SHAPE_OPTIONS } from '../../utils/murlanTable.js';
@@ -17,12 +14,7 @@ import {
   setCardFace,
   CARD_THEMES
 } from '../../utils/cards3d.js';
-import {
-  TEXAS_CHAIR_COLOR_OPTIONS,
-  TEXAS_DEFAULT_HDRI_ID,
-  TEXAS_HDRI_OPTIONS,
-  TEXAS_TABLE_THEME_OPTIONS
-} from '../../config/texasHoldemOptions.js';
+import { TEXAS_CHAIR_COLOR_OPTIONS } from '../../config/texasHoldemOptions.js';
 import { getTexasHoldemInventory, isTexasOptionUnlocked, texasHoldemAccountId } from '../../utils/texasHoldemInventory.js';
 import { createChipFactory } from '../../utils/chips3d.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
@@ -319,388 +311,6 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
-const DEFAULT_HDRI_INDEX = Math.max(
-  0,
-  TEXAS_HDRI_OPTIONS.findIndex((variant) => variant.id === TEXAS_DEFAULT_HDRI_ID)
-);
-const DEFAULT_HDRI_VARIANT = TEXAS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? TEXAS_HDRI_OPTIONS[0] ?? null;
-const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
-const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
-const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
-const POLYHAVEN_MODEL_CACHE = new Map();
-
-const stripQueryHash = (u) => u.split('#')[0].split('?')[0];
-const basename = (p) => {
-  const s = p.replace(/\\/g, '/');
-  const parts = s.split('/');
-  return parts[parts.length - 1] || s;
-};
-const isModelUrl = (u) => {
-  const s = stripQueryHash(u).toLowerCase();
-  return s.endsWith('.glb') || s.endsWith('.gltf');
-};
-const extractAllHttpUrls = (apiJson) => {
-  const out = new Set();
-  const walk = (v) => {
-    if (!v) return;
-    if (typeof v === 'string') {
-      if (v.startsWith('http')) out.add(v);
-      return;
-    }
-    if (typeof v !== 'object') return;
-    if (Array.isArray(v)) {
-      v.forEach(walk);
-      return;
-    }
-    Object.values(v).forEach(walk);
-  };
-  walk(apiJson);
-  return Array.from(out);
-};
-const pickBestModelUrl = (urls) => {
-  const modelUrls = urls.filter(isModelUrl);
-  const glbs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.glb'));
-  const gltfs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.gltf'));
-
-  const score = (u) => {
-    const lu = u.toLowerCase();
-    let s = 0;
-    if (lu.includes('2k')) s += 3;
-    if (lu.includes('1k')) s += 2;
-    if (lu.includes('4k')) s += 1;
-    if (lu.includes('8k')) s -= 2;
-    if (lu.includes('download')) s += 1;
-    return s;
-  };
-
-  glbs.sort((a, b) => score(b) - score(a));
-  gltfs.sort((a, b) => score(b) - score(a));
-
-  return glbs[0] || gltfs[0] || null;
-};
-
-function prepareLoadedModel(model) {
-  model.traverse((obj) => {
-    if (obj.isMesh) {
-      obj.castShadow = true;
-      obj.receiveShadow = true;
-      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      mats.forEach((mat) => {
-        if (mat?.map) applySRGBColorSpace(mat.map);
-        if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
-      });
-    }
-  });
-}
-
-function disposeObjectResources(object) {
-  if (!object) return;
-  const materials = new Set();
-  object.traverse((obj) => {
-    if (obj.isMesh) {
-      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      mats.forEach((mat) => mat && materials.add(mat));
-      obj.geometry?.dispose?.();
-    }
-  });
-  materials.forEach((mat) => {
-    if (mat?.map) mat.map.dispose?.();
-    if (mat?.emissiveMap) mat.emissiveMap.dispose?.();
-    mat?.dispose?.();
-  });
-}
-
-function liftModelToGround(model, targetMinY = 0) {
-  const box = new THREE.Box3().setFromObject(model);
-  model.position.y += targetMinY - box.min.y;
-}
-
-function fitModelToHeight(model, targetHeight) {
-  const box = new THREE.Box3().setFromObject(model);
-  const currentHeight = box.max.y - box.min.y;
-  if (currentHeight > 0) {
-    const scale = targetHeight / currentHeight;
-    model.scale.multiplyScalar(scale);
-  }
-  liftModelToGround(model, 0);
-}
-
-function fitTableModelToArena(model) {
-  if (!model) return { surfaceY: TABLE_HEIGHT, radius: TABLE_RADIUS };
-  const box = new THREE.Box3().setFromObject(model);
-  const size = box.getSize(new THREE.Vector3());
-  const maxXZ = Math.max(size.x, size.z);
-  const targetHeight = TABLE_MODEL_TARGET_HEIGHT;
-  const targetDiameter = TABLE_MODEL_TARGET_DIAMETER;
-  const targetRadius = targetDiameter / 2;
-  const scaleY = size.y > 0 ? targetHeight / size.y : 1;
-  const scaleXZ = maxXZ > 0 ? targetDiameter / maxXZ : 1;
-
-  if (scaleY !== 1 || scaleXZ !== 1) {
-    model.scale.set(model.scale.x * scaleXZ, model.scale.y * scaleY, model.scale.z * scaleXZ);
-  }
-
-  const scaledBox = new THREE.Box3().setFromObject(model);
-  const center = scaledBox.getCenter(new THREE.Vector3());
-  model.position.add(new THREE.Vector3(-center.x, -scaledBox.min.y, -center.z));
-
-  const recenteredBox = new THREE.Box3().setFromObject(model);
-  const surfaceOffset = targetHeight - recenteredBox.max.y;
-  if (surfaceOffset !== 0) {
-    model.position.y += surfaceOffset;
-  }
-
-  const radius = Math.max(
-    Math.abs(recenteredBox.max.x),
-    Math.abs(recenteredBox.min.x),
-    Math.abs(recenteredBox.max.z),
-    Math.abs(recenteredBox.min.z),
-    targetRadius
-  );
-  return {
-    surfaceY: targetHeight,
-    radius
-  };
-}
-
-async function buildTableForTheme({
-  theme,
-  renderer,
-  arena,
-  woodOption,
-  clothOption,
-  baseOption,
-  shapeOption,
-  rotationY
-} = {}) {
-  let tableInfo = null;
-  const themeRotation = Number.isFinite(theme?.rotationY) ? theme.rotationY : 0;
-  const appliedRotation = Number.isFinite(rotationY) ? rotationY : themeRotation;
-  try {
-    if (theme?.source === 'polyhaven' && theme?.assetId) {
-      const polyModel = await loadPolyhavenModel(theme.assetId, renderer);
-      const tableGroup = new THREE.Group();
-      const clone = polyModel.clone(true);
-      prepareLoadedModel(clone);
-      if (appliedRotation) clone.rotation.y += appliedRotation;
-      tableGroup.add(clone);
-      const { surfaceY, radius } = fitTableModelToArena(tableGroup);
-      arena.add(tableGroup);
-      tableInfo = {
-        group: tableGroup,
-        surfaceY,
-        tableHeight: surfaceY,
-        radius,
-        dispose: () => {
-          disposeObjectResources(tableGroup);
-          tableGroup.parent?.remove(tableGroup);
-        },
-        materials: null,
-        shapeId: theme.id,
-        rotationY: appliedRotation,
-        themeId: theme.id
-      };
-    }
-  } catch (error) {
-    console.warn('Failed to load Poly Haven table', error);
-  }
-
-  const safeShape = shapeOption || TABLE_SHAPE_OPTIONS[0];
-  if (!tableInfo) {
-    const procedural = createMurlanStyleTable({
-      arena,
-      renderer,
-      tableRadius: TABLE_RADIUS,
-      tableHeight: TABLE_HEIGHT,
-      woodOption,
-      clothOption,
-      baseOption,
-      shapeOption: safeShape,
-      rotationY: appliedRotation,
-      includeBase: false
-    });
-    applyTableMaterials(procedural.materials, { woodOption, clothOption, baseOption }, renderer);
-    tableInfo = { ...procedural, themeId: theme?.id || safeShape?.id || 'murlan-default' };
-  }
-  return tableInfo;
-}
-
-function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
-  const loader = new GLTFLoader(manager);
-  loader.setCrossOrigin?.('anonymous');
-
-  const draco = new DRACOLoader();
-  draco.setDecoderPath(DRACO_DECODER_PATH);
-  loader.setDRACOLoader(draco);
-  loader.setMeshoptDecoder?.(MeshoptDecoder);
-
-  if (!createConfiguredGLTFLoader.ktx2) {
-    createConfiguredGLTFLoader.ktx2 = new KTX2Loader();
-    createConfiguredGLTFLoader.ktx2.setTranscoderPath(BASIS_TRANSCODER_PATH);
-  }
-
-  if (renderer) {
-    try {
-      createConfiguredGLTFLoader.ktx2.detectSupport(renderer);
-    } catch (error) {
-      console.warn('KTX2 support detection failed', error);
-    }
-  }
-
-  loader.setKTX2Loader(createConfiguredGLTFLoader.ktx2);
-  return loader;
-}
-
-async function loadPolyhavenModel(assetId, renderer = null) {
-  if (!assetId) throw new Error('Missing Poly Haven asset id');
-  const normalizedId = assetId.toLowerCase();
-  const cacheKey = normalizedId;
-  if (POLYHAVEN_MODEL_CACHE.has(cacheKey)) {
-    return POLYHAVEN_MODEL_CACHE.get(cacheKey);
-  }
-
-  const promise = (async () => {
-    let fileMap = new Map();
-    const modelCandidates = new Set();
-    const assetCandidates = Array.from(new Set([assetId, normalizedId]));
-
-    for (const candidateId of assetCandidates) {
-      try {
-        const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(candidateId)}`).then((r) => r.json());
-        const allUrls = extractAllHttpUrls(filesJson);
-        const apiModelUrl = pickBestModelUrl(allUrls);
-        if (apiModelUrl) modelCandidates.add(apiModelUrl);
-        if (!fileMap.size) {
-          fileMap = allUrls.reduce((acc, u) => {
-            const b = basename(stripQueryHash(u));
-            if (!acc.has(b)) acc.set(b, u);
-            return acc;
-          }, new Map());
-        }
-      } catch (error) {
-        console.warn('Poly Haven file lookup failed, falling back to direct URLs', error);
-      }
-
-      [
-        `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${candidateId}/${candidateId}_2k.gltf`,
-        `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${candidateId}/${candidateId}_1k.gltf`
-      ].forEach((u) => modelCandidates.add(u));
-    }
-
-    const modelUrlList = Array.from(modelCandidates);
-    if (!modelUrlList.length) {
-      throw new Error(`No model URL found for ${assetId}`);
-    }
-
-    const manager = fileMap.size ? new THREE.LoadingManager() : undefined;
-    const loader = createConfiguredGLTFLoader(renderer, manager);
-
-    if (fileMap.size) {
-      const base = stripQueryHash(modelUrlList[0]);
-      const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
-      loader.manager.setURLModifier((requestedUrl) => {
-        if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
-        const req = stripQueryHash(requestedUrl);
-        const b = basename(req);
-        const mapped = fileMap.get(b);
-        if (mapped) return mapped;
-        try {
-          return new URL(req, baseDir).toString();
-        } catch {
-          return requestedUrl;
-        }
-      });
-    }
-
-    let gltf = null;
-    let lastError = null;
-    for (const modelUrl of modelUrlList) {
-      try {
-        const resolvedUrl = new URL(modelUrl, typeof window !== 'undefined' ? window.location?.href : modelUrl).href;
-        const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
-        loader.setResourcePath?.(resourcePath);
-        loader.setPath?.('');
-        gltf = await loader.loadAsync(resolvedUrl);
-        break;
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    if (!gltf) {
-      throw lastError || new Error(`Failed to load model ${assetId}`);
-    }
-    const model = gltf.scene || gltf.scenes?.[0];
-    if (!model) throw new Error('Poly Haven model missing scene');
-    prepareLoadedModel(model);
-    return model;
-  })();
-
-  POLYHAVEN_MODEL_CACHE.set(cacheKey, promise);
-  return promise;
-}
-
-const resolveHdriVariant = (index) => {
-  const max = TEXAS_HDRI_OPTIONS.length - 1;
-  const idx = Number.isFinite(index) ? Math.min(Math.max(Math.round(index), 0), max) : DEFAULT_HDRI_INDEX;
-  return TEXAS_HDRI_OPTIONS[idx] ?? TEXAS_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? TEXAS_HDRI_OPTIONS[0];
-};
-
-const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
-  if (!json || typeof json !== 'object') return null;
-  const resolutions = Array.isArray(preferred) && preferred.length ? preferred : DEFAULT_HDRI_RESOLUTIONS;
-  for (const res of resolutions) {
-    const entry = json[res];
-    if (entry?.hdr) return entry.hdr;
-    if (entry?.exr) return entry.exr;
-  }
-  const fallback = Object.values(json).find((value) => value?.hdr || value?.exr);
-  if (!fallback) return null;
-  return fallback.hdr || fallback.exr || null;
-};
-
-async function resolvePolyHavenHdriUrl(config = {}) {
-  const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
-    ? config.preferredResolutions
-    : DEFAULT_HDRI_RESOLUTIONS;
-  const fallbackRes = config?.fallbackResolution || preferred[0] || '8k';
-  const fallbackUrl =
-    config?.fallbackUrl ||
-    `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
-  if (config?.assetUrls && typeof config.assetUrls === 'object') {
-    for (const res of preferred) {
-      if (config.assetUrls[res]) return config.assetUrls[res];
-    }
-    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
-    if (manual) return manual;
-  }
-  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
-  if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
-
-  try {
-    const meta = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`).then((r) => r.json());
-    const picked = pickPolyHavenHdriUrl(meta, preferred);
-    if (picked) return picked;
-  } catch (error) {
-    console.warn('Failed to resolve Poly Haven HDRI url', error);
-  }
-
-  return fallbackUrl;
-}
-
-async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
-  if (!renderer || !config) return null;
-  const loader = new RGBELoader();
-  loader.setDataType(THREE.FloatType);
-  const exrLoader = new EXRLoader();
-  const url = await resolvePolyHavenHdriUrl(config);
-  const loadWith = url.toLowerCase().endsWith('.exr') ? exrLoader : loader;
-  const texture = await loadWith.loadAsync(url);
-  const envMap = new THREE.PMREMGenerator(renderer).fromEquirectangular(texture).texture;
-  texture.dispose?.();
-  return { envMap };
-}
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 const LABEL_SIZE = Object.freeze({ width: 1.24 * MODEL_SCALE, height: 0.58 * MODEL_SCALE });
@@ -881,18 +491,14 @@ const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
   tableCloth: 0,
   chairColor: 0,
-  tableShape: 0,
-  tableTheme: 0,
-  environmentHdri: DEFAULT_HDRI_INDEX
+  tableShape: 0
 };
 
 const CUSTOMIZATION_SECTIONS = [
-  { key: 'tableTheme', label: 'Table Model', options: TEXAS_TABLE_THEME_OPTIONS },
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
-  { key: 'chairColor', label: 'Chairs', options: TEXAS_CHAIR_COLOR_OPTIONS },
+  { key: 'chairColor', label: 'Chair Color', options: TEXAS_CHAIR_COLOR_OPTIONS },
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
-  { key: 'environmentHdri', label: 'HDR Environment', options: TEXAS_HDRI_OPTIONS },
   { key: 'cards', label: 'Cards', options: CARD_THEMES }
 ];
 
@@ -1052,8 +658,6 @@ function normalizeAppearance(value = {}) {
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', TEXAS_CHAIR_COLOR_OPTIONS.length],
     ['tableShape', TABLE_SHAPE_OPTIONS.length],
-    ['tableTheme', TEXAS_TABLE_THEME_OPTIONS.length],
-    ['environmentHdri', TEXAS_HDRI_OPTIONS.length],
     ['cards', CARD_THEMES.length]
   ];
   entries.forEach(([key, max]) => {
@@ -1074,7 +678,7 @@ function adjustHexColor(hex, amount) {
 }
 
 function createChairClothTexture(chairOption, renderer) {
-  const primary = chairOption?.primary ?? chairOption?.seatColor ?? '#0f6a2f';
+  const primary = chairOption?.primary ?? '#0f6a2f';
   const accent = chairOption?.accent ?? adjustHexColor(primary, -0.28);
   const highlight = chairOption?.highlight ?? adjustHexColor(primary, 0.22);
   const canvas = document.createElement('canvas');
@@ -1308,15 +912,15 @@ function extractChairMaterials(model) {
   };
 }
 
-async function loadGltfChair(urls = CHAIR_MODEL_URLS) {
+async function loadGltfChair() {
   const loader = new GLTFLoader();
   const draco = new DRACOLoader();
-  draco.setDecoderPath(DRACO_DECODER_PATH);
+  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
   loader.setDRACOLoader(draco);
 
   let gltf = null;
   let lastError = null;
-  for (const url of urls) {
+  for (const url of CHAIR_MODEL_URLS) {
     try {
       gltf = await loader.loadAsync(url);
       break;
@@ -1352,8 +956,6 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS) {
     materials: extractChairMaterials(model)
   };
 }
-
-const shouldPreserveChairMaterials = (theme) => Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
 
 function createProceduralChair(theme, renderer) {
   const chairMaterial = createChairFabricMaterial(theme, renderer);
@@ -1412,47 +1014,20 @@ function createProceduralChair(theme, renderer) {
 }
 
 async function buildChairTemplate(theme, renderer) {
-  const rotationY = theme?.modelRotation || 0;
-  const preserve = shouldPreserveChairMaterials(theme);
   try {
-    if (theme?.source === 'polyhaven' && theme?.assetId) {
-      const polyhavenRoot = await loadPolyhavenModel(theme.assetId, renderer);
-      const model = polyhavenRoot.clone(true);
-      prepareLoadedModel(model);
-      fitChairModelToFootprint(model);
-      if (rotationY) model.rotation.y += rotationY;
-      const materials = extractChairMaterials(model);
-      if (!preserve) {
-        applyChairThemeMaterials({ chairMaterials: materials }, theme, renderer);
-      }
-      return { chairTemplate: model, materials, preserveOriginal: preserve };
-    }
-    if (theme?.source === 'gltf' && Array.isArray(theme.urls) && theme.urls.length) {
-      const gltfChair = await loadGltfChair(theme.urls);
-      if (rotationY) gltfChair.chairTemplate.rotation.y += rotationY;
-      if (!preserve) {
-        applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme, renderer);
-      }
-      return { ...gltfChair, preserveOriginal: preserve };
-    }
     const gltfChair = await loadGltfChair();
-    if (rotationY) gltfChair.chairTemplate.rotation.y += rotationY;
-    if (!preserve) {
-      applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme, renderer);
-    }
-    return { ...gltfChair, preserveOriginal: preserve };
+    applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
+    return gltfChair;
   } catch (error) {
     console.error('Falling back to procedural chair', error);
   }
-  return { ...createProceduralChair(theme, renderer), preserveOriginal: preserve };
+  return createProceduralChair(theme, renderer);
 }
 
 function applyChairThemeMaterials(target, theme, renderer) {
   const mats = target?.chairMaterials;
   if (!mats) return;
-  const preserve = target?.chairThemePreserve ?? shouldPreserveChairMaterials(theme);
-  if (preserve) return;
-  const seatColor = theme?.primary ?? theme?.seatColor ?? '#7c3aed';
+  const seatColor = theme?.primary ?? '#7c3aed';
   const legColor = theme?.legColor ?? DEFAULT_STOOL_THEME.legColor;
   if (mats.seat) {
     if (mats.seat.userData?.clothTexture && renderer) {
@@ -2408,11 +1983,6 @@ function TexasHoldemArena({ search }) {
     onConfirm: () => {},
     onUndo: () => {}
   });
-  const hdriVariantRef = useRef(DEFAULT_HDRI_VARIANT);
-  const envTextureRef = useRef(null);
-  const disposeEnvironmentRef = useRef(null);
-  const tableBuildTokenRef = useRef(0);
-  const chairBuildTokenRef = useRef(0);
   const hoverTargetRef = useRef(null);
   const searchOptions = useMemo(() => parseSearch(search), [search]);
   const effectivePlayerCount = clampPlayerCount(searchOptions.playerCount);
@@ -2462,8 +2032,6 @@ function TexasHoldemArena({ search }) {
         tableBase: TABLE_BASE_OPTIONS,
         chairColor: TEXAS_CHAIR_COLOR_OPTIONS,
         tableShape: TABLE_SHAPE_OPTIONS,
-        tableTheme: TEXAS_TABLE_THEME_OPTIONS,
-        environmentHdri: TEXAS_HDRI_OPTIONS,
         cards: CARD_THEMES
       };
       let changed = false;
@@ -2485,9 +2053,7 @@ function TexasHoldemArena({ search }) {
     [texasInventory]
   );
   useEffect(() => {
-    const currentTableTheme = TEXAS_TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
-    const usesProceduralShape = !currentTableTheme?.source || currentTableTheme.source === 'procedural';
-    if (effectivePlayerCount > 4 && usesProceduralShape) {
+    if (effectivePlayerCount > 4) {
       const currentShape = TABLE_SHAPE_OPTIONS[appearance.tableShape];
       if (currentShape?.id === DIAMOND_SHAPE_ID && NON_DIAMOND_SHAPE_INDEX !== appearance.tableShape) {
         setAppearance((prev) => {
@@ -2499,7 +2065,7 @@ function TexasHoldemArena({ search }) {
         });
       }
     }
-  }, [effectivePlayerCount, appearance.tableShape, appearance.tableTheme]);
+  }, [effectivePlayerCount, appearance.tableShape]);
   useEffect(() => {
     setAppearance((prev) => ensureAppearanceUnlocked(prev));
   }, [ensureAppearanceUnlocked]);
@@ -2735,59 +2301,98 @@ function TexasHoldemArena({ search }) {
     const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const chairOption = TEXAS_CHAIR_COLOR_OPTIONS[safe.chairColor] ?? TEXAS_CHAIR_COLOR_OPTIONS[0];
-    const tableTheme = TEXAS_TABLE_THEME_OPTIONS[safe.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
-    const usesProceduralTable = !tableTheme?.source || tableTheme.source === 'procedural';
-    const { option: shapeOption, rotationY } = usesProceduralTable
-      ? getEffectiveShapeConfig(safe.tableShape, effectivePlayerCount)
-      : { option: TABLE_SHAPE_OPTIONS[NON_DIAMOND_SHAPE_INDEX] ?? TABLE_SHAPE_OPTIONS[0], rotationY: tableTheme.rotationY ?? 0 };
+    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(
+      safe.tableShape,
+      effectivePlayerCount
+    );
     const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
-    const environmentVariant = resolveHdriVariant(safe.environmentHdri);
-    hdriVariantRef.current = environmentVariant;
-    if (three.environmentHdriId !== environmentVariant?.id) {
-      three.environmentHdriId = environmentVariant?.id;
-      void applyHdriEnvironment(environmentVariant);
-    }
-
     const shapeChanged = shapeOption && three.tableShapeId !== shapeOption.id;
     const rotationChanged = Number.isFinite(rotationY)
       ? Math.abs((three.tableInfo?.rotationY ?? 0) - rotationY) > 1e-3
       : false;
-    const themeChanged = three.tableThemeId !== tableTheme.id;
-    const activeIsProcedural = Boolean(three.tableInfo?.materials);
-    const needsTableRebuild =
-      (usesProceduralTable && (shapeChanged || rotationChanged || !three.tableInfo)) ||
-      (!usesProceduralTable && (themeChanged || !three.tableInfo || three.tableInfo?.themeId !== tableTheme.id || activeIsProcedural));
-    if (needsTableRebuild) {
-      void rebuildTable(tableTheme, { woodOption, clothOption, baseOption, shapeOption, rotationY });
-    } else if (usesProceduralTable && three.tableInfo?.materials) {
+    if (shapeOption && three.arenaGroup && (shapeChanged || rotationChanged)) {
+      const nextTable = createMurlanStyleTable({
+        arena: three.arenaGroup,
+        renderer: three.renderer,
+        tableRadius: TABLE_RADIUS,
+        tableHeight: TABLE_HEIGHT,
+        woodOption,
+        clothOption,
+        baseOption,
+        shapeOption,
+        rotationY
+      });
+      three.tableInfo?.dispose?.();
+      three.tableInfo = nextTable;
+      three.tableShapeId = shapeOption.id;
+      if (three.deckAnchor) {
+        const updatedDeckAnchor = DECK_POSITION.clone();
+        if (nextTable.rotationY) {
+          updatedDeckAnchor.applyAxisAngle(WORLD_UP, nextTable.rotationY);
+        }
+        three.deckAnchor.copy(updatedDeckAnchor);
+        three.seatGroups?.forEach((seat) => {
+          seat.cardMeshes.forEach((mesh) => {
+            if (!mesh.userData?.card) {
+              mesh.position.copy(updatedDeckAnchor);
+            }
+          });
+        });
+        three.communityMeshes?.forEach((mesh) => {
+          if (!mesh.userData?.card) {
+            mesh.position.copy(updatedDeckAnchor);
+          }
+        });
+      }
+      const humanSeat = three.seatGroups?.find((seat) => seat.isHuman) ?? null;
+      const previousControls = three.raiseControls || null;
+      const previousVisible = Boolean(previousControls?.group?.visible);
+      previousControls?.dispose?.();
+      three.raiseControls = null;
+      if (hoverTargetRef.current?.userData?.type === 'chip-button') {
+        hoverTargetRef.current = null;
+      }
+      if (humanSeat) {
+        const nextControls = createRaiseControls({
+          arena: three.arenaGroup,
+          seat: humanSeat,
+          chipFactory: three.chipFactory,
+          tableInfo: nextTable
+        });
+        if (nextControls) {
+          if (previousVisible) {
+            nextControls.group.visible = true;
+            nextControls.chipButtons.forEach((chip) => {
+              chip.visible = true;
+              if (chip.userData?.baseScale) {
+                chip.scale.setScalar(chip.userData.baseScale);
+              }
+            });
+          }
+          three.raiseControls = nextControls;
+        }
+      } else {
+        three.raiseControls = null;
+      }
+    }
+    if (three.tableInfo?.materials) {
       applyTableMaterials(three.tableInfo.materials, { woodOption, clothOption, baseOption }, three.renderer);
     }
-
-    if (chairOption) {
-      if (three.chairThemeId !== chairOption.id) {
-        void rebuildChairs(chairOption);
-      } else if (three.chairMaterials && !shouldPreserveChairMaterials(chairOption)) {
-        const previousSeat = three.chairMaterials.seat;
-        applyChairThemeMaterials(
-          { chairMaterials: three.chairMaterials, chairThemePreserve: three.chairThemePreserve },
-          chairOption,
-          three.renderer
-        );
-        const updatedSeat = three.chairMaterials.seat;
-        if (updatedSeat && updatedSeat !== previousSeat) {
-          three.seatGroups?.forEach((seat) => {
-            seat.chairMeshes?.forEach((mesh) => {
-              if (!Array.isArray(mesh.material)) {
-                mesh.material = updatedSeat;
-              }
-              mesh.material.needsUpdate = true;
-            });
+    if (chairOption && three.chairMaterials) {
+      const previousSeat = three.chairMaterials.seat;
+      applyChairThemeMaterials(three, chairOption, three.renderer);
+      const updatedSeat = three.chairMaterials.seat;
+      if (updatedSeat && updatedSeat !== previousSeat) {
+        three.seatGroups?.forEach((seat) => {
+          seat.chairMeshes?.forEach((mesh) => {
+            if (!Array.isArray(mesh.material)) {
+              mesh.material = updatedSeat;
+            }
+            mesh.material.needsUpdate = true;
           });
-        }
+        });
       }
-      three.chairThemeId = chairOption.id;
     }
-    three.tableThemeId = tableTheme.id;
     three.cardThemeId = cardTheme.id;
     const applyThemeToMesh = (mesh, cardData) => {
       if (!mesh) return;
@@ -2813,25 +2418,10 @@ function TexasHoldemArena({ search }) {
         applyThemeToMesh(mesh, { rank: 'A', suit: 'S' });
       }
     });
-  }, [appearance, applyHdriEnvironment, effectivePlayerCount, rebuildChairs, rebuildTable]);
+  }, [appearance, effectivePlayerCount]);
 
   const renderPreview = useCallback((type, option) => {
     switch (type) {
-      case 'tableTheme': {
-        const thumb = option?.thumbnail;
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/60">
-            {thumb ? (
-              <img src={thumb} alt={option?.label || 'Table model'} className="h-full w-full object-cover opacity-80" loading="lazy" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-slate-100/80">
-                {option?.label || 'Table'}
-              </div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-transparent to-black/60" />
-          </div>
-        );
-      }
       case 'tableWood': {
         const preset = option?.presetId ? WOOD_PRESETS_BY_ID[option.presetId] : undefined;
         const grain = option?.grainId ? WOOD_GRAIN_OPTIONS_BY_ID[option.grainId] : undefined;
@@ -2907,25 +2497,6 @@ function TexasHoldemArena({ search }) {
           </div>
         );
       }
-      case 'environmentHdri': {
-        const swatches = option?.swatches?.length ? option.swatches : ['#0ea5e9', '#312e81', '#111827'];
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-slate-800 via-slate-900 to-black">
-            <div className="absolute inset-0 flex">
-              {swatches.slice(0, 3).map((swatch, idx) => (
-                // eslint-disable-next-line react/no-array-index-key
-                <div key={`${option.id}-swatch-${idx}`} className="h-full flex-1" style={{ background: swatch }} />
-              ))}
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-transparent to-black/60" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="rounded-full bg-black/60 px-3 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-white/80">
-                HDRI
-              </span>
-            </div>
-          </div>
-        );
-      }
       case 'cards':
         return (
           <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
@@ -2944,173 +2515,6 @@ function TexasHoldemArena({ search }) {
         return null;
     }
   }, []);
-
-  const refreshTableBindings = useCallback((tableInfo) => {
-    const three = threeRef.current;
-    if (!three || !tableInfo) return;
-    three.tableInfo = tableInfo;
-    if (tableInfo.shapeId) {
-      three.tableShapeId = tableInfo.shapeId;
-    }
-    if (tableInfo.themeId) {
-      three.tableThemeId = tableInfo.themeId;
-    }
-    const updatedDeckAnchor = DECK_POSITION.clone();
-    if (tableInfo.rotationY) {
-      updatedDeckAnchor.applyAxisAngle(WORLD_UP, tableInfo.rotationY);
-    }
-    three.deckAnchor = updatedDeckAnchor;
-    three.seatGroups?.forEach((seat) => {
-      seat.tableInfo = tableInfo;
-      seat.cardMeshes.forEach((mesh) => {
-        if (!mesh.userData?.card) {
-          mesh.position.copy(updatedDeckAnchor);
-        }
-      });
-    });
-    three.communityMeshes?.forEach((mesh) => {
-      if (!mesh.userData?.card) {
-        mesh.position.copy(updatedDeckAnchor);
-      }
-    });
-    const humanSeat = three.seatGroups?.find((seat) => seat.isHuman) ?? null;
-    const previousControls = three.raiseControls || null;
-    const previousVisible = Boolean(previousControls?.group?.visible);
-    previousControls?.dispose?.();
-    three.raiseControls = null;
-    if (hoverTargetRef.current?.userData?.type === 'chip-button') {
-      hoverTargetRef.current = null;
-    }
-    if (humanSeat) {
-      const nextControls = createRaiseControls({
-        arena: three.arenaGroup,
-        seat: humanSeat,
-        chipFactory: three.chipFactory,
-        tableInfo
-      });
-      if (nextControls) {
-        if (previousVisible) {
-          nextControls.group.visible = true;
-          nextControls.chipButtons.forEach((chip) => {
-            chip.visible = true;
-            if (chip.userData?.baseScale) {
-              chip.scale.setScalar(chip.userData.baseScale);
-            }
-          });
-        }
-        three.raiseControls = nextControls;
-      }
-    }
-  }, []);
-
-  const rebuildTable = useCallback(
-    async (theme, materialOptions = {}) => {
-      const store = threeRef.current;
-      if (!store?.renderer || !store?.arenaGroup) return null;
-      const token = ++tableBuildTokenRef.current;
-      const tableInfo = await buildTableForTheme({
-        theme,
-        renderer: store.renderer,
-        arena: store.arenaGroup,
-        ...materialOptions
-      });
-      if (!tableInfo || tableBuildTokenRef.current !== token) {
-        tableInfo?.dispose?.();
-        return null;
-      }
-      if (store.tableInfo && store.tableInfo !== tableInfo) {
-        store.tableInfo.dispose?.();
-      }
-      refreshTableBindings(tableInfo);
-      return tableInfo;
-    },
-    [refreshTableBindings]
-  );
-
-  const rebuildChairs = useCallback(
-    async (chairTheme) => {
-      const store = threeRef.current;
-      if (!store?.renderer) return;
-      const token = ++chairBuildTokenRef.current;
-      const chairBuild = await buildChairTemplate(chairTheme, store.renderer);
-      if (!chairBuild || chairBuildTokenRef.current !== token) {
-        if (chairBuild?.chairTemplate) {
-          disposeObjectResources(chairBuild.chairTemplate);
-        }
-        disposeChairMaterials(chairBuild?.materials);
-        return;
-      }
-      disposeChairMaterials(store.chairMaterials);
-      if (store.chairTemplate) {
-        disposeObjectResources(store.chairTemplate);
-      }
-      store.chairTemplate = chairBuild.chairTemplate;
-      store.chairMaterials = chairBuild.materials;
-      store.chairThemePreserve = chairBuild.preserveOriginal ?? shouldPreserveChairMaterials(chairTheme);
-      store.chairThemeId = chairTheme?.id || 'default';
-      store.seatGroups?.forEach((seat) => {
-        const previous = seat.chairModel;
-        if (previous) {
-          disposeObjectResources(previous);
-          seat.group.remove(previous);
-        }
-        const clone = chairBuild.chairTemplate.clone(true);
-        const chairMeshes = [];
-        clone.traverse((obj) => {
-          if (obj.isMesh) {
-            obj.castShadow = true;
-            obj.receiveShadow = true;
-            chairMeshes.push(obj);
-          }
-        });
-        seat.group.add(clone);
-        seat.chairModel = clone;
-        seat.chairMeshes = chairMeshes;
-      });
-      if (!store.chairThemePreserve) {
-        applyChairThemeMaterials(store, chairTheme, store.renderer);
-      }
-    },
-    []
-  );
-
-  const applyHdriEnvironment = useCallback(
-    async (variantConfig = hdriVariantRef.current || DEFAULT_HDRI_VARIANT) => {
-      const three = threeRef.current;
-      if (!three?.renderer || !three.scene) return;
-      const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
-      if (!activeVariant) return;
-      const envResult = await loadPolyHavenHdriEnvironment(three.renderer, activeVariant);
-      if (!envResult?.envMap || !three.scene) return;
-      const prevDispose = disposeEnvironmentRef.current;
-      const prevTexture = envTextureRef.current;
-      three.scene.environment = envResult.envMap;
-      three.scene.background = envResult.envMap;
-      if ('backgroundIntensity' in three.scene && typeof activeVariant?.backgroundIntensity === 'number') {
-        three.scene.backgroundIntensity = activeVariant.backgroundIntensity;
-      }
-      if (typeof activeVariant?.environmentIntensity === 'number') {
-        three.scene.environmentIntensity = activeVariant.environmentIntensity;
-      }
-      three.renderer.toneMappingExposure = activeVariant?.exposure ?? three.renderer.toneMappingExposure;
-      envTextureRef.current = envResult.envMap;
-      disposeEnvironmentRef.current = () => {
-        if (three.scene) {
-          if (three.scene.environment === envResult.envMap) {
-            three.scene.environment = null;
-          }
-          if (three.scene.background === envResult.envMap) {
-            three.scene.background = null;
-          }
-        }
-        envResult.envMap.dispose?.();
-      };
-      if (prevDispose && prevTexture !== envResult.envMap) {
-        prevDispose();
-      }
-    },
-    []
-  );
 
   const applyRendererQuality = useCallback(() => {
     const renderer = threeRef.current?.renderer;
@@ -3141,10 +2545,7 @@ function TexasHoldemArena({ search }) {
     if (!mount) return;
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     applyRendererSRGB(renderer);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.6;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -3162,18 +2563,49 @@ function TexasHoldemArena({ search }) {
 
     const raycaster = new THREE.Raycaster();
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.45);
+    const ambient = new THREE.AmbientLight(0xffffff, 1.08);
     scene.add(ambient);
-    const spot = new THREE.SpotLight(0xffffff, 2.4, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
+    const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
     spot.position.set(3, 7, 3);
     spot.castShadow = true;
     scene.add(spot);
-    const rim = new THREE.DirectionalLight(0xffffff, 0.8);
-    rim.position.set(-4, 6, -4);
+    const rim = new THREE.PointLight(0x33ccff, 1.728);
+    rim.position.set(-4, 3, -4);
     scene.add(rim);
 
     const arenaGroup = new THREE.Group();
     scene.add(arenaGroup);
+
+    const floorGeometry = new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 3.2, 64);
+    const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.9, metalness: 0.1 });
+    const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    arenaGroup.add(floor);
+
+    const carpet = new THREE.Mesh(
+      new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 2.2, 64),
+      createArenaCarpetMaterial(new THREE.Color('#0f172a'), new THREE.Color('#1e3a8a'))
+    );
+    carpet.rotation.x = -Math.PI / 2;
+    carpet.position.y = 0.01;
+    carpet.receiveShadow = true;
+    arenaGroup.add(carpet);
+
+    const wall = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        TABLE_RADIUS * ARENA_GROWTH * 2.4,
+        TABLE_RADIUS * ARENA_GROWTH * 2.6,
+        ARENA_WALL_HEIGHT,
+        32,
+        1,
+        true
+      ),
+      createArenaWallMaterial('#0b1120', '#1e293b')
+    );
+    wall.position.y = ARENA_WALL_CENTER_Y;
+    wall.receiveShadow = false;
+    arenaGroup.add(wall);
 
     const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
     const initialAppearance = enforceShapeForPlayers(initialAppearanceRaw, effectivePlayerCount);
@@ -3181,12 +2613,10 @@ function TexasHoldemArena({ search }) {
     const initialCloth = TABLE_CLOTH_OPTIONS[initialAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const initialBase = TABLE_BASE_OPTIONS[initialAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const initialChair = TEXAS_CHAIR_COLOR_OPTIONS[initialAppearance.chairColor] ?? TEXAS_CHAIR_COLOR_OPTIONS[0];
-    const initialTableTheme = TEXAS_TABLE_THEME_OPTIONS[initialAppearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
     const { option: initialShape, rotationY: initialRotation } = getEffectiveShapeConfig(
       initialAppearance.tableShape,
       effectivePlayerCount
     );
-    const environmentVariant = resolveHdriVariant(initialAppearance.environmentHdri);
     const tableInfo = createMurlanStyleTable({
       arena: arenaGroup,
       renderer,
@@ -3196,10 +2626,8 @@ function TexasHoldemArena({ search }) {
       clothOption: initialCloth,
       baseOption: initialBase,
       shapeOption: initialShape,
-      rotationY: initialRotation,
-      includeBase: false
+      rotationY: initialRotation
     });
-    tableInfo.themeId = initialTableTheme?.id || tableInfo.shapeId;
     applyTableMaterials(tableInfo.materials, { woodOption: initialWood, clothOption: initialCloth, baseOption: initialBase }, renderer);
 
     const cardGeometry = createCardGeometry(CARD_W, CARD_H, CARD_D);
@@ -3383,7 +2811,6 @@ function TexasHoldemArena({ search }) {
       if (!chairBuild) return;
       const chairTemplate = chairBuild.chairTemplate;
       const chairMaterials = chairBuild.materials;
-      const chairThemePreserve = chairBuild.preserveOriginal ?? shouldPreserveChairMaterials(initialChair);
       applyChairThemeMaterials({ chairMaterials }, initialChair, renderer);
 
       seatLayout.forEach((seat, seatIndex) => {
@@ -3481,7 +2908,6 @@ function TexasHoldemArena({ search }) {
           previewStack,
           hoverChip,
           chairMeshes,
-          chairModel,
           tableLayout,
           railLayout,
           nameplate,
@@ -3666,34 +3092,17 @@ function TexasHoldemArena({ search }) {
           deckAnchor,
           raiseControls,
           raycaster,
-        orientHumanCards,
-        frameId: null,
-        chairTemplate,
-        chairMaterials,
-        chairThemePreserve,
-        chairThemeId: initialChair.id,
-        arenaGroup,
+          orientHumanCards,
+          frameId: null,
+          chairTemplate,
+          chairMaterials,
+          arenaGroup,
         turnIndicator,
         tableInfo,
-        tableShapeId: tableInfo?.shapeId ?? initialShape.id,
-        tableThemeId: initialTableTheme?.id,
-        environmentHdriId: environmentVariant?.id ?? TEXAS_DEFAULT_HDRI_ID,
+        tableShapeId: initialShape.id,
         cardThemeId: cardTheme.id,
         communityRowRotation: resolvedCommunityRowRotation
       };
-
-      hdriVariantRef.current = environmentVariant || DEFAULT_HDRI_VARIANT;
-      void applyHdriEnvironment(environmentVariant || DEFAULT_HDRI_VARIANT);
-      if (initialTableTheme?.source && initialTableTheme.source !== 'procedural') {
-        void rebuildTable(initialTableTheme, {
-          woodOption: initialWood,
-          clothOption: initialCloth,
-          baseOption: initialBase,
-          shapeOption: initialShape,
-          rotationY: initialRotation
-        });
-      }
-      refreshTableBindings(tableInfo);
 
       applyRendererQuality();
 
