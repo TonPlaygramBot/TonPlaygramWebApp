@@ -207,6 +207,8 @@ const TEXAS_TYPE_LABELS = {
   tableBase: 'Table Base',
   chairColor: 'Chairs',
   tableShape: 'Table Shape',
+  tableTheme: 'Table Models',
+  environmentHdri: 'HDR Environments',
   cards: 'Cards'
 };
 
