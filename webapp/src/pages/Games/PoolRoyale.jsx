@@ -6251,6 +6251,10 @@ function Table3D(
       ...synchronizedFrameSurface
     });
   }
+  [railMat, frameMat, legMat].forEach((mat) => {
+    applyTableFinishDulling(mat);
+    applyTableWoodVisibilityTuning(mat);
+  });
   finishParts.woodSurfaces = {
     frame: cloneWoodSurfaceConfig(synchronizedFrameSurface),
     rail: cloneWoodSurfaceConfig(synchronizedRailSurface)
@@ -8889,6 +8893,7 @@ function Table3D(
       );
       const arch = new THREE.Mesh(archGeom, ctx.legMat);
       arch.rotation.x = Math.PI / 2;
+      arch.rotation.y = Math.PI / 2;
       arch.rotation.z = Math.PI;
       arch.position.set(0, ctx.floorY + archRadius * 0.35, 0);
       arch.castShadow = true;
@@ -8898,23 +8903,23 @@ function Table3D(
 
       const capsGeom = new THREE.BoxGeometry(ctx.frameOuterX * 1.02, archThickness * 0.6, archThickness);
       const leftCap = new THREE.Mesh(capsGeom, ctx.legMat);
-      leftCap.position.set(-ctx.frameOuterX * 0.9, ctx.floorY + archThickness * 0.3, 0);
+      leftCap.position.set(0, ctx.floorY + archThickness * 0.3, -ctx.frameOuterZ * 0.9);
       leftCap.castShadow = true;
       leftCap.receiveShadow = true;
       leftCap.userData = { ...(leftCap.userData || {}), __basePart: true };
       meshes.push(leftCap);
       const rightCap = leftCap.clone();
-      rightCap.position.x = ctx.frameOuterX * 0.9;
+      rightCap.position.z = ctx.frameOuterZ * 0.9;
       meshes.push(rightCap);
       return { meshes, legMeshes: meshes };
     },
     openPortal: (ctx) => {
       const meshes = [];
-      const frameWidth = ctx.frameOuterX * 0.4;
-      const frameDepth = ctx.frameOuterZ * 0.36;
-      const frameHeight = ctx.legH * 0.82;
-      const thickness = ctx.legR * 0.9;
-      const createPortal = (x) => {
+      const frameWidth = ctx.frameOuterX * 0.9;
+      const frameDepth = ctx.frameOuterZ * 0.26;
+      const frameHeight = ctx.legH * 0.86;
+      const thickness = ctx.legR;
+      const createPortal = (z) => {
         const shape = new THREE.Shape();
         const w = frameWidth;
         const h = frameHeight;
@@ -8938,15 +8943,15 @@ function Table3D(
         });
         geo.translate(0, 0, -frameDepth / 2);
         const mesh = new THREE.Mesh(geo, ctx.legMat);
-        mesh.position.set(x, ctx.floorY, 0);
-        mesh.rotation.z = x < 0 ? Math.PI / 18 : -Math.PI / 18;
+        mesh.position.set(0, ctx.floorY, z);
+        mesh.rotation.x = z < 0 ? -Math.PI / 18 : Math.PI / 18;
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         mesh.userData = { ...(mesh.userData || {}), __basePart: true };
         return mesh;
       };
-      meshes.push(createPortal(-ctx.frameOuterX * 0.8));
-      meshes.push(createPortal(ctx.frameOuterX * 0.8));
+      meshes.push(createPortal(-ctx.frameOuterZ * 0.82));
+      meshes.push(createPortal(ctx.frameOuterZ * 0.82));
       return { meshes, legMeshes: meshes };
     },
     coinAngled: (ctx) => {
@@ -9045,7 +9050,7 @@ function Table3D(
       const beamDepth = ctx.frameOuterZ * 0.22;
       const beamHeight = ctx.legH * 0.8;
       const legMeshes = [];
-      const createCross = (x) => {
+      const createCross = (z) => {
         const group = new THREE.Group();
         const diagonal = new THREE.Mesh(
           new THREE.BoxGeometry(beamWidth, beamDepth, beamDepth),
@@ -9065,11 +9070,11 @@ function Table3D(
         group.add(diagonal2);
         legMeshes.push(diagonal2);
 
-        group.position.set(x, ctx.floorY, 0);
+        group.position.set(0, ctx.floorY, z);
         meshes.push(group);
       };
-      createCross(-ctx.frameOuterX * 0.8);
-      createCross(ctx.frameOuterX * 0.8);
+      createCross(-ctx.frameOuterZ * 0.82);
+      createCross(ctx.frameOuterZ * 0.82);
       const stretcher = new THREE.Mesh(
         new THREE.BoxGeometry(ctx.frameOuterX * 1.6, ctx.legR * 0.6, ctx.legR * 0.9),
         ctx.legMat
@@ -9676,6 +9681,8 @@ function PoolRoyaleGame({
     return DEFAULT_FRAME_RATE_ID;
   });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
+  const [activeTableSlot, setActiveTableSlot] = useState(0);
+  const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
   const activeFrameRateOption = useMemo(
     () =>
       FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ??
@@ -9829,6 +9836,10 @@ function PoolRoyaleGame({
       };
     },
     [environmentHdriId, resolvedHdriResolution]
+  );
+  const dualTablesEnabled = useMemo(
+    () => environmentHdriId === 'musicHall02',
+    [environmentHdriId]
   );
   const activePocketLinerOption = useMemo(
     () =>
@@ -10441,6 +10452,20 @@ function PoolRoyaleGame({
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
     }
   }, [activeEnvironmentHdri, environmentHdriId]);
+  useEffect(() => {
+    activeTableSlotRef.current = activeTableSlot;
+  }, [activeTableSlot]);
+  useEffect(() => {
+    applyTableSlotRef.current?.(activeTableSlotRef.current, dualTablesEnabled);
+  }, [activeTableSlot, dualTablesEnabled]);
+  useEffect(() => {
+    if (dualTablesEnabled) {
+      setTableSelectionOpen(true);
+    } else {
+      setTableSelectionOpen(false);
+      setActiveTableSlot(0);
+    }
+  }, [dualTablesEnabled]);
   const tableFinish = useMemo(() => {
     const baseFinish =
       TABLE_FINISHES[tableFinishId] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
@@ -10568,6 +10593,10 @@ function PoolRoyaleGame({
   }, [configOpen]);
   const applyBaseRef = useRef(() => {});
   const applyFinishRef = useRef(() => {});
+  const applyTableSlotRef = useRef(() => {});
+  const secondaryTableRef = useRef(null);
+  const secondaryBaseSetterRef = useRef(null);
+  const activeTableSlotRef = useRef(0);
   const playerLabel = playerName || 'Player';
   const effectiveMode = isTraining ? trainingModeState : mode;
   const opponentLabel =
@@ -15787,6 +15816,26 @@ const powerRef = useRef(hud.power);
         railMarkers,
         setBaseVariant
       } = Table3D(world, finishForScene, tableSizeMeta, railMarkerStyleRef.current, activeTableBase);
+      const secondarySpacing =
+        Math.max(PLAY_W * 2.4, TABLE.W * 2.6) * TABLE_DISPLAY_SCALE;
+      const secondaryTableEntry = Table3D(
+        world,
+        finishForScene,
+        tableSizeMeta,
+        railMarkerStyleRef.current,
+        activeTableBase
+      );
+      secondaryTableRef.current = secondaryTableEntry?.group ?? null;
+      secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
+      const applySecondarySlot = (slotIndex = 0, enabled = false) => {
+        const secondary = secondaryTableRef.current;
+        if (!secondary) return;
+        secondary.visible = enabled;
+        const targetX = enabled ? (slotIndex === 0 ? secondarySpacing : -secondarySpacing) : 0;
+        secondary.position.set(targetX, secondary.position.y, 0);
+      };
+      applyTableSlotRef.current = applySecondarySlot;
+      applySecondarySlot(activeTableSlotRef.current, environmentHdriRef.current === 'musicHall02');
       clothMat = tableCloth;
       cushionMat = tableCushion;
       chalkMeshesRef.current = Array.isArray(table?.userData?.chalks)
@@ -15798,6 +15847,9 @@ const powerRef = useRef(hud.power);
         if (table && nextFinish) {
           applyTableFinishToTable(table, nextFinish);
         }
+        if (secondaryTableRef.current && nextFinish) {
+          applyTableFinishToTable(secondaryTableRef.current, nextFinish);
+        }
       };
       applyRailMarkerStyleRef.current = (style) => {
         if (table?.userData?.railMarkers?.applyStyle) {
@@ -15805,10 +15857,19 @@ const powerRef = useRef(hud.power);
             trimMaterial: table.userData.finish?.materials?.trim
           });
         }
+        const secondaryRailMarkers = secondaryTableRef.current?.userData?.railMarkers;
+        if (secondaryRailMarkers?.applyStyle) {
+          secondaryRailMarkers.applyStyle(style, {
+            trimMaterial: secondaryTableRef.current?.userData?.finish?.materials?.trim
+          });
+        }
       };
       applyBaseRef.current = (variant) => {
         if (table && setBaseVariant) {
           setBaseVariant(variant);
+        }
+        if (secondaryBaseSetterRef.current) {
+          secondaryBaseSetterRef.current(variant);
         }
       };
       if (railMarkers?.applyStyle) {
@@ -20904,7 +20965,10 @@ const powerRef = useRef(hud.power);
           window.removeEventListener('pointercancel', endInHandDrag);
           applyBaseRef.current = () => {};
           applyFinishRef.current = () => {};
+          applyTableSlotRef.current = () => {};
           applyRailMarkerStyleRef.current = () => {};
+          secondaryTableRef.current = null;
+          secondaryBaseSetterRef.current = null;
           chalkMeshesRef.current = [];
           chalkAreaRef.current = null;
           visibleChalkIndexRef.current = null;
@@ -21445,6 +21509,80 @@ const powerRef = useRef(hud.power);
           <span className="text-sm font-bold uppercase tracking-[0.24em] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]">
             {ruleToast}
           </span>
+        </div>
+      )}
+      {dualTablesEnabled && !replayActive && !tableSelectionOpen && (
+        <div className="pointer-events-auto absolute left-1/2 top-16 z-40 -translate-x-1/2 px-4">
+          <button
+            type="button"
+            onClick={() => setTableSelectionOpen(true)}
+            className="flex items-center gap-3 rounded-full border border-emerald-300/60 bg-black/70 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-white shadow-[0_12px_28px_rgba(0,0,0,0.45)] backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+          >
+            <span className="rounded-full bg-emerald-400/20 px-2 py-1 text-[10px] font-bold text-emerald-100 ring-1 ring-emerald-200/60">
+              Music Hall 02
+            </span>
+            <span className="flex items-center gap-2">
+              Playing on {activeTableSlot === 0 ? 'left' : 'right'} table
+              <span aria-hidden="true" className="text-emerald-200">⇄</span>
+            </span>
+          </button>
+        </div>
+      )}
+
+      {dualTablesEnabled && tableSelectionOpen && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-emerald-300/60 bg-slate-900/95 p-5 shadow-[0_18px_46px_rgba(0,0,0,0.55)]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.32em] text-emerald-200">
+                  Choose your table
+                </p>
+                <p className="mt-1 text-sm text-slate-100">
+                  Music Hall 02 now shows two tables. Pick where you want to play.
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close table chooser"
+                onClick={() => setTableSelectionOpen(false)}
+                className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-xs font-semibold text-white hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTableSlot(0);
+                  setTableSelectionOpen(false);
+                }}
+                className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold uppercase tracking-[0.22em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                  activeTableSlot === 0
+                    ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
+                    : 'border-white/20 bg-white/10 text-white/85 hover:bg-white/15'
+                }`}
+              >
+                Play on left table
+                <span className="ml-2" aria-hidden="true">⬅️</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTableSlot(1);
+                  setTableSelectionOpen(false);
+                }}
+                className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold uppercase tracking-[0.22em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                  activeTableSlot === 1
+                    ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
+                    : 'border-white/20 bg-white/10 text-white/85 hover:bg-white/15'
+                }`}
+              >
+                Play on right table
+                <span className="ml-2" aria-hidden="true">➡️</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
