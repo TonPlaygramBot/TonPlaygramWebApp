@@ -4,7 +4,8 @@ import {
   POOL_ROYALE_DEFAULT_LOADOUT,
   POOL_ROYALE_OPTION_LABELS,
   POOL_ROYALE_STORE_ITEMS,
-  POOL_ROYALE_HDRI_VARIANTS
+  POOL_ROYALE_HDRI_VARIANTS,
+  POOL_ROYALE_BASE_VARIANTS
 } from '../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../config/poolRoyaleClothPresets.js';
 import {
@@ -118,6 +119,7 @@ const TYPE_LABELS = {
   tableFinish: 'Table Finishes',
   chromeColor: 'Chrome Fascias',
   railMarkerColor: 'Rail Markers',
+  tableBase: 'Table Bases',
   clothColor: 'Cloth Colors',
   cueStyle: 'Cue Styles',
   pocketLiner: 'Pocket Jaws',
@@ -246,6 +248,7 @@ const TYPE_SWATCHES = {
   tableFinish: ['#3b2f2f', '#8b5a2b'],
   chromeColor: ['#f5f5f5', '#d4d4d8'],
   railMarkerColor: ['#9ca3af', '#fef3c7'],
+  tableBase: ['#0f172a', '#1f2937'],
   clothColor: ['#0f766e', '#22c55e'],
   cueStyle: ['#0f172a', '#1e293b'],
   environmentHdri: ['#0ea5e9', '#312e81'],
@@ -317,6 +320,12 @@ const OPTION_SWATCH_OVERRIDES = {
   cinderBlaze: ['#ff6b35', '#2b1a12'],
   arcticDrift: ['#bcd7ff', '#1f2f52'],
   nebulaGlass: ['#e0f2fe', '#0b1024'],
+  ...POOL_ROYALE_BASE_VARIANTS.reduce((acc, variant) => {
+    if (Array.isArray(variant.swatches) && variant.swatches.length) {
+      acc[variant.id] = variant.swatches;
+    }
+    return acc;
+  }, {}),
   ...POOL_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => {
     if (Array.isArray(variant.swatches) && variant.swatches.length) {
       acc[variant.id] = variant.swatches;
@@ -346,6 +355,7 @@ const PREVIEW_BY_TYPE = {
   rails: 'table',
   table: 'table',
   tableFinish: 'table',
+  tableBase: 'table',
   tableWood: 'table',
   tableCloth: 'table',
   tableBase: 'table',

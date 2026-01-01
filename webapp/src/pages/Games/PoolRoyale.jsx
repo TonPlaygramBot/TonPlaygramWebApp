@@ -48,7 +48,8 @@ import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_DEFAULT_UNLOCKS,
   POOL_ROYALE_HDRI_VARIANTS,
-  POOL_ROYALE_HDRI_VARIANT_MAP
+  POOL_ROYALE_HDRI_VARIANT_MAP,
+  POOL_ROYALE_BASE_VARIANTS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
@@ -801,7 +802,9 @@ const POINTER_UI_SCALE = 1;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
 const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
+const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
+const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
 const DEFAULT_CUE_STYLE_ID =
   POOL_ROYALE_DEFAULT_UNLOCKS.cueStyle?.[0] ?? 'birch-frost';
 const DEFAULT_CUE_STYLE_INDEX = Math.max(
@@ -6107,7 +6110,8 @@ function Table3D(
   parent,
   finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID],
   tableSpecMeta = null,
-  railMarkerStyle = null
+  railMarkerStyle = null,
+  baseVariant = null
 ) {
   const tableSizeMeta =
     tableSpecMeta && typeof tableSpecMeta === 'object' ? tableSpecMeta : null;
@@ -6121,6 +6125,7 @@ function Table3D(
   const finishParts = {
     frameMeshes: [],
     legMeshes: [],
+    baseMeshes: [],
     railMeshes: [],
     trimMeshes: [],
     gapFillMeshes: [],
@@ -6132,6 +6137,7 @@ function Table3D(
     accentParent: null,
     accentMesh: null,
     dimensions: null,
+    baseVariantId: null,
     woodSurfaces: { frame: null, rail: null },
     woodTextureId: null
   };
@@ -8668,16 +8674,7 @@ function Table3D(
   const legH = legReach + LEG_TOP_OVERLAP;
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
   const legInset = baseRailWidth * 2.85;
-  const legPositions = [
-    [-frameOuterX + legInset, -frameOuterZ + legInset],
-    [frameOuterX - legInset, -frameOuterZ + legInset],
-    [-frameOuterX + legInset, 0],
-    [frameOuterX - legInset, 0],
-    [-frameOuterX + legInset, frameOuterZ - legInset],
-    [frameOuterX - legInset, frameOuterZ - legInset]
-  ];
   const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
-  const legCircumference = 2 * Math.PI * legR;
   // Match the skirt/apron wood grain with the cue butt so the pattern reads
   // clearly from the player perspective.
   const baseFrameFallback = {
@@ -8739,14 +8736,376 @@ function Table3D(
     mesh.castShadow = true;
     mesh.receiveShadow = true;
   });
-  legPositions.forEach(([lx, lz]) => {
-    const leg = new THREE.Mesh(legGeo, legMat);
-    leg.position.set(lx, legY, lz);
-    leg.castShadow = true;
-    leg.receiveShadow = true;
-    table.add(leg);
-    finishParts.legMeshes.push(leg);
-  });
+
+  const clearBaseMeshes = () => {
+    finishParts.baseMeshes.forEach((mesh) => {
+      table.remove(mesh);
+      if (mesh.geometry) {
+        mesh.geometry.dispose();
+      }
+    });
+    finishParts.baseMeshes = [];
+    finishParts.legMeshes = finishParts.legMeshes.filter((mesh) => !mesh?.userData?.__basePart);
+    finishParts.trimMeshes = finishParts.trimMeshes.filter((mesh) => !mesh?.userData?.__basePart);
+    finishParts.frameMeshes = finishParts.frameMeshes.filter((mesh) => !mesh?.userData?.__basePart);
+  };
+
+  const baseContext = {
+    frameOuterX,
+    frameOuterZ,
+    frameTopY,
+    tableY: TABLE_Y,
+    floorY: FLOOR_Y,
+    legInset,
+    legY,
+    legR,
+    legH,
+    legGeo,
+    legMat,
+    frameMat,
+    trimMat,
+    halfW,
+    halfH,
+    skirtH,
+    baseRailWidth
+  };
+
+  const addBaseMeshesToFinish = (parts = {}) => {
+    const { meshes = [], legMeshes = [], trimMeshes = [], frameMeshes = [] } = parts;
+    finishParts.baseMeshes = meshes;
+    finishParts.legMeshes = finishParts.legMeshes
+      .filter((mesh) => !mesh?.userData?.__basePart)
+      .concat(legMeshes);
+    finishParts.trimMeshes = finishParts.trimMeshes
+      .filter((mesh) => !mesh?.userData?.__basePart)
+      .concat(trimMeshes);
+    finishParts.frameMeshes = finishParts.frameMeshes
+      .filter((mesh) => !mesh?.userData?.__basePart)
+      .concat(frameMeshes);
+    meshes.forEach((mesh) => table.add(mesh));
+  };
+
+  const baseBuilders = {
+    classicCylinders: (ctx) => {
+      const positions = [
+        [-ctx.frameOuterX + ctx.legInset, -ctx.frameOuterZ + ctx.legInset],
+        [ctx.frameOuterX - ctx.legInset, -ctx.frameOuterZ + ctx.legInset],
+        [-ctx.frameOuterX + ctx.legInset, 0],
+        [ctx.frameOuterX - ctx.legInset, 0],
+        [-ctx.frameOuterX + ctx.legInset, ctx.frameOuterZ - ctx.legInset],
+        [ctx.frameOuterX - ctx.legInset, ctx.frameOuterZ - ctx.legInset]
+      ];
+      const legs = positions.map(([lx, lz]) => {
+        const leg = new THREE.Mesh(ctx.legGeo, ctx.legMat);
+        leg.position.set(lx, ctx.legY, lz);
+        leg.castShadow = true;
+        leg.receiveShadow = true;
+        leg.userData = { ...(leg.userData || {}), __basePart: true };
+        return leg;
+      });
+      return { meshes: legs, legMeshes: legs };
+    },
+    modernLoop: (ctx) => {
+      const meshes = [];
+      const loopRadius = Math.min(ctx.frameOuterX, ctx.frameOuterZ) * 0.72;
+      const tubeRadius = ctx.legR * 1.15;
+      const loopGeom = new THREE.TorusGeometry(loopRadius, tubeRadius, 56, 128);
+      const loop = new THREE.Mesh(loopGeom, ctx.legMat);
+      loop.rotation.x = Math.PI / 2;
+      loop.scale.set(1.1, 0.55, 1);
+      loop.position.y = ctx.floorY + tubeRadius * 1.1;
+      loop.castShadow = true;
+      loop.receiveShadow = true;
+      loop.userData = { ...(loop.userData || {}), __basePart: true };
+      meshes.push(loop);
+
+      const deckHeight = ctx.legR * 1.1;
+      const deck = new THREE.Mesh(
+        new THREE.BoxGeometry(ctx.frameOuterX * 1.5, deckHeight, ctx.frameOuterZ * 1.04),
+        ctx.legMat
+      );
+      deck.position.y = ctx.tableY - deckHeight * 0.2;
+      deck.castShadow = true;
+      deck.receiveShadow = true;
+      deck.userData = { ...(deck.userData || {}), __basePart: true };
+      meshes.push(deck);
+
+      const basePlate = new THREE.Mesh(
+        new THREE.CylinderGeometry(ctx.frameOuterX * 0.9, ctx.frameOuterX * 0.9, ctx.legR * 0.7, 64),
+        ctx.legMat
+      );
+      basePlate.position.y = ctx.floorY + ctx.legR * 0.35;
+      basePlate.castShadow = true;
+      basePlate.receiveShadow = true;
+      basePlate.userData = { ...(basePlate.userData || {}), __basePart: true };
+      meshes.push(basePlate);
+      return { meshes, legMeshes: meshes };
+    },
+    zLift: (ctx) => {
+      const meshes = [];
+      const span = ctx.frameOuterX * 1.35;
+      const depth = ctx.frameOuterZ * 0.8;
+      const height = ctx.legH * 0.72;
+      const beamGeom = new THREE.BoxGeometry(span, height * 0.18, depth);
+      const lower = new THREE.Mesh(beamGeom, ctx.legMat);
+      lower.position.set(0, ctx.floorY + height * 0.12, 0);
+      lower.castShadow = true;
+      lower.receiveShadow = true;
+      lower.userData = { ...(lower.userData || {}), __basePart: true };
+      meshes.push(lower);
+
+      const riserGeom = new THREE.BoxGeometry(span * 0.7, height * 0.72, depth * 0.72);
+      const riser = new THREE.Mesh(riserGeom, ctx.legMat);
+      riser.rotation.z = -Math.PI / 12;
+      riser.position.set(0, ctx.floorY + height * 0.55, 0);
+      riser.castShadow = true;
+      riser.receiveShadow = true;
+      riser.userData = { ...(riser.userData || {}), __basePart: true };
+      meshes.push(riser);
+
+      const top = new THREE.Mesh(
+        new THREE.BoxGeometry(span * 0.9, height * 0.16, depth * 0.9),
+        ctx.legMat
+      );
+      top.position.set(0, ctx.floorY + height * 0.96, 0);
+      top.rotation.z = Math.PI / 18;
+      top.castShadow = true;
+      top.receiveShadow = true;
+      top.userData = { ...(top.userData || {}), __basePart: true };
+      meshes.push(top);
+      return { meshes, legMeshes: meshes };
+    },
+    arcBridge: (ctx) => {
+      const meshes = [];
+      const archRadius = ctx.frameOuterZ * 1.15;
+      const archThickness = Math.max(ctx.legR * 1.2, ctx.frameOuterZ * 0.22);
+      const archGeom = new THREE.TorusGeometry(
+        archRadius,
+        archThickness * 0.35,
+        42,
+        160,
+        Math.PI
+      );
+      const arch = new THREE.Mesh(archGeom, ctx.legMat);
+      arch.rotation.x = Math.PI / 2;
+      arch.rotation.z = Math.PI;
+      arch.position.set(0, ctx.floorY + archRadius * 0.35, 0);
+      arch.castShadow = true;
+      arch.receiveShadow = true;
+      arch.userData = { ...(arch.userData || {}), __basePart: true };
+      meshes.push(arch);
+
+      const capsGeom = new THREE.BoxGeometry(ctx.frameOuterX * 1.02, archThickness * 0.6, archThickness);
+      const leftCap = new THREE.Mesh(capsGeom, ctx.legMat);
+      leftCap.position.set(-ctx.frameOuterX * 0.9, ctx.floorY + archThickness * 0.3, 0);
+      leftCap.castShadow = true;
+      leftCap.receiveShadow = true;
+      leftCap.userData = { ...(leftCap.userData || {}), __basePart: true };
+      meshes.push(leftCap);
+      const rightCap = leftCap.clone();
+      rightCap.position.x = ctx.frameOuterX * 0.9;
+      meshes.push(rightCap);
+      return { meshes, legMeshes: meshes };
+    },
+    openPortal: (ctx) => {
+      const meshes = [];
+      const frameWidth = ctx.frameOuterX * 0.4;
+      const frameDepth = ctx.frameOuterZ * 0.36;
+      const frameHeight = ctx.legH * 0.82;
+      const thickness = ctx.legR * 0.9;
+      const createPortal = (x) => {
+        const shape = new THREE.Shape();
+        const w = frameWidth;
+        const h = frameHeight;
+        shape.moveTo(-w, -thickness);
+        shape.lineTo(w, -thickness);
+        shape.lineTo(w, h);
+        shape.lineTo(-w, h);
+        shape.lineTo(-w, -thickness);
+        const hole = new THREE.Path();
+        const hw = w * 0.55;
+        const hh = h * 0.7;
+        hole.moveTo(-hw, thickness);
+        hole.lineTo(hw, thickness);
+        hole.lineTo(hw, hh);
+        hole.lineTo(-hw, hh);
+        hole.lineTo(-hw, thickness);
+        shape.holes.push(hole);
+        const geo = new THREE.ExtrudeGeometry(shape, {
+          depth: frameDepth,
+          bevelEnabled: false
+        });
+        geo.translate(0, 0, -frameDepth / 2);
+        const mesh = new THREE.Mesh(geo, ctx.legMat);
+        mesh.position.set(x, ctx.floorY, 0);
+        mesh.rotation.z = x < 0 ? Math.PI / 18 : -Math.PI / 18;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.userData = { ...(mesh.userData || {}), __basePart: true };
+        return mesh;
+      };
+      meshes.push(createPortal(-ctx.frameOuterX * 0.8));
+      meshes.push(createPortal(ctx.frameOuterX * 0.8));
+      return { meshes, legMeshes: meshes };
+    },
+    coinAngled: (ctx) => {
+      const meshes = [];
+      const positions = [
+        [-ctx.frameOuterX * 0.82, -ctx.frameOuterZ * 0.82],
+        [ctx.frameOuterX * 0.82, -ctx.frameOuterZ * 0.82],
+        [-ctx.frameOuterX * 0.82, ctx.frameOuterZ * 0.82],
+        [ctx.frameOuterX * 0.82, ctx.frameOuterZ * 0.82]
+      ];
+      positions.forEach(([lx, lz]) => {
+        const leg = new THREE.Mesh(
+          new THREE.CylinderGeometry(ctx.legR * 1.1, ctx.legR * 0.75, ctx.legH * 0.9, 36),
+          ctx.legMat
+        );
+        leg.position.set(lx, ctx.legY + ctx.legH * 0.05, lz);
+        leg.castShadow = true;
+        leg.receiveShadow = true;
+        leg.userData = { ...(leg.userData || {}), __basePart: true };
+        meshes.push(leg);
+      });
+      const centerBeam = new THREE.Mesh(
+        new THREE.BoxGeometry(ctx.frameOuterX * 1.4, ctx.legR * 0.5, ctx.frameOuterZ * 0.7),
+        ctx.legMat
+      );
+      centerBeam.position.y = ctx.floorY + ctx.legR * 0.45;
+      centerBeam.castShadow = true;
+      centerBeam.receiveShadow = true;
+      centerBeam.userData = { ...(centerBeam.userData || {}), __basePart: true };
+      meshes.push(centerBeam);
+      return { meshes, legMeshes: meshes };
+    },
+    blockPedestal: (ctx) => {
+      const meshes = [];
+      const block = new THREE.Mesh(
+        new THREE.BoxGeometry(ctx.frameOuterX * 1.25, ctx.legH * 0.95, ctx.frameOuterZ * 1.08),
+        ctx.legMat
+      );
+      block.position.y = ctx.floorY + ctx.legH * 0.45;
+      block.castShadow = true;
+      block.receiveShadow = true;
+      block.userData = { ...(block.userData || {}), __basePart: true };
+      meshes.push(block);
+      const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(ctx.frameOuterX * 0.95, ctx.frameOuterX * 1.05, ctx.legR * 0.7, 64),
+        ctx.legMat
+      );
+      base.position.y = ctx.floorY + ctx.legR * 0.35;
+      base.castShadow = true;
+      base.receiveShadow = true;
+      base.userData = { ...(base.userData || {}), __basePart: true };
+      meshes.push(base);
+      return { meshes, legMeshes: meshes };
+    },
+    heritageCarved: (ctx) => {
+      const meshes = [];
+      const profile = [];
+      const legHeight = ctx.legH * 0.95;
+      const steps = 12;
+      for (let i = 0; i <= steps; i += 1) {
+        const t = i / steps;
+        const r =
+          ctx.legR * (0.5 + 0.35 * Math.sin(Math.PI * t)) *
+          (t < 0.5 ? 1.1 : 0.9);
+        profile.push(new THREE.Vector2(r, t * legHeight));
+      }
+      const latheGeo = new THREE.LatheGeometry(profile, 32);
+      const positions = [
+        [-ctx.frameOuterX + ctx.legInset * 1.15, -ctx.frameOuterZ + ctx.legInset * 1.15],
+        [ctx.frameOuterX - ctx.legInset * 1.15, -ctx.frameOuterZ + ctx.legInset * 1.15],
+        [-ctx.frameOuterX + ctx.legInset * 1.15, ctx.frameOuterZ - ctx.legInset * 1.15],
+        [ctx.frameOuterX - ctx.legInset * 1.15, ctx.frameOuterZ - ctx.legInset * 1.15]
+      ];
+      positions.forEach(([lx, lz]) => {
+        const leg = new THREE.Mesh(latheGeo, ctx.legMat);
+        leg.position.set(lx, ctx.floorY, lz);
+        leg.castShadow = true;
+        leg.receiveShadow = true;
+        leg.userData = { ...(leg.userData || {}), __basePart: true };
+        meshes.push(leg);
+      });
+      const stretcher = new THREE.Mesh(
+        new THREE.BoxGeometry(ctx.frameOuterX * 1.2, ctx.legR * 0.8, ctx.frameOuterZ * 1.2),
+        ctx.legMat
+      );
+      stretcher.position.y = ctx.floorY + ctx.legR * 0.6;
+      stretcher.castShadow = true;
+      stretcher.receiveShadow = true;
+      stretcher.userData = { ...(stretcher.userData || {}), __basePart: true };
+      meshes.push(stretcher);
+      return { meshes, legMeshes: meshes };
+    },
+    rusticCross: (ctx) => {
+      const meshes = [];
+      const beamWidth = ctx.frameOuterX * 0.8;
+      const beamDepth = ctx.frameOuterZ * 0.22;
+      const beamHeight = ctx.legH * 0.8;
+      const legMeshes = [];
+      const createCross = (x) => {
+        const group = new THREE.Group();
+        const diagonal = new THREE.Mesh(
+          new THREE.BoxGeometry(beamWidth, beamDepth, beamDepth),
+          ctx.legMat
+        );
+        diagonal.rotation.z = Math.PI / 6;
+        diagonal.position.set(0, beamHeight * 0.25, 0);
+        diagonal.userData = { ...(diagonal.userData || {}), __basePart: true };
+        diagonal.castShadow = true;
+        diagonal.receiveShadow = true;
+        group.add(diagonal);
+        legMeshes.push(diagonal);
+
+        const diagonal2 = diagonal.clone();
+        diagonal2.rotation.z = -Math.PI / 6;
+        diagonal2.position.y = beamHeight * 0.75;
+        group.add(diagonal2);
+        legMeshes.push(diagonal2);
+
+        group.position.set(x, ctx.floorY, 0);
+        meshes.push(group);
+      };
+      createCross(-ctx.frameOuterX * 0.8);
+      createCross(ctx.frameOuterX * 0.8);
+      const stretcher = new THREE.Mesh(
+        new THREE.BoxGeometry(ctx.frameOuterX * 1.6, ctx.legR * 0.6, ctx.legR * 0.9),
+        ctx.legMat
+      );
+      stretcher.position.y = ctx.floorY + ctx.legR * 0.5;
+      stretcher.castShadow = true;
+      stretcher.receiveShadow = true;
+      stretcher.userData = { ...(stretcher.userData || {}), __basePart: true };
+      meshes.push(stretcher);
+      legMeshes.push(stretcher);
+      return { meshes, legMeshes };
+    }
+  };
+
+  const resolveBaseVariantId = (variant) => {
+    if (variant && typeof variant === 'object' && variant.id) return variant.id;
+    if (typeof variant === 'string') return variant;
+    return DEFAULT_TABLE_BASE_ID;
+  };
+
+  const applyBaseVariant = (variant) => {
+    const variantId = resolveBaseVariantId(variant);
+    const builder = baseBuilders[variantId] ?? baseBuilders[DEFAULT_TABLE_BASE_ID];
+    clearBaseMeshes();
+    const finishMaterials = table.userData?.finish?.materials || {};
+    const built = builder({
+      ...baseContext,
+      legMat: finishMaterials.leg ?? baseContext.legMat,
+      frameMat: finishMaterials.frame ?? baseContext.frameMat,
+      trimMat: finishMaterials.trim ?? baseContext.trimMat
+    });
+    addBaseMeshesToFinish(built);
+    finishParts.baseVariantId = variantId;
+    table.userData.baseVariantId = variantId;
+  };
+
+  applyBaseVariant(baseVariant || DEFAULT_TABLE_BASE_ID);
 
   table.updateMatrixWorld(true);
   let cushionTopLocal = frameTopY;
@@ -8793,7 +9152,8 @@ function Table3D(
     group: table,
     clothMat,
     cushionMat,
-    railMarkers: table.userData.railMarkers
+    railMarkers: table.userData.railMarkers,
+    setBaseVariant: applyBaseVariant
   };
 }
 
@@ -9194,6 +9554,14 @@ function PoolRoyaleGame({
       DEFAULT_TABLE_FINISH_ID
     );
   });
+  const [tableBaseId, setTableBaseId] = useState(() => {
+    return resolveStoredSelection(
+      'tableBase',
+      TABLE_BASE_STORAGE_KEY,
+      (id) => POOL_ROYALE_BASE_VARIANTS.some((variant) => variant.id === id),
+      DEFAULT_TABLE_BASE_ID
+    );
+  });
   const [clothColorId, setClothColorId] = useState(() => {
     return resolveStoredSelection(
       'clothColor',
@@ -9318,6 +9686,13 @@ function PoolRoyaleGame({
       ),
     [poolInventory]
   );
+  const availableTableBases = useMemo(
+    () =>
+      POOL_ROYALE_BASE_VARIANTS.filter((variant) =>
+        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
+      ),
+    [poolInventory]
+  );
   const availableChromeOptions = useMemo(
     () =>
       CHROME_COLOR_OPTIONS.filter((option) =>
@@ -9374,6 +9749,13 @@ function PoolRoyaleGame({
       CLOTH_COLOR_OPTIONS[0],
     [availableClothOptions, clothColorId]
   );
+  const activeTableBase = useMemo(
+    () =>
+      availableTableBases.find((variant) => variant.id === tableBaseId) ??
+      availableTableBases[0] ??
+      POOL_ROYALE_BASE_VARIANTS[0],
+    [availableTableBases, tableBaseId]
+  );
   const resolvedHdriResolution = useMemo(() => {
     if (hdriResolutionId === 'auto') {
       return resolveHdriResolutionForTable(responsiveTableSize);
@@ -9419,6 +9801,9 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
+    if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
+      setTableBaseId(DEFAULT_TABLE_BASE_ID);
+    }
     if (!isPoolOptionUnlocked('clothColor', clothColorId, poolInventory)) {
       setClothColorId(DEFAULT_CLOTH_COLOR_ID);
     }
@@ -9441,6 +9826,7 @@ function PoolRoyaleGame({
     pocketLinerId,
     poolInventory,
     railMarkerColorId,
+    tableBaseId,
     tableFinishId
   ]);
   const isTraining = playType === 'training';
@@ -10090,6 +10476,11 @@ function PoolRoyaleGame({
   }, [tableFinishId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      window.localStorage.setItem(TABLE_BASE_STORAGE_KEY, tableBaseId);
+    }
+  }, [tableBaseId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
       window.localStorage.setItem(CLOTH_COLOR_STORAGE_KEY, clothColorId);
     }
   }, [clothColorId]);
@@ -10135,6 +10526,7 @@ function PoolRoyaleGame({
       window.removeEventListener('pointerdown', handlePointerDown);
     };
   }, [configOpen]);
+  const applyBaseRef = useRef(() => {});
   const applyFinishRef = useRef(() => {});
   const playerLabel = playerName || 'Player';
   const effectiveMode = isTraining ? trainingModeState : mode;
@@ -15367,8 +15759,9 @@ const powerRef = useRef(hud.power);
         group: table,
         clothMat: tableCloth,
         cushionMat: tableCushion,
-        railMarkers
-      } = Table3D(world, finishForScene, tableSizeMeta, railMarkerStyleRef.current);
+        railMarkers,
+        setBaseVariant
+      } = Table3D(world, finishForScene, tableSizeMeta, railMarkerStyleRef.current, activeTableBase);
       clothMat = tableCloth;
       cushionMat = tableCushion;
       chalkMeshesRef.current = Array.isArray(table?.userData?.chalks)
@@ -15386,6 +15779,11 @@ const powerRef = useRef(hud.power);
           table.userData.railMarkers.applyStyle(style, {
             trimMaterial: table.userData.finish?.materials?.trim
           });
+        }
+      };
+      applyBaseRef.current = (variant) => {
+        if (table && setBaseVariant) {
+          setBaseVariant(variant);
         }
       };
       if (railMarkers?.applyStyle) {
@@ -20475,6 +20873,7 @@ const powerRef = useRef(hud.power);
           window.removeEventListener('pointerup', endInHandDrag);
           dom.removeEventListener('pointercancel', endInHandDrag);
           window.removeEventListener('pointercancel', endInHandDrag);
+          applyBaseRef.current = () => {};
           applyFinishRef.current = () => {};
           applyRailMarkerStyleRef.current = () => {};
           chalkMeshesRef.current = [];
@@ -20533,6 +20932,9 @@ const powerRef = useRef(hud.power);
     applyFinishRef.current?.(tableFinish);
     applyRailMarkerStyleRef.current?.(railMarkerStyleRef.current);
   }, [tableFinish]);
+  useEffect(() => {
+    applyBaseRef.current?.(activeTableBase);
+  }, [activeTableBase]);
 
   useLayoutEffect(() => {
     const computeInsets = () => {
@@ -21123,6 +21525,40 @@ const powerRef = useRef(hud.power);
                         }`}
                       >
                         {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Table Base
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {availableTableBases.map((option) => {
+                    const active = option.id === tableBaseId;
+                    const swatchA = option.swatches?.[0] ?? '#0f172a';
+                    const swatchB = option.swatches?.[1] ?? '#1f2937';
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setTableBaseId(option.id)}
+                        aria-pressed={active}
+                        className={`flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="truncate">{option.name}</span>
+                        <span
+                          className="h-5 w-8 rounded-lg border border-white/25"
+                          aria-hidden="true"
+                          style={{
+                            background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
+                          }}
+                        />
                       </button>
                     );
                   })}

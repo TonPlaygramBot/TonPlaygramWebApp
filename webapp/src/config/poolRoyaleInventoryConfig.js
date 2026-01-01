@@ -551,6 +551,63 @@ export const POOL_ROYALE_HDRI_VARIANT_MAP = Object.freeze(
   }, {})
 );
 
+export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
+  {
+    id: 'classicCylinders',
+    name: 'Classic Cylinders',
+    description: 'Rounded skirt with six cylinder legs and subtle foot pads.',
+    swatches: ['#8f6243', '#6f3a2f']
+  },
+  {
+    id: 'modernLoop',
+    name: 'Modern Loop Pedestal',
+    description: 'Sculpted loop base with floating deck inspired by modern showrooms.',
+    swatches: ['#6b7280', '#0ea5e9']
+  },
+  {
+    id: 'zLift',
+    name: 'Z-Lift Plinth',
+    description: 'Bold Z pedestal with forward cantilevered stance.',
+    swatches: ['#f8fafc', '#38bdf8']
+  },
+  {
+    id: 'arcBridge',
+    name: 'Arc Bridge',
+    description: 'Graceful single arc carrying the table lengthwise.',
+    swatches: ['#e5e7eb', '#0ea5e9']
+  },
+  {
+    id: 'openPortal',
+    name: 'Open Portal',
+    description: 'Twin portal legs with angled sides and negative space.',
+    swatches: ['#f8fafc', '#e5e7eb']
+  },
+  {
+    id: 'coinAngled',
+    name: 'Coin-Op Angled',
+    description: 'Tapered commercial legs with slim bumpers.',
+    swatches: ['#8b5f39', '#3f2a1d']
+  },
+  {
+    id: 'blockPedestal',
+    name: 'Block Pedestal',
+    description: 'Solid plinth with soft radius corners for lounge builds.',
+    swatches: ['#111827', '#0ea5e9']
+  },
+  {
+    id: 'heritageCarved',
+    name: 'Heritage Carved',
+    description: 'Cabriole-inspired carved legs for heritage rooms.',
+    swatches: ['#5b3716', '#c08457']
+  },
+  {
+    id: 'rusticCross',
+    name: 'Rustic Cross',
+    description: 'Industrial X-trestle stance with plank stretcher.',
+    swatches: ['#8b5f39', '#1f2937']
+  }
+]);
+
 export const POOL_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
 
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
@@ -560,7 +617,8 @@ export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
   cueStyle: ['birch-frost'],
   pocketLiner: ['blackPocket'],
-  environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID]
+  environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID],
+  tableBase: POOL_ROYALE_BASE_VARIANTS.map((variant) => variant.id)
 });
 
 export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
@@ -604,6 +662,12 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     'maple-horizon': 'Maple Horizon',
     'graphite-aurora': 'Graphite Aurora'
   }),
+  tableBase: Object.freeze(
+    POOL_ROYALE_BASE_VARIANTS.reduce((acc, variant) => {
+      acc[variant.id] = variant.name;
+      return acc;
+    }, {})
+  ),
   pocketLiner: Object.freeze({
     blackPocket: 'Black Pocket Jaws',
     graphitePocket: 'Graphite Pocket Jaws',
@@ -808,6 +872,14 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 360,
     description: 'Graphite weave cue with aurora-inspired tint.'
   },
+  ...POOL_ROYALE_BASE_VARIANTS.map((variant) => ({
+    id: `base-${variant.id}`,
+    type: 'tableBase',
+    optionId: variant.id,
+    name: `${variant.name} Base`,
+    price: 0,
+    description: variant.description
+  })),
   ...POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
     id: `hdri-${variant.id}`,
     type: 'environmentHdri',
@@ -833,6 +905,11 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
   },
   { type: 'cueStyle', optionId: 'birch-frost', label: 'Birch Frost Cue' },
   { type: 'pocketLiner', optionId: 'blackPocket', label: 'Black Pocket Jaws' },
+  {
+    type: 'tableBase',
+    optionId: POOL_ROYALE_BASE_VARIANTS[0].id,
+    label: POOL_ROYALE_BASE_VARIANTS[0].name
+  },
   {
     type: 'environmentHdri',
     optionId: POOL_ROYALE_DEFAULT_HDRI_ID,
