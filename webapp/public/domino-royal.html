@@ -997,8 +997,8 @@ fitCamera();
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.enableZoom = true;
-controls.zoomSpeed = 1.05;
+controls.enableZoom = false;
+controls.zoomSpeed = 0;
 controls.enablePan = true;
 controls.panSpeed = 0.9;
 controls.screenSpacePanning = true;
@@ -1607,7 +1607,7 @@ function cloneChairWithTheme(chairData, option) {
     const themed = mats.map((mat) => {
       if (!mat) return mat;
       const next = mat.clone();
-      if (preserveMaterials) return mat;
+      if (preserveMaterials) return next;
       if (upholsterySet.has(mat)) {
         if (next.color) next.color.set(option?.seatColor ?? DEFAULT_CHAIR_THEME.seatColor);
         if (next.emissive) next.emissive.set(option?.highlight ?? option?.seatColor ?? DEFAULT_CHAIR_THEME.highlight);
@@ -2463,14 +2463,15 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
   return options.filter((option) => isDominoOptionUnlocked(key, option.id, inventory));
 }
 
-const HDRI_RESOLUTION_ORDER = Object.freeze(['4k', '2k']);
+const HDRI_RESOLUTION_ORDER = Object.freeze(['4k']);
 let activeEnvironmentHdri = null;
 
 async function loadHdriEnvironment(variant) {
   if (!variant?.assetId) return null;
-  const order = Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
-    ? variant.preferredResolutions
-    : HDRI_RESOLUTION_ORDER;
+  const preferred = Array.isArray(variant.preferredResolutions)
+    ? variant.preferredResolutions.filter((res) => res === '4k')
+    : [];
+  const order = preferred.length ? preferred : HDRI_RESOLUTION_ORDER;
   let lastError = null;
   for (const res of order) {
     const cacheKey = `${variant.id}:${res}`;
@@ -3594,6 +3595,12 @@ function fitTableModelToFootprint(model) {
 
 let tableThemeToken = 0;
 let activeTableThemeId = null;
+const proceduralTableParts = [];
+function setProceduralTableVisible(flag = true) {
+  proceduralTableParts.forEach((mesh) => {
+    if (mesh) mesh.visible = flag;
+  });
+}
 
 async function applyTableTheme(option = TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TABLE_THEME_OPTIONS[0]) {
   const theme = option || TABLE_THEME_OPTIONS[0];
@@ -3605,8 +3612,12 @@ async function applyTableTheme(option = TABLE_THEME_OPTIONS[appearance.tableThem
   }
   const token = ++tableThemeToken;
   if (!theme || theme.id === 'murlan-default') {
+    setProceduralTableVisible(true);
     activeTableThemeId = 'murlan-default';
     return;
+  }
+  if (theme && theme.id !== 'murlan-default') {
+    setProceduralTableVisible(false);
   }
   try {
     const model = await loadPolyhavenModel(theme.assetId || theme.id);
@@ -3618,8 +3629,10 @@ async function applyTableTheme(option = TABLE_THEME_OPTIONS[appearance.tableThem
     tableThemeG.add(model);
     tableThemeG.visible = true;
     activeTableThemeId = theme.id;
+    setProceduralTableVisible(false);
   } catch (error) {
     console.warn('Failed to load table theme', error);
+    setProceduralTableVisible(true);
   }
 }
 
@@ -3956,6 +3969,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   topMesh.receiveShadow = true;
   tableG.add(topMesh);
   tableParts.top = topMesh;
+  proceduralTableParts.push(topMesh);
 
   const feltGeo = new THREE.ExtrudeGeometry(feltShape, { depth: 0.01, bevelEnabled: false });
   feltGeo.rotateX(-Math.PI / 2);
@@ -3964,6 +3978,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   feltMesh.receiveShadow = true;
   tableG.add(feltMesh);
   tableParts.felt = feltMesh;
+  proceduralTableParts.push(feltMesh);
 
   const rimShape = topShape.clone();
   rimShape.holes.push(rimInnerShape);
@@ -3981,6 +3996,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   rimMesh.receiveShadow = true;
   tableG.add(rimMesh);
   tableParts.rim = rimMesh;
+  proceduralTableParts.push(rimMesh);
 
   const accentShape = rimInnerShape.clone();
   accentShape.holes.push(feltShape);
@@ -3990,6 +4006,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   accentMesh.position.y = CLOTH_TOP - 0.003;
   tableG.add(accentMesh);
   tableParts.accent = accentMesh;
+  proceduralTableParts.push(accentMesh);
 
   const columnHeight = TABLE_HEIGHT + 0.25;
   const column = new THREE.Mesh(
@@ -4001,25 +4018,9 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   column.receiveShadow = true;
   tableG.add(column);
   tableParts.column = column;
+  proceduralTableParts.push(column);
 
-  const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(TABLE_OUTER_RADIUS * 1.02, TABLE_OUTER_RADIUS * 1.18, 0.22, 64),
-    tableMaterials.base
-  );
-  base.position.y = column.position.y - columnHeight / 2 - 0.11;
-  base.castShadow = true;
-  base.receiveShadow = true;
-  tableG.add(base);
-  tableParts.base = base;
-
-  const trim = new THREE.Mesh(
-    new THREE.TorusGeometry(TABLE_OUTER_RADIUS * 1.08, 0.04, 16, 64),
-    tableMaterials.trim
-  );
-  trim.rotation.x = Math.PI / 2;
-  trim.position.y = base.position.y + 0.11;
-  tableG.add(trim);
-  tableParts.trim = trim;
+  // Base and trim intentionally omitted to remove the oversized pedestal.
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
