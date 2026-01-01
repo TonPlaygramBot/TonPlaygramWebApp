@@ -814,6 +814,7 @@ const DEFAULT_CUE_STYLE_INDEX = Math.max(
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
+const LOCK_REPLAY_CAMERA = true;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
@@ -4830,10 +4831,10 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.14;
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.0;
-const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI + 0.02;
-const TOP_VIEW_RADIUS_SCALE = 0.82;
+const TOP_VIEW_MARGIN = 1.08;
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.02;
+const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
+const TOP_VIEW_RADIUS_SCALE = 1.02;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: 0, // center the table for the classic top-down framing
@@ -9083,6 +9084,44 @@ function Table3D(
     }
   };
 
+  const normalizeBasePlacement = (meshes = []) => {
+    if (!Array.isArray(meshes) || meshes.length === 0) return;
+    const bounds = new THREE.Box3();
+    meshes.forEach((mesh) => {
+      mesh.updateMatrixWorld(true);
+      bounds.expandByObject(mesh);
+    });
+    if (bounds.isEmpty()) return;
+    const availableBottom = baseContext.floorY + MICRO_EPS;
+    const availableTop = baseContext.frameTopY - baseContext.skirtH * 0.1;
+    const height = Math.max(bounds.max.y - bounds.min.y, MICRO_EPS);
+    const offsetToFloor = availableBottom - bounds.min.y;
+    if (Math.abs(offsetToFloor) > 1e-6) {
+      meshes.forEach((mesh) => {
+        mesh.position.y += offsetToFloor;
+        mesh.updateMatrixWorld(true);
+      });
+    }
+    let adjustedTop = bounds.max.y + offsetToFloor;
+    if (adjustedTop > availableTop && availableTop > availableBottom) {
+      const scaleY = Math.max(0.05, (availableTop - availableBottom) / height);
+      meshes.forEach((mesh) => {
+        mesh.scale.y *= scaleY;
+        mesh.position.y = availableBottom + (mesh.position.y - availableBottom) * scaleY;
+        mesh.updateMatrixWorld(true);
+      });
+      const finalBounds = new THREE.Box3();
+      meshes.forEach((mesh) => finalBounds.expandByObject(mesh));
+      const finalOffset = availableBottom - finalBounds.min.y;
+      if (Math.abs(finalOffset) > 1e-6) {
+        meshes.forEach((mesh) => {
+          mesh.position.y += finalOffset;
+          mesh.updateMatrixWorld(true);
+        });
+      }
+    }
+  };
+
   const resolveBaseVariantId = (variant) => {
     if (variant && typeof variant === 'object' && variant.id) return variant.id;
     if (typeof variant === 'string') return variant;
@@ -9100,6 +9139,7 @@ function Table3D(
       frameMat: finishMaterials.frame ?? baseContext.frameMat,
       trimMat: finishMaterials.trim ?? baseContext.trimMat
     });
+    normalizeBasePlacement(built.meshes);
     addBaseMeshesToFinish(built);
     finishParts.baseVariantId = variantId;
     table.userData.baseVariantId = variantId;
@@ -13337,36 +13377,21 @@ const powerRef = useRef(hud.power);
           if (replayPlaybackActive) {
             const storedReplayCamera = replayCameraRef.current;
             const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-            const replayCamera = resolveReplayCameraView(
-              replayFrameCameraRef.current,
-              storedReplayCamera
-            );
-            const railBroadcastReplay = resolveRailOverheadReplayCamera({
-              focusOverride:
-                broadcastArgs.focusWorld ??
-                replayFrameCameraRef.current?.frameA?.target ??
-                replayFrameCameraRef.current?.frameB?.target ?? null,
-              minTargetY: replayCamera?.minTargetY
-            });
-            const hasRecordedView =
-              replayCamera &&
-              (replayCamera.position != null || replayCamera.target != null);
-            const appliedReplayCamera = hasRecordedView
-              ? replayCamera
-              : railBroadcastReplay ?? replayCamera;
-            const { position, target, fov: replayFov, minTargetY } = appliedReplayCamera;
-            const focusTarget = target ??
-              new THREE.Vector3(
-                playerOffsetRef.current * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE),
-                minTargetY,
-                0
-              );
-            focusTarget.y = Math.max(focusTarget.y, minTargetY);
-            const safePosition = position?.clone?.() ?? position ?? camera.position.clone();
-            const minCameraY = minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale;
-            if (safePosition.y < minCameraY) {
-              safePosition.y = minCameraY;
+            const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+            const focusTarget =
+              storedReplayCamera?.target?.clone?.() ??
+              lastCameraTargetRef.current?.clone?.() ??
+              new THREE.Vector3(playerOffsetRef.current * scale, minTargetY, 0);
+            focusTarget.y = Math.max(focusTarget.y ?? 0, minTargetY);
+            const safePosition =
+              storedReplayCamera?.position?.clone?.() ??
+              camera.position.clone();
+            if (safePosition.y < minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale) {
+              safePosition.y = minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale;
             }
+            const replayFov = Number.isFinite(storedReplayCamera?.fov)
+              ? storedReplayCamera.fov
+              : camera.fov;
             if (Number.isFinite(replayFov) && camera.fov !== replayFov) {
               camera.fov = replayFov;
               camera.updateProjectionMatrix();
@@ -13377,7 +13402,7 @@ const powerRef = useRef(hud.power);
             lookTarget = focusTarget;
             broadcastArgs.focusWorld = focusTarget.clone();
             broadcastArgs.targetWorld = focusTarget.clone();
-            broadcastArgs.lerp = 0.04;
+            broadcastArgs.lerp = 0;
           } else if (galleryState?.active) {
             const basePosition =
               galleryState.basePosition ?? galleryState.position ?? null;
@@ -15235,7 +15260,7 @@ const powerRef = useRef(hud.power);
           applyBallSnapshot(shotRecording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
           const path = replayPlayback.cuePath ?? [];
-          if (path.length > 0) {
+          if (!LOCK_REPLAY_CAMERA && path.length > 0) {
             const start = path[0]?.pos ?? null;
             const end = path[path.length - 1]?.pos ?? start;
             if (start && end) {
@@ -19349,21 +19374,25 @@ const powerRef = useRef(hud.power);
             applyReplayFrame(frameA, frameB, alpha);
             applyReplayCueStroke(playback, targetTime);
             updateReplayTrail(playback.cuePath, targetTime);
-            const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
-            const previousFrameCamera =
-              replayFrameCameraRef.current?.frameB ??
-              replayFrameCameraRef.current?.frameA ??
-              null;
-            if (
-              nextFrameCamera &&
-              (!replayFrameCameraRef.current ||
-                hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
-            ) {
-              replayFrameCameraRef.current = {
-                frameA: nextFrameCamera,
-                frameB: nextFrameCamera,
-                alpha: 0
-              };
+            if (!LOCK_REPLAY_CAMERA) {
+              const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
+              const previousFrameCamera =
+                replayFrameCameraRef.current?.frameB ??
+                replayFrameCameraRef.current?.frameA ??
+                null;
+              if (
+                nextFrameCamera &&
+                (!replayFrameCameraRef.current ||
+                  hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
+              ) {
+                replayFrameCameraRef.current = {
+                  frameA: nextFrameCamera,
+                  frameB: nextFrameCamera,
+                  alpha: 0
+                };
+              }
+            } else {
+              replayFrameCameraRef.current = null;
             }
             const frameCamera = updateCamera();
             renderer.render(scene, frameCamera ?? camera);
