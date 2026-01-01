@@ -182,7 +182,9 @@ const DOMINO_TYPE_LABELS = {
   tableBase: 'Table Base',
   dominoStyle: 'Domino Styles',
   highlightStyle: 'Highlights',
-  chairTheme: 'Chairs'
+  chairTheme: 'Chairs',
+  tableTheme: 'Table Models',
+  environmentHdri: 'HDR Environments'
 };
 
 const SNAKE_TYPE_LABELS = {

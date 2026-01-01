@@ -693,6 +693,9 @@ export function buildDominoArena({ scene, renderer }) {
 
   const arena = new THREE.Group();
   scene.add(arena);
+  const arenaDecor = new THREE.Group();
+  arenaDecor.visible = false;
+  arena.add(arenaDecor);
 
   const trackedGeometries = new Set();
   const trackedMaterials = new Set();
@@ -719,7 +722,7 @@ export function buildDominoArena({ scene, renderer }) {
   );
   carpet.position.y = -ROOM_DIMENSIONS.carpetThickness / 2;
   carpet.receiveShadow = true;
-  arena.add(carpet);
+  arenaDecor.add(carpet);
 
   const wallMat = new THREE.MeshStandardMaterial({ color: 0xb9ddff, roughness: 0.88, metalness: 0.06 });
 
@@ -727,7 +730,7 @@ export function buildDominoArena({ scene, renderer }) {
     const wall = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), wallMat);
     wall.position.y = height / 2;
     wall.receiveShadow = true;
-    arena.add(wall);
+    arenaDecor.add(wall);
     return wall;
   };
 
@@ -791,7 +794,7 @@ export function buildDominoArena({ scene, renderer }) {
   const cameraOffset = TABLE_DIMENSIONS.outerHalfWidth + 1.3;
   studioCamA.position.set(-cameraOffset, 0, -cameraOffset);
   studioCamB.position.set(cameraOffset, 0, cameraOffset);
-  arena.add(studioCamA, studioCamB);
+  arenaDecor.add(studioCamA, studioCamB);
   [studioCamA, studioCamB].forEach((rig) => {
     rig.traverse((child) => {
       if (child.isMesh) {
