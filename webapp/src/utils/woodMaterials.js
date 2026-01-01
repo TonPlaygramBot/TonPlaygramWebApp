@@ -79,16 +79,23 @@ const resolveExternalWoodTextureUrls = ({ mapUrl, roughnessMapUrl, normalMapUrl 
   return { color: mapUrl };
 };
 
-const loadExternalTexture = (url, isColor, anisotropy) => {
+const loadExternalTexture = (url, isColor, anisotropy, onError) => {
   const texture = woodTextureLoader.load(
     url,
-    (loaded) => normalizeExternalTexture(loaded, isColor, anisotropy)
+    (loaded) => normalizeExternalTexture(loaded, isColor, anisotropy),
+    undefined,
+    (err) => {
+      console.warn('Failed to load external wood texture', url, err);
+      if (typeof onError === 'function') {
+        onError(texture, err);
+      }
+    }
   );
   normalizeExternalTexture(texture, isColor, anisotropy);
   return texture;
 };
 
-const getExternalWoodTextures = (urls, anisotropy = 16) => {
+const getExternalWoodTextures = (urls, anisotropy = 16, fallbacks = null) => {
   if (!urls?.mapUrl) return null;
   const cacheKey = [urls.mapUrl, urls.roughnessMapUrl, urls.normalMapUrl]
     .filter(Boolean)
@@ -97,14 +104,39 @@ const getExternalWoodTextures = (urls, anisotropy = 16) => {
   if (cached) return cached;
   const resolved = resolveExternalWoodTextureUrls(urls);
   if (!resolved?.color) return null;
+  const normalizeFallback = (texture, isColor) => {
+    if (!texture) return null;
+    const clone = texture.clone ? texture.clone() : texture;
+    clone.image = texture.image;
+    normalizeExternalTexture(clone, isColor, anisotropy);
+    return clone;
+  };
+  const fallbackMap = normalizeFallback(fallbacks?.map, true);
+  const fallbackRoughness = normalizeFallback(fallbacks?.roughnessMap, false);
+  const fallbackNormal = normalizeFallback(fallbacks?.normalMap, false);
   const entry = {
-    map: loadExternalTexture(resolved.color, true, anisotropy),
+    map: loadExternalTexture(resolved.color, true, anisotropy, (texture) => {
+      if (!fallbackMap) return;
+      texture.image = fallbackMap.image;
+      normalizeExternalTexture(texture, true, anisotropy);
+      texture.needsUpdate = true;
+    }),
     roughnessMap: resolved.roughness
-      ? loadExternalTexture(resolved.roughness, false, anisotropy)
-      : null,
+      ? loadExternalTexture(resolved.roughness, false, anisotropy, (texture) => {
+          if (!fallbackRoughness) return;
+          texture.image = fallbackRoughness.image;
+          normalizeExternalTexture(texture, false, anisotropy);
+          texture.needsUpdate = true;
+        })
+      : fallbackRoughness,
     normalMap: resolved.normal
-      ? loadExternalTexture(resolved.normal, false, anisotropy)
-      : null
+      ? loadExternalTexture(resolved.normal, false, anisotropy, (texture) => {
+          if (!fallbackNormal) return;
+          texture.image = fallbackNormal.image;
+          normalizeExternalTexture(texture, false, anisotropy);
+          texture.needsUpdate = true;
+        })
+      : fallbackNormal
   };
   WOOD_EXTERNAL_TEXTURE_CACHE.set(cacheKey, entry);
   return entry;
@@ -569,42 +601,43 @@ export const applyWoodTextures = (
 ) => {
   if (!material) return null;
   disposeWoodTextures(material);
-  const baseTextures = mapUrl
-    ? (() => {
-        const external = getExternalWoodTextures(
-          { mapUrl, roughnessMapUrl, normalMapUrl },
-          16
-        );
-        return {
-          map: external?.map ?? makeSlabTexture(textureSize, textureSize, hue, sat, light, contrast),
-          roughnessMap:
-            external?.roughnessMap ??
-            makeRoughnessMap(roughnessSize, roughnessSize, roughnessBase, roughnessVariance),
-          normalMap: external?.normalMap ?? null
-        };
-      })()
-    : sharedKey
-      ? ensureSharedWoodTextures({
-          hue,
-          sat,
-          light,
-          contrast,
-          textureSize,
-          roughnessSize,
-          roughnessBase,
-          roughnessVariance,
-          sharedKey
-        })
-      : {
-          map: makeSlabTexture(textureSize, textureSize, hue, sat, light, contrast),
-          roughnessMap: makeRoughnessMap(
-            roughnessSize,
-            roughnessSize,
-            roughnessBase,
-            roughnessVariance
-          ),
-          normalMap: null
-        };
+  const fallbackTextures = {
+    map: makeSlabTexture(textureSize, textureSize, hue, sat, light, contrast),
+    roughnessMap: makeRoughnessMap(
+      roughnessSize,
+      roughnessSize,
+      roughnessBase,
+      roughnessVariance
+    ),
+    normalMap: null
+  };
+  let baseTextures = null;
+  if (mapUrl) {
+    const external = getExternalWoodTextures(
+      { mapUrl, roughnessMapUrl, normalMapUrl },
+      16,
+      fallbackTextures
+    );
+    baseTextures = {
+      map: external?.map ?? fallbackTextures.map,
+      roughnessMap: external?.roughnessMap ?? fallbackTextures.roughnessMap,
+      normalMap: external?.normalMap ?? fallbackTextures.normalMap
+    };
+  } else if (sharedKey) {
+    baseTextures = ensureSharedWoodTextures({
+      hue,
+      sat,
+      light,
+      contrast,
+      textureSize,
+      roughnessSize,
+      roughnessBase,
+      roughnessVariance,
+      sharedKey
+    });
+  } else {
+    baseTextures = fallbackTextures;
+  }
   const repeatVec = new THREE.Vector2(repeat?.x ?? 1, repeat?.y ?? 1);
   const map = cloneWoodTexture(baseTextures.map, repeatVec, rotation);
   const roughnessMap = cloneWoodTexture(baseTextures.roughnessMap, repeatVec, rotation);
