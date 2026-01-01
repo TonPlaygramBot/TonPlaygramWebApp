@@ -264,6 +264,7 @@ const TYPE_SWATCHES = {
   goals: ['#f97316', '#fb923c'],
   tableWood: ['#4b3621', '#9a7b4f'],
   tableCloth: ['#0f172a', '#34d399'],
+  tableBase: ['#0f172a', '#1f2937'],
   tableTheme: ['#0f172a', '#e5e7eb'],
   tables: ['#0f172a', '#94a3b8'],
   stools: ['#111827', '#eab308'],
@@ -362,6 +363,7 @@ const PREVIEW_BY_TYPE = {
   tableBase: 'table',
   tableWood: 'table',
   tableCloth: 'table',
+  tableBase: 'table',
   tableTheme: 'table',
   chairTheme: 'chair',
   tables: 'table'
