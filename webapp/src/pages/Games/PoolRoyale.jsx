@@ -1078,7 +1078,7 @@ const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.226; // trim the cushion tops furthe
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior wooden rails straight with no rounding
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.24; // round only the exterior wooden rails so the outside frame edges soften without touching the playfield sidewalls
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
@@ -1238,7 +1238,8 @@ const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
-const SKIRT_DROP_MULTIPLIER = 1.36; // halve the apron drop to slim the skirt while keeping the tabletop level
+const SKIRT_ENABLED = false; // disable the separate skirt and let the primary wooden frame run the full depth instead
+const SKIRT_DROP_MULTIPLIER = 1.36; // halve the apron drop to slim the skirt while keeping the tabletop level (repurposed as frame drop when skirt is hidden)
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
 const BASE_HEIGHT_FILL = 0.94; // grow bases upward so the stance stays consistent with the shorter skirt
@@ -4079,6 +4080,8 @@ function projectRailUVs(geometry, bounds) {
     y: Math.max(outerHalfH * 2, MICRO_EPS),
     z: Math.max(railH, MICRO_EPS)
   };
+  const longExtent = Math.max(extents.x, extents.y);
+  const grainAxis = extents.y >= extents.x ? 'y' : 'x';
 
   const faceNormal = new THREE.Vector3();
   const edgeA = new THREE.Vector3();
@@ -4098,14 +4101,16 @@ function projectRailUVs(geometry, bounds) {
     const absY = Math.abs(faceNormal.y);
     const absZ = Math.abs(faceNormal.z);
     const dominantZ = absZ >= Math.max(absX, absY);
-    const uAxis = dominantZ ? 'x' : absX >= absY ? 'y' : 'x';
+    const uAxis = dominantZ ? 'x' : grainAxis;
     const vAxis = dominantZ ? 'y' : 'z';
 
     verts.forEach((v, idx) => {
-      const u = (v[uAxis] + extents[uAxis] / 2) / extents[uAxis];
+      const baseUExtent = dominantZ ? extents[uAxis] : extents[grainAxis];
+      const uExtent = dominantZ ? baseUExtent : longExtent;
+      const uCoord = v[uAxis];
       const vCoord = (v[vAxis] + extents[vAxis] / 2) / extents[vAxis];
       const uvIndex = (i + idx) * 2;
-      uv[uvIndex] = u;
+      uv[uvIndex] = (uCoord + baseUExtent / 2) / uExtent;
       uv[uvIndex + 1] = vCoord;
     });
   }
@@ -7019,6 +7024,11 @@ function Table3D(
   });
 
   const railH = RAIL_HEIGHT;
+  const frameDropDepth = TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER;
+  const railExtension = SKIRT_ENABLED ? 0 : frameDropDepth;
+  const skirtH = SKIRT_ENABLED ? frameDropDepth : railExtension;
+  const railsDepth = railH + railExtension;
+  const railBaseY = frameTopY - railExtension;
   const railsTopY = frameTopY + railH;
   const longRailW = ORIGINAL_RAIL_WIDTH; // keep the long rail caps as wide as the end rails so side pockets match visually
   const endRailW = ORIGINAL_RAIL_WIDTH;
@@ -7028,7 +7038,7 @@ function Table3D(
   const frameWidthLong = frameWidthEnd; // force side rails to carry the same exterior thickness as the short rails
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
-  finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
+  finishParts.dimensions = { outerHalfW, outerHalfH, railH, railDepth: railsDepth, frameTopY };
   // Force the table rails to reuse the exact cue butt wood scale so the grain
   // is just as visible as it is on the stick finish in cue view.
   const alignedRailSurface = resolveWoodSurfaceConfig(
@@ -8184,21 +8194,21 @@ function Table3D(
   });
 
   let railsGeom = new THREE.ExtrudeGeometry(railsOuter, {
-    depth: railH,
+    depth: railsDepth,
     bevelEnabled: false,
     curveSegments: 128
   });
-  railsGeom = softenOuterExtrudeEdges(railsGeom, railH, RAIL_OUTER_EDGE_RADIUS_RATIO, {
+  railsGeom = softenOuterExtrudeEdges(railsGeom, railsDepth, RAIL_OUTER_EDGE_RADIUS_RATIO, {
     innerBounds: {
       halfWidth: Math.max(cushionInnerX, 0),
       halfHeight: Math.max(cushionInnerZ, 0),
       padding: TABLE.THICK * 0.04
     }
   });
-  railsGeom = projectRailUVs(railsGeom, { outerHalfW, outerHalfH, railH });
+  railsGeom = projectRailUVs(railsGeom, { outerHalfW, outerHalfH, railH: railsDepth });
   const railsMesh = new THREE.Mesh(railsGeom, railMat);
   railsMesh.rotation.x = -Math.PI / 2;
-  railsMesh.position.y = frameTopY;
+  railsMesh.position.y = railBaseY;
   railsMesh.castShadow = true;
   railsMesh.receiveShadow = false;
   railsGroup.add(railsMesh);
@@ -8660,120 +8670,122 @@ function Table3D(
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
-  const skirtH = TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER;
   const baseRailWidth = endRailW;
   const baseOverhang = baseRailWidth * SKIRT_SIDE_OVERHANG;
-  const skirtShape = new THREE.Shape();
-  const outW = frameOuterX + baseOverhang;
-  const outZ = frameOuterZ + baseOverhang;
-  const skirtOuterRadius = hasRoundedRailCorners
-    ? Math.min(outerCornerRadius + baseOverhang * 0.4, Math.min(outW, outZ))
-    : 0;
-  if (skirtOuterRadius > MICRO_EPS) {
-    skirtShape.moveTo(outW, -outZ + skirtOuterRadius);
-    skirtShape.lineTo(outW, outZ - skirtOuterRadius);
-    skirtShape.absarc(
-      outW - skirtOuterRadius,
-      outZ - skirtOuterRadius,
-      skirtOuterRadius,
-      0,
-      Math.PI / 2,
-      false
-    );
-    skirtShape.lineTo(-outW + skirtOuterRadius, outZ);
-    skirtShape.absarc(
-      -outW + skirtOuterRadius,
-      outZ - skirtOuterRadius,
-      skirtOuterRadius,
-      Math.PI / 2,
-      Math.PI,
-      false
-    );
-    skirtShape.lineTo(-outW, -outZ + skirtOuterRadius);
-    skirtShape.absarc(
-      -outW + skirtOuterRadius,
-      -outZ + skirtOuterRadius,
-      skirtOuterRadius,
-      Math.PI,
-      1.5 * Math.PI,
-      false
-    );
-    skirtShape.lineTo(outW - skirtOuterRadius, -outZ);
-    skirtShape.absarc(
-      outW - skirtOuterRadius,
-      -outZ + skirtOuterRadius,
-      skirtOuterRadius,
-      -Math.PI / 2,
-      0,
-      false
-    );
-  } else {
-    skirtShape.moveTo(outW, -outZ);
-    skirtShape.lineTo(outW, outZ);
-    skirtShape.lineTo(-outW, outZ);
-    skirtShape.lineTo(-outW, -outZ);
-    skirtShape.lineTo(outW, -outZ);
+  const skirtVisible = SKIRT_ENABLED && skirtH > MICRO_EPS;
+  if (skirtVisible) {
+    const skirtShape = new THREE.Shape();
+    const outW = frameOuterX + baseOverhang;
+    const outZ = frameOuterZ + baseOverhang;
+    const skirtOuterRadius = hasRoundedRailCorners
+      ? Math.min(outerCornerRadius + baseOverhang * 0.4, Math.min(outW, outZ))
+      : 0;
+    if (skirtOuterRadius > MICRO_EPS) {
+      skirtShape.moveTo(outW, -outZ + skirtOuterRadius);
+      skirtShape.lineTo(outW, outZ - skirtOuterRadius);
+      skirtShape.absarc(
+        outW - skirtOuterRadius,
+        outZ - skirtOuterRadius,
+        skirtOuterRadius,
+        0,
+        Math.PI / 2,
+        false
+      );
+      skirtShape.lineTo(-outW + skirtOuterRadius, outZ);
+      skirtShape.absarc(
+        -outW + skirtOuterRadius,
+        outZ - skirtOuterRadius,
+        skirtOuterRadius,
+        Math.PI / 2,
+        Math.PI,
+        false
+      );
+      skirtShape.lineTo(-outW, -outZ + skirtOuterRadius);
+      skirtShape.absarc(
+        -outW + skirtOuterRadius,
+        -outZ + skirtOuterRadius,
+        skirtOuterRadius,
+        Math.PI,
+        1.5 * Math.PI,
+        false
+      );
+      skirtShape.lineTo(outW - skirtOuterRadius, -outZ);
+      skirtShape.absarc(
+        outW - skirtOuterRadius,
+        -outZ + skirtOuterRadius,
+        skirtOuterRadius,
+        -Math.PI / 2,
+        0,
+        false
+      );
+    } else {
+      skirtShape.moveTo(outW, -outZ);
+      skirtShape.lineTo(outW, outZ);
+      skirtShape.lineTo(-outW, outZ);
+      skirtShape.lineTo(-outW, -outZ);
+      skirtShape.lineTo(outW, -outZ);
+    }
+    const inner = new THREE.Path();
+    const skirtInnerRadius = Math.max(outerCornerRadius - baseOverhang, 0);
+    if (skirtInnerRadius > 1e-4) {
+      inner.moveTo(frameOuterX, -frameOuterZ + skirtInnerRadius);
+      inner.lineTo(frameOuterX, frameOuterZ - skirtInnerRadius);
+      inner.absarc(
+        frameOuterX - skirtInnerRadius,
+        frameOuterZ - skirtInnerRadius,
+        skirtInnerRadius,
+        0,
+        Math.PI / 2,
+        false
+      );
+      inner.lineTo(-frameOuterX + skirtInnerRadius, frameOuterZ);
+      inner.absarc(
+        -frameOuterX + skirtInnerRadius,
+        frameOuterZ - skirtInnerRadius,
+        skirtInnerRadius,
+        Math.PI / 2,
+        Math.PI,
+        false
+      );
+      inner.lineTo(-frameOuterX, -frameOuterZ + skirtInnerRadius);
+      inner.absarc(
+        -frameOuterX + skirtInnerRadius,
+        -frameOuterZ + skirtInnerRadius,
+        skirtInnerRadius,
+        Math.PI,
+        1.5 * Math.PI,
+        false
+      );
+      inner.lineTo(frameOuterX - skirtInnerRadius, -frameOuterZ);
+      inner.absarc(
+        frameOuterX - skirtInnerRadius,
+        -frameOuterZ + skirtInnerRadius,
+        skirtInnerRadius,
+        -Math.PI / 2,
+        0,
+        false
+      );
+    } else {
+      inner.moveTo(frameOuterX, -frameOuterZ);
+      inner.lineTo(frameOuterX, frameOuterZ);
+      inner.lineTo(-frameOuterX, frameOuterZ);
+      inner.lineTo(-frameOuterX, -frameOuterZ);
+      inner.lineTo(frameOuterX, -frameOuterZ);
+    }
+    skirtShape.holes.push(inner);
+    const skirtGeo = new THREE.ExtrudeGeometry(skirtShape, {
+      depth: skirtH,
+      bevelEnabled: false
+    });
+    projectRailUVs(skirtGeo, { outerHalfW: outW, outerHalfH: outZ, railH: skirtH });
+    const skirt = new THREE.Mesh(skirtGeo, frameMat);
+    skirt.rotation.x = -Math.PI / 2;
+    skirt.position.y = frameTopY - skirtH + SKIRT_RAIL_GAP_FILL + MICRO_EPS * 0.5;
+    skirt.castShadow = true;
+    skirt.receiveShadow = true;
+    table.add(skirt);
+    finishParts.frameMeshes.push(skirt);
   }
-  const inner = new THREE.Path();
-  const skirtInnerRadius = Math.max(outerCornerRadius - baseOverhang, 0);
-  if (skirtInnerRadius > 1e-4) {
-    inner.moveTo(frameOuterX, -frameOuterZ + skirtInnerRadius);
-    inner.lineTo(frameOuterX, frameOuterZ - skirtInnerRadius);
-    inner.absarc(
-      frameOuterX - skirtInnerRadius,
-      frameOuterZ - skirtInnerRadius,
-      skirtInnerRadius,
-      0,
-      Math.PI / 2,
-      false
-    );
-    inner.lineTo(-frameOuterX + skirtInnerRadius, frameOuterZ);
-    inner.absarc(
-      -frameOuterX + skirtInnerRadius,
-      frameOuterZ - skirtInnerRadius,
-      skirtInnerRadius,
-      Math.PI / 2,
-      Math.PI,
-      false
-    );
-    inner.lineTo(-frameOuterX, -frameOuterZ + skirtInnerRadius);
-    inner.absarc(
-      -frameOuterX + skirtInnerRadius,
-      -frameOuterZ + skirtInnerRadius,
-      skirtInnerRadius,
-      Math.PI,
-      1.5 * Math.PI,
-      false
-    );
-    inner.lineTo(frameOuterX - skirtInnerRadius, -frameOuterZ);
-    inner.absarc(
-      frameOuterX - skirtInnerRadius,
-      -frameOuterZ + skirtInnerRadius,
-      skirtInnerRadius,
-      -Math.PI / 2,
-      0,
-      false
-    );
-  } else {
-    inner.moveTo(frameOuterX, -frameOuterZ);
-    inner.lineTo(frameOuterX, frameOuterZ);
-    inner.lineTo(-frameOuterX, frameOuterZ);
-    inner.lineTo(-frameOuterX, -frameOuterZ);
-    inner.lineTo(frameOuterX, -frameOuterZ);
-  }
-  skirtShape.holes.push(inner);
-  const skirtGeo = new THREE.ExtrudeGeometry(skirtShape, {
-    depth: skirtH,
-    bevelEnabled: false
-  });
-  projectRailUVs(skirtGeo, { outerHalfW: outW, outerHalfH: outZ, railH: skirtH });
-  const skirt = new THREE.Mesh(skirtGeo, frameMat);
-  skirt.rotation.x = -Math.PI / 2;
-  skirt.position.y = frameTopY - skirtH + SKIRT_RAIL_GAP_FILL + MICRO_EPS * 0.5;
-  skirt.castShadow = true;
-  skirt.receiveShadow = true;
-  table.add(skirt);
-  finishParts.frameMeshes.push(skirt);
 
   if (PLYWOOD_ENABLED && plywoodDepth > MICRO_EPS) {
     const plywoodShape = buildSurfaceShape(PLYWOOD_HOLE_R, -baseOverhang);
@@ -9241,7 +9253,7 @@ function Table3D(
     });
     if (bounds.isEmpty()) return;
     const availableBottom = baseContext.floorY + MICRO_EPS;
-    const availableTop = baseContext.frameTopY - baseContext.skirtH * 0.1;
+    const availableTop = baseContext.frameTopY - baseContext.skirtH;
     let height = Math.max(bounds.max.y - bounds.min.y, MICRO_EPS);
     const offsetToFloor = availableBottom - bounds.min.y;
     if (Math.abs(offsetToFloor) > 1e-6) {
