@@ -1192,6 +1192,9 @@ const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * 1.15;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
+const RAIL_SPIN_THROW_SCALE = BALL_R * 0.24; // let cushion contacts inherit noticeable throw from active side spin
+const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
+const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SWERVE_THRESHOLD = 0.7; // outer 30% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.86; // let swerve-driven roll carry more lateral energy while staying believable
 const PRE_IMPACT_SPIN_DRIFT = 0.1; // reapply stored sideways swerve once the cue ball is rolling after impact
@@ -5757,7 +5760,11 @@ function reflectRails(ball) {
         : Date.now();
     ball.lastRailHitAt = stamp;
     ball.lastRailHitType = 'corner';
-    return 'corner';
+    return {
+      type: 'corner',
+      normal: TMP_VEC2_B.clone(),
+      tangent: TMP_VEC2_D.clone()
+    };
   }
 
   const sideSpan = SIDE_POCKET_SPAN;
@@ -5804,7 +5811,11 @@ function reflectRails(ball) {
         : Date.now();
     ball.lastRailHitAt = stamp;
     ball.lastRailHitType = 'rail';
-    return 'rail';
+    return {
+      type: 'rail',
+      normal: normal.clone(),
+      tangent: tangent.clone()
+    };
   }
 
   // If the ball is entering a pocket capture zone, skip straight rail reflections
@@ -5815,29 +5826,34 @@ function reflectRails(ball) {
   );
   if (nearPocket) return null;
   let collided = null;
+  let collisionNormal = null;
   if (ball.pos.x < -limX && ball.vel.x < 0) {
     const overshoot = -limX - ball.pos.x;
     ball.pos.x = -limX + overshoot;
     ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
     collided = 'rail';
+    collisionNormal = new THREE.Vector2(1, 0);
   }
   if (ball.pos.x > limX && ball.vel.x > 0) {
     const overshoot = ball.pos.x - limX;
     ball.pos.x = limX - overshoot;
     ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
     collided = 'rail';
+    collisionNormal = new THREE.Vector2(-1, 0);
   }
   if (ball.pos.y < -limY && ball.vel.y < 0) {
     const overshoot = -limY - ball.pos.y;
     ball.pos.y = -limY + overshoot;
     ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
     collided = 'rail';
+    collisionNormal = new THREE.Vector2(0, 1);
   }
   if (ball.pos.y > limY && ball.vel.y > 0) {
     const overshoot = ball.pos.y - limY;
     ball.pos.y = limY - overshoot;
     ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
     collided = 'rail';
+    collisionNormal = new THREE.Vector2(0, -1);
   }
   if (collided) {
     const stamp =
@@ -5847,7 +5863,12 @@ function reflectRails(ball) {
     ball.lastRailHitAt = stamp;
     ball.lastRailHitType = collided;
   }
-  return collided;
+  if (collided) {
+    const normal = collisionNormal ?? new THREE.Vector2(0, 1);
+    const tangent = new THREE.Vector2(-normal.y, normal.x);
+    return { type: collided, normal, tangent };
+  }
+  return null;
 }
 
 function applySpinImpulse(ball, scale = 1) {
@@ -5881,6 +5902,27 @@ function applySpinImpulse(ball, scale = 1) {
     if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
   }
   return true;
+}
+
+function applyRailSpinResponse(ball, impact) {
+  if (!ball?.spin || ball.spin.lengthSq() < 1e-6 || !impact?.normal) return;
+  const normal = impact.normal.clone().normalize();
+  const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
+  const speed = Math.max(ball.vel.length(), 0);
+  const throwFactor = Math.max(
+    0,
+    Math.min(speed / Math.max(RAIL_SPIN_THROW_REF_SPEED, 1e-6), 1.4)
+  );
+  const spinAlongTangent = ball.spin.dot(tangent);
+  if (Math.abs(spinAlongTangent) > 1e-6) {
+    const throwStrength = spinAlongTangent * RAIL_SPIN_THROW_SCALE * (0.35 + throwFactor);
+    ball.vel.addScaledVector(tangent, throwStrength);
+  }
+  const normalComponent = ball.spin.dot(normal);
+  if (Math.abs(normalComponent) > 1e-6) {
+    ball.spin.addScaledVector(normal, -normalComponent * (1 + RAIL_SPIN_NORMAL_FLIP));
+  }
+  applySpinImpulse(ball, 0.6);
 }
 
 // calculate impact point and post-collision direction for aiming guide
@@ -11175,7 +11217,8 @@ const powerRef = useRef(hud.power);
     pocket: null,
     knock: null,
     cheer: null,
-    shock: null
+    shock: null,
+    chalk: null
   });
   const chessBoardTextureRef = useRef(null);
   const dartboardTextureRef = useRef(null);
@@ -11241,8 +11284,9 @@ const powerRef = useRef(hud.power);
     const ctx = audioContextRef.current;
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
-    const scaled = clamp(vol * volumeRef.current, 0, 1);
-    if (scaled <= 0) return;
+    const power = clamp(vol, 0, 1);
+    const scaled = clamp(volumeRef.current * (0.35 + power * 0.75), 0, 1);
+    if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
     source.buffer = buffer;
@@ -11250,7 +11294,11 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    source.start(0, 0, 0.5);
+    const offset = Math.max(0, Math.min(6.5, Math.max(0, buffer.duration - 0.1)));
+    const playbackDuration = Math.max(0, Math.min(2, buffer.duration - offset));
+    if (playbackDuration > 0) {
+      source.start(0, offset, playbackDuration);
+    }
   }, []);
 
   const playBallHit = useCallback((vol = 1) => {
@@ -11269,6 +11317,22 @@ const powerRef = useRef(hud.power);
     routeAudioNode(gain);
     source.start(0);
   }, []);
+
+  const playChalk = useCallback(() => {
+    const ctx = audioContextRef.current;
+    const buffer = audioBuffersRef.current.chalk;
+    if (!ctx || !buffer || muteRef.current) return;
+    const scaled = clamp(volumeRef.current, 0, 1);
+    if (scaled <= 0) return;
+    ctx.resume().catch(() => {});
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = scaled;
+    source.connect(gain);
+    routeAudioNode(gain);
+    source.start(0);
+  }, [routeAudioNode]);
 
   const playPocket = useCallback((vol = 1) => {
     if (vol <= 0) return;
@@ -11443,12 +11507,13 @@ const powerRef = useRef(hud.power);
     };
     (async () => {
       const entries = [
-        ['cue', '/assets/sounds/billiard-pool-hit-371618.mp3'],
+        ['cue', '/assets/sounds/Control_the_Cue_Ball_Control_the_Black_snooker_billiard_tipsandtrick.mp3'],
         ['ball', '/assets/sounds/billiard-sound newhit.mp3'],
         ['pocket', '/assets/sounds/billiard-sound-6-288417.mp3'],
         ['knock', '/assets/sounds/wooden-door-knock-102902.mp3'],
         ['cheer', '/assets/sounds/crowd-cheering-383111.mp3'],
-        ['shock', '/assets/sounds/crowd-shocked-reaction-352766.mp3']
+        ['shock', '/assets/sounds/crowd-shocked-reaction-352766.mp3'],
+        ['chalk', '/assets/sounds/adding-chalk-to-a-snooker-cue-102468.mp3']
       ];
       const loaded = {};
       for (const [key, path] of entries) {
@@ -11472,7 +11537,8 @@ const powerRef = useRef(hud.power);
         pocket: null,
         knock: null,
         cheer: null,
-        shock: null
+        shock: null,
+        chalk: null
       };
       audioContextRef.current = null;
       ctx.close().catch(() => {});
@@ -12734,6 +12800,18 @@ const powerRef = useRef(hud.power);
         CHESS_BATTLE_BOARD_SPAN_UNITS * chessBattleScale;
       const chessBattleTargetChair =
         CHESS_BATTLE_CHAIR_MAX_DIM * chessBattleScale;
+      const fitGroupToChessBattle = (group) => {
+        if (!group) return;
+        const box = new THREE.Box3().setFromObject(group);
+        const size = box.getSize(new THREE.Vector3());
+        const span = Math.max(size.x || 1, size.z || 1);
+        const minSpan = Math.max(TABLE.W * TABLE_DISPLAY_SCALE * 0.4, arenaMargin * 0.8);
+        const maxSpan = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE * 0.82;
+        const targetSpan = THREE.MathUtils.clamp(chessBattleTargetSpan, minSpan, maxSpan);
+        if (span > 1e-6) {
+          group.scale.multiplyScalar(targetSpan / span);
+        }
+      };
 
       const createTableSet = () => {
         const set = new THREE.Group();
@@ -13201,9 +13279,21 @@ const powerRef = useRef(hud.power);
         'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
         'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
       ];
+      const cloneHospitalityMaterial = (mat) => {
+        if (!mat) return mat;
+        const material = mat.clone ? mat.clone() : mat;
+        material.userData = { ...(material.userData || {}), disposableHospitality: true };
+        applySRGBColorSpace(material.map);
+        applySRGBColorSpace(material.emissiveMap);
+        if (material.map) sharpenTexture(material.map);
+        if (material.emissiveMap) sharpenTexture(material.emissiveMap);
+        material.needsUpdate = true;
+        return material;
+      };
       const loadFirstAvailableGltf = async (urls = []) => {
         if (!hospitalityLoaderRef.current) {
           hospitalityLoaderRef.current = new GLTFLoader();
+          hospitalityLoaderRef.current.setCrossOrigin('anonymous');
         }
         const loader = hospitalityLoaderRef.current;
         let lastError = null;
@@ -13226,15 +13316,7 @@ const powerRef = useRef(hud.power);
             : [child.material];
           child.castShadow = true;
           child.receiveShadow = true;
-          child.material = materials.map((mat) => {
-            if (!mat) return mat;
-            const material = mat.clone ? mat.clone() : mat;
-            material.userData = { ...(material.userData || {}), disposableHospitality: true };
-            if (material.map) sharpenTexture(material.map);
-            if (material.emissiveMap) sharpenTexture(material.emissiveMap);
-            material.needsUpdate = true;
-            return material;
-          });
+          child.material = materials.map((mat) => cloneHospitalityMaterial(mat));
         });
       };
       const ensureChessLoungeAssets = async () => {
@@ -13368,22 +13450,7 @@ const powerRef = useRef(hud.power);
           adjustHospitalityForEdge(position[1] ?? 0)
         );
         group.rotation.y = rotationY;
-        const scaleFallbackLounge = () => {
-          const loungeBounds = new THREE.Box3().setFromObject(group);
-          const loungeSize = loungeBounds.getSize(new THREE.Vector3());
-          const span = Math.max(loungeSize.x || 1, loungeSize.z || 1);
-          const maxSpan = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE * 0.82;
-          const minSpan = Math.max(TABLE.W * TABLE_DISPLAY_SCALE * 0.4, arenaMargin * 0.9);
-          const clampedTarget = THREE.MathUtils.clamp(
-            chessBattleTargetSpan,
-            minSpan,
-            maxSpan
-          );
-          if (span > 1e-6) {
-            group.scale.multiplyScalar(clampedTarget / span);
-          }
-        };
-        scaleFallbackLounge();
+        fitGroupToChessBattle(group);
         ensureHospitalityVisibility(group);
         return group;
       };
@@ -13404,36 +13471,13 @@ const powerRef = useRef(hud.power);
           const materials = Array.isArray(child.material)
             ? child.material
             : [child.material];
-          const clonedMaterials = materials.map((mat) => {
-            if (!mat) return mat;
-            const clone = mat.clone ? mat.clone() : mat;
-            clone.userData = { ...(clone.userData || {}), disposableHospitality: true };
-            if (clone.map) sharpenTexture(clone.map);
-            if (clone.emissiveMap) sharpenTexture(clone.emissiveMap);
-            clone.needsUpdate = true;
-            return clone;
-          });
+          const clonedMaterials = materials.map((mat) => cloneHospitalityMaterial(mat));
           child.material = Array.isArray(child.material) ? clonedMaterials : clonedMaterials[0];
           child.castShadow = true;
           child.receiveShadow = true;
         });
 
-        const scaleLoungeToChessBattle = () => {
-          const box = new THREE.Box3().setFromObject(lounge);
-          const size = box.getSize(new THREE.Vector3());
-          const span = Math.max(size.x || 1, size.z || 1);
-          const maxSpan = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE * 0.82;
-          const minSpan = Math.max(TABLE.W * TABLE_DISPLAY_SCALE * 0.4, arenaMargin * 0.9);
-          const clampedTarget = THREE.MathUtils.clamp(
-            chessBattleTargetSpan,
-            minSpan,
-            maxSpan
-          );
-          if (span > 1e-6) {
-            lounge.scale.multiplyScalar(clampedTarget / span);
-          }
-        };
-        scaleLoungeToChessBattle();
+        fitGroupToChessBattle(lounge);
         lounge.position.set(0, floorY, 0);
         lounge.rotation.y = rotationY;
         ensureHospitalityVisibility(lounge);
@@ -13463,15 +13507,7 @@ const powerRef = useRef(hud.power);
             const materials = Array.isArray(child.material)
               ? child.material
               : [child.material];
-            const clonedMaterials = materials.map((mat) => {
-              if (!mat) return mat;
-              const clone = mat.clone ? mat.clone() : mat;
-              clone.userData = { ...(clone.userData || {}), disposableHospitality: true };
-              if (clone.map) sharpenTexture(clone.map);
-              if (clone.emissiveMap) sharpenTexture(clone.emissiveMap);
-              clone.needsUpdate = true;
-              return clone;
-            });
+            const clonedMaterials = materials.map((mat) => cloneHospitalityMaterial(mat));
             child.material = Array.isArray(child.material)
               ? clonedMaterials
               : clonedMaterials[0];
@@ -16239,6 +16275,7 @@ const powerRef = useRef(hud.power);
             hit = hit.parent;
           }
           if (!hit?.userData?.isChalk) return false;
+          playChalk();
           toggleChalkAssist(hit.userData?.chalkIndex ?? null);
           return true;
         };
@@ -16896,11 +16933,12 @@ const powerRef = useRef(hud.power);
           BALL_R * 8
         );
         const farInteriorZ = arenaHalfDepth - hospitalityEdgePull;
-        const placementZ = THREE.MathUtils.clamp(
-          outerShortRailZ + serviceGap * 1.25,
-          outerShortRailZ + serviceGap,
-          farInteriorZ
-        );
+        const placementZ =
+          shortRailDirection *
+          Math.min(
+            farInteriorZ,
+            Math.abs(outerShortRailZ) + serviceGap * 1.6
+          );
         const chairSpread = toHospitalityUnits(0.44) * hospitalityUpscale;
         const chairDepth = toHospitalityUnits(0.64) * hospitalityUpscale;
         const facingCenter = Math.atan2(0, -placementZ);
@@ -19118,7 +19156,7 @@ const powerRef = useRef(hud.power);
             if (legalTargets.size === 0) legalTargets.add('RED');
           }
           const cuePos = cue.pos.clone();
-          const clearance = BALL_R * (activeVariantId === 'uk' ? 1.2 : 1.45);
+          const clearance = BALL_R * (activeVariantId === 'uk' ? 1.4 : 1.65);
           const clearanceSq = clearance * clearance;
           const ballDiameter = BALL_R * 2;
           const safetyAnchor = new THREE.Vector2(0, baulkZ - D_RADIUS * 0.5);
@@ -19963,10 +20001,6 @@ const powerRef = useRef(hud.power);
             suggestionAimKeyRef.current = null;
           }
         };
-        const computeAiShot = () => {
-          const options = evaluateShotOptions();
-          return options.bestPot ?? options.bestSafety ?? null;
-        };
         stopAiThinkingRef.current = stopAiThinking;
         startAiThinkingRef.current = startAiThinking;
         startUserSuggestionRef.current = updateUserSuggestion;
@@ -19993,7 +20027,8 @@ const powerRef = useRef(hud.power);
           try {
             cancelAiShotPreview();
             aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
-            let plan = computeAiShot();
+            const options = evaluateShotOptions();
+            let plan = options.bestPot ?? options.bestSafety ?? null;
             if (!plan) {
               const cuePos = cue?.pos ? cue.pos.clone() : null;
               if (!cuePos) return;
@@ -20469,6 +20504,8 @@ const powerRef = useRef(hud.power);
             shotReplayRef.current = null;
             shotRecording = null;
           }
+          aiPlanRef.current = null;
+          setAiPlanning(null);
           window.setTimeout(() => {
             const hudState = hudRef.current;
             if (hudState?.turn === 0 && !hudState.over) {
@@ -21363,15 +21400,15 @@ const powerRef = useRef(hud.power);
               }
               b.launchDir = null;
             }
-            const hitRail = reflectRails(b);
-            if (hitRail && b.id === 'cue') b.impacted = true;
-            if (hitRail && shotContextRef.current.contactMade) {
+            const railImpact = reflectRails(b);
+            if (railImpact && b.id === 'cue') b.impacted = true;
+            if (railImpact && shotContextRef.current.contactMade) {
               shotContextRef.current.cushionAfterContact = true;
             }
-            if (hitRail === 'rail' && b.spin?.lengthSq() > 0) {
-              applySpinImpulse(b, 1);
+            if (railImpact && b.spin?.lengthSq() > 0) {
+              applyRailSpinResponse(b, railImpact);
             }
-            if (hitRail) {
+            if (railImpact) {
               const nowRail = performance.now();
               const lastPlayed = railSoundTimeRef.current.get(b.id) ?? 0;
               if (nowRail - lastPlayed > RAIL_HIT_SOUND_COOLDOWN_MS) {
