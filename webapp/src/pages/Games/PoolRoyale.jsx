@@ -1295,7 +1295,7 @@ const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // middle pocket cushion cuts are sharpened to a 29° cut to align the side-rail cushions with the updated spec
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 34;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -5910,11 +5910,6 @@ function applyRailSpinResponse(ball, impact) {
   const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
   const speed = Math.max(ball.vel.length(), 0);
   const preImpactSpin = ball.spin.clone();
-  const spinAlongNormal = preImpactSpin.dot(normal);
-  if (Math.abs(spinAlongNormal) > 1e-6) {
-    // flip the normal spin so the first cushion contact responds immediately
-    preImpactSpin.addScaledVector(normal, -spinAlongNormal * (1 + RAIL_SPIN_NORMAL_FLIP));
-  }
   const throwFactor = Math.max(
     0,
     Math.min(speed / Math.max(RAIL_SPIN_THROW_REF_SPEED, 1e-6), 1.4)
@@ -11288,7 +11283,7 @@ const powerRef = useRef(hud.power);
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
-    const scaled = clamp(volumeRef.current * 1.35 * (0.38 + power * 0.78), 0, 1);
+    const scaled = clamp(volumeRef.current * 1.2 * (0.35 + power * 0.75), 0, 1);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11302,8 +11297,6 @@ const powerRef = useRef(hud.power);
     const playbackDuration = Math.max(0, clipEnd - clipStart);
     if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
       source.start(0, clipStart, playbackDuration);
-    } else {
-      source.start(0);
     }
   }, []);
 
