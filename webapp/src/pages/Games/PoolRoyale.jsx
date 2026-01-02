@@ -1737,9 +1737,9 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 0.97;
+const CLOTH_TEXTURE_INTENSITY = 1.05;
 const CLOTH_HAIR_INTENSITY = 0.78;
-const CLOTH_BUMP_INTENSITY = 1.12;
+const CLOTH_BUMP_INTENSITY = 1.2;
 const CLOTH_SOFT_BLEND = 0.42;
 
 const CLOTH_QUALITY = (() => {
@@ -3062,11 +3062,11 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.76; // tighten the pattern footprint so the scan resolves more clearly
-const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
+const CLOTH_PATTERN_SCALE = 0.68; // enlarge the weave so cloth scans stay bolder and easier to read
+const CLOTH_TEXTURE_REPEAT_HINT = 1.32;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
 const POLYHAVEN_ANISOTROPY_BOOST = 2.6;
-const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.35, 0.55);
+const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.45, 0.64);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
