@@ -1197,7 +1197,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.16; // push the playabl
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3, 0.44 / 3); // enlarge grain 3× so rails, skirts, and legs read at table scale
-const FIXED_WOOD_REPEAT_SCALE = 20; // locked to 2000% for consistent oversized grain
+const FIXED_WOOD_REPEAT_SCALE = 8; // tighten grain repetition so table finishes stay sharp on cloth and rails
 const WOOD_REPEAT_SCALE_MIN = FIXED_WOOD_REPEAT_SCALE;
 const WOOD_REPEAT_SCALE_MAX = FIXED_WOOD_REPEAT_SCALE;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
@@ -4232,10 +4232,10 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.08;
-const TOP_VIEW_RADIUS_SCALE = 1.02;
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.02;
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
+const TOP_VIEW_MARGIN = 1.12;
+const TOP_VIEW_RADIUS_SCALE = 1.06;
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.04;
+const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.02, CAMERA.minPhi * 0.55);
 const CUE_VIEW_RADIUS_RATIO = 0.042;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.13;
 const CUE_VIEW_MIN_PHI = Math.min(
@@ -5078,7 +5078,7 @@ function reflectRails(ball) {
     return { type: 'corner', normal: TMP_VEC2_NORMAL.clone(), impactSpeed };
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.65; // extend the middle pocket guard for more precise collisions
+  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.35; // soften middle pocket guard so first cushion contacts read naturally
   const sideDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
   const sideRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
   const sideCos = Math.cos(sideRad);
@@ -9567,7 +9567,7 @@ export function PoolRoyaleGame({
     const ctx = audioContextRef.current;
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
-    const scaled = clamp(vol * volumeRef.current, 0, 1);
+    const scaled = clamp(vol * volumeRef.current * 1.5, 0, 1);
     if (scaled <= 0) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -9575,7 +9575,9 @@ export function PoolRoyaleGame({
     const gain = ctx.createGain();
     gain.gain.value = scaled;
     source.connect(gain).connect(ctx.destination);
-    source.start(0, 0, 0.5);
+    const HIT_START = 7;
+    const HIT_DURATION = 2;
+    source.start(ctx.currentTime, HIT_START, HIT_DURATION);
   }, []);
 
   const playBallHit = useCallback((vol = 1) => {
@@ -16413,7 +16415,8 @@ export function PoolRoyaleGame({
                 b.vel.add(TMP_VEC2_CURVE);
               }
               const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
-              const allowRoll = !isCue || b.impacted || swerveTravel;
+              const allowRoll =
+                !isCue || b.impacted || swerveTravel || (isCue && b.spin?.lengthSq() > 1e-8);
               const preImpact = isCue && !b.impacted;
               if (allowRoll) {
                 const rollMultiplier = swerveTravel ? SWERVE_TRAVEL_MULTIPLIER : 1;
