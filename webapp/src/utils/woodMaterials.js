@@ -301,11 +301,11 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
 const LARGE_SLAB_REPEAT_X = 0.009;
 const FRAME_SLAB_REPEAT_X = LARGE_SLAB_REPEAT_X * 1.18;
 const polyHavenTextureSet = (assetId) => {
-  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${assetId}/${assetId}`;
+  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/${assetId}/${assetId}`;
   return {
-    mapUrl: `${base}_diff_2k.jpg`,
-    roughnessMapUrl: `${base}_rough_2k.jpg`,
-    normalMapUrl: `${base}_nor_gl_2k.jpg`
+    mapUrl: `${base}_diff_4k.jpg`,
+    roughnessMapUrl: `${base}_rough_4k.jpg`,
+    normalMapUrl: `${base}_nor_gl_4k.jpg`
   };
 };
 
