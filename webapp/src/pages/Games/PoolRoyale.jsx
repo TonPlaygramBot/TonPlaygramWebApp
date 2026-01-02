@@ -4879,18 +4879,6 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: 0, // center the table for the classic top-down framing
   z: 0 // keep the 2D view aligned with the original overhead composition
 });
-const BUTTON_TOP_VIEW_MARGIN = 1.12;
-const BUTTON_TOP_VIEW_MIN_RADIUS_SCALE = 1.05;
-const BUTTON_TOP_VIEW_RADIUS_SCALE = 1.05;
-const BUTTON_TOP_VIEW_PHI = Math.max(
-  CAMERA_ABS_MIN_PHI + 0.02,
-  CAMERA.minPhi * 0.35
-);
-const BUTTON_TOP_VIEW_RESOLVED_PHI = Math.max(BUTTON_TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
-const BUTTON_TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: 0, // keep the 2D toggle view centered like the legacy overhead camera
-  z: 0
-});
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
 const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI + 0.12;
@@ -11230,7 +11218,6 @@ const powerRef = useRef(hud.power);
     shock: null,
     chalk: null
   });
-  const cueHitOffsetRef = useRef(0);
   const chessBoardTextureRef = useRef(null);
   const dartboardTextureRef = useRef(null);
   const activeCrowdSoundRef = useRef(null);
@@ -11291,30 +11278,6 @@ const powerRef = useRef(hud.power);
     } catch {}
   }, []);
 
-  const detectCueHitOffset = useCallback((buffer) => {
-    if (!buffer?.getChannelData) return 0;
-    try {
-      const data = buffer.getChannelData(0);
-      if (!data || data.length === 0) return 0;
-      const sampleRate = buffer.sampleRate || 48000;
-      const windowSize = Math.max(1, Math.floor(sampleRate * 0.0025)); // ~2.5 ms
-      const preRoll = Math.floor(sampleRate * 0.01); // 10 ms of lead-in
-      const threshold = 0.18;
-      for (let i = 0; i < data.length; i += windowSize) {
-        let windowPeak = 0;
-        for (let j = i; j < Math.min(i + windowSize, data.length); j++) {
-          const mag = Math.abs(data[j]);
-          if (mag > windowPeak) windowPeak = mag;
-        }
-        if (windowPeak >= threshold) {
-          const startSample = Math.max(0, i - preRoll);
-          return startSample / sampleRate;
-        }
-      }
-    } catch {}
-    return 0;
-  }, []);
-
   const playCueHit = useCallback((vol = 1) => {
     const ctx = audioContextRef.current;
     const buffer = audioBuffersRef.current.cue;
@@ -11329,16 +11292,11 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    const detectedOffset = THREE.MathUtils.clamp(
-      cueHitOffsetRef.current ?? 0,
-      0,
-      Math.max(buffer.duration - 0.05, 0)
-    );
-    const clipStart = Number.isFinite(detectedOffset) ? detectedOffset : 0;
-    const clipEnd = Math.min(buffer.duration, clipStart + 1.1);
+    const clipStart = THREE.MathUtils.clamp(7, 0, Math.max(buffer.duration - 0.1, 0));
+    const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
     const playbackDuration = Math.max(0, clipEnd - clipStart);
     if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
-      source.start(ctx.currentTime, clipStart, playbackDuration);
+      source.start(0, clipStart, playbackDuration);
     }
   }, []);
 
@@ -11560,12 +11518,7 @@ const powerRef = useRef(hud.power);
       for (const [key, path] of entries) {
         try {
           const buffer = await loadBuffer(path);
-          if (!cancelled) {
-            loaded[key] = buffer;
-            if (key === 'cue') {
-              cueHitOffsetRef.current = detectCueHitOffset(buffer);
-            }
-          }
+          if (!cancelled) loaded[key] = buffer;
         } catch (err) {
           console.warn('Pool audio load failed:', key, err);
         }
@@ -11589,7 +11542,7 @@ const powerRef = useRef(hud.power);
       audioContextRef.current = null;
       ctx.close().catch(() => {});
     };
-  }, [detectCueHitOffset, stopActiveCrowdSound]);
+  }, [stopActiveCrowdSound]);
   const formatBallOnLabel = useCallback(
     (rawList = []) => {
       const normalized = rawList
@@ -15062,19 +15015,19 @@ const powerRef = useRef(hud.power);
           lookTarget = focusTarget;
           if (topViewRef.current) {
             const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-              playerOffsetRef.current + BUTTON_TOP_VIEW_SCREEN_OFFSET.x,
+              playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
               ORBIT_FOCUS_BASE_Y,
-              BUTTON_TOP_VIEW_SCREEN_OFFSET.z
+              TOP_VIEW_SCREEN_OFFSET.z
             ).multiplyScalar(worldScaleFactor);
             let resolvedTarget = topFocusTarget.clone();
             const topRadius = clampOrbitRadius(
               Math.max(
-                fitRadius(camera, BUTTON_TOP_VIEW_MARGIN, BUTTON_TOP_VIEW_RADIUS_SCALE),
-                CAMERA.minR * BUTTON_TOP_VIEW_MIN_RADIUS_SCALE
+                fitRadius(camera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
+                CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
               )
             );
             const topTheta = Math.PI;
-            const topPhi = BUTTON_TOP_VIEW_RESOLVED_PHI;
+            const topPhi = TOP_VIEW_RESOLVED_PHI;
             TMP_SPH.set(topRadius, topPhi, topTheta);
             camera.up.set(0, 1, 0);
             camera.position.setFromSpherical(TMP_SPH);
@@ -15733,7 +15686,7 @@ const powerRef = useRef(hud.power);
         const margin = Math.max(
           STANDING_VIEW.margin,
           topViewRef.current
-            ? BUTTON_TOP_VIEW_MARGIN
+            ? TOP_VIEW_MARGIN
             : window.innerHeight > window.innerWidth
               ? STANDING_VIEW_MARGIN_PORTRAIT
               : STANDING_VIEW_MARGIN_LANDSCAPE
@@ -15745,7 +15698,7 @@ const powerRef = useRef(hud.power);
             const nextMargin = Math.max(
               STANDING_VIEW.margin,
               topViewRef.current
-                ? BUTTON_TOP_VIEW_MARGIN
+                ? TOP_VIEW_MARGIN
                 : window.innerHeight > window.innerWidth
                   ? STANDING_VIEW_MARGIN_PORTRAIT
                   : STANDING_VIEW_MARGIN_LANDSCAPE
@@ -16262,27 +16215,23 @@ const powerRef = useRef(hud.power);
         const enterTopView = (immediate = false) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
-          const margin = BUTTON_TOP_VIEW_MARGIN;
+          const margin = TOP_VIEW_MARGIN;
           fit(margin);
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-            playerOffsetRef.current + BUTTON_TOP_VIEW_SCREEN_OFFSET.x,
+            playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
             ORBIT_FOCUS_BASE_Y,
-            BUTTON_TOP_VIEW_SCREEN_OFFSET.z
+            TOP_VIEW_SCREEN_OFFSET.z
           ).multiplyScalar(
             Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE
           );
           const targetRadius = clampOrbitRadius(
             Math.max(
-              fitRadius(
-                camera,
-                BUTTON_TOP_VIEW_MARGIN,
-                BUTTON_TOP_VIEW_RADIUS_SCALE
-              ),
-              CAMERA.minR * BUTTON_TOP_VIEW_MIN_RADIUS_SCALE
+              fitRadius(camera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
+              CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
             )
           );
           sph.radius = targetRadius;
-          sph.phi = BUTTON_TOP_VIEW_RESOLVED_PHI;
+          sph.phi = TOP_VIEW_RESOLVED_PHI;
           lastCameraTargetRef.current.copy(topFocusTarget);
           syncBlendToSpherical();
           if (immediate) {
@@ -17239,7 +17188,7 @@ const powerRef = useRef(hud.power);
       updateCamera();
       fit(
         topViewRef.current
-          ? BUTTON_TOP_VIEW_MARGIN
+          ? TOP_VIEW_MARGIN
           : window.innerHeight > window.innerWidth
             ? 1.6
             : 1.4
@@ -22223,7 +22172,7 @@ const powerRef = useRef(hud.power);
             const margin = Math.max(
               STANDING_VIEW.margin,
               topViewRef.current
-                ? BUTTON_TOP_VIEW_MARGIN
+                ? TOP_VIEW_MARGIN
                 : window.innerHeight > window.innerWidth
                   ? STANDING_VIEW_MARGIN_PORTRAIT
                   : STANDING_VIEW_MARGIN_LANDSCAPE
