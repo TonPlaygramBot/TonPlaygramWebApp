@@ -5716,6 +5716,7 @@ function makeWoodTexture({
   return texture;
 }
 function reflectRails(ball) {
+  ball.lastRailNormal = null;
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
   const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
@@ -5751,6 +5752,7 @@ function reflectRails(ball) {
     if (ball.spin?.lengthSq() > 0) {
       applySpinImpulse(ball, 0.6);
     }
+    ball.lastRailNormal = TMP_VEC2_B.clone();
     const stamp =
       typeof performance !== 'undefined' && performance.now
         ? performance.now()
@@ -5798,6 +5800,7 @@ function reflectRails(ball) {
     if (ball.spin?.lengthSq() > 0) {
       applySpinImpulse(ball, 0.6);
     }
+    ball.lastRailNormal = normal.clone();
     const stamp =
       typeof performance !== 'undefined' && performance.now
         ? performance.now()
@@ -5815,29 +5818,34 @@ function reflectRails(ball) {
   );
   if (nearPocket) return null;
   let collided = null;
+  let collidedNormal = null;
   if (ball.pos.x < -limX && ball.vel.x < 0) {
     const overshoot = -limX - ball.pos.x;
     ball.pos.x = -limX + overshoot;
     ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
     collided = 'rail';
+    collidedNormal = TMP_VEC2_A.set(1, 0);
   }
   if (ball.pos.x > limX && ball.vel.x > 0) {
     const overshoot = ball.pos.x - limX;
     ball.pos.x = limX - overshoot;
     ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
     collided = 'rail';
+    collidedNormal = TMP_VEC2_A.set(-1, 0);
   }
   if (ball.pos.y < -limY && ball.vel.y < 0) {
     const overshoot = -limY - ball.pos.y;
     ball.pos.y = -limY + overshoot;
     ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
     collided = 'rail';
+    collidedNormal = TMP_VEC2_A.set(0, 1);
   }
   if (ball.pos.y > limY && ball.vel.y > 0) {
     const overshoot = ball.pos.y - limY;
     ball.pos.y = limY - overshoot;
     ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
     collided = 'rail';
+    collidedNormal = TMP_VEC2_A.set(0, -1);
   }
   if (collided) {
     const stamp =
@@ -5846,6 +5854,9 @@ function reflectRails(ball) {
         : Date.now();
     ball.lastRailHitAt = stamp;
     ball.lastRailHitType = collided;
+    if (collidedNormal) {
+      ball.lastRailNormal = collidedNormal.clone();
+    }
   }
   return collided;
 }
@@ -5876,6 +5887,30 @@ function applySpinImpulse(ball, scale = 1) {
   }
   const decayFactor = Math.pow(SPIN_DECAY, Math.max(scale, 0.5));
   ball.spin.multiplyScalar(decayFactor);
+  if (ball.spin.lengthSq() < 1e-6) {
+    ball.spin.set(0, 0);
+    if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
+  }
+  return true;
+}
+
+function applyRailSpinResponse(ball, normal, scale = 1) {
+  if (!ball?.spin || ball.spin.lengthSq() < 1e-6 || !normal) return false;
+  const tangent = TMP_VEC2_D.set(-normal.y, normal.x).normalize();
+  const sideSpin = ball.spin.x || 0;
+  const verticalSpin = ball.spin.y || 0;
+  const tangentKick = sideSpin * SPIN_STRENGTH * 0.82 * scale;
+  const drawFollowKick = verticalSpin * SPIN_STRENGTH * 0.28 * scale;
+  if (Math.abs(tangentKick) > 1e-8) {
+    ball.vel.addScaledVector(tangent, tangentKick);
+  }
+  if (Math.abs(drawFollowKick) > 1e-8) {
+    const outward = Math.sign(normal.dot(ball.vel) || 1);
+    ball.vel.addScaledVector(normal, -drawFollowKick * outward * 0.6);
+  }
+  const decayFactor = Math.pow(SPIN_DECAY, Math.max(scale, 0.5));
+  ball.spin.x = -sideSpin * decayFactor;
+  ball.spin.y = verticalSpin * decayFactor;
   if (ball.spin.lengthSq() < 1e-6) {
     ball.spin.set(0, 0);
     if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
@@ -10705,6 +10740,7 @@ function PoolRoyaleGame({
   const [aiPlanning, setAiPlanning] = useState(null);
   const aiPlanRef = useRef(null);
   const aiPlanningRef = useRef(null);
+  const computeAiShotRef = useRef(() => null);
   useEffect(() => {
     aiPlanningRef.current = aiPlanning;
   }, [aiPlanning]);
@@ -11175,7 +11211,8 @@ const powerRef = useRef(hud.power);
     pocket: null,
     knock: null,
     cheer: null,
-    shock: null
+    shock: null,
+    chalk: null
   });
   const chessBoardTextureRef = useRef(null);
   const dartboardTextureRef = useRef(null);
@@ -11237,11 +11274,12 @@ const powerRef = useRef(hud.power);
     } catch {}
   }, []);
 
-  const playCueHit = useCallback((vol = 1) => {
+  const playCueHit = useCallback((power = 1) => {
     const ctx = audioContextRef.current;
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
-    const scaled = clamp(vol * volumeRef.current, 0, 1);
+    const normalized = clamp(power, 0, 1);
+    const scaled = clamp((0.18 + normalized * 0.95) * volumeRef.current, 0, 1);
     if (scaled <= 0) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11250,7 +11288,13 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    source.start(0, 0, 0.5);
+    const offset = Math.min(Math.max(6.5, 0), Math.max(buffer.duration - 0.1, 0));
+    const playbackWindow = Math.max(0, Math.min(2, buffer.duration - offset));
+    if (playbackWindow > 0) {
+      source.start(0, offset, playbackWindow);
+    } else {
+      source.start(0);
+    }
   }, []);
 
   const playBallHit = useCallback((vol = 1) => {
@@ -11358,6 +11402,22 @@ const powerRef = useRef(hud.power);
     },
     [stopActiveCrowdSound]
   );
+
+  const playChalk = useCallback(() => {
+    const ctx = audioContextRef.current;
+    const buffer = audioBuffersRef.current.chalk;
+    if (!ctx || !buffer || muteRef.current) return;
+    const scaled = clamp(volumeRef.current, 0, 1);
+    if (scaled <= 0) return;
+    ctx.resume().catch(() => {});
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = scaled;
+    source.connect(gain);
+    routeAudioNode(gain);
+    source.start(0);
+  }, []);
   useEffect(() => {
     document.title = 'Pool Royale 3D';
   }, []);
@@ -11443,12 +11503,13 @@ const powerRef = useRef(hud.power);
     };
     (async () => {
       const entries = [
-        ['cue', '/assets/sounds/billiard-pool-hit-371618.mp3'],
+        ['cue', '/assets/sounds/Control_the_Cue_Ball_Control_the_Black_snooker_billiard_tipsandtrick.mp3'],
         ['ball', '/assets/sounds/billiard-sound newhit.mp3'],
         ['pocket', '/assets/sounds/billiard-sound-6-288417.mp3'],
         ['knock', '/assets/sounds/wooden-door-knock-102902.mp3'],
         ['cheer', '/assets/sounds/crowd-cheering-383111.mp3'],
-        ['shock', '/assets/sounds/crowd-shocked-reaction-352766.mp3']
+        ['shock', '/assets/sounds/crowd-shocked-reaction-352766.mp3'],
+        ['chalk', '/assets/sounds/adding-chalk-to-a-snooker-cue-102468.mp3']
       ];
       const loaded = {};
       for (const [key, path] of entries) {
@@ -11472,7 +11533,8 @@ const powerRef = useRef(hud.power);
         pocket: null,
         knock: null,
         cheer: null,
-        shock: null
+        shock: null,
+        chalk: null
       };
       audioContextRef.current = null;
       ctx.close().catch(() => {});
@@ -13230,8 +13292,14 @@ const powerRef = useRef(hud.power);
             if (!mat) return mat;
             const material = mat.clone ? mat.clone() : mat;
             material.userData = { ...(material.userData || {}), disposableHospitality: true };
-            if (material.map) sharpenTexture(material.map);
-            if (material.emissiveMap) sharpenTexture(material.emissiveMap);
+            if (material.map) {
+              applySRGBColorSpace(material.map);
+              sharpenTexture(material.map);
+            }
+            if (material.emissiveMap) {
+              applySRGBColorSpace(material.emissiveMap);
+              sharpenTexture(material.emissiveMap);
+            }
             material.needsUpdate = true;
             return material;
           });
@@ -13324,10 +13392,7 @@ const powerRef = useRef(hud.power);
         const boardBox = new THREE.Box3().setFromObject(board.group);
         const boardSize = boardBox.getSize(new THREE.Vector3());
         const boardSpan = Math.max(boardSize.x || 1, boardSize.z || 1);
-        const boardTarget = Math.min(
-          chessBattleTargetBoard,
-          chessBattleTargetSpan * 0.42
-        );
+        const boardTarget = chessBattleTargetBoard;
         const boardScale =
           boardSpan > 1e-6 && Number.isFinite(boardTarget) && boardTarget > 0
             ? boardTarget / boardSpan
@@ -13351,10 +13416,7 @@ const powerRef = useRef(hud.power);
           const chairBox = new THREE.Box3().setFromObject(chair);
           const chairSize = chairBox.getSize(new THREE.Vector3());
           const maxSize = Math.max(chairSize.x || 1, chairSize.y || 1, chairSize.z || 1);
-          const targetMax = Math.max(
-            chessBattleTargetChair,
-            toHospitalityUnits(0.92) * hospitalityUpscale
-          );
+          const targetMax = chessBattleTargetChair;
           chair.scale.multiplyScalar(targetMax / maxSize);
           chair.position.set(x, 0, z);
           const toCenter = new THREE.Vector2(x, z).multiplyScalar(-1);
@@ -13453,10 +13515,7 @@ const powerRef = useRef(hud.power);
           const chairBox = new THREE.Box3().setFromObject(chairModel);
           const chairSize = chairBox.getSize(new THREE.Vector3());
           const maxSize = Math.max(chairSize.x || 1, chairSize.y || 1, chairSize.z || 1);
-          const targetMax = Math.max(
-            chessBattleTargetChair,
-            toHospitalityUnits(0.92) * hospitalityUpscale
-          );
+          const targetMax = chessBattleTargetChair;
           chairModel.scale.multiplyScalar(targetMax / maxSize);
           chairModel.traverse((child) => {
             if (!child?.isMesh) return;
@@ -16239,6 +16298,7 @@ const powerRef = useRef(hud.power);
             hit = hit.parent;
           }
           if (!hit?.userData?.isChalk) return false;
+          playChalk();
           toggleChalkAssist(hit.userData?.chalkIndex ?? null);
           return true;
         };
@@ -16888,21 +16948,24 @@ const powerRef = useRef(hud.power);
         if (environmentId !== 'musicHall02') return;
         const spacing = resolveSecondarySpacing(environmentId);
         const tableHalfDepth = (TABLE.H / 2) * TABLE_DISPLAY_SCALE;
-        const shortRailDirection = Math.sign(spacing || 1) || 1;
-        const outerShortRailZ = shortRailDirection * (Math.abs(spacing) + tableHalfDepth);
-        const availableOuterSpace = Math.max(0, arenaHalfDepth - outerShortRailZ);
+        const loungeSlot = activeTableSlotRef.current === 0 ? 1 : 0;
+        const loungeDirection = loungeSlot === 0 ? -1 : 1;
+        const outerShortRailDistance = Math.abs(spacing) + tableHalfDepth;
+        const outerShortRailZ = loungeDirection * outerShortRailDistance;
+        const availableOuterSpace = Math.max(0, arenaHalfDepth - Math.abs(outerShortRailZ));
         const serviceGap = Math.max(
           toHospitalityUnits(0.32) * hospitalityUpscale,
           BALL_R * 8
         );
         const farInteriorZ = arenaHalfDepth - hospitalityEdgePull;
-        const placementZ = THREE.MathUtils.clamp(
-          outerShortRailZ + serviceGap * 1.25,
-          outerShortRailZ + serviceGap,
+        const placementDepth = THREE.MathUtils.clamp(
+          outerShortRailDistance + serviceGap * 1.25,
+          outerShortRailDistance + serviceGap,
           farInteriorZ
         );
         const chairSpread = toHospitalityUnits(0.44) * hospitalityUpscale;
         const chairDepth = toHospitalityUnits(0.64) * hospitalityUpscale;
+        const placementZ = loungeDirection * placementDepth;
         const facingCenter = Math.atan2(0, -placementZ);
         createChessLoungeSet({
             chairOffsets: [
@@ -18308,6 +18371,29 @@ const powerRef = useRef(hud.power);
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
         }
+        if (aiOpponentEnabled && currentHud?.turn === 1) {
+          const refreshedPlan = typeof computeAiShotRef.current === 'function'
+            ? computeAiShotRef.current()
+            : null;
+          if (refreshedPlan?.aimDir) {
+            aiPlanRef.current = refreshedPlan;
+            const refreshedDir = refreshedPlan.aimDir.clone().normalize();
+            aimDirRef.current.copy(refreshedDir);
+            const refreshedPower = THREE.MathUtils.clamp(
+              refreshedPlan.power ?? powerRef.current ?? 0,
+              0,
+              1
+            );
+            powerRef.current = refreshedPower;
+            setHud((prev) => ({ ...prev, power: refreshedPower }));
+            const spinToApply = refreshedPlan.spin ?? { x: 0, y: 0 };
+            spinRef.current = { ...spinToApply };
+            spinRequestRef.current = { ...spinToApply };
+            resetSpinRef.current?.();
+          } else {
+            aiPlanRef.current = null;
+          }
+        }
         const shotStartTime = performance.now();
         const forcedCueView = aiShotCueViewRef.current;
         setAiShotCueViewActive(false);
@@ -18410,7 +18496,7 @@ const powerRef = useRef(hud.power);
           const shouldRecordReplay = true;
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
-          playCueHit(clampedPower * 0.6);
+          playCueHit(clampedPower);
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
@@ -19262,7 +19348,8 @@ const powerRef = useRef(hud.power);
                 cueToTarget: cueDist,
                 targetToPocket: toPocketLen,
                 railNormal: cushionAid?.railNormal ?? null,
-                viaCushion: Boolean(cushionAid)
+                viaCushion: Boolean(cushionAid),
+                laneClear: directGhostClear && directClear
               };
               const leaveProbe = targetBall.pos
                 .clone()
@@ -19317,29 +19404,31 @@ const powerRef = useRef(hud.power);
                 quality: Math.max(
                   0,
                   1 - (cueDist + safetyDist * 2) / (PLAY_W + PLAY_H)
-                )
+                ),
+                laneClear: false
               };
               if (!fallbackPlan || blockedPlan.difficulty < fallbackPlan.difficulty) {
                 fallbackPlan = blockedPlan;
               }
               return;
             }
-              const safetyPlan = {
-                type: 'safety',
-                aimDir: cueToBall.clone().normalize(),
-                power: computePowerFromDistance((cueDist + safetyDist) * 0.85),
-                target: colorId,
+            const safetyPlan = {
+              type: 'safety',
+              aimDir: cueToBall.clone().normalize(),
+              power: computePowerFromDistance((cueDist + safetyDist) * 0.85),
+              target: colorId,
               targetBall,
               pocketId: 'SAFETY',
                 difficulty: cueDist + safetyDist * 1.2,
                 cueToTarget: cueDist,
-                targetToPocket: safetyDist,
-                spin: { x: 0, y: -0.2 },
-                quality: Math.max(
-                  0,
-                  1 - (cueDist + safetyDist * 1.2) / (PLAY_W + PLAY_H)
-                )
-              };
+              targetToPocket: safetyDist,
+              spin: { x: 0, y: -0.2 },
+              quality: Math.max(
+                0,
+                1 - (cueDist + safetyDist * 1.2) / (PLAY_W + PLAY_H)
+              ),
+              laneClear: directClear
+            };
             safetyShots.push(safetyPlan);
           });
           if (!potShots.length && (activeVariantId === 'american' || activeVariantId === '9ball')) {
@@ -19407,6 +19496,7 @@ const powerRef = useRef(hud.power);
                   railNormal: null,
                   viaCushion: false,
                   quality,
+                  laneClear: true,
                   spin: computePlanSpin(
                     {
                       type: 'pot',
@@ -19463,12 +19553,14 @@ const powerRef = useRef(hud.power);
             const priorityBonus =
               priorityIndex >= 0 ? 1 - Math.min(priorityIndex * 0.18, 0.72) : 0;
             const cushionPenalty = plan.viaCushion ? 0.18 : 0;
+            const laneClearBonus = plan.laneClear ? 0.12 : 0;
             return (
               quality * 0.55 +
               difficultyEase * 0.2 +
               pocketEase * 0.1 +
               cueEase * 0.08 +
-              priorityBonus * 0.1 -
+              priorityBonus * 0.1 +
+              laneClearBonus -
               cushionPenalty
             );
           };
@@ -19967,6 +20059,7 @@ const powerRef = useRef(hud.power);
           const options = evaluateShotOptions();
           return options.bestPot ?? options.bestSafety ?? null;
         };
+        computeAiShotRef.current = computeAiShot;
         stopAiThinkingRef.current = stopAiThinking;
         startAiThinkingRef.current = startAiThinking;
         startUserSuggestionRef.current = updateUserSuggestion;
@@ -20468,6 +20561,14 @@ const powerRef = useRef(hud.power);
           } else {
             shotReplayRef.current = null;
             shotRecording = null;
+          }
+          if (
+            aiOpponentEnabled &&
+            hudRef.current?.turn === 1 &&
+            !hudRef.current?.over
+          ) {
+            aiPlanRef.current = null;
+            startAiThinkingRef.current?.();
           }
           window.setTimeout(() => {
             const hudState = hudRef.current;
@@ -21364,12 +21465,17 @@ const powerRef = useRef(hud.power);
               b.launchDir = null;
             }
             const hitRail = reflectRails(b);
+            const railNormal = b.lastRailNormal || null;
             if (hitRail && b.id === 'cue') b.impacted = true;
             if (hitRail && shotContextRef.current.contactMade) {
               shotContextRef.current.cushionAfterContact = true;
             }
-            if (hitRail === 'rail' && b.spin?.lengthSq() > 0) {
-              applySpinImpulse(b, 1);
+            if (hitRail && b.spin?.lengthSq() > 0) {
+              if (railNormal) {
+                applyRailSpinResponse(b, railNormal, hitRail === 'corner' ? 0.72 : 1);
+              } else {
+                applySpinImpulse(b, 1);
+              }
             }
             if (hitRail) {
               const nowRail = performance.now();
