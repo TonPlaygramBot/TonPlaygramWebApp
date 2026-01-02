@@ -49,7 +49,6 @@ import {
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_DEFAULT_UNLOCKS,
-  HDRI_RESOLUTION_OVERRIDES,
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_HDRI_VARIANT_MAP,
   POOL_ROYALE_BASE_VARIANTS
@@ -1056,7 +1055,7 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
 const SIDE_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
 const SIDE_POCKET_SPAN =
-  SIDE_POCKET_RADIUS * 1.02 * POCKET_VISUAL_EXPANSION + BALL_R * 0.64; // widen the middle cut capture so cushion deflections follow natural pocket throws
+  SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.52; // tune the middle lane to the real mouth width
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_ENABLED = false; // fully disable any plywood underlay beneath the cloth
 const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
@@ -5906,12 +5905,7 @@ function applySpinImpulse(ball, scale = 1) {
 }
 
 function applyRailSpinResponse(ball, impact) {
-  if (!ball || !impact?.normal) return;
-  if (ball.pendingSpin?.lengthSq() > 1e-6 && ball.spin) {
-    ball.spin.add(ball.pendingSpin);
-    ball.pendingSpin.multiplyScalar(0);
-  }
-  if (!ball.spin || ball.spin.lengthSq() < 1e-6) return;
+  if (!ball?.spin || ball.spin.lengthSq() < 1e-6 || !impact?.normal) return;
   const normal = impact.normal.clone().normalize();
   const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
   const speed = Math.max(ball.vel.length(), 0);
@@ -9915,27 +9909,20 @@ function PoolRoyaleGame({
         POOL_ROYALE_HDRI_VARIANT_MAP[POOL_ROYALE_DEFAULT_HDRI_ID] ??
         POOL_ROYALE_HDRI_VARIANTS[0];
       if (!variant) return null;
-      const lockedResolution =
-        HDRI_RESOLUTION_OVERRIDES[variant.id]?.preferredResolutions?.[0] ?? null;
       const basePreferred =
         Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
           ? variant.preferredResolutions
           : DEFAULT_HDRI_RESOLUTIONS;
-      const resolved =
-        lockedResolution ??
-        resolvedHdriResolution ??
-        basePreferred[0];
+      const resolved = resolvedHdriResolution ?? basePreferred[0];
       if (!resolved) return variant;
-      const preferredResolutions = lockedResolution
-        ? [lockedResolution, ...basePreferred.filter((res) => res !== lockedResolution)]
-        : [
-            resolved,
-            ...basePreferred.filter((res) => res !== resolved)
-          ];
+      const preferredResolutions = [
+        resolved,
+        ...basePreferred.filter((res) => res !== resolved)
+      ];
       return {
         ...variant,
         preferredResolutions,
-        fallbackResolution: lockedResolution ?? resolved
+        fallbackResolution: resolved
       };
     },
     [environmentHdriId, resolvedHdriResolution]
@@ -11296,7 +11283,7 @@ const powerRef = useRef(hud.power);
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
-    const scaled = clamp(volumeRef.current * 1.35 * (0.42 + power * 0.76), 0, 1);
+    const scaled = clamp(volumeRef.current * 1.2 * (0.35 + power * 0.75), 0, 1);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11309,8 +11296,7 @@ const powerRef = useRef(hud.power);
     const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
     const playbackDuration = Math.max(0, clipEnd - clipStart);
     if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
-      const startTime = Math.max(ctx.currentTime + 0.0005, 0);
-      source.start(startTime, clipStart, playbackDuration);
+      source.start(0, clipStart, playbackDuration);
     }
   }, []);
 
@@ -12990,34 +12976,6 @@ const powerRef = useRef(hud.power);
         return renderer.capabilities.getMaxAnisotropy();
       };
 
-      const capTextureResolution = (texture, maxSize = 2048) => {
-        if (!texture || !texture.image || typeof document === 'undefined') return;
-        const image = texture.image;
-        const width = image.naturalWidth || image.videoWidth || image.width;
-        const height = image.naturalHeight || image.videoHeight || image.height;
-        if (!width || !height) return;
-        const largest = Math.max(width, height);
-        if (!largest || largest <= maxSize) return;
-        if (typeof document.createElement !== 'function') return;
-        const scale = maxSize / largest;
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(width * scale));
-        canvas.height = Math.max(1, Math.round(height * scale));
-        const ctx = canvas.getContext('2d');
-        if (!ctx || typeof ctx.drawImage !== 'function') return;
-        try {
-          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-          texture.image = canvas;
-          texture.needsUpdate = true;
-        } catch (err) {
-          console.warn('Failed to resize hospitality texture', err);
-        }
-      };
-
-      const shouldLimitHospitalityResolution = () =>
-        environmentHdriRef.current === 'musicHall02' ||
-        environmentHdriRef.current === 'oldHall';
-
       const sharpenTexture = (texture, { wrapRepeat = true } = {}) => {
         if (!texture) return;
         applySRGBColorSpace(texture);
@@ -13030,15 +12988,6 @@ const powerRef = useRef(hud.power);
           texture.wrapT = THREE.RepeatWrapping;
         }
         texture.needsUpdate = true;
-      };
-
-      const prepHospitalityTexture = (texture, { srgb = false } = {}) => {
-        if (!texture) return;
-        if (srgb) applySRGBColorSpace(texture);
-        if (shouldLimitHospitalityResolution()) {
-          capTextureResolution(texture, 2048);
-        }
-        sharpenTexture(texture);
       };
 
       const adjustHospitalityForEdge = (value) => {
@@ -13339,11 +13288,10 @@ const powerRef = useRef(hud.power);
         if (!mat) return mat;
         const material = mat.clone ? mat.clone() : mat;
         material.userData = { ...(material.userData || {}), disposableHospitality: true };
-        prepHospitalityTexture(material.map, { srgb: true });
-        prepHospitalityTexture(material.emissiveMap, { srgb: true });
-        prepHospitalityTexture(material.normalMap);
-        prepHospitalityTexture(material.roughnessMap);
-        prepHospitalityTexture(material.metalnessMap);
+        applySRGBColorSpace(material.map);
+        applySRGBColorSpace(material.emissiveMap);
+        if (material.map) sharpenTexture(material.map);
+        if (material.emissiveMap) sharpenTexture(material.emissiveMap);
         material.needsUpdate = true;
         return material;
       };
@@ -16907,15 +16855,6 @@ const powerRef = useRef(hud.power);
           if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
-            if (shouldLimitHospitalityResolution() && child.material) {
-              const mats = Array.isArray(child.material) ? child.material : [child.material];
-              mats.forEach((mat) => {
-                capTextureResolution(mat.map, 2048);
-                capTextureResolution(mat.normalMap, 2048);
-                capTextureResolution(mat.roughnessMap, 2048);
-                capTextureResolution(mat.metalnessMap, 2048);
-              });
-            }
           }
         });
       };
