@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { afterAll, expect, test } from '@jest/globals';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'events';
 import { setTimeout as delay } from 'timers/promises';
@@ -75,7 +75,7 @@ function createRefs() {
   };
 }
 
-test.after(() => {
+afterAll(() => {
   realSocket?.disconnect?.();
   realSocket?.close?.();
 });
@@ -142,12 +142,12 @@ test('runPoolRoyaleOnlineFlow debits once and keeps stake for game start', async
 
   await delay(0);
 
-  assert.equal(addCalls.length, 1, 'should only debit once');
-  assert.equal(addCalls[0][1], -100);
-  assert.equal(addCalls[0][2], 'stake');
-  assert.equal(started.length, 1);
-  assert.equal(started[0].tableId, 'tbl-1');
-  assert.equal(refs.stakeDebitRef.current, null, 'stake cleared after start');
+  expect(addCalls).toHaveLength(1);
+  expect(addCalls[0][1]).toBe(-100);
+  expect(addCalls[0][2]).toBe('stake');
+  expect(started).toHaveLength(1);
+  expect(started[0].tableId).toBe('tbl-1');
+  expect(refs.stakeDebitRef.current).toBeNull();
 });
 
 test('runPoolRoyaleOnlineFlow refunds when matchmaking times out', async () => {
@@ -188,10 +188,10 @@ test('runPoolRoyaleOnlineFlow refunds when matchmaking times out', async () => {
 
   await delay(120);
 
-  assert.equal(addCalls.length, 2, 'should debit then refund');
-  assert.equal(addCalls[0][1], -75);
-  assert.equal(addCalls[1][1], 75);
-  assert.equal(addCalls[1][2], 'stake_refund');
-  assert.ok(state.snapshot.matchingError.includes('timed out'));
-  assert.equal(refs.pendingTableRef.current, '');
+  expect(addCalls).toHaveLength(2);
+  expect(addCalls[0][1]).toBe(-75);
+  expect(addCalls[1][1]).toBe(75);
+  expect(addCalls[1][2]).toBe('stake_refund');
+  expect(state.snapshot.matchingError).toContain('timed out');
+  expect(refs.pendingTableRef.current).toBe('');
 });
