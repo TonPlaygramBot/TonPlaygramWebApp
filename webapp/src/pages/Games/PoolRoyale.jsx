@@ -1274,10 +1274,11 @@ const CUE_BUTT_LIFT = BALL_R * 0.64; // keep the butt elevated for clearance whi
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.35;
-const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.95;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(8.5);
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.15; // tighten detection so nearby balls trigger less often
+const CUE_OBSTRUCTION_RANGE = BALL_R * 6.5; // reduce the backward probe reach to avoid false positives on distant balls
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.55; // keep the butt from rising excessively when nudging away from obstructions
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(5.25); // soften butt tilt when clearance is tight
+const CUE_OBSTRUCTION_MAX_STRENGTH = 0.85; // cap the obstruction influence so the cue stays anchored to the cue-ball radius
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -4872,9 +4873,9 @@ const BREAK_VIEW = Object.freeze({
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.08;
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.02;
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
+const TOP_VIEW_PHI = 0; // force a straight-down 2D orbit with no tilt
 const TOP_VIEW_RADIUS_SCALE = 1.02;
-const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
+const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI; // keep the overhead camera perfectly orthographic in pitch
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: 0, // center the table for the classic top-down framing
   z: 0 // keep the 2D view aligned with the original overhead composition
@@ -20880,7 +20881,7 @@ const powerRef = useRef(hud.power);
             const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
             strength = Math.max(strength, influence);
           });
-          return strength;
+          return Math.min(strength, CUE_OBSTRUCTION_MAX_STRENGTH);
         }
 
         sidePocketAimRef.current = false;
