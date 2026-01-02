@@ -1304,7 +1304,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
-const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 2.4, 0.44 / 2.4); // shrink grain slightly so rail and skirt wood reads tighter
+const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3, 0.44 / 3); // enlarge grain 3× so rails, skirts, and legs read at table scale
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
 const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
@@ -2012,9 +2012,6 @@ const POOL_ROYALE_WOOD_SURFACE_PROPS = Object.freeze({
   roughnessBase: 0.16,
   roughnessVariance: 0.22
 });
-
-const LONG_RAIL_WOOD_TILING = 1.18;
-const SHORT_RAIL_WOOD_TILING = 1.18;
 
 const applySnookerStyleWoodPreset = (materials, finishId) => {
   if (!WOOD_TEXTURES_ENABLED) return;
@@ -3656,18 +3653,22 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     finishInfo.clothMat.userData?.repeatRatio ?? finishInfo.clothBase?.repeatRatio ?? 1;
   const baseRepeatValue = baseRepeatRaw * textureScale;
   const fallbackRepeat = new THREE.Vector2(baseRepeatValue, baseRepeatValue * repeatRatioValue);
-  replaceMaterialTexture(finishInfo.clothMat, 'map', textures.map, fallbackRepeat);
+  replaceMaterialTexture(finishInfo.clothMat, 'map', textures.map, fallbackRepeat, {
+    preserveExisting: true
+  });
   replaceMaterialTexture(
     finishInfo.clothMat,
     'normalMap',
     textures.normal,
-    fallbackRepeat
+    fallbackRepeat,
+    { preserveExisting: true }
   );
   replaceMaterialTexture(
     finishInfo.clothMat,
     'roughnessMap',
     textures.roughness,
-    fallbackRepeat
+    fallbackRepeat,
+    { preserveExisting: true }
   );
   if (textures.normal) {
     finishInfo.clothMat.normalScale = CLOTH_NORMAL_SCALE.clone();
@@ -3697,18 +3698,22 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     finishInfo.clothMat.userData.farRepeat = baseRepeatValue * 0.44;
   }
   if (finishInfo.cushionMat) {
-    replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat);
+    replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat, {
+      preserveExisting: true
+    });
     replaceMaterialTexture(
       finishInfo.cushionMat,
       'normalMap',
       textures.normal,
-      fallbackRepeat
+      fallbackRepeat,
+      { preserveExisting: true }
     );
     replaceMaterialTexture(
       finishInfo.cushionMat,
       'roughnessMap',
       textures.roughness,
-      fallbackRepeat
+      fallbackRepeat,
+      { preserveExisting: true }
     );
     if (textures.normal) {
       finishInfo.cushionMat.normalScale = CLOTH_NORMAL_SCALE.clone();
@@ -8825,10 +8830,7 @@ function Table3D(
     resolvedWoodOption?.rail ?? baseFrameFallback
   );
   const synchronizedWoodSurface = {
-    repeat: new THREE.Vector2(
-      woodFrameSurface.repeat.x * LONG_RAIL_WOOD_TILING,
-      woodFrameSurface.repeat.y * SHORT_RAIL_WOOD_TILING
-    ),
+    repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
     rotation: woodFrameSurface.rotation,
     textureSize: woodFrameSurface.textureSize,
     mapUrl: woodFrameSurface.mapUrl,
