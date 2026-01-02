@@ -11543,6 +11543,26 @@ const powerRef = useRef(hud.power);
       ctx.close().catch(() => {});
     };
   }, [stopActiveCrowdSound]);
+  useEffect(() => {
+    const passiveOptions = { passive: true };
+    const resumeAudio = () => {
+      const ctx = audioContextRef.current;
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+      window.removeEventListener('touchstart', resumeAudio, passiveOptions);
+      window.removeEventListener('pointerdown', resumeAudio, passiveOptions);
+      window.removeEventListener('mousedown', resumeAudio);
+    };
+    window.addEventListener('touchstart', resumeAudio, passiveOptions);
+    window.addEventListener('pointerdown', resumeAudio, passiveOptions);
+    window.addEventListener('mousedown', resumeAudio);
+    return () => {
+      window.removeEventListener('touchstart', resumeAudio, passiveOptions);
+      window.removeEventListener('pointerdown', resumeAudio, passiveOptions);
+      window.removeEventListener('mousedown', resumeAudio);
+    };
+  }, []);
   const formatBallOnLabel = useCallback(
     (rawList = []) => {
       const normalized = rawList
@@ -18452,6 +18472,8 @@ const powerRef = useRef(hud.power);
           setHud((prev) => ({ ...prev, inHand: false }));
         }
         const shotStartTime = performance.now();
+        const topDownPinned =
+          topViewRef.current || topViewLockedRef.current || isTopDownView;
         const forcedCueView = aiShotCueViewRef.current;
         setAiShotCueViewActive(false);
         setAiShotPreviewActive(false);
@@ -18611,20 +18633,22 @@ const powerRef = useRef(hud.power);
             : orbitSnapshot
               ? { orbitSnapshot }
               : null;
-          const actionView = allowLongShotCameraSwitch
-            ? makeActionCameraView(
-                cue,
-                shotPrediction.ballId,
-                followView,
-                shotPrediction.railNormal,
-                {
-                  longShot: isLongShot,
-                  travelDistance: predictedTravel
-                }
-              )
-            : null;
+          const allowDynamicCameras = !topDownPinned;
+          const actionView =
+            allowDynamicCameras && allowLongShotCameraSwitch
+              ? makeActionCameraView(
+                  cue,
+                  shotPrediction.ballId,
+                  followView,
+                  shotPrediction.railNormal,
+                  {
+                    longShot: isLongShot,
+                    travelDistance: predictedTravel
+                  }
+                )
+              : null;
           const earlyPocketView =
-            !suppressPocketCameras && shotPrediction.ballId && followView
+            allowDynamicCameras && !suppressPocketCameras && shotPrediction.ballId && followView
               ? makePocketCameraView(shotPrediction.ballId, followView, {
                   forceEarly: true
                 })
@@ -18720,10 +18744,7 @@ const powerRef = useRef(hud.power);
           cue.lift = 0;
           cue.liftVel = 0;
 
-          if (cameraRef.current && sphRef.current) {
-            topViewRef.current = false;
-            topViewLockedRef.current = false;
-            setIsTopDownView(false);
+          if (cameraRef.current && sphRef.current && !topDownPinned) {
             const sph = sphRef.current;
             const bounds = cameraBoundsRef.current;
             const standingView = bounds?.standing;
