@@ -1295,7 +1295,7 @@ const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // middle pocket cushion cuts are sharpened to a 29° cut to align the side-rail cushions with the updated spec
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 34;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -5910,9 +5910,6 @@ function applyRailSpinResponse(ball, impact) {
   const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
   const speed = Math.max(ball.vel.length(), 0);
   const preImpactSpin = ball.spin.clone();
-  if (ball.pendingSpin && ball.pendingSpin.lengthSq() > 1e-6) {
-    preImpactSpin.add(ball.pendingSpin);
-  }
   const throwFactor = Math.max(
     0,
     Math.min(speed / Math.max(RAIL_SPIN_THROW_REF_SPEED, 1e-6), 1.4)
@@ -5923,9 +5920,6 @@ function applyRailSpinResponse(ball, impact) {
     ball.vel.addScaledVector(tangent, throwStrength);
   }
   ball.spin.copy(preImpactSpin);
-  if (ball.pendingSpin) {
-    ball.pendingSpin.multiplyScalar(0);
-  }
   applySpinImpulse(ball, 0.6);
 }
 
@@ -10549,57 +10543,6 @@ function PoolRoyaleGame({
     }
   }, [activeEnvironmentHdri, environmentHdriId]);
   useEffect(() => {
-    const renderer = rendererRef.current;
-    const needsDecorHdri =
-      secondaryTableReady &&
-      (environmentHdriId === 'musicHall02' || environmentHdriId === 'oldHall');
-    if (!renderer || !needsDecorHdri) {
-      applyDecorEnvMapRef.current?.(null);
-      decorEnvSignatureRef.current = '';
-      disposeDecorEnvironmentRef.current?.();
-      disposeDecorEnvironmentRef.current = null;
-      decorEnvMapRef.current = null;
-      return undefined;
-    }
-    const variant = activeEnvironmentVariantRef.current;
-    if (!variant) return undefined;
-    const decorVariant = {
-      ...variant,
-      preferredResolutions: ['2k'],
-      fallbackResolution: '2k'
-    };
-    const signature = `${variant.id || environmentHdriId}:decor-2k`;
-    if (decorEnvSignatureRef.current === signature && decorEnvMapRef.current) {
-      applyDecorEnvMapRef.current?.(decorEnvMapRef.current);
-      return undefined;
-    }
-    decorEnvSignatureRef.current = signature;
-    let cancelled = false;
-    (async () => {
-      try {
-        const result = await loadPolyHavenHdriEnvironment(renderer, decorVariant);
-        if (cancelled || !result?.envMap) return;
-        disposeDecorEnvironmentRef.current?.();
-        decorEnvMapRef.current = result.envMap;
-        disposeDecorEnvironmentRef.current = () => {
-          result.envMap?.dispose?.();
-          result.skyboxMap?.dispose?.();
-          if (decorEnvMapRef.current === result.envMap) {
-            decorEnvMapRef.current = null;
-          }
-        };
-        applyDecorEnvMapRef.current?.(result.envMap);
-      } catch (error) {
-        if (!cancelled) {
-          console.warn('Failed to load decor HDRI', error);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeEnvironmentHdri, environmentHdriId, secondaryTableReady]);
-  useEffect(() => {
     activeTableSlotRef.current = activeTableSlot;
   }, [activeTableSlot]);
   useEffect(() => {
@@ -11126,10 +11069,6 @@ const powerRef = useRef(hud.power);
   const envTextureRef = useRef(null);
   const envSkyboxRef = useRef(null);
   const envSkyboxTextureRef = useRef(null);
-  const decorEnvMapRef = useRef(null);
-  const decorEnvSignatureRef = useRef('');
-  const disposeDecorEnvironmentRef = useRef(null);
-  const applyDecorEnvMapRef = useRef(() => {});
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
@@ -11344,7 +11283,7 @@ const powerRef = useRef(hud.power);
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
-    const scaled = clamp(volumeRef.current * 1.35 * (0.48 + power * 0.78), 0, 1);
+    const scaled = clamp(volumeRef.current * 1.2 * (0.35 + power * 0.75), 0, 1);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11357,8 +11296,7 @@ const powerRef = useRef(hud.power);
     const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
     const playbackDuration = Math.max(0, clipEnd - clipStart);
     if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
-      const startTime = typeof ctx.currentTime === 'number' ? ctx.currentTime : 0;
-      source.start(startTime, clipStart, playbackDuration);
+      source.start(0, clipStart, playbackDuration);
     }
   }, []);
 
@@ -16881,10 +16819,7 @@ const powerRef = useRef(hud.power);
       const buildSecondaryDecor = () => buildDecorGroup({ table: secondaryTableRef.current, variant: 'pool' });
       const refreshSecondaryDecor = () => {
         disposeSecondaryDecor();
-        if (environmentHdriRef.current !== 'musicHall02') {
-          applyDecorEnvMapRef.current?.(decorEnvMapRef.current);
-          return;
-        }
+        if (environmentHdriRef.current !== 'musicHall02') return;
         const decor = buildSecondaryDecor();
         if (decor?.group) {
           secondaryTableDecorRef.current = {
@@ -16892,7 +16827,6 @@ const powerRef = useRef(hud.power);
             dispose: decor.dispose
           };
         }
-        applyDecorEnvMapRef.current?.(decorEnvMapRef.current);
       };
       refreshSecondaryTableDecorRef.current = refreshSecondaryDecor;
       clearSecondaryTableDecorRef.current = disposeSecondaryDecor;
@@ -17029,7 +16963,6 @@ const powerRef = useRef(hud.power);
       updateDecorTablesRef.current = layoutDecorativeTables;
       clearDecorTablesRef.current = disposeDecorativeTables;
       layoutDecorativeTables(environmentHdriRef.current);
-      applyDecorEnvMapRef.current?.(decorEnvMapRef.current);
       const disposeHospitalityGroups = () => {
         hospitalityGroupsRef.current.forEach((group) => {
           if (group) {
@@ -17144,29 +17077,7 @@ const powerRef = useRef(hud.power);
         if (dartboard) {
           addHospitalityGroup(dartboard);
         }
-        applyDecorEnvMapRef.current?.(decorEnvMapRef.current);
       };
-      const applyDecorativeEnvMap = (envMap) => {
-        const applyToGroup = (group) => {
-          if (!group) return;
-          group.traverse((child) => {
-            if (!child?.isMesh) return;
-            const materials = Array.isArray(child.material)
-              ? child.material
-              : [child.material];
-            materials.forEach((mat) => {
-              if (!mat || typeof mat !== 'object') return;
-              mat.envMap = envMap || null;
-              mat.needsUpdate = true;
-            });
-          });
-        };
-        applyToGroup(secondaryTableRef.current);
-        applyToGroup(secondaryTableDecorRef.current?.group);
-        decorativeTablesRef.current.forEach((entry) => applyToGroup(entry?.group));
-        hospitalityGroupsRef.current.forEach((group) => applyToGroup(group));
-      };
-      applyDecorEnvMapRef.current = applyDecorativeEnvMap;
       updateHospitalityLayoutRef.current = layoutHospitalityGroups;
       clearHospitalityLayoutRef.current = disposeHospitalityGroups;
       layoutHospitalityGroups(environmentHdriRef.current);
@@ -22373,10 +22284,6 @@ const powerRef = useRef(hud.power);
           cueMaterialsRef.current.buttRingMaterial = null;
           cueMaterialsRef.current.buttCapMaterial = null;
           cueMaterialsRef.current.styleIndex = null;
-          disposeDecorEnvironmentRef.current?.();
-          disposeDecorEnvironmentRef.current = null;
-          decorEnvMapRef.current = null;
-          decorEnvSignatureRef.current = '';
           disposeEnvironmentRef.current?.();
           disposeEnvironmentRef.current = null;
           envTextureRef.current = null;
