@@ -1304,10 +1304,10 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
-const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3, 0.44 / 3); // enlarge grain 3× so rails, skirts, and legs read at table scale
-const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
-const WOOD_REPEAT_SCALE_MIN = 0.5;
-const WOOD_REPEAT_SCALE_MAX = 2;
+const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3.4, 0.44 / 3.4); // enlarge grain 3× so rails, skirts, and legs read at table scale
+const FIXED_WOOD_REPEAT_SCALE = 500; // locked to 25000% for consistent oversized grain
+const WOOD_REPEAT_SCALE_MIN = FIXED_WOOD_REPEAT_SCALE;
+const WOOD_REPEAT_SCALE_MAX = FIXED_WOOD_REPEAT_SCALE;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
@@ -1864,11 +1864,7 @@ const TABLE_WOOD_VISIBILITY_TUNING = Object.freeze({
   normalScale: 0.65
 });
 
-const clampWoodRepeatScaleValue = (value = DEFAULT_WOOD_REPEAT_SCALE) => {
-  const numeric = Number(value);
-  const resolved = Number.isFinite(numeric) ? numeric : DEFAULT_WOOD_REPEAT_SCALE;
-  return THREE.MathUtils.clamp(resolved, WOOD_REPEAT_SCALE_MIN, WOOD_REPEAT_SCALE_MAX);
-};
+const clampWoodRepeatScaleValue = () => DEFAULT_WOOD_REPEAT_SCALE;
 
 function scaleWoodRepeatVector (repeatVec, scale) {
   const vec = repeatVec?.isVector2
@@ -3587,32 +3583,16 @@ const createClothTextures = (() => {
     };
   };
 })();
-function replaceMaterialTexture (
-  material,
-  prop,
-  baseTexture,
-  fallbackRepeat,
-  { preserveExisting = false } = {}
-) {
+function replaceMaterialTexture (material, prop, baseTexture, fallbackRepeat) {
   if (!material) return;
   const prev = material[prop];
+  if (prev?.dispose) {
+    prev.dispose();
+  }
   if (!baseTexture) {
-    if (preserveExisting && prev) {
-      if (fallbackRepeat?.isVector2 && prev?.repeat?.isVector2) {
-        prev.repeat.copy(fallbackRepeat);
-        prev.needsUpdate = true;
-      }
-      return;
-    }
-    if (prev?.dispose) {
-      prev.dispose();
-    }
     material[prop] = null;
     material.needsUpdate = true;
     return;
-  }
-  if (prev?.dispose && prev !== baseTexture) {
-    prev.dispose();
   }
   const next = baseTexture.clone();
   next.image = baseTexture.image;
@@ -3653,34 +3633,14 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     finishInfo.clothMat.userData?.repeatRatio ?? finishInfo.clothBase?.repeatRatio ?? 1;
   const baseRepeatValue = baseRepeatRaw * textureScale;
   const fallbackRepeat = new THREE.Vector2(baseRepeatValue, baseRepeatValue * repeatRatioValue);
-  replaceMaterialTexture(finishInfo.clothMat, 'map', textures.map, fallbackRepeat, {
-    preserveExisting: true
-  });
-  replaceMaterialTexture(
-    finishInfo.clothMat,
-    'normalMap',
-    textures.normal,
-    fallbackRepeat,
-    { preserveExisting: true }
-  );
-  replaceMaterialTexture(
-    finishInfo.clothMat,
-    'roughnessMap',
-    textures.roughness,
-    fallbackRepeat,
-    { preserveExisting: true }
-  );
+  replaceMaterialTexture(finishInfo.clothMat, 'map', textures.map, fallbackRepeat);
+  replaceMaterialTexture(finishInfo.clothMat, 'normalMap', textures.normal, fallbackRepeat);
+  replaceMaterialTexture(finishInfo.clothMat, 'roughnessMap', textures.roughness, fallbackRepeat);
   if (textures.normal) {
     finishInfo.clothMat.normalScale = CLOTH_NORMAL_SCALE.clone();
     replaceMaterialTexture(finishInfo.clothMat, 'bumpMap', null, fallbackRepeat);
   } else {
-    replaceMaterialTexture(
-      finishInfo.clothMat,
-      'bumpMap',
-      textures.bump,
-      fallbackRepeat,
-      { preserveExisting: true }
-    );
+    replaceMaterialTexture(finishInfo.clothMat, 'bumpMap', textures.bump, fallbackRepeat);
   }
   if (textures.roughness) {
     finishInfo.clothMat.roughness = roughnessTarget;
@@ -3698,34 +3658,19 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     finishInfo.clothMat.userData.farRepeat = baseRepeatValue * 0.44;
   }
   if (finishInfo.cushionMat) {
-    replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat, {
-      preserveExisting: true
-    });
-    replaceMaterialTexture(
-      finishInfo.cushionMat,
-      'normalMap',
-      textures.normal,
-      fallbackRepeat,
-      { preserveExisting: true }
-    );
+    replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat);
+    replaceMaterialTexture(finishInfo.cushionMat, 'normalMap', textures.normal, fallbackRepeat);
     replaceMaterialTexture(
       finishInfo.cushionMat,
       'roughnessMap',
       textures.roughness,
-      fallbackRepeat,
-      { preserveExisting: true }
+      fallbackRepeat
     );
     if (textures.normal) {
       finishInfo.cushionMat.normalScale = CLOTH_NORMAL_SCALE.clone();
       replaceMaterialTexture(finishInfo.cushionMat, 'bumpMap', null, fallbackRepeat);
     } else {
-      replaceMaterialTexture(
-        finishInfo.cushionMat,
-        'bumpMap',
-        textures.bump,
-        fallbackRepeat,
-        { preserveExisting: true }
-      );
+      replaceMaterialTexture(finishInfo.cushionMat, 'bumpMap', textures.bump, fallbackRepeat);
     }
     if (textures.roughness) {
       finishInfo.cushionMat.roughness = roughnessTarget;
@@ -4933,6 +4878,15 @@ const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: 0, // center the table for the classic top-down framing
   z: 0 // keep the 2D view aligned with the original overhead composition
+});
+const PLAYER_TOP_VIEW_MARGIN = 1.02; // restore the legacy 2D button framing without affecting broadcast cameras
+const PLAYER_TOP_VIEW_MIN_RADIUS_SCALE = 1.0;
+const PLAYER_TOP_VIEW_RADIUS_SCALE = 1.0;
+const PLAYER_TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.02, CAMERA_ABS_MIN_PHI);
+const PLAYER_TOP_VIEW_RESOLVED_PHI = Math.max(PLAYER_TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
+const PLAYER_TOP_VIEW_SCREEN_OFFSET = Object.freeze({
+  x: 0, // keep the table perfectly centred for the interactive top-down view
+  z: 0 // match the flat 2D composition requested for the button toggle
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -11347,8 +11301,8 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    const clipStart = THREE.MathUtils.clamp(7, 0, Math.max(buffer.duration - 0.1, 0));
-    const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
+    const clipStart = THREE.MathUtils.clamp(0.02, 0, Math.max(buffer.duration - 0.05, 0));
+    const clipEnd = Math.min(1.25, buffer.duration);
     const playbackDuration = Math.max(0, clipEnd - clipStart);
     if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
       source.start(0, clipStart, playbackDuration);
@@ -15070,19 +15024,19 @@ const powerRef = useRef(hud.power);
         lookTarget = focusTarget;
         if (topViewRef.current) {
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-            playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
+            playerOffsetRef.current + PLAYER_TOP_VIEW_SCREEN_OFFSET.x,
             ORBIT_FOCUS_BASE_Y,
-            TOP_VIEW_SCREEN_OFFSET.z
+            PLAYER_TOP_VIEW_SCREEN_OFFSET.z
           ).multiplyScalar(worldScaleFactor);
           let resolvedTarget = topFocusTarget.clone();
           const topRadius = clampOrbitRadius(
             Math.max(
-              fitRadius(camera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
-              CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
+              fitRadius(camera, PLAYER_TOP_VIEW_MARGIN, PLAYER_TOP_VIEW_RADIUS_SCALE),
+              CAMERA.minR * PLAYER_TOP_VIEW_MIN_RADIUS_SCALE
             )
           );
           const topTheta = Math.PI;
-          const topPhi = TOP_VIEW_RESOLVED_PHI;
+          const topPhi = PLAYER_TOP_VIEW_RESOLVED_PHI;
           TMP_SPH.set(topRadius, topPhi, topTheta);
           camera.up.set(0, 1, 0);
           camera.position.setFromSpherical(TMP_SPH);
@@ -15741,7 +15695,7 @@ const powerRef = useRef(hud.power);
         const margin = Math.max(
           STANDING_VIEW.margin,
           topViewRef.current
-            ? TOP_VIEW_MARGIN
+            ? PLAYER_TOP_VIEW_MARGIN
             : window.innerHeight > window.innerWidth
               ? STANDING_VIEW_MARGIN_PORTRAIT
               : STANDING_VIEW_MARGIN_LANDSCAPE
@@ -15753,7 +15707,7 @@ const powerRef = useRef(hud.power);
             const nextMargin = Math.max(
               STANDING_VIEW.margin,
               topViewRef.current
-                ? TOP_VIEW_MARGIN
+                ? PLAYER_TOP_VIEW_MARGIN
                 : window.innerHeight > window.innerWidth
                   ? STANDING_VIEW_MARGIN_PORTRAIT
                   : STANDING_VIEW_MARGIN_LANDSCAPE
@@ -16270,23 +16224,23 @@ const powerRef = useRef(hud.power);
         const enterTopView = (immediate = false) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
-          const margin = TOP_VIEW_MARGIN;
+          const margin = PLAYER_TOP_VIEW_MARGIN;
           fit(margin);
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-            playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
+            playerOffsetRef.current + PLAYER_TOP_VIEW_SCREEN_OFFSET.x,
             ORBIT_FOCUS_BASE_Y,
-            TOP_VIEW_SCREEN_OFFSET.z
+            PLAYER_TOP_VIEW_SCREEN_OFFSET.z
           ).multiplyScalar(
             Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE
           );
           const targetRadius = clampOrbitRadius(
             Math.max(
-              fitRadius(camera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
-              CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
+              fitRadius(camera, PLAYER_TOP_VIEW_MARGIN, PLAYER_TOP_VIEW_RADIUS_SCALE),
+              CAMERA.minR * PLAYER_TOP_VIEW_MIN_RADIUS_SCALE
             )
           );
           sph.radius = targetRadius;
-          sph.phi = TOP_VIEW_RESOLVED_PHI;
+          sph.phi = PLAYER_TOP_VIEW_RESOLVED_PHI;
           lastCameraTargetRef.current.copy(topFocusTarget);
           syncBlendToSpherical();
           if (immediate) {
@@ -17243,7 +17197,7 @@ const powerRef = useRef(hud.power);
       updateCamera();
       fit(
         topViewRef.current
-          ? TOP_VIEW_MARGIN
+          ? PLAYER_TOP_VIEW_MARGIN
           : window.innerHeight > window.innerWidth
             ? 1.6
             : 1.4
@@ -22227,7 +22181,7 @@ const powerRef = useRef(hud.power);
             const margin = Math.max(
               STANDING_VIEW.margin,
               topViewRef.current
-                ? TOP_VIEW_MARGIN
+                ? PLAYER_TOP_VIEW_MARGIN
                 : window.innerHeight > window.innerWidth
                   ? STANDING_VIEW_MARGIN_PORTRAIT
                   : STANDING_VIEW_MARGIN_LANDSCAPE
