@@ -11244,7 +11244,7 @@ const powerRef = useRef(hud.power);
       const buffer = audioBuffersRef.current.cue;
       if (!ctx || !buffer || muteRef.current) return;
       const power = clamp(vol, 0, 1);
-      const scaled = clamp((0.35 + power * 0.85) * volumeRef.current, 0, 1);
+      const scaled = clamp((0.18 + power * 0.82) * volumeRef.current, 0, 1);
       if (scaled <= 0) return;
       ctx.resume().catch(() => {});
       const source = ctx.createBufferSource();
@@ -16954,12 +16954,10 @@ const powerRef = useRef(hud.power);
           outerShortRailZ + serviceGap * 1.1,
           farInteriorZ
         );
-        const enableChessLounge = false;
-        if (enableChessLounge) {
-          const chairSpread = toHospitalityUnits(0.44) * hospitalityUpscale;
-          const chairDepth = toHospitalityUnits(0.64) * hospitalityUpscale;
-          const facingCenter = Math.atan2(0, -placementZ);
-          createChessLoungeSet({
+        const chairSpread = toHospitalityUnits(0.44) * hospitalityUpscale;
+        const chairDepth = toHospitalityUnits(0.64) * hospitalityUpscale;
+        const facingCenter = Math.atan2(0, -placementZ);
+        createChessLoungeSet({
             chairOffsets: [
               [-chairSpread, -chairDepth],
               [chairSpread, -chairDepth]
@@ -16967,14 +16965,13 @@ const powerRef = useRef(hud.power);
             position: [0, placementZ],
             rotationY: facingCenter
           })
-            .then((group) => {
-              if (!group || hospitalityLayoutRunRef.current !== runToken) return;
-              addHospitalityGroup(group);
-            })
-            .catch((error) => {
-              console.warn('Failed to add chess lounge hospitality set', error);
-            });
-        }
+          .then((group) => {
+            if (!group || hospitalityLayoutRunRef.current !== runToken) return;
+            addHospitalityGroup(group);
+          })
+          .catch((error) => {
+            console.warn('Failed to add chess lounge hospitality set', error);
+          });
         const dartboardZ = Math.min(
           farInteriorZ,
           Math.max(
@@ -21434,9 +21431,9 @@ const powerRef = useRef(hud.power);
                 const shotScale = 0.35 + 0.65 * lastShotPower;
                 const baseVol = speed / RAIL_HIT_SOUND_REFERENCE_SPEED;
                 const railVolume = clamp(baseVol * shotScale, 0, 1);
-                if (railVolume > 0 && b.id === 'cue' && lastShotPower >= 0.5) {
-                  const cushionHitVol = Math.max(0.55, railVolume * 0.9);
-                  playCueHit(cushionHitVol);
+                if (railVolume > 0) {
+                  // Cushion contacts should remain silent so only ball collisions
+                  // trigger impact audio cues. Leave the cooldown updates intact.
                 }
                 railSoundTimeRef.current.set(b.id, nowRail);
               }
