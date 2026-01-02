@@ -4876,8 +4876,8 @@ const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI + 0.02;
 const TOP_VIEW_RADIUS_SCALE = 0.82;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: 0, // center the table for the classic top-down framing
-  z: 0 // keep the 2D view aligned with the original overhead composition
+  x: -BALL_R * 0.85, // nudge the table slightly left in top-down framing
+  z: -BALL_R * 7 // push the table downward in 2D view so the lower rail gains space and top/bottom padding is balanced as requested
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -10678,22 +10678,6 @@ function PoolRoyaleGame({
   useEffect(() => {
     tableFinishRef.current = tableFinish;
   }, [tableFinish]);
-  useEffect(() => {
-    if (!secondaryTableReady) return;
-    if (environmentHdriId !== 'musicHall02' && environmentHdriId !== 'oldHall') return;
-    if (resolvedHdriResolution !== '2k') return;
-    const finish = tableFinishRef.current;
-    if (!finish) return;
-    const refreshCloth = (group) => {
-      if (group) {
-        applyTableFinishToTable(group, finish);
-      }
-    };
-    refreshCloth(secondaryTableRef.current);
-    decorativeTablesRef.current.forEach((entry) => {
-      refreshCloth(entry?.group);
-    });
-  }, [environmentHdriId, resolvedHdriResolution, secondaryTableReady, tableFinish]);
   const activeVariantRef = useRef(activeVariant);
   useEffect(() => {
     activeVariantRef.current = activeVariant;
@@ -11357,19 +11341,11 @@ const powerRef = useRef(hud.power);
 
   const playCueHit = useCallback((vol = 1) => {
     const ctx = audioContextRef.current;
-    const cueBuffer = audioBuffersRef.current.cue;
-    const cushionBuffer = audioBuffersRef.current.ball;
-    const power = clamp(vol, 0, 1);
-    const isPoweredStroke = power >= 0.5;
-    const buffer = isPoweredStroke ? cushionBuffer || cueBuffer : cueBuffer;
+    const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
-    const loudnessBoost = isPoweredStroke ? 1.3 : 1;
-    const scaled = clamp(
-      volumeRef.current * loudnessBoost * 1.35 * (0.48 + power * 0.78),
-      0,
-      1
-    );
-    if (scaled <= 0) return;
+    const power = clamp(vol, 0, 1);
+    const scaled = clamp(volumeRef.current * 1.35 * (0.48 + power * 0.78), 0, 1);
+    if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
     source.buffer = buffer;
@@ -11377,18 +11353,13 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    const canTrimCue = buffer === cueBuffer && Number.isFinite(buffer.duration);
-    if (canTrimCue) {
-      const clipStart = THREE.MathUtils.clamp(7, 0, Math.max(buffer.duration - 0.1, 0));
-      const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
-      const playbackDuration = Math.max(0, clipEnd - clipStart);
-      if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
-        const startTime = typeof ctx.currentTime === 'number' ? ctx.currentTime : 0;
-        source.start(startTime, clipStart, playbackDuration);
-        return;
-      }
+    const clipStart = THREE.MathUtils.clamp(7, 0, Math.max(buffer.duration - 0.1, 0));
+    const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
+    const playbackDuration = Math.max(0, clipEnd - clipStart);
+    if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
+      const startTime = typeof ctx.currentTime === 'number' ? ctx.currentTime : 0;
+      source.start(startTime, clipStart, playbackDuration);
     }
-    source.start(0);
   }, []);
 
   const playBallHit = useCallback((vol = 1) => {
@@ -21635,7 +21606,13 @@ const powerRef = useRef(hud.power);
               const nowRail = performance.now();
               const lastPlayed = railSoundTimeRef.current.get(b.id) ?? 0;
               if (nowRail - lastPlayed > RAIL_HIT_SOUND_COOLDOWN_MS) {
-                // Cushion contacts remain muted; track timing to avoid replays.
+                const shotScale = 0.35 + 0.65 * lastShotPower;
+                const baseVol = speed / RAIL_HIT_SOUND_REFERENCE_SPEED;
+                const railVolume = clamp(baseVol * shotScale, 0, 1);
+                if (railVolume > 0) {
+                  // Cushion contacts should remain silent so only ball collisions
+                  // trigger impact audio cues. Leave the cooldown updates intact.
+                }
                 railSoundTimeRef.current.set(b.id, nowRail);
               }
             }
