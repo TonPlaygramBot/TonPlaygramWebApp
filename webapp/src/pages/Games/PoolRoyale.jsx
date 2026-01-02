@@ -4077,7 +4077,10 @@ function projectRailUVs(geometry, bounds) {
   const extents = {
     x: Math.max(outerHalfW * 2, MICRO_EPS),
     y: Math.max(outerHalfH * 2, MICRO_EPS),
-    z: Math.max(railH, MICRO_EPS)
+    z: Math.max(
+      railH,
+      Math.min(Math.max(outerHalfW, outerHalfH) * 0.42, Math.max(outerHalfW, outerHalfH))
+    )
   };
 
   const faceNormal = new THREE.Vector3();
@@ -4098,8 +4101,23 @@ function projectRailUVs(geometry, bounds) {
     const absY = Math.abs(faceNormal.y);
     const absZ = Math.abs(faceNormal.z);
     const dominantZ = absZ >= Math.max(absX, absY);
-    const uAxis = dominantZ ? 'x' : absX >= absY ? 'y' : 'x';
-    const vAxis = dominantZ ? 'y' : 'z';
+    const facingX = absX > absY && absX > absZ;
+    const facingY = absY > absX && absY > absZ;
+    let uAxis = 'x';
+    let vAxis = 'y';
+    if (dominantZ) {
+      uAxis = 'x';
+      vAxis = 'y';
+    } else if (facingX) {
+      uAxis = 'y';
+      vAxis = 'z';
+    } else if (facingY) {
+      uAxis = 'x';
+      vAxis = 'z';
+    } else {
+      uAxis = 'x';
+      vAxis = 'z';
+    }
 
     verts.forEach((v, idx) => {
       const u = (v[uAxis] + extents[uAxis] / 2) / extents[uAxis];
@@ -8944,34 +8962,48 @@ function Table3D(
     },
     modernLoop: (ctx) => {
       const meshes = [];
-      const loopRadius = Math.min(ctx.frameOuterX, ctx.frameOuterZ) * 0.72;
-      const tubeRadius = ctx.legR * 1.15;
-      const loopGeom = new THREE.TorusGeometry(loopRadius, tubeRadius, 56, 128);
+      const loopRadius = Math.min(ctx.frameOuterX, ctx.frameOuterZ) * 0.82;
+      const tubeRadius = ctx.legR * 0.9;
+      const loopGeom = new THREE.TorusGeometry(loopRadius, tubeRadius, 72, 168);
       const loop = new THREE.Mesh(loopGeom, ctx.legMat);
       loop.rotation.x = Math.PI / 2;
-      loop.scale.set(1.1, 0.55, 1);
-      loop.position.y = ctx.floorY + tubeRadius * 1.1;
+      loop.scale.set(1.28, 0.38, Math.max(0.78, ctx.frameOuterZ / ctx.frameOuterX));
+      loop.position.y = ctx.floorY + tubeRadius * 0.9;
       loop.castShadow = true;
       loop.receiveShadow = true;
       loop.userData = { ...(loop.userData || {}), __basePart: true };
       meshes.push(loop);
 
-      const deckHeight = ctx.legR * 1.1;
+      const deckThickness = ctx.legR * 0.75;
+      const deckRadius = Math.max(ctx.frameOuterX, ctx.frameOuterZ) * 0.82;
       const deck = new THREE.Mesh(
-        new THREE.BoxGeometry(ctx.frameOuterX * 1.5, deckHeight, ctx.frameOuterZ * 1.04),
+        new THREE.CylinderGeometry(deckRadius, deckRadius, deckThickness, 96),
         ctx.legMat
       );
-      deck.position.y = ctx.tableY - deckHeight * 0.2;
+      deck.scale.set(1, 1, ctx.frameOuterZ / ctx.frameOuterX);
+      deck.position.y = ctx.tableY - deckThickness * 0.35;
       deck.castShadow = true;
       deck.receiveShadow = true;
       deck.userData = { ...(deck.userData || {}), __basePart: true };
       meshes.push(deck);
 
-      const basePlate = new THREE.Mesh(
-        new THREE.CylinderGeometry(ctx.frameOuterX * 0.9, ctx.frameOuterX * 0.9, ctx.legR * 0.7, 64),
+      const riser = new THREE.Mesh(
+        new THREE.CylinderGeometry(ctx.legR * 0.9, ctx.legR * 0.9, ctx.legR * 0.8, 48),
         ctx.legMat
       );
-      basePlate.position.y = ctx.floorY + ctx.legR * 0.35;
+      riser.position.y = loop.position.y + ctx.legR * 0.4;
+      riser.castShadow = true;
+      riser.receiveShadow = true;
+      riser.userData = { ...(riser.userData || {}), __basePart: true };
+      meshes.push(riser);
+
+      const basePlateRadius = Math.max(ctx.frameOuterX, ctx.frameOuterZ) * 0.95;
+      const basePlate = new THREE.Mesh(
+        new THREE.CylinderGeometry(basePlateRadius, basePlateRadius, ctx.legR * 0.6, 96),
+        ctx.legMat
+      );
+      basePlate.scale.set(1, 1, ctx.frameOuterZ / ctx.frameOuterX);
+      basePlate.position.y = ctx.floorY + ctx.legR * 0.3;
       basePlate.castShadow = true;
       basePlate.receiveShadow = true;
       basePlate.userData = { ...(basePlate.userData || {}), __basePart: true };
@@ -8980,53 +9012,70 @@ function Table3D(
     },
     zLift: (ctx) => {
       const meshes = [];
-      const span = ctx.frameOuterX * 1.35;
-      const depth = ctx.frameOuterZ * 0.8;
-      const height = ctx.legH * 0.72;
-      const beamGeom = new THREE.BoxGeometry(span, height * 0.18, depth);
-      const lower = new THREE.Mesh(beamGeom, ctx.legMat);
-      lower.position.set(0, ctx.floorY + height * 0.12, 0);
-      lower.castShadow = true;
-      lower.receiveShadow = true;
-      lower.userData = { ...(lower.userData || {}), __basePart: true };
-      meshes.push(lower);
+      const span = ctx.frameOuterX * 1.34;
+      const depth = ctx.frameOuterZ * 0.92;
+      const height = ctx.legH * 0.9;
+      const thickness = Math.max(ctx.legR * 0.85, height * 0.08);
+      const halfSpan = span / 2;
+      const lip = thickness * 0.8;
+      const zShape = new THREE.Shape();
+      zShape.moveTo(-halfSpan, 0);
+      zShape.lineTo(halfSpan, 0);
+      zShape.lineTo(halfSpan - lip, thickness);
+      zShape.lineTo(lip * 0.2, height - thickness * 1.2);
+      zShape.lineTo(halfSpan, height);
+      zShape.lineTo(-halfSpan, height);
+      zShape.lineTo(-halfSpan + lip, height - thickness);
+      zShape.lineTo(-lip * 0.2, thickness * 1.2);
+      zShape.closePath();
+      const slabGeom = new THREE.ExtrudeGeometry(zShape, {
+        depth,
+        bevelEnabled: false
+      });
+      slabGeom.translate(0, 0, -depth / 2);
+      const slab = new THREE.Mesh(slabGeom, ctx.legMat);
+      slab.position.set(0, ctx.floorY, 0);
+      slab.castShadow = true;
+      slab.receiveShadow = true;
+      slab.userData = { ...(slab.userData || {}), __basePart: true };
+      meshes.push(slab);
 
-      const riserGeom = new THREE.BoxGeometry(span * 0.7, height * 0.72, depth * 0.72);
-      const riser = new THREE.Mesh(riserGeom, ctx.legMat);
-      riser.rotation.z = -Math.PI / 12;
-      riser.position.set(0, ctx.floorY + height * 0.55, 0);
-      riser.castShadow = true;
-      riser.receiveShadow = true;
-      riser.userData = { ...(riser.userData || {}), __basePart: true };
-      meshes.push(riser);
-
-      const top = new THREE.Mesh(
-        new THREE.BoxGeometry(span * 0.9, height * 0.16, depth * 0.9),
+      const foot = new THREE.Mesh(
+        new THREE.BoxGeometry(span * 0.9, thickness * 0.7, depth * 1.02),
         ctx.legMat
       );
-      top.position.set(0, ctx.floorY + height * 0.96, 0);
-      top.rotation.z = Math.PI / 18;
-      top.castShadow = true;
-      top.receiveShadow = true;
-      top.userData = { ...(top.userData || {}), __basePart: true };
-      meshes.push(top);
+      foot.position.set(0, ctx.floorY + thickness * 0.35, 0);
+      foot.castShadow = true;
+      foot.receiveShadow = true;
+      foot.userData = { ...(foot.userData || {}), __basePart: true };
+      meshes.push(foot);
+
+      const cap = new THREE.Mesh(
+        new THREE.BoxGeometry(span * 0.82, thickness * 0.6, depth * 0.86),
+        ctx.legMat
+      );
+      cap.position.set(0, ctx.floorY + height - thickness * 0.2, 0);
+      cap.castShadow = true;
+      cap.receiveShadow = true;
+      cap.userData = { ...(cap.userData || {}), __basePart: true };
+      meshes.push(cap);
       return { meshes, legMeshes: meshes };
     },
     arcBridge: (ctx) => {
       const meshes = [];
-      const archSpan = ctx.frameOuterZ * 0.92;
-      const archHeight = ctx.legH * 0.9;
-      const archThickness = Math.max(ctx.legR * 1.2, ctx.frameOuterZ * 0.18);
+      const archSpan = ctx.frameOuterX * 0.94;
+      const archHeight = ctx.legH * 0.88;
+      const archThickness = Math.max(ctx.legR * 1.05, ctx.frameOuterZ * 0.22);
       const archCurve = new THREE.QuadraticBezierCurve3(
-        new THREE.Vector3(0, ctx.floorY, -archSpan),
+        new THREE.Vector3(-archSpan, ctx.floorY, 0),
         new THREE.Vector3(0, ctx.floorY + archHeight, 0),
-        new THREE.Vector3(0, ctx.floorY, archSpan)
+        new THREE.Vector3(archSpan, ctx.floorY, 0)
       );
       const archGeom = new THREE.TubeGeometry(
         archCurve,
-        120,
-        archThickness * 0.3,
-        48,
+        160,
+        archThickness * 0.32,
+        64,
         false
       );
       const arch = new THREE.Mesh(archGeom, ctx.legMat);
@@ -9036,95 +9085,146 @@ function Table3D(
       meshes.push(arch);
 
       const capsGeom = new THREE.BoxGeometry(
-        ctx.frameOuterX * 1.02,
-        archThickness * 0.6,
-        archThickness * 1.2
+        archThickness * 1.3,
+        archThickness * 0.62,
+        ctx.frameOuterZ * 1.1
       );
       const leftCap = new THREE.Mesh(capsGeom, ctx.legMat);
-      leftCap.position.set(0, ctx.floorY + archThickness * 0.3, -archSpan);
+      leftCap.position.set(-archSpan, ctx.floorY + archThickness * 0.31, 0);
       leftCap.castShadow = true;
       leftCap.receiveShadow = true;
       leftCap.userData = { ...(leftCap.userData || {}), __basePart: true };
       meshes.push(leftCap);
       const rightCap = leftCap.clone();
-      rightCap.position.z = archSpan;
+      rightCap.position.x = archSpan;
       meshes.push(rightCap);
+
+      const deck = new THREE.Mesh(
+        new THREE.BoxGeometry(ctx.frameOuterX * 0.8, archThickness * 0.5, ctx.frameOuterZ * 1.05),
+        ctx.legMat
+      );
+      deck.position.y = ctx.floorY + archHeight * 0.92;
+      deck.castShadow = true;
+      deck.receiveShadow = true;
+      deck.userData = { ...(deck.userData || {}), __basePart: true };
+      meshes.push(deck);
       return { meshes, legMeshes: meshes };
     },
     openPortal: (ctx) => {
       const meshes = [];
-      const frameWidth = ctx.frameOuterX * 0.9;
-      const frameDepth = ctx.frameOuterZ * 0.26;
-      const frameHeight = ctx.legH * 0.86;
-      const thickness = ctx.legR;
-      const legWidth = thickness * 1.35;
-      const legHeight = frameHeight * 0.92;
-      const beamHeight = Math.max(thickness * 1.25, ctx.legH * 0.12);
-      const footHeight = Math.max(thickness * 0.4, ctx.legH * 0.05);
-      const beamDepth = frameDepth * 1.02;
-      const legGeom = new THREE.BoxGeometry(legWidth, legHeight, frameDepth);
-      const beamGeom = new THREE.BoxGeometry(
-        frameWidth * 2 - legWidth * 1.35,
-        beamHeight,
-        beamDepth
+      const frameWidth = ctx.frameOuterX * 0.94;
+      const frameDepth = ctx.frameOuterZ * 0.28;
+      const frameHeight = ctx.legH * 0.88;
+      const thickness = ctx.legR * 0.95;
+      const innerInset = thickness * 1.05;
+      const portalShape = new THREE.Shape();
+      portalShape.moveTo(-frameWidth, 0);
+      portalShape.lineTo(frameWidth, 0);
+      portalShape.lineTo(frameWidth - thickness * 0.45, frameHeight);
+      portalShape.lineTo(-frameWidth + thickness * 0.45, frameHeight);
+      portalShape.closePath();
+      const hole = new THREE.Path();
+      hole.moveTo(-frameWidth + innerInset, thickness * 1.2);
+      hole.lineTo(frameWidth - innerInset, thickness * 1.2);
+      hole.lineTo(frameWidth - innerInset * 0.85, frameHeight - thickness * 1.1);
+      hole.lineTo(-frameWidth + innerInset * 0.85, frameHeight - thickness * 1.1);
+      hole.closePath();
+      portalShape.holes.push(hole);
+      const portalGeom = new THREE.ExtrudeGeometry(portalShape, {
+        depth: frameDepth,
+        bevelEnabled: false
+      });
+      portalGeom.translate(0, 0, -frameDepth / 2);
+      const legOffsetX = frameWidth - thickness * 0.6;
+      const lean = Math.PI / 30;
+      const placePortal = (side) => {
+        const portal = new THREE.Mesh(portalGeom, ctx.legMat);
+        portal.position.set(side * legOffsetX, ctx.floorY, 0);
+        portal.rotation.z = side * -lean;
+        portal.castShadow = true;
+        portal.receiveShadow = true;
+        portal.userData = { ...(portal.userData || {}), __basePart: true };
+        meshes.push(portal);
+      };
+      placePortal(-1);
+      placePortal(1);
+      const stretcher = new THREE.Mesh(
+        new THREE.BoxGeometry(frameWidth * 1.6, thickness * 0.55, frameDepth * 0.9),
+        ctx.legMat
       );
-      const footGeom = new THREE.BoxGeometry(legWidth * 1.15, footHeight, frameDepth * 1.12);
-      const legOffsetX = frameWidth - legWidth * 0.65;
-      const legBaseY = ctx.floorY + footHeight / 2;
-      const legY = legBaseY + legHeight / 2;
-      const beamY = legBaseY + legHeight + beamHeight / 2;
-      const placeLeg = (side) => {
+      stretcher.position.y = ctx.floorY + thickness * 0.35;
+      stretcher.castShadow = true;
+      stretcher.receiveShadow = true;
+      stretcher.userData = { ...(stretcher.userData || {}), __basePart: true };
+      meshes.push(stretcher);
+      return { meshes, legMeshes: meshes };
+    },
+    coinAngled: (ctx) => {
+      const meshes = [];
+      const cabinetHeight = ctx.legH * 0.55;
+      const cabinet = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          ctx.frameOuterX * 1.05,
+          cabinetHeight,
+          ctx.frameOuterZ * 0.78
+        ),
+        ctx.legMat
+      );
+      cabinet.position.y = ctx.floorY + cabinetHeight / 2 + ctx.legH * 0.05;
+      cabinet.castShadow = true;
+      cabinet.receiveShadow = true;
+      cabinet.userData = { ...(cabinet.userData || {}), __basePart: true };
+      meshes.push(cabinet);
+
+      const bumper = new THREE.Mesh(
+        new THREE.BoxGeometry(ctx.frameOuterX * 1.08, ctx.legR * 0.32, ctx.frameOuterZ * 0.82),
+        ctx.legMat
+      );
+      bumper.position.y = ctx.floorY + ctx.legR * 0.35;
+      bumper.castShadow = true;
+      bumper.receiveShadow = true;
+      bumper.userData = { ...(bumper.userData || {}), __basePart: true };
+      meshes.push(bumper);
+
+      const legHeight = ctx.legH * 0.72;
+      const legDepth = ctx.frameOuterZ * 0.34;
+      const legTop = ctx.frameOuterX * 0.16;
+      const legBottom = legTop * 0.58;
+      const legShape = new THREE.Shape();
+      legShape.moveTo(-legBottom, 0);
+      legShape.lineTo(legBottom, 0);
+      legShape.lineTo(legTop, legHeight);
+      legShape.lineTo(-legTop, legHeight);
+      legShape.closePath();
+      const legGeom = new THREE.ExtrudeGeometry(legShape, {
+        depth: legDepth,
+        bevelEnabled: false
+      });
+      legGeom.translate(0, 0, -legDepth / 2);
+      const legOffsetX = ctx.frameOuterX * 0.8;
+      const legOffsetZ = ctx.frameOuterZ * 0.8;
+      const footR = ctx.legR * 0.5;
+      const placeLeg = (x, z) => {
         const leg = new THREE.Mesh(legGeom, ctx.legMat);
-        leg.position.set(side * legOffsetX, legY, 0);
+        leg.position.set(x, ctx.floorY, z);
         leg.castShadow = true;
         leg.receiveShadow = true;
         leg.userData = { ...(leg.userData || {}), __basePart: true };
         meshes.push(leg);
-        const foot = new THREE.Mesh(footGeom, ctx.legMat);
-        foot.position.set(side * legOffsetX, legBaseY, 0);
+        const foot = new THREE.Mesh(
+          new THREE.CylinderGeometry(footR, footR, ctx.legR * 0.25, 24),
+          ctx.legMat
+        );
+        foot.position.set(x, ctx.floorY + ctx.legR * 0.12, z);
         foot.castShadow = true;
         foot.receiveShadow = true;
         foot.userData = { ...(foot.userData || {}), __basePart: true };
         meshes.push(foot);
       };
-      placeLeg(-1);
-      placeLeg(1);
-      const beam = new THREE.Mesh(beamGeom, ctx.legMat);
-      beam.position.set(0, beamY, 0);
-      beam.castShadow = true;
-      beam.receiveShadow = true;
-      beam.userData = { ...(beam.userData || {}), __basePart: true };
-      meshes.push(beam);
-      return { meshes, legMeshes: meshes };
-    },
-    coinAngled: (ctx) => {
-      const meshes = [];
-      const positions = [
-        [-ctx.frameOuterX * 0.82, -ctx.frameOuterZ * 0.82],
-        [ctx.frameOuterX * 0.82, -ctx.frameOuterZ * 0.82],
-        [-ctx.frameOuterX * 0.82, ctx.frameOuterZ * 0.82],
-        [ctx.frameOuterX * 0.82, ctx.frameOuterZ * 0.82]
-      ];
-      positions.forEach(([lx, lz]) => {
-        const leg = new THREE.Mesh(
-          new THREE.CylinderGeometry(ctx.legR * 1.1, ctx.legR * 0.75, ctx.legH * 0.9, 36),
-          ctx.legMat
-        );
-        leg.position.set(lx, ctx.legY + ctx.legH * 0.05, lz);
-        leg.castShadow = true;
-        leg.receiveShadow = true;
-        leg.userData = { ...(leg.userData || {}), __basePart: true };
-        meshes.push(leg);
-      });
-      const centerBeam = new THREE.Mesh(
-        new THREE.BoxGeometry(ctx.frameOuterX * 1.4, ctx.legR * 0.5, ctx.frameOuterZ * 0.7),
-        ctx.legMat
-      );
-      centerBeam.position.y = ctx.floorY + ctx.legR * 0.45;
-      centerBeam.castShadow = true;
-      centerBeam.receiveShadow = true;
-      centerBeam.userData = { ...(centerBeam.userData || {}), __basePart: true };
-      meshes.push(centerBeam);
+      placeLeg(-legOffsetX, -legOffsetZ);
+      placeLeg(legOffsetX, -legOffsetZ);
+      placeLeg(-legOffsetX, legOffsetZ);
+      placeLeg(legOffsetX, legOffsetZ);
       return { meshes, legMeshes: meshes };
     },
     blockPedestal: (ctx) => {
@@ -9151,16 +9251,20 @@ function Table3D(
     },
     heritageCarved: (ctx) => {
       const meshes = [];
-      const profile = [];
       const legHeight = ctx.legH * 0.95;
-      const steps = 12;
-      for (let i = 0; i <= steps; i += 1) {
-        const t = i / steps;
-        const r =
-          ctx.legR * (0.5 + 0.35 * Math.sin(Math.PI * t)) *
-          (t < 0.5 ? 1.1 : 0.9);
-        profile.push(new THREE.Vector2(r, t * legHeight));
-      }
+      const profile = [
+        new THREE.Vector2(ctx.legR * 0.22, 0),
+        new THREE.Vector2(ctx.legR * 0.65, legHeight * 0.06),
+        new THREE.Vector2(ctx.legR * 0.48, legHeight * 0.12),
+        new THREE.Vector2(ctx.legR * 0.72, legHeight * 0.22),
+        new THREE.Vector2(ctx.legR * 0.58, legHeight * 0.34),
+        new THREE.Vector2(ctx.legR * 0.86, legHeight * 0.48),
+        new THREE.Vector2(ctx.legR * 0.62, legHeight * 0.62),
+        new THREE.Vector2(ctx.legR * 0.78, legHeight * 0.72),
+        new THREE.Vector2(ctx.legR * 0.56, legHeight * 0.82),
+        new THREE.Vector2(ctx.legR * 0.72, legHeight * 0.92),
+        new THREE.Vector2(ctx.legR * 0.6, legHeight)
+      ];
       const latheGeo = new THREE.LatheGeometry(profile, 32);
       const positions = [
         [-ctx.frameOuterX + ctx.legInset * 1.15, -ctx.frameOuterZ + ctx.legInset * 1.15],
@@ -9212,6 +9316,28 @@ function Table3D(
         diagonal2.position.y = beamHeight * 0.75;
         group.add(diagonal2);
         legMeshes.push(diagonal2);
+
+        const foot = new THREE.Mesh(
+          new THREE.BoxGeometry(beamWidth * 0.52, beamDepth * 0.55, ctx.legR * 0.8),
+          ctx.legMat
+        );
+        foot.position.set(0, beamDepth * 0.25, 0);
+        foot.userData = { ...(foot.userData || {}), __basePart: true };
+        foot.castShadow = true;
+        foot.receiveShadow = true;
+        group.add(foot);
+        legMeshes.push(foot);
+
+        const topCap = new THREE.Mesh(
+          new THREE.BoxGeometry(beamWidth * 0.62, beamDepth * 0.5, beamDepth * 0.9),
+          ctx.legMat
+        );
+        topCap.position.set(0, beamHeight, 0);
+        topCap.userData = { ...(topCap.userData || {}), __basePart: true };
+        topCap.castShadow = true;
+        topCap.receiveShadow = true;
+        group.add(topCap);
+        legMeshes.push(topCap);
 
         group.position.set(0, ctx.floorY, z);
         meshes.push(group);
