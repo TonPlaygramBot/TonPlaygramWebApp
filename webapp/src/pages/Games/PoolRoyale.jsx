@@ -4870,14 +4870,14 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.14;
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.0;
-const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI + 0.02;
-const TOP_VIEW_RADIUS_SCALE = 0.82;
+const TOP_VIEW_MARGIN = 1.08;
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.02;
+const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
+const TOP_VIEW_RADIUS_SCALE = 1.02;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: -BALL_R * 0.85, // nudge the table slightly left in top-down framing
-  z: -BALL_R * 7 // push the table downward in 2D view so the lower rail gains space and top/bottom padding is balanced as requested
+  x: 0, // center the table for the classic top-down framing
+  z: 0 // keep the 2D view aligned with the original overhead composition
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -10600,6 +10600,51 @@ function PoolRoyaleGame({
     };
   }, [activeEnvironmentHdri, environmentHdriId, secondaryTableReady]);
   useEffect(() => {
+    const targetEnvironments = ['musicHall02', 'oldHall'];
+    if (!secondaryTableReady) return;
+    if (!targetEnvironments.includes(environmentHdriId)) return;
+    if ((resolvedHdriResolution || '').toLowerCase() !== '2k') return;
+    const finish =
+      tableFinishRef.current ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+    const clothColor =
+      finish?.colors?.cloth ??
+      TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID]?.colors?.cloth ??
+      0x2d7f4b;
+    const refreshDecorCloth = (group) => {
+      if (!group || !finish) return;
+      applyTableFinishToTable(group, finish);
+      const finishInfo = group.userData?.finish;
+      if (!finishInfo) return;
+      updateClothTexturesForFinish(
+        finishInfo,
+        finishInfo.clothTextureKey ?? DEFAULT_CLOTH_TEXTURE_KEY
+      );
+      if (finishInfo.clothMat) {
+        finishInfo.clothMat.color.set(clothColor);
+        finishInfo.clothMat.visible = true;
+        finishInfo.clothMat.needsUpdate = true;
+      }
+      if (finishInfo.cushionMat) {
+        finishInfo.cushionMat.color.set(clothColor);
+        finishInfo.cushionMat.visible = true;
+        finishInfo.cushionMat.needsUpdate = true;
+      }
+      if (finishInfo.clothEdgeMat) {
+        finishInfo.clothEdgeMat.color.copy(
+          finishInfo.clothMat?.color ?? new THREE.Color(clothColor)
+        );
+        finishInfo.clothEdgeMat.needsUpdate = true;
+      }
+    };
+    decorativeTablesRef.current.forEach(({ group }) => refreshDecorCloth(group));
+  }, [
+    clothColorId,
+    environmentHdriId,
+    resolvedHdriResolution,
+    secondaryTableReady,
+    tableFinishId
+  ]);
+  useEffect(() => {
     activeTableSlotRef.current = activeTableSlot;
   }, [activeTableSlot]);
   useEffect(() => {
@@ -11273,6 +11318,7 @@ const powerRef = useRef(hud.power);
   const audioBuffersRef = useRef({
     cue: null,
     ball: null,
+    cushion: null,
     pocket: null,
     knock: null,
     cheer: null,
@@ -11339,6 +11385,23 @@ const powerRef = useRef(hud.power);
     } catch {}
   }, []);
 
+  const playCushionHit = useCallback((vol = 1) => {
+    if (vol <= 0) return;
+    const ctx = audioContextRef.current;
+    const buffer = audioBuffersRef.current.cushion || audioBuffersRef.current.ball;
+    if (!ctx || !buffer || muteRef.current) return;
+    const scaled = clamp(vol * volumeRef.current, 0, 1);
+    if (scaled <= 0) return;
+    ctx.resume().catch(() => {});
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = scaled;
+    source.connect(gain);
+    routeAudioNode(gain);
+    source.start(0);
+  }, []);
+
   const playCueHit = useCallback((vol = 1) => {
     const ctx = audioContextRef.current;
     const buffer = audioBuffersRef.current.cue;
@@ -11361,6 +11424,18 @@ const powerRef = useRef(hud.power);
       source.start(startTime, clipStart, playbackDuration);
     }
   }, []);
+
+  const playPoweredCueHit = useCallback(
+    (power = 1) => {
+      const normalized = clamp(power, 0, 1);
+      const cushionReference = 0.5; // mirror the cushion hit loudness at 50% power
+      const loudnessBoost = 1.3; // raise by 30% per request
+      const powerBlend = 0.65 + normalized * 0.35;
+      const targetVolume = cushionReference * loudnessBoost * powerBlend;
+      playCushionHit(targetVolume);
+    },
+    [playCushionHit]
+  );
 
   const playBallHit = useCallback((vol = 1) => {
     if (vol <= 0) return;
@@ -11570,6 +11645,7 @@ const powerRef = useRef(hud.power);
       const entries = [
         ['cue', '/assets/sounds/Control_the_Cue_Ball_Control_the_Black_snooker_billiard_tipsandtrick.mp3'],
         ['ball', '/assets/sounds/billiard-sound newhit.mp3'],
+        ['cushion', '/assets/sounds/billiard-pool-hit-371618.mp3'],
         ['pocket', '/assets/sounds/billiard-sound-6-288417.mp3'],
         ['knock', '/assets/sounds/wooden-door-knock-102902.mp3'],
         ['cheer', '/assets/sounds/crowd-cheering-383111.mp3'],
@@ -11595,6 +11671,7 @@ const powerRef = useRef(hud.power);
       audioBuffersRef.current = {
         cue: null,
         ball: null,
+        cushion: null,
         pocket: null,
         knock: null,
         cheer: null,
@@ -18642,7 +18719,11 @@ const powerRef = useRef(hud.power);
           const shouldRecordReplay = true;
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
-          playCueHit(clampedPower * 0.6);
+          if (isPowerShot) {
+            playPoweredCueHit(clampedPower);
+          } else {
+            playCueHit(clampedPower * 0.6);
+          }
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
@@ -21606,13 +21687,8 @@ const powerRef = useRef(hud.power);
               const nowRail = performance.now();
               const lastPlayed = railSoundTimeRef.current.get(b.id) ?? 0;
               if (nowRail - lastPlayed > RAIL_HIT_SOUND_COOLDOWN_MS) {
-                const shotScale = 0.35 + 0.65 * lastShotPower;
-                const baseVol = speed / RAIL_HIT_SOUND_REFERENCE_SPEED;
-                const railVolume = clamp(baseVol * shotScale, 0, 1);
-                if (railVolume > 0) {
-                  // Cushion contacts should remain silent so only ball collisions
-                  // trigger impact audio cues. Leave the cooldown updates intact.
-                }
+                // Cushion contacts remain silent; only track timing to avoid
+                // re-triggering legacy cooldown logic for future hooks.
                 railSoundTimeRef.current.set(b.id, nowRail);
               }
             }
