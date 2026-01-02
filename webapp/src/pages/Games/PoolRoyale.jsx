@@ -1238,9 +1238,10 @@ const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
-const SKIRT_DROP_MULTIPLIER = 2.72; // shorten the apron drop by 15% to reduce the base height
+const SKIRT_DROP_MULTIPLIER = 1.36; // halve the apron drop to slim the skirt while keeping the tabletop level
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
+const BASE_HEIGHT_FILL = 0.94; // grow bases upward so the stance stays consistent with the shorter skirt
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
@@ -1304,7 +1305,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
-const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3, 0.44 / 3); // enlarge grain 3× so rails, skirts, and legs read at table scale
+const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // enlarge grain 3× so rails, skirts, and legs read at table scale; push pattern larger for the new finish pass
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
 const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
@@ -1737,7 +1738,7 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 0.97;
+const CLOTH_TEXTURE_INTENSITY = 1.08;
 const CLOTH_HAIR_INTENSITY = 0.78;
 const CLOTH_BUMP_INTENSITY = 1.12;
 const CLOTH_SOFT_BLEND = 0.42;
@@ -1861,7 +1862,7 @@ const TABLE_WOOD_VISIBILITY_TUNING = Object.freeze({
   clearcoatMax: 0.22,
   clearcoatRoughnessMin: 0.4,
   envMapIntensityMax: 0.35,
-  normalScale: 0.65
+  normalScale: 0.5
 });
 
 const clampWoodRepeatScaleValue = (value = DEFAULT_WOOD_REPEAT_SCALE) => {
@@ -3066,7 +3067,7 @@ const CLOTH_PATTERN_SCALE = 0.76; // tighten the pattern footprint so the scan r
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
 const POLYHAVEN_ANISOTROPY_BOOST = 2.6;
-const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.35, 0.55);
+const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.55, 0.72);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
@@ -9241,7 +9242,7 @@ function Table3D(
     if (bounds.isEmpty()) return;
     const availableBottom = baseContext.floorY + MICRO_EPS;
     const availableTop = baseContext.frameTopY - baseContext.skirtH * 0.1;
-    const height = Math.max(bounds.max.y - bounds.min.y, MICRO_EPS);
+    let height = Math.max(bounds.max.y - bounds.min.y, MICRO_EPS);
     const offsetToFloor = availableBottom - bounds.min.y;
     if (Math.abs(offsetToFloor) > 1e-6) {
       meshes.forEach((mesh) => {
@@ -9250,6 +9251,20 @@ function Table3D(
       });
     }
     let adjustedTop = bounds.max.y + offsetToFloor;
+    const availableSpan = availableTop - availableBottom;
+    const targetHeight = availableSpan * BASE_HEIGHT_FILL;
+    if (targetHeight > MICRO_EPS && height < targetHeight && availableSpan > 0) {
+      const scaleY = targetHeight / height;
+      meshes.forEach((mesh) => {
+        mesh.scale.y *= scaleY;
+        mesh.position.y = availableBottom + (mesh.position.y - availableBottom) * scaleY;
+        mesh.updateMatrixWorld(true);
+      });
+      const grownBounds = new THREE.Box3();
+      meshes.forEach((mesh) => grownBounds.expandByObject(mesh));
+      height = Math.max(grownBounds.max.y - grownBounds.min.y, MICRO_EPS);
+      adjustedTop = grownBounds.max.y;
+    }
     if (adjustedTop > availableTop && availableTop > availableBottom) {
       const scaleY = Math.max(0.05, (availableTop - availableBottom) / height);
       meshes.forEach((mesh) => {
