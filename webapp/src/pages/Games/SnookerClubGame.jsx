@@ -3280,16 +3280,35 @@ function ensureMaterialWoodOptions(material, targetSettings) {
 }
 
 function applyWoodTextureToMaterial(material, repeat) {
+  const updateExistingTexture = (texture, scaledRepeat, rotation) => {
+    if (!texture) return texture;
+    const clone = texture.clone ? texture.clone() : texture;
+    clone.repeat.copy(scaledRepeat);
+    clone.center.set(0.5, 0.5);
+    clone.rotation = rotation;
+    clone.needsUpdate = true;
+    return clone;
+  };
   if (!material) return;
   const repeatVec = resolveRepeatVector(repeat, material);
   const rotation = resolveRotation(repeat, material);
   const textureSize = resolveTextureSize(repeat, material);
-  const mapUrl =
-    typeof repeat?.mapUrl === 'string' && repeat.mapUrl.trim().length > 0
-      ? repeat.mapUrl.trim()
-      : undefined;
+  const mapUrl = typeof repeat?.mapUrl === 'string' && repeat.mapUrl.trim().length > 0
+    ? repeat.mapUrl.trim()
+    : undefined;
+  const hasExistingMaps = Boolean(material.map || material.roughnessMap || material.normalMap);
+  const hasWoodOptions = Boolean(material.userData?.__woodOptions);
   const repeatScale = clampWoodRepeatScaleValue(repeat?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE);
   const scaledRepeat = scaleWoodRepeatVector(repeatVec, repeatScale);
+  if (hasExistingMaps && !hasWoodOptions && !mapUrl) {
+    material.map = updateExistingTexture(material.map, scaledRepeat, rotation);
+    material.roughnessMap = updateExistingTexture(material.roughnessMap, scaledRepeat, rotation);
+    material.normalMap = updateExistingTexture(material.normalMap, scaledRepeat, rotation);
+    material.userData = material.userData || {};
+    material.userData.woodRepeat = scaledRepeat.clone();
+    material.needsUpdate = true;
+    return;
+  }
   const hadOptions = Boolean(material.userData?.__woodOptions);
   const options = ensureMaterialWoodOptions(material, {
     repeat: scaledRepeat,
