@@ -1050,12 +1050,12 @@ const SIDE_POCKET_GUARD_RADIUS =
   SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.08; // use the middle-pocket bowl to gate reflections
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
-  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.08
+  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.02
 );
 const SIDE_POCKET_DEPTH_LIMIT =
-  POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
+  POCKET_VIS_R * 1.46 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
 const SIDE_POCKET_SPAN =
-  SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.52; // tune the middle lane to the real mouth width
+  SIDE_POCKET_RADIUS * 0.96 * POCKET_VISUAL_EXPANSION + BALL_R * 0.58; // tune the middle lane to the real mouth width
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_ENABLED = false; // fully disable any plywood underlay beneath the cloth
 const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
@@ -5751,6 +5751,8 @@ function reflectRails(ball) {
         .sub(vt)
         .add(vt.multiplyScalar(tangentDamping));
     }
+    const spinSnapshot = ball.spin?.clone();
+    const spinSnapshot = ball.spin?.clone();
     if (ball.spin?.lengthSq() > 0) {
       applySpinImpulse(ball, 0.6);
     }
@@ -5763,7 +5765,8 @@ function reflectRails(ball) {
     return {
       type: 'corner',
       normal: TMP_VEC2_B.clone(),
-      tangent: TMP_VEC2_D.clone()
+      tangent: TMP_VEC2_D.clone(),
+      spinSnapshot
     };
   }
 
@@ -5814,7 +5817,8 @@ function reflectRails(ball) {
     return {
       type: 'rail',
       normal: normal.clone(),
-      tangent: tangent.clone()
+      tangent: tangent.clone(),
+      spinSnapshot
     };
   }
 
@@ -5827,12 +5831,14 @@ function reflectRails(ball) {
   if (nearPocket) return null;
   let collided = null;
   let collisionNormal = null;
+  let spinSnapshot = null;
   if (ball.pos.x < -limX && ball.vel.x < 0) {
     const overshoot = -limX - ball.pos.x;
     ball.pos.x = -limX + overshoot;
     ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
     collided = 'rail';
     collisionNormal = new THREE.Vector2(1, 0);
+    spinSnapshot = ball.spin?.clone?.() ?? spinSnapshot;
   }
   if (ball.pos.x > limX && ball.vel.x > 0) {
     const overshoot = ball.pos.x - limX;
@@ -5840,6 +5846,7 @@ function reflectRails(ball) {
     ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
     collided = 'rail';
     collisionNormal = new THREE.Vector2(-1, 0);
+    spinSnapshot = spinSnapshot ?? ball.spin?.clone?.();
   }
   if (ball.pos.y < -limY && ball.vel.y < 0) {
     const overshoot = -limY - ball.pos.y;
@@ -5847,6 +5854,7 @@ function reflectRails(ball) {
     ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
     collided = 'rail';
     collisionNormal = new THREE.Vector2(0, 1);
+    spinSnapshot = spinSnapshot ?? ball.spin?.clone?.();
   }
   if (ball.pos.y > limY && ball.vel.y > 0) {
     const overshoot = ball.pos.y - limY;
@@ -5854,6 +5862,7 @@ function reflectRails(ball) {
     ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
     collided = 'rail';
     collisionNormal = new THREE.Vector2(0, -1);
+    spinSnapshot = spinSnapshot ?? ball.spin?.clone?.();
   }
   if (collided) {
     const stamp =
@@ -5866,7 +5875,7 @@ function reflectRails(ball) {
   if (collided) {
     const normal = collisionNormal ?? new THREE.Vector2(0, 1);
     const tangent = new THREE.Vector2(-normal.y, normal.x);
-    return { type: collided, normal, tangent };
+    return { type: collided, normal, tangent, spinSnapshot };
   }
   return null;
 }
@@ -5909,7 +5918,7 @@ function applyRailSpinResponse(ball, impact) {
   const normal = impact.normal.clone().normalize();
   const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
   const speed = Math.max(ball.vel.length(), 0);
-  const preImpactSpin = ball.spin.clone();
+  const preImpactSpin = impact?.spinSnapshot?.clone?.() ?? ball.spin.clone();
   const throwFactor = Math.max(
     0,
     Math.min(speed / Math.max(RAIL_SPIN_THROW_REF_SPEED, 1e-6), 1.4)
@@ -11283,7 +11292,7 @@ const powerRef = useRef(hud.power);
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
-    const scaled = clamp(volumeRef.current * 1.2 * (0.35 + power * 0.75), 0, 1);
+    const scaled = clamp(volumeRef.current * 1.4 * (0.45 + power * 0.78), 0, 1);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -13091,7 +13100,7 @@ const powerRef = useRef(hud.power);
 
       const getChessBoardTexture = () => {
         if (chessBoardTextureRef.current) return chessBoardTextureRef.current;
-        const size = 512;
+        const size = 2048;
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
@@ -16686,6 +16695,31 @@ const powerRef = useRef(hud.power);
         return Math.max(1.15, snookerWidth / poolWidth);
       };
       const snookerDecorScale = resolveSnookerScale();
+      const DECOR_TEXTURE_SIZE_CAP = 2048;
+      const shouldCapDecorTextures = (envId = environmentHdriRef.current) =>
+        envId === 'musicHall02' || envId === 'oldHall';
+      const clampWoodTextureSize = (material, cap = DECOR_TEXTURE_SIZE_CAP) => {
+        if (!material?.userData?.__woodOptions) return;
+        if (typeof cap !== 'number' || cap <= 0) return;
+        const options = material.userData.__woodOptions;
+        const currentSize =
+          typeof options.textureSize === 'number'
+            ? options.textureSize
+            : DEFAULT_WOOD_TEXTURE_SIZE;
+        const targetSize = Math.min(currentSize, cap);
+        if (targetSize >= currentSize - 1e-3) return;
+        applyWoodTextures(material, { ...options, textureSize: targetSize });
+      };
+      const applyDecorTextureBudget = (group, cap = DECOR_TEXTURE_SIZE_CAP) => {
+        if (!group || typeof cap !== 'number') return;
+        group.traverse((child) => {
+          if (!child?.isMesh) return;
+          const materials = Array.isArray(child.material)
+            ? child.material
+            : [child.material];
+          materials.forEach((mat) => clampWoodTextureSize(mat, cap));
+        });
+      };
       const disposeSecondaryDecor = () => {
         const currentDecor = secondaryTableDecorRef.current;
         if (currentDecor?.group?.parent) {
@@ -16896,6 +16930,9 @@ const powerRef = useRef(hud.power);
         tableGroup.rotation.y = rotationY;
         markDecorativeTable(tableGroup);
         applyTableFinishToTable(tableGroup, finishForLayout);
+        if (shouldCapDecorTextures()) {
+          applyDecorTextureBudget(tableGroup);
+        }
         const decor = buildDecorGroup({ table: tableGroup, variant });
         decorativeTablesRef.current.push({
           group: tableGroup,
@@ -16994,6 +17031,9 @@ const powerRef = useRef(hud.power);
       };
       const addHospitalityGroup = (group) => {
         if (!group) return;
+        if (shouldCapDecorTextures()) {
+          applyDecorTextureBudget(group);
+        }
         hospitalityGroupsRef.current.push(group);
         world.add(group);
       };
