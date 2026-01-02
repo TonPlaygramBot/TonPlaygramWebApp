@@ -4879,6 +4879,15 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: 0, // center the table for the classic top-down framing
   z: 0 // keep the 2D view aligned with the original overhead composition
 });
+const PLAYER_TOP_VIEW_MARGIN = 1.02; // restore the legacy 2D button framing without affecting broadcast cameras
+const PLAYER_TOP_VIEW_MIN_RADIUS_SCALE = 1.0;
+const PLAYER_TOP_VIEW_RADIUS_SCALE = 1.0;
+const PLAYER_TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.02, CAMERA_ABS_MIN_PHI);
+const PLAYER_TOP_VIEW_RESOLVED_PHI = Math.max(PLAYER_TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
+const PLAYER_TOP_VIEW_SCREEN_OFFSET = Object.freeze({
+  x: 0, // keep the table perfectly centred for the interactive top-down view
+  z: 0 // match the flat 2D composition requested for the button toggle
+});
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
 const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI + 0.12;
@@ -11292,8 +11301,8 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    const clipStart = THREE.MathUtils.clamp(7, 0, Math.max(buffer.duration - 0.1, 0));
-    const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
+    const clipStart = THREE.MathUtils.clamp(0.02, 0, Math.max(buffer.duration - 0.05, 0));
+    const clipEnd = Math.min(1.25, buffer.duration);
     const playbackDuration = Math.max(0, clipEnd - clipStart);
     if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
       source.start(0, clipStart, playbackDuration);
@@ -15009,30 +15018,30 @@ const powerRef = useRef(hud.power);
                   setOrbitFocusToDefault();
                 }
               }
-            focusTarget = store.target.clone();
-          }
-          focusTarget.multiplyScalar(worldScaleFactor);
-          lookTarget = focusTarget;
-          if (topViewRef.current) {
-            const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-              playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
-              ORBIT_FOCUS_BASE_Y,
-              TOP_VIEW_SCREEN_OFFSET.z
-            ).multiplyScalar(worldScaleFactor);
-            let resolvedTarget = topFocusTarget.clone();
-            const topRadius = clampOrbitRadius(
-              Math.max(
-                fitRadius(camera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
-                CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
-              )
-            );
-            const topTheta = Math.PI;
-            const topPhi = TOP_VIEW_RESOLVED_PHI;
-            TMP_SPH.set(topRadius, topPhi, topTheta);
-            camera.up.set(0, 1, 0);
-            camera.position.setFromSpherical(TMP_SPH);
-            camera.position.add(topFocusTarget);
-            let resolvedPosition = camera.position.clone();
+          focusTarget = store.target.clone();
+        }
+        focusTarget.multiplyScalar(worldScaleFactor);
+        lookTarget = focusTarget;
+        if (topViewRef.current) {
+          const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
+            playerOffsetRef.current + PLAYER_TOP_VIEW_SCREEN_OFFSET.x,
+            ORBIT_FOCUS_BASE_Y,
+            PLAYER_TOP_VIEW_SCREEN_OFFSET.z
+          ).multiplyScalar(worldScaleFactor);
+          let resolvedTarget = topFocusTarget.clone();
+          const topRadius = clampOrbitRadius(
+            Math.max(
+              fitRadius(camera, PLAYER_TOP_VIEW_MARGIN, PLAYER_TOP_VIEW_RADIUS_SCALE),
+              CAMERA.minR * PLAYER_TOP_VIEW_MIN_RADIUS_SCALE
+            )
+          );
+          const topTheta = Math.PI;
+          const topPhi = PLAYER_TOP_VIEW_RESOLVED_PHI;
+          TMP_SPH.set(topRadius, topPhi, topTheta);
+          camera.up.set(0, 1, 0);
+          camera.position.setFromSpherical(TMP_SPH);
+          camera.position.add(topFocusTarget);
+          let resolvedPosition = camera.position.clone();
             let resolvedFov = camera.fov;
             const overheadRailCamera = resolveRailOverheadReplayCamera({
               focusOverride: topFocusTarget,
@@ -15686,7 +15695,7 @@ const powerRef = useRef(hud.power);
         const margin = Math.max(
           STANDING_VIEW.margin,
           topViewRef.current
-            ? TOP_VIEW_MARGIN
+            ? PLAYER_TOP_VIEW_MARGIN
             : window.innerHeight > window.innerWidth
               ? STANDING_VIEW_MARGIN_PORTRAIT
               : STANDING_VIEW_MARGIN_LANDSCAPE
@@ -15698,7 +15707,7 @@ const powerRef = useRef(hud.power);
             const nextMargin = Math.max(
               STANDING_VIEW.margin,
               topViewRef.current
-                ? TOP_VIEW_MARGIN
+                ? PLAYER_TOP_VIEW_MARGIN
                 : window.innerHeight > window.innerWidth
                   ? STANDING_VIEW_MARGIN_PORTRAIT
                   : STANDING_VIEW_MARGIN_LANDSCAPE
@@ -16215,23 +16224,23 @@ const powerRef = useRef(hud.power);
         const enterTopView = (immediate = false) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
-          const margin = TOP_VIEW_MARGIN;
+          const margin = PLAYER_TOP_VIEW_MARGIN;
           fit(margin);
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-            playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
+            playerOffsetRef.current + PLAYER_TOP_VIEW_SCREEN_OFFSET.x,
             ORBIT_FOCUS_BASE_Y,
-            TOP_VIEW_SCREEN_OFFSET.z
+            PLAYER_TOP_VIEW_SCREEN_OFFSET.z
           ).multiplyScalar(
             Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE
           );
           const targetRadius = clampOrbitRadius(
             Math.max(
-              fitRadius(camera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
-              CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
+              fitRadius(camera, PLAYER_TOP_VIEW_MARGIN, PLAYER_TOP_VIEW_RADIUS_SCALE),
+              CAMERA.minR * PLAYER_TOP_VIEW_MIN_RADIUS_SCALE
             )
           );
           sph.radius = targetRadius;
-          sph.phi = TOP_VIEW_RESOLVED_PHI;
+          sph.phi = PLAYER_TOP_VIEW_RESOLVED_PHI;
           lastCameraTargetRef.current.copy(topFocusTarget);
           syncBlendToSpherical();
           if (immediate) {
@@ -17188,7 +17197,7 @@ const powerRef = useRef(hud.power);
       updateCamera();
       fit(
         topViewRef.current
-          ? TOP_VIEW_MARGIN
+          ? PLAYER_TOP_VIEW_MARGIN
           : window.innerHeight > window.innerWidth
             ? 1.6
             : 1.4
@@ -22172,7 +22181,7 @@ const powerRef = useRef(hud.power);
             const margin = Math.max(
               STANDING_VIEW.margin,
               topViewRef.current
-                ? TOP_VIEW_MARGIN
+                ? PLAYER_TOP_VIEW_MARGIN
                 : window.innerHeight > window.innerWidth
                   ? STANDING_VIEW_MARGIN_PORTRAIT
                   : STANDING_VIEW_MARGIN_LANDSCAPE
