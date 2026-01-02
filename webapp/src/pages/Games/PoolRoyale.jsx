@@ -5715,24 +5715,6 @@ function makeWoodTexture({
   texture.needsUpdate = true;
   return texture;
 }
-function applyCushionSpinResponse(ball, normal, scale = 1) {
-  if (!ball?.spin || !normal) return false;
-  if (ball.spin.lengthSq() < 1e-6) return false;
-  if (Math.abs(normal.x) < 1e-8 && Math.abs(normal.y) < 1e-8) return false;
-  const tangent = TMP_VEC2_D.set(-normal.y, normal.x).normalize();
-  const sideSpin = ball.spin.x || 0;
-  const verticalSpin = ball.spin.y || 0;
-  const englishKick = sideSpin * SPIN_STRENGTH * 0.9 * scale;
-  const runOut = verticalSpin * SPIN_STRENGTH * 0.45 * scale;
-  if (Math.abs(englishKick) > 1e-8) {
-    ball.vel.addScaledVector(tangent, englishKick);
-  }
-  if (Math.abs(runOut) > 1e-8) {
-    ball.vel.addScaledVector(normal, runOut * 0.35);
-  }
-  ball.spin.multiplyScalar(Math.pow(SPIN_DECAY, Math.max(scale * 0.5, 0.35)));
-  return true;
-}
 function reflectRails(ball) {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
@@ -5742,7 +5724,6 @@ function reflectRails(ball) {
   const pocketGuard = POCKET_GUARD_RADIUS;
   const guardClearance = POCKET_GUARD_CLEARANCE;
   const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
-  let collisionNormal = null;
   for (const { sx, sy } of CORNER_SIGNS) {
     TMP_VEC2_C.set(sx * limX, sy * limY);
     TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
@@ -5768,7 +5749,6 @@ function reflectRails(ball) {
         .add(vt.multiplyScalar(tangentDamping));
     }
     if (ball.spin?.lengthSq() > 0) {
-      applyCushionSpinResponse(ball, TMP_VEC2_B, 1);
       applySpinImpulse(ball, 0.6);
     }
     const stamp =
@@ -5816,7 +5796,6 @@ function reflectRails(ball) {
         .add(vt.multiplyScalar(tangentDamping));
     }
     if (ball.spin?.lengthSq() > 0) {
-      applyCushionSpinResponse(ball, normal, 0.95);
       applySpinImpulse(ball, 0.6);
     }
     const stamp =
@@ -5840,34 +5819,27 @@ function reflectRails(ball) {
     const overshoot = -limX - ball.pos.x;
     ball.pos.x = -limX + overshoot;
     ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
-    collisionNormal = TMP_VEC2_A.set(1, 0);
     collided = 'rail';
   }
   if (ball.pos.x > limX && ball.vel.x > 0) {
     const overshoot = ball.pos.x - limX;
     ball.pos.x = limX - overshoot;
     ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
-    collisionNormal = TMP_VEC2_A.set(-1, 0);
     collided = 'rail';
   }
   if (ball.pos.y < -limY && ball.vel.y < 0) {
     const overshoot = -limY - ball.pos.y;
     ball.pos.y = -limY + overshoot;
     ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
-    collisionNormal = TMP_VEC2_A.set(0, 1);
     collided = 'rail';
   }
   if (ball.pos.y > limY && ball.vel.y > 0) {
     const overshoot = ball.pos.y - limY;
     ball.pos.y = limY - overshoot;
     ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
-    collisionNormal = TMP_VEC2_A.set(0, -1);
     collided = 'rail';
   }
   if (collided) {
-    if (collisionNormal) {
-      applyCushionSpinResponse(ball, collisionNormal, 1);
-    }
     const stamp =
       typeof performance !== 'undefined' && performance.now
         ? performance.now()
@@ -11282,15 +11254,10 @@ const powerRef = useRef(hud.power);
       gain.gain.value = scaled;
       source.connect(gain);
       routeAudioNode(gain);
-      const cueStart = 6.5;
-      const cueEnd = 8.6;
-      const durationSeconds = Math.max(0, cueEnd - cueStart);
-      const offset = Math.max(0, Math.min(buffer.duration || 0, cueStart));
-      if ((buffer.duration || 0) <= offset || durationSeconds <= 0) return;
+      const offset = Math.max(0, Math.min(buffer.duration || 0, 7));
+      if ((buffer.duration || 0) <= offset) return;
       const duration =
-        buffer.duration > offset
-          ? Math.min(durationSeconds, (buffer.duration || 0) - offset)
-          : undefined;
+        buffer.duration > offset ? Math.min(1, (buffer.duration || 0) - offset) : undefined;
       source.start(0, offset, duration);
     },
     [routeAudioNode]
@@ -19372,28 +19339,24 @@ const powerRef = useRef(hud.power);
             const cueDist = cueToBall.length();
             const safetyDist = targetBall.pos.distanceTo(safetyAnchor);
             if (!directClear) {
-              const safetyVector = safetyAnchor.clone().sub(cuePos);
-              if (safetyVector.lengthSq() < 1e-6) safetyVector.set(0, 1);
-              const safetyDir = safetyVector.clone().normalize();
-              const safetyClear = isPathClear(cuePos, safetyAnchor, new Set([cue.id]));
-              if (safetyClear) {
-                const blockedPlan = {
-                  type: 'safety',
-                  aimDir: safetyDir,
-                  power: computePowerFromDistance((cueDist + safetyDist) * 0.75),
-                  target: 'SAFETY',
-                  targetBall,
-                  pocketId: 'SAFETY',
-                  difficulty: cueDist + safetyDist * 1.5,
-                  cueToTarget: cueDist,
-                  targetToPocket: safetyDist,
-                  spin: { x: 0, y: -0.12 },
-                  quality: Math.max(
-                    0,
-                    1 - (cueDist + safetyDist * 1.5) / (PLAY_W + PLAY_H)
-                  )
-                };
-                safetyShots.push(blockedPlan);
+              const blockedPlan = {
+                type: 'safety',
+                aimDir: cueToBall.clone().normalize(),
+                power: computePowerFromDistance((cueDist + safetyDist) * 0.6),
+                target: colorId,
+                targetBall,
+                pocketId: 'SAFETY',
+                difficulty: cueDist + safetyDist * 2 + 400,
+                cueToTarget: cueDist,
+                targetToPocket: safetyDist,
+                spin: { x: 0, y: -0.05 },
+                quality: Math.max(
+                  0,
+                  1 - (cueDist + safetyDist * 2) / (PLAY_W + PLAY_H)
+                )
+              };
+              if (!fallbackPlan || blockedPlan.difficulty < fallbackPlan.difficulty) {
+                fallbackPlan = blockedPlan;
               }
               return;
             }
