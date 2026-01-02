@@ -252,6 +252,7 @@ const TYPE_SWATCHES = {
   tableFinish: ['#3b2f2f', '#8b5a2b'],
   chromeColor: ['#f5f5f5', '#d4d4d8'],
   railMarkerColor: ['#9ca3af', '#fef3c7'],
+  tableBase: ['#0f172a', '#1f2937'],
   clothColor: ['#0f766e', '#22c55e'],
   cueStyle: ['#0f172a', '#1e293b'],
   environmentHdri: ['#0ea5e9', '#312e81'],
@@ -362,6 +363,7 @@ const PREVIEW_BY_TYPE = {
   tableBase: 'table',
   tableWood: 'table',
   tableCloth: 'table',
+  tableBase: 'table',
   tableTheme: 'table',
   chairTheme: 'chair',
   tables: 'table'

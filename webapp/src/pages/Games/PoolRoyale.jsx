@@ -11171,7 +11171,6 @@ const powerRef = useRef(hud.power);
   const audioContextRef = useRef(null);
   const audioBuffersRef = useRef({
     cue: null,
-    chalk: null,
     ball: null,
     pocket: null,
     knock: null,
@@ -11238,35 +11237,11 @@ const powerRef = useRef(hud.power);
     } catch {}
   }, []);
 
-  const playCueHit = useCallback(
-    (vol = 1) => {
-      const ctx = audioContextRef.current;
-      const buffer = audioBuffersRef.current.cue;
-      if (!ctx || !buffer || muteRef.current) return;
-      const power = clamp(vol, 0, 1);
-      const scaled = clamp((0.18 + power * 0.82) * volumeRef.current, 0, 1);
-      if (scaled <= 0) return;
-      ctx.resume().catch(() => {});
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      const gain = ctx.createGain();
-      gain.gain.value = scaled;
-      source.connect(gain);
-      routeAudioNode(gain);
-      const offset = Math.max(0, Math.min(buffer.duration || 0, 7));
-      if ((buffer.duration || 0) <= offset) return;
-      const duration =
-        buffer.duration > offset ? Math.min(1, (buffer.duration || 0) - offset) : undefined;
-      source.start(0, offset, duration);
-    },
-    [routeAudioNode]
-  );
-
-  const playChalkPress = useCallback(() => {
+  const playCueHit = useCallback((vol = 1) => {
     const ctx = audioContextRef.current;
-    const buffer = audioBuffersRef.current.chalk;
+    const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
-    const scaled = clamp(volumeRef.current * 0.5, 0, 1);
+    const scaled = clamp(vol * volumeRef.current, 0, 1);
     if (scaled <= 0) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11275,8 +11250,8 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    source.start(0);
-  }, [routeAudioNode]);
+    source.start(0, 0, 0.5);
+  }, []);
 
   const playBallHit = useCallback((vol = 1) => {
     if (vol <= 0) return;
@@ -11468,8 +11443,7 @@ const powerRef = useRef(hud.power);
     };
     (async () => {
       const entries = [
-        ['cue', '/assets/sounds/Control_the_Cue_Ball_Control_the_Black_snooker_billiard_tipsandtrick.mp3'],
-        ['chalk', '/assets/sounds/adding-chalk-to-a-snooker-cue-102468.mp3'],
+        ['cue', '/assets/sounds/billiard-pool-hit-371618.mp3'],
         ['ball', '/assets/sounds/billiard-sound newhit.mp3'],
         ['pocket', '/assets/sounds/billiard-sound-6-288417.mp3'],
         ['knock', '/assets/sounds/wooden-door-knock-102902.mp3'],
@@ -11494,7 +11468,6 @@ const powerRef = useRef(hud.power);
       stopActiveCrowdSound();
       audioBuffersRef.current = {
         cue: null,
-        chalk: null,
         ball: null,
         pocket: null,
         knock: null,
@@ -12754,14 +12727,13 @@ const powerRef = useRef(hud.power);
       const CHESS_BATTLE_TABLE_SPAN_UNITS = 5.1;
       const CHESS_BATTLE_BOARD_SPAN_UNITS = 1.9008;
       const CHESS_BATTLE_CHAIR_MAX_DIM = 1.917;
-      const CHESS_BATTLE_BOARD_RATIO =
-        CHESS_BATTLE_BOARD_SPAN_UNITS / CHESS_BATTLE_TABLE_SPAN_UNITS;
-      const CHESS_BATTLE_CHAIR_RATIO =
-        CHESS_BATTLE_CHAIR_MAX_DIM / CHESS_BATTLE_TABLE_SPAN_UNITS;
-      const poolTableSpan = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE;
-      const chessBattleTargetSpan = poolTableSpan * 0.36;
-      const chessBattleTargetBoard = chessBattleTargetSpan * CHESS_BATTLE_BOARD_RATIO;
-      const chessBattleTargetChair = chessBattleTargetSpan * CHESS_BATTLE_CHAIR_RATIO;
+      const chessBattleScale = TABLE_H / CHESS_BATTLE_TABLE_HEIGHT_UNITS;
+      const chessBattleTargetSpan =
+        CHESS_BATTLE_TABLE_SPAN_UNITS * chessBattleScale;
+      const chessBattleTargetBoard =
+        CHESS_BATTLE_BOARD_SPAN_UNITS * chessBattleScale;
+      const chessBattleTargetChair =
+        CHESS_BATTLE_CHAIR_MAX_DIM * chessBattleScale;
 
       const createTableSet = () => {
         const set = new THREE.Group();
@@ -13234,59 +13206,35 @@ const powerRef = useRef(hud.power);
           hospitalityLoaderRef.current = new GLTFLoader();
         }
         const loader = hospitalityLoaderRef.current;
-        const configureLoaderPaths = (assetUrl) => {
-          if (!assetUrl) return;
-          try {
-            const parsed = new URL(assetUrl, window.location.href);
-            const basePath = parsed.href.slice(0, parsed.href.lastIndexOf('/') + 1);
-            loader.setCrossOrigin('anonymous');
-            loader.setResourcePath(basePath);
-            loader.setPath(basePath);
-          } catch {
-            loader.setResourcePath('');
-            loader.setPath('');
-          }
-        };
         let lastError = null;
         for (const url of urls) {
           try {
             // eslint-disable-next-line no-await-in-loop
-            configureLoaderPaths(url);
-            const gltf = await loader.loadAsync(url);
-            loader.setResourcePath('');
-            loader.setPath('');
-            return gltf;
+            return await loader.loadAsync(url);
           } catch (error) {
             lastError = error;
           }
         }
-        loader.setResourcePath('');
-        loader.setPath('');
         throw lastError || new Error('Failed to load GLTF asset');
       };
       const markHospitalityMaterials = (root) => {
         if (!root) return;
         root.traverse((child) => {
           if (!child?.isMesh) return;
-          const materials = Array.isArray(child.material) ? child.material : [child.material];
+          const materials = Array.isArray(child.material)
+            ? child.material
+            : [child.material];
           child.castShadow = true;
           child.receiveShadow = true;
-          const clonedMaterials = materials.map((mat) => {
+          child.material = materials.map((mat) => {
             if (!mat) return mat;
             const material = mat.clone ? mat.clone() : mat;
             material.userData = { ...(material.userData || {}), disposableHospitality: true };
-            ['map', 'emissiveMap', 'aoMap', 'roughnessMap', 'metalnessMap', 'normalMap'].forEach(
-              (key) => {
-                if (material[key]) {
-                  applySRGBColorSpace(material[key]);
-                  sharpenTexture(material[key]);
-                }
-              }
-            );
+            if (material.map) sharpenTexture(material.map);
+            if (material.emissiveMap) sharpenTexture(material.emissiveMap);
             material.needsUpdate = true;
             return material;
           });
-          child.material = Array.isArray(child.material) ? clonedMaterials : clonedMaterials[0];
         });
       };
       const ensureChessLoungeAssets = async () => {
@@ -16292,7 +16240,6 @@ const powerRef = useRef(hud.power);
           }
           if (!hit?.userData?.isChalk) return false;
           toggleChalkAssist(hit.userData?.chalkIndex ?? null);
-          playChalkPress();
           return true;
         };
         const down = (e) => {
@@ -16941,7 +16888,7 @@ const powerRef = useRef(hud.power);
         if (environmentId !== 'musicHall02') return;
         const spacing = resolveSecondarySpacing(environmentId);
         const tableHalfDepth = (TABLE.H / 2) * TABLE_DISPLAY_SCALE;
-        const shortRailDirection = activeTableSlotRef.current === 0 ? -1 : 1;
+        const shortRailDirection = Math.sign(spacing || 1) || 1;
         const outerShortRailZ = shortRailDirection * (Math.abs(spacing) + tableHalfDepth);
         const availableOuterSpace = Math.max(0, arenaHalfDepth - outerShortRailZ);
         const serviceGap = Math.max(
@@ -16950,8 +16897,8 @@ const powerRef = useRef(hud.power);
         );
         const farInteriorZ = arenaHalfDepth - hospitalityEdgePull;
         const placementZ = THREE.MathUtils.clamp(
-          outerShortRailZ + serviceGap * 1.5,
-          outerShortRailZ + serviceGap * 1.1,
+          outerShortRailZ + serviceGap * 1.25,
+          outerShortRailZ + serviceGap,
           farInteriorZ
         );
         const chairSpread = toHospitalityUnits(0.44) * hospitalityUpscale;
