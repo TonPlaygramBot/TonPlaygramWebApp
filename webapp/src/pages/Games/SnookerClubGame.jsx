@@ -1761,8 +1761,9 @@ const WOOD_PRESETS_BY_ID = Object.freeze(
 const DEFAULT_WOOD_PRESET_ID = 'walnut';
 
 // Pool Royale no longer exposes wood grain customization and should render the
-// rails as a plain material without any texture maps.
-const WOOD_TEXTURES_ENABLED = false;
+// rails as a plain material without any texture maps, but Snooker Club still
+// relies on the original GLTF-inspired wood grains, so keep textures enabled.
+const WOOD_TEXTURES_ENABLED = true;
 
 const DEFAULT_TABLE_FINISH_ID =
   SNOOKER_CLUB_DEFAULT_UNLOCKS.tableFinish?.[0] ?? 'rusticSplit';
