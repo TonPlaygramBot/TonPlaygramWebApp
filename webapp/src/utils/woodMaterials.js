@@ -30,7 +30,7 @@ const tileableNoise = (x, y, width, height, scale, seed = 1) => {
   return (nx + ny + nxy + 3) / 6; // normalize to [0,1]
 };
 
-const WOOD_TEXTURE_ANISOTROPY = 12;
+const WOOD_TEXTURE_ANISOTROPY = 32;
 
 const woodTextureLoader = new THREE.TextureLoader();
 woodTextureLoader.setCrossOrigin?.('anonymous');
