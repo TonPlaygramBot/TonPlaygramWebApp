@@ -1050,12 +1050,12 @@ const SIDE_POCKET_GUARD_RADIUS =
   SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.08; // use the middle-pocket bowl to gate reflections
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
-  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.12
+  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.08
 );
 const SIDE_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
 const SIDE_POCKET_SPAN =
-  SIDE_POCKET_RADIUS * 1.02 * POCKET_VISUAL_EXPANSION + BALL_R * 0.68; // widen the middle lane so clean cuts track naturally into the pocket
+  SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.52; // tune the middle lane to the real mouth width
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_ENABLED = false; // fully disable any plywood underlay beneath the cloth
 const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
@@ -4168,7 +4168,6 @@ const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
     return acc;
   }, {})
 );
-const DECOR_TABLE_TEXTURE_MAX_SIZE = 2048;
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
@@ -9333,22 +9332,6 @@ function applyTableFinishToTable(table, finish) {
     accentConfig.material.needsUpdate = true;
   }
 
-  const textureBudgetMax =
-    Number.isFinite(table.userData?.textureBudgetMaxSize) &&
-    table.userData.textureBudgetMaxSize > 0
-      ? table.userData.textureBudgetMaxSize
-      : null;
-  const clampSurfaceTextureSize = (surface) => {
-    if (!surface) return surface;
-    const clamped = { ...surface };
-    if (textureBudgetMax != null) {
-      clamped.textureSize = clamped.textureSize
-        ? Math.min(clamped.textureSize, textureBudgetMax)
-        : textureBudgetMax;
-    }
-    return clamped;
-  };
-
   const disposed = new Set();
   const disposeMaterial = (material) => {
     if (!material || disposed.has(material)) return;
@@ -9417,19 +9400,17 @@ function applyTableFinishToTable(table, finish) {
       (finishInfo.woodTextureId &&
         WOOD_GRAIN_OPTIONS_BY_ID[finishInfo.woodTextureId]) ||
       defaultWoodOption;
-    const nextFrameSurface = clampSurfaceTextureSize(
-      resolveWoodSurfaceConfig(
-        resolvedWoodOption?.frame,
-        woodSurfaces.frame ?? woodSurfaces.rail ?? resolvedWoodOption?.rail ?? {
-          repeat: { x: 1, y: 1 },
-          rotation: 0
-        }
-      )
+    const nextFrameSurface = resolveWoodSurfaceConfig(
+      resolvedWoodOption?.frame,
+      woodSurfaces.frame ?? woodSurfaces.rail ?? resolvedWoodOption?.rail ?? {
+        repeat: { x: 1, y: 1 },
+        rotation: 0
+      }
     );
     const woodRepeatScale = clampWoodRepeatScaleValue(
       resolvedFinish?.woodRepeatScale ?? finishInfo.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
     );
-    const synchronizedRailSurface = clampSurfaceTextureSize({
+    const synchronizedRailSurface = {
       repeat: new THREE.Vector2(
         nextFrameSurface.repeat.x,
         nextFrameSurface.repeat.y
@@ -9440,8 +9421,8 @@ function applyTableFinishToTable(table, finish) {
       roughnessMapUrl: nextFrameSurface.roughnessMapUrl,
       normalMapUrl: nextFrameSurface.normalMapUrl,
       woodRepeatScale
-    });
-    const synchronizedFrameSurface = clampSurfaceTextureSize({
+    };
+    const synchronizedFrameSurface = {
       repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
       rotation: nextFrameSurface.rotation,
       textureSize: nextFrameSurface.textureSize,
@@ -9449,7 +9430,7 @@ function applyTableFinishToTable(table, finish) {
       roughnessMapUrl: nextFrameSurface.roughnessMapUrl,
       normalMapUrl: nextFrameSurface.normalMapUrl,
       woodRepeatScale
-    });
+    };
 
     applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
     applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
@@ -9804,12 +9785,6 @@ function PoolRoyaleGame({
       HDRI_RESOLUTION_OPTIONS[0],
     [hdriResolutionId]
   );
-  const forcedHdriResolution = useMemo(() => {
-    if (environmentHdriId === 'musicHall02' || environmentHdriId === 'oldHall') {
-      return '6k';
-    }
-    return null;
-  }, [environmentHdriId]);
   const frameQualityProfile = useMemo(() => {
     const option = activeFrameRateOption ?? FRAME_RATE_OPTIONS[0];
     const fallback = FRAME_RATE_OPTIONS[0];
@@ -9919,9 +9894,6 @@ function PoolRoyaleGame({
     [availableTableBases, tableBaseId]
   );
   const resolvedHdriResolution = useMemo(() => {
-    if (forcedHdriResolution) {
-      return forcedHdriResolution;
-    }
     if (hdriResolutionId === 'auto') {
       return resolveHdriResolutionForTable(responsiveTableSize);
     }
@@ -9929,7 +9901,7 @@ function PoolRoyaleGame({
       return hdriResolutionId;
     }
     return resolveHdriResolutionForTable(responsiveTableSize);
-  }, [forcedHdriResolution, hdriResolutionId, responsiveTableSize]);
+  }, [hdriResolutionId, responsiveTableSize]);
   const activeEnvironmentHdri = useMemo(
     () => {
       const variant =
@@ -11311,7 +11283,7 @@ const powerRef = useRef(hud.power);
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
-    const scaled = clamp(volumeRef.current * 1.35 * (0.45 + power * 0.7), 0, 1);
+    const scaled = clamp(volumeRef.current * 1.2 * (0.35 + power * 0.75), 0, 1);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11324,9 +11296,9 @@ const powerRef = useRef(hud.power);
     const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
     const playbackDuration = Math.max(0, clipEnd - clipStart);
     if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
-      source.start(ctx.currentTime, clipStart, playbackDuration);
+      source.start(0, clipStart, playbackDuration);
     }
-  }, [routeAudioNode]);
+  }, []);
 
   const playBallHit = useCallback((vol = 1) => {
     if (vol <= 0) return;
@@ -16679,9 +16651,6 @@ const powerRef = useRef(hud.power);
       // Table
       const finishForScene = tableFinishRef.current;
       const tableSizeMeta = tableSizeRef.current;
-      const clampDecorTextures =
-        environmentHdriRef.current === 'musicHall02' ||
-        environmentHdriRef.current === 'oldHall';
       const {
         centers,
         baulkZ,
@@ -16710,18 +16679,6 @@ const powerRef = useRef(hud.power);
       );
       secondaryTableRef.current = secondaryTableEntry?.group ?? null;
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
-      if (secondaryTableRef.current) {
-        if (clampDecorTextures) {
-          secondaryTableRef.current.userData.textureBudgetMaxSize = DECOR_TABLE_TEXTURE_MAX_SIZE;
-          applyTableFinishToTable(secondaryTableRef.current, finishForScene);
-        } else if (
-          secondaryTableRef.current.userData &&
-          'textureBudgetMaxSize' in secondaryTableRef.current.userData
-        ) {
-          delete secondaryTableRef.current.userData.textureBudgetMaxSize;
-          applyTableFinishToTable(secondaryTableRef.current, finishForScene);
-        }
-      }
       const resolveSnookerScale = () => {
         const poolWidth = tableSizeMeta?.playfield?.widthMm ?? 2540;
         const snookerWidth = resolveSnookerTableSize()?.playfield?.widthMm ?? 3556;
@@ -16908,8 +16865,7 @@ const powerRef = useRef(hud.power);
         variant = 'pool',
         position = { x: 0, z: 0 },
         rotationY = 0,
-        scale = null,
-        textureBudgetMaxSize = null
+        scale = null
       } = {}) => {
         const finishForLayout =
           tableFinishRef.current ||
@@ -16939,13 +16895,6 @@ const powerRef = useRef(hud.power);
         tableGroup.position.set(position.x ?? 0, tableGroup.position.y, position.z ?? 0);
         tableGroup.rotation.y = rotationY;
         markDecorativeTable(tableGroup);
-        if (Number.isFinite(textureBudgetMaxSize) && textureBudgetMaxSize > 0) {
-          tableGroup.userData.textureBudgetMaxSize = textureBudgetMaxSize;
-        } else {
-          if (tableGroup.userData && 'textureBudgetMaxSize' in tableGroup.userData) {
-            delete tableGroup.userData.textureBudgetMaxSize;
-          }
-        }
         applyTableFinishToTable(tableGroup, finishForLayout);
         const decor = buildDecorGroup({ table: tableGroup, variant });
         decorativeTablesRef.current.push({
@@ -16965,10 +16914,6 @@ const powerRef = useRef(hud.power);
         const maxZ = Math.max(0, arenaHalfDepth - placementMargin);
         const clampX = (x = 0) => THREE.MathUtils.clamp(x, -maxX, maxX);
         const clampZ = (z = 0) => THREE.MathUtils.clamp(z, -maxZ, maxZ);
-        const decorTextureBudget =
-          environmentId === 'musicHall02' || environmentId === 'oldHall'
-            ? DECOR_TABLE_TEXTURE_MAX_SIZE
-            : null;
         const envRotationY = Number.isFinite(
           POOL_ROYALE_HDRI_VARIANT_MAP[environmentId]?.rotationY
         )
@@ -16983,15 +16928,13 @@ const powerRef = useRef(hud.power);
           createDecorativeTable({
             variant: 'pool',
             position: { x: leftOffset, z: 0 },
-            rotationY: envRotationY,
-            textureBudgetMaxSize: decorTextureBudget
+            rotationY: envRotationY
           });
           createDecorativeTable({
             variant: 'snooker',
             position: { x: rightOffset, z: 0 },
             rotationY: envRotationY,
-            scale: { x: snookerDecorScale, y: 1, z: snookerDecorScale },
-            textureBudgetMaxSize: decorTextureBudget
+            scale: { x: snookerDecorScale, y: 1, z: snookerDecorScale }
           });
         };
         if (
@@ -17005,18 +16948,15 @@ const powerRef = useRef(hud.power);
           const rearSpacing = clampZ(spacing * 0.9);
           createDecorativeTable({
             variant: 'snooker',
-            position: { x: -lateralSpacing, z: -depthSpacing },
-            textureBudgetMaxSize: decorTextureBudget
+            position: { x: -lateralSpacing, z: -depthSpacing }
           });
           createDecorativeTable({
             variant: 'snooker',
-            position: { x: lateralSpacing, z: depthSpacing },
-            textureBudgetMaxSize: decorTextureBudget
+            position: { x: lateralSpacing, z: depthSpacing }
           });
           createDecorativeTable({
             variant: 'pool',
-            position: { x: 0, z: rearSpacing },
-            textureBudgetMaxSize: decorTextureBudget
+            position: { x: 0, z: rearSpacing }
           });
         }
       };
@@ -21499,15 +21439,6 @@ const powerRef = useRef(hud.power);
                 b.lift = 0;
                 b.liftVel = 0;
               }
-            }
-            if (
-              isCue &&
-              !b.impacted &&
-              b.spinMode !== 'swerve' &&
-              b.spin?.lengthSq() > 1e-6 &&
-              b.vel.lengthSq() > MICRO_EPS * MICRO_EPS
-            ) {
-              b.impacted = true;
             }
             if (hasSpin) {
               const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
