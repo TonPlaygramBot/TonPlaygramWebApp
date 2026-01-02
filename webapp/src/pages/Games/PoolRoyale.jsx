@@ -1309,7 +1309,6 @@ const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale wit
 const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
-const WOOD_RAIL_TILE_SCALE = 0.86; // shrink rail and skirt grain slightly so the pattern reads tighter like the pre-HDRI build
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
@@ -3065,7 +3064,7 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.76; // tighten the pattern footprint so the scan resolves more clearly
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1; // keep Poly Haven cloth tiling identical to the procedural baseline
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
 const POLYHAVEN_ANISOTROPY_BOOST = 2.6;
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.35, 0.55);
 const CLOTH_ROUGHNESS_BASE = 0.82;
@@ -3073,7 +3072,7 @@ const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
 const CLOTH_PATTERN_OVERRIDES = Object.freeze({
   polar_fleece: { repeatScale: 0.94 }, // 10% larger pattern to emphasize the fleece nap
-  terry_cloth: { repeatScale: 1 } // keep Poly Haven terry cloth aligned with the standard thread density
+  terry_cloth: { repeatScale: 3 } // counter Polyhaven repeat scale so terry cloth matches the standard thread density
 });
 
 const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
@@ -4079,11 +4078,6 @@ function projectRailUVs(geometry, bounds) {
     y: Math.max(outerHalfH * 2, MICRO_EPS),
     z: Math.max(railH, MICRO_EPS)
   };
-  const lengthScale = extents.y / Math.max(extents.x, MICRO_EPS);
-  const axisScale = (axis) => {
-    if (axis === 'y') return lengthScale;
-    return 1;
-  };
 
   const faceNormal = new THREE.Vector3();
   const edgeA = new THREE.Vector3();
@@ -4107,9 +4101,8 @@ function projectRailUVs(geometry, bounds) {
     const vAxis = dominantZ ? 'y' : 'z';
 
     verts.forEach((v, idx) => {
-      const u = ((v[uAxis] + extents[uAxis] / 2) / extents[uAxis]) * axisScale(uAxis);
-      const vCoord =
-        ((v[vAxis] + extents[vAxis] / 2) / extents[vAxis]) * axisScale(vAxis);
+      const u = (v[uAxis] + extents[uAxis] / 2) / extents[uAxis];
+      const vCoord = (v[vAxis] + extents[vAxis] / 2) / extents[vAxis];
       const uvIndex = (i + idx) * 2;
       uv[uvIndex] = u;
       uv[uvIndex + 1] = vCoord;
@@ -6296,9 +6289,6 @@ function Table3D(
   const woodRepeatScale = clampWoodRepeatScaleValue(
     resolvedFinish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
   );
-  const adjustedWoodRepeatScale = clampWoodRepeatScaleValue(
-    woodRepeatScale * WOOD_RAIL_TILE_SCALE
-  );
   const clothTextureKey =
     resolvedFinish?.clothTextureKey ?? DEFAULT_CLOTH_TEXTURE_KEY;
   const palette = resolvedFinish?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
@@ -6370,7 +6360,7 @@ function Table3D(
     mapUrl: initialFrameSurface.mapUrl,
     roughnessMapUrl: initialFrameSurface.roughnessMapUrl,
     normalMapUrl: initialFrameSurface.normalMapUrl,
-    woodRepeatScale: adjustedWoodRepeatScale
+    woodRepeatScale
   };
   const synchronizedFrameSurface = {
     repeat: new THREE.Vector2(
@@ -6382,7 +6372,7 @@ function Table3D(
     mapUrl: initialFrameSurface.mapUrl,
     roughnessMapUrl: initialFrameSurface.roughnessMapUrl,
     normalMapUrl: initialFrameSurface.normalMapUrl,
-    woodRepeatScale: adjustedWoodRepeatScale
+    woodRepeatScale
   };
 
   applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
@@ -6400,7 +6390,7 @@ function Table3D(
     frame: cloneWoodSurfaceConfig(synchronizedFrameSurface),
     rail: cloneWoodSurfaceConfig(synchronizedRailSurface)
   };
-  finishParts.woodRepeatScale = adjustedWoodRepeatScale;
+  finishParts.woodRepeatScale = woodRepeatScale;
 
   const {
     map: clothMap,
@@ -6693,7 +6683,7 @@ function Table3D(
     applyClothDetail,
     woodTextureId: finishParts.woodTextureId,
     clothTextureKey,
-    woodRepeatScale: adjustedWoodRepeatScale
+    woodRepeatScale
   };
   registerClothTextureConsumer(clothTextureKey, finishInfo);
 
@@ -7054,7 +7044,7 @@ function Table3D(
     mapUrl: alignedRailSurface.mapUrl,
     roughnessMapUrl: alignedRailSurface.roughnessMapUrl,
     normalMapUrl: alignedRailSurface.normalMapUrl,
-    woodRepeatScale: adjustedWoodRepeatScale
+    woodRepeatScale
   });
   finishParts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
@@ -7069,14 +7059,11 @@ function Table3D(
       mapUrl: underlaySurface.mapUrl,
       roughnessMapUrl: underlaySurface.roughnessMapUrl,
       normalMapUrl: underlaySurface.normalMapUrl,
-      woodRepeatScale: adjustedWoodRepeatScale
+      woodRepeatScale
     });
     mesh.material.needsUpdate = true;
   });
-  finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig({
-    ...alignedRailSurface,
-    woodRepeatScale: adjustedWoodRepeatScale
-  });
+  finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(alignedRailSurface);
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.07; // push the cushions further outward so they meet the wooden rails without a gap
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
@@ -8849,7 +8836,7 @@ function Table3D(
     mapUrl: woodFrameSurface.mapUrl,
     roughnessMapUrl: woodFrameSurface.roughnessMapUrl,
     normalMapUrl: woodFrameSurface.normalMapUrl,
-    woodRepeatScale: adjustedWoodRepeatScale
+    woodRepeatScale
   };
 
   applyWoodTextureToMaterial(frameMat, synchronizedWoodSurface);
@@ -8860,7 +8847,7 @@ function Table3D(
   }
   finishParts.woodSurfaces.frame = cloneWoodSurfaceConfig({
     ...woodFrameSurface,
-    woodRepeatScale: adjustedWoodRepeatScale
+    woodRepeatScale
   });
 
   // Force the rail grain direction and scale to match the skirt/apron below so
@@ -9475,11 +9462,8 @@ function applyTableFinishToTable(table, finish) {
         rotation: 0
       }
     );
-    const baseWoodRepeatScale = clampWoodRepeatScaleValue(
-      resolvedFinish?.woodRepeatScale ?? finishInfo.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
-    );
     const woodRepeatScale = clampWoodRepeatScaleValue(
-      baseWoodRepeatScale * WOOD_RAIL_TILE_SCALE
+      resolvedFinish?.woodRepeatScale ?? finishInfo.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
     );
     const synchronizedRailSurface = {
       repeat: new THREE.Vector2(
