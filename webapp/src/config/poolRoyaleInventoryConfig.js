@@ -475,30 +475,13 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
 ];
 
 const HDRI_RESOLUTION_STACK = Object.freeze(['8k', '6k', '4k', '2k']);
-export const HDRI_RESOLUTION_OVERRIDES = Object.freeze({
-  musicHall02: {
-    preferredResolutions: Object.freeze(['6k']),
-    fallbackResolution: '6k'
-  },
-  oldHall: {
-    preferredResolutions: Object.freeze(['6k']),
-    fallbackResolution: '6k'
-  }
-});
 
 export const POOL_ROYALE_HDRI_VARIANTS = Object.freeze(
-  RAW_POOL_ROYALE_HDRI_VARIANTS.map((variant) => {
-    const override = HDRI_RESOLUTION_OVERRIDES[variant.id] || null;
-    const preferredResolutions = override?.preferredResolutions || HDRI_RESOLUTION_STACK;
-    const fallbackResolution =
-      override?.fallbackResolution || variant.fallbackResolution || HDRI_RESOLUTION_STACK[0];
-    return {
-      ...variant,
-      preferredResolutions,
-      fallbackResolution,
-      ...(POOL_ROYALE_HDRI_PLACEMENTS[variant.id] || {})
-    };
-  })
+  RAW_POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
+    ...variant,
+    preferredResolutions: HDRI_RESOLUTION_STACK,
+    ...(POOL_ROYALE_HDRI_PLACEMENTS[variant.id] || {})
+  }))
 );
 
 export const POOL_ROYALE_HDRI_VARIANT_MAP = Object.freeze(
