@@ -3062,10 +3062,10 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.66; // tighten the pattern footprint so the scan resolves more clearly while keeping the weave larger on screen
-const CLOTH_TEXTURE_REPEAT_HINT = 1.38;
+const CLOTH_PATTERN_SCALE = 0.76; // tighten the pattern footprint so the scan resolves more clearly
+const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
-const POLYHAVEN_ANISOTROPY_BOOST = 3;
+const POLYHAVEN_ANISOTROPY_BOOST = 2.6;
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.35, 0.55);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
@@ -3493,7 +3493,6 @@ const createClothTextures = (() => {
           urls = {};
         }
 
-        const fallback4k = buildPolyHavenTextureUrls(preset.sourceId, '4k');
         const fallback2k = buildPolyHavenTextureUrls(preset.sourceId, '2k');
         const fallback1k = buildPolyHavenTextureUrls(preset.sourceId, '1k');
         const loader = new THREE.TextureLoader();
@@ -3501,19 +3500,16 @@ const createClothTextures = (() => {
 
         const diffuseCandidates = [
           urls.diffuse,
-          fallback4k?.diffuse,
           fallback2k?.diffuse,
           fallback1k?.diffuse
         ].filter(Boolean);
         const normalCandidates = [
           urls.normal,
-          fallback4k?.normal,
           fallback2k?.normal,
           fallback1k?.normal
         ].filter(Boolean);
         const roughnessCandidates = [
           urls.roughness,
-          fallback4k?.roughness,
           fallback2k?.roughness,
           fallback1k?.roughness
         ].filter(Boolean);
