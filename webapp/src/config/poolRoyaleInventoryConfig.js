@@ -477,11 +477,17 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
 const HDRI_RESOLUTION_STACK = Object.freeze(['8k', '6k', '4k', '2k']);
 
 export const POOL_ROYALE_HDRI_VARIANTS = Object.freeze(
-  RAW_POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
-    ...variant,
-    preferredResolutions: HDRI_RESOLUTION_STACK,
-    ...(POOL_ROYALE_HDRI_PLACEMENTS[variant.id] || {})
-  }))
+  RAW_POOL_ROYALE_HDRI_VARIANTS.map((variant) => {
+    const prefer6k = variant.id === 'musicHall02' || variant.id === 'oldHall';
+    const preferredResolutions = prefer6k ? ['6k', '4k', '2k'] : HDRI_RESOLUTION_STACK;
+    const fallbackResolution = prefer6k ? '6k' : variant.fallbackResolution;
+    return {
+      ...variant,
+      preferredResolutions,
+      fallbackResolution: fallbackResolution || preferredResolutions[0],
+      ...(POOL_ROYALE_HDRI_PLACEMENTS[variant.id] || {})
+    };
+  })
 );
 
 export const POOL_ROYALE_HDRI_VARIANT_MAP = Object.freeze(
