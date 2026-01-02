@@ -1276,8 +1276,8 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.35;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.95;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(8.5);
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.55; // soften obstruction lift so the cue stays level with the cue ball
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6); // reduce obstruction tilt to keep the shaft in its intended radius
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -4872,9 +4872,9 @@ const BREAK_VIEW = Object.freeze({
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.08;
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.02;
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
+const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI; // fully overhead for the legacy 2D framing
 const TOP_VIEW_RADIUS_SCALE = 1.02;
-const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
+const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: 0, // center the table for the classic top-down framing
   z: 0 // keep the 2D view aligned with the original overhead composition
@@ -15034,10 +15034,7 @@ const powerRef = useRef(hud.power);
             camera.position.add(topFocusTarget);
             let resolvedPosition = camera.position.clone();
             let resolvedFov = camera.fov;
-            const overheadRailCamera = resolveRailOverheadReplayCamera({
-              focusOverride: topFocusTarget,
-              minTargetY: topFocusTarget.y
-            });
+            const overheadRailCamera = null; // keep the manual 2D view strictly overhead without rail cut-ins
             if (overheadRailCamera) {
               resolvedTarget =
                 overheadRailCamera.target?.clone?.() ?? resolvedTarget;
@@ -18429,6 +18426,21 @@ const powerRef = useRef(hud.power);
         }
         return { side, vert, hasSpin };
       };
+      const resolveCueObstructionAdjustments = (
+        dirVec3,
+        pullDistance,
+        cueLenValue,
+        baseY = CUE_Y
+      ) => {
+        const strength = resolveCueObstruction(dirVec3, pullDistance);
+        const factor = Math.sqrt(Math.max(strength, 0));
+        const obstructionTilt = factor * CUE_OBSTRUCTION_TILT;
+        const obstructionLift = factor * CUE_OBSTRUCTION_LIFT;
+        const obstructionTiltFromLift =
+          obstructionLift > 0 ? Math.atan2(obstructionLift, Math.max(cueLenValue, 1e-4)) : 0;
+        const anchorY = baseY + Math.min(obstructionLift, BALL_R * 0.08);
+        return { obstructionTilt, obstructionLift, obstructionTiltFromLift, anchorY };
+      };
 
       // Fire (slider triggers on release)
       const fire = () => {
@@ -18774,11 +18786,8 @@ const powerRef = useRef(hud.power);
             cuePerp.z * contactSide
           );
           clampCueTipOffset(spinWorld);
-          const obstructionStrength = resolveCueObstruction(dir, pull);
-          const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
-          const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
-          const obstructionTiltFromLift =
-            obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
+          const { obstructionTilt, obstructionTiltFromLift, anchorY: obstructionAnchor } =
+            resolveCueObstructionAdjustments(dir, pull, cueLen, CUE_Y + spinWorld.y);
           const buildCuePosition = (pullAmount = visualPull) =>
             new THREE.Vector3(
               cue.pos.x - dir.x * (cueLen / 2 + pullAmount + CUE_TIP_GAP) + spinWorld.x,
@@ -18798,7 +18807,7 @@ const powerRef = useRef(hud.power);
           applyCueButtTilt(
             cueStick,
             extraTilt + obstructionTilt + obstructionTiltFromLift,
-            CUE_Y + spinWorld.y + obstructionLift * 0.25
+            obstructionAnchor
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -21035,11 +21044,11 @@ const powerRef = useRef(hud.power);
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
-          const obstructionStrength = resolveCueObstruction(dir, pull);
-          const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
-          const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
-          const obstructionTiltFromLift =
-            obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
+          const {
+            obstructionTilt,
+            obstructionTiltFromLift,
+            anchorY: obstructionAnchor
+          } = resolveCueObstructionAdjustments(dir, pull, cueLen, CUE_Y + spinWorld.y);
           cueStick.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.x,
             CUE_Y + spinWorld.y,
@@ -21050,7 +21059,7 @@ const powerRef = useRef(hud.power);
           applyCueButtTilt(
             cueStick,
             extraTilt + obstructionTilt + obstructionTiltFromLift,
-            CUE_Y + spinWorld.y + obstructionLift * 0.25
+            obstructionAnchor
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -21253,11 +21262,16 @@ const powerRef = useRef(hud.power);
           );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
-          const obstructionStrength = resolveCueObstruction(baseDir, pull);
-          const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
-          const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
-          const obstructionTiltFromLift =
-            obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
+          const {
+            obstructionTilt,
+            obstructionTiltFromLift,
+            anchorY: obstructionAnchor
+          } = resolveCueObstructionAdjustments(
+            baseDir,
+            pull,
+            cueLen,
+            CUE_Y + spinWorld.y
+          );
           cueStick.position.set(
             cue.pos.x - baseDir.x * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.x,
             CUE_Y + spinWorld.y,
@@ -21268,7 +21282,7 @@ const powerRef = useRef(hud.power);
           applyCueButtTilt(
             cueStick,
             extraTilt + obstructionTilt + obstructionTiltFromLift,
-            CUE_Y + spinWorld.y + obstructionLift * 0.25
+            obstructionAnchor
           );
           cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -21354,11 +21368,11 @@ const powerRef = useRef(hud.power);
           );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
-          const obstructionStrength = resolveCueObstruction(dir, pull);
-          const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
-          const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
-          const obstructionTiltFromLift =
-            obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
+          const {
+            obstructionTilt,
+            obstructionTiltFromLift,
+            anchorY: obstructionAnchor
+          } = resolveCueObstructionAdjustments(dir, pull, cueLen, CUE_Y + spinWorld.y);
           cueStick.position.set(
             cue.pos.x - dir.x * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.x,
             CUE_Y + spinWorld.y,
@@ -21369,7 +21383,7 @@ const powerRef = useRef(hud.power);
           applyCueButtTilt(
             cueStick,
             extraTilt + obstructionTilt + obstructionTiltFromLift,
-            CUE_Y + spinWorld.y
+            obstructionAnchor
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
