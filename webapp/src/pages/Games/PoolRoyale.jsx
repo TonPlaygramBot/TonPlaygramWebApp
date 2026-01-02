@@ -1047,15 +1047,15 @@ const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.08);
 const CORNER_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
 const SIDE_POCKET_GUARD_RADIUS =
-  SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.08; // use the middle-pocket bowl to gate reflections
+  SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.12; // trim the invisible middle-pocket guard so natural cut shots clear the jaw
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
-  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.08
+  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
 const SIDE_POCKET_DEPTH_LIMIT =
-  POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
+  POCKET_VIS_R * 1.44 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
 const SIDE_POCKET_SPAN =
-  SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.52; // tune the middle lane to the real mouth width
+  SIDE_POCKET_RADIUS * 1.02 * POCKET_VISUAL_EXPANSION + BALL_R * 0.68; // widen the middle lane so center-pocket cuts track realistically
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_ENABLED = false; // fully disable any plywood underlay beneath the cloth
 const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
@@ -1545,13 +1545,13 @@ function createCueMapleTextures() {
   const map = new THREE.CanvasTexture(canvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   map.repeat.set(6, 1);
-  map.anisotropy = 8;
+  map.anisotropy = 16;
   applySRGBColorSpace(map);
   map.needsUpdate = true;
   const bump = new THREE.CanvasTexture(canvas);
   bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
   bump.repeat.set(6, 1);
-  bump.anisotropy = 8;
+  bump.anisotropy = 16;
   bump.needsUpdate = true;
   return { map, bump };
 }
@@ -1585,13 +1585,13 @@ function createCueEbonyTextures() {
   const map = new THREE.CanvasTexture(canvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   map.repeat.set(8, 1);
-  map.anisotropy = 8;
+  map.anisotropy = 16;
   applySRGBColorSpace(map);
   map.needsUpdate = true;
   const bump = new THREE.CanvasTexture(canvas);
   bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
   bump.repeat.set(8, 1);
-  bump.anisotropy = 8;
+  bump.anisotropy = 16;
   bump.needsUpdate = true;
   return { map, bump };
 }
@@ -4870,14 +4870,14 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.08;
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.02;
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
-const TOP_VIEW_RADIUS_SCALE = 1.02;
+const TOP_VIEW_MARGIN = 1.14;
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.0;
+const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI + 0.02;
+const TOP_VIEW_RADIUS_SCALE = 0.82;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: 0, // center the table for the classic top-down framing
-  z: 0 // keep the 2D view aligned with the original overhead composition
+  x: -BALL_R * 0.85, // nudge the table slightly left in top-down framing
+  z: -BALL_R * 7 // push the table downward in 2D view so the lower rail gains space and top/bottom padding is balanced as requested
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -5638,7 +5638,7 @@ function makeWoodTexture({
   repeatX = 3,
   repeatY = 1.5
 } = {}) {
-  const size = 1024;
+  const size = 2048;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
@@ -5713,7 +5713,7 @@ function makeWoodTexture({
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeatX, repeatY);
-  texture.anisotropy = 8;
+  texture.anisotropy = 24;
   applySRGBColorSpace(texture);
   texture.needsUpdate = true;
   return texture;
@@ -5904,23 +5904,28 @@ function applySpinImpulse(ball, scale = 1) {
   return true;
 }
 
-function applyRailSpinResponse(ball, impact) {
+function applyRailSpinResponse(ball, impact, preImpact = false) {
   if (!ball?.spin || ball.spin.lengthSq() < 1e-6 || !impact?.normal) return;
   const normal = impact.normal.clone().normalize();
   const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
   const speed = Math.max(ball.vel.length(), 0);
   const preImpactSpin = ball.spin.clone();
+  const firstRailBoost = preImpact ? 1.18 : 1;
   const throwFactor = Math.max(
     0,
     Math.min(speed / Math.max(RAIL_SPIN_THROW_REF_SPEED, 1e-6), 1.4)
   );
   const spinAlongTangent = preImpactSpin.dot(tangent);
   if (Math.abs(spinAlongTangent) > 1e-6) {
-    const throwStrength = spinAlongTangent * RAIL_SPIN_THROW_SCALE * (0.35 + throwFactor);
+    const throwStrength =
+      spinAlongTangent *
+      RAIL_SPIN_THROW_SCALE *
+      (0.35 + throwFactor) *
+      firstRailBoost;
     ball.vel.addScaledVector(tangent, throwStrength);
   }
   ball.spin.copy(preImpactSpin);
-  applySpinImpulse(ball, 0.6);
+  applySpinImpulse(ball, 0.6 * firstRailBoost);
 }
 
 // calculate impact point and post-collision direction for aiming guide
@@ -11283,7 +11288,7 @@ const powerRef = useRef(hud.power);
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
-    const scaled = clamp(volumeRef.current * 1.2 * (0.35 + power * 0.75), 0, 1);
+    const scaled = clamp(volumeRef.current * 1.8 * (0.5 + power * 0.95), 0, 1);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11293,10 +11298,13 @@ const powerRef = useRef(hud.power);
     source.connect(gain);
     routeAudioNode(gain);
     const clipStart = THREE.MathUtils.clamp(7, 0, Math.max(buffer.duration - 0.1, 0));
-    const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
+    const clipEnd = THREE.MathUtils.clamp(9, clipStart, buffer.duration);
     const playbackDuration = Math.max(0, clipEnd - clipStart);
     if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
-      source.start(0, clipStart, playbackDuration);
+      const startAt = ctx.currentTime;
+      source.start(startAt, clipStart, playbackDuration);
+    } else {
+      source.start(ctx.currentTime, clipStart);
     }
   }, []);
 
@@ -21411,6 +21419,7 @@ const powerRef = useRef(hud.power);
           balls.forEach((b) => {
             if (!b.active) return;
             const isCue = b.id === 'cue';
+            const wasImpacted = b.impacted;
             const hasSpin = b.spin?.lengthSq() > 1e-6;
             const hasLift = (b.lift ?? 0) > 1e-6 || Math.abs(b.liftVel ?? 0) > 1e-6;
             if (hasLift) {
@@ -21442,7 +21451,8 @@ const powerRef = useRef(hud.power);
             }
             if (hasSpin) {
               const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
-              const allowRoll = !isCue || b.impacted || swerveTravel;
+              const preImpactSpinActive = isCue && !b.impacted && b.spinMode !== 'swerve';
+              const allowRoll = !isCue || b.impacted || swerveTravel || preImpactSpinActive;
               const preImpact = isCue && !b.impacted;
               if (allowRoll) {
                 const rollMultiplier = swerveTravel ? SWERVE_TRAVEL_MULTIPLIER : 1;
@@ -21460,7 +21470,11 @@ const powerRef = useRef(hud.power);
                   }
                   const alignedSpeed = b.vel.dot(launchDir);
                   TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
-                  b.vel.copy(TMP_VEC2_AXIS);
+                  if (preImpactSpinActive) {
+                    b.vel.copy(TMP_VEC2_AXIS).add(TMP_VEC2_LATERAL);
+                  } else {
+                    b.vel.copy(TMP_VEC2_AXIS);
+                  }
                 } else {
                   b.vel.add(TMP_VEC2_SPIN);
                   if (
@@ -21511,7 +21525,7 @@ const powerRef = useRef(hud.power);
               shotContextRef.current.cushionAfterContact = true;
             }
             if (railImpact && b.spin?.lengthSq() > 0) {
-              applyRailSpinResponse(b, railImpact);
+              applyRailSpinResponse(b, railImpact, isCue && !wasImpacted);
             }
             if (railImpact) {
               const nowRail = performance.now();
