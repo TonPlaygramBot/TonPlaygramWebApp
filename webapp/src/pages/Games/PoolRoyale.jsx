@@ -1213,8 +1213,6 @@ const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
 const POCKET_SOUND_TAIL = 1;
-const POWERED_CUE_SOUND_THRESHOLD = 0.5;
-const POWERED_CUE_VOLUME_BOOST = 1.3;
 // Pool Royale now raises the stance; extend the legs so the playfield sits higher
 const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
@@ -4878,8 +4876,8 @@ const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI + 0.02;
 const TOP_VIEW_RADIUS_SCALE = 0.82;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: 0, // center the table for the classic top-down framing
-  z: 0 // keep the 2D view aligned with the original overhead composition
+  x: -BALL_R * 0.85, // nudge the table slightly left in top-down framing
+  z: -BALL_R * 7 // push the table downward in 2D view so the lower rail gains space and top/bottom padding is balanced as requested
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -6487,8 +6485,6 @@ function Table3D(
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
-    clothLike: true,
-    materialRole: 'cloth',
     baseRepeatRaw: baseRepeat,
     baseRepeat: baseRepeatApplied,
     repeatRatio,
@@ -6501,12 +6497,10 @@ function Table3D(
   };
 
   const cushionMat = clothMat.clone();
-  cushionMat.userData = { ...(clothMat.userData || {}), ...(cushionMat.userData || {}) };
   cushionMat.color.copy(cushionColor);
   cushionMat.emissive.copy(cushionColor.clone().multiplyScalar(0.045));
   cushionMat.side = THREE.DoubleSide;
   const clothEdgeMat = clothMat.clone();
-  clothEdgeMat.userData = { ...(clothMat.userData || {}), ...(clothEdgeMat.userData || {}) };
   clothEdgeMat.color.copy(clothColor);
   clothEdgeMat.emissive.set(0x000000);
   clothEdgeMat.map = null;
@@ -11278,7 +11272,6 @@ const powerRef = useRef(hud.power);
   const audioContextRef = useRef(null);
   const audioBuffersRef = useRef({
     cue: null,
-    rail: null,
     ball: null,
     pocket: null,
     knock: null,
@@ -11348,19 +11341,10 @@ const powerRef = useRef(hud.power);
 
   const playCueHit = useCallback((vol = 1) => {
     const ctx = audioContextRef.current;
-    const power = clamp(vol, 0, 1);
-    const usePoweredCueSound =
-      power >= POWERED_CUE_SOUND_THRESHOLD && audioBuffersRef.current.rail;
-    const buffer = usePoweredCueSound
-      ? audioBuffersRef.current.rail
-      : audioBuffersRef.current.cue;
+    const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
-    const baseScaled = volumeRef.current * 1.35 * (0.48 + power * 0.78);
-    const scaled = clamp(
-      usePoweredCueSound ? baseScaled * POWERED_CUE_VOLUME_BOOST : baseScaled,
-      0,
-      1
-    );
+    const power = clamp(vol, 0, 1);
+    const scaled = clamp(volumeRef.current * 1.35 * (0.48 + power * 0.78), 0, 1);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11369,10 +11353,6 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    if (usePoweredCueSound) {
-      source.start(0);
-      return;
-    }
     const clipStart = THREE.MathUtils.clamp(7, 0, Math.max(buffer.duration - 0.1, 0));
     const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
     const playbackDuration = Math.max(0, clipEnd - clipStart);
@@ -11589,7 +11569,6 @@ const powerRef = useRef(hud.power);
     (async () => {
       const entries = [
         ['cue', '/assets/sounds/Control_the_Cue_Ball_Control_the_Black_snooker_billiard_tipsandtrick.mp3'],
-        ['rail', '/assets/sounds/billiard-sound-05-288416.mp3'],
         ['ball', '/assets/sounds/billiard-sound newhit.mp3'],
         ['pocket', '/assets/sounds/billiard-sound-6-288417.mp3'],
         ['knock', '/assets/sounds/wooden-door-knock-102902.mp3'],
@@ -11615,7 +11594,6 @@ const powerRef = useRef(hud.power);
       stopActiveCrowdSound();
       audioBuffersRef.current = {
         cue: null,
-        rail: null,
         ball: null,
         pocket: null,
         knock: null,
@@ -17178,9 +17156,6 @@ const powerRef = useRef(hud.power);
               : [child.material];
             materials.forEach((mat) => {
               if (!mat || typeof mat !== 'object') return;
-              if (mat.userData?.clothLike || mat.userData?.materialRole === 'cloth') {
-                return;
-              }
               mat.envMap = envMap || null;
               mat.needsUpdate = true;
             });
