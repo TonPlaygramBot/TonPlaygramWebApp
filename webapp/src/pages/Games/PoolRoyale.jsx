@@ -1737,10 +1737,10 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 0.97;
-const CLOTH_HAIR_INTENSITY = 0.78;
-const CLOTH_BUMP_INTENSITY = 1.12;
-const CLOTH_SOFT_BLEND = 0.42;
+const CLOTH_TEXTURE_INTENSITY = 1.04;
+const CLOTH_HAIR_INTENSITY = 0.82;
+const CLOTH_BUMP_INTENSITY = 1.18;
+const CLOTH_SOFT_BLEND = 0.36;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
@@ -3062,7 +3062,7 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.76; // tighten the pattern footprint so the scan resolves more clearly
+const CLOTH_PATTERN_SCALE = 0.92; // enlarge the pattern footprint for higher visibility without losing weave definition
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
 const POLYHAVEN_ANISOTROPY_BOOST = 2.6;
