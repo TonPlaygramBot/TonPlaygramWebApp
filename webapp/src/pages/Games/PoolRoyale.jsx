@@ -1050,12 +1050,12 @@ const SIDE_POCKET_GUARD_RADIUS =
   SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.08; // use the middle-pocket bowl to gate reflections
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
-  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.05
+  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.08
 );
 const SIDE_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
 const SIDE_POCKET_SPAN =
-  SIDE_POCKET_RADIUS * 0.96 * POCKET_VISUAL_EXPANSION + BALL_R * 0.58; // tune the middle lane to the real mouth width
+  SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.52; // tune the middle lane to the real mouth width
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_ENABLED = false; // fully disable any plywood underlay beneath the cloth
 const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
@@ -1295,7 +1295,7 @@ const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // middle pocket cushion cuts are sharpened to a 29° cut to align the side-rail cushions with the updated spec
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 34;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -4173,37 +4173,6 @@ const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const MIN_HDRI_RADIUS = 24;
 const HDRI_GROUNDED_RESOLUTION = 96;
-const DECOR_WOOD_TEXTURE_SIZE_2K = 2048;
-
-function shouldUseDecorTextureBudget(environmentId) {
-  return environmentId === 'musicHall02' || environmentId === 'oldHall';
-}
-
-function retileTableWoodTextures(table, textureSize) {
-  if (!table || !Number.isFinite(textureSize)) return;
-  const finish = table.userData?.finish;
-  const parts = finish?.parts;
-  const woodSurfaces = parts?.woodSurfaces;
-  if (!parts || !woodSurfaces) return;
-  const repeatScale = parts.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE;
-  const applySurface = (meshes, surface, fallback) => {
-    if (!Array.isArray(meshes) || meshes.length === 0) return;
-    const targetSurface = surface || fallback;
-    if (!targetSurface) return;
-    const nextSurface = {
-      ...targetSurface,
-      textureSize,
-      woodRepeatScale: repeatScale
-    };
-    meshes.forEach((mesh) => {
-      if (!mesh?.material) return;
-      applyWoodTextureToMaterial(mesh.material, nextSurface);
-    });
-  };
-  applySurface(parts.railMeshes, woodSurfaces.rail, woodSurfaces.frame);
-  applySurface(parts.frameMeshes, woodSurfaces.frame, woodSurfaces.rail);
-  applySurface(parts.legMeshes, woodSurfaces.frame, woodSurfaces.rail);
-}
 
 function resolveHdriResolutionForTable(tableSizeMeta) {
   const widthMm = tableSizeMeta?.playfield?.widthMm;
@@ -4901,14 +4870,14 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.14;
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.0;
-const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI + 0.02;
-const TOP_VIEW_RADIUS_SCALE = 0.82;
+const TOP_VIEW_MARGIN = 1.08;
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.02;
+const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
+const TOP_VIEW_RADIUS_SCALE = 1.02;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: -BALL_R * 0.85, // nudge the table slightly left in top-down framing
-  z: -BALL_R * 7 // push the table downward in 2D view so the lower rail gains space and top/bottom padding is balanced as requested
+  x: 0, // center the table for the classic top-down framing
+  z: 0 // keep the 2D view aligned with the original overhead composition
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -5941,11 +5910,6 @@ function applyRailSpinResponse(ball, impact) {
   const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
   const speed = Math.max(ball.vel.length(), 0);
   const preImpactSpin = ball.spin.clone();
-  const spinAlongNormal = preImpactSpin.dot(normal);
-  if (Math.abs(spinAlongNormal) > 1e-6) {
-    // flip the normal spin so the first cushion contact responds immediately
-    preImpactSpin.addScaledVector(normal, -spinAlongNormal * (1 + RAIL_SPIN_NORMAL_FLIP));
-  }
   const throwFactor = Math.max(
     0,
     Math.min(speed / Math.max(RAIL_SPIN_THROW_REF_SPEED, 1e-6), 1.4)
@@ -11314,32 +11278,27 @@ const powerRef = useRef(hud.power);
     } catch {}
   }, []);
 
-  const playCueHit = useCallback(
-    (vol = 1) => {
-      const ctx = audioContextRef.current;
-      const buffer = audioBuffersRef.current.cue;
-      if (!ctx || !buffer || muteRef.current) return;
-      const power = clamp(vol, 0, 1);
-      const scaled = clamp(volumeRef.current * 1.8 * (0.38 + power * 0.78), 0, 1);
-      if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
-      ctx.resume().catch(() => {});
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      const gain = ctx.createGain();
-      gain.gain.value = scaled;
-      source.connect(gain);
-      routeAudioNode(gain);
-      const clipStart = THREE.MathUtils.clamp(7, 0, Math.max(buffer.duration - 0.1, 0));
-      const clipEnd = THREE.MathUtils.clamp(9, clipStart, buffer.duration);
-      const playbackDuration = Math.max(0, clipEnd - clipStart);
-      if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
-        source.start(ctx.currentTime, clipStart, playbackDuration);
-      } else {
-        source.start(ctx.currentTime);
-      }
-    },
-    [routeAudioNode]
-  );
+  const playCueHit = useCallback((vol = 1) => {
+    const ctx = audioContextRef.current;
+    const buffer = audioBuffersRef.current.cue;
+    if (!ctx || !buffer || muteRef.current) return;
+    const power = clamp(vol, 0, 1);
+    const scaled = clamp(volumeRef.current * 1.2 * (0.35 + power * 0.75), 0, 1);
+    if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
+    ctx.resume().catch(() => {});
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = scaled;
+    source.connect(gain);
+    routeAudioNode(gain);
+    const clipStart = THREE.MathUtils.clamp(7, 0, Math.max(buffer.duration - 0.1, 0));
+    const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
+    const playbackDuration = Math.max(0, clipEnd - clipStart);
+    if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
+      source.start(0, clipStart, playbackDuration);
+    }
+  }, []);
 
   const playBallHit = useCallback((vol = 1) => {
     if (vol <= 0) return;
@@ -16701,9 +16660,6 @@ const powerRef = useRef(hud.power);
         railMarkers,
         setBaseVariant
       } = Table3D(world, finishForScene, tableSizeMeta, railMarkerStyleRef.current, activeTableBase);
-      if (shouldUseDecorTextureBudget(environmentHdriRef.current)) {
-        retileTableWoodTextures(table, DECOR_WOOD_TEXTURE_SIZE_2K);
-      }
       const SPOTS = spotPositions(baulkZ);
       const longestSide = Math.max(PLAY_W, PLAY_H);
       const secondarySpacingBase =
@@ -16723,9 +16679,6 @@ const powerRef = useRef(hud.power);
       );
       secondaryTableRef.current = secondaryTableEntry?.group ?? null;
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
-      if (shouldUseDecorTextureBudget(environmentHdriRef.current)) {
-        retileTableWoodTextures(secondaryTableRef.current, DECOR_WOOD_TEXTURE_SIZE_2K);
-      }
       const resolveSnookerScale = () => {
         const poolWidth = tableSizeMeta?.playfield?.widthMm ?? 2540;
         const snookerWidth = resolveSnookerTableSize()?.playfield?.widthMm ?? 3556;
@@ -16943,9 +16896,6 @@ const powerRef = useRef(hud.power);
         tableGroup.rotation.y = rotationY;
         markDecorativeTable(tableGroup);
         applyTableFinishToTable(tableGroup, finishForLayout);
-        if (shouldUseDecorTextureBudget(environmentHdriRef.current)) {
-          retileTableWoodTextures(tableGroup, DECOR_WOOD_TEXTURE_SIZE_2K);
-        }
         const decor = buildDecorGroup({ table: tableGroup, variant });
         decorativeTablesRef.current.push({
           group: tableGroup,
@@ -17142,22 +17092,13 @@ const powerRef = useRef(hud.power);
       applyFinishRef.current = (nextFinish) => {
         if (table && nextFinish) {
           applyTableFinishToTable(table, nextFinish);
-          if (shouldUseDecorTextureBudget(environmentHdriRef.current)) {
-            retileTableWoodTextures(table, DECOR_WOOD_TEXTURE_SIZE_2K);
-          }
         }
         if (secondaryTableRef.current && nextFinish) {
           applyTableFinishToTable(secondaryTableRef.current, nextFinish);
-          if (shouldUseDecorTextureBudget(environmentHdriRef.current)) {
-            retileTableWoodTextures(secondaryTableRef.current, DECOR_WOOD_TEXTURE_SIZE_2K);
-          }
         }
         decorativeTablesRef.current.forEach((entry) => {
           if (entry?.group && nextFinish) {
             applyTableFinishToTable(entry.group, nextFinish);
-            if (shouldUseDecorTextureBudget(environmentHdriRef.current)) {
-              retileTableWoodTextures(entry.group, DECOR_WOOD_TEXTURE_SIZE_2K);
-            }
           }
         });
       };
