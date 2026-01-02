@@ -1,4 +1,3 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'events';
 import { setTimeout as delay } from 'timers/promises';
@@ -75,7 +74,7 @@ function createRefs() {
   };
 }
 
-test.after(() => {
+afterAll(() => {
   realSocket?.disconnect?.();
   realSocket?.close?.();
 });
