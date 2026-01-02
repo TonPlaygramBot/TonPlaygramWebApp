@@ -3293,11 +3293,14 @@ const createClothTextures = (() => {
     }
   };
 
-  const generateProceduralClothTextures = (preset) => {
+  const generateProceduralClothTextures = (preset, textureSizeOverride = null) => {
     if (typeof document === 'undefined') {
       return { map: null, bump: null };
     }
-    const SIZE = CLOTH_TEXTURE_SIZE;
+    const SIZE = Math.max(
+      256,
+      Math.min(textureSizeOverride ?? CLOTH_TEXTURE_SIZE, CLOTH_TEXTURE_SIZE)
+    );
     const THREAD_PITCH = CLOTH_THREAD_PITCH / CLOTH_PATTERN_SCALE;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
@@ -3469,7 +3472,7 @@ const createClothTextures = (() => {
     return { map: colorMap, bump: bumpMap, mapSource: 'procedural' };
   };
 
-  const ensurePolyHavenTextures = (preset, cacheKey) => {
+  const ensurePolyHavenTextures = (preset, cacheKey, textureSizeOverride = null) => {
     if (!preset?.sourceId) return;
     const cached = cache.get(cacheKey);
     if (cached?.ready) return;
@@ -3489,25 +3492,32 @@ const createClothTextures = (() => {
           urls = {};
         }
 
-        const fallback2k = buildPolyHavenTextureUrls(preset.sourceId, '2k');
-        const fallback1k = buildPolyHavenTextureUrls(preset.sourceId, '1k');
+        const resOrder = (() => {
+          if (Number.isFinite(textureSizeOverride) && textureSizeOverride <= 1024) {
+            return ['1k', '2k'];
+          }
+          if (Number.isFinite(textureSizeOverride) && textureSizeOverride <= 2048) {
+            return ['2k', '1k'];
+          }
+          return ['4k', '2k', '1k'];
+        })();
+        const fallbackStacks = resOrder
+          .map((res) => buildPolyHavenTextureUrls(preset.sourceId, res))
+          .filter(Boolean);
         const loader = new THREE.TextureLoader();
         loader.setCrossOrigin('anonymous');
 
         const diffuseCandidates = [
           urls.diffuse,
-          fallback2k?.diffuse,
-          fallback1k?.diffuse
+          ...fallbackStacks.map((entry) => entry?.diffuse)
         ].filter(Boolean);
         const normalCandidates = [
           urls.normal,
-          fallback2k?.normal,
-          fallback1k?.normal
+          ...fallbackStacks.map((entry) => entry?.normal)
         ].filter(Boolean);
         const roughnessCandidates = [
           urls.roughness,
-          fallback2k?.roughness,
-          fallback1k?.roughness
+          ...fallbackStacks.map((entry) => entry?.roughness)
         ].filter(Boolean);
 
         let map = null;
@@ -3549,14 +3559,18 @@ const createClothTextures = (() => {
     pendingLoads.set(cacheKey, promise);
   };
 
-  return (textureKey = DEFAULT_CLOTH_TEXTURE_KEY) => {
+  return (textureKey = DEFAULT_CLOTH_TEXTURE_KEY, options = {}) => {
     const preset =
       CLOTH_TEXTURE_PRESETS[textureKey] ??
       CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY];
-    const cacheKey = preset.sourceId || preset.id;
+    const sizeOverride =
+      Number.isFinite(options?.textureSize) && options.textureSize > 0
+        ? Math.min(options.textureSize, CLOTH_TEXTURE_SIZE)
+        : null;
+    const cacheKey = `${preset.sourceId || preset.id}:${sizeOverride ?? 'default'}`;
     let entry = cache.get(cacheKey);
     if (!entry) {
-      const procedural = generateProceduralClothTextures(preset);
+      const procedural = generateProceduralClothTextures(preset, sizeOverride);
       entry = {
         ...procedural,
         normal: null,
@@ -3569,7 +3583,7 @@ const createClothTextures = (() => {
       cache.set(cacheKey, entry);
     }
 
-    ensurePolyHavenTextures(preset, cacheKey);
+    ensurePolyHavenTextures(preset, cacheKey, sizeOverride);
 
     return {
       map: cloneTexture(entry.map),
@@ -3617,7 +3631,9 @@ function replaceMaterialTexture (material, prop, baseTexture, fallbackRepeat) {
 function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TEXTURE_KEY) {
   if (!finishInfo?.clothMat) return;
   registerClothTextureConsumer(textureKey, finishInfo);
-  const textures = createClothTextures(textureKey);
+  const textures = createClothTextures(textureKey, {
+    textureSize: finishInfo.clothTextureSize
+  });
   const textureScale = textures.mapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
   const roughnessBase =
     finishInfo.clothBase?.roughness ?? finishInfo.clothMat.roughness ?? CLOTH_ROUGHNESS_BASE;
@@ -5768,6 +5784,7 @@ function reflectRails(ball) {
   }
 
   const sideSpan = SIDE_POCKET_SPAN;
+  const mouthAllowance = BALL_R * 0.18;
   const sidePocketGuard = SIDE_POCKET_GUARD_RADIUS;
   const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
   const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
@@ -5785,8 +5802,19 @@ function reflectRails(ball) {
     if (distNormal >= BALL_R) continue;
     const lateral = Math.abs(TMP_VEC2_A.dot(tangent));
     if (lateral < sideGuardClearance) continue;
-    if (lateral <= sideSpan) continue;
+    if (lateral <= sideSpan + mouthAllowance) continue;
     if (distNormal < -sideDepthLimit) continue;
+    const cutRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
+    const ySign = Math.sign(ball.vel.y || ball.pos.y || 1) || 1;
+    const cutNormal = new THREE.Vector2(
+      Math.sign(normal.x || 1) * Math.cos(cutRad),
+      ySign * Math.sin(cutRad)
+    );
+    if (cutNormal.lengthSq() > 1e-6) {
+      cutNormal.normalize();
+      normal.lerp(cutNormal, 0.55).normalize();
+      tangent.set(-normal.y, normal.x);
+    }
     const push = BALL_R - distNormal;
     ball.pos.addScaledVector(normal, push);
     const vn = ball.vel.dot(normal);
@@ -5905,11 +5933,15 @@ function applySpinImpulse(ball, scale = 1) {
 }
 
 function applyRailSpinResponse(ball, impact) {
-  if (!ball?.spin || ball.spin.lengthSq() < 1e-6 || !impact?.normal) return;
+  const hasSpin = ball?.spin?.lengthSq?.() > 1e-6;
+  const hasPending = ball?.pendingSpin?.lengthSq?.() > 1e-6;
+  if ((!hasSpin && !hasPending) || !impact?.normal) return;
   const normal = impact.normal.clone().normalize();
-  const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
+  const tangent = (impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x)).normalize();
   const speed = Math.max(ball.vel.length(), 0);
-  const preImpactSpin = ball.spin.clone();
+  const preImpactSpin = ball.spin?.clone?.() ?? new THREE.Vector2();
+  if (hasPending) preImpactSpin.add(ball.pendingSpin);
+  if (preImpactSpin.lengthSq() < 1e-6) return;
   const throwFactor = Math.max(
     0,
     Math.min(speed / Math.max(RAIL_SPIN_THROW_REF_SPEED, 1e-6), 1.4)
@@ -5920,6 +5952,7 @@ function applyRailSpinResponse(ball, impact) {
     ball.vel.addScaledVector(tangent, throwStrength);
   }
   ball.spin.copy(preImpactSpin);
+  if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
   applySpinImpulse(ball, 0.6);
 }
 
@@ -6188,7 +6221,8 @@ function Table3D(
   finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID],
   tableSpecMeta = null,
   railMarkerStyle = null,
-  baseVariant = null
+  baseVariant = null,
+  textureOptions = {}
 ) {
   const tableSizeMeta =
     tableSpecMeta && typeof tableSpecMeta === 'object' ? tableSpecMeta : null;
@@ -6198,6 +6232,21 @@ function Table3D(
   table.userData = table.userData || {};
   table.userData.cushions = [];
   table.userData.componentPreset = tableSizeMeta?.componentPreset || 'pool';
+  const textureSizeOverride =
+    Number.isFinite(textureOptions?.textureSize) && textureOptions.textureSize > 0
+      ? textureOptions.textureSize
+      : Number.isFinite(textureOptions?.textureSizeOverride) &&
+          textureOptions.textureSizeOverride > 0
+        ? textureOptions.textureSizeOverride
+        : null;
+  const woodTextureSize =
+    Number.isFinite(textureOptions?.woodTextureSize) && textureOptions.woodTextureSize > 0
+      ? textureOptions.woodTextureSize
+      : textureSizeOverride;
+  const clothTextureSize =
+    Number.isFinite(textureOptions?.clothTextureSize) && textureOptions.clothTextureSize > 0
+      ? textureOptions.clothTextureSize
+      : textureSizeOverride;
 
   const finishParts = {
     frameMeshes: [],
@@ -6319,6 +6368,11 @@ function Table3D(
     normalMapUrl: initialFrameSurface.normalMapUrl,
     woodRepeatScale
   };
+  if (woodTextureSize) {
+    initialFrameSurface.textureSize = woodTextureSize;
+    synchronizedRailSurface.textureSize = woodTextureSize;
+    synchronizedFrameSurface.textureSize = woodTextureSize;
+  }
 
   applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
   applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
@@ -6343,7 +6397,7 @@ function Table3D(
     normal: clothNormal,
     roughness: clothRoughness,
     mapSource: clothMapSource
-  } = createClothTextures(clothTextureKey);
+  } = createClothTextures(clothTextureKey, { textureSize: clothTextureSize });
   const isPolyHavenCloth = clothMapSource === 'polyhaven';
   const clothPrimary = new THREE.Color(palette.cloth);
   const cushionPrimary = new THREE.Color(palette.cushion ?? palette.cloth);
@@ -6628,7 +6682,9 @@ function Table3D(
     applyClothDetail,
     woodTextureId: finishParts.woodTextureId,
     clothTextureKey,
-    woodRepeatScale
+    woodRepeatScale,
+    clothTextureSize: clothTextureSize ?? null,
+    woodTextureSize: woodTextureSize ?? null
   };
   registerClothTextureConsumer(clothTextureKey, finishInfo);
 
@@ -9913,7 +9969,9 @@ function PoolRoyaleGame({
         Array.isArray(variant.preferredResolutions) && variant.preferredResolutions.length
           ? variant.preferredResolutions
           : DEFAULT_HDRI_RESOLUTIONS;
-      const resolved = resolvedHdriResolution ?? basePreferred[0];
+      const forcedResolution =
+        environmentHdriId === 'musicHall02' || environmentHdriId === 'oldHall' ? '6k' : null;
+      const resolved = forcedResolution ?? resolvedHdriResolution ?? basePreferred[0];
       if (!resolved) return variant;
       const preferredResolutions = [
         resolved,
@@ -9926,6 +9984,10 @@ function PoolRoyaleGame({
       };
     },
     [environmentHdriId, resolvedHdriResolution]
+  );
+  const backgroundTextureSize = useMemo(
+    () => (environmentHdriId === 'musicHall02' || environmentHdriId === 'oldHall' ? 2048 : null),
+    [environmentHdriId]
   );
   const dualTablesEnabled = useMemo(
     () => environmentHdriId === 'musicHall02',
@@ -10538,6 +10600,9 @@ function PoolRoyaleGame({
     activeEnvironmentVariantRef.current = activeEnvironmentHdri;
   }, [activeEnvironmentHdri, environmentHdriId]);
   useEffect(() => {
+    backgroundTextureSizeRef.current = backgroundTextureSize;
+  }, [backgroundTextureSize]);
+  useEffect(() => {
     if (typeof updateEnvironmentRef.current === 'function') {
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
     }
@@ -11070,6 +11135,7 @@ const powerRef = useRef(hud.power);
   const envSkyboxRef = useRef(null);
   const envSkyboxTextureRef = useRef(null);
   const environmentHdriRef = useRef(environmentHdriId);
+  const backgroundTextureSizeRef = useRef(backgroundTextureSize);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
@@ -11283,20 +11349,21 @@ const powerRef = useRef(hud.power);
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
-    const scaled = clamp(volumeRef.current * 1.2 * (0.35 + power * 0.75), 0, 1);
+    const scaled = clamp(volumeRef.current * 1.35 * (0.42 + power * 0.75), 0, 1);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     const gain = ctx.createGain();
-    gain.gain.value = scaled;
+    gain.gain.setValueAtTime(scaled, ctx.currentTime);
     source.connect(gain);
     routeAudioNode(gain);
     const clipStart = THREE.MathUtils.clamp(7, 0, Math.max(buffer.duration - 0.1, 0));
     const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
     const playbackDuration = Math.max(0, clipEnd - clipStart);
     if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
-      source.start(0, clipStart, playbackDuration);
+      const startAt = ctx.currentTime + 0.001;
+      source.start(startAt, clipStart, playbackDuration);
     }
   }, []);
 
@@ -13090,8 +13157,18 @@ const powerRef = useRef(hud.power);
       };
 
       const getChessBoardTexture = () => {
-        if (chessBoardTextureRef.current) return chessBoardTextureRef.current;
-        const size = 512;
+        const targetSize = Math.max(256, backgroundTextureSizeRef.current ?? 512);
+        if (
+          chessBoardTextureRef.current &&
+          chessBoardTextureRef.current.image?.width === targetSize &&
+          chessBoardTextureRef.current.image?.height === targetSize
+        ) {
+          return chessBoardTextureRef.current;
+        }
+        if (chessBoardTextureRef.current?.dispose) {
+          chessBoardTextureRef.current.dispose();
+        }
+        const size = targetSize;
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
@@ -16651,6 +16728,7 @@ const powerRef = useRef(hud.power);
       // Table
       const finishForScene = tableFinishRef.current;
       const tableSizeMeta = tableSizeRef.current;
+      const secondaryTextureSize = backgroundTextureSizeRef.current;
       const {
         centers,
         baulkZ,
@@ -16675,7 +16753,14 @@ const powerRef = useRef(hud.power);
         finishForScene,
         tableSizeMeta,
         railMarkerStyleRef.current,
-        activeTableBase
+        activeTableBase,
+        secondaryTextureSize
+          ? {
+              textureSizeOverride: secondaryTextureSize,
+              woodTextureSize: secondaryTextureSize,
+              clothTextureSize: secondaryTextureSize
+            }
+          : {}
       );
       secondaryTableRef.current = secondaryTableEntry?.group ?? null;
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
@@ -16876,7 +16961,14 @@ const powerRef = useRef(hud.power);
           finishForLayout,
           tableSizeMeta,
           railMarkerStyleRef.current,
-          activeTableBase
+          activeTableBase,
+          secondaryTextureSize
+            ? {
+                textureSizeOverride: secondaryTextureSize,
+                woodTextureSize: secondaryTextureSize,
+                clothTextureSize: secondaryTextureSize
+              }
+            : {}
         );
         const tableGroup = entry?.group;
         if (!tableGroup) return null;
@@ -18553,7 +18645,6 @@ const powerRef = useRef(hud.power);
           const shouldRecordReplay = true;
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
-          playCueHit(clampedPower * 0.6);
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
@@ -18873,6 +18964,11 @@ const powerRef = useRef(hud.power);
               settleDuration,
               Math.max(180, forwardDuration * 0.9)
             );
+          const cueSoundVol = clampedPower * 0.6;
+          const impactDelay = Math.max(0, impactTime - performance.now());
+          const triggerCueSound = () => playCueHit(cueSoundVol);
+          if (impactDelay <= 4) triggerCueSound();
+          else window.setTimeout(triggerCueSound, impactDelay);
           powerImpactHoldRef.current = Math.max(
             powerImpactHoldRef.current || 0,
             forwardPreviewHold
