@@ -1050,12 +1050,12 @@ const SIDE_POCKET_GUARD_RADIUS =
   SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.08; // use the middle-pocket bowl to gate reflections
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
-  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.08
+  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
 const SIDE_POCKET_DEPTH_LIMIT =
-  POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
+  POCKET_VIS_R * 1.38 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
 const SIDE_POCKET_SPAN =
-  SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.52; // tune the middle lane to the real mouth width
+  SIDE_POCKET_RADIUS * 0.96 * POCKET_VISUAL_EXPANSION + BALL_R * 0.6; // tune the middle lane to the real mouth width
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_ENABLED = false; // fully disable any plywood underlay beneath the cloth
 const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
@@ -1072,6 +1072,8 @@ const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wra
 const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt tone so they don't glow around the cuts
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
+const HOSPITALITY_TEXTURE_MAX_SIZE = 2048; // clamp lounge + chair textures to 2k so decor stays lightweight
+const DECOR_TEXTURE_MAX_SIZE = 2048; // clamp decorative pool/chess tables to 2k while keeping the main table user-controlled
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.072; // lower the cushion base slightly so the lip sits closer to the cloth
 const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.226; // trim the cushion tops further so they sit a touch lower than before
@@ -3226,6 +3228,48 @@ const createClothTextures = (() => {
       }
     }
     return null;
+  };
+
+  const limitTextureResolution = (texture, maxSize = 2048) => {
+    if (
+      !texture ||
+      texture.isDataTexture ||
+      texture.isCompressedTexture ||
+      typeof document === 'undefined'
+    ) {
+      return;
+    }
+    const image = texture.image;
+    if (!image) return;
+    const width = image.videoWidth || image.width || 0;
+    const height = image.videoHeight || image.height || 0;
+    const largest = Math.max(width, height);
+    if (!largest || largest <= maxSize) return;
+    const scale = maxSize / largest;
+    const targetW = Math.max(1, Math.round(width * scale));
+    const targetH = Math.max(1, Math.round(height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    try {
+      ctx.drawImage(image, 0, 0, targetW, targetH);
+    } catch (err) {
+      return;
+    }
+    texture.image = canvas;
+    texture.generateMipmaps = true;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.needsUpdate = true;
+  };
+
+  const limitMaterialTextureResolution = (material, maxSize = 2048) => {
+    if (!material) return;
+    ['map', 'emissiveMap', 'metalnessMap', 'roughnessMap', 'normalMap'].forEach((key) =>
+      limitTextureResolution(material[key], maxSize)
+    );
   };
 
   const buildPolyHavenTextureUrls = (sourceId, resolution) => {
@@ -11283,7 +11327,7 @@ const powerRef = useRef(hud.power);
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
-    const scaled = clamp(volumeRef.current * 1.2 * (0.35 + power * 0.75), 0, 1);
+    const scaled = clamp(volumeRef.current * 1.35 * (0.35 + power * 0.75), 0, 1);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11296,7 +11340,8 @@ const powerRef = useRef(hud.power);
     const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
     const playbackDuration = Math.max(0, clipEnd - clipStart);
     if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
-      source.start(0, clipStart, playbackDuration);
+      const startAt = ctx.currentTime + (ctx.baseLatency || 0);
+      source.start(startAt, clipStart, playbackDuration);
     }
   }, []);
 
@@ -13292,6 +13337,7 @@ const powerRef = useRef(hud.power);
         applySRGBColorSpace(material.emissiveMap);
         if (material.map) sharpenTexture(material.map);
         if (material.emissiveMap) sharpenTexture(material.emissiveMap);
+        limitMaterialTextureResolution(material, HOSPITALITY_TEXTURE_MAX_SIZE);
         material.needsUpdate = true;
         return material;
       };
@@ -16679,6 +16725,7 @@ const powerRef = useRef(hud.power);
       );
       secondaryTableRef.current = secondaryTableEntry?.group ?? null;
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
+      markDecorativeTable(secondaryTableRef.current);
       const resolveSnookerScale = () => {
         const poolWidth = tableSizeMeta?.playfield?.widthMm ?? 2540;
         const snookerWidth = resolveSnookerTableSize()?.playfield?.widthMm ?? 3556;
@@ -16858,6 +16905,12 @@ const powerRef = useRef(hud.power);
           if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
+            const materials = Array.isArray(child.material)
+              ? child.material
+              : [child.material];
+            materials.forEach((mat) =>
+              limitMaterialTextureResolution(mat, DECOR_TEXTURE_MAX_SIZE)
+            );
           }
         });
       };
@@ -21442,7 +21495,12 @@ const powerRef = useRef(hud.power);
             }
             if (hasSpin) {
               const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
-              const allowRoll = !isCue || b.impacted || swerveTravel;
+              const nearingRail =
+                isCue &&
+                !b.impacted &&
+                (Math.abs(b.pos.x) > RAIL_LIMIT_X - BALL_R * 2.2 ||
+                  Math.abs(b.pos.y) > RAIL_LIMIT_Y - BALL_R * 2.2);
+              const allowRoll = !isCue || b.impacted || swerveTravel || nearingRail;
               const preImpact = isCue && !b.impacted;
               if (allowRoll) {
                 const rollMultiplier = swerveTravel ? SWERVE_TRAVEL_MULTIPLIER : 1;
