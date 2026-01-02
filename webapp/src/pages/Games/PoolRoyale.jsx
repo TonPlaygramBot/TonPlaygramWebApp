@@ -4870,14 +4870,14 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.08;
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.02;
-const TOP_VIEW_PHI = 0; // force a straight-down 2D orbit with no tilt
-const TOP_VIEW_RADIUS_SCALE = 1.02;
-const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI; // keep the overhead camera perfectly orthographic in pitch
+const TOP_VIEW_MARGIN = 1.14;
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.0;
+const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI + 0.02;
+const TOP_VIEW_RADIUS_SCALE = 0.82;
+const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: 0, // center the table for the classic top-down framing
-  z: 0 // keep the 2D view aligned with the original overhead composition
+  x: -BALL_R * 0.85, // nudge the table slightly left in top-down framing
+  z: -BALL_R * 7 // push the table downward in 2D view so the lower rail gains space and top/bottom padding is balanced as requested
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4944,8 +4944,6 @@ const REPLAY_TRANSITION_LEAD_MS = 420;
 const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
-const POWERED_CUE_HIT_THRESHOLD = 0.5;
-const POWERED_CUE_HIT_THRESHOLD = 0.5;
 const SPIN_REPLAY_THRESHOLD = 0.32;
 const AI_CUE_PULLBACK_DURATION_MS = 2500;
 const AI_CUE_FORWARD_DURATION_MS = 2500;
@@ -10591,14 +10589,6 @@ function PoolRoyaleGame({
           }
         };
         applyDecorEnvMapRef.current?.(result.envMap);
-        if (secondaryTableRef.current) {
-          applyTableFinishToTable(secondaryTableRef.current, tableFinishRef.current);
-        }
-        decorativeTablesRef.current.forEach((entry) => {
-          if (entry?.group) {
-            applyTableFinishToTable(entry.group, tableFinishRef.current);
-          }
-        });
       } catch (error) {
         if (!cancelled) {
           console.warn('Failed to load decor HDRI', error);
@@ -11351,16 +11341,11 @@ const powerRef = useRef(hud.power);
 
   const playCueHit = useCallback((vol = 1) => {
     const ctx = audioContextRef.current;
-    if (!ctx || muteRef.current) return;
+    const buffer = audioBuffersRef.current.cue;
+    if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
-    const isPowered = power >= POWERED_CUE_HIT_THRESHOLD;
-    const cueBuffer = audioBuffersRef.current.cue;
-    const cushionBuffer = audioBuffersRef.current.ball;
-    const buffer = isPowered ? cushionBuffer || cueBuffer : cueBuffer;
-    if (!buffer || !Number.isFinite(buffer.duration)) return;
-    const baseVolume = clamp(volumeRef.current * 1.35 * (0.48 + power * 0.78), 0, 1);
-    const scaled = clamp(baseVolume * (isPowered ? 1.3 : 1), 0, 1);
-    if (scaled <= 0) return;
+    const scaled = clamp(volumeRef.current * 1.35 * (0.48 + power * 0.78), 0, 1);
+    if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
     source.buffer = buffer;
@@ -11368,17 +11353,13 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    if (buffer === cueBuffer) {
-      const clipStart = THREE.MathUtils.clamp(7, 0, Math.max(buffer.duration - 0.1, 0));
-      const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
-      const playbackDuration = Math.max(0, clipEnd - clipStart);
-      if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
-        const startTime = typeof ctx.currentTime === 'number' ? ctx.currentTime : 0;
-        source.start(startTime, clipStart, playbackDuration);
-        return;
-      }
+    const clipStart = THREE.MathUtils.clamp(7, 0, Math.max(buffer.duration - 0.1, 0));
+    const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
+    const playbackDuration = Math.max(0, clipEnd - clipStart);
+    if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
+      const startTime = typeof ctx.currentTime === 'number' ? ctx.currentTime : 0;
+      source.start(startTime, clipStart, playbackDuration);
     }
-    source.start(0);
   }, []);
 
   const playBallHit = useCallback((vol = 1) => {
