@@ -5909,19 +5909,17 @@ function applyRailSpinResponse(ball, impact) {
   const normal = impact.normal.clone().normalize();
   const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
   const speed = Math.max(ball.vel.length(), 0);
+  const preImpactSpin = ball.spin.clone();
   const throwFactor = Math.max(
     0,
     Math.min(speed / Math.max(RAIL_SPIN_THROW_REF_SPEED, 1e-6), 1.4)
   );
-  const spinAlongTangent = ball.spin.dot(tangent);
+  const spinAlongTangent = preImpactSpin.dot(tangent);
   if (Math.abs(spinAlongTangent) > 1e-6) {
     const throwStrength = spinAlongTangent * RAIL_SPIN_THROW_SCALE * (0.35 + throwFactor);
     ball.vel.addScaledVector(tangent, throwStrength);
   }
-  const normalComponent = ball.spin.dot(normal);
-  if (Math.abs(normalComponent) > 1e-6) {
-    ball.spin.addScaledVector(normal, -normalComponent * (1 + RAIL_SPIN_NORMAL_FLIP));
-  }
+  ball.spin.copy(preImpactSpin);
   applySpinImpulse(ball, 0.6);
 }
 
@@ -11285,7 +11283,7 @@ const powerRef = useRef(hud.power);
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
-    const scaled = clamp(volumeRef.current * (0.35 + power * 0.75), 0, 1);
+    const scaled = clamp(volumeRef.current * 1.2 * (0.35 + power * 0.75), 0, 1);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11294,10 +11292,11 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    const offset = Math.max(0, Math.min(6.5, Math.max(0, buffer.duration - 0.1)));
-    const playbackDuration = Math.max(0, Math.min(2, buffer.duration - offset));
-    if (playbackDuration > 0) {
-      source.start(0, offset, playbackDuration);
+    const clipStart = THREE.MathUtils.clamp(7, 0, Math.max(buffer.duration - 0.1, 0));
+    const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
+    const playbackDuration = Math.max(0, clipEnd - clipStart);
+    if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
+      source.start(0, clipStart, playbackDuration);
     }
   }, []);
 
@@ -13274,6 +13273,12 @@ const powerRef = useRef(hud.power);
         'https://raw.githubusercontent.com/quaterniusdev/ChessSet/master/Source/GLTF/ChessSet.glb',
         'https://cdn.jsdelivr.net/gh/quaterniusdev/ChessSet@master/Source/GLTF/ChessSet.glb'
       ];
+      const CHESS_BATTLE_DEFAULT_SET_URLS = [
+        'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+        'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+        'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+        'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
+      ];
       const CHESS_LOUNGE_CHAIR_URLS = [
         'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
         'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
@@ -13526,6 +13531,80 @@ const powerRef = useRef(hud.power);
           adjustHospitalityForEdge(position[1] ?? 0)
         );
         ensureHospitalityVisibility(group);
+        return group;
+      };
+
+      const createChessBattleDefaultHospitality = async ({
+        chairOffsets,
+        position = [0, 0],
+        rotationY = 0,
+        scale = 1
+      } = {}) => {
+        const [battleSet, assets] = await Promise.all([
+          loadFirstAvailableGltf(CHESS_BATTLE_DEFAULT_SET_URLS).catch(() => null),
+          ensureChessLoungeAssets().catch(() => ({ lounge: null, chair: null }))
+        ]);
+        const group = new THREE.Group();
+        const baseSet = battleSet?.scene?.clone?.(true) ?? battleSet?.scene ?? null;
+        if (baseSet) {
+          markHospitalityMaterials(baseSet);
+          fitGroupToChessBattle(baseSet);
+          const box = new THREE.Box3().setFromObject(baseSet);
+          if (Number.isFinite(box.min?.y)) {
+            baseSet.position.y = floorY - box.min.y;
+          }
+          ensureHospitalityVisibility(baseSet);
+          group.add(baseSet);
+        }
+
+        const chairTemplate = assets?.chair;
+        const resolvedOffsets =
+          Array.isArray(chairOffsets) && chairOffsets.length
+            ? chairOffsets
+            : [
+                [-toHospitalityUnits(0.52) * hospitalityUpscale, -toHospitalityUnits(0.78) * hospitalityUpscale],
+                [toHospitalityUnits(0.52) * hospitalityUpscale, -toHospitalityUnits(0.78) * hospitalityUpscale]
+              ];
+        resolvedOffsets.forEach(([x, z]) => {
+          const chairModel = chairTemplate?.clone?.(true);
+          if (!chairModel) return;
+          const chairBox = new THREE.Box3().setFromObject(chairModel);
+          const chairSize = chairBox.getSize(new THREE.Vector3());
+          const maxSize = Math.max(chairSize.x || 1, chairSize.y || 1, chairSize.z || 1);
+          const targetMax = Math.max(
+            chessBattleTargetChair,
+            toHospitalityUnits(0.92) * hospitalityUpscale
+          );
+          if (maxSize > 1e-6) {
+            chairModel.scale.multiplyScalar(targetMax / maxSize);
+          }
+          chairModel.traverse((child) => {
+            if (!child?.isMesh) return;
+            const materials = Array.isArray(child.material)
+              ? child.material
+              : [child.material];
+            const clonedMaterials = materials.map((mat) => cloneHospitalityMaterial(mat));
+            child.material = Array.isArray(child.material)
+              ? clonedMaterials
+              : clonedMaterials[0];
+            child.castShadow = true;
+            child.receiveShadow = true;
+          });
+          chairModel.position.set(x, 0, z);
+          const toCenter = new THREE.Vector2(x, z).multiplyScalar(-1);
+          chairModel.rotation.y = Math.atan2(toCenter.x, toCenter.y) + rotationY;
+          group.add(chairModel);
+        });
+
+        group.position.set(
+          adjustHospitalityForEdge(position[0] ?? 0),
+          floorY,
+          adjustHospitalityForEdge(position[1] ?? 0)
+        );
+        group.rotation.y = rotationY;
+        group.scale.multiplyScalar(scale);
+        ensureHospitalityVisibility(group);
+        if (group.children.length === 0) return null;
         return group;
       };
 
@@ -16933,7 +17012,13 @@ const powerRef = useRef(hud.power);
           BALL_R * 8
         );
         const farInteriorZ = arenaHalfDepth - hospitalityEdgePull;
-        const placementZ =
+        const chessPlacementZ =
+          -shortRailDirection *
+          Math.min(
+            farInteriorZ,
+            Math.abs(outerShortRailZ) + serviceGap * 1.6
+          );
+        const dartPlacementZ =
           shortRailDirection *
           Math.min(
             farInteriorZ,
@@ -16941,18 +17026,38 @@ const powerRef = useRef(hud.power);
           );
         const chairSpread = toHospitalityUnits(0.44) * hospitalityUpscale;
         const chairDepth = toHospitalityUnits(0.64) * hospitalityUpscale;
-        const facingCenter = Math.atan2(0, -placementZ);
-        createChessLoungeSet({
-            chairOffsets: [
-              [-chairSpread, -chairDepth],
-              [chairSpread, -chairDepth]
-            ],
-            position: [0, placementZ],
-            rotationY: facingCenter
-          })
+        const facingCenter = Math.atan2(0, -chessPlacementZ);
+        createChessBattleDefaultHospitality({
+          chairOffsets: [
+            [-chairSpread, -chairDepth],
+            [chairSpread, -chairDepth]
+          ],
+          position: [0, chessPlacementZ],
+          rotationY: facingCenter,
+          scale: 3.5
+        })
           .then((group) => {
-            if (!group || hospitalityLayoutRunRef.current !== runToken) return;
-            addHospitalityGroup(group);
+            if (hospitalityLayoutRunRef.current !== runToken) return;
+            if (group) {
+              addHospitalityGroup(group);
+              return;
+            }
+            return createChessLoungeSet({
+              chairOffsets: [
+                [-chairSpread, -chairDepth],
+                [chairSpread, -chairDepth]
+              ],
+              position: [0, chessPlacementZ],
+              rotationY: facingCenter
+            })
+              .then((fallbackGroup) => {
+                if (!fallbackGroup || hospitalityLayoutRunRef.current !== runToken) return;
+                fallbackGroup.scale.multiplyScalar(3.5);
+                addHospitalityGroup(fallbackGroup);
+              })
+              .catch((error) => {
+                console.warn('Failed to add chess lounge hospitality set', error);
+              });
           })
           .catch((error) => {
             console.warn('Failed to add chess lounge hospitality set', error);
@@ -16960,7 +17065,7 @@ const powerRef = useRef(hud.power);
         const dartboardZ = Math.min(
           farInteriorZ,
           Math.max(
-            placementZ + serviceGap * 0.35,
+            dartPlacementZ + serviceGap * 0.35,
             spacing + tableHalfDepth + availableOuterSpace * 0.8
           )
         );
