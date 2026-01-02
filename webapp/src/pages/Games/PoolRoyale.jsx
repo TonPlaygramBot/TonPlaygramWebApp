@@ -1305,6 +1305,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3, 0.44 / 3); // enlarge grain 3× so rails, skirts, and legs read at table scale
+const RAIL_WOOD_REPEAT_SCALE = 1.12; // shrink the rail grain slightly while keeping the same direction
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
 const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
@@ -3638,7 +3639,14 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
   if (!finishInfo?.clothMat) return;
   registerClothTextureConsumer(textureKey, finishInfo);
   const textures = createClothTextures(textureKey);
-  const textureScale = textures.mapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
+  const fallbackClothTexture =
+    textures.map ??
+    makeClothTexture({
+      cloth: finishInfo?.clothMat?.color?.getHex?.() ?? finishInfo.colors?.cloth
+    });
+  const clothTextureMap = textures.map ?? fallbackClothTexture;
+  const clothMapSource = clothTextureMap ? textures.mapSource ?? 'procedural' : 'procedural';
+  const textureScale = clothMapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
   const roughnessBase =
     finishInfo.clothBase?.roughness ?? finishInfo.clothMat.roughness ?? CLOTH_ROUGHNESS_BASE;
   const roughnessTarget =
@@ -3653,7 +3661,7 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     finishInfo.clothMat.userData?.repeatRatio ?? finishInfo.clothBase?.repeatRatio ?? 1;
   const baseRepeatValue = baseRepeatRaw * textureScale;
   const fallbackRepeat = new THREE.Vector2(baseRepeatValue, baseRepeatValue * repeatRatioValue);
-  replaceMaterialTexture(finishInfo.clothMat, 'map', textures.map, fallbackRepeat, {
+  replaceMaterialTexture(finishInfo.clothMat, 'map', clothTextureMap, fallbackRepeat, {
     preserveExisting: true
   });
   replaceMaterialTexture(
@@ -3698,7 +3706,7 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     finishInfo.clothMat.userData.farRepeat = baseRepeatValue * 0.44;
   }
   if (finishInfo.cushionMat) {
-    replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat, {
+    replaceMaterialTexture(finishInfo.cushionMat, 'map', clothTextureMap, fallbackRepeat, {
       preserveExisting: true
     });
     replaceMaterialTexture(
@@ -4078,6 +4086,8 @@ function projectRailUVs(geometry, bounds) {
     y: Math.max(outerHalfH * 2, MICRO_EPS),
     z: Math.max(railH, MICRO_EPS)
   };
+  const sideRepeatScale = RAIL_WOOD_REPEAT_SCALE;
+  const endRepeatScale = RAIL_WOOD_REPEAT_SCALE;
 
   const faceNormal = new THREE.Vector3();
   const edgeA = new THREE.Vector3();
@@ -4097,15 +4107,31 @@ function projectRailUVs(geometry, bounds) {
     const absY = Math.abs(faceNormal.y);
     const absZ = Math.abs(faceNormal.z);
     const dominantZ = absZ >= Math.max(absX, absY);
-    const uAxis = dominantZ ? 'x' : absX >= absY ? 'y' : 'x';
-    const vAxis = dominantZ ? 'y' : 'z';
+    const isSideSection = Math.abs(center.x) >= Math.abs(center.y);
+    const repeatScale = isSideSection ? sideRepeatScale : endRepeatScale;
+    let uAxis;
+    let vAxis;
+    if (dominantZ) {
+      if (isSideSection) {
+        uAxis = 'x';
+        vAxis = 'y';
+      } else {
+        uAxis = 'y';
+        vAxis = 'x';
+      }
+    } else {
+      uAxis = absX >= absY ? 'y' : 'x';
+      vAxis = 'z';
+    }
 
     verts.forEach((v, idx) => {
-      const u = (v[uAxis] + extents[uAxis] / 2) / extents[uAxis];
-      const vCoord = (v[vAxis] + extents[vAxis] / 2) / extents[vAxis];
+      const uExtent = extents[uAxis];
+      const vExtent = extents[vAxis];
+      const u = (v[uAxis] + uExtent / 2) / uExtent;
+      const vCoord = (v[vAxis] + vExtent / 2) / vExtent;
       const uvIndex = (i + idx) * 2;
-      uv[uvIndex] = u;
-      uv[uvIndex + 1] = vCoord;
+      uv[uvIndex] = u * repeatScale;
+      uv[uvIndex + 1] = vCoord * repeatScale;
     });
   }
 
@@ -6399,7 +6425,11 @@ function Table3D(
     roughness: clothRoughness,
     mapSource: clothMapSource
   } = createClothTextures(clothTextureKey);
-  const isPolyHavenCloth = clothMapSource === 'polyhaven';
+  const fallbackClothTexture = clothMap ?? makeClothTexture({ cloth: palette.cloth });
+  const resolvedClothMap = clothMap ?? fallbackClothTexture;
+  const resolvedClothBump = clothBump;
+  const clothMapSourceEffective = resolvedClothMap ? clothMapSource ?? 'procedural' : 'procedural';
+  const isPolyHavenCloth = clothMapSourceEffective === 'polyhaven';
   const clothPrimary = new THREE.Color(palette.cloth);
   const cushionPrimary = new THREE.Color(palette.cushion ?? palette.cloth);
   const clothHighlight = new THREE.Color(0xedfff4);
@@ -6501,13 +6531,13 @@ function Table3D(
       : 1;
   const repeatRatio = 3.45 * repeatRatioScale;
   const polyRepeatScale =
-    clothMapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
+    clothMapSourceEffective === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
   const baseRepeatApplied = baseRepeat * polyRepeatScale;
   const baseBumpScale =
     (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) * CLOTH_QUALITY.bumpScaleMultiplier;
   const flattenedBumpScale = baseBumpScale * 0.48;
-  if (clothMap) {
-    clothMat.map = clothMap;
+  if (resolvedClothMap) {
+    clothMat.map = resolvedClothMap;
     clothMat.map.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
     clothMat.map.needsUpdate = true;
   }
@@ -6518,8 +6548,8 @@ function Table3D(
     clothMat.normalMap.needsUpdate = true;
     clothMat.bumpScale = flattenedBumpScale;
     clothMat.bumpMap = null;
-  } else if (clothBump) {
-    clothMat.bumpMap = clothBump;
+  } else if (resolvedClothBump) {
+    clothMat.bumpMap = resolvedClothBump;
     clothMat.bumpMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
     clothMat.bumpScale = flattenedBumpScale;
     clothMat.bumpMap.needsUpdate = true;
