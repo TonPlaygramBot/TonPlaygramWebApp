@@ -1053,11 +1053,13 @@ const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up ca
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
-const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.1;
+const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.65;
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
 const MAX_POWER_CAMERA_HOLD_MS = 2000;
+const MAX_POWER_SPIN_LATERAL_THROW = BALL_R * 0.42; // let max-power jumps inherit a strong sideways release from active side spin
+const MAX_POWER_SPIN_LIFT_BONUS = BALL_R * 0.28; // spin adds extra hop height when the cue ball is driven at full power
 const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 1.015; // widen capture slightly so clean entries are honoured
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
@@ -1214,6 +1216,7 @@ const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * 1.15;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
+const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.6; // inject extra sideways carry while the cue ball is airborne
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.24; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
@@ -1292,7 +1295,7 @@ const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.065; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 5.8;
+const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 8.7;
 const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
@@ -11335,7 +11338,7 @@ const powerRef = useRef(hud.power);
     if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
     const baseGain = volumeRef.current * 1.2 * 1.5 * (0.35 + power * 0.75);
-    const scaled = clamp(baseGain * 1.5, 0, 1);
+    const scaled = clamp(baseGain, 0, 2);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11344,16 +11347,9 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    const clipLead = 2.5;
-    const clipStart = THREE.MathUtils.clamp(
-      6 - clipLead,
-      0,
-      Math.max(buffer.duration - 0.1, 0)
-    );
-    const clipEnd = THREE.MathUtils.clamp(8.6 - clipLead, clipStart, buffer.duration);
-    const playbackDuration = Math.max(0, clipEnd - clipStart);
+    const playbackDuration = Math.min(buffer.duration ?? 0, 4.5);
     if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
-      source.start(0, clipStart, playbackDuration);
+      source.start(0, 0, playbackDuration);
     }
   }, []);
 
@@ -11563,7 +11559,10 @@ const powerRef = useRef(hud.power);
     };
     (async () => {
       const entries = [
-        ['cue', '/assets/sounds/Control_the_Cue_Ball_Control_the_Black_snooker_billiard_tipsandtrick.mp3'],
+        [
+          'cue',
+          '/assets/sounds/Trim_Control_the_Cue_Ball_Control_the_Black_snooker_billiard_tipsandtrick_1.mp3'
+        ],
         ['ball', '/assets/sounds/billiard-sound newhit.mp3'],
         ['pocket', '/assets/sounds/billiard-sound-6-288417.mp3'],
         ['knock', '/assets/sounds/wooden-door-knock-102902.mp3'],
@@ -21474,6 +21473,20 @@ const powerRef = useRef(hud.power);
                 b.lift = 0;
                 b.liftVel = 0;
               }
+              if (hasSpin && (b.lift ?? 0) > 0) {
+                const airborneSpin = TMP_VEC2_LIMIT.copy(b.spin ?? TMP_VEC2_LIMIT.set(0, 0));
+                const spinMag = airborneSpin.length();
+                if (spinMag > 1e-6) {
+                  const liftRatio = THREE.MathUtils.clamp(
+                    (b.lift ?? 0) / MAX_POWER_LIFT_HEIGHT,
+                    0,
+                    1.2
+                  );
+                  const driftScale = LIFT_SPIN_AIR_DRIFT * liftRatio * stepScale;
+                  airborneSpin.normalize().multiplyScalar(driftScale);
+                  b.vel.add(airborneSpin);
+                }
+              }
             }
             if (hasSpin) {
               const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
@@ -21552,13 +21565,7 @@ const powerRef = useRef(hud.power);
               const nowRail = performance.now();
               const lastPlayed = railSoundTimeRef.current.get(b.id) ?? 0;
               if (nowRail - lastPlayed > RAIL_HIT_SOUND_COOLDOWN_MS) {
-                const shotScale = 0.35 + 0.65 * lastShotPower;
-                const baseVol = speed / RAIL_HIT_SOUND_REFERENCE_SPEED;
-                const railVolume = clamp(baseVol * shotScale, 0, 1);
-                if (railVolume > 0) {
-                  // Cushion contacts should remain silent so only ball collisions
-                  // trigger impact audio cues. Leave the cooldown updates intact.
-                }
+                // Cushion contacts stay silent so only ball collisions trigger audio.
                 railSoundTimeRef.current.set(b.id, nowRail);
               }
             }
@@ -21672,17 +21679,34 @@ const powerRef = useRef(hud.power);
                   maxPowerLiftTriggered = true;
                   const liftSoundVol = Math.max(0.7, bounceStrength * 0.95);
                   playCueHit(liftSoundVol);
+                  const spinEnergy = cueBall.spin?.length() ?? 0;
+                  const spinHeightBonus = spinEnergy * MAX_POWER_SPIN_LIFT_BONUS;
+                  const liftCeiling = Math.min(
+                    MAX_POWER_LIFT_HEIGHT * liftBoost + spinHeightBonus,
+                    MAX_POWER_BOUNCE_IMPULSE * 0.9
+                  );
                   cueBall.lift = Math.max(
                     cueBall.lift ?? 0,
-                    Math.min(MAX_POWER_LIFT_HEIGHT * liftBoost, MAX_POWER_BOUNCE_IMPULSE * 0.65)
+                    liftCeiling
+                  );
+                  const launchCeiling = Math.min(
+                    MAX_POWER_BOUNCE_IMPULSE * bounceStrength * liftBoost + spinHeightBonus,
+                    MAX_POWER_BOUNCE_IMPULSE * 0.95
                   );
                   cueBall.liftVel = Math.max(
                     cueBall.liftVel ?? 0,
-                    Math.min(
-                      MAX_POWER_BOUNCE_IMPULSE * bounceStrength * liftBoost,
-                      MAX_POWER_BOUNCE_IMPULSE * 0.65
-                    )
+                    launchCeiling
                   );
+                  if (spinEnergy > 1e-6) {
+                    const spinThrow = Math.min(
+                      spinEnergy * MAX_POWER_SPIN_LATERAL_THROW,
+                      MAX_POWER_BOUNCE_IMPULSE * 0.4
+                    );
+                    if (spinThrow > 0 && cueBall.spin) {
+                      const spinDir = TMP_VEC2_SPIN.copy(cueBall.spin).normalize();
+                      cueBall.vel.add(spinDir.multiplyScalar(spinThrow));
+                    }
+                  }
                 }
                 if (
                   hitBallId &&
