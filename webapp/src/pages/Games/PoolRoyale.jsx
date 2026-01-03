@@ -505,7 +505,7 @@ const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE; // match the middle chrome arches to the corner pocket radius
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 0; // keep the wooden rail corners crisp with no rounding on the frame
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 0.16; // subtly round the wooden rail edges so the frame corners are no longer sharp
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
@@ -2115,33 +2115,33 @@ const createStandardWoodFinish = ({
         : railColor.clone().offsetHSL(0.02, 0.08, 0.18);
     const frame = new THREE.MeshPhysicalMaterial({
       color: frameColor,
-      metalness: 0.08,
-      roughness: 0.58,
-      clearcoat: 0.22,
-      clearcoatRoughness: 0.4,
-      sheen: 0.14,
-      sheenRoughness: 0.58,
-      reflectivity: 0.22,
-      envMapIntensity: 0.45
+      metalness: 0.1,
+      roughness: 0.52,
+      clearcoat: 0.28,
+      clearcoatRoughness: 0.34,
+      sheen: 0.16,
+      sheenRoughness: 0.52,
+      reflectivity: 0.26,
+      envMapIntensity: 0.52
     });
     const railMat = new THREE.MeshPhysicalMaterial({
       color: railColor,
-      metalness: 0.1,
-      roughness: 0.55,
-      clearcoat: 0.26,
-      clearcoatRoughness: 0.38,
-      sheen: 0.18,
-      sheenRoughness: 0.6,
-      reflectivity: 0.24,
-      envMapIntensity: 0.5
+      metalness: 0.12,
+      roughness: 0.48,
+      clearcoat: 0.32,
+      clearcoatRoughness: 0.32,
+      sheen: 0.2,
+      sheenRoughness: 0.52,
+      reflectivity: 0.28,
+      envMapIntensity: 0.56
     });
     const trimMat = new THREE.MeshPhysicalMaterial({
       color: trimColor,
-      metalness: 0.16,
-      roughness: 0.5,
-      clearcoat: 0.28,
-      clearcoatRoughness: 0.36,
-      envMapIntensity: 0.55
+      metalness: 0.18,
+      roughness: 0.44,
+      clearcoat: 0.34,
+      clearcoatRoughness: 0.3,
+      envMapIntensity: 0.6
     });
     const materials = {
       frame,
@@ -4990,10 +4990,10 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.08;
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.02;
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
-const TOP_VIEW_RADIUS_SCALE = 1.02;
+const TOP_VIEW_MARGIN = 1.12;
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.04;
+const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.02, CAMERA.minPhi * 0.55);
+const TOP_VIEW_RADIUS_SCALE = 1.06;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: 0, // center the table for the classic top-down framing
@@ -9150,14 +9150,6 @@ function Table3D(
       [-1, 1].forEach((signZ) => buildPortal(signZ));
       return { meshes, legMeshes };
     },
-    coffeeTable01: createPolyhavenTableBaseBuilder('CoffeeTable_01', {
-      footprintScale: 1.04,
-      footprintDepthScale: 1.04,
-      heightFill: 0.94,
-      topInsetScale: 0.96,
-      materialKey: 'rail',
-      matchTableFootprint: true
-    }),
     coffeeTableRound01: createPolyhavenTableBaseBuilder('coffee_table_round_01', {
       footprintScale: 1.05,
       footprintDepthScale: 1.12,
@@ -9181,21 +9173,6 @@ function Table3D(
       materialKey: 'rail',
       matchTableFootprint: true
     }),
-    woodenTable02: createPolyhavenTableBaseBuilder('WoodenTable_02', {
-      footprintScale: 0.96,
-      footprintDepthScale: 0.98,
-      heightFill: 0.92,
-      topInsetScale: 0.95,
-      materialKey: 'rail',
-      matchTableFootprint: true
-    }),
-    chineseTeaTable: createPolyhavenTableBaseBuilder('chinese_tea_table', {
-      footprintScale: 1.12,
-      footprintDepthScale: 1.08,
-      heightFill: 0.86,
-      topInsetScale: 0.92,
-      materialKey: 'rail'
-    }),
     woodenTable02Alt: createPolyhavenTableBaseBuilder('wooden_table_02', {
       footprintScale: 0.98,
       footprintDepthScale: 1.0,
@@ -9203,13 +9180,6 @@ function Table3D(
       topInsetScale: 0.95,
       materialKey: 'rail',
       matchTableFootprint: true
-    }),
-    roundWoodenTable01: createPolyhavenTableBaseBuilder('round_wooden_table_01', {
-      footprintScale: 1.08,
-      footprintDepthScale: 1.08,
-      heightFill: 0.88,
-      topInsetScale: 0.9,
-      materialKey: 'trim'
     })
   };
 
@@ -12757,7 +12727,7 @@ const powerRef = useRef(hud.power);
         const aspect = Number.isFinite(hostAspect) ? hostAspect : 9 / 16; // fall back to worst-case portrait when unknown
         const tempCamera = new THREE.PerspectiveCamera(STANDING_VIEW_FOV, aspect);
         const topDownRadius = Math.max(
-          fitRadius(tempCamera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
+          fitRadius(tempCamera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE,
           CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
         );
         return topDownRadius;
@@ -15094,12 +15064,9 @@ const powerRef = useRef(hud.power);
             ORBIT_FOCUS_BASE_Y,
             TOP_VIEW_SCREEN_OFFSET.z
           ).multiplyScalar(worldScaleFactor);
-          let resolvedTarget = topFocusTarget.clone();
+          const topRadiusBase = fitRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
           const topRadius = clampOrbitRadius(
-            Math.max(
-              fitRadius(camera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
-              CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
-            )
+            Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
           );
           const topTheta = Math.PI;
           const topPhi = TOP_VIEW_RESOLVED_PHI;
@@ -15107,148 +15074,123 @@ const powerRef = useRef(hud.power);
           camera.up.set(0, 1, 0);
           camera.position.setFromSpherical(TMP_SPH);
           camera.position.add(topFocusTarget);
-          let resolvedPosition = camera.position.clone();
-            let resolvedFov = camera.fov;
-            const overheadRailCamera = resolveRailOverheadReplayCamera({
-              focusOverride: topFocusTarget,
-              minTargetY: topFocusTarget.y
-            });
-            if (overheadRailCamera) {
-              resolvedTarget =
-                overheadRailCamera.target?.clone?.() ?? resolvedTarget;
-              resolvedPosition =
-                overheadRailCamera.position?.clone?.() ?? resolvedPosition;
-              if (Number.isFinite(overheadRailCamera.fov)) {
-                resolvedFov = overheadRailCamera.fov;
-              }
-            }
-            lookTarget = resolvedTarget;
-            lastCameraTargetRef.current.copy(resolvedTarget);
-            camera.fov = resolvedFov;
-            camera.updateProjectionMatrix();
-            camera.position.copy(resolvedPosition);
-            camera.lookAt(resolvedTarget);
-            renderCamera = camera;
-            if (overheadRailCamera) {
-              broadcastArgs.focusWorld =
-                overheadRailCamera.target?.clone?.() ?? resolvedTarget.clone();
-              broadcastArgs.targetWorld =
-                overheadRailCamera.target?.clone?.() ?? resolvedTarget.clone();
-              broadcastArgs.orbitWorld =
-                overheadRailCamera.position?.clone?.() ?? resolvedPosition.clone();
-              broadcastArgs.lerp = 0.08;
-            } else {
-              broadcastArgs.focusWorld = resolvedTarget.clone();
-              broadcastArgs.targetWorld = resolvedTarget.clone();
-              broadcastArgs.orbitWorld = resolvedPosition.clone();
-              if (broadcastCamerasRef.current) {
-                broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
-              }
-              broadcastArgs.lerp = 0.12;
-            }
-          } else {
-            camera.up.set(0, 1, 0);
-            TMP_SPH.copy(sph);
-              if (sidePocketAimRef.current && !shooting && !replayActive) {
-                TMP_SPH.radius = clampOrbitRadius(
-                  TMP_SPH.radius * RAIL_OVERHEAD_AIM_ZOOM
-                );
-                TMP_SPH.phi = THREE.MathUtils.clamp(
-                  TMP_SPH.phi + RAIL_OVERHEAD_AIM_PHI_LIFT,
-                  CAMERA.minPhi,
-                  CAMERA.maxPhi - CAMERA_RAIL_SAFETY
-                );
-              }
-              if (IN_HAND_CAMERA_RADIUS_MULTIPLIER > 1 && !replayActive) {
-                const hudState = hudRef.current ?? null;
-                if (hudState?.inHand && !shooting) {
-                  TMP_SPH.radius = clampOrbitRadius(
-                    TMP_SPH.radius * IN_HAND_CAMERA_RADIUS_MULTIPLIER
-                  );
-                }
-              }
-              const aimLineWorldY =
-                (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
-              const scaleFactor = Number.isFinite(worldScaleFactor)
-                ? worldScaleFactor
-                : WORLD_SCALE;
-              const surfaceMarginWorld =
-                Math.max(0, CAMERA_SURFACE_STOP_MARGIN) * scaleFactor;
-              const cueLevelWorldY =
-                (CUE_Y + CAMERA_CUE_SURFACE_MARGIN) * scaleFactor;
-              const surfaceClampY = Math.max(
-                baseSurfaceWorldY + surfaceMarginWorld,
-                cueLevelWorldY,
-                aimLineWorldY
+          const resolvedTarget = topFocusTarget.clone();
+          const resolvedPosition = camera.position.clone();
+          lookTarget = resolvedTarget;
+          lastCameraTargetRef.current.copy(resolvedTarget);
+          camera.updateProjectionMatrix();
+          camera.lookAt(resolvedTarget);
+          renderCamera = camera;
+          broadcastArgs.focusWorld = resolvedTarget.clone();
+          broadcastArgs.targetWorld = resolvedTarget.clone();
+          broadcastArgs.orbitWorld = resolvedPosition.clone();
+          if (broadcastCamerasRef.current) {
+            broadcastCamerasRef.current.defaultFocusWorld = resolvedTarget.clone();
+          }
+          broadcastArgs.lerp = 0.12;
+        } else {
+          camera.up.set(0, 1, 0);
+          TMP_SPH.copy(sph);
+          if (sidePocketAimRef.current && !shooting && !replayActive) {
+            TMP_SPH.radius = clampOrbitRadius(
+              TMP_SPH.radius * RAIL_OVERHEAD_AIM_ZOOM
+            );
+            TMP_SPH.phi = THREE.MathUtils.clamp(
+              TMP_SPH.phi + RAIL_OVERHEAD_AIM_PHI_LIFT,
+              CAMERA.minPhi,
+              CAMERA.maxPhi - CAMERA_RAIL_SAFETY
+            );
+          }
+          if (IN_HAND_CAMERA_RADIUS_MULTIPLIER > 1 && !replayActive) {
+            const hudState = hudRef.current ?? null;
+            if (hudState?.inHand && !shooting) {
+              TMP_SPH.radius = clampOrbitRadius(
+                TMP_SPH.radius * IN_HAND_CAMERA_RADIUS_MULTIPLIER
               );
-              if (TMP_SPH.radius > 1e-6) {
-                const minPhiFromSurface = Math.acos(
-                  THREE.MathUtils.clamp(
-                    (surfaceClampY - lookTarget.y) / TMP_SPH.radius,
-                    -1,
-                    1
-                  )
-                );
-                const surfaceSafePhi = Math.min(CAMERA.maxPhi, minPhiFromSurface);
-                if (TMP_SPH.phi > surfaceSafePhi) {
-                  const correctedPhi = Math.max(CAMERA.minPhi, surfaceSafePhi);
-                  TMP_SPH.phi = correctedPhi;
-                  sph.phi = correctedPhi;
-                  syncBlendToSpherical();
-                }
-
-                const aimOffset = aimLineWorldY - lookTarget.y;
-                if (aimOffset > 0) {
-                  const normalized = aimOffset / TMP_SPH.radius;
-                  let clampedPhi = TMP_SPH.phi;
-                  if (normalized >= 1) {
-                    clampedPhi = CAMERA.minPhi;
-                  } else {
-                    const limitPhi = Math.acos(
-                      THREE.MathUtils.clamp(normalized, -1, 1)
-                    );
-                    const safePhi = Math.min(CAMERA.maxPhi, limitPhi);
-                    if (clampedPhi > safePhi) {
-                      clampedPhi = Math.max(safePhi, CAMERA.minPhi);
-                    }
-                  }
-                  if (clampedPhi !== TMP_SPH.phi) {
-                    TMP_SPH.phi = clampedPhi;
-                    sph.phi = clampedPhi;
-                    syncBlendToSpherical();
-                  }
-                }
-              }
-              camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
-              if (camera.position.y < surfaceClampY) {
-                camera.position.y = surfaceClampY;
-                TMP_VEC3_A.copy(camera.position).sub(lookTarget);
-                const limitedRadius = TMP_VEC3_A.length();
-                if (limitedRadius > 1e-6) {
-                  const normalizedY = THREE.MathUtils.clamp(
-                    TMP_VEC3_A.y / limitedRadius,
-                    -1,
-                    1
-                  );
-                  const correctedPhi = Math.acos(normalizedY);
-                  sph.radius = clampOrbitRadius(limitedRadius);
-                  sph.phi = THREE.MathUtils.clamp(
-                    correctedPhi,
-                    CAMERA.minPhi,
-                    CAMERA.maxPhi
-                  );
-                  TMP_SPH.radius = sph.radius;
-                  TMP_SPH.phi = sph.phi;
-                  syncBlendToSpherical();
-                }
-              }
-              camera.lookAt(lookTarget);
-              renderCamera = camera;
-              broadcastArgs.focusWorld =
-                broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
-              broadcastArgs.targetWorld = null;
-              broadcastArgs.lerp = 0.22;
             }
+          }
+          const aimLineWorldY =
+            (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
+          const scaleFactor = Number.isFinite(worldScaleFactor)
+            ? worldScaleFactor
+            : WORLD_SCALE;
+          const surfaceMarginWorld =
+            Math.max(0, CAMERA_SURFACE_STOP_MARGIN) * scaleFactor;
+          const cueLevelWorldY =
+            (CUE_Y + CAMERA_CUE_SURFACE_MARGIN) * scaleFactor;
+          const surfaceClampY = Math.max(
+            baseSurfaceWorldY + surfaceMarginWorld,
+            cueLevelWorldY,
+            aimLineWorldY
+          );
+          if (TMP_SPH.radius > 1e-6) {
+            const minPhiFromSurface = Math.acos(
+              THREE.MathUtils.clamp(
+                (surfaceClampY - lookTarget.y) / TMP_SPH.radius,
+                -1,
+                1
+              )
+            );
+            const surfaceSafePhi = Math.min(CAMERA.maxPhi, minPhiFromSurface);
+            if (TMP_SPH.phi > surfaceSafePhi) {
+              const correctedPhi = Math.max(CAMERA.minPhi, surfaceSafePhi);
+              TMP_SPH.phi = correctedPhi;
+              sph.phi = correctedPhi;
+              syncBlendToSpherical();
+            }
+
+            const aimOffset = aimLineWorldY - lookTarget.y;
+            if (aimOffset > 0) {
+              const normalized = aimOffset / TMP_SPH.radius;
+              let clampedPhi = TMP_SPH.phi;
+              if (normalized >= 1) {
+                clampedPhi = CAMERA.minPhi;
+              } else {
+                const limitPhi = Math.acos(
+                  THREE.MathUtils.clamp(normalized, -1, 1)
+                );
+                const safePhi = Math.min(CAMERA.maxPhi, limitPhi);
+                if (clampedPhi > safePhi) {
+                  clampedPhi = Math.max(safePhi, CAMERA.minPhi);
+                }
+              }
+              if (clampedPhi !== TMP_SPH.phi) {
+                TMP_SPH.phi = clampedPhi;
+                sph.phi = clampedPhi;
+                syncBlendToSpherical();
+              }
+            }
+          }
+          camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
+          if (camera.position.y < surfaceClampY) {
+            camera.position.y = surfaceClampY;
+            TMP_VEC3_A.copy(camera.position).sub(lookTarget);
+            const limitedRadius = TMP_VEC3_A.length();
+            if (limitedRadius > 1e-6) {
+              const normalizedY = THREE.MathUtils.clamp(
+                TMP_VEC3_A.y / limitedRadius,
+                -1,
+                1
+              );
+              const correctedPhi = Math.acos(normalizedY);
+              sph.radius = clampOrbitRadius(limitedRadius);
+              sph.phi = THREE.MathUtils.clamp(
+                correctedPhi,
+                CAMERA.minPhi,
+                CAMERA.maxPhi
+              );
+              TMP_SPH.radius = sph.radius;
+              TMP_SPH.phi = sph.phi;
+              syncBlendToSpherical();
+            }
+          }
+          camera.lookAt(lookTarget);
+          renderCamera = camera;
+          broadcastArgs.focusWorld =
+            broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
+          broadcastArgs.targetWorld = null;
+          broadcastArgs.lerp = 0.22;
+        }
           }
           if (lookTarget) {
             lastCameraTargetRef.current.copy(lookTarget);
@@ -16299,14 +16241,13 @@ const powerRef = useRef(hud.power);
           ).multiplyScalar(
             Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE
           );
+          const targetRadiusBase = fitRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
           const targetRadius = clampOrbitRadius(
-            Math.max(
-              fitRadius(camera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
-              CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
-            )
+            Math.max(targetRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
           );
           sph.radius = targetRadius;
           sph.phi = TOP_VIEW_RESOLVED_PHI;
+          sph.theta = Math.PI;
           lastCameraTargetRef.current.copy(topFocusTarget);
           syncBlendToSpherical();
           if (immediate) {
