@@ -1308,6 +1308,28 @@ const MAX_SPIN_SIDE = BALL_R * 0.35;
 const MAX_SPIN_VERTICAL = BALL_R * 0.6;
 const MAX_SPIN_VISUAL_LIFT = BALL_R * 0.6; // cap vertical spin offsets so the cue stays just above the ball surface
 const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
+const SHOT_PHYSICS_CONFIG = Object.freeze({
+  IMPULSE_MAX: SHOT_BASE_SPEED,
+  breakImpulseMultiplier: SHOT_BREAK_MULTIPLIER,
+  maxPullBackDistance: CUE_PULL_BASE * 1.05,
+  maxAngularSpeed: 140,
+  spinStrength: SPIN_STRENGTH,
+  spinDecayRate: Object.freeze({
+    roll: SPIN_ROLL_DECAY,
+    air: SPIN_AIR_DECAY
+  }),
+  contactScale: Object.freeze({
+    side: 0.82,
+    vertical: 0.94
+  }),
+  torqueSpinScale: 1
+});
+const SHOT_PHASE = Object.freeze({
+  AIMING: 'aiming',
+  CHARGING: 'charging',
+  STRIKING: 'striking',
+  BALLS_MOVING: 'ballsMoving'
+});
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
@@ -4992,9 +5014,9 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.12;
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.04;
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.02, CAMERA.minPhi * 0.55);
-const TOP_VIEW_RADIUS_SCALE = 1.06;
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.08;
+const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI;
+const TOP_VIEW_RADIUS_SCALE = 1.12;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: 0, // center the table for the classic top-down framing
@@ -5251,8 +5273,9 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
-const SPIN_INPUT_DEAD_ZONE = 0.06;
+const SPIN_INPUT_DEAD_ZONE = 0.05;
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
+const SPIN_UI_RADIUS = 0.85;
 
 const clampToUnitCircle = (x, y) => {
   const L = Math.hypot(x, y);
@@ -10969,18 +10992,28 @@ const powerRef = useRef(hud.power);
   }, [frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel]);
   const cueBallPlacedFromHandRef = useRef(false);
   useEffect(() => {
-    const playerTurn = (hud.turn ?? 0) === 0;
-    const placing = Boolean(hud.inHand && playerTurn);
-    setInHandPlacementMode(placing);
-    if (placing) {
-      cueBallPlacedFromHandRef.current = false;
-    }
-  }, [hud.inHand, hud.turn]);
-  const [shotActive, setShotActive] = useState(false);
-  const shootingRef = useRef(shotActive);
-  useEffect(() => {
-    shootingRef.current = shotActive;
-  }, [shotActive]);
+  const playerTurn = (hud.turn ?? 0) === 0;
+  const placing = Boolean(hud.inHand && playerTurn);
+  setInHandPlacementMode(placing);
+  if (placing) {
+    cueBallPlacedFromHandRef.current = false;
+  }
+}, [hud.inHand, hud.turn]);
+const [shotActive, setShotActive] = useState(false);
+const [shotPhase, setShotPhase] = useState(SHOT_PHASE.AIMING);
+const shotPhaseRef = useRef(shotPhase);
+const setShotPhaseSafe = useCallback((phase) => {
+  if (!phase || shotPhaseRef.current === phase) return;
+  shotPhaseRef.current = phase;
+  setShotPhase(phase);
+}, []);
+useEffect(() => {
+  shotPhaseRef.current = shotPhase;
+}, [shotPhase]);
+const shootingRef = useRef(shotActive);
+useEffect(() => {
+  shootingRef.current = shotActive;
+}, [shotActive]);
   const sliderInstanceRef = useRef(null);
   const suggestionAimKeyRef = useRef(null);
   const aiEarlyShotIntentRef = useRef(null);
@@ -12232,6 +12265,11 @@ const powerRef = useRef(hud.power);
         if (shooting === value) return;
         shooting = value;
         shotStartedAt = shooting ? getNow() : 0;
+        if (value) {
+          setShotPhaseSafe(SHOT_PHASE.STRIKING);
+        } else {
+          setShotPhaseSafe(SHOT_PHASE.AIMING);
+        }
         if (!shooting) {
           maxPowerLiftTriggered = false;
         }
@@ -18370,7 +18408,12 @@ const powerRef = useRef(hud.power);
       ) => {
         const slider = sliderInstanceRef.current;
         const dragging = Boolean(slider?.dragging);
-        const cappedMax = Number.isFinite(maxPull) ? Math.max(0, maxPull) : CUE_PULL_BASE;
+        const cap = SHOT_PHYSICS_CONFIG.maxPullBackDistance ?? null;
+        const resolvedMax = Number.isFinite(maxPull) ? Math.max(0, maxPull) : CUE_PULL_BASE;
+        const cappedMax =
+          cap != null && Number.isFinite(cap)
+            ? Math.min(resolvedMax, Math.max(0, cap))
+            : resolvedMax;
         const effectiveMax = Math.max(cappedMax + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL);
         const desiredTarget = preserveLarger
           ? Math.max(cuePullCurrentRef.current ?? 0, pullTarget ?? 0)
@@ -18572,26 +18615,82 @@ const powerRef = useRef(hud.power);
               performance.now() + AI_POST_SHOT_CAMERA_HOLD_MS
             );
           }
-          const spinMagnitude = Math.hypot(
+          const spinInputMagnitude = Math.hypot(
             spinRef.current?.x ?? 0,
             spinRef.current?.y ?? 0
           );
           const isPowerShot = clampedPower >= POWER_REPLAY_THRESHOLD;
           if (isPowerShot) replayTags.add('power');
-          if (spinMagnitude >= SPIN_REPLAY_THRESHOLD) replayTags.add('spin');
+          if (spinInputMagnitude >= SPIN_REPLAY_THRESHOLD) replayTags.add('spin');
           const shouldRecordReplay = true;
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           playCueHit(clampedPower * 0.6);
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
-          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
-          const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
-          const base = aimDir
-            .clone()
-            .multiplyScalar(speedBase * powerScale);
-          const predictedCueSpeed = base.length();
+          const appliedSpin = applySpinConstraints(aimDir, true);
+          const ranges = spinRangeRef.current || {};
+          const aimDir3 = new THREE.Vector3(aimDir.x, 0, aimDir.y);
+          if (aimDir3.lengthSq() < 1e-8) aimDir3.set(0, 0, 1);
+          else aimDir3.normalize();
+          const sideDir3 = new THREE.Vector3(-aimDir3.z, 0, aimDir3.x);
+          if (sideDir3.lengthSq() > 1e-8) sideDir3.normalize();
+          const impulseBase =
+            SHOT_PHYSICS_CONFIG.IMPULSE_MAX *
+            (isBreakShot ? SHOT_PHYSICS_CONFIG.breakImpulseMultiplier : 1);
+          const powerCurve = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
+          const impulse3 = aimDir3.clone().multiplyScalar(impulseBase * powerCurve);
+          cue.vel.set(impulse3.x, impulse3.z);
+          const predictedCueSpeed = impulse3.length();
           shotPrediction.speed = predictedCueSpeed;
+          const contactSide =
+            appliedSpin.x *
+            (ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET) *
+            SHOT_PHYSICS_CONFIG.contactScale.side;
+          const contactVertical =
+            appliedSpin.y *
+            (ranges.offsetVertical ?? MAX_SPIN_VERTICAL) *
+            SHOT_PHYSICS_CONFIG.contactScale.vertical;
+          const offsetWorld = sideDir3
+            .clone()
+            .multiplyScalar(contactSide)
+            .add(new THREE.Vector3(0, -contactVertical, 0));
+          const torque = new THREE.Vector3().crossVectors(offsetWorld, impulse3);
+          const inertia = (2 / 5) * BALL_R * BALL_R;
+          const angularSpeed =
+            inertia > 1e-6
+              ? (torque.length() * (SHOT_PHYSICS_CONFIG.torqueSpinScale ?? 1)) / inertia
+              : 0;
+          const clampedAngular = Math.min(
+            angularSpeed,
+            SHOT_PHYSICS_CONFIG.maxAngularSpeed
+          );
+          const spinDir2 = new THREE.Vector2(appliedSpin.x, appliedSpin.y);
+          const spinDirLen = spinDir2.length();
+          const spinStrength = SHOT_PHYSICS_CONFIG.spinStrength ?? 1;
+          const spinScale =
+            spinDirLen > 1e-6 ? (clampedAngular * spinStrength) / spinDirLen : 0;
+          const spinSide = appliedSpin.x * spinScale;
+          const spinTopBack = appliedSpin.y * spinScale;
+          const spinWorld = new THREE.Vector2(
+            sideDir3.x * spinSide + aimDir.x * -spinTopBack,
+            sideDir3.z * spinSide + aimDir.y * -spinTopBack
+          );
+          const spinWorldMagnitude = spinWorld.length();
+          if (spinWorldMagnitude > SHOT_PHYSICS_CONFIG.maxAngularSpeed) {
+            spinWorld.multiplyScalar(SHOT_PHYSICS_CONFIG.maxAngularSpeed / spinWorldMagnitude);
+          }
+          if (cue.spin) {
+            cue.spin.copy(spinWorld);
+          }
+          if (cue.pendingSpin) {
+            cue.pendingSpin.copy(spinWorld);
+          }
+          cue.spinMode =
+            spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
+          resetSpinRef.current?.();
+          cue.impacted = false;
+          cue.launchDir = aimDir.clone().normalize();
           if (shouldRecordReplay) {
             shotRecording = {
               longShot: replayTags.has('long'),
@@ -18720,31 +18819,6 @@ const powerRef = useRef(hud.power);
               suspendedActionView = actionView;
             }
           }
-          const appliedSpin = applySpinConstraints(aimDir, true);
-          const ranges = spinRangeRef.current || {};
-          const powerSpinScale = powerScale;
-          const baseSide = appliedSpin.x * (ranges.side ?? 0);
-          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = -appliedSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (appliedSpin.y > 0) {
-            spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (appliedSpin.y < 0) {
-            spinTop *= TOPSPIN_MULTIPLIER;
-          }
-          const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
-          cue.vel.copy(base);
-          if (cue.spin) {
-            cue.spin.set(
-              perp.x * spinSide + aimDir.x * spinTop,
-              perp.y * spinSide + aimDir.y * spinTop
-            );
-          }
-          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-          cue.spinMode =
-            spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
-          resetSpinRef.current?.();
-          cue.impacted = false;
-          cue.launchDir = aimDir.clone().normalize();
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
@@ -18778,7 +18852,11 @@ const powerRef = useRef(hud.power);
             balls
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-          const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
+          const resolvedMaxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
+          const maxPull = Math.min(
+            resolvedMaxPull,
+            SHOT_PHYSICS_CONFIG.maxPullBackDistance ?? resolvedMaxPull
+          );
           const isAiStroke = aiOpponentEnabled && hudRef.current?.turn === 1;
           const pullVisibilityBoost = isAiStroke
             ? AI_CUE_PULL_VISIBILITY_BOOST
@@ -20849,6 +20927,12 @@ const powerRef = useRef(hud.power);
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
         let shouldSlowAim = false;
+        const ballsSettled = allStopped(balls);
+        if (shooting && !ballsSettled && shotPhaseRef.current !== SHOT_PHASE.BALLS_MOVING) {
+          setShotPhaseSafe(SHOT_PHASE.BALLS_MOVING);
+        } else if (!shooting && ballsSettled && shotPhaseRef.current !== SHOT_PHASE.AIMING) {
+          setShotPhaseSafe(SHOT_PHASE.AIMING);
+        }
         // Aiming vizual
         const currentHud = hudRef.current;
         const isPlayerTurn = currentHud?.turn === 0;
@@ -20863,7 +20947,7 @@ const powerRef = useRef(hud.power);
         }
         const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
         const canShowCue =
-          allStopped(balls) &&
+          ballsSettled &&
           cue?.active &&
           !(currentHud?.over) &&
           !(inHandPlacementModeRef.current) &&
@@ -21366,7 +21450,11 @@ const powerRef = useRef(hud.power);
             balls
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-          const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
+          const resolvedMaxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
+          const maxPull = Math.min(
+            resolvedMaxPull,
+            SHOT_PHYSICS_CONFIG.maxPullBackDistance ?? resolvedMaxPull
+          );
           const pullVisibilityBoost =
             aiOpponentEnabled && hudRef.current?.turn === 1
               ? AI_CUE_PULL_VISIBILITY_BOOST
@@ -21502,10 +21590,16 @@ const powerRef = useRef(hud.power);
                     b.pendingSpin.multiplyScalar(0);
                   }
                 }
-                const rollDecay = Math.pow(SPIN_ROLL_DECAY, stepScale);
+                const rollDecay = Math.pow(
+                  SHOT_PHYSICS_CONFIG.spinDecayRate.roll ?? SPIN_ROLL_DECAY,
+                  stepScale
+                );
                 b.spin.multiplyScalar(rollDecay);
               } else {
-                const airDecay = Math.pow(SPIN_AIR_DECAY, stepScale);
+                const airDecay = Math.pow(
+                  SHOT_PHYSICS_CONFIG.spinDecayRate.air ?? SPIN_AIR_DECAY,
+                  stepScale
+                );
                 b.spin.multiplyScalar(airDecay);
               }
               if (b.spin.lengthSq() < 1e-6) {
@@ -22424,13 +22518,27 @@ const powerRef = useRef(hud.power);
         });
       }
     });
+    const handleChargeStart = () => {
+      if (shootingRef.current) return;
+      setShotPhaseSafe(SHOT_PHASE.CHARGING);
+    };
+    const handleChargeEnd = () => {
+      if (shootingRef.current) return;
+      setShotPhaseSafe(SHOT_PHASE.AIMING);
+    };
+    slider.el?.addEventListener('pointerdown', handleChargeStart);
+    slider.el?.addEventListener('pointerup', handleChargeEnd);
+    slider.el?.addEventListener('pointercancel', handleChargeEnd);
     sliderInstanceRef.current = slider;
     applySliderLock();
     return () => {
+      slider.el?.removeEventListener('pointerdown', handleChargeStart);
+      slider.el?.removeEventListener('pointerup', handleChargeEnd);
+      slider.el?.removeEventListener('pointercancel', handleChargeEnd);
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock, showPowerSlider]);
+  }, [applyPower, applySliderLock, setShotPhaseSafe, showPowerSlider]);
   useEffect(() => {
     if (shotActive || hud.over || hud.turn !== 0) return;
     const slider = sliderInstanceRef.current;
@@ -22480,9 +22588,22 @@ const powerRef = useRef(hud.power);
     };
 
     const setSpin = (nx, ny) => {
-      const normalized = clampToUnitCircle(nx, ny);
-      spinRequestRef.current = normalized;
-      const limited = clampToLimits(normalized.x, normalized.y);
+      const magnitude = Math.hypot(nx, ny);
+      const uiScale = magnitude > SPIN_UI_RADIUS ? SPIN_UI_RADIUS / magnitude : 1;
+      const uiClamped = {
+        x: nx * uiScale,
+        y: ny * uiScale
+      };
+      const normalized = {
+        x: clampSpinValue(uiClamped.x / SPIN_UI_RADIUS),
+        y: clampSpinValue(uiClamped.y / SPIN_UI_RADIUS)
+      };
+      const withDeadzone =
+        Math.hypot(normalized.x, normalized.y) < SPIN_INPUT_DEAD_ZONE
+          ? { x: 0, y: 0 }
+          : normalized;
+      spinRequestRef.current = withDeadzone;
+      const limited = clampToLimits(withDeadzone.x, withDeadzone.y);
       spinRef.current = limited;
       const cueBall = cueRef.current;
       const ballsList = ballsRef.current?.length
@@ -22496,7 +22617,7 @@ const powerRef = useRef(hud.power);
         : null;
       const legality = checkSpinLegality2D(
         cueBall,
-        normalized,
+        withDeadzone,
         ballsList || [],
         {
           axes,
