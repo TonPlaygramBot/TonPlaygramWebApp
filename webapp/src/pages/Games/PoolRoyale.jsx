@@ -1238,6 +1238,7 @@ const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
 const POCKET_SOUND_TAIL = 1;
+const CUE_HIT_GAIN_BOOST = 1.5;
 // Pool Royale now raises the stance; extend the legs so the playfield sits higher
 const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
@@ -4995,9 +4996,9 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.15; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.12; // raise the camera a touch higher to ensure full end-rail coverage
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22); // reduce angle toward a flatter overhead
-const TOP_VIEW_RADIUS_SCALE = 1.1; // back the camera off a hair to include bottom pockets without tilt
+const TOP_VIEW_RADIUS_SCALE = 1.12; // back the camera off a bit more to include bottom pockets without tilt
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: 0, // center the table for the classic top-down framing
@@ -11337,7 +11338,7 @@ const powerRef = useRef(hud.power);
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
-    const baseGain = volumeRef.current * 1.2 * 1.5 * (0.35 + power * 0.75);
+    const baseGain = volumeRef.current * 1.2 * 1.5 * (0.35 + power * 0.75) * CUE_HIT_GAIN_BOOST;
     const scaled = clamp(baseGain, 0, 2);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
@@ -21463,7 +21464,7 @@ const powerRef = useRef(hud.power);
                     1
                   );
                   const cueLandingVol = Math.max(0.45, landingVol * 0.95);
-                  playCueHit(cueLandingVol);
+                  playBallHit(cueLandingVol);
                   liftLandingTimeRef.current.set(b.id, nowLanding);
                 }
               }
