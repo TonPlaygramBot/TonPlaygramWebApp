@@ -429,13 +429,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     label: 'Rosewood Veneer 01',
     source: 'Poly Haven — Rosewood Veneer 01 (CC0)',
     rail: {
-      repeat: { x: 0.7, y: 0.7 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('rosewood_veneer_01')
     },
     frame: {
-      repeat: { x: 0.7, y: 0.7 },
+      repeat: { x: 1, y: 1 },
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('rosewood_veneer_01')
