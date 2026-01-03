@@ -505,28 +505,10 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     swatches: ['#e5e7eb', '#0ea5e9']
   },
   {
-    id: 'zLift',
-    name: 'Z-Lift Plinth',
-    description: 'Bold Z pedestal with forward cantilevered stance.',
-    swatches: ['#f8fafc', '#38bdf8']
-  },
-  {
-    id: 'arcBridge',
-    name: 'Arc Bridge',
-    description: 'Graceful single arc carrying the table lengthwise.',
-    swatches: ['#e5e7eb', '#0ea5e9']
-  },
-  {
     id: 'openPortal',
     name: 'Open Portal',
     description: 'Twin portal legs with angled sides and negative space.',
     swatches: ['#f8fafc', '#e5e7eb']
-  },
-  {
-    id: 'blockPedestal',
-    name: 'Block Pedestal',
-    description: 'Solid plinth with soft radius corners for lounge builds.',
-    swatches: ['#111827', '#0ea5e9']
   },
   {
     id: 'heritageCarved',
@@ -539,12 +521,6 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     name: 'Chess Bishop Legs',
     description: 'Bishop silhouettes from Chess Battle Royale recast as tapered legs.',
     swatches: ['#cbd5e1', '#1f2937']
-  },
-  {
-    id: 'rusticCross',
-    name: 'Rustic Cross',
-    description: 'Industrial X-trestle stance with plank stretcher.',
-    swatches: ['#8b5f39', '#1f2937']
   },
   {
     id: 'coffeeTable01',
