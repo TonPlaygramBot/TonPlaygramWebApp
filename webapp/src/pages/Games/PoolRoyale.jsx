@@ -4991,11 +4991,11 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.12;
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.04;
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.02, CAMERA.minPhi * 0.55);
-const TOP_VIEW_RADIUS_SCALE = 1.06;
-const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
+const TOP_VIEW_MARGIN = 1.15; // lift the top view slightly to keep both near pockets visible on portrait
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
+const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22); // reduce angle toward a flatter overhead
+const TOP_VIEW_RADIUS_SCALE = 1.1; // back the camera off a hair to include bottom pockets without tilt
+const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: 0, // center the table for the classic top-down framing
   z: 0 // keep the 2D view aligned with the original overhead composition
