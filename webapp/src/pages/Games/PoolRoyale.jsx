@@ -9172,6 +9172,60 @@ function Table3D(
       topInsetScale: 0.98,
       materialKey: 'rail',
       matchTableFootprint: true
+    }),
+    murlanDefaultTable: createPolyhavenTableBaseBuilder('WoodenTable_01', {
+      footprintScale: 1.06,
+      footprintDepthScale: 1.08,
+      heightFill: 0.9,
+      topInsetScale: 0.96,
+      materialKey: 'rail',
+      matchTableFootprint: true
+    }),
+    woodenTable02: createPolyhavenTableBaseBuilder('WoodenTable_02', {
+      footprintScale: 1.05,
+      footprintDepthScale: 1.08,
+      heightFill: 0.92,
+      topInsetScale: 0.95,
+      materialKey: 'rail',
+      matchTableFootprint: true
+    }),
+    chineseTeaTable: createPolyhavenTableBaseBuilder('chinese_tea_table', {
+      footprintScale: 1.12,
+      footprintDepthScale: 1.08,
+      heightFill: 0.86,
+      topInsetScale: 0.92,
+      materialKey: 'rail'
+    }),
+    woodenTable02Alt: createPolyhavenTableBaseBuilder('wooden_table_02', {
+      footprintScale: 1.06,
+      footprintDepthScale: 1.1,
+      heightFill: 0.9,
+      topInsetScale: 0.95,
+      materialKey: 'rail',
+      matchTableFootprint: true
+    }),
+    sideTableTall01: createPolyhavenTableBaseBuilder('side_table_tall_01', {
+      footprintScale: 1.28,
+      footprintDepthScale: 1.22,
+      heightFill: 0.94,
+      topInsetScale: 0.9,
+      materialKey: 'rail',
+      matchTableFootprint: true
+    }),
+    roundWoodenTable01: createPolyhavenTableBaseBuilder('round_wooden_table_01', {
+      footprintScale: 1.18,
+      footprintDepthScale: 1.18,
+      heightFill: 0.88,
+      topInsetScale: 0.9,
+      materialKey: 'trim'
+    }),
+    modernCoffeeTable02: createPolyhavenTableBaseBuilder('modern_coffee_table_02', {
+      footprintScale: 1.07,
+      footprintDepthScale: 1.1,
+      heightFill: 0.86,
+      topInsetScale: 0.94,
+      materialKey: 'rail',
+      matchTableFootprint: true
     })
   };
 
