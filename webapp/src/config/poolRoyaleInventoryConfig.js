@@ -499,10 +499,16 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     swatches: ['#8f6243', '#6f3a2f']
   },
   {
-    id: 'modernLoop',
-    name: 'Modern Loop Pedestal',
-    description: 'Sculpted loop base with floating deck inspired by modern showrooms.',
-    swatches: ['#6b7280', '#0ea5e9']
+    id: 'castleChessLegs',
+    name: 'Castle Chess Legs',
+    description: 'Rook-style legs pulled from the Chess Battle Royal castle pieces.',
+    swatches: ['#4b5563', '#c08457']
+  },
+  {
+    id: 'bishopChessLegs',
+    name: 'Bishop Chess Legs',
+    description: 'Bishop finial legs styled after the Chess Battle Royal bishops.',
+    swatches: ['#312e81', '#a855f7']
   },
   {
     id: 'zLift',
@@ -521,12 +527,6 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     name: 'Open Portal',
     description: 'Twin portal legs with angled sides and negative space.',
     swatches: ['#f8fafc', '#e5e7eb']
-  },
-  {
-    id: 'coinAngled',
-    name: 'Coin-Op Angled',
-    description: 'Tapered commercial legs with slim bumpers.',
-    swatches: ['#8b5f39', '#3f2a1d']
   },
   {
     id: 'blockPedestal',
@@ -659,22 +659,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     name: 'Rosewood Veneer 01 Finish',
     price: 1020,
     description: 'Rosewood veneer rails with rich, reddish undertones.'
-  },
-  {
-    id: 'finish-kitchenWood',
-    type: 'tableFinish',
-    optionId: 'kitchenWood',
-    name: 'Kitchen Wood Finish',
-    price: 1030,
-    description: 'Golden kitchen wood rails with warm highlights.'
-  },
-  {
-    id: 'finish-japaneseSycamore',
-    type: 'tableFinish',
-    optionId: 'japaneseSycamore',
-    name: 'Japanese Sycamore Finish',
-    price: 1040,
-    description: 'Light sycamore rails with clean, refined grain.'
   },
   {
     id: 'chrome-chrome',
