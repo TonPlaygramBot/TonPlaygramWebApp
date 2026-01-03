@@ -8932,6 +8932,155 @@ function Table3D(
     return leg;
   };
 
+  const CHESS_BASE_HEIGHT_FILL = 0.9;
+
+  const buildPolyhavenModelUrls = (assetId) => {
+    const ids = Array.from(new Set([assetId, assetId?.toLowerCase?.()]));
+    const urls = [];
+    ids.forEach((id) => {
+      if (!id) return;
+      urls.push(
+        `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${id}/${id}_2k.gltf`,
+        `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${id}/${id}_1k.gltf`,
+        `https://dl.polyhaven.org/file/ph-assets/Models/GLB/${id}.glb`
+      );
+    });
+    return urls;
+  };
+
+  const polyhavenBaseTemplates = new Map();
+  const polyhavenBaseLoads = new Map();
+
+  const preparePolyhavenBaseTemplate = (root) => {
+    if (!root) return null;
+    root.traverse((child) => {
+      if (!child?.isMesh) return;
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      const refreshed = materials.map((mat) => sharpenGltfMaterial(mat));
+      child.material = Array.isArray(child.material) ? refreshed : refreshed[0] ?? child.material;
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
+    return root;
+  };
+
+  const ensurePolyhavenBaseTemplate = (assetId) => {
+    if (!assetId) return Promise.resolve(null);
+    const cached = polyhavenBaseTemplates.get(assetId);
+    if (cached) return Promise.resolve(cached);
+    if (polyhavenBaseLoads.has(assetId)) return polyhavenBaseLoads.get(assetId);
+    const loader = new GLTFLoader();
+    loader.setCrossOrigin('anonymous');
+    const promise = (async () => {
+      let lastError = null;
+      for (const url of buildPolyhavenModelUrls(assetId)) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          const resolvedUrl = new URL(
+            url,
+            typeof window !== 'undefined' ? window.location?.href : url
+          ).href;
+          const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+          loader.setResourcePath(resourcePath);
+          loader.setPath('');
+          // eslint-disable-next-line no-await-in-loop
+          const gltf = await loader.loadAsync(resolvedUrl);
+          const root = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? gltf?.scenes?.[0] ?? null;
+          if (root) {
+            const prepared = preparePolyhavenBaseTemplate(root);
+            polyhavenBaseTemplates.set(assetId, prepared);
+            return prepared;
+          }
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      const missingError = lastError || new Error(`Failed to load Poly Haven model ${assetId}`);
+      throw missingError;
+    })().finally(() => {
+      polyhavenBaseLoads.delete(assetId);
+    });
+    polyhavenBaseLoads.set(assetId, promise);
+    return promise;
+  };
+
+  const createPolyhavenBaseInstance = (assetId) => {
+    const template = polyhavenBaseTemplates.get(assetId);
+    if (!template) return null;
+    const instance = template.clone(true);
+    instance.traverse((child) => {
+      if (!child?.isMesh) return;
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      const refreshed = materials.map((mat) => sharpenGltfMaterial(mat));
+      child.material = Array.isArray(child.material) ? refreshed : refreshed[0] ?? child.material;
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
+    return instance;
+  };
+
+  const fitPolyhavenBaseToTable = (model, ctx, { spanScale = 0.92, verticalTrim = 0.9 } = {}) => {
+    if (!model) return;
+    model.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(model);
+    const size = bounds.getSize(new THREE.Vector3());
+    const maxSpan = Math.max(size.x, size.z, MICRO_EPS);
+    const targetSpan = Math.max(ctx.frameOuterX * 2, ctx.frameOuterZ * 2) * spanScale;
+    const uniformScale = maxSpan > MICRO_EPS ? targetSpan / maxSpan : 1;
+    if (Number.isFinite(uniformScale) && uniformScale > 0) {
+      model.scale.multiplyScalar(uniformScale);
+    }
+    if (Number.isFinite(verticalTrim) && verticalTrim > 0 && verticalTrim !== 1) {
+      model.scale.y *= verticalTrim;
+    }
+    model.updateMatrixWorld(true);
+    const scaledBounds = new THREE.Box3().setFromObject(model);
+    const center = scaledBounds.getCenter(new THREE.Vector3());
+    model.position.x -= center.x;
+    model.position.z -= center.z;
+    const floorOffset = ctx.floorY - scaledBounds.min.y;
+    model.position.y += floorOffset;
+    model.updateMatrixWorld(true);
+  };
+
+  const createPolyhavenTableBaseBuilder = ({
+    assetId,
+    spanScale = 0.92,
+    verticalTrim = 0.9,
+    heightFill = 0.82
+  }) => {
+    return (ctx) => {
+      const meshes = [];
+      const legMeshes = [];
+      const templateReady = polyhavenBaseTemplates.has(assetId);
+      const asyncReady = templateReady ? null : ensurePolyhavenBaseTemplate(assetId);
+      const instance = createPolyhavenBaseInstance(assetId);
+      if (instance) {
+        fitPolyhavenBaseToTable(instance, ctx, { spanScale, verticalTrim });
+        const baseParts = [];
+        instance.traverse((child) => {
+          if (!child?.isMesh) return;
+          baseParts.push(tagBasePart(child));
+        });
+        tagBasePart(instance);
+        meshes.push(instance);
+        legMeshes.push(...baseParts);
+      } else {
+        const height = ctx.legH * 0.8;
+        const placeholder = tagBasePart(
+          new THREE.Mesh(
+            new THREE.BoxGeometry(ctx.frameOuterX * 1.1, height, ctx.frameOuterZ * 1.06),
+            ctx.legMat
+          )
+        );
+        placeholder.position.y = ctx.floorY + height / 2;
+        meshes.push(placeholder);
+        legMeshes.push(placeholder);
+      }
+      return { meshes, legMeshes, asyncReady, heightFill };
+    };
+  };
+
   const baseBuilders = {
     classicCylinders: (ctx) => {
       const positions = [
@@ -8962,7 +9111,7 @@ function Table3D(
         if (rook) {
           const bounds = new THREE.Box3().setFromObject(rook);
           const height = Math.max(bounds.max.y - bounds.min.y, MICRO_EPS);
-          const scale = height > MICRO_EPS ? ctx.legH / height : 1;
+          const scale = height > MICRO_EPS ? (ctx.legH * 0.92) / height : 1;
           if (Number.isFinite(scale) && scale > 0) {
             rook.scale.multiplyScalar(scale);
             bounds.setFromObject(rook);
@@ -9049,7 +9198,7 @@ function Table3D(
       ].forEach(([lx, lz]) => {
         createRookLeg(lx, lz);
       });
-      return { meshes, legMeshes, asyncReady };
+      return { meshes, legMeshes, asyncReady, heightFill: CHESS_BASE_HEIGHT_FILL };
     },
     zLift: (ctx) => {
       const meshes = [];
@@ -9240,7 +9389,7 @@ function Table3D(
         if (bishop) {
           const bounds = new THREE.Box3().setFromObject(bishop);
           const height = Math.max(bounds.max.y - bounds.min.y, MICRO_EPS);
-          const scale = height > MICRO_EPS ? ctx.legH / height : 1;
+          const scale = height > MICRO_EPS ? (ctx.legH * 0.92) / height : 1;
           if (Number.isFinite(scale) && scale > 0) {
             bishop.scale.multiplyScalar(scale);
             bounds.setFromObject(bishop);
@@ -9323,8 +9472,26 @@ function Table3D(
       ].forEach(([lx, lz]) => {
         createBishopLeg(lx, lz);
       });
-      return { meshes, legMeshes, asyncReady };
+      return { meshes, legMeshes, asyncReady, heightFill: CHESS_BASE_HEIGHT_FILL };
     },
+    coffeeTable01: createPolyhavenTableBaseBuilder({
+      assetId: 'CoffeeTable_01',
+      spanScale: 0.9,
+      verticalTrim: 0.88,
+      heightFill: 0.82
+    }),
+    coffeeTableRound01: createPolyhavenTableBaseBuilder({
+      assetId: 'coffee_table_round_01',
+      spanScale: 0.9,
+      verticalTrim: 0.88,
+      heightFill: 0.82
+    }),
+    gothicCoffeeTable: createPolyhavenTableBaseBuilder({
+      assetId: 'gothic_coffee_table',
+      spanScale: 0.94,
+      verticalTrim: 0.9,
+      heightFill: 0.83
+    }),
     rusticCross: (ctx) => {
       const meshes = [];
       const beamWidth = ctx.frameOuterX * 0.8;
@@ -9370,7 +9537,7 @@ function Table3D(
     }
   };
 
-  const normalizeBasePlacement = (meshes = []) => {
+  const normalizeBasePlacement = (meshes = [], heightFill = BASE_HEIGHT_FILL) => {
     if (!Array.isArray(meshes) || meshes.length === 0) return;
     const bounds = new THREE.Box3();
     meshes.forEach((mesh) => {
@@ -9390,7 +9557,7 @@ function Table3D(
     }
     let adjustedTop = bounds.max.y + offsetToFloor;
     const availableSpan = availableTop - availableBottom;
-    const targetHeight = availableSpan * BASE_HEIGHT_FILL;
+    const targetHeight = availableSpan * (Number.isFinite(heightFill) ? heightFill : BASE_HEIGHT_FILL);
     if (targetHeight > MICRO_EPS && height < targetHeight && availableSpan > 0) {
       const scaleY = targetHeight / height;
       meshes.forEach((mesh) => {
@@ -9439,7 +9606,7 @@ function Table3D(
       frameMat: finishMaterials.frame ?? baseContext.frameMat,
       trimMat: finishMaterials.trim ?? baseContext.trimMat
     });
-    normalizeBasePlacement(built.meshes);
+    normalizeBasePlacement(built.meshes, built?.heightFill);
     addBaseMeshesToFinish(built);
     if (built?.asyncReady?.then) {
       built.asyncReady
