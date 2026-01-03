@@ -501,6 +501,48 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     name: 'Gothic Coffee Table Base',
     description: 'Gothic coffee table from Murlan Royale re-used as a sculpted support base.',
     swatches: ['#8f4a2b', '#3b2a1f']
+  },
+  {
+    id: 'murlanDefaultTable',
+    name: 'Murlan Default Table Base',
+    description: 'Scaled version of the Murlan Royale default table supporting the pool deck.',
+    swatches: ['#9b7350', '#d7b594']
+  },
+  {
+    id: 'woodenTable02',
+    name: 'Wooden Table 02 Base',
+    description: 'Poly Haven Wooden Table 02 adapted to the Pool Royale frame proportions.',
+    swatches: ['#7d5a3c', '#c7a27d']
+  },
+  {
+    id: 'chineseTeaTable',
+    name: 'Chinese Tea Table Base',
+    description: 'Low-profile Chinese tea table from Murlan Royale fitted beneath the pool table.',
+    swatches: ['#70452f', '#d1a573']
+  },
+  {
+    id: 'woodenTable02Alt',
+    name: 'Wooden Table 02 Alt Base',
+    description: 'Alternate Wooden Table 02 variant resized to cradle the pool playfield.',
+    swatches: ['#6f5140', '#caa07a']
+  },
+  {
+    id: 'sideTableTall01',
+    name: 'Side Table Tall 01 Base',
+    description: 'Extended tall side table scaled to lift the pool platform.',
+    swatches: ['#5b4634', '#b68a64']
+  },
+  {
+    id: 'roundWoodenTable01',
+    name: 'Round Wooden Table 01 Base',
+    description: 'Circular wooden base with generous footprint for the pool layout.',
+    swatches: ['#805b3a', '#c99f72']
+  },
+  {
+    id: 'modernCoffeeTable02',
+    name: 'Modern Coffee Table 02 Base',
+    description: 'Modern coffee table form-factor re-used as a contemporary pool base.',
+    swatches: ['#3f3f3f', '#b0a08b']
   }
 ]);
 
