@@ -11229,35 +11229,66 @@ const powerRef = useRef(hud.power);
   const spinLimitsRef = useRef({ ...DEFAULT_SPIN_LIMITS });
   const spinAppliedRef = useRef({ x: 0, y: 0, mode: 'standard', magnitude: 0 });
   const spinDotElRef = useRef(null);
+  const spinSwerveHighlightElRef = useRef(null);
   const spinLegalityRef = useRef({ blocked: false, reason: '' });
+  const swerveActiveRef = useRef(false);
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
-  const updateSpinDotPosition = useCallback((value, blocked) => {
-    if (!value) value = { x: 0, y: 0 };
-    const dot = spinDotElRef.current;
-    if (!dot) return;
-    const x = clamp(value.x ?? 0, -1, 1);
-    const y = clamp(value.y ?? 0, -1, 1);
-    const ranges = spinRangeRef.current || {};
-    const maxSide = Math.max(ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET, 1e-6);
-    const maxVertical = Math.max(ranges.offsetVertical ?? MAX_SPIN_VERTICAL, 1e-6);
-    const largest = Math.max(maxSide, maxVertical);
-    const scaledX = (x * maxSide) / largest;
-    const scaledY = (y * maxVertical) / largest;
-    dot.style.left = `${50 + scaledX * 50}%`;
-    dot.style.top = `${50 + scaledY * 50}%`;
-    const magnitude = Math.hypot(x, y);
-    const showBlocked = blocked ?? spinLegalityRef.current?.blocked;
-    dot.style.backgroundColor = showBlocked
-      ? '#9ca3af'
-      : magnitude >= SWERVE_THRESHOLD
-        ? '#facc15'
-        : '#dc2626';
-    dot.dataset.blocked = showBlocked ? '1' : '0';
-  }, []);
+  const updateSpinDotPosition = useCallback(
+    (value, blocked, options = {}) => {
+      if (!value) value = { x: 0, y: 0 };
+      const dot = spinDotElRef.current;
+      const highlight = spinSwerveHighlightElRef.current;
+      const { playSwerveSound = false } = options || {};
+      if (!dot && !highlight) return;
+      const x = clamp(value.x ?? 0, -1, 1);
+      const y = clamp(value.y ?? 0, -1, 1);
+      const ranges = spinRangeRef.current || {};
+      const maxSide = Math.max(ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET, 1e-6);
+      const maxVertical = Math.max(ranges.offsetVertical ?? MAX_SPIN_VERTICAL, 1e-6);
+      const largest = Math.max(maxSide, maxVertical);
+      const scaledX = (x * maxSide) / largest;
+      const scaledY = (y * maxVertical) / largest;
+      const left = `${50 + scaledX * 50}%`;
+      const top = `${50 + scaledY * 50}%`;
+      if (dot) {
+        dot.style.left = left;
+        dot.style.top = top;
+      }
+      const magnitude = Math.hypot(x, y);
+      const showBlocked = blocked ?? spinLegalityRef.current?.blocked;
+      const isSwerveZone = !showBlocked && magnitude >= SWERVE_THRESHOLD;
+      if (dot) {
+        dot.style.backgroundColor = showBlocked
+          ? '#9ca3af'
+          : isSwerveZone
+            ? '#facc15'
+            : '#dc2626';
+        dot.dataset.blocked = showBlocked ? '1' : '0';
+      }
+      if (highlight) {
+        highlight.style.left = left;
+        highlight.style.top = top;
+        highlight.style.opacity = isSwerveZone ? '1' : '0';
+        highlight.style.transform = `translate(-50%, -50%) scale(${isSwerveZone ? 1 : 0.85})`;
+      }
+      if (playSwerveSound) {
+        if (isSwerveZone && !swerveActiveRef.current) {
+          playSwerveWhip();
+        }
+        swerveActiveRef.current = isSwerveZone;
+        if (!isSwerveZone) {
+          swerveActiveRef.current = false;
+        }
+      } else if (!isSwerveZone) {
+        swerveActiveRef.current = false;
+      }
+    },
+    [playSwerveWhip]
+  );
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
   const pocketDropRef = useRef(new Map());
@@ -11272,7 +11303,8 @@ const powerRef = useRef(hud.power);
     knock: null,
     cheer: null,
     shock: null,
-    chalk: null
+    chalk: null,
+    swerve: null
   });
   const chessBoardTextureRef = useRef(null);
   const dartboardTextureRef = useRef(null);
@@ -11482,6 +11514,27 @@ const powerRef = useRef(hud.power);
     },
     [stopActiveCrowdSound]
   );
+
+  const playSwerveWhip = useCallback(() => {
+    const ctx = audioContextRef.current;
+    const buffer = audioBuffersRef.current.swerve;
+    if (!ctx || !buffer || muteRef.current) return;
+    const scaled = clamp(volumeRef.current * 0.85, 0, 1);
+    if (scaled <= 0) return;
+    ctx.resume().catch(() => {});
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = scaled;
+    source.connect(gain);
+    routeAudioNode(gain);
+    const playbackDuration = Math.min(buffer.duration ?? 0, 3.5);
+    if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
+      source.start(0, 0, playbackDuration);
+    } else {
+      source.start(0);
+    }
+  }, [routeAudioNode]);
   useEffect(() => {
     document.title = 'Pool Royale 3D';
   }, []);
@@ -11576,7 +11629,8 @@ const powerRef = useRef(hud.power);
         ['knock', '/assets/sounds/wooden-door-knock-102902.mp3'],
         ['cheer', '/assets/sounds/crowd-cheering-383111.mp3'],
         ['shock', '/assets/sounds/crowd-shocked-reaction-352766.mp3'],
-        ['chalk', '/assets/sounds/adding-chalk-to-a-snooker-cue-102468.mp3']
+        ['chalk', '/assets/sounds/adding-chalk-to-a-snooker-cue-102468.mp3'],
+        ['swerve', '/assets/sounds/Trim_SNOOKER_SWERVE_SHOT__shorts_1.mp3']
       ];
       const loaded = {};
       for (const [key, path] of entries) {
@@ -11601,7 +11655,8 @@ const powerRef = useRef(hud.power);
         knock: null,
         cheer: null,
         shock: null,
-        chalk: null
+        chalk: null,
+        swerve: null
       };
       audioContextRef.current = null;
       ctx.close().catch(() => {});
@@ -16303,9 +16358,9 @@ const powerRef = useRef(hud.power);
           exit: (immediate = true) => exitTopView(immediate)
         };
         cameraUpdateRef.current = () => updateCamera();
-        const clampSpinToLimits = () => {
+        const clampSpinToLimits = (value = null) => {
           const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
-          const current = spinRef.current || { x: 0, y: 0 };
+          const current = value || spinRef.current || { x: 0, y: 0 };
           const clamped = {
             x: clamp(current.x ?? 0, limits.minX, limits.maxX),
             y: clamp(current.y ?? 0, limits.minY, limits.maxY)
@@ -16322,19 +16377,22 @@ const powerRef = useRef(hud.power);
             const activeCamera = activeRenderCameraRef.current ?? camera;
             const viewVec = computeCueViewVector(cueBall, activeCamera);
             spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls, axes);
-            const requested = spinRequestRef.current || spinRef.current || {
-              x: 0,
-              y: 0
-            };
-            legality = checkSpinLegality2D(cueBall, requested, ballsList, {
+            const requested =
+              spinRequestRef.current || spinRef.current || {
+                x: 0,
+                y: 0
+              };
+            const limitedRequest = clampSpinToLimits(requested);
+            legality = checkSpinLegality2D(cueBall, limitedRequest, ballsList, {
               axes,
               view: viewVec
                 ? { x: viewVec.x, y: viewVec.y }
                 : null
             });
             spinLegalityRef.current = legality;
+            spinRef.current = limitedRequest;
           }
-          const applied = clampSpinToLimits();
+          const applied = clampSpinToLimits(spinRef.current);
           if (updateUi) {
             updateSpinDotPosition(applied, legality.blocked);
           }
@@ -22490,16 +22548,21 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     if (!showSpinController) {
       spinDotElRef.current = null;
+      spinSwerveHighlightElRef.current = null;
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
       spinLegalityRef.current = { blocked: false, reason: '' };
+      swerveActiveRef.current = false;
       return;
     }
 
     const box = document.getElementById('spinBox');
     const dot = document.getElementById('spinDot');
+    const swerveHighlight = document.getElementById('spinSwerveHighlight');
     if (!box || !dot) return;
     spinDotElRef.current = dot;
+    spinSwerveHighlightElRef.current = swerveHighlight;
+    swerveActiveRef.current = false;
 
     box.style.transition = 'transform 0.18s ease';
     box.style.transformOrigin = '50% 50%';
@@ -22534,7 +22597,7 @@ const powerRef = useRef(hud.power);
         : null;
       const legality = checkSpinLegality2D(
         cueBall,
-        normalized,
+        limited,
         ballsList || [],
         {
           axes,
@@ -22542,7 +22605,7 @@ const powerRef = useRef(hud.power);
         }
       );
       spinLegalityRef.current = legality;
-      updateSpinDotPosition(limited, legality.blocked);
+      updateSpinDotPosition(limited, legality.blocked, { playSwerveSound: true });
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
@@ -22625,11 +22688,13 @@ const powerRef = useRef(hud.power);
 
     return () => {
       spinDotElRef.current = null;
+      spinSwerveHighlightElRef.current = null;
       releasePointer();
       clearTimer();
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
       spinLegalityRef.current = { blocked: false, reason: '' };
+      swerveActiveRef.current = false;
       box.removeEventListener('pointerdown', handlePointerDown);
       box.removeEventListener('pointermove', handlePointerMove);
       box.removeEventListener('pointerup', handlePointerUp);
@@ -23736,6 +23801,21 @@ const powerRef = useRef(hud.power);
                 height: `${SPIN_RING_RATIO * 100}%`,
                 left: `${(1 - SPIN_RING_RATIO) * 50}%`,
                 top: `${(1 - SPIN_RING_RATIO) * 50}%`
+              }}
+            />
+            <div
+              id="spinSwerveHighlight"
+              className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full transition-all duration-150 ease-out"
+              style={{
+                width: `${SPIN_DOT_DIAMETER_PX * 3.6}px`,
+                height: `${SPIN_DOT_DIAMETER_PX * 3.6}px`,
+                left: '50%',
+                top: '50%',
+                background:
+                  'radial-gradient(circle, rgba(250,204,21,0.9) 0%, rgba(250,204,21,0.55) 40%, rgba(250,204,21,0.12) 72%, transparent 100%)',
+                opacity: 0,
+                boxShadow: '0 0 18px rgba(250, 204, 21, 0.4)',
+                transform: 'translate(-50%, -50%) scale(0.85)'
               }}
             />
             <div
