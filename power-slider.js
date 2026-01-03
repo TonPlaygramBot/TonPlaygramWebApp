@@ -10,7 +10,9 @@ export class PowerSlider {
       onChange,
       onCommit,
       theme = 'default',
-      labels = false
+      labels = false,
+      onStart,
+      onEnd
     } = opts;
 
     if (!mount) throw new Error('mount required');
@@ -21,6 +23,8 @@ export class PowerSlider {
     this.step = step;
     this.onChange = onChange;
     this.onCommit = onCommit;
+    this.onStart = onStart;
+    this.onEnd = onEnd;
     this.locked = false;
 
     this.el = document.createElement('div');
@@ -202,6 +206,9 @@ export class PowerSlider {
   _pointerDown(e) {
     if (this.locked) return;
     e.preventDefault();
+    if (typeof this.onStart === 'function') {
+      this.onStart(this.value);
+    }
     this.dragging = true;
     this.dragMoved = false;
     this.dragStartValue = this.value;
@@ -228,11 +235,12 @@ export class PowerSlider {
     this.el.removeEventListener('pointerup', this._onPointerUp);
     this.el.classList.remove('ps-no-animate');
     const moved = this.dragMoved || Math.abs(this.value - this.dragStartValue) > 0;
+    const committed = moved;
     if (!moved) {
       this.set(this.dragStartValue, { animate: true });
-      return;
     }
-    if (typeof this.onCommit === 'function') this.onCommit(this.value);
+    if (typeof this.onEnd === 'function') this.onEnd({ value: this.value, committed });
+    if (committed && typeof this.onCommit === 'function') this.onCommit(this.value);
   }
 
   _wheel(e) {
