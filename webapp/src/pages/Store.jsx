@@ -302,6 +302,8 @@ const OPTION_SWATCH_OVERRIDES = {
   woodTable001: ['#8f6243', '#a4724f'],
   darkWood: ['#2f241f', '#3d2f2a'],
   rosewoodVeneer01: ['#5b2f26', '#6f3a2f'],
+  kitchenWood: ['#c39c73', '#d2b28a'],
+  japaneseSycamore: ['#d6c6a4', '#e2d4b6'],
   gold: ['#f59e0b', '#fbbf24'],
   chrome: ['#e5e7eb', '#a1a1aa'],
   pearl: ['#f5f3ff', '#e2e8f0'],

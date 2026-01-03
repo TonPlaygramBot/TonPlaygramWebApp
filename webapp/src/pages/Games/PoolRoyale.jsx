@@ -2215,7 +2215,9 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01
+    TABLE_FINISHES.rosewoodVeneer01,
+    TABLE_FINISHES.kitchenWood,
+    TABLE_FINISHES.japaneseSycamore
   ].filter(Boolean)
 );
 
@@ -8940,82 +8942,41 @@ function Table3D(
       });
       return { meshes: legs, legMeshes: legs };
     },
-    castleChessLegs: (ctx) => {
+    modernLoop: (ctx) => {
       const meshes = [];
-      const legMeshes = [];
-      const baseY = -ctx.legH / 2;
-      const profile = [
-        new THREE.Vector2(ctx.legR * 0.65, baseY),
-        new THREE.Vector2(ctx.legR * 0.96, baseY + ctx.legH * 0.12),
-        new THREE.Vector2(ctx.legR * 0.78, baseY + ctx.legH * 0.26),
-        new THREE.Vector2(ctx.legR * 0.82, baseY + ctx.legH * 0.42),
-        new THREE.Vector2(ctx.legR * 0.7, baseY + ctx.legH * 0.58),
-        new THREE.Vector2(ctx.legR * 0.82, baseY + ctx.legH * 0.7),
-        new THREE.Vector2(ctx.legR * 1.06, baseY + ctx.legH * 0.84),
-        new THREE.Vector2(ctx.legR * 1.08, baseY + ctx.legH * 0.92)
-      ];
-      const bodyGeom = new THREE.LatheGeometry(profile, 48);
-      const crownHeight = ctx.legH * 0.12;
-      const crownRadius = ctx.legR * 1.08;
-      const crownGeom = new THREE.CylinderGeometry(
-        crownRadius * 1.05,
-        crownRadius,
-        crownHeight,
-        32,
-        1,
-        false
+      const loopRadius = Math.min(ctx.frameOuterX, ctx.frameOuterZ) * 0.72;
+      const tubeRadius = ctx.legR * 1.15;
+      const loopGeom = new THREE.TorusGeometry(loopRadius, tubeRadius, 56, 128);
+      const loop = new THREE.Mesh(loopGeom, ctx.legMat);
+      loop.rotation.x = Math.PI / 2;
+      loop.scale.set(1.1, 0.55, 1);
+      loop.position.y = ctx.floorY + tubeRadius * 1.1;
+      loop.castShadow = true;
+      loop.receiveShadow = true;
+      loop.userData = { ...(loop.userData || {}), __basePart: true };
+      meshes.push(loop);
+
+      const deckHeight = ctx.legR * 1.1;
+      const deck = new THREE.Mesh(
+        new THREE.BoxGeometry(ctx.frameOuterX * 1.5, deckHeight, ctx.frameOuterZ * 1.04),
+        ctx.legMat
       );
-      const toothGeom = new THREE.BoxGeometry(
-        crownRadius * 0.58,
-        crownHeight * 0.82,
-        ctx.legR * 0.82
+      deck.position.y = ctx.tableY - deckHeight * 0.2;
+      deck.castShadow = true;
+      deck.receiveShadow = true;
+      deck.userData = { ...(deck.userData || {}), __basePart: true };
+      meshes.push(deck);
+
+      const basePlate = new THREE.Mesh(
+        new THREE.CylinderGeometry(ctx.frameOuterX * 0.9, ctx.frameOuterX * 0.9, ctx.legR * 0.7, 64),
+        ctx.legMat
       );
-      const placeLeg = (x, z) => {
-        const body = new THREE.Mesh(bodyGeom, ctx.legMat);
-        body.position.set(x, ctx.legY, z);
-        body.castShadow = true;
-        body.receiveShadow = true;
-        body.userData = { ...(body.userData || {}), __basePart: true };
-        legMeshes.push(body);
-        meshes.push(body);
-
-        const crownY = baseY + ctx.legH * 0.95;
-        const crown = new THREE.Mesh(crownGeom, ctx.legMat);
-        crown.position.set(x, ctx.legY + crownY, z);
-        crown.castShadow = true;
-        crown.receiveShadow = true;
-        crown.userData = { ...(crown.userData || {}), __basePart: true };
-        legMeshes.push(crown);
-        meshes.push(crown);
-
-        const toothCount = 6;
-        for (let i = 0; i < toothCount; i += 1) {
-          const angle = (i / toothCount) * Math.PI * 2;
-          const tooth = new THREE.Mesh(toothGeom, ctx.legMat);
-          tooth.position.set(
-            x + Math.cos(angle) * crownRadius * 0.82,
-            ctx.legY + crownY + crownHeight * 0.05,
-            z + Math.sin(angle) * crownRadius * 0.82
-          );
-          tooth.rotation.y = angle;
-          tooth.castShadow = true;
-          tooth.receiveShadow = true;
-          tooth.userData = { ...(tooth.userData || {}), __basePart: true };
-          legMeshes.push(tooth);
-          meshes.push(tooth);
-        }
-      };
-
-      const offsetX = ctx.frameOuterX - ctx.legInset * 0.85;
-      const offsetZ = ctx.frameOuterZ - ctx.legInset * 0.85;
-      [
-        [-offsetX, -offsetZ],
-        [offsetX, -offsetZ],
-        [-offsetX, offsetZ],
-        [offsetX, offsetZ]
-      ].forEach(([lx, lz]) => placeLeg(lx, lz));
-
-      return { meshes, legMeshes };
+      basePlate.position.y = ctx.floorY + ctx.legR * 0.35;
+      basePlate.castShadow = true;
+      basePlate.receiveShadow = true;
+      basePlate.userData = { ...(basePlate.userData || {}), __basePart: true };
+      meshes.push(basePlate);
+      return { meshes, legMeshes: meshes };
     },
     zLift: (ctx) => {
       const meshes = [];
@@ -9136,71 +9097,35 @@ function Table3D(
       meshes.push(beam);
       return { meshes, legMeshes: meshes };
     },
-    bishopChessLegs: (ctx) => {
+    coinAngled: (ctx) => {
       const meshes = [];
-      const legMeshes = [];
-      const baseY = -ctx.legH / 2;
-      const profile = [
-        new THREE.Vector2(ctx.legR * 0.55, baseY),
-        new THREE.Vector2(ctx.legR * 0.98, baseY + ctx.legH * 0.1),
-        new THREE.Vector2(ctx.legR * 0.7, baseY + ctx.legH * 0.22),
-        new THREE.Vector2(ctx.legR * 0.78, baseY + ctx.legH * 0.36),
-        new THREE.Vector2(ctx.legR * 0.62, baseY + ctx.legH * 0.52),
-        new THREE.Vector2(ctx.legR * 0.82, baseY + ctx.legH * 0.66),
-        new THREE.Vector2(ctx.legR * 0.52, baseY + ctx.legH * 0.84),
-        new THREE.Vector2(ctx.legR * 0.24, baseY + ctx.legH * 1.02)
+      const positions = [
+        [-ctx.frameOuterX * 0.82, -ctx.frameOuterZ * 0.82],
+        [ctx.frameOuterX * 0.82, -ctx.frameOuterZ * 0.82],
+        [-ctx.frameOuterX * 0.82, ctx.frameOuterZ * 0.82],
+        [ctx.frameOuterX * 0.82, ctx.frameOuterZ * 0.82]
       ];
-      const bodyGeom = new THREE.LatheGeometry(profile, 48);
-      const collarGeom = new THREE.TorusGeometry(ctx.legR * 0.72, ctx.legR * 0.12, 24, 48);
-      const finialGeom = new THREE.SphereGeometry(ctx.legR * 0.26, 24, 16);
-      const notchGeom = new THREE.BoxGeometry(ctx.legR * 0.46, ctx.legH * 0.18, ctx.legR * 0.46);
-
-      const placeLeg = (x, z) => {
-        const body = new THREE.Mesh(bodyGeom, ctx.legMat);
-        body.position.set(x, ctx.legY, z);
-        body.castShadow = true;
-        body.receiveShadow = true;
-        body.userData = { ...(body.userData || {}), __basePart: true };
-        legMeshes.push(body);
-        meshes.push(body);
-
-        const collar = new THREE.Mesh(collarGeom, ctx.trimMat ?? ctx.legMat);
-        collar.rotation.x = Math.PI / 2;
-        collar.position.set(x, ctx.legY + baseY + ctx.legH * 0.42, z);
-        collar.castShadow = true;
-        collar.receiveShadow = true;
-        collar.userData = { ...(collar.userData || {}), __basePart: true };
-        legMeshes.push(collar);
-        meshes.push(collar);
-
-        const finial = new THREE.Mesh(finialGeom, ctx.legMat);
-        finial.position.set(x, ctx.legY + baseY + ctx.legH * 1.04, z);
-        finial.castShadow = true;
-        finial.receiveShadow = true;
-        finial.userData = { ...(finial.userData || {}), __basePart: true };
-        legMeshes.push(finial);
-        meshes.push(finial);
-
-        const notch = new THREE.Mesh(notchGeom, ctx.trimMat ?? ctx.legMat);
-        notch.position.set(x, ctx.legY + baseY + ctx.legH * 0.74, z);
-        notch.rotation.y = Math.PI / 4;
-        notch.castShadow = true;
-        notch.receiveShadow = true;
-        notch.userData = { ...(notch.userData || {}), __basePart: true };
-        legMeshes.push(notch);
-        meshes.push(notch);
-      };
-
-      const offsetX = ctx.frameOuterX - ctx.legInset * 0.85;
-      const offsetZ = ctx.frameOuterZ - ctx.legInset * 0.85;
-      [
-        [-offsetX, -offsetZ],
-        [offsetX, -offsetZ],
-        [-offsetX, offsetZ],
-        [offsetX, offsetZ]
-      ].forEach(([lx, lz]) => placeLeg(lx, lz));
-
-      return { meshes, legMeshes };
+      positions.forEach(([lx, lz]) => {
+        const leg = new THREE.Mesh(
+          new THREE.CylinderGeometry(ctx.legR * 1.1, ctx.legR * 0.75, ctx.legH * 0.9, 36),
+          ctx.legMat
+        );
+        leg.position.set(lx, ctx.legY + ctx.legH * 0.05, lz);
+        leg.castShadow = true;
+        leg.receiveShadow = true;
+        leg.userData = { ...(leg.userData || {}), __basePart: true };
+        meshes.push(leg);
+      });
+      const centerBeam = new THREE.Mesh(
+        new THREE.BoxGeometry(ctx.frameOuterX * 1.4, ctx.legR * 0.5, ctx.frameOuterZ * 0.7),
+        ctx.legMat
+      );
+      centerBeam.position.y = ctx.floorY + ctx.legR * 0.45;
+      centerBeam.castShadow = true;
+      centerBeam.receiveShadow = true;
+      centerBeam.userData = { ...(centerBeam.userData || {}), __basePart: true };
+      meshes.push(centerBeam);
+      return { meshes, legMeshes: meshes };
     },
     blockPedestal: (ctx) => {
       const meshes = [];
@@ -21681,14 +21606,21 @@ const powerRef = useRef(hud.power);
             }
             if (b.shadow) {
               const droppingShadow = pocketDropRef.current.has(b.id);
-              const shadowVisible = b.mesh.visible && b.active && !droppingShadow;
+              const shadowVisible = b.mesh.visible && !droppingShadow;
               b.shadow.visible = shadowVisible;
               if (shadowVisible) {
                 b.shadow.position.set(b.pos.x, BALL_SHADOW_Y, b.pos.y);
-                const spread = 1 + THREE.MathUtils.clamp(speed * 0.08, 0, 0.35);
+                const liftInfluence = THREE.MathUtils.clamp(
+                  liftAmount / (BALL_R * 1.4),
+                  0,
+                  1
+                );
+                const spread = 1 +
+                  THREE.MathUtils.clamp(speed * 0.08, 0, 0.35) +
+                  liftInfluence * 0.25;
                 b.shadow.scale.setScalar(spread);
                 b.shadow.material.opacity = THREE.MathUtils.clamp(
-                  BALL_SHADOW_OPACITY + 0.12,
+                  BALL_SHADOW_OPACITY + 0.12 - liftInfluence * 0.4,
                   0,
                   1
                 );
