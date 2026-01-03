@@ -1237,8 +1237,8 @@ const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
 const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
-const CUE_STRIKE_VOLUME_MULTIPLIER = 3; // boost cue strikes to 300% loudness to compensate for the quieter recording
-const CUE_STRIKE_MAX_GAIN = 9; // allow the louder cue strike to pass through without clipping to the previous 3x cap
+const CUE_STRIKE_VOLUME_MULTIPLIER = 1.5; // boost cue strikes to 150% loudness for clearer feedback
+const CUE_STRIKE_MAX_GAIN = 9; // allow the louder cue strike to pass through without clipping to the previous cap
 const POCKET_SOUND_TAIL = 1;
 // Pool Royale now raises the stance; extend the legs so the playfield sits higher
 const LEG_SCALE = 6.2;
@@ -11569,7 +11569,7 @@ const powerRef = useRef(hud.power);
       const entries = [
         [
           'cue',
-          '/assets/sounds/Trim_Control_the_Cue_Ball_Control_the_Black_snooker_billiard_tipsandtrick_1.mp3'
+          '/assets/sounds/cueshootsound.mp3'
         ],
         ['ball', '/assets/sounds/billiard-sound newhit.mp3'],
         ['pocket', '/assets/sounds/billiard-sound-6-288417.mp3'],
