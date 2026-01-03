@@ -1290,22 +1290,23 @@ const CUE_FOLLOW_MIN_MS = 180;
 const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.02; // align the tip closer to the cue-ball equator so the contact reads front-and-centre
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.065; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 5.8;
-const CUE_BUTT_LIFT = BALL_R * 0.64; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
+const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
-const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
+const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.35;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.95;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.7;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(8.5);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_SIDE = BALL_R * 0.35;
-const MAX_SPIN_VERTICAL = MAX_SPIN_CONTACT_OFFSET;
+const MAX_SPIN_VERTICAL = BALL_R * 0.6;
+const MAX_SPIN_VISUAL_LIFT = BALL_R * 0.6; // cap vertical spin offsets so the cue stays just above the ball surface
 const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
@@ -11333,7 +11334,7 @@ const powerRef = useRef(hud.power);
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
-    const scaled = clamp(volumeRef.current * 1.2 * (0.35 + power * 0.75), 0, 1);
+    const scaled = clamp(volumeRef.current * 1.2 * 1.5 * (0.35 + power * 0.75), 0, 1);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11342,7 +11343,7 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    const clipStart = THREE.MathUtils.clamp(7, 0, Math.max(buffer.duration - 0.1, 0));
+    const clipStart = THREE.MathUtils.clamp(6, 0, Math.max(buffer.duration - 0.1, 0));
     const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
     const playbackDuration = Math.max(0, clipEnd - clipStart);
     if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
@@ -18443,6 +18444,9 @@ const powerRef = useRef(hud.power);
         const hasSpin = magnitude > 1e-4;
         let side = hasSpin ? spin.x * offsetSide : 0;
         let vert = hasSpin ? -spin.y * offsetVertical : 0;
+        if (hasSpin) {
+          vert = THREE.MathUtils.clamp(vert, -MAX_SPIN_VISUAL_LIFT, MAX_SPIN_VISUAL_LIFT);
+        }
         const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
         if (hasSpin && maxContactOffset > 1e-6) {
           const combined = Math.hypot(side, vert);
