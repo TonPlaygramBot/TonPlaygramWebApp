@@ -479,22 +479,10 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     swatches: ['#8f6243', '#6f3a2f']
   },
   {
-    id: 'chessCastleLegs',
-    name: 'Chess Castle Legs',
-    description: 'Four Chess Battle Royale rooks turned into sculpted corner legs.',
-    swatches: ['#e5e7eb', '#0ea5e9']
-  },
-  {
     id: 'openPortal',
     name: 'Open Portal',
     description: 'Twin portal legs with angled sides and negative space.',
     swatches: ['#f8fafc', '#e5e7eb']
-  },
-  {
-    id: 'chessBishopLegs',
-    name: 'Chess Bishop Legs',
-    description: 'Bishop silhouettes from Chess Battle Royale recast as tapered legs.',
-    swatches: ['#cbd5e1', '#1f2937']
   },
   {
     id: 'coffeeTable01',
@@ -541,7 +529,12 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     oakVeneer01: 'Oak Veneer 01',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
-    rosewoodVeneer01: 'Rosewood Veneer 01'
+    rosewoodVeneer01: 'Rosewood Veneer 01',
+    rosewoodVeneerAmber: 'Rosewood Veneer Amber',
+    rosewoodVeneerWalnut: 'Rosewood Veneer Walnut',
+    rosewoodVeneerEbony: 'Rosewood Veneer Ebony',
+    rosewoodVeneerHoney: 'Rosewood Veneer Honey',
+    rosewoodVeneerAsh: 'Rosewood Veneer Ash'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -625,6 +618,46 @@ export const POOL_ROYALE_STORE_ITEMS = [
     name: 'Rosewood Veneer 01 Finish',
     price: 1020,
     description: 'Rosewood veneer rails with rich, reddish undertones.'
+  },
+  {
+    id: 'finish-rosewoodVeneerAmber',
+    type: 'tableFinish',
+    optionId: 'rosewoodVeneerAmber',
+    name: 'Rosewood Veneer Amber Finish',
+    price: 1030,
+    description: 'Amber-tinted rosewood veneer with warm copper rail highlights.'
+  },
+  {
+    id: 'finish-rosewoodVeneerWalnut',
+    type: 'tableFinish',
+    optionId: 'rosewoodVeneerWalnut',
+    name: 'Rosewood Veneer Walnut Finish',
+    price: 1040,
+    description: 'Walnut-inspired rosewood veneer for a deep, balanced brown tone.'
+  },
+  {
+    id: 'finish-rosewoodVeneerEbony',
+    type: 'tableFinish',
+    optionId: 'rosewoodVeneerEbony',
+    name: 'Rosewood Veneer Ebony Finish',
+    price: 1050,
+    description: 'Ebony-shaded rosewood veneer with dark rails and subtle sheen.'
+  },
+  {
+    id: 'finish-rosewoodVeneerHoney',
+    type: 'tableFinish',
+    optionId: 'rosewoodVeneerHoney',
+    name: 'Rosewood Veneer Honey Finish',
+    price: 1060,
+    description: 'Honey-gold rosewood veneer for a brighter, golden rail glow.'
+  },
+  {
+    id: 'finish-rosewoodVeneerAsh',
+    type: 'tableFinish',
+    optionId: 'rosewoodVeneerAsh',
+    name: 'Rosewood Veneer Ash Finish',
+    price: 1070,
+    description: 'Ash-tinted rosewood veneer with cool neutral brown shading.'
   },
   {
     id: 'chrome-chrome',
