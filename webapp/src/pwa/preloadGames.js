@@ -1,4 +1,4 @@
-const RUNTIME_CACHE_NAME = 'tonplaygram-runtime-v4';
+const RUNTIME_CACHE_NAME = 'tonplaygram-runtime-v5';
 
 const GAME_ENTRYPOINTS = [
   '/goal-rush.html',
@@ -15,6 +15,7 @@ const GAME_ENTRYPOINTS = [
 ];
 
 const GLTF_MANIFEST_PATH = '/pwa/gltf-assets.json';
+const HALLWAY_MANIFEST_PATH = '/pwa/hallway-assets.json';
 const GLTF_EXTENSIONS = /\.(gltf|glb|bin|ktx2|dds|hdr)$/i;
 
 const runWhenIdle = cb => {
@@ -61,6 +62,47 @@ async function warmGltfMaterials({ baseUrl = '/', forceReload = false } = {}) {
   }
 }
 
+const warmHallwayAssets = async ({ baseUrl = '/', forceReload = false } = {}) => {
+  if (!('caches' in window) || !('serviceWorker' in navigator)) return;
+
+  try {
+    await navigator.serviceWorker.ready;
+    const cache = await caches.open(RUNTIME_CACHE_NAME);
+    const base = normalizeBaseUrl(baseUrl);
+    const manifestUrl = new URL(HALLWAY_MANIFEST_PATH, `${window.location.origin}${base}`).toString();
+    const manifestResponse = await fetch(manifestUrl, { cache: 'no-store' });
+    if (!manifestResponse.ok) return;
+    const assets = await manifestResponse.json();
+    if (!Array.isArray(assets) || !assets.length) return;
+
+    await Promise.all(
+      assets.map(async asset => {
+        if (typeof asset !== 'string') return;
+        try {
+          const request = new Request(asset, { cache: forceReload ? 'reload' : 'default', mode: 'cors' });
+          const response = await fetch(request);
+          if (response.ok) {
+            await cache.put(request, response.clone());
+          }
+        } catch (err) {
+          console.warn('Skipping hallway prefetch', asset, err);
+        }
+      })
+    );
+  } catch (err) {
+    console.warn('Skipping hallway warmup', err);
+  }
+};
+
+const notifyServiceWorkerHallwayWarmup = async () => {
+  if (!('serviceWorker' in navigator)) return false;
+  const registration = await navigator.serviceWorker.ready;
+  const worker = navigator.serviceWorker.controller || registration.active;
+  if (!worker) return false;
+  worker.postMessage({ type: 'WARM_HALLWAY_ASSETS' });
+  return true;
+};
+
 const notifyServiceWorkerGltfWarmup = async () => {
   if (!('serviceWorker' in navigator)) return false;
   const registration = await navigator.serviceWorker.ready;
@@ -73,7 +115,9 @@ const notifyServiceWorkerGltfWarmup = async () => {
 export async function refreshGltfAssets({ baseUrl = '/', forceReload = false } = {}) {
   try {
     await notifyServiceWorkerGltfWarmup();
+    await notifyServiceWorkerHallwayWarmup();
     await warmGltfMaterials({ baseUrl, forceReload });
+    await warmHallwayAssets({ baseUrl, forceReload });
   } catch (err) {
     console.warn('Unable to refresh GLTF caches', err);
   }
@@ -100,6 +144,7 @@ export function warmGameCaches() {
         })
       );
       await warmGltfMaterials({ baseUrl: import.meta.env.BASE_URL || '/' });
+      await warmHallwayAssets({ baseUrl: import.meta.env.BASE_URL || '/' });
     } catch (err) {
       console.warn('Skipping game warmup', err);
     }
@@ -107,3 +152,4 @@ export function warmGameCaches() {
 }
 
 export { RUNTIME_CACHE_NAME, warmGltfMaterials };
+export { warmHallwayAssets };

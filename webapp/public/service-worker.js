@@ -1,7 +1,8 @@
-const STATIC_CACHE = 'tonplaygram-static-v4';
-const RUNTIME_CACHE = 'tonplaygram-runtime-v4';
+const STATIC_CACHE = 'tonplaygram-static-v5';
+const RUNTIME_CACHE = 'tonplaygram-runtime-v5';
 const OFFLINE_FALLBACK = '/offline.html';
 const GLTF_MANIFEST_PATH = '/pwa/gltf-assets.json';
+const HALLWAY_MANIFEST_PATH = '/pwa/hallway-assets.json';
 
 const APP_SHELL = [
   '/',
@@ -9,6 +10,7 @@ const APP_SHELL = [
   OFFLINE_FALLBACK,
   '/manifest.webmanifest',
   GLTF_MANIFEST_PATH,
+  HALLWAY_MANIFEST_PATH,
   '/tonconnect-manifest.json',
   '/power-slider.css',
   '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp',
@@ -30,6 +32,14 @@ const PREFETCH_RUNTIME_ASSETS = [
 ];
 
 const GLTF_EXTENSIONS = /\.(gltf|glb|bin|ktx2|dds|hdr)$/i;
+const REMOTE_CACHEABLE_DESTINATIONS = ['font', 'image', 'model', ''];
+const REMOTE_CACHEABLE_HOSTS = new Set([
+  'cdn.jsdelivr.net',
+  'fastly.jsdelivr.net',
+  'raw.githubusercontent.com',
+  'dl.polyhaven.org',
+  'api.polyhaven.com'
+]);
 
 const enableNavigationPreload = async () => {
   if (self.registration?.navigationPreload) {
@@ -89,11 +99,39 @@ const warmGltfAssets = async ({ forceReload = false } = {}) => {
   }
 };
 
+const warmHallwayAssets = async ({ forceReload = false } = {}) => {
+  try {
+    const manifestResponse = await fetch(HALLWAY_MANIFEST_PATH, { cache: 'no-store' });
+    if (!manifestResponse.ok) return;
+    const manifest = await manifestResponse.json();
+    if (!Array.isArray(manifest) || !manifest.length) return;
+
+    const cache = await caches.open(RUNTIME_CACHE);
+    await Promise.all(
+      manifest.map(async asset => {
+        if (typeof asset !== 'string') return;
+        try {
+          const request = new Request(asset, {
+            cache: forceReload ? 'reload' : 'default',
+            mode: 'cors'
+          });
+          const response = await fetch(request);
+          if (response?.ok) {
+            await cache.put(request, response.clone());
+          }
+        } catch (err) {
+          // hallway warming is best-effort
+        }
+      })
+    );
+  } catch (err) {
+    // Ignore manifest failures to avoid blocking install
+  }
+};
+
 self.addEventListener('install', event => {
   event.waitUntil(
-    Promise.all([precache(), prewarmRuntimeCache(), warmGltfAssets(), enableNavigationPreload()]).catch(
-      () => {}
-    )
+    Promise.all([precache(), prewarmRuntimeCache(), warmGltfAssets(), warmHallwayAssets(), enableNavigationPreload()]).catch(() => {})
   );
   self.skipWaiting();
 });
@@ -108,9 +146,13 @@ const cleanupCaches = async () => {
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    Promise.all([cleanupCaches(), self.clients.claim(), warmGltfAssets({ forceReload: true }), enableNavigationPreload()]).catch(
-      () => {}
-    )
+    Promise.all([
+      cleanupCaches(),
+      self.clients.claim(),
+      warmGltfAssets({ forceReload: true }),
+      warmHallwayAssets({ forceReload: true }),
+      enableNavigationPreload()
+    ]).catch(() => {})
   );
 });
 
@@ -124,6 +166,9 @@ self.addEventListener('message', event => {
   }
   if (type === 'WARM_GLTF_ASSETS') {
     event.waitUntil(warmGltfAssets({ forceReload: true }));
+  }
+  if (type === 'WARM_HALLWAY_ASSETS') {
+    event.waitUntil(warmHallwayAssets({ forceReload: true }));
   }
 });
 
@@ -203,7 +248,10 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  if (!isSameOrigin && (destination === 'font' || shouldCacheGltf)) {
+  if (
+    !isSameOrigin &&
+    (REMOTE_CACHEABLE_DESTINATIONS.includes(destination) || shouldCacheGltf || REMOTE_CACHEABLE_HOSTS.has(url.host))
+  ) {
     event.respondWith(staleWhileRevalidate(request));
     return;
   }

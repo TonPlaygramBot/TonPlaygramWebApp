@@ -1,0 +1,11 @@
+[
+  "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/water.jpg",
+  "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/checker.png",
+  "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/wood/mahogany_diffuse.jpg",
+  "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/metal/Brass_Albedo.jpg",
+  "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/uv_grid_opengl.jpg",
+  "https://api.polyhaven.com/files/marble_01",
+  "https://api.polyhaven.com/files/potted_plant_01",
+  "https://api.polyhaven.com/files/potted_plant_02",
+  "https://api.polyhaven.com/files/potted_plant_04"
+]
