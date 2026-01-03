@@ -11334,7 +11334,11 @@ const powerRef = useRef(hud.power);
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
-    const scaled = clamp(volumeRef.current * 1.2 * 1.5 * (0.35 + power * 0.75), 0, 1);
+    const scaled = clamp(
+      volumeRef.current * 1.2 * 1.5 * 1.5 * (0.35 + power * 0.75),
+      0,
+      1
+    );
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11343,8 +11347,8 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    const clipStart = THREE.MathUtils.clamp(6, 0, Math.max(buffer.duration - 0.1, 0));
-    const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
+    const clipStart = THREE.MathUtils.clamp(4, 0, Math.max(buffer.duration - 0.1, 0));
+    const clipEnd = THREE.MathUtils.clamp(6.6, clipStart, buffer.duration);
     const playbackDuration = Math.max(0, clipEnd - clipStart);
     if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
       source.start(0, clipStart, playbackDuration);
