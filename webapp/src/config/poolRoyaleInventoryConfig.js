@@ -499,10 +499,10 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     swatches: ['#8f6243', '#6f3a2f']
   },
   {
-    id: 'modernLoop',
-    name: 'Modern Loop Pedestal',
-    description: 'Sculpted loop base with floating deck inspired by modern showrooms.',
-    swatches: ['#6b7280', '#0ea5e9']
+    id: 'chessCastleLegs',
+    name: 'Chess Castle Legs',
+    description: 'Four Chess Battle Royale rooks turned into sculpted corner legs.',
+    swatches: ['#e5e7eb', '#0ea5e9']
   },
   {
     id: 'zLift',
@@ -523,12 +523,6 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     swatches: ['#f8fafc', '#e5e7eb']
   },
   {
-    id: 'coinAngled',
-    name: 'Coin-Op Angled',
-    description: 'Tapered commercial legs with slim bumpers.',
-    swatches: ['#8b5f39', '#3f2a1d']
-  },
-  {
     id: 'blockPedestal',
     name: 'Block Pedestal',
     description: 'Solid plinth with soft radius corners for lounge builds.',
@@ -539,6 +533,12 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     name: 'Heritage Carved',
     description: 'Cabriole-inspired carved legs for heritage rooms.',
     swatches: ['#5b3716', '#c08457']
+  },
+  {
+    id: 'chessBishopLegs',
+    name: 'Chess Bishop Legs',
+    description: 'Bishop silhouettes from Chess Battle Royale recast as tapered legs.',
+    swatches: ['#cbd5e1', '#1f2937']
   },
   {
     id: 'rusticCross',
@@ -573,9 +573,7 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     oakVeneer01: 'Oak Veneer 01',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
-    rosewoodVeneer01: 'Rosewood Veneer 01',
-    kitchenWood: 'Kitchen Wood',
-    japaneseSycamore: 'Japanese Sycamore'
+    rosewoodVeneer01: 'Rosewood Veneer 01'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -659,22 +657,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     name: 'Rosewood Veneer 01 Finish',
     price: 1020,
     description: 'Rosewood veneer rails with rich, reddish undertones.'
-  },
-  {
-    id: 'finish-kitchenWood',
-    type: 'tableFinish',
-    optionId: 'kitchenWood',
-    name: 'Kitchen Wood Finish',
-    price: 1030,
-    description: 'Golden kitchen wood rails with warm highlights.'
-  },
-  {
-    id: 'finish-japaneseSycamore',
-    type: 'tableFinish',
-    optionId: 'japaneseSycamore',
-    name: 'Japanese Sycamore Finish',
-    price: 1040,
-    description: 'Light sycamore rails with clean, refined grain.'
   },
   {
     id: 'chrome-chrome',
