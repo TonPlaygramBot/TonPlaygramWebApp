@@ -505,7 +505,7 @@ const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE; // match the middle chrome arches to the corner pocket radius
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 0.32; // gently round the wooden rail perimeter while leaving pocket cuts unchanged
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 0; // keep the wooden rail corners crisp with no rounding on the frame
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
@@ -2115,33 +2115,33 @@ const createStandardWoodFinish = ({
         : railColor.clone().offsetHSL(0.02, 0.08, 0.18);
     const frame = new THREE.MeshPhysicalMaterial({
       color: frameColor,
-      metalness: 0.1,
-      roughness: 0.5,
-      clearcoat: 0.28,
-      clearcoatRoughness: 0.34,
-      sheen: 0.16,
-      sheenRoughness: 0.54,
-      reflectivity: 0.26,
-      envMapIntensity: 0.54
+      metalness: 0.08,
+      roughness: 0.58,
+      clearcoat: 0.22,
+      clearcoatRoughness: 0.4,
+      sheen: 0.14,
+      sheenRoughness: 0.58,
+      reflectivity: 0.22,
+      envMapIntensity: 0.45
     });
     const railMat = new THREE.MeshPhysicalMaterial({
       color: railColor,
-      metalness: 0.12,
-      roughness: 0.48,
-      clearcoat: 0.32,
-      clearcoatRoughness: 0.32,
-      sheen: 0.2,
-      sheenRoughness: 0.54,
-      reflectivity: 0.28,
-      envMapIntensity: 0.58
+      metalness: 0.1,
+      roughness: 0.55,
+      clearcoat: 0.26,
+      clearcoatRoughness: 0.38,
+      sheen: 0.18,
+      sheenRoughness: 0.6,
+      reflectivity: 0.24,
+      envMapIntensity: 0.5
     });
     const trimMat = new THREE.MeshPhysicalMaterial({
       color: trimColor,
-      metalness: 0.18,
-      roughness: 0.44,
-      clearcoat: 0.32,
-      clearcoatRoughness: 0.32,
-      envMapIntensity: 0.62
+      metalness: 0.16,
+      roughness: 0.5,
+      clearcoat: 0.28,
+      clearcoatRoughness: 0.36,
+      envMapIntensity: 0.55
     });
     const materials = {
       frame,
@@ -2153,11 +2153,11 @@ const createStandardWoodFinish = ({
     if (accent != null) {
       materials.accent = new THREE.MeshPhysicalMaterial({
         color: accent,
-        metalness: 0.36,
-        roughness: 0.42,
-        clearcoat: 0.28,
-        clearcoatRoughness: 0.28,
-        envMapIntensity: 0.78
+        metalness: 0.32,
+        roughness: 0.48,
+        clearcoat: 0.22,
+        clearcoatRoughness: 0.32,
+        envMapIntensity: 0.72
       });
     }
     applySnookerStyleWoodPreset(materials, id);
@@ -4990,11 +4990,11 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.12;
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.04;
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.02, CAMERA.minPhi * 0.55);
-const TOP_VIEW_RADIUS_SCALE = 1.06;
-const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
+const TOP_VIEW_MARGIN = 1.08;
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.02;
+const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
+const TOP_VIEW_RADIUS_SCALE = 1.02;
+const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: 0, // center the table for the classic top-down framing
   z: 0 // keep the 2D view aligned with the original overhead composition
@@ -9150,6 +9150,14 @@ function Table3D(
       [-1, 1].forEach((signZ) => buildPortal(signZ));
       return { meshes, legMeshes };
     },
+    coffeeTable01: createPolyhavenTableBaseBuilder('CoffeeTable_01', {
+      footprintScale: 1.04,
+      footprintDepthScale: 1.04,
+      heightFill: 0.94,
+      topInsetScale: 0.96,
+      materialKey: 'rail',
+      matchTableFootprint: true
+    }),
     coffeeTableRound01: createPolyhavenTableBaseBuilder('coffee_table_round_01', {
       footprintScale: 1.05,
       footprintDepthScale: 1.12,
@@ -9173,6 +9181,21 @@ function Table3D(
       materialKey: 'rail',
       matchTableFootprint: true
     }),
+    woodenTable02: createPolyhavenTableBaseBuilder('WoodenTable_02', {
+      footprintScale: 0.96,
+      footprintDepthScale: 0.98,
+      heightFill: 0.92,
+      topInsetScale: 0.95,
+      materialKey: 'rail',
+      matchTableFootprint: true
+    }),
+    chineseTeaTable: createPolyhavenTableBaseBuilder('chinese_tea_table', {
+      footprintScale: 1.12,
+      footprintDepthScale: 1.08,
+      heightFill: 0.86,
+      topInsetScale: 0.92,
+      materialKey: 'rail'
+    }),
     woodenTable02Alt: createPolyhavenTableBaseBuilder('wooden_table_02', {
       footprintScale: 0.98,
       footprintDepthScale: 1.0,
@@ -9180,6 +9203,13 @@ function Table3D(
       topInsetScale: 0.95,
       materialKey: 'rail',
       matchTableFootprint: true
+    }),
+    roundWoodenTable01: createPolyhavenTableBaseBuilder('round_wooden_table_01', {
+      footprintScale: 1.08,
+      footprintDepthScale: 1.08,
+      heightFill: 0.88,
+      topInsetScale: 0.9,
+      materialKey: 'trim'
     })
   };
 
@@ -12726,9 +12756,8 @@ const powerRef = useRef(hud.power);
           : null;
         const aspect = Number.isFinite(hostAspect) ? hostAspect : 9 / 16; // fall back to worst-case portrait when unknown
         const tempCamera = new THREE.PerspectiveCamera(STANDING_VIEW_FOV, aspect);
-        const topDownRadiusBase = fitRadius(tempCamera, TOP_VIEW_MARGIN);
         const topDownRadius = Math.max(
-          topDownRadiusBase * TOP_VIEW_RADIUS_SCALE,
+          fitRadius(tempCamera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
           CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
         );
         return topDownRadius;
@@ -15066,10 +15095,9 @@ const powerRef = useRef(hud.power);
             TOP_VIEW_SCREEN_OFFSET.z
           ).multiplyScalar(worldScaleFactor);
           let resolvedTarget = topFocusTarget.clone();
-          const topRadiusBase = fitRadius(camera, TOP_VIEW_MARGIN);
           const topRadius = clampOrbitRadius(
             Math.max(
-              topRadiusBase * TOP_VIEW_RADIUS_SCALE,
+              fitRadius(camera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
               CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
             )
           );
@@ -16271,10 +16299,9 @@ const powerRef = useRef(hud.power);
           ).multiplyScalar(
             Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE
           );
-          const topRadiusBase = fitRadius(camera, TOP_VIEW_MARGIN);
           const targetRadius = clampOrbitRadius(
             Math.max(
-              topRadiusBase * TOP_VIEW_RADIUS_SCALE,
+              fitRadius(camera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
               CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
             )
           );
