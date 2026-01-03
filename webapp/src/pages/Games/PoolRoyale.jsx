@@ -5002,8 +5002,8 @@ const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22); 
 const TOP_VIEW_RADIUS_SCALE = 1.26; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: 0, // center the table for the classic top-down framing
-  z: 0 // keep the 2D view aligned with the original overhead composition
+  x: -PLAY_W * 0.015, // bias the top view so the table sits a touch higher on screen
+  z: -PLAY_H * 0.012 // bias the top view so the table sits slightly more to the left
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -11569,7 +11569,7 @@ const powerRef = useRef(hud.power);
       const entries = [
         [
           'cue',
-          '/assets/sounds/cueshootsound.mp3'
+          '/assets/sounds/cuehitsound.mp3'
         ],
         ['ball', '/assets/sounds/billiard-sound newhit.mp3'],
         ['pocket', '/assets/sounds/billiard-sound-6-288417.mp3'],
