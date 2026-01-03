@@ -4942,9 +4942,9 @@ const BREAK_VIEW = Object.freeze({
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.08;
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.02;
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
+const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI; // restore a true overhead angle for the 2D view
 const TOP_VIEW_RADIUS_SCALE = 1.02;
-const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
+const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: 0, // center the table for the classic top-down framing
   z: 0 // keep the 2D view aligned with the original overhead composition
@@ -8844,7 +8844,12 @@ function Table3D(
     if (isColor) {
       applySRGBColorSpace(texture);
     }
-    texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.generateMipmaps = true;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    const boostedAniso = resolveTextureAnisotropy((texture.anisotropy ?? 1) * 1.18);
+    texture.anisotropy = boostedAniso;
     texture.needsUpdate = true;
   };
 
@@ -9154,13 +9159,13 @@ function Table3D(
         if (rook) {
           const bounds = new THREE.Box3().setFromObject(rook);
           const height = Math.max(bounds.max.y - bounds.min.y, MICRO_EPS);
-          const targetHeight = ctx.legH * 0.94;
+          const targetHeight = ctx.legH * 0.9;
           const scale = height > MICRO_EPS ? targetHeight / height : 1;
           if (Number.isFinite(scale) && scale > 0) {
             rook.scale.multiplyScalar(scale);
             bounds.setFromObject(rook);
           }
-          const slenderFactor = 0.92;
+          const slenderFactor = 0.82;
           rook.scale.x *= slenderFactor;
           rook.scale.z *= slenderFactor;
           bounds.setFromObject(rook);
@@ -9176,9 +9181,9 @@ function Table3D(
           legMeshes.push(rook);
           return;
         }
-        const legRadius = ctx.legR * 1.1;
+        const legRadius = ctx.legR * 0.96;
         const crenelCount = 4;
-        const footHeight = ctx.legH * 0.16;
+        const footHeight = ctx.legH * 0.14;
         const foot = tagBasePart(
           new THREE.Mesh(
             new THREE.CylinderGeometry(legRadius * 1.05, legRadius * 1.22, footHeight, 32),
@@ -9190,7 +9195,7 @@ function Table3D(
         meshes.push(foot);
         legMeshes.push(foot);
 
-        const bodyHeight = ctx.legH * 0.62;
+        const bodyHeight = ctx.legH * 0.56;
         const body = tagBasePart(
           new THREE.Mesh(
             new THREE.CylinderGeometry(legRadius * 0.95, legRadius * 1.05, bodyHeight, 32),
@@ -9204,7 +9209,7 @@ function Table3D(
 
         const belt = tagBasePart(
           new THREE.Mesh(
-            new THREE.TorusGeometry(legRadius * 0.95, legRadius * 0.14, 18, 48),
+            new THREE.TorusGeometry(legRadius * 0.88, legRadius * 0.12, 18, 48),
             ctx.railMat
           ),
           'rail'
@@ -9436,16 +9441,16 @@ function Table3D(
       };
     },
     coffeeTable01: createPolyhavenTableBaseBuilder('CoffeeTable_01', {
-      footprintScale: 1,
-      footprintDepthScale: 1,
-      heightFill: 0.9,
+      footprintScale: 1.04,
+      footprintDepthScale: 1.04,
+      heightFill: 0.94,
       topInsetScale: 0.96,
       materialKey: 'rail',
       matchTableFootprint: true
     }),
     coffeeTableRound01: createPolyhavenTableBaseBuilder('coffee_table_round_01', {
       footprintScale: 1.05,
-      footprintDepthScale: 1.05,
+      footprintDepthScale: 1.12,
       heightFill: 0.8,
       topInsetScale: 0.96,
       materialKey: 'trim'
@@ -9453,7 +9458,7 @@ function Table3D(
     gothicCoffeeTable: createPolyhavenTableBaseBuilder('gothic_coffee_table', {
       footprintScale: 1,
       footprintDepthScale: 1,
-      heightFill: 0.9,
+      heightFill: 0.94,
       topInsetScale: 0.98,
       materialKey: 'rail',
       matchTableFootprint: true
