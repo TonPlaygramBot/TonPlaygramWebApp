@@ -1,13 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LeaderboardCard from '../components/LeaderboardCard.jsx';
 import GameTransactionsCard from '../components/GameTransactionsCard.jsx';
 import GamesHallway from '../components/GamesHallway.jsx';
 import gamesCatalog from '../config/gamesCatalog.js';
+import { refreshGltfAssets } from '../pwa/preloadGames.js';
 
 export default function Games() {
   useTelegramBackButton();
   const [showHallway, setShowHallway] = useState(false);
+  const baseUrl = useMemo(() => import.meta.env.BASE_URL || '/', []);
+
+  useEffect(() => {
+    const isTelegram = Boolean(window.Telegram?.WebApp);
+    if (!isTelegram) return;
+
+    refreshGltfAssets({ baseUrl, forceReload: true });
+  }, [baseUrl]);
+
   return (
     <div className="relative space-y-4 text-text">
       <h2 className="text-2xl font-bold text-center mt-4">Games</h2>
