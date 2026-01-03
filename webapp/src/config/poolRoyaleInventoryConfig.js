@@ -545,6 +545,24 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     name: 'Rustic Cross',
     description: 'Industrial X-trestle stance with plank stretcher.',
     swatches: ['#8b5f39', '#1f2937']
+  },
+  {
+    id: 'coffeeTable01',
+    name: 'Coffee Table 01 Base',
+    description: 'Poly Haven Coffee Table 01 from Murlan Royale sized to support the pool deck.',
+    swatches: ['#8b7355', '#d6c1a3']
+  },
+  {
+    id: 'coffeeTableRound01',
+    name: 'Coffee Table Round 01 Base',
+    description: 'Rounded Poly Haven coffee table legs tucked beneath the pool table.',
+    swatches: ['#c5a47e', '#7a5534']
+  },
+  {
+    id: 'gothicCoffeeTable',
+    name: 'Gothic Coffee Table Base',
+    description: 'Gothic coffee table from Murlan Royale re-used as a sculpted support base.',
+    swatches: ['#8f4a2b', '#3b2a1f']
   }
 ]);
 
