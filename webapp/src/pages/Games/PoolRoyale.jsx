@@ -1241,8 +1241,6 @@ const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron
 const SKIRT_DROP_MULTIPLIER = 1.36; // halve the apron drop to slim the skirt while keeping the tabletop level
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
-const SKIRT_ENABLED = false; // remove the apron so the rails can extend downward as a unified frame
-const FRAME_DEPTH_EXTENSION = TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER; // reuse the former skirt drop to stretch the rail shell downward
 const BASE_HEIGHT_FILL = 0.94; // grow bases upward so the stance stays consistent with the shorter skirt
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
@@ -3049,7 +3047,6 @@ const CLOTH_PATTERN_SCALE = 0.76; // tighten the pattern footprint so the scan r
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
 const POLYHAVEN_ANISOTROPY_BOOST = 2.6;
-const GLTF_TEXTURE_ANISOTROPY = 32;
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.55, 0.72);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
@@ -3058,15 +3055,6 @@ const CLOTH_PATTERN_OVERRIDES = Object.freeze({
   polar_fleece: { repeatScale: 0.94 }, // 10% larger pattern to emphasize the fleece nap
   terry_cloth: { repeatScale: 3 } // counter Polyhaven repeat scale so terry cloth matches the standard thread density
 });
-const CHESS_LEG_SET_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
-];
-let chessLegPrototypes = null;
-let chessLegLoadPromise = null;
-let chessLegLoader = null;
 
 const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
   if (!cloth?.sourceId) return acc;
@@ -3228,7 +3216,7 @@ const createClothTextures = (() => {
   const buildPolyHavenTextureUrls = (sourceId, resolution) => {
     if (!sourceId) return null;
     const normalized = String(sourceId).replace(/\s+/g, '_');
-    const res = resolution.toLowerCase();
+    const res = resolution.toUpperCase();
     const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${resolution}/${normalized}/${normalized}_${res}`;
     return {
       diffuse: `${base}_Color.jpg`,
@@ -3486,7 +3474,6 @@ const createClothTextures = (() => {
           urls = {};
         }
 
-        const fallback4k = buildPolyHavenTextureUrls(preset.sourceId, '4k');
         const fallback2k = buildPolyHavenTextureUrls(preset.sourceId, '2k');
         const fallback1k = buildPolyHavenTextureUrls(preset.sourceId, '1k');
         const loader = new THREE.TextureLoader();
@@ -3494,19 +3481,16 @@ const createClothTextures = (() => {
 
         const diffuseCandidates = [
           urls.diffuse,
-          fallback4k?.diffuse,
           fallback2k?.diffuse,
           fallback1k?.diffuse
         ].filter(Boolean);
         const normalCandidates = [
           urls.normal,
-          fallback4k?.normal,
           fallback2k?.normal,
           fallback1k?.normal
         ].filter(Boolean);
         const roughnessCandidates = [
           urls.roughness,
-          fallback4k?.roughness,
           fallback2k?.roughness,
           fallback1k?.roughness
         ].filter(Boolean);
@@ -3768,113 +3752,6 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     mesh.material.needsUpdate = true;
   });
   finishInfo.clothTextureKey = textureKey;
-}
-
-const ensureChessLegLoader = () => {
-  if (!chessLegLoader) {
-    chessLegLoader = new GLTFLoader();
-    chessLegLoader.setCrossOrigin('anonymous');
-  }
-  return chessLegLoader;
-};
-
-const cloneMaterialWithSharpness = (material) => {
-  if (!material) return material;
-  const cloned = material.clone ? material.clone() : material;
-  const maps = [
-    'map',
-    'emissiveMap',
-    'metalnessMap',
-    'roughnessMap',
-    'normalMap',
-    'aoMap'
-  ];
-  maps.forEach((key) => {
-    const tex = cloned[key];
-    if (!tex) return;
-    applySRGBColorSpace(tex);
-    tex.anisotropy = Math.max(tex.anisotropy || 1, GLTF_TEXTURE_ANISOTROPY);
-    if (tex.minFilter === THREE.LinearFilter) {
-      tex.minFilter = THREE.LinearMipmapLinearFilter;
-    }
-    tex.needsUpdate = true;
-  });
-  cloned.needsUpdate = true;
-  return cloned;
-};
-
-const cloneChessLegNode = (source) => {
-  const clone = source.clone(true);
-  clone.traverse((child) => {
-    if (!child?.isMesh) return;
-    const materials = Array.isArray(child.material) ? child.material : [child.material];
-    child.material = materials.map((mat) => cloneMaterialWithSharpness(mat));
-    child.castShadow = true;
-    child.receiveShadow = true;
-  });
-  return clone;
-};
-
-const promotePieceRoot = (node, matcher) => {
-  let current = node;
-  let parent = current?.parent;
-  while (parent) {
-    const name = parent.name?.toLowerCase?.() ?? '';
-    if (matcher(name)) {
-      current = parent;
-      parent = current.parent;
-    } else {
-      break;
-    }
-  }
-  return current;
-};
-
-const extractChessLegPieces = (scene) => {
-  if (!scene) return null;
-  const matches = { bishop: null, rook: null };
-  const isRook = (name) => /rook|castle/i.test(name);
-  const isBishop = (name) => /bishop/i.test(name);
-  scene.traverse((node) => {
-    const name = node?.name?.toLowerCase?.() ?? '';
-    if (!name) return;
-    if (!matches.rook && isRook(name)) {
-      matches.rook = cloneChessLegNode(promotePieceRoot(node, isRook));
-    }
-    if (!matches.bishop && isBishop(name)) {
-      matches.bishop = cloneChessLegNode(promotePieceRoot(node, isBishop));
-    }
-  });
-  if (!matches.rook && !matches.bishop) return null;
-  return matches;
-};
-
-async function ensureChessLegPrototypes() {
-  if (chessLegPrototypes) return chessLegPrototypes;
-  if (chessLegLoadPromise) return chessLegLoadPromise;
-  const loader = ensureChessLegLoader();
-  chessLegLoadPromise = (async () => {
-    let lastError = null;
-    for (const url of CHESS_LEG_SET_URLS) {
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        const gltf = await loader.loadAsync(url);
-        const scene = gltf?.scene || gltf?.scenes?.[0] || null;
-        const extracted = extractChessLegPieces(scene);
-        if (extracted) {
-          chessLegPrototypes = extracted;
-          return extracted;
-        }
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    if (lastError) throw lastError;
-    throw new Error('Failed to load chess leg set');
-  })().finally(() => {
-    chessLegLoadPromise = null;
-  });
-  return chessLegPrototypes || chessLegLoadPromise;
 }
 
 function resolveRepeatVector(settings, material) {
@@ -8286,23 +8163,22 @@ function Table3D(
     railsOuter.holes.push(hole);
   });
 
-  const railDepth = railH + FRAME_DEPTH_EXTENSION;
   let railsGeom = new THREE.ExtrudeGeometry(railsOuter, {
-    depth: railDepth,
+    depth: railH,
     bevelEnabled: false,
     curveSegments: 128
   });
-  railsGeom = softenOuterExtrudeEdges(railsGeom, railDepth, RAIL_OUTER_EDGE_RADIUS_RATIO, {
+  railsGeom = softenOuterExtrudeEdges(railsGeom, railH, RAIL_OUTER_EDGE_RADIUS_RATIO, {
     innerBounds: {
       halfWidth: Math.max(cushionInnerX, 0),
       halfHeight: Math.max(cushionInnerZ, 0),
       padding: TABLE.THICK * 0.04
     }
   });
-  railsGeom = projectRailUVs(railsGeom, { outerHalfW, outerHalfH, railH: railDepth });
+  railsGeom = projectRailUVs(railsGeom, { outerHalfW, outerHalfH, railH });
   const railsMesh = new THREE.Mesh(railsGeom, railMat);
   railsMesh.rotation.x = -Math.PI / 2;
-  railsMesh.position.y = frameTopY - FRAME_DEPTH_EXTENSION;
+  railsMesh.position.y = frameTopY;
   railsMesh.castShadow = true;
   railsMesh.receiveShadow = false;
   railsGroup.add(railsMesh);
@@ -8866,20 +8742,18 @@ function Table3D(
     inner.lineTo(frameOuterX, -frameOuterZ);
   }
   skirtShape.holes.push(inner);
-  if (SKIRT_ENABLED) {
-    const skirtGeo = new THREE.ExtrudeGeometry(skirtShape, {
-      depth: skirtH,
-      bevelEnabled: false
-    });
-    projectRailUVs(skirtGeo, { outerHalfW: outW, outerHalfH: outZ, railH: skirtH });
-    const skirt = new THREE.Mesh(skirtGeo, frameMat);
-    skirt.rotation.x = -Math.PI / 2;
-    skirt.position.y = frameTopY - skirtH + SKIRT_RAIL_GAP_FILL + MICRO_EPS * 0.5;
-    skirt.castShadow = true;
-    skirt.receiveShadow = true;
-    table.add(skirt);
-    finishParts.frameMeshes.push(skirt);
-  }
+  const skirtGeo = new THREE.ExtrudeGeometry(skirtShape, {
+    depth: skirtH,
+    bevelEnabled: false
+  });
+  projectRailUVs(skirtGeo, { outerHalfW: outW, outerHalfH: outZ, railH: skirtH });
+  const skirt = new THREE.Mesh(skirtGeo, frameMat);
+  skirt.rotation.x = -Math.PI / 2;
+  skirt.position.y = frameTopY - skirtH + SKIRT_RAIL_GAP_FILL + MICRO_EPS * 0.5;
+  skirt.castShadow = true;
+  skirt.receiveShadow = true;
+  table.add(skirt);
+  finishParts.frameMeshes.push(skirt);
 
   if (PLYWOOD_ENABLED && plywoodDepth > MICRO_EPS) {
     const plywoodShape = buildSurfaceShape(PLYWOOD_HOLE_R, -baseOverhang);
@@ -9036,21 +8910,6 @@ function Table3D(
     return mesh;
   };
 
-  const buildChessLegInstance = (prototype, ctx, offsetX, offsetZ) => {
-    if (!prototype) return null;
-    const leg = tagBasePart(cloneChessLegNode(prototype));
-    const box = new THREE.Box3().setFromObject(leg);
-    const height = Math.max(box.max.y - box.min.y, MICRO_EPS);
-    if (!Number.isFinite(height) || height <= MICRO_EPS) return null;
-    const scale = ctx.legH / height;
-    leg.scale.multiplyScalar(scale);
-    const scaledBox = new THREE.Box3().setFromObject(leg);
-    const bottom = scaledBox.min.y;
-    leg.position.set(offsetX, ctx.floorY - bottom, offsetZ);
-    leg.updateMatrixWorld(true);
-    return leg;
-  };
-
   const baseBuilders = {
     classicCylinders: (ctx) => {
       const positions = [
@@ -9068,13 +8927,71 @@ function Table3D(
         leg.receiveShadow = true;
         leg.userData = { ...(leg.userData || {}), __basePart: true };
         return leg;
-    });
-    return { meshes: legs, legMeshes: legs };
-  },
-  chessCastleLegs: (ctx) => {
-    const meshes = [];
-    const rookPrototype = chessLegPrototypes?.rook ?? null;
-    if (rookPrototype) {
+      });
+      return { meshes: legs, legMeshes: legs };
+    },
+    chessCastleLegs: (ctx) => {
+      const meshes = [];
+      const legRadius = ctx.legR * 1.1;
+      const crenelCount = 4;
+      const createRookLeg = (offsetX, offsetZ) => {
+        const footHeight = ctx.legH * 0.16;
+        const foot = tagBasePart(
+          new THREE.Mesh(
+            new THREE.CylinderGeometry(legRadius * 1.05, legRadius * 1.22, footHeight, 32),
+            ctx.legMat
+          )
+        );
+        foot.position.set(offsetX, ctx.floorY + footHeight / 2, offsetZ);
+        meshes.push(foot);
+
+        const bodyHeight = ctx.legH * 0.62;
+        const body = tagBasePart(
+          new THREE.Mesh(
+            new THREE.CylinderGeometry(legRadius * 0.95, legRadius * 1.05, bodyHeight, 32),
+            ctx.legMat
+          )
+        );
+        body.position.set(offsetX, ctx.floorY + footHeight + bodyHeight / 2, offsetZ);
+        meshes.push(body);
+
+        const belt = tagBasePart(
+          new THREE.Mesh(new THREE.TorusGeometry(legRadius * 0.95, legRadius * 0.14, 18, 48), ctx.legMat)
+        );
+        belt.rotation.x = Math.PI / 2;
+        belt.position.set(offsetX, ctx.floorY + footHeight + bodyHeight * 0.84, offsetZ);
+        meshes.push(belt);
+
+        const crownHeight = ctx.legH * 0.22;
+        const crown = tagBasePart(
+          new THREE.Mesh(
+            new THREE.CylinderGeometry(legRadius * 1.12, legRadius * 0.98, crownHeight * 0.55, 24),
+            ctx.legMat
+          )
+        );
+        crown.position.set(
+          offsetX,
+          ctx.floorY + footHeight + bodyHeight + crownHeight * 0.28,
+          offsetZ
+        );
+        meshes.push(crown);
+        for (let i = 0; i < crenelCount; i += 1) {
+          const chunk = tagBasePart(
+            new THREE.Mesh(
+              new THREE.BoxGeometry(legRadius * 0.62, crownHeight * 0.45, legRadius * 0.62),
+              ctx.legMat
+            )
+          );
+          const angle = (i * Math.PI * 2) / crenelCount;
+          chunk.position.set(
+            offsetX + Math.cos(angle) * legRadius * 0.86,
+            crown.position.y + crownHeight * 0.48,
+            offsetZ + Math.sin(angle) * legRadius * 0.86
+          );
+          meshes.push(chunk);
+        }
+      };
+
       const offsetX = ctx.frameOuterX - ctx.legInset * 0.9;
       const offsetZ = ctx.frameOuterZ - ctx.legInset * 0.9;
       [
@@ -9083,83 +9000,10 @@ function Table3D(
         [-offsetX, offsetZ],
         [offsetX, offsetZ]
       ].forEach(([lx, lz]) => {
-        const leg = buildChessLegInstance(rookPrototype, ctx, lx, lz);
-        if (leg) meshes.push(leg);
+        createRookLeg(lx, lz);
       });
       return { meshes, legMeshes: meshes };
-    }
-    const legRadius = ctx.legR * 1.1;
-    const crenelCount = 4;
-    const createRookLeg = (offsetX, offsetZ) => {
-      const footHeight = ctx.legH * 0.16;
-      const foot = tagBasePart(
-        new THREE.Mesh(
-          new THREE.CylinderGeometry(legRadius * 1.05, legRadius * 1.22, footHeight, 32),
-          ctx.legMat
-        )
-      );
-      foot.position.set(offsetX, ctx.floorY + footHeight / 2, offsetZ);
-      meshes.push(foot);
-
-      const bodyHeight = ctx.legH * 0.62;
-      const body = tagBasePart(
-        new THREE.Mesh(
-          new THREE.CylinderGeometry(legRadius * 0.95, legRadius * 1.05, bodyHeight, 32),
-          ctx.legMat
-        )
-      );
-      body.position.set(offsetX, ctx.floorY + footHeight + bodyHeight / 2, offsetZ);
-      meshes.push(body);
-
-      const belt = tagBasePart(
-        new THREE.Mesh(new THREE.TorusGeometry(legRadius * 0.95, legRadius * 0.14, 18, 48), ctx.legMat)
-      );
-      belt.rotation.x = Math.PI / 2;
-      belt.position.set(offsetX, ctx.floorY + footHeight + bodyHeight * 0.84, offsetZ);
-      meshes.push(belt);
-
-      const crownHeight = ctx.legH * 0.22;
-      const crown = tagBasePart(
-        new THREE.Mesh(
-          new THREE.CylinderGeometry(legRadius * 1.12, legRadius * 0.98, crownHeight * 0.55, 24),
-          ctx.legMat
-        )
-      );
-      crown.position.set(
-        offsetX,
-        ctx.floorY + footHeight + bodyHeight + crownHeight * 0.28,
-        offsetZ
-      );
-      meshes.push(crown);
-      for (let i = 0; i < crenelCount; i += 1) {
-        const chunk = tagBasePart(
-          new THREE.Mesh(
-            new THREE.BoxGeometry(legRadius * 0.62, crownHeight * 0.45, legRadius * 0.62),
-            ctx.legMat
-          )
-        );
-        const angle = (i * Math.PI * 2) / crenelCount;
-        chunk.position.set(
-          offsetX + Math.cos(angle) * legRadius * 0.86,
-          crown.position.y + crownHeight * 0.48,
-          offsetZ + Math.sin(angle) * legRadius * 0.86
-        );
-        meshes.push(chunk);
-      }
-    };
-
-    const offsetX = ctx.frameOuterX - ctx.legInset * 0.9;
-    const offsetZ = ctx.frameOuterZ - ctx.legInset * 0.9;
-    [
-      [-offsetX, -offsetZ],
-      [offsetX, -offsetZ],
-      [-offsetX, offsetZ],
-      [offsetX, offsetZ]
-    ].forEach(([lx, lz]) => {
-      createRookLeg(lx, lz);
-    });
-    return { meshes, legMeshes: meshes };
-  },
+    },
     zLift: (ctx) => {
       const meshes = [];
       const span = ctx.frameOuterX * 1.35;
@@ -9301,7 +9145,7 @@ function Table3D(
       meshes.push(base);
       return { meshes, legMeshes: meshes };
     },
-  heritageCarved: (ctx) => {
+    heritageCarved: (ctx) => {
       const meshes = [];
       const profile = [];
       const legHeight = ctx.legH * 0.95;
@@ -9341,21 +9185,6 @@ function Table3D(
     },
     chessBishopLegs: (ctx) => {
       const meshes = [];
-      const bishopPrototype = chessLegPrototypes?.bishop ?? chessLegPrototypes?.rook ?? null;
-      if (bishopPrototype) {
-        const offsetX = ctx.frameOuterX - ctx.legInset * 0.92;
-        const offsetZ = ctx.frameOuterZ - ctx.legInset * 0.92;
-        [
-          [-offsetX, -offsetZ],
-          [offsetX, -offsetZ],
-          [-offsetX, offsetZ],
-          [offsetX, offsetZ]
-        ].forEach(([lx, lz]) => {
-          const leg = buildChessLegInstance(bishopPrototype, ctx, lx, lz);
-          if (leg) meshes.push(leg);
-        });
-        return { meshes, legMeshes: meshes };
-      }
       const legRadius = ctx.legR * 1.02;
       const createBishopLeg = (offsetX, offsetZ) => {
         const footHeight = ctx.legH * 0.14;
@@ -9527,7 +9356,8 @@ function Table3D(
     return DEFAULT_TABLE_BASE_ID;
   };
 
-  const buildBaseVariant = (variantId) => {
+  const applyBaseVariant = (variant) => {
+    const variantId = resolveBaseVariantId(variant);
     const builder = baseBuilders[variantId] ?? baseBuilders[DEFAULT_TABLE_BASE_ID];
     clearBaseMeshes();
     const finishMaterials = table.userData?.finish?.materials || {};
@@ -9541,25 +9371,6 @@ function Table3D(
     addBaseMeshesToFinish(built);
     finishParts.baseVariantId = variantId;
     table.userData.baseVariantId = variantId;
-  };
-
-  const ensureChessLegUpgrade = (variantId) => {
-    if (variantId !== 'chessCastleLegs' && variantId !== 'chessBishopLegs') return;
-    ensureChessLegPrototypes()
-      .then(() => {
-        if (table.userData.baseVariantId === variantId) {
-          buildBaseVariant(variantId);
-        }
-      })
-      .catch((error) => {
-        console.warn('Failed to upgrade chess leg base with GLTF pieces', error);
-      });
-  };
-
-  const applyBaseVariant = (variant) => {
-    const variantId = resolveBaseVariantId(variant);
-    buildBaseVariant(variantId);
-    ensureChessLegUpgrade(variantId);
   };
 
   applyBaseVariant(baseVariant || DEFAULT_TABLE_BASE_ID);
