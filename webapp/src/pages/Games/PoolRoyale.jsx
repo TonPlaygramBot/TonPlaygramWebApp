@@ -4111,9 +4111,13 @@ function projectRailUVs(geometry, bounds) {
     const uAxis = dominantZ ? 'x' : absX >= absY ? 'y' : 'x';
     const vAxis = dominantZ ? 'y' : 'z';
 
+    const matchedExtent = dominantZ ? extents[vAxis] : extents[uAxis];
+    const vSharpness = dominantZ ? 1 : 1.12;
+
     verts.forEach((v, idx) => {
       const u = (v[uAxis] + extents[uAxis] / 2) / extents[uAxis];
-      const vCoord = (v[vAxis] + extents[vAxis] / 2) / extents[vAxis];
+      const vCoord =
+        ((v[vAxis] + extents[vAxis] / 2) / matchedExtent) * vSharpness;
       const uvIndex = (i + idx) * 2;
       uv[uvIndex] = u;
       uv[uvIndex + 1] = vCoord;
@@ -9054,7 +9058,8 @@ function Table3D(
       footprintDepthScale = null,
       heightFill = 0.82,
       topInsetScale = 0.95,
-      materialKey = null
+      materialKey = null,
+      matchTableFootprint = false
     } = {}
   ) => {
     return (ctx) => {
@@ -9074,12 +9079,20 @@ function Table3D(
         const targetWidth = ctx.frameOuterX * 2 * footprintScale;
         const targetDepth =
           ctx.frameOuterZ * 2 * (footprintDepthScale ?? footprintScale * 0.96);
-        const scale = Math.min(
-          size.x > MICRO_EPS ? targetWidth / size.x : 1,
-          size.z > MICRO_EPS ? targetDepth / size.z : 1
-        );
-        if (Number.isFinite(scale) && scale > 0) {
-          base.scale.multiplyScalar(scale);
+        const widthScale = size.x > MICRO_EPS ? targetWidth / size.x : 1;
+        const depthScale = size.z > MICRO_EPS ? targetDepth / size.z : 1;
+        const uniformScale = Math.min(widthScale, depthScale);
+        const scaleX = matchTableFootprint ? widthScale : uniformScale;
+        const scaleZ = matchTableFootprint ? depthScale : uniformScale;
+        if (
+          Number.isFinite(scaleX) &&
+          scaleX > 0 &&
+          Number.isFinite(scaleZ) &&
+          scaleZ > 0 &&
+          Number.isFinite(uniformScale) &&
+          uniformScale > 0
+        ) {
+          base.scale.set(scaleX, uniformScale, scaleZ);
         }
         base.updateMatrixWorld(true);
         const scaledBounds = new THREE.Box3().setFromObject(base);
@@ -9147,6 +9160,10 @@ function Table3D(
             rook.scale.multiplyScalar(scale);
             bounds.setFromObject(rook);
           }
+          const slenderFactor = 0.92;
+          rook.scale.x *= slenderFactor;
+          rook.scale.z *= slenderFactor;
+          bounds.setFromObject(rook);
           const yOffset = ctx.floorY - bounds.min.y;
           rook.position.set(offsetX, yOffset, offsetZ);
           rook.updateMatrixWorld(true);
@@ -9275,7 +9292,7 @@ function Table3D(
       const legBaseY = ctx.floorY + footHeight / 2;
       const legY = legBaseY + legHeight / 2;
       const beamY = legBaseY + legHeight + beamHeight / 2;
-      const portalZ = ctx.frameOuterZ - ctx.legInset * 0.6;
+      const portalZ = ctx.frameOuterZ - ctx.legInset;
       const buildPortal = (signZ) => {
         const portal = new THREE.Group();
         const addLegAssembly = (side) => {
@@ -9296,49 +9313,11 @@ function Table3D(
         portal.add(beam);
         legMeshes.push(beam);
         portal.position.set(0, 0, signZ * portalZ);
-        portal.rotation.y = Math.PI;
+        portal.rotation.y = signZ < 0 ? 0 : Math.PI;
         meshes.push(portal);
       };
       [-1, 1].forEach((signZ) => buildPortal(signZ));
       return { meshes, legMeshes };
-    },
-    heritageCarved: (ctx) => {
-      const meshes = [];
-      const profile = [];
-      const legHeight = ctx.legH * 0.95;
-      const steps = 12;
-      for (let i = 0; i <= steps; i += 1) {
-        const t = i / steps;
-        const r =
-          ctx.legR * (0.5 + 0.35 * Math.sin(Math.PI * t)) *
-          (t < 0.5 ? 1.1 : 0.9);
-        profile.push(new THREE.Vector2(r, t * legHeight));
-      }
-      const latheGeo = new THREE.LatheGeometry(profile, 32);
-      const positions = [
-        [-ctx.frameOuterX + ctx.legInset * 1.15, -ctx.frameOuterZ + ctx.legInset * 1.15],
-        [ctx.frameOuterX - ctx.legInset * 1.15, -ctx.frameOuterZ + ctx.legInset * 1.15],
-        [-ctx.frameOuterX + ctx.legInset * 1.15, ctx.frameOuterZ - ctx.legInset * 1.15],
-        [ctx.frameOuterX - ctx.legInset * 1.15, ctx.frameOuterZ - ctx.legInset * 1.15]
-      ];
-      positions.forEach(([lx, lz]) => {
-        const leg = new THREE.Mesh(latheGeo, ctx.legMat);
-        leg.position.set(lx, ctx.floorY, lz);
-        leg.castShadow = true;
-        leg.receiveShadow = true;
-        leg.userData = { ...(leg.userData || {}), __basePart: true };
-        meshes.push(leg);
-      });
-      const stretcher = new THREE.Mesh(
-        new THREE.BoxGeometry(ctx.frameOuterX * 1.2, ctx.legR * 0.8, ctx.frameOuterZ * 1.2),
-        ctx.legMat
-      );
-      stretcher.position.y = ctx.floorY + ctx.legR * 0.6;
-      stretcher.castShadow = true;
-      stretcher.receiveShadow = true;
-      stretcher.userData = { ...(stretcher.userData || {}), __basePart: true };
-      meshes.push(stretcher);
-      return { meshes, legMeshes: meshes };
     },
     chessBishopLegs: (ctx) => {
       const meshes = [];
@@ -9461,7 +9440,8 @@ function Table3D(
       footprintDepthScale: 1,
       heightFill: 0.9,
       topInsetScale: 0.96,
-      materialKey: 'rail'
+      materialKey: 'rail',
+      matchTableFootprint: true
     }),
     coffeeTableRound01: createPolyhavenTableBaseBuilder('coffee_table_round_01', {
       footprintScale: 1.05,
@@ -9475,7 +9455,8 @@ function Table3D(
       footprintDepthScale: 1,
       heightFill: 0.9,
       topInsetScale: 0.98,
-      materialKey: 'rail'
+      materialKey: 'rail',
+      matchTableFootprint: true
     })
   };
 

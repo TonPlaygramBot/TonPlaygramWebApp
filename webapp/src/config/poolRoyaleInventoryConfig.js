@@ -32,13 +32,6 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundResolution: 112,
     arenaScale: 1.25
   },
-  entranceHall: {
-    cameraHeightM: 1.56,
-    groundRadiusMultiplier: 4.8,
-    groundResolution: 112,
-    arenaScale: 1.2,
-    rotationY: Math.PI / 2
-  },
   marryHall: {
     cameraHeightM: 1.57,
     groundRadiusMultiplier: 4.9,
@@ -224,19 +217,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 0.98,
     swatches: ['#64748b', '#0f172a'],
     description: 'Moody derelict hall with soft overhead spill and cool shadows.'
-  },
-  {
-    id: 'entranceHall',
-    name: 'Entrance Hall',
-    assetId: 'entrance_hall',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 1900,
-    exposure: 1.09,
-    environmentIntensity: 1.06,
-    backgroundIntensity: 1,
-    swatches: ['#a3e635', '#22c55e'],
-    description: 'Bright lobby ambience with balanced daylight fill and mild speculars.'
   },
   {
     id: 'marryHall',
@@ -509,12 +489,6 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     name: 'Open Portal',
     description: 'Twin portal legs with angled sides and negative space.',
     swatches: ['#f8fafc', '#e5e7eb']
-  },
-  {
-    id: 'heritageCarved',
-    name: 'Heritage Carved',
-    description: 'Cabriole-inspired carved legs for heritage rooms.',
-    swatches: ['#5b3716', '#c08457']
   },
   {
     id: 'chessBishopLegs',
