@@ -4997,7 +4997,7 @@ const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.15; // lift the top view slightly to keep both near pockets visible on portrait
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22); // reduce angle toward a flatter overhead
-const TOP_VIEW_RADIUS_SCALE = 1.1; // back the camera off a hair to include bottom pockets without tilt
+const TOP_VIEW_RADIUS_SCALE = 1.14; // lift the 2D top view a bit higher to keep the full field comfortably in frame
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: 0, // center the table for the classic top-down framing
@@ -11337,8 +11337,13 @@ const powerRef = useRef(hud.power);
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
-    const baseGain = volumeRef.current * 1.2 * 1.5 * (0.35 + power * 0.75);
-    const scaled = clamp(baseGain, 0, 2);
+    const baseGain =
+      volumeRef.current *
+      1.2 *
+      1.5 *
+      1.5 * // boost cue strike loudness by 50%
+      (0.35 + power * 0.75);
+    const scaled = clamp(baseGain, 0, 3);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -21458,17 +21463,17 @@ const powerRef = useRef(hud.power);
                 const nowLanding = performance.now();
                 if (nowLanding - lastLanding > MAX_POWER_LANDING_SOUND_COOLDOWN_MS) {
                   const landingVol = clamp(
-                    Math.abs(dampedVel) / MAX_POWER_BOUNCE_IMPULSE,
-                    0,
-                    1
-                  );
-                  const cueLandingVol = Math.max(0.45, landingVol * 0.95);
-                  playCueHit(cueLandingVol);
+                  Math.abs(dampedVel) / MAX_POWER_BOUNCE_IMPULSE,
+                  0,
+                  1
+                );
+                  const landingHitVol = Math.max(0.45, landingVol * 0.95);
+                  playBallHit(landingHitVol);
                   liftLandingTimeRef.current.set(b.id, nowLanding);
                 }
               }
-              b.lift = nextLift;
-              b.liftVel = Math.abs(nextLift) > 1e-6 ? nextVel : 0;
+            b.lift = nextLift;
+            b.liftVel = Math.abs(nextLift) > 1e-6 ? nextVel : 0;
               if (nextLift <= 1e-4 && Math.abs(nextVel) <= 1e-4) {
                 b.lift = 0;
                 b.liftVel = 0;
