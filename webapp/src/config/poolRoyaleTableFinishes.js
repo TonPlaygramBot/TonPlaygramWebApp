@@ -1,8 +1,8 @@
 export const POOL_ROYALE_TABLE_FINISH_VARIANTS = Object.freeze([
   Object.freeze({
-    id: 'peelingPaintWeathered',
+    id: 'peelingPaintWeathered-driftwood',
     baseId: 'peelingPaintWeathered',
-    label: 'Wood Peeling Paint Weathered',
+    label: 'Peeling Paint Weathered — Driftwood',
     woodTextureId: 'wood_peeling_paint_weathered',
     rail: 0xb8b3aa,
     base: 0xa89f95,
@@ -11,9 +11,53 @@ export const POOL_ROYALE_TABLE_FINISH_VARIANTS = Object.freeze([
     swatches: ['#a89f95', '#d6d0c7']
   }),
   Object.freeze({
-    id: 'oakVeneer01',
+    id: 'peelingPaintWeathered-seaGlass',
+    baseId: 'peelingPaintWeathered',
+    label: 'Peeling Paint Weathered — Sea Glass',
+    woodTextureId: 'wood_peeling_paint_weathered',
+    rail: 0xa5b5b1,
+    base: 0x91a59c,
+    trim: 0xc3d6d0,
+    woodRepeatScale: 1,
+    swatches: ['#91a59c', '#c3d6d0']
+  }),
+  Object.freeze({
+    id: 'peelingPaintWeathered-sandbar',
+    baseId: 'peelingPaintWeathered',
+    label: 'Peeling Paint Weathered — Sandbar',
+    woodTextureId: 'wood_peeling_paint_weathered',
+    rail: 0xcdbba3,
+    base: 0xbfa78a,
+    trim: 0xe8d8c0,
+    woodRepeatScale: 1,
+    swatches: ['#bfa78a', '#e8d8c0']
+  }),
+  Object.freeze({
+    id: 'peelingPaintWeathered-storm',
+    baseId: 'peelingPaintWeathered',
+    label: 'Peeling Paint Weathered — Storm',
+    woodTextureId: 'wood_peeling_paint_weathered',
+    rail: 0x9aa3b1,
+    base: 0x828b9a,
+    trim: 0xc2cad9,
+    woodRepeatScale: 1,
+    swatches: ['#828b9a', '#c2cad9']
+  }),
+  Object.freeze({
+    id: 'peelingPaintWeathered-ember',
+    baseId: 'peelingPaintWeathered',
+    label: 'Peeling Paint Weathered — Ember',
+    woodTextureId: 'wood_peeling_paint_weathered',
+    rail: 0xb79b84,
+    base: 0xa08066,
+    trim: 0xd8b79a,
+    woodRepeatScale: 1,
+    swatches: ['#a08066', '#d8b79a']
+  }),
+  Object.freeze({
+    id: 'oakVeneer01-amber',
     baseId: 'oakVeneer01',
-    label: 'Oak Veneer 01',
+    label: 'Oak Veneer — Amber',
     woodTextureId: 'oak_veneer_01',
     rail: 0xc89a64,
     base: 0xb9854e,
@@ -22,9 +66,53 @@ export const POOL_ROYALE_TABLE_FINISH_VARIANTS = Object.freeze([
     swatches: ['#b9854e', '#e0bb7a']
   }),
   Object.freeze({
-    id: 'woodTable001',
+    id: 'oakVeneer01-honey',
+    baseId: 'oakVeneer01',
+    label: 'Oak Veneer — Honey',
+    woodTextureId: 'oak_veneer_01',
+    rail: 0xd7ad72,
+    base: 0xc7975a,
+    trim: 0xefd3a0,
+    woodRepeatScale: 1,
+    swatches: ['#c7975a', '#efd3a0']
+  }),
+  Object.freeze({
+    id: 'oakVeneer01-rye',
+    baseId: 'oakVeneer01',
+    label: 'Oak Veneer — Rye',
+    woodTextureId: 'oak_veneer_01',
+    rail: 0xbb905c,
+    base: 0xa97a46,
+    trim: 0xd7b280,
+    woodRepeatScale: 1,
+    swatches: ['#a97a46', '#d7b280']
+  }),
+  Object.freeze({
+    id: 'oakVeneer01-moss',
+    baseId: 'oakVeneer01',
+    label: 'Oak Veneer — Moss',
+    woodTextureId: 'oak_veneer_01',
+    rail: 0xa88d6a,
+    base: 0x947651,
+    trim: 0xc9b08a,
+    woodRepeatScale: 1,
+    swatches: ['#947651', '#c9b08a']
+  }),
+  Object.freeze({
+    id: 'oakVeneer01-charcoal',
+    baseId: 'oakVeneer01',
+    label: 'Oak Veneer — Charcoal',
+    woodTextureId: 'oak_veneer_01',
+    rail: 0x8f7356,
+    base: 0x7a5d42,
+    trim: 0xab8a6c,
+    woodRepeatScale: 1,
+    swatches: ['#7a5d42', '#ab8a6c']
+  }),
+  Object.freeze({
+    id: 'woodTable001-heritage',
     baseId: 'woodTable001',
-    label: 'Wood Table 001',
+    label: 'Wood Table — Heritage',
     woodTextureId: 'wood_table_001',
     rail: 0xa4724f,
     base: 0x8f6243,
@@ -33,9 +121,53 @@ export const POOL_ROYALE_TABLE_FINISH_VARIANTS = Object.freeze([
     swatches: ['#8f6243', '#c89a64']
   }),
   Object.freeze({
-    id: 'darkWood',
+    id: 'woodTable001-ember',
+    baseId: 'woodTable001',
+    label: 'Wood Table — Ember',
+    woodTextureId: 'wood_table_001',
+    rail: 0xb06f50,
+    base: 0x9a5b3d,
+    trim: 0xd59a6d,
+    woodRepeatScale: 1,
+    swatches: ['#9a5b3d', '#d59a6d']
+  }),
+  Object.freeze({
+    id: 'woodTable001-dune',
+    baseId: 'woodTable001',
+    label: 'Wood Table — Dune',
+    woodTextureId: 'wood_table_001',
+    rail: 0x967a63,
+    base: 0x80644f,
+    trim: 0xb89c83,
+    woodRepeatScale: 1,
+    swatches: ['#80644f', '#b89c83']
+  }),
+  Object.freeze({
+    id: 'woodTable001-moss',
+    baseId: 'woodTable001',
+    label: 'Wood Table — Moss',
+    woodTextureId: 'wood_table_001',
+    rail: 0x7f6a52,
+    base: 0x6a553f,
+    trim: 0xa4886d,
+    woodRepeatScale: 1,
+    swatches: ['#6a553f', '#a4886d']
+  }),
+  Object.freeze({
+    id: 'woodTable001-noir',
+    baseId: 'woodTable001',
+    label: 'Wood Table — Noir',
+    woodTextureId: 'wood_table_001',
+    rail: 0x5c4436,
+    base: 0x4b3428,
+    trim: 0x8a6b55,
+    woodRepeatScale: 1,
+    swatches: ['#4b3428', '#8a6b55']
+  }),
+  Object.freeze({
+    id: 'darkWood-obsidian',
     baseId: 'darkWood',
-    label: 'Dark Wood',
+    label: 'Dark Wood — Obsidian',
     woodTextureId: 'dark_wood',
     rail: 0x3d2f2a,
     base: 0x2f241f,
@@ -44,15 +176,48 @@ export const POOL_ROYALE_TABLE_FINISH_VARIANTS = Object.freeze([
     swatches: ['#2f241f', '#6a5a52']
   }),
   Object.freeze({
-    id: 'rosewoodVeneer01',
-    baseId: 'rosewoodVeneer01',
-    label: 'Rosewood Veneer 01',
-    woodTextureId: 'rosewood_veneer_01',
-    rail: 0x6f3a2f,
-    base: 0x5b2f26,
-    trim: 0x9b5a44,
+    id: 'darkWood-ember',
+    baseId: 'darkWood',
+    label: 'Dark Wood — Ember',
+    woodTextureId: 'dark_wood',
+    rail: 0x4a322b,
+    base: 0x3a2721,
+    trim: 0x7b5c52,
     woodRepeatScale: 1,
-    swatches: ['#5b2f26', '#9b5a44']
+    swatches: ['#3a2721', '#7b5c52']
+  }),
+  Object.freeze({
+    id: 'darkWood-slate',
+    baseId: 'darkWood',
+    label: 'Dark Wood — Slate',
+    woodTextureId: 'dark_wood',
+    rail: 0x3a3c3f,
+    base: 0x2d2f32,
+    trim: 0x6b6e73,
+    woodRepeatScale: 1,
+    swatches: ['#2d2f32', '#6b6e73']
+  }),
+  Object.freeze({
+    id: 'darkWood-cocoa',
+    baseId: 'darkWood',
+    label: 'Dark Wood — Cocoa',
+    woodTextureId: 'dark_wood',
+    rail: 0x4f3b30,
+    base: 0x3f2d24,
+    trim: 0x7e6151,
+    woodRepeatScale: 1,
+    swatches: ['#3f2d24', '#7e6151']
+  }),
+  Object.freeze({
+    id: 'darkWood-forest',
+    baseId: 'darkWood',
+    label: 'Dark Wood — Forest',
+    woodTextureId: 'dark_wood',
+    rail: 0x3f352d,
+    base: 0x312821,
+    trim: 0x6b5a4f,
+    woodRepeatScale: 1,
+    swatches: ['#312821', '#6b5a4f']
   })
 ]);
 
