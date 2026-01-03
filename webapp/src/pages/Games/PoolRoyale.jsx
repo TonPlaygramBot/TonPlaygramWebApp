@@ -1223,6 +1223,7 @@ const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to ke
 const SWERVE_THRESHOLD = 0.7; // outer 30% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.86; // let swerve-driven roll carry more lateral energy while staying believable
 const PRE_IMPACT_SPIN_DRIFT = 0.1; // reapply stored sideways swerve once the cue ball is rolling after impact
+const SWERVE_PRE_IMPACT_DRIFT = 0.42; // let pre-impact swerve visibly bend the cue ball path while keeping control
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
@@ -11229,15 +11230,20 @@ const powerRef = useRef(hud.power);
   const spinLimitsRef = useRef({ ...DEFAULT_SPIN_LIMITS });
   const spinAppliedRef = useRef({ x: 0, y: 0, mode: 'standard', magnitude: 0 });
   const spinDotElRef = useRef(null);
+  const swerveHighlightRef = useRef(null);
+  const lastSwerveActiveRef = useRef(false);
+  const swerveSoundCooldownRef = useRef(0);
+  const playSwerveSpinRef = useRef(() => {});
   const spinLegalityRef = useRef({ blocked: false, reason: '' });
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
-  const updateSpinDotPosition = useCallback((value, blocked) => {
+  const updateSpinDotPosition = useCallback((value, blocked, options = {}) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
+    const highlight = swerveHighlightRef.current;
     if (!dot) return;
     const x = clamp(value.x ?? 0, -1, 1);
     const y = clamp(value.y ?? 0, -1, 1);
@@ -11251,12 +11257,36 @@ const powerRef = useRef(hud.power);
     dot.style.top = `${50 + scaledY * 50}%`;
     const magnitude = Math.hypot(x, y);
     const showBlocked = blocked ?? spinLegalityRef.current?.blocked;
+    const swerveActive =
+      options?.swerveActive ??
+      (!showBlocked && magnitude >= SWERVE_THRESHOLD);
     dot.style.backgroundColor = showBlocked
       ? '#9ca3af'
-      : magnitude >= SWERVE_THRESHOLD
+      : swerveActive
         ? '#facc15'
         : '#dc2626';
     dot.dataset.blocked = showBlocked ? '1' : '0';
+    dot.dataset.swerve = swerveActive ? '1' : '0';
+    if (highlight) {
+      highlight.style.left = `${50 + scaledX * 50}%`;
+      highlight.style.top = `${50 + scaledY * 50}%`;
+      highlight.style.opacity = swerveActive && !showBlocked ? '1' : '0';
+    }
+    const now =
+      typeof performance !== 'undefined' && performance.now
+        ? performance.now()
+        : Date.now();
+    if (
+      swerveActive &&
+      !showBlocked &&
+      !lastSwerveActiveRef.current &&
+      now - swerveSoundCooldownRef.current > 420 &&
+      options?.fromInput
+    ) {
+      playSwerveSpinRef.current?.(0.9);
+      swerveSoundCooldownRef.current = now;
+    }
+    lastSwerveActiveRef.current = swerveActive && !showBlocked;
   }, []);
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
@@ -11272,7 +11302,8 @@ const powerRef = useRef(hud.power);
     knock: null,
     cheer: null,
     shock: null,
-    chalk: null
+    chalk: null,
+    swerve: null
   });
   const chessBoardTextureRef = useRef(null);
   const dartboardTextureRef = useRef(null);
@@ -11431,6 +11462,28 @@ const powerRef = useRef(hud.power);
     source.start(0);
   }, []);
 
+  const playSwerveSpin = useCallback(
+    (vol = 1) => {
+      const ctx = audioContextRef.current;
+      const buffer = audioBuffersRef.current.swerve;
+      if (!ctx || !buffer || muteRef.current) return;
+      const scaled = clamp(vol * volumeRef.current * 0.85, 0, 1);
+      if (scaled <= 0) return;
+      ctx.resume().catch(() => {});
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      const gain = ctx.createGain();
+      gain.gain.value = scaled;
+      source.connect(gain);
+      routeAudioNode(gain);
+      source.start(0);
+    },
+    [routeAudioNode]
+  );
+  useEffect(() => {
+    playSwerveSpinRef.current = playSwerveSpin;
+  }, [playSwerveSpin]);
+
   const playCheer = useCallback(
     (vol = 1) => {
       const ctx = audioContextRef.current;
@@ -11576,7 +11629,8 @@ const powerRef = useRef(hud.power);
         ['knock', '/assets/sounds/wooden-door-knock-102902.mp3'],
         ['cheer', '/assets/sounds/crowd-cheering-383111.mp3'],
         ['shock', '/assets/sounds/crowd-shocked-reaction-352766.mp3'],
-        ['chalk', '/assets/sounds/adding-chalk-to-a-snooker-cue-102468.mp3']
+        ['chalk', '/assets/sounds/adding-chalk-to-a-snooker-cue-102468.mp3'],
+        ['swerve', '/assets/sounds/Trim_SNOOKER_SWERVE_SHOT__shorts_1.mp3']
       ];
       const loaded = {};
       for (const [key, path] of entries) {
@@ -11601,7 +11655,8 @@ const powerRef = useRef(hud.power);
         knock: null,
         cheer: null,
         shock: null,
-        chalk: null
+        chalk: null,
+        swerve: null
       };
       audioContextRef.current = null;
       ctx.close().catch(() => {});
@@ -21517,6 +21572,9 @@ const powerRef = useRef(hud.power);
                   const alignedSpeed = b.vel.dot(launchDir);
                   TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
                   b.vel.copy(TMP_VEC2_AXIS);
+                  if (b.spinMode === 'swerve') {
+                    b.vel.addScaledVector(TMP_VEC2_LATERAL, SWERVE_PRE_IMPACT_DRIFT);
+                  }
                 } else {
                   b.vel.add(TMP_VEC2_SPIN);
                   if (
@@ -22490,6 +22548,9 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     if (!showSpinController) {
       spinDotElRef.current = null;
+      swerveHighlightRef.current = null;
+      lastSwerveActiveRef.current = false;
+      swerveSoundCooldownRef.current = 0;
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
       spinLegalityRef.current = { blocked: false, reason: '' };
@@ -22498,8 +22559,10 @@ const powerRef = useRef(hud.power);
 
     const box = document.getElementById('spinBox');
     const dot = document.getElementById('spinDot');
+    const highlight = document.getElementById('spinSwerveHighlight');
     if (!box || !dot) return;
     spinDotElRef.current = dot;
+    swerveHighlightRef.current = highlight;
 
     box.style.transition = 'transform 0.18s ease';
     box.style.transformOrigin = '50% 50%';
@@ -22542,7 +22605,10 @@ const powerRef = useRef(hud.power);
         }
       );
       spinLegalityRef.current = legality;
-      updateSpinDotPosition(limited, legality.blocked);
+      const swerveActive =
+        !legality.blocked &&
+        Math.hypot(limited.x ?? 0, limited.y ?? 0) >= SWERVE_THRESHOLD;
+      updateSpinDotPosition(limited, legality.blocked, { swerveActive, fromInput: true });
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
@@ -22625,6 +22691,9 @@ const powerRef = useRef(hud.power);
 
     return () => {
       spinDotElRef.current = null;
+      swerveHighlightRef.current = null;
+      lastSwerveActiveRef.current = false;
+      swerveSoundCooldownRef.current = 0;
       releasePointer();
       clearTimer();
       resetSpinRef.current = () => {};
@@ -23736,6 +23805,17 @@ const powerRef = useRef(hud.power);
                 height: `${SPIN_RING_RATIO * 100}%`,
                 left: `${(1 - SPIN_RING_RATIO) * 50}%`,
                 top: `${(1 - SPIN_RING_RATIO) * 50}%`
+              }}
+            />
+            <div
+              id="spinSwerveHighlight"
+              className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full opacity-0 transition-opacity duration-150"
+              style={{
+                width: `${SPIN_DOT_DIAMETER_PX * 3}px`,
+                height: `${SPIN_DOT_DIAMETER_PX * 3}px`,
+                background:
+                  'radial-gradient(circle, rgba(250,204,21,0.38) 0%, rgba(250,204,21,0.18) 55%, rgba(250,204,21,0) 72%)',
+                boxShadow: '0 0 16px rgba(250, 204, 21, 0.45)'
               }}
             />
             <div
