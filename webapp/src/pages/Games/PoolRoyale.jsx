@@ -1237,7 +1237,7 @@ const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
 const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
-const CUE_STRIKE_VOLUME_MULTIPLIER = 1.5; // set cue strikes to 150% loudness for clearer feedback
+const CUE_STRIKE_VOLUME_MULTIPLIER = 2; // set cue strikes to 200% loudness for clearer feedback
 const POCKET_SOUND_TAIL = 1;
 // Pool Royale now raises the stance; extend the legs so the playfield sits higher
 const LEG_SCALE = 6.2;
@@ -4998,7 +4998,7 @@ const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.15; // lift the top view slightly to keep both near pockets visible on portrait
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22); // reduce angle toward a flatter overhead
-const TOP_VIEW_RADIUS_SCALE = 1.18; // lift the 2D top view a touch higher to keep the full field comfortably in frame
+const TOP_VIEW_RADIUS_SCALE = 1.22; // lift the 2D top view a bit higher to keep the full field comfortably in frame
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: 0, // center the table for the classic top-down framing
