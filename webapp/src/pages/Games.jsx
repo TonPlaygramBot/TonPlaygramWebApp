@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LeaderboardCard from '../components/LeaderboardCard.jsx';
 import GameTransactionsCard from '../components/GameTransactionsCard.jsx';
 import GamesHallway from '../components/GamesHallway.jsx';
 import gamesCatalog from '../config/gamesCatalog.js';
+import { refreshGameCachesInBackground } from '../pwa/preloadGames.js';
 
 export default function Games() {
   useTelegramBackButton();
+  useEffect(() => {
+    refreshGameCachesInBackground();
+  }, []);
   const [showHallway, setShowHallway] = useState(false);
   return (
     <div className="relative space-y-4 text-text">
