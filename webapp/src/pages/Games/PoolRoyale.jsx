@@ -1100,7 +1100,7 @@ const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.226; // trim the cushion tops furthe
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior wooden rails straight with no rounding
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.16; // round the exterior top edges of the wooden rails while leaving the playfield-facing edge crisp
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
@@ -11276,6 +11276,8 @@ const powerRef = useRef(hud.power);
   const volumeRef = useRef(getGameVolume());
   const railSoundTimeRef = useRef(new Map());
   const liftLandingTimeRef = useRef(new Map());
+  const queuedCueHitVolumeRef = useRef(null);
+  const cueWasMovingRef = useRef(false);
   const powerImpactHoldRef = useRef(0);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
   const playerInfoRef = useRef(player);
@@ -11334,7 +11336,8 @@ const powerRef = useRef(hud.power);
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
-    const scaled = clamp(volumeRef.current * 1.2 * 1.5 * (0.35 + power * 0.75), 0, 1);
+    const base = volumeRef.current * 1.2 * 1.5 * (0.35 + power * 0.75);
+    const scaled = clamp(base * 1.5, 0, 1);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -12234,6 +12237,12 @@ const powerRef = useRef(hud.power);
         shotStartedAt = shooting ? getNow() : 0;
         if (!shooting) {
           maxPowerLiftTriggered = false;
+        }
+        if (value) {
+          cueWasMovingRef.current = false;
+        } else {
+          queuedCueHitVolumeRef.current = null;
+          cueWasMovingRef.current = false;
         }
         if (shotCameraHoldTimeoutRef.current) {
           clearTimeout(shotCameraHoldTimeoutRef.current);
@@ -18582,7 +18591,8 @@ const powerRef = useRef(hud.power);
           const shouldRecordReplay = true;
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
-          playCueHit(clampedPower * 0.6);
+          queuedCueHitVolumeRef.current = Math.max(0, clampedPower * 0.6);
+          cueWasMovingRef.current = false;
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
@@ -20820,6 +20830,17 @@ const powerRef = useRef(hud.power);
           Math.max(1, Math.ceil(frameScale))
         );
         const subStepScale = frameScale / physicsSubsteps;
+        const cueBallForAudio = cueRef.current;
+        const cueVelocitySq =
+          cueBallForAudio?.active && cueBallForAudio?.vel
+            ? cueBallForAudio.vel.lengthSq()
+            : 0;
+        const cueMoving = cueVelocitySq > STOP_EPS * STOP_EPS;
+        if (!cueWasMovingRef.current && cueMoving && queuedCueHitVolumeRef.current != null) {
+          playCueHit(queuedCueHitVolumeRef.current);
+          queuedCueHitVolumeRef.current = null;
+        }
+        cueWasMovingRef.current = cueMoving;
         lastStepTime = now;
         if (topViewRef.current && topViewLockedRef.current) {
           const fallbackAim = aimDirRef.current.clone();
