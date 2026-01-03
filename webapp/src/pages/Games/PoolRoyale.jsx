@@ -55,6 +55,11 @@ import {
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
+  DEFAULT_POOL_ROYALE_TABLE_FINISH_ID,
+  POOL_ROYALE_TABLE_FINISH_MAP,
+  POOL_ROYALE_TABLE_FINISH_VARIANTS
+} from '../../config/poolRoyaleTableFinishes.js';
+import {
   getCachedPoolRoyalInventory,
   getPoolRoyalInventory,
   isPoolOptionUnlocked,
@@ -1238,10 +1243,10 @@ const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
-const SKIRT_DROP_MULTIPLIER = 1.36; // halve the apron drop to slim the skirt while keeping the tabletop level
+const SKIRT_DROP_MULTIPLIER = 1.36; // keep the full frame drop depth so the table bottom stays level while removing the separate skirt
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
-const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
-const BASE_HEIGHT_FILL = 0.94; // grow bases upward so the stance stays consistent with the shorter skirt
+const SKIRT_RAIL_GAP_FILL = 0; // extend the frame wrap directly from the rails without a gap
+const BASE_HEIGHT_FILL = 1; // fill the available frame height after removing the skirt panel
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
@@ -2000,7 +2005,9 @@ const DEFAULT_WOOD_PRESET_ID = 'walnut';
 const WOOD_TEXTURES_ENABLED = true;
 
 const DEFAULT_TABLE_FINISH_ID =
-  POOL_ROYALE_DEFAULT_UNLOCKS.tableFinish?.[0] ?? 'peelingPaintWeathered';
+  DEFAULT_POOL_ROYALE_TABLE_FINISH_ID ||
+  POOL_ROYALE_DEFAULT_UNLOCKS.tableFinish?.[0] ||
+  POOL_ROYALE_TABLE_FINISH_VARIANTS[0]?.id;
 
 const POOL_ROYALE_WOOD_PRESET_FOR_FINISH = Object.freeze({});
 
@@ -2143,62 +2150,24 @@ const createStandardWoodFinish = ({
   }
 });
 
-const TABLE_FINISHES = Object.freeze({
-  peelingPaintWeathered: createStandardWoodFinish({
-    id: 'peelingPaintWeathered',
-    label: 'Wood Peeling Paint Weathered',
-    rail: 0xb8b3aa,
-    base: 0xa89f95,
-    trim: 0xd6d0c7,
-    woodTextureId: 'wood_peeling_paint_weathered',
-    woodRepeatScale: 1
-  }),
-  oakVeneer01: createStandardWoodFinish({
-    id: 'oakVeneer01',
-    label: 'Oak Veneer 01',
-    rail: 0xc89a64,
-    base: 0xb9854e,
-    trim: 0xe0bb7a,
-    woodTextureId: 'oak_veneer_01',
-    woodRepeatScale: 1
-  }),
-  woodTable001: createStandardWoodFinish({
-    id: 'woodTable001',
-    label: 'Wood Table 001',
-    rail: 0xa4724f,
-    base: 0x8f6243,
-    trim: 0xc89a64,
-    woodTextureId: 'wood_table_001',
-    woodRepeatScale: 1
-  }),
-  darkWood: createStandardWoodFinish({
-    id: 'darkWood',
-    label: 'Dark Wood',
-    rail: 0x3d2f2a,
-    base: 0x2f241f,
-    trim: 0x6a5a52,
-    woodTextureId: 'dark_wood',
-    woodRepeatScale: 1
-  }),
-  rosewoodVeneer01: createStandardWoodFinish({
-    id: 'rosewoodVeneer01',
-    label: 'Rosewood Veneer 01',
-    rail: 0x6f3a2f,
-    base: 0x5b2f26,
-    trim: 0x9b5a44,
-    woodTextureId: 'rosewood_veneer_01',
-    woodRepeatScale: 1
-  })
-});
+const TABLE_FINISHES = Object.freeze(
+  POOL_ROYALE_TABLE_FINISH_VARIANTS.reduce((acc, finish) => {
+    acc[finish.id] = createStandardWoodFinish({
+      id: finish.id,
+      label: finish.label,
+      cloth: finish.cloth,
+      rail: finish.rail,
+      base: finish.base,
+      trim: finish.trim,
+      woodTextureId: finish.woodTextureId,
+      woodRepeatScale: finish.woodRepeatScale
+    });
+    return acc;
+  }, { ...POOL_ROYALE_TABLE_FINISH_MAP })
+);
 
 const TABLE_FINISH_OPTIONS = Object.freeze(
-  [
-    TABLE_FINISHES.peelingPaintWeathered,
-    TABLE_FINISHES.oakVeneer01,
-    TABLE_FINISHES.woodTable001,
-    TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01
-  ].filter(Boolean)
+  POOL_ROYALE_TABLE_FINISH_VARIANTS.map((finish) => TABLE_FINISHES[finish.id]).filter(Boolean)
 );
 
 const DEFAULT_CHROME_COLOR_ID =
@@ -3244,40 +3213,6 @@ const createClothTextures = (() => {
     texture.needsUpdate = true;
   };
 
-  const neutralizePolyHavenColorMap = (texture) => {
-    if (!texture || !texture.image || typeof document === 'undefined') return texture;
-    const image = texture.image;
-    const width = image.naturalWidth || image.videoWidth || image.width;
-    const height = image.naturalHeight || image.videoHeight || image.height;
-    if (!width || !height) return texture;
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return texture;
-    try {
-      ctx.drawImage(image, 0, 0, width, height);
-      const imageData = ctx.getImageData(0, 0, width, height);
-      const data = imageData.data;
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const luminance = Math.round(r * 0.2126 + g * 0.7152 + b * 0.0722);
-        data[i] = luminance;
-        data[i + 1] = luminance;
-        data[i + 2] = luminance;
-      }
-      ctx.putImageData(imageData, 0, 0);
-      texture.dispose();
-      const neutralTexture = new THREE.CanvasTexture(canvas);
-      applySRGBColorSpace(neutralTexture);
-      return neutralTexture;
-    } catch (err) {
-      return texture;
-    }
-  };
-
   const generateProceduralClothTextures = (preset) => {
     if (typeof document === 'undefined') {
       return { map: null, bump: null };
@@ -3474,6 +3409,7 @@ const createClothTextures = (() => {
           urls = {};
         }
 
+        const fallback4k = buildPolyHavenTextureUrls(preset.sourceId, '4k');
         const fallback2k = buildPolyHavenTextureUrls(preset.sourceId, '2k');
         const fallback1k = buildPolyHavenTextureUrls(preset.sourceId, '1k');
         const loader = new THREE.TextureLoader();
@@ -3481,16 +3417,19 @@ const createClothTextures = (() => {
 
         const diffuseCandidates = [
           urls.diffuse,
+          fallback4k?.diffuse,
           fallback2k?.diffuse,
           fallback1k?.diffuse
         ].filter(Boolean);
         const normalCandidates = [
           urls.normal,
+          fallback4k?.normal,
           fallback2k?.normal,
           fallback1k?.normal
         ].filter(Boolean);
         const roughnessCandidates = [
           urls.roughness,
+          fallback4k?.roughness,
           fallback2k?.roughness,
           fallback1k?.roughness
         ].filter(Boolean);
@@ -3503,10 +3442,6 @@ const createClothTextures = (() => {
           loadTextureWithFallbacks(loader, normalCandidates, false),
           loadTextureWithFallbacks(loader, roughnessCandidates, false)
         ]);
-
-        if (map) {
-          map = neutralizePolyHavenColorMap(map);
-        }
 
         [map, normal, roughness].forEach((tex) =>
           applyTextureDefaults(tex, { isPolyHaven: true })
@@ -8640,96 +8575,96 @@ function Table3D(
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
-  const skirtH = TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER;
+  const frameWrapH = TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER;
   const baseRailWidth = endRailW;
   const baseOverhang = baseRailWidth * SKIRT_SIDE_OVERHANG;
-  const skirtShape = new THREE.Shape();
+  const frameWrapShape = new THREE.Shape();
   const outW = frameOuterX + baseOverhang;
   const outZ = frameOuterZ + baseOverhang;
-  const skirtOuterRadius = hasRoundedRailCorners
+  const frameWrapOuterRadius = hasRoundedRailCorners
     ? Math.min(outerCornerRadius + baseOverhang * 0.4, Math.min(outW, outZ))
     : 0;
-  if (skirtOuterRadius > MICRO_EPS) {
-    skirtShape.moveTo(outW, -outZ + skirtOuterRadius);
-    skirtShape.lineTo(outW, outZ - skirtOuterRadius);
-    skirtShape.absarc(
-      outW - skirtOuterRadius,
-      outZ - skirtOuterRadius,
-      skirtOuterRadius,
+  if (frameWrapOuterRadius > MICRO_EPS) {
+    frameWrapShape.moveTo(outW, -outZ + frameWrapOuterRadius);
+    frameWrapShape.lineTo(outW, outZ - frameWrapOuterRadius);
+    frameWrapShape.absarc(
+      outW - frameWrapOuterRadius,
+      outZ - frameWrapOuterRadius,
+      frameWrapOuterRadius,
       0,
       Math.PI / 2,
       false
     );
-    skirtShape.lineTo(-outW + skirtOuterRadius, outZ);
-    skirtShape.absarc(
-      -outW + skirtOuterRadius,
-      outZ - skirtOuterRadius,
-      skirtOuterRadius,
+    frameWrapShape.lineTo(-outW + frameWrapOuterRadius, outZ);
+    frameWrapShape.absarc(
+      -outW + frameWrapOuterRadius,
+      outZ - frameWrapOuterRadius,
+      frameWrapOuterRadius,
       Math.PI / 2,
       Math.PI,
       false
     );
-    skirtShape.lineTo(-outW, -outZ + skirtOuterRadius);
-    skirtShape.absarc(
-      -outW + skirtOuterRadius,
-      -outZ + skirtOuterRadius,
-      skirtOuterRadius,
+    frameWrapShape.lineTo(-outW, -outZ + frameWrapOuterRadius);
+    frameWrapShape.absarc(
+      -outW + frameWrapOuterRadius,
+      -outZ + frameWrapOuterRadius,
+      frameWrapOuterRadius,
       Math.PI,
       1.5 * Math.PI,
       false
     );
-    skirtShape.lineTo(outW - skirtOuterRadius, -outZ);
-    skirtShape.absarc(
-      outW - skirtOuterRadius,
-      -outZ + skirtOuterRadius,
-      skirtOuterRadius,
+    frameWrapShape.lineTo(outW - frameWrapOuterRadius, -outZ);
+    frameWrapShape.absarc(
+      outW - frameWrapOuterRadius,
+      -outZ + frameWrapOuterRadius,
+      frameWrapOuterRadius,
       -Math.PI / 2,
       0,
       false
     );
   } else {
-    skirtShape.moveTo(outW, -outZ);
-    skirtShape.lineTo(outW, outZ);
-    skirtShape.lineTo(-outW, outZ);
-    skirtShape.lineTo(-outW, -outZ);
-    skirtShape.lineTo(outW, -outZ);
+    frameWrapShape.moveTo(outW, -outZ);
+    frameWrapShape.lineTo(outW, outZ);
+    frameWrapShape.lineTo(-outW, outZ);
+    frameWrapShape.lineTo(-outW, -outZ);
+    frameWrapShape.lineTo(outW, -outZ);
   }
   const inner = new THREE.Path();
-  const skirtInnerRadius = Math.max(outerCornerRadius - baseOverhang, 0);
-  if (skirtInnerRadius > 1e-4) {
-    inner.moveTo(frameOuterX, -frameOuterZ + skirtInnerRadius);
-    inner.lineTo(frameOuterX, frameOuterZ - skirtInnerRadius);
+  const frameWrapInnerRadius = Math.max(outerCornerRadius - baseOverhang, 0);
+  if (frameWrapInnerRadius > 1e-4) {
+    inner.moveTo(frameOuterX, -frameOuterZ + frameWrapInnerRadius);
+    inner.lineTo(frameOuterX, frameOuterZ - frameWrapInnerRadius);
     inner.absarc(
-      frameOuterX - skirtInnerRadius,
-      frameOuterZ - skirtInnerRadius,
-      skirtInnerRadius,
+      frameOuterX - frameWrapInnerRadius,
+      frameOuterZ - frameWrapInnerRadius,
+      frameWrapInnerRadius,
       0,
       Math.PI / 2,
       false
     );
-    inner.lineTo(-frameOuterX + skirtInnerRadius, frameOuterZ);
+    inner.lineTo(-frameOuterX + frameWrapInnerRadius, frameOuterZ);
     inner.absarc(
-      -frameOuterX + skirtInnerRadius,
-      frameOuterZ - skirtInnerRadius,
-      skirtInnerRadius,
+      -frameOuterX + frameWrapInnerRadius,
+      frameOuterZ - frameWrapInnerRadius,
+      frameWrapInnerRadius,
       Math.PI / 2,
       Math.PI,
       false
     );
-    inner.lineTo(-frameOuterX, -frameOuterZ + skirtInnerRadius);
+    inner.lineTo(-frameOuterX, -frameOuterZ + frameWrapInnerRadius);
     inner.absarc(
-      -frameOuterX + skirtInnerRadius,
-      -frameOuterZ + skirtInnerRadius,
-      skirtInnerRadius,
+      -frameOuterX + frameWrapInnerRadius,
+      -frameOuterZ + frameWrapInnerRadius,
+      frameWrapInnerRadius,
       Math.PI,
       1.5 * Math.PI,
       false
     );
-    inner.lineTo(frameOuterX - skirtInnerRadius, -frameOuterZ);
+    inner.lineTo(frameOuterX - frameWrapInnerRadius, -frameOuterZ);
     inner.absarc(
-      frameOuterX - skirtInnerRadius,
-      -frameOuterZ + skirtInnerRadius,
-      skirtInnerRadius,
+      frameOuterX - frameWrapInnerRadius,
+      -frameOuterZ + frameWrapInnerRadius,
+      frameWrapInnerRadius,
       -Math.PI / 2,
       0,
       false
@@ -8741,19 +8676,20 @@ function Table3D(
     inner.lineTo(-frameOuterX, -frameOuterZ);
     inner.lineTo(frameOuterX, -frameOuterZ);
   }
-  skirtShape.holes.push(inner);
-  const skirtGeo = new THREE.ExtrudeGeometry(skirtShape, {
-    depth: skirtH,
+  frameWrapShape.holes.push(inner);
+  const frameWrapGeo = new THREE.ExtrudeGeometry(frameWrapShape, {
+    depth: frameWrapH,
     bevelEnabled: false
   });
-  projectRailUVs(skirtGeo, { outerHalfW: outW, outerHalfH: outZ, railH: skirtH });
-  const skirt = new THREE.Mesh(skirtGeo, frameMat);
-  skirt.rotation.x = -Math.PI / 2;
-  skirt.position.y = frameTopY - skirtH + SKIRT_RAIL_GAP_FILL + MICRO_EPS * 0.5;
-  skirt.castShadow = true;
-  skirt.receiveShadow = true;
-  table.add(skirt);
-  finishParts.frameMeshes.push(skirt);
+  projectRailUVs(frameWrapGeo, { outerHalfW: outW, outerHalfH: outZ, railH: frameWrapH });
+  const frameWrap = new THREE.Mesh(frameWrapGeo, frameMat);
+  frameWrap.rotation.x = -Math.PI / 2;
+  frameWrap.position.y = frameTopY - frameWrapH + SKIRT_RAIL_GAP_FILL + MICRO_EPS * 0.5;
+  frameWrap.castShadow = true;
+  frameWrap.receiveShadow = true;
+  frameWrap.userData = { ...(frameWrap.userData || {}), __basePart: true };
+  table.add(frameWrap);
+  finishParts.frameMeshes.push(frameWrap);
 
   if (PLYWOOD_ENABLED && plywoodDepth > MICRO_EPS) {
     const plywoodShape = buildSurfaceShape(PLYWOOD_HOLE_R, -baseOverhang);
@@ -8883,7 +8819,7 @@ function Table3D(
     trimMat,
     halfW,
     halfH,
-    skirtH,
+    skirtH: frameWrapH,
     baseRailWidth
   };
 
@@ -8910,99 +8846,171 @@ function Table3D(
     return mesh;
   };
 
-  const baseBuilders = {
-    classicCylinders: (ctx) => {
-      const positions = [
-        [-ctx.frameOuterX + ctx.legInset, -ctx.frameOuterZ + ctx.legInset],
-        [ctx.frameOuterX - ctx.legInset, -ctx.frameOuterZ + ctx.legInset],
-        [-ctx.frameOuterX + ctx.legInset, 0],
-        [ctx.frameOuterX - ctx.legInset, 0],
-        [-ctx.frameOuterX + ctx.legInset, ctx.frameOuterZ - ctx.legInset],
-        [ctx.frameOuterX - ctx.legInset, ctx.frameOuterZ - ctx.legInset]
-      ];
-      const legs = positions.map(([lx, lz]) => {
-        const leg = new THREE.Mesh(ctx.legGeo, ctx.legMat);
-        leg.position.set(lx, ctx.legY, lz);
-        leg.castShadow = true;
-        leg.receiveShadow = true;
-        leg.userData = { ...(leg.userData || {}), __basePart: true };
-        return leg;
-      });
-      return { meshes: legs, legMeshes: legs };
-    },
-    chessCastleLegs: (ctx) => {
-      const meshes = [];
-      const legRadius = ctx.legR * 1.1;
-      const crenelCount = 4;
-      const createRookLeg = (offsetX, offsetZ) => {
-        const footHeight = ctx.legH * 0.16;
-        const foot = tagBasePart(
-          new THREE.Mesh(
-            new THREE.CylinderGeometry(legRadius * 1.05, legRadius * 1.22, footHeight, 32),
-            ctx.legMat
-          )
-        );
-        foot.position.set(offsetX, ctx.floorY + footHeight / 2, offsetZ);
-        meshes.push(foot);
+  const BEAUTIFUL_GAME_PIECE_URLS = [
+    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+    'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+    'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
+  ];
 
-        const bodyHeight = ctx.legH * 0.62;
-        const body = tagBasePart(
-          new THREE.Mesh(
-            new THREE.CylinderGeometry(legRadius * 0.95, legRadius * 1.05, bodyHeight, 32),
-            ctx.legMat
-          )
-        );
-        body.position.set(offsetX, ctx.floorY + footHeight + bodyHeight / 2, offsetZ);
-        meshes.push(body);
+  const chessLegTemplateCache = {
+    promise: null,
+    rook: null,
+    bishop: null
+  };
 
-        const belt = tagBasePart(
-          new THREE.Mesh(new THREE.TorusGeometry(legRadius * 0.95, legRadius * 0.14, 18, 48), ctx.legMat)
-        );
-        belt.rotation.x = Math.PI / 2;
-        belt.position.set(offsetX, ctx.floorY + footHeight + bodyHeight * 0.84, offsetZ);
-        meshes.push(belt);
+  const nodePath = (node) => {
+    const names = [];
+    let current = node;
+    while (current) {
+      if (current.name) names.push(current.name);
+      current = current.parent;
+    }
+    return names.reverse().join('/');
+  };
 
-        const crownHeight = ctx.legH * 0.22;
-        const crown = tagBasePart(
-          new THREE.Mesh(
-            new THREE.CylinderGeometry(legRadius * 1.12, legRadius * 0.98, crownHeight * 0.55, 24),
-            ctx.legMat
-          )
-        );
-        crown.position.set(
-          offsetX,
-          ctx.floorY + footHeight + bodyHeight + crownHeight * 0.28,
-          offsetZ
-        );
-        meshes.push(crown);
-        for (let i = 0; i < crenelCount; i += 1) {
-          const chunk = tagBasePart(
-            new THREE.Mesh(
-              new THREE.BoxGeometry(legRadius * 0.62, crownHeight * 0.45, legRadius * 0.62),
-              ctx.legMat
-            )
-          );
-          const angle = (i * Math.PI * 2) / crenelCount;
-          chunk.position.set(
-            offsetX + Math.cos(angle) * legRadius * 0.86,
-            crown.position.y + crownHeight * 0.48,
-            offsetZ + Math.sin(angle) * legRadius * 0.86
-          );
-          meshes.push(chunk);
+  const detectChessPieceType = (path = '') => {
+    if (/(rook|castle)/i.test(path)) return 'rook';
+    if (/bishop/i.test(path)) return 'bishop';
+    return null;
+  };
+
+  const promoteToPieceRoot = (node, type) => {
+    let current = node;
+    while (current?.parent && detectChessPieceType(nodePath(current.parent)) === type) {
+      current = current.parent;
+    }
+    return current || node;
+  };
+
+  const cloneChessTemplate = (template) => {
+    if (!template) return null;
+    const clone = template.clone(true);
+    clone.traverse((child) => {
+      if (!child?.isMesh) return;
+      child.castShadow = true;
+      child.receiveShadow = true;
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      mats.forEach((mat) => {
+        applySRGBColorSpace(mat?.map);
+        applySRGBColorSpace(mat?.emissiveMap);
+        if (mat) {
+          mat.userData = { ...(mat.userData || {}), __basePart: true };
+          mat.needsUpdate = true;
         }
-      };
+      });
+      child.userData = { ...(child.userData || {}), __basePart: true };
+    });
+    clone.userData = { ...(clone.userData || {}), __basePart: true };
+    return clone;
+  };
 
-      const offsetX = ctx.frameOuterX - ctx.legInset * 0.9;
-      const offsetZ = ctx.frameOuterZ - ctx.legInset * 0.9;
-      [
+  const loadChessLegTemplates = async () => {
+    if (chessLegTemplateCache.promise) return chessLegTemplateCache.promise;
+    chessLegTemplateCache.promise = (async () => {
+      const loader = new GLTFLoader();
+      loader.setCrossOrigin('anonymous');
+      let lastError = null;
+      let gltf = null;
+      for (const url of BEAUTIFUL_GAME_PIECE_URLS) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          gltf = await loader.loadAsync(url);
+          break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      if (!gltf?.scene) {
+        throw lastError || new Error('Failed to load chess piece templates');
+      }
+      const scene = gltf.scene.clone(true);
+      const pieces = { rook: null, bishop: null };
+      const visited = new Set();
+      scene.traverse((node) => {
+        const type = detectChessPieceType(nodePath(node));
+        if (!type || visited.has(node.uuid) || pieces[type]) return;
+        const root = promoteToPieceRoot(node, type);
+        if (!root || visited.has(root.uuid)) return;
+        visited.add(root.uuid);
+        pieces[type] = root;
+      });
+      chessLegTemplateCache.rook = cloneChessTemplate(pieces.rook);
+      chessLegTemplateCache.bishop = cloneChessTemplate(pieces.bishop);
+      return {
+        rook: chessLegTemplateCache.rook,
+        bishop: chessLegTemplateCache.bishop
+      };
+    })();
+    chessLegTemplateCache.promise.catch(() => {
+      chessLegTemplateCache.promise = null;
+    });
+    return chessLegTemplateCache.promise;
+  };
+
+  const buildChessPieceLegs = (template, ctx, insetScale = 1) => {
+    if (!template) return { meshes: [], legMeshes: [] };
+    const legHeightTarget = ctx.legH * 0.98;
+    const offsets = (() => {
+      const offsetX = ctx.frameOuterX - ctx.legInset * insetScale;
+      const offsetZ = ctx.frameOuterZ - ctx.legInset * insetScale;
+      return [
         [-offsetX, -offsetZ],
         [offsetX, -offsetZ],
         [-offsetX, offsetZ],
         [offsetX, offsetZ]
-      ].forEach(([lx, lz]) => {
-        createRookLeg(lx, lz);
-      });
-      return { meshes, legMeshes: meshes };
+      ];
+    })();
+    const meshes = [];
+    offsets.forEach(([lx, lz]) => {
+      const leg = cloneChessTemplate(template);
+      if (!leg) return;
+      const bounds = new THREE.Box3().setFromObject(leg);
+      const height = Math.max(bounds.max.y - bounds.min.y, MICRO_EPS);
+      const scale = legHeightTarget / height;
+      leg.scale.setScalar(scale);
+      leg.updateMatrixWorld(true);
+      const scaledBounds = new THREE.Box3().setFromObject(leg);
+      const offsetY = ctx.floorY - scaledBounds.min.y + MICRO_EPS * 0.5;
+      leg.position.set(lx, offsetY, lz);
+      leg.userData = { ...(leg.userData || {}), __basePart: true, __chessLeg: true };
+      meshes.push(leg);
+    });
+    return { meshes, legMeshes: meshes };
+  };
+
+  const buildClassicCylinders = (ctx) => {
+    const positions = [
+      [-ctx.frameOuterX + ctx.legInset, -ctx.frameOuterZ + ctx.legInset],
+      [ctx.frameOuterX - ctx.legInset, -ctx.frameOuterZ + ctx.legInset],
+      [-ctx.frameOuterX + ctx.legInset, 0],
+      [ctx.frameOuterX - ctx.legInset, 0],
+      [-ctx.frameOuterX + ctx.legInset, ctx.frameOuterZ - ctx.legInset],
+      [ctx.frameOuterX - ctx.legInset, ctx.frameOuterZ - ctx.legInset]
+    ];
+    const legs = positions.map(([lx, lz]) => {
+      const leg = new THREE.Mesh(ctx.legGeo, ctx.legMat);
+      leg.position.set(lx, ctx.legY, lz);
+      leg.castShadow = true;
+      leg.receiveShadow = true;
+      leg.userData = { ...(leg.userData || {}), __basePart: true };
+      return leg;
+    });
+    return { meshes: legs, legMeshes: legs };
+  };
+
+  const baseBuilders = {
+    classicCylinders: buildClassicCylinders,
+    chessCastleLegs: async (ctx) => {
+      try {
+        const templates = await loadChessLegTemplates();
+        if (templates?.rook) {
+          return buildChessPieceLegs(templates.rook, ctx, 0.9);
+        }
+      } catch (error) {
+        console.warn('Pool Royale: chess castle legs failed to load GLTF template', error);
+      }
+      return buildClassicCylinders(ctx);
     },
     zLift: (ctx) => {
       const meshes = [];
@@ -9183,75 +9191,16 @@ function Table3D(
       meshes.push(stretcher);
       return { meshes, legMeshes: meshes };
     },
-    chessBishopLegs: (ctx) => {
-      const meshes = [];
-      const legRadius = ctx.legR * 1.02;
-      const createBishopLeg = (offsetX, offsetZ) => {
-        const footHeight = ctx.legH * 0.14;
-        const foot = tagBasePart(
-          new THREE.Mesh(
-            new THREE.CylinderGeometry(legRadius * 1.05, legRadius * 1.1, footHeight, 32),
-            ctx.legMat
-          )
-        );
-        foot.position.set(offsetX, ctx.floorY + footHeight / 2, offsetZ);
-        meshes.push(foot);
-
-        const bodyHeight = ctx.legH * 0.56;
-        const body = tagBasePart(
-          new THREE.Mesh(
-            new THREE.CylinderGeometry(legRadius * 0.85, legRadius * 1.05, bodyHeight, 32),
-            ctx.legMat
-          )
-        );
-        body.position.set(offsetX, ctx.floorY + footHeight + bodyHeight / 2, offsetZ);
-        meshes.push(body);
-
-        const collar = tagBasePart(
-          new THREE.Mesh(new THREE.TorusGeometry(legRadius * 0.82, legRadius * 0.12, 16, 48), ctx.legMat)
-        );
-        collar.rotation.x = Math.PI / 2;
-        collar.position.set(offsetX, ctx.floorY + footHeight + bodyHeight * 0.84, offsetZ);
-        meshes.push(collar);
-
-        const neckHeight = ctx.legH * 0.2;
-        const neck = tagBasePart(
-          new THREE.Mesh(
-            new THREE.CylinderGeometry(legRadius * 0.64, legRadius * 0.78, neckHeight, 24),
-            ctx.legMat
-          )
-        );
-        neck.position.set(
-          offsetX,
-          ctx.floorY + footHeight + bodyHeight + neckHeight / 2,
-          offsetZ
-        );
-        meshes.push(neck);
-
-        const mitreRadius = legRadius * 0.72;
-        const mitre = tagBasePart(
-          new THREE.Mesh(new THREE.SphereGeometry(mitreRadius, 24, 24), ctx.legMat)
-        );
-        mitre.scale.y = 1.24;
-        mitre.position.set(
-          offsetX,
-          ctx.floorY + footHeight + bodyHeight + neckHeight + mitreRadius * 0.92,
-          offsetZ
-        );
-        meshes.push(mitre);
-      };
-
-      const offsetX = ctx.frameOuterX - ctx.legInset * 0.92;
-      const offsetZ = ctx.frameOuterZ - ctx.legInset * 0.92;
-      [
-        [-offsetX, -offsetZ],
-        [offsetX, -offsetZ],
-        [-offsetX, offsetZ],
-        [offsetX, offsetZ]
-      ].forEach(([lx, lz]) => {
-        createBishopLeg(lx, lz);
-      });
-      return { meshes, legMeshes: meshes };
+    chessBishopLegs: async (ctx) => {
+      try {
+        const templates = await loadChessLegTemplates();
+        if (templates?.bishop) {
+          return buildChessPieceLegs(templates.bishop, ctx, 0.92);
+        }
+      } catch (error) {
+        console.warn('Pool Royale: chess bishop legs failed to load GLTF template', error);
+      }
+      return buildClassicCylinders(ctx);
     },
     rusticCross: (ctx) => {
       const meshes = [];
@@ -9356,21 +9305,43 @@ function Table3D(
     return DEFAULT_TABLE_BASE_ID;
   };
 
+  let baseBuildToken = 0;
   const applyBaseVariant = (variant) => {
     const variantId = resolveBaseVariantId(variant);
     const builder = baseBuilders[variantId] ?? baseBuilders[DEFAULT_TABLE_BASE_ID];
-    clearBaseMeshes();
+    const fallbackBuilder = baseBuilders[DEFAULT_TABLE_BASE_ID] ?? buildClassicCylinders;
     const finishMaterials = table.userData?.finish?.materials || {};
-    const built = builder({
+    const ctx = {
       ...baseContext,
       legMat: finishMaterials.leg ?? baseContext.legMat,
       frameMat: finishMaterials.frame ?? baseContext.frameMat,
       trimMat: finishMaterials.trim ?? baseContext.trimMat
-    });
-    normalizeBasePlacement(built.meshes);
-    addBaseMeshesToFinish(built);
-    finishParts.baseVariantId = variantId;
-    table.userData.baseVariantId = variantId;
+    };
+    const token = ++baseBuildToken;
+    const handleBuilt = (built) => {
+      if (token !== baseBuildToken || !built) return;
+      clearBaseMeshes();
+      normalizeBasePlacement(built.meshes);
+      addBaseMeshesToFinish(built);
+      finishParts.baseVariantId = variantId;
+      table.userData.baseVariantId = variantId;
+    };
+    try {
+      const built = builder(ctx);
+      if (built?.then) {
+        built
+          .then(handleBuilt)
+          .catch((error) => {
+            console.warn('Pool Royale base build failed, reverting to classic base', error);
+            handleBuilt(fallbackBuilder(ctx));
+          });
+      } else {
+        handleBuilt(built);
+      }
+    } catch (error) {
+      console.warn('Pool Royale base build failed, reverting to classic base', error);
+      handleBuilt(fallbackBuilder(ctx));
+    }
   };
 
   applyBaseVariant(baseVariant || DEFAULT_TABLE_BASE_ID);

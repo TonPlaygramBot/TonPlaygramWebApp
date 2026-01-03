@@ -30,7 +30,7 @@ const tileableNoise = (x, y, width, height, scale, seed = 1) => {
   return (nx + ny + nxy + 3) / 6; // normalize to [0,1]
 };
 
-const WOOD_TEXTURE_ANISOTROPY = 12;
+const WOOD_TEXTURE_ANISOTROPY = 24;
 
 const woodTextureLoader = new THREE.TextureLoader();
 woodTextureLoader.setCrossOrigin?.('anonymous');
@@ -301,11 +301,11 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
 const LARGE_SLAB_REPEAT_X = 0.009;
 const FRAME_SLAB_REPEAT_X = LARGE_SLAB_REPEAT_X * 1.18;
 const polyHavenTextureSet = (assetId) => {
-  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${assetId}/${assetId}`;
+  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/${assetId}/${assetId}`;
   return {
-    mapUrl: `${base}_diff_2k.jpg`,
-    roughnessMapUrl: `${base}_rough_2k.jpg`,
-    normalMapUrl: `${base}_nor_gl_2k.jpg`
+    mapUrl: `${base}_diff_4k.jpg`,
+    roughnessMapUrl: `${base}_rough_4k.jpg`,
+    normalMapUrl: `${base}_nor_gl_4k.jpg`
   };
 };
 
@@ -347,13 +347,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('wood_peeling_paint_weathered')
     },
     frame: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('wood_peeling_paint_weathered')
     }
   }),
@@ -364,13 +364,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('oak_veneer_01')
     },
     frame: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('oak_veneer_01')
     }
   }),
@@ -381,13 +381,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('wood_table_001')
     },
     frame: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('wood_table_001')
     }
   }),
@@ -398,13 +398,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('dark_wood')
     },
     frame: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('dark_wood')
     }
   }),
@@ -415,13 +415,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('rosewood_veneer_01')
     },
     frame: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('rosewood_veneer_01')
     }
   }),

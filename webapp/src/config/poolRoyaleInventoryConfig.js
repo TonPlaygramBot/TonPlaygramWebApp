@@ -1,4 +1,8 @@
 import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
+import {
+  DEFAULT_POOL_ROYALE_TABLE_FINISH_ID,
+  POOL_ROYALE_TABLE_FINISH_VARIANTS
+} from './poolRoyaleTableFinishes.js';
 
 const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
   neonPhotostudio: {
@@ -501,7 +505,7 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
   {
     id: 'chessCastleLegs',
     name: 'Chess Castle Legs',
-    description: 'Four Chess Battle Royale rooks turned into sculpted corner legs.',
+    description: 'Chess Battle Royale rook GLTF legs with the original materials intact.',
     swatches: ['#e5e7eb', '#0ea5e9']
   },
   {
@@ -537,7 +541,7 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
   {
     id: 'chessBishopLegs',
     name: 'Chess Bishop Legs',
-    description: 'Bishop silhouettes from Chess Battle Royale recast as tapered legs.',
+    description: 'Chess Battle Royale bishop GLTF legs carrying the native textures.',
     swatches: ['#cbd5e1', '#1f2937']
   },
   {
@@ -551,7 +555,7 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
 export const POOL_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
 
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
-  tableFinish: ['peelingPaintWeathered'],
+  tableFinish: [DEFAULT_POOL_ROYALE_TABLE_FINISH_ID],
   chromeColor: ['gold'],
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
@@ -569,11 +573,10 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     }, {})
   ),
   tableFinish: Object.freeze({
-    peelingPaintWeathered: 'Wood Peeling Paint Weathered',
-    oakVeneer01: 'Oak Veneer 01',
-    woodTable001: 'Wood Table 001',
-    darkWood: 'Dark Wood',
-    rosewoodVeneer01: 'Rosewood Veneer 01'
+    ...POOL_ROYALE_TABLE_FINISH_VARIANTS.reduce((acc, finish) => {
+      acc[finish.id] = finish.label;
+      return acc;
+    }, {})
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -617,47 +620,20 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
   })
 });
 
+const POOL_ROYALE_TABLE_FINISH_STORE_ITEMS = POOL_ROYALE_TABLE_FINISH_VARIANTS.map(
+  (finish, idx) => ({
+    id: `finish-${finish.id}`,
+    type: 'tableFinish',
+    optionId: finish.id,
+    name: finish.label,
+    price: 980 + idx * 10,
+    description: `${finish.label} with preserved ${finish.woodTextureId?.replace(/_/g, ' ') || 'wood'} grain.`,
+    swatches: finish.swatches
+  })
+);
+
 export const POOL_ROYALE_STORE_ITEMS = [
-  {
-    id: 'finish-peelingPaintWeathered',
-    type: 'tableFinish',
-    optionId: 'peelingPaintWeathered',
-    name: 'Wood Peeling Paint Weathered Finish',
-    price: 980,
-    description: 'Weathered peeling paint wood rails with a reclaimed finish.'
-  },
-  {
-    id: 'finish-oakVeneer01',
-    type: 'tableFinish',
-    optionId: 'oakVeneer01',
-    name: 'Oak Veneer 01 Finish',
-    price: 990,
-    description: 'Warm oak veneer rails with smooth satin polish.'
-  },
-  {
-    id: 'finish-woodTable001',
-    type: 'tableFinish',
-    optionId: 'woodTable001',
-    name: 'Wood Table 001 Finish',
-    price: 1000,
-    description: 'Balanced walnut-brown rails inspired by classic table slabs.'
-  },
-  {
-    id: 'finish-darkWood',
-    type: 'tableFinish',
-    optionId: 'darkWood',
-    name: 'Dark Wood Finish',
-    price: 1010,
-    description: 'Deep espresso rails with strong grain contrast.'
-  },
-  {
-    id: 'finish-rosewoodVeneer01',
-    type: 'tableFinish',
-    optionId: 'rosewoodVeneer01',
-    name: 'Rosewood Veneer 01 Finish',
-    price: 1020,
-    description: 'Rosewood veneer rails with rich, reddish undertones.'
-  },
+  ...POOL_ROYALE_TABLE_FINISH_STORE_ITEMS,
   {
     id: 'chrome-chrome',
     type: 'chromeColor',
@@ -815,8 +791,8 @@ export const POOL_ROYALE_STORE_ITEMS = [
 export const POOL_ROYALE_DEFAULT_LOADOUT = [
   {
     type: 'tableFinish',
-    optionId: 'peelingPaintWeathered',
-    label: 'Wood Peeling Paint Weathered Finish'
+    optionId: DEFAULT_POOL_ROYALE_TABLE_FINISH_ID,
+    label: POOL_ROYALE_OPTION_LABELS.tableFinish[DEFAULT_POOL_ROYALE_TABLE_FINISH_ID]
   },
   { type: 'chromeColor', optionId: 'gold', label: 'Gold Chrome Plates' },
   { type: 'railMarkerColor', optionId: 'gold', label: 'Gold Diamond Markers' },
