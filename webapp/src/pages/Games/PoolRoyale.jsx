@@ -1237,8 +1237,9 @@ const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
 const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
-const CUE_STRIKE_VOLUME_MULTIPLIER = 3; // boost cue strikes to 300% loudness to compensate for the quieter recording
-const CUE_STRIKE_MAX_GAIN = 9; // allow the louder cue strike to pass through without clipping to the previous 3x cap
+const CUE_STRIKE_VOLUME_MULTIPLIER = 4.25; // boost cue strikes further to lift the hit above other effects
+const CUE_STRIKE_MAX_GAIN = 12; // raise the ceiling to accommodate the hotter cue strike without clipping the mix
+const CUE_STRIKE_LEAD_SECONDS = 0.5; // trim the leading silence so the strike lands ~0.5s earlier
 const POCKET_SOUND_TAIL = 1;
 // Pool Royale now raises the stance; extend the legs so the playfield sits higher
 const LEG_SCALE = 6.2;
@@ -11355,9 +11356,16 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    const playbackDuration = Math.min(buffer.duration ?? 0, 4.5);
-    if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
-      source.start(0, 0, playbackDuration);
+    const bufferDuration = buffer.duration ?? 0;
+    const playbackDuration = Math.min(bufferDuration, 4.5);
+    const startOffset = clamp(
+      CUE_STRIKE_LEAD_SECONDS,
+      0,
+      Math.max(0, bufferDuration - 0.05)
+    );
+    const trimmedDuration = Math.max(0, playbackDuration - startOffset);
+    if (trimmedDuration > 0 && Number.isFinite(trimmedDuration)) {
+      source.start(0, startOffset, trimmedDuration);
     }
   }, []);
 
