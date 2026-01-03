@@ -4153,16 +4153,6 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
   const position = target.attributes.position;
   const normal = target.attributes.normal;
   if (!position || !normal) return target;
-  let minZ = Infinity;
-  let maxZ = -Infinity;
-  for (let i = 0; i < position.count; i++) {
-    const z = position.getZ(i);
-    if (!Number.isFinite(z)) continue;
-    if (z < minZ) minZ = z;
-    if (z > maxZ) maxZ = z;
-  }
-  if (!Number.isFinite(minZ) || !Number.isFinite(maxZ)) return target;
-  const heightRange = Math.max(maxZ - minZ, MICRO_EPS);
   const depthSafe = depth <= 0 ? 1 : depth;
   const radius = Math.max(0, depthSafe * radiusRatio);
   const innerBounds = options?.innerBounds;
@@ -4195,13 +4185,9 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
     }
     const dot = planarNormal.dot(planarPos);
     if (dot <= 0) continue;
-    const normalizedHeight = THREE.MathUtils.clamp(
-      (pos.z - minZ) / heightRange,
-      0,
-      1
-    );
-    if (normalizedHeight <= 0) continue;
-    const eased = Math.sin((normalizedHeight * Math.PI) / 2);
+    const heightT = THREE.MathUtils.clamp(pos.z / depthSafe, 0, 1);
+    if (heightT <= 0) continue;
+    const eased = Math.sin((heightT * Math.PI) / 2);
     const inset = radius * eased * eased;
     pos.x -= planarNormal.x * inset;
     pos.y -= planarNormal.y * inset;
