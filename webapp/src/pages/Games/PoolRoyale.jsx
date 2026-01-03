@@ -917,7 +917,7 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const ENABLE_BALL_FLOOR_SHADOWS = false;
+const ENABLE_BALL_FLOOR_SHADOWS = true;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
@@ -2188,24 +2188,6 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
-  }),
-  kitchenWood: createStandardWoodFinish({
-    id: 'kitchenWood',
-    label: 'Kitchen Wood',
-    rail: 0xd2b28a,
-    base: 0xc39c73,
-    trim: 0xe6c79e,
-    woodTextureId: 'kitchen_wood',
-    woodRepeatScale: 1
-  }),
-  japaneseSycamore: createStandardWoodFinish({
-    id: 'japaneseSycamore',
-    label: 'Japanese Sycamore',
-    rail: 0xe2d4b6,
-    base: 0xd6c6a4,
-    trim: 0xf1e2c6,
-    woodTextureId: 'japanese_sycamore',
-    woodRepeatScale: 1
   })
 });
 
@@ -2215,9 +2197,7 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01,
-    TABLE_FINISHES.kitchenWood,
-    TABLE_FINISHES.japaneseSycamore
+    TABLE_FINISHES.rosewoodVeneer01
   ].filter(Boolean)
 );
 
@@ -8922,6 +8902,14 @@ function Table3D(
     meshes.forEach((mesh) => table.add(mesh));
   };
 
+  const tagBasePart = (mesh) => {
+    if (!mesh) return mesh;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData = { ...(mesh.userData || {}), __basePart: true };
+    return mesh;
+  };
+
   const baseBuilders = {
     classicCylinders: (ctx) => {
       const positions = [
@@ -8942,40 +8930,78 @@ function Table3D(
       });
       return { meshes: legs, legMeshes: legs };
     },
-    modernLoop: (ctx) => {
+    chessCastleLegs: (ctx) => {
       const meshes = [];
-      const loopRadius = Math.min(ctx.frameOuterX, ctx.frameOuterZ) * 0.72;
-      const tubeRadius = ctx.legR * 1.15;
-      const loopGeom = new THREE.TorusGeometry(loopRadius, tubeRadius, 56, 128);
-      const loop = new THREE.Mesh(loopGeom, ctx.legMat);
-      loop.rotation.x = Math.PI / 2;
-      loop.scale.set(1.1, 0.55, 1);
-      loop.position.y = ctx.floorY + tubeRadius * 1.1;
-      loop.castShadow = true;
-      loop.receiveShadow = true;
-      loop.userData = { ...(loop.userData || {}), __basePart: true };
-      meshes.push(loop);
+      const legRadius = ctx.legR * 1.1;
+      const crenelCount = 4;
+      const createRookLeg = (offsetX, offsetZ) => {
+        const footHeight = ctx.legH * 0.16;
+        const foot = tagBasePart(
+          new THREE.Mesh(
+            new THREE.CylinderGeometry(legRadius * 1.05, legRadius * 1.22, footHeight, 32),
+            ctx.legMat
+          )
+        );
+        foot.position.set(offsetX, ctx.floorY + footHeight / 2, offsetZ);
+        meshes.push(foot);
 
-      const deckHeight = ctx.legR * 1.1;
-      const deck = new THREE.Mesh(
-        new THREE.BoxGeometry(ctx.frameOuterX * 1.5, deckHeight, ctx.frameOuterZ * 1.04),
-        ctx.legMat
-      );
-      deck.position.y = ctx.tableY - deckHeight * 0.2;
-      deck.castShadow = true;
-      deck.receiveShadow = true;
-      deck.userData = { ...(deck.userData || {}), __basePart: true };
-      meshes.push(deck);
+        const bodyHeight = ctx.legH * 0.62;
+        const body = tagBasePart(
+          new THREE.Mesh(
+            new THREE.CylinderGeometry(legRadius * 0.95, legRadius * 1.05, bodyHeight, 32),
+            ctx.legMat
+          )
+        );
+        body.position.set(offsetX, ctx.floorY + footHeight + bodyHeight / 2, offsetZ);
+        meshes.push(body);
 
-      const basePlate = new THREE.Mesh(
-        new THREE.CylinderGeometry(ctx.frameOuterX * 0.9, ctx.frameOuterX * 0.9, ctx.legR * 0.7, 64),
-        ctx.legMat
-      );
-      basePlate.position.y = ctx.floorY + ctx.legR * 0.35;
-      basePlate.castShadow = true;
-      basePlate.receiveShadow = true;
-      basePlate.userData = { ...(basePlate.userData || {}), __basePart: true };
-      meshes.push(basePlate);
+        const belt = tagBasePart(
+          new THREE.Mesh(new THREE.TorusGeometry(legRadius * 0.95, legRadius * 0.14, 18, 48), ctx.legMat)
+        );
+        belt.rotation.x = Math.PI / 2;
+        belt.position.set(offsetX, ctx.floorY + footHeight + bodyHeight * 0.84, offsetZ);
+        meshes.push(belt);
+
+        const crownHeight = ctx.legH * 0.22;
+        const crown = tagBasePart(
+          new THREE.Mesh(
+            new THREE.CylinderGeometry(legRadius * 1.12, legRadius * 0.98, crownHeight * 0.55, 24),
+            ctx.legMat
+          )
+        );
+        crown.position.set(
+          offsetX,
+          ctx.floorY + footHeight + bodyHeight + crownHeight * 0.28,
+          offsetZ
+        );
+        meshes.push(crown);
+        for (let i = 0; i < crenelCount; i += 1) {
+          const chunk = tagBasePart(
+            new THREE.Mesh(
+              new THREE.BoxGeometry(legRadius * 0.62, crownHeight * 0.45, legRadius * 0.62),
+              ctx.legMat
+            )
+          );
+          const angle = (i * Math.PI * 2) / crenelCount;
+          chunk.position.set(
+            offsetX + Math.cos(angle) * legRadius * 0.86,
+            crown.position.y + crownHeight * 0.48,
+            offsetZ + Math.sin(angle) * legRadius * 0.86
+          );
+          meshes.push(chunk);
+        }
+      };
+
+      const offsetX = ctx.frameOuterX - ctx.legInset * 0.9;
+      const offsetZ = ctx.frameOuterZ - ctx.legInset * 0.9;
+      [
+        [-offsetX, -offsetZ],
+        [offsetX, -offsetZ],
+        [-offsetX, offsetZ],
+        [offsetX, offsetZ]
+      ].forEach(([lx, lz]) => {
+        createRookLeg(lx, lz);
+      });
       return { meshes, legMeshes: meshes };
     },
     zLift: (ctx) => {
@@ -9097,36 +9123,6 @@ function Table3D(
       meshes.push(beam);
       return { meshes, legMeshes: meshes };
     },
-    coinAngled: (ctx) => {
-      const meshes = [];
-      const positions = [
-        [-ctx.frameOuterX * 0.82, -ctx.frameOuterZ * 0.82],
-        [ctx.frameOuterX * 0.82, -ctx.frameOuterZ * 0.82],
-        [-ctx.frameOuterX * 0.82, ctx.frameOuterZ * 0.82],
-        [ctx.frameOuterX * 0.82, ctx.frameOuterZ * 0.82]
-      ];
-      positions.forEach(([lx, lz]) => {
-        const leg = new THREE.Mesh(
-          new THREE.CylinderGeometry(ctx.legR * 1.1, ctx.legR * 0.75, ctx.legH * 0.9, 36),
-          ctx.legMat
-        );
-        leg.position.set(lx, ctx.legY + ctx.legH * 0.05, lz);
-        leg.castShadow = true;
-        leg.receiveShadow = true;
-        leg.userData = { ...(leg.userData || {}), __basePart: true };
-        meshes.push(leg);
-      });
-      const centerBeam = new THREE.Mesh(
-        new THREE.BoxGeometry(ctx.frameOuterX * 1.4, ctx.legR * 0.5, ctx.frameOuterZ * 0.7),
-        ctx.legMat
-      );
-      centerBeam.position.y = ctx.floorY + ctx.legR * 0.45;
-      centerBeam.castShadow = true;
-      centerBeam.receiveShadow = true;
-      centerBeam.userData = { ...(centerBeam.userData || {}), __basePart: true };
-      meshes.push(centerBeam);
-      return { meshes, legMeshes: meshes };
-    },
     blockPedestal: (ctx) => {
       const meshes = [];
       const block = new THREE.Mesh(
@@ -9185,6 +9181,76 @@ function Table3D(
       stretcher.receiveShadow = true;
       stretcher.userData = { ...(stretcher.userData || {}), __basePart: true };
       meshes.push(stretcher);
+      return { meshes, legMeshes: meshes };
+    },
+    chessBishopLegs: (ctx) => {
+      const meshes = [];
+      const legRadius = ctx.legR * 1.02;
+      const createBishopLeg = (offsetX, offsetZ) => {
+        const footHeight = ctx.legH * 0.14;
+        const foot = tagBasePart(
+          new THREE.Mesh(
+            new THREE.CylinderGeometry(legRadius * 1.05, legRadius * 1.1, footHeight, 32),
+            ctx.legMat
+          )
+        );
+        foot.position.set(offsetX, ctx.floorY + footHeight / 2, offsetZ);
+        meshes.push(foot);
+
+        const bodyHeight = ctx.legH * 0.56;
+        const body = tagBasePart(
+          new THREE.Mesh(
+            new THREE.CylinderGeometry(legRadius * 0.85, legRadius * 1.05, bodyHeight, 32),
+            ctx.legMat
+          )
+        );
+        body.position.set(offsetX, ctx.floorY + footHeight + bodyHeight / 2, offsetZ);
+        meshes.push(body);
+
+        const collar = tagBasePart(
+          new THREE.Mesh(new THREE.TorusGeometry(legRadius * 0.82, legRadius * 0.12, 16, 48), ctx.legMat)
+        );
+        collar.rotation.x = Math.PI / 2;
+        collar.position.set(offsetX, ctx.floorY + footHeight + bodyHeight * 0.84, offsetZ);
+        meshes.push(collar);
+
+        const neckHeight = ctx.legH * 0.2;
+        const neck = tagBasePart(
+          new THREE.Mesh(
+            new THREE.CylinderGeometry(legRadius * 0.64, legRadius * 0.78, neckHeight, 24),
+            ctx.legMat
+          )
+        );
+        neck.position.set(
+          offsetX,
+          ctx.floorY + footHeight + bodyHeight + neckHeight / 2,
+          offsetZ
+        );
+        meshes.push(neck);
+
+        const mitreRadius = legRadius * 0.72;
+        const mitre = tagBasePart(
+          new THREE.Mesh(new THREE.SphereGeometry(mitreRadius, 24, 24), ctx.legMat)
+        );
+        mitre.scale.y = 1.24;
+        mitre.position.set(
+          offsetX,
+          ctx.floorY + footHeight + bodyHeight + neckHeight + mitreRadius * 0.92,
+          offsetZ
+        );
+        meshes.push(mitre);
+      };
+
+      const offsetX = ctx.frameOuterX - ctx.legInset * 0.92;
+      const offsetZ = ctx.frameOuterZ - ctx.legInset * 0.92;
+      [
+        [-offsetX, -offsetZ],
+        [offsetX, -offsetZ],
+        [-offsetX, offsetZ],
+        [offsetX, offsetZ]
+      ].forEach(([lx, lz]) => {
+        createBishopLeg(lx, lz);
+      });
       return { meshes, legMeshes: meshes };
     },
     rusticCross: (ctx) => {
@@ -12096,7 +12162,7 @@ const powerRef = useRef(hud.power);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.enabled = false;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       applyRendererQuality();
