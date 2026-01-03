@@ -527,22 +527,10 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     swatches: ['#6f5140', '#caa07a']
   },
   {
-    id: 'sideTableTall01',
-    name: 'Side Table Tall 01 Base',
-    description: 'Extended tall side table scaled to lift the pool platform.',
-    swatches: ['#5b4634', '#b68a64']
-  },
-  {
     id: 'roundWoodenTable01',
     name: 'Round Wooden Table 01 Base',
     description: 'Circular wooden base with generous footprint for the pool layout.',
     swatches: ['#805b3a', '#c99f72']
-  },
-  {
-    id: 'modernCoffeeTable02',
-    name: 'Modern Coffee Table 02 Base',
-    description: 'Modern coffee table form-factor re-used as a contemporary pool base.',
-    swatches: ['#3f3f3f', '#b0a08b']
   }
 ]);
 
