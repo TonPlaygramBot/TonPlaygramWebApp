@@ -9568,7 +9568,7 @@ export function PoolRoyaleGame({
     const ctx = audioContextRef.current;
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
-    const scaled = clamp(vol * volumeRef.current * 1.5, 0, 1);
+    const scaled = clamp(vol * volumeRef.current * 2.25, 0, 1);
     if (scaled <= 0) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -9576,7 +9576,7 @@ export function PoolRoyaleGame({
     const gain = ctx.createGain();
     gain.gain.value = scaled;
     source.connect(gain).connect(ctx.destination);
-    const HIT_START = 7;
+    const HIT_START = Math.max(0, 7 - 2.5);
     const HIT_DURATION = 2;
     source.start(ctx.currentTime, HIT_START, HIT_DURATION);
   }, []);
