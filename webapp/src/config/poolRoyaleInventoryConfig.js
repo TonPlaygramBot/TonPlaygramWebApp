@@ -485,6 +485,12 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     swatches: ['#f8fafc', '#e5e7eb']
   },
   {
+    id: 'coffeeTable01',
+    name: 'Coffee Table 01 Base',
+    description: 'Poly Haven Coffee Table 01 from Murlan Royale sized to support the pool deck.',
+    swatches: ['#8b7355', '#d6c1a3']
+  },
+  {
     id: 'coffeeTableRound01',
     name: 'Coffee Table Round 01 Base',
     description: 'Rounded Poly Haven coffee table legs tucked beneath the pool table.',
@@ -503,10 +509,28 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     swatches: ['#9b7350', '#d7b594']
   },
   {
+    id: 'woodenTable02',
+    name: 'Wooden Table 02 Base',
+    description: 'Poly Haven Wooden Table 02 adapted to the Pool Royale frame proportions.',
+    swatches: ['#7d5a3c', '#c7a27d']
+  },
+  {
+    id: 'chineseTeaTable',
+    name: 'Chinese Tea Table Base',
+    description: 'Low-profile Chinese tea table from Murlan Royale fitted beneath the pool table.',
+    swatches: ['#70452f', '#d1a573']
+  },
+  {
     id: 'woodenTable02Alt',
     name: 'Wooden Table 02 Alt Base',
     description: 'Alternate Wooden Table 02 variant resized to cradle the pool playfield.',
     swatches: ['#6f5140', '#caa07a']
+  },
+  {
+    id: 'roundWoodenTable01',
+    name: 'Round Wooden Table 01 Base',
+    description: 'Circular wooden base with generous footprint for the pool layout.',
+    swatches: ['#805b3a', '#c99f72']
   }
 ]);
 
