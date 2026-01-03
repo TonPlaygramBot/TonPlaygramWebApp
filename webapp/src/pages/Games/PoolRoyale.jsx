@@ -6309,6 +6309,96 @@ function createAccentMesh(accent, dims) {
   return mesh;
 }
 
+const TABLE_LOGO_TEXTURE_URL = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
+let cachedTableLogoTexture = null;
+function getTableLogoTexture() {
+  if (cachedTableLogoTexture) return cachedTableLogoTexture;
+  const loader = new THREE.TextureLoader();
+  loader.setCrossOrigin?.('anonymous');
+  const texture = loader.load(TABLE_LOGO_TEXTURE_URL, (tex) => {
+    applySRGBColorSpace(tex);
+    tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.anisotropy = resolveTextureAnisotropy(tex.anisotropy ?? 1);
+    tex.needsUpdate = true;
+  });
+  applySRGBColorSpace(texture);
+  texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
+  cachedTableLogoTexture = texture;
+  return cachedTableLogoTexture;
+}
+
+function applyLogoMaterialStyling(material, railMat) {
+  if (!material) return;
+  const baseColor = railMat?.color ? railMat.color : new THREE.Color(0xffffff);
+  const carvedTint = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.18);
+  material.color.copy(carvedTint);
+  material.emissive.copy(baseColor.clone().multiplyScalar(0.04));
+  material.roughness = Math.min(0.92, (railMat?.roughness ?? 0.56) + 0.12);
+  material.metalness = Math.max(0.04, (railMat?.metalness ?? 0.12) * 0.4);
+  material.needsUpdate = true;
+}
+
+function ensureRailLogoMaterial(finishParts, railMat) {
+  if (!finishParts) return null;
+  const logoTexture = getTableLogoTexture();
+  if (!logoTexture) return null;
+  if (!finishParts.logoMaterial) {
+    const material = new THREE.MeshPhysicalMaterial({
+      map: logoTexture,
+      transparent: true,
+      alphaTest: 0.08,
+      depthWrite: false,
+      side: THREE.FrontSide,
+      clearcoat: 0,
+      roughness: 0.8,
+      metalness: 0.08
+    });
+    finishParts.logoMaterial = material;
+  } else {
+    finishParts.logoMaterial.map = logoTexture;
+  }
+  applyLogoMaterialStyling(finishParts.logoMaterial, railMat);
+  return finishParts.logoMaterial;
+}
+
+function addRailLogosToTable(targetGroup, finishParts, railMat, options = {}) {
+  if (!targetGroup || !finishParts?.dimensions) return;
+  if (!Array.isArray(finishParts.logoMeshes)) {
+    finishParts.logoMeshes = [];
+  }
+  if (finishParts.logoMeshes.length > 0) return;
+  const material = ensureRailLogoMaterial(finishParts, railMat);
+  if (!material) return;
+  const { outerHalfW, outerHalfH, railH, frameTopY } = finishParts.dimensions;
+  const {
+    frameExtensionDepth = TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER,
+    railRenderOrder = 0
+  } = options;
+  const logoHeight = Math.max(frameExtensionDepth * 0.7, railH * 0.6);
+  const logoY = frameTopY - Math.max(frameExtensionDepth * 0.5, railH * 0.4);
+  const inset = Math.max(BALL_R * 2.6, ORIGINAL_RAIL_WIDTH * 1.4);
+  const longWidth = Math.max(MICRO_EPS * 128, (outerHalfW - inset) * 2);
+  const shortWidth = Math.max(MICRO_EPS * 128, (outerHalfH - inset) * 2);
+  const offset = Math.max(MICRO_EPS * 24, TABLE.THICK * 0.04);
+  const longGeo = new THREE.PlaneGeometry(longWidth, logoHeight);
+  const shortGeo = new THREE.PlaneGeometry(shortWidth, logoHeight);
+  const addLogo = (geo, x, z, rotY) => {
+    const mesh = new THREE.Mesh(geo, material);
+    mesh.position.set(x, logoY, z);
+    mesh.rotation.y = rotY;
+    mesh.renderOrder = railRenderOrder + 0.01;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    targetGroup.add(mesh);
+    finishParts.logoMeshes.push(mesh);
+  };
+  addLogo(longGeo, 0, outerHalfH + offset, 0);
+  addLogo(longGeo, 0, -outerHalfH - offset, Math.PI);
+  addLogo(shortGeo, outerHalfW + offset, 0, -Math.PI / 2);
+  addLogo(shortGeo, -outerHalfW - offset, 0, Math.PI / 2);
+}
+
 function Table3D(
   parent,
   finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID],
@@ -6343,7 +6433,9 @@ function Table3D(
     dimensions: null,
     baseVariantId: null,
     woodSurfaces: { frame: null, rail: null },
-    woodTextureId: null
+    woodTextureId: null,
+    logoMeshes: [],
+    logoMaterial: null
   };
 
   const halfW = PLAY_W / 2;
@@ -8750,6 +8842,10 @@ function Table3D(
   frameExtension.receiveShadow = true;
   table.add(frameExtension);
   finishParts.frameMeshes.push(frameExtension);
+  addRailLogosToTable(railsGroup, finishParts, railMat, {
+    frameExtensionDepth,
+    railRenderOrder: railsMesh?.renderOrder ?? 0
+  });
 
   const legR = Math.min(TABLE.W, TABLE.H) * 0.055 * LEG_RADIUS_SCALE;
   const legTopLocal = frameTopY - TABLE.THICK;
@@ -9553,6 +9649,16 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.woodTextureId = null;
     finishInfo.parts.woodTextureId = null;
     finishInfo.woodRepeatScale = 1;
+  }
+
+  if (finishInfo.parts.logoMeshes?.length) {
+    const logoMaterial = ensureRailLogoMaterial(finishInfo.parts, railMat);
+    if (logoMaterial) {
+      finishInfo.parts.logoMeshes.forEach((mesh) => {
+        if (!mesh) return;
+        mesh.material = logoMaterial;
+      });
+    }
   }
 
   const clothTextureKey =
@@ -11496,11 +11602,11 @@ const powerRef = useRef(hud.power);
     [stopActiveCrowdSound]
   );
 
-  const playSwerveApply = useCallback(() => {
+  const playSwerveApply = useCallback((vol = 1) => {
     const ctx = audioContextRef.current;
     const buffer = audioBuffersRef.current.swerve;
     if (!ctx || !buffer || muteRef.current) return;
-    const scaled = clamp(volumeRef.current * 0.9, 0, 1);
+    const scaled = clamp(vol * volumeRef.current * 0.9, 0, 1);
     if (scaled <= 0) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11514,6 +11620,17 @@ const powerRef = useRef(hud.power);
       source.start(0, 0, playbackDuration);
     }
   }, [routeAudioNode]);
+
+  const playCueStrikeForShot = useCallback(
+    (vol = 1, spinMode = 'standard') => {
+      if (spinMode === 'swerve') {
+        playSwerveApply(vol);
+      } else {
+        playCueHit(vol);
+      }
+    },
+    [playCueHit, playSwerveApply]
+  );
   useEffect(() => {
     document.title = 'Pool Royale 3D';
   }, []);
@@ -18794,7 +18911,7 @@ const powerRef = useRef(hud.power);
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
-          playCueHit(clampedPower * 0.6);
+          playCueStrikeForShot(clampedPower * 0.6, cue.spinMode);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
