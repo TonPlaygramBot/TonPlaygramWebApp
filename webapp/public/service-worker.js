@@ -1,7 +1,6 @@
-const STATIC_CACHE = 'tonplaygram-static-v4';
-const RUNTIME_CACHE = 'tonplaygram-runtime-v4';
+const STATIC_CACHE = 'tonplaygram-static-v3';
+const RUNTIME_CACHE = 'tonplaygram-runtime-v3';
 const OFFLINE_FALLBACK = '/offline.html';
-const GLTF_MANIFEST_URL = '/pwa/gltf-manifest.json';
 
 const APP_SHELL = [
   '/',
@@ -9,7 +8,6 @@ const APP_SHELL = [
   OFFLINE_FALLBACK,
   '/manifest.webmanifest',
   '/tonconnect-manifest.json',
-  GLTF_MANIFEST_URL,
   '/power-slider.css',
   '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp',
   '/assets/icons/file_000000003f7861f481d50537fb031e13.png'
@@ -35,14 +33,6 @@ const enableNavigationPreload = async () => {
   }
 };
 
-const fetchGltfManifest = async () => {
-  const response = await fetch(GLTF_MANIFEST_URL, { cache: 'reload' });
-  if (!response.ok) throw new Error('Unable to load GLTF manifest');
-  const manifest = await response.json();
-  if (!Array.isArray(manifest)) throw new Error('Invalid GLTF manifest format');
-  return Array.from(new Set(manifest.filter(Boolean)));
-};
-
 const precache = async () => {
   const cache = await caches.open(STATIC_CACHE);
   await cache.addAll(APP_SHELL.map(path => new Request(path, { cache: 'reload' })));
@@ -50,35 +40,19 @@ const precache = async () => {
 
 const prewarmRuntimeCache = async () => {
   const cache = await caches.open(RUNTIME_CACHE);
-  const cacheAsset = async asset => {
-    try {
-      const request = new Request(asset, {
-        cache: 'reload',
-        mode: /^https?:\/\//.test(asset) ? 'cors' : 'same-origin',
-        credentials: 'omit'
-      });
-      const response = await fetch(request);
-      if (response.ok) {
-        await cache.put(request, response.clone());
+  await Promise.all(
+    PREFETCH_RUNTIME_ASSETS.map(async asset => {
+      try {
+        const request = new Request(asset, { cache: 'reload' });
+        const response = await fetch(request);
+        if (response.ok) {
+          await cache.put(request, response.clone());
+        }
+      } catch (err) {
+        // Ignore failed warmups to avoid breaking install
       }
-    } catch (err) {
-      // Ignore failed warmups to avoid breaking install
-    }
-  };
-
-  const warmGltfAssets = async () => {
-    try {
-      const manifest = await fetchGltfManifest();
-      await Promise.all(manifest.map(cacheAsset));
-    } catch (err) {
-      // Ignore GLTF failures to keep install resilient
-    }
-  };
-
-  await Promise.all([
-    ...PREFETCH_RUNTIME_ASSETS.map(cacheAsset),
-    warmGltfAssets()
-  ]);
+    })
+  );
 };
 
 self.addEventListener('install', event => {
@@ -169,11 +143,6 @@ const handleNavigationRequest = event => {
   );
 };
 
-const isGltfRequest = request => {
-  const url = new URL(request.url);
-  return url.pathname.endsWith('.gltf') || url.pathname.endsWith('.glb');
-};
-
 self.addEventListener('fetch', event => {
   const { request } = event;
 
@@ -187,19 +156,14 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   const isSameOrigin = url.origin === self.location.origin;
   const destination = request.destination;
-  const cacheableDestinations = ['script', 'style', 'font', 'image', 'audio', 'video', 'model'];
-
-  if (isGltfRequest(request)) {
-    event.respondWith(staleWhileRevalidate(request));
-    return;
-  }
+  const cacheableDestinations = ['script', 'style', 'font', 'image', 'audio', 'video'];
 
   if (isSameOrigin && cacheableDestinations.includes(destination)) {
     event.respondWith(staleWhileRevalidate(request));
     return;
   }
 
-  if (!isSameOrigin && (destination === 'font' || destination === 'model')) {
+  if (!isSameOrigin && destination === 'font') {
     event.respondWith(staleWhileRevalidate(request));
     return;
   }
