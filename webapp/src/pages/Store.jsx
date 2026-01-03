@@ -8,7 +8,6 @@ import {
   POOL_ROYALE_BASE_VARIANTS
 } from '../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../config/poolRoyaleClothPresets.js';
-import { POOL_ROYALE_TABLE_FINISH_VARIANTS } from '../config/poolRoyaleTableFinishes.js';
 import {
   SNOOKER_CLUB_DEFAULT_LOADOUT,
   SNOOKER_CLUB_OPTION_LABELS,
@@ -296,16 +295,13 @@ const POOL_CLOTH_SWATCHES = POOL_ROYALE_CLOTH_VARIANTS.reduce((acc, cloth) => {
   return acc;
 }, {});
 
-const POOL_FINISH_SWATCHES = POOL_ROYALE_TABLE_FINISH_VARIANTS.reduce((acc, finish) => {
-  if (finish?.swatches?.length) {
-    acc[finish.id] = finish.swatches;
-  }
-  return acc;
-}, {});
-
 const OPTION_SWATCH_OVERRIDES = {
   ...POOL_CLOTH_SWATCHES,
-  ...POOL_FINISH_SWATCHES,
+  peelingPaintWeathered: ['#a89f95', '#b8b3aa'],
+  oakVeneer01: ['#b9854e', '#c89a64'],
+  woodTable001: ['#8f6243', '#a4724f'],
+  darkWood: ['#2f241f', '#3d2f2a'],
+  rosewoodVeneer01: ['#5b2f26', '#6f3a2f'],
   gold: ['#f59e0b', '#fbbf24'],
   chrome: ['#e5e7eb', '#a1a1aa'],
   pearl: ['#f5f3ff', '#e2e8f0'],
