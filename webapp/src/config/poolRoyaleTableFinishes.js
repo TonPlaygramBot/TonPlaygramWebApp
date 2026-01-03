@@ -1,5 +1,60 @@
 export const POOL_ROYALE_TABLE_FINISH_VARIANTS = Object.freeze([
   Object.freeze({
+    id: 'peelingPaintWeathered-driftwood',
+    baseId: 'peelingPaintWeathered',
+    label: 'Peeling Paint Weathered — Driftwood',
+    woodTextureId: 'wood_peeling_paint_weathered',
+    rail: 0xb8b3aa,
+    base: 0xa89f95,
+    trim: 0xd6d0c7,
+    woodRepeatScale: 1,
+    swatches: ['#a89f95', '#d6d0c7']
+  }),
+  Object.freeze({
+    id: 'peelingPaintWeathered-seaGlass',
+    baseId: 'peelingPaintWeathered',
+    label: 'Peeling Paint Weathered — Sea Glass',
+    woodTextureId: 'wood_peeling_paint_weathered',
+    rail: 0xa5b5b1,
+    base: 0x91a59c,
+    trim: 0xc3d6d0,
+    woodRepeatScale: 1,
+    swatches: ['#91a59c', '#c3d6d0']
+  }),
+  Object.freeze({
+    id: 'peelingPaintWeathered-sandbar',
+    baseId: 'peelingPaintWeathered',
+    label: 'Peeling Paint Weathered — Sandbar',
+    woodTextureId: 'wood_peeling_paint_weathered',
+    rail: 0xcdbba3,
+    base: 0xbfa78a,
+    trim: 0xe8d8c0,
+    woodRepeatScale: 1,
+    swatches: ['#bfa78a', '#e8d8c0']
+  }),
+  Object.freeze({
+    id: 'peelingPaintWeathered-storm',
+    baseId: 'peelingPaintWeathered',
+    label: 'Peeling Paint Weathered — Storm',
+    woodTextureId: 'wood_peeling_paint_weathered',
+    rail: 0x9aa3b1,
+    base: 0x828b9a,
+    trim: 0xc2cad9,
+    woodRepeatScale: 1,
+    swatches: ['#828b9a', '#c2cad9']
+  }),
+  Object.freeze({
+    id: 'peelingPaintWeathered-ember',
+    baseId: 'peelingPaintWeathered',
+    label: 'Peeling Paint Weathered — Ember',
+    woodTextureId: 'wood_peeling_paint_weathered',
+    rail: 0xb79b84,
+    base: 0xa08066,
+    trim: 0xd8b79a,
+    woodRepeatScale: 1,
+    swatches: ['#a08066', '#d8b79a']
+  }),
+  Object.freeze({
     id: 'oakVeneer01-amber',
     baseId: 'oakVeneer01',
     label: 'Oak Veneer — Amber',
