@@ -31,6 +31,12 @@ const tileableNoise = (x, y, width, height, scale, seed = 1) => {
 };
 
 const WOOD_TEXTURE_ANISOTROPY = 12;
+let WOOD_ANISOTROPY_CAP = WOOD_TEXTURE_ANISOTROPY;
+
+export const setWoodTextureAnisotropyCap = (value) => {
+  if (!Number.isFinite(value) || value <= 0) return;
+  WOOD_ANISOTROPY_CAP = Math.max(WOOD_TEXTURE_ANISOTROPY, value);
+};
 
 const woodTextureLoader = new THREE.TextureLoader();
 woodTextureLoader.setCrossOrigin?.('anonymous');
@@ -42,7 +48,12 @@ const normalizeExternalTexture = (texture, isColor = false, anisotropy = WOOD_TE
     applySRGBColorSpace(texture);
   }
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.anisotropy = Math.max(texture.anisotropy ?? 1, anisotropy);
+  const targetAnisotropy = Math.max(
+    texture.anisotropy ?? 1,
+    anisotropy ?? WOOD_TEXTURE_ANISOTROPY,
+    WOOD_ANISOTROPY_CAP || 1
+  );
+  texture.anisotropy = targetAnisotropy;
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
