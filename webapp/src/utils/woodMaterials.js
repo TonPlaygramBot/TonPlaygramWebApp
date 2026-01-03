@@ -311,8 +311,13 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
 // with no visible tiling seams.
 const LARGE_SLAB_REPEAT_X = 0.009;
 const FRAME_SLAB_REPEAT_X = LARGE_SLAB_REPEAT_X * 1.18;
+const POLYHAVEN_ASSET_ALIASES = {
+  rosewood_veneer_01: 'rosewood_veneer1'
+};
+
 const polyHavenTextureSet = (assetId) => {
-  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${assetId}/${assetId}`;
+  const resolvedId = POLYHAVEN_ASSET_ALIASES[assetId] ?? assetId;
+  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${resolvedId}/${resolvedId}`;
   return {
     mapUrl: `${base}_diff_2k.jpg`,
     roughnessMapUrl: `${base}_rough_2k.jpg`,
