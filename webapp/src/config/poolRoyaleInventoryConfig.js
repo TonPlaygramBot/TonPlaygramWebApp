@@ -545,24 +545,6 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     name: 'Rustic Cross',
     description: 'Industrial X-trestle stance with plank stretcher.',
     swatches: ['#8b5f39', '#1f2937']
-  },
-  {
-    id: 'coffeeTable01',
-    name: 'Coffee Table 01',
-    description: 'Poly Haven Coffee Table 01 repurposed as a low-profile pool base.',
-    swatches: ['#c8b799', '#6b4f3a']
-  },
-  {
-    id: 'coffeeTableRound01',
-    name: 'Coffee Table Round 01',
-    description: 'Round Poly Haven coffee table base sized to tuck under the pool table.',
-    swatches: ['#d8cbb0', '#5b4635']
-  },
-  {
-    id: 'gothicCoffeeTable',
-    name: 'Gothic Coffee Table',
-    description: 'Gothic-styled coffee table legs supporting the pool deck without showing the top.',
-    swatches: ['#e2ded7', '#3a312a']
   }
 ]);
 
