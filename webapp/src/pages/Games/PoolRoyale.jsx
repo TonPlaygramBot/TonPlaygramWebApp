@@ -2205,54 +2205,54 @@ const TABLE_FINISHES = Object.freeze({
   rosewoodVeneer01: createStandardWoodFinish({
     id: 'rosewoodVeneer01',
     label: 'Rosewood Veneer 01',
-    rail: 0x7c402f,
-    base: 0x643127,
-    trim: 0xa56146,
+    rail: 0x6f3a2f,
+    base: 0x5b2f26,
+    trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
   }),
   rosewoodVeneerAmber: createStandardWoodFinish({
     id: 'rosewoodVeneerAmber',
     label: 'Rosewood Veneer Amber',
-    rail: 0x9f5b33,
-    base: 0x834829,
-    trim: 0xd68545,
+    rail: 0x8b4a2f,
+    base: 0x733b26,
+    trim: 0xbf6f4a,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
   }),
   rosewoodVeneerWalnut: createStandardWoodFinish({
     id: 'rosewoodVeneerWalnut',
     label: 'Rosewood Veneer Walnut',
-    rail: 0x5e3f2d,
-    base: 0x493125,
-    trim: 0x875d42,
+    rail: 0x5a372a,
+    base: 0x452a20,
+    trim: 0x7c503b,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
   }),
   rosewoodVeneerEbony: createStandardWoodFinish({
     id: 'rosewoodVeneerEbony',
     label: 'Rosewood Veneer Ebony',
-    rail: 0x2c1d18,
-    base: 0x1f1411,
-    trim: 0x51362c,
+    rail: 0x2a1c18,
+    base: 0x1f1512,
+    trim: 0x4b3329,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
   }),
   rosewoodVeneerHoney: createStandardWoodFinish({
     id: 'rosewoodVeneerHoney',
     label: 'Rosewood Veneer Honey',
-    rail: 0xc67d3b,
-    base: 0xa2652f,
-    trim: 0xe3a65c,
+    rail: 0xb36b3f,
+    base: 0x945732,
+    trim: 0xcf8a56,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
   }),
   rosewoodVeneerAsh: createStandardWoodFinish({
     id: 'rosewoodVeneerAsh',
     label: 'Rosewood Veneer Ash',
-    rail: 0x8b7769,
-    base: 0x6f5a4e,
-    trim: 0xb19b89,
+    rail: 0x7a5c4d,
+    base: 0x5f463a,
+    trim: 0x9a7b67,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
   })
@@ -9174,16 +9174,16 @@ function Table3D(
       matchTableFootprint: true
     }),
     murlanDefaultTable: createPolyhavenTableBaseBuilder('WoodenTable_01', {
-      footprintScale: 0.98,
-      footprintDepthScale: 1.02,
+      footprintScale: 1.06,
+      footprintDepthScale: 1.08,
       heightFill: 0.9,
       topInsetScale: 0.96,
       materialKey: 'rail',
       matchTableFootprint: true
     }),
     woodenTable02: createPolyhavenTableBaseBuilder('WoodenTable_02', {
-      footprintScale: 0.98,
-      footprintDepthScale: 1,
+      footprintScale: 1.05,
+      footprintDepthScale: 1.08,
       heightFill: 0.92,
       topInsetScale: 0.95,
       materialKey: 'rail',
@@ -9197,19 +9197,35 @@ function Table3D(
       materialKey: 'rail'
     }),
     woodenTable02Alt: createPolyhavenTableBaseBuilder('wooden_table_02', {
-      footprintScale: 0.98,
-      footprintDepthScale: 1,
+      footprintScale: 1.06,
+      footprintDepthScale: 1.1,
       heightFill: 0.9,
       topInsetScale: 0.95,
       materialKey: 'rail',
       matchTableFootprint: true
     }),
+    sideTableTall01: createPolyhavenTableBaseBuilder('side_table_tall_01', {
+      footprintScale: 1.28,
+      footprintDepthScale: 1.22,
+      heightFill: 0.94,
+      topInsetScale: 0.9,
+      materialKey: 'rail',
+      matchTableFootprint: true
+    }),
     roundWoodenTable01: createPolyhavenTableBaseBuilder('round_wooden_table_01', {
-      footprintScale: 1.08,
-      footprintDepthScale: 1.08,
+      footprintScale: 1.18,
+      footprintDepthScale: 1.18,
       heightFill: 0.88,
       topInsetScale: 0.9,
       materialKey: 'trim'
+    }),
+    modernCoffeeTable02: createPolyhavenTableBaseBuilder('modern_coffee_table_02', {
+      footprintScale: 1.07,
+      footprintDepthScale: 1.1,
+      heightFill: 0.86,
+      topInsetScale: 0.94,
+      materialKey: 'rail',
+      matchTableFootprint: true
     })
   };
 
