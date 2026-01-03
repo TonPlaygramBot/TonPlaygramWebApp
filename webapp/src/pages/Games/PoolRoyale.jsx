@@ -11334,7 +11334,8 @@ const powerRef = useRef(hud.power);
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
     const power = clamp(vol, 0, 1);
-    const scaled = clamp(volumeRef.current * 1.2 * 1.5 * (0.35 + power * 0.75), 0, 1);
+    const baseGain = volumeRef.current * 1.2 * 1.5 * (0.35 + power * 0.75);
+    const scaled = clamp(baseGain * 1.5, 0, 1);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -11343,8 +11344,13 @@ const powerRef = useRef(hud.power);
     gain.gain.value = scaled;
     source.connect(gain);
     routeAudioNode(gain);
-    const clipStart = THREE.MathUtils.clamp(6, 0, Math.max(buffer.duration - 0.1, 0));
-    const clipEnd = THREE.MathUtils.clamp(8.6, clipStart, buffer.duration);
+    const clipLead = 2.5;
+    const clipStart = THREE.MathUtils.clamp(
+      6 - clipLead,
+      0,
+      Math.max(buffer.duration - 0.1, 0)
+    );
+    const clipEnd = THREE.MathUtils.clamp(8.6 - clipLead, clipStart, buffer.duration);
     const playbackDuration = Math.max(0, clipEnd - clipStart);
     if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
       source.start(0, clipStart, playbackDuration);
@@ -18582,7 +18588,6 @@ const powerRef = useRef(hud.power);
           const shouldRecordReplay = true;
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
-          playCueHit(clampedPower * 0.6);
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
@@ -18748,6 +18753,7 @@ const powerRef = useRef(hud.power);
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
+          playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
