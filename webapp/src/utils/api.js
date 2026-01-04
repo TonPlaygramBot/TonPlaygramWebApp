@@ -58,6 +58,8 @@ async function post(path, body, token) {
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
+  const tgId = window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+  if (!initData && tgId != null) headers['X-Telegram-User-Id'] = tgId;
 
   let res;
   try {
@@ -98,6 +100,8 @@ async function put(path, body, token) {
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
+  const tgId = window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+  if (!initData && tgId != null) headers['X-Telegram-User-Id'] = tgId;
 
   let res;
   try {
@@ -136,6 +140,8 @@ async function get(path, token) {
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
+  const tgId = window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+  if (!initData && tgId != null) headers['X-Telegram-User-Id'] = tgId;
 
   let res;
   try {

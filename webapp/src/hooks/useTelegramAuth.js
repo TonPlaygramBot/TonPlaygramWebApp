@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
 import { socket } from '../utils/socket.js';
 import { createAccount } from '../utils/api.js';
 import { ensureAccountId } from '../utils/telegram.js';
@@ -22,6 +24,15 @@ export default function useTelegramAuth() {
     const acc = localStorage.getItem('accountId');
     if (user?.id) {
       localStorage.setItem('telegramId', user.id);
+      if (Capacitor.isNativePlatform()) {
+        void Preferences.set({ key: 'telegramId', value: String(user.id) });
+        if (user.username) void Preferences.set({ key: 'telegramUsername', value: user.username });
+        if (user.first_name) void Preferences.set({ key: 'telegramFirstName', value: user.first_name });
+        if (user.last_name) void Preferences.set({ key: 'telegramLastName', value: user.last_name });
+        const params = new URLSearchParams();
+        params.set('user', JSON.stringify(user));
+        void Preferences.set({ key: 'telegramInitData', value: params.toString() });
+      }
       socket.emit('register', { playerId: acc || user.id });
       createAccount(user.id).catch(err => {
         console.error('Failed to create account', err);

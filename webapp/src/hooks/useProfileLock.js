@@ -10,6 +10,14 @@ import {
   verifyRecoveryCode,
   verifySecret
 } from '../utils/profileLock.js';
+import {
+  authenticateNativeBiometric,
+  clearNativeCredentialId,
+  isNativeBiometricAvailable,
+  loadNativeCredentialId,
+  NATIVE_CREDENTIAL_ID,
+  storeNativeCredentialId
+} from '../utils/deviceBiometric';
 
 function bufferFromBase64url(value) {
   const padding = '='.repeat((4 - (value.length % 4)) % 4);
@@ -75,9 +83,13 @@ export default function useProfileLock() {
   const [lastError, setLastError] = useState('');
   const [deviceSupported, setDeviceSupported] = useState(
     typeof window !== 'undefined' &&
-      (!!window.PublicKeyCredential || loadLockConfig()?.credentialId === TELEGRAM_BIOMETRIC_ID)
+      (!!window.PublicKeyCredential ||
+        loadLockConfig()?.credentialId === TELEGRAM_BIOMETRIC_ID ||
+        loadLockConfig()?.credentialId === NATIVE_CREDENTIAL_ID)
   );
   const [telegramBiometricSupported, setTelegramBiometricSupported] = useState(false);
+  const [nativeBiometricSupported, setNativeBiometricSupported] = useState(false);
+  const [nativeCredentialId, setNativeCredentialId] = useState(null);
   const locked = status === 'locked';
 
   useEffect(() => {
@@ -86,7 +98,9 @@ export default function useProfileLock() {
     setConfig(currentConfig);
     setStatus(isUnlocked() || !currentConfig ? 'unlocked' : 'locked');
     if (typeof window !== 'undefined') {
-      const hasStoredTelegramDevice = currentConfig?.credentialId === TELEGRAM_BIOMETRIC_ID;
+      const hasStoredTelegramDevice =
+        currentConfig?.credentialId === TELEGRAM_BIOMETRIC_ID ||
+        currentConfig?.credentialId === NATIVE_CREDENTIAL_ID;
       const hasWebAuthn = !!window.PublicKeyCredential;
       setDeviceSupported(hasWebAuthn || hasStoredTelegramDevice);
     }
@@ -105,6 +119,19 @@ export default function useProfileLock() {
       setTelegramBiometricSupported(telegramAvailable);
       if (telegramAvailable) {
         setDeviceSupported((prev) => prev || telegramAvailable);
+      }
+    })();
+    (async () => {
+      const nativeAvailability = await isNativeBiometricAvailable();
+      if (cancelled) return;
+      if (nativeAvailability.available) {
+        setNativeBiometricSupported(true);
+        setDeviceSupported((prev) => prev || nativeAvailability.available);
+      }
+      const storedNativeId = await loadNativeCredentialId();
+      if (!cancelled && storedNativeId) {
+        setNativeCredentialId(storedNativeId);
+        setDeviceSupported((prev) => prev || true);
       }
     })();
     return () => {
@@ -137,7 +164,7 @@ export default function useProfileLock() {
   }, []);
 
   const unlockWithDevice = useCallback(async () => {
-    const storedDeviceId = getDeviceCredentialId();
+    const storedDeviceId = nativeCredentialId || getDeviceCredentialId();
 
     if (telegramBiometricSupported || storedDeviceId === TELEGRAM_BIOMETRIC_ID) {
       const result = await authenticateWithTelegramBiometric();
@@ -153,9 +180,22 @@ export default function useProfileLock() {
       }
     }
 
+    if (nativeBiometricSupported || storedDeviceId === NATIVE_CREDENTIAL_ID) {
+      const result = await authenticateNativeBiometric('Unlock your TonPlaygram profile');
+      if (result.ok) {
+        markUnlockedSession();
+        setStatus('unlocked');
+        setLastError('');
+        return { ok: true, method: 'native_biometric' };
+      }
+      setLastError(result.error || 'device_failed');
+      return { ok: false, error: result.error || 'device_failed' };
+    }
+
     if (!storedDeviceId || !window.PublicKeyCredential) {
-      setLastError(telegramBiometricSupported ? 'device_failed' : 'device_unsupported');
-      return { ok: false, error: telegramBiometricSupported ? 'device_failed' : 'device_unsupported' };
+      const errorCode = telegramBiometricSupported || nativeBiometricSupported ? 'device_failed' : 'device_unsupported';
+      setLastError(errorCode);
+      return { ok: false, error: errorCode };
     }
     try {
       const assertion = await navigator.credentials.get({
@@ -178,7 +218,7 @@ export default function useProfileLock() {
       return { ok: false, error: err?.name || 'device_failed' };
     }
     return { ok: false, error: 'device_failed' };
-  }, [telegramBiometricSupported]);
+  }, [nativeBiometricSupported, nativeCredentialId, telegramBiometricSupported]);
 
   const enableSecretLock = useCallback(async ({ method, secret }) => {
     const result = await setSecretLock({ method, secret });
@@ -195,15 +235,22 @@ export default function useProfileLock() {
 
   const enableDeviceLock = useCallback(async () => {
     const telegramAvailable = telegramBiometricSupported || (await isTelegramBiometricAvailable());
+    const nativeAvailable = nativeBiometricSupported || (await isNativeBiometricAvailable().then((r) => r.available));
     if (!window.PublicKeyCredential) {
-      if (telegramAvailable) {
-        storeDeviceCredentialId(TELEGRAM_BIOMETRIC_ID);
+      if (telegramAvailable || nativeAvailable) {
+        const idToStore = telegramAvailable ? TELEGRAM_BIOMETRIC_ID : NATIVE_CREDENTIAL_ID;
+        storeDeviceCredentialId(idToStore);
+        if (idToStore === NATIVE_CREDENTIAL_ID) {
+          storeNativeCredentialId(idToStore).catch(() => {});
+          setNativeCredentialId(idToStore);
+        }
         setConfig(loadLockConfig());
         setStatus('locked');
         setLastError('');
-        setTelegramBiometricSupported(true);
+        if (telegramAvailable) setTelegramBiometricSupported(true);
+        if (nativeAvailable) setNativeBiometricSupported(true);
         setDeviceSupported(true);
-        return { ok: true, method: 'telegram_biometric' };
+        return { ok: true, method: telegramAvailable ? 'telegram_biometric' : 'native_biometric' };
       }
       setLastError('device_unsupported');
       return { ok: false, error: 'device_unsupported' };
@@ -211,14 +258,20 @@ export default function useProfileLock() {
     try {
       const authenticatorAvailable = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.();
       if (authenticatorAvailable === false) {
-        if (telegramAvailable) {
-          storeDeviceCredentialId(TELEGRAM_BIOMETRIC_ID);
+        if (telegramAvailable || nativeAvailable) {
+          const idToStore = telegramAvailable ? TELEGRAM_BIOMETRIC_ID : NATIVE_CREDENTIAL_ID;
+          storeDeviceCredentialId(idToStore);
+          if (idToStore === NATIVE_CREDENTIAL_ID) {
+            storeNativeCredentialId(idToStore).catch(() => {});
+            setNativeCredentialId(idToStore);
+          }
           setConfig(loadLockConfig());
           setStatus('locked');
           setLastError('');
-          setTelegramBiometricSupported(true);
+          if (telegramAvailable) setTelegramBiometricSupported(true);
+          if (nativeAvailable) setNativeBiometricSupported(true);
           setDeviceSupported(true);
-          return { ok: true, method: 'telegram_biometric' };
+          return { ok: true, method: telegramAvailable ? 'telegram_biometric' : 'native_biometric' };
         }
         setLastError('device_unsupported');
         return { ok: false, error: 'device_unsupported' };
@@ -246,24 +299,31 @@ export default function useProfileLock() {
       }
     } catch (err) {
       console.error('Failed to register device lock', err);
-      if (telegramAvailable) {
-        storeDeviceCredentialId(TELEGRAM_BIOMETRIC_ID);
+      if (telegramAvailable || nativeAvailable) {
+        const idToStore = telegramAvailable ? TELEGRAM_BIOMETRIC_ID : NATIVE_CREDENTIAL_ID;
+        storeDeviceCredentialId(idToStore);
+        if (idToStore === NATIVE_CREDENTIAL_ID) {
+          storeNativeCredentialId(idToStore).catch(() => {});
+          setNativeCredentialId(idToStore);
+        }
         setConfig(loadLockConfig());
         setStatus('locked');
         setLastError('');
-        setTelegramBiometricSupported(true);
+        if (telegramAvailable) setTelegramBiometricSupported(true);
+        if (nativeAvailable) setNativeBiometricSupported(true);
         setDeviceSupported(true);
-        return { ok: true, method: 'telegram_biometric' };
+        return { ok: true, method: telegramAvailable ? 'telegram_biometric' : 'native_biometric' };
       }
       setLastError(err?.name || 'device_failed');
       return { ok: false, error: err?.name || 'device_failed' };
     }
     setLastError('device_failed');
     return { ok: false, error: 'device_failed' };
-  }, [telegramBiometricSupported]);
+  }, [nativeBiometricSupported, telegramBiometricSupported]);
 
   const disableLock = useCallback(() => {
     clearLockConfig();
+    clearNativeCredentialId().catch(() => {});
     setConfig(null);
     setStatus('unlocked');
     setLastError('');

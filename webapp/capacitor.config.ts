@@ -11,6 +11,12 @@ const config: CapacitorConfig = {
   },
   server: {
     androidScheme: 'https'
+  },
+  plugins: {
+    App: {
+      urlScheme: 'tonplaygram',
+      deeplinks: ['tonplaygram']
+    }
   }
 };
 

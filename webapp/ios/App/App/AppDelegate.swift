@@ -1,13 +1,16 @@
 import UIKit
 import Capacitor
+import WebKit
 
 @UIApplicationMain
-class AppDelegate: UIResponder, UIApplicationDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, WKNavigationDelegate {
 
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        if let root = window?.rootViewController as? CAPBridgeViewController {
+            root.webView?.navigationDelegate = self
+        }
         return true
     }
 
@@ -44,6 +47,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Feel free to add additional processing here, but if you want the App API to support
         // tracking app url opens, make sure to keep this call
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
+    }
+
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        if navigationAction.navigationType == .backForward {
+            webView.evaluateJavaScript("window.Telegram?.WebApp?._fireEvent && window.Telegram.WebApp._fireEvent('backButtonClicked');", completionHandler: nil)
+        }
+        decisionHandler(.allow)
     }
 
 }
