@@ -1,4 +1,4 @@
-const TELEGRAM_ONLY = true;
+const TELEGRAM_ONLY = false;
 const REFRESH_FLAG_KEY = 'tonplaygram-sw-refreshed';
 const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_URL = '/service-worker.js';

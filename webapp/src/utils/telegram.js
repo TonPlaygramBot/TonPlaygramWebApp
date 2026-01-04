@@ -132,3 +132,19 @@ export function parseTelegramPostLink(link) {
     messageId: m && m[2] ? Number(m[2]) : undefined,
   };
 }
+
+export function clearTelegramCache() {
+  if (typeof window === 'undefined') return;
+  try {
+    [
+      'telegramId',
+      'telegramUsername',
+      'telegramFirstName',
+      'telegramLastName',
+      'telegramUserData',
+      'telegramPhotoUrl'
+    ].forEach((key) => localStorage.removeItem(key));
+  } catch {
+    // ignore
+  }
+}

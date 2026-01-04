@@ -14,7 +14,8 @@ import {
   getTelegramId,
   getTelegramFirstName,
   getTelegramLastName,
-  getTelegramPhotoUrl
+  getTelegramPhotoUrl,
+  clearTelegramCache
 } from '../utils/telegram.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 import { DEV_INFO } from '../utils/constants.js';
@@ -28,7 +29,9 @@ import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import DevTasksModal from '../components/DevTasksModal.jsx';
 import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
-import { loadGoogleProfile } from '../utils/google.js';
+import { loadGoogleProfile, clearGoogleProfile } from '../utils/google.js';
+import useProfileLock from '../hooks/useProfileLock.js';
+import ProfileLockOverlay from '../components/ProfileLockOverlay.jsx';
 
 import { FiCopy } from 'react-icons/fi';
 
@@ -41,6 +44,15 @@ export default function MyAccount() {
 
   const [googleProfile, setGoogleProfile] = useState(() => (telegramId ? null : loadGoogleProfile()));
   if (!telegramId && !googleProfile?.id) return <LoginOptions onAuthenticated={setGoogleProfile} />;
+  const {
+    config: lockConfig,
+    locked: profileLocked,
+    unlockWithSecret,
+    unlockWithDevice,
+    enableSecretLock,
+    enableDeviceLock,
+    disableLock
+  } = useProfileLock();
 
   const [profile, setProfile] = useState(null);
   const [photoUrl, setPhotoUrl] = useState('');
@@ -62,6 +74,16 @@ export default function MyAccount() {
   const [twitterLink, setTwitterLink] = useState('');
   const [unread, setUnread] = useState(0);
   const [googleLinked, setGoogleLinked] = useState(!!googleProfile?.id);
+  const [lockMessage, setLockMessage] = useState('');
+
+  const handleSignOut = () => {
+    clearGoogleProfile();
+    clearTelegramCache();
+    localStorage.removeItem('accountId');
+    localStorage.removeItem('walletAddress');
+    sessionStorage.clear();
+    window.location.href = '/';
+  };
 
   useEffect(() => {
     async function load() {
@@ -201,6 +223,10 @@ export default function MyAccount() {
 
   const handleConnectTwitter = async () => {
     setTwitterError('');
+    if (!telegramId) {
+      setTwitterError('Connect Telegram first to link X.');
+      return;
+    }
     try {
       const res = await fetch('/api/twitter/start', {
         method: 'POST',
@@ -253,6 +279,14 @@ export default function MyAccount() {
 
   return (
     <div className="relative p-4 space-y-4 text-text wide-card">
+      <ProfileLockOverlay
+        locked={profileLocked}
+        onUnlockSecret={unlockWithSecret}
+        onUnlockDevice={unlockWithDevice}
+        onDisable={disableLock}
+        onConfigureSecret={enableSecretLock}
+        onConfigureDevice={enableDeviceLock}
+      />
       <AvatarPromptModal
         open={showAvatarPrompt}
         onPick={() => {
@@ -390,6 +424,72 @@ export default function MyAccount() {
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="bg-surface border border-border rounded-xl p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-semibold text-white">Profile protection</p>
+            <p className="text-xs text-subtext">
+              Lock this page with a PIN, pattern, password, or device biometrics/passkey. Unlocking works across browsers.
+            </p>
+          </div>
+          <button
+            onClick={handleSignOut}
+            className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm"
+          >
+            Sign out
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            className="px-3 py-1 bg-primary hover:bg-primary-hover text-black rounded text-sm"
+            onClick={async () => {
+              const secret = prompt('Set a PIN (4-10 digits)') || '';
+              if (!secret) return;
+              const ok = await enableSecretLock({ method: 'pin', secret });
+              setLockMessage(ok ? 'PIN lock enabled for this profile.' : 'Could not set PIN lock.');
+            }}
+          >
+            Set PIN / Pattern
+          </button>
+          <button
+            className="px-3 py-1 bg-primary hover:bg-primary-hover text-black rounded text-sm"
+            onClick={async () => {
+              const secret = prompt('Set a strong password (min 8 chars)') || '';
+              if (!secret) return;
+              const ok = await enableSecretLock({ method: 'password', secret });
+              setLockMessage(ok ? 'Password lock enabled.' : 'Could not set password lock.');
+            }}
+          >
+            Set Password
+          </button>
+          <button
+            className="px-3 py-1 border border-border text-white rounded text-sm"
+            onClick={async () => {
+              const ok = await enableDeviceLock();
+              setLockMessage(
+                ok
+                  ? 'Device biometric/passkey lock enabled. Use your device unlock to enter.'
+                  : 'Could not enable device-based lock. Make sure your browser supports passkeys.'
+              );
+            }}
+          >
+            Use biometrics / passkey
+          </button>
+          {lockConfig && (
+            <button
+              className="px-3 py-1 border border-border text-white rounded text-sm"
+              onClick={() => {
+                disableLock();
+                setLockMessage('Profile lock disabled for this session.');
+              }}
+            >
+              Disable lock
+            </button>
+          )}
+        </div>
+        {lockMessage && <p className="text-xs text-green-400">{lockMessage}</p>}
       </div>
 
       <BalanceSummary className="bg-surface border border-border rounded-xl p-4 wide-card" />
