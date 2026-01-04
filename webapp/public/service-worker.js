@@ -1,8 +1,26 @@
-const STATIC_CACHE = 'tonplaygram-static-v5';
-const RUNTIME_CACHE = 'tonplaygram-runtime-v5';
+/* Build-aware service worker: this file is copied as-is from /public. The build
+ * marker in /pwa/app-build.js is generated at build time to keep caches in sync
+ * with the currently packaged assets. */
+
+self.__TONPLAYGRAM_APP_BUILD__ = self.__TONPLAYGRAM_APP_BUILD__ || 'dev';
+try {
+  importScripts('/pwa/app-build.js');
+} catch (err) {
+  // Best-effort: fall back to the bundled default when the marker is missing.
+}
+
+const APP_BUILD =
+  typeof self.__TONPLAYGRAM_APP_BUILD__ === 'string' &&
+  self.__TONPLAYGRAM_APP_BUILD__.trim()
+    ? self.__TONPLAYGRAM_APP_BUILD__.trim()
+    : 'dev';
+
+const STATIC_CACHE = `tonplaygram-static-${APP_BUILD}`;
+const RUNTIME_CACHE = `tonplaygram-runtime-${APP_BUILD}`;
 const OFFLINE_FALLBACK = '/offline.html';
 const GLTF_MANIFEST_PATH = '/pwa/gltf-assets.json';
 const HALLWAY_MANIFEST_PATH = '/pwa/hallway-assets.json';
+const VERSION_ASSETS = ['/version.json', '/pwa/app-build.js'];
 
 const APP_SHELL = [
   '/',
@@ -13,6 +31,7 @@ const APP_SHELL = [
   HALLWAY_MANIFEST_PATH,
   '/tonconnect-manifest.json',
   '/power-slider.css',
+  ...VERSION_ASSETS,
   '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp',
   '/assets/icons/file_000000003f7861f481d50537fb031e13.png'
 ];
@@ -232,12 +251,17 @@ self.addEventListener('fetch', event => {
 
   if (request.method !== 'GET') return;
 
+  const url = new URL(request.url);
+  if (VERSION_ASSETS.includes(url.pathname)) {
+    event.respondWith(networkFirst(event, request));
+    return;
+  }
+
   if (request.mode === 'navigate') {
     handleNavigationRequest(event);
     return;
   }
 
-  const url = new URL(request.url);
   const isSameOrigin = url.origin === self.location.origin;
   const destination = request.destination;
   const cacheableDestinations = ['script', 'style', 'font', 'image', 'audio', 'video', 'model'];

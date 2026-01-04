@@ -1,10 +1,14 @@
+import { Capacitor } from '@capacitor/core';
+import { APP_BUILD } from '../config/buildInfo.js';
+
 const TELEGRAM_ONLY = false;
 const REFRESH_FLAG_KEY = 'tonplaygram-sw-refreshed';
 const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
-const SERVICE_WORKER_URL = '/service-worker.js';
+const SERVICE_WORKER_URL = `/service-worker.js?v=${APP_BUILD}`;
 
 function shouldRegisterForTelegram() {
   if (!('serviceWorker' in navigator)) return false;
+  if (Capacitor?.isNativePlatform?.() && Capacitor.getPlatform() !== 'web') return false;
   const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
   if (isLocalhost) return true;
   if (TELEGRAM_ONLY && !window.Telegram?.WebApp) return false;

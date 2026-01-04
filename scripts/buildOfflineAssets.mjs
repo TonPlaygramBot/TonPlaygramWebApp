@@ -14,7 +14,9 @@ const BASE_ENTRIES = [
   '/offline.html',
   '/manifest.webmanifest',
   '/tonconnect-manifest.json',
-  '/service-worker.js'
+  '/service-worker.js',
+  '/version.json',
+  '/pwa/app-build.js'
 ];
 
 const EXCLUDED_FILENAMES = new Set(['tonplaygram-launcher.apk']);

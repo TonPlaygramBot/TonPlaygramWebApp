@@ -13,6 +13,8 @@ import Navbar from './Navbar.jsx';
 
 import Footer from './Footer.jsx';
 import PwaInstallBanner from './PwaInstallBanner.jsx';
+import UpdatingOverlay from './UpdatingOverlay.jsx';
+import useAppUpdate from '../hooks/useAppUpdate.js';
 
 
 export default function Layout({ children }) {
@@ -21,6 +23,7 @@ export default function Layout({ children }) {
   const [invite, setInvite] = useState(null);
   const inviteSoundRef = useRef(null);
   const { canInstall, promptToInstall, dismiss } = usePwaInstallPrompt();
+  const { isUpdating } = useAppUpdate();
 
   useEffect(() => {
     inviteSoundRef.current = new Audio(inviteBeep);
@@ -173,6 +176,7 @@ export default function Layout({ children }) {
         onDismiss={dismiss}
       />
 
+      <UpdatingOverlay active={isUpdating} />
     </div>
   );
 }

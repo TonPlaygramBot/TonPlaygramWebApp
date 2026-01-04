@@ -25,6 +25,7 @@ import adsRoutes from './routes/ads.js';
 import influencerRoutes from './routes/influencer.js';
 import onlineRoutes from './routes/online.js';
 import poolRoyaleRoutes from './routes/poolRoyale.js';
+import pushRoutes from './routes/push.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
 import AdView from './models/AdView.js';
@@ -41,7 +42,7 @@ import WatchRecord from './models/WatchRecord.js';
 import ActiveConnection from './models/ActiveConnection.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync, writeFileSync } from 'fs';
+import { existsSync, writeFileSync, readFileSync } from 'fs';
 import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
 import compression from 'compression';
@@ -154,6 +155,7 @@ app.use('/api/referral', referralRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/account', accountRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/push', pushRoutes);
 if (process.env.ENABLE_TWITTER_OAUTH === 'true') {
   app.use('/api/twitter', twitterAuthRoutes);
 }
@@ -204,6 +206,27 @@ app.post('/api/goal-rush/calibration', (req, res) => {
 
 // Serve the built React app
 const webappPath = path.join(__dirname, '../webapp/dist');
+const versionFilePath = path.join(webappPath, 'version.json');
+const sourceVersionPath = path.join(__dirname, '../webapp/public/version.json');
+
+function loadWebappVersion() {
+  const fallbackBuild = process.env.APP_BUILD || 'dev';
+  const candidates = [versionFilePath, sourceVersionPath];
+  for (const filePath of candidates) {
+    if (existsSync(filePath)) {
+      try {
+        const parsed = JSON.parse(readFileSync(filePath, 'utf-8'));
+        return {
+          build: parsed.build || fallbackBuild,
+          generatedAt: parsed.generatedAt || null
+        };
+      } catch (err) {
+        console.warn(`Failed to read ${path.basename(filePath)}:`, err.message);
+      }
+    }
+  }
+  return { build: fallbackBuild, generatedAt: null };
+}
 
 function ensureWebappBuilt() {
   if (process.env.SKIP_WEBAPP_BUILD) {
@@ -285,6 +308,9 @@ app.get('/', (req, res) => {
 });
 app.get('/api/ping', (req, res) => {
   res.json({ message: 'pong' });
+});
+app.get('/api/version', (req, res) => {
+  res.json(loadWebappVersion());
 });
 
 const tableSeats = new Map();
