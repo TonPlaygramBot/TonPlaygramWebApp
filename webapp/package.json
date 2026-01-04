@@ -5,10 +5,16 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate:native-assets": "node scripts/generate-ios-icon.mjs",
+    "fetch:gradle-wrapper": "node scripts/fetch-gradle-wrapper.mjs",
+    "postinstall": "npm run generate:native-assets && npm run fetch:gradle-wrapper"
   },
   "type": "module",
   "dependencies": {
+    "@capacitor/android": "6.1.2",
+    "@capacitor/core": "6.1.2",
+    "@capacitor/ios": "6.1.2",
     "@github/webauthn-json": "^2.0.2",
     "@tonconnect/sdk": "^3.2.0",
     "@tonconnect/ui-react": "^2.2.0",
@@ -33,6 +39,7 @@
     "vite": "^4.4.9"
   },
   "devDependencies": {
+    "@capacitor/cli": "6.1.2",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "typescript": "^5.4.0"
