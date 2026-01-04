@@ -53,14 +53,15 @@
      Leave empty to reuse the API origin automatically.
    - `VITE_SOCKET_PATH` – (optional) socket.io path (defaults to `/socket.io`).
    - `VITE_GOOGLE_CLIENT_ID` – OAuth client ID for Google sign-in.
-  - `VITE_DEV_ACCOUNT_ID` – account ID that receives the developer share
-    (10% by default).
-  - `VITE_DEV_ACCOUNT_ID_1` – (optional) secondary developer account. When set,
-    the main account receives 9% and this account receives 1%.
-  - `VITE_DEV_ACCOUNT_ID_2` – (optional) additional developer account. When set,
-    the main account receives 9% and this account receives 2%.
-  - `VITE_API_AUTH_TOKEN` – (optional) token used when calling privileged API
-    endpoints outside Telegram.
+   - `VITE_DEV_ACCOUNT_ID` – account ID that receives the developer share
+     (10% by default).
+   - `VITE_DEV_ACCOUNT_ID_1` – (optional) secondary developer account. When set,
+     the main account receives 9% and this account receives 1%.
+   - `VITE_DEV_ACCOUNT_ID_2` – (optional) additional developer account. When set,
+     the main account receives 9% and this account receives 2%.
+   - `VITE_API_AUTH_TOKEN` – (optional) token used when calling privileged API
+     endpoints outside Telegram.
+   - `VITE_LAUNCHER_URL` – HTTPS link to the signed `tonplaygram-launcher.apk` hosted on your CDN/object storage so `Home.jsx` links to the correct binary.
 
    This value is required for the Google button to appear on the login and
    profile pages. When provided, the webapp lets users sign in with Google and
@@ -93,6 +94,7 @@ The server honors a few extra environment variables when building or serving the
 - `WEBAPP_API_BASE_URL` – overrides the API base used during the webapp build. Set this when the bot API is hosted on another domain or port. If left empty the webapp assumes it is served from the same origin.
 - `SKIP_WEBAPP_BUILD` – set to any value to skip the automatic webapp build that normally runs when `npm start` is executed. Useful if you built the assets manually.
 - `ALLOWED_ORIGINS` – list of origins allowed for CORS and socket.io when serving the API. Separate multiple origins with commas.
+- `LAUNCHER_URL` / `LAUNCHER_SHA256` – (optional) set these before running `npm --prefix webapp run fetch:launcher` to download the signed launcher APK into `webapp/public/tonplaygram-launcher.apk` without committing binaries. `LAUNCHER_SHA256` is verified when provided.
 
 5. Copy `scripts/.env.example` to `scripts/.env` and set:
    - `MNEMONIC` – wallet seed phrase used to deploy the Jetton
