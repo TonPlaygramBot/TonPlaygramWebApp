@@ -295,8 +295,14 @@ export function verifyInfluencer(id, status, views) {
   });
 }
 
-export function getProfile(telegramId) {
-  return post('/api/profile/get', { telegramId });
+export function getProfile(telegramId, accountId) {
+  const payload = {};
+  if (telegramId != null) payload.telegramId = telegramId;
+  const storedAccount =
+    accountId ||
+    (typeof window !== 'undefined' ? localStorage.getItem('accountId') : null);
+  if (storedAccount) payload.accountId = storedAccount;
+  return post('/api/profile/get', payload);
 }
 
 export function updateProfile(data) {
@@ -546,9 +552,13 @@ export function registerWalletPasskey(telegramId, passkeyId, publicKey) {
 
 // ----- Account based wallet -----
 
-export function createAccount(telegramId, googleProfile) {
+export function createAccount(telegramId, googleProfile, accountId) {
   const body = {};
   if (telegramId) body.telegramId = telegramId;
+  const existingAccountId =
+    accountId ||
+    (typeof window !== 'undefined' ? localStorage.getItem('accountId') : null);
+  if (existingAccountId) body.accountId = existingAccountId;
   const profile =
     typeof googleProfile === 'string'
       ? { id: googleProfile }

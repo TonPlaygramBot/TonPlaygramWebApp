@@ -55,3 +55,8 @@ export const ensureMemoryUser = (user) => {
   memoryUsers.set(accountId, merged);
   return memoryUsers.get(accountId);
 };
+
+export const deleteMemoryUser = (accountId) => {
+  if (!accountId) return false;
+  return memoryUsers.delete(accountId);
+};

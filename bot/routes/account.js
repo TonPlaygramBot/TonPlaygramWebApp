@@ -21,7 +21,8 @@ import {
   createMemoryUser,
   findMemoryUser,
   saveMemoryUser,
-  shouldUseMemoryUserStore
+  shouldUseMemoryUserStore,
+  deleteMemoryUser
 } from '../utils/memoryUserStore.js';
 
 const router = Router();
@@ -30,6 +31,7 @@ const router = Router();
 router.post('/create', async (req, res) => {
   const {
     telegramId,
+    accountId,
     googleId,
     googleEmail,
     firstName,
@@ -46,6 +48,14 @@ router.post('/create', async (req, res) => {
       useMemoryStore ? findMemoryUser(query) : User.findOne(query);
     const persistUser = async (payload) =>
       useMemoryStore ? saveMemoryUser(payload) : payload.save();
+    const removeUser = async (payload) =>
+      useMemoryStore ? deleteMemoryUser(payload?.accountId) : payload?.deleteOne?.();
+
+    const existingByAccountId = accountId ? await findUser({ accountId }) : null;
+    const existingByTelegram = telegramId ? await findUser({ telegramId }) : null;
+    const existingByGoogle = googleId ? await findUser({ googleId }) : null;
+
+    const primaryExisting = existingByAccountId || existingByTelegram || existingByGoogle;
 
     if (telegramId) {
       try {
@@ -54,12 +64,12 @@ router.post('/create', async (req, res) => {
         console.error('fetchTelegramInfo failed:', err);
       }
 
-      user = await findUser({ telegramId });
+      user = existingByTelegram || primaryExisting;
       if (!user) {
         const wallet = await generateWalletAddress();
         const baseData = {
           telegramId,
-          accountId: uuidv4(),
+          accountId: accountId || uuidv4(),
           referralCode: String(telegramId),
           walletAddress: wallet.address,
           walletPublicKey: wallet.publicKey
@@ -71,12 +81,29 @@ router.post('/create', async (req, res) => {
           baseData.photo = telegramProfile.photoUrl || '';
         }
 
-        user = useMemoryStore ? createMemoryUser(baseData) : new User(baseData);
-        if (!useMemoryStore) await user.save();
+        if (existingByAccountId && existingByAccountId !== user) {
+          user = existingByAccountId;
+          user.telegramId = telegramId;
+          user.referralCode = user.referralCode || String(telegramId);
+          user.walletAddress = user.walletAddress || baseData.walletAddress;
+          user.walletPublicKey = user.walletPublicKey || baseData.walletPublicKey;
+          if (telegramProfile) {
+            user.firstName = user.firstName || telegramProfile.firstName || '';
+            user.lastName = user.lastName || telegramProfile.lastName || '';
+            user.photo = user.photo || telegramProfile.photoUrl || '';
+          }
+          await persistUser(user);
+          if (existingByTelegram && existingByTelegram !== user) {
+            await removeUser(existingByTelegram);
+          }
+        } else {
+          user = useMemoryStore ? createMemoryUser(baseData) : new User(baseData);
+          if (!useMemoryStore) await user.save();
+        }
       } else {
         let updated = false;
         if (!user.accountId) {
-          user.accountId = uuidv4();
+          user.accountId = accountId || uuidv4();
           updated = true;
         }
         if (!user.walletAddress) {
@@ -102,13 +129,13 @@ router.post('/create', async (req, res) => {
         if (updated) await persistUser(user);
       }
     } else if (googleId) {
-      user = await findUser({ googleId });
+      user = existingByGoogle || primaryExisting;
       if (!user) {
         const wallet = await generateWalletAddress();
         const baseData = {
           googleId,
           googleEmail: googleEmail || '',
-          accountId: uuidv4(),
+          accountId: accountId || uuidv4(),
           referralCode: googleId,
           walletAddress: wallet.address,
           walletPublicKey: wallet.publicKey,
@@ -116,12 +143,28 @@ router.post('/create', async (req, res) => {
           lastName: lastName || '',
           photo: photo || ''
         };
-        user = useMemoryStore ? createMemoryUser(baseData) : new User(baseData);
-        if (!useMemoryStore) await user.save();
+        if (existingByAccountId && existingByAccountId !== user) {
+          user = existingByAccountId;
+          user.googleId = googleId;
+          user.googleEmail = googleEmail || user.googleEmail;
+          user.firstName = user.firstName || firstName || '';
+          user.lastName = user.lastName || lastName || '';
+          user.photo = user.photo || photo || '';
+          user.walletAddress = user.walletAddress || wallet.address;
+          user.walletPublicKey = user.walletPublicKey || wallet.publicKey;
+          user.referralCode = user.referralCode || googleId;
+          await persistUser(user);
+          if (existingByGoogle && existingByGoogle !== user) {
+            await removeUser(existingByGoogle);
+          }
+        } else {
+          user = useMemoryStore ? createMemoryUser(baseData) : new User(baseData);
+          if (!useMemoryStore) await user.save();
+        }
       } else {
         let updated = false;
         if (!user.accountId) {
-          user.accountId = uuidv4();
+          user.accountId = accountId || uuidv4();
           updated = true;
         }
         if (!user.walletAddress) {
