@@ -8,7 +8,9 @@ import { warmGameCaches } from './pwa/preloadGames.js';
 import { initNativeBridge } from './utils/nativeBridge.ts';
 
 async function bootstrap() {
-  if (Capacitor.isNativePlatform()) {
+  const isNative = Capacitor.isNativePlatform();
+
+  if (isNative) {
     await initNativeBridge();
   }
 
@@ -17,8 +19,10 @@ async function bootstrap() {
     window.Telegram.WebApp.disableVerticalSwipes();
   }
 
-  // Register a Telegram-friendly service worker for instant updates
-  void registerTelegramServiceWorker().finally(warmGameCaches);
+  if (!isNative) {
+    // Register a Telegram-friendly service worker for instant updates
+    void registerTelegramServiceWorker().finally(warmGameCaches);
+  }
 
   ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>

@@ -1,0 +1,2 @@
+export const APP_BUILD = "9d19149";
+export const APP_BUILD_GENERATED_AT = "2026-01-04T13:59:48.929Z";

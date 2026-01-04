@@ -1,4 +1,6 @@
-const RUNTIME_CACHE_NAME = 'tonplaygram-runtime-v5';
+import { APP_BUILD } from '../config/buildInfo.js';
+
+const RUNTIME_CACHE_NAME = `tonplaygram-runtime-${APP_BUILD}`;
 
 const GAME_ENTRYPOINTS = [
   '/goal-rush.html',

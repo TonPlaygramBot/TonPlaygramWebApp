@@ -9,6 +9,9 @@ const config: CapacitorConfig = {
       Orientation: 'portrait'
     }
   },
+  extra: {
+    appBuild: process.env.APP_BUILD || 'dev'
+  },
   server: {
     androidScheme: 'https',
     urlScheme: 'tonplaygram',

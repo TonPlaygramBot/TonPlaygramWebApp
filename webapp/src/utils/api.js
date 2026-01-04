@@ -435,6 +435,15 @@ export function pingOnline(playerId, status) {
   return post('/api/online/ping', { playerId, status });
 }
 
+export function registerPushToken({ token, platform, accountId, telegramId }) {
+  if (!token) return Promise.resolve({ error: 'token required' });
+  const payload = { token };
+  if (platform) payload.platform = platform;
+  if (accountId) payload.accountId = accountId;
+  if (telegramId != null) payload.telegramId = telegramId;
+  return post('/api/push/register', payload);
+}
+
 export function getOnlineCount() {
   return get('/api/online/count');
 }

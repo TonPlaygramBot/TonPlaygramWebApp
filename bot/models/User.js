@@ -97,6 +97,17 @@ const userSchema = new mongoose.Schema({
 
   },
 
+  pushTokens: {
+    type: [
+      {
+        token: { type: String, required: true },
+        platform: { type: String, default: 'unknown' },
+        updatedAt: { type: Date, default: Date.now }
+      }
+    ],
+    default: []
+  },
+
   transactions: [transactionSchema],
 
   gifts: { type: [giftSchema], default: [] },
