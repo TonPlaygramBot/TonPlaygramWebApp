@@ -1,7 +1,7 @@
 {
   "name": "TonPlaygram",
-  "url": "https://app.tonplaygram.com",
-  "iconUrl": "https://app.tonplaygram.com/assets/icons/9f14924f-e70c-4728-a9e5-ca25ef4138c8.png",
-  "termsOfUseUrl": "https://app.tonplaygram.com/terms",
-  "privacyPolicyUrl": "https://app.tonplaygram.com/privacy"
+  "url": "https://tonplaygram.example.com",
+  "iconUrl": "/assets/icons/file_0000000010ec6246b26018aa42d5880a.png",
+  "termsOfUseUrl": "https://tonplaygram.example.com/terms",
+  "privacyPolicyUrl": "https://tonplaygram.example.com/privacy"
 }
