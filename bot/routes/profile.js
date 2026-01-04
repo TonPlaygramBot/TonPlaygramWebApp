@@ -37,11 +37,22 @@ router.post('/register-wallet', async (req, res) => {
   if (!normalized) {
     return res.status(400).json({ error: 'invalid walletAddress' });
   }
+  const accountId = uuidv4();
   const user = await User.findOneAndUpdate(
     { walletAddress: normalized },
-    { $setOnInsert: { walletAddress: normalized, referralCode: normalized } },
+    {
+      $setOnInsert: {
+        walletAddress: normalized,
+        referralCode: normalized,
+        accountId
+      }
+    },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
+  if (!user.accountId) {
+    user.accountId = accountId;
+    await user.save();
+  }
   res.json(sanitizeUser(user));
 });
 

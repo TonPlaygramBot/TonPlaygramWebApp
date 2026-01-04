@@ -1,13 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { createAccount } from '../utils/api.js';
+import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
+import { createAccount, registerWallet } from '../utils/api.js';
 import { ensureAccountId } from '../utils/telegram.js';
 import LinkGoogleButton from './LinkGoogleButton.jsx';
 import { loadGoogleProfile } from '../utils/google.js';
+import TonConnectButton from './TonConnectButton.jsx';
 
-export default function LoginOptions({ onAuthenticated }) {
+export default function LoginOptions({ onAuthenticated, onAccountReady }) {
   const [googleProfile, setGoogleProfile] = useState(() => loadGoogleProfile());
   const [status, setStatus] = useState('initializing');
   const [ctaMessage, setCtaMessage] = useState('');
+  const [tonMessage, setTonMessage] = useState('');
+  const [tonStatus, setTonStatus] = useState('idle');
+  const [isChrome, setIsChrome] = useState(false);
+  const walletAddress = useTonAddress();
+  const [tonConnectUI] = useTonConnectUI();
 
   const handleAuthenticated = (profile) => {
     setGoogleProfile(profile);
@@ -56,10 +63,49 @@ export default function LoginOptions({ onAuthenticated }) {
   }, [googleProfile?.id]);
 
   useEffect(() => {
+    const ua = navigator.userAgent || '';
+    const isChromium = /Chrome/i.test(ua) && !/Edg/i.test(ua) && !/OPR/i.test(ua);
+    setIsChrome(isChromium);
+  }, []);
+
+  useEffect(() => {
     if (googleProfile?.id && onAuthenticated) {
       onAuthenticated(googleProfile);
     }
   }, [googleProfile, onAuthenticated]);
+
+  const handleTonSignup = async () => {
+    setTonMessage('');
+    if (!walletAddress) {
+      setTonMessage('Connect your TON wallet to continue.');
+      tonConnectUI?.openModal?.();
+      return;
+    }
+    setTonStatus('working');
+    try {
+      const res = await registerWallet(walletAddress);
+      if (res?.error || !res.accountId) {
+        setTonMessage(res?.error || 'Unable to register your TON wallet right now.');
+        setTonStatus('idle');
+        return;
+      }
+      localStorage.setItem('accountId', res.accountId);
+      localStorage.setItem('walletAddress', res.walletAddress || walletAddress);
+      window.dispatchEvent(new Event('accountDataUpdated'));
+      setTonMessage('Wallet connected. Loading your TPC profile…');
+      setTonStatus('complete');
+      if (onAccountReady) {
+        onAccountReady({
+          accountId: res.accountId,
+          walletAddress: res.walletAddress || walletAddress
+        });
+      }
+    } catch (err) {
+      console.error('TON signup failed', err);
+      setTonMessage('Could not finish TON signup. Please try again.');
+      setTonStatus('idle');
+    }
+  };
 
   return (
     <div className="p-6 text-text space-y-4 max-w-3xl mx-auto">
@@ -70,7 +116,7 @@ export default function LoginOptions({ onAuthenticated }) {
           TPC profile so you can access the full site, stake, and sync rewards anywhere.
         </p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 items-start">
         <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
           <p className="text-sm font-semibold text-white">Login with Telegram</p>
           <p className="text-xs text-subtext">
@@ -92,9 +138,14 @@ export default function LoginOptions({ onAuthenticated }) {
           </p>
           <LinkGoogleButton
             telegramId={null}
-            label="Continue with Google"
+            label={isChrome ? 'Sign up with Google (Chrome)' : 'Sign up with Google'}
             onAuthenticated={handleAuthenticated}
           />
+          {!isChrome && (
+            <p className="text-[11px] text-amber-200">
+              Google sign-in works best on Google Chrome. For other browsers, complete the flow in a Chrome tab.
+            </p>
+          )}
           {googleProfile?.email && (
             <p className="text-green-400 text-xs">
               Signed in as {googleProfile.email}. Completing your TPC profile…
@@ -103,6 +154,27 @@ export default function LoginOptions({ onAuthenticated }) {
           {status === 'error' && (
             <p className="text-red-400 text-xs">We couldn&apos;t finish setup. Try again in a moment.</p>
           )}
+        </div>
+
+        <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
+          <p className="text-sm font-semibold text-white">Sign up with TON Connect</p>
+          <p className="text-xs text-subtext">
+            Use the same TON Connect flow from the home page to register with your TON wallet and get a TPC account.
+          </p>
+          <TonConnectButton className="w-full" />
+          <button
+            onClick={handleTonSignup}
+            disabled={tonStatus === 'working'}
+            className="w-full px-3 py-2 bg-primary hover:bg-primary-hover text-background rounded font-semibold disabled:opacity-60"
+          >
+            {tonStatus === 'working' ? 'Creating account…' : 'Create TPC account'}
+          </button>
+          {walletAddress ? (
+            <p className="text-[11px] text-green-300 break-all">Connected wallet: {walletAddress}</p>
+          ) : (
+            <p className="text-[11px] text-amber-200">Connect your TON wallet above to enable signup.</p>
+          )}
+          {tonMessage && <p className="text-[11px] text-amber-200">{tonMessage}</p>}
         </div>
       </div>
     </div>
