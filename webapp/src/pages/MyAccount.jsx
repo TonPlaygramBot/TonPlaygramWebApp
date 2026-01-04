@@ -88,7 +88,9 @@ export default function MyAccount() {
   const [lockMessage, setLockMessage] = useState('');
   const [lockMessageTone, setLockMessageTone] = useState('info');
   const [showRecoveryCodes, setShowRecoveryCodes] = useState([]);
-  const requiresAuth = !telegramId && !googleProfile?.id;
+  const [accountId, setAccountId] = useState(() => localStorage.getItem('accountId'));
+  const [walletAddress, setWalletAddress] = useState(() => localStorage.getItem('walletAddress'));
+  const requiresAuth = !telegramId && !googleProfile?.id && !accountId;
 
   useEffect(() => {
     setGoogleLinked(Boolean(googleProfile?.id));
@@ -99,6 +101,8 @@ export default function MyAccount() {
     clearTelegramCache();
     localStorage.removeItem('accountId');
     localStorage.removeItem('walletAddress');
+    setAccountId(null);
+    setWalletAddress(null);
     sessionStorage.clear();
     setTelegramId(null);
     setGoogleProfile(null);
@@ -114,12 +118,20 @@ export default function MyAccount() {
         setTelegramId(null);
       }
     };
+    const syncAccountData = () => {
+      setAccountId(localStorage.getItem('accountId'));
+      setWalletAddress(localStorage.getItem('walletAddress'));
+    };
     window.addEventListener('storage', syncTelegramId);
+    window.addEventListener('storage', syncAccountData);
     const syncGoogle = () => setGoogleProfile(loadGoogleProfile());
     window.addEventListener('googleProfileUpdated', syncGoogle);
+    window.addEventListener('accountDataUpdated', syncAccountData);
     return () => {
       window.removeEventListener('storage', syncTelegramId);
+      window.removeEventListener('storage', syncAccountData);
       window.removeEventListener('googleProfileUpdated', syncGoogle);
+      window.removeEventListener('accountDataUpdated', syncAccountData);
     };
   }, []);
 
@@ -127,20 +139,40 @@ export default function MyAccount() {
     async function load() {
       setLoadingProfile(true);
       setLoadError('');
-      const accountPayload = await createAccount(telegramId, googleProfile);
-      if (accountPayload?.error || !accountPayload?.accountId) {
-        throw new Error(accountPayload?.error || 'Unable to load your TPC account. Please try again.');
-      }
-      if (accountPayload.accountId) {
-        localStorage.setItem('accountId', accountPayload.accountId);
-      }
-      if (accountPayload.walletAddress) {
-        localStorage.setItem('walletAddress', accountPayload.walletAddress);
+      let accountPayload = null;
+      let activeAccountId = accountId || localStorage.getItem('accountId');
+
+      if (telegramId || googleProfile?.id) {
+        accountPayload = await createAccount(telegramId, googleProfile, activeAccountId);
+        if (accountPayload?.accountId) activeAccountId = accountPayload.accountId;
+      } else if (activeAccountId) {
+        accountPayload = { accountId: activeAccountId, walletAddress };
       }
 
-      const data = await getAccountInfo(accountPayload.accountId);
+      if (accountPayload?.error || !activeAccountId) {
+        throw new Error(accountPayload?.error || 'Unable to load your TPC account. Please try again.');
+      }
+      if (accountPayload?.accountId) {
+        localStorage.setItem('accountId', accountPayload.accountId);
+        setAccountId(accountPayload.accountId);
+      }
+      if (accountPayload?.walletAddress) {
+        localStorage.setItem('walletAddress', accountPayload.walletAddress);
+        setWalletAddress(accountPayload.walletAddress);
+      }
+
+      const data = await getAccountInfo(activeAccountId);
       if (!data || data?.error) {
         throw new Error(data?.error || 'Unable to fetch your profile.');
+      }
+
+      if (data.accountId && data.accountId !== accountId) {
+        setAccountId(data.accountId);
+        localStorage.setItem('accountId', data.accountId);
+      }
+      if (data.walletAddress && data.walletAddress !== walletAddress) {
+        setWalletAddress(data.walletAddress);
+        localStorage.setItem('walletAddress', data.walletAddress);
       }
 
       let finalProfile = data;
@@ -224,7 +256,7 @@ export default function MyAccount() {
       if (timerRef.current) clearTimeout(timerRef.current);
       cancelled = true;
     };
-  }, [telegramId, googleProfile?.id, requiresAuth, reloadNonce]);
+  }, [telegramId, googleProfile?.id, accountId, walletAddress, requiresAuth, reloadNonce]);
 
   useEffect(() => {
     if (!telegramId && googleProfile?.photo) {
@@ -283,7 +315,18 @@ export default function MyAccount() {
     }
   };
 
-  if (requiresAuth) return <LoginOptions onAuthenticated={setGoogleProfile} />;
+  if (requiresAuth) {
+    return (
+      <LoginOptions
+        onAuthenticated={setGoogleProfile}
+        onAccountReady={({ accountId, walletAddress }) => {
+          setAccountId(accountId);
+          setWalletAddress(walletAddress);
+          setReloadNonce((n) => n + 1);
+        }}
+      />
+    );
+  }
 
   if (!profile) {
     return (
