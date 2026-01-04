@@ -4,7 +4,6 @@ bot/node_modules
 webapp/node_modules
 bot/package-lock.json
 .idea
-webapp/android/gradle/wrapper/gradle-wrapper.jar
 webapp/android/app/src/main/assets/public/
 webapp/ios/App/App/public/
 webapp/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
