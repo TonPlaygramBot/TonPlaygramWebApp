@@ -7,6 +7,7 @@ import {
   markUnlockedSession,
   setSecretLock,
   storeDeviceCredentialId,
+  verifyRecoveryCode,
   verifySecret
 } from '../utils/profileLock.js';
 
@@ -30,11 +31,21 @@ function base64urlFromBuffer(buffer) {
 export default function useProfileLock() {
   const [config, setConfig] = useState(() => loadLockConfig());
   const [status, setStatus] = useState(() => (isUnlocked() || !config ? 'unlocked' : 'locked'));
+  const [issuedRecoveryCodes, setIssuedRecoveryCodes] = useState([]);
+  const [lastError, setLastError] = useState('');
+  const [deviceSupported, setDeviceSupported] = useState(
+    typeof window !== 'undefined' && !!window.PublicKeyCredential
+  );
   const locked = status === 'locked';
 
   useEffect(() => {
     setConfig(loadLockConfig());
     setStatus(isUnlocked() || !loadLockConfig() ? 'unlocked' : 'locked');
+    if (typeof window !== 'undefined' && window.PublicKeyCredential?.isUserVerifyingPlatformAuthenticatorAvailable) {
+      window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        .then((available) => setDeviceSupported(Boolean(available)))
+        .catch(() => setDeviceSupported(false));
+    }
   }, []);
 
   const unlockWithSecret = useCallback(async (secret) => {
@@ -42,44 +53,78 @@ export default function useProfileLock() {
     if (ok) {
       markUnlockedSession();
       setStatus('unlocked');
+      setLastError('');
+    } else {
+      setLastError('secret_invalid');
+    }
+    return ok;
+  }, []);
+
+  const unlockWithRecovery = useCallback(async (code) => {
+    const ok = await verifyRecoveryCode(code);
+    if (ok) {
+      markUnlockedSession();
+      setStatus('unlocked');
+      setLastError('');
+    } else {
+      setLastError('recovery_invalid');
     }
     return ok;
   }, []);
 
   const unlockWithDevice = useCallback(async () => {
     const id = getDeviceCredentialId();
-    if (!id || !window.PublicKeyCredential) return false;
+    if (!id || !window.PublicKeyCredential) {
+      setLastError('device_unsupported');
+      return { ok: false, error: 'device_unsupported' };
+    }
     try {
       const assertion = await navigator.credentials.get({
         publicKey: {
           challenge: crypto.getRandomValues(new Uint8Array(32)),
           allowCredentials: [{ id: bufferFromBase64url(id), type: 'public-key' }],
-          userVerification: 'preferred'
+          userVerification: 'required',
+          timeout: 60000
         }
       });
       if (assertion) {
         markUnlockedSession();
         setStatus('unlocked');
-        return true;
+        setLastError('');
+        return { ok: true };
       }
     } catch (err) {
       console.error('Device unlock failed', err);
+      setLastError('device_failed');
+      return { ok: false, error: err?.name || 'device_failed' };
     }
-    return false;
+    return { ok: false, error: 'device_failed' };
   }, []);
 
   const enableSecretLock = useCallback(async ({ method, secret }) => {
-    const ok = await setSecretLock({ method, secret });
-    if (ok) {
+    const result = await setSecretLock({ method, secret });
+    if (result.ok) {
       setConfig(loadLockConfig());
       setStatus('locked');
+      setIssuedRecoveryCodes(result.recoveryCodes || []);
+      setLastError('');
+    } else {
+      setLastError(result.error || 'unknown');
     }
-    return ok;
+    return result;
   }, []);
 
   const enableDeviceLock = useCallback(async () => {
-    if (!window.PublicKeyCredential) return false;
+    if (!window.PublicKeyCredential) {
+      setLastError('device_unsupported');
+      return { ok: false, error: 'device_unsupported' };
+    }
     try {
+      const authenticatorAvailable = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.();
+      if (authenticatorAvailable === false) {
+        setLastError('device_unsupported');
+        return { ok: false, error: 'device_unsupported' };
+      }
       const credential = await navigator.credentials.create({
         publicKey: {
           challenge: crypto.getRandomValues(new Uint8Array(32)),
@@ -90,25 +135,31 @@ export default function useProfileLock() {
             displayName: 'TonPlaygram user'
           },
           pubKeyCredParams: [{ alg: -7, type: 'public-key' }],
-          authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'preferred' }
+          authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+          timeout: 60000
         }
       });
       if (credential?.rawId) {
         storeDeviceCredentialId(base64urlFromBuffer(credential.rawId));
         setConfig(loadLockConfig());
         setStatus('locked');
-        return true;
+        setLastError('');
+        return { ok: true };
       }
     } catch (err) {
       console.error('Failed to register device lock', err);
+      setLastError(err?.name || 'device_failed');
+      return { ok: false, error: err?.name || 'device_failed' };
     }
-    return false;
+    setLastError('device_failed');
+    return { ok: false, error: 'device_failed' };
   }, []);
 
   const disableLock = useCallback(() => {
     clearLockConfig();
     setConfig(null);
     setStatus('unlocked');
+    setLastError('');
   }, []);
 
   return useMemo(
@@ -118,9 +169,13 @@ export default function useProfileLock() {
       status,
       unlockWithSecret,
       unlockWithDevice,
+      unlockWithRecovery,
       enableSecretLock,
       enableDeviceLock,
-      disableLock
+      disableLock,
+      issuedRecoveryCodes,
+      lastError,
+      deviceSupported
     }),
     [
       config,
@@ -128,9 +183,13 @@ export default function useProfileLock() {
       status,
       unlockWithSecret,
       unlockWithDevice,
+      unlockWithRecovery,
       enableSecretLock,
       enableDeviceLock,
-      disableLock
+      disableLock,
+      issuedRecoveryCodes,
+      lastError,
+      deviceSupported
     ]
   );
 }

@@ -56,6 +56,16 @@ import {
 const CHESS_START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1';
 const chessGames = new Map();
 
+function logFatal(event, err) {
+  const message = err?.stack || err?.message || String(err);
+  console.error(`[${new Date().toISOString()}] Unhandled ${event}:`, message);
+}
+
+process.on('unhandledRejection', (reason) => logFatal('rejection', reason));
+process.on('uncaughtException', (err) => {
+  logFatal('exception', err);
+});
+
 const models = [
   AdView,
   Airdrop,
@@ -888,14 +898,15 @@ if (mongoUri === 'memory') {
       await mongoose.connect(mongoUri);
     } catch (err) {
       console.error(`MongoDB connection attempt ${attempt} failed:`, err);
+      const delay = Math.min(initialDelayMs * attempt, 60_000);
       if (attempt < maxRetries) {
-        const delay = initialDelayMs * attempt;
         console.log(`Retrying MongoDB connection in ${delay}ms...`);
-        setTimeout(() => connectWithRetry(attempt + 1), delay);
       } else {
-        console.error('Exceeded MongoDB connection retries, exiting.');
-        process.exit(1);
+        console.error(
+          'Exceeded MongoDB connection retries, continuing without DB connection while retrying in background.'
+        );
       }
+      setTimeout(() => connectWithRetry(attempt + 1), delay);
     }
   };
 
