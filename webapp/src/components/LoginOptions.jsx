@@ -7,10 +7,22 @@ import { loadGoogleProfile } from '../utils/google.js';
 export default function LoginOptions({ onAuthenticated }) {
   const [googleProfile, setGoogleProfile] = useState(() => loadGoogleProfile());
   const [status, setStatus] = useState('initializing');
+  const [ctaMessage, setCtaMessage] = useState('');
 
   const handleAuthenticated = (profile) => {
     setGoogleProfile(profile);
     if (onAuthenticated) onAuthenticated(profile);
+  };
+
+  const handleOpenTelegram = () => {
+    setCtaMessage('Opening Telegram…');
+    const deepLink = 'tg://resolve?domain=TonPlaygramBot&startapp=account';
+    const fallback = 'https://t.me/TonPlaygramBot/webapp';
+    window.location.href = deepLink;
+    setTimeout(() => {
+      window.open(fallback, '_blank', 'noopener');
+      setTimeout(() => setCtaMessage(''), 1500);
+    }, 400);
   };
 
   useEffect(() => {
@@ -50,29 +62,46 @@ export default function LoginOptions({ onAuthenticated }) {
   }, [googleProfile, onAuthenticated]);
 
   return (
-    <div className="p-6 text-text space-y-4 max-w-xl mx-auto">
+    <div className="p-6 text-text space-y-4 max-w-3xl mx-auto">
       <div className="space-y-2">
         <h2 className="text-xl font-bold text-white">Welcome to TonPlaygram</h2>
         <p className="text-sm text-subtext">
-          Sign in with Google on Chrome or continue from the Telegram mini app. Your account and
-          rewards stay in sync.
+          Sign in with Google on Chrome or continue from the Telegram mini app. We&apos;ll create a fresh
+          TPC profile so you can access the full site, stake, and sync rewards anywhere.
         </p>
       </div>
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        <LinkGoogleButton
-          telegramId={null}
-          label="Continue with Google"
-          onAuthenticated={handleAuthenticated}
-        />
-        <div className="text-xs text-subtext">
-          <p>Prefer Telegram? Open @TonPlaygramBot and tap <strong>Open Web App</strong>.</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+        <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
+          <p className="text-sm font-semibold text-white">Login with Telegram</p>
+          <p className="text-xs text-subtext">
+            Opens the @TonPlaygramBot mini app so you can unlock with Telegram and enable biometrics.
+          </p>
+          <button
+            onClick={handleOpenTelegram}
+            className="w-full px-3 py-2 bg-primary hover:bg-primary-hover text-background rounded font-semibold"
+          >
+            Continue in Telegram
+          </button>
+          {ctaMessage && <p className="text-[11px] text-amber-200">{ctaMessage}</p>}
+        </div>
+
+        <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
+          <p className="text-sm font-semibold text-white">Login with Google</p>
+          <p className="text-xs text-subtext">
+            Ideal for desktop browsers. We&apos;ll link your Google profile to a new TPC account if you don&apos;t have one.
+          </p>
+          <LinkGoogleButton
+            telegramId={null}
+            label="Continue with Google"
+            onAuthenticated={handleAuthenticated}
+          />
           {googleProfile?.email && (
-            <p className="text-green-400 mt-1">
-              Signed in as {googleProfile.email}. We&apos;ll finish setting up your TPC account.
+            <p className="text-green-400 text-xs">
+              Signed in as {googleProfile.email}. Completing your TPC profile…
             </p>
           )}
           {status === 'error' && (
-            <p className="text-red-400 mt-1">We couldn&apos;t finish setup. Try again in a moment.</p>
+            <p className="text-red-400 text-xs">We couldn&apos;t finish setup. Try again in a moment.</p>
           )}
         </div>
       </div>

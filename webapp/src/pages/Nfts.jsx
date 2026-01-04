@@ -36,6 +36,8 @@ export default function Nfts() {
   const [dominoNfts, setDominoNfts] = useState([]);
   const [giftNfts, setGiftNfts] = useState([]);
   const [error, setError] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
+  const [actionTone, setActionTone] = useState('info');
 
   const defaultPoolSet = useMemo(() => buildDefaultSet(POOL_ROYALE_DEFAULT_LOADOUT), []);
   const defaultDominoSet = useMemo(() => buildDefaultSet(DOMINO_ROYAL_DEFAULT_LOADOUT), []);
@@ -57,15 +59,19 @@ export default function Nfts() {
         }
 
         const poolInventory = await getPoolRoyalInventory(acc.accountId);
-        const ownedPool = listOwnedPoolRoyalOptions(poolInventory).filter(
-          (item) => !defaultPoolSet.has(`${item.type}:${item.optionId}`)
-        );
+        const ownedPool = listOwnedPoolRoyalOptions(poolInventory).map((item) => ({
+          ...item,
+          isDefault: defaultPoolSet.has(`${item.type}:${item.optionId}`),
+          thumbnail: '/assets/icons/pool-royale.svg'
+        }));
         setPoolNfts(ownedPool);
 
         const dominoInventory = getDominoRoyalInventory(acc.accountId);
-        const ownedDomino = listOwnedDominoOptions(dominoInventory).filter(
-          (item) => !defaultDominoSet.has(`${item.type}:${item.optionId}`)
-        );
+        const ownedDomino = listOwnedDominoOptions(dominoInventory).map((item) => ({
+          ...item,
+          isDefault: defaultDominoSet.has(`${item.type}:${item.optionId}`),
+          thumbnail: '/assets/icons/domino-royal.svg'
+        }));
         setDominoNfts(ownedDomino);
 
         const info = await getAccountInfo(acc.accountId);
@@ -77,7 +83,8 @@ export default function Nfts() {
                 name: details.name || gift.gift,
                 price: gift.price,
                 icon: details.icon,
-                tier: details.tier
+                tier: details.tier,
+                isDefault: false
               };
             })
           : [];
@@ -93,25 +100,93 @@ export default function Nfts() {
     loadNfts();
   }, [telegramId, googleProfile?.id, defaultPoolSet, defaultDominoSet]);
 
-  const renderList = (items, emptyText) =>
+  const handleAction = (action, item) => {
+    if (item.isDefault) {
+      setActionTone('warning');
+      setActionMessage('Default NFTs stay in your wallet and cannot be sent, converted, or burned.');
+      return;
+    }
+    const verb = action === 'send' ? 'Send' : action === 'convert' ? 'Convert' : 'Burn';
+    setActionTone('info');
+    setActionMessage(`${verb} for ${item.label || item.name} is coming soon. Thanks for your patience!`);
+  };
+
+  const renderThumbnail = (item, fallbackIcon) => {
+    if (item.icon) {
+      return <GiftIcon icon={item.icon} className="w-10 h-10" />;
+    }
+    if (item.thumbnail) {
+      return (
+        <img
+          src={item.thumbnail}
+          alt={item.label || item.name}
+          className="w-12 h-12 object-contain drop-shadow"
+          loading="lazy"
+        />
+      );
+    }
+    if (fallbackIcon) {
+      return (
+        <img
+          src={fallbackIcon}
+          alt="NFT thumbnail"
+          className="w-12 h-12 object-contain drop-shadow"
+          loading="lazy"
+        />
+      );
+    }
+    const initial = (item.label || item.name || '?').charAt(0).toUpperCase();
+    return <span className="text-lg font-bold text-white">{initial}</span>;
+  };
+
+  const renderNftGrid = (items, emptyText, fallbackThumbnail) =>
     items.length ? (
-      <div className="space-y-2">
-        {items.map((item) => (
-          <div
-            key={`${item.type || item.id}-${item.optionId || item.name}`}
-            className="flex items-center justify-between rounded-lg border border-border px-3 py-2 bg-surface/60"
-          >
-            <span className="font-medium">{item.label || item.name}</span>
-            {item.type && (
-              <span className="text-[11px] uppercase text-subtext">
-                {item.type.replace(/([A-Z])/g, ' $1')}
-              </span>
-            )}
-            {item.price != null && !item.type && (
-              <span className="text-xs text-subtext">{item.price} TPC</span>
-            )}
-          </div>
-        ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {items.map((item) => {
+          const disabled = item.isDefault;
+          return (
+            <div
+              key={`${item.type || item.id}-${item.optionId || item.name}`}
+              className="rounded-xl border border-border bg-surface/60 p-3 space-y-3 shadow-sm"
+            >
+              <div className="flex gap-3">
+                <div className="w-14 h-14 rounded-lg border border-border bg-background/60 flex items-center justify-center overflow-hidden">
+                  {renderThumbnail(item, fallbackThumbnail)}
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="font-semibold leading-tight text-white">{item.label || item.name}</p>
+                  <p className="text-xs text-subtext">
+                    {item.type ? item.type.replace(/([A-Z])/g, ' $1') : 'Gift NFT'}
+                  </p>
+                  {item.price != null && !item.type && (
+                    <p className="text-[11px] text-subtext">{item.price} TPC</p>
+                  )}
+                  {item.isDefault && (
+                    <span className="inline-flex items-center rounded-full bg-background px-2 py-[2px] text-[11px] text-amber-200 border border-amber-400/30">
+                      Default cosmetic
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {['send', 'convert', 'burn'].map((action) => (
+                  <button
+                    key={action}
+                    onClick={() => handleAction(action, item)}
+                    disabled={disabled}
+                    className={`text-sm rounded border px-2 py-2 font-semibold transition ${
+                      disabled
+                        ? 'opacity-50 cursor-not-allowed border-border text-subtext'
+                        : 'border-primary/60 bg-primary/10 text-white hover:bg-primary/20'
+                    }`}
+                  >
+                    {action === 'send' ? 'Send' : action === 'convert' ? 'Convert' : 'Burn'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     ) : (
       <p className="text-sm text-subtext">{emptyText}</p>
@@ -123,7 +198,7 @@ export default function Nfts() {
         <div>
           <h2 className="text-xl font-bold">My NFTs</h2>
           <p className="text-sm text-subtext">
-            Only purchased or gifted NFTs are shown. Starter cosmetics stay hidden.
+            View every cosmetic and gift you own. Default items stay locked from transfers but visible here.
           </p>
         </div>
         <Link
@@ -145,6 +220,17 @@ export default function Nfts() {
           {error}
         </div>
       )}
+      {actionMessage && (
+        <div
+          className={`p-3 rounded-lg text-sm ${
+            actionTone === 'warning'
+              ? 'border border-amber-400 bg-amber-500/10 text-amber-100'
+              : 'border border-primary bg-primary/10 text-white'
+          }`}
+        >
+          {actionMessage}
+        </div>
+      )}
 
       {loading ? (
         <div className="p-4 text-subtext">Loading NFTs…</div>
@@ -155,7 +241,7 @@ export default function Nfts() {
               <h3 className="text-lg font-semibold">Pool Royale</h3>
               <span className="text-xs text-subtext">Cosmetic NFTs</span>
             </div>
-            {renderList(poolNfts, 'No Pool Royale NFTs yet.')}
+            {renderNftGrid(poolNfts, 'No Pool Royale NFTs yet.', '/assets/icons/pool-royale.svg')}
           </div>
 
           <div className="prism-box p-4 space-y-2 mx-auto wide-card">
@@ -163,7 +249,7 @@ export default function Nfts() {
               <h3 className="text-lg font-semibold">Domino Royal</h3>
               <span className="text-xs text-subtext">Cosmetic NFTs</span>
             </div>
-            {renderList(dominoNfts, 'No Domino Royal NFTs yet.')}
+            {renderNftGrid(dominoNfts, 'No Domino Royal NFTs yet.', '/assets/icons/domino-royal.svg')}
           </div>
 
           <div className="prism-box p-4 space-y-2 mx-auto wide-card">
@@ -171,26 +257,7 @@ export default function Nfts() {
               <h3 className="text-lg font-semibold">Gift NFTs</h3>
               <span className="text-xs text-subtext">Sent or received</span>
             </div>
-            {giftNfts.length ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {giftNfts.map((gift) => (
-                  <div
-                    key={gift.id}
-                    className="flex items-center justify-between rounded-lg border border-border px-3 py-2 bg-surface/60"
-                  >
-                    <div className="flex items-center space-x-2">
-                      {gift.icon && <GiftIcon icon={gift.icon} className="w-8 h-8" />}
-                      <span className="font-medium">{gift.name}</span>
-                    </div>
-                    {gift.price != null && (
-                      <span className="text-xs text-subtext whitespace-nowrap">{gift.price} TPC</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-subtext">No NFT gifts yet.</p>
-            )}
+            {renderNftGrid(giftNfts, 'No NFT gifts yet.', '/assets/icons/pool-royale.svg')}
           </div>
         </>
       )}
