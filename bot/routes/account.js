@@ -40,26 +40,16 @@ router.post('/create', async (req, res) => {
   } = req.body;
   const useMemoryStore = shouldUseMemoryUserStore();
 
-  const findUser = async (query) =>
-    useMemoryStore ? findMemoryUser(query) : User.findOne(query);
-  const persistUser = async (payload) =>
-    useMemoryStore ? saveMemoryUser(payload) : payload.save();
-  const removeUser = async (payload) =>
-    useMemoryStore ? deleteMemoryUser(payload?.accountId) : payload?.deleteOne?.();
-
-  const respondWithUser = (user, resObj) =>
-    resObj.json({
-      accountId: user.accountId,
-      balance: user.balance,
-      walletAddress: user.walletAddress,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      photo: user.photo
-    });
-
   try {
     let user;
     let telegramProfile = null;
+
+    const findUser = async (query) =>
+      useMemoryStore ? findMemoryUser(query) : User.findOne(query);
+    const persistUser = async (payload) =>
+      useMemoryStore ? saveMemoryUser(payload) : payload.save();
+    const removeUser = async (payload) =>
+      useMemoryStore ? deleteMemoryUser(payload?.accountId) : payload?.deleteOne?.();
 
     const existingByAccountId = accountId ? await findUser({ accountId }) : null;
     const existingByTelegram = telegramId ? await findUser({ telegramId }) : null;
@@ -218,28 +208,16 @@ router.post('/create', async (req, res) => {
       if (!useMemoryStore) await user.save();
     }
 
-    respondWithUser(user, res);
+    res.json({
+      accountId: user.accountId,
+      balance: user.balance,
+      walletAddress: user.walletAddress,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      photo: user.photo
+    });
   } catch (err) {
     console.error('Failed to create account:', err);
-    // Handle duplicate key errors gracefully by returning the existing user
-    if (err?.code === 11000 || /duplicate key/i.test(err?.message || '')) {
-      try {
-        const candidates = [
-          accountId ? { accountId } : null,
-          telegramId ? { telegramId } : null,
-          googleId ? { googleId } : null
-        ].filter(Boolean);
-
-        for (const query of candidates) {
-          const existing = await findUser(query);
-          if (existing) {
-            return respondWithUser(existing, res);
-          }
-        }
-      } catch (recoverErr) {
-        console.error('Failed to recover duplicate account:', recoverErr);
-      }
-    }
     res.status(500).json({ error: 'failed to create account' });
   }
 });
