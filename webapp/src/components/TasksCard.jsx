@@ -13,6 +13,7 @@ import {
   getProfile,
 } from '../utils/api.js';
 import { getTelegramId, parseTelegramPostLink } from '../utils/telegram.js';
+import { extractTasksError, extractTasksVersion, normalizeTasksResponse } from '../utils/tasks.js';
 import LoginOptions from './LoginOptions.jsx';
 
 
@@ -76,6 +77,7 @@ export default function TasksCard() {
   }
 
   const [tasks, setTasks] = useState(null);
+  const [tasksError, setTasksError] = useState('');
   const [adCount, setAdCount] = useState(0);
   const [showAd, setShowAd] = useState(false);
   const [showQuestAd, setShowQuestAd] = useState(false);
@@ -92,34 +94,45 @@ export default function TasksCard() {
   const [profile, setProfile] = useState(null);
 
   const load = async () => {
-    const data = await listTasks(telegramId);
-    const tasksList = (data.tasks || data).filter((t) => !t.hideOnHome);
-    setTasks(tasksList);
-    if (data.version) {
-      const seen = localStorage.getItem('tasksVersion');
-      if (seen !== String(data.version)) {
-        setShowNew(true);
-        localStorage.setItem('tasksVersion', String(data.version));
-      }
-    }
-    const ad = await getAdStatus(telegramId);
-    if (!ad.error) setAdCount(ad.count);
-    const quest = await getQuestStatus(telegramId);
-    if (!quest.error) setQuestTime(quest.remaining || 0);
     try {
-      const prof = await getProfile(telegramId);
-      setProfile(prof);
-      if (prof.dailyStreak) setStreak(prof.dailyStreak);
-      const serverTs = prof.lastCheckIn
-        ? new Date(prof.lastCheckIn).getTime()
-        : null;
-      const localTs = lastCheck || 0;
-      const ts = Math.max(serverTs || 0, localTs);
-      if (ts) {
-        setLastCheck(ts);
-        localStorage.setItem('lastCheckIn', String(ts));
+      const data = await listTasks(telegramId);
+      const tasksList = normalizeTasksResponse(data).filter((t) => !t.hideOnHome);
+      setTasks(tasksList);
+
+      const version = extractTasksVersion(data);
+      if (version) {
+        const seen = localStorage.getItem('tasksVersion');
+        if (seen !== String(version)) {
+          setShowNew(true);
+          localStorage.setItem('tasksVersion', String(version));
+        }
       }
-    } catch {}
+
+      setTasksError(extractTasksError(data));
+
+      const ad = await getAdStatus(telegramId);
+      if (!ad.error) setAdCount(ad.count);
+      const quest = await getQuestStatus(telegramId);
+      if (!quest.error) setQuestTime(quest.remaining || 0);
+      try {
+        const prof = await getProfile(telegramId);
+        setProfile(prof);
+        if (prof.dailyStreak) setStreak(prof.dailyStreak);
+        const serverTs = prof.lastCheckIn
+          ? new Date(prof.lastCheckIn).getTime()
+          : null;
+        const localTs = lastCheck || 0;
+        const ts = Math.max(serverTs || 0, localTs);
+        if (ts) {
+          setLastCheck(ts);
+          localStorage.setItem('lastCheckIn', String(ts));
+        }
+      } catch {}
+    } catch (err) {
+      console.error('Failed to load tasks', err);
+      setTasks([]);
+      setTasksError('Unable to load tasks right now. Please try again later.');
+    }
   };
 
   useEffect(() => {
@@ -251,6 +264,9 @@ export default function TasksCard() {
         <AiOutlineCheckSquare className="text-accent" />
         <span className="text-white-shadow">Tasks</span>
       </h3>
+      {tasksError && (
+        <p className="text-sm text-red-400 text-center">{tasksError}</p>
+      )}
 
       <ul className="space-y-2">
         <li className="lobby-tile w-full">
