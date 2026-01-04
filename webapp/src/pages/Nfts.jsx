@@ -4,7 +4,6 @@ import { createAccount, getAccountInfo } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 import { loadGoogleProfile } from '../utils/google.js';
-import { useTonAddress, useTonWallet } from '@tonconnect/ui-react';
 import {
   getPoolRoyalInventory,
   listOwnedPoolRoyalOptions
@@ -36,9 +35,7 @@ export default function Nfts() {
   } catch {}
 
   const [googleProfile, setGoogleProfile] = useState(() => (telegramId ? null : loadGoogleProfile()));
-  const tonAddress = useTonAddress(true);
-  const tonWallet = useTonWallet();
-  if (!telegramId && !googleProfile?.id && !tonAddress) return <LoginOptions onAuthenticated={setGoogleProfile} />;
+  if (!telegramId && !googleProfile?.id) return <LoginOptions onAuthenticated={setGoogleProfile} />;
 
   const [accountId, setAccountId] = useState('');
   const [loading, setLoading] = useState(true);
@@ -80,10 +77,7 @@ export default function Nfts() {
       setLoading(true);
       setError('');
       try {
-        const acc = await createAccount(telegramId, googleProfile, undefined, {
-          address: tonAddress || undefined,
-          publicKey: tonWallet?.account?.publicKey
-        });
+        const acc = await createAccount(telegramId, googleProfile);
         if (acc?.error || !acc?.accountId) {
           setError(acc?.error || 'Unable to load NFTs right now.');
           return;
@@ -142,16 +136,7 @@ export default function Nfts() {
     }
 
     loadNfts();
-  }, [
-    telegramId,
-    googleProfile?.id,
-    defaultPoolSet,
-    defaultDominoSet,
-    poolPriceIndex,
-    dominoPriceIndex,
-    tonAddress,
-    tonWallet?.account?.publicKey
-  ]);
+  }, [telegramId, googleProfile?.id, defaultPoolSet, defaultDominoSet, poolPriceIndex, dominoPriceIndex]);
 
   const handleAction = (action, item) => {
     if (item.isDefault) {
