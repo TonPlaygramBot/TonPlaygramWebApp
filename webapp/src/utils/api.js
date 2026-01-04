@@ -1,9 +1,25 @@
 import { getNativeBridgeHeaders } from './nativeBridge';
-import { resolveRuntimeEnv } from './env.js';
 
 // Use the API base URL from the build environment or fallback to the same origin
 // so the webapp works when served by the Express server in production.
-const resolvedEnv = resolveRuntimeEnv();
+function loadMetaEnv() {
+  try {
+    // eslint-disable-next-line no-new-func
+    const resolved = Function('try { return import.meta.env || {}; } catch (e) { return {}; }')();
+    if (resolved && typeof resolved === 'object') return resolved;
+  } catch {
+    // ignore
+  }
+  return {};
+}
+
+const resolvedEnv = (() => {
+  const meta = loadMetaEnv();
+  if (meta && Object.keys(meta).length > 0) return meta;
+  if (typeof process !== 'undefined' && process.env) return process.env;
+  return {};
+})();
+
 export const API_BASE_URL = resolvedEnv.VITE_API_BASE_URL || '';
 export const API_AUTH_TOKEN = resolvedEnv.VITE_API_AUTH_TOKEN || '';
 
@@ -222,14 +238,6 @@ export function adminUpdateTask(id, platform, reward, link, description) {
 
 export function adminDeleteTask(id) {
   return post('/api/tasks/admin/delete', { id }, API_AUTH_TOKEN || undefined);
-}
-
-export function fetchAppVersionMetadata() {
-  return get('/api/app/version');
-}
-
-export function registerPushToken(token, platform) {
-  return post('/api/push/register', { token, platform });
 }
 
 export function getPoolRoyalInventoryRemote(accountId) {

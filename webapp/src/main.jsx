@@ -6,12 +6,10 @@ import './index.css';
 import { registerTelegramServiceWorker } from './pwa/registerServiceWorker.js';
 import { warmGameCaches } from './pwa/preloadGames.js';
 import { initNativeBridge } from './utils/nativeBridge.ts';
-import { setupNativePushNotifications } from './utils/pushNotifications.js';
 
 async function bootstrap() {
   if (Capacitor.isNativePlatform()) {
     await initNativeBridge();
-    void setupNativePushNotifications();
   }
 
   // Prevent Telegram in-app browser swipe-down from closing the game
@@ -20,10 +18,7 @@ async function bootstrap() {
   }
 
   // Register a Telegram-friendly service worker for instant updates
-  const registered = await registerTelegramServiceWorker();
-  if (registered) {
-    warmGameCaches();
-  }
+  void registerTelegramServiceWorker().finally(warmGameCaches);
 
   ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
