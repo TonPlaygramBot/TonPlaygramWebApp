@@ -13,8 +13,12 @@
   "type": "module",
   "dependencies": {
     "@capacitor/android": "6.1.2",
+    "@capacitor/app": "^6.0.0",
     "@capacitor/core": "6.1.2",
+    "@capacitor/device": "^6.0.0",
     "@capacitor/ios": "6.1.2",
+    "@capacitor/preferences": "^6.0.0",
+    "@aparajita/capacitor-biometric-auth": "^6.0.0",
     "@github/webauthn-json": "^2.0.2",
     "@tonconnect/sdk": "^3.2.0",
     "@tonconnect/ui-react": "^2.2.0",

@@ -10,7 +10,9 @@ const config: CapacitorConfig = {
     }
   },
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    urlScheme: 'tonplaygram',
+    urlHostname: 'tonplaygram'
   }
 };
 

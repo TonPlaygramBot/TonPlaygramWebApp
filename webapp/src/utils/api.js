@@ -1,3 +1,5 @@
+import { getNativeBridgeHeaders } from './nativeBridge';
+
 // Use the API base URL from the build environment or fallback to the same origin
 // so the webapp works when served by the Express server in production.
 function loadMetaEnv() {
@@ -53,11 +55,20 @@ async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
   }
 }
 
-async function post(path, body, token) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+function buildHeaders(base = {}) {
+  const headers = { ...base };
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
+  const bridgeHeaders = getNativeBridgeHeaders();
+  Object.entries(bridgeHeaders).forEach(([key, value]) => {
+    if (value && !headers[key]) headers[key] = value;
+  });
+  return headers;
+}
+
+async function post(path, body, token) {
+  const headers = buildHeaders({ 'Content-Type': 'application/json' });
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
   let res;
   try {
@@ -94,10 +105,8 @@ async function post(path, body, token) {
 }
 
 async function put(path, body, token) {
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = buildHeaders({ 'Content-Type': 'application/json' });
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const initData = window?.Telegram?.WebApp?.initData;
-  if (initData) headers['X-Telegram-Init-Data'] = initData;
 
   let res;
   try {
@@ -132,10 +141,8 @@ async function put(path, body, token) {
 }
 
 async function get(path, token) {
-  const headers = {};
+  const headers = buildHeaders();
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const initData = window?.Telegram?.WebApp?.initData;
-  if (initData) headers['X-Telegram-Init-Data'] = initData;
 
   let res;
   try {
@@ -280,10 +287,8 @@ export function listAllInfluencer() {
 }
 
 export function verifyInfluencer(id, status, views) {
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = buildHeaders({ 'Content-Type': 'application/json' });
   if (API_AUTH_TOKEN) headers['Authorization'] = `Bearer ${API_AUTH_TOKEN}`;
-  const initData = window?.Telegram?.WebApp?.initData;
-  if (initData) headers['X-Telegram-Init-Data'] = initData;
   return fetch(API_BASE_URL + `/api/influencer/admin/${id}/verify`, {
     method: 'PATCH',
     headers,
