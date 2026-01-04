@@ -2,6 +2,11 @@ const TELEGRAM_ONLY = true;
 const REFRESH_FLAG_KEY = 'tonplaygram-sw-refreshed';
 const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_URL = '/service-worker.js';
+const SERVICE_WORKER_OPTIONS = {
+  scope: '/',
+  updateViaCache: 'none',
+  ...(import.meta.env.DEV ? { type: 'module' } : {})
+};
 
 function shouldRegisterForTelegram() {
   if (!('serviceWorker' in navigator)) return false;
@@ -85,10 +90,7 @@ export async function registerTelegramServiceWorker() {
 
   try {
     const hadController = Boolean(navigator.serviceWorker.controller);
-    const registration = await navigator.serviceWorker.register(SERVICE_WORKER_URL, {
-      scope: '/',
-      updateViaCache: 'none'
-    });
+    const registration = await navigator.serviceWorker.register(SERVICE_WORKER_URL, SERVICE_WORKER_OPTIONS);
 
     wireUpdateFlow(registration, hadController);
     registration.update();
