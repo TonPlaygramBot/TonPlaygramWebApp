@@ -1,13 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { createAccount } from '../utils/api.js';
+import { useTonAddress, useTonConnectUI } from '@tonconnect/ui-react';
+import { createAccount, registerWallet } from '../utils/api.js';
 import { ensureAccountId } from '../utils/telegram.js';
 import LinkGoogleButton from './LinkGoogleButton.jsx';
 import { loadGoogleProfile } from '../utils/google.js';
+import TonConnectButton from './TonConnectButton.jsx';
 
 export default function LoginOptions({ onAuthenticated }) {
   const [googleProfile, setGoogleProfile] = useState(() => loadGoogleProfile());
-  const [status, setStatus] = useState('initializing');
+  const [accountStatus, setAccountStatus] = useState('initializing');
   const [ctaMessage, setCtaMessage] = useState('');
+  const [walletStatus, setWalletStatus] = useState('idle');
+  const [walletMessage, setWalletMessage] = useState('');
+  const walletAddress = useTonAddress();
+  const [tonConnectUI] = useTonConnectUI();
 
   const handleAuthenticated = (profile) => {
     setGoogleProfile(profile);
@@ -44,10 +50,10 @@ export default function LoginOptions({ onAuthenticated }) {
         if (res?.walletAddress) {
           localStorage.setItem('walletAddress', res.walletAddress);
         }
-        setStatus('ready');
+        setAccountStatus('ready');
       } catch (err) {
         console.error('Account setup failed', err);
-        if (!cancelled) setStatus('error');
+        if (!cancelled) setAccountStatus('error');
       }
     })();
     return () => {
@@ -61,16 +67,80 @@ export default function LoginOptions({ onAuthenticated }) {
     }
   }, [googleProfile, onAuthenticated]);
 
+  useEffect(() => {
+    if (!walletAddress) {
+      setWalletStatus('idle');
+      setWalletMessage('');
+      return undefined;
+    }
+
+    let cancelled = false;
+    setWalletStatus('connecting');
+    setWalletMessage('Linking your TON wallet…');
+
+    (async () => {
+      try {
+        const res = await registerWallet(walletAddress);
+        if (cancelled) return;
+        if (res?.accountId) {
+          localStorage.setItem('accountId', res.accountId);
+        }
+        localStorage.setItem('walletAddress', walletAddress);
+        setWalletStatus('connected');
+        setWalletMessage('Wallet connected. You can continue.');
+        if (onAuthenticated) {
+          onAuthenticated({ walletAddress, accountId: res?.accountId });
+        }
+      } catch (err) {
+        console.error('Failed to register TON wallet', err);
+        if (!cancelled) {
+          setWalletStatus('error');
+          setWalletMessage('Could not link the wallet. Please retry.');
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [walletAddress, onAuthenticated]);
+
   return (
-    <div className="p-6 text-text space-y-4 max-w-3xl mx-auto">
+    <div className="p-6 text-text space-y-4 max-w-4xl mx-auto">
       <div className="space-y-2">
         <h2 className="text-xl font-bold text-white">Welcome to TonPlaygram</h2>
         <p className="text-sm text-subtext">
-          Sign in with Google on Chrome or continue from the Telegram mini app. We&apos;ll create a fresh
-          TPC profile so you can access the full site, stake, and sync rewards anywhere.
+          Choose how you want to sign in on Chrome: TON wallet, Telegram, or Google. We&apos;ll create
+          or restore your TPC profile so you can sync rewards everywhere.
         </p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+        <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
+          <p className="text-sm font-semibold text-white">Login with TON Wallet</p>
+          <p className="text-xs text-subtext">
+            Connect Tonkeeper, Tonhub, or another TON wallet to continue in Chrome and keep your on-chain address.
+          </p>
+          <TonConnectButton className="w-full" />
+          {walletAddress && (
+            <p className="text-green-400 text-xs break-all">
+              Connected to {walletAddress}
+            </p>
+          )}
+          {walletMessage && (
+            <p className={walletStatus === 'error' ? 'text-red-400 text-xs' : 'text-amber-200 text-xs'}>
+              {walletMessage}
+            </p>
+          )}
+          {walletStatus === 'error' && (
+            <button
+              className="w-full px-3 py-2 bg-primary hover:bg-primary-hover text-background rounded font-semibold"
+              onClick={() => tonConnectUI?.openModal?.()}
+            >
+              Retry wallet connect
+            </button>
+          )}
+        </div>
+
         <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
           <p className="text-sm font-semibold text-white">Login with Telegram</p>
           <p className="text-xs text-subtext">
@@ -100,7 +170,7 @@ export default function LoginOptions({ onAuthenticated }) {
               Signed in as {googleProfile.email}. Completing your TPC profile…
             </p>
           )}
-          {status === 'error' && (
+          {accountStatus === 'error' && (
             <p className="text-red-400 text-xs">We couldn&apos;t finish setup. Try again in a moment.</p>
           )}
         </div>
