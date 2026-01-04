@@ -2,6 +2,9 @@ node_modules
 package-lock.json
 bot/node_modules
 webapp/node_modules
+webapp/android/gradle/wrapper/gradle-wrapper.jar
+webapp/android/app/src/main/res/**/*.png
+webapp/ios/App/App/Assets.xcassets/**/*.png
 bot/package-lock.json
 .idea
 
