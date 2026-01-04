@@ -16,7 +16,6 @@ import {
 } from '../utils/api.js';
 
 import { getTelegramId, parseTelegramPostLink } from '../utils/telegram.js';
-import { extractTasksError, extractTasksVersion, normalizeTasksResponse } from '../utils/tasks.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 
 import { IoLogoTiktok } from 'react-icons/io5';
@@ -53,7 +52,6 @@ export default function Tasks() {
   }
 
   const [tasks, setTasks] = useState(null);
-  const [tasksError, setTasksError] = useState('');
   const [adCount, setAdCount] = useState(0);
   const [showAd, setShowAd] = useState(false);
   const [showQuestAd, setShowQuestAd] = useState(false);
@@ -75,45 +73,34 @@ export default function Tasks() {
   });
 
   const load = async () => {
-    try {
-      const data = await listTasks(telegramId);
-      const tasksList = normalizeTasksResponse(data);
-      setTasks(tasksList);
-
-      const version = extractTasksVersion(data);
-      if (version) {
-        const seen = localStorage.getItem('tasksVersion');
-        if (seen !== String(version)) {
-          setShowNew(true);
-          localStorage.setItem('tasksVersion', String(version));
-        }
+    const data = await listTasks(telegramId);
+    const tasksList = data.tasks || data;
+    setTasks(tasksList);
+    if (data.version) {
+      const seen = localStorage.getItem('tasksVersion');
+      if (seen !== String(data.version)) {
+        setShowNew(true);
+        localStorage.setItem('tasksVersion', String(data.version));
       }
-
-      setTasksError(extractTasksError(data));
-
-      const ad = await getAdStatus(telegramId);
-      if (!ad.error) setAdCount(ad.count);
-      const quest = await getQuestStatus(telegramId);
-      if (!quest.error) setQuestTime(quest.remaining || 0);
-      try {
-        const prof = await getProfile(telegramId);
-        setProfile(prof);
-        if (prof.dailyStreak) setStreak(prof.dailyStreak);
-        const serverTs = prof.lastCheckIn
-          ? new Date(prof.lastCheckIn).getTime()
-          : null;
-        const localTs = lastCheck || 0;
-        const ts = Math.max(serverTs || 0, localTs);
-        if (ts) {
-          setLastCheck(ts);
-          localStorage.setItem('lastCheckIn', String(ts));
-        }
-      } catch {}
-    } catch (err) {
-      console.error('Failed to load tasks', err);
-      setTasks([]);
-      setTasksError('Unable to load tasks right now. Please try again later.');
     }
+    const ad = await getAdStatus(telegramId);
+    if (!ad.error) setAdCount(ad.count);
+    const quest = await getQuestStatus(telegramId);
+    if (!quest.error) setQuestTime(quest.remaining || 0);
+    try {
+      const prof = await getProfile(telegramId);
+      setProfile(prof);
+      if (prof.dailyStreak) setStreak(prof.dailyStreak);
+      const serverTs = prof.lastCheckIn
+        ? new Date(prof.lastCheckIn).getTime()
+        : null;
+      const localTs = lastCheck || 0;
+      const ts = Math.max(serverTs || 0, localTs);
+      if (ts) {
+        setLastCheck(ts);
+        localStorage.setItem('lastCheckIn', String(ts));
+      }
+    } catch {}
   };
 
   const loadInfluencer = async () => {
@@ -264,9 +251,6 @@ export default function Tasks() {
 
     <div className="relative p-4 space-y-2 text-text flex flex-col items-center wide-card">
       <h2 className="text-xl font-bold">Tasks</h2>
-      {tasksError && (
-        <p className="text-sm text-red-400 text-center">{tasksError}</p>
-      )}
       <div className="flex justify-center space-x-2">
         {['TonPlaygram', 'Influencer', 'Partners'].map((c) => (
           <button
