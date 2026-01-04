@@ -42,10 +42,6 @@ export default function Home() {
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const baseUrl = useMemo(() => import.meta.env.BASE_URL || '/', []);
-  const launcherDownloadUrl = useMemo(
-    () => `${baseUrl}tonplaygram-launcher.apk?v=1.0.1`,
-    [baseUrl]
-  );
   const [pwaDownloadStatus, setPwaDownloadStatus] = useState({ state: 'idle', message: '' });
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
@@ -307,15 +303,13 @@ export default function Home() {
             <p>1) Tap the browser menu and choose &quot;Add to Home screen&quot; to pin the web app like an app.</p>
             <p>2) On Android, you can also install the lightweight launcher APK for faster opening:</p>
             <a
-              href={launcherDownloadUrl}
+              href={`${baseUrl}tonplaygram-launcher.apk`}
               className="text-primary font-semibold underline"
               download
             >
-              Download launcher APK (v1.0.1)
+              Download launcher APK
             </a>
-            <p className="italic text-[11px] text-subtext">
-              The APK link targets the refreshed launcher build (drop the signed file at public/tonplaygram-launcher.apk outside this PR).
-            </p>
+            <p className="italic text-[11px] text-subtext">No new binaries are added; this uses the existing launcher file.</p>
           </div>
         </div>
       </div>
