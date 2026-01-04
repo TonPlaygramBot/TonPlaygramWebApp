@@ -9,9 +9,7 @@ import DailyCheckIn from '../components/DailyCheckIn.jsx';
 import {
   FaArrowUp,
   FaArrowDown,
-  FaWallet,
-  FaAndroid,
-  FaApple
+  FaWallet
 } from 'react-icons/fa';
 import { IoLogoTiktok } from 'react-icons/io5';
 import { RiTelegramFill } from 'react-icons/ri';
@@ -49,32 +47,6 @@ export default function Home() {
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
   const [tonConnectUI] = useTonConnectUI();
-  const downloadButtons = useMemo(
-    () => [
-      {
-        label: 'Android APK',
-        href: `${baseUrl}tonplaygram-launcher.apk`,
-        icon: <FaAndroid className="w-5 h-5 text-primary" />,
-        description: 'Install the lightweight Android launcher to pin TonPlaygram like a native app.',
-        props: { download: true }
-      },
-      {
-        label: 'iOS PWA',
-        href: `${baseUrl}manifest.webmanifest`,
-        icon: <FaApple className="w-5 h-5 text-primary" />,
-        description: 'Open in Safari, then use Share → Add to Home Screen for an app-like experience.',
-        props: { target: '_blank', rel: 'noreferrer' }
-      },
-      {
-        label: 'Telegram mini app',
-        href: 'https://t.me/TonPlaygramBot',
-        icon: <RiTelegramFill className="w-5 h-5 text-sky-400" />,
-        description: 'Open the bot and add TonPlaygram to your Telegram menu for quick access.',
-        props: { target: '_blank', rel: 'noreferrer' }
-      }
-    ],
-    [baseUrl]
-  );
 
   const handlePwaDownload = useCallback(async (autoTriggered = false) => {
     setPwaDownloadStatus({
@@ -102,7 +74,7 @@ export default function Home() {
       setPwaDownloadStatus({
         state: 'error',
         message:
-          'Offline download is unavailable right now. Please try again after reloading.'
+          'Offline download is unavailable right now. Please try again from the Telegram in-app browser after reloading.'
       });
     }
   }, [baseUrl]);
@@ -292,34 +264,6 @@ export default function Home() {
         >
           <IoLogoTiktok className="text-pink-500 w-6 h-6" />
         </a>
-      </div>
-
-      <div className="mt-4 bg-surface border border-border rounded-xl p-4 space-y-3">
-        <div className="space-y-1">
-          <h3 className="text-lg font-semibold text-white text-center">Download TonPlaygram anywhere</h3>
-          <p className="text-sm text-subtext text-center">
-            Choose the install path that fits your device and keep the web app pinned like Android or iOS apps.
-          </p>
-        </div>
-        <div className="grid gap-2 sm:grid-cols-3">
-          {downloadButtons.map(({ label, href, icon, description, props }) => (
-            <a
-              key={label}
-              href={href}
-              className="flex items-start gap-3 rounded-xl border border-border bg-background/60 px-3 py-3 text-left shadow-sm hover:border-accent/60 transition"
-              {...props}
-            >
-              <div className="mt-1">{icon}</div>
-              <div className="space-y-1">
-                <p className="text-white font-semibold leading-tight">{label}</p>
-                <p className="text-xs text-subtext leading-snug">{description}</p>
-              </div>
-            </a>
-          ))}
-        </div>
-        <p className="text-[11px] text-subtext text-center">
-          Tip: iOS users should open in Safari, then tap Share → Add to Home Screen to keep TonPlaygram handy.
-        </p>
       </div>
 
       <div className="mt-4 bg-surface border border-border rounded-xl p-4 space-y-3">
