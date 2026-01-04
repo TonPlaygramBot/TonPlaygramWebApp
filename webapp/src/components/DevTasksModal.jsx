@@ -6,6 +6,7 @@ import {
   adminUpdateTask,
   adminDeleteTask
 } from '../utils/api.js';
+import { normalizeTasksResponse } from '../utils/taskUtils.js';
 import { FiEdit, FiTrash2 } from 'react-icons/fi';
 
 export default function DevTasksModal({ open, onClose }) {
@@ -18,7 +19,7 @@ export default function DevTasksModal({ open, onClose }) {
 
   const load = async () => {
     const data = await adminListTasks();
-    if (!data.error) setTasks(data.tasks || data);
+    if (!data.error) setTasks(normalizeTasksResponse(data));
   };
 
   useEffect(() => {
