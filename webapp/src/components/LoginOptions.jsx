@@ -1,13 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useTonAddress, useTonWallet } from '@tonconnect/ui-react';
 import { createAccount } from '../utils/api.js';
 import { ensureAccountId } from '../utils/telegram.js';
 import LinkGoogleButton from './LinkGoogleButton.jsx';
+import TonConnectButton from './TonConnectButton.jsx';
 import { loadGoogleProfile } from '../utils/google.js';
 
 export default function LoginOptions({ onAuthenticated }) {
   const [googleProfile, setGoogleProfile] = useState(() => loadGoogleProfile());
   const [status, setStatus] = useState('initializing');
   const [ctaMessage, setCtaMessage] = useState('');
+  const [walletStatus, setWalletStatus] = useState('idle');
+  const [walletMessage, setWalletMessage] = useState('Connect your TON wallet to continue.');
+  const tonAddress = useTonAddress();
+  const tonWallet = useTonWallet();
+  const lastLinkedWallet = useRef('');
 
   const handleAuthenticated = (profile) => {
     setGoogleProfile(profile);
@@ -61,6 +68,33 @@ export default function LoginOptions({ onAuthenticated }) {
     }
   }, [googleProfile, onAuthenticated]);
 
+  useEffect(() => {
+    if (!tonAddress || tonAddress === lastLinkedWallet.current) return;
+    setWalletStatus('linking');
+    setWalletMessage('Linking your TON wallet…');
+    createAccount(undefined, googleProfile || undefined, undefined, {
+      address: tonAddress,
+      publicKey: tonWallet?.account?.publicKey
+    })
+      .then((res) => {
+        if (res?.error) throw new Error(res.error);
+        if (res?.accountId) {
+          localStorage.setItem('accountId', res.accountId);
+        }
+        if (res?.walletAddress) {
+          localStorage.setItem('walletAddress', res.walletAddress);
+        }
+        lastLinkedWallet.current = tonAddress;
+        setWalletStatus('linked');
+        setWalletMessage('Wallet connected. You can continue.');
+      })
+      .catch((err) => {
+        console.error('Failed to link TON wallet', err);
+        setWalletStatus('error');
+        setWalletMessage('We could not link your TON wallet. Please try again.');
+      });
+  }, [tonAddress, tonWallet?.account?.publicKey, googleProfile]);
+
   return (
     <div className="p-6 text-text space-y-4 max-w-3xl mx-auto">
       <div className="space-y-2">
@@ -70,7 +104,7 @@ export default function LoginOptions({ onAuthenticated }) {
           TPC profile so you can access the full site, stake, and sync rewards anywhere.
         </p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
         <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
           <p className="text-sm font-semibold text-white">Login with Telegram</p>
           <p className="text-xs text-subtext">
@@ -103,6 +137,19 @@ export default function LoginOptions({ onAuthenticated }) {
           {status === 'error' && (
             <p className="text-red-400 text-xs">We couldn&apos;t finish setup. Try again in a moment.</p>
           )}
+        </div>
+
+        <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
+          <p className="text-sm font-semibold text-white">Login with TON Wallet</p>
+          <p className="text-xs text-subtext">
+            Best for Chrome and other browsers. Connect with Tonkeeper or Tonhub to secure your rewards with your wallet.
+          </p>
+          <TonConnectButton className="w-full justify-center" />
+          <p
+            className={`text-xs ${walletStatus === 'error' ? 'text-red-400' : 'text-amber-200'}`}
+          >
+            {walletMessage}
+          </p>
         </div>
       </div>
     </div>

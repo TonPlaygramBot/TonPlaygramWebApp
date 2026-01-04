@@ -24,6 +24,7 @@ import {
   shouldUseMemoryUserStore,
   deleteMemoryUser
 } from '../utils/memoryUserStore.js';
+import { normalizeAddress } from '../utils/ton.js';
 
 const router = Router();
 
@@ -36,7 +37,9 @@ router.post('/create', async (req, res) => {
     googleEmail,
     firstName,
     lastName,
-    photo
+    photo,
+    walletAddress,
+    walletPublicKey
   } = req.body;
   const useMemoryStore = shouldUseMemoryUserStore();
 
@@ -51,11 +54,20 @@ router.post('/create', async (req, res) => {
     const removeUser = async (payload) =>
       useMemoryStore ? deleteMemoryUser(payload?.accountId) : payload?.deleteOne?.();
 
+    const normalizedWallet = walletAddress ? normalizeAddress(walletAddress) : null;
+    if (walletAddress && !normalizedWallet) {
+      return res.status(400).json({ error: 'invalid walletAddress' });
+    }
+
     const existingByAccountId = accountId ? await findUser({ accountId }) : null;
     const existingByTelegram = telegramId ? await findUser({ telegramId }) : null;
     const existingByGoogle = googleId ? await findUser({ googleId }) : null;
+    const existingByWallet = normalizedWallet
+      ? await findUser({ walletAddress: normalizedWallet })
+      : null;
 
-    const primaryExisting = existingByAccountId || existingByTelegram || existingByGoogle;
+    const primaryExisting =
+      existingByAccountId || existingByTelegram || existingByGoogle || existingByWallet;
 
     if (telegramId) {
       try {
@@ -66,7 +78,9 @@ router.post('/create', async (req, res) => {
 
       user = existingByTelegram || primaryExisting;
       if (!user) {
-        const wallet = await generateWalletAddress();
+        const wallet = normalizedWallet
+          ? { address: normalizedWallet, publicKey: walletPublicKey || '' }
+          : await generateWalletAddress();
         const baseData = {
           telegramId,
           accountId: accountId || uuidv4(),
@@ -107,9 +121,15 @@ router.post('/create', async (req, res) => {
           updated = true;
         }
         if (!user.walletAddress) {
-          const wallet = await generateWalletAddress();
+          const wallet = normalizedWallet
+            ? { address: normalizedWallet, publicKey: walletPublicKey || '' }
+            : await generateWalletAddress();
           user.walletAddress = wallet.address;
           user.walletPublicKey = wallet.publicKey;
+          updated = true;
+        } else if (normalizedWallet && user.walletAddress !== normalizedWallet) {
+          user.walletAddress = normalizedWallet;
+          if (walletPublicKey) user.walletPublicKey = walletPublicKey;
           updated = true;
         }
         if (telegramProfile) {
@@ -131,7 +151,9 @@ router.post('/create', async (req, res) => {
     } else if (googleId) {
       user = existingByGoogle || primaryExisting;
       if (!user) {
-        const wallet = await generateWalletAddress();
+        const wallet = normalizedWallet
+          ? { address: normalizedWallet, publicKey: walletPublicKey || '' }
+          : await generateWalletAddress();
         const baseData = {
           googleId,
           googleEmail: googleEmail || '',
@@ -168,9 +190,15 @@ router.post('/create', async (req, res) => {
           updated = true;
         }
         if (!user.walletAddress) {
-          const wallet = await generateWalletAddress();
+          const wallet = normalizedWallet
+            ? { address: normalizedWallet, publicKey: walletPublicKey || '' }
+            : await generateWalletAddress();
           user.walletAddress = wallet.address;
           user.walletPublicKey = wallet.publicKey;
+          updated = true;
+        } else if (normalizedWallet && user.walletAddress !== normalizedWallet) {
+          user.walletAddress = normalizedWallet;
+          if (walletPublicKey) user.walletPublicKey = walletPublicKey;
           updated = true;
         }
         if (googleEmail && user.googleEmail !== googleEmail) {
@@ -191,20 +219,56 @@ router.post('/create', async (req, res) => {
         }
         if (updated) await persistUser(user);
       }
+    } else if (normalizedWallet) {
+      user = existingByWallet || primaryExisting;
+      const baseData = {
+        accountId: accountId || user?.accountId || uuidv4(),
+        walletAddress: normalizedWallet,
+        walletPublicKey: walletPublicKey || user?.walletPublicKey,
+        referralCode: user?.referralCode || normalizedWallet
+      };
+
+      if (!user) {
+        user = useMemoryStore
+          ? createMemoryUser(baseData)
+          : new User(baseData);
+        if (!useMemoryStore) await user.save();
+      } else {
+        let updated = false;
+        if (!user.accountId) {
+          user.accountId = baseData.accountId;
+          updated = true;
+        }
+        if (!user.walletAddress || user.walletAddress !== normalizedWallet) {
+          user.walletAddress = normalizedWallet;
+          updated = true;
+        }
+        if (walletPublicKey && user.walletPublicKey !== walletPublicKey) {
+          user.walletPublicKey = walletPublicKey;
+          updated = true;
+        }
+        if (!user.referralCode) {
+          user.referralCode = baseData.referralCode;
+          updated = true;
+        }
+        if (updated) await persistUser(user);
+      }
     } else {
       const wallet = await generateWalletAddress();
       const id = uuidv4();
-      user = useMemoryStore ? createMemoryUser({
-        accountId: id,
-        referralCode: id,
-        walletAddress: wallet.address,
-        walletPublicKey: wallet.publicKey
-      }) : new User({
-        accountId: id,
-        referralCode: id,
-        walletAddress: wallet.address,
-        walletPublicKey: wallet.publicKey
-      });
+      user = useMemoryStore
+        ? createMemoryUser({
+            accountId: id,
+            referralCode: id,
+            walletAddress: wallet.address,
+            walletPublicKey: wallet.publicKey
+          })
+        : new User({
+            accountId: id,
+            referralCode: id,
+            walletAddress: wallet.address,
+            walletPublicKey: wallet.publicKey
+          });
       if (!useMemoryStore) await user.save();
     }
 
