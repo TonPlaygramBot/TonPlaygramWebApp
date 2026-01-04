@@ -6,6 +6,16 @@ on:
 jobs:
   android:
     runs-on: ubuntu-latest
+    env:
+      VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+      VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
+      VITE_SOCKET_PATH: ${{ secrets.VITE_SOCKET_PATH }}
+      VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+      VITE_DEV_ACCOUNT_ID: ${{ secrets.VITE_DEV_ACCOUNT_ID }}
+      VITE_DEV_ACCOUNT_ID_1: ${{ secrets.VITE_DEV_ACCOUNT_ID_1 }}
+      VITE_DEV_ACCOUNT_ID_2: ${{ secrets.VITE_DEV_ACCOUNT_ID_2 }}
+      VITE_API_AUTH_TOKEN: ${{ secrets.VITE_API_AUTH_TOKEN }}
+      VITE_LAUNCHER_URL: ${{ secrets.VITE_LAUNCHER_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,6 +58,16 @@ jobs:
 
   ios:
     runs-on: macos-latest
+    env:
+      VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+      VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
+      VITE_SOCKET_PATH: ${{ secrets.VITE_SOCKET_PATH }}
+      VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+      VITE_DEV_ACCOUNT_ID: ${{ secrets.VITE_DEV_ACCOUNT_ID }}
+      VITE_DEV_ACCOUNT_ID_1: ${{ secrets.VITE_DEV_ACCOUNT_ID_1 }}
+      VITE_DEV_ACCOUNT_ID_2: ${{ secrets.VITE_DEV_ACCOUNT_ID_2 }}
+      VITE_API_AUTH_TOKEN: ${{ secrets.VITE_API_AUTH_TOKEN }}
+      VITE_LAUNCHER_URL: ${{ secrets.VITE_LAUNCHER_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
