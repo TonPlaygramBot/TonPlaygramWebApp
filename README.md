@@ -154,6 +154,18 @@ npm test
    npm start
    ```
 
+### Mobile shells (Capacitor)
+
+- Run `npm --prefix webapp run generate:native-assets` to generate the native icon and splash assets from the existing `webapp/public/assets/icons` sources. Generated PNGs are gitignored so the script must be run before `cap sync` or a native build.
+- Set `VITE_API_BASE_URL` to the production HTTPS endpoint when packaging native apps. Native shells warn when this is missing to avoid accidentally pointing to an unsecured or incorrect origin.
+- Android deep links are verified for `https://tonplaygram.com`, `https://tonplaygram.app` and `https://api.tonplaygram.com`, plus the custom schemes `tonplaygram://` and `tonconnect://tonplaygram.com`.
+- iOS universal links rely on the Associated Domains entitlement (`applinks:tonplaygram.com`, `applinks:tonplaygram.app`, `applinks:api.tonplaygram.com`). Keep the entitlement list in sync with production domains.
+- Only network access is requested by default (`INTERNET` on Android; no native permissions on iOS). Document the same in store submissions.
+
+### CI for native packages
+
+`./.github/workflows/native-build.yml` performs a build of the web assets, runs `cap sync`, and produces unsigned debug Android APK/AAB plus an iOS archive (code signing disabled). Trigger it via **Workflow dispatch** when you need fresh artifacts without touching UI layout or gameplay code.
+
 ### Local development
 
 Run both the API server and the webapp together while developing:

@@ -54,6 +54,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>tonplaygram</string>
+				<string>tonconnect</string>
 			</array>
 			<key>CFBundleURLName</key>
 			<string>com.tonplaygram.app</string>

@@ -1,0 +1,86 @@
+name: Native build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm --prefix webapp install
+
+      - name: Generate native assets
+        run: npm --prefix webapp run generate:native-assets
+
+      - name: Build web assets
+        run: npm --prefix webapp run build
+
+      - name: Sync Capacitor Android
+        run: npx --prefix webapp cap sync android
+
+      - name: Build Android APK and AAB
+        run: |
+          cd webapp/android
+          ./gradlew assembleDebug bundleDebug
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-artifacts
+          path: |
+            webapp/android/app/build/outputs/apk/debug/app-debug.apk
+            webapp/android/app/build/outputs/bundle/debug/app-debug.aab
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm --prefix webapp install
+
+      - name: Generate native assets
+        run: npm --prefix webapp run generate:native-assets
+
+      - name: Build web assets
+        run: npm --prefix webapp run build
+
+      - name: Sync Capacitor iOS
+        run: npx --prefix webapp cap sync ios
+
+      - name: Install CocoaPods
+        run: |
+          cd webapp/ios/App
+          pod install
+
+      - name: Build iOS archive (unsigned)
+        run: |
+          cd webapp/ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -archivePath build/App.xcarchive -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+
+      - name: Upload iOS archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-archive
+          path: webapp/ios/App/build/App.xcarchive
