@@ -11229,9 +11229,6 @@ const powerRef = useRef(hud.power);
   const spinLimitsRef = useRef({ ...DEFAULT_SPIN_LIMITS });
   const spinAppliedRef = useRef({ x: 0, y: 0, mode: 'standard', magnitude: 0 });
   const spinDotElRef = useRef(null);
-  const spinSwerveHotspotRef = useRef(null);
-  const spinModeUiRef = useRef('standard');
-  const lastSwerveSoundRef = useRef(0);
   const spinLegalityRef = useRef({ blocked: false, reason: '' });
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
@@ -11260,15 +11257,6 @@ const powerRef = useRef(hud.power);
         ? '#facc15'
         : '#dc2626';
     dot.dataset.blocked = showBlocked ? '1' : '0';
-    const hotspot = spinSwerveHotspotRef.current;
-    const pctX = 50 + scaledX * 50;
-    const pctY = 50 + scaledY * 50;
-    const isSwerve = !showBlocked && magnitude >= SWERVE_THRESHOLD;
-    if (hotspot) {
-      hotspot.style.setProperty('--swerve-x', `${pctX}%`);
-      hotspot.style.setProperty('--swerve-y', `${pctY}%`);
-      hotspot.style.opacity = isSwerve ? '1' : '0';
-    }
   }, []);
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
@@ -11284,8 +11272,7 @@ const powerRef = useRef(hud.power);
     knock: null,
     cheer: null,
     shock: null,
-    chalk: null,
-    swerve: null
+    chalk: null
   });
   const chessBoardTextureRef = useRef(null);
   const dartboardTextureRef = useRef(null);
@@ -11495,25 +11482,6 @@ const powerRef = useRef(hud.power);
     },
     [stopActiveCrowdSound]
   );
-
-  const playSwerveApply = useCallback(() => {
-    const ctx = audioContextRef.current;
-    const buffer = audioBuffersRef.current.swerve;
-    if (!ctx || !buffer || muteRef.current) return;
-    const scaled = clamp(volumeRef.current * 0.9, 0, 1);
-    if (scaled <= 0) return;
-    ctx.resume().catch(() => {});
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    const gain = ctx.createGain();
-    gain.gain.value = scaled * 0.85;
-    source.connect(gain);
-    routeAudioNode(gain);
-    const playbackDuration = Math.min(buffer.duration ?? 0, 2.5);
-    if (playbackDuration > 0) {
-      source.start(0, 0, playbackDuration);
-    }
-  }, [routeAudioNode]);
   useEffect(() => {
     document.title = 'Pool Royale 3D';
   }, []);
@@ -11608,8 +11576,7 @@ const powerRef = useRef(hud.power);
         ['knock', '/assets/sounds/wooden-door-knock-102902.mp3'],
         ['cheer', '/assets/sounds/crowd-cheering-383111.mp3'],
         ['shock', '/assets/sounds/crowd-shocked-reaction-352766.mp3'],
-        ['chalk', '/assets/sounds/adding-chalk-to-a-snooker-cue-102468.mp3'],
-        ['swerve', '/assets/sounds/Trim_SNOOKER_SWERVE_SHOT__shorts_1.mp3']
+        ['chalk', '/assets/sounds/adding-chalk-to-a-snooker-cue-102468.mp3']
       ];
       const loaded = {};
       for (const [key, path] of entries) {
@@ -11634,8 +11601,7 @@ const powerRef = useRef(hud.power);
         knock: null,
         cheer: null,
         shock: null,
-        chalk: null,
-        swerve: null
+        chalk: null
       };
       audioContextRef.current = null;
       ctx.close().catch(() => {});
@@ -22524,7 +22490,6 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     if (!showSpinController) {
       spinDotElRef.current = null;
-      spinSwerveHotspotRef.current = null;
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
       spinLegalityRef.current = { blocked: false, reason: '' };
@@ -22533,15 +22498,8 @@ const powerRef = useRef(hud.power);
 
     const box = document.getElementById('spinBox');
     const dot = document.getElementById('spinDot');
-    const hotspot = document.getElementById('spinSwerveHotspot');
     if (!box || !dot) return;
     spinDotElRef.current = dot;
-    spinSwerveHotspotRef.current = hotspot;
-    if (hotspot) {
-      hotspot.style.opacity = '0';
-      hotspot.style.setProperty('--swerve-x', '50%');
-      hotspot.style.setProperty('--swerve-y', '50%');
-    }
 
     box.style.transition = 'transform 0.18s ease';
     box.style.transformOrigin = '50% 50%';
@@ -22584,21 +22542,7 @@ const powerRef = useRef(hud.power);
         }
       );
       spinLegalityRef.current = legality;
-      const magnitude = Math.hypot(limited.x ?? 0, limited.y ?? 0);
-      const mode = !legality.blocked && magnitude >= SWERVE_THRESHOLD ? 'swerve' : 'standard';
-      const previousMode = spinModeUiRef.current;
       updateSpinDotPosition(limited, legality.blocked);
-      if (!legality.blocked) {
-        const now = performance.now();
-        const lastPlay = lastSwerveSoundRef.current ?? 0;
-        if (mode === 'swerve' && previousMode !== 'swerve' && now - lastPlay > 220) {
-          playSwerveApply();
-          lastSwerveSoundRef.current = now;
-        }
-        spinModeUiRef.current = mode;
-      } else {
-        spinModeUiRef.current = 'standard';
-      }
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
@@ -22681,19 +22625,17 @@ const powerRef = useRef(hud.power);
 
     return () => {
       spinDotElRef.current = null;
-      spinSwerveHotspotRef.current = null;
       releasePointer();
       clearTimer();
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
       spinLegalityRef.current = { blocked: false, reason: '' };
-      spinModeUiRef.current = 'standard';
       box.removeEventListener('pointerdown', handlePointerDown);
       box.removeEventListener('pointermove', handlePointerMove);
       box.removeEventListener('pointerup', handlePointerUp);
       box.removeEventListener('pointercancel', handlePointerCancel);
     };
-  }, [playSwerveApply, showPlayerControls, showSpinController, updateSpinDotPosition]);
+  }, [showPlayerControls, showSpinController, updateSpinDotPosition]);
 
   const americanBallSwatches = useMemo(() => {
     const colors = POOL_VARIANT_COLOR_SETS.american.objectColors || [];
@@ -23772,16 +23714,6 @@ const powerRef = useRef(hud.power);
                 background: `radial-gradient(circle, transparent ${SWERVE_THRESHOLD * 100}%, rgba(250, 204, 21, 0.28) ${
                   SWERVE_THRESHOLD * 100
                 }%, rgba(250, 204, 21, 0.32) 100%)`
-              }}
-            />
-            <div
-              id="spinSwerveHotspot"
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 transition-opacity duration-150 ease-out"
-              style={{
-                opacity: 0,
-                background:
-                  'radial-gradient(circle at var(--swerve-x, 50%) var(--swerve-y, 50%), rgba(250, 204, 21, 0.4) 0%, rgba(250, 204, 21, 0.3) 16%, rgba(250, 204, 21, 0.18) 28%, rgba(250, 204, 21, 0) 42%)'
               }}
             />
             <div
