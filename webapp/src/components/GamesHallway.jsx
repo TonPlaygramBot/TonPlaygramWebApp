@@ -145,6 +145,7 @@ export default function GamesHallway({ games, onClose }) {
   const [selectedGame, setSelectedGame] = useState(null);
   const overlayRootRef = useRef(null);
   const [onlineCount, setOnlineCount] = useState(0);
+  const [renderError, setRenderError] = useState(null);
 
   useEffect(() => {
     if (!overlayRootRef.current) {
@@ -185,10 +186,28 @@ export default function GamesHallway({ games, onClose }) {
       return undefined;
     }
 
+    if (!isWebGLAvailable()) {
+      setRenderError('Your browser blocked 3D rendering. Use the quick lobby buttons below instead.');
+      return undefined;
+    }
+
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#fffaf3');
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    } catch (error) {
+      setRenderError('We could not start the 3D hallway renderer. Try the quick lobby buttons below.');
+      return undefined;
+    }
+
+    const gl = renderer.getContext();
+    if (!gl) {
+      setRenderError('3D rendering is unavailable in this browser session. Tap a lobby below to continue.');
+      return undefined;
+    }
+    setRenderError(null);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.85;
@@ -1178,12 +1197,20 @@ export default function GamesHallway({ games, onClose }) {
       event.preventDefault();
     };
 
+    const handleContextLost = (event) => {
+      event.preventDefault();
+      disposed = true;
+      cancelAnimationFrame(animationId);
+      setRenderError('Your browser disabled the 3D view. Use the lobby buttons below to keep playing.');
+    };
+
     renderer.domElement.addEventListener('pointerdown', handlePointerDown);
     renderer.domElement.addEventListener('pointermove', handlePointerMove);
     renderer.domElement.addEventListener('pointerup', handlePointerUp);
     renderer.domElement.addEventListener('pointerleave', handlePointerLeave);
     renderer.domElement.addEventListener('pointercancel', handlePointerCancel);
     renderer.domElement.addEventListener('lostpointercapture', handleLostPointerCapture);
+    renderer.domElement.addEventListener('webglcontextlost', handleContextLost, { passive: false });
     const handleWheel = (event) => {
       event.preventDefault();
     };
@@ -1199,6 +1226,9 @@ export default function GamesHallway({ games, onClose }) {
 
     const animate = (time) => {
       animationId = requestAnimationFrame(animate);
+      if (disposed) {
+        return;
+      }
       const deltaMs = time - lastRenderTime;
       if (deltaMs < TARGET_FRAME_TIME - 0.25) {
         return;
@@ -1237,6 +1267,7 @@ export default function GamesHallway({ games, onClose }) {
       renderer.domElement.removeEventListener('pointerleave', handlePointerLeave);
       renderer.domElement.removeEventListener('pointercancel', handlePointerCancel);
       renderer.domElement.removeEventListener('lostpointercapture', handleLostPointerCapture);
+      renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
       renderer.domElement.removeEventListener('wheel', handleWheel);
       renderer.domElement.removeEventListener('contextmenu', contextMenuHandler);
       window.removeEventListener('resize', handleResize);
@@ -1281,6 +1312,34 @@ export default function GamesHallway({ games, onClose }) {
             </div>
           </div>
         </div>
+        {renderError && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-black/90 via-black/95 to-black/95 px-5 text-center text-text pointer-events-auto">
+            <div className="space-y-2">
+              <h4 className="text-xl font-bold">3D hallway unavailable</h4>
+              <p className="text-sm text-subtext max-w-md mx-auto">
+                {renderError}
+              </p>
+            </div>
+            <div className="w-full max-w-md space-y-2">
+              {(Array.isArray(games) && games.length ? games : fallbackGameNames.map((name) => ({ name }))).map((game) => (
+                <button
+                  key={game.route || game.name}
+                  type="button"
+                  onClick={() => {
+                    if (game.route) {
+                      navigate(game.route);
+                    } else {
+                      setSelectedGame(game);
+                    }
+                  }}
+                  className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-base font-semibold shadow-lg shadow-black/40"
+                >
+                  {game.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       {selectedGame && overlayRootRef.current &&
         createPortal(
@@ -1317,6 +1376,18 @@ export default function GamesHallway({ games, onClose }) {
         )}
     </div>
   );
+}
+
+function isWebGLAvailable() {
+  try {
+    const canvas = document.createElement('canvas');
+    return !!(
+      window.WebGLRenderingContext &&
+      (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+    );
+  } catch {
+    return false;
+  }
 }
 
 function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_SIZES) {
