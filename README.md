@@ -159,11 +159,29 @@ npm test
 Run both the API server and the webapp together while developing:
 
 ```bash
-npm run dev
-```
+   npm run dev
+   ```
 
 This command launches the backend and the Vite dev server simultaneously so you
 can test changes right away.
+
+### Native builds (Android/iOS)
+
+- Regenerate native icons, splash assets and PWA brand images from the existing artwork before building:
+
+  ```bash
+  npm --prefix webapp run generate:native-assets
+  ```
+
+  Generated PNGs are git-ignored but are required for Android/iOS packaging.
+
+- Build and sync native projects:
+
+  ```bash
+  npm --prefix webapp run cap:sync
+  ```
+
+- The `Mobile Artifacts` GitHub Actions workflow builds release APK/AAB and an unsigned iOS archive on every push to `main` (and via manual dispatch). All builds use `VITE_API_BASE_URL=https://api.tonplaygram.com` to lock production endpoints.
 
 ### The Wall
 
