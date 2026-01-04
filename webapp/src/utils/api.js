@@ -30,6 +30,12 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function normalizeTelegramId(rawId) {
+  const parsed =
+    typeof rawId === 'number' ? rawId : rawId != null ? Number(rawId) : NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
   try {
     const res = await fetch(url, options);
@@ -554,7 +560,8 @@ export function registerWalletPasskey(telegramId, passkeyId, publicKey) {
 
 export function createAccount(telegramId, googleProfile, accountId, walletAddress) {
   const body = {};
-  if (telegramId) body.telegramId = telegramId;
+  const normalizedTelegramId = normalizeTelegramId(telegramId);
+  if (normalizedTelegramId != null) body.telegramId = normalizedTelegramId;
   const existingAccountId =
     accountId ||
     (typeof window !== 'undefined' ? localStorage.getItem('accountId') : null);

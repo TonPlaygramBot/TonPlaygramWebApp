@@ -5,27 +5,37 @@ export function isTelegramWebView() {
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   return Boolean(window.Telegram?.WebApp || ua.includes('Telegram'));
 }
+
+function parseTelegramId(value) {
+  if (value == null) return null;
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function getTelegramId() {
   if (typeof window !== 'undefined') {
     const tgId = window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-    if (tgId) {
-      localStorage.setItem('telegramId', tgId);
-      return tgId;
+    const telegramId = parseTelegramId(tgId);
+    if (telegramId != null) {
+      localStorage.setItem('telegramId', telegramId);
+      return telegramId;
     }
     const params = new URLSearchParams(window.location.search);
     const urlId = params.get('tg') || params.get('telegramId');
     if (urlId) {
-      localStorage.setItem('telegramId', urlId);
-      const n = Number(urlId);
-      return Number.isNaN(n) ? urlId : n;
+      const parsed = parseTelegramId(urlId);
+      if (parsed != null) {
+        localStorage.setItem('telegramId', parsed);
+        return parsed;
+      }
+      localStorage.removeItem('telegramId');
     }
     const stored = localStorage.getItem('telegramId');
     if (stored) {
-      const n = Number(stored);
-      return Number.isNaN(n) ? stored : n;
+      const parsed = parseTelegramId(stored);
+      if (parsed != null) return parsed;
+      localStorage.removeItem('telegramId');
     }
-    const acc = localStorage.getItem('accountId');
-    if (acc) return acc;
   }
   return null;
 }
