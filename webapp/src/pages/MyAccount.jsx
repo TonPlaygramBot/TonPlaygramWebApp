@@ -33,7 +33,6 @@ import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
 import { loadGoogleProfile, clearGoogleProfile } from '../utils/google.js';
 import useProfileLock from '../hooks/useProfileLock.js';
 import ProfileLockOverlay from '../components/ProfileLockOverlay.jsx';
-import { useTonAddress, useTonWallet } from '@tonconnect/ui-react';
 
 import { FiCopy } from 'react-icons/fi';
 
@@ -89,9 +88,7 @@ export default function MyAccount() {
   const [lockMessage, setLockMessage] = useState('');
   const [lockMessageTone, setLockMessageTone] = useState('info');
   const [showRecoveryCodes, setShowRecoveryCodes] = useState([]);
-  const tonAddress = useTonAddress();
-  const tonWallet = useTonWallet();
-  const requiresAuth = !telegramId && !googleProfile?.id && !tonAddress;
+  const requiresAuth = !telegramId && !googleProfile?.id;
 
   useEffect(() => {
     setGoogleLinked(Boolean(googleProfile?.id));
@@ -130,10 +127,7 @@ export default function MyAccount() {
     async function load() {
       setLoadingProfile(true);
       setLoadError('');
-      const accountPayload = await createAccount(telegramId, googleProfile, undefined, {
-        address: tonAddress || undefined,
-        publicKey: tonWallet?.account?.publicKey
-      });
+      const accountPayload = await createAccount(telegramId, googleProfile);
       if (accountPayload?.error || !accountPayload?.accountId) {
         throw new Error(accountPayload?.error || 'Unable to load your TPC account. Please try again.');
       }
@@ -230,7 +224,7 @@ export default function MyAccount() {
       if (timerRef.current) clearTimeout(timerRef.current);
       cancelled = true;
     };
-  }, [telegramId, googleProfile?.id, requiresAuth, reloadNonce, tonAddress, tonWallet?.account?.publicKey]);
+  }, [telegramId, googleProfile?.id, requiresAuth, reloadNonce]);
 
   useEffect(() => {
     if (!telegramId && googleProfile?.photo) {

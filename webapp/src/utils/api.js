@@ -552,15 +552,13 @@ export function registerWalletPasskey(telegramId, passkeyId, publicKey) {
 
 // ----- Account based wallet -----
 
-export function createAccount(telegramId, googleProfile, accountId, tonWallet) {
+export function createAccount(telegramId, googleProfile, accountId) {
   const body = {};
   if (telegramId) body.telegramId = telegramId;
   const existingAccountId =
     accountId ||
     (typeof window !== 'undefined' ? localStorage.getItem('accountId') : null);
   if (existingAccountId) body.accountId = existingAccountId;
-  if (tonWallet?.address) body.walletAddress = tonWallet.address;
-  if (tonWallet?.publicKey) body.walletPublicKey = tonWallet.publicKey;
   const profile =
     typeof googleProfile === 'string'
       ? { id: googleProfile }
