@@ -8,7 +8,8 @@ import {
   depositAccount,
   sendBroadcast,
   linkSocial,
-  getUnreadCount
+  getUnreadCount,
+  linkGoogleAccount
 } from '../utils/api.js';
 import {
   getTelegramId,
@@ -36,14 +37,20 @@ import ProfileLockOverlay from '../components/ProfileLockOverlay.jsx';
 import { FiCopy } from 'react-icons/fi';
 
 export default function MyAccount() {
-  let telegramId = null;
-
-  try {
-    telegramId = getTelegramId();
-  } catch {}
-
+  const [telegramId, setTelegramId] = useState(() => {
+    try {
+      return getTelegramId();
+    } catch {
+      return null;
+    }
+  });
   const [googleProfile, setGoogleProfile] = useState(() => (telegramId ? null : loadGoogleProfile()));
-  if (!telegramId && !googleProfile?.id) return <LoginOptions onAuthenticated={setGoogleProfile} />;
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [reloadNonce, setReloadNonce] = useState(0);
+  const [manualTelegramInput, setManualTelegramInput] = useState('');
+  const [linkingTelegram, setLinkingTelegram] = useState(false);
+  const [linkFeedback, setLinkFeedback] = useState('');
   const {
     config: lockConfig,
     locked: profileLocked,
@@ -81,6 +88,11 @@ export default function MyAccount() {
   const [lockMessage, setLockMessage] = useState('');
   const [lockMessageTone, setLockMessageTone] = useState('info');
   const [showRecoveryCodes, setShowRecoveryCodes] = useState([]);
+  const requiresAuth = !telegramId && !googleProfile?.id;
+
+  useEffect(() => {
+    setGoogleLinked(Boolean(googleProfile?.id));
+  }, [googleProfile?.id]);
 
   const handleSignOut = () => {
     clearGoogleProfile();
@@ -88,24 +100,49 @@ export default function MyAccount() {
     localStorage.removeItem('accountId');
     localStorage.removeItem('walletAddress');
     sessionStorage.clear();
+    setTelegramId(null);
+    setGoogleProfile(null);
+    setProfile(null);
     window.location.href = '/';
   };
 
   useEffect(() => {
+    const syncTelegramId = () => {
+      try {
+        setTelegramId(getTelegramId());
+      } catch {
+        setTelegramId(null);
+      }
+    };
+    window.addEventListener('storage', syncTelegramId);
+    const syncGoogle = () => setGoogleProfile(loadGoogleProfile());
+    window.addEventListener('googleProfileUpdated', syncGoogle);
+    return () => {
+      window.removeEventListener('storage', syncTelegramId);
+      window.removeEventListener('googleProfileUpdated', syncGoogle);
+    };
+  }, []);
+
+  useEffect(() => {
     async function load() {
-      const acc = await createAccount(telegramId, googleProfile);
-      if (acc?.error) {
-        console.error('Failed to load account:', acc.error);
-        return;
+      setLoadingProfile(true);
+      setLoadError('');
+      const accountPayload = await createAccount(telegramId, googleProfile);
+      if (accountPayload?.error || !accountPayload?.accountId) {
+        throw new Error(accountPayload?.error || 'Unable to load your TPC account. Please try again.');
       }
-      if (acc.accountId) {
-        localStorage.setItem('accountId', acc.accountId);
+      if (accountPayload.accountId) {
+        localStorage.setItem('accountId', accountPayload.accountId);
       }
-      if (acc.walletAddress) {
-        localStorage.setItem('walletAddress', acc.walletAddress);
+      if (accountPayload.walletAddress) {
+        localStorage.setItem('walletAddress', accountPayload.walletAddress);
       }
 
-      const data = await getAccountInfo(acc.accountId);
+      const data = await getAccountInfo(accountPayload.accountId);
+      if (!data || data?.error) {
+        throw new Error(data?.error || 'Unable to fetch your profile.');
+      }
+
       let finalProfile = data;
 
       if (telegramId && (!data.photo || !data.firstName || !data.lastName)) {
@@ -147,8 +184,9 @@ export default function MyAccount() {
       }
 
       setProfile(finalProfile);
+      setGoogleLinked(Boolean(finalProfile.googleId || googleProfile?.id));
       setTwitterLink(finalProfile.social?.twitter || '');
-      const defaultPhoto = telegramId ? getTelegramPhotoUrl() : '';
+      const defaultPhoto = telegramId ? getTelegramPhotoUrl() : googleProfile?.photo || '';
       setPhotoUrl(loadAvatar() || finalProfile.photo || defaultPhoto);
       try {
         if (telegramId) {
@@ -161,12 +199,38 @@ export default function MyAccount() {
       }
     }
 
-    load();
+    if (requiresAuth) {
+      setProfile(null);
+      setLoadingProfile(false);
+      setLoadError('');
+      return () => {};
+    }
+
+    let cancelled = false;
+
+    load()
+      .catch((err) => {
+        console.error('Failed to load account', err);
+        if (!cancelled) {
+          setLoadError(err?.message || 'Unable to load your profile right now.');
+          setProfile(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingProfile(false);
+      });
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      cancelled = true;
     };
-  }, [telegramId, googleProfile?.id]);
+  }, [telegramId, googleProfile?.id, requiresAuth, reloadNonce]);
+
+  useEffect(() => {
+    if (!telegramId && googleProfile?.photo) {
+      setPhotoUrl((prev) => prev || googleProfile.photo);
+    }
+  }, [telegramId, googleProfile?.photo]);
 
   useEffect(() => {
     if (!telegramId) return;
@@ -184,9 +248,66 @@ export default function MyAccount() {
     return () => window.removeEventListener('profilePhotoUpdated', handler);
   }, [telegramId]);
 
-  if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
+  const handleLinkTelegram = async () => {
+    if (!googleProfile?.id) return;
+    const cleaned = manualTelegramInput.trim();
+    if (!cleaned) {
+      setLinkFeedback('Enter your Telegram @username or ID to link it.');
+      return;
+    }
+    setLinkFeedback('');
+    setLinkingTelegram(true);
+    const parsedId = Number(cleaned);
+    const telegramIdentifier = Number.isNaN(parsedId) ? cleaned : parsedId;
+    try {
+      await linkGoogleAccount({
+        telegramId: telegramIdentifier,
+        googleId: googleProfile.id,
+        email: googleProfile.email,
+        firstName: googleProfile.firstName,
+        lastName: googleProfile.lastName,
+        photo: googleProfile.photo
+      });
+      await createAccount(telegramIdentifier, googleProfile, profile?.accountId);
+      localStorage.setItem('telegramId', telegramIdentifier);
+      setTelegramId(telegramIdentifier);
+      setGoogleLinked(true);
+      setManualTelegramInput('');
+      setLinkFeedback('Telegram linked. We refreshed your TPC profile.');
+      setReloadNonce((n) => n + 1);
+    } catch (err) {
+      console.error('Failed to link Telegram account', err);
+      setLinkFeedback('We could not link that Telegram account. Double-check the ID and try again.');
+    } finally {
+      setLinkingTelegram(false);
+    }
+  };
 
-  const photoToShow = photoUrl || getTelegramPhotoUrl();
+  if (requiresAuth) return <LoginOptions onAuthenticated={setGoogleProfile} />;
+
+  if (!profile) {
+    return (
+      <div className="p-4 space-y-3 text-text">
+        {loadError ? (
+          <div className="p-3 rounded-lg border border-red-500 bg-red-500/10 text-sm text-red-200">
+            {loadError}
+          </div>
+        ) : null}
+        <div className="p-3 rounded-lg border border-border bg-surface/60 text-subtext">
+          {loadingProfile ? 'Loading your profile…' : 'We are getting your profile ready.'}
+        </div>
+        <button
+          className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold"
+          onClick={() => setReloadNonce((n) => n + 1)}
+          disabled={loadingProfile}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const photoToShow = photoUrl || getTelegramPhotoUrl() || googleProfile?.photo || '';
 
   const handleDevTopup = async () => {
     const amt = Number(devTopup);
@@ -444,6 +565,30 @@ export default function MyAccount() {
                 telegramId={telegramId}
                 onLinked={() => setGoogleLinked(true)}
               />
+            </div>
+          )}
+          {!telegramId && googleProfile?.id && (
+            <div className="mt-3 space-y-2">
+              <p className="text-sm text-white-shadow">
+                Link your Telegram account to sync rewards across Chrome and the mini app.
+              </p>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <input
+                  type="text"
+                  value={manualTelegramInput}
+                  onChange={(e) => setManualTelegramInput(e.target.value)}
+                  placeholder="@username or Telegram ID"
+                  className="border p-2 rounded text-black w-full sm:max-w-xs"
+                />
+                <button
+                  onClick={handleLinkTelegram}
+                  disabled={linkingTelegram}
+                  className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold disabled:opacity-60"
+                >
+                  {linkingTelegram ? 'Linking…' : 'Link Telegram'}
+                </button>
+              </div>
+              {linkFeedback && <p className="text-xs text-amber-200">{linkFeedback}</p>}
             </div>
           )}
           {profile.social?.twitter && (
