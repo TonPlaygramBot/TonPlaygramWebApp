@@ -1,18 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { useTonAddress } from '@tonconnect/ui-react';
-import { createAccount, registerWallet } from '../utils/api.js';
+import { createAccount } from '../utils/api.js';
 import { ensureAccountId } from '../utils/telegram.js';
 import LinkGoogleButton from './LinkGoogleButton.jsx';
-import TonConnectButton from './TonConnectButton.jsx';
 import { loadGoogleProfile } from '../utils/google.js';
 
 export default function LoginOptions({ onAuthenticated }) {
   const [googleProfile, setGoogleProfile] = useState(() => loadGoogleProfile());
-  const tonWalletAddress = useTonAddress();
   const [status, setStatus] = useState('initializing');
-  const [tonStatus, setTonStatus] = useState('idle');
   const [ctaMessage, setCtaMessage] = useState('');
-  const [tonMessage, setTonMessage] = useState('');
 
   const handleAuthenticated = (profile) => {
     setGoogleProfile(profile);
@@ -61,40 +56,6 @@ export default function LoginOptions({ onAuthenticated }) {
   }, [googleProfile?.id]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!tonWalletAddress) return;
-      setTonStatus('working');
-      setTonMessage('Connecting your TON wallet…');
-      try {
-        const res = await registerWallet(tonWalletAddress);
-        if (cancelled) return;
-        if (res?.accountId) {
-          localStorage.setItem('accountId', res.accountId);
-        }
-        if (res?.walletAddress) {
-          localStorage.setItem('walletAddress', res.walletAddress);
-        }
-        setTonStatus('ready');
-        setTonMessage('Wallet connected. Loading your TPC profile…');
-        if (onAuthenticated) onAuthenticated({
-          accountId: res?.accountId,
-          walletAddress: res?.walletAddress
-        });
-      } catch (err) {
-        console.error('Wallet registration failed', err);
-        if (!cancelled) {
-          setTonStatus('error');
-          setTonMessage('Could not register wallet. Please try again.');
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [tonWalletAddress, onAuthenticated]);
-
-  useEffect(() => {
     if (googleProfile?.id && onAuthenticated) {
       onAuthenticated(googleProfile);
     }
@@ -105,11 +66,11 @@ export default function LoginOptions({ onAuthenticated }) {
       <div className="space-y-2">
         <h2 className="text-xl font-bold text-white">Welcome to TonPlaygram</h2>
         <p className="text-sm text-subtext">
-          Sign in with a TON wallet, Google on Chrome, or continue from the Telegram mini app. We&apos;ll create a fresh
+          Sign in with Google on Chrome or continue from the Telegram mini app. We&apos;ll create a fresh
           TPC profile so you can access the full site, stake, and sync rewards anywhere.
         </p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
         <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
           <p className="text-sm font-semibold text-white">Login with Telegram</p>
           <p className="text-xs text-subtext">
@@ -122,19 +83,6 @@ export default function LoginOptions({ onAuthenticated }) {
             Continue in Telegram
           </button>
           {ctaMessage && <p className="text-[11px] text-amber-200">{ctaMessage}</p>}
-        </div>
-
-        <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
-          <p className="text-sm font-semibold text-white">Login with TON Wallet</p>
-          <p className="text-xs text-subtext">
-            Connect Tonkeeper, OpenMask, or any TON Connect wallet to register or restore your TPC account.
-          </p>
-          <TonConnectButton className="w-full" fullWidth />
-          {tonMessage && (
-            <p className={`text-xs ${tonStatus === 'error' ? 'text-red-300' : 'text-green-300'}`}>
-              {tonMessage}
-            </p>
-          )}
         </div>
 
         <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
