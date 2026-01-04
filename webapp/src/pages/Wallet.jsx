@@ -58,26 +58,11 @@ export default function Wallet({ hideClaim = false }) {
     telegramId = undefined;
   }
   const [googleProfile, setGoogleProfile] = useState(() => (telegramId ? null : loadGoogleProfile()));
-  const [accountId, setAccountId] = useState(() => localStorage.getItem('accountId') || '');
-  const [walletAddress, setWalletAddress] = useState(() => localStorage.getItem('walletAddress') || '');
-  if (!telegramId && !googleProfile?.id && !accountId) {
-    return (
-      <LoginOptions
-        onAuthenticated={setGoogleProfile}
-        onAccountReady={({ accountId, walletAddress }) => {
-          if (accountId) {
-            setAccountId(accountId);
-            localStorage.setItem('accountId', accountId);
-          }
-          if (walletAddress) {
-            setWalletAddress(walletAddress);
-            localStorage.setItem('walletAddress', walletAddress);
-          }
-        }}
-      />
-    );
+  if (!telegramId && !googleProfile?.id) {
+    return <LoginOptions onAuthenticated={setGoogleProfile} />;
   }
 
+  const [accountId, setAccountId] = useState('');
   const [tpcBalance, setTpcBalance] = useState(null);
   const [receiver, setReceiver] = useState('');
   const [amount, setAmount] = useState('');
@@ -125,7 +110,6 @@ export default function Wallet({ hideClaim = false }) {
       localStorage.setItem('accountId', acc.accountId);
       if (acc.walletAddress) {
         localStorage.setItem('walletAddress', acc.walletAddress);
-        setWalletAddress(acc.walletAddress);
       }
       id = acc.accountId;
     }
