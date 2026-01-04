@@ -1239,10 +1239,6 @@ const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
 const CUE_STRIKE_VOLUME_MULTIPLIER = 1.5; // boost cue strikes to 150% loudness for clearer feedback
 const CUE_STRIKE_MAX_GAIN = 9; // allow the louder cue strike to pass through without clipping to the previous cap
-const CUE_STRIKE_LEAD_SECONDS = 0.5; // trim the cue strike to start 0.5s earlier than the current onset
-const CUE_STRIKE_NOISE_HIGH_CUTOFF = 4200; // low-pass to tame hiss from the cue strike sample
-const CUE_STRIKE_NOISE_LOW_CUTOFF = 180; // high-pass to filter out low-end rumble on the cue strike
-const RAIL_LOGOS_ENABLED = false;
 const POCKET_SOUND_TAIL = 1;
 // Pool Royale now raises the stance; extend the legs so the playfield sits higher
 const LEG_SCALE = 6.2;
@@ -6316,7 +6312,6 @@ function createAccentMesh(accent, dims) {
 const TABLE_LOGO_TEXTURE_URL = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
 let cachedTableLogoTexture = null;
 function getTableLogoTexture() {
-  if (!RAIL_LOGOS_ENABLED) return null;
   if (cachedTableLogoTexture) return cachedTableLogoTexture;
   const loader = new THREE.TextureLoader();
   loader.setCrossOrigin?.('anonymous');
@@ -6345,7 +6340,6 @@ function applyLogoMaterialStyling(material, railMat) {
 }
 
 function ensureRailLogoMaterial(finishParts, railMat) {
-  if (!RAIL_LOGOS_ENABLED) return null;
   if (!finishParts) return null;
   const logoTexture = getTableLogoTexture();
   if (!logoTexture) return null;
@@ -6369,7 +6363,6 @@ function ensureRailLogoMaterial(finishParts, railMat) {
 }
 
 function addRailLogosToTable(targetGroup, finishParts, railMat, options = {}) {
-  if (!RAIL_LOGOS_ENABLED) return;
   if (!targetGroup || !finishParts?.dimensions) return;
   if (!Array.isArray(finishParts.logoMeshes)) {
     finishParts.logoMeshes = [];
@@ -11344,6 +11337,7 @@ const powerRef = useRef(hud.power);
   const spinDotElRef = useRef(null);
   const spinSwerveHotspotRef = useRef(null);
   const spinModeUiRef = useRef('standard');
+  const lastSwerveSoundRef = useRef(0);
   const spinLegalityRef = useRef({ blocked: false, reason: '' });
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
@@ -11476,22 +11470,13 @@ const powerRef = useRef(hud.power);
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
     source.buffer = buffer;
-    const highpass = ctx.createBiquadFilter();
-    highpass.type = 'highpass';
-    highpass.frequency.value = CUE_STRIKE_NOISE_LOW_CUTOFF;
-    const lowpass = ctx.createBiquadFilter();
-    lowpass.type = 'lowpass';
-    lowpass.frequency.value = CUE_STRIKE_NOISE_HIGH_CUTOFF;
     const gain = ctx.createGain();
     gain.gain.value = scaled;
-    source.connect(highpass);
-    highpass.connect(lowpass);
-    lowpass.connect(gain);
+    source.connect(gain);
     routeAudioNode(gain);
     const playbackDuration = Math.min(buffer.duration ?? 0, 4.5);
     if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
-      const startAt = Math.max(ctx.currentTime - CUE_STRIKE_LEAD_SECONDS, 0);
-      source.start(startAt, 0, playbackDuration);
+      source.start(0, 0, playbackDuration);
     }
   }, []);
 
@@ -22718,8 +22703,15 @@ const powerRef = useRef(hud.power);
       spinLegalityRef.current = legality;
       const magnitude = Math.hypot(limited.x ?? 0, limited.y ?? 0);
       const mode = !legality.blocked && magnitude >= SWERVE_THRESHOLD ? 'swerve' : 'standard';
+      const previousMode = spinModeUiRef.current;
       updateSpinDotPosition(limited, legality.blocked);
       if (!legality.blocked) {
+        const now = performance.now();
+        const lastPlay = lastSwerveSoundRef.current ?? 0;
+        if (mode === 'swerve' && previousMode !== 'swerve' && now - lastPlay > 220) {
+          playSwerveApply();
+          lastSwerveSoundRef.current = now;
+        }
         spinModeUiRef.current = mode;
       } else {
         spinModeUiRef.current = 'standard';
