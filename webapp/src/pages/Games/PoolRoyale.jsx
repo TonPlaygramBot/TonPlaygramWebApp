@@ -1239,6 +1239,9 @@ const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
 const CUE_STRIKE_VOLUME_MULTIPLIER = 1.5; // boost cue strikes to 150% loudness for clearer feedback
 const CUE_STRIKE_MAX_GAIN = 9; // allow the louder cue strike to pass through without clipping to the previous cap
+const CUE_STRIKE_NOISE_REDUCTION_LOW_PASS = 7800;
+const CUE_STRIKE_NOISE_REDUCTION_HIGH_PASS = 110;
+const CUE_STRIKE_AUDIO_LEAD_TIME = 0.5;
 const POCKET_SOUND_TAIL = 1;
 // Pool Royale now raises the stance; extend the legs so the playfield sits higher
 const LEG_SCALE = 6.2;
@@ -6309,96 +6312,6 @@ function createAccentMesh(accent, dims) {
   return mesh;
 }
 
-const TABLE_LOGO_TEXTURE_URL = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
-let cachedTableLogoTexture = null;
-function getTableLogoTexture() {
-  if (cachedTableLogoTexture) return cachedTableLogoTexture;
-  const loader = new THREE.TextureLoader();
-  loader.setCrossOrigin?.('anonymous');
-  const texture = loader.load(TABLE_LOGO_TEXTURE_URL, (tex) => {
-    applySRGBColorSpace(tex);
-    tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-    tex.anisotropy = resolveTextureAnisotropy(tex.anisotropy ?? 1);
-    tex.needsUpdate = true;
-  });
-  applySRGBColorSpace(texture);
-  texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
-  cachedTableLogoTexture = texture;
-  return cachedTableLogoTexture;
-}
-
-function applyLogoMaterialStyling(material, railMat) {
-  if (!material) return;
-  const baseColor = railMat?.color ? railMat.color : new THREE.Color(0xffffff);
-  const carvedTint = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.18);
-  material.color.copy(carvedTint);
-  material.emissive.copy(baseColor.clone().multiplyScalar(0.04));
-  material.roughness = Math.min(0.92, (railMat?.roughness ?? 0.56) + 0.12);
-  material.metalness = Math.max(0.04, (railMat?.metalness ?? 0.12) * 0.4);
-  material.needsUpdate = true;
-}
-
-function ensureRailLogoMaterial(finishParts, railMat) {
-  if (!finishParts) return null;
-  const logoTexture = getTableLogoTexture();
-  if (!logoTexture) return null;
-  if (!finishParts.logoMaterial) {
-    const material = new THREE.MeshPhysicalMaterial({
-      map: logoTexture,
-      transparent: true,
-      alphaTest: 0.08,
-      depthWrite: false,
-      side: THREE.FrontSide,
-      clearcoat: 0,
-      roughness: 0.8,
-      metalness: 0.08
-    });
-    finishParts.logoMaterial = material;
-  } else {
-    finishParts.logoMaterial.map = logoTexture;
-  }
-  applyLogoMaterialStyling(finishParts.logoMaterial, railMat);
-  return finishParts.logoMaterial;
-}
-
-function addRailLogosToTable(targetGroup, finishParts, railMat, options = {}) {
-  if (!targetGroup || !finishParts?.dimensions) return;
-  if (!Array.isArray(finishParts.logoMeshes)) {
-    finishParts.logoMeshes = [];
-  }
-  if (finishParts.logoMeshes.length > 0) return;
-  const material = ensureRailLogoMaterial(finishParts, railMat);
-  if (!material) return;
-  const { outerHalfW, outerHalfH, railH, frameTopY } = finishParts.dimensions;
-  const {
-    frameExtensionDepth = TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER,
-    railRenderOrder = 0
-  } = options;
-  const logoHeight = Math.max(frameExtensionDepth * 0.7, railH * 0.6);
-  const logoY = frameTopY - Math.max(frameExtensionDepth * 0.5, railH * 0.4);
-  const inset = Math.max(BALL_R * 2.6, ORIGINAL_RAIL_WIDTH * 1.4);
-  const longWidth = Math.max(MICRO_EPS * 128, (outerHalfW - inset) * 2);
-  const shortWidth = Math.max(MICRO_EPS * 128, (outerHalfH - inset) * 2);
-  const offset = Math.max(MICRO_EPS * 24, TABLE.THICK * 0.04);
-  const longGeo = new THREE.PlaneGeometry(longWidth, logoHeight);
-  const shortGeo = new THREE.PlaneGeometry(shortWidth, logoHeight);
-  const addLogo = (geo, x, z, rotY) => {
-    const mesh = new THREE.Mesh(geo, material);
-    mesh.position.set(x, logoY, z);
-    mesh.rotation.y = rotY;
-    mesh.renderOrder = railRenderOrder + 0.01;
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
-    targetGroup.add(mesh);
-    finishParts.logoMeshes.push(mesh);
-  };
-  addLogo(longGeo, 0, outerHalfH + offset, 0);
-  addLogo(longGeo, 0, -outerHalfH - offset, Math.PI);
-  addLogo(shortGeo, outerHalfW + offset, 0, -Math.PI / 2);
-  addLogo(shortGeo, -outerHalfW - offset, 0, Math.PI / 2);
-}
-
 function Table3D(
   parent,
   finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID],
@@ -6433,9 +6346,7 @@ function Table3D(
     dimensions: null,
     baseVariantId: null,
     woodSurfaces: { frame: null, rail: null },
-    woodTextureId: null,
-    logoMeshes: [],
-    logoMaterial: null
+    woodTextureId: null
   };
 
   const halfW = PLAY_W / 2;
@@ -8842,10 +8753,6 @@ function Table3D(
   frameExtension.receiveShadow = true;
   table.add(frameExtension);
   finishParts.frameMeshes.push(frameExtension);
-  addRailLogosToTable(railsGroup, finishParts, railMat, {
-    frameExtensionDepth,
-    railRenderOrder: railsMesh?.renderOrder ?? 0
-  });
 
   const legR = Math.min(TABLE.W, TABLE.H) * 0.055 * LEG_RADIUS_SCALE;
   const legTopLocal = frameTopY - TABLE.THICK;
@@ -9651,16 +9558,6 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.woodRepeatScale = 1;
   }
 
-  if (finishInfo.parts.logoMeshes?.length) {
-    const logoMaterial = ensureRailLogoMaterial(finishInfo.parts, railMat);
-    if (logoMaterial) {
-      finishInfo.parts.logoMeshes.forEach((mesh) => {
-        if (!mesh) return;
-        mesh.material = logoMaterial;
-      });
-    }
-  }
-
   const clothTextureKey =
     resolvedFinish?.clothTextureKey ?? finishInfo.clothTextureKey ?? DEFAULT_CLOTH_TEXTURE_KEY;
   if (finishInfo.clothTextureKey !== clothTextureKey) {
@@ -10166,7 +10063,7 @@ function PoolRoyaleGame({
     trainingProgressRef.current = stored;
     setTrainingProgress(stored);
     setTrainingLevel(playableLevel);
-  }, []);
+  }, [routeAudioNode]);
   const currentTrainingInfo = useMemo(
     () => describeTrainingLevel(trainingLevel),
     [trainingLevel]
@@ -10280,7 +10177,7 @@ function PoolRoyaleGame({
     } finally {
       cueFeePendingRef.current = false;
     }
-  }, []);
+  }, [routeAudioNode]);
   const chalkMeshesRef = useRef([]);
   const chalkAreaRef = useRef(null);
   const [uiScale, setUiScale] = useState(() =>
@@ -10324,7 +10221,7 @@ function PoolRoyaleGame({
         coarseQuery.removeListener(updateScale);
       }
     };
-  }, []);
+  }, [routeAudioNode]);
 
   useEffect(() => {
     lookModeRef.current = isLookMode;
@@ -11337,7 +11234,6 @@ const powerRef = useRef(hud.power);
   const spinDotElRef = useRef(null);
   const spinSwerveHotspotRef = useRef(null);
   const spinModeUiRef = useRef('standard');
-  const lastSwerveSoundRef = useRef(0);
   const spinLegalityRef = useRef({ blocked: false, reason: '' });
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
@@ -11468,17 +11364,32 @@ const powerRef = useRef(hud.power);
     const scaled = clamp(baseGain, 0, CUE_STRIKE_MAX_GAIN);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
+    const playbackDuration = Math.min(buffer.duration ?? 0, 4.5);
+    const elapsed = Math.max(0, CUE_STRIKE_AUDIO_LEAD_TIME);
+    const startOffset = Math.min(elapsed, Math.max(playbackDuration - MICRO_EPS, 0));
+    const remainingDuration = Math.max(0, playbackDuration - startOffset);
+    if (remainingDuration <= 0 || !Number.isFinite(remainingDuration)) return;
     const source = ctx.createBufferSource();
     source.buffer = buffer;
+    const highpass = ctx.createBiquadFilter();
+    highpass.type = 'highpass';
+    highpass.frequency.value = CUE_STRIKE_NOISE_REDUCTION_HIGH_PASS;
+    highpass.Q.value = 0.9;
+    const lowpass = ctx.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.frequency.value = CUE_STRIKE_NOISE_REDUCTION_LOW_PASS;
+    lowpass.Q.value = 0.7;
     const gain = ctx.createGain();
     gain.gain.value = scaled;
-    source.connect(gain);
+    source.connect(highpass);
+    highpass.connect(lowpass);
+    lowpass.connect(gain);
     routeAudioNode(gain);
-    const playbackDuration = Math.min(buffer.duration ?? 0, 4.5);
+    const targetStart = Math.max((ctx.currentTime ?? 0) - elapsed, 0);
     if (playbackDuration > 0 && Number.isFinite(playbackDuration)) {
-      source.start(0, 0, playbackDuration);
+      source.start(targetStart, startOffset, remainingDuration);
     }
-  }, []);
+  }, [routeAudioNode]);
 
   const playBallHit = useCallback((vol = 1) => {
     if (vol <= 0) return;
@@ -22703,19 +22614,8 @@ const powerRef = useRef(hud.power);
       spinLegalityRef.current = legality;
       const magnitude = Math.hypot(limited.x ?? 0, limited.y ?? 0);
       const mode = !legality.blocked && magnitude >= SWERVE_THRESHOLD ? 'swerve' : 'standard';
-      const previousMode = spinModeUiRef.current;
       updateSpinDotPosition(limited, legality.blocked);
-      if (!legality.blocked) {
-        const now = performance.now();
-        const lastPlay = lastSwerveSoundRef.current ?? 0;
-        if (mode === 'swerve' && previousMode !== 'swerve' && now - lastPlay > 220) {
-          playSwerveApply();
-          lastSwerveSoundRef.current = now;
-        }
-        spinModeUiRef.current = mode;
-      } else {
-        spinModeUiRef.current = 'standard';
-      }
+      spinModeUiRef.current = !legality.blocked ? mode : 'standard';
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
@@ -22810,7 +22710,7 @@ const powerRef = useRef(hud.power);
       box.removeEventListener('pointerup', handlePointerUp);
       box.removeEventListener('pointercancel', handlePointerCancel);
     };
-  }, [playSwerveApply, showPlayerControls, showSpinController, updateSpinDotPosition]);
+  }, [showPlayerControls, showSpinController, updateSpinDotPosition]);
 
   const americanBallSwatches = useMemo(() => {
     const colors = POOL_VARIANT_COLOR_SETS.american.objectColors || [];
