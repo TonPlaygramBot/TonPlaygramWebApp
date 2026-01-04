@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTonAddress } from '@tonconnect/ui-react';
 import {
   getAccountInfo,
   createAccount,
@@ -51,6 +52,8 @@ export default function MyAccount() {
   const [manualTelegramInput, setManualTelegramInput] = useState('');
   const [linkingTelegram, setLinkingTelegram] = useState(false);
   const [linkFeedback, setLinkFeedback] = useState('');
+  const [tonWalletAddress, setTonWalletAddress] = useState(() => localStorage.getItem('walletAddress') || '');
+  const connectedTonAddress = useTonAddress();
   const {
     config: lockConfig,
     locked: profileLocked,
@@ -88,11 +91,18 @@ export default function MyAccount() {
   const [lockMessage, setLockMessage] = useState('');
   const [lockMessageTone, setLockMessageTone] = useState('info');
   const [showRecoveryCodes, setShowRecoveryCodes] = useState([]);
-  const requiresAuth = !telegramId && !googleProfile?.id;
+  const requiresAuth = !telegramId && !googleProfile?.id && !tonWalletAddress;
 
   useEffect(() => {
     setGoogleLinked(Boolean(googleProfile?.id));
   }, [googleProfile?.id]);
+
+  useEffect(() => {
+    if (connectedTonAddress) {
+      localStorage.setItem('walletAddress', connectedTonAddress);
+      setTonWalletAddress(connectedTonAddress);
+    }
+  }, [connectedTonAddress]);
 
   const handleSignOut = () => {
     clearGoogleProfile();
@@ -127,15 +137,17 @@ export default function MyAccount() {
     async function load() {
       setLoadingProfile(true);
       setLoadError('');
-      const accountPayload = await createAccount(telegramId, googleProfile);
+      const accountPayload = await createAccount(telegramId, googleProfile, undefined, tonWalletAddress);
       if (accountPayload?.error || !accountPayload?.accountId) {
         throw new Error(accountPayload?.error || 'Unable to load your TPC account. Please try again.');
       }
       if (accountPayload.accountId) {
         localStorage.setItem('accountId', accountPayload.accountId);
       }
-      if (accountPayload.walletAddress) {
-        localStorage.setItem('walletAddress', accountPayload.walletAddress);
+      const walletToStore = accountPayload.walletAddress || tonWalletAddress;
+      if (walletToStore) {
+        localStorage.setItem('walletAddress', walletToStore);
+        setTonWalletAddress(walletToStore);
       }
 
       const data = await getAccountInfo(accountPayload.accountId);
@@ -283,7 +295,14 @@ export default function MyAccount() {
     }
   };
 
-  if (requiresAuth) return <LoginOptions onAuthenticated={setGoogleProfile} />;
+  if (requiresAuth) {
+    return (
+      <LoginOptions
+        onAuthenticated={setGoogleProfile}
+        onTonConnected={setTonWalletAddress}
+      />
+    );
+  }
 
   if (!profile) {
     return (

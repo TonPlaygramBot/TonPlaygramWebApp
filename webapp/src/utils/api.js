@@ -552,7 +552,7 @@ export function registerWalletPasskey(telegramId, passkeyId, publicKey) {
 
 // ----- Account based wallet -----
 
-export function createAccount(telegramId, googleProfile, accountId) {
+export function createAccount(telegramId, googleProfile, accountId, walletAddress) {
   const body = {};
   if (telegramId) body.telegramId = telegramId;
   const existingAccountId =
@@ -569,6 +569,9 @@ export function createAccount(telegramId, googleProfile, accountId) {
     if (profile.firstName) body.firstName = profile.firstName;
     if (profile.lastName) body.lastName = profile.lastName;
     if (profile.photo) body.photo = profile.photo;
+  }
+  if (walletAddress) {
+    body.walletAddress = walletAddress;
   }
   return post('/api/account/create', body);
 }

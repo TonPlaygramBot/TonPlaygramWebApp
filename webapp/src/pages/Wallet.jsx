@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useTonAddress } from '@tonconnect/ui-react';
 import QRCode from 'react-qr-code';
 import {
   createAccount,
@@ -57,10 +58,10 @@ export default function Wallet({ hideClaim = false }) {
   } catch (err) {
     telegramId = undefined;
   }
+  const connectedTonAddress = useTonAddress();
+  const [tonWalletAddress, setTonWalletAddress] = useState(() => localStorage.getItem('walletAddress') || '');
   const [googleProfile, setGoogleProfile] = useState(() => (telegramId ? null : loadGoogleProfile()));
-  if (!telegramId && !googleProfile?.id) {
-    return <LoginOptions onAuthenticated={setGoogleProfile} />;
-  }
+  const requiresAuth = !telegramId && !googleProfile?.id && !tonWalletAddress;
 
   const [accountId, setAccountId] = useState('');
   const [tpcBalance, setTpcBalance] = useState(null);
@@ -83,6 +84,13 @@ export default function Wallet({ hideClaim = false }) {
   const [selectedTx, setSelectedTx] = useState(null);
   const dateInputRef = useRef(null);
 
+  useEffect(() => {
+    if (connectedTonAddress) {
+      localStorage.setItem('walletAddress', connectedTonAddress);
+      setTonWalletAddress(connectedTonAddress);
+    }
+  }, [connectedTonAddress]);
+
   const txTypes = Array.from(
     new Set(
       transactions.map((t) => {
@@ -102,7 +110,7 @@ export default function Wallet({ hideClaim = false }) {
     if (id) {
       acc = { accountId: id };
     } else {
-      acc = await createAccount(telegramId, googleProfile);
+      acc = await createAccount(telegramId, googleProfile, undefined, tonWalletAddress);
       if (acc?.error) {
         console.error('Failed to load account:', acc.error);
         return null;
@@ -110,6 +118,7 @@ export default function Wallet({ hideClaim = false }) {
       localStorage.setItem('accountId', acc.accountId);
       if (acc.walletAddress) {
         localStorage.setItem('walletAddress', acc.walletAddress);
+        setTonWalletAddress(acc.walletAddress);
       }
       id = acc.accountId;
     }
@@ -126,6 +135,7 @@ export default function Wallet({ hideClaim = false }) {
   };
 
   useEffect(() => {
+    if (requiresAuth) return;
     loadBalances().then(async (id) => {
       if (id) {
         const txRes = await getAccountTransactions(id);
@@ -143,7 +153,7 @@ export default function Wallet({ hideClaim = false }) {
         }
       }
     });
-  }, []);
+  }, [requiresAuth]);
 
   useEffect(() => {
     if (DEV_ACCOUNTS.includes(accountId)) {
@@ -241,6 +251,15 @@ export default function Wallet({ hideClaim = false }) {
       setTopupSending(false);
     }
   };
+
+  if (requiresAuth) {
+    return (
+      <LoginOptions
+        onAuthenticated={setGoogleProfile}
+        onTonConnected={setTonWalletAddress}
+      />
+    );
+  }
 
 
   const filteredTransactions = transactions.filter((tx) => {

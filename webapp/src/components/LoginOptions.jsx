@@ -1,13 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useTonAddress } from '@tonconnect/ui-react';
 import { createAccount } from '../utils/api.js';
 import { ensureAccountId } from '../utils/telegram.js';
 import LinkGoogleButton from './LinkGoogleButton.jsx';
+import TonConnectButton from './TonConnectButton.jsx';
 import { loadGoogleProfile } from '../utils/google.js';
 
-export default function LoginOptions({ onAuthenticated }) {
+export default function LoginOptions({ onAuthenticated, onTonConnected }) {
   const [googleProfile, setGoogleProfile] = useState(() => loadGoogleProfile());
   const [status, setStatus] = useState('initializing');
   const [ctaMessage, setCtaMessage] = useState('');
+  const [tonStatus, setTonStatus] = useState('idle');
+  const tonAddress = useTonAddress();
+  const isChrome = useMemo(() => {
+    if (typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent.toLowerCase();
+    return ua.includes('chrome') && !ua.includes('edge') && !ua.includes('opr');
+  }, []);
 
   const handleAuthenticated = (profile) => {
     setGoogleProfile(profile);
@@ -61,6 +70,26 @@ export default function LoginOptions({ onAuthenticated }) {
     }
   }, [googleProfile, onAuthenticated]);
 
+  useEffect(() => {
+    if (!tonAddress) return;
+    let cancelled = false;
+    setTonStatus('linking');
+    (async () => {
+      const existingProfile = googleProfile || loadGoogleProfile();
+      const res = await createAccount(undefined, existingProfile || undefined, undefined, tonAddress);
+      if (cancelled) return;
+      if (res?.accountId) {
+        localStorage.setItem('accountId', res.accountId);
+      }
+      localStorage.setItem('walletAddress', tonAddress);
+      setTonStatus('ready');
+      if (onTonConnected) onTonConnected(tonAddress);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tonAddress, googleProfile, onTonConnected]);
+
   return (
     <div className="p-6 text-text space-y-4 max-w-3xl mx-auto">
       <div className="space-y-2">
@@ -90,6 +119,11 @@ export default function LoginOptions({ onAuthenticated }) {
           <p className="text-xs text-subtext">
             Ideal for desktop browsers. We&apos;ll link your Google profile to a new TPC account if you don&apos;t have one.
           </p>
+          {isChrome && (
+            <p className="text-[11px] text-amber-200">
+              Chrome detected — tap below to create your TPC account with your Google details.
+            </p>
+          )}
           <LinkGoogleButton
             telegramId={null}
             label="Continue with Google"
@@ -102,6 +136,25 @@ export default function LoginOptions({ onAuthenticated }) {
           )}
           {status === 'error' && (
             <p className="text-red-400 text-xs">We couldn&apos;t finish setup. Try again in a moment.</p>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
+          <p className="text-sm font-semibold text-white">Sign up with TON Connect</p>
+          <p className="text-xs text-subtext">
+            Use your TON wallet to create a TPC account and sync rewards from anywhere.
+          </p>
+          <TonConnectButton className="w-full" />
+          {tonAddress && (
+            <p className="text-green-400 text-xs break-all">
+              Wallet connected: {tonAddress}
+            </p>
+          )}
+          {tonStatus === 'linking' && (
+            <p className="text-[11px] text-amber-200">Creating your TPC account with TON…</p>
+          )}
+          {tonStatus === 'ready' && (
+            <p className="text-[11px] text-green-400">TON wallet linked. Reloading your profile…</p>
           )}
         </div>
       </div>
