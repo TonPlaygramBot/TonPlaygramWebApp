@@ -12,7 +12,7 @@ const BASE_ENTRIES = [
   '/',
   '/index.html',
   '/offline.html',
-  '/manifest.webmanifest',
+  '/manifest.json',
   '/tonconnect-manifest.json',
   '/service-worker.js'
 ];
@@ -42,7 +42,6 @@ const ALLOWED_EXTENSIONS = new Set([
   '.ttf',
   '.txt',
   '.wav',
-  '.webmanifest',
   '.webp',
   '.woff',
   '.woff2'
