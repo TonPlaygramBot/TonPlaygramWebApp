@@ -6,7 +6,7 @@
 
 2) Fetch the launcher APK (kept out of git)
    - Export `LAUNCHER_URL` to the hosted, signed `tonplaygram-launcher.apk` (and optionally `LAUNCHER_SHA256`).
-   - Run `npm run fetch:launcher` from `webapp/` to place the file at `public/tonplaygram-launcher.apk` (ignored by git).
+   - Run `npm --prefix webapp run fetch:launcher` to place the file at `webapp/public/tonplaygram-launcher.apk` (ignored by git).
 
 3) Build a signed release
    - From `webapp/android`, run `./gradlew assembleRelease` (or `bundleRelease`) to generate `app-release.apk/aab`.
