@@ -17,6 +17,7 @@ import { AiOutlineCalendar } from 'react-icons/ai';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import { loadGoogleProfile } from '../utils/google.js';
 import LoginOptions from '../components/LoginOptions.jsx';
+import { useTonAddress, useTonWallet } from '@tonconnect/ui-react';
 
 const urlParams = new URLSearchParams(window.location.search);
 const DEV_ACCOUNT_ID =
@@ -58,7 +59,9 @@ export default function Wallet({ hideClaim = false }) {
     telegramId = undefined;
   }
   const [googleProfile, setGoogleProfile] = useState(() => (telegramId ? null : loadGoogleProfile()));
-  if (!telegramId && !googleProfile?.id) {
+  const tonAddress = useTonAddress(true);
+  const tonWallet = useTonWallet();
+  if (!telegramId && !googleProfile?.id && !tonAddress) {
     return <LoginOptions onAuthenticated={setGoogleProfile} />;
   }
 
@@ -102,7 +105,10 @@ export default function Wallet({ hideClaim = false }) {
     if (id) {
       acc = { accountId: id };
     } else {
-      acc = await createAccount(telegramId, googleProfile);
+      acc = await createAccount(telegramId, googleProfile, undefined, {
+        address: tonAddress || undefined,
+        publicKey: tonWallet?.account?.publicKey
+      });
       if (acc?.error) {
         console.error('Failed to load account:', acc.error);
         return null;
@@ -143,7 +149,7 @@ export default function Wallet({ hideClaim = false }) {
         }
       }
     });
-  }, []);
+  }, [tonAddress, tonWallet?.account?.publicKey]);
 
   useEffect(() => {
     if (DEV_ACCOUNTS.includes(accountId)) {

@@ -3,9 +3,12 @@ import { socket } from '../utils/socket.js';
 import { createAccount } from '../utils/api.js';
 import { ensureAccountId } from '../utils/telegram.js';
 import { loadGoogleProfile } from '../utils/google.js';
+import { useTonAddress, useTonWallet } from '@tonconnect/ui-react';
 
 export default function useTelegramAuth() {
   const [googleProfile, setGoogleProfile] = useState(() => loadGoogleProfile());
+  const tonAddress = useTonAddress(true);
+  const tonWallet = useTonWallet();
 
   useEffect(() => {
     const refresh = () => setGoogleProfile(loadGoogleProfile());
@@ -31,7 +34,10 @@ export default function useTelegramAuth() {
         const accountId = acc || (await ensureAccountId());
         socket.emit('register', { playerId: accountId });
         try {
-          const res = await createAccount(undefined, googleProfile);
+          const res = await createAccount(undefined, googleProfile, undefined, {
+            address: tonAddress || undefined,
+            publicKey: tonWallet?.account?.publicKey
+          });
           if (res?.accountId) {
             localStorage.setItem('accountId', res.accountId);
           }
@@ -55,5 +61,5 @@ export default function useTelegramAuth() {
     if (user) {
       localStorage.setItem('telegramUserData', JSON.stringify(user));
     }
-  }, [googleProfile?.id]);
+  }, [googleProfile?.id, tonAddress, tonWallet?.account?.publicKey]);
 }
