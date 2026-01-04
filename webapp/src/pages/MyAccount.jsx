@@ -133,81 +133,128 @@ export default function MyAccount() {
     };
   }, []);
 
+  const clearAccountCache = () => {
+    localStorage.removeItem('accountId');
+    localStorage.removeItem('walletAddress');
+  };
+
+  const handleStartFresh = () => {
+    clearGoogleProfile();
+    clearTelegramCache();
+    clearAccountCache();
+    sessionStorage.clear();
+    setTelegramId(null);
+    setGoogleProfile(null);
+    setTonWalletAddress('');
+    setProfile(null);
+    setLoadError('');
+    setReloadNonce((n) => n + 1);
+  };
+
   useEffect(() => {
     async function load() {
       setLoadingProfile(true);
       setLoadError('');
-      const accountPayload = await createAccount(telegramId, googleProfile, undefined, tonWalletAddress);
-      if (accountPayload?.error || !accountPayload?.accountId) {
-        throw new Error(accountPayload?.error || 'Unable to load your TPC account. Please try again.');
-      }
-      if (accountPayload.accountId) {
-        localStorage.setItem('accountId', accountPayload.accountId);
-      }
-      const walletToStore = accountPayload.walletAddress || tonWalletAddress;
-      if (walletToStore) {
-        localStorage.setItem('walletAddress', walletToStore);
-        setTonWalletAddress(walletToStore);
-      }
+      let attemptedFreshAccount = false;
 
-      const data = await getAccountInfo(accountPayload.accountId);
-      if (!data || data?.error) {
-        throw new Error(data?.error || 'Unable to fetch your profile.');
-      }
-
-      let finalProfile = data;
-
-      if (telegramId && (!data.photo || !data.firstName || !data.lastName)) {
-        setAutoUpdating(true);
-
+      const attemptCreate = async () => {
         try {
-          let tg;
-          try {
-            tg = await fetchTelegramInfo(telegramId);
-          } catch (err) {
-            console.error('fetchTelegramInfo failed', err);
+          return await createAccount(telegramId, googleProfile, undefined, tonWalletAddress);
+        } catch (err) {
+          console.error('createAccount request failed', err);
+          return { error: err?.message || 'Failed to create account' };
+        }
+      };
+
+      while (true) {
+        const storedAccountId = localStorage.getItem('accountId');
+        const storedWallet = localStorage.getItem('walletAddress');
+        const accountPayload = await attemptCreate();
+        let accountId = accountPayload?.accountId || storedAccountId;
+        let walletToStore = accountPayload.walletAddress || tonWalletAddress || storedWallet;
+
+        if (!accountId) {
+          if (!attemptedFreshAccount && storedAccountId) {
+            console.warn('Account creation failed, clearing cached account and retrying.');
+            clearAccountCache();
+            attemptedFreshAccount = true;
+            continue;
           }
-
-          const firstName =
-            data.firstName || tg?.firstName || getTelegramFirstName();
-          const lastName =
-            data.lastName || tg?.lastName || getTelegramLastName();
-          const photo = data.photo || tg?.photoUrl || getTelegramPhotoUrl();
-
-          const updated = await updateProfile({
-            telegramId,
-            nickname: data.nickname || firstName,
-            photo,
-            firstName,
-            lastName
-          });
-
-          const hasRealPhoto = updated.photo || tg?.photoUrl;
-          const mergedProfile = {
-            ...data,
-            ...updated,
-            photo: hasRealPhoto || getTelegramPhotoUrl()
-          };
-
-          finalProfile = mergedProfile;
-        } finally {
-          setAutoUpdating(false);
+          throw new Error(accountPayload?.error || 'Unable to load your TPC account. Please try again.');
         }
-      }
 
-      setProfile(finalProfile);
-      setGoogleLinked(Boolean(finalProfile.googleId || googleProfile?.id));
-      setTwitterLink(finalProfile.social?.twitter || '');
-      const defaultPhoto = telegramId ? getTelegramPhotoUrl() : googleProfile?.photo || '';
-      setPhotoUrl(loadAvatar() || finalProfile.photo || defaultPhoto);
-      try {
-        if (telegramId) {
-          const res = await getUnreadCount(telegramId);
-          if (!res.error) setUnread(res.count);
+        localStorage.setItem('accountId', accountId);
+        if (walletToStore) {
+          localStorage.setItem('walletAddress', walletToStore);
+          setTonWalletAddress(walletToStore);
         }
-      } catch {}
-      if (!localStorage.getItem('avatarPromptShown')) {
-        setShowAvatarPrompt(true);
+
+        const data = await getAccountInfo(accountId);
+        if (!data || data?.error) {
+          if (!attemptedFreshAccount && storedAccountId) {
+            console.warn('Account lookup failed, clearing cached account and retrying.');
+            clearAccountCache();
+            attemptedFreshAccount = true;
+            continue;
+          }
+          throw new Error(data?.error || 'Unable to fetch your profile.');
+        }
+
+        let finalProfile = data;
+
+        if (telegramId && (!data.photo || !data.firstName || !data.lastName)) {
+          setAutoUpdating(true);
+
+          try {
+            let tg;
+            try {
+              tg = await fetchTelegramInfo(telegramId);
+            } catch (err) {
+              console.error('fetchTelegramInfo failed', err);
+            }
+
+            const firstName =
+              data.firstName || tg?.firstName || getTelegramFirstName();
+            const lastName =
+              data.lastName || tg?.lastName || getTelegramLastName();
+            const photo = data.photo || tg?.photoUrl || getTelegramPhotoUrl();
+
+            const updated = await updateProfile({
+              telegramId,
+              nickname: data.nickname || firstName,
+              photo,
+              firstName,
+              lastName
+            });
+
+            const hasRealPhoto = updated.photo || tg?.photoUrl;
+            const mergedProfile = {
+              ...data,
+              ...updated,
+              photo: hasRealPhoto || getTelegramPhotoUrl()
+            };
+
+            finalProfile = mergedProfile;
+          } finally {
+            setAutoUpdating(false);
+          }
+        }
+
+        setProfile(finalProfile);
+        setGoogleLinked(Boolean(finalProfile.googleId || googleProfile?.id));
+        setTwitterLink(finalProfile.social?.twitter || '');
+        const defaultPhoto = telegramId ? getTelegramPhotoUrl() : googleProfile?.photo || '';
+        setPhotoUrl(loadAvatar() || finalProfile.photo || defaultPhoto);
+        try {
+          if (telegramId) {
+            const res = await getUnreadCount(telegramId);
+            if (!res.error) setUnread(res.count);
+          }
+        } catch {}
+        if (!localStorage.getItem('avatarPromptShown')) {
+          setShowAvatarPrompt(true);
+        }
+        break;
       }
     }
 
@@ -315,13 +362,24 @@ export default function MyAccount() {
         <div className="p-3 rounded-lg border border-border bg-surface/60 text-subtext">
           {loadingProfile ? 'Loading your profile…' : 'We are getting your profile ready.'}
         </div>
-        <button
-          className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold"
-          onClick={() => setReloadNonce((n) => n + 1)}
-          disabled={loadingProfile}
-        >
-          Retry
-        </button>
+        <div className="flex gap-3">
+          <button
+            className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background text-sm font-semibold"
+            onClick={() => setReloadNonce((n) => n + 1)}
+            disabled={loadingProfile}
+          >
+            Retry
+          </button>
+          {loadError ? (
+            <button
+              className="px-3 py-2 rounded border border-border bg-surface/60 text-sm font-semibold text-text hover:bg-surface"
+              onClick={handleStartFresh}
+              disabled={loadingProfile}
+            >
+              Start over
+            </button>
+          ) : null}
+        </div>
       </div>
     );
   }
