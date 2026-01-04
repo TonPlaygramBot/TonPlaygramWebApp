@@ -9,6 +9,13 @@ webapp/android/app/src/main/assets/public/
 webapp/ios/App/App/public/
 webapp/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
 webapp/ios/App/App/Assets.xcassets/Splash.imageset/
+webapp/ios/App/App/Assets.xcassets/AppIcon.appiconset/*.png
+webapp/ios/App/App/Assets.xcassets/Splash.imageset/*.png
+webapp/android/app/src/main/res/mipmap-*/ic_launcher.png
+webapp/android/app/src/main/res/mipmap-*/ic_launcher_round.png
+webapp/android/app/src/main/res/mipmap-*/ic_launcher_foreground.png
+webapp/android/app/src/main/res/drawable*/splash_logo.png
+webapp/public/assets/icons/generated/
 
 # Environment files
 twitter.env

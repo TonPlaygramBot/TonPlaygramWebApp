@@ -20,7 +20,25 @@ const resolvedEnv = (() => {
   return {};
 })();
 
-export const API_BASE_URL = resolvedEnv.VITE_API_BASE_URL || '';
+function normalizeBaseUrl(url) {
+  if (!url) return '';
+  return url.endsWith('/') ? url.slice(0, -1) : url;
+}
+
+const defaultBase =
+  typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
+const preferredBase = normalizeBaseUrl(resolvedEnv.VITE_API_BASE_URL || defaultBase);
+const isNative = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.();
+
+if (isNative && !resolvedEnv.VITE_API_BASE_URL) {
+  // Native shells must specify the API host explicitly to avoid calling an unexpected origin.
+  console.warn('VITE_API_BASE_URL is required for native builds to enforce HTTPS API access.');
+}
+if (preferredBase && !/^https:\/\//i.test(preferredBase)) {
+  console.warn('API base URL is not HTTPS. Set VITE_API_BASE_URL to a production host.');
+}
+
+export const API_BASE_URL = preferredBase;
 export const API_AUTH_TOKEN = resolvedEnv.VITE_API_AUTH_TOKEN || '';
 
 export async function ping() {
