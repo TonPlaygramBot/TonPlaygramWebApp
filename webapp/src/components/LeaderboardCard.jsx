@@ -96,10 +96,16 @@ export default function LeaderboardCard() {
 
   useEffect(() => {
     function loadLeaderboard() {
-      getLeaderboard(telegramId).then((data) => {
-        setLeaderboard(data.users);
-        setRank(data.rank);
-      });
+      getLeaderboard(telegramId)
+        .then((data) => {
+          const users = Array.isArray(data?.users) ? data.users : [];
+          setLeaderboard(users);
+          setRank(typeof data?.rank === 'number' ? data.rank : null);
+        })
+        .catch(() => {
+          setLeaderboard([]);
+          setRank(null);
+        });
     }
     loadLeaderboard();
     const id = setInterval(loadLeaderboard, 15000);
