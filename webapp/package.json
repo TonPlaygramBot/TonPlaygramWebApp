@@ -4,13 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "prebuild": "npm run generate:native-assets",
     "build": "node scripts/write-build-metadata.mjs && vite build",
     "preview": "vite preview",
-    "generate:native-assets": "node scripts/generate-native-assets.mjs",
+    "generate:native-assets": "node scripts/generate-ios-icon.mjs",
     "fetch:gradle-wrapper": "node scripts/fetch-gradle-wrapper.mjs",
-    "postinstall": "npm run generate:native-assets && npm run fetch:gradle-wrapper",
-    "cap:sync": "npx cap sync android ios"
+    "postinstall": "npm run generate:native-assets && npm run fetch:gradle-wrapper"
   },
   "type": "module",
   "dependencies": {
@@ -49,7 +47,6 @@
     "@capacitor/cli": "6.1.2",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "jimp": "^0.22.12",
     "typescript": "^5.4.0"
   }
 }

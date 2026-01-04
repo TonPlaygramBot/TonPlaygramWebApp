@@ -20,19 +20,8 @@ const resolvedEnv = (() => {
   return {};
 })();
 
-const PROD_BASE_URL = 'https://api.tonplaygram.com';
-const baseFromEnv = (resolvedEnv.VITE_API_BASE_URL || '').trim();
-const isProdHost =
-  typeof window !== 'undefined' &&
-  typeof window.location?.hostname === 'string' &&
-  window.location.hostname.endsWith('tonplaygram.com');
-
-export const API_BASE_URL = baseFromEnv || (isProdHost ? PROD_BASE_URL : '');
+export const API_BASE_URL = resolvedEnv.VITE_API_BASE_URL || '';
 export const API_AUTH_TOKEN = resolvedEnv.VITE_API_AUTH_TOKEN || '';
-
-if (API_BASE_URL && API_BASE_URL.startsWith('http://')) {
-  console.warn('Insecure API base URL detected; HTTPS is required for production builds.');
-}
 
 export async function ping() {
   const data = await get('/api/ping');

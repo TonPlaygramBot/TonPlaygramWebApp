@@ -6,12 +6,9 @@ bot/package-lock.json
 .idea
 webapp/android/gradle/wrapper/gradle-wrapper.jar
 webapp/android/app/src/main/assets/public/
-webapp/android/app/src/main/res/mipmap-*/ic_launcher*.png
-webapp/android/app/src/main/res/drawable*/splash*.png
 webapp/ios/App/App/public/
-webapp/ios/App/App/Assets.xcassets/AppIcon.appiconset/*.png
-webapp/ios/App/App/Assets.xcassets/Splash.imageset/*.png
-webapp/public/assets/brand/*.png
+webapp/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
+webapp/ios/App/App/Assets.xcassets/Splash.imageset/
 
 # Environment files
 twitter.env
