@@ -54,27 +54,42 @@ export default function LoginOptions({ onAuthenticated }) {
       <div className="space-y-2">
         <h2 className="text-xl font-bold text-white">Welcome to TonPlaygram</h2>
         <p className="text-sm text-subtext">
-          Sign in with Google on Chrome or continue from the Telegram mini app. Your account and
-          rewards stay in sync.
+          Pick Telegram or Google to continue. We&apos;ll create a TPC account for you instantly so you can access
+          staking, gifts, and every game.
         </p>
       </div>
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        <LinkGoogleButton
-          telegramId={null}
-          label="Continue with Google"
-          onAuthenticated={handleAuthenticated}
-        />
-        <div className="text-xs text-subtext">
-          <p>Prefer Telegram? Open @TonPlaygramBot and tap <strong>Open Web App</strong>.</p>
-          {googleProfile?.email && (
-            <p className="text-green-400 mt-1">
-              Signed in as {googleProfile.email}. We&apos;ll finish setting up your TPC account.
-            </p>
-          )}
-          {status === 'error' && (
-            <p className="text-red-400 mt-1">We couldn&apos;t finish setup. Try again in a moment.</p>
-          )}
+      <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
+        <p className="text-sm text-white-shadow">
+          Choose how you want to sign in. You&apos;ll keep the same balance and profile whether you play from Telegram or
+          the browser.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+          <LinkGoogleButton
+            telegramId={null}
+            label="Continue with Google"
+            onAuthenticated={handleAuthenticated}
+          />
+          <a
+            href="https://t.me/TonPlaygramBot?start=webapp"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-center px-3 py-2 rounded bg-primary hover:bg-primary-hover text-black font-semibold text-sm"
+          >
+            Open in Telegram
+          </a>
         </div>
+        <ul className="list-disc list-inside text-xs text-subtext space-y-1">
+          <li>New here? We&apos;ll create your TPC wallet so you can stake right away.</li>
+          <li>Already played on Telegram? Use the same login to sync your wins and NFTs.</li>
+        </ul>
+        {googleProfile?.email && (
+          <p className="text-green-400 text-xs">
+            Signed in as {googleProfile.email}. We&apos;ll finish setting up your TPC account.
+          </p>
+        )}
+        {status === 'error' && (
+          <p className="text-red-400 text-xs">We couldn&apos;t finish setup. Try again in a moment.</p>
+        )}
       </div>
     </div>
   );

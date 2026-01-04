@@ -24,6 +24,8 @@ function normalizeConfig(raw) {
     salt: raw.salt || '',
     hash: raw.hash || '',
     credentialId: raw.credentialId || null,
+    deviceToken: raw.deviceToken || '',
+    telegramBiometric: Boolean(raw.telegramBiometric),
     recoveryCodes: Array.isArray(raw.recoveryCodes) ? raw.recoveryCodes : [],
     lastUpdated: raw.lastUpdated || Date.now(),
     deviceInfo: raw.deviceInfo || null,
@@ -146,12 +148,14 @@ export async function verifyRecoveryCode(code) {
   return match;
 }
 
-export function storeDeviceCredentialId(id) {
-  if (!id || typeof window === 'undefined') return;
+export function storeDeviceCredentialId(id, options = {}) {
+  if ((!id && !options.telegramBiometric) || typeof window === 'undefined') return;
   try {
     const cfg = loadLockConfig() || { method: 'device' };
     cfg.method = 'device';
-    cfg.credentialId = id;
+    cfg.credentialId = id || cfg.credentialId || (options.telegramBiometric ? 'telegram-biometric' : null);
+    cfg.deviceToken = options.deviceToken || cfg.deviceToken || '';
+    cfg.telegramBiometric = Boolean(options.telegramBiometric);
     cfg.salt = cfg.salt || generateSalt();
     cfg.hash = cfg.hash || '';
     cfg.lastUpdated = Date.now();
