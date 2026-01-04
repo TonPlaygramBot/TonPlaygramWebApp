@@ -1,14 +1,14 @@
+const TELEGRAM_ONLY = true;
 const REFRESH_FLAG_KEY = 'tonplaygram-sw-refreshed';
 const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
-const BASE_URL = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '/');
-const SERVICE_WORKER_URL = `${BASE_URL}service-worker.js`;
-const SERVICE_WORKER_SCOPE = BASE_URL;
+const SERVICE_WORKER_URL = '/service-worker.js';
 
-function shouldRegisterServiceWorker() {
+function shouldRegisterForTelegram() {
   if (!('serviceWorker' in navigator)) return false;
   const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-  if (!window.isSecureContext && !isLocalhost) return false;
-  return isLocalhost || window.location.protocol === 'https:';
+  if (isLocalhost) return true;
+  if (TELEGRAM_ONLY && !window.Telegram?.WebApp) return false;
+  return true;
 }
 
 function markRefreshed() {
@@ -80,13 +80,13 @@ function setupUpdatePolling(registration) {
   window.addEventListener('online', runUpdate);
 }
 
-export async function registerServiceWorker() {
-  if (!shouldRegisterServiceWorker()) return;
+export async function registerTelegramServiceWorker() {
+  if (!shouldRegisterForTelegram()) return;
 
   try {
     const hadController = Boolean(navigator.serviceWorker.controller);
     const registration = await navigator.serviceWorker.register(SERVICE_WORKER_URL, {
-      scope: SERVICE_WORKER_SCOPE,
+      scope: '/',
       updateViaCache: 'none'
     });
 
