@@ -21,6 +21,10 @@ webapp/android/keystore.properties
 webapp/android/*.keystore
 webapp/android/*.jks
 webapp/android/keystores/
+webapp/android/app/google-services.json
+webapp/ios/App/App/GoogleService-Info.plist
+webapp/public/.well-known/assetlinks.json
+webapp/public/apple-app-site-association
 
 # Environment files
 twitter.env
