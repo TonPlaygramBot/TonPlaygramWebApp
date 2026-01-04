@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTonAddress } from '@tonconnect/ui-react';
 import {
   getAccountInfo,
   createAccount,
@@ -9,7 +10,8 @@ import {
   sendBroadcast,
   linkSocial,
   getUnreadCount,
-  linkGoogleAccount
+  linkGoogleAccount,
+  registerWallet
 } from '../utils/api.js';
 import {
   getTelegramId,
@@ -44,6 +46,8 @@ export default function MyAccount() {
       return null;
     }
   });
+  const tonWalletAddress = useTonAddress();
+  const [accountId, setAccountId] = useState(() => localStorage.getItem('accountId'));
   const [googleProfile, setGoogleProfile] = useState(() => (telegramId ? null : loadGoogleProfile()));
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -88,7 +92,20 @@ export default function MyAccount() {
   const [lockMessage, setLockMessage] = useState('');
   const [lockMessageTone, setLockMessageTone] = useState('info');
   const [showRecoveryCodes, setShowRecoveryCodes] = useState([]);
-  const requiresAuth = !telegramId && !googleProfile?.id;
+  const requiresAuth = !telegramId && !googleProfile?.id && !tonWalletAddress;
+
+  const handleAuthChoice = (payload) => {
+    if (payload?.id || payload?.email) {
+      setGoogleProfile(payload);
+    }
+    if (payload?.accountId) {
+      localStorage.setItem('accountId', payload.accountId);
+      setAccountId(payload.accountId);
+    }
+    if (payload?.walletAddress) {
+      localStorage.setItem('walletAddress', payload.walletAddress);
+    }
+  };
 
   useEffect(() => {
     setGoogleLinked(Boolean(googleProfile?.id));
@@ -102,6 +119,7 @@ export default function MyAccount() {
     sessionStorage.clear();
     setTelegramId(null);
     setGoogleProfile(null);
+    setAccountId(null);
     setProfile(null);
     window.location.href = '/';
   };
@@ -117,9 +135,12 @@ export default function MyAccount() {
     window.addEventListener('storage', syncTelegramId);
     const syncGoogle = () => setGoogleProfile(loadGoogleProfile());
     window.addEventListener('googleProfileUpdated', syncGoogle);
+    const syncAccount = () => setAccountId(localStorage.getItem('accountId'));
+    window.addEventListener('storage', syncAccount);
     return () => {
       window.removeEventListener('storage', syncTelegramId);
       window.removeEventListener('googleProfileUpdated', syncGoogle);
+      window.removeEventListener('storage', syncAccount);
     };
   }, []);
 
@@ -127,12 +148,15 @@ export default function MyAccount() {
     async function load() {
       setLoadingProfile(true);
       setLoadError('');
-      const accountPayload = await createAccount(telegramId, googleProfile);
+      const accountPayload = await (tonWalletAddress && !telegramId && !googleProfile?.id
+        ? registerWallet(tonWalletAddress)
+        : createAccount(telegramId, googleProfile, accountId));
       if (accountPayload?.error || !accountPayload?.accountId) {
         throw new Error(accountPayload?.error || 'Unable to load your TPC account. Please try again.');
       }
       if (accountPayload.accountId) {
         localStorage.setItem('accountId', accountPayload.accountId);
+        setAccountId(accountPayload.accountId);
       }
       if (accountPayload.walletAddress) {
         localStorage.setItem('walletAddress', accountPayload.walletAddress);
@@ -224,7 +248,7 @@ export default function MyAccount() {
       if (timerRef.current) clearTimeout(timerRef.current);
       cancelled = true;
     };
-  }, [telegramId, googleProfile?.id, requiresAuth, reloadNonce]);
+  }, [telegramId, googleProfile?.id, requiresAuth, reloadNonce, tonWalletAddress, accountId]);
 
   useEffect(() => {
     if (!telegramId && googleProfile?.photo) {
@@ -283,7 +307,7 @@ export default function MyAccount() {
     }
   };
 
-  if (requiresAuth) return <LoginOptions onAuthenticated={setGoogleProfile} />;
+  if (requiresAuth) return <LoginOptions onAuthenticated={handleAuthChoice} />;
 
   if (!profile) {
     return (
