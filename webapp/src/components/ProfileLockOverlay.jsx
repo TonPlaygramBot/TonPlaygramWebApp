@@ -10,6 +10,8 @@ function getErrorMessage(code) {
       return 'Could not secure your secret. Please try again.';
     case 'device_unsupported':
       return 'This device or browser does not support passkeys/biometrics.';
+    case 'device_not_configured':
+      return 'Biometrics are not set up on this device. Configure Face ID / Touch ID or device unlock first.';
     case 'device_failed':
       return 'We could not complete biometric unlock on this device.';
     case 'secret_invalid':

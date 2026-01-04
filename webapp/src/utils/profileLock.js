@@ -1,8 +1,23 @@
+import { clearDeviceCredentialId, loadDeviceCredentialId, saveDeviceCredentialId } from './deviceBiometric.ts';
+
 const LOCK_CONFIG_KEY = 'tpc-profile-lock';
 const UNLOCKED_FLAG = 'tpc-profile-lock-unlocked';
+const DEVICE_CREDENTIAL_STORAGE_KEY = 'tpc-device-credential-id';
 
 const textEncoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
 const CONFIG_VERSION = 2;
+
+let secureCredentialCache = null;
+if (typeof window !== 'undefined') {
+  loadDeviceCredentialId()
+    .then((id) => {
+      secureCredentialCache = id;
+      if (id) localStorage.setItem(DEVICE_CREDENTIAL_STORAGE_KEY, id);
+    })
+    .catch(() => {
+      secureCredentialCache = null;
+    });
+}
 
 async function sha256(text) {
   if (!textEncoder || !crypto?.subtle) return null;
@@ -46,6 +61,8 @@ export function clearLockConfig() {
   try {
     localStorage.removeItem(LOCK_CONFIG_KEY);
     sessionStorage.removeItem(UNLOCKED_FLAG);
+    localStorage.removeItem(DEVICE_CREDENTIAL_STORAGE_KEY);
+    void clearDeviceCredentialId();
   } catch {
     // ignore
   }
@@ -159,6 +176,8 @@ export function storeDeviceCredentialId(id) {
     cfg.version = CONFIG_VERSION;
     localStorage.setItem(LOCK_CONFIG_KEY, JSON.stringify(cfg));
     sessionStorage.removeItem(UNLOCKED_FLAG);
+    localStorage.setItem(DEVICE_CREDENTIAL_STORAGE_KEY, id);
+    void saveDeviceCredentialId(id);
   } catch {
     // ignore
   }
@@ -166,5 +185,6 @@ export function storeDeviceCredentialId(id) {
 
 export function getDeviceCredentialId() {
   const cfg = loadLockConfig();
-  return cfg?.credentialId || null;
+  const local = localStorage.getItem(DEVICE_CREDENTIAL_STORAGE_KEY);
+  return local || cfg?.credentialId || secureCredentialCache || null;
 }

@@ -46,5 +46,16 @@
 	<string>Photo library access is required to save captures shared from the app.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Photo library access is required to let you pick images for sharing.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>tonplaygram</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>tonplaygram</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

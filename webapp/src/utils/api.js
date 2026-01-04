@@ -57,7 +57,15 @@ async function post(path, body, token) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const initData = window?.Telegram?.WebApp?.initData;
+  const unsafe = window?.Telegram?.WebApp?.initDataUnsafe;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
+  else if (unsafe?.user?.id) {
+    const params = new URLSearchParams();
+    params.set('user_id', unsafe.user.id);
+    if (unsafe.start_param) params.set('start_param', unsafe.start_param);
+    headers['X-Telegram-Init-Data'] = params.toString();
+    headers['X-Telegram-User-Id'] = String(unsafe.user.id);
+  }
 
   let res;
   try {
@@ -97,7 +105,15 @@ async function put(path, body, token) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const initData = window?.Telegram?.WebApp?.initData;
+  const unsafe = window?.Telegram?.WebApp?.initDataUnsafe;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
+  else if (unsafe?.user?.id) {
+    const params = new URLSearchParams();
+    params.set('user_id', unsafe.user.id);
+    if (unsafe.start_param) params.set('start_param', unsafe.start_param);
+    headers['X-Telegram-Init-Data'] = params.toString();
+    headers['X-Telegram-User-Id'] = String(unsafe.user.id);
+  }
 
   let res;
   try {
@@ -135,7 +151,15 @@ async function get(path, token) {
   const headers = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const initData = window?.Telegram?.WebApp?.initData;
+  const unsafe = window?.Telegram?.WebApp?.initDataUnsafe;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
+  else if (unsafe?.user?.id) {
+    const params = new URLSearchParams();
+    params.set('user_id', unsafe.user.id);
+    if (unsafe.start_param) params.set('start_param', unsafe.start_param);
+    headers['X-Telegram-Init-Data'] = params.toString();
+    headers['X-Telegram-User-Id'] = String(unsafe.user.id);
+  }
 
   let res;
   try {
@@ -283,7 +307,15 @@ export function verifyInfluencer(id, status, views) {
   const headers = { 'Content-Type': 'application/json' };
   if (API_AUTH_TOKEN) headers['Authorization'] = `Bearer ${API_AUTH_TOKEN}`;
   const initData = window?.Telegram?.WebApp?.initData;
+  const unsafe = window?.Telegram?.WebApp?.initDataUnsafe;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
+  else if (unsafe?.user?.id) {
+    const params = new URLSearchParams();
+    params.set('user_id', unsafe.user.id);
+    if (unsafe.start_param) params.set('start_param', unsafe.start_param);
+    headers['X-Telegram-Init-Data'] = params.toString();
+    headers['X-Telegram-User-Id'] = String(unsafe.user.id);
+  }
   return fetch(API_BASE_URL + `/api/influencer/admin/${id}/verify`, {
     method: 'PATCH',
     headers,
