@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+
 const TELEGRAM_ONLY = false;
 const REFRESH_FLAG_KEY = 'tonplaygram-sw-refreshed';
 const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
@@ -5,6 +7,7 @@ const SERVICE_WORKER_URL = '/service-worker.js';
 
 function shouldRegisterForTelegram() {
   if (!('serviceWorker' in navigator)) return false;
+  if (Capacitor?.isNativePlatform?.()) return false;
   const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
   if (isLocalhost) return true;
   if (TELEGRAM_ONLY && !window.Telegram?.WebApp) return false;
@@ -81,7 +84,7 @@ function setupUpdatePolling(registration) {
 }
 
 export async function registerTelegramServiceWorker() {
-  if (!shouldRegisterForTelegram()) return;
+  if (!shouldRegisterForTelegram()) return false;
 
   try {
     const hadController = Boolean(navigator.serviceWorker.controller);
@@ -103,5 +106,8 @@ export async function registerTelegramServiceWorker() {
     });
   } catch (err) {
     console.error('Service worker registration failed', err);
+    return false;
   }
+
+  return true;
 }
