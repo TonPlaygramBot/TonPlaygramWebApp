@@ -105,7 +105,7 @@ export default function ProfileLockOverlay({
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur px-4">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur px-4 py-6 sm:py-10 overflow-y-auto">
       <div className="max-w-4xl w-full space-y-4 bg-surface border border-border rounded-2xl p-5 shadow-lg">
         <h3 className="text-2xl font-bold text-white text-center">Protect your profile</h3>
         <p className="text-sm text-subtext text-center">
