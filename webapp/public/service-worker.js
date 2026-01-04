@@ -1,8 +1,5 @@
-importScripts('/pwa/build-info.js');
-
-const APP_BUILD = (self.APP_BUILD && String(self.APP_BUILD)) || 'v5';
-const STATIC_CACHE = `tonplaygram-static-${APP_BUILD}`;
-const RUNTIME_CACHE = `tonplaygram-runtime-${APP_BUILD}`;
+const STATIC_CACHE = 'tonplaygram-static-v5';
+const RUNTIME_CACHE = 'tonplaygram-runtime-v5';
 const OFFLINE_FALLBACK = '/offline.html';
 const GLTF_MANIFEST_PATH = '/pwa/gltf-assets.json';
 const HALLWAY_MANIFEST_PATH = '/pwa/hallway-assets.json';
@@ -14,8 +11,6 @@ const APP_SHELL = [
   '/manifest.webmanifest',
   GLTF_MANIFEST_PATH,
   HALLWAY_MANIFEST_PATH,
-  '/pwa/version.json',
-  '/pwa/build-info.js',
   '/tonconnect-manifest.json',
   '/power-slider.css',
   '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp',

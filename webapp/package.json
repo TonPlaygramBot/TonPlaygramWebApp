@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/write-build-info.mjs && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "generate:native-assets": "node scripts/generate-ios-icon.mjs",
     "fetch:gradle-wrapper": "node scripts/fetch-gradle-wrapper.mjs",
@@ -16,7 +16,6 @@
     "@capacitor/app": "^6.0.0",
     "@capacitor/core": "6.1.2",
     "@capacitor/device": "^6.0.0",
-    "@capacitor/push-notifications": "^6.0.0",
     "@capacitor/ios": "6.1.2",
     "@capacitor/preferences": "^6.0.0",
     "@aparajita/capacitor-biometric-auth": "^6.0.0",

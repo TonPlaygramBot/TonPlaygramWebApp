@@ -1,6 +1,4 @@
-import { CURRENT_BUILD } from '../utils/versioning.js';
-
-const RUNTIME_CACHE_NAME = `tonplaygram-runtime-${CURRENT_BUILD}`;
+const RUNTIME_CACHE_NAME = 'tonplaygram-runtime-v5';
 
 const GAME_ENTRYPOINTS = [
   '/goal-rush.html',
