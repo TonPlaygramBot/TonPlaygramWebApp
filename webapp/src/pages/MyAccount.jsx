@@ -431,6 +431,8 @@ export default function MyAccount() {
         return 'PIN or pattern should be at least 4 characters.';
       case 'device_unsupported':
         return 'Your browser/device does not support passkeys or biometrics.';
+      case 'device_not_configured':
+        return 'Turn on Face ID/Touch ID or set a device lock to enable biometrics.';
       case 'device_failed':
         return 'We could not complete a biometric request. Try again or re-register.';
       default:
