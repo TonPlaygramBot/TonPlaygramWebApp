@@ -1,10 +1,5 @@
-import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
-
-cleanupOutdatedCaches();
-precacheAndRoute(self.__WB_MANIFEST || []);
-
-const STATIC_CACHE = 'tonplaygram-static-v6';
-const RUNTIME_CACHE = 'tonplaygram-runtime-v6';
+const STATIC_CACHE = 'tonplaygram-static-v5';
+const RUNTIME_CACHE = 'tonplaygram-runtime-v5';
 const OFFLINE_FALLBACK = '/offline.html';
 const GLTF_MANIFEST_PATH = '/pwa/gltf-assets.json';
 const HALLWAY_MANIFEST_PATH = '/pwa/hallway-assets.json';
@@ -13,7 +8,7 @@ const APP_SHELL = [
   '/',
   '/index.html',
   OFFLINE_FALLBACK,
-  '/manifest.json',
+  '/manifest.webmanifest',
   GLTF_MANIFEST_PATH,
   HALLWAY_MANIFEST_PATH,
   '/tonconnect-manifest.json',
