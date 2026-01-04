@@ -49,9 +49,13 @@ export default function MyAccount() {
     locked: profileLocked,
     unlockWithSecret,
     unlockWithDevice,
+    unlockWithRecovery,
     enableSecretLock,
     enableDeviceLock,
-    disableLock
+    disableLock,
+    issuedRecoveryCodes,
+    lastError: lockError,
+    deviceSupported
   } = useProfileLock();
 
   const [profile, setProfile] = useState(null);
@@ -75,6 +79,8 @@ export default function MyAccount() {
   const [unread, setUnread] = useState(0);
   const [googleLinked, setGoogleLinked] = useState(!!googleProfile?.id);
   const [lockMessage, setLockMessage] = useState('');
+  const [lockMessageTone, setLockMessageTone] = useState('info');
+  const [showRecoveryCodes, setShowRecoveryCodes] = useState([]);
 
   const handleSignOut = () => {
     clearGoogleProfile();
@@ -277,15 +283,65 @@ export default function MyAccount() {
     }
   };
 
+  const friendlyLockError = (code) => {
+    switch (code) {
+      case 'password_too_short':
+        return 'Password must be at least 8 characters.';
+      case 'pin_too_short':
+        return 'PIN or pattern should be at least 4 characters.';
+      case 'device_unsupported':
+        return 'Your browser/device does not support passkeys or biometrics.';
+      case 'device_failed':
+        return 'We could not complete a biometric request. Try again or re-register.';
+      default:
+        return 'Could not update the lock. Please try again.';
+    }
+  };
+
+  const setLockFeedback = (message, tone = 'info') => {
+    setLockMessage(message);
+    setLockMessageTone(tone);
+  };
+
+  const handleSecretLock = async ({ method, label }) => {
+    const prompts = {
+      pin: 'Set a PIN (4-10 digits)',
+      password: 'Set a strong password (min 8 chars)',
+      pattern: 'Set a pattern (4-10 characters)'
+    };
+    const secret = prompt(prompts[method]) || '';
+    if (!secret) return;
+    const result = await enableSecretLock({ method, secret });
+    if (result.ok) {
+      setLockFeedback(`${label} enabled. Save your recovery codes below.`, 'success');
+      setShowRecoveryCodes(result.recoveryCodes || issuedRecoveryCodes || []);
+    } else {
+      setLockFeedback(friendlyLockError(result.error), 'error');
+    }
+  };
+
+  const handleDeviceLock = async () => {
+    const result = await enableDeviceLock();
+    if (result.ok) {
+      setLockFeedback('Device biometric/passkey lock enabled. Use your device unlock to enter.', 'success');
+    } else {
+      setLockFeedback(friendlyLockError(result.error), 'error');
+    }
+  };
+
   return (
     <div className="relative p-4 space-y-4 text-text wide-card">
       <ProfileLockOverlay
         locked={profileLocked}
         onUnlockSecret={unlockWithSecret}
         onUnlockDevice={unlockWithDevice}
+        onUnlockRecovery={unlockWithRecovery}
         onDisable={disableLock}
         onConfigureSecret={enableSecretLock}
         onConfigureDevice={enableDeviceLock}
+        deviceSupported={deviceSupported}
+        issuedRecoveryCodes={showRecoveryCodes.length ? showRecoveryCodes : issuedRecoveryCodes}
+        lastError={lockError}
       />
       <AvatarPromptModal
         open={showAvatarPrompt}
@@ -426,13 +482,19 @@ export default function MyAccount() {
         </div>
       </div>
 
-      <div className="bg-surface border border-border rounded-xl p-3 space-y-2">
-        <div className="flex items-center justify-between">
+      <div className="bg-surface border border-border rounded-xl p-3 space-y-3">
+        <div className="flex items-center justify-between gap-3">
           <div>
             <p className="font-semibold text-white">Profile protection</p>
             <p className="text-xs text-subtext">
-              Lock this page with a PIN, pattern, password, or device biometrics/passkey. Unlocking works across browsers.
+              Lock this page with a PIN, pattern, password, or device biometrics/passkey. Unlocking works across browsers, with
+              recovery codes for emergencies.
             </p>
+            <ul className="mt-2 text-xs text-subtext list-disc list-inside space-y-1">
+              <li>Use biometrics/passkeys when your device supports them.</li>
+              <li>Create a backup PIN or password for other browsers.</li>
+              <li>Store recovery codes offline to avoid lockouts.</li>
+            </ul>
           </div>
           <button
             onClick={handleSignOut}
@@ -444,36 +506,20 @@ export default function MyAccount() {
         <div className="flex flex-wrap gap-2">
           <button
             className="px-3 py-1 bg-primary hover:bg-primary-hover text-black rounded text-sm"
-            onClick={async () => {
-              const secret = prompt('Set a PIN (4-10 digits)') || '';
-              if (!secret) return;
-              const ok = await enableSecretLock({ method: 'pin', secret });
-              setLockMessage(ok ? 'PIN lock enabled for this profile.' : 'Could not set PIN lock.');
-            }}
+            onClick={() => handleSecretLock({ method: 'pin', label: 'PIN / Pattern lock' })}
           >
             Set PIN / Pattern
           </button>
           <button
             className="px-3 py-1 bg-primary hover:bg-primary-hover text-black rounded text-sm"
-            onClick={async () => {
-              const secret = prompt('Set a strong password (min 8 chars)') || '';
-              if (!secret) return;
-              const ok = await enableSecretLock({ method: 'password', secret });
-              setLockMessage(ok ? 'Password lock enabled.' : 'Could not set password lock.');
-            }}
+            onClick={() => handleSecretLock({ method: 'password', label: 'Password lock' })}
           >
             Set Password
           </button>
           <button
-            className="px-3 py-1 border border-border text-white rounded text-sm"
-            onClick={async () => {
-              const ok = await enableDeviceLock();
-              setLockMessage(
-                ok
-                  ? 'Device biometric/passkey lock enabled. Use your device unlock to enter.'
-                  : 'Could not enable device-based lock. Make sure your browser supports passkeys.'
-              );
-            }}
+            className="px-3 py-1 border border-border text-white rounded text-sm disabled:opacity-50"
+            onClick={handleDeviceLock}
+            disabled={!deviceSupported}
           >
             Use biometrics / passkey
           </button>
@@ -482,14 +528,46 @@ export default function MyAccount() {
               className="px-3 py-1 border border-border text-white rounded text-sm"
               onClick={() => {
                 disableLock();
-                setLockMessage('Profile lock disabled for this session.');
+                setLockFeedback('Profile lock disabled for this session.', 'success');
               }}
             >
               Disable lock
             </button>
           )}
         </div>
-        {lockMessage && <p className="text-xs text-green-400">{lockMessage}</p>}
+        {lockMessage && (
+          <p
+            className={`text-xs ${
+              lockMessageTone === 'success'
+                ? 'text-green-400'
+                : lockMessageTone === 'error'
+                  ? 'text-red-400'
+                  : 'text-subtext'
+            }`}
+          >
+            {lockMessage}
+          </p>
+        )}
+        {!deviceSupported && (
+          <p className="text-xs text-amber-300">
+            Passkeys/biometrics are not supported on this browser. Try Chrome, Safari, or a modern mobile browser.
+          </p>
+        )}
+        {(showRecoveryCodes.length ? showRecoveryCodes : issuedRecoveryCodes)?.length > 0 && (
+          <div className="rounded-lg border border-border bg-background/40 p-3 space-y-2">
+            <p className="text-xs text-white">Save these recovery codes (one-time use):</p>
+            <div className="flex flex-wrap gap-2 text-sm font-mono text-white">
+              {(showRecoveryCodes.length ? showRecoveryCodes : issuedRecoveryCodes).map((code) => (
+                <span key={code} className="px-2 py-1 rounded bg-surface/80 border border-border">
+                  {code}
+                </span>
+              ))}
+            </div>
+            <p className="text-[11px] text-subtext">
+              Codes only show once after you set a new lock. Store them in a password manager or safe place.
+            </p>
+          </div>
+        )}
       </div>
 
       <BalanceSummary className="bg-surface border border-border rounded-xl p-4 wide-card" />
