@@ -13,6 +13,7 @@ import {
   getProfile,
 } from '../utils/api.js';
 import { getTelegramId, parseTelegramPostLink } from '../utils/telegram.js';
+import { normalizeTasksResponse } from '../utils/taskUtils.js';
 import LoginOptions from './LoginOptions.jsx';
 
 
@@ -93,7 +94,7 @@ export default function TasksCard() {
 
   const load = async () => {
     const data = await listTasks(telegramId);
-    const tasksList = (data.tasks || data).filter((t) => !t.hideOnHome);
+    const tasksList = normalizeTasksResponse(data).filter((t) => !t.hideOnHome);
     setTasks(tasksList);
     if (data.version) {
       const seen = localStorage.getItem('tasksVersion');

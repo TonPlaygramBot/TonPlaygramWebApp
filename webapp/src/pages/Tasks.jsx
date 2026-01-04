@@ -14,6 +14,7 @@ import {
   submitInfluencerVideo,
   myInfluencerVideos,
 } from '../utils/api.js';
+import { normalizeTasksResponse } from '../utils/taskUtils.js';
 
 import { getTelegramId, parseTelegramPostLink } from '../utils/telegram.js';
 import LoginOptions from '../components/LoginOptions.jsx';
@@ -74,7 +75,7 @@ export default function Tasks() {
 
   const load = async () => {
     const data = await listTasks(telegramId);
-    const tasksList = data.tasks || data;
+    const tasksList = normalizeTasksResponse(data);
     setTasks(tasksList);
     if (data.version) {
       const seen = localStorage.getItem('tasksVersion');
