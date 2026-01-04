@@ -16,6 +16,11 @@ webapp/android/app/src/main/res/mipmap-*/ic_launcher_round.png
 webapp/android/app/src/main/res/mipmap-*/ic_launcher_foreground.png
 webapp/android/app/src/main/res/drawable*/splash_logo.png
 webapp/public/assets/icons/generated/
+webapp/public/tonplaygram-launcher.apk
+webapp/android/keystore.properties
+webapp/android/*.keystore
+webapp/android/*.jks
+webapp/android/keystores/
 
 # Environment files
 twitter.env
