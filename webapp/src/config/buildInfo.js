@@ -1,2 +1,2 @@
-export const APP_BUILD = "1d3a126";
-export const APP_BUILD_GENERATED_AT = "2026-01-04T16:01:31.957Z";
+export const APP_BUILD = "466482c";
+export const APP_BUILD_GENERATED_AT = "2026-01-04T16:13:30.892Z";

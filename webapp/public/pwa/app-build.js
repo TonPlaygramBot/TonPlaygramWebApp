@@ -1,1 +1,1 @@
-self.__TONPLAYGRAM_APP_BUILD__ = "1d3a126";
+self.__TONPLAYGRAM_APP_BUILD__ = "466482c";
