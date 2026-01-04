@@ -48,12 +48,18 @@
 	<string>Photo library access is required to let you pick images for sharing.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Biometric authentication protects your TonPlaygram profile.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tonplaygram</string>
+		<string>tonconnect</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>tonplaygram</string>
+				<string>tonconnect</string>
 			</array>
 			<key>CFBundleURLName</key>
 			<string>com.tonplaygram.app</string>

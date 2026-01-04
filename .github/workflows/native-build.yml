@@ -1,0 +1,104 @@
+name: Mobile Artifacts
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    env:
+      VITE_API_BASE_URL: https://api.tonplaygram.com
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            webapp/node_modules
+          key: ${{ runner.os }}-webapp-${{ hashFiles('webapp/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-webapp-
+
+      - name: Install webapp dependencies
+        run: npm install --prefix webapp
+
+      - name: Build SPA assets
+        run: npm --prefix webapp run build
+
+      - name: Sync Capacitor platforms
+        run: npm --prefix webapp run cap:sync
+
+      - name: Build Android binaries
+        working-directory: webapp/android
+        run: ./gradlew clean assembleRelease bundleRelease
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build
+          path: |
+            webapp/android/app/build/outputs/apk/release/app-release-unsigned.apk
+            webapp/android/app/build/outputs/bundle/release/app-release.aab
+
+  ios:
+    runs-on: macos-latest
+    env:
+      VITE_API_BASE_URL: https://api.tonplaygram.com
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            webapp/node_modules
+          key: ${{ runner.os }}-webapp-${{ hashFiles('webapp/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-webapp-
+
+      - name: Install webapp dependencies
+        run: npm install --prefix webapp
+
+      - name: Build SPA assets
+        run: npm --prefix webapp run build
+
+      - name: Sync Capacitor platforms
+        run: npm --prefix webapp run cap:sync
+
+      - name: Install CocoaPods
+        working-directory: webapp/ios/App
+        run: pod install
+
+      - name: Archive iOS app (unsigned)
+        working-directory: webapp/ios/App
+        run: xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphonesimulator -archivePath build/App.xcarchive archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+      - name: Upload iOS archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-archive
+          path: webapp/ios/App/build/App.xcarchive

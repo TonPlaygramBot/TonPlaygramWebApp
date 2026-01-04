@@ -3,5 +3,5 @@
     <string name="app_name">TonPlaygram</string>
     <string name="title_activity_main">TonPlaygram</string>
     <string name="package_name">com.tonplaygram.app</string>
-    <string name="custom_url_scheme">com.tonplaygram.app</string>
+    <string name="custom_url_scheme">tonplaygram</string>
 </resources>
