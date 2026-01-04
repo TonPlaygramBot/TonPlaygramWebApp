@@ -12,6 +12,8 @@ function getErrorMessage(code) {
       return 'This device or browser does not support passkeys/biometrics.';
     case 'device_failed':
       return 'We could not complete biometric unlock on this device.';
+    case 'biometric_not_setup':
+      return 'Biometric unlock is not configured on this device. Set it up in device settings.';
     case 'secret_invalid':
       return 'That PIN/password did not unlock your profile.';
     case 'recovery_invalid':

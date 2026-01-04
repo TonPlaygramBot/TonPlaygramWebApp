@@ -433,6 +433,8 @@ export default function MyAccount() {
         return 'Your browser/device does not support passkeys or biometrics.';
       case 'device_failed':
         return 'We could not complete a biometric request. Try again or re-register.';
+      case 'biometric_not_setup':
+        return 'Biometrics are not configured on this device. Set them up in settings first.';
       default:
         return 'Could not update the lock. Please try again.';
     }

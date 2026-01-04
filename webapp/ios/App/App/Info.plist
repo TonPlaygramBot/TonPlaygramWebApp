@@ -46,5 +46,18 @@
 	<string>Photo library access is required to save captures shared from the app.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Photo library access is required to let you pick images for sharing.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Biometric authentication protects your TonPlaygram profile.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>tonplaygram</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>com.tonplaygram.app</string>
+		</dict>
+	</array>
 </dict>
 </plist>
