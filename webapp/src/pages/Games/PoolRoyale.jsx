@@ -954,6 +954,9 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const ENABLE_BALL_FLOOR_SHADOWS = true;
+const TABLE_SHADOWS_ENABLED = true;
+const TABLE_SHADOW_OPACITY = 0.48;
+const TABLE_SHADOW_RADIUS_SCALE = 1.4;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
@@ -1279,7 +1282,7 @@ const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
-const SKIRT_DROP_MULTIPLIER = 1.36; // halve the apron drop to slim the skirt while keeping the tabletop level
+const FRAME_EXTENSION_DEPTH = TABLE_H * 0.68 * 1.36; // keep the full apron height by extending the wooden frame instead of a skirt
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
 const BASE_HEIGHT_FILL = 0.94; // grow bases upward so the stance stays consistent with the shorter skirt
@@ -8745,7 +8748,7 @@ function Table3D(
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
-  const frameExtensionDepth = TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER;
+  const frameExtensionDepth = FRAME_EXTENSION_DEPTH;
   const baseRailWidth = endRailW;
   const frameExtensionGeo = new THREE.ExtrudeGeometry(railsOuter, {
     depth: frameExtensionDepth,
@@ -12443,7 +12446,7 @@ const powerRef = useRef(hud.power);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = false;
+      renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       updateRendererAnisotropyCap(renderer);
@@ -13004,6 +13007,30 @@ const powerRef = useRef(hud.power);
       };
       const legHeight = LEG_ROOM_HEIGHT;
       const floorY = FLOOR_Y;
+      if (TABLE_SHADOWS_ENABLED) {
+        const shadowRadius = Math.max(TABLE.W, TABLE.H) * TABLE_SHADOW_RADIUS_SCALE;
+        const tableShadowGeo = new THREE.CircleGeometry(shadowRadius, 96);
+        const tableShadowMat = new THREE.MeshStandardMaterial({
+          color: 0x000000,
+          transparent: true,
+          opacity: TABLE_SHADOW_OPACITY,
+          roughness: 1,
+          metalness: 0,
+          depthWrite: false
+        });
+        const tableShadow = new THREE.Mesh(tableShadowGeo, tableShadowMat);
+        tableShadow.name = 'tableShadow';
+        tableShadow.rotation.x = -Math.PI / 2;
+        tableShadow.position.set(0, floorY + MICRO_EPS, 0);
+        tableShadow.receiveShadow = true;
+        tableShadow.castShadow = false;
+        world.add(tableShadow);
+        cueRackDisposers.push(() => {
+          world.remove(tableShadow);
+          tableShadowGeo.dispose();
+          tableShadowMat.dispose();
+        });
+      }
       const arenaScale = Math.max(
         1,
         Number.isFinite(activeEnvironmentVariantRef.current?.arenaScale)
@@ -16941,7 +16968,7 @@ const powerRef = useRef(hud.power);
 
       // Lights
       const addMobileLighting = () => {
-        const useHdriOnly = true;
+        const useHdriOnly = false;
         if (useHdriOnly) {
           lightingRigRef.current = null;
           return;
@@ -16997,6 +17024,7 @@ const powerRef = useRef(hud.power);
         );
         fill.position.set(-lightLineX, lightRigHeight * 1.01, lightPositionsZ[1]);
         fill.target.position.set(0, targetY, 0);
+        fill.castShadow = true;
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
@@ -17006,6 +17034,7 @@ const powerRef = useRef(hud.power);
         );
         wash.position.set(lightLineX, lightRigHeight * 1.02, lightPositionsZ[2]);
         wash.target.position.set(0, targetY, 0);
+        wash.castShadow = true;
         lightingRig.add(wash);
         lightingRig.add(wash.target);
 
@@ -17015,6 +17044,7 @@ const powerRef = useRef(hud.power);
         );
         rim.position.set(-lightLineX, lightRigHeight * 1.03, lightPositionsZ[3]);
         rim.target.position.set(0, targetY, 0);
+        rim.castShadow = true;
         lightingRig.add(rim);
         lightingRig.add(rim.target);
 
@@ -17050,6 +17080,14 @@ const powerRef = useRef(hud.power);
         activeTableBase,
         rendererRef.current
       );
+      table.traverse((child) => {
+        if (!child?.isMesh) return;
+        child.castShadow = true;
+        child.receiveShadow = true;
+        if (child.material && 'shadowSide' in child.material && !child.material.shadowSide) {
+          child.material.shadowSide = THREE.DoubleSide;
+        }
+      });
       const SPOTS = spotPositions(baulkZ);
       const longestSide = Math.max(PLAY_W, PLAY_H);
       const secondarySpacingBase =
@@ -20124,6 +20162,8 @@ const powerRef = useRef(hud.power);
             activeVariantId === 'uk' && bestPot ? null : bestSafetyCandidate;
           return {
             bestPot,
+            bestDirectPot,
+            bestCushionPot,
             bestSafety
           };
         };
@@ -20350,6 +20390,9 @@ const powerRef = useRef(hud.power);
             const result = { ...baseline };
             if (advancedPlan.type === 'pot') {
               result.bestPot = advancedPlan;
+              if (!advancedPlan.viaCushion) {
+                result.bestDirectPot = advancedPlan;
+              }
               if (!result.bestSafety) result.bestSafety = baseline.bestSafety;
             } else {
               result.bestSafety = advancedPlan;
@@ -20420,7 +20463,8 @@ const powerRef = useRef(hud.power);
             const now = performance.now();
             const remaining = Math.max(0, deadline - now);
             const options = evaluateShotOptions();
-            const plan = options.bestPot ?? options.bestSafety ?? null;
+            const plan =
+              options.bestDirectPot ?? options.bestPot ?? options.bestSafety ?? null;
             if (plan) {
               aiPlanRef.current = plan;
               aimDirRef.current.copy(plan.aimDir);
@@ -20599,9 +20643,12 @@ const powerRef = useRef(hud.power);
 
         const updateUserSuggestion = () => {
           const options = evaluateShotOptions();
-          const plan = options.bestPot ?? null;
-          userSuggestionPlanRef.current = plan;
-          const summary = summarizePlan(plan);
+          const directPlan = options.bestDirectPot ?? null;
+          const plan = directPlan ?? options.bestPot ?? null;
+          const primaryPlan =
+            plan?.viaCushion && directPlan ? directPlan : plan;
+          userSuggestionPlanRef.current = primaryPlan;
+          const summary = summarizePlan(primaryPlan);
           userSuggestionRef.current = summary;
           const applyAimDirection = (dir, key = null) => {
             if (!dir || typeof dir.lengthSq !== 'function' || dir.lengthSq() <= 1e-6) {
@@ -20617,10 +20664,10 @@ const powerRef = useRef(hud.power);
           const preferAutoAim = autoAimRequestRef.current;
           if (preferAutoAim) {
             let autoDir = resolveAutoAimDirection();
-            if (!autoDir && plan?.targetBall && cue?.pos) {
+            if (!autoDir && primaryPlan?.targetBall && cue?.pos) {
               const manualDir = new THREE.Vector2(
-                plan.targetBall.pos.x - cue.pos.x,
-                plan.targetBall.pos.y - cue.pos.y
+                primaryPlan.targetBall.pos.x - cue.pos.x,
+                primaryPlan.targetBall.pos.y - cue.pos.y
               );
               if (manualDir.lengthSq() > 1e-6) {
                 autoDir = manualDir.normalize();
@@ -20631,17 +20678,17 @@ const powerRef = useRef(hud.power);
               return;
             }
           }
-          if (plan?.targetBall && plan?.viaCushion && cue?.pos) {
+          if (primaryPlan?.targetBall && primaryPlan?.viaCushion && cue?.pos) {
             const directDir = new THREE.Vector2(
-              plan.targetBall.pos.x - cue.pos.x,
-              plan.targetBall.pos.y - cue.pos.y
+              primaryPlan.targetBall.pos.x - cue.pos.x,
+              primaryPlan.targetBall.pos.y - cue.pos.y
             );
             if (applyAimDirection(directDir, null)) {
               return;
             }
           }
-          if (plan?.aimDir && !plan.viaCushion) {
-            const dir = plan.aimDir.clone();
+          if (primaryPlan?.aimDir && !primaryPlan.viaCushion) {
+            const dir = primaryPlan.aimDir.clone();
             if (applyAimDirection(dir, summary?.key ?? null)) return;
             suggestionAimKeyRef.current = null;
           } else {
@@ -20675,7 +20722,8 @@ const powerRef = useRef(hud.power);
             cancelAiShotPreview();
             aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
             const options = evaluateShotOptions();
-            let plan = options.bestPot ?? options.bestSafety ?? null;
+            let plan =
+              options.bestDirectPot ?? options.bestPot ?? options.bestSafety ?? null;
             if (!plan) {
               const cuePos = cue?.pos ? cue.pos.clone() : null;
               if (!cuePos) return;
