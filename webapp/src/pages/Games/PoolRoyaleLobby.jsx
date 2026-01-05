@@ -225,6 +225,8 @@ export default function PoolRoyaleLobby() {
     if (initData) params.set('init', encodeURIComponent(initData));
 
     if (playType === 'tournament') {
+      const tournamentId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      params.set('tournamentId', tournamentId);
       window.location.href = `/pool-royale-bracket.html?${params.toString()}`;
       return;
     }
