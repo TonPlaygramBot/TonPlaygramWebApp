@@ -459,11 +459,20 @@
 
   (function init(){
     const totalPlayers = parseInt(params.get('players') || '8', 10);
+    const stake = Number(params.get('amount') || '0');
+    const entryFee = Number.isFinite(stake) ? Math.max(0, stake) : 0;
+    const netPot = Math.round(entryFee * totalPlayers * 0.9);
     const saved = localStorage.getItem(STATE_KEY);
+    const userName = params.get('name') || 'You';
     if(saved){
-      state = JSON.parse(saved);
-    } else {
-      const userName = params.get('name') || 'You';
+      try{ state = JSON.parse(saved); }catch{ state = null; }
+    }
+    const shouldReset =
+      !state ||
+      state.complete ||
+      state.N !== totalPlayers ||
+      (state.players && state.players[0] && state.players[0].name !== userName);
+    if(shouldReset){
       const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
       function flagToName(flag){
         const codes = Array.from(flag).map(c => c.codePointAt(0) - 0x1F1E6 + 65);
@@ -483,6 +492,11 @@
       state.currentRound = 0;
       state.championSeed = 0;
       state.complete = false;
+      state.pot = netPot;
+      localStorage.setItem(STATE_KEY, JSON.stringify(state));
+      localStorage.removeItem(OPP_KEY);
+    } else if(!Number.isFinite(state.pot)) {
+      state.pot = netPot;
       localStorage.setItem(STATE_KEY, JSON.stringify(state));
     }
     layoutAndDraw();
