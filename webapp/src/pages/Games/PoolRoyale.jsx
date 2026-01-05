@@ -56,12 +56,10 @@ import {
   POOL_ROYALE_DEFAULT_UNLOCKS,
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_HDRI_VARIANT_MAP,
-  POOL_ROYALE_BASE_VARIANTS,
-  POOL_ROYALE_OPTION_LABELS
+  POOL_ROYALE_BASE_VARIANTS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
-  addPoolRoyalUnlock,
   getCachedPoolRoyalInventory,
   getPoolRoyalInventory,
   isPoolOptionUnlocked,
@@ -9703,8 +9701,6 @@ function PoolRoyaleGame({
   const [poolInventory, setPoolInventory] = useState(() =>
     getCachedPoolRoyalInventory(resolvedAccountId)
   );
-  const [tournamentOpponent, setTournamentOpponent] = useState(null);
-  const [tournamentPot, setTournamentPot] = useState(0);
   useEffect(() => {
     let cancelled = false;
     setPoolInventory(getCachedPoolRoyalInventory(resolvedAccountId));
@@ -9721,32 +9717,6 @@ function PoolRoyaleGame({
       cancelled = true;
     };
   }, [resolvedAccountId]);
-  useEffect(() => {
-    if (playType !== 'tournament') {
-      setTournamentOpponent(null);
-      setTournamentPot(0);
-      return;
-    }
-    try {
-      const rawOpponent = window.localStorage.getItem(tournamentOpponentKey);
-      if (rawOpponent) {
-        setTournamentOpponent(JSON.parse(rawOpponent));
-      } else {
-        setTournamentOpponent(null);
-      }
-    } catch {
-      setTournamentOpponent(null);
-    }
-    try {
-      const rawState = window.localStorage.getItem(tournamentStateKey);
-      if (rawState) {
-        const parsed = JSON.parse(rawState);
-        if (parsed && Number.isFinite(parsed.pot)) {
-          setTournamentPot(parsed.pot);
-        }
-      }
-    } catch {}
-  }, [playType, tournamentOpponentKey, tournamentStateKey]);
   const resolveStoredSelection = useCallback(
     (type, storageKey, isValid, fallbackId) => {
       const inventory = poolInventory;
@@ -10900,12 +10870,6 @@ const lastShotReminderRef = useRef({ A: 0, B: 0 });
 const [ruleToast, setRuleToast] = useState(null);
 const ruleToastTimeoutRef = useRef(null);
 const [replayActive, setReplayActive] = useState(false);
-const replayActiveRef = useRef(false);
-useEffect(() => {
-  replayActiveRef.current = replayActive;
-}, [replayActive]);
-const [matchOutcome, setMatchOutcome] = useState(null);
-const [showWinnerOverlay, setShowWinnerOverlay] = useState(false);
 const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
 const [bottomHudOffset, setBottomHudOffset] = useState(0);
 const leftControlsRef = useRef(null);
@@ -11340,205 +11304,8 @@ const powerRef = useRef(hud.power);
     const lobbyUrl = winnerParam
       ? `/games/poolroyale/lobby?winner=${winnerParam}`
       : '/games/poolroyale/lobby';
-    exitBlockRef.current = false;
     window.location.assign(lobbyUrl);
   }, [frameState.winner]);
-  const waitForReplayToFinish = useCallback((timeoutMs = 6500) => {
-    return new Promise((resolve) => {
-      const started = performance.now();
-      const tick = () => {
-        if (!replayPlaybackRef.current && !replayActiveRef.current) {
-          resolve();
-          return;
-        }
-        if (performance.now() - started >= timeoutMs) {
-          resolve();
-          return;
-        }
-        requestAnimationFrame(tick);
-      };
-      tick();
-    });
-  }, []);
-  const launchCoinBurst = useCallback((count = 18) => {
-    if (typeof document === 'undefined') return;
-    if (!document.getElementById('tpc-coin-burst-style')) {
-      const style = document.createElement('style');
-      style.id = 'tpc-coin-burst-style';
-      style.textContent = `
-        @keyframes tpcCoinFall { from { transform: translateY(-10vh) rotate(0deg); opacity: 1; } to { transform: translateY(100vh) rotate(360deg); opacity: 0; } }
-        .tpc-coin-burst { position: fixed; top: -32px; width: 32px; height: 32px; pointer-events: none; animation: tpcCoinFall var(--duration,3s) linear forwards; z-index: 120; }
-      `;
-      document.head.appendChild(style);
-    }
-    const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.inset = '0';
-    container.style.pointerEvents = 'none';
-    container.style.zIndex = '120';
-    document.body.appendChild(container);
-    const total = Math.max(4, count);
-    for (let i = 0; i < total; i += 1) {
-      const img = document.createElement('img');
-      img.src = '/assets/icons/ezgif-54c96d8a9b9236.webp';
-      img.className = 'tpc-coin-burst';
-      img.style.left = `${Math.random() * 100}vw`;
-      img.style.animationDelay = `${Math.random() * 1.2}s`;
-      img.style.setProperty('--duration', `${2 + Math.random() * 2}s`);
-      container.appendChild(img);
-    }
-    window.setTimeout(() => container.remove(), 4500);
-  }, []);
-  const awardTournamentRewards = useCallback(async () => {
-    if (playType !== 'tournament') return [];
-    const pickRandom = (list = []) => list[Math.floor(Math.random() * list.length)];
-    const finishOptions = Object.keys(TABLE_FINISHES || {});
-    const cueOptions = CUE_STYLE_PRESETS.map((preset) => preset.id);
-    const clothOptions = POOL_ROYALE_CLOTH_VARIANTS.map((variant) => variant.id);
-    const availableFinish = finishOptions.filter(
-      (id) => !isPoolOptionUnlocked('tableFinish', id, poolInventory)
-    );
-    const availableCue = cueOptions.filter(
-      (id) => !isPoolOptionUnlocked('cueStyle', id, poolInventory)
-    );
-    const availableCloth = clothOptions.filter(
-      (id) => !isPoolOptionUnlocked('clothColor', id, poolInventory)
-    );
-    const rewardEntries = [
-      { type: 'tableFinish', optionId: (availableFinish.length ? availableFinish : finishOptions).map((id) => id) },
-      { type: 'cueStyle', optionId: (availableCue.length ? availableCue : cueOptions).map((id) => id) },
-      { type: 'clothColor', optionId: (availableCloth.length ? availableCloth : clothOptions).map((id) => id) }
-    ];
-    const rewards = [];
-    let nextInventory = poolInventory;
-    for (const entry of rewardEntries) {
-      const ids = Array.isArray(entry.optionId) ? entry.optionId : [];
-      if (!ids.length) continue;
-      const chosen = pickRandom(ids);
-      try {
-        nextInventory = await addPoolRoyalUnlock(entry.type, chosen, resolvedAccountId);
-        if (nextInventory) {
-          setPoolInventory(nextInventory);
-        }
-      } catch (err) {
-        console.warn('Pool Royale reward sync failed', err);
-      }
-      rewards.push({
-        type: entry.type,
-        optionId: chosen,
-        label: POOL_ROYALE_OPTION_LABELS?.[entry.type]?.[chosen] || chosen
-      });
-    }
-    return rewards;
-  }, [playType, poolInventory, resolvedAccountId]);
-  const simulateRoundAi = useCallback((st, round) => {
-    const next = st.rounds[round + 1];
-    const userSeed = st.userSeed;
-    st.rounds[round].forEach((pair, idx) => {
-      if (pair.includes(userSeed)) return;
-      if (next && next[Math.floor(idx / 2)][idx % 2]) return;
-      const s1 = pair[0];
-      const s2 = pair[1];
-      const p1 = st.seedToPlayer[s1];
-      const p2 = st.seedToPlayer[s2];
-      let winnerSeed;
-      if (p1 && p1.name === 'BYE') winnerSeed = s2;
-      else if (p2 && p2.name === 'BYE') winnerSeed = s1;
-      else winnerSeed = Math.random() < 0.5 ? s1 : s2;
-      if (next) {
-        next[Math.floor(idx / 2)][idx % 2] = winnerSeed;
-      } else {
-        st.championSeed = winnerSeed;
-        st.complete = true;
-      }
-    });
-  }, []);
-  const simulateRemainingRounds = useCallback(
-    (st, startRound) => {
-      for (let r = startRound; r < st.rounds.length; r += 1) {
-        simulateRoundAi(st, r);
-        if (st.complete) break;
-      }
-      st.currentRound = st.rounds.length - 1;
-      st.complete = true;
-    },
-    [simulateRoundAi]
-  );
-  const finalizeTournamentMatch = useCallback(
-    async (didPlayerWin, scoreCard) => {
-      if (playType !== 'tournament') return [];
-      try {
-        window.localStorage.setItem(tournamentLastResultKey, JSON.stringify(scoreCard));
-      } catch {}
-      let st = null;
-      try {
-        const raw = window.localStorage.getItem(tournamentStateKey);
-        st = raw ? JSON.parse(raw) : null;
-      } catch {}
-      const params = new URLSearchParams(location.search);
-      const redirectUrl = `/pool-royale-bracket.html?${params.toString()}`;
-      if (!st || !st.rounds) {
-        exitBlockRef.current = false;
-        window.location.href = redirectUrl;
-        return [];
-      }
-      const pending = st.pendingMatch;
-      if (!pending || !pending.pair) {
-        exitBlockRef.current = false;
-        window.location.href = redirectUrl;
-        return [];
-      }
-      const { round, match, pair } = pending;
-      const oppSeed = pair[0] === st.userSeed ? pair[1] : pair[0];
-      const winnerSeed = didPlayerWin ? st.userSeed : oppSeed;
-      const next = st.rounds[round + 1];
-      if (next) {
-        next[Math.floor(match / 2)][match % 2] = winnerSeed;
-      } else {
-        st.championSeed = winnerSeed;
-        st.complete = true;
-      }
-      if (winnerSeed !== st.userSeed) {
-        simulateRemainingRounds(st, round);
-      } else {
-        simulateRoundAi(st, round);
-        if (
-          next &&
-          st.rounds[round].every(
-            (_, idx) => next[Math.floor(idx / 2)][idx % 2]
-          )
-        ) {
-          st.currentRound = Math.min(st.currentRound + 1, st.rounds.length - 1);
-        }
-      }
-      if (!Number.isFinite(st.pot) && Number.isFinite(tournamentPot)) {
-        st.pot = tournamentPot;
-      }
-      delete st.pendingMatch;
-      try {
-        window.localStorage.setItem(tournamentStateKey, JSON.stringify(st));
-        window.localStorage.removeItem(tournamentOpponentKey);
-      } catch {}
-      let rewards = [];
-      if (st.complete && winnerSeed === st.userSeed) {
-        rewards = await awardTournamentRewards();
-      }
-      exitBlockRef.current = false;
-      window.location.href = redirectUrl;
-      return rewards;
-    },
-    [
-      awardTournamentRewards,
-      location.search,
-      playType,
-      simulateRemainingRounds,
-      simulateRoundAi,
-      tournamentLastResultKey,
-      tournamentOpponentKey,
-      tournamentPot,
-      tournamentStateKey
-    ]
-  );
 
   const stopActiveCrowdSound = useCallback(() => {
     const current = activeCrowdSoundRef.current;
@@ -11905,7 +11672,6 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     if (!frameState.frameOver) {
       gameOverHandledRef.current = false;
-      setShowWinnerOverlay(false);
       return;
     }
     if (gameOverHandledRef.current) return;
@@ -11915,51 +11681,8 @@ const powerRef = useRef(hud.power);
       return undefined;
     }
     setHud((prev) => ({ ...prev, over: true }));
-    const winnerSeat = frameRef.current?.winner ?? frameState.winner;
-    const didPlayerWin = winnerSeat === localSeatRef.current;
-    const scoreA = frameRef.current?.players?.A?.score ?? frameState.players?.A?.score ?? 0;
-    const scoreB = frameRef.current?.players?.B?.score ?? frameState.players?.B?.score ?? 0;
-    const prize = playType === 'tournament' ? tournamentPot : stakeAmount > 0 ? stakeAmount * 2 : 0;
-    setMatchOutcome({
-      winnerSeat,
-      didPlayerWin,
-      scores: { A: scoreA, B: scoreB },
-      prize,
-      rewards: []
-    });
-    const runPostGame = async () => {
-      await waitForReplayToFinish();
-      setShowWinnerOverlay(true);
-      if (didPlayerWin) {
-        launchCoinBurst(22);
-      }
-      const pauseMs = 2200;
-      await new Promise((resolve) => window.setTimeout(resolve, pauseMs));
-      if (playType === 'tournament') {
-        const rewards = await finalizeTournamentMatch(didPlayerWin, { p1: scoreA, p2: scoreB });
-        if (Array.isArray(rewards) && rewards.length) {
-          setMatchOutcome((prev) => (prev ? { ...prev, rewards } : prev));
-        }
-      } else {
-        goToLobby();
-      }
-    };
-    runPostGame();
-  }, [
-    finalizeTournamentMatch,
-    frameState.frameOver,
-    frameState.players?.A?.score,
-    frameState.players?.B?.score,
-    frameState.winner,
-    goToLobby,
-    isTraining,
-    launchCoinBurst,
-    localSeatRef,
-    playType,
-    stakeAmount,
-    tournamentPot,
-    waitForReplayToFinish
-  ]);
+    window.setTimeout(goToLobby, 1200);
+  }, [frameState.frameOver, frameState.winner, goToLobby, isTraining]);
 
   const applyRemoteState = useCallback(({ state, hud: incomingHud, layout }) => {
     if (state) {
@@ -12150,25 +11873,18 @@ const powerRef = useRef(hud.power);
     }
     return flagEmoji;
   }, []);
-  const playerFlag = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const paramFlag = params.get('flag');
-    if (paramFlag) return paramFlag;
-    return FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
-  }, [location.search]);
+  const playerFlag = useMemo(
+    () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
+    []
+  );
   const playerFlagLabel = useMemo(
     () => resolveFlagLabel(playerFlag),
     [playerFlag, resolveFlagLabel]
   );
-  const aiFlag = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    if (playType === 'tournament' && tournamentOpponent?.flag) {
-      return tournamentOpponent.flag;
-    }
-    const paramFlag = params.get('aiFlag');
-    if (paramFlag) return paramFlag;
-    return FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
-  }, [location.search, playType, tournamentOpponent?.flag]);
+  const aiFlag = useMemo(
+    () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
+    []
+  );
   const aiFlagLabel = useMemo(() => resolveFlagLabel(aiFlag), [aiFlag, resolveFlagLabel]);
   const aiShoot = useRef(() => {});
 
@@ -23144,68 +22860,6 @@ const powerRef = useRef(hud.power);
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
-      {showWinnerOverlay && matchOutcome && (
-        <div className="absolute inset-0 z-[75] flex items-center justify-center bg-black/70 backdrop-blur-sm px-6 text-center">
-          <div className="flex w-full max-w-lg flex-col items-center gap-4">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-full bg-amber-400/25 blur-3xl" />
-              <div className="relative flex h-28 w-28 items-center justify-center rounded-full border-4 border-amber-200 bg-white/10 shadow-[0_0_32px_rgba(251,191,36,0.5)]">
-                <img
-                  src={
-                    matchOutcome.winnerSeat === localSeat
-                      ? resolvedPlayerAvatar || '/assets/icons/profile.svg'
-                      : opponentDisplayAvatar || '/assets/icons/profile.svg'
-                  }
-                  alt="Winner avatar"
-                  className="h-24 w-24 rounded-full object-cover"
-                />
-              </div>
-            </div>
-            <div className="text-3xl font-black uppercase tracking-[0.34em] text-amber-200 drop-shadow-[0_10px_24px_rgba(0,0,0,0.65)]">
-              Winner
-            </div>
-            <div className="text-base font-semibold text-white/90">
-              {matchOutcome.didPlayerWin
-                ? 'You cleared the table!'
-                : `${opponentDisplayName} takes the frame.`}
-            </div>
-            <div className="flex items-center gap-2 rounded-full border border-amber-300/50 bg-amber-500/15 px-4 py-2 text-amber-100 shadow-[0_10px_26px_rgba(0,0,0,0.45)]">
-              <img
-                src="/assets/icons/ezgif-54c96d8a9b9236.webp"
-                alt="TPC coin"
-                className="h-7 w-7"
-              />
-              <span className="text-lg font-bold">
-                {Math.max(0, Math.round(matchOutcome.prize || 0))} TPC prize
-              </span>
-            </div>
-            {matchOutcome.rewards?.length ? (
-              <div className="w-full max-w-md rounded-2xl border border-amber-300/40 bg-slate-950/80 p-4 text-left shadow-[0_18px_36px_rgba(0,0,0,0.55)]">
-                <div className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-200">
-                  Tournament gifts unlocked
-                </div>
-                <div className="mt-2 space-y-2">
-                  {matchOutcome.rewards.map((reward) => (
-                    <div
-                      key={`${reward.type}-${reward.optionId}`}
-                      className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2 text-sm text-white"
-                    >
-                      <span className="font-semibold">{reward.label}</span>
-                      <span className="text-[11px] uppercase tracking-[0.2em] text-amber-200">
-                        New
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-white/70">
-              Showing replay and returning to lobby…
-            </div>
-          </div>
-        </div>
-      )}
-
       {replayBanner && (
         <div className="pointer-events-none absolute top-4 right-4 z-50">
           <div
@@ -24165,22 +23819,6 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     return params.get('tgId') || '';
   }, [location.search]);
-  const tournamentKeyBase = useMemo(
-    () => (tgId ? String(tgId) : 'anon'),
-    [tgId]
-  );
-  const tournamentStateKey = useMemo(
-    () => `poolRoyaleTournamentState_${tournamentKeyBase}`,
-    [tournamentKeyBase]
-  );
-  const tournamentOpponentKey = useMemo(
-    () => `poolRoyaleTournamentOpponent_${tournamentKeyBase}`,
-    [tournamentKeyBase]
-  );
-  const tournamentLastResultKey = useMemo(
-    () => `poolRoyaleLastResult_${tournamentKeyBase}`,
-    [tournamentKeyBase]
-  );
   const playerName = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return (
@@ -24209,7 +23847,6 @@ export default function PoolRoyale() {
         : 'Are you sure you want to exit the match?',
     [stakeAmount, stakeToken]
   );
-  const exitBlockRef = useRef(true);
   const confirmExit = useCallback(() => {
     return new Promise((resolve) => {
       const tg = window?.Telegram?.WebApp;
@@ -24240,13 +23877,11 @@ export default function PoolRoyale() {
   });
   useEffect(() => {
     const handleBeforeUnload = (event) => {
-      if (!exitBlockRef.current) return;
       event.preventDefault();
       event.returnValue = exitMessage;
       return exitMessage;
     };
     const handlePopState = () => {
-      if (!exitBlockRef.current) return;
       confirmExit().then((confirmed) => {
         if (!confirmed) {
           window.history.pushState(null, '', window.location.href);
@@ -24264,12 +23899,9 @@ export default function PoolRoyale() {
     };
   }, [confirmExit, exitMessage, navigate]);
   const opponentName = useMemo(() => {
-    if (playType === 'tournament' && tournamentOpponent?.name) {
-      return tournamentOpponent.name;
-    }
     const params = new URLSearchParams(location.search);
     return params.get('opponent') || '';
-  }, [location.search, playType, tournamentOpponent?.name]);
+  }, [location.search]);
   const opponentAvatar = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('opponentAvatar') || '';
