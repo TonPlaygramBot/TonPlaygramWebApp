@@ -4940,13 +4940,13 @@ const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.14; // let the cue view drop to the s
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0165; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.015; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.055;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0013;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.0011;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0009;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.0007;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5038,7 +5038,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 1.38; // pull the rail overhead broadcast he
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.024; // tighten cue camera distance so the cue ball and object ball appear larger
+const CUE_VIEW_RADIUS_RATIO = 0.0215; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -5091,6 +5091,14 @@ const AI_STROKE_VISIBLE_DURATION_MS =
   AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
 const AI_POST_SHOT_CAMERA_HOLD_MS = AI_STROKE_VISIBLE_DURATION_MS + AI_CAMERA_POST_STROKE_HOLD_MS;
+const AI_POT_MIN_QUALITY = 0.2;
+const AI_LANE_CLEARANCE_THRESHOLD = 0.75;
+const AI_LANE_BONUS_WEIGHT = 0.14;
+const AI_CUSHION_ROUTE_PENALTY = 0.26;
+const AI_CLEAR_PATH_CLEARANCE = Object.freeze({
+  uk: 1.55,
+  default: 1.85
+});
 const SHOT_CAMERA_HOLD_MS = 2000;
 const REPLAY_BANNER_VARIANTS = {
   long: ['Long pot!', 'Full-table finish!', 'Cross-table clearance!'],
@@ -19660,7 +19668,11 @@ const powerRef = useRef(hud.power);
             if (legalTargets.size === 0) legalTargets.add('RED');
           }
           const cuePos = cue.pos.clone();
-          const clearance = BALL_R * (activeVariantId === 'uk' ? 1.4 : 1.65);
+          const clearance =
+            BALL_R *
+            (activeVariantId === 'uk'
+              ? AI_CLEAR_PATH_CLEARANCE.uk
+              : AI_CLEAR_PATH_CLEARANCE.default);
           const clearanceSq = clearance * clearance;
           const ballDiameter = BALL_R * 2;
           const safetyAnchor = new THREE.Vector2(0, baulkZ - D_RADIUS * 0.5);
@@ -19739,11 +19751,11 @@ const powerRef = useRef(hud.power);
           };
           const isPlayablePlan = (plan, { allowCushion = true } = {}) => {
             if (!plan) return false;
-            const qualityOk = (plan.quality ?? 0) >= 0.12;
+            const qualityOk = (plan.quality ?? 0) >= AI_POT_MIN_QUALITY;
             if (!qualityOk) return false;
             if (!allowCushion && plan.viaCushion) return false;
             if (isAimLaneBlocked(plan)) return false;
-            if (measureLaneClearance(plan) < 0.6) return false;
+            if (measureLaneClearance(plan) < AI_LANE_CLEARANCE_THRESHOLD) return false;
             if (detectScratchRisk(plan)) return false;
             return true;
           };
@@ -20077,21 +20089,27 @@ const powerRef = useRef(hud.power);
             );
             const priorityBonus =
               priorityIndex >= 0 ? 1 - Math.min(priorityIndex * 0.18, 0.72) : 0;
-            const cushionPenalty = plan.viaCushion ? 0.18 : 0;
+            const cushionPenalty = plan.viaCushion ? AI_CUSHION_ROUTE_PENALTY : 0;
             const finishBonus =
               activeBalls.filter((ball) => ball.active && matchesTargetId(ball, plan.target))
                 .length <= 2
                 ? 0.06
                 : 0;
-            const laneBonus = Math.max(0, Math.min((laneClearance - 0.6) / 0.8, 1));
+            const laneBonus = Math.max(
+              0,
+              Math.min(
+                (laneClearance - AI_LANE_CLEARANCE_THRESHOLD) / 0.85,
+                1
+              )
+            );
             return (
-              quality * 0.48 +
+              quality * 0.52 +
               difficultyEase * 0.18 +
               pocketEase * 0.1 +
               cueEase * 0.08 +
               priorityBonus * 0.1 +
               routeEase * 0.06 +
-              laneBonus * 0.08 +
+              laneBonus * AI_LANE_BONUS_WEIGHT +
               finishBonus -
               cushionPenalty
             );
@@ -20614,24 +20632,21 @@ const powerRef = useRef(hud.power);
             suggestionAimKeyRef.current = key;
             return true;
           };
-          const preferAutoAim = autoAimRequestRef.current;
-          if (preferAutoAim) {
-            let autoDir = resolveAutoAimDirection();
-            if (!autoDir && plan?.targetBall && cue?.pos) {
-              const manualDir = new THREE.Vector2(
-                plan.targetBall.pos.x - cue.pos.x,
-                plan.targetBall.pos.y - cue.pos.y
-              );
-              if (manualDir.lengthSq() > 1e-6) {
-                autoDir = manualDir.normalize();
-              }
-            }
-            suggestionAimKeyRef.current = null;
-            if (applyAimDirection(autoDir, null)) {
-              return;
+          let autoDir = resolveAutoAimDirection();
+          if (!autoDir && plan?.targetBall && cue?.pos) {
+            const manualDir = new THREE.Vector2(
+              plan.targetBall.pos.x - cue.pos.x,
+              plan.targetBall.pos.y - cue.pos.y
+            );
+            if (manualDir.lengthSq() > 1e-6) {
+              autoDir = manualDir.normalize();
             }
           }
-          if (plan?.targetBall && plan?.viaCushion && cue?.pos) {
+          suggestionAimKeyRef.current = null;
+          if (applyAimDirection(autoDir, null)) {
+            return;
+          }
+          if (plan?.targetBall && cue?.pos) {
             const directDir = new THREE.Vector2(
               plan.targetBall.pos.x - cue.pos.x,
               plan.targetBall.pos.y - cue.pos.y
