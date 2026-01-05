@@ -10,6 +10,7 @@ describe('PoolRoyaleRules', () => {
     expect(initialMeta?.variant).toBe('uk');
     expect(initialMeta?.hud?.next).toBe('open table');
     expect(initialMeta?.state?.isOpenTable).toBe(true);
+    expect(initialMeta?.breakInProgress).toBe(true);
 
     const assignEvents: ShotEvent[] = [
       { type: 'HIT', firstContact: 'red', ballId: 'RED' },
@@ -28,6 +29,8 @@ describe('PoolRoyaleRules', () => {
     expect(assigned.ballOn).toEqual(['RED']);
     expect(assignedMeta?.hud?.next).toBe('red');
     expect(assignedMeta?.hud?.phase).toBe('groups');
+    expect(assignedMeta?.breakInProgress).toBe(false);
+    expect(assigned.currentBreak).toBe(1);
 
     const foulEvents: ShotEvent[] = [
       { type: 'HIT', firstContact: 'black', ballId: 'BLACK' },
@@ -71,6 +74,7 @@ describe('PoolRoyaleRules', () => {
     expect(cleared.ballOn).toEqual(['BALL_3']);
     expect(clearedMeta?.hud?.next).toBe('ball 3');
     expect(cleared.players.A.score).toBe(3);
+    expect(cleared.currentBreak).toBe(3);
 
     const scratchEvents: ShotEvent[] = [
       { type: 'HIT', firstContact: 3, ballId: 3 },
@@ -85,6 +89,7 @@ describe('PoolRoyaleRules', () => {
     expect(scratch.activePlayer).toBe('B');
     expect(scratch.ballOn).toEqual(['BALL_3']);
     expect(scratchMeta?.hud?.phase).toBe('rotation');
+    expect(scratch.currentBreak).toBe(0);
   });
 
   test('Nine-ball enforces lowest-ball contact and updates HUD after recovery', () => {
@@ -119,5 +124,6 @@ describe('PoolRoyaleRules', () => {
     expect(recoveryMeta?.state?.ballInHand).toBe(false);
     expect(recoveryState.ballOn).toEqual(['BALL_2']);
     expect(recoveryMeta?.hud?.next).toBe('ball 2');
+    expect(recoveryState.currentBreak).toBe(1);
   });
 });

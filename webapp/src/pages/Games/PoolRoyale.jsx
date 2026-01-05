@@ -18949,7 +18949,7 @@ const powerRef = useRef(hud.power);
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
-          const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
+          const isBreakShot = isBreakInProgress(frameStateCurrent);
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = aimDir
@@ -20314,7 +20314,7 @@ const powerRef = useRef(hud.power);
             Math.max(AI_MIN_AIM_PREVIEW_MS, windowDuration - AI_MIN_AIM_PREVIEW_MS)
           );
           const deadline = started + thinkingBudget;
-          const think = () => {
+            const think = () => {
             if (shooting || hudRef.current?.turn !== 1) {
               setAiPlanning(null);
               aiPlanRef.current = null;
@@ -20345,6 +20345,13 @@ const powerRef = useRef(hud.power);
             }
           };
           think();
+        };
+        const isBreakInProgress = (frameSnapshot) => {
+          const meta = frameSnapshot?.meta;
+          if (meta && typeof meta === 'object' && 'breakInProgress' in meta) {
+            return Boolean(meta.breakInProgress);
+          }
+          return (frameSnapshot?.currentBreak ?? 0) === 0;
         };
         const resolveAutoAimDirection = () => {
           if (!cue?.active) return null;
@@ -20400,7 +20407,7 @@ const powerRef = useRef(hud.power);
             }, null);
 
           let targetBall = null;
-          if ((frameSnapshot?.currentBreak ?? 0) === 0) {
+          if (isBreakInProgress(frameSnapshot)) {
             targetBall = findRackApex();
           }
 
