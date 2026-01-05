@@ -1067,13 +1067,13 @@ const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up ca
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
-const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.65;
-const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.2;
+const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.92;
+const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.5;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
 const MAX_POWER_CAMERA_HOLD_MS = 2000;
 const MAX_POWER_SPIN_LATERAL_THROW = BALL_R * 0.42; // let max-power jumps inherit a strong sideways release from active side spin
-const MAX_POWER_SPIN_LIFT_BONUS = BALL_R * 0.28; // spin adds extra hop height when the cue ball is driven at full power
+const MAX_POWER_SPIN_LIFT_BONUS = BALL_R * 0.34; // spin adds extra hop height when the cue ball is driven at full power
 const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 1.015; // widen capture slightly so clean entries are honoured
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
@@ -1243,15 +1243,16 @@ const PRE_IMPACT_SPIN_DRIFT = 0.1; // reapply stored sideways swerve once the cu
 const SHOT_POWER_REDUCTION = 0.85;
 const SHOT_FORCE_BOOST =
   1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * 1.15;
+const SHOT_POWER_SCALE = 1.15; // globally raise shot output so every stroke carries 15% more pace
 const SHOT_BREAK_MULTIPLIER = 1.5;
-const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
+const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST * SHOT_POWER_SCALE;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
 const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
-const CUE_STRIKE_VOLUME_MULTIPLIER = 1.5; // boost cue strikes to 150% loudness for clearer feedback
+const CUE_STRIKE_VOLUME_MULTIPLIER = 1; // keep cue strikes at 100% loudness for natural feedback
 const CUE_STRIKE_MAX_GAIN = 9; // allow the louder cue strike to pass through without clipping to the previous cap
 const POCKET_SOUND_TAIL = 1;
 // Pool Royale now raises the stance; extend the legs so the playfield sits higher
@@ -11635,11 +11636,8 @@ const powerRef = useRef(hud.power);
     const power = clamp(vol, 0, 1);
     const baseGain =
       volumeRef.current *
-      1.2 *
-      1.5 *
-      1.5 *
-      CUE_STRIKE_VOLUME_MULTIPLIER * // amplify cue strike playback for a clearer hit
-      (0.35 + power * 0.75);
+      CUE_STRIKE_VOLUME_MULTIPLIER *
+      (0.4 + power * 0.6);
     const scaled = clamp(baseGain, 0, CUE_STRIKE_MAX_GAIN);
     if (scaled <= 0 || !Number.isFinite(buffer.duration)) return;
     ctx.resume().catch(() => {});
@@ -19610,18 +19608,23 @@ const powerRef = useRef(hud.power);
           const cueEase = Math.max(0, 1 - cueDist / Math.max(PLAY_W, PLAY_H));
           return pocketEase * 0.65 + cueEase * 0.35;
         };
-        const pickPreferredBall = (targets, candidateBalls, cuePos) => {
+        const pickPreferredBall = (targets, candidateBalls, cuePos, { requireOpenLane = false } = {}) => {
           for (const targetId of targets) {
             const matches = candidateBalls.filter((ball) => matchesTargetId(ball, targetId));
             if (matches.length > 0) {
               return matches.reduce((best, ball) => {
-                if (!best) return ball;
+                const laneOpen = isDirectLaneOpen(ball);
+                if (requireOpenLane && !laneOpen) return best;
+                if (!best) return laneOpen || !requireOpenLane ? ball : null;
+                const bestLane = isDirectLaneOpen(best);
+                if (requireOpenLane && !bestLane && laneOpen) return ball;
+                if (requireOpenLane && !bestLane && !laneOpen) return best;
                 const bestScore =
                   scoreBallForAim(best, cuePos) *
-                  (isDirectLaneOpen(best) ? 1 : 0.35);
+                  (bestLane ? 1 : 0.35);
                 const score =
                   scoreBallForAim(ball, cuePos) *
-                  (isDirectLaneOpen(ball) ? 1 : 0.35);
+                  (laneOpen ? 1 : 0.35);
                 return score > bestScore ? ball : best;
               }, null);
             }
@@ -19742,6 +19745,7 @@ const powerRef = useRef(hud.power);
             const qualityOk = (plan.quality ?? 0) >= 0.12;
             if (!qualityOk) return false;
             if (!allowCushion && plan.viaCushion) return false;
+            if (plan.type === 'pot' && (plan.pocketView ?? 0) < 0.25) return false;
             if (isAimLaneBlocked(plan)) return false;
             if (measureLaneClearance(plan) < 0.6) return false;
             if (detectScratchRisk(plan)) return false;
@@ -19795,6 +19799,24 @@ const powerRef = useRef(hud.power);
             return routes[0];
           };
           const centers = pocketEntranceCenters();
+          const computePocketViewScore = (pocketCenter, targetPos, mouthWidth) => {
+            if (!pocketCenter || !targetPos) return 0;
+            const approach = pocketCenter.clone().sub(targetPos);
+            const approachLen = approach.length();
+            if (approachLen < 1e-6) return 0;
+            const mouthRadius = Math.max(BALL_R, mouthWidth * 0.5);
+            const entryNormal = pocketCenter
+              .clone()
+              .normalize()
+              .multiplyScalar(-1);
+            const alignment = Math.max(
+              0,
+              approach.clone().normalize().dot(entryNormal)
+            );
+            const viewAngle = Math.atan2(mouthRadius, approachLen);
+            const widthScore = Math.min(viewAngle / (Math.PI / 2), 1);
+            return THREE.MathUtils.clamp(alignment * 0.6 + widthScore * 0.4, 0, 1);
+          };
           const potShots = [];
           const safetyShots = [];
           let fallbackPlan = null;
@@ -19821,6 +19843,12 @@ const powerRef = useRef(hud.power);
                 0.1,
                 toPocketDir.clone().normalize().dot(idealEntryDir)
               );
+              const pocketView = computePocketViewScore(
+                pocketCenter,
+                targetBall.pos,
+                pocketMouth
+              );
+              if (pocketView < 0.25) continue;
               const entranceFavor = THREE.MathUtils.clamp(
                 entryAlignment * (pocketMouth / POCKET_CORNER_MOUTH),
                 0.2,
@@ -19869,7 +19897,8 @@ const powerRef = useRef(hud.power);
                 cueToTarget: cueDist,
                 targetToPocket: toPocketLen,
                 railNormal: cushionAid?.railNormal ?? null,
-                viaCushion: Boolean(cushionAid)
+                viaCushion: Boolean(cushionAid),
+                pocketView
               };
               const leaveProbe = targetBall.pos
                 .clone()
@@ -19893,11 +19922,12 @@ const powerRef = useRef(hud.power);
               );
               const cushionPenalty = cushionAid ? 0.18 : 0;
               plan.quality = THREE.MathUtils.clamp(
-                0.32 * entryAlignment +
-                  0.24 * (1 - cutSeverity) +
+                0.3 * entryAlignment +
+                  0.22 * (1 - cutSeverity) +
                   0.16 * openLaneNorm +
-                  0.14 * (1 - travelPenalty) +
-                  0.14 * viewScore -
+                  0.12 * (1 - travelPenalty) +
+                  0.12 * viewScore +
+                  0.08 * pocketView -
                   cushionPenalty,
                 0,
                 1
@@ -19956,16 +19986,19 @@ const powerRef = useRef(hud.power);
             if (targetBall) {
               const pocketCenter = centers
                 .slice()
-                .sort(
-                  (a, b) =>
-                    targetBall.pos.distanceToSquared(a) - targetBall.pos.distanceToSquared(b)
-                )[0];
-              if (pocketCenter) {
-                const toPocketDir = pocketCenter.clone().sub(targetBall.pos).normalize();
-                const ghost = targetBall.pos
-                  .clone()
-                  .sub(toPocketDir.clone().multiplyScalar(ballDiameter));
-                const cueVec = ghost.clone().sub(cuePos);
+              .sort(
+                (a, b) =>
+                  targetBall.pos.distanceToSquared(a) - targetBall.pos.distanceToSquared(b)
+              )[0];
+            if (pocketCenter) {
+              const pocketIndex = centers.indexOf(pocketCenter);
+              const pocketMouth =
+                pocketIndex >= 0 && pocketIndex < 4 ? POCKET_CORNER_MOUTH : POCKET_SIDE_MOUTH;
+              const toPocketDir = pocketCenter.clone().sub(targetBall.pos).normalize();
+              const ghost = targetBall.pos
+                .clone()
+                .sub(toPocketDir.clone().multiplyScalar(ballDiameter));
+              const cueVec = ghost.clone().sub(cuePos);
                 if (cueVec.lengthSq() < 1e-6) cueVec.set(0, 1);
                 const aimDir = cueVec.clone().normalize();
                 const cueDist = cueVec.length();
@@ -19991,11 +20024,18 @@ const powerRef = useRef(hud.power);
                 );
                 const viewAngle = Math.atan2(ballDiameter, toPocket);
                 const viewScore = Math.min(viewAngle / (Math.PI / 2), 1);
+                const pocketView = computePocketViewScore(
+                  pocketCenter,
+                  targetBall.pos,
+                  pocketMouth
+                );
+                if (pocketView < 0.25) continue;
                 const quality = THREE.MathUtils.clamp(
                   0.32 * entryAlignment +
                     0.24 * (1 - cutSeverity) +
                     0.18 * (1 - travelPenalty) +
                     0.14 * viewScore +
+                    0.12 * pocketView +
                     0.12,
                   0,
                   1
@@ -20013,6 +20053,7 @@ const powerRef = useRef(hud.power);
                   targetToPocket: toPocket,
                   railNormal: null,
                   viaCushion: false,
+                  pocketView,
                   quality,
                   spin: computePlanSpin(
                     {
@@ -20028,6 +20069,7 @@ const powerRef = useRef(hud.power);
                       targetToPocket: toPocket,
                       railNormal: null,
                       viaCushion: false,
+                      pocketView,
                       quality
                     },
                     state
@@ -20051,6 +20093,7 @@ const powerRef = useRef(hud.power);
             if (isAimLaneBlocked(plan)) return -Infinity;
             const laneClearance = measureLaneClearance(plan);
             if (laneClearance < 0.5) return -Infinity;
+            if ((plan.pocketView ?? 0) < 0.25) return -Infinity;
             const difficultyNorm = Math.max(1, PLAY_W + PLAY_H);
             const difficulty = Number.isFinite(plan.difficulty)
               ? plan.difficulty
@@ -20084,16 +20127,21 @@ const powerRef = useRef(hud.power);
                 ? 0.06
                 : 0;
             const laneBonus = Math.max(0, Math.min((laneClearance - 0.6) / 0.8, 1));
+            const pocketView = THREE.MathUtils.clamp(plan.pocketView ?? 0.5, 0, 1);
+            const pocketViewBonus = Math.max(0, pocketView - 0.35);
+            const pocketViewPenalty = pocketView < 0.35 ? (0.35 - pocketView) * 0.3 : 0;
             return (
-              quality * 0.48 +
-              difficultyEase * 0.18 +
+              quality * 0.44 +
+              difficultyEase * 0.16 +
               pocketEase * 0.1 +
               cueEase * 0.08 +
-              priorityBonus * 0.1 +
+              priorityBonus * 0.08 +
               routeEase * 0.06 +
               laneBonus * 0.08 +
-              finishBonus -
-              cushionPenalty
+              finishBonus +
+              pocketViewBonus * 0.12 -
+              cushionPenalty -
+              pocketViewPenalty
             );
           };
           const scoredPots = potShots
@@ -20499,10 +20547,10 @@ const powerRef = useRef(hud.power);
               if (!best) return ball;
               const bestScore =
                 scoreBallForAim(best, cuePos) *
-                (isDirectLaneOpen(best) ? 1 : 0.35);
+                (isDirectLaneOpen(best) ? 1 : 0.1);
               const score =
                 scoreBallForAim(ball, cuePos) *
-                (isDirectLaneOpen(ball) ? 1 : 0.35);
+                (isDirectLaneOpen(ball) ? 1 : 0.1);
               return score > bestScore ? ball : best;
             }, null);
           const pickDirectPreferredBall = (targets) => {
@@ -20542,7 +20590,7 @@ const powerRef = useRef(hud.power);
           if (!targetBall && combinedTargets.length > 0) {
             targetBall =
               pickDirectPreferredBall(combinedTargets) ||
-              pickPreferredBall(combinedTargets, activeBalls, cuePos);
+              pickPreferredBall(combinedTargets, activeBalls, cuePos, { requireOpenLane: true });
           }
 
           if (!targetBall && activeVariantId === 'uk') {
@@ -20558,12 +20606,12 @@ const powerRef = useRef(hud.power);
             if (preferredColours.length > 0) {
               targetBall =
                 pickDirectPreferredBall(preferredColours) ||
-                pickPreferredBall(preferredColours, activeBalls, cuePos);
+                pickPreferredBall(preferredColours, activeBalls, cuePos, { requireOpenLane: true });
             }
           }
 
           if (!targetBall) {
-            targetBall = pickPreferredBall(['BLACK'], activeBalls, cuePos);
+            targetBall = pickPreferredBall(['BLACK'], activeBalls, cuePos, { requireOpenLane: true });
           }
 
           if (!targetBall) {
@@ -20572,7 +20620,8 @@ const powerRef = useRef(hud.power);
                 .map((ball) => toBallColorId(ball.id))
                 .filter((entry) => entry && isBallTargetId(entry)),
               activeBalls,
-              cuePos
+              cuePos,
+              { requireOpenLane: true }
             );
           }
 
@@ -20583,7 +20632,15 @@ const powerRef = useRef(hud.power);
           if (targetBall && !isDirectLaneOpen(targetBall)) {
             const rerouted =
               pickDirectPreferredBall(combinedTargets) ||
-              pickPreferredBall(combinedTargets, activeBalls, cuePos) ||
+              pickPreferredBall(combinedTargets, activeBalls, cuePos, { requireOpenLane: true }) ||
+              activeBalls
+                .filter((ball) => isDirectLaneOpen(ball))
+                .reduce((best, ball) => {
+                  if (!best) return ball;
+                  return scoreBallForAim(ball, cuePos) > scoreBallForAim(best, cuePos)
+                    ? ball
+                    : best;
+                }, null) ||
               pickFallbackBall();
             if (rerouted) targetBall = rerouted;
           }
