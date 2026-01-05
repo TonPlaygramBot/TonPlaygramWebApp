@@ -55,7 +55,6 @@ type PoolMeta =
       state: UkSerializedState;
       totals: { blue: number; red: number };
       hud: HudInfo;
-      breakInProgress?: boolean;
     }
   | {
       variant: 'american';
@@ -246,8 +245,7 @@ export class PoolRoyaleRules {
           variant: 'uk',
           state: snapshot,
           totals: { blue: UK_TOTAL_PER_COLOUR, red: UK_TOTAL_PER_COLOUR },
-          hud,
-          breakInProgress: true
+          hud
         } satisfies PoolMeta;
         return base;
       }
@@ -366,14 +364,6 @@ export class PoolRoyaleRules {
       phase: snapshot.isOpenTable ? 'open' : 'groups',
       scores: playerScores
     };
-    const shooter = state.activePlayer === 'B' ? 'B' : 'A';
-    const scorerDelta =
-      playerScores[shooter] - (state.players?.[shooter]?.score ?? 0);
-    const retainsTable = game.state.currentPlayer === shooter;
-    const currentBreak =
-      !shotResult.foul && retainsTable && scorerDelta > 0 && !game.state.frameOver
-        ? Math.max(0, state.currentBreak ?? 0) + scorerDelta
-        : 0;
     const nextState: FrameState = {
       ...state,
       activePlayer: game.state.currentPlayer,
@@ -381,7 +371,6 @@ export class PoolRoyaleRules {
         A: { ...state.players.A, score: playerScores.A },
         B: { ...state.players.B, score: playerScores.B }
       },
-      currentBreak,
       ballOn,
       frameOver: game.state.frameOver,
       winner: game.state.winner ?? undefined,
@@ -395,8 +384,7 @@ export class PoolRoyaleRules {
         variant: 'uk',
         state: snapshot,
         totals,
-        hud,
-        breakInProgress: false
+        hud
       } satisfies PoolMeta
     };
     return nextState;
@@ -491,14 +479,6 @@ export class PoolRoyaleRules {
       else if (snapshot.scores.B > snapshot.scores.A) winner = 'B';
       else winner = 'TIE';
     }
-    const shooter = state.activePlayer === 'B' ? 'B' : 'A';
-    const scorerDelta =
-      snapshot.scores[shooter] - (state.players?.[shooter]?.score ?? 0);
-    const retainsTable = game.state.currentPlayer === shooter;
-    const currentBreak =
-      !result.foul && retainsTable && scorerDelta > 0 && !frameOver
-        ? Math.max(0, state.currentBreak ?? 0) + scorerDelta
-        : 0;
     const nextState: FrameState = {
       ...state,
       activePlayer: game.state.currentPlayer,
@@ -506,7 +486,6 @@ export class PoolRoyaleRules {
         A: { ...state.players.A, score: snapshot.scores.A },
         B: { ...state.players.B, score: snapshot.scores.B }
       },
-      currentBreak,
       ballOn: lowest != null && !frameOver ? [`BALL_${lowest}`] : [],
       frameOver,
       winner,
@@ -565,13 +544,6 @@ export class PoolRoyaleRules {
       phase: snapshot.gameOver ? 'complete' : 'run',
       scores: { A: 0, B: 0 }
     };
-    const shooter = state.activePlayer === 'B' ? 'B' : 'A';
-    const retainsTable = game.state.currentPlayer === shooter;
-    const scoredBalls = result.foul ? 0 : potted.filter((id) => id !== 0).length;
-    const currentBreak =
-      retainsTable && scoredBalls > 0 && !game.state.gameOver
-        ? Math.max(0, state.currentBreak ?? 0) + scoredBalls
-        : 0;
     const nextState: FrameState = {
       ...state,
       activePlayer: game.state.currentPlayer,
@@ -579,7 +551,6 @@ export class PoolRoyaleRules {
         A: { ...state.players.A, score: 0 },
         B: { ...state.players.B, score: 0 }
       },
-      currentBreak,
       ballOn: lowest != null && !snapshot.gameOver ? [`BALL_${lowest}`] : [],
       frameOver: game.state.gameOver,
       winner: game.state.winner ?? undefined,
