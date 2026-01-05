@@ -1117,7 +1117,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 const SHOT_POWER_REDUCTION = 0.85;
 const SHOT_POWER_BOOST = 1.25;
-const SHOT_POWER_MULTIPLIER = 1.3; // raise overall cue strike strength by 30%
+const SHOT_POWER_MULTIPLIER = 1.3 * 1.15; // raise overall cue strike strength by 30% and add a further 15% punch for max-power jumps
 const SHOT_FORCE_BOOST =
   1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * SHOT_POWER_BOOST * SHOT_POWER_MULTIPLIER;
 const SHOT_BREAK_MULTIPLIER = 1.5;
@@ -4166,10 +4166,10 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.26; // halt the downward sweep a touch earlier so the lowest angle stays just above the cue
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.019; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0165; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.085;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.072;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0025;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
@@ -4178,10 +4178,10 @@ const BROADCAST_MARGIN_WIDTH = BALL_R * 10;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const CAMERA_ZOOM_PROFILES = Object.freeze({
-  default: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 0.985 }),
-  nearLandscape: Object.freeze({ cue: 0.88, broadcast: 0.93, margin: 0.985 }),
-  portrait: Object.freeze({ cue: 0.86, broadcast: 0.91, margin: 0.975 }),
-  ultraPortrait: Object.freeze({ cue: 0.84, broadcast: 0.9, margin: 0.97 })
+  default: Object.freeze({ cue: 0.86, broadcast: 0.92, margin: 0.98 }),
+  nearLandscape: Object.freeze({ cue: 0.84, broadcast: 0.91, margin: 0.98 }),
+  portrait: Object.freeze({ cue: 0.82, broadcast: 0.89, margin: 0.97 }),
+  ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 0.88, margin: 0.965 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -5185,13 +5185,21 @@ function applySpinImpulse(ball, scale = 1, contactNormal = null, impactSpeed = n
   }
   const swerveScale = 0.65 + Math.min(speed, 8) * 0.12;
   const liftScale = 0.35 + Math.min(speed, 6) * 0.08;
+  const powerHopBoost =
+    ball?.id === 'cue'
+      ? 1 + Math.max(0, lastShotPower - 0.85) * 0.5
+      : 1;
   const lateralKick = sideSpin * SPIN_STRENGTH * swerveScale * appliedScale;
-  const forwardKick = verticalSpin * SPIN_STRENGTH * liftScale * appliedScale * 0.5;
+  const forwardKick = verticalSpin * SPIN_STRENGTH * liftScale * appliedScale * 0.5 * powerHopBoost;
+  const hopAssist =
+    ball?.id === 'cue'
+      ? Math.max(0, lastShotPower - 0.9) * SPIN_STRENGTH * 0.4
+      : 0;
   if (Math.abs(lateralKick) > 1e-8) {
     ball.vel.addScaledVector(lateral, lateralKick);
   }
-  if (Math.abs(forwardKick) > 1e-8) {
-    ball.vel.addScaledVector(forward, forwardKick);
+  if (Math.abs(forwardKick) > 1e-8 || hopAssist > 0) {
+    ball.vel.addScaledVector(forward, forwardKick + hopAssist);
   }
   if (contactNormal && contactNormal.lengthSq() > 1e-8) {
     TMP_VEC2_NORMAL.copy(contactNormal).normalize();
@@ -9568,7 +9576,7 @@ export function PoolRoyaleGame({
     const ctx = audioContextRef.current;
     const buffer = audioBuffersRef.current.cue;
     if (!ctx || !buffer || muteRef.current) return;
-    const scaled = clamp(vol * volumeRef.current * 1.5, 0, 1);
+    const scaled = clamp(vol * volumeRef.current, 0, 1);
     if (scaled <= 0) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -14895,6 +14903,7 @@ export function PoolRoyaleGame({
               )
               .filter(Boolean)
           );
+          const isPlayerTurn = hudRef.current?.turn === 0;
           if (legalTargets.size === 0) {
             if (activeVariantId === 'american' || activeVariantId === '9ball') {
               const lowestActive = activeBalls
@@ -15014,6 +15023,15 @@ export function PoolRoyaleGame({
               const directGhostClear = isPathClear(cuePos, ghost, ignore);
               let cueVec = ghost.clone().sub(cuePos);
               let cueDist = cueVec.length();
+              const laneClearance = clearanceMargin(
+                cuePos,
+                ghost,
+                activeBalls,
+                ignore,
+                BALL_R,
+                1.2
+              );
+              if (laneClearance < 0.62) continue;
               let cushionAid = null;
               if (!directGhostClear) {
                 if (!directClear) {
@@ -15038,6 +15056,7 @@ export function PoolRoyaleGame({
               const cushionTax = cushionAid ? BALL_R * 30 + cushionAid.totalDist * 0.08 : 0;
               const baseDifficulty =
                 cueDist + toPocketLen * 1.15 + cutAngle * BALL_R * 40 + cushionTax;
+              const entranceEase = Math.max(entranceFavor * laneClearance, entranceFavor);
               const plan = {
                 type: 'pot',
                 aimDir,
@@ -15046,11 +15065,12 @@ export function PoolRoyaleGame({
                 targetBall,
                 pocketId: POCKET_IDS[i],
                 pocketCenter: pocketCenter.clone(),
-                difficulty: baseDifficulty / entranceFavor,
+                difficulty: baseDifficulty / Math.max(entranceEase, 0.25),
                 cueToTarget: cueDist,
                 targetToPocket: toPocketLen,
                 railNormal: cushionAid?.railNormal ?? null,
-                viaCushion: Boolean(cushionAid)
+                viaCushion: Boolean(cushionAid),
+                laneClearance
               };
               plan.spin = computePlanSpin(plan, state);
               potShots.push(plan);
@@ -15152,7 +15172,35 @@ export function PoolRoyaleGame({
           if (!potShots.length && !safetyShots.length && fallbackPlan) {
             safetyShots.push(fallbackPlan);
           }
-          const bestPot = potShots[0] ?? null;
+          const directPotShots = potShots.filter((shot) => !shot.viaCushion);
+          let bestPot = directPotShots[0] ?? potShots[0] ?? null;
+          if (isPlayerTurn && (!bestPot || bestPot.viaCushion)) {
+            const nearestBall = activeBalls
+              .filter((ball) => ball !== cue && legalTargets.has(toBallColorId(ball.id)))
+              .sort(
+                (a, b) => cuePos.distanceToSquared(a.pos) - cuePos.distanceToSquared(b.pos)
+              )[0];
+            if (nearestBall) {
+              const cueVec = nearestBall.pos.clone().sub(cuePos);
+              const aimDir = cueVec.lengthSq() > 1e-6 ? cueVec.clone().normalize() : new THREE.Vector2(0, 1);
+              bestPot = {
+                type: 'pot',
+                aimDir,
+                power: computePowerFromDistance(cueVec.length()),
+                target: toBallColorId(nearestBall.id),
+                targetBall: nearestBall,
+                pocketId: null,
+                pocketCenter: null,
+                difficulty: cueVec.length(),
+                cueToTarget: cueVec.length(),
+                targetToPocket: Infinity,
+                railNormal: null,
+                viaCushion: false,
+                laneClearance: 1,
+                spin: { x: 0, y: -0.05 }
+              };
+            }
+          }
           const bestSafety =
             activeVariantId === 'uk' && bestPot ? null : safetyShots[0] ?? null;
           return {
