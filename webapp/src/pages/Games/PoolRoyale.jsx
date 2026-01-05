@@ -1152,16 +1152,19 @@ const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to mat
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior wooden rails straight with no rounding
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
-const POCKET_DROP_ANIMATION_MS = 420;
-const POCKET_DROP_MIN_MS = Math.round(POCKET_DROP_ANIMATION_MS * 0.57);
-const POCKET_DROP_MAX_MS = Math.round(POCKET_DROP_ANIMATION_MS * 1.285);
+const POCKET_DROP_GRAVITY = 42; // steeper gravity for a natural fall into the leather cradle
+const POCKET_DROP_ENTRY_VELOCITY = -0.6; // initial downward impulse before gravity takes over
+const POCKET_DROP_REST_HOLD_MS = 360; // keep the ball visible on the strap briefly before hiding it
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_DROP_DEPTH = TABLE.THICK * 0.9;
-const POCKET_DROP_SCALE = 0.55;
+const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall slightly above the previous floor so it rests on the strap
+const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
+const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(12); // slight angle so potted balls settle against the strap
+const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
+const POCKET_LEATHER_TEXTURE_SCALE = 1.6;
+const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
-const POCKET_DROP_TOP_SCALE = 0.82;
-const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_TOP_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
@@ -2121,32 +2124,94 @@ const applySnookerStyleWoodPreset = (materials, finishId) => {
   });
 };
 
-const createPocketMaterials = () => ({
-  pocketJaw: new THREE.MeshPhysicalMaterial({
-    color: 0x6d7177,
-    metalness: 0.18,
-    roughness: 0.42,
-    clearcoat: 0.34,
-    clearcoatRoughness: 0.26,
-    sheen: 0.48,
-    sheenColor: new THREE.Color(0xa4aab4),
-    sheenRoughness: 0.44,
-    envMapIntensity: 0.46
-  }),
-  pocketRim: new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(0x2d7f4b),
-    metalness: 0,
-    roughness: 1,
-    clearcoat: 0,
-    clearcoatRoughness: 1,
-    sheen: 0,
-    sheenColor: new THREE.Color(0x2d7f4b),
-    sheenRoughness: 1,
-    envMapIntensity: 0,
-    reflectivity: 0,
-    emissive: new THREE.Color(0x2d7f4b).multiplyScalar(0.02)
-  })
-});
+const pocketLeatherTextureCache = {
+  map: null,
+  normal: null,
+  roughness: null,
+  loading: false
+};
+
+const applyPocketLeatherTextureDefaults = (texture, { isColor = false } = {}) => {
+  if (!texture) return texture;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(POCKET_LEATHER_TEXTURE_SCALE, POCKET_LEATHER_TEXTURE_SCALE);
+  texture.anisotropy = resolveTextureAnisotropy(POCKET_LEATHER_TEXTURE_ANISOTROPY);
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  if (isColor) {
+    applySRGBColorSpace(texture);
+  }
+  texture.needsUpdate = true;
+  return texture;
+};
+
+const ensurePocketLeatherTextures = () => {
+  if (pocketLeatherTextureCache.loading || pocketLeatherTextureCache.map) {
+    return pocketLeatherTextureCache;
+  }
+  pocketLeatherTextureCache.loading = true;
+  if (typeof window === 'undefined') {
+    pocketLeatherTextureCache.loading = false;
+    return pocketLeatherTextureCache;
+  }
+  const loader = new THREE.TextureLoader();
+  loader.setCrossOrigin('anonymous');
+  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${POCKET_LEATHER_TEXTURE_ID}/${POCKET_LEATHER_TEXTURE_ID}_2K`;
+  const map = loader.load(
+    `${base}_Color.jpg`,
+    (texture) => applyPocketLeatherTextureDefaults(texture, { isColor: true })
+  );
+  const normal = loader.load(
+    `${base}_NormalGL.jpg`,
+    (texture) => applyPocketLeatherTextureDefaults(texture)
+  );
+  const roughness = loader.load(
+    `${base}_Roughness.jpg`,
+    (texture) => applyPocketLeatherTextureDefaults(texture)
+  );
+  pocketLeatherTextureCache.map = applyPocketLeatherTextureDefaults(map, { isColor: true });
+  pocketLeatherTextureCache.normal = applyPocketLeatherTextureDefaults(normal);
+  pocketLeatherTextureCache.roughness = applyPocketLeatherTextureDefaults(roughness);
+  pocketLeatherTextureCache.loading = false;
+  return pocketLeatherTextureCache;
+};
+
+const createPocketMaterials = () => {
+  const leather = ensurePocketLeatherTextures();
+  const jawBaseColor = new THREE.Color(0x5a3b24);
+  const jawSheenColor = new THREE.Color(0x3b2414);
+  const rimColor = new THREE.Color(0x2f1b10);
+  const pocketJaw = new THREE.MeshPhysicalMaterial({
+    color: jawBaseColor,
+    metalness: 0.06,
+    roughness: 0.82,
+    clearcoat: 0.18,
+    clearcoatRoughness: 0.64,
+    sheen: 0.36,
+    sheenColor: jawSheenColor,
+    sheenRoughness: 0.5,
+    envMapIntensity: 0.46,
+    map: leather.map ?? null,
+    normalMap: leather.normal ?? null,
+    roughnessMap: leather.roughness ?? null
+  });
+  const pocketRim = new THREE.MeshPhysicalMaterial({
+    color: rimColor,
+    metalness: 0.02,
+    roughness: 0.94,
+    clearcoat: 0.08,
+    clearcoatRoughness: 0.7,
+    sheen: 0.12,
+    sheenColor: rimColor.clone().offsetHSL(0, 0, 0.06),
+    envMapIntensity: 0.14,
+    emissive: rimColor.clone().multiplyScalar(0.04)
+  });
+  applyPocketLeatherTextureDefaults(pocketJaw.map, { isColor: true });
+  applyPocketLeatherTextureDefaults(pocketJaw.normalMap);
+  applyPocketLeatherTextureDefaults(pocketJaw.roughnessMap);
+  return { pocketJaw, pocketRim };
+};
 
 const createStandardWoodFinish = ({
   id,
@@ -5598,6 +5663,14 @@ const pocketEntranceCenters = () =>
     const entranceOffset = mouthRadius * 0.6;
     return center.clone().add(towardField.multiplyScalar(entranceOffset));
   });
+const resolvePocketHolderDirection = (center) => {
+  const absX = Math.abs(center?.x ?? 0);
+  const absZ = Math.abs(center?.y ?? 0);
+  if (absX >= absZ) {
+    return new THREE.Vector3(Math.sign(center?.x || 1), 0, 0);
+  }
+  return new THREE.Vector3(0, 0, Math.sign(center?.y || 1));
+};
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
   TL: 'Top Left',
@@ -7135,16 +7208,15 @@ function Table3D(
     new THREE.Vector2(POCKET_BOTTOM_R * 0.62, -POCKET_NET_DEPTH * 0.98)
   ];
   const pocketNetGeo = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
-  const pocketGuideMaterial = new THREE.MeshStandardMaterial({
-    color: 0xe6e6e6,
-    metalness: 0.9,
-    roughness: 0.16
-  });
+  const pocketGuideMaterial = trimMat;
   const pocketGuideRadius = BALL_R * 0.09;
   const pocketGuideLength = POCKET_NET_DEPTH * 1.35;
   const pocketGuideDrop = BALL_R * 0.28;
   const pocketGuideSpread = BALL_R * 0.32;
   const pocketGuideRingRadius = BALL_R * 0.24;
+  const pocketStrapLength = pocketGuideLength * 0.62;
+  const pocketStrapWidth = BALL_R * 1.35;
+  const pocketStrapThickness = BALL_R * 0.18;
   const pocketMeshes = [];
   pocketCenters().forEach((p, index) => {
     const isMiddlePocket = index >= 4;
@@ -7171,15 +7243,17 @@ function Table3D(
 
     // Add chrome cradle rails and holders beneath the pocket net to catch potted balls.
     const netBottomY = net.position.y - POCKET_NET_DEPTH * 0.96;
-    const outwardDir = new THREE.Vector3(p.x, 0, p.y).normalize();
+    const outwardDir = resolvePocketHolderDirection(p);
     const sideDir = new THREE.Vector3().crossVectors(outwardDir, new THREE.Vector3(0, 1, 0)).normalize();
+    const strapDir = outwardDir.clone().setY(-Math.tan(POCKET_HOLDER_TILT_RAD)).normalize();
     for (let i = 0; i < 3; i += 1) {
       const lateralOffset = (i - 1) * pocketGuideSpread;
       const start = new THREE.Vector3(p.x, netBottomY, p.y).addScaledVector(sideDir, lateralOffset);
       const end = start
         .clone()
         .addScaledVector(outwardDir, pocketGuideLength)
-        .add(new THREE.Vector3(0, -pocketGuideDrop, 0));
+        .add(new THREE.Vector3(0, -pocketGuideDrop, 0))
+        .add(new THREE.Vector3(0, -Math.tan(POCKET_HOLDER_TILT_RAD) * pocketGuideLength, 0));
       const delta = end.clone().sub(start);
       const guideGeom = new THREE.CylinderGeometry(
         pocketGuideRadius,
@@ -7204,6 +7278,26 @@ function Table3D(
       ring.receiveShadow = true;
       table.add(ring);
       finishParts.pocketBaseMeshes.push(ring);
+
+      if (i === 1) {
+        const strapGeom = new THREE.BoxGeometry(
+          pocketStrapWidth,
+          pocketStrapThickness,
+          pocketStrapLength
+        );
+        const strap = new THREE.Mesh(strapGeom, pocketJawMat);
+        const strapStart = start.clone();
+        const strapMid = strapStart
+          .clone()
+          .addScaledVector(strapDir, pocketStrapLength * 0.5)
+          .add(new THREE.Vector3(0, -pocketGuideDrop * 0.35, 0));
+        strap.position.copy(strapMid);
+        strap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), strapDir);
+        strap.castShadow = true;
+        strap.receiveShadow = true;
+        table.add(strap);
+        finishParts.pocketJawMeshes.push(strap);
+      }
     }
   });
 
@@ -22620,28 +22714,26 @@ const powerRef = useRef(hud.power);
               const dropStart = performance.now();
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
-              const speedFactor = THREE.MathUtils.clamp(
-                entrySpeed / POCKET_DROP_SPEED_REFERENCE,
-                0,
-                1
-              );
-              const dropDuration = THREE.MathUtils.lerp(
-                POCKET_DROP_MAX_MS,
-                POCKET_DROP_MIN_MS,
-                speedFactor
-              );
+              const holderDir = resolvePocketHolderDirection(c);
+              const strapOffset = holderDir
+                .clone()
+                .multiplyScalar(POCKET_HOLDER_SLIDE);
+              const targetX = c.x + strapOffset.x;
+              const targetZ = c.y + strapOffset.z;
               const dropEntry = {
                 start: dropStart,
-                duration: dropDuration,
                 fromY: BALL_CENTER_Y,
-                toY: BALL_CENTER_Y - POCKET_DROP_DEPTH,
+                currentY: BALL_CENTER_Y,
+                targetY: BALL_CENTER_Y - POCKET_DROP_STRAP_DEPTH,
                 fromX,
                 fromZ,
-                toX: c.x,
-                toZ: c.y,
+                toX: targetX,
+                toZ: targetZ,
                 mesh: b.mesh,
-                endScale: POCKET_DROP_SCALE,
-                entrySpeed
+                entrySpeed,
+                velocityY:
+                  -Math.max(Math.abs(POCKET_DROP_ENTRY_VELOCITY), entrySpeed * 0.08),
+                settledAt: null
               };
               b.mesh.visible = true;
               b.mesh.scale.set(1, 1, 1);
@@ -22758,27 +22850,32 @@ const powerRef = useRef(hud.power);
                 pocketDropRef.current.delete(key);
                 return;
               }
-              const elapsed = now - entry.start;
-              const duration = entry.duration > 0 ? entry.duration : 1;
-              const t = THREE.MathUtils.clamp(elapsed / duration, 0, 1);
-              const speedFactor = THREE.MathUtils.clamp(
-                (entry.entrySpeed ?? 0) / POCKET_DROP_SPEED_REFERENCE,
+              const targetY = entry.targetY ?? BALL_CENTER_Y - POCKET_DROP_STRAP_DEPTH;
+              const fromY = entry.fromY ?? BALL_CENTER_Y;
+              const fallDistance = Math.max(fromY - targetY, MICRO_EPS);
+              entry.velocityY = (entry.velocityY ?? POCKET_DROP_ENTRY_VELOCITY) - POCKET_DROP_GRAVITY * deltaSeconds;
+              entry.currentY = (entry.currentY ?? fromY) + (entry.velocityY ?? 0) * deltaSeconds;
+              const reachedStrap = entry.currentY <= targetY;
+              if (reachedStrap) {
+                entry.currentY = targetY;
+                entry.velocityY = 0;
+                entry.settledAt = entry.settledAt ?? now;
+              }
+              const fallRatio = THREE.MathUtils.clamp(
+                1 - (entry.currentY - targetY) / fallDistance,
                 0,
                 1
               );
-              const gravityEase = THREE.MathUtils.lerp(t * t, t, speedFactor * 0.25);
-              const fall = THREE.MathUtils.clamp(gravityEase, 0, 1);
-              const y = THREE.MathUtils.lerp(entry.fromY, entry.toY, fall);
-              const lateralT = THREE.MathUtils.clamp(t, 0, 1);
-              const x = THREE.MathUtils.lerp(entry.fromX, entry.toX, lateralT);
-              const z = THREE.MathUtils.lerp(entry.fromZ, entry.toZ, lateralT);
-              mesh.position.set(x, y, z);
-              const scale = THREE.MathUtils.lerp(1, entry.endScale ?? 1, fall);
-              mesh.scale.set(scale, scale, scale);
-              if (t >= 1) {
+              const x = THREE.MathUtils.lerp(entry.fromX, entry.toX ?? entry.fromX, fallRatio);
+              const z = THREE.MathUtils.lerp(entry.fromZ, entry.toZ ?? entry.fromZ, fallRatio);
+              mesh.visible = true;
+              mesh.position.set(x, entry.currentY, z);
+              mesh.scale.set(1, 1, 1);
+              const settledAt = entry.settledAt;
+              if (settledAt && now - settledAt >= POCKET_DROP_REST_HOLD_MS) {
                 mesh.visible = false;
                 mesh.scale.set(1, 1, 1);
-                mesh.position.set(entry.toX, BALL_CENTER_Y, entry.toZ);
+                mesh.position.set(entry.toX ?? x, BALL_CENTER_Y, entry.toZ ?? z);
                 pocketDropRef.current.delete(key);
               }
             });
