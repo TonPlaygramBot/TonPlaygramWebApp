@@ -1134,7 +1134,7 @@ const POCKET_TOP_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
-const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
+const SIDE_POCKET_PLYWOOD_LIFT = 0; // keep middle pocket bowls level now that the plywood underlay is gone
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.18 +
   POCKET_VIS_R * 2.25 +
@@ -1283,6 +1283,7 @@ const SKIRT_DROP_MULTIPLIER = 1.36; // halve the apron drop to slim the skirt wh
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
 const BASE_HEIGHT_FILL = 0.94; // grow bases upward so the stance stays consistent with the shorter skirt
+const SKIRT_ENABLED = false; // remove the skirt/apron shell beneath the rails
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
@@ -8745,25 +8746,27 @@ function Table3D(
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
-  const frameExtensionDepth = TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER;
+  const frameExtensionDepth = SKIRT_ENABLED ? TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER : 0;
   const baseRailWidth = endRailW;
-  const frameExtensionGeo = new THREE.ExtrudeGeometry(railsOuter, {
-    depth: frameExtensionDepth,
-    bevelEnabled: false,
-    curveSegments: 128
-  });
-  projectRailUVs(frameExtensionGeo, {
-    outerHalfW: frameOuterX,
-    outerHalfH: frameOuterZ,
-    railH: frameExtensionDepth
-  });
-  const frameExtension = new THREE.Mesh(frameExtensionGeo, frameMat);
-  frameExtension.rotation.x = -Math.PI / 2;
-  frameExtension.position.y = frameTopY - frameExtensionDepth + SKIRT_RAIL_GAP_FILL;
-  frameExtension.castShadow = true;
-  frameExtension.receiveShadow = true;
-  table.add(frameExtension);
-  finishParts.frameMeshes.push(frameExtension);
+  if (frameExtensionDepth > MICRO_EPS) {
+    const frameExtensionGeo = new THREE.ExtrudeGeometry(railsOuter, {
+      depth: frameExtensionDepth,
+      bevelEnabled: false,
+      curveSegments: 128
+    });
+    projectRailUVs(frameExtensionGeo, {
+      outerHalfW: frameOuterX,
+      outerHalfH: frameOuterZ,
+      railH: frameExtensionDepth
+    });
+    const frameExtension = new THREE.Mesh(frameExtensionGeo, frameMat);
+    frameExtension.rotation.x = -Math.PI / 2;
+    frameExtension.position.y = frameTopY - frameExtensionDepth + SKIRT_RAIL_GAP_FILL;
+    frameExtension.castShadow = true;
+    frameExtension.receiveShadow = true;
+    table.add(frameExtension);
+    finishParts.frameMeshes.push(frameExtension);
+  }
 
   const legR = Math.min(TABLE.W, TABLE.H) * 0.055 * LEG_RADIUS_SCALE;
   const legTopLocal = frameTopY - TABLE.THICK;
@@ -9208,7 +9211,7 @@ function Table3D(
     const topInset =
       Number.isFinite(options?.topInset) && options.topInset >= 0
         ? options.topInset
-        : baseContext.skirtH * 0.1;
+        : Math.max(baseContext.skirtH * 0.1, TABLE.THICK * 0.05);
     const heightFill =
       Number.isFinite(options?.fill) && options.fill > 0 ? options.fill : BASE_HEIGHT_FILL;
     const bounds = new THREE.Box3();
@@ -12443,7 +12446,7 @@ const powerRef = useRef(hud.power);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = false;
+      renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       updateRendererAnisotropyCap(renderer);
@@ -13020,6 +13023,22 @@ const powerRef = useRef(hud.power);
       const backInterior = arenaHalfDepth;
       const leftInterior = -arenaHalfWidth;
       const rightInterior = arenaHalfWidth;
+
+      const shadowRadius = Math.max(arenaHalfWidth, arenaHalfDepth) * 1.4;
+      const shadowMaterial = new THREE.ShadowMaterial({
+        color: new THREE.Color(0x000000),
+        opacity: 0.38,
+        transparent: true,
+        depthWrite: false
+      });
+      const shadowCatcher = new THREE.Mesh(
+        new THREE.CircleGeometry(Math.max(shadowRadius, TABLE.THICK * 8), 64),
+        shadowMaterial
+      );
+      shadowCatcher.rotation.x = -Math.PI / 2;
+      shadowCatcher.position.y = floorY + MICRO_EPS * 2;
+      shadowCatcher.receiveShadow = true;
+      world.add(shadowCatcher);
 
       cueRackGroupsRef.current = [];
       cueOptionGroupsRef.current = [];
@@ -16941,7 +16960,7 @@ const powerRef = useRef(hud.power);
 
       // Lights
       const addMobileLighting = () => {
-        const useHdriOnly = true;
+        const useHdriOnly = false;
         if (useHdriOnly) {
           lightingRigRef.current = null;
           return;
