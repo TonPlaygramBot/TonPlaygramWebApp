@@ -40,8 +40,6 @@
 const LOOKAHEAD_DEPTH = 2
 const LOOKAHEAD_CANDIDATES = 3
 const MONTE_CARLO_BASE_SAMPLES = 28
-const MIN_RELIABLE_POT_CHANCE = 0.18
-const SCRATCH_CLEARANCE = 1.2
 
 function dist (a, b) {
   const dx = a.x - b.x
@@ -67,64 +65,6 @@ function pathBlocked (a, b, balls, ignoreIds, radius, margin = 1) {
       !ignoreIds.includes(ball.id) &&
       lineIntersectsBall(a, b, ball, radius * margin)
   )
-}
-
-function cueLineNearPocket (start, end, pockets, radius, maxTravel) {
-  const dx = end.x - start.x
-  const dy = end.y - start.y
-  const len = Math.hypot(dx, dy)
-  if (len < Number.EPSILON) return false
-  const nx = dx / len
-  const ny = dy / len
-  const travel = Math.min(len, maxTravel ?? len)
-  const clearanceSq = (radius * SCRATCH_CLEARANCE) * (radius * SCRATCH_CLEARANCE)
-  return pockets.some((p) => {
-    const px = p.x - start.x
-    const py = p.y - start.y
-    const proj = px * nx + py * ny
-    if (proj <= 0 || proj >= travel) return false
-    const closest = { x: start.x + nx * proj, y: start.y + ny * proj }
-    const distSq = (closest.x - p.x) ** 2 + (closest.y - p.y) ** 2
-    return distSq < clearanceSq
-  })
-}
-
-function findCushionRedirect (cue, ghost, balls, ignoreIds, radius, state) {
-  const inset = radius * 1.1
-  const walls = [
-    { axis: 'x', value: inset },
-    { axis: 'x', value: state.width - inset },
-    { axis: 'y', value: inset },
-    { axis: 'y', value: state.height - inset }
-  ]
-  for (const wall of walls) {
-    const mirrored = { ...ghost }
-    if (wall.axis === 'x') {
-      mirrored.x = wall.value + (wall.value - ghost.x)
-    } else {
-      mirrored.y = wall.value + (wall.value - ghost.y)
-    }
-    const dir = { x: mirrored.x - cue.x, y: mirrored.y - cue.y }
-    const len = Math.hypot(dir.x, dir.y)
-    if (len < radius * 2) continue
-    const t = wall.axis === 'x'
-      ? (wall.value - cue.x) / dir.x
-      : (wall.value - cue.y) / dir.y
-    if (t <= 0 || t >= 1) continue
-    const cushionPoint = { x: cue.x + dir.x * t, y: cue.y + dir.y * t }
-    if (
-      cushionPoint.x < inset ||
-      cushionPoint.x > state.width - inset ||
-      cushionPoint.y < inset ||
-      cushionPoint.y > state.height - inset
-    ) {
-      continue
-    }
-    if (pathBlocked(cue, cushionPoint, balls, ignoreIds, radius, 1.05)) continue
-    if (pathBlocked(cushionPoint, ghost, balls, ignoreIds, radius, 1.05)) continue
-    return cushionPoint
-  }
-  return null
 }
 
 function pocketNormal (pocket, width, height) {
@@ -428,9 +368,6 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     x: target.x - (entry.x - target.x) * (r * 2 / dist(target, entry)),
     y: target.y - (entry.y - target.y) * (r * 2 / dist(target, entry))
   }
-  let aimTarget = ghost
-  let viaCushion = false
-  let cushionPoint = null
   // if ghost lies outside playable area, shot is impossible
   if (
     ghost.x < r ||
@@ -440,28 +377,15 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   ) {
     return null
   }
-  const ignore = [0, target.id]
-  const cueToGhostBlocked = pathBlocked(cue, ghost, balls, ignore, r, 1.1)
-  if (cueToGhostBlocked) {
-    cushionPoint = findCushionRedirect(cue, ghost, balls, ignore, r, req.state)
-    if (!cushionPoint) return null
-    aimTarget = cushionPoint
-    viaCushion = true
-  }
   if (
-    pathBlocked(target, entry, balls, ignore, r) ||
+    pathBlocked(cue, ghost, balls, [0, target.id], r, 1.1) ||
+    pathBlocked(target, entry, balls, [0, target.id], r) ||
     balls.some(b => b.id !== 0 && b.id !== target.id && !b.pocketed && dist(b, entry) < r * 1.1)
   ) {
     return null
   }
-  if (cueLineNearPocket(cue, aimTarget, req.state.pockets, r, dist(cue, aimTarget))) {
-    return null
-  }
   const maxD = Math.hypot(req.state.width, req.state.height)
   const potChance = monteCarloPotChance(req, cue, target, entry, ghost, balls)
-  if (potChance < MIN_RELIABLE_POT_CHANCE && strict) {
-    return null
-  }
   const cueAfter = estimateCueAfterShot(cue, target, entry, power, spin, req.state)
   const nextTargets = nextTargetsAfter(target.id, { ...req, state: { ...req.state, balls } })
   let nextScore = 0
@@ -475,7 +399,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   const shotVec = { x: target.x - cue.x, y: target.y - cue.y }
   const potVec = { x: entry.x - target.x, y: entry.y - target.y }
   const cutAngle = Math.abs(Math.atan2(potVec.y, potVec.x) - Math.atan2(shotVec.y, shotVec.x))
-  let centerAlign = 1 - Math.min(cutAngle / (Math.PI / 2), 1)
+  const centerAlign = 1 - Math.min(cutAngle / (Math.PI / 2), 1)
   const nearHole = 1 - Math.min(dist(target, entry) / (r * 20), 1)
   const viewAngle = Math.atan2(r * 2, dist(target, entry))
   const viewScore = Math.min(viewAngle / (Math.PI / 2), 1)
@@ -489,17 +413,13 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   if (strict && (centerAlign < 0.5 || pocketOpen < 0.3)) {
     return null
   }
-  if (viaCushion) {
-    // cushion shots are harder; dampen their influence unless no other options exist
-    centerAlign *= 0.9
-  }
   const lookaheadDepth = Number.isFinite(options.lookaheadDepth)
     ? Math.max(0, options.lookaheadDepth)
     : LOOKAHEAD_DEPTH
   const runoutPotential = options.skipLookahead
     ? 0
     : estimateRunoutPotential(req, cueAfter, target.id, balls, lookaheadDepth)
-  let quality = Math.max(
+  const quality = Math.max(
     0,
     Math.min(
       1,
@@ -510,29 +430,19 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
         0.06 * nearHole +
         0.08 * runoutPotential -
         0.15 * risk -
-        difficultyPenalty -
-        (viaCushion ? 0.12 : 0)
+        difficultyPenalty
     )
   )
-  if (!viaCushion && potChance < MIN_RELIABLE_POT_CHANCE) {
-    // Steer away from visually red (low probability) lines unless nothing else exists.
-    quality *= 0.6
-  }
-  const aimVec = { x: aimTarget.x - cue.x, y: aimTarget.y - cue.y }
-  const angle = Math.atan2(aimVec.y, aimVec.x)
+  const angle = Math.atan2(ghost.y - cue.y, ghost.x - cue.x)
   return {
     angleRad: angle,
     power,
     spin,
     targetBallId: target.id,
     targetPocket: entry,
-    aimPoint: viaCushion ? cushionPoint : ghost,
-    contactPoint: ghost,
-    viaCushion,
-    cushionPoint: viaCushion ? cushionPoint : undefined,
+    aimPoint: ghost,
     quality,
-    potChance,
-    rationale: `target=${target.id} pocket=(${pocket.x.toFixed(0)},${pocket.y.toFixed(0)}) angle=${angle.toFixed(2)} power=${power.toFixed(2)} spin=${spin.top.toFixed(2)},${spin.side.toFixed(2)},${spin.back.toFixed(2)} pc=${potChance.toFixed(2)} ca=${centerAlign.toFixed(2)} nh=${nearHole.toFixed(2)} np=${nextScore.toFixed(2)} r=${risk.toFixed(2)} cushion=${viaCushion}`,
+    rationale: `target=${target.id} pocket=(${pocket.x.toFixed(0)},${pocket.y.toFixed(0)}) angle=${angle.toFixed(2)} power=${power.toFixed(2)} spin=${spin.top.toFixed(2)},${spin.side.toFixed(2)},${spin.back.toFixed(2)} pc=${potChance.toFixed(2)} ca=${centerAlign.toFixed(2)} nh=${nearHole.toFixed(2)} np=${nextScore.toFixed(2)} r=${risk.toFixed(2)}`,
     nextScore,
     hasNext
   }
