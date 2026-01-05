@@ -1067,13 +1067,13 @@ const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up ca
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
-const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9;
-const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3;
-const MAX_POWER_BOUNCE_DAMPING = 0.855;
+const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.65;
+const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.2;
+const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
 const MAX_POWER_CAMERA_HOLD_MS = 2000;
 const MAX_POWER_SPIN_LATERAL_THROW = BALL_R * 0.42; // let max-power jumps inherit a strong sideways release from active side spin
-const MAX_POWER_SPIN_LIFT_BONUS = BALL_R * 0.34; // spin adds extra hop height when the cue ball is driven at full power
+const MAX_POWER_SPIN_LIFT_BONUS = BALL_R * 0.28; // spin adds extra hop height when the cue ball is driven at full power
 const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 1.015; // widen capture slightly so clean entries are honoured
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
@@ -1241,9 +1241,8 @@ const PRE_IMPACT_SPIN_DRIFT = 0.1; // reapply stored sideways swerve once the cu
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 1.15; // raise overall shot output for a livelier cue strike
 const SHOT_FORCE_BOOST =
-  1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * SHOT_POWER_MULTIPLIER;
+  1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * 1.15;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -1252,7 +1251,7 @@ const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
 const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
-const CUE_STRIKE_VOLUME_MULTIPLIER = 1; // play cue strikes at 100% loudness for natural feedback
+const CUE_STRIKE_VOLUME_MULTIPLIER = 1.5; // boost cue strikes to 150% loudness for clearer feedback
 const CUE_STRIKE_MAX_GAIN = 9; // allow the louder cue strike to pass through without clipping to the previous cap
 const POCKET_SOUND_TAIL = 1;
 // Pool Royale now raises the stance; extend the legs so the playfield sits higher
@@ -4934,20 +4933,20 @@ function applySnookerScaling({
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
 const STANDING_VIEW_PHI = 0.86; // raise the standing orbit a touch for a clearer overview
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.0009; // pull the standing frame closer so the table and balls fill more of the view
+const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.1;
 const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.14; // let the cue view drop to the same rail-hugging height used by AI shots while staying above the cue
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.015; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0165; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0008;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.0006;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0013;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.0011;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5039,8 +5038,8 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 1.38; // pull the rail overhead broadcast he
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.021; // tighten cue camera distance so the cue ball and object ball appear larger
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.085;
+const CUE_VIEW_RADIUS_RATIO = 0.024; // tighten cue camera distance so the cue ball and object ball appear larger
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
@@ -19553,12 +19552,6 @@ const powerRef = useRef(hud.power);
             if (!normalized || !isBallTargetId(normalized)) return;
             if (!order.includes(normalized)) order.push(normalized);
           };
-          if (activeVariantId === '9ball' && Array.isArray(activeBalls)) {
-            [...activeBalls]
-              .filter((ball) => ball.active && toBallColorId(ball.id) !== 'CUE')
-              .sort((a, b) => a.id - b.id)
-              .forEach((ball) => pushTargetId(toBallColorId(ball.id)));
-          }
           const metaState = frameSnapshot?.meta?.state ?? null;
           const shooterSeat = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
           const assignments = metaState?.assignments ?? {};
@@ -19750,7 +19743,7 @@ const powerRef = useRef(hud.power);
             if (!qualityOk) return false;
             if (!allowCushion && plan.viaCushion) return false;
             if (isAimLaneBlocked(plan)) return false;
-            if (measureLaneClearance(plan) < 0.7) return false;
+            if (measureLaneClearance(plan) < 0.6) return false;
             if (detectScratchRisk(plan)) return false;
             return true;
           };
@@ -19828,12 +19821,6 @@ const powerRef = useRef(hud.power);
                 0.1,
                 toPocketDir.clone().normalize().dot(idealEntryDir)
               );
-              const pocketAperture = Math.atan2(pocketMouth * 0.5, toPocketLen);
-              const pocketViewScore = THREE.MathUtils.clamp(
-                pocketAperture / (Math.PI / 2),
-                0,
-                1
-              );
               const entranceFavor = THREE.MathUtils.clamp(
                 entryAlignment * (pocketMouth / POCKET_CORNER_MOUTH),
                 0.2,
@@ -19882,13 +19869,8 @@ const powerRef = useRef(hud.power);
                 cueToTarget: cueDist,
                 targetToPocket: toPocketLen,
                 railNormal: cushionAid?.railNormal ?? null,
-                viaCushion: Boolean(cushionAid),
-                entryAlignment,
-                pocketAperture: pocketViewScore
+                viaCushion: Boolean(cushionAid)
               };
-              const laneClearance = measureLaneClearance(plan);
-              if (laneClearance < 0.7) continue;
-              if (detectScratchRisk(plan)) continue;
               const leaveProbe = targetBall.pos
                 .clone()
                 .add(aimDir.clone().multiplyScalar(ballDiameter * 2.5));
@@ -19900,8 +19882,7 @@ const powerRef = useRef(hud.power);
                 0,
                 3
               );
-              plan.difficulty =
-                plan.difficulty / (1 + openLaneScore * 0.2 + pocketViewScore * 0.3);
+              plan.difficulty = plan.difficulty / (1 + openLaneScore * 0.2);
               const viewAngle = Math.atan2(ballDiameter, toPocketLen);
               const viewScore = Math.min(viewAngle / (Math.PI / 2), 1);
               const openLaneNorm = THREE.MathUtils.clamp(openLaneScore / 3, 0, 1);
@@ -19916,13 +19897,11 @@ const powerRef = useRef(hud.power);
                   0.24 * (1 - cutSeverity) +
                   0.16 * openLaneNorm +
                   0.14 * (1 - travelPenalty) +
-                  0.14 * viewScore +
-                  0.08 * pocketViewScore -
+                  0.14 * viewScore -
                   cushionPenalty,
                 0,
                 1
               );
-              plan.laneClearance = laneClearance;
               plan.spin = computePlanSpin(plan, state);
               potShots.push(plan);
             }
@@ -20071,7 +20050,7 @@ const powerRef = useRef(hud.power);
             if (detectScratchRisk(plan)) return -Infinity;
             if (isAimLaneBlocked(plan)) return -Infinity;
             const laneClearance = measureLaneClearance(plan);
-            if (laneClearance < 0.65) return -Infinity;
+            if (laneClearance < 0.5) return -Infinity;
             const difficultyNorm = Math.max(1, PLAY_W + PLAY_H);
             const difficulty = Number.isFinite(plan.difficulty)
               ? plan.difficulty
@@ -20105,8 +20084,6 @@ const powerRef = useRef(hud.power);
                 ? 0.06
                 : 0;
             const laneBonus = Math.max(0, Math.min((laneClearance - 0.6) / 0.8, 1));
-            const pocketView = Math.max(0, plan.pocketAperture ?? 0);
-            const entryBonus = Math.max(0, plan.entryAlignment ?? 0);
             return (
               quality * 0.48 +
               difficultyEase * 0.18 +
@@ -20114,10 +20091,8 @@ const powerRef = useRef(hud.power);
               cueEase * 0.08 +
               priorityBonus * 0.1 +
               routeEase * 0.06 +
-              laneBonus * 0.1 +
-              finishBonus +
-              pocketView * 0.12 +
-              entryBonus * 0.08 -
+              laneBonus * 0.08 +
+              finishBonus -
               cushionPenalty
             );
           };
@@ -20628,7 +20603,6 @@ const powerRef = useRef(hud.power);
           userSuggestionPlanRef.current = plan;
           const summary = summarizePlan(plan);
           userSuggestionRef.current = summary;
-          let applied = false;
           const applyAimDirection = (dir, key = null) => {
             if (!dir || typeof dir.lengthSq !== 'function' || dir.lengthSq() <= 1e-6) {
               return false;
@@ -20653,30 +20627,25 @@ const powerRef = useRef(hud.power);
               }
             }
             suggestionAimKeyRef.current = null;
-            applied = applyAimDirection(autoDir, null);
-            if (applied) return;
+            if (applyAimDirection(autoDir, null)) {
+              return;
+            }
           }
           if (plan?.targetBall && plan?.viaCushion && cue?.pos) {
             const directDir = new THREE.Vector2(
               plan.targetBall.pos.x - cue.pos.x,
               plan.targetBall.pos.y - cue.pos.y
             );
-            applied = applyAimDirection(directDir, null);
-            if (applied) return;
+            if (applyAimDirection(directDir, null)) {
+              return;
+            }
           }
           if (plan?.aimDir && !plan.viaCushion) {
             const dir = plan.aimDir.clone();
-            applied = applyAimDirection(dir, summary?.key ?? null);
-            if (applied) return;
+            if (applyAimDirection(dir, summary?.key ?? null)) return;
             suggestionAimKeyRef.current = null;
           } else {
             suggestionAimKeyRef.current = null;
-          }
-          if (!applied) {
-            const fallbackDir = resolveAutoAimDirection();
-            if (fallbackDir) {
-              applyAimDirection(fallbackDir, null);
-            }
           }
         };
         stopAiThinkingRef.current = stopAiThinking;
