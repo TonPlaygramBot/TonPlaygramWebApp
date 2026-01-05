@@ -1279,7 +1279,7 @@ const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
-const SKIRT_DROP_MULTIPLIER = 1.36; // halve the apron drop to slim the skirt while keeping the tabletop level
+const SKIRT_DROP_MULTIPLIER = 0; // remove the apron/skirt drop so the table body stays tight to the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
 const BASE_HEIGHT_FILL = 0.94; // grow bases upward so the stance stays consistent with the shorter skirt
@@ -8745,25 +8745,27 @@ function Table3D(
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
-  const frameExtensionDepth = TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER;
+  const frameExtensionDepth = Math.max(0, TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER);
   const baseRailWidth = endRailW;
-  const frameExtensionGeo = new THREE.ExtrudeGeometry(railsOuter, {
-    depth: frameExtensionDepth,
-    bevelEnabled: false,
-    curveSegments: 128
-  });
-  projectRailUVs(frameExtensionGeo, {
-    outerHalfW: frameOuterX,
-    outerHalfH: frameOuterZ,
-    railH: frameExtensionDepth
-  });
-  const frameExtension = new THREE.Mesh(frameExtensionGeo, frameMat);
-  frameExtension.rotation.x = -Math.PI / 2;
-  frameExtension.position.y = frameTopY - frameExtensionDepth + SKIRT_RAIL_GAP_FILL;
-  frameExtension.castShadow = true;
-  frameExtension.receiveShadow = true;
-  table.add(frameExtension);
-  finishParts.frameMeshes.push(frameExtension);
+  if (frameExtensionDepth > MICRO_EPS) {
+    const frameExtensionGeo = new THREE.ExtrudeGeometry(railsOuter, {
+      depth: frameExtensionDepth,
+      bevelEnabled: false,
+      curveSegments: 128
+    });
+    projectRailUVs(frameExtensionGeo, {
+      outerHalfW: frameOuterX,
+      outerHalfH: frameOuterZ,
+      railH: frameExtensionDepth
+    });
+    const frameExtension = new THREE.Mesh(frameExtensionGeo, frameMat);
+    frameExtension.rotation.x = -Math.PI / 2;
+    frameExtension.position.y = frameTopY - frameExtensionDepth + SKIRT_RAIL_GAP_FILL;
+    frameExtension.castShadow = true;
+    frameExtension.receiveShadow = true;
+    table.add(frameExtension);
+    finishParts.frameMeshes.push(frameExtension);
+  }
 
   const legR = Math.min(TABLE.W, TABLE.H) * 0.055 * LEG_RADIUS_SCALE;
   const legTopLocal = frameTopY - TABLE.THICK;
@@ -20427,6 +20429,11 @@ const powerRef = useRef(hud.power);
               alignStandingCameraToAim(cue, plan.aimDir);
             } else {
               aiPlanRef.current = null;
+              const fallbackDir = resolveAutoAimDirection();
+              if (fallbackDir) {
+                aimDirRef.current.copy(fallbackDir);
+                alignStandingCameraToAim(cue, fallbackDir);
+              }
             }
             updateAiPlanningState(plan, options, remaining / 1000);
             scheduleEarlyAiShot(plan);
@@ -20614,6 +20621,31 @@ const powerRef = useRef(hud.power);
             suggestionAimKeyRef.current = key;
             return true;
           };
+          const applyAutoAimFallback = () => {
+            suggestionAimKeyRef.current = null;
+            const autoDir = resolveAutoAimDirection();
+            if (applyAimDirection(autoDir, null)) return true;
+            const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
+            const cuePos = cue?.pos
+              ? new THREE.Vector2(cue.pos.x, cue.pos.y)
+              : null;
+            if (!cuePos || !Array.isArray(ballsList)) return false;
+            const nearestBall = ballsList
+              .filter((b) => b?.active && String(b.id) !== 'cue')
+              .reduce((best, ball) => {
+                if (!ball?.pos) return best;
+                if (!best) return ball;
+                const bestDist = cuePos.distanceToSquared(best.pos);
+                const dist = cuePos.distanceToSquared(ball.pos);
+                return dist < bestDist ? ball : best;
+              }, null);
+            if (!nearestBall) return false;
+            const dir = new THREE.Vector2(
+              nearestBall.pos.x - cuePos.x,
+              nearestBall.pos.y - cuePos.y
+            );
+            return applyAimDirection(dir, null);
+          };
           const preferAutoAim = autoAimRequestRef.current;
           if (preferAutoAim) {
             let autoDir = resolveAutoAimDirection();
@@ -20647,6 +20679,7 @@ const powerRef = useRef(hud.power);
           } else {
             suggestionAimKeyRef.current = null;
           }
+          applyAutoAimFallback();
         };
         stopAiThinkingRef.current = stopAiThinking;
         startAiThinkingRef.current = startAiThinking;
@@ -20679,9 +20712,12 @@ const powerRef = useRef(hud.power);
             if (!plan) {
               const cuePos = cue?.pos ? cue.pos.clone() : null;
               if (!cuePos) return;
-              const fallbackDir = new THREE.Vector2(-cuePos.x, -cuePos.y);
-              if (fallbackDir.lengthSq() < 1e-6) fallbackDir.set(0, 1);
-              fallbackDir.normalize();
+              let fallbackDir = resolveAutoAimDirection();
+              if (!fallbackDir) {
+                fallbackDir = new THREE.Vector2(-cuePos.x, -cuePos.y);
+                if (fallbackDir.lengthSq() < 1e-6) fallbackDir.set(0, 1);
+                fallbackDir.normalize();
+              }
               plan = {
                 type: 'safety',
                 aimDir: fallbackDir,
