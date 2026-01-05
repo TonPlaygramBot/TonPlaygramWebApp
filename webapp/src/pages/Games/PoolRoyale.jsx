@@ -20,6 +20,7 @@ import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
+  isTelegramWebView,
   getTelegramUsername,
   getTelegramPhotoUrl,
   getTelegramId
@@ -4938,8 +4939,8 @@ const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely fra
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
 const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.97 }),
-  nearLandscape: Object.freeze({ cue: 0.88, broadcast: 0.92, margin: 0.985 }),
-  landscape: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 1.0 }),
+  nearLandscape: Object.freeze({ cue: 0.84, broadcast: 0.88, margin: 0.97 }),
+  landscape: Object.freeze({ cue: 0.82, broadcast: 0.86, margin: 0.965 }),
   portrait: Object.freeze({ cue: 0.82, broadcast: 0.88, margin: 0.96 }),
   ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 0.87, margin: 0.955 })
 });
@@ -10180,6 +10181,13 @@ function PoolRoyaleGame({
   const [uiScale, setUiScale] = useState(() =>
     detectCoarsePointer() ? TOUCH_UI_SCALE : POINTER_UI_SCALE
   );
+  const chromeUiLiftPx = useMemo(() => {
+    if (typeof window === 'undefined') return 0;
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    const chromeLike = /Chrome\//.test(ua) && !/Edg\//.test(ua) && !/OPR\//.test(ua);
+    const isTelegram = isTelegramWebView();
+    return chromeLike && !isTelegram ? 10 : 0;
+  }, []);
   const [isPortrait, setIsPortrait] = useState(
     () => (typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth)
   );
@@ -23512,8 +23520,12 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute bottom-4 left-4 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
-        style={{ transform: `scale(${uiScale})`, transformOrigin: 'bottom left' }}
+        className={`pointer-events-none absolute left-4 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        style={{
+          bottom: `${16 + chromeUiLiftPx}px`,
+          transform: `scale(${uiScale})`,
+          transformOrigin: 'bottom left'
+        }}
       >
         <button
           type="button"
@@ -23545,9 +23557,10 @@ const powerRef = useRef(hud.power);
 
       {bottomHudVisible && (
         <div
-          className={`absolute bottom-4 flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
+          className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive || replayActive}
           style={{
+            bottom: `${16 + chromeUiLiftPx}px`,
             left: hudInsets.left,
             right: hudInsets.right,
             transform: isPortrait ? `translateX(${bottomHudOffset}px)` : undefined
@@ -23692,8 +23705,9 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute bottom-4 right-4 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          className={`absolute right-4 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
+            bottom: `${16 + chromeUiLiftPx}px`,
             transform: `scale(${uiScale})`,
             transformOrigin: 'bottom right'
           }}
