@@ -4940,7 +4940,7 @@ const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.14; // let the cue view drop to the s
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0155; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0165; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
@@ -4951,11 +4951,11 @@ const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
 const CAMERA_ZOOM_PROFILES = Object.freeze({
-  default: Object.freeze({ cue: 0.82, broadcast: 0.86, margin: 0.965 }),
-  nearLandscape: Object.freeze({ cue: 0.8, broadcast: 0.84, margin: 0.965 }),
-  landscape: Object.freeze({ cue: 0.78, broadcast: 0.83, margin: 0.96 }),
-  portrait: Object.freeze({ cue: 0.8, broadcast: 0.85, margin: 0.95 }),
-  ultraPortrait: Object.freeze({ cue: 0.78, broadcast: 0.84, margin: 0.945 })
+  default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.97 }),
+  nearLandscape: Object.freeze({ cue: 0.84, broadcast: 0.88, margin: 0.97 }),
+  landscape: Object.freeze({ cue: 0.82, broadcast: 0.86, margin: 0.965 }),
+  portrait: Object.freeze({ cue: 0.82, broadcast: 0.88, margin: 0.96 }),
+  ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 0.87, margin: 0.955 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -19739,11 +19739,11 @@ const powerRef = useRef(hud.power);
           };
           const isPlayablePlan = (plan, { allowCushion = true } = {}) => {
             if (!plan) return false;
-            const qualityOk = (plan.quality ?? 0) >= 0.2;
+            const qualityOk = (plan.quality ?? 0) >= 0.12;
             if (!qualityOk) return false;
             if (!allowCushion && plan.viaCushion) return false;
             if (isAimLaneBlocked(plan)) return false;
-            if (measureLaneClearance(plan) < 0.7) return false;
+            if (measureLaneClearance(plan) < 0.6) return false;
             if (detectScratchRisk(plan)) return false;
             return true;
           };
@@ -19891,13 +19891,13 @@ const powerRef = useRef(hud.power);
                 (cueDist + toPocketLen) / Math.max(PLAY_W, PLAY_H, BALL_R),
                 1
               );
-              const cushionPenalty = cushionAid ? 0.26 : 0;
+              const cushionPenalty = cushionAid ? 0.18 : 0;
               plan.quality = THREE.MathUtils.clamp(
-                0.36 * entryAlignment +
-                  0.26 * (1 - cutSeverity) +
+                0.32 * entryAlignment +
+                  0.24 * (1 - cutSeverity) +
                   0.16 * openLaneNorm +
-                  0.12 * (1 - travelPenalty) +
-                  0.12 * viewScore -
+                  0.14 * (1 - travelPenalty) +
+                  0.14 * viewScore -
                   cushionPenalty,
                 0,
                 1
@@ -20050,7 +20050,7 @@ const powerRef = useRef(hud.power);
             if (detectScratchRisk(plan)) return -Infinity;
             if (isAimLaneBlocked(plan)) return -Infinity;
             const laneClearance = measureLaneClearance(plan);
-            if (laneClearance < 0.65) return -Infinity;
+            if (laneClearance < 0.5) return -Infinity;
             const difficultyNorm = Math.max(1, PLAY_W + PLAY_H);
             const difficulty = Number.isFinite(plan.difficulty)
               ? plan.difficulty
@@ -20077,21 +20077,21 @@ const powerRef = useRef(hud.power);
             );
             const priorityBonus =
               priorityIndex >= 0 ? 1 - Math.min(priorityIndex * 0.18, 0.72) : 0;
-            const cushionPenalty = plan.viaCushion ? 0.24 : 0;
+            const cushionPenalty = plan.viaCushion ? 0.18 : 0;
             const finishBonus =
               activeBalls.filter((ball) => ball.active && matchesTargetId(ball, plan.target))
                 .length <= 2
-                ? 0.05
+                ? 0.06
                 : 0;
-            const laneBonus = Math.max(0, Math.min((laneClearance - 0.7) / 0.6, 1));
+            const laneBonus = Math.max(0, Math.min((laneClearance - 0.6) / 0.8, 1));
             return (
-              quality * 0.56 +
-              difficultyEase * 0.16 +
+              quality * 0.48 +
+              difficultyEase * 0.18 +
               pocketEase * 0.1 +
               cueEase * 0.08 +
-              priorityBonus * 0.08 +
-              routeEase * 0.05 +
-              laneBonus * 0.12 +
+              priorityBonus * 0.1 +
+              routeEase * 0.06 +
+              laneBonus * 0.08 +
               finishBonus -
               cushionPenalty
             );
@@ -20597,16 +20597,6 @@ const powerRef = useRef(hud.power);
           return dir.normalize();
         };
 
-        const resolveDirectAimAtBall = (plan) => {
-          if (!plan?.targetBall || !cue?.pos) return null;
-          const dir = new THREE.Vector2(
-            plan.targetBall.pos.x - cue.pos.x,
-            plan.targetBall.pos.y - cue.pos.y
-          );
-          if (dir.lengthSq() < 1e-6) return null;
-          return dir.normalize();
-        };
-
         const updateUserSuggestion = () => {
           const options = evaluateShotOptions();
           const plan = options.bestPot ?? null;
@@ -20640,10 +20630,6 @@ const powerRef = useRef(hud.power);
             if (applyAimDirection(autoDir, null)) {
               return;
             }
-          }
-          const directBallDir = resolveDirectAimAtBall(plan);
-          if (directBallDir && applyAimDirection(directBallDir, summary?.key ?? null)) {
-            return;
           }
           if (plan?.targetBall && plan?.viaCushion && cue?.pos) {
             const directDir = new THREE.Vector2(
