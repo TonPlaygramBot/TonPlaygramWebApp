@@ -19625,6 +19625,93 @@ const powerRef = useRef(hud.power);
           return null;
         };
 
+        const aimDirHitsPocket = (cuePos, dir, limitDistance = Infinity) => {
+          if (!cuePos || !dir) return false;
+          const nDir = dir.clone().normalize();
+          const maxEdge = distanceToTableEdge(cuePos, nDir);
+          const maxTravel =
+            Number.isFinite(limitDistance) && limitDistance > 0
+              ? Math.min(limitDistance, maxEdge)
+              : maxEdge;
+          if (!Number.isFinite(maxTravel) || maxTravel <= 0) return false;
+          const centers = pocketEntranceCenters();
+          const captureRadii = centers.map((_, idx) =>
+            idx >= 4 ? SIDE_CAPTURE_R : CAPTURE_R
+          );
+          for (let i = 0; i < centers.length; i++) {
+            const center = centers[i];
+            const toPocket = center.clone().sub(cuePos);
+            const proj = toPocket.dot(nDir);
+            if (proj <= 0 || proj >= maxTravel + BALL_R * 0.5) continue;
+            const closest = cuePos.clone().add(nDir.clone().multiplyScalar(proj));
+            const clearance = captureRadii[i] - BALL_R * 0.35;
+            if (clearance <= 0) continue;
+            const distSq = center.distanceToSquared(closest);
+            if (distSq <= clearance * clearance) {
+              return true;
+            }
+          }
+          return false;
+        };
+
+        const analyzePlanAim = (plan, { cueBall, cuePos, activeBalls }) => {
+          if (!plan || !cueBall?.active || !cuePos) {
+            return {
+              valid: false,
+              targetMatched: false,
+              pocketRisk: false,
+              cushionFirst: false,
+              redLine: false,
+              preview: null,
+              travelLimit: 0
+            };
+          }
+          const aimDir =
+            plan?.aimDir && typeof plan.aimDir.clone === 'function'
+              ? plan.aimDir.clone()
+              : null;
+          if (!aimDir || aimDir.lengthSq() <= 1e-8) {
+            return {
+              valid: false,
+              targetMatched: false,
+              pocketRisk: false,
+              cushionFirst: false,
+              redLine: false,
+              preview: null,
+              travelLimit: 0
+            };
+          }
+          const normalized = aimDir.normalize();
+          const preview = calcTarget(cueBall, normalized, activeBalls);
+          const hitId = preview?.targetBall?.id;
+          const expectedId = plan?.targetBall?.id;
+          const targetMatched =
+            expectedId == null ? Boolean(hitId) : String(hitId) === String(expectedId);
+          const cushionFirst = Boolean(preview?.railNormal);
+          const redLine = !preview?.targetBall && !cushionFirst;
+          const travelLimit =
+            preview && Number.isFinite(preview.tHit) && preview.tHit > 0
+              ? preview.tHit
+              : Number.isFinite(plan?.cueToTarget)
+                ? plan.cueToTarget
+                : distanceToTableEdge(cuePos, normalized);
+          const pocketRisk = aimDirHitsPocket(cuePos, normalized, travelLimit);
+          const valid =
+            targetMatched &&
+            !pocketRisk &&
+            (!redLine) &&
+            (!cushionFirst || plan?.viaCushion);
+          return {
+            valid,
+            targetMatched,
+            pocketRisk,
+            cushionFirst,
+            redLine,
+            preview,
+            travelLimit
+          };
+        };
+
         const evaluateShotOptionsBaseline = () => {
           if (!cue?.active) return { bestPot: null, bestSafety: null };
           const state = frameRef.current ?? frameState;
@@ -19656,6 +19743,7 @@ const powerRef = useRef(hud.power);
             if (legalTargets.size === 0) legalTargets.add('RED');
           }
           const cuePos = cue.pos.clone();
+          const cueBall = cue;
           const clearance = BALL_R * (activeVariantId === 'uk' ? 1.4 : 1.65);
           const clearanceSq = clearance * clearance;
           const ballDiameter = BALL_R * 2;
@@ -19834,7 +19922,60 @@ const powerRef = useRef(hud.power);
                 1
               );
               plan.spin = computePlanSpin(plan, state);
-              potShots.push(plan);
+              let evaluatedPlan = plan;
+              let planAnalysis = analyzePlanAim(plan, {
+                cueBall,
+                cuePos,
+                activeBalls
+              });
+              if (!planAnalysis.valid) {
+                const cushionFallback =
+                  cushionAid ?? tryCushionRoute(cuePos, ghost, ignore);
+                if (cushionFallback) {
+                  const cushionVec = cushionFallback.cushionPoint
+                    .clone()
+                    .sub(cuePos);
+                  if (cushionVec.lengthSq() > 1e-6) {
+                    const cushionDir = cushionVec.clone().normalize();
+                    const cushionPlan = {
+                      ...plan,
+                      aimDir: cushionDir,
+                      railNormal:
+                        cushionFallback.railNormal?.clone?.() ?? cushionFallback.railNormal ?? null,
+                      viaCushion: true,
+                      power: computePowerFromDistance(
+                        cushionVec.length() +
+                          toPocketLen +
+                          cushionFallback.totalDist * 0.08
+                      ),
+                      difficulty:
+                        (plan.difficulty ?? cueDist + toPocketLen) +
+                        cushionFallback.totalDist * 0.2 +
+                        BALL_R * 14,
+                      quality: Math.max(0, (plan.quality ?? 0) - 0.12)
+                    };
+                    const cushionAnalysis = analyzePlanAim(cushionPlan, {
+                      cueBall,
+                      cuePos,
+                      activeBalls
+                    });
+                    if (cushionAnalysis.valid) {
+                      evaluatedPlan = cushionPlan;
+                      planAnalysis = cushionAnalysis;
+                    } else {
+                      evaluatedPlan = null;
+                    }
+                  } else {
+                    evaluatedPlan = null;
+                  }
+                } else {
+                  evaluatedPlan = null;
+                }
+              }
+              if (evaluatedPlan && planAnalysis?.valid) {
+                evaluatedPlan.analysis = planAnalysis;
+                potShots.push(evaluatedPlan);
+              }
             }
             const cueToBall = targetBall.pos.clone().sub(cuePos);
             if (cueToBall.lengthSq() < 1e-6) return;
@@ -19878,7 +20019,15 @@ const powerRef = useRef(hud.power);
                   1 - (cueDist + safetyDist * 1.2) / (PLAY_W + PLAY_H)
                 )
               };
-            safetyShots.push(safetyPlan);
+            const safetyAnalysis = analyzePlanAim(safetyPlan, {
+              cueBall,
+              cuePos,
+              activeBalls
+            });
+            if (safetyAnalysis.valid || !safetyAnalysis.pocketRisk) {
+              safetyPlan.analysis = safetyAnalysis.valid ? safetyAnalysis : null;
+              safetyShots.push(safetyPlan);
+            }
           });
           if (!potShots.length && (activeVariantId === 'american' || activeVariantId === '9ball')) {
             const targetBall = activeBalls
@@ -19931,7 +20080,7 @@ const powerRef = useRef(hud.power);
                   0,
                   1
                 );
-                potShots.push({
+                const simplePlan = {
                   type: 'pot',
                   aimDir,
                   power,
@@ -19944,26 +20093,18 @@ const powerRef = useRef(hud.power);
                   targetToPocket: toPocket,
                   railNormal: null,
                   viaCushion: false,
-                  quality,
-                  spin: computePlanSpin(
-                    {
-                      type: 'pot',
-                      aimDir,
-                      power,
-                      target: toBallColorId(targetBall.id),
-                      targetBall,
-                      pocketId: POCKET_IDS[centers.indexOf(pocketCenter)] ?? 'TM',
-                      pocketCenter: pocketCenter.clone(),
-                      difficulty: cueDist + toPocket,
-                      cueToTarget: cueDist,
-                      targetToPocket: toPocket,
-                      railNormal: null,
-                      viaCushion: false,
-                      quality
-                    },
-                    state
-                  )
+                  quality
+                };
+                simplePlan.spin = computePlanSpin(simplePlan, state);
+                const simpleAnalysis = analyzePlanAim(simplePlan, {
+                  cueBall,
+                  cuePos,
+                  activeBalls
                 });
+                if (simpleAnalysis.valid) {
+                  simplePlan.analysis = simpleAnalysis;
+                  potShots.push(simplePlan);
+                }
               }
             }
           }
@@ -20252,6 +20393,23 @@ const powerRef = useRef(hud.power);
             const stateSnapshot = frameRef.current ?? frameState;
             const advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
             if (!advancedPlan) return baseline;
+            const cuePos =
+              cue?.pos && Number.isFinite(cue.pos.x) && Number.isFinite(cue.pos.y)
+                ? new THREE.Vector2(cue.pos.x, cue.pos.y)
+                : null;
+            const activeBalls = balls.filter((b) => b.active);
+            const validatedAnalysis =
+              cuePos && cue?.active
+                ? analyzePlanAim(advancedPlan, {
+                    cueBall: cue,
+                    cuePos,
+                    activeBalls
+                  })
+                : { valid: false };
+            if (!validatedAnalysis?.valid) {
+              return baseline;
+            }
+            advancedPlan.analysis = validatedAnalysis;
             const result = { ...baseline };
             if (advancedPlan.type === 'pot') {
               result.bestPot = advancedPlan;
@@ -20348,14 +20506,26 @@ const powerRef = useRef(hud.power);
         };
         const resolveAutoAimDirection = () => {
           if (!cue?.active) return null;
+          const cuePos =
+            cue?.pos && Number.isFinite(cue.pos.x) && Number.isFinite(cue.pos.y)
+              ? new THREE.Vector2(cue.pos.x, cue.pos.y)
+              : null;
+          if (!cuePos) return null;
+          const evaluated = evaluateShotOptions();
+          const bestPlan = evaluated?.bestPot ?? null;
+          if (bestPlan?.targetBall) {
+            const directDir = new THREE.Vector2(
+              bestPlan.targetBall.pos.x - cuePos.x,
+              bestPlan.targetBall.pos.y - cuePos.y
+            );
+            if (directDir.lengthSq() > 1e-6) {
+              return directDir.normalize();
+            }
+          }
           const ballsList =
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
           if (!Array.isArray(ballsList) || ballsList.length === 0) return null;
           const frameSnapshot = frameRef.current ?? frameState;
-          const cuePos = cue?.pos
-            ? new THREE.Vector2(cue.pos.x, cue.pos.y)
-            : null;
-          if (!cuePos) return null;
 
           const activeBalls = ballsList.filter(
             (ball) => ball.active && String(ball.id) !== 'cue'
