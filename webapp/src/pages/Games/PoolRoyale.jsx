@@ -1279,9 +1279,9 @@ const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
-const FRAME_EXTENSION_DEPTH = TABLE_H * 0.68 * 1.36; // extend the wooden frame downward to replace the removed skirt while keeping the tabletop height unchanged
+const SKIRT_DROP_MULTIPLIER = 1.36; // halve the apron drop to slim the skirt while keeping the tabletop level
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
-const SKIRT_RAIL_GAP_FILL = 0; // keep the extended frame perfectly flush with the rail footprint
+const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
 const BASE_HEIGHT_FILL = 0.94; // grow bases upward so the stance stays consistent with the shorter skirt
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
@@ -8745,7 +8745,7 @@ function Table3D(
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
-  const frameExtensionDepth = FRAME_EXTENSION_DEPTH;
+  const frameExtensionDepth = TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER;
   const baseRailWidth = endRailW;
   const frameExtensionGeo = new THREE.ExtrudeGeometry(railsOuter, {
     depth: frameExtensionDepth,
@@ -12443,7 +12443,7 @@ const powerRef = useRef(hud.power);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.enabled = false;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       updateRendererAnisotropyCap(renderer);
@@ -16941,7 +16941,7 @@ const powerRef = useRef(hud.power);
 
       // Lights
       const addMobileLighting = () => {
-        const useHdriOnly = false;
+        const useHdriOnly = true;
         if (useHdriOnly) {
           lightingRigRef.current = null;
           return;
@@ -17030,21 +17030,6 @@ const powerRef = useRef(hud.power);
       };
 
       addMobileLighting();
-
-      const tableShadowMaterial = new THREE.ShadowMaterial({
-        color: 0x000000,
-        opacity: 0.32
-      });
-      tableShadowMaterial.depthWrite = false;
-      const tableShadowRadius = Math.max(TABLE.W, TABLE.H) * 1.25;
-      const tableShadow = new THREE.Mesh(
-        new THREE.CircleGeometry(tableShadowRadius, 72),
-        tableShadowMaterial
-      );
-      tableShadow.rotation.x = -Math.PI / 2;
-      tableShadow.position.set(0, floorY + MICRO_EPS * 2, 0);
-      tableShadow.receiveShadow = true;
-      world.add(tableShadow);
 
       // Table
       const finishForScene = tableFinishRef.current;
@@ -20618,7 +20603,6 @@ const powerRef = useRef(hud.power);
           userSuggestionPlanRef.current = plan;
           const summary = summarizePlan(plan);
           userSuggestionRef.current = summary;
-          let appliedSuggestion = false;
           const applyAimDirection = (dir, key = null) => {
             if (!dir || typeof dir.lengthSq !== 'function' || dir.lengthSq() <= 1e-6) {
               return false;
@@ -20628,7 +20612,6 @@ const powerRef = useRef(hud.power);
             alignStandingCameraToAim(cue, normalized);
             autoAimRequestRef.current = false;
             suggestionAimKeyRef.current = key;
-            appliedSuggestion = true;
             return true;
           };
           const preferAutoAim = autoAimRequestRef.current;
@@ -20663,50 +20646,6 @@ const powerRef = useRef(hud.power);
             suggestionAimKeyRef.current = null;
           } else {
             suggestionAimKeyRef.current = null;
-          }
-          if (!appliedSuggestion && preferAutoAim && cue?.pos) {
-            const ballsList =
-              ballsRef.current?.length > 0 ? ballsRef.current : balls;
-            const activeBalls = Array.isArray(ballsList)
-              ? ballsList.filter((b) => b?.active && String(b.id) !== 'cue')
-              : [];
-            if (activeBalls.length > 0) {
-              const frameSnapshot = frameRef.current ?? frameState;
-              const activeVariantId =
-                frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
-              const targetOrder = resolveTargetPriorities(
-                frameSnapshot,
-                activeVariantId,
-                activeBalls
-              );
-              const cuePos = new THREE.Vector2(cue.pos.x, cue.pos.y);
-              const prioritizeTargets = (ids) => {
-                if (!Array.isArray(ids) || ids.length === 0) return null;
-                const targetSet = new Set(ids);
-                return activeBalls
-                  .filter((ball) => targetSet.has(toBallColorId(ball.id)))
-                  .sort(
-                    (a, b) =>
-                      cuePos.distanceToSquared(a.pos) - cuePos.distanceToSquared(b.pos)
-                  )[0];
-              };
-              let fallbackTarget = prioritizeTargets(targetOrder);
-              if (!fallbackTarget) {
-                fallbackTarget = activeBalls
-                  .slice()
-                  .sort(
-                    (a, b) =>
-                      cuePos.distanceToSquared(a.pos) - cuePos.distanceToSquared(b.pos)
-                  )[0];
-              }
-              if (fallbackTarget) {
-                const dir = new THREE.Vector2(
-                  fallbackTarget.pos.x - cue.pos.x,
-                  fallbackTarget.pos.y - cue.pos.y
-                );
-                applyAimDirection(dir, null);
-              }
-            }
           }
         };
         stopAiThinkingRef.current = stopAiThinking;
@@ -21416,10 +21355,7 @@ const powerRef = useRef(hud.power);
         const aimLerpFactor = chalkAssistTargetRef.current
           ? Math.min(baseAimLerp, CHALK_AIM_LERP_SLOW)
           : baseAimLerp;
-        const hudState = hudRef.current;
-        const lockAimToAiPlan =
-          aiOpponentEnabled && hudState?.turn === 1 && aiPlanRef.current;
-        if (!lookModeRef.current && !lockAimToAiPlan) {
+        if (!lookModeRef.current) {
           aimDir.lerp(tmpAim, aimLerpFactor);
         }
         const appliedSpin = applySpinConstraints(aimDir, true);
@@ -22839,10 +22775,6 @@ const powerRef = useRef(hud.power);
           remoteShotActiveRef.current = false;
           remoteShotUntilRef.current = 0;
           remoteAimRef.current = null;
-          if (tableShadow) {
-            tableShadow.geometry?.dispose?.();
-            tableShadow.material?.dispose?.();
-          }
           lightingRigRef.current = null;
           worldRef.current = null;
           activeRenderCameraRef.current = null;
