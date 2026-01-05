@@ -64,6 +64,7 @@
   const tgKey = params.get("tgId") || "anon";
   const STATE_KEY = `poolRoyaleTournamentState_${tgKey}`;
   const OPP_KEY = `poolRoyaleTournamentOpponent_${tgKey}`;
+  const stake = Number(params.get('amount')) || 0;
   const theme = {
     bg:'#0b1020',
     panel:'#11172a',
@@ -461,8 +462,25 @@
     const totalPlayers = parseInt(params.get('players') || '8', 10);
     const saved = localStorage.getItem(STATE_KEY);
     if(saved){
-      state = JSON.parse(saved);
-    } else {
+      try{
+        const parsed = JSON.parse(saved);
+        const savedComplete = Boolean(parsed?.complete && parsed?.championSeed);
+        const savedCount = parsed?.N || (parsed?.players || []).length;
+        if (!savedComplete && savedCount === totalPlayers) {
+          state = parsed;
+          if (!state.pot && stake > 0) {
+            state.pot = Math.round(stake * totalPlayers);
+          }
+        } else {
+          localStorage.removeItem(STATE_KEY);
+          localStorage.removeItem(OPP_KEY);
+        }
+      }catch{
+        localStorage.removeItem(STATE_KEY);
+        localStorage.removeItem(OPP_KEY);
+      }
+    }
+    if(!state?.players?.length){
       const userName = params.get('name') || 'You';
       const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
       function flagToName(flag){
@@ -483,6 +501,7 @@
       state.currentRound = 0;
       state.championSeed = 0;
       state.complete = false;
+      state.pot = stake > 0 ? Math.round(stake * totalPlayers) : 0;
       localStorage.setItem(STATE_KEY, JSON.stringify(state));
     }
     layoutAndDraw();

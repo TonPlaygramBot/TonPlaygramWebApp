@@ -56,14 +56,16 @@ import {
   POOL_ROYALE_DEFAULT_UNLOCKS,
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_HDRI_VARIANT_MAP,
-  POOL_ROYALE_BASE_VARIANTS
+  POOL_ROYALE_BASE_VARIANTS,
+  POOL_ROYALE_OPTION_LABELS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
   getCachedPoolRoyalInventory,
   getPoolRoyalInventory,
   isPoolOptionUnlocked,
-  poolRoyalAccountId
+  poolRoyalAccountId,
+  addPoolRoyalUnlock
 } from '../../utils/poolRoyalInventory.js';
 import {
   describeTrainingLevel,
@@ -181,6 +183,17 @@ function detectHighRefreshDisplay() {
   }
   return false;
 }
+
+const randomPick = (list) => list[Math.floor(Math.random() * list.length)];
+
+const wait = (ms = 0) =>
+  new Promise((resolve) => {
+    if (!Number.isFinite(ms) || ms <= 0) {
+      resolve();
+      return;
+    }
+    window.setTimeout(resolve, ms);
+  });
 
 function isWebGLAvailable() {
   if (typeof document === 'undefined') return false;
@@ -9681,6 +9694,25 @@ function PoolRoyaleGame({
   const rafRef = useRef(null);
   const worldRef = useRef(null);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
+  const tournamentMode = playType === 'tournament';
+  const tournamentPlayers = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = parseInt(params.get('players') || '0', 10);
+    return Number.isFinite(requested) && requested > 0 ? requested : 8;
+  }, [location.search]);
+  const tournamentKey = tgId || 'anon';
+  const tournamentStateKey = useMemo(
+    () => `poolRoyaleTournamentState_${tournamentKey}`,
+    [tournamentKey]
+  );
+  const tournamentOppKey = useMemo(
+    () => `poolRoyaleTournamentOpponent_${tournamentKey}`,
+    [tournamentKey]
+  );
+  const tournamentLastResultKey = useMemo(
+    () => `poolRoyaleLastResult_${tournamentKey}`,
+    [tournamentKey]
+  );
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey, ballSetKey),
     [variantKey, ballSetKey]
@@ -9697,6 +9729,65 @@ function PoolRoyaleGame({
   const resolvedAccountId = useMemo(
     () => poolRoyalAccountId(accountId),
     [accountId]
+  );
+  const stakeAmount = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return Number(params.get('amount')) || 0;
+  }, [location.search]);
+  const stakeToken = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('token') || 'TPC';
+  }, [location.search]);
+  const [winnerOverlay, setWinnerOverlay] = useState(null);
+  const coinStyleInjectedRef = useRef(false);
+  const ensureCoinBurstStyles = useCallback(() => {
+    if (coinStyleInjectedRef.current || typeof document === 'undefined') return;
+    const style = document.createElement('style');
+    style.id = 'pool-royale-coin-burst';
+    style.textContent = `
+      @keyframes prCoinBurst {
+        0% { transform: translateY(-20px) scale(0.8); opacity: 1; }
+        70% { opacity: 1; }
+        100% { transform: translateY(120vh) scale(1.1); opacity: 0; }
+      }
+      .pr-coin-burst {
+        position: fixed;
+        top: -24px;
+        width: 32px;
+        height: 32px;
+        pointer-events: none;
+        z-index: 70;
+        will-change: transform, opacity;
+      }`;
+    document.head.appendChild(style);
+    coinStyleInjectedRef.current = true;
+  }, []);
+  const triggerCoinBurst = useCallback(
+    (count = 20) => {
+      if (typeof document === 'undefined') return;
+      ensureCoinBurstStyles();
+      const container = document.createElement('div');
+      container.style.position = 'fixed';
+      container.style.inset = '0';
+      container.style.pointerEvents = 'none';
+      container.style.zIndex = '70';
+      document.body.appendChild(container);
+      for (let i = 0; i < count; i += 1) {
+        const img = document.createElement('img');
+        img.src = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+        img.className = 'pr-coin-burst';
+        const left = Math.random() * 100;
+        const delay = Math.random() * 0.6;
+        const duration = 1.6 + Math.random() * 0.8;
+        img.style.left = `${left}vw`;
+        img.style.animation = `prCoinBurst ${duration}s linear ${delay}s forwards`;
+        container.appendChild(img);
+      }
+      window.setTimeout(() => {
+        container.remove();
+      }, 2600);
+    },
+    [ensureCoinBurstStyles]
   );
   const [poolInventory, setPoolInventory] = useState(() =>
     getCachedPoolRoyalInventory(resolvedAccountId)
@@ -9717,6 +9808,75 @@ function PoolRoyaleGame({
       cancelled = true;
     };
   }, [resolvedAccountId]);
+  const awardTournamentLoot = useCallback(async () => {
+    if (!resolvedAccountId) return [];
+    let currentInventory = poolInventory;
+    try {
+      const latest = await getPoolRoyalInventory(resolvedAccountId);
+      if (latest) currentInventory = latest;
+    } catch (err) {
+      console.warn('Pool Royale loot fetch fallback to cache', err);
+    }
+    const selectReward = (type, options) => {
+      const locked = options.filter((optionId) => !isPoolOptionUnlocked(type, optionId, currentInventory));
+      const pool = locked.length ? locked : options;
+      if (!pool.length) return null;
+      return randomPick(pool);
+    };
+    const rewards = [];
+    const finishId = selectReward(
+      'tableFinish',
+      TABLE_FINISH_OPTIONS.map((option) => option.id)
+    );
+    if (finishId) {
+      try {
+        currentInventory = await addPoolRoyalUnlock('tableFinish', finishId, resolvedAccountId);
+      } catch (err) {
+        console.warn('Pool Royale finish unlock failed', err);
+      }
+      rewards.push({
+        type: 'tableFinish',
+        optionId: finishId,
+        label: POOL_ROYALE_OPTION_LABELS.tableFinish?.[finishId] || finishId
+      });
+    }
+    const cueId = selectReward(
+      'cueStyle',
+      CUE_STYLE_PRESETS.map((preset) => preset.id)
+    );
+    if (cueId) {
+      try {
+        currentInventory = await addPoolRoyalUnlock('cueStyle', cueId, resolvedAccountId);
+      } catch (err) {
+        console.warn('Pool Royale cue unlock failed', err);
+      }
+      rewards.push({
+        type: 'cueStyle',
+        optionId: cueId,
+        label: POOL_ROYALE_OPTION_LABELS.cueStyle?.[cueId] || cueId
+      });
+    }
+    const clothId = selectReward(
+      'clothColor',
+      POOL_ROYALE_CLOTH_VARIANTS.map((variant) => variant.id)
+    );
+    if (clothId) {
+      try {
+        currentInventory = await addPoolRoyalUnlock('clothColor', clothId, resolvedAccountId);
+      } catch (err) {
+        console.warn('Pool Royale cloth unlock failed', err);
+      }
+      rewards.push({
+        type: 'clothColor',
+        optionId: clothId,
+        label: POOL_ROYALE_OPTION_LABELS.clothColor?.[clothId] || clothId
+      });
+    }
+    if (currentInventory) {
+      setPoolInventory(currentInventory);
+    }
+    return rewards;
+  }, [poolInventory, resolvedAccountId]);
   const resolveStoredSelection = useCallback(
     (type, storageKey, isValid, fallbackId) => {
       const inventory = poolInventory;
@@ -10824,6 +10984,25 @@ function PoolRoyaleGame({
   const replayBannerTimeoutRef = useRef(null);
   const [replaySlate, setReplaySlate] = useState(null);
   const replaySlateTimeoutRef = useRef(null);
+  const waitForActiveReplay = useCallback(
+    (timeoutMs = 8000) =>
+      new Promise((resolve) => {
+        const start = performance.now();
+        const tick = () => {
+          if (!replayPlaybackRef.current) {
+            resolve();
+            return;
+          }
+          if (performance.now() - start > timeoutMs) {
+            resolve();
+            return;
+          }
+          requestAnimationFrame(tick);
+        };
+        tick();
+      }),
+    []
+  );
   const shotCameraHoldTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
@@ -11301,11 +11480,118 @@ const powerRef = useRef(hud.power);
   const goToLobby = useCallback(() => {
     const winnerId = frameRef.current?.winner ?? frameState.winner;
     const winnerParam = winnerId === 'A' ? '1' : winnerId === 'B' ? '0' : '';
+    if (tournamentMode) {
+      const search = location.search && location.search.length ? location.search : '';
+      window.location.assign(`/pool-royale-bracket.html${search}`);
+      return;
+    }
     const lobbyUrl = winnerParam
       ? `/games/poolroyale/lobby?winner=${winnerParam}`
       : '/games/poolroyale/lobby';
     window.location.assign(lobbyUrl);
-  }, [frameState.winner]);
+  }, [frameState.winner, location.search, tournamentMode]);
+  const simulateRoundAI = useCallback((st, round) => {
+    const next = st.rounds[round + 1];
+    const userSeed = st.userSeed;
+    st.rounds[round].forEach((pair, idx) => {
+      if (pair.includes(userSeed)) return;
+      if (next && next[Math.floor(idx / 2)][idx % 2]) return;
+      const [s1, s2] = pair;
+      const p1 = st.seedToPlayer[s1];
+      const p2 = st.seedToPlayer[s2];
+      let winnerSeed = s1;
+      if (p1?.name === 'BYE') winnerSeed = s2;
+      else if (p2?.name === 'BYE') winnerSeed = s1;
+      else winnerSeed = Math.random() < 0.5 ? s1 : s2;
+      if (next) next[Math.floor(idx / 2)][idx % 2] = winnerSeed;
+      else {
+        st.championSeed = winnerSeed;
+        st.complete = true;
+      }
+    });
+  }, []);
+  const simulateRemaining = useCallback(
+    (st, startRound = 0) => {
+      for (let r = startRound; r < st.rounds.length; r += 1) {
+        simulateRoundAI(st, r);
+        if (st.complete) break;
+      }
+      st.currentRound = st.rounds.length - 1;
+      st.complete = true;
+    },
+    [simulateRoundAI]
+  );
+  const handleTournamentResult = useCallback(
+    async ({ winnerSeat, scores }) => {
+      if (!tournamentMode) return { unlocks: [] };
+      try {
+        const raw = window.localStorage.getItem(tournamentStateKey);
+        if (!raw) {
+          window.location.assign(`/pool-royale-bracket.html${location.search}`);
+          return { unlocks: [] };
+        }
+        const st = JSON.parse(raw);
+        if (!st?.pendingMatch) {
+          window.location.assign(`/pool-royale-bracket.html${location.search}`);
+          return { unlocks: [] };
+        }
+        const r = st.pendingMatch.round;
+        const m = st.pendingMatch.match;
+        const userSeed = st.userSeed || 1;
+        const oppSeed =
+          st.pendingMatch.pair[0] === userSeed ? st.pendingMatch.pair[1] : st.pendingMatch.pair[0];
+        const userSeat = localSeat === 'B' ? 'B' : 'A';
+        const userWon = winnerSeat === userSeat;
+        const winnerSeed = userWon ? userSeed : oppSeed;
+        const next = st.rounds[r + 1];
+        if (next) next[Math.floor(m / 2)][m % 2] = winnerSeed;
+        else {
+          st.championSeed = winnerSeed;
+          st.complete = true;
+        }
+        if (winnerSeed !== userSeed) {
+          simulateRemaining(st, r);
+        } else {
+          simulateRoundAI(st, r);
+          if (next && st.rounds[r].every((pair, idx) => next[Math.floor(idx / 2)][idx % 2])) {
+            st.currentRound = r + 1;
+          }
+        }
+        const prizePot = Math.max(
+          Number.isFinite(st.pot) ? st.pot : 0,
+          Math.round(stakeAmount * (tournamentPlayers || st.N || 2))
+        );
+        st.pot = prizePot;
+        window.localStorage.setItem(
+          tournamentLastResultKey,
+          JSON.stringify({ p1: scores?.A ?? 0, p2: scores?.B ?? 0 })
+        );
+        delete st.pendingMatch;
+        window.localStorage.setItem(tournamentStateKey, JSON.stringify(st));
+        window.localStorage.removeItem(tournamentOppKey);
+        if (st.complete && winnerSeed === userSeed) {
+          const unlocks = await awardTournamentLoot();
+          return { unlocks };
+        }
+      } catch (err) {
+        console.error('Pool Royale tournament result update failed', err);
+      }
+      return { unlocks: [] };
+    },
+    [
+      awardTournamentLoot,
+      localSeat,
+      location.search,
+      simulateRemaining,
+      simulateRoundAI,
+      stakeAmount,
+      tournamentLastResultKey,
+      tournamentMode,
+      tournamentOppKey,
+      tournamentPlayers,
+      tournamentStateKey
+    ]
+  );
 
   const stopActiveCrowdSound = useCallback(() => {
     const current = activeCrowdSoundRef.current;
@@ -11681,8 +11967,67 @@ const powerRef = useRef(hud.power);
       return undefined;
     }
     setHud((prev) => ({ ...prev, over: true }));
-    window.setTimeout(goToLobby, 1200);
-  }, [frameState.frameOver, frameState.winner, goToLobby, isTraining]);
+    const currentFrame = frameRef.current || frameState;
+    const winnerSeat = (currentFrame?.winner ?? frameState.winner) === 'B' ? 'B' : 'A';
+    const finalScores = {
+      A: currentFrame?.players?.A?.score ?? 0,
+      B: currentFrame?.players?.B?.score ?? 0
+    };
+    let cancelled = false;
+    const runMatchWrapUp = async () => {
+      await waitForActiveReplay();
+      const tournamentOutcome = await handleTournamentResult({
+        winnerSeat,
+        scores: finalScores
+      });
+      if (cancelled) return;
+      const userSeat = localSeat === 'B' ? 'B' : 'A';
+      const userWon = winnerSeat === userSeat;
+      const prizeAmount =
+        stakeAmount > 0
+          ? Math.max(
+              0,
+              Math.round(stakeAmount * (tournamentMode ? tournamentPlayers || 2 : 2))
+            )
+          : 0;
+      const overlayData = {
+        name: userWon ? player.name || 'You' : opponentDisplayName || 'Opponent',
+        avatar: userWon ? resolvedPlayerAvatar : opponentDisplayAvatar || '/assets/icons/profile.svg',
+        prizeText: prizeAmount > 0 ? `+${prizeAmount} ${stakeToken}` : '',
+        rewards: tournamentOutcome?.unlocks || [],
+        userWon
+      };
+      setWinnerOverlay(overlayData);
+      if (overlayData.prizeText || (overlayData.rewards && overlayData.rewards.length > 0)) {
+        triggerCoinBurst(overlayData.prizeText ? 28 : 18);
+      }
+      await wait(2200);
+      if (!cancelled) {
+        goToLobby();
+      }
+    };
+    runMatchWrapUp();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    frameState.frameOver,
+    frameState.winner,
+    goToLobby,
+    handleTournamentResult,
+    isTraining,
+    localSeat,
+    opponentDisplayAvatar,
+    opponentDisplayName,
+    player.name,
+    resolvedPlayerAvatar,
+    stakeAmount,
+    stakeToken,
+    tournamentMode,
+    tournamentPlayers,
+    triggerCoinBurst,
+    waitForActiveReplay
+  ]);
 
   const applyRemoteState = useCallback(({ state, hud: incomingHud, layout }) => {
     if (state) {
@@ -22877,6 +23222,60 @@ const powerRef = useRef(hud.power);
           <span className="text-sm font-bold uppercase tracking-[0.24em] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]">
             {ruleToast}
           </span>
+        </div>
+      )}
+      {winnerOverlay && (
+        <div className="pointer-events-none absolute inset-0 z-[120] flex items-center justify-center bg-black/70 px-4">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="relative">
+              <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-amber-300 bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 shadow-[0_0_32px_rgba(250,204,21,0.55)]">
+                {winnerOverlay.avatar ? (
+                  <img
+                    src={winnerOverlay.avatar}
+                    alt={`${winnerOverlay.name} avatar`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center text-4xl">🏆</span>
+                )}
+              </div>
+              <div className="absolute inset-0 rounded-full border-4 border-amber-300/40 blur-sm" />
+              <div className="absolute inset-0 animate-ping rounded-full border-4 border-amber-200/60" />
+            </div>
+            <div className="text-3xl font-black uppercase tracking-[0.3em] text-amber-200 drop-shadow-[0_6px_18px_rgba(0,0,0,0.7)]">
+              Winner
+            </div>
+            <div className="text-lg font-semibold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)]">
+              {winnerOverlay.name}
+            </div>
+            {winnerOverlay.prizeText ? (
+              <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-emerald-300 px-4 py-2 text-sm font-bold uppercase tracking-[0.22em] text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]">
+                <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC prize" className="h-6 w-6" />
+                <span>{winnerOverlay.prizeText}</span>
+              </div>
+            ) : null}
+            {winnerOverlay.rewards?.length ? (
+              <div className="pointer-events-auto w-full max-w-md rounded-2xl border border-amber-200/50 bg-white/10 px-4 py-3 text-sm text-white shadow-[0_0_22px_rgba(0,0,0,0.45)] backdrop-blur">
+                <div className="text-xs font-semibold uppercase tracking-[0.26em] text-amber-100">
+                  New unlocks
+                </div>
+                <ul className="mt-2 space-y-1 text-sm">
+                  {winnerOverlay.rewards.map((reward) => (
+                    <li key={`${reward.type}-${reward.optionId}`} className="flex items-center gap-2">
+                      <span className="text-amber-200">★</span>
+                      <span className="font-semibold">
+                        {reward.label || reward.optionId}
+                        <span className="text-xs uppercase tracking-[0.16em] text-white/70">
+                          {' '}
+                          ({reward.type})
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
       {dualTablesEnabled && tableSelectionOpen && (
