@@ -1067,7 +1067,7 @@ const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up ca
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
-const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.65;
+const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
@@ -1244,14 +1244,14 @@ const SHOT_POWER_REDUCTION = 0.85;
 const SHOT_FORCE_BOOST =
   1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * 1.15;
 const SHOT_BREAK_MULTIPLIER = 1.5;
-const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
+const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST * 1.15; // lift every stroke by 15% for a stronger launch
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
 const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
-const CUE_STRIKE_VOLUME_MULTIPLIER = 1.5; // boost cue strikes to 150% loudness for clearer feedback
+const CUE_STRIKE_VOLUME_MULTIPLIER = 1; // normalize cue strikes to 100% loudness for clearer but balanced feedback
 const CUE_STRIKE_MAX_GAIN = 9; // allow the louder cue strike to pass through without clipping to the previous cap
 const POCKET_SOUND_TAIL = 1;
 // Pool Royale now raises the stance; extend the legs so the playfield sits higher
@@ -1297,7 +1297,7 @@ const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstruc
 const CUE_PULL_VISUAL_MULTIPLIER = 1.7;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
-const CUE_PULL_CUE_CAMERA_DAMPING = 0.12; // trim the pull depth in cue view so the cue stays tight to the ball
+const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
@@ -1311,7 +1311,7 @@ const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.065; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 8.7;
+const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
@@ -5044,7 +5044,7 @@ const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
 );
-const CUE_VIEW_PHI_LIFT = 0.1; // raise the cue camera slightly so the aim view sits higher above the cloth
+const CUE_VIEW_PHI_LIFT = 0.075; // nudge the cue camera lower so the stroke and cue pull stay in frame
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -8745,7 +8745,7 @@ function Table3D(
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
-  const frameExtensionDepth = Math.max(0, TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER);
+  const frameExtensionDepth = Math.max(0, TABLE_H * 0.68 * SKIRT_DROP_MULTIPLIER * 1.5); // drop the wooden rail skirt 50% deeper for a taller frame
   const baseRailWidth = endRailW;
   if (frameExtensionDepth > MICRO_EPS) {
     const frameExtensionGeo = new THREE.ExtrudeGeometry(railsOuter, {
@@ -9107,8 +9107,6 @@ function Table3D(
       const positions = [
         [-ctx.frameOuterX + ctx.legInset, -ctx.frameOuterZ + ctx.legInset],
         [ctx.frameOuterX - ctx.legInset, -ctx.frameOuterZ + ctx.legInset],
-        [-ctx.frameOuterX + ctx.legInset, 0],
-        [ctx.frameOuterX - ctx.legInset, 0],
         [-ctx.frameOuterX + ctx.legInset, ctx.frameOuterZ - ctx.legInset],
         [ctx.frameOuterX - ctx.legInset, ctx.frameOuterZ - ctx.legInset]
       ];
@@ -9127,44 +9125,22 @@ function Table3D(
       const legMeshes = [];
       const frameWidth = ctx.frameOuterX * 0.9;
       const frameDepth = ctx.frameOuterZ * 0.26;
-      const frameHeight = ctx.legH * 0.86;
       const thickness = ctx.legR;
       const legWidth = thickness * 1.35;
-      const legHeight = frameHeight * 0.92;
-      const beamHeight = Math.max(thickness * 1.25, ctx.legH * 0.12);
-      const footHeight = Math.max(thickness * 0.4, ctx.legH * 0.05);
-      const beamDepth = frameDepth * 1.02;
+      const legHeight = ctx.legH * 0.94;
       const legGeom = new THREE.BoxGeometry(legWidth, legHeight, frameDepth);
-      const beamGeom = new THREE.BoxGeometry(
-        frameWidth * 2 - legWidth * 1.35,
-        beamHeight,
-        beamDepth
-      );
-      const footGeom = new THREE.BoxGeometry(legWidth * 1.15, footHeight, frameDepth * 1.12);
       const legOffsetX = frameWidth - legWidth * 0.65;
-      const legBaseY = ctx.floorY + footHeight / 2;
+      const legBaseY = ctx.floorY;
       const legY = legBaseY + legHeight / 2;
-      const beamY = legBaseY + legHeight + beamHeight / 2;
       const portalZ = (ctx.frameOuterZ - ctx.legInset) * 0.92;
       const buildPortal = (signZ) => {
         const portal = new THREE.Group();
-        const addLegAssembly = (side) => {
+        [-1, 1].forEach((side) => {
           const leg = tagBasePart(new THREE.Mesh(legGeom, ctx.legMat));
           leg.position.set(side * legOffsetX, legY, 0);
           portal.add(leg);
           legMeshes.push(leg);
-
-          const foot = tagBasePart(new THREE.Mesh(footGeom, ctx.legMat));
-          foot.position.set(side * legOffsetX, legBaseY, 0);
-          portal.add(foot);
-          legMeshes.push(foot);
-        };
-        addLegAssembly(-1);
-        addLegAssembly(1);
-        const beam = tagBasePart(new THREE.Mesh(beamGeom, ctx.legMat));
-        beam.position.set(0, beamY, 0);
-        portal.add(beam);
-        legMeshes.push(beam);
+        });
         portal.position.set(0, 0, signZ * portalZ);
         portal.rotation.y = signZ < 0 ? 0 : Math.PI;
         meshes.push(portal);
