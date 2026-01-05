@@ -1313,6 +1313,8 @@ const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
+const LEG_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.82; // push legs toward the short-rail midpoint so pockets stay unobstructed
+const LEG_SHORT_RAIL_DEPTH_PULL = TABLE.WALL * 0.24; // add a small forward pull so the leg footprint clears the pocket bowls
 const SKIRT_DROP_MULTIPLIER = 0; // remove the apron/skirt drop so the table body stays tight to the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
@@ -7096,7 +7098,7 @@ function Table3D(
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
-    POCKET_WALL_HEIGHT,
+    POCKET_WALL_HEIGHT * 0.68,
     48,
     1,
     true
@@ -7118,18 +7120,19 @@ function Table3D(
   const pocketNetMaterial = new THREE.MeshStandardMaterial({
     color: 0xf6f3ea,
     metalness: 0.12,
-    roughness: 0.46,
+    roughness: 0.38,
     transparent: true,
     alphaMap: pocketNetTexture || undefined,
     side: THREE.DoubleSide,
-    depthWrite: false
+    depthWrite: false,
+    wireframe: false
   });
   const pocketNetProfile = [
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.96, 0),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.92, -POCKET_NET_DEPTH * 0.12),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.78, -POCKET_NET_DEPTH * 0.45),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.52, -POCKET_NET_DEPTH * 0.82),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.4, -POCKET_NET_DEPTH)
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.98, 0),
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.94, -POCKET_NET_DEPTH * 0.08),
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.8, -POCKET_NET_DEPTH * 0.34),
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.6, -POCKET_NET_DEPTH * 0.68),
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.48, -POCKET_NET_DEPTH)
   ];
   const pocketNetGeo = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
   const pocketMeshes = [];
@@ -7137,7 +7140,7 @@ function Table3D(
     const isMiddlePocket = index >= 4;
     const pocketLift = isMiddlePocket ? SIDE_POCKET_PLYWOOD_LIFT : 0;
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
-    pocket.position.set(p.x, pocketTopY - POCKET_WALL_HEIGHT / 2 + pocketLift, p.y);
+    pocket.position.set(p.x, pocketTopY - (POCKET_WALL_HEIGHT * 0.68) / 2 + pocketLift, p.y);
     pocket.renderOrder = cloth.renderOrder - 0.5; // render beneath the cloth to avoid z-fighting
     pocket.castShadow = false;
     pocket.receiveShadow = true;
@@ -7145,7 +7148,7 @@ function Table3D(
     table.add(pocket);
     pocketMeshes.push(pocket);
     const net = new THREE.Mesh(pocketNetGeo, pocketNetMaterial);
-    net.position.set(p.x, pocketTopY - POCKET_WALL_HEIGHT + pocketLift, p.y);
+    net.position.set(p.x, pocketTopY - POCKET_WALL_HEIGHT * 0.9 + pocketLift, p.y);
     net.castShadow = false;
     net.receiveShadow = true;
     net.renderOrder = pocket.renderOrder - 0.25;
@@ -8834,7 +8837,8 @@ function Table3D(
   const legReach = Math.max(legTopWorld - legBottomWorld, TABLE_H);
   const legH = legReach + LEG_TOP_OVERLAP;
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
-  const legInset = baseRailWidth * 3.2;
+  const legInset = baseRailWidth * 3.2 - LEG_SHORT_RAIL_CENTER_PULL;
+  const legDepthPull = LEG_SHORT_RAIL_DEPTH_PULL;
   const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
   // Match the skirt/apron wood grain with the cue butt so the pattern reads
   // clearly from the player perspective.
@@ -8919,6 +8923,7 @@ function Table3D(
     floorY: FLOOR_Y,
     renderer,
     legInset,
+    legDepthPull,
     legY,
     legR,
     legH,
@@ -9165,10 +9170,10 @@ function Table3D(
   const baseBuilders = {
     classicCylinders: (ctx) => {
       const positions = [
-        [-ctx.frameOuterX + ctx.legInset, -ctx.frameOuterZ + ctx.legInset],
-        [ctx.frameOuterX - ctx.legInset, -ctx.frameOuterZ + ctx.legInset],
-        [-ctx.frameOuterX + ctx.legInset, ctx.frameOuterZ - ctx.legInset],
-        [ctx.frameOuterX - ctx.legInset, ctx.frameOuterZ - ctx.legInset]
+        [-ctx.frameOuterX + ctx.legInset, -ctx.frameOuterZ + ctx.legInset - ctx.legDepthPull],
+        [ctx.frameOuterX - ctx.legInset, -ctx.frameOuterZ + ctx.legInset - ctx.legDepthPull],
+        [-ctx.frameOuterX + ctx.legInset, ctx.frameOuterZ - ctx.legInset + ctx.legDepthPull],
+        [ctx.frameOuterX - ctx.legInset, ctx.frameOuterZ - ctx.legInset + ctx.legDepthPull]
       ];
       const legs = positions.map(([lx, lz]) => {
         const leg = new THREE.Mesh(ctx.legGeo, ctx.legMat);
@@ -9192,7 +9197,7 @@ function Table3D(
       const legOffsetX = frameWidth - legWidth * 0.65;
       const legBaseY = ctx.floorY;
       const legY = legBaseY + legHeight / 2;
-      const portalZ = (ctx.frameOuterZ - ctx.legInset) * 0.92;
+      const portalZ = (ctx.frameOuterZ - ctx.legInset + ctx.legDepthPull * 0.65) * 0.92;
       const buildPortal = (signZ) => {
         const portal = new THREE.Group();
         [-1, 1].forEach((side) => {
