@@ -56,14 +56,16 @@ import {
   POOL_ROYALE_DEFAULT_UNLOCKS,
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_HDRI_VARIANT_MAP,
-  POOL_ROYALE_BASE_VARIANTS
+  POOL_ROYALE_BASE_VARIANTS,
+  POOL_ROYALE_OPTION_LABELS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
   getCachedPoolRoyalInventory,
   getPoolRoyalInventory,
   isPoolOptionUnlocked,
-  poolRoyalAccountId
+  poolRoyalAccountId,
+  addPoolRoyalUnlock
 } from '../../utils/poolRoyalInventory.js';
 import {
   describeTrainingLevel,
@@ -73,6 +75,7 @@ import {
   resolvePlayableTrainingLevel
 } from '../../utils/poolRoyaleTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import coinConfetti from '../../utils/coinConfetti.ts';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
@@ -10766,10 +10769,40 @@ function PoolRoyaleGame({
   const secondaryTableRef = useRef(null);
   const secondaryBaseSetterRef = useRef(null);
   const activeTableSlotRef = useRef(initialTableSlot);
+  const tournamentPlayers = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return Number(params.get('players')) || 0;
+  }, [location.search]);
+  const tournamentIdParam = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('tournamentId') || '';
+  }, [location.search]);
+  const tournamentStateKey = useMemo(
+    () => `poolRoyaleTournamentState_${tgId || 'anon'}`,
+    [tgId]
+  );
+  const tournamentOppKey = useMemo(
+    () => `poolRoyaleTournamentOpponent_${tgId || 'anon'}`,
+    [tgId]
+  );
+  const [tournamentOpponent, setTournamentOpponent] = useState(null);
+  useEffect(() => {
+    if (playType !== 'tournament') {
+      setTournamentOpponent(null);
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(tournamentOppKey);
+      setTournamentOpponent(raw ? JSON.parse(raw) : null);
+    } catch {
+      setTournamentOpponent(null);
+    }
+  }, [playType, tournamentOppKey]);
   const playerLabel = playerName || 'Player';
   const effectiveMode = isTraining ? trainingModeState : mode;
-  const opponentLabel =
+  const baseOpponentLabel =
     effectiveMode === 'online' ? opponentName || 'Opponent' : opponentName || 'AI';
+  const opponentLabel = tournamentOpponent?.name || baseOpponentLabel;
   const tableId = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('tableId') || '';
@@ -10804,8 +10837,13 @@ function PoolRoyaleGame({
     () => (localSeat === 'A' ? frameState?.players?.B : frameState?.players?.A),
     [frameState?.players, localSeat]
   );
-  const opponentDisplayName = opponentProfile?.name || opponentLabel;
-  const opponentDisplayAvatar = opponentProfile?.avatar || opponentAvatar || '/assets/icons/profile.svg';
+  const opponentDisplayName =
+    opponentProfile?.name || tournamentOpponent?.name || opponentLabel;
+  const opponentFlagEmoji = tournamentOpponent?.flag || '';
+  const opponentDisplayAvatar =
+    opponentProfile?.avatar ||
+    opponentAvatar ||
+    (opponentFlagEmoji ? '' : '/assets/icons/profile.svg');
   const [aiPlanning, setAiPlanning] = useState(null);
   const aiPlanRef = useRef(null);
   const aiPlanningRef = useRef(null);
@@ -10870,6 +10908,7 @@ const lastShotReminderRef = useRef({ A: 0, B: 0 });
 const [ruleToast, setRuleToast] = useState(null);
 const ruleToastTimeoutRef = useRef(null);
 const [replayActive, setReplayActive] = useState(false);
+const [winnerOverlay, setWinnerOverlay] = useState(null);
 const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
 const [bottomHudOffset, setBottomHudOffset] = useState(0);
 const leftControlsRef = useRef(null);
@@ -11299,13 +11338,164 @@ const powerRef = useRef(hud.power);
   const { mapDelta } = useAimCalibration();
 
   const goToLobby = useCallback(() => {
+    if (playType === 'tournament') {
+      const search = window.location.search.slice(1);
+      const bracketUrl = `/pool-royale-bracket.html?${search}`;
+      window.location.assign(bracketUrl);
+      return;
+    }
     const winnerId = frameRef.current?.winner ?? frameState.winner;
     const winnerParam = winnerId === 'A' ? '1' : winnerId === 'B' ? '0' : '';
     const lobbyUrl = winnerParam
       ? `/games/poolroyale/lobby?winner=${winnerParam}`
       : '/games/poolroyale/lobby';
     window.location.assign(lobbyUrl);
-  }, [frameState.winner]);
+  }, [frameState.winner, playType]);
+
+  const waitForReplayCompletion = useCallback((timeoutMs = 6500) => {
+    return new Promise((resolve) => {
+      const start = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+      const tick = () => {
+        const playback = replayPlaybackRef.current;
+        const now = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+        if (!playback || now - start >= timeoutMs) {
+          resolve();
+          return;
+        }
+        requestAnimationFrame(tick);
+      };
+      tick();
+    });
+  }, []);
+
+  const resolvePrizeAmount = useCallback(() => {
+    if (stakeAmount <= 0) return 0;
+    if (playType === 'tournament') {
+      const playerCount = Math.max(2, tournamentPlayers || 0);
+      return Math.round(stakeAmount * playerCount * 0.91);
+    }
+    return Math.round(stakeAmount * 2 * 0.91);
+  }, [playType, stakeAmount, tournamentPlayers]);
+
+  const chooseRandomUnlock = useCallback((type, options, inventory) => {
+    const unlocked = new Set(inventory?.[type] || []);
+    const lockedPool = options.filter((opt) => opt?.id && !unlocked.has(opt.id));
+    const pool = lockedPool.length > 0 ? lockedPool : options;
+    if (!pool.length) return null;
+    const choice = pool[Math.floor(Math.random() * pool.length)];
+    return choice?.id || null;
+  }, []);
+
+  const awardTournamentRewards = useCallback(async () => {
+    const resolvedAccount = poolRoyalAccountId(accountIdRef.current || accountId);
+    if (!resolvedAccount) return [];
+    const inventory = getCachedPoolRoyalInventory(resolvedAccount);
+    const rewards = [];
+    const selections = [
+      ['tableFinish', chooseRandomUnlock('tableFinish', TABLE_FINISH_OPTIONS, inventory)],
+      ['cueStyle', chooseRandomUnlock('cueStyle', CUE_STYLE_PRESETS, inventory)],
+      ['clothColor', chooseRandomUnlock('clothColor', CLOTH_COLOR_OPTIONS, inventory)]
+    ].filter(([, id]) => Boolean(id));
+    let latestInventory = inventory;
+    for (const [type, optionId] of selections) {
+      try {
+        latestInventory = await addPoolRoyalUnlock(type, optionId, resolvedAccount);
+        const label = POOL_ROYALE_OPTION_LABELS?.[type]?.[optionId] || optionId;
+        rewards.push({ type, id: optionId, label });
+      } catch (err) {
+        console.warn('Pool Royale tournament reward unlock failed', type, optionId, err);
+      }
+    }
+    if (latestInventory) {
+      setPoolInventory(latestInventory);
+    }
+    return rewards;
+  }, [accountId, chooseRandomUnlock, setPoolInventory]);
+
+  const handleTournamentProgress = useCallback(
+    async (playerWon) => {
+      if (playType !== 'tournament') return;
+      let st = {};
+      try {
+        st = JSON.parse(window.localStorage.getItem(tournamentStateKey) || '{}') || {};
+      } catch {
+        st = {};
+      }
+      if (tournamentIdParam && st.tournamentId && st.tournamentId !== tournamentIdParam) {
+        const search = window.location.search.slice(1);
+        window.location.assign(`/pool-royale-bracket.html?${search}`);
+        return;
+      }
+      if (!st.pendingMatch || !Array.isArray(st.rounds)) {
+        const search = window.location.search.slice(1);
+        window.location.assign(`/pool-royale-bracket.html?${search}`);
+        return;
+      }
+      const simulateRoundAI = (state, round) => {
+        const next = state.rounds[round + 1];
+        const userSeed = state.userSeed;
+        state.rounds[round].forEach((pair, idx) => {
+          if (pair.includes(userSeed)) return;
+          if (next && next[Math.floor(idx / 2)][idx % 2]) return;
+          const s1 = pair[0];
+          const s2 = pair[1];
+          const p1 = state.seedToPlayer[s1];
+          const p2 = state.seedToPlayer[s2];
+          let winner;
+          if (p1 && p1.name === 'BYE') winner = s2;
+          else if (p2 && p2.name === 'BYE') winner = s1;
+          else winner = Math.random() < 0.5 ? s1 : s2;
+          if (next) {
+            next[Math.floor(idx / 2)][idx % 2] = winner;
+          } else {
+            state.championSeed = winner;
+            state.complete = true;
+          }
+        });
+      };
+
+      const simulateRemaining = (state, startRound) => {
+        for (let r = startRound; r < state.rounds.length; r++) {
+          simulateRoundAI(state, r);
+          if (state.complete) break;
+        }
+        state.currentRound = state.rounds.length - 1;
+        state.complete = true;
+      };
+
+      const roundIndex = st.pendingMatch.round;
+      const matchIndex = st.pendingMatch.match;
+      const pair = st.pendingMatch.pair || [];
+      const oppSeed = pair[0] === st.userSeed ? pair[1] : pair[0];
+      const winnerSeed = playerWon ? st.userSeed : oppSeed;
+      const next = st.rounds[roundIndex + 1];
+      if (next) {
+        next[Math.floor(matchIndex / 2)][matchIndex % 2] = winnerSeed;
+      } else {
+        st.championSeed = winnerSeed;
+        st.complete = true;
+      }
+      if (winnerSeed !== st.userSeed) {
+        simulateRemaining(st, roundIndex);
+      } else {
+        simulateRoundAI(st, roundIndex);
+        if (next && st.rounds[roundIndex].every((_, idx) => next[Math.floor(idx / 2)][idx % 2])) {
+          st.currentRound = Math.min(st.rounds.length - 1, (st.currentRound || 0) + 1);
+        }
+      }
+      st.tournamentId = st.tournamentId || tournamentIdParam;
+      delete st.pendingMatch;
+      try {
+        window.localStorage.setItem(tournamentStateKey, JSON.stringify(st));
+        window.localStorage.removeItem(tournamentOppKey);
+      } catch (err) {
+        console.error('Failed to persist tournament state', err);
+      }
+      const search = window.location.search.slice(1);
+      window.location.assign(`/pool-royale-bracket.html?${search}`);
+    },
+    [playType, tournamentIdParam, tournamentOppKey, tournamentStateKey]
+  );
 
   const stopActiveCrowdSound = useCallback(() => {
     const current = activeCrowdSoundRef.current;
@@ -11672,6 +11862,7 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     if (!frameState.frameOver) {
       gameOverHandledRef.current = false;
+      setWinnerOverlay(null);
       return;
     }
     if (gameOverHandledRef.current) return;
@@ -11681,8 +11872,61 @@ const powerRef = useRef(hud.power);
       return undefined;
     }
     setHud((prev) => ({ ...prev, over: true }));
-    window.setTimeout(goToLobby, 1200);
-  }, [frameState.frameOver, frameState.winner, goToLobby, isTraining]);
+    const winnerSeat = frameRef.current?.winner ?? frameState.winner ?? 'A';
+    const winnerProfile = winnerSeat === 'A' ? framePlayersProfile.A : framePlayersProfile.B;
+    const winnerName =
+      winnerProfile?.name ||
+      (winnerSeat === 'A' ? player.name || 'You' : opponentDisplayName || 'Opponent');
+    const winnerAvatar =
+      winnerProfile?.avatar ||
+      (winnerSeat === 'A' ? resolvedPlayerAvatar : opponentDisplayAvatar) ||
+      (winnerSeat === 'B' ? opponentFlagEmoji || '' : playerFlag || '') ||
+      '/assets/icons/profile.svg';
+    const winnerFlag = winnerSeat === 'B' ? opponentFlagEmoji : playerFlag;
+    const prizeAmount = resolvePrizeAmount();
+    (async () => {
+      await waitForReplayCompletion();
+      const rewards =
+        playType === 'tournament' && winnerSeat === localSeatRef.current
+          ? await awardTournamentRewards()
+          : [];
+      setWinnerOverlay({
+        seat: winnerSeat,
+        name: winnerName,
+        avatar: winnerAvatar,
+        prize: prizeAmount,
+        rewards,
+        flag: winnerFlag
+      });
+      if (winnerSeat === localSeatRef.current) {
+        coinConfetti(28);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2400));
+      if (playType === 'tournament') {
+        await handleTournamentProgress(winnerSeat === localSeatRef.current);
+        return;
+      }
+      goToLobby();
+    })();
+  }, [
+    awardTournamentRewards,
+    framePlayersProfile.A,
+    framePlayersProfile.B,
+    frameState.frameOver,
+    frameState.winner,
+    goToLobby,
+    handleTournamentProgress,
+    isTraining,
+    opponentDisplayAvatar,
+    opponentDisplayName,
+    opponentFlagEmoji,
+    playType,
+    player.name,
+    playerFlag,
+    resolvePrizeAmount,
+    resolvedPlayerAvatar,
+    waitForReplayCompletion
+  ]);
 
   const applyRemoteState = useCallback(({ state, hud: incomingHud, layout }) => {
     if (state) {
@@ -23619,15 +23863,19 @@ const powerRef = useRef(hud.power);
             >
               {isOnlineMatch ? (
                 <>
-                  <img
-                    src={opponentDisplayAvatar}
-                    alt="opponent avatar"
-                    className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
-                      isOpponentTurn
-                        ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                        : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                    }`}
-                  />
+                  {opponentDisplayAvatar ? (
+                    <img
+                      src={opponentDisplayAvatar}
+                      alt="opponent avatar"
+                      className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
+                        isOpponentTurn
+                          ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                          : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
+                      }`}
+                    />
+                  ) : (
+                    renderFlagAvatar(opponentFlagEmoji || '🏆', opponentDisplayName, isOpponentTurn)
+                  )}
                   <div className="flex min-w-0 flex-col">
                     <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
                       {opponentDisplayName}
@@ -23638,15 +23886,19 @@ const powerRef = useRef(hud.power);
               ) : (
                 <>
                   <div className="flex items-center gap-3">
-                    <img
-                      src={opponentDisplayAvatar || '/assets/icons/profile.svg'}
-                      alt="opponent avatar"
-                      className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
-                        isOpponentTurn
-                          ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                          : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                      }`}
-                    />
+                    {opponentDisplayAvatar ? (
+                      <img
+                        src={opponentDisplayAvatar || '/assets/icons/profile.svg'}
+                        alt="opponent avatar"
+                        className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
+                          isOpponentTurn
+                            ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
+                        }`}
+                      />
+                    ) : (
+                      renderFlagAvatar(opponentFlagEmoji || aiFlagLabel, opponentDisplayName, isOpponentTurn)
+                    )}
                     <div className="flex min-w-0 flex-col">
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
@@ -23762,6 +24014,62 @@ const powerRef = useRef(hud.power);
                 top: '50%'
               }}
             ></div>
+          </div>
+        </div>
+      )}
+
+      {winnerOverlay && (
+        <div className="pointer-events-none absolute inset-0 z-[120] flex items-center justify-center bg-black/70 px-4 text-center backdrop-blur-sm">
+          <div className="pointer-events-auto w-full max-w-md rounded-3xl border border-amber-300/60 bg-slate-900/85 px-6 py-6 shadow-[0_28px_64px_rgba(0,0,0,0.65)]">
+            <div className="text-xs font-semibold uppercase tracking-[0.38em] text-amber-200">
+              Winner
+            </div>
+            <div className="mt-3 flex flex-col items-center gap-3">
+              <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-amber-300 bg-black/60 shadow-[0_12px_32px_rgba(0,0,0,0.55)]">
+                {winnerOverlay.avatar ? (
+                  <img
+                    src={winnerOverlay.avatar}
+                    alt="winner avatar"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="text-5xl drop-shadow-[0_3px_8px_rgba(0,0,0,0.55)]">
+                    {winnerOverlay.flag || '🏆'}
+                  </span>
+                )}
+              </div>
+              <p className="text-2xl font-bold text-amber-100 drop-shadow-[0_6px_18px_rgba(0,0,0,0.45)]">
+                {winnerOverlay.name}
+              </p>
+              <div className="text-sm font-semibold uppercase tracking-[0.32em] text-amber-200">
+                Champion
+              </div>
+              {winnerOverlay.prize > 0 && (
+                <div className="flex items-center justify-center gap-2 rounded-full border border-amber-200/60 bg-amber-400/15 px-4 py-2 text-sm font-semibold text-amber-50 shadow-inner shadow-amber-900/40">
+                  <img
+                    src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+                    alt="TPC coin"
+                    className="h-6 w-6"
+                  />
+                  <span>+{winnerOverlay.prize} TPC prize</span>
+                </div>
+              )}
+              {winnerOverlay.rewards?.length ? (
+                <div className="w-full rounded-2xl border border-amber-200/40 bg-white/5 p-3 text-left text-sm text-white/90">
+                  <div className="text-xs uppercase tracking-[0.32em] text-amber-200">
+                    New gear unlocked
+                  </div>
+                  <ul className="mt-2 space-y-1">
+                    {winnerOverlay.rewards.map((reward) => (
+                      <li key={`${reward.type}-${reward.id}`} className="flex items-center gap-2 text-xs sm:text-sm">
+                        <span className="h-2 w-2 rounded-full bg-amber-300" aria-hidden="true"></span>
+                        <span className="font-semibold text-white">{reward.label || reward.id}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       )}
