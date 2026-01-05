@@ -19679,6 +19679,41 @@ const powerRef = useRef(hud.power);
             }
             return true;
           };
+          const detectScratchRisk = (plan) => {
+            if (!plan?.aimDir || !cuePos) return false;
+            const dir = plan.aimDir.clone().normalize();
+            const maxTravel =
+              Number.isFinite(plan?.cueToTarget) && plan.cueToTarget > BALL_R * 2
+                ? plan.cueToTarget
+                : Math.max(PLAY_W, PLAY_H);
+            const scratchRadiusSq = (BALL_R * 1.05) * (BALL_R * 1.05);
+            return centers.some((pocket) => {
+              const toPocket = pocket.clone().sub(cuePos);
+              const proj = toPocket.dot(dir);
+              if (proj <= 0 || proj >= maxTravel) return false;
+              const closest = cuePos.clone().add(dir.clone().multiplyScalar(proj));
+              return pocket.distanceToSquared(closest) < scratchRadiusSq;
+            });
+          };
+          const isAimLaneBlocked = (plan) => {
+            if (!plan?.aimDir || !plan?.cueToTarget) return false;
+            if (plan.viaCushion) return false;
+            const aimTarget = cuePos.clone().add(
+              plan.aimDir.clone().normalize().multiplyScalar(plan.cueToTarget)
+            );
+            const ignore = new Set([cue.id]);
+            if (plan.targetBall?.id != null) ignore.add(plan.targetBall.id);
+            return !isPathClear(cuePos, aimTarget, ignore);
+          };
+          const isPlayablePlan = (plan, { allowCushion = true } = {}) => {
+            if (!plan) return false;
+            const qualityOk = (plan.quality ?? 0) >= 0.05;
+            if (!qualityOk) return false;
+            if (!allowCushion && plan.viaCushion) return false;
+            if (isAimLaneBlocked(plan)) return false;
+            if (detectScratchRisk(plan)) return false;
+            return true;
+          };
           const tryCushionRoute = (start, target, ignoreIds = new Set()) => {
             const walls = [
               { axis: 'x', wall: halfW - cushionMargin, normal: new THREE.Vector2(-1, 0) },
@@ -19978,6 +20013,8 @@ const powerRef = useRef(hud.power);
           }
           const scorePotPlan = (plan) => {
             if (!plan) return -Infinity;
+            if (detectScratchRisk(plan)) return -Infinity;
+            if (isAimLaneBlocked(plan)) return -Infinity;
             const difficultyNorm = Math.max(1, PLAY_W + PLAY_H);
             const difficulty = Number.isFinite(plan.difficulty)
               ? plan.difficulty
@@ -19995,18 +20032,29 @@ const powerRef = useRef(hud.power);
             );
             const cueEase = Math.max(0, 1 - cueToTarget / Math.max(PLAY_W, PLAY_H, BALL_R));
             const quality = plan.quality ?? 0;
+            const routeEase = Math.max(
+              0,
+              1 - (cueToTarget + targetToPocket) / Math.max(PLAY_W, PLAY_H, BALL_R * 2)
+            );
             const priorityIndex = targetOrder.findIndex((target) =>
               matchesTargetId(plan.targetBall, target)
             );
             const priorityBonus =
               priorityIndex >= 0 ? 1 - Math.min(priorityIndex * 0.18, 0.72) : 0;
             const cushionPenalty = plan.viaCushion ? 0.18 : 0;
+            const finishBonus =
+              activeBalls.filter((ball) => ball.active && matchesTargetId(ball, plan.target))
+                .length <= 2
+                ? 0.06
+                : 0;
             return (
               quality * 0.55 +
               difficultyEase * 0.2 +
               pocketEase * 0.1 +
               cueEase * 0.08 +
-              priorityBonus * 0.1 -
+              priorityBonus * 0.1 +
+              routeEase * 0.08 +
+              finishBonus -
               cushionPenalty
             );
           };
@@ -20022,11 +20070,20 @@ const powerRef = useRef(hud.power);
               (b.quality ?? 0) - (a.quality ?? 0) ||
               a.difficulty - b.difficulty
           );
-          const bestDirectPot =
-            scoredPots.find((entry) => entry.plan && !entry.plan.viaCushion) ?? null;
-          const bestPot = (bestDirectPot ?? scoredPots[0])?.plan ?? null;
+          const playableDirectPots = scoredPots.filter(
+            (entry) => entry.plan && isPlayablePlan(entry.plan, { allowCushion: false })
+          );
+          const playableCushionPots = scoredPots.filter(
+            (entry) => entry.plan && isPlayablePlan(entry.plan, { allowCushion: true })
+          );
+          const bestDirectPot = playableDirectPots[0]?.plan ?? null;
+          const bestCushionPot =
+            playableCushionPots.find((entry) => entry.plan?.viaCushion)?.plan ?? null;
+          const bestPot = bestDirectPot ?? bestCushionPot ?? playableCushionPots[0]?.plan ?? null;
+          const bestSafetyCandidate =
+            safetyShots.find((plan) => isPlayablePlan(plan, { allowCushion: true })) ?? null;
           const bestSafety =
-            activeVariantId === 'uk' && bestPot ? null : safetyShots[0] ?? null;
+            activeVariantId === 'uk' && bestPot ? null : bestSafetyCandidate;
           return {
             bestPot,
             bestSafety
@@ -20361,6 +20418,26 @@ const powerRef = useRef(hud.power);
             (ball) => ball.active && String(ball.id) !== 'cue'
           );
           if (activeBalls.length === 0) return null;
+          const clearance = BALL_R * 1.5;
+          const isDirectLaneOpen = (target) => {
+            if (!target) return false;
+            const dir = target.pos.clone().sub(cuePos);
+            const lenSq = dir.lengthSq();
+            if (lenSq < 1e-6) return false;
+            const len = Math.sqrt(lenSq);
+            const unit = dir.clone().divideScalar(len);
+            for (const ball of activeBalls) {
+              if (!ball.active) continue;
+              if (ball.id === target.id || String(ball.id) === 'cue') continue;
+              const rel = ball.pos.clone().sub(cuePos);
+              const proj = THREE.MathUtils.clamp(rel.dot(unit), 0, len);
+              const closest = cuePos.clone().add(unit.clone().multiplyScalar(proj));
+              if (ball.pos.distanceToSquared(closest) < clearance * clearance) {
+                return false;
+              }
+            }
+            return true;
+          };
 
           const activeVariantId =
             frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
@@ -20386,6 +20463,22 @@ const powerRef = useRef(hud.power);
               const score = scoreBallForAim(ball, cuePos);
               return score > bestScore ? ball : best;
             }, null);
+          const pickDirectPreferredBall = (targets) => {
+            for (const targetId of targets) {
+              const matches = activeBalls.filter(
+                (ball) => matchesTargetId(ball, targetId) && isDirectLaneOpen(ball)
+              );
+              if (matches.length > 0) {
+                return matches.reduce((best, ball) => {
+                  if (!best) return ball;
+                  const bestScore = scoreBallForAim(best, cuePos);
+                  const score = scoreBallForAim(ball, cuePos);
+                  return score > bestScore ? ball : best;
+                }, null);
+              }
+            }
+            return null;
+          };
           const findRackApex = () =>
             activeBalls.reduce((best, ball) => {
               if (!best) return ball;
@@ -20405,7 +20498,9 @@ const powerRef = useRef(hud.power);
           }
 
           if (!targetBall && combinedTargets.length > 0) {
-            targetBall = pickPreferredBall(combinedTargets, activeBalls, cuePos);
+            targetBall =
+              pickDirectPreferredBall(combinedTargets) ||
+              pickPreferredBall(combinedTargets, activeBalls, cuePos);
           }
 
           if (!targetBall && activeVariantId === 'uk') {
@@ -20419,7 +20514,9 @@ const powerRef = useRef(hud.power);
               preferredColours.push('YELLOW', 'BLUE');
             }
             if (preferredColours.length > 0) {
-              targetBall = pickPreferredBall(preferredColours, activeBalls, cuePos);
+              targetBall =
+                pickDirectPreferredBall(preferredColours) ||
+                pickPreferredBall(preferredColours, activeBalls, cuePos);
             }
           }
 
@@ -20439,6 +20536,14 @@ const powerRef = useRef(hud.power);
 
           if (!targetBall && activeBalls.length > 0) {
             targetBall = pickFallbackBall();
+          }
+
+          if (targetBall && !isDirectLaneOpen(targetBall)) {
+            const rerouted =
+              pickDirectPreferredBall(combinedTargets) ||
+              pickPreferredBall(combinedTargets, activeBalls, cuePos) ||
+              pickFallbackBall();
+            if (rerouted) targetBall = rerouted;
           }
 
           if (!targetBall) return null;
