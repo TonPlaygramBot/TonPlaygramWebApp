@@ -1322,7 +1322,7 @@ const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron
 const LEG_POCKET_CLEARANCE = TABLE.WALL * 1.35; // pull the classic legs deeper toward the short-rail centres to clear pocket drops
 const CLASSIC_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.55; // additional inward shift so legs visually hug the middle of each short rail
 const PORTAL_POCKET_CLEARANCE = TABLE.WALL * 1.1; // pull the open-portal uprights away from the pocket drop line
-const PORTAL_LEG_CENTER_PULL = TABLE.WALL * 0.82; // slide open-portal legs further inward along the short rail
+const PORTAL_LEG_CENTER_PULL = TABLE.WALL * 1.08; // slide open-portal legs further inward along the short rail
 const PORTAL_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.46; // pull portal uprights toward the visual centre of the short rail
 const SKIRT_DROP_MULTIPLIER = 0; // remove the apron/skirt drop so the table body stays tight to the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
@@ -5663,9 +5663,16 @@ const pocketEntranceCenters = () =>
     const entranceOffset = mouthRadius * 0.6;
     return center.clone().add(towardField.multiplyScalar(entranceOffset));
   });
-const resolvePocketHolderDirection = (center) => {
+const resolvePocketHolderDirection = (center, pocketId = null) => {
   const absX = Math.abs(center?.x ?? 0);
   const absZ = Math.abs(center?.y ?? 0);
+  const isMiddlePocket = pocketId === 'TM' || pocketId === 'BM' || absZ < BALL_R * 0.6;
+  if (isMiddlePocket) {
+    const towardTop = pocketId === 'TM';
+    const towardBottom = pocketId === 'BM';
+    const zDir = towardTop ? -1 : towardBottom ? 1 : Math.sign(center?.x || 1);
+    return new THREE.Vector3(0, 0, zDir || 1);
+  }
   if (absX >= absZ) {
     return new THREE.Vector3(Math.sign(center?.x || 1), 0, 0);
   }
@@ -7219,6 +7226,7 @@ function Table3D(
   const pocketStrapThickness = BALL_R * 0.18;
   const pocketMeshes = [];
   pocketCenters().forEach((p, index) => {
+    const pocketId = POCKET_IDS[index] ?? null;
     const isMiddlePocket = index >= 4;
     const pocketLift = isMiddlePocket ? SIDE_POCKET_PLYWOOD_LIFT : 0;
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
@@ -7243,7 +7251,7 @@ function Table3D(
 
     // Add chrome cradle rails and holders beneath the pocket net to catch potted balls.
     const netBottomY = net.position.y - POCKET_NET_DEPTH * 0.96;
-    const outwardDir = resolvePocketHolderDirection(p);
+    const outwardDir = resolvePocketHolderDirection(p, pocketId);
     const sideDir = new THREE.Vector3().crossVectors(outwardDir, new THREE.Vector3(0, 1, 0)).normalize();
     const strapDir = outwardDir.clone().setY(-Math.tan(POCKET_HOLDER_TILT_RAD)).normalize();
     for (let i = 0; i < 3; i += 1) {
@@ -9894,6 +9902,10 @@ function PoolRoyaleGame({
     () => `poolRoyaleLastResult_${tournamentKey}`,
     [tournamentKey]
   );
+  const tournamentAiFlagStorageKey = useMemo(
+    () => `poolRoyaleTournamentAiFlag_${tournamentKey}`,
+    [tournamentKey]
+  );
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey, ballSetKey),
     [variantKey, ballSetKey]
@@ -11170,7 +11182,11 @@ function PoolRoyaleGame({
       new Promise((resolve) => {
         const start = performance.now();
         const tick = () => {
-          if (!replayPlaybackRef.current) {
+          const hasReplay =
+            replayPlaybackRef.current ||
+            replayBannerTimeoutRef.current ||
+            replaySlateTimeoutRef.current;
+          if (!hasReplay) {
             resolve();
             return;
           }
@@ -11750,9 +11766,16 @@ const powerRef = useRef(hud.power);
         delete st.pendingMatch;
         window.localStorage.setItem(tournamentStateKey, JSON.stringify(st));
         window.localStorage.removeItem(tournamentOppKey);
-        if (st.complete && winnerSeed === userSeed) {
-          const unlocks = await awardTournamentLoot();
-          return { unlocks };
+        if (st.complete) {
+          try {
+            window.localStorage.removeItem(tournamentAiFlagStorageKey);
+          } catch (err) {
+            console.warn('Pool Royale tournament AI flag reset failed', err);
+          }
+          if (winnerSeed === userSeed) {
+            const unlocks = await awardTournamentLoot();
+            return { unlocks };
+          }
         }
       } catch (err) {
         console.error('Pool Royale tournament result update failed', err);
@@ -11767,6 +11790,7 @@ const powerRef = useRef(hud.power);
       simulateRoundAI,
       stakeAmount,
       tournamentLastResultKey,
+      tournamentAiFlagStorageKey,
       tournamentMode,
       tournamentOppKey,
       tournamentPlayers,
@@ -12179,9 +12203,10 @@ const powerRef = useRef(hud.power);
         userWon
       };
       setWinnerOverlay(overlayData);
-      if (overlayData.prizeText || (overlayData.rewards && overlayData.rewards.length > 0)) {
-        triggerCoinBurst(overlayData.prizeText ? 28 : 18);
-      }
+      const burstCount = overlayData.prizeText || (overlayData.rewards && overlayData.rewards.length > 0)
+        ? 28
+        : 18;
+      triggerCoinBurst(burstCount);
       await wait(2200);
       if (!cancelled) {
         goToLobby();
@@ -12407,10 +12432,28 @@ const powerRef = useRef(hud.power);
     () => resolveFlagLabel(playerFlag),
     [playerFlag, resolveFlagLabel]
   );
-  const aiFlag = useMemo(
-    () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
-    []
-  );
+  const aiFlag = useMemo(() => {
+    const pickRandom = () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
+    if (tournamentMode && typeof window !== 'undefined') {
+      try {
+        const stored = window.localStorage.getItem(tournamentAiFlagStorageKey);
+        if (stored && FLAG_EMOJIS.includes(stored)) {
+          return stored;
+        }
+      } catch (err) {
+        console.warn('Pool Royale tournament AI flag restore failed', err);
+      }
+    }
+    const selected = pickRandom();
+    if (tournamentMode && typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(tournamentAiFlagStorageKey, selected);
+      } catch (err) {
+        console.warn('Pool Royale tournament AI flag save failed', err);
+      }
+    }
+    return selected;
+  }, [tournamentAiFlagStorageKey, tournamentMode]);
   const aiFlagLabel = useMemo(() => resolveFlagLabel(aiFlag), [aiFlag, resolveFlagLabel]);
   const aiShoot = useRef(() => {});
 
@@ -22157,10 +22200,16 @@ const powerRef = useRef(hud.power);
         // Fizika
         balls.forEach((ball) => {
           if (!ball) return;
-          const dropping = pocketDropRef.current.has(ball.id);
-          if (!ball.active && !dropping) {
-            ball.mesh.visible = false;
-            if (ball.shadow) ball.shadow.visible = false;
+          const dropEntry = pocketDropRef.current.get(ball.id);
+          const dropping = Boolean(dropEntry);
+          if (!ball.active) {
+            if (dropEntry) {
+              ball.mesh.visible = true;
+              if (ball.shadow) ball.shadow.visible = false;
+            } else {
+              ball.mesh.visible = false;
+              if (ball.shadow) ball.shadow.visible = false;
+            }
           }
         });
           for (let stepIndex = 0; stepIndex < physicsSubsteps; stepIndex++) {
@@ -22711,10 +22760,11 @@ const powerRef = useRef(hud.power);
               b.spinMode = 'standard';
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
+              const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
               const dropStart = performance.now();
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
-              const holderDir = resolvePocketHolderDirection(c);
+              const holderDir = resolvePocketHolderDirection(c, pocketId);
               const strapOffset = holderDir
                 .clone()
                 .multiplyScalar(POCKET_HOLDER_SLIDE);
@@ -22733,13 +22783,14 @@ const powerRef = useRef(hud.power);
                 entrySpeed,
                 velocityY:
                   -Math.max(Math.abs(POCKET_DROP_ENTRY_VELOCITY), entrySpeed * 0.08),
-                settledAt: null
+                settledAt: null,
+                pocketId,
+                resting: false
               };
               b.mesh.visible = true;
               b.mesh.scale.set(1, 1, 1);
               b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
               pocketDropRef.current.set(b.id, dropEntry);
-              const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
               const mappedColor = toBallColorId(b.id);
               const colorId =
                 mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
@@ -22853,6 +22904,12 @@ const powerRef = useRef(hud.power);
               const targetY = entry.targetY ?? BALL_CENTER_Y - POCKET_DROP_STRAP_DEPTH;
               const fromY = entry.fromY ?? BALL_CENTER_Y;
               const fallDistance = Math.max(fromY - targetY, MICRO_EPS);
+              if (entry.resting) {
+                mesh.visible = true;
+                mesh.position.set(entry.toX ?? entry.fromX, targetY, entry.toZ ?? entry.fromZ);
+                mesh.scale.set(1, 1, 1);
+                return;
+              }
               entry.velocityY = (entry.velocityY ?? POCKET_DROP_ENTRY_VELOCITY) - POCKET_DROP_GRAVITY * deltaSeconds;
               entry.currentY = (entry.currentY ?? fromY) + (entry.velocityY ?? 0) * deltaSeconds;
               const reachedStrap = entry.currentY <= targetY;
@@ -22873,10 +22930,10 @@ const powerRef = useRef(hud.power);
               mesh.scale.set(1, 1, 1);
               const settledAt = entry.settledAt;
               if (settledAt && now - settledAt >= POCKET_DROP_REST_HOLD_MS) {
-                mesh.visible = false;
+                entry.resting = true;
+                mesh.visible = true;
                 mesh.scale.set(1, 1, 1);
-                mesh.position.set(entry.toX ?? x, BALL_CENTER_Y, entry.toZ ?? z);
-                pocketDropRef.current.delete(key);
+                mesh.position.set(entry.toX ?? x, targetY, entry.toZ ?? z);
               }
             });
           }
