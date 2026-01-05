@@ -224,6 +224,8 @@ const updateRendererAnisotropyCap = (renderer) => {
 const resolveTextureAnisotropy = (fallback = 1) =>
   Math.max(rendererAnisotropyCap, Number.isFinite(fallback) ? fallback : 1);
 
+const POCKET_NET_LINE_THICKNESS_SCALE = 1.45;
+
 const createPocketNetTexture = (size = 256, repeat = 2) => {
   if (typeof document === 'undefined') return null;
   const canvas = document.createElement('canvas');
@@ -232,7 +234,7 @@ const createPocketNetTexture = (size = 256, repeat = 2) => {
   if (!ctx) return null;
   ctx.clearRect(0, 0, size, size);
   const spacing = size / 8;
-  const lineWidth = Math.max(1, size / 96);
+  const lineWidth = Math.max(1, (size / 96) * POCKET_NET_LINE_THICKNESS_SCALE);
   ctx.lineWidth = lineWidth;
   ctx.strokeStyle = 'rgba(255,255,255,0.9)';
   for (let x = 0; x <= size; x += spacing) {
@@ -1164,7 +1166,8 @@ const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_TOP_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
-const POCKET_WALL_HEIGHT = TABLE.THICK * 0.7;
+const POCKET_WALL_OPEN_TRIM = TABLE.THICK * 0.18;
+const POCKET_WALL_HEIGHT = TABLE.THICK * 0.7 - POCKET_WALL_OPEN_TRIM;
 const POCKET_NET_DEPTH = TABLE.THICK * 2.1;
 const POCKET_NET_SEGMENTS = 48;
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
@@ -1313,6 +1316,9 @@ const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
+const LEG_POCKET_CLEARANCE = TABLE.WALL * 0.9; // move classic legs toward the short-rail centres so corner pockets stay clear
+const PORTAL_POCKET_CLEARANCE = TABLE.WALL * 0.7; // pull the open-portal uprights away from the pocket drop line
+const PORTAL_LEG_CENTER_PULL = TABLE.WALL * 0.55; // slide open-portal legs inward along the short rail
 const SKIRT_DROP_MULTIPLIER = 0; // remove the apron/skirt drop so the table body stays tight to the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
@@ -7107,29 +7113,24 @@ function Table3D(
     roughness: 0.6,
     side: THREE.BackSide
   });
-  const pocketBaseMat = new THREE.MeshStandardMaterial({
-    color: 0x020202,
-    metalness: 0.1,
-    roughness: 0.58
-  });
-  const pocketBaseGeo = new THREE.CircleGeometry(POCKET_BOTTOM_R * 0.88, 64);
-  pocketBaseGeo.rotateX(-Math.PI / 2);
   const pocketNetTexture = createPocketNetTexture();
   const pocketNetMaterial = new THREE.MeshStandardMaterial({
-    color: 0xf6f3ea,
-    metalness: 0.12,
-    roughness: 0.46,
+    color: 0xf1ebe0,
+    metalness: 0.1,
+    roughness: 0.4,
+    opacity: 0.92,
     transparent: true,
     alphaMap: pocketNetTexture || undefined,
+    alphaTest: 0.28,
     side: THREE.DoubleSide,
     depthWrite: false
   });
   const pocketNetProfile = [
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.96, 0),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.92, -POCKET_NET_DEPTH * 0.12),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.78, -POCKET_NET_DEPTH * 0.45),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.52, -POCKET_NET_DEPTH * 0.82),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.4, -POCKET_NET_DEPTH)
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.98, 0),
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.94, -POCKET_NET_DEPTH * 0.14),
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.82, -POCKET_NET_DEPTH * 0.42),
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.66, -POCKET_NET_DEPTH * 0.72),
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.62, -POCKET_NET_DEPTH * 0.98)
   ];
   const pocketNetGeo = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
   const pocketMeshes = [];
@@ -7145,22 +7146,16 @@ function Table3D(
     table.add(pocket);
     pocketMeshes.push(pocket);
     const net = new THREE.Mesh(pocketNetGeo, pocketNetMaterial);
-    net.position.set(p.x, pocketTopY - POCKET_WALL_HEIGHT + pocketLift, p.y);
+    net.position.set(
+      p.x,
+      pocketTopY - POCKET_WALL_HEIGHT - POCKET_WALL_OPEN_TRIM + pocketLift,
+      p.y
+    );
     net.castShadow = false;
     net.receiveShadow = true;
     net.renderOrder = pocket.renderOrder - 0.25;
     table.add(net);
     finishParts.pocketNetMeshes.push(net);
-    const base = new THREE.Mesh(pocketBaseGeo, pocketBaseMat);
-    base.position.set(
-      p.x,
-      pocketTopY - POCKET_WALL_HEIGHT + TABLE.THICK * 0.08 + pocketLift,
-      p.y
-    );
-    base.receiveShadow = false;
-    base.castShadow = false;
-    table.add(base);
-    finishParts.pocketBaseMeshes.push(base);
   });
 
   const railH = RAIL_HEIGHT;
@@ -9164,11 +9159,16 @@ function Table3D(
 
   const baseBuilders = {
     classicCylinders: (ctx) => {
+      const pocketSafeInsetX = Math.min(ctx.frameOuterX, ctx.legInset + LEG_POCKET_CLEARANCE);
+      const pocketSafeInsetZ = Math.min(
+        ctx.frameOuterZ,
+        ctx.legInset + LEG_POCKET_CLEARANCE * 0.72
+      );
       const positions = [
-        [-ctx.frameOuterX + ctx.legInset, -ctx.frameOuterZ + ctx.legInset],
-        [ctx.frameOuterX - ctx.legInset, -ctx.frameOuterZ + ctx.legInset],
-        [-ctx.frameOuterX + ctx.legInset, ctx.frameOuterZ - ctx.legInset],
-        [ctx.frameOuterX - ctx.legInset, ctx.frameOuterZ - ctx.legInset]
+        [-ctx.frameOuterX + pocketSafeInsetX, -ctx.frameOuterZ + pocketSafeInsetZ],
+        [ctx.frameOuterX - pocketSafeInsetX, -ctx.frameOuterZ + pocketSafeInsetZ],
+        [-ctx.frameOuterX + pocketSafeInsetX, ctx.frameOuterZ - pocketSafeInsetZ],
+        [ctx.frameOuterX - pocketSafeInsetX, ctx.frameOuterZ - pocketSafeInsetZ]
       ];
       const legs = positions.map(([lx, lz]) => {
         const leg = new THREE.Mesh(ctx.legGeo, ctx.legMat);
@@ -9189,10 +9189,14 @@ function Table3D(
       const legWidth = thickness * 1.35;
       const legHeight = ctx.legH * 0.94;
       const legGeom = new THREE.BoxGeometry(legWidth, legHeight, frameDepth);
-      const legOffsetX = frameWidth - legWidth * 0.65;
+      const legOffsetX = Math.max(
+        legWidth * 0.5,
+        frameWidth - legWidth * 0.65 - PORTAL_LEG_CENTER_PULL
+      );
       const legBaseY = ctx.floorY;
       const legY = legBaseY + legHeight / 2;
-      const portalZ = (ctx.frameOuterZ - ctx.legInset) * 0.92;
+      const portalDepth = Math.max(0, ctx.frameOuterZ - (ctx.legInset + PORTAL_POCKET_CLEARANCE));
+      const portalZ = portalDepth * 0.92;
       const buildPortal = (signZ) => {
         const portal = new THREE.Group();
         [-1, 1].forEach((side) => {
