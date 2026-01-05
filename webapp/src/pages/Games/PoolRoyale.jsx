@@ -1133,15 +1133,6 @@ const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_TOP_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
-const POCKET_VISIBLE_DEPTH_SCALE = 0.68; // trim the rigid pocket sleeve so nets can take over the lower catch depth
-const POCKET_BASE_LIFT = TABLE.THICK * 0.22; // raise the pocket base so the new net volume has room to sit directly beneath the hole
-const POCKET_BASE_RADIUS_SCALE = 0.86; // tighten the base plate so it stays clear of the new net interior
-const POCKET_NET_MODEL_ID = 'wicker_basket_02'; // Poly Haven CC0 wicker basket repurposed as a realistic hanging net
-const POCKET_NET_TOP_SCALE = 2.08; // flare the pocket net slightly wider than the rim so it reads like a hanging basket
-const POCKET_NET_SIDE_TOP_SCALE = 1.9; // keep middle nets a touch slimmer to match their narrower throats
-const POCKET_NET_DEPTH_SCALE = 1.36; // let the hanging net drop deeper than the rigid pocket sleeve
-const POCKET_NET_ANCHOR_GAP = TABLE.THICK * 0.12; // leave breathing room between the sleeve end and the start of the net
-const POCKET_NET_COLOR = 0xf4f1e6; // warm off-white rope tone for the snooker-style nets
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_BASE_MIN_OUTSIDE =
@@ -6359,7 +6350,6 @@ function Table3D(
     pocketJawMeshes: [],
     pocketRimMeshes: [],
     pocketBaseMeshes: [],
-    pocketNetMeshes: [],
     underlayMeshes: [],
     clothEdgeMeshes: [],
     accentParent: null,
@@ -7068,11 +7058,10 @@ function Table3D(
   };
 
   const pocketTopY = clothBottomY - POCKET_BOARD_TOUCH_OFFSET;
-  const pocketHeight = TABLE.THICK * POCKET_VISIBLE_DEPTH_SCALE;
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
-    pocketHeight,
+    TABLE.THICK,
     48,
     1,
     true
@@ -7088,18 +7077,14 @@ function Table3D(
     metalness: 0.16,
     roughness: 0.68
   });
-  const pocketBaseGeo = new THREE.CircleGeometry(
-    POCKET_BOTTOM_R * POCKET_BASE_RADIUS_SCALE,
-    64
-  );
+  const pocketBaseGeo = new THREE.CircleGeometry(POCKET_BOTTOM_R * 0.98, 64);
   pocketBaseGeo.rotateX(-Math.PI / 2);
   const pocketMeshes = [];
-  const pocketNetAnchors = [];
   pocketCenters().forEach((p, index) => {
     const isMiddlePocket = index >= 4;
     const pocketLift = isMiddlePocket ? SIDE_POCKET_PLYWOOD_LIFT : 0;
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
-    pocket.position.set(p.x, pocketTopY - pocketHeight / 2 + pocketLift, p.y);
+    pocket.position.set(p.x, pocketTopY - TABLE.THICK / 2 + pocketLift, p.y);
     pocket.renderOrder = cloth.renderOrder - 0.5; // render beneath the cloth to avoid z-fighting
     pocket.castShadow = false;
     pocket.receiveShadow = true;
@@ -7109,83 +7094,14 @@ function Table3D(
     const base = new THREE.Mesh(pocketBaseGeo, pocketBaseMat);
     base.position.set(
       p.x,
-      pocketTopY - pocketHeight + POCKET_BASE_LIFT + pocketLift,
+      pocketTopY - TABLE.THICK + TABLE.THICK * 0.12 + pocketLift,
       p.y
     );
     base.receiveShadow = false;
     base.castShadow = false;
     table.add(base);
     finishParts.pocketBaseMeshes.push(base);
-    pocketNetAnchors.push({
-      center: p.clone ? p.clone() : new THREE.Vector3(p.x, 0, p.y),
-      isSide: isMiddlePocket,
-      lift: pocketLift
-    });
   });
-  const clearPocketNets = () => {
-    finishParts.pocketNetMeshes.forEach((mesh) => {
-      table.remove(mesh);
-      if (mesh.geometry?.dispose) {
-        mesh.geometry.dispose();
-      }
-    });
-    finishParts.pocketNetMeshes = [];
-  };
-  const applyPocketNets = () => {
-    clearPocketNets();
-    const template = clonePolyhavenModelTemplate(POCKET_NET_MODEL_ID);
-    if (!template) return;
-    const netBox = new THREE.Box3().setFromObject(template);
-    const netSize = netBox.getSize(new THREE.Vector3());
-    const baseWidth = Math.max(netSize.x, netSize.z, MICRO_EPS);
-    const baseHeight = Math.max(netSize.y, MICRO_EPS);
-    pocketNetAnchors.forEach((anchor) => {
-      const net = clonePolyhavenModelTemplate(POCKET_NET_MODEL_ID);
-      if (!net) return;
-      const targetTopRadius = POCKET_TOP_R *
-        (anchor.isSide ? POCKET_NET_SIDE_TOP_SCALE : POCKET_NET_TOP_SCALE);
-      const targetDiameter = targetTopRadius * 2;
-      const uniformScale = baseWidth > MICRO_EPS ? targetDiameter / baseWidth : 1;
-      const depthScale = POCKET_NET_DEPTH_SCALE;
-      net.scale.multiplyScalar(uniformScale);
-      net.scale.y *= depthScale;
-      const scaledBox = new THREE.Box3().setFromObject(net);
-      const scaledSize = scaledBox.getSize(new THREE.Vector3());
-      const topOffset = scaledBox.max.y;
-      const anchorY =
-        pocketTopY - pocketHeight + POCKET_NET_ANCHOR_GAP + anchor.lift;
-      net.position.set(anchor.center.x, anchorY - topOffset, anchor.center.z);
-      net.traverse((child) => {
-        if (!child?.isMesh) return;
-        const materials = Array.isArray(child.material) ? child.material : [child.material];
-        materials.forEach((mat) => {
-          if (!mat) return;
-          const m = mat.clone ? mat.clone() : mat;
-          m.color = new THREE.Color(POCKET_NET_COLOR);
-          m.metalness = 0.06;
-          m.roughness = 0.72;
-          m.side = THREE.DoubleSide;
-          m.needsUpdate = true;
-          child.material = m;
-        });
-        child.castShadow = true;
-        child.receiveShadow = true;
-      });
-      table.add(net);
-      finishParts.pocketNetMeshes.push(net);
-      if (scaledSize.y < baseHeight * depthScale * 0.5) {
-        net.scale.y *= 1.1;
-        net.position.y -= scaledSize.y * 0.05;
-      }
-    });
-  };
-  if (POCKET_NET_MODEL_ID) {
-    ensurePolyhavenModelTemplate(POCKET_NET_MODEL_ID, renderer)
-      .then(() => applyPocketNets())
-      .catch((error) =>
-        console.warn('Pool Royale pocket nets failed to load', error)
-      );
-  }
 
   const railH = RAIL_HEIGHT;
   const railsTopY = frameTopY + railH;
@@ -8858,7 +8774,7 @@ function Table3D(
   const legReach = Math.max(legTopWorld - legBottomWorld, TABLE_H);
   const legH = legReach + LEG_TOP_OVERLAP;
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
-  const legInset = baseRailWidth * 3.25;
+  const legInset = baseRailWidth * 2.85;
   const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
   // Match the skirt/apron wood grain with the cue butt so the pattern reads
   // clearly from the player perspective.
@@ -9025,8 +8941,6 @@ function Table3D(
   let polyhavenKtx2Loader = null;
   const polyhavenBaseTemplates = new Map();
   const polyhavenBasePromises = new Map();
-  const polyhavenModelTemplates = new Map();
-  const polyhavenModelPromises = new Map();
 
   const ensurePolyhavenKtx2Loader = (renderer = null) => {
     if (!polyhavenKtx2Loader) {
@@ -9062,39 +8976,6 @@ function Table3D(
       `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${normalizedId}/${normalizedId}_2k.gltf`,
       `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${normalizedId}/${normalizedId}_1k.gltf`
     ];
-  };
-
-  const ensurePolyhavenModelTemplate = (assetId, renderer = null) => {
-    if (!assetId) {
-      return Promise.reject(new Error('Missing Poly Haven asset id'));
-    }
-    if (polyhavenModelTemplates.has(assetId)) {
-      return Promise.resolve(polyhavenModelTemplates.get(assetId));
-    }
-    if (polyhavenModelPromises.has(assetId)) {
-      return polyhavenModelPromises.get(assetId);
-    }
-    const promise = (async () => {
-      const loader = createConfiguredGLTFLoader(renderer);
-      let lastError = null;
-      const urls = buildPolyhavenModelUrls(assetId);
-      for (const url of urls) {
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          const gltf = await loader.loadAsync(url);
-          const scene = gltf?.scene || gltf?.scenes?.[0];
-          if (!scene) throw new Error('Missing scene for Poly Haven model');
-          polyhavenModelTemplates.set(assetId, scene);
-          return scene;
-        } catch (error) {
-          lastError = error;
-        }
-      }
-      throw lastError || new Error(`Failed to load Poly Haven model: ${assetId}`);
-    })();
-    polyhavenModelPromises.set(assetId, promise);
-    promise.catch(() => polyhavenModelPromises.delete(assetId));
-    return promise;
   };
 
   const ensurePolyhavenBaseTemplate = (assetId, renderer = null) => {
@@ -9145,22 +9026,6 @@ function Table3D(
       tagBasePart(child);
     });
     tagBasePart(clone);
-    return clone;
-  };
-
-  const clonePolyhavenModelTemplate = (assetId) => {
-    if (!assetId) return null;
-    const template = polyhavenModelTemplates.get(assetId);
-    if (!template) return null;
-    const clone = template.clone(true);
-    clone.traverse((child) => {
-      if (!child?.isMesh) return;
-      const materials = Array.isArray(child.material) ? child.material : [child.material];
-      const refreshed = materials.map((mat) => sharpenGltfMaterial(mat));
-      child.material = Array.isArray(child.material) ? refreshed : refreshed[0] ?? child.material;
-      child.castShadow = true;
-      child.receiveShadow = true;
-    });
     return clone;
   };
 
@@ -9239,13 +9104,11 @@ function Table3D(
 
   const baseBuilders = {
     classicCylinders: (ctx) => {
-      const insetX = ctx.legInset;
-      const insetZ = ctx.legInset * 1.35;
       const positions = [
-        [-ctx.frameOuterX + insetX, -ctx.frameOuterZ + insetZ],
-        [ctx.frameOuterX - insetX, -ctx.frameOuterZ + insetZ],
-        [-ctx.frameOuterX + insetX, ctx.frameOuterZ - insetZ],
-        [ctx.frameOuterX - insetX, ctx.frameOuterZ - insetZ]
+        [-ctx.frameOuterX + ctx.legInset, -ctx.frameOuterZ + ctx.legInset],
+        [ctx.frameOuterX - ctx.legInset, -ctx.frameOuterZ + ctx.legInset],
+        [-ctx.frameOuterX + ctx.legInset, ctx.frameOuterZ - ctx.legInset],
+        [ctx.frameOuterX - ctx.legInset, ctx.frameOuterZ - ctx.legInset]
       ];
       const legs = positions.map(([lx, lz]) => {
         const leg = new THREE.Mesh(ctx.legGeo, ctx.legMat);
@@ -9269,7 +9132,7 @@ function Table3D(
       const legOffsetX = frameWidth - legWidth * 0.65;
       const legBaseY = ctx.floorY;
       const legY = legBaseY + legHeight / 2;
-      const portalZ = (ctx.frameOuterZ - ctx.legInset * 1.3) * 0.9;
+      const portalZ = (ctx.frameOuterZ - ctx.legInset) * 0.92;
       const buildPortal = (signZ) => {
         const portal = new THREE.Group();
         [-1, 1].forEach((side) => {
@@ -9300,9 +9163,17 @@ function Table3D(
       materialKey: 'rail',
       matchTableFootprint: true
     }),
+    murlanDefaultTable: createPolyhavenTableBaseBuilder('WoodenTable_01', {
+      footprintScale: 0.98,
+      footprintDepthScale: 0.98,
+      heightFill: 0.9,
+      topInsetScale: 0.96,
+      materialKey: 'rail',
+      matchTableFootprint: true
+    }),
     woodenTable02Alt: createPolyhavenTableBaseBuilder('wooden_table_02', {
-      footprintScale: 0.9,
-      footprintDepthScale: 0.92,
+      footprintScale: 0.98,
+      footprintDepthScale: 1.0,
       heightFill: 0.9,
       topInsetScale: 0.95,
       materialKey: 'rail',

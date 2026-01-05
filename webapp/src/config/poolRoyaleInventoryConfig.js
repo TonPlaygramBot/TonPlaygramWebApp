@@ -497,6 +497,12 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     swatches: ['#8f4a2b', '#3b2a1f']
   },
   {
+    id: 'murlanDefaultTable',
+    name: 'Murlan Default Table Base',
+    description: 'Scaled version of the Murlan Royale default table supporting the pool deck.',
+    swatches: ['#9b7350', '#d7b594']
+  },
+  {
     id: 'woodenTable02Alt',
     name: 'Wooden Table 02 Alt Base',
     description: 'Alternate Wooden Table 02 variant resized to cradle the pool playfield.',
