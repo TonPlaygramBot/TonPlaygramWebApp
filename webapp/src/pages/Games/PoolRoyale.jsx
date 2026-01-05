@@ -75,10 +75,12 @@ import {
   resolvePlayableTrainingLevel
 } from '../../utils/poolRoyaleTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import coinConfetti from '../../utils/coinConfetti.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const COIN_ICON_SRC = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -1154,7 +1156,7 @@ const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_GRAVITY = 42; // steeper gravity for a natural fall into the leather cradle
 const POCKET_DROP_ENTRY_VELOCITY = -0.6; // initial downward impulse before gravity takes over
-const POCKET_DROP_REST_HOLD_MS = 360; // keep the ball visible on the strap briefly before hiding it
+const POCKET_DROP_REST_HOLD_MS = 360; // pause before locking the potted ball into its strap position
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_DROP_DEPTH = TABLE.THICK * 0.9;
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall slightly above the previous floor so it rests on the strap
@@ -1322,7 +1324,7 @@ const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron
 const LEG_POCKET_CLEARANCE = TABLE.WALL * 1.35; // pull the classic legs deeper toward the short-rail centres to clear pocket drops
 const CLASSIC_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.55; // additional inward shift so legs visually hug the middle of each short rail
 const PORTAL_POCKET_CLEARANCE = TABLE.WALL * 1.1; // pull the open-portal uprights away from the pocket drop line
-const PORTAL_LEG_CENTER_PULL = TABLE.WALL * 0.82; // slide open-portal legs further inward along the short rail
+const PORTAL_LEG_CENTER_PULL = TABLE.WALL * 0.98; // slide open-portal legs further inward along the short rail
 const PORTAL_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.46; // pull portal uprights toward the visual centre of the short rail
 const SKIRT_DROP_MULTIPLIER = 0; // remove the apron/skirt drop so the table body stays tight to the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
@@ -5666,6 +5668,10 @@ const pocketEntranceCenters = () =>
 const resolvePocketHolderDirection = (center) => {
   const absX = Math.abs(center?.x ?? 0);
   const absZ = Math.abs(center?.y ?? 0);
+  if (absZ < BALL_R * 0.5) {
+    const shortRailDir = Math.sign(center?.x || 1) || 1;
+    return new THREE.Vector3(0, 0, shortRailDir);
+  }
   if (absX >= absZ) {
     return new THREE.Vector3(Math.sign(center?.x || 1), 0, 0);
   }
@@ -9894,6 +9900,10 @@ function PoolRoyaleGame({
     () => `poolRoyaleLastResult_${tournamentKey}`,
     [tournamentKey]
   );
+  const tournamentFlagKey = useMemo(
+    () => `poolRoyaleTournamentAiFlag_${tournamentKey}`,
+    [tournamentKey]
+  );
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey, ballSetKey),
     [variantKey, ballSetKey]
@@ -9920,55 +9930,12 @@ function PoolRoyaleGame({
     return params.get('token') || 'TPC';
   }, [location.search]);
   const [winnerOverlay, setWinnerOverlay] = useState(null);
-  const coinStyleInjectedRef = useRef(false);
-  const ensureCoinBurstStyles = useCallback(() => {
-    if (coinStyleInjectedRef.current || typeof document === 'undefined') return;
-    const style = document.createElement('style');
-    style.id = 'pool-royale-coin-burst';
-    style.textContent = `
-      @keyframes prCoinBurst {
-        0% { transform: translateY(-20px) scale(0.8); opacity: 1; }
-        70% { opacity: 1; }
-        100% { transform: translateY(120vh) scale(1.1); opacity: 0; }
-      }
-      .pr-coin-burst {
-        position: fixed;
-        top: -24px;
-        width: 32px;
-        height: 32px;
-        pointer-events: none;
-        z-index: 70;
-        will-change: transform, opacity;
-      }`;
-    document.head.appendChild(style);
-    coinStyleInjectedRef.current = true;
-  }, []);
   const triggerCoinBurst = useCallback(
     (count = 20) => {
       if (typeof document === 'undefined') return;
-      ensureCoinBurstStyles();
-      const container = document.createElement('div');
-      container.style.position = 'fixed';
-      container.style.inset = '0';
-      container.style.pointerEvents = 'none';
-      container.style.zIndex = '70';
-      document.body.appendChild(container);
-      for (let i = 0; i < count; i += 1) {
-        const img = document.createElement('img');
-        img.src = '/assets/icons/ezgif-54c96d8a9b9236.webp';
-        img.className = 'pr-coin-burst';
-        const left = Math.random() * 100;
-        const delay = Math.random() * 0.6;
-        const duration = 1.6 + Math.random() * 0.8;
-        img.style.left = `${left}vw`;
-        img.style.animation = `prCoinBurst ${duration}s linear ${delay}s forwards`;
-        container.appendChild(img);
-      }
-      window.setTimeout(() => {
-        container.remove();
-      }, 2600);
+      coinConfetti(count, COIN_ICON_SRC);
     },
-    [ensureCoinBurstStyles]
+    []
   );
   const [poolInventory, setPoolInventory] = useState(() =>
     getCachedPoolRoyalInventory(resolvedAccountId)
@@ -11170,7 +11137,12 @@ function PoolRoyaleGame({
       new Promise((resolve) => {
         const start = performance.now();
         const tick = () => {
-          if (!replayPlaybackRef.current) {
+          const hasActiveReplay = Boolean(replayPlaybackRef.current);
+          const hasQueuedReplay =
+            Boolean(replayBannerTimeoutRef.current) ||
+            Boolean(replaySlateTimeoutRef.current) ||
+            Boolean(shotReplayRef.current);
+          if (!hasActiveReplay && !hasQueuedReplay) {
             resolve();
             return;
           }
@@ -11750,6 +11722,9 @@ const powerRef = useRef(hud.power);
         delete st.pendingMatch;
         window.localStorage.setItem(tournamentStateKey, JSON.stringify(st));
         window.localStorage.removeItem(tournamentOppKey);
+        if (st.complete) {
+          window.localStorage.removeItem(tournamentFlagKey);
+        }
         if (st.complete && winnerSeed === userSeed) {
           const unlocks = await awardTournamentLoot();
           return { unlocks };
@@ -11770,7 +11745,8 @@ const powerRef = useRef(hud.power);
       tournamentMode,
       tournamentOppKey,
       tournamentPlayers,
-      tournamentStateKey
+      tournamentStateKey,
+      tournamentFlagKey
     ]
   );
 
@@ -12407,10 +12383,38 @@ const powerRef = useRef(hud.power);
     () => resolveFlagLabel(playerFlag),
     [playerFlag, resolveFlagLabel]
   );
-  const aiFlag = useMemo(
-    () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
-    []
-  );
+  const aiFlag = useMemo(() => {
+    const pickFlag = () => randomPick(FLAG_EMOJIS);
+    if (typeof window === 'undefined') return pickFlag();
+    const storageKey = tournamentMode ? tournamentFlagKey : 'poolRoyaleAiFlag';
+    const stored = window.localStorage.getItem(storageKey);
+    const next = stored || pickFlag();
+    if (next && !stored) {
+      try {
+        window.localStorage.setItem(storageKey, next);
+      } catch (err) {
+        console.warn('Pool Royale AI flag persist failed', err);
+      }
+    }
+    return next || pickFlag();
+  }, [tournamentFlagKey, tournamentMode]);
+  useEffect(() => {
+    if (!tournamentMode) return;
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(tournamentStateKey);
+      if (!raw) {
+        window.localStorage.removeItem(tournamentFlagKey);
+        return;
+      }
+      const st = JSON.parse(raw);
+      if (st?.complete) {
+        window.localStorage.removeItem(tournamentFlagKey);
+      }
+    } catch (err) {
+      console.warn('Pool Royale tournament flag cleanup failed', err);
+    }
+  }, [tournamentFlagKey, tournamentMode, tournamentStateKey]);
   const aiFlagLabel = useMemo(() => resolveFlagLabel(aiFlag), [aiFlag, resolveFlagLabel]);
   const aiShoot = useRef(() => {});
 
@@ -22674,19 +22678,23 @@ const powerRef = useRef(hud.power);
             : [];
         const captureCenters =
           pocketMarkers.length > 0
-            ? pocketMarkers.map(
-                (marker) => new THREE.Vector2(marker.position.x, marker.position.z)
-              )
+            ? pocketMarkers.map((marker, idx) => {
+                const pos = marker?.position;
+                if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.z)) {
+                  return new THREE.Vector2(pos.x, pos.z);
+                }
+                return centers[idx] ? centers[idx].clone() : new THREE.Vector2();
+              })
             : centers;
         const captureRadii =
           pocketMarkers.length > 0
-            ? pocketMarkers.map((marker, idx) =>
-                typeof marker?.userData?.captureRadius === 'number'
-                  ? marker.userData.captureRadius
-                  : idx >= 4
-                    ? SIDE_CAPTURE_R
-                    : CAPTURE_R
-              )
+            ? pocketMarkers.map((marker, idx) => {
+                const radius = marker?.userData?.captureRadius;
+                if (typeof radius === 'number' && radius > 0) {
+                  return radius;
+                }
+                return idx >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+              })
             : centers.map((_, idx) => (idx >= 4 ? SIDE_CAPTURE_R : CAPTURE_R));
         balls.forEach((b) => {
           if (!b.active) return;
@@ -22733,7 +22741,10 @@ const powerRef = useRef(hud.power);
                 entrySpeed,
                 velocityY:
                   -Math.max(Math.abs(POCKET_DROP_ENTRY_VELOCITY), entrySpeed * 0.08),
-                settledAt: null
+                settledAt: null,
+                resting: false,
+                restX: targetX,
+                restZ: targetZ
               };
               b.mesh.visible = true;
               b.mesh.scale.set(1, 1, 1);
@@ -22853,30 +22864,38 @@ const powerRef = useRef(hud.power);
               const targetY = entry.targetY ?? BALL_CENTER_Y - POCKET_DROP_STRAP_DEPTH;
               const fromY = entry.fromY ?? BALL_CENTER_Y;
               const fallDistance = Math.max(fromY - targetY, MICRO_EPS);
-              entry.velocityY = (entry.velocityY ?? POCKET_DROP_ENTRY_VELOCITY) - POCKET_DROP_GRAVITY * deltaSeconds;
-              entry.currentY = (entry.currentY ?? fromY) + (entry.velocityY ?? 0) * deltaSeconds;
-              const reachedStrap = entry.currentY <= targetY;
-              if (reachedStrap) {
+              const restX = entry.restX ?? entry.toX ?? entry.fromX ?? 0;
+              const restZ = entry.restZ ?? entry.toZ ?? entry.fromZ ?? 0;
+              if (!entry.resting) {
+                entry.velocityY = (entry.velocityY ?? POCKET_DROP_ENTRY_VELOCITY) - POCKET_DROP_GRAVITY * deltaSeconds;
+                entry.currentY = (entry.currentY ?? fromY) + (entry.velocityY ?? 0) * deltaSeconds;
+                const reachedStrap = entry.currentY <= targetY;
+                if (reachedStrap) {
+                  entry.currentY = targetY;
+                  entry.velocityY = 0;
+                  entry.settledAt = entry.settledAt ?? now;
+                }
+              } else {
                 entry.currentY = targetY;
                 entry.velocityY = 0;
-                entry.settledAt = entry.settledAt ?? now;
               }
               const fallRatio = THREE.MathUtils.clamp(
                 1 - (entry.currentY - targetY) / fallDistance,
                 0,
                 1
               );
-              const x = THREE.MathUtils.lerp(entry.fromX, entry.toX ?? entry.fromX, fallRatio);
-              const z = THREE.MathUtils.lerp(entry.fromZ, entry.toZ ?? entry.fromZ, fallRatio);
+              const x = THREE.MathUtils.lerp(entry.fromX, restX, entry.resting ? 1 : fallRatio);
+              const z = THREE.MathUtils.lerp(entry.fromZ, restZ, entry.resting ? 1 : fallRatio);
               mesh.visible = true;
               mesh.position.set(x, entry.currentY, z);
               mesh.scale.set(1, 1, 1);
               const settledAt = entry.settledAt;
               if (settledAt && now - settledAt >= POCKET_DROP_REST_HOLD_MS) {
-                mesh.visible = false;
-                mesh.scale.set(1, 1, 1);
-                mesh.position.set(entry.toX ?? x, BALL_CENTER_Y, entry.toZ ?? z);
-                pocketDropRef.current.delete(key);
+                entry.resting = true;
+                entry.restX = restX;
+                entry.restZ = restZ;
+                entry.currentY = targetY;
+                entry.velocityY = 0;
               }
             });
           }
