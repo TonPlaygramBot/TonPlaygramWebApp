@@ -20539,14 +20539,11 @@ const powerRef = useRef(hud.power);
           }
 
           if (targetBall && !isDirectLaneOpen(targetBall)) {
-            const rescueTarget =
+            const rerouted =
               pickDirectPreferredBall(combinedTargets) ||
+              pickPreferredBall(combinedTargets, activeBalls, cuePos) ||
               pickFallbackBall();
-            if (rescueTarget && isDirectLaneOpen(rescueTarget)) {
-              targetBall = rescueTarget;
-            } else {
-              return null;
-            }
+            if (rerouted) targetBall = rerouted;
           }
 
           if (!targetBall) return null;
