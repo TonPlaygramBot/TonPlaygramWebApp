@@ -4933,20 +4933,20 @@ function applySnookerScaling({
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
 const STANDING_VIEW_PHI = 0.86; // raise the standing orbit a touch for a clearer overview
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.0016; // pull the standing frame closer so the table and balls fill more of the view
+const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.1;
 const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.14; // let the cue view drop to the same rail-hugging height used by AI shots while staying above the cue
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.018; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0165; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.072;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0018;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.0014;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0013;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.0011;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5038,7 +5038,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 1.38; // pull the rail overhead broadcast he
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.028; // tighten cue camera distance so the cue ball and object ball appear larger
+const CUE_VIEW_RADIUS_RATIO = 0.024; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -19616,8 +19616,12 @@ const powerRef = useRef(hud.power);
             if (matches.length > 0) {
               return matches.reduce((best, ball) => {
                 if (!best) return ball;
-                const bestScore = scoreBallForAim(best, cuePos);
-                const score = scoreBallForAim(ball, cuePos);
+                const bestScore =
+                  scoreBallForAim(best, cuePos) *
+                  (isDirectLaneOpen(best) ? 1 : 0.35);
+                const score =
+                  scoreBallForAim(ball, cuePos) *
+                  (isDirectLaneOpen(ball) ? 1 : 0.35);
                 return score > bestScore ? ball : best;
               }, null);
             }
@@ -19705,12 +19709,41 @@ const powerRef = useRef(hud.power);
             if (plan.targetBall?.id != null) ignore.add(plan.targetBall.id);
             return !isPathClear(cuePos, aimTarget, ignore);
           };
+          const measureLaneClearance = (plan) => {
+            if (!plan?.aimDir || !plan?.cueToTarget || !cuePos) return 1;
+            const aimTarget = cuePos.clone().add(
+              plan.aimDir.clone().normalize().multiplyScalar(plan.cueToTarget)
+            );
+            const ignore = new Set([cue.id]);
+            if (plan.targetBall?.id != null) ignore.add(plan.targetBall.id);
+            let minClearanceSq = Infinity;
+            activeBalls.forEach((ball) => {
+              if (!ball.active || ignore.has(ball.id)) return;
+              const rel = ball.pos.clone().sub(cuePos);
+              const delta = aimTarget.clone().sub(cuePos);
+              const lenSq = delta.lengthSq();
+              if (lenSq < 1e-6) return;
+              const t = THREE.MathUtils.clamp(rel.dot(delta) / lenSq, 0, 1);
+              const closest = cuePos.clone().add(delta.multiplyScalar(t));
+              const dSq = ball.pos.distanceToSquared(closest);
+              if (dSq < minClearanceSq) minClearanceSq = dSq;
+            });
+            if (!Number.isFinite(minClearanceSq)) {
+              plan.laneClearance = 1;
+              return 1;
+            }
+            const clearance = Math.sqrt(minClearanceSq) / Math.max(BALL_R * 2, 1e-6);
+            const normalized = THREE.MathUtils.clamp(clearance, 0, 2);
+            plan.laneClearance = normalized;
+            return normalized;
+          };
           const isPlayablePlan = (plan, { allowCushion = true } = {}) => {
             if (!plan) return false;
-            const qualityOk = (plan.quality ?? 0) >= 0.05;
+            const qualityOk = (plan.quality ?? 0) >= 0.12;
             if (!qualityOk) return false;
             if (!allowCushion && plan.viaCushion) return false;
             if (isAimLaneBlocked(plan)) return false;
+            if (measureLaneClearance(plan) < 0.6) return false;
             if (detectScratchRisk(plan)) return false;
             return true;
           };
@@ -19801,11 +19834,12 @@ const powerRef = useRef(hud.power);
               let cueDist = cueVec.length();
               let cushionAid = null;
               if (!directGhostClear) {
-                if (!directClear) {
-                  cushionAid = tryCushionRoute(cuePos, ghost, ignore);
-                  if (!cushionAid) continue;
+                cushionAid = tryCushionRoute(cuePos, ghost, ignore);
+                if (cushionAid) {
                   cueVec = cushionAid.cushionPoint.clone().sub(cuePos);
                   cueDist = cueVec.length();
+                } else if (!directClear) {
+                  continue;
                 } else {
                   continue;
                 }
@@ -20015,6 +20049,8 @@ const powerRef = useRef(hud.power);
             if (!plan) return -Infinity;
             if (detectScratchRisk(plan)) return -Infinity;
             if (isAimLaneBlocked(plan)) return -Infinity;
+            const laneClearance = measureLaneClearance(plan);
+            if (laneClearance < 0.5) return -Infinity;
             const difficultyNorm = Math.max(1, PLAY_W + PLAY_H);
             const difficulty = Number.isFinite(plan.difficulty)
               ? plan.difficulty
@@ -20047,13 +20083,15 @@ const powerRef = useRef(hud.power);
                 .length <= 2
                 ? 0.06
                 : 0;
+            const laneBonus = Math.max(0, Math.min((laneClearance - 0.6) / 0.8, 1));
             return (
-              quality * 0.55 +
-              difficultyEase * 0.2 +
+              quality * 0.48 +
+              difficultyEase * 0.18 +
               pocketEase * 0.1 +
               cueEase * 0.08 +
               priorityBonus * 0.1 +
-              routeEase * 0.08 +
+              routeEase * 0.06 +
+              laneBonus * 0.08 +
               finishBonus -
               cushionPenalty
             );
@@ -20459,8 +20497,12 @@ const powerRef = useRef(hud.power);
           const pickFallbackBall = () =>
             activeBalls.reduce((best, ball) => {
               if (!best) return ball;
-              const bestScore = scoreBallForAim(best, cuePos);
-              const score = scoreBallForAim(ball, cuePos);
+              const bestScore =
+                scoreBallForAim(best, cuePos) *
+                (isDirectLaneOpen(best) ? 1 : 0.35);
+              const score =
+                scoreBallForAim(ball, cuePos) *
+                (isDirectLaneOpen(ball) ? 1 : 0.35);
               return score > bestScore ? ball : best;
             }, null);
           const pickDirectPreferredBall = (targets) => {
