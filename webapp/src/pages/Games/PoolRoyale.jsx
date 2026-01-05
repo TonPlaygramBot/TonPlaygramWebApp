@@ -224,6 +224,37 @@ const updateRendererAnisotropyCap = (renderer) => {
 const resolveTextureAnisotropy = (fallback = 1) =>
   Math.max(rendererAnisotropyCap, Number.isFinite(fallback) ? fallback : 1);
 
+const createPocketNetTexture = (size = 256, repeat = 2) => {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.clearRect(0, 0, size, size);
+  const spacing = size / 8;
+  const lineWidth = Math.max(1, size / 96);
+  ctx.lineWidth = lineWidth;
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  for (let x = 0; x <= size; x += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(x + lineWidth / 2, 0);
+    ctx.lineTo(x + lineWidth / 2, size);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= size; y += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + lineWidth / 2);
+    ctx.lineTo(size, y + lineWidth / 2);
+    ctx.stroke();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(repeat, repeat);
+  texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
+  texture.needsUpdate = true;
+  return texture;
+};
+
 let cachedRendererString = null;
 let rendererLookupAttempted = false;
 
@@ -1133,6 +1164,9 @@ const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_TOP_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
+const POCKET_WALL_HEIGHT = TABLE.THICK * 0.7;
+const POCKET_NET_DEPTH = TABLE.THICK * 2.1;
+const POCKET_NET_SEGMENTS = 48;
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_BASE_MIN_OUTSIDE =
@@ -6350,6 +6384,7 @@ function Table3D(
     pocketJawMeshes: [],
     pocketRimMeshes: [],
     pocketBaseMeshes: [],
+    pocketNetMeshes: [],
     underlayMeshes: [],
     clothEdgeMeshes: [],
     accentParent: null,
@@ -7061,7 +7096,7 @@ function Table3D(
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
-    TABLE.THICK,
+    POCKET_WALL_HEIGHT,
     48,
     1,
     true
@@ -7074,27 +7109,52 @@ function Table3D(
   });
   const pocketBaseMat = new THREE.MeshStandardMaterial({
     color: 0x020202,
-    metalness: 0.16,
-    roughness: 0.68
+    metalness: 0.1,
+    roughness: 0.58
   });
-  const pocketBaseGeo = new THREE.CircleGeometry(POCKET_BOTTOM_R * 0.98, 64);
+  const pocketBaseGeo = new THREE.CircleGeometry(POCKET_BOTTOM_R * 0.88, 64);
   pocketBaseGeo.rotateX(-Math.PI / 2);
+  const pocketNetTexture = createPocketNetTexture();
+  const pocketNetMaterial = new THREE.MeshStandardMaterial({
+    color: 0xf6f3ea,
+    metalness: 0.12,
+    roughness: 0.46,
+    transparent: true,
+    alphaMap: pocketNetTexture || undefined,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  const pocketNetProfile = [
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.96, 0),
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.92, -POCKET_NET_DEPTH * 0.12),
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.78, -POCKET_NET_DEPTH * 0.45),
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.52, -POCKET_NET_DEPTH * 0.82),
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.4, -POCKET_NET_DEPTH)
+  ];
+  const pocketNetGeo = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
   const pocketMeshes = [];
   pocketCenters().forEach((p, index) => {
     const isMiddlePocket = index >= 4;
     const pocketLift = isMiddlePocket ? SIDE_POCKET_PLYWOOD_LIFT : 0;
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
-    pocket.position.set(p.x, pocketTopY - TABLE.THICK / 2 + pocketLift, p.y);
+    pocket.position.set(p.x, pocketTopY - POCKET_WALL_HEIGHT / 2 + pocketLift, p.y);
     pocket.renderOrder = cloth.renderOrder - 0.5; // render beneath the cloth to avoid z-fighting
     pocket.castShadow = false;
     pocket.receiveShadow = true;
     pocket.userData.verticalLift = pocketLift;
     table.add(pocket);
     pocketMeshes.push(pocket);
+    const net = new THREE.Mesh(pocketNetGeo, pocketNetMaterial);
+    net.position.set(p.x, pocketTopY - POCKET_WALL_HEIGHT + pocketLift, p.y);
+    net.castShadow = false;
+    net.receiveShadow = true;
+    net.renderOrder = pocket.renderOrder - 0.25;
+    table.add(net);
+    finishParts.pocketNetMeshes.push(net);
     const base = new THREE.Mesh(pocketBaseGeo, pocketBaseMat);
     base.position.set(
       p.x,
-      pocketTopY - TABLE.THICK + TABLE.THICK * 0.12 + pocketLift,
+      pocketTopY - POCKET_WALL_HEIGHT + TABLE.THICK * 0.08 + pocketLift,
       p.y
     );
     base.receiveShadow = false;
@@ -8774,7 +8834,7 @@ function Table3D(
   const legReach = Math.max(legTopWorld - legBottomWorld, TABLE_H);
   const legH = legReach + LEG_TOP_OVERLAP;
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
-  const legInset = baseRailWidth * 2.85;
+  const legInset = baseRailWidth * 3.2;
   const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
   // Match the skirt/apron wood grain with the cue butt so the pattern reads
   // clearly from the player perspective.
@@ -9163,17 +9223,9 @@ function Table3D(
       materialKey: 'rail',
       matchTableFootprint: true
     }),
-    murlanDefaultTable: createPolyhavenTableBaseBuilder('WoodenTable_01', {
-      footprintScale: 0.98,
-      footprintDepthScale: 0.98,
-      heightFill: 0.9,
-      topInsetScale: 0.96,
-      materialKey: 'rail',
-      matchTableFootprint: true
-    }),
     woodenTable02Alt: createPolyhavenTableBaseBuilder('wooden_table_02', {
-      footprintScale: 0.98,
-      footprintDepthScale: 1.0,
+      footprintScale: 0.94,
+      footprintDepthScale: 0.96,
       heightFill: 0.9,
       topInsetScale: 0.95,
       materialKey: 'rail',
