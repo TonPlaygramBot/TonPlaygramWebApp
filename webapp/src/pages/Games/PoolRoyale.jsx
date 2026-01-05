@@ -19411,6 +19411,28 @@ const powerRef = useRef(hud.power);
           const n = THREE.MathUtils.clamp(dist / MAX_ROUTE_DISTANCE, 0, 1);
           return THREE.MathUtils.lerp(0.35, 0.9, n);
         };
+        const estimateScratchRisk = (start, dir, travel, pockets = pocketEntranceCenters()) => {
+          if (!start || !dir || !Number.isFinite(travel) || travel <= 0) return 0;
+          const aimDir = dir.clone();
+          if (aimDir.lengthSq() < 1e-6) return 0;
+          aimDir.normalize();
+          const reach = Math.max(travel + BALL_R * 2, BALL_R * 2);
+          let worst = 0;
+          pockets.forEach((pocket) => {
+            const toPocket = pocket.clone().sub(start);
+            const projected = THREE.MathUtils.clamp(toPocket.dot(aimDir), 0, reach);
+            const closest = start.clone().add(aimDir.clone().multiplyScalar(projected));
+            const distSq = closest.distanceToSquared(pocket);
+            const hazard = POCKET_VIS_R * 0.9;
+            if (distSq < hazard * hazard) {
+              const depth = 1 - Math.min(Math.sqrt(distSq) / hazard, 1);
+              const alongTrack = projected / reach;
+              const severity = depth * (alongTrack > 0.85 ? 1.1 : 1);
+              worst = Math.max(worst, THREE.MathUtils.clamp(severity, 0, 1));
+            }
+          });
+          return THREE.MathUtils.clamp(worst, 0, 1);
+        };
         const computePlanSpin = (plan, stateSnapshot) => {
           const fallback = { x: 0, y: -0.1 };
           if (!plan || plan.type !== 'pot') return fallback;
@@ -19766,14 +19788,10 @@ const powerRef = useRef(hud.power);
               let cueDist = cueVec.length();
               let cushionAid = null;
               if (!directGhostClear) {
-                if (!directClear) {
-                  cushionAid = tryCushionRoute(cuePos, ghost, ignore);
-                  if (!cushionAid) continue;
-                  cueVec = cushionAid.cushionPoint.clone().sub(cuePos);
-                  cueDist = cueVec.length();
-                } else {
-                  continue;
-                }
+                cushionAid = tryCushionRoute(cuePos, ghost, ignore);
+                if (!cushionAid) continue;
+                cueVec = cushionAid.cushionPoint.clone().sub(cuePos);
+                cueDist = cueVec.length();
               }
               if (cueDist < 1e-6) continue;
               const aimDir = cueVec.clone().normalize();
@@ -19823,16 +19841,25 @@ const powerRef = useRef(hud.power);
                 1
               );
               const cushionPenalty = cushionAid ? 0.18 : 0;
+              const scratchRisk = estimateScratchRisk(
+                cuePos,
+                aimDir,
+                cueDist + toPocketLen + (cushionAid?.totalDist ?? 0),
+                centers
+              );
+              if (scratchRisk > 0.88) continue;
               plan.quality = THREE.MathUtils.clamp(
                 0.32 * entryAlignment +
                   0.24 * (1 - cutSeverity) +
                   0.16 * openLaneNorm +
                   0.14 * (1 - travelPenalty) +
                   0.14 * viewScore -
-                  cushionPenalty,
+                  cushionPenalty -
+                  scratchRisk * 0.35,
                 0,
                 1
               );
+              plan.scratchRisk = scratchRisk;
               plan.spin = computePlanSpin(plan, state);
               potShots.push(plan);
             }
@@ -19857,29 +19884,117 @@ const powerRef = useRef(hud.power);
                   1 - (cueDist + safetyDist * 2) / (PLAY_W + PLAY_H)
                 )
               };
+              blockedPlan.scratchRisk = estimateScratchRisk(
+                cuePos,
+                blockedPlan.aimDir,
+                cueDist + safetyDist,
+                centers
+              );
+              blockedPlan.difficulty += (blockedPlan.scratchRisk ?? 0) * BALL_R * 10;
+              blockedPlan.quality = Math.max(
+                0,
+                blockedPlan.quality - (blockedPlan.scratchRisk ?? 0) * 0.35
+              );
               if (!fallbackPlan || blockedPlan.difficulty < fallbackPlan.difficulty) {
                 fallbackPlan = blockedPlan;
               }
               return;
             }
-              const safetyPlan = {
-                type: 'safety',
-                aimDir: cueToBall.clone().normalize(),
-                power: computePowerFromDistance((cueDist + safetyDist) * 0.85),
-                target: colorId,
+            const safetyPlan = {
+              type: 'safety',
+              aimDir: cueToBall.clone().normalize(),
+              power: computePowerFromDistance((cueDist + safetyDist) * 0.85),
+              target: colorId,
               targetBall,
               pocketId: 'SAFETY',
-                difficulty: cueDist + safetyDist * 1.2,
-                cueToTarget: cueDist,
-                targetToPocket: safetyDist,
-                spin: { x: 0, y: -0.2 },
-                quality: Math.max(
-                  0,
-                  1 - (cueDist + safetyDist * 1.2) / (PLAY_W + PLAY_H)
-                )
-              };
+              difficulty: cueDist + safetyDist * 1.2,
+              cueToTarget: cueDist,
+              targetToPocket: safetyDist,
+              spin: { x: 0, y: -0.2 },
+              quality: Math.max(
+                0,
+                1 - (cueDist + safetyDist * 1.2) / (PLAY_W + PLAY_H)
+              )
+            };
+            const scratchRisk = estimateScratchRisk(
+              cuePos,
+              safetyPlan.aimDir,
+              cueDist + safetyDist,
+              centers
+            );
+            safetyPlan.scratchRisk = scratchRisk;
+            safetyPlan.difficulty += scratchRisk * BALL_R * 12;
+            safetyPlan.quality = Math.max(0, safetyPlan.quality - scratchRisk * 0.25);
             safetyShots.push(safetyPlan);
           });
+          if (!potShots.length) {
+            activeBalls.forEach((targetBall) => {
+              if (targetBall === cue) return;
+              const colorId = toBallColorId(targetBall.id);
+              const targetAllowed =
+                legalTargets.size > 0 &&
+                Array.from(legalTargets).some((id) => matchesTargetId(targetBall, id));
+              if (!colorId || !targetAllowed) return;
+              const ignore = new Set([cue.id, targetBall.id]);
+              centers.forEach((pocketCenter, idx) => {
+                const ghostDir = pocketCenter.clone().sub(targetBall.pos);
+                if (ghostDir.lengthSq() < 1e-6) return;
+                const ghost = targetBall.pos
+                  .clone()
+                  .sub(ghostDir.clone().normalize().multiplyScalar(ballDiameter));
+                const cushionAid = tryCushionRoute(cuePos, ghost, ignore);
+                if (!cushionAid) return;
+                const cueVec = cushionAid.cushionPoint.clone().sub(cuePos);
+                if (cueVec.lengthSq() < 1e-6) return;
+                const aimDir = cueVec.clone().normalize();
+                const cueDist = cueVec.length();
+                const toPocketLen = targetBall.pos.distanceTo(pocketCenter);
+                const cutCos = THREE.MathUtils.clamp(
+                  targetBall.pos.clone().sub(ghost).normalize().dot(aimDir),
+                  -1,
+                  1
+                );
+                const cutAngle = Math.acos(Math.abs(cutCos));
+                const cushionTax = BALL_R * 30 + cushionAid.totalDist * 0.08;
+                const scratchRisk = estimateScratchRisk(
+                  cuePos,
+                  aimDir,
+                  cueDist + toPocketLen + cushionAid.totalDist,
+                  centers
+                );
+                if (scratchRisk > 0.92) return;
+                const plan = {
+                  type: 'pot',
+                  aimDir,
+                  power: computePowerFromDistance(cueDist + toPocketLen + cushionTax),
+                  target: colorId,
+                  targetBall,
+                  pocketId: POCKET_IDS[idx],
+                  pocketCenter: pocketCenter.clone(),
+                  difficulty: cueDist + toPocketLen + cushionTax + cutAngle * BALL_R * 40,
+                  cueToTarget: cueDist,
+                  targetToPocket: toPocketLen,
+                  railNormal: cushionAid.railNormal.clone(),
+                  viaCushion: true,
+                  scratchRisk,
+                  quality: THREE.MathUtils.clamp(
+                    0.28 * (1 - Math.min(cutAngle / (Math.PI / 2), 1)) +
+                      0.22 * Math.max(0, 1 - cueDist / Math.max(PLAY_W, PLAY_H)) +
+                      0.2 * Math.max(0, 1 - toPocketLen / Math.max(PLAY_W, PLAY_H)) +
+                      0.18 *
+                        Math.min(
+                          Math.atan2(ballDiameter, toPocketLen) / (Math.PI / 2),
+                          1
+                        ) -
+                      0.3 * scratchRisk,
+                    0,
+                    1
+                  )
+                };
+                potShots.push(plan);
+              });
+            });
+          }
           if (!potShots.length && (activeVariantId === 'american' || activeVariantId === '9ball')) {
             const targetBall = activeBalls
               .filter((b) => b.id !== cue.id)
@@ -19922,12 +20037,20 @@ const powerRef = useRef(hud.power);
                 );
                 const viewAngle = Math.atan2(ballDiameter, toPocket);
                 const viewScore = Math.min(viewAngle / (Math.PI / 2), 1);
+                const scratchRisk = estimateScratchRisk(
+                  cuePos,
+                  aimDir,
+                  cueDist + toPocket,
+                  centers
+                );
+                if (scratchRisk > 0.9) return;
                 const quality = THREE.MathUtils.clamp(
                   0.32 * entryAlignment +
                     0.24 * (1 - cutSeverity) +
                     0.18 * (1 - travelPenalty) +
                     0.14 * viewScore +
-                    0.12,
+                    0.12 -
+                    scratchRisk * 0.35,
                   0,
                   1
                 );
@@ -19945,6 +20068,7 @@ const powerRef = useRef(hud.power);
                   railNormal: null,
                   viaCushion: false,
                   quality,
+                  scratchRisk,
                   spin: computePlanSpin(
                     {
                       type: 'pot',
@@ -20001,13 +20125,15 @@ const powerRef = useRef(hud.power);
             const priorityBonus =
               priorityIndex >= 0 ? 1 - Math.min(priorityIndex * 0.18, 0.72) : 0;
             const cushionPenalty = plan.viaCushion ? 0.18 : 0;
+            const scratchPenalty = (plan.scratchRisk ?? 0) * 0.4;
             return (
               quality * 0.55 +
               difficultyEase * 0.2 +
               pocketEase * 0.1 +
               cueEase * 0.08 +
               priorityBonus * 0.1 -
-              cushionPenalty
+              cushionPenalty -
+              scratchPenalty
             );
           };
           const scoredPots = potShots
@@ -20452,7 +20578,16 @@ const powerRef = useRef(hud.power);
 
         const updateUserSuggestion = () => {
           const options = evaluateShotOptions();
-          const plan = options.bestPot ?? null;
+          const planCandidates = [];
+          if (options.bestPot && !options.bestPot.viaCushion) {
+            planCandidates.push(options.bestPot);
+          }
+          if (options.bestPot) planCandidates.push(options.bestPot);
+          if (options.bestSafety) planCandidates.push(options.bestSafety);
+          const plan =
+            planCandidates.find((entry) => (entry?.scratchRisk ?? 0) < 0.75) ??
+            planCandidates[0] ??
+            null;
           userSuggestionPlanRef.current = plan;
           const summary = summarizePlan(plan);
           userSuggestionRef.current = summary;
@@ -20467,8 +20602,19 @@ const powerRef = useRef(hud.power);
             suggestionAimKeyRef.current = key;
             return true;
           };
+          const aimAtTargetBall = (candidate, key = null) => {
+            if (!candidate?.targetBall || !cue?.pos) return false;
+            const dir = new THREE.Vector2(
+              candidate.targetBall.pos.x - cue.pos.x,
+              candidate.targetBall.pos.y - cue.pos.y
+            );
+            return applyAimDirection(dir, key);
+          };
           const preferAutoAim = autoAimRequestRef.current;
           if (preferAutoAim) {
+            if (aimAtTargetBall(plan, summary?.key ?? null)) {
+              return;
+            }
             let autoDir = resolveAutoAimDirection();
             if (!autoDir && plan?.targetBall && cue?.pos) {
               const manualDir = new THREE.Vector2(
@@ -20484,22 +20630,12 @@ const powerRef = useRef(hud.power);
               return;
             }
           }
-          if (plan?.targetBall && plan?.viaCushion && cue?.pos) {
-            const directDir = new THREE.Vector2(
-              plan.targetBall.pos.x - cue.pos.x,
-              plan.targetBall.pos.y - cue.pos.y
-            );
-            if (applyAimDirection(directDir, null)) {
-              return;
-            }
-          }
+          if (aimAtTargetBall(plan, summary?.key ?? null)) return;
           if (plan?.aimDir && !plan.viaCushion) {
             const dir = plan.aimDir.clone();
             if (applyAimDirection(dir, summary?.key ?? null)) return;
-            suggestionAimKeyRef.current = null;
-          } else {
-            suggestionAimKeyRef.current = null;
           }
+          suggestionAimKeyRef.current = null;
         };
         stopAiThinkingRef.current = stopAiThinking;
         startAiThinkingRef.current = startAiThinking;
