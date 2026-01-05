@@ -19624,30 +19624,24 @@ const powerRef = useRef(hud.power);
           }
           return null;
         };
-        const resolveLegalTargets = (frameSnapshot, activeVariantId, activeBalls) => {
-          const targetOrder = resolveTargetPriorities(
-            frameSnapshot,
-            activeVariantId,
-            activeBalls
+
+        const evaluateShotOptionsBaseline = () => {
+          if (!cue?.active) return { bestPot: null, bestSafety: null };
+          const state = frameRef.current ?? frameState;
+          const activeVariantId = activeVariantRef.current?.id ?? variantKey;
+          const activeBalls = balls.filter((b) => b.active);
+          const targetOrder = resolveTargetPriorities(state, activeVariantId, activeBalls);
+          const legalTargetsRaw =
+            targetOrder.length > 0
+              ? targetOrder
+              : Array.isArray(state?.ballOn)
+                ? state.ballOn
+                : ['RED'];
+          const legalTargets = new Set(
+            legalTargetsRaw
+              .map((entry) => normalizeTargetId(entry))
+              .filter((entry) => entry && isBallTargetId(entry))
           );
-          const legalTargets = new Set();
-          targetOrder.forEach((entry) => {
-            const normalized = normalizeTargetId(entry);
-            if (normalized && isBallTargetId(normalized)) {
-              legalTargets.add(normalized);
-            }
-          });
-          const legalTargetsRaw = Array.isArray(frameSnapshot?.ballOn)
-            ? frameSnapshot.ballOn
-            : [];
-          legalTargetsRaw.forEach((entry) => {
-            const normalized = normalizeTargetId(entry);
-            if (normalized && isBallTargetId(normalized)) {
-              legalTargets.add(normalized);
-              const numericGroup = mapNumberToGroup(normalized);
-              if (numericGroup) legalTargets.add(numericGroup);
-            }
-          });
           if (legalTargets.size === 0) {
             if (activeVariantId === 'american' || activeVariantId === '9ball') {
               const lowestActive = activeBalls
@@ -19661,11 +19655,11 @@ const powerRef = useRef(hud.power);
             }
             if (legalTargets.size === 0) legalTargets.add('RED');
           }
-          return { legalTargets, targetOrder };
-        };
-        const buildPathCheckers = (activeBalls, activeVariantId) => {
+          const cuePos = cue.pos.clone();
           const clearance = BALL_R * (activeVariantId === 'uk' ? 1.4 : 1.65);
           const clearanceSq = clearance * clearance;
+          const ballDiameter = BALL_R * 2;
+          const safetyAnchor = new THREE.Vector2(0, baulkZ - D_RADIUS * 0.5);
           const halfW = PLAY_W / 2;
           const halfH = PLAY_H / 2;
           const cushionMargin = BALL_R * 1.4;
@@ -19732,26 +19726,6 @@ const powerRef = useRef(hud.power);
             routes.sort((a, b) => a.totalDist - b.totalDist);
             return routes[0];
           };
-          return { isPathClear, tryCushionRoute };
-        };
-
-        const evaluateShotOptionsBaseline = () => {
-          if (!cue?.active) return { bestPot: null, bestSafety: null };
-          const state = frameRef.current ?? frameState;
-          const activeVariantId = activeVariantRef.current?.id ?? variantKey;
-          const activeBalls = balls.filter((b) => b.active);
-          const { legalTargets, targetOrder } = resolveLegalTargets(
-            state,
-            activeVariantId,
-            activeBalls
-          );
-          const cuePos = cue.pos.clone();
-          const { isPathClear, tryCushionRoute } = buildPathCheckers(
-            activeBalls,
-            activeVariantId
-          );
-          const ballDiameter = BALL_R * 2;
-          const safetyAnchor = new THREE.Vector2(0, baulkZ - D_RADIUS * 0.5);
           const centers = pocketEntranceCenters();
           const potShots = [];
           const safetyShots = [];
@@ -19760,7 +19734,7 @@ const powerRef = useRef(hud.power);
             if (targetBall === cue) return;
             const colorId = toBallColorId(targetBall.id);
             const targetAllowed =
-              legalTargets.size === 0 ||
+              legalTargets.size > 0 &&
               Array.from(legalTargets).some((id) => matchesTargetId(targetBall, id));
             if (!colorId || !targetAllowed) return;
             const ignore = new Set([cue.id, targetBall.id]);
@@ -19792,11 +19766,12 @@ const powerRef = useRef(hud.power);
               let cueDist = cueVec.length();
               let cushionAid = null;
               if (!directGhostClear) {
-                cushionAid = tryCushionRoute(cuePos, ghost, ignore);
-                if (cushionAid) {
+                if (!directClear) {
+                  cushionAid = tryCushionRoute(cuePos, ghost, ignore);
+                  if (!cushionAid) continue;
                   cueVec = cushionAid.cushionPoint.clone().sub(cuePos);
                   cueDist = cueVec.length();
-                } else if (!directClear) {
+                } else {
                   continue;
                 }
               }
@@ -19905,26 +19880,6 @@ const powerRef = useRef(hud.power);
               };
             safetyShots.push(safetyPlan);
           });
-          const isTargetLegal = (plan) => {
-            if (!plan?.targetBall) return true;
-            if (legalTargets.size === 0) return true;
-            return Array.from(legalTargets).some((id) =>
-              matchesTargetId(plan.targetBall, id)
-            );
-          };
-          const hasValidFirstContact = (plan) => {
-            if (!plan?.aimDir) return false;
-            const prediction = calcTarget(cue, plan.aimDir, activeBalls);
-            if (!prediction) return false;
-            if (plan.viaCushion) {
-              return Boolean(prediction.targetBall || prediction.railNormal);
-            }
-            if (!prediction.targetBall) return false;
-            return (
-              plan.targetBall &&
-              String(prediction.targetBall.id) === String(plan.targetBall.id)
-            );
-          };
           if (!potShots.length && (activeVariantId === 'american' || activeVariantId === '9ball')) {
             const targetBall = activeBalls
               .filter((b) => b.id !== cue.id)
@@ -20012,26 +19967,14 @@ const powerRef = useRef(hud.power);
               }
             }
           }
-          const filteredPotShots = potShots.filter(
-            (plan) => isTargetLegal(plan) && hasValidFirstContact(plan)
-          );
-          const filteredSafetyShots = safetyShots.filter(
-            (plan) => isTargetLegal(plan) && hasValidFirstContact(plan)
-          );
-          if (
-            !filteredPotShots.length &&
-            !filteredSafetyShots.length &&
-            fallbackPlan &&
-            isTargetLegal(fallbackPlan) &&
-            hasValidFirstContact(fallbackPlan)
-          ) {
+          if (!potShots.length && !safetyShots.length && fallbackPlan) {
             if (fallbackPlan.quality == null) {
               fallbackPlan.quality = Math.max(
                 0,
                 1 - fallbackPlan.difficulty / (PLAY_W + PLAY_H)
               );
             }
-            filteredSafetyShots.push(fallbackPlan);
+            safetyShots.push(fallbackPlan);
           }
           const scorePotPlan = (plan) => {
             if (!plan) return -Infinity;
@@ -20067,14 +20010,14 @@ const powerRef = useRef(hud.power);
               cushionPenalty
             );
           };
-          const scoredPots = filteredPotShots
+          const scoredPots = potShots
             .map((plan) => ({ plan, score: scorePotPlan(plan) }))
             .sort(
               (a, b) =>
                 b.score - a.score ||
                 (a.plan?.difficulty ?? 0) - (b.plan?.difficulty ?? 0)
             );
-          filteredSafetyShots.sort(
+          safetyShots.sort(
             (a, b) =>
               (b.quality ?? 0) - (a.quality ?? 0) ||
               a.difficulty - b.difficulty
@@ -20083,7 +20026,7 @@ const powerRef = useRef(hud.power);
             scoredPots.find((entry) => entry.plan && !entry.plan.viaCushion) ?? null;
           const bestPot = (bestDirectPot ?? scoredPots[0])?.plan ?? null;
           const bestSafety =
-            activeVariantId === 'uk' && bestPot ? null : filteredSafetyShots[0] ?? null;
+            activeVariantId === 'uk' && bestPot ? null : safetyShots[0] ?? null;
           return {
             bestPot,
             bestSafety
@@ -20421,35 +20364,30 @@ const powerRef = useRef(hud.power);
 
           const activeVariantId =
             frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
-          const { legalTargets, targetOrder } = resolveLegalTargets(
+          const targetOrder = resolveTargetPriorities(
             frameSnapshot,
             activeVariantId,
             activeBalls
           );
-          const { isPathClear, tryCushionRoute } = buildPathCheckers(
-            activeBalls,
-            activeVariantId
-          );
+          const legalTargetsRaw = Array.isArray(frameSnapshot?.ballOn)
+            ? frameSnapshot.ballOn
+            : [];
           const combinedTargets = [...targetOrder];
-          legalTargets.forEach((entry) => {
-            if (!combinedTargets.includes(entry)) combinedTargets.push(entry);
-          });
-          const allowedBalls =
-            legalTargets.size === 0
-              ? activeBalls
-              : activeBalls.filter((ball) =>
-                  Array.from(legalTargets).some((id) => matchesTargetId(ball, id))
-                );
-          const candidateBalls = allowedBalls.length > 0 ? allowedBalls : activeBalls;
+          legalTargetsRaw
+            .map((entry) => normalizeTargetId(entry))
+            .filter((entry) => entry && isBallTargetId(entry))
+            .forEach((entry) => {
+              if (!combinedTargets.includes(entry)) combinedTargets.push(entry);
+            });
           const pickFallbackBall = () =>
-            candidateBalls.reduce((best, ball) => {
+            activeBalls.reduce((best, ball) => {
               if (!best) return ball;
               const bestScore = scoreBallForAim(best, cuePos);
               const score = scoreBallForAim(ball, cuePos);
               return score > bestScore ? ball : best;
             }, null);
           const findRackApex = () =>
-            candidateBalls.reduce((best, ball) => {
+            activeBalls.reduce((best, ball) => {
               if (!best) return ball;
               if (ball.pos.y > best.pos.y + 1e-6) return ball;
               if (
@@ -20467,7 +20405,7 @@ const powerRef = useRef(hud.power);
           }
 
           if (!targetBall && combinedTargets.length > 0) {
-            targetBall = pickPreferredBall(combinedTargets, candidateBalls, cuePos);
+            targetBall = pickPreferredBall(combinedTargets, activeBalls, cuePos);
           }
 
           if (!targetBall && activeVariantId === 'uk') {
@@ -20481,48 +20419,33 @@ const powerRef = useRef(hud.power);
               preferredColours.push('YELLOW', 'BLUE');
             }
             if (preferredColours.length > 0) {
-              targetBall = pickPreferredBall(preferredColours, candidateBalls, cuePos);
+              targetBall = pickPreferredBall(preferredColours, activeBalls, cuePos);
             }
           }
 
           if (!targetBall) {
-            targetBall = pickPreferredBall(['BLACK'], candidateBalls, cuePos);
+            targetBall = pickPreferredBall(['BLACK'], activeBalls, cuePos);
           }
 
           if (!targetBall) {
             targetBall = pickPreferredBall(
-              candidateBalls
+              activeBalls
                 .map((ball) => toBallColorId(ball.id))
                 .filter((entry) => entry && isBallTargetId(entry)),
-              candidateBalls,
+              activeBalls,
               cuePos
             );
           }
 
-          if (!targetBall && candidateBalls.length > 0) {
+          if (!targetBall && activeBalls.length > 0) {
             targetBall = pickFallbackBall();
           }
 
           if (!targetBall) return null;
-          const ignore = new Set([cue.id, targetBall.id]);
-          let dir = new THREE.Vector2(
+          const dir = new THREE.Vector2(
             targetBall.pos.x - cuePos.x,
             targetBall.pos.y - cuePos.y
           );
-          if (
-            !isPathClear(cuePos, targetBall.pos, ignore) &&
-            dir.lengthSq() > 1e-6
-          ) {
-            const ghost = targetBall.pos
-              .clone()
-              .sub(dir.clone().normalize().multiplyScalar(BALL_R * 2));
-            const cushionAid =
-              tryCushionRoute(cuePos, ghost, ignore) ||
-              tryCushionRoute(cuePos, targetBall.pos, ignore);
-            if (cushionAid) {
-              dir = cushionAid.cushionPoint.clone().sub(cuePos);
-            }
-          }
           if (dir.lengthSq() < 1e-6) return null;
           return dir.normalize();
         };
