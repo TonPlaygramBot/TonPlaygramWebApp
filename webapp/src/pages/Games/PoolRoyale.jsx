@@ -908,10 +908,10 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 0.86; // trim the jaw bodies so the underside finishes nearer the cloth surface
+const POCKET_JAW_DEPTH_SCALE = 1.02; // push the jaw bodies further down so the underside reaches the pocket floor
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim slightly more so the pocket lips sit nearer the cloth plane
-const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.06; // stop the jaw extrusion short so it finishes at the cloth surface instead of hanging below
-const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.06; // align the jaw underside to the cloth plane rather than the pocket base plate
+const POCKET_JAW_BOTTOM_CLEARANCE = 0; // allow the jaw extrusion to run right down to the pocket base without a visible gap
+const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.12; // align the jaw underside to the same height as the pocket base plate
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.12; // thin the outer lips more aggressively while leaving the centre crown unchanged
@@ -1107,6 +1107,26 @@ const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
 const MAX_POWER_CAMERA_HOLD_MS = 2000;
 const MAX_POWER_SPIN_LATERAL_THROW = BALL_R * 0.42; // let max-power jumps inherit a strong sideways release from active side spin
 const MAX_POWER_SPIN_LIFT_BONUS = BALL_R * 0.28; // spin adds extra hop height when the cue ball is driven at full power
+const POCKET_INTERIOR_CAPTURE_R =
+  POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 0.992; // tighten capture so balls fall only once they reach the pocket throat
+const SIDE_POCKET_INTERIOR_CAPTURE_R =
+  SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 0.996; // narrow the middle capture to stop pre-pocket drops while keeping center-line forgiveness
+const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the interior bowl so balls fall at the throat
+const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now matches the bowl opening instead of scaling from corners
+const POCKET_GUARD_RADIUS = POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.06; // align the rail guard to the playable capture bowl instead of the visual rim
+const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.08); // keep a slim safety margin so clean entries aren't rejected
+const CORNER_POCKET_DEPTH_LIMIT =
+  POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
+const SIDE_POCKET_GUARD_RADIUS =
+  SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.08; // use the middle-pocket bowl to gate reflections
+const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
+  0,
+  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.08
+);
+const SIDE_POCKET_DEPTH_LIMIT =
+  POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
+const SIDE_POCKET_SPAN =
+  SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.52; // tune the middle lane to the real mouth width
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_ENABLED = false; // fully disable any plywood underlay beneath the cloth
 const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
@@ -1115,7 +1135,7 @@ const PLYWOOD_EXTRA_DROP = 0;
 const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // fallback plywood tone when a finish color is unavailable
 const PLYWOOD_HOLE_SCALE = 1.05; // plywood pocket cutouts should be 5% larger than the pocket bowls for clearance
 const PLYWOOD_HOLE_R = POCKET_VIS_R * PLYWOOD_HOLE_SCALE * POCKET_VISUAL_EXPANSION;
-const CLOTH_EDGE_GAP_FILL = TABLE.THICK * 0.46; // drive the cloth sleeve deeper so it seals the exposed gap left by the removed plywood
+const CLOTH_EDGE_GAP_FILL = TABLE.THICK * 0.32; // drive the cloth sleeve deeper so it seals the exposed gap left by the removed plywood
 const CLOTH_EXTENDED_DEPTH = CLOTH_THICKNESS + CLOTH_EDGE_GAP_FILL; // wrap enough felt to close the plywood gap while keeping the surface profile unchanged
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
@@ -1138,35 +1158,13 @@ const POCKET_DROP_ENTRY_VELOCITY = -0.6; // initial downward impulse before grav
 const POCKET_DROP_REST_HOLD_MS = 360; // keep the ball visible on the strap briefly before hiding it
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
-const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(16); // deepen the holder angle so the strap and rails sit lower than the cloth plane
+const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(12); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_SCALE = 1.6;
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
-const POCKET_INTERIOR_CAPTURE_R =
-  POCKET_CLOTH_TOP_RADIUS * 0.995; // capture radius aligned directly to the cloth aperture so the drop starts at the visible rim
-const SIDE_POCKET_INTERIOR_CAPTURE_R =
-  POCKET_INTERIOR_CAPTURE_R *
-  (SIDE_POCKET_RADIUS / POCKET_VIS_R) *
-  0.998; // mirror the middle-pocket bowl proportionally while keeping the throat tight
-const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the interior bowl so balls fall at the throat
-const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now matches the bowl opening instead of scaling from corners
-const POCKET_GUARD_RADIUS = CAPTURE_R - BALL_R * 0.04; // align the rail guard to the playable capture bowl instead of the visual rim
-const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.08); // keep a slim safety margin so clean entries aren't rejected
-const CORNER_POCKET_DEPTH_LIMIT =
-  POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
-const SIDE_POCKET_GUARD_RADIUS =
-  SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.06; // use the middle-pocket bowl to gate reflections
-const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
-  0,
-  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.08
-);
-const SIDE_POCKET_DEPTH_LIMIT =
-  POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
-const SIDE_POCKET_SPAN =
-  SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.52; // tune the middle lane to the real mouth width
 const POCKET_TOP_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
@@ -1175,21 +1173,21 @@ const POCKET_WALL_HEIGHT = TABLE.THICK * 0.7 - POCKET_WALL_OPEN_TRIM;
 const POCKET_NET_DEPTH = TABLE.THICK * 2.1;
 const POCKET_NET_SEGMENTS = 48;
 const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 0.9; // drop nearly the full net depth so potted balls clear the rim
-const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.9; // stop the fall slightly above the ring/strap junction
+const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.62; // match the ring diameter to the net's lowest hoop so the net and chrome line up exactly
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.02; // sit the ring directly against the bottom of the woven net
 const POCKET_GUIDE_RADIUS = BALL_R * 0.09;
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
-const POCKET_GUIDE_DROP = BALL_R * 0.42;
+const POCKET_GUIDE_DROP = BALL_R * 0.28;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
-const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.18; // start the chrome rails just outside the ring to keep the mouth open
+const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.22; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.72; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.24; // drop the centre rail to form the floor of the holder
-const POCKET_HOLDER_REST_FRACTION = 0.92; // land potted balls deeper into the tray so they settle against the strap
-const POCKET_HOLDER_REST_DROP = BALL_R * 0.46; // keep the resting spot visibly below the pocket throat
+const POCKET_HOLDER_REST_FRACTION = 0.88; // land potted balls deeper into the tray so they settle against the strap
+const POCKET_HOLDER_REST_DROP = BALL_R * 0.38; // keep the resting spot visibly below the pocket throat
 const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
-const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.22; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
+const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
@@ -7255,8 +7253,8 @@ function Table3D(
   const pocketGuideMaterial = trimMat;
   const pocketGuideRingRadius = POCKET_BOTTOM_R * POCKET_NET_RING_RADIUS_SCALE;
   const pocketStrapLength = Math.max(POCKET_GUIDE_LENGTH * 0.62, BALL_DIAMETER * 5.4);
-  const pocketStrapWidth = BALL_R * 1.28;
-  const pocketStrapThickness = BALL_R * 0.14;
+  const pocketStrapWidth = BALL_R * 1.35;
+  const pocketStrapThickness = BALL_R * 0.18;
   const pocketRingGeometry = new THREE.TorusGeometry(
     pocketGuideRingRadius,
     POCKET_NET_RING_TUBE_RADIUS,
@@ -21525,204 +21523,201 @@ const powerRef = useRef(hud.power);
   let lastLiveAimSentAt = 0;
   const step = (now) => {
     if (disposed) return;
-    let frameScheduled = false;
-    const scheduleNext = () => {
-      if (disposed || frameScheduled) return;
-      frameScheduled = true;
-      rafRef.current = requestAnimationFrame(step);
-    };
-    try {
-      const playback = replayPlaybackRef.current;
-      if (playback) {
+    const playback = replayPlaybackRef.current;
+        if (playback) {
+          const frameTiming = frameTimingRef.current;
+          const targetReplayFrameTime =
+            frameTiming && Number.isFinite(frameTiming.targetMs)
+              ? frameTiming.targetMs
+              : 1000 / 60;
+          if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
+            rafRef.current = requestAnimationFrame(step);
+            return;
+          }
+          lastReplayFrameAt = now;
+          const scheduleNext = () => {
+            if (disposed) return;
+            rafRef.current = requestAnimationFrame(step);
+          };
+          const frames = playback.frames || [];
+          const duration = Number.isFinite(playback.duration) ? playback.duration : 0;
+          const elapsed = now - playback.startedAt;
+          if (frames.length === 0) {
+            finishReplayPlayback(playback);
+            scheduleNext();
+            return;
+          }
+          try {
+            const targetTime = Math.min(elapsed, duration);
+            let frameIndex = playback.lastIndex ?? 0;
+            while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
+              frameIndex += 1;
+            }
+            playback.lastIndex = frameIndex;
+            const frameA = frames[frameIndex];
+            const frameB = frames[Math.min(frameIndex + 1, frames.length - 1)] ?? null;
+            const span = frameB ? Math.max(frameB.t - frameA.t, 1e-6) : 1;
+            const alpha = frameB
+              ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
+              : 0;
+            applyReplayFrame(frameA, frameB, alpha);
+            applyReplayCueStroke(playback, targetTime);
+            updateReplayTrail(playback.cuePath, targetTime);
+            if (!LOCK_REPLAY_CAMERA) {
+              const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
+              const previousFrameCamera =
+                replayFrameCameraRef.current?.frameB ??
+                replayFrameCameraRef.current?.frameA ??
+                null;
+              if (
+                nextFrameCamera &&
+                (!replayFrameCameraRef.current ||
+                  hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
+              ) {
+                replayFrameCameraRef.current = {
+                  frameA: nextFrameCamera,
+                  frameB: nextFrameCamera,
+                  alpha: 0
+                };
+              }
+            } else {
+              replayFrameCameraRef.current = null;
+            }
+            const frameCamera = updateCamera();
+            renderer.render(scene, frameCamera ?? camera);
+            const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
+            if (finished) {
+              finishReplayPlayback(playback);
+            }
+          } catch (err) {
+            console.error('Pool Royale replay playback failed; skipping.', err);
+            finishReplayPlayback(playback);
+          }
+          scheduleNext();
+          return;
+        }
+        const nowMs = now;
+        if (remoteShotActiveRef.current && remoteShotUntilRef.current > 0 && nowMs > remoteShotUntilRef.current) {
+          remoteShotActiveRef.current = false;
+        }
+        if (
+          remoteAimRef.current &&
+          Number.isFinite(remoteAimRef.current.updatedAt) &&
+          nowMs - remoteAimRef.current.updatedAt > 3500
+        ) {
+          remoteAimRef.current = null;
+        }
+        if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
+          const pending = pendingRemoteReplayRef.current;
+          pendingRemoteReplayRef.current = null;
+          if (pending?.frames?.length > 1) {
+            shotRecording = {
+              ...pending,
+              startTime: pending.startTime ?? nowMs,
+              startState: pending.startState ?? captureBallSnapshot(),
+              zoomOnly: pending.zoomOnly ?? false,
+              replayTags: pending.replayTags ?? ['remote']
+            };
+            shotReplayRef.current = shotRecording;
+            const postState = pending.postState ?? captureBallSnapshot();
+            startShotReplay(postState);
+          }
+        }
         const frameTiming = frameTimingRef.current;
-        const targetReplayFrameTime =
+        const targetFrameTime =
           frameTiming && Number.isFinite(frameTiming.targetMs)
             ? frameTiming.targetMs
             : 1000 / 60;
-        if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
-          scheduleNext();
-          return;
-        }
-        lastReplayFrameAt = now;
-        const frames = playback.frames || [];
-        const duration = Number.isFinite(playback.duration) ? playback.duration : 0;
-        const elapsed = now - playback.startedAt;
-        if (frames.length === 0) {
-          finishReplayPlayback(playback);
-          scheduleNext();
-          return;
-        }
-        try {
-          const targetTime = Math.min(elapsed, duration);
-          let frameIndex = playback.lastIndex ?? 0;
-          while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
-            frameIndex += 1;
+        const maxFrameTime =
+          frameTiming && Number.isFinite(frameTiming.maxMs)
+            ? frameTiming.maxMs
+            : targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
+        const rawDelta = Math.max(now - lastStepTime, 0);
+        const deltaMs = Math.min(rawDelta, maxFrameTime);
+        const appliedDeltaMs = deltaMs;
+        const deltaSeconds = appliedDeltaMs / 1000;
+        coinTicker.update(deltaSeconds);
+        dynamicTextureEntries.forEach((entry) => {
+          entry.accumulator += deltaSeconds;
+          if (entry.accumulator < entry.minInterval) {
+            return;
           }
-          playback.lastIndex = frameIndex;
-          const frameA = frames[frameIndex];
-          const frameB = frames[Math.min(frameIndex + 1, frames.length - 1)] ?? null;
-          const span = frameB ? Math.max(frameB.t - frameA.t, 1e-6) : 1;
-          const alpha = frameB
-            ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
-            : 0;
-          applyReplayFrame(frameA, frameB, alpha);
-          applyReplayCueStroke(playback, targetTime);
-          updateReplayTrail(playback.cuePath, targetTime);
-          if (!LOCK_REPLAY_CAMERA) {
-            const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
-            const previousFrameCamera =
-              replayFrameCameraRef.current?.frameB ??
-              replayFrameCameraRef.current?.frameA ??
-              null;
-            if (
-              nextFrameCamera &&
-              (!replayFrameCameraRef.current ||
-                hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
-            ) {
-              replayFrameCameraRef.current = {
-                frameA: nextFrameCamera,
-                frameB: nextFrameCamera,
-                alpha: 0
-              };
-            }
-          } else {
-            replayFrameCameraRef.current = null;
-          }
-          const frameCamera = updateCamera();
-          renderer.render(scene, frameCamera ?? camera);
-          const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
-          if (finished) {
-            finishReplayPlayback(playback);
-          }
-        } catch (err) {
-          console.error('Pool Royale replay playback failed; skipping.', err);
-          finishReplayPlayback(playback);
+          const elapsed = entry.accumulator;
+          entry.accumulator = 0;
+          entry.update(elapsed);
+        });
+        const frameScaleBase =
+          targetFrameTime > 0 ? appliedDeltaMs / targetFrameTime : 1;
+        const frameScale = Math.min(
+          MAX_FRAME_SCALE,
+          Math.max(frameScaleBase, MIN_FRAME_SCALE)
+        );
+        const physicsSubsteps = Math.min(
+          MAX_PHYSICS_SUBSTEPS,
+          Math.max(1, Math.ceil(frameScale))
+        );
+        const subStepScale = frameScale / physicsSubsteps;
+        lastStepTime = now;
+        if (topViewRef.current && topViewLockedRef.current) {
+          const fallbackAim = aimDirRef.current.clone();
+          if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
+          tmpAim.copy(fallbackAim.normalize());
+        } else {
+          camera.getWorldDirection(camFwd);
+          tmpAim.set(camFwd.x, camFwd.z).normalize();
         }
-        scheduleNext();
-        return;
-      }
-      const nowMs = now;
-      if (remoteShotActiveRef.current && remoteShotUntilRef.current > 0 && nowMs > remoteShotUntilRef.current) {
-        remoteShotActiveRef.current = false;
-      }
-      if (
-        remoteAimRef.current &&
-        Number.isFinite(remoteAimRef.current.updatedAt) &&
-        nowMs - remoteAimRef.current.updatedAt > 3500
-      ) {
-        remoteAimRef.current = null;
-      }
-      if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
-        const pending = pendingRemoteReplayRef.current;
-        pendingRemoteReplayRef.current = null;
-        if (pending?.frames?.length > 1) {
-          shotRecording = {
-            ...pending,
-            startTime: pending.startTime ?? nowMs,
-            startState: pending.startState ?? captureBallSnapshot(),
-            zoomOnly: pending.zoomOnly ?? false,
-            replayTags: pending.replayTags ?? ['remote']
-          };
-          shotReplayRef.current = shotRecording;
-          const postState = pending.postState ?? captureBallSnapshot();
-          startShotReplay(postState);
+        const cameraBlend = THREE.MathUtils.clamp(
+          cameraBlendRef.current ?? 1,
+          0,
+          1
+        );
+        const baseAimLerp = THREE.MathUtils.lerp(
+          CUE_VIEW_AIM_LINE_LERP,
+          STANDING_VIEW_AIM_LINE_LERP,
+          cameraBlend
+        );
+        const aimLerpFactor = chalkAssistTargetRef.current
+          ? Math.min(baseAimLerp, CHALK_AIM_LERP_SLOW)
+          : baseAimLerp;
+        if (!lookModeRef.current) {
+          aimDir.lerp(tmpAim, aimLerpFactor);
         }
-      }
-      const frameTiming = frameTimingRef.current;
-      const targetFrameTime =
-        frameTiming && Number.isFinite(frameTiming.targetMs)
-          ? frameTiming.targetMs
-          : 1000 / 60;
-      const maxFrameTime =
-        frameTiming && Number.isFinite(frameTiming.maxMs)
-          ? frameTiming.maxMs
-          : targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
-      const rawDelta = Math.max(now - lastStepTime, 0);
-      const deltaMs = Math.min(rawDelta, maxFrameTime);
-      const appliedDeltaMs = deltaMs;
-      const deltaSeconds = appliedDeltaMs / 1000;
-      coinTicker.update(deltaSeconds);
-      dynamicTextureEntries.forEach((entry) => {
-        entry.accumulator += deltaSeconds;
-        if (entry.accumulator < entry.minInterval) {
-          return;
+        const appliedSpin = applySpinConstraints(aimDir, true);
+        const ranges = spinRangeRef.current || {};
+        const newCollisions = new Set();
+        let shouldSlowAim = false;
+        // Aiming vizual
+        const currentHud = hudRef.current;
+        const isPlayerTurn = currentHud?.turn === 0;
+        const isAiTurn = aiOpponentEnabled && currentHud?.turn === 1;
+        const previewingAiShot = aiShotPreviewRef.current;
+        const aiCueViewActive = aiShotCueViewRef.current;
+        const remoteShotActive =
+          currentHud?.turn === 1 && remoteShotActiveRef.current;
+        const remoteAimState = remoteAimRef.current;
+        if (isAiTurn) {
+          autoPlaceAiCueBall();
         }
-        const elapsed = entry.accumulator;
-        entry.accumulator = 0;
-        entry.update(elapsed);
-      });
-      const frameScaleBase =
-        targetFrameTime > 0 ? appliedDeltaMs / targetFrameTime : 1;
-      const frameScale = Math.min(
-        MAX_FRAME_SCALE,
-        Math.max(frameScaleBase, MIN_FRAME_SCALE)
-      );
-      const physicsSubsteps = Math.min(
-        MAX_PHYSICS_SUBSTEPS,
-        Math.max(1, Math.ceil(frameScale))
-      );
-      const subStepScale = frameScale / physicsSubsteps;
-      lastStepTime = now;
-      if (topViewRef.current && topViewLockedRef.current) {
-        const fallbackAim = aimDirRef.current.clone();
-        if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
-        tmpAim.copy(fallbackAim.normalize());
-      } else {
-        camera.getWorldDirection(camFwd);
-        tmpAim.set(camFwd.x, camFwd.z).normalize();
-      }
-      const cameraBlend = THREE.MathUtils.clamp(
-        cameraBlendRef.current ?? 1,
-        0,
-        1
-      );
-      const baseAimLerp = THREE.MathUtils.lerp(
-        CUE_VIEW_AIM_LINE_LERP,
-        STANDING_VIEW_AIM_LINE_LERP,
-        cameraBlend
-      );
-      const aimLerpFactor = chalkAssistTargetRef.current
-        ? Math.min(baseAimLerp, CHALK_AIM_LERP_SLOW)
-        : baseAimLerp;
-      if (!lookModeRef.current) {
-        aimDir.lerp(tmpAim, aimLerpFactor);
-      }
-      const appliedSpin = applySpinConstraints(aimDir, true);
-      const ranges = spinRangeRef.current || {};
-      const newCollisions = new Set();
-      let shouldSlowAim = false;
-      // Aiming vizual
-      const currentHud = hudRef.current;
-      const isPlayerTurn = currentHud?.turn === 0;
-      const isAiTurn = aiOpponentEnabled && currentHud?.turn === 1;
-      const previewingAiShot = aiShotPreviewRef.current;
-      const aiCueViewActive = aiShotCueViewRef.current;
-      const remoteShotActive =
-        currentHud?.turn === 1 && remoteShotActiveRef.current;
-      const remoteAimState = remoteAimRef.current;
-      if (isAiTurn) {
-        autoPlaceAiCueBall();
-      }
-      const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
-      const canShowCue =
-        allStopped(balls) &&
-        cue?.active &&
-        !(currentHud?.over) &&
-        !(inHandPlacementModeRef.current) &&
-        (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current) &&
-        !remoteShotActive &&
-        (isPlayerTurn || previewingAiShot || aiCueViewActive);
-      const remoteAimFresh =
-        remoteAimState &&
-        Number.isFinite(remoteAimState.updatedAt) &&
-        now - remoteAimState.updatedAt <= 3200;
-      const showingRemoteAim =
-        canShowCue &&
-        !aiOpponentEnabled &&
-        isOnlineMatch &&
-        currentHud?.turn === 1 &&
-        remoteAimFresh;
-      function resolveCueObstruction(dirVec3, pullDistance = cuePullTargetRef.current ?? 0) {
+        const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
+        const canShowCue =
+          allStopped(balls) &&
+          cue?.active &&
+          !(currentHud?.over) &&
+          !(inHandPlacementModeRef.current) &&
+          (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current) &&
+          !remoteShotActive &&
+          (isPlayerTurn || previewingAiShot || aiCueViewActive);
+        const remoteAimFresh =
+          remoteAimState &&
+          Number.isFinite(remoteAimState.updatedAt) &&
+          now - remoteAimState.updatedAt <= 3200;
+        const showingRemoteAim =
+          canShowCue &&
+          !aiOpponentEnabled &&
+          isOnlineMatch &&
+          currentHud?.turn === 1 &&
+          remoteAimFresh;
+        function resolveCueObstruction(dirVec3, pullDistance = cuePullTargetRef.current ?? 0) {
           if (!cue?.pos || !dirVec3) return 0;
           const backward = new THREE.Vector2(-dirVec3.x, -dirVec3.z);
           if (backward.lengthSq() < 1e-8) return 0;
@@ -23077,14 +23072,11 @@ const powerRef = useRef(hud.power);
               lastLiveSyncSentAt = now;
             }
           }
-          scheduleNext();
-        }
-      } catch (err) {
-        console.error('Pool Royale frame tick failed; recovering next frame.', err);
-        scheduleNext();
-      }
-    };
-    step(performance.now());
+          if (!disposed) {
+            rafRef.current = requestAnimationFrame(step);
+          }
+        };
+        step(performance.now());
 
       // Resize
         const onResize = () => {
