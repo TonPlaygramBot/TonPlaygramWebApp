@@ -908,7 +908,7 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 0.9; // trim the jaw bodies so the underside finishes closer to the cloth plane
+const POCKET_JAW_DEPTH_SCALE = 0.82; // trim the jaw bodies so the underside finishes level with the cloth plane
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim slightly more so the pocket lips sit nearer the cloth plane
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.06; // stop the jaw extrusion at the cloth surface so no extra lip hangs below
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.22; // keep the underside tight to the cloth depth instead of the deeper pocket floor
@@ -1135,7 +1135,7 @@ const PLYWOOD_EXTRA_DROP = 0;
 const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // fallback plywood tone when a finish color is unavailable
 const PLYWOOD_HOLE_SCALE = 1.05; // plywood pocket cutouts should be 5% larger than the pocket bowls for clearance
 const PLYWOOD_HOLE_R = POCKET_VIS_R * PLYWOOD_HOLE_SCALE * POCKET_VISUAL_EXPANSION;
-const CLOTH_EDGE_GAP_FILL = TABLE.THICK * 0.46; // drive the cloth sleeve deeper so it seals the exposed gap left by the removed plywood
+const CLOTH_EDGE_GAP_FILL = TABLE.THICK * 0.62; // drive the cloth sleeve deeper so it seals the exposed gap left by the removed plywood
 const CLOTH_EXTENDED_DEPTH = CLOTH_THICKNESS + CLOTH_EDGE_GAP_FILL; // wrap enough felt to close the plywood gap while keeping the surface profile unchanged
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.04; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
@@ -1160,8 +1160,8 @@ const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(12); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
-const POCKET_LEATHER_TEXTURE_SCALE = 1.6;
-const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
+const POCKET_LEATHER_TEXTURE_SCALE = 2.4;
+const POCKET_LEATHER_TEXTURE_ANISOTROPY = 12;
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
@@ -1196,7 +1196,7 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_BOARD_TOUCH_OFFSET = -TABLE.THICK * 0.05; // lift the pocket bowls slightly so they cover the cloth edge without needing an extra sleeve
+const POCKET_BOARD_TOUCH_OFFSET = 0; // seat the pocket bowls directly against the extended cloth so no gap remains around the cuts
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_BASE_MIN_OUTSIDE =
@@ -5692,14 +5692,12 @@ const resolvePocketHolderDirection = (center, pocketId = null) => {
   const absZ = Math.abs(center?.y ?? 0);
   const isMiddlePocket = pocketId === 'TM' || pocketId === 'BM' || absZ < BALL_R * 0.6;
   if (isMiddlePocket) {
-    // Turn the middle-pocket holders to run along the rail like the corner trays instead of jutting outward.
-    const zDir =
-      pocketId === 'TM'
-        ? -1
-        : pocketId === 'BM'
-          ? 1
-          : Math.sign(center?.y || 1) || 1;
-    return new THREE.Vector3(0, 0, zDir);
+    // Flip the middle-pocket holders so the strap sits along the side rails instead of projecting toward the short rails.
+    const lateral = new THREE.Vector3(center?.x ?? 0, 0, 0);
+    if (lateral.lengthSq() > MICRO_EPS * MICRO_EPS) {
+      return lateral.normalize();
+    }
+    return new THREE.Vector3(Math.sign(center?.x || 1), 0, 0);
   }
   const outward = new THREE.Vector3(center?.x ?? 0, 0, center?.y ?? 0);
   if (outward.lengthSq() > MICRO_EPS * MICRO_EPS) {
@@ -6520,6 +6518,7 @@ function Table3D(
   const baulkLineZ = -PLAY_H / 2 + BAULK_FROM_BAULK;
   const frameTopY = FRAME_TOP_Y;
   const clothPlaneLocal = CLOTH_TOP_LOCAL + CLOTH_LIFT;
+  const clothSurfaceY = clothPlaneLocal - CLOTH_DROP;
 
   const resolvedFinish =
     (finish && typeof finish === 'object')
@@ -8269,6 +8268,11 @@ function Table3D(
     if (Number.isFinite(maxJawDepth)) {
       const limitedDepth = Math.max(MICRO_EPS, maxJawDepth - MICRO_EPS * 0.5);
       jawDepth = Math.min(jawDepth, limitedDepth);
+    }
+    const clothDepthLimit = jawTopY - clothSurfaceY;
+    if (Number.isFinite(clothDepthLimit)) {
+      const trimmedDepth = Math.max(MICRO_EPS, clothDepthLimit - MICRO_EPS * 0.25);
+      jawDepth = Math.min(jawDepth, trimmedDepth);
     }
     const jawGeom = new THREE.ExtrudeGeometry(jawShape, {
       depth: jawDepth,
