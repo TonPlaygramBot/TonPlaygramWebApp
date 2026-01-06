@@ -1174,7 +1174,7 @@ const POCKET_NET_DEPTH = TABLE.THICK * 2.1;
 const POCKET_NET_SEGMENTS = 48;
 const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 0.9; // drop nearly the full net depth so potted balls clear the rim
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall slightly above the ring/strap junction
-const POCKET_NET_RING_RADIUS_SCALE = 0.62; // match the ring diameter to the net's lowest hoop so the net and chrome line up exactly
+const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.02; // sit the ring directly against the bottom of the woven net
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
@@ -1196,7 +1196,8 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
+const POCKET_BOARD_TOUCH_OFFSET = -TABLE.THICK * 0.05; // lift the pocket bowls slightly so they cover the cloth edge without needing an extra sleeve
+const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.18 +
@@ -5700,19 +5701,9 @@ const resolvePocketHolderDirection = (center, pocketId = null) => {
           : Math.sign(center?.y || 1) || 1;
     return new THREE.Vector3(0, 0, zDir);
   }
-  const middlePocketTargets = pocketCenters().slice(4);
-  let closest = null;
-  let shortest = Infinity;
-  for (const target of middlePocketTargets) {
-    const delta = target.clone().sub(center);
-    const distance = delta.lengthSq();
-    if (distance < shortest && distance > MICRO_EPS) {
-      shortest = distance;
-      closest = delta;
-    }
-  }
-  if (closest) {
-    return new THREE.Vector3(closest.x, 0, closest.y).normalize();
+  const outward = new THREE.Vector3(center?.x ?? 0, 0, center?.y ?? 0);
+  if (outward.lengthSq() > MICRO_EPS * MICRO_EPS) {
+    return outward.normalize();
   }
   if (absX >= absZ) {
     return new THREE.Vector3(Math.sign(center?.x || 1), 0, 0);
@@ -7112,14 +7103,16 @@ function Table3D(
   const pocketTopY = clothBottomY - POCKET_BOARD_TOUCH_OFFSET;
   const pocketEdgeStopY =
     (PLYWOOD_ENABLED ? plywoodTopY : pocketTopY) - POCKET_EDGE_STOP_EXTRA_DROP;
-  const pocketCutStripes = addPocketCuts(
-    table,
-    cloth.position.y,
-    clothPocketPositions,
-    clothEdgeMat,
-    sideRadiusScale,
-    pocketEdgeStopY
-  );
+  const pocketCutStripes = POCKET_EDGE_SLEEVES_ENABLED
+    ? addPocketCuts(
+        table,
+        cloth.position.y,
+        clothPocketPositions,
+        clothEdgeMat,
+        sideRadiusScale,
+        pocketEdgeStopY
+      )
+    : [];
   finishParts.clothEdgeMeshes.push(...pocketCutStripes);
   // Leave the pocket apertures completely open so the pocket geometry remains visible.
   const clothEdgeTopY = cloth.position.y - MICRO_EPS;
@@ -7362,11 +7355,11 @@ function Table3D(
         pocketStrapThickness
       );
       const strap = new THREE.Mesh(strapGeom, pocketJawMat);
-      const strapAnchor = strapEnd.clone();
+      const strapBase = strapEnd.clone();
       const strapTopLimit = pocketTopY - TABLE.THICK * 0.08;
-      strapAnchor.y = Math.min(strapAnchor.y, strapTopLimit);
-      const strapMid = strapAnchor.clone();
-      strapMid.y -= strapHeight * 0.5;
+      const strapBaseY = Math.min(strapBase.y, strapTopLimit - strapHeight);
+      const strapMid = strapBase.clone();
+      strapMid.y = strapBaseY + strapHeight * 0.5;
       const flatDir = strapDir.clone().setY(0);
       const strapForward =
         flatDir.lengthSq() > MICRO_EPS ? flatDir.normalize() : new THREE.Vector3(0, 0, 1);
