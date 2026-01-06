@@ -908,7 +908,7 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 0.82; // trim the jaw bodies further so the underside finishes level with the cloth plane
+const POCKET_JAW_DEPTH_SCALE = 0.9; // trim the jaw bodies so the underside finishes closer to the cloth plane
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim slightly more so the pocket lips sit nearer the cloth plane
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.06; // stop the jaw extrusion at the cloth surface so no extra lip hangs below
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.22; // keep the underside tight to the cloth depth instead of the deeper pocket floor
@@ -1192,12 +1192,12 @@ const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed alon
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
 const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
-const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.02; // drop the cloth sleeve just until it kisses the pocket walls with no visible gap
+const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
 const POCKET_BOARD_TOUCH_OFFSET = -TABLE.THICK * 0.05; // lift the pocket bowls slightly so they cover the cloth edge without needing an extra sleeve
-const POCKET_EDGE_SLEEVES_ENABLED = true; // extend the cloth sleeve down into the pocket openings until it meets the bowl
+const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.18 +
@@ -2199,25 +2199,6 @@ const ensurePocketLeatherTextures = () => {
   pocketLeatherTextureCache.roughness = applyPocketLeatherTextureDefaults(roughness);
   pocketLeatherTextureCache.loading = false;
   return pocketLeatherTextureCache;
-};
-
-const applyLeatherTexturesToMaterial = (material) => {
-  if (!material) return material;
-  const leather = ensurePocketLeatherTextures();
-  if (leather.map) {
-    material.map = leather.map;
-    applyPocketLeatherTextureDefaults(material.map, { isColor: true });
-  }
-  if (leather.normal) {
-    material.normalMap = leather.normal;
-    applyPocketLeatherTextureDefaults(material.normalMap);
-  }
-  if (leather.roughness) {
-    material.roughnessMap = leather.roughness;
-    applyPocketLeatherTextureDefaults(material.roughnessMap);
-  }
-  material.needsUpdate = true;
-  return material;
 };
 
 const createPocketMaterials = () => {
@@ -5711,10 +5692,14 @@ const resolvePocketHolderDirection = (center, pocketId = null) => {
   const absZ = Math.abs(center?.y ?? 0);
   const isMiddlePocket = pocketId === 'TM' || pocketId === 'BM' || absZ < BALL_R * 0.6;
   if (isMiddlePocket) {
-    // Flip the middle-pocket holders so the leather strap sits along the side of each rail.
-    const xDir =
-      Math.sign(center?.x || (pocketId === 'TM' ? -1 : 1)) || 1;
-    return new THREE.Vector3(xDir, 0, 0);
+    // Turn the middle-pocket holders to run along the rail like the corner trays instead of jutting outward.
+    const zDir =
+      pocketId === 'TM'
+        ? -1
+        : pocketId === 'BM'
+          ? 1
+          : Math.sign(center?.y || 1) || 1;
+    return new THREE.Vector3(0, 0, zDir);
   }
   const outward = new THREE.Vector3(center?.x ?? 0, 0, center?.y ?? 0);
   if (outward.lengthSq() > MICRO_EPS * MICRO_EPS) {
@@ -6576,9 +6561,7 @@ function Table3D(
     legMat = frameMat.clone();
   }
   const trimMat = rawMaterials.trim ?? getFallbackMaterial('trim');
-  const pocketJawMat = applyLeatherTexturesToMaterial(
-    rawMaterials.pocketJaw ?? getFallbackMaterial('pocketJaw')
-  );
+  const pocketJawMat = rawMaterials.pocketJaw ?? getFallbackMaterial('pocketJaw');
   const pocketRimMat = rawMaterials.pocketRim ?? getFallbackMaterial('pocketRim');
   const gapStripeMat =
     rawMaterials.gapStripe ||
@@ -8276,13 +8259,12 @@ function Table3D(
       railH * POCKET_JAW_DEPTH_SCALE * depthMultiplier
     );
     const clearance = Math.max(0, POCKET_JAW_BOTTOM_CLEARANCE);
-    const clothSurfaceY = cloth?.position?.y ?? clothPlaneLocal - CLOTH_DROP;
     const pocketFloorY =
       pocketTopY -
       TABLE.THICK +
       POCKET_JAW_FLOOR_CONTACT_LIFT +
       (isMiddle ? SIDE_POCKET_PLYWOOD_LIFT : 0);
-    const safeBottomY = Math.max(pocketFloorY + clearance, clothSurfaceY);
+    const safeBottomY = pocketFloorY + clearance;
     const maxJawDepth = jawTopY - safeBottomY;
     if (Number.isFinite(maxJawDepth)) {
       const limitedDepth = Math.max(MICRO_EPS, maxJawDepth - MICRO_EPS * 0.5);
@@ -9648,9 +9630,7 @@ function applyTableFinishToTable(table, finish) {
     legMat = frameMat.clone();
   }
   const trimMat = rawMaterials.trim ?? getFallbackMaterial('trim');
-  const pocketJawMat = applyLeatherTexturesToMaterial(
-    rawMaterials.pocketJaw ?? getFallbackMaterial('pocketJaw')
-  );
+  const pocketJawMat = rawMaterials.pocketJaw ?? getFallbackMaterial('pocketJaw');
   const pocketRimMat = rawMaterials.pocketRim ?? getFallbackMaterial('pocketRim');
   const accentConfig = rawMaterials.accent ?? null;
   frameMat.needsUpdate = true;
@@ -11111,7 +11091,7 @@ function PoolRoyaleGame({
           };
         }
         const liners = createPocketLinerMaterials(linerSelection, clothSelection.color);
-        materials.pocketJaw = applyLeatherTexturesToMaterial(liners.jawMaterial);
+        materials.pocketJaw = liners.jawMaterial;
         materials.pocketRim = liners.rimMaterial;
         return materials;
       }
