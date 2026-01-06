@@ -1174,22 +1174,26 @@ const POCKET_NET_DEPTH = TABLE.THICK * 2.1;
 const POCKET_NET_SEGMENTS = 48;
 const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 0.9; // drop nearly the full net depth so potted balls clear the rim
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall slightly above the ring/strap junction
-const POCKET_NET_RING_RADIUS_SCALE = 0.94; // size the ring to the lower pocket bowl so balls clear the opening
+const POCKET_NET_RING_RADIUS_SCALE = 1; // match the ring diameter to the woven net so the transition is seamless
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.02; // sit the ring directly against the bottom of the woven net
 const POCKET_GUIDE_RADIUS = BALL_R * 0.09;
-const POCKET_GUIDE_LENGTH = POCKET_NET_DEPTH * 1.35;
+const POCKET_HOLDER_BALL_CAPACITY = 5;
+const POCKET_GUIDE_LENGTH = Math.max(
+  POCKET_NET_DEPTH * 1.35,
+  BALL_DIAMETER * (POCKET_HOLDER_BALL_CAPACITY + 0.6)
+); // stretch the rails so the cradle comfortably fits five full-size balls
 const POCKET_GUIDE_DROP = BALL_R * 0.28;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.22; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_STEM_DEPTH = BALL_R * 0.28; // short leg that links the ring to the horizontal holder run
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.24; // drop the centre rail to form the floor of the holder
-const POCKET_HOLDER_REST_FRACTION = 0.62; // land potted balls past the ring toward the strap
+const POCKET_HOLDER_REST_FRACTION = 0.9; // land potted balls deep into the tray near the leather strap
 const POCKET_HOLDER_REST_DROP = BALL_R * 0.38; // keep the resting spot visibly below the pocket throat
 const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
 const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.08; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
 const POCKET_HOLDER_L_LEG = BALL_R * 0.42; // small connector that links the ring to the holder tray
-const POCKET_HOLDER_L_SPAN = POCKET_GUIDE_LENGTH * 0.42; // longer tray section that actually holds the balls
+const POCKET_HOLDER_L_SPAN = POCKET_GUIDE_LENGTH * 0.58; // longer tray section sized to carry five resting balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -5684,11 +5688,32 @@ const pocketEntranceCenters = () =>
 const resolvePocketHolderDirection = (center, pocketId = null) => {
   const absX = Math.abs(center?.x ?? 0);
   const absZ = Math.abs(center?.y ?? 0);
+  const centers = pocketCenters();
+  const sidePocketTargets = centers.slice(4);
   const isMiddlePocket = pocketId === 'TM' || pocketId === 'BM' || absZ < BALL_R * 0.6;
   if (isMiddlePocket) {
     // Push the middle-pocket holder outward from the table edge so the strap sits on the far side, matching photo references.
     const xDir = Math.sign(center?.x || 1) || 1;
     return new THREE.Vector3(xDir, 0, 0);
+  }
+  // For corner pockets, rotate the holder toward the nearest middle pocket so the long tray hugs the side rail.
+  let nearest = null;
+  let nearestDistSq = Infinity;
+  sidePocketTargets.forEach((target) => {
+    const dx = (target?.x ?? 0) - (center?.x ?? 0);
+    const dz = (target?.y ?? 0) - (center?.y ?? 0);
+    const distSq = dx * dx + dz * dz;
+    if (distSq < nearestDistSq) {
+      nearestDistSq = distSq;
+      nearest = target;
+    }
+  });
+  if (nearest) {
+    const dir = new THREE.Vector3(nearest.x - center.x, 0, nearest.y - center.y);
+    if (dir.lengthSq() > MICRO_EPS) {
+      dir.normalize();
+      return dir;
+    }
   }
   if (absX >= absZ) {
     return new THREE.Vector3(Math.sign(center?.x || 1), 0, 0);
