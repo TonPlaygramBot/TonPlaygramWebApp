@@ -908,10 +908,10 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 0.88; // trim the jaw bodies so their underside stays level with the cloth surface
+const POCKET_JAW_DEPTH_SCALE = 1.02; // push the jaw bodies further down so the underside reaches the pocket floor
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim slightly more so the pocket lips sit nearer the cloth plane
-const POCKET_JAW_BOTTOM_CLEARANCE = BALL_R * 0.06; // leave a slim gap so the trimmed jaws finish at the cloth plane
-const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // raise the jaw underside so the base aligns with the cloth wrap instead of the pocket floor
+const POCKET_JAW_BOTTOM_CLEARANCE = 0; // allow the jaw extrusion to run right down to the pocket base without a visible gap
+const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.12; // align the jaw underside to the same height as the pocket base plate
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.12; // thin the outer lips more aggressively while leaving the centre crown unchanged
@@ -934,7 +934,7 @@ const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.58; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.22; // push the middle jaw reach a touch wider so the openings read larger
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.96; // pare back the middle jaw depth so the shorter fascia still matches the cloth plane
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.02; // lift the middle jaws so their rims sit level with the cloth like the corner pockets
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.072; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
@@ -1060,10 +1060,6 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 });
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const SIDE_POCKET_HOLE_R =
-  POCKET_VIS_R > MICRO_EPS
-    ? POCKET_HOLE_R * (SIDE_POCKET_RADIUS / POCKET_VIS_R) * SIDE_POCKET_CUT_SCALE
-    : POCKET_HOLE_R;
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1111,16 +1107,18 @@ const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
 const MAX_POWER_CAMERA_HOLD_MS = 2000;
 const MAX_POWER_SPIN_LATERAL_THROW = BALL_R * 0.42; // let max-power jumps inherit a strong sideways release from active side spin
 const MAX_POWER_SPIN_LIFT_BONUS = BALL_R * 0.28; // spin adds extra hop height when the cue ball is driven at full power
-const POCKET_INTERIOR_CAPTURE_R = POCKET_HOLE_R; // capture matches the visible pocket cut so drops occur at the lip
-const SIDE_POCKET_INTERIOR_CAPTURE_R = SIDE_POCKET_HOLE_R; // middle pockets inherit their actual hole radius
-const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the visible throat
-const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now matches the visible bowl opening
-const POCKET_GUARD_RADIUS = POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04; // align the rail guard to the playable capture bowl instead of the visual rim
+const POCKET_INTERIOR_CAPTURE_R =
+  POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 0.992; // tighten capture so balls fall only once they reach the pocket throat
+const SIDE_POCKET_INTERIOR_CAPTURE_R =
+  SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 0.996; // narrow the middle capture to stop pre-pocket drops while keeping center-line forgiveness
+const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the interior bowl so balls fall at the throat
+const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now matches the bowl opening instead of scaling from corners
+const POCKET_GUARD_RADIUS = POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.06; // align the rail guard to the playable capture bowl instead of the visual rim
 const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.08); // keep a slim safety margin so clean entries aren't rejected
 const CORNER_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
 const SIDE_POCKET_GUARD_RADIUS =
-  SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04; // use the middle-pocket bowl to gate reflections
+  SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.08; // use the middle-pocket bowl to gate reflections
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.08
@@ -1137,11 +1135,11 @@ const PLYWOOD_EXTRA_DROP = 0;
 const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // fallback plywood tone when a finish color is unavailable
 const PLYWOOD_HOLE_SCALE = 1.05; // plywood pocket cutouts should be 5% larger than the pocket bowls for clearance
 const PLYWOOD_HOLE_R = POCKET_VIS_R * PLYWOOD_HOLE_SCALE * POCKET_VISUAL_EXPANSION;
-const CLOTH_EDGE_GAP_FILL = TABLE.THICK * 0.46; // drive the cloth sleeve deeper so it seals the exposed gap left by the removed plywood
+const CLOTH_EDGE_GAP_FILL = TABLE.THICK * 0.32; // drive the cloth sleeve deeper so it seals the exposed gap left by the removed plywood
 const CLOTH_EXTENDED_DEPTH = CLOTH_THICKNESS + CLOTH_EDGE_GAP_FILL; // wrap enough felt to close the plywood gap while keeping the surface profile unchanged
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
-const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.04; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
-const CLOTH_EDGE_CURVE_INTENSITY = 0.016; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
+const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
+const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
 const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt tone so they don't glow around the cuts
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
@@ -1160,7 +1158,7 @@ const POCKET_DROP_ENTRY_VELOCITY = -0.6; // initial downward impulse before grav
 const POCKET_DROP_REST_HOLD_MS = 360; // keep the ball visible on the strap briefly before hiding it
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
-const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(18); // steeper angle so potted balls and chrome guides drop below the cloth line
+const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(12); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_SCALE = 1.6;
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
@@ -1175,26 +1173,25 @@ const POCKET_WALL_HEIGHT = TABLE.THICK * 0.7 - POCKET_WALL_OPEN_TRIM;
 const POCKET_NET_DEPTH = TABLE.THICK * 2.1;
 const POCKET_NET_SEGMENTS = 48;
 const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 0.9; // drop nearly the full net depth so potted balls clear the rim
-const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.9; // stop the fall well below the strap lip so leather never peeks above the cloth
+const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.62; // match the ring diameter to the net's lowest hoop so the net and chrome line up exactly
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.02; // sit the ring directly against the bottom of the woven net
 const POCKET_GUIDE_RADIUS = BALL_R * 0.09;
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
-const POCKET_GUIDE_DROP = BALL_R * 0.4;
+const POCKET_GUIDE_DROP = BALL_R * 0.28;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.22; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.72; // lengthen the elbow so each rail meets the ring with a ball-length guide
-const POCKET_STRAP_VERTICAL_DROP = BALL_R * 0.42; // sink the leather strap and chrome rails deeper so leather never creeps onto the cloth
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.24; // drop the centre rail to form the floor of the holder
 const POCKET_HOLDER_REST_FRACTION = 0.88; // land potted balls deeper into the tray so they settle against the strap
 const POCKET_HOLDER_REST_DROP = BALL_R * 0.38; // keep the resting spot visibly below the pocket throat
 const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
-const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.08; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
+const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_BOARD_TOUCH_OFFSET = -TABLE.THICK * 0.04; // lift the pocket rim into the wrapped cloth so the sleeve visibly meets the bowl
+const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.18 +
@@ -7365,8 +7362,7 @@ function Table3D(
       const strapMid = strapEnd
         .clone()
         .add(new THREE.Vector3(0, pocketStrapLength * 0.5, 0))
-        .addScaledVector(strapFacing, -pocketStrapThickness * 0.5)
-        .add(new THREE.Vector3(0, -POCKET_STRAP_VERTICAL_DROP, 0));
+        .addScaledVector(strapFacing, -pocketStrapThickness * 0.5);
       strap.position.copy(strapMid);
       strap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), strapFacing);
       strap.castShadow = true;
@@ -21527,14 +21523,7 @@ const powerRef = useRef(hud.power);
   let lastLiveAimSentAt = 0;
   const step = (now) => {
     if (disposed) return;
-    let scheduledNext = false;
-    const scheduleNext = () => {
-      if (scheduledNext || disposed) return;
-      scheduledNext = true;
-      rafRef.current = requestAnimationFrame(step);
-    };
-    try {
-      const playback = replayPlaybackRef.current;
+    const playback = replayPlaybackRef.current;
         if (playback) {
           const frameTiming = frameTimingRef.current;
           const targetReplayFrameTime =
@@ -21542,10 +21531,14 @@ const powerRef = useRef(hud.power);
               ? frameTiming.targetMs
               : 1000 / 60;
           if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
-            scheduleNext();
+            rafRef.current = requestAnimationFrame(step);
             return;
           }
           lastReplayFrameAt = now;
+          const scheduleNext = () => {
+            if (disposed) return;
+            rafRef.current = requestAnimationFrame(step);
+          };
           const frames = playback.frames || [];
           const duration = Number.isFinite(playback.duration) ? playback.duration : 0;
           const elapsed = now - playback.startedAt;
@@ -23079,12 +23072,10 @@ const powerRef = useRef(hud.power);
               lastLiveSyncSentAt = now;
             }
           }
-          scheduleNext();
-        } catch (err) {
-          console.error('Pool Royale frame failed:', err);
-          scheduleNext();
-        }
-      };
+          if (!disposed) {
+            rafRef.current = requestAnimationFrame(step);
+          }
+        };
         step(performance.now());
 
       // Resize
