@@ -909,7 +909,7 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.82; // trim the jaw bodies so the underside finishes closer to the cloth plane
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim slightly more so the pocket lips sit nearer the cloth plane
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.098; // drop the visible rim a touch further so the pocket lips sit nearer the cloth plane
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.12; // stop the jaw extrusion right at the cloth surface so no extra lip hangs below
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
@@ -1185,8 +1185,8 @@ const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.22; // start the chrome rails jus
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.72; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.24; // drop the centre rail to form the floor of the holder
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
-const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.05; // spacing between balls once they settle on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 0.55; // tuck the first ball against the backstop without letting leather peek above the field
+const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.12; // wider spacing so potted balls line up without overlapping on the holder rails
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 0.35; // stop the lead ball right against the leather strap without letting it bury the backstop
 const POCKET_HOLDER_REST_DROP = BALL_R * 0.38; // keep the resting spot visibly below the pocket throat
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
@@ -1196,7 +1196,7 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_BOARD_TOUCH_OFFSET = 0; // extend the cloth sleeve down until it kisses the pocket bowls without leaving a gap
+const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_BASE_MIN_OUTSIDE =
@@ -14963,21 +14963,34 @@ const powerRef = useRef(hud.power);
           if (replayPlaybackActive) {
             const storedReplayCamera = replayCameraRef.current;
             const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-            const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+            const resolvedReplayCamera = resolveReplayCameraView(
+              replayFrameCameraRef.current,
+              storedReplayCamera
+            );
+            const minTargetY = Math.max(
+              baseSurfaceWorldY,
+              Number.isFinite(resolvedReplayCamera?.minTargetY)
+                ? resolvedReplayCamera.minTargetY
+                : BALL_CENTER_Y * scale
+            );
             const focusTarget =
+              resolvedReplayCamera?.target?.clone?.() ??
               storedReplayCamera?.target?.clone?.() ??
               lastCameraTargetRef.current?.clone?.() ??
               new THREE.Vector3(playerOffsetRef.current * scale, minTargetY, 0);
             focusTarget.y = Math.max(focusTarget.y ?? 0, minTargetY);
             const safePosition =
+              resolvedReplayCamera?.position?.clone?.() ??
               storedReplayCamera?.position?.clone?.() ??
               camera.position.clone();
             if (safePosition.y < minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale) {
               safePosition.y = minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale;
             }
-            const replayFov = Number.isFinite(storedReplayCamera?.fov)
-              ? storedReplayCamera.fov
-              : camera.fov;
+            const replayFov = Number.isFinite(resolvedReplayCamera?.fov)
+              ? resolvedReplayCamera.fov
+              : Number.isFinite(storedReplayCamera?.fov)
+                ? storedReplayCamera.fov
+                : camera.fov;
             if (Number.isFinite(replayFov) && camera.fov !== replayFov) {
               camera.fov = replayFov;
               camera.updateProjectionMatrix();
@@ -22857,12 +22870,22 @@ const powerRef = useRef(hud.power);
                 BALL_CENTER_Y - POCKET_DROP_DEPTH * 0.5,
                 c.y
               );
+              const holderSpacing = POCKET_HOLDER_REST_SPACING;
+              const railStartOffset =
+                POCKET_NET_RING_RADIUS_SCALE * POCKET_BOTTOM_R + POCKET_GUIDE_RING_CLEARANCE;
               const restDistanceBase = Math.max(
-                POCKET_GUIDE_LENGTH - POCKET_HOLDER_REST_PULLBACK,
-                POCKET_HOLDER_REST_SPACING
+                railStartOffset + POCKET_GUIDE_LENGTH - POCKET_HOLDER_REST_PULLBACK,
+                railStartOffset + holderSpacing
               );
-              const restDistance =
-                restDistanceBase + pocketRestIndex * POCKET_HOLDER_REST_SPACING;
+              const minRestDistance = Math.max(
+                railStartOffset + holderSpacing * 0.5,
+                railStartOffset + BALL_R * 0.6
+              );
+              const clampedRestIndex = Math.max(0, pocketRestIndex);
+              const restDistance = Math.max(
+                minRestDistance,
+                restDistanceBase - clampedRestIndex * holderSpacing
+              );
               pocketRestIndexRef.current.set(pocketId, pocketRestIndex + 1);
               const tiltDrop = Math.tan(POCKET_HOLDER_TILT_RAD) * restDistance;
               const restTarget = new THREE.Vector3(c.x, 0, c.y).addScaledVector(
@@ -22871,7 +22894,6 @@ const powerRef = useRef(hud.power);
               );
               const targetX = restTarget.x;
               const targetZ = restTarget.z;
-              const railStartOffset = POCKET_NET_RING_RADIUS_SCALE * POCKET_BOTTOM_R + POCKET_GUIDE_RING_CLEARANCE;
               const railRunStart = ringAnchor
                 .clone()
                 .addScaledVector(holderDir, railStartOffset)
