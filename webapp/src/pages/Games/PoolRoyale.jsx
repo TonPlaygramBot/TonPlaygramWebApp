@@ -994,13 +994,13 @@ const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.02; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
 const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.026; // gently bias the middle pocket centres and cuts back toward the playfield
 const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.032; // pull only the middle pocket cloth cutouts slightly toward the playfield centre
-const CHALK_TOP_COLOR = 0x2186a7;
-const CHALK_SIDE_COLOR = 0x0c1118;
-const CHALK_SIDE_ACTIVE_COLOR = 0x1c3144;
-const CHALK_BOTTOM_COLOR = 0x05080d;
-const CHALK_ACTIVE_COLOR = 0x42c6ff;
-const CHALK_EMISSIVE_COLOR = 0x0a1623;
-const CHALK_ACTIVE_EMISSIVE_COLOR = 0x124066;
+const CHALK_TOP_COLOR = 0x1f6d86;
+const CHALK_SIDE_COLOR = 0x162b36;
+const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
+const CHALK_BOTTOM_COLOR = 0x0b1118;
+const CHALK_ACTIVE_COLOR = 0x4bd4ff;
+const CHALK_EMISSIVE_COLOR = 0x071b26;
+const CHALK_ACTIVE_EMISSIVE_COLOR = 0x0d3b5d;
 const CHALK_PRECISION_SLOW_MULTIPLIER = 0.25;
 const CHALK_AIM_LERP_SLOW = 0.08;
 const CHALK_TARGET_RING_RADIUS = BALL_R * 2;
@@ -1183,14 +1183,14 @@ const POCKET_GUIDE_DROP = BALL_R * 0.28;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.22; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.72; // lengthen the elbow so each rail meets the ring with a ball-length guide
-const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.3; // drop the centre rail to form the floor of the holder
+const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.24; // drop the centre rail to form the floor of the holder
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.12; // wider spacing so potted balls line up without overlapping on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 0.28; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 0.48; // keep the resting spot visibly below the pocket throat
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 0.35; // stop the lead ball right against the leather strap without letting it bury the backstop
+const POCKET_HOLDER_REST_DROP = BALL_R * 0.38; // keep the resting spot visibly below the pocket throat
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
-const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 4.8; // clamp the roll speed so balls don't overshoot the leather backstop
-const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.78; // scale entry speed into a believable roll along the holders
+const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
+const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
 const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
 const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
@@ -1932,193 +1932,6 @@ const mixHexColors = (fromHex, toHex, t) => {
 };
 
 const hexNumberToCss = (hex) => `#${hex.toString(16).padStart(6, '0')}`;
-
-const BRAND_PLATE_LABEL = 'TonPlaygram';
-const BRAND_PLATE_TEXTURE_WIDTH = 2048;
-const BRAND_PLATE_TEXTURE_HEIGHT = 512;
-
-const createCarbonFiberPattern = () => {
-  const pattern = document.createElement('canvas');
-  pattern.width = 128;
-  pattern.height = 128;
-  const ctx = pattern.getContext('2d');
-  if (!ctx) return null;
-  ctx.fillStyle = '#050505';
-  ctx.fillRect(0, 0, pattern.width, pattern.height);
-  ctx.fillStyle = '#0f0f0f';
-  ctx.fillRect(0, 0, pattern.width / 2, pattern.height / 2);
-  ctx.fillRect(
-    pattern.width / 2,
-    pattern.height / 2,
-    pattern.width / 2,
-    pattern.height / 2
-  );
-  ctx.fillStyle = '#1a1a1a';
-  ctx.beginPath();
-  ctx.moveTo(pattern.width / 2, 0);
-  ctx.lineTo(pattern.width, 0);
-  ctx.lineTo(0, pattern.height);
-  ctx.lineTo(0, pattern.height / 2);
-  ctx.closePath();
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(pattern.width, pattern.height / 2);
-  ctx.lineTo(pattern.width, pattern.height);
-  ctx.lineTo(pattern.width / 2, pattern.height);
-  ctx.closePath();
-  ctx.fill();
-  return ctx.createPattern(pattern, 'repeat');
-};
-
-const createBrandPlateTexture = (accentHex = 0xd4af37) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = BRAND_PLATE_TEXTURE_WIDTH;
-  canvas.height = BRAND_PLATE_TEXTURE_HEIGHT;
-  const ctx = canvas.getContext('2d');
-  const accent = new THREE.Color(accentHex);
-  const accentHighlight = accent.clone().lerp(new THREE.Color(0xffffff), 0.28);
-  const accentShadow = accent.clone().lerp(new THREE.Color(0x111111), 0.52);
-
-  const pattern = createCarbonFiberPattern();
-  if (pattern) {
-    ctx.fillStyle = pattern;
-  } else {
-    ctx.fillStyle = '#0a0a0a';
-  }
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const sheen = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  sheen.addColorStop(0, 'rgba(255,255,255,0.08)');
-  sheen.addColorStop(0.5, 'rgba(255,255,255,0.02)');
-  sheen.addColorStop(1, 'rgba(0,0,0,0.18)');
-  ctx.fillStyle = sheen;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const border = 26;
-  ctx.strokeStyle = accentHighlight.getStyle();
-  ctx.lineWidth = border;
-  ctx.strokeRect(border / 2, border / 2, canvas.width - border, canvas.height - border);
-  ctx.shadowColor = 'rgba(0,0,0,0.55)';
-  ctx.shadowBlur = 24;
-  ctx.shadowOffsetY = 6;
-  ctx.fillStyle = accentShadow.getStyle();
-  ctx.lineWidth = 6;
-  ctx.strokeStyle = accentShadow.getStyle();
-  ctx.strokeRect(border + 10, border + 10, canvas.width - (border + 10) * 2, canvas.height - (border + 10) * 2);
-  ctx.shadowColor = 'rgba(0,0,0,0.5)';
-  ctx.shadowBlur = 0;
-  ctx.shadowOffsetY = 0;
-
-  ctx.fillStyle = accentHighlight.getStyle();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  let fontSize = 240;
-  const maxWidth = canvas.width - 360;
-  while (fontSize > 140) {
-    ctx.font = `800 ${fontSize}px "Inter", Arial`;
-    if (ctx.measureText(BRAND_PLATE_LABEL).width <= maxWidth) break;
-    fontSize -= 6;
-  }
-  ctx.font = `800 ${fontSize}px "Inter", Arial`;
-  ctx.fillText(BRAND_PLATE_LABEL, canvas.width / 2, canvas.height / 2);
-
-  const rivetRadius = 32;
-  const screwMarginX = 110;
-  const screwMarginY = 78;
-  const rivets = [
-    [screwMarginX, screwMarginY],
-    [canvas.width - screwMarginX, screwMarginY],
-    [canvas.width - screwMarginX, canvas.height - screwMarginY],
-    [screwMarginX, canvas.height - screwMarginY]
-  ];
-  rivets.forEach(([x, y]) => {
-    const rivetGrad = ctx.createRadialGradient(
-      x - rivetRadius * 0.3,
-      y - rivetRadius * 0.3,
-      rivetRadius * 0.2,
-      x,
-      y,
-      rivetRadius
-    );
-    rivetGrad.addColorStop(0, accentHighlight.getStyle());
-    rivetGrad.addColorStop(0.65, accent.getStyle());
-    rivetGrad.addColorStop(1, accentShadow.getStyle());
-    ctx.fillStyle = rivetGrad;
-    ctx.beginPath();
-    ctx.arc(x, y, rivetRadius, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  const texture = new THREE.CanvasTexture(canvas);
-  applySRGBColorSpace(texture);
-  texture.anisotropy = resolveTextureAnisotropy(12);
-  texture.needsUpdate = true;
-  return texture;
-};
-
-const createBrandPlateMaterial = (trimMaterial) => {
-  const accentHex = trimMaterial?.color?.getHex ? trimMaterial.color.getHex() : 0xd4af37;
-  const texture = createBrandPlateTexture(accentHex);
-  const material =
-    typeof trimMaterial?.clone === 'function'
-      ? trimMaterial.clone()
-      : new THREE.MeshPhysicalMaterial({
-          color: 0xffffff,
-          metalness: 0.86,
-          roughness: 0.32,
-          clearcoat: 0.56,
-          clearcoatRoughness: 0.32
-        });
-  material.map = texture;
-  material.color.setHex(0xffffff);
-  material.metalness = Math.max(material.metalness ?? 0.82, 0.82);
-  material.roughness = Math.min(material.roughness ?? 0.32, 0.34);
-  material.clearcoat = Math.max(material.clearcoat ?? 0.52, 0.58);
-  material.clearcoatRoughness = Math.min(material.clearcoatRoughness ?? 0.28, 0.32);
-  material.envMapIntensity = Math.max(material.envMapIntensity ?? 1.1, 1.1);
-  material.needsUpdate = true;
-  material.userData = {
-    ...(material.userData || {}),
-    isBrandPlate: true,
-    baseMaterialKey: 'trim',
-    brandTexture: texture
-  };
-  return material;
-};
-
-const createRailTextMaterial = (label = BRAND_PLATE_LABEL) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'white';
-  ctx.shadowColor = 'rgba(0,0,0,0.55)';
-  ctx.shadowBlur = 18;
-  let fontSize = 180;
-  const maxWidth = canvas.width - 140;
-  while (fontSize > 90) {
-    ctx.font = `800 ${fontSize}px "Inter", Arial`;
-    if (ctx.measureText(label).width <= maxWidth) break;
-    fontSize -= 6;
-  }
-  ctx.font = `800 ${fontSize}px "Inter", Arial`;
-  ctx.fillText(label, canvas.width / 2, canvas.height / 2);
-  const texture = new THREE.CanvasTexture(canvas);
-  applySRGBColorSpace(texture);
-  texture.anisotropy = resolveTextureAnisotropy(8);
-  texture.needsUpdate = true;
-  return new THREE.MeshBasicMaterial({
-    map: texture,
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0.94,
-    side: THREE.DoubleSide,
-    depthWrite: false
-  });
-};
 
 
 const SHARED_WOOD_REPEAT = Object.freeze({
@@ -6693,8 +6506,6 @@ function Table3D(
     baseMeshes: [],
     railMeshes: [],
     trimMeshes: [],
-    brandPlateMeshes: [],
-    railTextMeshes: [],
     gapFillMeshes: [],
     pocketJawMeshes: [],
     pocketRimMeshes: [],
@@ -8894,139 +8705,8 @@ function Table3D(
     getStyle: () => ({ ...activeRailMarkerStyle })
   };
 
-  const brandPlateWidth = Math.max(PLAY_H * 0.46, longRailW * 6.5);
-  const brandPlateHeight = railH * 0.7;
-  const brandPlateDepth = railH * 0.08;
-  const brandPlateOffsetX =
-    outerHalfW + brandPlateDepth / 2 + TABLE.THICK * 0.05;
-  const brandPlateY = frameTopY - railH * 0.35;
-  [-1, 1].forEach((xSign) => {
-    const plate = new THREE.Mesh(
-      new THREE.BoxGeometry(brandPlateDepth, brandPlateHeight, brandPlateWidth),
-      createBrandPlateMaterial(trimMat)
-    );
-    plate.position.set(xSign * brandPlateOffsetX, brandPlateY, 0);
-    plate.rotation.y = xSign > 0 ? 0 : Math.PI;
-    plate.castShadow = true;
-    plate.receiveShadow = true;
-    plate.renderOrder = 4;
-    plate.userData.baseMaterialKey = 'trim';
-    plate.userData.isBrandPlate = true;
-    railsGroup.add(plate);
-    finishParts.trimMeshes.push(plate);
-    finishParts.brandPlateMeshes.push(plate);
-  });
-
   table.add(railsGroup);
 
-  const createChalkTextures = () => {
-    const topSize = 1024;
-    const topCanvas = document.createElement('canvas');
-    topCanvas.width = topSize;
-    topCanvas.height = topSize;
-    const topCtx = topCanvas.getContext('2d');
-    topCtx.fillStyle = '#1f829f';
-    topCtx.fillRect(0, 0, topSize, topSize);
-    const rimGrad = topCtx.createRadialGradient(
-      topSize / 2,
-      topSize / 2,
-      topSize * 0.08,
-      topSize / 2,
-      topSize / 2,
-      topSize * 0.46
-    );
-    rimGrad.addColorStop(0, '#0f485f');
-    rimGrad.addColorStop(0.5, '#1f829f');
-    rimGrad.addColorStop(1, '#0a2f40');
-    topCtx.fillStyle = rimGrad;
-    topCtx.fillRect(0, 0, topSize, topSize);
-    const wearGrad = topCtx.createRadialGradient(
-      topSize / 2,
-      topSize / 2,
-      topSize * 0.1,
-      topSize / 2,
-      topSize / 2,
-      topSize * 0.32
-    );
-    wearGrad.addColorStop(0, 'rgba(255,255,255,0.08)');
-    wearGrad.addColorStop(0.6, 'rgba(10,40,55,0.4)');
-    wearGrad.addColorStop(1, 'rgba(5,20,30,0.9)');
-    topCtx.fillStyle = wearGrad;
-    topCtx.beginPath();
-    topCtx.arc(topSize / 2, topSize / 2, topSize * 0.34, 0, Math.PI * 2);
-    topCtx.fill();
-    const topTexture = new THREE.CanvasTexture(topCanvas);
-    applySRGBColorSpace(topTexture);
-    topTexture.anisotropy = resolveTextureAnisotropy(12);
-    topTexture.needsUpdate = true;
-
-    const sideCanvas = document.createElement('canvas');
-    sideCanvas.width = 1024;
-    sideCanvas.height = 768;
-    const sideCtx = sideCanvas.getContext('2d');
-    const sideGrad = sideCtx.createLinearGradient(0, 0, 0, sideCanvas.height);
-    sideGrad.addColorStop(0, '#0c1016');
-    sideGrad.addColorStop(0.6, '#0f1822');
-    sideGrad.addColorStop(1, '#070a0f');
-    sideCtx.fillStyle = sideGrad;
-    sideCtx.fillRect(0, 0, sideCanvas.width, sideCanvas.height);
-
-    const chevronBandHeight = sideCanvas.height * 0.24;
-    const chevronY = chevronBandHeight * 0.4;
-    const chevronCount = 18;
-    const chevronWidth = sideCanvas.width / chevronCount;
-    for (let i = 0; i < chevronCount; i += 1) {
-      const x = i * chevronWidth;
-      sideCtx.fillStyle = i % 2 === 0 ? '#f7f9fc' : '#dce3ea';
-      sideCtx.beginPath();
-      sideCtx.moveTo(x, chevronY);
-      sideCtx.lineTo(x + chevronWidth * 0.5, chevronY + chevronBandHeight * 0.7);
-      sideCtx.lineTo(x + chevronWidth, chevronY);
-      sideCtx.closePath();
-      sideCtx.fill();
-    }
-
-    sideCtx.shadowColor = 'rgba(0,0,0,0.65)';
-    sideCtx.shadowBlur = 24;
-    sideCtx.fillStyle = '#f4f7fb';
-    sideCtx.textAlign = 'center';
-    sideCtx.textBaseline = 'middle';
-    let labelSize = 150;
-    const textMaxWidth = sideCanvas.width - 160;
-    while (labelSize > 96) {
-      sideCtx.font = `900 ${labelSize}px "Inter", Arial`;
-      if (sideCtx.measureText('HIGH QUALITY').width <= textMaxWidth) break;
-      labelSize -= 6;
-    }
-    sideCtx.font = `900 ${labelSize}px "Inter", Arial`;
-    sideCtx.fillText('HIGH QUALITY', sideCanvas.width / 2, sideCanvas.height * 0.58);
-    sideCtx.font = `800 ${labelSize * 0.78}px "Inter", Arial`;
-    sideCtx.fillText('TP CHALK', sideCanvas.width / 2, sideCanvas.height * 0.75);
-    sideCtx.shadowBlur = 0;
-
-    const sideTexture = new THREE.CanvasTexture(sideCanvas);
-    applySRGBColorSpace(sideTexture);
-    sideTexture.anisotropy = resolveTextureAnisotropy(12);
-    sideTexture.needsUpdate = true;
-
-    const bottomCanvas = document.createElement('canvas');
-    bottomCanvas.width = 512;
-    bottomCanvas.height = 512;
-    const bottomCtx = bottomCanvas.getContext('2d');
-    const bottomGrad = bottomCtx.createLinearGradient(0, 0, 0, bottomCanvas.height);
-    bottomGrad.addColorStop(0, '#06080c');
-    bottomGrad.addColorStop(1, '#0c1118');
-    bottomCtx.fillStyle = bottomGrad;
-    bottomCtx.fillRect(0, 0, bottomCanvas.width, bottomCanvas.height);
-    const bottomTexture = new THREE.CanvasTexture(bottomCanvas);
-    applySRGBColorSpace(bottomTexture);
-    bottomTexture.anisotropy = resolveTextureAnisotropy(8);
-    bottomTexture.needsUpdate = true;
-
-    return { topTexture, sideTexture, bottomTexture };
-  };
-
-  const chalkTextures = createChalkTextures();
   const chalkGroup = new THREE.Group();
   const chalkScale = 0.5;
   const chalkSize = BALL_R * 1.92 * chalkScale;
@@ -9034,8 +8714,7 @@ function Table3D(
   const chalkGeometry = new THREE.BoxGeometry(chalkSize, chalkHeight, chalkSize);
   const createChalkMaterials = () => {
     const top = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      map: chalkTextures.topTexture,
+      color: CHALK_TOP_COLOR,
       roughness: 0.42,
       metalness: 0.08,
       sheen: 0.2,
@@ -9044,16 +8723,14 @@ function Table3D(
       emissiveIntensity: 0.2
     });
     const bottom = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      map: chalkTextures.bottomTexture,
+      color: CHALK_BOTTOM_COLOR,
       roughness: 0.85,
       metalness: 0.02
     });
     const side = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      map: chalkTextures.sideTexture,
-      roughness: 0.6,
-      metalness: 0.06,
+      color: CHALK_SIDE_COLOR,
+      roughness: 0.68,
+      metalness: 0.05,
       emissive: new THREE.Color(CHALK_EMISSIVE_COLOR),
       emissiveIntensity: 0.16
     });
@@ -9348,25 +9025,6 @@ function Table3D(
   addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
   addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
   addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
-
-  const railTextMat = createRailTextMaterial(BRAND_PLATE_LABEL);
-  const railTextWidth = horizontalCushionLength * 0.5;
-  const railTextHeight = railH * 0.24;
-  const railTextOffsetZ = halfH - CUSHION_RAIL_FLUSH - BALL_R * 0.25;
-  const railTextY =
-    cushionBaseY + Math.max(railH * 0.22, cushionHeightTarget * 0.32);
-  [-1, 1].forEach((zSign) => {
-    const railText = new THREE.Mesh(
-      new THREE.PlaneGeometry(railTextWidth, railTextHeight),
-      railTextMat.clone()
-    );
-    railText.position.set(0, railTextY, zSign * railTextOffsetZ);
-    railText.rotation.y = zSign > 0 ? Math.PI : 0;
-    railText.renderOrder = 4.2;
-    railText.userData.isRailText = true;
-    table.add(railText);
-    finishParts.railTextMeshes.push(railText);
-  });
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
@@ -9787,8 +9445,8 @@ function Table3D(
       return { meshes, legMeshes };
     },
     coffeeTableRound01: createPolyhavenTableBaseBuilder('coffee_table_round_01', {
-      footprintScale: 0.97,
-      footprintDepthScale: 1.04,
+      footprintScale: 1.05,
+      footprintDepthScale: 1.12,
       heightFill: 0.8,
       topInsetScale: 0.96,
       materialKey: 'trim'
@@ -10057,23 +9715,6 @@ function applyTableFinishToTable(table, finish) {
   finishInfo.parts.trimMeshes.forEach((mesh) => swapMaterial(mesh, trimMat));
   finishInfo.parts.pocketJawMeshes.forEach((mesh) => swapMaterial(mesh, pocketJawMat));
   finishInfo.parts.pocketRimMeshes.forEach((mesh) => swapMaterial(mesh, pocketRimMat));
-  if (finishInfo.parts.brandPlateMeshes?.length) {
-    finishInfo.parts.brandPlateMeshes.forEach((mesh) => {
-      if (!mesh) return;
-      const prevMaterial = mesh.material;
-      const nextMaterial = createBrandPlateMaterial(trimMat);
-      mesh.material = nextMaterial;
-      mesh.userData.baseMaterialKey = 'trim';
-      mesh.userData.isBrandPlate = true;
-      if (
-        prevMaterial &&
-        prevMaterial !== nextMaterial &&
-        prevMaterial !== trimMat
-      ) {
-        disposeMaterial(prevMaterial);
-      }
-    });
-  }
   if (table.userData?.railMarkers?.updateBaseMaterial) {
     table.userData.railMarkers.updateBaseMaterial(trimMat);
   }
@@ -15216,16 +14857,13 @@ const powerRef = useRef(hud.power);
         } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig?.cameras) return null;
-          const { front, back } = rig.cameras;
-          const preferredRail =
-            rig.activeRail === 'front' && front?.head
-              ? front
-              : rig.activeRail === 'back' && back?.head
-                ? back
-                : back?.head
-                  ? back
-                  : front;
-          const head = preferredRail?.head ?? back?.head ?? front?.head ?? null;
+          const activeRail =
+            rig.activeRail === 'front'
+              ? rig.cameras.front
+              : rig.activeRail === 'back'
+                ? rig.cameras.back
+                : rig.cameras.back ?? rig.cameras.front;
+          const head = activeRail?.head ?? null;
           if (!head) return null;
           const position = head.getWorldPosition(new THREE.Vector3());
           const target =
