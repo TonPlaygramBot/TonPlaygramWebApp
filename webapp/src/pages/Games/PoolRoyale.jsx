@@ -994,10 +994,10 @@ const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.02; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
 const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.026; // gently bias the middle pocket centres and cuts back toward the playfield
 const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.032; // pull only the middle pocket cloth cutouts slightly toward the playfield centre
-const CHALK_TOP_COLOR = 0x2c97c6;
-const CHALK_SIDE_COLOR = 0x0a0d12;
-const CHALK_SIDE_ACTIVE_COLOR = 0x12384a;
-const CHALK_BOTTOM_COLOR = 0x0a0d12;
+const CHALK_TOP_COLOR = 0x1f6d86;
+const CHALK_SIDE_COLOR = 0x162b36;
+const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
+const CHALK_BOTTOM_COLOR = 0x0b1118;
 const CHALK_ACTIVE_COLOR = 0x4bd4ff;
 const CHALK_EMISSIVE_COLOR = 0x071b26;
 const CHALK_ACTIVE_EMISSIVE_COLOR = 0x0d3b5d;
@@ -1158,7 +1158,7 @@ const POCKET_DROP_ENTRY_VELOCITY = -0.6; // initial downward impulse before grav
 const POCKET_DROP_REST_HOLD_MS = 360; // keep the ball visible on the strap briefly before hiding it
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
-const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(14); // steeper angle so potted balls settle directly onto the chrome holders
+const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(12); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_SCALE = 1.6;
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
@@ -1185,9 +1185,9 @@ const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.22; // start the chrome rails jus
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.72; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.24; // drop the centre rail to form the floor of the holder
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
-const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.16; // a touch more spacing so resting balls kiss the chrome without overlapping at the strap
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 0.22; // park the lead ball tighter to the leather strap while keeping it visibly separate
-const POCKET_HOLDER_REST_DROP = BALL_R * 0.52; // drop the resting spot lower so the ball sits on the chrome holders
+const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.12; // wider spacing so potted balls line up without overlapping on the holder rails
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 0.35; // stop the lead ball right against the leather strap without letting it bury the backstop
+const POCKET_HOLDER_REST_DROP = BALL_R * 0.38; // keep the resting spot visibly below the pocket throat
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -6512,7 +6512,6 @@ function Table3D(
     pocketBaseMeshes: [],
     pocketNetMeshes: [],
     underlayMeshes: [],
-    brandSignMeshes: [],
     clothEdgeMeshes: [],
     accentParent: null,
     accentMesh: null,
@@ -8585,109 +8584,6 @@ function Table3D(
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
   const railMarkerLength = railMarkerWidth * 0.62;
-  const createCarbonPatternTexture = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 128;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.fillStyle = '#0b0d10';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#11141a';
-    ctx.fillRect(0, 0, canvas.width / 2, canvas.height / 2);
-    ctx.fillRect(canvas.width / 2, canvas.height / 2, canvas.width / 2, canvas.height / 2);
-    ctx.fillStyle = '#161b22';
-    ctx.beginPath();
-    ctx.moveTo(0, canvas.height / 2);
-    ctx.lineTo(canvas.width / 2, 0);
-    ctx.lineTo(canvas.width, 0);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(canvas.width / 2, canvas.height);
-    ctx.lineTo(canvas.width, canvas.height);
-    ctx.lineTo(canvas.width, canvas.height / 2);
-    ctx.closePath();
-    ctx.fill();
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(6, 3);
-    texture.anisotropy = 8;
-    texture.needsUpdate = true;
-    return texture;
-  };
-  const createBrandSignTexture = ({
-    label = 'TonPlaygram',
-    borderColor = 0xd4af37,
-    textColor = 0xffffff
-  } = {}) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 2048;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    const patternTex = createCarbonPatternTexture();
-    if (patternTex) {
-      const pattern = ctx.createPattern(patternTex.image, 'repeat');
-      ctx.fillStyle = pattern || '#0b0d10';
-    } else {
-      ctx.fillStyle = '#0b0d10';
-    }
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = `#${borderColor.toString(16).padStart(6, '0')}`;
-    ctx.lineWidth = 24;
-    ctx.strokeRect(18, 18, canvas.width - 36, canvas.height - 36);
-    const screwRadius = 30;
-    const screwMarginX = 120;
-    const screwMarginY = 90;
-    const screwPositions = [
-      [screwMarginX, screwMarginY],
-      [canvas.width - screwMarginX, screwMarginY],
-      [canvas.width - screwMarginX, canvas.height - screwMarginY],
-      [screwMarginX, canvas.height - screwMarginY]
-    ];
-    screwPositions.forEach(([x, y]) => {
-      const gradient = ctx.createRadialGradient(
-        x - screwRadius * 0.2,
-        y - screwRadius * 0.2,
-        screwRadius * 0.2,
-        x,
-        y,
-        screwRadius
-      );
-      gradient.addColorStop(0, '#f5e7b6');
-      gradient.addColorStop(0.5, '#d4af37');
-      gradient.addColorStop(1, '#8b6923');
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(x, y, screwRadius, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    ctx.fillStyle = '#000000';
-    ctx.globalAlpha = 0.08;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.globalAlpha = 1;
-    let fontSize = 220;
-    const maxWidth = canvas.width - 400;
-    while (fontSize > 140) {
-      ctx.font = `700 ${fontSize}px "Inter", Arial`;
-      if (ctx.measureText(label).width <= maxWidth) break;
-      fontSize -= 6;
-    }
-    ctx.font = `700 ${fontSize}px "Inter", Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = `#${textColor.toString(16).padStart(6, '0')}`;
-    ctx.shadowColor = 'rgba(0,0,0,0.55)';
-    ctx.shadowBlur = 18;
-    ctx.fillText(label, canvas.width / 2, canvas.height / 2);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.needsUpdate = true;
-    return texture;
-  };
   const railMarkerShape = new THREE.Shape();
   railMarkerShape.moveTo(0, railMarkerLength / 2);
   railMarkerShape.lineTo(railMarkerWidth / 2, 0);
@@ -8809,104 +8705,6 @@ function Table3D(
     getStyle: () => ({ ...activeRailMarkerStyle })
   };
 
-  const brandSignGroup = new THREE.Group();
-  const brandSignMeshes = [];
-  const buildBrandSigns = (trimMaterial = trimMat) => {
-    while (brandSignMeshes.length) {
-      const mesh = brandSignMeshes.pop();
-      brandSignGroup.remove(mesh);
-      if (mesh.material?.map?.dispose) mesh.material.map.dispose();
-      mesh.material?.dispose?.();
-      mesh.geometry?.dispose?.();
-    }
-    finishParts.brandSignMeshes.length = 0;
-    const borderHex = trimMaterial?.color?.getHex?.() ?? 0xd4af37;
-    const signTexture = createBrandSignTexture({
-      label: 'TonPlaygram',
-      borderColor: borderHex
-    });
-    const signMat = trimMaterial.clone();
-    enhanceChromeMaterial(signMat);
-    signMat.map = signTexture;
-    signMat.color.setHex(0xffffff);
-    signMat.metalness = Math.max(signMat.metalness ?? 0, 0.82);
-    signMat.roughness = Math.min(signMat.roughness ?? 0.4, 0.32);
-    signMat.clearcoat = Math.max(signMat.clearcoat ?? 0.4, 0.6);
-    signMat.clearcoatRoughness = 0.14;
-    signMat.needsUpdate = true;
-
-    const signWidth = Math.max(outerHalfH * 0.42, TABLE.THICK * 3.6);
-    const signHeight = railH * 0.55;
-    const signDepth = TABLE.THICK * 0.12;
-    const signGeo = new THREE.BoxGeometry(signWidth, signHeight, signDepth);
-    const xOffset = outerHalfW + TABLE.THICK * 0.16 + signDepth / 2;
-    const yOffset = frameTopY + railH * 0.45;
-    [
-      { x: xOffset, rotationY: Math.PI / 2 },
-      { x: -xOffset, rotationY: -Math.PI / 2 }
-    ].forEach(({ x, rotationY }) => {
-      const mesh = new THREE.Mesh(signGeo, signMat.clone());
-      mesh.position.set(x, yOffset, 0);
-      mesh.rotation.y = rotationY;
-      mesh.castShadow = false;
-      mesh.receiveShadow = false;
-      mesh.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.2;
-      brandSignGroup.add(mesh);
-      brandSignMeshes.push(mesh);
-      finishParts.brandSignMeshes.push(mesh);
-    });
-  };
-  buildBrandSigns(trimMat);
-  railsGroup.add(brandSignGroup);
-  table.userData.brandSigns = {
-    updateMaterial: (trimMaterial) => buildBrandSigns(trimMaterial ?? trimMat)
-  };
-
-  const cushionTextGroup = new THREE.Group();
-  const createCushionTextTexture = (label = 'TonPlaygram') => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = 'rgba(0,0,0,0.32)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '700 180px "Inter", Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,0.45)';
-    ctx.shadowBlur = 10;
-    ctx.fillText(label, canvas.width / 2, canvas.height / 2);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.needsUpdate = true;
-    return texture;
-  };
-  const cushionTextTexture = createCushionTextTexture();
-  const cushionTextMaterial = new THREE.MeshBasicMaterial({
-    map: cushionTextTexture,
-    transparent: true,
-    depthWrite: false
-  });
-  const cushionTextWidth = Math.max(PLAY_W * 0.38, TABLE.THICK * 4);
-  const cushionTextHeight = railH * 0.24;
-  const cushionTextGeo = new THREE.PlaneGeometry(cushionTextWidth, cushionTextHeight);
-  const cushionTextY = clothSurfaceY + TABLE.THICK * 0.02;
-  const cushionOffsetZ = halfH - POCKET_VIS_R * 0.92;
-  [
-    { z: cushionOffsetZ, rotationY: Math.PI },
-    { z: -cushionOffsetZ, rotationY: 0 }
-  ].forEach(({ z, rotationY }) => {
-    const mesh = new THREE.Mesh(cushionTextGeo, cushionTextMaterial.clone());
-    mesh.position.set(0, cushionTextY, z);
-    mesh.rotation.y = rotationY;
-    mesh.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.3;
-    cushionTextGroup.add(mesh);
-  });
-  railsGroup.add(cushionTextGroup);
-
   table.add(railsGroup);
 
   const chalkGroup = new THREE.Group();
@@ -8914,47 +8712,7 @@ function Table3D(
   const chalkSize = BALL_R * 1.92 * chalkScale;
   const chalkHeight = BALL_R * 1.35 * chalkScale;
   const chalkGeometry = new THREE.BoxGeometry(chalkSize, chalkHeight, chalkSize);
-  let chalkTextureCache = null;
-  const ensureChalkTextures = () => {
-    if (chalkTextureCache) return chalkTextureCache;
-    const size = 512;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#0a0d12';
-      ctx.fillRect(0, 0, size, size);
-      const bandHeight = size * 0.2;
-      const chevronSize = size * 0.08;
-      ctx.save();
-      ctx.translate(0, bandHeight * 0.35);
-      for (let i = -1; i < size / chevronSize + 2; i += 1) {
-        ctx.fillStyle = i % 2 === 0 ? '#ffffff' : '#0a0d12';
-        ctx.beginPath();
-        ctx.moveTo(i * chevronSize, 0);
-        ctx.lineTo((i + 1) * chevronSize, bandHeight * 0.8);
-        ctx.lineTo((i + 2) * chevronSize, 0);
-        ctx.closePath();
-        ctx.fill();
-      }
-      ctx.restore();
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 64px "Inter", Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('HIGH QUALITY', size / 2, size * 0.64);
-      ctx.font = 'bold 96px "Inter", Arial';
-      ctx.fillText('TP CHALK', size / 2, size * 0.8);
-      chalkTextureCache = new THREE.CanvasTexture(canvas);
-      chalkTextureCache.colorSpace = THREE.SRGBColorSpace;
-      chalkTextureCache.anisotropy = 8;
-      chalkTextureCache.needsUpdate = true;
-    }
-    return chalkTextureCache;
-  };
   const createChalkMaterials = () => {
-    const sideTexture = ensureChalkTextures();
     const top = new THREE.MeshPhysicalMaterial({
       color: CHALK_TOP_COLOR,
       roughness: 0.42,
@@ -8971,11 +8729,10 @@ function Table3D(
     });
     const side = new THREE.MeshPhysicalMaterial({
       color: CHALK_SIDE_COLOR,
-      roughness: 0.42,
-      metalness: 0.22,
+      roughness: 0.68,
+      metalness: 0.05,
       emissive: new THREE.Color(CHALK_EMISSIVE_COLOR),
-      emissiveIntensity: 0.16,
-      map: sideTexture || null
+      emissiveIntensity: 0.16
     });
     return [
       side.clone(),
@@ -9688,8 +9445,8 @@ function Table3D(
       return { meshes, legMeshes };
     },
     coffeeTableRound01: createPolyhavenTableBaseBuilder('coffee_table_round_01', {
-      footprintScale: 0.98,
-      footprintDepthScale: 1.04,
+      footprintScale: 1.05,
+      footprintDepthScale: 1.12,
       heightFill: 0.8,
       topInsetScale: 0.96,
       materialKey: 'trim'
@@ -9960,9 +9717,6 @@ function applyTableFinishToTable(table, finish) {
   finishInfo.parts.pocketRimMeshes.forEach((mesh) => swapMaterial(mesh, pocketRimMat));
   if (table.userData?.railMarkers?.updateBaseMaterial) {
     table.userData.railMarkers.updateBaseMaterial(trimMat);
-  }
-  if (table.userData?.brandSigns?.updateMaterial) {
-    table.userData.brandSigns.updateMaterial(trimMat);
   }
 
   const woodTextureEnabled =
