@@ -1174,22 +1174,27 @@ const POCKET_NET_DEPTH = TABLE.THICK * 2.1;
 const POCKET_NET_SEGMENTS = 48;
 const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 0.9; // drop nearly the full net depth so potted balls clear the rim
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall slightly above the ring/strap junction
-const POCKET_NET_RING_RADIUS_SCALE = 0.94; // size the ring to the lower pocket bowl so balls clear the opening
+const POCKET_HOLDER_BALL_CAPACITY = 5;
+const POCKET_NET_RING_RADIUS_SCALE = 0.62; // match the ring diameter to the bottom of the woven net so the transition is seamless
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.02; // sit the ring directly against the bottom of the woven net
 const POCKET_GUIDE_RADIUS = BALL_R * 0.09;
-const POCKET_GUIDE_LENGTH = POCKET_NET_DEPTH * 1.35;
+const POCKET_GUIDE_LENGTH = Math.max(
+  POCKET_NET_DEPTH * 1.35,
+  BALL_DIAMETER * (POCKET_HOLDER_BALL_CAPACITY + 1.1)
+);
 const POCKET_GUIDE_DROP = BALL_R * 0.28;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.22; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_STEM_DEPTH = BALL_R * 0.28; // short leg that links the ring to the horizontal holder run
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.24; // drop the centre rail to form the floor of the holder
-const POCKET_HOLDER_REST_FRACTION = 0.62; // land potted balls past the ring toward the strap
+const POCKET_HOLDER_REST_FRACTION = 0.78; // land potted balls deeper into the holder so they settle nearer the strap
 const POCKET_HOLDER_REST_DROP = BALL_R * 0.38; // keep the resting spot visibly below the pocket throat
 const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
 const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.08; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
 const POCKET_HOLDER_L_LEG = BALL_R * 0.42; // small connector that links the ring to the holder tray
-const POCKET_HOLDER_L_SPAN = POCKET_GUIDE_LENGTH * 0.42; // longer tray section that actually holds the balls
+const POCKET_HOLDER_L_SPAN =
+  Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * POCKET_HOLDER_BALL_CAPACITY * 1.1); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -5690,6 +5695,13 @@ const resolvePocketHolderDirection = (center, pocketId = null) => {
     const xDir = Math.sign(center?.x || 1) || 1;
     return new THREE.Vector3(xDir, 0, 0);
   }
+  const sidePocketCenterX = PLAY_W / 2 + sidePocketShift;
+  const targetZ = 0; // turn toward the middle pockets that sit along the long rails
+  const targetX = Math.sign(center?.x || 1) * sidePocketCenterX;
+  const towardMiddle = new THREE.Vector3(targetX - (center?.x ?? 0), 0, targetZ - (center?.y ?? 0));
+  if (towardMiddle.lengthSq() > MICRO_EPS * MICRO_EPS) {
+    return towardMiddle.normalize();
+  }
   if (absX >= absZ) {
     return new THREE.Vector3(Math.sign(center?.x || 1), 0, 0);
   }
@@ -7233,7 +7245,10 @@ function Table3D(
   const pocketNetGeo = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
   const pocketGuideMaterial = trimMat;
   const pocketGuideRingRadius = POCKET_BOTTOM_R * POCKET_NET_RING_RADIUS_SCALE;
-  const pocketStrapLength = POCKET_GUIDE_LENGTH * 0.62;
+  const pocketStrapLength = Math.max(
+    POCKET_GUIDE_LENGTH * 0.74,
+    BALL_DIAMETER * (POCKET_HOLDER_BALL_CAPACITY + 0.4)
+  );
   const pocketStrapWidth = BALL_R * 1.35;
   const pocketStrapThickness = BALL_R * 0.18;
   const pocketRingGeometry = new THREE.TorusGeometry(
@@ -7306,6 +7321,7 @@ function Table3D(
       return guide;
     };
     let strapOrigin = null;
+    let holderRunEnd = null;
     for (let i = 0; i < 3; i += 1) {
       const middleSway = isMiddlePocket ? POCKET_MIDDLE_HOLDER_SWAY * (pocketId === 'TM' ? -1 : 1) : 0;
       const lateralOffset = (i - 1) * POCKET_GUIDE_SPREAD + middleSway * (i - 1);
@@ -7325,30 +7341,31 @@ function Table3D(
 
       if (isCenterGuide) {
         strapOrigin = stemEnd.clone();
+        holderRunEnd = runEnd.clone();
       }
     }
 
     if (strapOrigin) {
-      const strapGeom = new THREE.BoxGeometry(
-        pocketStrapWidth,
-        pocketStrapThickness,
-        pocketStrapLength
-      );
-      const strapDirNormalized = strapDir.clone().normalize();
-      const strap = new THREE.Mesh(strapGeom, pocketJawMat);
-      const strapMid = strapOrigin
+      const strapDirNormalized =
+        strapDir.lengthSq() > MICRO_EPS * MICRO_EPS
+          ? strapDir.clone().normalize()
+          : new THREE.Vector3(0, 0, 1);
+      const strapAnchor = (holderRunEnd ?? strapOrigin)
         .clone()
-        .addScaledVector(
-          strapDirNormalized,
-          pocketStrapLength * 0.4
-        )
+        .addScaledVector(strapDirNormalized, pocketStrapLength * 0.5)
         .add(new THREE.Vector3(0, -POCKET_GUIDE_DROP * 0.35, 0));
-      strap.position.copy(strapMid);
-      strap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), strapDirNormalized);
-      strap.castShadow = true;
-      strap.receiveShadow = true;
+      const strap = createPocketStrap({
+        anchor: strapAnchor,
+        direction: strapDirNormalized,
+        length: pocketStrapLength,
+        width: pocketStrapWidth,
+        thickness: pocketStrapThickness,
+        material: pocketJawMat,
+        renderer,
+        finishParts,
+        name: `${pocketId ?? 'pocket'}-strap`
+      });
       table.add(strap);
-      finishParts.pocketJawMeshes.push(strap);
 
       const holderGroup = new THREE.Group();
       const holderStem = new THREE.Mesh(
@@ -7375,9 +7392,9 @@ function Table3D(
       holderBed.castShadow = true;
       holderBed.receiveShadow = true;
       holderGroup.add(holderBed);
-      const holderForward = outwardDir.clone().setY(0);
+      const holderForward = strapDirNormalized.clone().setY(0);
       if (holderForward.lengthSq() <= MICRO_EPS) {
-        holderForward.set(0, 0, 1);
+        holderForward.copy(outwardDir);
       } else {
         holderForward.normalize();
       }
@@ -7385,12 +7402,7 @@ function Table3D(
         new THREE.Vector3(0, 0, 1),
         holderForward
       );
-      holderGroup.position.copy(
-        ringAnchor
-          .clone()
-          .addScaledVector(outwardDir, railStartOffset)
-          .add(new THREE.Vector3(0, -POCKET_GUIDE_STEM_DEPTH, 0))
-      );
+      holderGroup.position.copy(strapOrigin);
       holderGroup.rotateX(-POCKET_HOLDER_TILT_RAD * 0.6);
       holderGroup.castShadow = true;
       holderGroup.receiveShadow = true;
@@ -9325,6 +9337,160 @@ function Table3D(
     return clone;
   };
 
+  const POCKET_STRAP_MODEL_ID = 'Camera_01';
+  const POCKET_STRAP_NODE_PATTERN = /strap/i;
+  let pocketStrapTemplateInfo = null;
+  let pocketStrapTemplatePromise = null;
+  const ensurePocketStrapTemplate = (renderer = null) => {
+    if (pocketStrapTemplateInfo) return Promise.resolve(pocketStrapTemplateInfo);
+    if (pocketStrapTemplatePromise) return pocketStrapTemplatePromise;
+    pocketStrapTemplatePromise = ensurePolyhavenBaseTemplate(POCKET_STRAP_MODEL_ID, renderer)
+      .then(() => {
+        const template = clonePolyhavenBaseTemplate(POCKET_STRAP_MODEL_ID);
+        if (!template) throw new Error('Missing Poly Haven strap template');
+        template.updateMatrixWorld(true);
+        let strapMesh = null;
+        template.traverse((child) => {
+          if (!child?.isMesh) return;
+          if (POCKET_STRAP_NODE_PATTERN.test(child.name || '')) {
+            if (!strapMesh || child.name === 'Camera_01_strap') {
+              strapMesh = child;
+            }
+          }
+        });
+        if (!strapMesh) {
+          throw new Error('Pocket strap mesh not found in Poly Haven asset');
+        }
+        const bakedStrap = strapMesh.clone(true);
+        bakedStrap.applyMatrix4(strapMesh.matrixWorld);
+        bakedStrap.matrixAutoUpdate = true;
+        bakedStrap.updateMatrix();
+        const size = new THREE.Box3().setFromObject(bakedStrap).getSize(new THREE.Vector3());
+        pocketStrapTemplateInfo = { mesh: bakedStrap, size };
+        return pocketStrapTemplateInfo;
+      })
+      .catch((error) => {
+        console.warn('Pool Royale pocket strap GLTF failed to load', error);
+        throw error;
+      })
+      .finally(() => {
+        pocketStrapTemplatePromise = null;
+      });
+    return pocketStrapTemplatePromise;
+  };
+
+  const clonePocketStrapMesh = () => {
+    if (!pocketStrapTemplateInfo?.mesh) return null;
+    const clone = pocketStrapTemplateInfo.mesh.clone(true);
+    clone.traverse((child) => {
+      if (!child?.isMesh) return;
+      child.material = sharpenGltfMaterial(child.material);
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
+    clone.castShadow = true;
+    clone.receiveShadow = true;
+    return clone;
+  };
+
+  const alignStrapMesh = (mesh, dims, sizeHint = null) => {
+    if (!mesh || !dims) return mesh;
+    const initialBox = new THREE.Box3().setFromObject(mesh);
+    const center = initialBox.getCenter(new THREE.Vector3());
+    mesh.position.sub(center);
+    const rawSize = sizeHint ?? initialBox.getSize(new THREE.Vector3());
+    const axes = [
+      { key: 'x', size: rawSize.x, vec: new THREE.Vector3(1, 0, 0) },
+      { key: 'y', size: rawSize.y, vec: new THREE.Vector3(0, 1, 0) },
+      { key: 'z', size: rawSize.z, vec: new THREE.Vector3(0, 0, 1) }
+    ].sort((a, b) => b.size - a.size);
+    const alignQuat = new THREE.Quaternion().setFromUnitVectors(
+      axes[0].vec,
+      new THREE.Vector3(0, 0, 1)
+    );
+    mesh.applyQuaternion(alignQuat);
+    mesh.updateMatrixWorld(true);
+    const alignedBox = new THREE.Box3().setFromObject(mesh);
+    const alignedSize = alignedBox.getSize(new THREE.Vector3());
+    mesh.scale.set(
+      dims.width / Math.max(alignedSize.x, MICRO_EPS),
+      dims.thickness / Math.max(alignedSize.y, MICRO_EPS),
+      dims.length / Math.max(alignedSize.z, MICRO_EPS)
+    );
+    mesh.updateMatrixWorld(true);
+    return mesh;
+  };
+
+  const createPocketStrap = ({
+    anchor = new THREE.Vector3(),
+    direction = new THREE.Vector3(0, 0, 1),
+    length = 1,
+    width = 1,
+    thickness = 1,
+    material = null,
+    renderer = null,
+    finishParts = null,
+    name = 'pocketStrap',
+    preserveMaterial = true
+  }) => {
+    const container = new THREE.Group();
+    container.name = name;
+    const dir = direction.clone();
+    if (dir.lengthSq() <= MICRO_EPS * MICRO_EPS) {
+      dir.set(0, 0, 1);
+    } else {
+      dir.normalize();
+    }
+    container.position.copy(anchor);
+    container.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+    const dims = { length, width, thickness };
+    let activeMesh = null;
+    const registerMesh = (mesh, sizeHint = null, lockMaterial = preserveMaterial) => {
+      if (!mesh) return;
+      const prevPos = container.position.clone();
+      const prevQuat = container.quaternion.clone();
+      const prevScale = container.scale.clone();
+      container.position.set(0, 0, 0);
+      container.quaternion.identity();
+      container.scale.set(1, 1, 1);
+      alignStrapMesh(mesh, dims, sizeHint);
+      container.position.copy(prevPos);
+      container.quaternion.copy(prevQuat);
+      container.scale.copy(prevScale);
+      mesh.userData.baseMaterialKey = 'pocketJaw';
+      mesh.userData.skipFinishSwap = lockMaterial;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      container.clear();
+      container.add(mesh);
+      if (finishParts?.pocketJawMeshes) {
+        const idx = finishParts.pocketJawMeshes.indexOf(activeMesh);
+        if (idx >= 0) {
+          finishParts.pocketJawMeshes[idx] = mesh;
+        } else {
+          finishParts.pocketJawMeshes.push(mesh);
+        }
+      }
+      activeMesh = mesh;
+    };
+
+    const fallback = new THREE.Mesh(
+      new THREE.BoxGeometry(width, thickness, length),
+      material
+    );
+    registerMesh(fallback, null, false);
+
+    ensurePocketStrapTemplate(renderer)
+      .then((info) => {
+        const upgrade = clonePocketStrapMesh();
+        if (!upgrade) return;
+        registerMesh(upgrade, info?.size, preserveMaterial);
+      })
+      .catch(() => {});
+
+    return container;
+  };
+
   const createPolyhavenTableBaseBuilder = (
     assetId,
     {
@@ -9711,6 +9877,7 @@ function applyTableFinishToTable(table, finish) {
   };
   const swapMaterial = (mesh, material) => {
     if (!mesh || !material) return;
+    if (mesh?.userData?.skipFinishSwap) return;
     const resolvedMaterial = resolveMaterialForMesh(mesh, material);
     if (!resolvedMaterial) return;
     const nextMaterial = mesh.userData?.isChromePlate
