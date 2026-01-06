@@ -1108,9 +1108,9 @@ const MAX_POWER_CAMERA_HOLD_MS = 2000;
 const MAX_POWER_SPIN_LATERAL_THROW = BALL_R * 0.42; // let max-power jumps inherit a strong sideways release from active side spin
 const MAX_POWER_SPIN_LIFT_BONUS = BALL_R * 0.28; // spin adds extra hop height when the cue ball is driven at full power
 const POCKET_INTERIOR_CAPTURE_R =
-  POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 1.015; // widen capture slightly so clean entries are honoured
+  POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 0.992; // tighten capture so balls fall only once they reach the pocket throat
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
-  SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 1.025; // expand the middle pocket capture to prevent rail bounces on centre-line pots
+  SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 0.996; // narrow the middle capture to stop pre-pocket drops while keeping center-line forgiveness
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the interior bowl so balls fall at the throat
 const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now matches the bowl opening instead of scaling from corners
 const POCKET_GUARD_RADIUS = POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.06; // align the rail guard to the playable capture bowl instead of the visual rim
@@ -7350,70 +7350,25 @@ function Table3D(
     }
 
     if (strapOrigin && strapEnd) {
+      const strapFacing = outwardDir.clone().setY(0);
+      if (strapFacing.lengthSq() <= MICRO_EPS) strapFacing.set(0, 0, 1);
+      strapFacing.normalize();
       const strapGeom = new THREE.BoxGeometry(
         pocketStrapWidth,
-        pocketStrapThickness,
-        pocketStrapLength
+        pocketStrapLength,
+        pocketStrapThickness
       );
-      const strapDirNormalized = strapDir.clone().normalize();
       const strap = new THREE.Mesh(strapGeom, pocketJawMat);
       const strapMid = strapEnd
         .clone()
-        .addScaledVector(strapDirNormalized, -pocketStrapLength * 0.5)
-        .add(new THREE.Vector3(0, -POCKET_GUIDE_DROP * 0.35, 0));
+        .add(new THREE.Vector3(0, pocketStrapLength * 0.5, 0))
+        .addScaledVector(strapFacing, -pocketStrapThickness * 0.5);
       strap.position.copy(strapMid);
-      strap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), strapDirNormalized);
+      strap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), strapFacing);
       strap.castShadow = true;
       strap.receiveShadow = true;
       table.add(strap);
       finishParts.pocketJawMeshes.push(strap);
-
-      const holderGroup = new THREE.Group();
-      const holderStem = new THREE.Mesh(
-        new THREE.BoxGeometry(
-          POCKET_HOLDER_L_THICKNESS,
-          POCKET_HOLDER_L_LEG,
-          POCKET_HOLDER_L_THICKNESS
-        ),
-        pocketGuideMaterial
-      );
-      holderStem.position.set(0, -POCKET_HOLDER_L_LEG / 2, 0);
-      holderStem.castShadow = true;
-      holderStem.receiveShadow = true;
-      holderGroup.add(holderStem);
-      const holderBed = new THREE.Mesh(
-        new THREE.BoxGeometry(
-          pocketStrapWidth * 0.9,
-          POCKET_HOLDER_L_THICKNESS,
-          POCKET_HOLDER_L_SPAN
-        ),
-        pocketGuideMaterial
-      );
-      holderBed.position.set(0, -POCKET_HOLDER_L_LEG, POCKET_HOLDER_L_SPAN / 2);
-      holderBed.castShadow = true;
-      holderBed.receiveShadow = true;
-      holderGroup.add(holderBed);
-      const holderForward = outwardDir.clone().setY(0);
-      if (holderForward.lengthSq() <= MICRO_EPS) {
-        holderForward.set(0, 0, 1);
-      } else {
-        holderForward.normalize();
-      }
-      holderGroup.quaternion.setFromUnitVectors(
-        new THREE.Vector3(0, 0, 1),
-        holderForward
-      );
-      holderGroup.position.copy(
-        ringAnchor
-          .clone()
-          .addScaledVector(outwardDir, railStartOffset)
-          .add(new THREE.Vector3(0, -POCKET_GUIDE_STEM_DEPTH, 0))
-      );
-      holderGroup.rotateX(-POCKET_HOLDER_TILT_RAD * 0.6);
-      holderGroup.castShadow = true;
-      holderGroup.receiveShadow = true;
-      table.add(holderGroup);
-      finishParts.pocketBaseMeshes.push(holderGroup);
     }
   });
 
@@ -11753,6 +11708,7 @@ const powerRef = useRef(hud.power);
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
   const pocketDropRef = useRef(new Map());
+  const pocketRestIndexRef = useRef(new Map());
   const captureBallSnapshotRef = useRef(null);
   const applyBallSnapshotRef = useRef(null);
   const pendingLayoutRef = useRef(null);
@@ -17363,6 +17319,8 @@ const powerRef = useRef(hud.power);
 
       addMobileLighting();
 
+      pocketRestIndexRef.current.clear();
+
       // Table
       const finishForScene = tableFinishRef.current;
       const tableSizeMeta = tableSizeRef.current;
@@ -22873,7 +22831,11 @@ const powerRef = useRef(hud.power);
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
               const holderDir = resolvePocketHolderDirection(c, pocketId);
-              const restDistance = POCKET_GUIDE_LENGTH * POCKET_HOLDER_REST_FRACTION;
+              const pocketRestIndex =
+                pocketRestIndexRef.current.get(pocketId) ?? 0;
+              const restDistanceBase = POCKET_GUIDE_LENGTH * POCKET_HOLDER_REST_FRACTION;
+              const restDistance = restDistanceBase + pocketRestIndex * BALL_DIAMETER * 1.12;
+              pocketRestIndexRef.current.set(pocketId, pocketRestIndex + 1);
               const tiltDrop = Math.tan(POCKET_HOLDER_TILT_RAD) * restDistance;
               const restTarget = new THREE.Vector3(c.x, 0, c.y).addScaledVector(
                 holderDir,
@@ -23154,6 +23116,7 @@ const powerRef = useRef(hud.power);
           updatePocketCameraState(false);
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
+          pocketRestIndexRef.current.clear();
           captureBallSnapshotRef.current = null;
           applyBallSnapshotRef.current = null;
           pendingLayoutRef.current = null;
