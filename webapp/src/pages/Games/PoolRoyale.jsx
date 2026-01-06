@@ -1135,9 +1135,8 @@ const PLYWOOD_EXTRA_DROP = 0;
 const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // fallback plywood tone when a finish color is unavailable
 const PLYWOOD_HOLE_SCALE = 1.05; // plywood pocket cutouts should be 5% larger than the pocket bowls for clearance
 const PLYWOOD_HOLE_R = POCKET_VIS_R * PLYWOOD_HOLE_SCALE * POCKET_VISUAL_EXPANSION;
-const CLOTH_EDGE_GAP_FILL = 0; // remove the extra filler under the cloth so no secondary layer sits between the felt and pockets
-const CLOTH_POCKET_WRAP_EXTENSION = TABLE.THICK * 0.3; // extend the felt downward by the removed filler depth plus the old stopper thickness so the cloth seals the pocket edge
-const CLOTH_EXTENDED_DEPTH = CLOTH_THICKNESS + CLOTH_POCKET_WRAP_EXTENSION; // wrap enough felt to close the pocket edge without any underlay
+const CLOTH_EDGE_GAP_FILL = TABLE.THICK * 0.22; // drive the cloth sleeve deeper so it seals the exposed gap left by the removed plywood
+const CLOTH_EXTENDED_DEPTH = CLOTH_THICKNESS + CLOTH_EDGE_GAP_FILL; // wrap enough felt to close the plywood gap while keeping the surface profile unchanged
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
@@ -1177,7 +1176,6 @@ const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 0.9; // drop nearly the full net de
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.62; // match the ring diameter to the net's lowest hoop so the net and chrome line up exactly
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
-const POCKET_GUIDE_RING_RADIUS = POCKET_BOTTOM_R * POCKET_NET_RING_RADIUS_SCALE;
 const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.02; // sit the ring directly against the bottom of the woven net
 const POCKET_GUIDE_RADIUS = BALL_R * 0.09;
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
@@ -1189,14 +1187,10 @@ const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.24; // drop the centre rail to form t
 const POCKET_HOLDER_REST_FRACTION = 0.62; // land potted balls past the ring toward the strap
 const POCKET_HOLDER_REST_DROP = BALL_R * 0.38; // keep the resting spot visibly below the pocket throat
 const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
-const POCKET_EDGE_STOP_EXTRA_DROP = 0; // remove the extra stopper layer and rely on the deeper cloth wrap to meet the pocket walls cleanly
-const POCKET_HOLDER_L_LEG = BALL_DIAMETER; // lengthen the small L-leg so it reaches the far side of the ring
+const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.08; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
+const POCKET_HOLDER_L_LEG = BALL_R * 0.42; // small connector that links the ring to the holder tray
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_RUN_OFFSET =
-  POCKET_GUIDE_RING_RADIUS + POCKET_GUIDE_RING_CLEARANCE + POCKET_GUIDE_LENGTH + POCKET_HOLDER_L_SPAN; // distance from the pocket throat to the strap end
-const POCKET_HOLDER_REST_DISTANCE =
-  POCKET_STRAP_RUN_OFFSET - BALL_R * 0.5; // let balls settle against the strap while staying visible
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_BASE_MIN_OUTSIDE =
@@ -5692,9 +5686,9 @@ const resolvePocketHolderDirection = (center, pocketId = null) => {
   const absZ = Math.abs(center?.y ?? 0);
   const isMiddlePocket = pocketId === 'TM' || pocketId === 'BM' || absZ < BALL_R * 0.6;
   if (isMiddlePocket) {
-    const isTopPocket = pocketId === 'TM' || (center?.y ?? 0) < 0;
-    const zDir = isTopPocket ? 1 : -1;
-    return new THREE.Vector3(0, 0, zDir);
+    // Push the middle-pocket holder outward from the table edge so the strap sits on the far side, matching photo references.
+    const xDir = Math.sign(center?.x || 1) || 1;
+    return new THREE.Vector3(xDir, 0, 0);
   }
   const middlePocketTargets = pocketCenters().slice(4);
   let closest = null;
@@ -7252,11 +7246,12 @@ function Table3D(
   ];
   const pocketNetGeo = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
   const pocketGuideMaterial = trimMat;
+  const pocketGuideRingRadius = POCKET_BOTTOM_R * POCKET_NET_RING_RADIUS_SCALE;
   const pocketStrapLength = Math.max(POCKET_GUIDE_LENGTH * 0.62, BALL_DIAMETER * 5.4);
   const pocketStrapWidth = BALL_R * 1.35;
   const pocketStrapThickness = BALL_R * 0.18;
   const pocketRingGeometry = new THREE.TorusGeometry(
-    POCKET_GUIDE_RING_RADIUS,
+    pocketGuideRingRadius,
     POCKET_NET_RING_TUBE_RADIUS,
     12,
     28
@@ -7304,7 +7299,7 @@ function Table3D(
     const outwardDir = resolvePocketHolderDirection(p, pocketId);
     const sideDir = new THREE.Vector3().crossVectors(outwardDir, new THREE.Vector3(0, 1, 0)).normalize();
     const strapDir = outwardDir.clone().setY(-Math.tan(POCKET_HOLDER_TILT_RAD)).normalize();
-    const railStartOffset = POCKET_GUIDE_RING_RADIUS + POCKET_GUIDE_RING_CLEARANCE;
+    const railStartOffset = pocketGuideRingRadius + POCKET_GUIDE_RING_CLEARANCE;
     const buildGuideSegment = (start, end) => {
       const delta = end.clone().sub(start);
       const length = delta.length();
@@ -7355,11 +7350,11 @@ function Table3D(
       );
       const strapDirNormalized = strapDir.clone().normalize();
       const strap = new THREE.Mesh(strapGeom, pocketJawMat);
-      const strapMid = ringAnchor
+      const strapMid = strapOrigin
         .clone()
         .addScaledVector(
           strapDirNormalized,
-          POCKET_STRAP_RUN_OFFSET + pocketStrapLength / 2
+          pocketStrapLength * 0.78
         )
         .add(new THREE.Vector3(0, -POCKET_GUIDE_DROP * 0.35, 0));
       strap.position.copy(strapMid);
@@ -22874,10 +22869,7 @@ const powerRef = useRef(hud.power);
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
               const holderDir = resolvePocketHolderDirection(c, pocketId);
-              const restDistance = Math.max(
-                POCKET_HOLDER_REST_DISTANCE,
-                POCKET_GUIDE_LENGTH * POCKET_HOLDER_REST_FRACTION
-              );
+              const restDistance = POCKET_GUIDE_LENGTH * POCKET_HOLDER_REST_FRACTION;
               const tiltDrop = Math.tan(POCKET_HOLDER_TILT_RAD) * restDistance;
               const restTarget = new THREE.Vector3(c.x, 0, c.y).addScaledVector(
                 holderDir,
