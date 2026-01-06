@@ -1135,7 +1135,7 @@ const PLYWOOD_EXTRA_DROP = 0;
 const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // fallback plywood tone when a finish color is unavailable
 const PLYWOOD_HOLE_SCALE = 1.05; // plywood pocket cutouts should be 5% larger than the pocket bowls for clearance
 const PLYWOOD_HOLE_R = POCKET_VIS_R * PLYWOOD_HOLE_SCALE * POCKET_VISUAL_EXPANSION;
-const CLOTH_EDGE_GAP_FILL = TABLE.THICK * 0.32; // drive the cloth sleeve deeper so it seals the exposed gap left by the removed plywood
+const CLOTH_EDGE_GAP_FILL = TABLE.THICK * 0.22; // drive the cloth sleeve deeper so it seals the exposed gap left by the removed plywood
 const CLOTH_EXTENDED_DEPTH = CLOTH_THICKNESS + CLOTH_EDGE_GAP_FILL; // wrap enough felt to close the plywood gap while keeping the surface profile unchanged
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
@@ -1182,14 +1182,13 @@ const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.
 const POCKET_GUIDE_DROP = BALL_R * 0.28;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.22; // start the chrome rails just outside the ring to keep the mouth open
-const POCKET_GUIDE_STEM_DEPTH = BALL_R * 0.36; // lengthen the short leg so the rail hugs the ring before turning
+const POCKET_GUIDE_STEM_DEPTH = BALL_R * 0.28; // short leg that links the ring to the horizontal holder run
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.24; // drop the centre rail to form the floor of the holder
-const POCKET_HOLDER_REST_FRACTION = 0.9; // land potted balls deeper in the holder so they collect near the end strap
-const POCKET_HOLDER_REST_MAX = POCKET_GUIDE_LENGTH - BALL_DIAMETER * 0.6; // keep resting balls just inside the leather strap
+const POCKET_HOLDER_REST_FRACTION = 0.62; // land potted balls past the ring toward the strap
 const POCKET_HOLDER_REST_DROP = BALL_R * 0.38; // keep the resting spot visibly below the pocket throat
-const POCKET_MIDDLE_HOLDER_SWAY = 0; // keep middle-pocket holders aligned with the other trays
-const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.12; // push the cloth sleeve farther past the felt base so it meets the pocket walls cleanly
-const POCKET_HOLDER_L_LEG = BALL_DIAMETER; // extend the connector so it reaches across the ring like the photo reference
+const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
+const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.08; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
+const POCKET_HOLDER_L_LEG = BALL_R * 0.42; // small connector that links the ring to the holder tray
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
@@ -5687,22 +5686,9 @@ const resolvePocketHolderDirection = (center, pocketId = null) => {
   const absZ = Math.abs(center?.y ?? 0);
   const isMiddlePocket = pocketId === 'TM' || pocketId === 'BM' || absZ < BALL_R * 0.6;
   if (isMiddlePocket) {
-    const cornerTargets = pocketCenters().slice(0, 4);
-    let closestCorner = null;
-    let closestDistance = Infinity;
-    for (const target of cornerTargets) {
-      const delta = target.clone().sub(center);
-      const dist = delta.lengthSq();
-      if (dist > MICRO_EPS && dist < closestDistance) {
-        closestCorner = delta;
-        closestDistance = dist;
-      }
-    }
-    if (closestCorner) {
-      return new THREE.Vector3(closestCorner.x, 0, closestCorner.y).normalize();
-    }
-    const fallbackDir = Math.sign(center?.y || 1) || 1;
-    return new THREE.Vector3(0, 0, fallbackDir);
+    // Push the middle-pocket holder outward from the table edge so the strap sits on the far side, matching photo references.
+    const xDir = Math.sign(center?.x || 1) || 1;
+    return new THREE.Vector3(xDir, 0, 0);
   }
   const middlePocketTargets = pocketCenters().slice(4);
   let closest = null;
@@ -7357,11 +7343,6 @@ function Table3D(
     }
 
     if (strapOrigin) {
-      const strapDistanceFromRing = THREE.MathUtils.clamp(
-        POCKET_GUIDE_LENGTH - pocketStrapLength * 0.5,
-        pocketStrapLength * 0.5,
-        POCKET_GUIDE_LENGTH
-      );
       const strapGeom = new THREE.BoxGeometry(
         pocketStrapWidth,
         pocketStrapThickness,
@@ -7373,7 +7354,7 @@ function Table3D(
         .clone()
         .addScaledVector(
           strapDirNormalized,
-          strapDistanceFromRing
+          pocketStrapLength * 0.78
         )
         .add(new THREE.Vector3(0, -POCKET_GUIDE_DROP * 0.35, 0));
       strap.position.copy(strapMid);
@@ -22888,10 +22869,7 @@ const powerRef = useRef(hud.power);
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
               const holderDir = resolvePocketHolderDirection(c, pocketId);
-              const restDistance = Math.min(
-                POCKET_HOLDER_REST_MAX,
-                POCKET_GUIDE_LENGTH * POCKET_HOLDER_REST_FRACTION
-              );
+              const restDistance = POCKET_GUIDE_LENGTH * POCKET_HOLDER_REST_FRACTION;
               const tiltDrop = Math.tan(POCKET_HOLDER_TILT_RAD) * restDistance;
               const restTarget = new THREE.Vector3(c.x, 0, c.y).addScaledVector(
                 holderDir,
