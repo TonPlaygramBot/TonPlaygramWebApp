@@ -1179,7 +1179,6 @@ const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as 
 const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.02; // sit the ring directly against the bottom of the woven net
 const POCKET_GUIDE_RADIUS = BALL_R * 0.09;
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
-const POCKET_GUIDE_ENTRY_DROP = BALL_R * 0.62; // force a vertical drop through the net before the rails begin
 const POCKET_GUIDE_DROP = BALL_R * 0.28;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.22; // start the chrome rails just outside the ring to keep the mouth open
@@ -7253,7 +7252,7 @@ function Table3D(
   const pocketNetGeo = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
   const pocketGuideMaterial = trimMat;
   const pocketGuideRingRadius = POCKET_BOTTOM_R * POCKET_NET_RING_RADIUS_SCALE;
-  const pocketStrapHeight = Math.max(POCKET_GUIDE_LENGTH * 0.2, BALL_DIAMETER * 1.6);
+  const pocketStrapLength = Math.max(POCKET_GUIDE_LENGTH * 0.62, BALL_DIAMETER * 5.4);
   const pocketStrapWidth = BALL_R * 1.2;
   const pocketStrapThickness = BALL_R * 0.12;
   const pocketRingGeometry = new THREE.TorusGeometry(
@@ -7331,16 +7330,11 @@ function Table3D(
       const middleSway = isMiddlePocket ? POCKET_MIDDLE_HOLDER_SWAY * (pocketId === 'TM' ? -1 : 1) : 0;
       const lateralOffset = (i - 1) * POCKET_GUIDE_SPREAD + middleSway * (i - 1);
       const isCenterGuide = i === 1;
-      const ringExit = ringAnchor
+      const start = ringAnchor
         .clone()
-        .addScaledVector(sideDir, lateralOffset);
-      const entryDrop = ringExit.clone().add(new THREE.Vector3(0, -POCKET_GUIDE_ENTRY_DROP, 0));
-      buildGuideSegment(ringExit, entryDrop);
-      const start = entryDrop
-        .clone()
-        .addScaledVector(outwardDir, -railStartOffset)
+        .addScaledVector(outwardDir, railStartOffset)
+        .addScaledVector(sideDir, lateralOffset)
         .add(new THREE.Vector3(0, isCenterGuide ? -POCKET_GUIDE_FLOOR_DROP : 0, 0));
-      buildGuideSegment(entryDrop, start);
       const stemEnd = start.clone().add(new THREE.Vector3(0, -POCKET_GUIDE_STEM_DEPTH, 0));
       const runEnd = stemEnd
         .clone()
@@ -7358,27 +7352,17 @@ function Table3D(
     if (strapOrigin && strapEnd) {
       const strapGeom = new THREE.BoxGeometry(
         pocketStrapWidth,
-        pocketStrapHeight,
-        pocketStrapThickness
+        pocketStrapThickness,
+        pocketStrapLength
       );
       const strap = new THREE.Mesh(strapGeom, pocketJawMat);
-      const strapNormal = strapDir.clone().normalize();
-      const strapSide = new THREE.Vector3()
-        .crossVectors(new THREE.Vector3(0, 1, 0), strapNormal)
-        .normalize();
-      if (strapSide.lengthSq() < MICRO_EPS) {
-        strapSide.set(1, 0, 0);
-      }
-      const strapUp = new THREE.Vector3()
-        .crossVectors(strapNormal, strapSide)
-        .normalize();
-      const strapBasis = new THREE.Matrix4().makeBasis(strapSide, strapUp, strapNormal);
-      const strapMid = strapEnd
+      const strapMid = strapOrigin
         .clone()
-        .addScaledVector(strapNormal, pocketStrapThickness * 0.5)
-        .addScaledVector(strapUp, -pocketStrapHeight * 0.5);
+        .add(strapEnd)
+        .multiplyScalar(0.5);
+      strapMid.y -= pocketStrapThickness * 0.5;
       strap.position.copy(strapMid);
-      strap.quaternion.setFromRotationMatrix(strapBasis);
+      strap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), strapDir);
       strap.castShadow = true;
       strap.receiveShadow = true;
       table.add(strap);
