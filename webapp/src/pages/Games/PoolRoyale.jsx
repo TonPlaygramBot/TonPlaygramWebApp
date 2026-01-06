@@ -5668,9 +5668,10 @@ const resolvePocketHolderDirection = (center, pocketId = null) => {
   const absZ = Math.abs(center?.y ?? 0);
   const isMiddlePocket = pocketId === 'TM' || pocketId === 'BM' || absZ < BALL_R * 0.6;
   if (isMiddlePocket) {
-    const xDir = Math.sign(center?.x || (pocketId === 'BM' ? 1 : -1)) || 1;
-    const zBias = pocketId === 'TM' ? -0.35 : pocketId === 'BM' ? 0.35 : 0;
-    return new THREE.Vector3(xDir, 0, zBias).normalize();
+    const towardTop = pocketId === 'TM';
+    const towardBottom = pocketId === 'BM';
+    const zDir = towardTop ? -1 : towardBottom ? 1 : Math.sign(center?.x || 1);
+    return new THREE.Vector3(0, 0, zDir || 1);
   }
   if (absX >= absZ) {
     return new THREE.Vector3(Math.sign(center?.x || 1), 0, 0);
@@ -7224,7 +7225,6 @@ function Table3D(
   const pocketStrapWidth = BALL_R * 1.35;
   const pocketStrapThickness = BALL_R * 0.18;
   const pocketMeshes = [];
-  pocketHolderTargetsRef.current.clear();
   pocketCenters().forEach((p, index) => {
     const pocketId = POCKET_IDS[index] ?? null;
     const isMiddlePocket = index >= 4;
@@ -7249,48 +7249,19 @@ function Table3D(
     table.add(net);
     finishParts.pocketNetMeshes.push(net);
 
-    const netBottomY = net.position.y - POCKET_NET_DEPTH * 0.96;
-    const holderTiltRad = isMiddlePocket ? POCKET_HOLDER_TILT_RAD * 1.22 : POCKET_HOLDER_TILT_RAD;
-    const holderEntry = new THREE.Vector3(p.x, netBottomY, p.y);
-    const outwardDir = resolvePocketHolderDirection(p, pocketId);
-
-    const netRingRadius = POCKET_BOTTOM_R * 1.04;
-    const netRingTube = Math.max(pocketGuideRadius * 1.05, BALL_R * 0.22);
-    const netRing = new THREE.Mesh(
-      new THREE.TorusGeometry(netRingRadius, netRingTube * 0.72, 16, 28),
-      pocketGuideMaterial
-    );
-    netRing.position.set(holderEntry.x, holderEntry.y - netRingTube * 0.35, holderEntry.z);
-    netRing.rotation.x = Math.PI / 2;
-    netRing.castShadow = true;
-    netRing.receiveShadow = true;
-    table.add(netRing);
-    finishParts.pocketBaseMeshes.push(netRing);
-
-    const holderReach = pocketGuideLength * 0.86;
-    const holderDrop = pocketGuideDrop * 0.92;
-    const holderRest = holderEntry
-      .clone()
-      .addScaledVector(outwardDir, holderReach)
-      .add(new THREE.Vector3(0, -holderDrop, 0))
-      .add(new THREE.Vector3(0, -Math.tan(holderTiltRad) * holderReach, 0));
-    pocketHolderTargetsRef.current.set(pocketId, {
-      entry: holderEntry.clone(),
-      rest: holderRest.clone(),
-      tilt: holderTiltRad
-    });
-
     // Add chrome cradle rails and holders beneath the pocket net to catch potted balls.
+    const netBottomY = net.position.y - POCKET_NET_DEPTH * 0.96;
+    const outwardDir = resolvePocketHolderDirection(p, pocketId);
     const sideDir = new THREE.Vector3().crossVectors(outwardDir, new THREE.Vector3(0, 1, 0)).normalize();
-    const strapDir = outwardDir.clone().setY(-Math.tan(holderTiltRad)).normalize();
+    const strapDir = outwardDir.clone().setY(-Math.tan(POCKET_HOLDER_TILT_RAD)).normalize();
     for (let i = 0; i < 3; i += 1) {
       const lateralOffset = (i - 1) * pocketGuideSpread;
-      const start = holderEntry.clone().addScaledVector(sideDir, lateralOffset);
+      const start = new THREE.Vector3(p.x, netBottomY, p.y).addScaledVector(sideDir, lateralOffset);
       const end = start
         .clone()
         .addScaledVector(outwardDir, pocketGuideLength)
         .add(new THREE.Vector3(0, -pocketGuideDrop, 0))
-        .add(new THREE.Vector3(0, -Math.tan(holderTiltRad) * pocketGuideLength, 0));
+        .add(new THREE.Vector3(0, -Math.tan(POCKET_HOLDER_TILT_RAD) * pocketGuideLength, 0));
       const delta = end.clone().sub(start);
       const guideGeom = new THREE.CylinderGeometry(
         pocketGuideRadius,
@@ -11674,7 +11645,6 @@ const powerRef = useRef(hud.power);
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
   const pocketDropRef = useRef(new Map());
-  const pocketHolderTargetsRef = useRef(new Map());
   const captureBallSnapshotRef = useRef(null);
   const applyBallSnapshotRef = useRef(null);
   const pendingLayoutRef = useRef(null);
@@ -22795,19 +22765,16 @@ const powerRef = useRef(hud.power);
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
               const holderDir = resolvePocketHolderDirection(c, pocketId);
-              const strapOffset = holderDir.clone().multiplyScalar(POCKET_HOLDER_SLIDE);
-              const holderTargets = pocketHolderTargetsRef.current;
-              const pocketHolder = holderTargets.get(pocketId);
-              const targetX = pocketHolder?.rest?.x ?? c.x + strapOffset.x;
-              const targetZ = pocketHolder?.rest?.z ?? c.y + strapOffset.z;
-              const targetY =
-                pocketHolder?.rest?.y ?? BALL_CENTER_Y - POCKET_DROP_STRAP_DEPTH;
-              const fromY = BALL_CENTER_Y;
+              const strapOffset = holderDir
+                .clone()
+                .multiplyScalar(POCKET_HOLDER_SLIDE);
+              const targetX = c.x + strapOffset.x;
+              const targetZ = c.y + strapOffset.z;
               const dropEntry = {
                 start: dropStart,
-                fromY,
-                currentY: fromY,
-                targetY,
+                fromY: BALL_CENTER_Y,
+                currentY: BALL_CENTER_Y,
+                targetY: BALL_CENTER_Y - POCKET_DROP_STRAP_DEPTH,
                 fromX,
                 fromZ,
                 toX: targetX,
@@ -23074,7 +23041,6 @@ const powerRef = useRef(hud.power);
           updatePocketCameraState(false);
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
-          pocketHolderTargetsRef.current.clear();
           captureBallSnapshotRef.current = null;
           applyBallSnapshotRef.current = null;
           pendingLayoutRef.current = null;
