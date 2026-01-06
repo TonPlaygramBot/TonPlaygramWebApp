@@ -1177,15 +1177,20 @@ const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall sligh
 const POCKET_NET_RING_RADIUS_SCALE = 0.62; // match the ring diameter to the net's lowest hoop so the net and chrome line up exactly
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.02; // sit the ring directly against the bottom of the woven net
-const POCKET_GUIDE_RADIUS = BALL_R * 0.09;
+const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
 const POCKET_GUIDE_DROP = BALL_R * 0.28;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.22; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.72; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.24; // drop the centre rail to form the floor of the holder
-const POCKET_HOLDER_REST_FRACTION = 0.88; // land potted balls deeper into the tray so they settle against the strap
+const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
+const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.05; // spacing between balls once they settle on the holder rails
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 0.55; // tuck the first ball against the backstop without letting leather peek above the field
 const POCKET_HOLDER_REST_DROP = BALL_R * 0.38; // keep the resting spot visibly below the pocket throat
+const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
+const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
+const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
 const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
 const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
@@ -7350,19 +7355,23 @@ function Table3D(
     }
 
     if (strapOrigin && strapEnd) {
+      const strapHeight = Math.max(BALL_DIAMETER * 2.2, pocketStrapLength * 0.64);
       const strapGeom = new THREE.BoxGeometry(
         pocketStrapWidth,
-        pocketStrapThickness,
-        pocketStrapLength
+        strapHeight,
+        pocketStrapThickness
       );
       const strap = new THREE.Mesh(strapGeom, pocketJawMat);
-      const strapMid = strapOrigin
-        .clone()
-        .add(strapEnd)
-        .multiplyScalar(0.5);
-      strapMid.y -= pocketStrapThickness * 0.5;
+      const strapAnchor = strapEnd.clone();
+      const strapTopLimit = pocketTopY - TABLE.THICK * 0.08;
+      strapAnchor.y = Math.min(strapAnchor.y, strapTopLimit);
+      const strapMid = strapAnchor.clone();
+      strapMid.y -= strapHeight * 0.5;
+      const flatDir = strapDir.clone().setY(0);
+      const strapForward =
+        flatDir.lengthSq() > MICRO_EPS ? flatDir.normalize() : new THREE.Vector3(0, 0, 1);
       strap.position.copy(strapMid);
-      strap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), strapDir);
+      strap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), strapForward);
       strap.castShadow = true;
       strap.receiveShadow = true;
       table.add(strap);
@@ -22836,8 +22845,17 @@ const powerRef = useRef(hud.power);
               const holderDir = resolvePocketHolderDirection(c, pocketId);
               const pocketRestIndex =
                 pocketRestIndexRef.current.get(pocketId) ?? 0;
-              const restDistanceBase = POCKET_GUIDE_LENGTH * POCKET_HOLDER_REST_FRACTION;
-              const restDistance = restDistanceBase + pocketRestIndex * BALL_DIAMETER * 1.12;
+              const ringAnchor = new THREE.Vector3(
+                c.x,
+                BALL_CENTER_Y - POCKET_DROP_DEPTH * 0.5,
+                c.y
+              );
+              const restDistanceBase = Math.max(
+                POCKET_GUIDE_LENGTH - POCKET_HOLDER_REST_PULLBACK,
+                POCKET_HOLDER_REST_SPACING
+              );
+              const restDistance =
+                restDistanceBase + pocketRestIndex * POCKET_HOLDER_REST_SPACING;
               pocketRestIndexRef.current.set(pocketId, pocketRestIndex + 1);
               const tiltDrop = Math.tan(POCKET_HOLDER_TILT_RAD) * restDistance;
               const restTarget = new THREE.Vector3(c.x, 0, c.y).addScaledVector(
@@ -22846,6 +22864,11 @@ const powerRef = useRef(hud.power);
               );
               const targetX = restTarget.x;
               const targetZ = restTarget.z;
+              const railStartOffset = POCKET_NET_RING_RADIUS_SCALE * POCKET_BOTTOM_R + POCKET_GUIDE_RING_CLEARANCE;
+              const railRunStart = ringAnchor
+                .clone()
+                .addScaledVector(holderDir, railStartOffset)
+                .add(new THREE.Vector3(0, -POCKET_GUIDE_FLOOR_DROP, 0));
               const dropEntry = {
                 start: dropStart,
                 fromY: BALL_CENTER_Y,
@@ -22853,15 +22876,26 @@ const powerRef = useRef(hud.power);
                 targetY:
                   BALL_CENTER_Y -
                   (POCKET_DROP_DEPTH + POCKET_HOLDER_REST_DROP + tiltDrop),
-                fromX,
-                fromZ,
+                fromX: ringAnchor.x,
+                fromZ: ringAnchor.z,
                 toX: targetX,
                 toZ: targetZ,
+                runFromX: railRunStart.x,
+                runFromZ: railRunStart.z,
                 mesh: b.mesh,
                 entrySpeed,
                 velocityY:
                   -Math.max(Math.abs(POCKET_DROP_ENTRY_VELOCITY), entrySpeed * 0.08),
+                runSpeed: THREE.MathUtils.clamp(
+                  entrySpeed * 0.8 + POCKET_HOLDER_RUN_ENTRY_SCALE,
+                  POCKET_HOLDER_RUN_SPEED_MIN,
+                  POCKET_HOLDER_RUN_SPEED_MAX
+                ),
+                holderDir,
+                restDistance,
                 settledAt: null,
+                rollStartAt: null,
+                rollProgress: 0,
                 pocketId,
                 resting: false
               };
@@ -22982,37 +23016,45 @@ const powerRef = useRef(hud.power);
               const targetY = entry.targetY ?? BALL_CENTER_Y - POCKET_DROP_STRAP_DEPTH;
               const fromY = entry.fromY ?? BALL_CENTER_Y;
               const fallDistance = Math.max(fromY - targetY, MICRO_EPS);
+              const runFromX = entry.runFromX ?? entry.fromX;
+              const runFromZ = entry.runFromZ ?? entry.fromZ;
               if (entry.resting) {
                 mesh.visible = true;
-                mesh.position.set(entry.toX ?? entry.fromX, targetY, entry.toZ ?? entry.fromZ);
+                mesh.position.set(entry.toX ?? runFromX, targetY, entry.toZ ?? runFromZ);
                 mesh.scale.set(1, 1, 1);
                 return;
               }
-              entry.velocityY = (entry.velocityY ?? POCKET_DROP_ENTRY_VELOCITY) - POCKET_DROP_GRAVITY * deltaSeconds;
-              entry.currentY = (entry.currentY ?? fromY) + (entry.velocityY ?? 0) * deltaSeconds;
+              entry.velocityY =
+                (entry.velocityY ?? POCKET_DROP_ENTRY_VELOCITY) -
+                POCKET_DROP_GRAVITY * deltaSeconds;
+              entry.currentY =
+                (entry.currentY ?? fromY) + (entry.velocityY ?? 0) * deltaSeconds;
               const reachedStrap = entry.currentY <= targetY;
               if (reachedStrap) {
                 entry.currentY = targetY;
                 entry.velocityY = 0;
                 entry.settledAt = entry.settledAt ?? now;
+                entry.rollStartAt = entry.rollStartAt ?? now + POCKET_DROP_RING_HOLD_MS;
               }
-              const fallRatio = THREE.MathUtils.clamp(
-                1 - (entry.currentY - targetY) / fallDistance,
-                0,
-                1
-              );
-              const x = THREE.MathUtils.lerp(entry.fromX, entry.toX ?? entry.fromX, fallRatio);
-              const z = THREE.MathUtils.lerp(entry.fromZ, entry.toZ ?? entry.fromZ, fallRatio);
+              const xDrop = entry.fromX;
+              const zDrop = entry.fromZ;
+              let posX = xDrop;
+              let posZ = zDrop;
               mesh.visible = true;
-              mesh.position.set(x, entry.currentY, z);
               mesh.scale.set(1, 1, 1);
-              const settledAt = entry.settledAt;
-              if (settledAt && now - settledAt >= POCKET_DROP_REST_HOLD_MS) {
-                entry.resting = true;
-                mesh.visible = true;
-                mesh.scale.set(1, 1, 1);
-                mesh.position.set(entry.toX ?? x, targetY, entry.toZ ?? z);
+              if (entry.rollStartAt && now >= entry.rollStartAt) {
+                const runSpeed = Math.max(MICRO_EPS, entry.runSpeed ?? POCKET_HOLDER_RUN_SPEED_MIN);
+                const rollDuration = Math.max(MICRO_EPS, (entry.restDistance ?? 0) / runSpeed);
+                const rollElapsed = now - entry.rollStartAt;
+                const rollProgress = THREE.MathUtils.clamp(rollElapsed / rollDuration, 0, 1);
+                entry.rollProgress = rollProgress;
+                posX = THREE.MathUtils.lerp(runFromX, entry.toX ?? runFromX, rollProgress);
+                posZ = THREE.MathUtils.lerp(runFromZ, entry.toZ ?? runFromZ, rollProgress);
+                if (rollProgress >= 1 && entry.settledAt && now - entry.settledAt >= POCKET_DROP_REST_HOLD_MS) {
+                  entry.resting = true;
+                }
               }
+              mesh.position.set(posX, entry.currentY, posZ);
             });
           }
           prevCollisions = newCollisions;
