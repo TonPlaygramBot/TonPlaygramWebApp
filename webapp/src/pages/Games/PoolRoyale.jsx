@@ -908,10 +908,10 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 1.02; // push the jaw bodies further down so the underside reaches the pocket floor
+const POCKET_JAW_DEPTH_SCALE = 0.82; // shorten the jaw bodies so the underside stops at the cloth line
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim slightly more so the pocket lips sit nearer the cloth plane
 const POCKET_JAW_BOTTOM_CLEARANCE = 0; // allow the jaw extrusion to run right down to the pocket base without a visible gap
-const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.12; // align the jaw underside to the same height as the pocket base plate
+const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.2; // align the jaw underside to the same height as the pocket base plate
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.12; // thin the outer lips more aggressively while leaving the centre crown unchanged
@@ -1107,24 +1107,6 @@ const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
 const MAX_POWER_CAMERA_HOLD_MS = 2000;
 const MAX_POWER_SPIN_LATERAL_THROW = BALL_R * 0.42; // let max-power jumps inherit a strong sideways release from active side spin
 const MAX_POWER_SPIN_LIFT_BONUS = BALL_R * 0.28; // spin adds extra hop height when the cue ball is driven at full power
-const POCKET_INTERIOR_CAPTURE_R =
-  POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 0.992; // tighten capture so balls fall only once they reach the pocket throat
-const SIDE_POCKET_INTERIOR_CAPTURE_R =
-  SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 0.996; // narrow the middle capture to stop pre-pocket drops while keeping center-line forgiveness
-const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the interior bowl so balls fall at the throat
-const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now matches the bowl opening instead of scaling from corners
-const POCKET_GUARD_RADIUS = POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.06; // align the rail guard to the playable capture bowl instead of the visual rim
-const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.08); // keep a slim safety margin so clean entries aren't rejected
-const CORNER_POCKET_DEPTH_LIMIT =
-  POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
-const SIDE_POCKET_GUARD_RADIUS =
-  SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.08; // use the middle-pocket bowl to gate reflections
-const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
-  0,
-  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.08
-);
-const SIDE_POCKET_DEPTH_LIMIT =
-  POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
 const SIDE_POCKET_SPAN =
   SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.52; // tune the middle lane to the real mouth width
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
@@ -1135,7 +1117,7 @@ const PLYWOOD_EXTRA_DROP = 0;
 const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // fallback plywood tone when a finish color is unavailable
 const PLYWOOD_HOLE_SCALE = 1.05; // plywood pocket cutouts should be 5% larger than the pocket bowls for clearance
 const PLYWOOD_HOLE_R = POCKET_VIS_R * PLYWOOD_HOLE_SCALE * POCKET_VISUAL_EXPANSION;
-const CLOTH_EDGE_GAP_FILL = TABLE.THICK * 0.32; // drive the cloth sleeve deeper so it seals the exposed gap left by the removed plywood
+const CLOTH_EDGE_GAP_FILL = TABLE.THICK * 0.38; // drive the cloth sleeve deeper so it seals the exposed gap left by the removed plywood
 const CLOTH_EXTENDED_DEPTH = CLOTH_THICKNESS + CLOTH_EDGE_GAP_FILL; // wrap enough felt to close the plywood gap while keeping the surface profile unchanged
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
@@ -1164,30 +1146,52 @@ const POCKET_LEATHER_TEXTURE_SCALE = 1.6;
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
-const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
+const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.32;
 const POCKET_TOP_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
+const POCKET_INTERIOR_CAPTURE_R = Math.max(
+  BALL_R * 1.02,
+  POCKET_TOP_R - BALL_R * 0.015
+); // align capture directly to the pocket bowl so drops happen at the mouth
+const SIDE_POCKET_INTERIOR_CAPTURE_R = Math.max(
+  BALL_R * 1.02,
+  SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION - BALL_R * 0.015
+); // match middle-pocket capture to the mouth radius so drops happen on entry
+const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the interior bowl so balls fall at the throat
+const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now matches the bowl opening instead of scaling from corners
+const POCKET_GUARD_RADIUS = POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.06; // align the rail guard to the playable capture bowl instead of the visual rim
+const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.08); // keep a slim safety margin so clean entries aren't rejected
+const CORNER_POCKET_DEPTH_LIMIT =
+  POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
+const SIDE_POCKET_GUARD_RADIUS =
+  SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.08; // use the middle-pocket bowl to gate reflections
+const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
+  0,
+  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.08
+);
+const SIDE_POCKET_DEPTH_LIMIT =
+  POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
 const POCKET_WALL_OPEN_TRIM = TABLE.THICK * 0.18;
 const POCKET_WALL_HEIGHT = TABLE.THICK * 0.7 - POCKET_WALL_OPEN_TRIM;
 const POCKET_NET_DEPTH = TABLE.THICK * 2.1;
 const POCKET_NET_SEGMENTS = 48;
 const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 0.9; // drop nearly the full net depth so potted balls clear the rim
-const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall slightly above the ring/strap junction
+const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.9; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.62; // match the ring diameter to the net's lowest hoop so the net and chrome line up exactly
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.02; // sit the ring directly against the bottom of the woven net
 const POCKET_GUIDE_RADIUS = BALL_R * 0.09;
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
-const POCKET_GUIDE_DROP = BALL_R * 0.28;
+const POCKET_GUIDE_DROP = BALL_R * 0.38;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.22; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.72; // lengthen the elbow so each rail meets the ring with a ball-length guide
-const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.24; // drop the centre rail to form the floor of the holder
+const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.32; // drop the centre rail to form the floor of the holder
 const POCKET_HOLDER_REST_FRACTION = 0.88; // land potted balls deeper into the tray so they settle against the strap
 const POCKET_HOLDER_REST_DROP = BALL_R * 0.38; // keep the resting spot visibly below the pocket throat
 const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
-const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
+const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.2; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
@@ -7254,7 +7258,7 @@ function Table3D(
   const pocketGuideRingRadius = POCKET_BOTTOM_R * POCKET_NET_RING_RADIUS_SCALE;
   const pocketStrapLength = Math.max(POCKET_GUIDE_LENGTH * 0.62, BALL_DIAMETER * 5.4);
   const pocketStrapWidth = BALL_R * 1.35;
-  const pocketStrapThickness = BALL_R * 0.18;
+  const pocketStrapThickness = BALL_R * 0.14;
   const pocketRingGeometry = new THREE.TorusGeometry(
     pocketGuideRingRadius,
     POCKET_NET_RING_TUBE_RADIUS,
@@ -7359,9 +7363,11 @@ function Table3D(
         pocketStrapThickness
       );
       const strap = new THREE.Mesh(strapGeom, pocketJawMat);
-      const strapMid = strapEnd
+      const strapMid = strapOrigin
         .clone()
-        .add(new THREE.Vector3(0, pocketStrapLength * 0.5, 0))
+        .add(strapEnd)
+        .multiplyScalar(0.5)
+        .addScaledVector(strapDir, -pocketStrapThickness * 0.5)
         .addScaledVector(strapFacing, -pocketStrapThickness * 0.5);
       strap.position.copy(strapMid);
       strap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), strapFacing);
@@ -21523,80 +21529,83 @@ const powerRef = useRef(hud.power);
   let lastLiveAimSentAt = 0;
   const step = (now) => {
     if (disposed) return;
-    const playback = replayPlaybackRef.current;
-        if (playback) {
-          const frameTiming = frameTimingRef.current;
-          const targetReplayFrameTime =
-            frameTiming && Number.isFinite(frameTiming.targetMs)
-              ? frameTiming.targetMs
-              : 1000 / 60;
-          if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
-            rafRef.current = requestAnimationFrame(step);
-            return;
-          }
-          lastReplayFrameAt = now;
-          const scheduleNext = () => {
-            if (disposed) return;
-            rafRef.current = requestAnimationFrame(step);
-          };
-          const frames = playback.frames || [];
-          const duration = Number.isFinite(playback.duration) ? playback.duration : 0;
-          const elapsed = now - playback.startedAt;
-          if (frames.length === 0) {
-            finishReplayPlayback(playback);
-            scheduleNext();
-            return;
-          }
-          try {
-            const targetTime = Math.min(elapsed, duration);
-            let frameIndex = playback.lastIndex ?? 0;
-            while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
-              frameIndex += 1;
-            }
-            playback.lastIndex = frameIndex;
-            const frameA = frames[frameIndex];
-            const frameB = frames[Math.min(frameIndex + 1, frames.length - 1)] ?? null;
-            const span = frameB ? Math.max(frameB.t - frameA.t, 1e-6) : 1;
-            const alpha = frameB
-              ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
-              : 0;
-            applyReplayFrame(frameA, frameB, alpha);
-            applyReplayCueStroke(playback, targetTime);
-            updateReplayTrail(playback.cuePath, targetTime);
-            if (!LOCK_REPLAY_CAMERA) {
-              const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
-              const previousFrameCamera =
-                replayFrameCameraRef.current?.frameB ??
-                replayFrameCameraRef.current?.frameA ??
-                null;
-              if (
-                nextFrameCamera &&
-                (!replayFrameCameraRef.current ||
-                  hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
-              ) {
-                replayFrameCameraRef.current = {
-                  frameA: nextFrameCamera,
-                  frameB: nextFrameCamera,
-                  alpha: 0
-                };
-              }
-            } else {
-              replayFrameCameraRef.current = null;
-            }
-            const frameCamera = updateCamera();
-            renderer.render(scene, frameCamera ?? camera);
-            const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
-            if (finished) {
-              finishReplayPlayback(playback);
-            }
-          } catch (err) {
-            console.error('Pool Royale replay playback failed; skipping.', err);
-            finishReplayPlayback(playback);
-          }
+    let scheduled = false;
+    const scheduleNext = () => {
+      if (disposed || scheduled) return;
+      scheduled = true;
+      rafRef.current = requestAnimationFrame(step);
+    };
+    try {
+      const playback = replayPlaybackRef.current;
+      if (playback) {
+        const frameTiming = frameTimingRef.current;
+        const targetReplayFrameTime =
+          frameTiming && Number.isFinite(frameTiming.targetMs)
+            ? frameTiming.targetMs
+            : 1000 / 60;
+        if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
           scheduleNext();
           return;
         }
-        const nowMs = now;
+        lastReplayFrameAt = now;
+        const frames = playback.frames || [];
+        const duration = Number.isFinite(playback.duration) ? playback.duration : 0;
+        const elapsed = now - playback.startedAt;
+        if (frames.length === 0) {
+          finishReplayPlayback(playback);
+          scheduleNext();
+          return;
+        }
+        try {
+          const targetTime = Math.min(elapsed, duration);
+          let frameIndex = playback.lastIndex ?? 0;
+          while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
+            frameIndex += 1;
+          }
+          playback.lastIndex = frameIndex;
+          const frameA = frames[frameIndex];
+          const frameB = frames[Math.min(frameIndex + 1, frames.length - 1)] ?? null;
+          const span = frameB ? Math.max(frameB.t - frameA.t, 1e-6) : 1;
+          const alpha = frameB
+            ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
+            : 0;
+          applyReplayFrame(frameA, frameB, alpha);
+          applyReplayCueStroke(playback, targetTime);
+          updateReplayTrail(playback.cuePath, targetTime);
+          if (!LOCK_REPLAY_CAMERA) {
+            const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
+            const previousFrameCamera =
+              replayFrameCameraRef.current?.frameB ??
+              replayFrameCameraRef.current?.frameA ??
+              null;
+            if (
+              nextFrameCamera &&
+              (!replayFrameCameraRef.current ||
+                hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
+            ) {
+              replayFrameCameraRef.current = {
+                frameA: nextFrameCamera,
+                frameB: nextFrameCamera,
+                alpha: 0
+              };
+            }
+          } else {
+            replayFrameCameraRef.current = null;
+          }
+          const frameCamera = updateCamera();
+          renderer.render(scene, frameCamera ?? camera);
+          const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
+          if (finished) {
+            finishReplayPlayback(playback);
+          }
+        } catch (err) {
+          console.error('Pool Royale replay playback failed; skipping.', err);
+          finishReplayPlayback(playback);
+        }
+        scheduleNext();
+        return;
+      }
+      const nowMs = now;
         if (remoteShotActiveRef.current && remoteShotUntilRef.current > 0 && nowMs > remoteShotUntilRef.current) {
           remoteShotActiveRef.current = false;
         }
@@ -23072,10 +23081,13 @@ const powerRef = useRef(hud.power);
               lastLiveSyncSentAt = now;
             }
           }
-          if (!disposed) {
-            rafRef.current = requestAnimationFrame(step);
-          }
-        };
+          scheduleNext();
+        } catch (err) {
+          console.error('Pool Royale frame step failed; attempting to continue.', err);
+          setShootingState(false);
+          scheduleNext();
+        }
+      };
         step(performance.now());
 
       // Resize
