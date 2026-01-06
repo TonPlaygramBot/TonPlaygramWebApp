@@ -224,46 +224,30 @@ const updateRendererAnisotropyCap = (renderer) => {
 const resolveTextureAnisotropy = (fallback = 1) =>
   Math.max(rendererAnisotropyCap, Number.isFinite(fallback) ? fallback : 1);
 
-const POCKET_NET_LINE_THICKNESS_SCALE = 1.28;
-const POCKET_NET_HEX_RADIUS_DIVISOR = 18;
-const POCKET_NET_REPEAT = 3;
+const POCKET_NET_LINE_THICKNESS_SCALE = 1.45;
 
-const createPocketNetTexture = (size = 512, repeat = POCKET_NET_REPEAT) => {
+const createPocketNetTexture = (size = 256, repeat = 2) => {
   if (typeof document === 'undefined') return null;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
   ctx.clearRect(0, 0, size, size);
-  const hexRadius = size / POCKET_NET_HEX_RADIUS_DIVISOR;
-  const hexHeight = Math.sqrt(3) * hexRadius;
-  const hexWidth = hexRadius * 2;
-  const rowStride = hexHeight * 0.75;
-  const colCount = Math.ceil(size / hexWidth) + 2;
-  const rowCount = Math.ceil(size / rowStride) + 2;
-  const lineWidth = Math.max(1, (size / 320) * POCKET_NET_LINE_THICKNESS_SCALE);
+  const spacing = size / 8;
+  const lineWidth = Math.max(1, (size / 96) * POCKET_NET_LINE_THICKNESS_SCALE);
   ctx.lineWidth = lineWidth;
   ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-  for (let row = -1; row <= rowCount; row += 1) {
-    const y = row * rowStride;
-    const offset = (row % 2 !== 0 ? 0.5 : 0) * hexWidth;
-    for (let col = -1; col <= colCount; col += 1) {
-      const cx = col * hexWidth + offset;
-      const cy = y;
-      ctx.beginPath();
-      for (let i = 0; i < 6; i += 1) {
-        const angle = Math.PI / 6 + (i * Math.PI) / 3;
-        const vx = cx + hexRadius * Math.cos(angle);
-        const vy = cy + hexRadius * Math.sin(angle);
-        if (i === 0) {
-          ctx.moveTo(vx, vy);
-        } else {
-          ctx.lineTo(vx, vy);
-        }
-      }
-      ctx.closePath();
-      ctx.stroke();
-    }
+  for (let x = 0; x <= size; x += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(x + lineWidth / 2, 0);
+    ctx.lineTo(x + lineWidth / 2, size);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= size; y += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + lineWidth / 2);
+    ctx.lineTo(size, y + lineWidth / 2);
+    ctx.stroke();
   }
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
@@ -1188,22 +1172,22 @@ const POCKET_WALL_OPEN_TRIM = TABLE.THICK * 0.18;
 const POCKET_WALL_HEIGHT = TABLE.THICK * 0.7 - POCKET_WALL_OPEN_TRIM;
 const POCKET_NET_DEPTH = TABLE.THICK * 2.1;
 const POCKET_NET_SEGMENTS = 48;
-const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 0.96; // drop deeper so potted balls visibly settle onto the holder rails
+const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 0.9; // drop nearly the full net depth so potted balls clear the rim
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.02; // sit the ring directly against the bottom of the woven net
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
-const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.45, BALL_DIAMETER * 6); // stretch the holder run so it comfortably fits 5 balls
-const POCKET_GUIDE_DROP = BALL_R * 0.3;
+const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
+const POCKET_GUIDE_DROP = BALL_R * 0.28;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
-const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.14; // let the rails pierce slightly into the ring so the L-shape shows past the band
-const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.82; // lengthen the elbow so each rail meets the ring with a ball-length guide
-const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.28; // drop the centre rail to form the floor of the holder
+const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.22; // start the chrome rails just outside the ring to keep the mouth open
+const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.72; // lengthen the elbow so each rail meets the ring with a ball-length guide
+const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.24; // drop the centre rail to form the floor of the holder
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.12; // wider spacing so potted balls line up without overlapping on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 1.05; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 0.72; // drop the resting spot so balls settle onto the chrome holders
+const POCKET_HOLDER_REST_DROP = BALL_R * 0.52; // keep the resting spot visibly below the pocket throat
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -7969,32 +7953,17 @@ function Table3D(
     if (studRadius > 0) {
       const studGradient = (x, y) => {
         const g = ctx.createRadialGradient(
-          x - studRadius * 0.28,
-          y - studRadius * 0.32,
-          studRadius * 0.2,
+          x - studRadius * 0.35,
+          y - studRadius * 0.35,
+          studRadius * 0.25,
           x,
           y,
-          studRadius * 1.35
+          studRadius * 1.15
         );
-        g.addColorStop(0, '#fff9e7');
-        g.addColorStop(0.35, '#f6d98a');
-        g.addColorStop(0.58, '#d6a956');
-        g.addColorStop(0.8, '#915f22');
-        g.addColorStop(1, '#563412');
-        return g;
-      };
-      const highlightGradient = (x, y) => {
-        const g = ctx.createRadialGradient(
-          x - studRadius * 0.22,
-          y - studRadius * 0.22,
-          studRadius * 0.05,
-          x,
-          y,
-          studRadius * 0.85
-        );
-        g.addColorStop(0, 'rgba(255,255,255,0.9)');
-        g.addColorStop(0.25, 'rgba(255,255,255,0.45)');
-        g.addColorStop(1, 'rgba(255,255,255,0)');
+        g.addColorStop(0, '#fff4c2');
+        g.addColorStop(0.42, '#f1cf64');
+        g.addColorStop(0.72, '#c99c2e');
+        g.addColorStop(1, '#8a641a');
         return g;
       };
       const studPadding = Math.max(padding * 0.5, studRadius * 2.4);
@@ -8005,9 +7974,6 @@ function Table3D(
         [studPadding, canvas.height - studPadding]
       ];
       studs.forEach(([x, y]) => {
-        ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.38)';
-        ctx.shadowBlur = studRadius * 0.9;
         ctx.fillStyle = studGradient(x, y);
         ctx.beginPath();
         ctx.arc(x, y, studRadius, 0, Math.PI * 2);
@@ -8015,14 +7981,6 @@ function Table3D(
         ctx.lineWidth = Math.max(2, studRadius * 0.25);
         ctx.strokeStyle = '#5a3e10';
         ctx.stroke();
-        ctx.restore();
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.fillStyle = highlightGradient(x, y);
-        ctx.beginPath();
-        ctx.arc(x, y, studRadius * 0.9, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
       });
     }
 
@@ -8780,12 +8738,12 @@ function Table3D(
 
   const brandPlateTexture =
     createCarbonLabelTexture({
-      width: 2048,
-      height: 512,
+      width: 1200,
+      height: 360,
       lines: [{ text: 'TonPlaygram', size: 0.34, weight: '800' }],
       borderWidth: Math.max(TABLE.THICK * 6, 18),
-      padding: 140,
-      studScale: 0.2
+      padding: 110,
+      studScale: 0.22
     }) || null;
   const brandPlateTopMaterial = brandPlateTexture
     ? new THREE.MeshPhysicalMaterial({
@@ -8819,12 +8777,12 @@ function Table3D(
     mat.sheenRoughness = Math.min(mat.sheenRoughness ?? 0.6, 0.6);
     return mat;
   };
-  const brandPlateThickness = chromePlateThickness; // match chrome fascia thickness so the plate reads thinner
-  const brandPlateDepth = Math.min(endRailW * 0.62, TABLE.THICK * 0.82);
+  const brandPlateThickness = Math.max(TABLE.THICK * 0.12, railH * 0.16);
+  const brandPlateDepth = Math.min(endRailW * 0.7, TABLE.THICK * 0.96);
   const brandPlateWidth = Math.min(PLAY_W * 0.34, Math.max(BALL_R * 10, PLAY_W * 0.26));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardOffset = endRailW * 0.22;
+  const brandPlateZOffset = endRailW * 0.1;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -8840,7 +8798,7 @@ function Table3D(
       createBrandSideMaterial()
     ];
     const plate = new THREE.Mesh(brandPlateGeom, materials);
-    plate.position.set(0, brandPlateY, dirZ * (shortRailCenterZ + brandPlateOutwardOffset));
+    plate.position.set(0, brandPlateY, dirZ * (shortRailCenterZ - brandPlateZOffset));
     plate.castShadow = true;
     plate.receiveShadow = true;
     plate.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.2;
