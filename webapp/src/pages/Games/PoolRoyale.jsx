@@ -1108,9 +1108,9 @@ const MAX_POWER_CAMERA_HOLD_MS = 2000;
 const MAX_POWER_SPIN_LATERAL_THROW = BALL_R * 0.42; // let max-power jumps inherit a strong sideways release from active side spin
 const MAX_POWER_SPIN_LIFT_BONUS = BALL_R * 0.28; // spin adds extra hop height when the cue ball is driven at full power
 const POCKET_INTERIOR_CAPTURE_R =
-  POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 1.015; // widen capture slightly so clean entries are honoured
+  POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 0.985; // tighten capture so balls fall exactly at the pocket mouth instead of early
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
-  SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 1.025; // expand the middle pocket capture to prevent rail bounces on centre-line pots
+  SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION * 0.99; // narrow the middle pocket trigger so drops line up with the gully
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the interior bowl so balls fall at the throat
 const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now matches the bowl opening instead of scaling from corners
 const POCKET_GUARD_RADIUS = POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.06; // align the rail guard to the playable capture bowl instead of the visual rim
@@ -1159,6 +1159,8 @@ const POCKET_DROP_REST_HOLD_MS = 360; // keep the ball visible on the strap brie
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(12); // slight angle so potted balls settle against the strap
+const POCKET_HOLDER_QUEUE_SPACING = BALL_DIAMETER * 1.05; // keep collected balls in a single row instead of stacking
+const POCKET_HOLDER_QUEUE_LIMIT = 0.96; // clamp row placement so balls stay on the chrome rails
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_SCALE = 1.6;
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
@@ -7351,10 +7353,10 @@ function Table3D(
 
     if (strapOrigin && strapEnd) {
       const strapGeom = new THREE.BoxGeometry(
-        pocketStrapWidth,
         pocketStrapThickness,
+        pocketStrapWidth,
         pocketStrapLength
-      );
+      ); // vertical leather strap aligned along the holder rails
       const strapDirNormalized = strapDir.clone().normalize();
       const strap = new THREE.Mesh(strapGeom, pocketJawMat);
       const strapMid = strapEnd
@@ -7381,18 +7383,23 @@ function Table3D(
       holderStem.castShadow = true;
       holderStem.receiveShadow = true;
       holderGroup.add(holderStem);
-      const holderBed = new THREE.Mesh(
-        new THREE.BoxGeometry(
-          pocketStrapWidth * 0.9,
-          POCKET_HOLDER_L_THICKNESS,
-          POCKET_HOLDER_L_SPAN
-        ),
-        pocketGuideMaterial
+
+      // Replace the solid tray with three chrome cradle rods that mirror the photo reference.
+      const cradleRodGeom = new THREE.CylinderGeometry(
+        POCKET_GUIDE_RADIUS * 0.9,
+        POCKET_GUIDE_RADIUS * 0.9,
+        POCKET_HOLDER_L_SPAN,
+        12
       );
-      holderBed.position.set(0, -POCKET_HOLDER_L_LEG, POCKET_HOLDER_L_SPAN / 2);
-      holderBed.castShadow = true;
-      holderBed.receiveShadow = true;
-      holderGroup.add(holderBed);
+      const rodOffsets = [-POCKET_GUIDE_SPREAD, 0, POCKET_GUIDE_SPREAD];
+      rodOffsets.forEach((offset) => {
+        const rod = new THREE.Mesh(cradleRodGeom, pocketGuideMaterial);
+        rod.position.set(offset, -POCKET_HOLDER_L_LEG, POCKET_HOLDER_L_SPAN / 2);
+        rod.rotation.x = Math.PI / 2;
+        rod.castShadow = true;
+        rod.receiveShadow = true;
+        holderGroup.add(rod);
+      });
       const holderForward = outwardDir.clone().setY(0);
       if (holderForward.lengthSq() <= MICRO_EPS) {
         holderForward.set(0, 0, 1);
@@ -22869,16 +22876,24 @@ const powerRef = useRef(hud.power);
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
               const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
+              const pocketQueue = Array.from(pocketDropRef.current.values()).filter(
+                (entry) => entry?.pocketId === pocketId
+              );
               const dropStart = performance.now();
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
               const holderDir = resolvePocketHolderDirection(c, pocketId);
               const restDistance = POCKET_GUIDE_LENGTH * POCKET_HOLDER_REST_FRACTION;
-              const tiltDrop = Math.tan(POCKET_HOLDER_TILT_RAD) * restDistance;
-              const restTarget = new THREE.Vector3(c.x, 0, c.y).addScaledVector(
-                holderDir,
-                restDistance
+              const queueIndex = pocketQueue.length;
+              const queueOffset = Math.min(
+                queueIndex * POCKET_HOLDER_QUEUE_SPACING,
+                POCKET_GUIDE_LENGTH * POCKET_HOLDER_QUEUE_LIMIT
               );
+              const totalRun = restDistance + queueOffset;
+              const tiltDrop = Math.tan(POCKET_HOLDER_TILT_RAD) * totalRun;
+              const restTarget = new THREE.Vector3(c.x, 0, c.y)
+                .addScaledVector(holderDir, restDistance)
+                .addScaledVector(holderDir, queueOffset);
               const targetX = restTarget.x;
               const targetZ = restTarget.z;
               const dropEntry = {
