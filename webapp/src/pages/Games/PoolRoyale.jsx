@@ -1159,7 +1159,7 @@ const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_DROP_DEPTH = TABLE.THICK * 0.9;
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall slightly above the previous floor so it rests on the strap
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
-const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(16); // give the holders a clearer downward angle like the reference tables
+const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(12); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_SCALE = 1.6;
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
@@ -1169,9 +1169,6 @@ const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_TOP_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
-const POCKET_HOLDER_RING_RADIUS = Math.max(POCKET_BOTTOM_R * 0.62, BALL_R * 1.06); // size the chrome/gold ring to match the net base and let balls pass cleanly
-const POCKET_HOLDER_RING_TUBE = BALL_R * 0.22;
-const POCKET_HOLDER_SETTLE_DROP = BALL_R * 0.2; // let balls rest slightly deeper inside the cradle
 const POCKET_WALL_OPEN_TRIM = TABLE.THICK * 0.18;
 const POCKET_WALL_HEIGHT = TABLE.THICK * 0.7 - POCKET_WALL_OPEN_TRIM;
 const POCKET_NET_DEPTH = TABLE.THICK * 2.1;
@@ -5671,9 +5668,10 @@ const resolvePocketHolderDirection = (center, pocketId = null) => {
   const absZ = Math.abs(center?.y ?? 0);
   const isMiddlePocket = pocketId === 'TM' || pocketId === 'BM' || absZ < BALL_R * 0.6;
   if (isMiddlePocket) {
-    // Run the middle-pocket holders outward across the rail so the strap sits on the outer side.
-    const outwardX = Math.sign(center?.x || 1) || 1;
-    return new THREE.Vector3(outwardX, 0, 0);
+    const towardTop = pocketId === 'TM';
+    const towardBottom = pocketId === 'BM';
+    const zDir = towardTop ? -1 : towardBottom ? 1 : Math.sign(center?.x || 1);
+    return new THREE.Vector3(0, 0, zDir || 1);
   }
   if (absX >= absZ) {
     return new THREE.Vector3(Math.sign(center?.x || 1), 0, 0);
@@ -7221,17 +7219,16 @@ function Table3D(
   const pocketGuideRadius = BALL_R * 0.09;
   const pocketGuideLength = POCKET_NET_DEPTH * 1.35;
   const pocketGuideDrop = BALL_R * 0.28;
-const pocketGuideSpread = BALL_R * 0.32;
-const pocketGuideRingRadius = POCKET_HOLDER_RING_RADIUS;
-const pocketStrapLength = pocketGuideLength * 0.62;
-const pocketStrapWidth = BALL_R * 1.35;
-const pocketStrapThickness = BALL_R * 0.18;
-const pocketMeshes = [];
-const pocketRestTargets = [];
-pocketCenters().forEach((p, index) => {
-  const pocketId = POCKET_IDS[index] ?? null;
-  const isMiddlePocket = index >= 4;
-  const pocketLift = isMiddlePocket ? SIDE_POCKET_PLYWOOD_LIFT : 0;
+  const pocketGuideSpread = BALL_R * 0.32;
+  const pocketGuideRingRadius = BALL_R * 0.24;
+  const pocketStrapLength = pocketGuideLength * 0.62;
+  const pocketStrapWidth = BALL_R * 1.35;
+  const pocketStrapThickness = BALL_R * 0.18;
+  const pocketMeshes = [];
+  pocketCenters().forEach((p, index) => {
+    const pocketId = POCKET_IDS[index] ?? null;
+    const isMiddlePocket = index >= 4;
+    const pocketLift = isMiddlePocket ? SIDE_POCKET_PLYWOOD_LIFT : 0;
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
     pocket.position.set(p.x, pocketTopY - POCKET_WALL_HEIGHT / 2 + pocketLift, p.y);
     pocket.renderOrder = cloth.renderOrder - 0.5; // render beneath the cloth to avoid z-fighting
@@ -7281,12 +7278,7 @@ pocketCenters().forEach((p, index) => {
       finishParts.pocketBaseMeshes.push(guide);
 
       // Add a small chrome ring at the end of each guide as a ball holder.
-      const ringGeom = new THREE.TorusGeometry(
-        pocketGuideRingRadius,
-        POCKET_HOLDER_RING_TUBE,
-        16,
-        24
-      );
+      const ringGeom = new THREE.TorusGeometry(pocketGuideRingRadius, pocketGuideRadius * 0.66, 10, 18);
       const ring = new THREE.Mesh(ringGeom, pocketGuideMaterial);
       ring.position.copy(end);
       ring.rotation.x = Math.PI / 2;
@@ -7294,9 +7286,6 @@ pocketCenters().forEach((p, index) => {
       ring.receiveShadow = true;
       table.add(ring);
       finishParts.pocketBaseMeshes.push(ring);
-      if (i === 1) {
-        pocketRestTargets[index] = end.clone().add(new THREE.Vector3(0, -POCKET_HOLDER_SETTLE_DROP, 0));
-      }
 
       if (i === 1) {
         const strapGeom = new THREE.BoxGeometry(
@@ -22779,16 +22768,13 @@ const powerRef = useRef(hud.power);
               const strapOffset = holderDir
                 .clone()
                 .multiplyScalar(POCKET_HOLDER_SLIDE);
-              const restTarget = pocketRestTargets[pocketIndex];
-              const targetX = restTarget?.x ?? c.x + strapOffset.x;
-              const targetZ = restTarget?.z ?? c.y + strapOffset.z;
-              const targetY =
-                restTarget?.y ?? BALL_CENTER_Y - POCKET_DROP_STRAP_DEPTH;
+              const targetX = c.x + strapOffset.x;
+              const targetZ = c.y + strapOffset.z;
               const dropEntry = {
                 start: dropStart,
                 fromY: BALL_CENTER_Y,
                 currentY: BALL_CENTER_Y,
-                targetY,
+                targetY: BALL_CENTER_Y - POCKET_DROP_STRAP_DEPTH,
                 fromX,
                 fromZ,
                 toX: targetX,
