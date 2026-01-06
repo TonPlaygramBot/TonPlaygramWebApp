@@ -1168,15 +1168,15 @@ const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_TOP_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
-const POCKET_WALL_OPEN_TRIM = TABLE.THICK * 0.18;
-const POCKET_WALL_HEIGHT = TABLE.THICK * 0.7 - POCKET_WALL_OPEN_TRIM;
-const POCKET_NET_DEPTH = TABLE.THICK * 2.1;
+const POCKET_WALL_OPEN_TRIM = 0;
+const POCKET_WALL_HEIGHT = TABLE.THICK * 0.08;
+const POCKET_NET_DEPTH = TABLE.THICK * 2.25;
 const POCKET_NET_SEGMENTS = 48;
 const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 0.9; // drop nearly the full net depth so potted balls clear the rim
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall slightly above the ring/strap junction
-const POCKET_NET_RING_RADIUS_SCALE = 0.62; // match the ring diameter to the net's lowest hoop so the net and chrome line up exactly
+const POCKET_NET_RING_RADIUS_SCALE = 0.9; // widen the ring so balls clear it before rolling onto the chrome holders
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
-const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.02; // sit the ring directly against the bottom of the woven net
+const POCKET_NET_RING_VERTICAL_OFFSET = 0; // seat the ring flush to the net bottom without dipping below the weave
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
 const POCKET_GUIDE_DROP = BALL_R * 0.28;
@@ -7307,8 +7307,9 @@ function Table3D(
     finishParts.pocketBaseMeshes.push(ring);
 
     const outwardDir = resolvePocketHolderDirection(p, pocketId);
-    const sideDir = new THREE.Vector3().crossVectors(outwardDir, new THREE.Vector3(0, 1, 0)).normalize();
-    const strapDir = outwardDir.clone().setY(-Math.tan(POCKET_HOLDER_TILT_RAD)).normalize();
+    const holderDir = outwardDir.clone().negate(); // flip the holders to the opposite side of the ring
+    const sideDir = new THREE.Vector3().crossVectors(holderDir, new THREE.Vector3(0, 1, 0)).normalize();
+    const strapDir = holderDir.clone().setY(-Math.tan(POCKET_HOLDER_TILT_RAD)).normalize();
     const railStartOffset = pocketGuideRingRadius + POCKET_GUIDE_RING_CLEARANCE;
     const buildGuideSegment = (start, end) => {
       const delta = end.clone().sub(start);
@@ -7337,7 +7338,7 @@ function Table3D(
       const isCenterGuide = i === 1;
       const start = ringAnchor
         .clone()
-        .addScaledVector(outwardDir, railStartOffset)
+        .addScaledVector(holderDir, railStartOffset)
         .addScaledVector(sideDir, lateralOffset)
         .add(new THREE.Vector3(0, isCenterGuide ? -POCKET_GUIDE_FLOOR_DROP : 0, 0));
       const stemEnd = start.clone().add(new THREE.Vector3(0, -POCKET_GUIDE_STEM_DEPTH, 0));
@@ -7364,7 +7365,7 @@ function Table3D(
       const strap = new THREE.Mesh(strapGeom, pocketJawMat);
       const strapAnchor = strapEnd.clone();
       const strapTopLimit = pocketTopY - TABLE.THICK * 0.08;
-      strapAnchor.y = Math.min(strapAnchor.y, strapTopLimit);
+      strapAnchor.y = Math.max(strapAnchor.y, strapTopLimit);
       const strapMid = strapAnchor.clone();
       strapMid.y -= strapHeight * 0.5;
       const flatDir = strapDir.clone().setY(0);
@@ -22842,7 +22843,7 @@ const powerRef = useRef(hud.power);
               const dropStart = performance.now();
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
-              const holderDir = resolvePocketHolderDirection(c, pocketId);
+              const holderDir = resolvePocketHolderDirection(c, pocketId).negate();
               const pocketRestIndex =
                 pocketRestIndexRef.current.get(pocketId) ?? 0;
               const ringAnchor = new THREE.Vector3(
