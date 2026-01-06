@@ -224,7 +224,7 @@ const updateRendererAnisotropyCap = (renderer) => {
 const resolveTextureAnisotropy = (fallback = 1) =>
   Math.max(rendererAnisotropyCap, Number.isFinite(fallback) ? fallback : 1);
 
-const POCKET_NET_LINE_THICKNESS_SCALE = 1.1;
+const POCKET_NET_LINE_THICKNESS_SCALE = 1.32;
 
 const createPocketNetTexture = (size = 256, repeat = POCKET_NET_HEX_REPEAT) => {
   if (typeof document === 'undefined') return null;
@@ -235,7 +235,7 @@ const createPocketNetTexture = (size = 256, repeat = POCKET_NET_HEX_REPEAT) => {
   ctx.clearRect(0, 0, size, size);
   const lineWidth = Math.max(1, (size / 128) * POCKET_NET_LINE_THICKNESS_SCALE);
   ctx.lineWidth = lineWidth;
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.98)';
   const drawHex = (cx, cy, r) => {
     ctx.beginPath();
     for (let i = 0; i < 6; i += 1) {
@@ -1187,27 +1187,27 @@ const POCKET_TOP_R =
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
 const POCKET_WALL_OPEN_TRIM = TABLE.THICK * 0.18;
 const POCKET_WALL_HEIGHT = TABLE.THICK * 0.7 - POCKET_WALL_OPEN_TRIM;
-const POCKET_NET_DEPTH = TABLE.THICK * 2.1;
+const POCKET_NET_DEPTH = TABLE.THICK * 2.2;
 const POCKET_NET_SEGMENTS = 64;
 const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 0.9; // drop nearly the full net depth so potted balls clear the rim
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
-const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
-const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.02; // sit the ring directly against the bottom of the woven net
+const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.16; // thicker chrome to read as a connector between net and holder rails
+const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.12; // sit the ring directly against the bottom of the woven net
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
 const POCKET_GUIDE_DROP = BALL_R * 0.28;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
-const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.16; // start the chrome rails just outside the ring to keep the mouth open
-const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 0.6; // allow the L-arms to peek past the ring without blocking the pocket mouth
-const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.72; // lengthen the elbow so each rail meets the ring with a ball-length guide
-const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.3; // drop the centre rail to form the floor of the holder
+const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.1; // start the chrome rails just outside the ring to keep the mouth open
+const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
+const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.82; // lengthen the elbow so each rail meets the ring with a ball-length guide
+const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.32; // drop the centre rail to form the floor of the holder
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.12; // wider spacing so potted balls line up without overlapping on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 1.05; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 0.7; // keep the resting spot visibly below the pocket throat
+const POCKET_HOLDER_REST_DROP = BALL_R * 0.86; // keep the resting spot visibly below the pocket throat
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -7261,22 +7261,22 @@ function Table3D(
   });
   const pocketNetTexture = createPocketNetTexture();
   const pocketNetMaterial = new THREE.MeshStandardMaterial({
-    color: 0xf1ebe0,
-    metalness: 0.1,
-    roughness: 0.4,
-    opacity: 0.92,
+    color: 0xfafafa,
+    metalness: 0.08,
+    roughness: 0.32,
+    opacity: 0.97,
     transparent: true,
     alphaMap: pocketNetTexture || undefined,
-    alphaTest: 0.28,
+    alphaTest: 0.22,
     side: THREE.DoubleSide,
     depthWrite: false
   });
   const pocketNetProfile = [
     new THREE.Vector2(POCKET_BOTTOM_R * 0.98, 0),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.94, -POCKET_NET_DEPTH * 0.14),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.82, -POCKET_NET_DEPTH * 0.42),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.66, -POCKET_NET_DEPTH * 0.72),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.62, -POCKET_NET_DEPTH * 0.98)
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.94, -POCKET_NET_DEPTH * 0.16),
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.82, -POCKET_NET_DEPTH * 0.45),
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.66, -POCKET_NET_DEPTH * 0.76),
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.62, -POCKET_NET_DEPTH * 1.05)
   ];
   const pocketNetGeo = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
   const pocketGuideMaterial = trimMat;
@@ -7316,7 +7316,7 @@ function Table3D(
     finishParts.pocketNetMeshes.push(net);
 
     // Add chrome cradle rails and holders beneath the pocket net to catch potted balls.
-    const netBottomY = net.position.y - POCKET_NET_DEPTH * 0.98;
+    const netBottomY = net.position.y - POCKET_NET_DEPTH * 1.04;
     const ringAnchor = new THREE.Vector3(
       p.x,
       netBottomY + POCKET_NET_RING_VERTICAL_OFFSET,
@@ -8840,11 +8840,11 @@ function Table3D(
     return mat;
   };
   const brandPlateThickness = chromePlateThickness;
-  const brandPlateDepth = Math.min(endRailW * 0.62, TABLE.THICK * 0.86);
-  const brandPlateWidth = Math.min(PLAY_W * 0.34, Math.max(BALL_R * 10, PLAY_W * 0.26));
+  const brandPlateDepth = Math.min(endRailW * 0.54, TABLE.THICK * 0.78);
+  const brandPlateWidth = Math.min(PLAY_W * 0.38, Math.max(BALL_R * 10.5, PLAY_W * 0.28));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.12;
+  const brandPlateOutwardShift = endRailW * 0.18;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -23254,8 +23254,11 @@ const powerRef = useRef(hud.power);
                 c.y
               );
               const holderSpacing = POCKET_HOLDER_REST_SPACING;
-              const railStartOffset =
-                POCKET_NET_RING_RADIUS_SCALE * POCKET_BOTTOM_R + POCKET_GUIDE_RING_CLEARANCE;
+              const railRingRadius = POCKET_NET_RING_RADIUS_SCALE * POCKET_BOTTOM_R;
+              const railStartOffset = Math.max(
+                MICRO_EPS,
+                railRingRadius + POCKET_GUIDE_RING_CLEARANCE - POCKET_GUIDE_RING_OVERLAP
+              );
               const restDistanceBase = Math.max(
                 railStartOffset + POCKET_GUIDE_LENGTH - POCKET_HOLDER_REST_PULLBACK,
                 railStartOffset + holderSpacing
