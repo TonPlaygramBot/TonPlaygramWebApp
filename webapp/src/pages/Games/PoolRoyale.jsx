@@ -224,6 +224,171 @@ const updateRendererAnisotropyCap = (renderer) => {
 const resolveTextureAnisotropy = (fallback = 1) =>
   Math.max(rendererAnisotropyCap, Number.isFinite(fallback) ? fallback : 1);
 
+const CARBON_PATTERN_TILE = 128;
+let carbonPatternCanvas = null;
+const buildCarbonPatternCanvas = (size = CARBON_PATTERN_TILE) => {
+  if (carbonPatternCanvas && carbonPatternCanvas.width === size) {
+    return carbonPatternCanvas;
+  }
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = '#050505';
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#0f0f0f';
+  ctx.fillRect(0, 0, size / 2, size / 2);
+  ctx.fillRect(size / 2, size / 2, size / 2, size / 2);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.moveTo(size / 2, 0);
+  ctx.lineTo(size, 0);
+  ctx.lineTo(0, size);
+  ctx.lineTo(0, size / 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(size, size / 2);
+  ctx.lineTo(size, size);
+  ctx.lineTo(size / 2, size);
+  ctx.closePath();
+  ctx.fill();
+  carbonPatternCanvas = canvas;
+  return carbonPatternCanvas;
+};
+
+const createCarbonLabelTexture = ({
+  width = 1024,
+  height = 512,
+  text = null,
+  font = 'bold 164px "Inter", Arial, sans-serif',
+  textColor = '#f5d46b',
+  strokeColor = '#b58324',
+  glowColor = 'rgba(255,223,153,0.35)',
+  inset = 0.08,
+  borderWidth = 0.06,
+  repeat = 1
+} = {}) => {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const patternCanvas = buildCarbonPatternCanvas();
+  const pattern = patternCanvas ? ctx.createPattern(patternCanvas, 'repeat') : null;
+  ctx.fillStyle = pattern ?? '#0b0b0b';
+  ctx.fillRect(0, 0, width, height);
+
+  const border = Math.max(borderWidth * height, 12);
+  const insetPx = Math.max(inset * Math.min(width, height), 16);
+  const innerX = insetPx;
+  const innerY = insetPx;
+  const innerW = width - insetPx * 2;
+  const innerH = height - insetPx * 2;
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, 'rgba(255,221,160,0.4)');
+  gradient.addColorStop(0.5, 'rgba(255,239,204,0.18)');
+  gradient.addColorStop(1, 'rgba(255,207,120,0.32)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(innerX, innerY, innerW, innerH);
+
+  ctx.lineWidth = border;
+  ctx.strokeStyle = strokeColor;
+  ctx.strokeRect(
+    innerX + border * 0.5,
+    innerY + border * 0.5,
+    innerW - border,
+    innerH - border
+  );
+
+  if (glowColor) {
+    ctx.strokeStyle = glowColor;
+    ctx.lineWidth = border * 0.55;
+    ctx.strokeRect(
+      innerX + border,
+      innerY + border,
+      innerW - border * 2,
+      innerH - border * 2
+    );
+  }
+
+  if (text) {
+    ctx.fillStyle = textColor;
+    ctx.font = font;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const centerY = height / 2;
+    for (let i = 0; i < Math.max(1, repeat); i += 1) {
+      const t = Math.max(1, repeat) === 1 ? 0.5 : (i + 1) / (repeat + 1);
+      ctx.fillText(text, width * t, centerY);
+    }
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = resolveTextureAnisotropy(texture.anisotropy ?? 1);
+  texture.needsUpdate = true;
+  return texture;
+};
+
+let chalkTopTextureCache = null;
+let chalkSideTextureCache = null;
+let tonPlaygramBadgeTextureCache = null;
+
+const getChalkTopTexture = () => {
+  if (chalkTopTextureCache || typeof document === 'undefined') return chalkTopTextureCache;
+  chalkTopTextureCache = createCarbonLabelTexture({
+    width: 1024,
+    height: 640,
+    text: CHALK_LABEL_TEXT.toUpperCase(),
+    font: CHALK_LABEL_FONT,
+    textColor: '#f7e4a3',
+    strokeColor: '#c8902f',
+    glowColor: 'rgba(255,214,124,0.32)',
+    inset: CHALK_LABEL_EDGE,
+    borderWidth: 0.05
+  });
+  return chalkTopTextureCache;
+};
+
+const getChalkSideTexture = () => {
+  if (chalkSideTextureCache || typeof document === 'undefined') return chalkSideTextureCache;
+  chalkSideTextureCache = createCarbonLabelTexture({
+    width: 1024,
+    height: 320,
+    text: 'TP CHALK',
+    font: 'bold 118px "Inter", Arial, sans-serif',
+    textColor: '#f4d37a',
+    strokeColor: '#9c7a2b',
+    glowColor: 'rgba(255,214,124,0.2)',
+    inset: CHALK_LABEL_EDGE * 0.7,
+    borderWidth: 0.04,
+    repeat: 3
+  });
+  return chalkSideTextureCache;
+};
+
+const getTonPlaygramBadgeTexture = () => {
+  if (tonPlaygramBadgeTextureCache || typeof document === 'undefined') {
+    return tonPlaygramBadgeTextureCache;
+  }
+  tonPlaygramBadgeTextureCache = createCarbonLabelTexture({
+    width: 1024,
+    height: 420,
+    text: 'TonPlaygram',
+    font: 'bold 186px "Inter", Arial, sans-serif',
+    textColor: '#f7d87c',
+    strokeColor: '#b3842c',
+    glowColor: 'rgba(255,219,141,0.28)',
+    inset: 0.1,
+    borderWidth: 0.055
+  });
+  return tonPlaygramBadgeTextureCache;
+};
+
 const POCKET_NET_LINE_THICKNESS_SCALE = 1.45;
 
 const createPocketNetTexture = (size = 256, repeat = 2) => {
@@ -994,13 +1159,16 @@ const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.02; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
 const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.026; // gently bias the middle pocket centres and cuts back toward the playfield
 const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.032; // pull only the middle pocket cloth cutouts slightly toward the playfield centre
-const CHALK_TOP_COLOR = 0x1f6d86;
-const CHALK_SIDE_COLOR = 0x162b36;
-const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
-const CHALK_BOTTOM_COLOR = 0x0b1118;
-const CHALK_ACTIVE_COLOR = 0x4bd4ff;
-const CHALK_EMISSIVE_COLOR = 0x071b26;
-const CHALK_ACTIVE_EMISSIVE_COLOR = 0x0d3b5d;
+const CHALK_TOP_COLOR = 0xffffff;
+const CHALK_SIDE_COLOR = 0xf4f6fb;
+const CHALK_SIDE_ACTIVE_COLOR = 0xffe1a3;
+const CHALK_BOTTOM_COLOR = 0x0a1019;
+const CHALK_ACTIVE_COLOR = 0xfcd67c;
+const CHALK_EMISSIVE_COLOR = 0x0a1c2b;
+const CHALK_ACTIVE_EMISSIVE_COLOR = 0x1c3955;
+const CHALK_LABEL_TEXT = 'high quality TP chalk';
+const CHALK_LABEL_FONT = 'bold 72px "Inter", Arial, sans-serif';
+const CHALK_LABEL_EDGE = 0.12;
 const CHALK_PRECISION_SLOW_MULTIPLIER = 0.25;
 const CHALK_AIM_LERP_SLOW = 0.08;
 const CHALK_TARGET_RING_RADIUS = BALL_R * 2;
@@ -1186,8 +1354,8 @@ const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.72; // lengthen the elbow so e
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.24; // drop the centre rail to form the floor of the holder
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.12; // wider spacing so potted balls line up without overlapping on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 0.35; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 0.38; // keep the resting spot visibly below the pocket throat
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 0.14; // stop the lead ball right against the leather strap without letting it bury the backstop
+const POCKET_HOLDER_REST_DROP = BALL_R * 0.52; // keep the resting spot visibly below the pocket throat and resting on the chrome holders
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -8707,20 +8875,70 @@ function Table3D(
 
   table.add(railsGroup);
 
+  const brandBadgeTexture = getTonPlaygramBadgeTexture();
+  const brandPlateThickness = TABLE.THICK * 0.12;
+  const brandPlateWidth = Math.min(PLAY_W * 0.28, longRailW * 1.6);
+  const brandPlateDepth = Math.min(endRailW * 0.6, brandPlateWidth * 0.46);
+  const brandPlateMat = trimMat.clone();
+  enhanceChromeMaterial(brandPlateMat);
+  brandPlateMat.needsUpdate = true;
+  const brandSurfaceMat = new THREE.MeshPhysicalMaterial({
+    color: trimMat.color?.clone?.() ?? new THREE.Color(0xffffff),
+    map: brandBadgeTexture ?? null,
+    metalness: brandPlateMat.metalness ?? 0.2,
+    roughness: Math.max(0.18, (brandPlateMat.roughness ?? 0.35) * 0.85),
+    clearcoat: brandPlateMat.clearcoat ?? 0.28,
+    clearcoatRoughness: brandPlateMat.clearcoatRoughness ?? 0.28,
+    envMapIntensity: brandPlateMat.envMapIntensity ?? 0.7
+  });
+
+  const buildBrandPlate = (signZ) => {
+    const brandGroup = new THREE.Group();
+    const base = new THREE.Mesh(
+      new THREE.BoxGeometry(brandPlateWidth, brandPlateThickness, brandPlateDepth),
+      brandPlateMat
+    );
+    base.position.y = brandPlateThickness / 2;
+    base.castShadow = false;
+    base.receiveShadow = true;
+    base.userData = { ...(base.userData || {}), baseMaterialKey: 'trim', isChromePlate: true };
+    brandGroup.add(base);
+    finishParts.trimMeshes.push(base);
+
+    const badge = new THREE.Mesh(
+      new THREE.PlaneGeometry(brandPlateWidth * 0.9, brandPlateDepth * 0.72),
+      brandSurfaceMat
+    );
+    badge.rotation.x = -Math.PI / 2;
+    badge.position.y = brandPlateThickness + MICRO_EPS * 2;
+    badge.receiveShadow = false;
+    brandGroup.add(badge);
+
+    brandGroup.position.set(0, railsTopY + brandPlateThickness / 2 + MICRO_EPS * 4, signZ);
+    brandGroup.name = 'tonplaygram-brand';
+    railsGroup.add(brandGroup);
+  };
+
+  const shortRailPlateZ = halfH + endRailW * 0.5;
+  [-1, 1].forEach((dir) => buildBrandPlate(dir * shortRailPlateZ));
+
   const chalkGroup = new THREE.Group();
   const chalkScale = 0.5;
   const chalkSize = BALL_R * 1.92 * chalkScale;
   const chalkHeight = BALL_R * 1.35 * chalkScale;
   const chalkGeometry = new THREE.BoxGeometry(chalkSize, chalkHeight, chalkSize);
+  const chalkTopTexture = getChalkTopTexture();
+  const chalkSideTexture = getChalkSideTexture();
   const createChalkMaterials = () => {
     const top = new THREE.MeshPhysicalMaterial({
       color: CHALK_TOP_COLOR,
-      roughness: 0.42,
-      metalness: 0.08,
-      sheen: 0.2,
-      sheenRoughness: 0.55,
+      map: chalkTopTexture ?? null,
+      roughness: 0.28,
+      metalness: 0.16,
+      sheen: 0.24,
+      sheenRoughness: 0.38,
       emissive: new THREE.Color(CHALK_EMISSIVE_COLOR),
-      emissiveIntensity: 0.2
+      emissiveIntensity: 0.26
     });
     const bottom = new THREE.MeshPhysicalMaterial({
       color: CHALK_BOTTOM_COLOR,
@@ -8729,10 +8947,11 @@ function Table3D(
     });
     const side = new THREE.MeshPhysicalMaterial({
       color: CHALK_SIDE_COLOR,
-      roughness: 0.68,
-      metalness: 0.05,
+      map: chalkSideTexture ?? null,
+      roughness: 0.46,
+      metalness: 0.12,
       emissive: new THREE.Color(CHALK_EMISSIVE_COLOR),
-      emissiveIntensity: 0.16
+      emissiveIntensity: 0.18
     });
     return [
       side.clone(),
@@ -9445,8 +9664,8 @@ function Table3D(
       return { meshes, legMeshes };
     },
     coffeeTableRound01: createPolyhavenTableBaseBuilder('coffee_table_round_01', {
-      footprintScale: 1.05,
-      footprintDepthScale: 1.12,
+      footprintScale: 0.98,
+      footprintDepthScale: 1.04,
       heightFill: 0.8,
       topInsetScale: 0.96,
       materialKey: 'trim'
@@ -16813,6 +17032,7 @@ const powerRef = useRef(hud.power);
           setReplayActive(true);
           storeReplayCameraFrame();
           resetCameraForReplay();
+          let replayFocusOverride = null;
           replayPlayback = {
             frames: trimmed.frames,
             cuePath: trimmed.cuePath,
@@ -16840,6 +17060,7 @@ const powerRef = useRef(hud.power);
                 Math.max(baseSurfaceWorldY, BALL_CENTER_Y * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE)),
                 (start.z + end.z) * 0.5
               );
+              replayFocusOverride = focus.clone();
               const cinematicReplayCamera = resolveRailOverheadReplayCamera({
                 focusOverride: focus,
                 minTargetY: focus.y
@@ -16852,6 +17073,20 @@ const powerRef = useRef(hud.power);
                 };
               }
             }
+          }
+          const railReplayCamera = resolveRailOverheadReplayCamera({
+            focusOverride:
+              replayFocusOverride ??
+              broadcastCamerasRef.current?.defaultFocusWorld ??
+              null,
+            minTargetY: replayFocusOverride?.y ?? baseSurfaceWorldY
+          });
+          if (railReplayCamera) {
+            replayFrameCameraRef.current = {
+              frameA: railReplayCamera,
+              frameB: railReplayCamera,
+              alpha: 0
+            };
           }
         };
 
@@ -22882,9 +23117,15 @@ const powerRef = useRef(hud.power);
                 railStartOffset + BALL_R * 0.6
               );
               const clampedRestIndex = Math.max(0, pocketRestIndex);
-              const restDistance = Math.max(
+              const desiredRestDistance = Math.max(
                 minRestDistance,
                 restDistanceBase - clampedRestIndex * holderSpacing
+              );
+              const strapStopDistance =
+                railStartOffset + POCKET_GUIDE_LENGTH - pocketStrapThickness * 0.6;
+              const restDistance = Math.min(
+                desiredRestDistance,
+                Math.max(minRestDistance, strapStopDistance - BALL_R * 0.2)
               );
               pocketRestIndexRef.current.set(pocketId, pocketRestIndex + 1);
               const tiltDrop = Math.tan(POCKET_HOLDER_TILT_RAD) * restDistance;
