@@ -994,13 +994,13 @@ const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.02; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
 const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.026; // gently bias the middle pocket centres and cuts back toward the playfield
 const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.032; // pull only the middle pocket cloth cutouts slightly toward the playfield centre
-const CHALK_TOP_COLOR = 0x2c8cb4;
-const CHALK_SIDE_COLOR = 0x0a0d12;
-const CHALK_SIDE_ACTIVE_COLOR = 0x1b607c;
-const CHALK_BOTTOM_COLOR = 0x05070b;
+const CHALK_TOP_COLOR = 0x1f6d86;
+const CHALK_SIDE_COLOR = 0x162b36;
+const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
+const CHALK_BOTTOM_COLOR = 0x0b1118;
 const CHALK_ACTIVE_COLOR = 0x4bd4ff;
-const CHALK_EMISSIVE_COLOR = 0x030a12;
-const CHALK_ACTIVE_EMISSIVE_COLOR = 0x0c2f46;
+const CHALK_EMISSIVE_COLOR = 0x071b26;
+const CHALK_ACTIVE_EMISSIVE_COLOR = 0x0d3b5d;
 const CHALK_PRECISION_SLOW_MULTIPLIER = 0.25;
 const CHALK_AIM_LERP_SLOW = 0.08;
 const CHALK_TARGET_RING_RADIUS = BALL_R * 2;
@@ -1158,7 +1158,7 @@ const POCKET_DROP_ENTRY_VELOCITY = -0.6; // initial downward impulse before grav
 const POCKET_DROP_REST_HOLD_MS = 360; // keep the ball visible on the strap briefly before hiding it
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
-const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(14); // deeper tilt so potted balls settle firmly against the strap
+const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(12); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_SCALE = 1.6;
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
@@ -1173,7 +1173,7 @@ const POCKET_WALL_HEIGHT = TABLE.THICK * 0.7 - POCKET_WALL_OPEN_TRIM;
 const POCKET_NET_DEPTH = TABLE.THICK * 2.1;
 const POCKET_NET_SEGMENTS = 48;
 const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 0.9; // drop nearly the full net depth so potted balls clear the rim
-const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.88; // stop the fall slightly above the ring/strap junction
+const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.02; // sit the ring directly against the bottom of the woven net
@@ -1181,15 +1181,15 @@ const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted ba
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
 const POCKET_GUIDE_DROP = BALL_R * 0.28;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
-const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.24; // start the chrome rails just outside the ring to keep the mouth open
+const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.22; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.72; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.24; // drop the centre rail to form the floor of the holder
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
-const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.08; // tighter spacing so potted balls rest along the chrome without floating
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 0.55; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 0.52; // keep the resting spot visibly below the pocket throat
+const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.12; // wider spacing so potted balls line up without overlapping on the holder rails
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 0.35; // stop the lead ball right against the leather strap without letting it bury the backstop
+const POCKET_HOLDER_REST_DROP = BALL_R * 0.38; // keep the resting spot visibly below the pocket throat
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
-const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 4.8; // clamp the roll speed so balls don't overshoot the leather backstop
+const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
 const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
 const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
@@ -6514,8 +6514,6 @@ function Table3D(
     underlayMeshes: [],
     clothEdgeMeshes: [],
     accentParent: null,
-    brandMeshes: [],
-    cushionTextMeshes: [],
     accentMesh: null,
     dimensions: null,
     baseVariantId: null,
@@ -8707,220 +8705,6 @@ function Table3D(
     getStyle: () => ({ ...activeRailMarkerStyle })
   };
 
-  const colorToHexString = (value, fallback = 0xd4af37) => {
-    const color = value instanceof THREE.Color ? value.clone() : new THREE.Color(value ?? fallback);
-    return `#${color.getHexString()}`;
-  };
-  const adjustColorLuminance = (value, deltaL = 0, deltaS = 0) => {
-    const color = value instanceof THREE.Color ? value.clone() : new THREE.Color(value);
-    const hsl = { h: 0, s: 0, l: 0 };
-    color.getHSL(hsl);
-    color.setHSL(
-      hsl.h,
-      THREE.MathUtils.clamp(hsl.s + deltaS, 0, 1),
-      THREE.MathUtils.clamp(hsl.l + deltaL, 0, 1)
-    );
-    return color;
-  };
-  const createCarbonTexture = (scale = 128) => {
-    const patternCanvas = document.createElement('canvas');
-    patternCanvas.width = scale;
-    patternCanvas.height = scale;
-    const pctx = patternCanvas.getContext('2d');
-    pctx.fillStyle = '#0c0d11';
-    pctx.fillRect(0, 0, scale, scale);
-    pctx.fillStyle = '#111217';
-    pctx.fillRect(0, 0, scale * 0.5, scale * 0.5);
-    pctx.fillRect(scale * 0.5, scale * 0.5, scale * 0.5, scale * 0.5);
-    pctx.fillStyle = '#161820';
-    pctx.beginPath();
-    pctx.moveTo(scale * 0.5, 0);
-    pctx.lineTo(scale, 0);
-    pctx.lineTo(0, scale);
-    pctx.lineTo(0, scale * 0.5);
-    pctx.closePath();
-    pctx.fill();
-    pctx.beginPath();
-    pctx.moveTo(scale, scale * 0.5);
-    pctx.lineTo(scale, scale);
-    pctx.lineTo(scale * 0.5, scale);
-    pctx.closePath();
-    pctx.fill();
-    return patternCanvas;
-  };
-  const createBrandPlateTexture = (trimColor) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 2048;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    const patternCanvas = createCarbonTexture();
-    const pattern = ctx.createPattern(patternCanvas, 'repeat');
-    ctx.fillStyle = pattern || '#0b0c10';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const borderColor = colorToHexString(trimColor);
-    const borderGlow = adjustColorLuminance(trimColor, 0.08, 0.05);
-    ctx.strokeStyle = borderColor;
-    ctx.lineWidth = 22;
-    ctx.strokeRect(22, 22, canvas.width - 44, canvas.height - 44);
-    const rimGradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-    rimGradient.addColorStop(0, colorToHexString(borderGlow));
-    rimGradient.addColorStop(0.5, colorToHexString(trimColor));
-    rimGradient.addColorStop(1, colorToHexString(borderGlow));
-    ctx.lineWidth = 10;
-    ctx.strokeStyle = rimGradient;
-    ctx.strokeRect(44, 44, canvas.width - 88, canvas.height - 88);
-    const screwRadius = 32;
-    const screwMargin = 96;
-    const screws = [
-      [screwMargin, screwMargin],
-      [canvas.width - screwMargin, screwMargin],
-      [canvas.width - screwMargin, canvas.height - screwMargin],
-      [screwMargin, canvas.height - screwMargin]
-    ];
-    screws.forEach(([x, y]) => {
-      const screwGrad = ctx.createRadialGradient(
-        x - screwRadius * 0.2,
-        y - screwRadius * 0.2,
-        screwRadius * 0.2,
-        x,
-        y,
-        screwRadius
-      );
-      screwGrad.addColorStop(0, colorToHexString(adjustColorLuminance(trimColor, 0.24)));
-      screwGrad.addColorStop(0.5, colorToHexString(trimColor));
-      screwGrad.addColorStop(1, colorToHexString(adjustColorLuminance(trimColor, -0.12)));
-      ctx.fillStyle = screwGrad;
-      ctx.beginPath();
-      ctx.arc(x, y, screwRadius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.lineWidth = 6;
-      ctx.strokeStyle = colorToHexString(adjustColorLuminance(trimColor, -0.18));
-      ctx.stroke();
-    });
-    const textColor = '#f7f3e9';
-    ctx.font = 'bold 204px "Inter", Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    let fontSize = 204;
-    const label = 'TonPlaygram';
-    const maxWidth = canvas.width - 360;
-    while (fontSize > 130) {
-      ctx.font = `bold ${fontSize}px "Inter", Arial`;
-      if (ctx.measureText(label).width <= maxWidth) break;
-      fontSize -= 6;
-    }
-    ctx.font = `bold ${fontSize}px "Inter", Arial`;
-    ctx.lineWidth = 14;
-    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-    ctx.strokeText(label, canvas.width / 2, canvas.height / 2);
-    ctx.fillStyle = textColor;
-    ctx.fillText(label, canvas.width / 2, canvas.height / 2);
-    const texture = new THREE.CanvasTexture(canvas);
-    applySRGBColorSpace(texture);
-    texture.anisotropy = resolveTextureAnisotropy(12);
-    texture.wrapS = THREE.ClampToEdgeWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.needsUpdate = true;
-    return texture;
-  };
-
-  const brandPlateMaterial = new THREE.MeshPhysicalMaterial({
-    color: trimMat.color.clone(),
-    metalness: Math.max(trimMat.metalness ?? 0.9, 0.86),
-    roughness: Math.min(trimMat.roughness ?? 0.35, 0.4),
-    clearcoat: Math.max(trimMat.clearcoat ?? 0.3, 0.35),
-    clearcoatRoughness: trimMat.clearcoatRoughness ?? 0.3,
-    envMapIntensity: trimMat.envMapIntensity ?? 1.1,
-    side: THREE.DoubleSide
-  });
-  const brandPlateWidth = Math.max(PLAY_H * 0.64, TABLE.H * 0.58);
-  const brandPlateHeight = railH * 0.38;
-  const brandPlateOffsetX = outerHalfW + TABLE.THICK * 0.02;
-  const brandPlateY = frameTopY + railH * 0.42;
-  const brandPlateTextureState = { texture: null };
-  const brandPlateMeshes = [];
-  const updateBrandPlates = (trimMaterial) => {
-    const plateTexture = createBrandPlateTexture(trimMaterial?.color ?? trimMat.color);
-    brandPlateMeshes.forEach((mesh) => {
-      mesh.material.color.copy(trimMaterial?.color ?? trimMat.color);
-      mesh.material.metalness = Math.max(trimMaterial?.metalness ?? brandPlateMaterial.metalness, 0.86);
-      mesh.material.roughness = Math.min(trimMaterial?.roughness ?? brandPlateMaterial.roughness, 0.45);
-      mesh.material.clearcoat = Math.max(trimMaterial?.clearcoat ?? brandPlateMaterial.clearcoat, 0.32);
-      mesh.material.clearcoatRoughness =
-        trimMaterial?.clearcoatRoughness ?? brandPlateMaterial.clearcoatRoughness;
-      mesh.material.envMapIntensity = trimMaterial?.envMapIntensity ?? brandPlateMaterial.envMapIntensity;
-      mesh.material.map = plateTexture;
-      mesh.material.needsUpdate = true;
-    });
-    if (brandPlateTextureState.texture && brandPlateTextureState.texture !== plateTexture) {
-      brandPlateTextureState.texture.dispose?.();
-    }
-    brandPlateTextureState.texture = plateTexture;
-  };
-  [-1, 1].forEach((sx) => {
-    const plate = new THREE.Mesh(
-      new THREE.PlaneGeometry(brandPlateWidth, brandPlateHeight),
-      brandPlateMaterial.clone()
-    );
-    plate.position.set(sx * brandPlateOffsetX, brandPlateY, 0);
-    plate.rotation.y = sx > 0 ? -Math.PI / 2 : Math.PI / 2;
-    plate.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.12;
-    plate.castShadow = false;
-    plate.receiveShadow = false;
-    railsGroup.add(plate);
-    brandPlateMeshes.push(plate);
-    finishParts.brandMeshes.push(plate);
-  });
-  updateBrandPlates(trimMat);
-  table.userData.brandPlates = { update: updateBrandPlates };
-
-  const createCushionTextTexture = (label) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.font = 'bold 176px "Inter", Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-    ctx.lineWidth = 10;
-    ctx.strokeText(label, canvas.width / 2, canvas.height / 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(label, canvas.width / 2, canvas.height / 2);
-    const texture = new THREE.CanvasTexture(canvas);
-    applySRGBColorSpace(texture);
-    texture.anisotropy = resolveTextureAnisotropy(8);
-    texture.wrapS = THREE.ClampToEdgeWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.needsUpdate = true;
-    return texture;
-  };
-  const cushionTextTexture = createCushionTextTexture('TonPlaygram');
-  const cushionTextWidth = Math.max(PLAY_W * 0.38, TABLE.W * 0.32);
-  const cushionTextHeight = railH * 0.26;
-  const cushionTextOffsetZ = outerHalfH - TABLE.THICK * 0.06;
-  const cushionTextY = frameTopY + railH * 0.32;
-  [-1, 1].forEach((sz) => {
-    const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(cushionTextWidth, cushionTextHeight),
-      new THREE.MeshBasicMaterial({
-        map: cushionTextTexture,
-        transparent: true,
-        depthWrite: false,
-        toneMapped: false,
-        opacity: 0.92
-      })
-    );
-    mesh.position.set(0, cushionTextY, sz * cushionTextOffsetZ);
-    mesh.rotation.y = sz > 0 ? 0 : Math.PI;
-    mesh.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.14;
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
-    railsGroup.add(mesh);
-    finishParts.cushionTextMeshes.push(mesh);
-  });
-
   table.add(railsGroup);
 
   const chalkGroup = new THREE.Group();
@@ -8928,113 +8712,10 @@ function Table3D(
   const chalkSize = BALL_R * 1.92 * chalkScale;
   const chalkHeight = BALL_R * 1.35 * chalkScale;
   const chalkGeometry = new THREE.BoxGeometry(chalkSize, chalkHeight, chalkSize);
-  const chalkTextureCache = new Map();
-  const applyChalkTextureDefaults = (texture) => {
-    if (!texture) return texture;
-    applySRGBColorSpace(texture);
-    texture.wrapS = THREE.ClampToEdgeWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.anisotropy = resolveTextureAnisotropy(8);
-    texture.needsUpdate = true;
-    return texture;
-  };
-  const createChalkTopTexture = (baseHex, accentHex) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 1024;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = baseHex;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const bevel = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    bevel.addColorStop(0, '#214f68');
-    bevel.addColorStop(1, accentHex);
-    ctx.strokeStyle = bevel;
-    ctx.lineWidth = 32;
-    ctx.strokeRect(32, 32, canvas.width - 64, canvas.height - 64);
-    const indent = ctx.createRadialGradient(
-      canvas.width / 2,
-      canvas.height / 2,
-      canvas.width * 0.05,
-      canvas.width / 2,
-      canvas.height / 2,
-      canvas.width * 0.35
-    );
-    indent.addColorStop(0, '#0f1a24');
-    indent.addColorStop(0.35, '#1e4b61');
-    indent.addColorStop(1, baseHex);
-    ctx.fillStyle = indent;
-    ctx.beginPath();
-    ctx.arc(canvas.width / 2, canvas.height / 2, canvas.width * 0.34, 0, Math.PI * 2);
-    ctx.fill();
-    const texture = new THREE.CanvasTexture(canvas);
-    return applyChalkTextureDefaults(texture);
-  };
-  const createChalkSideTexture = ({ accent = '#ffffff', textColor = '#ffffff', active = false }) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 1024;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#07090d';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const chevronHeight = canvas.height * 0.18;
-    ctx.fillStyle = '#0c1017';
-    ctx.fillRect(0, 0, canvas.width, chevronHeight);
-    ctx.fillStyle = accent;
-    const chevronCount = 16;
-    for (let i = 0; i < chevronCount; i += 1) {
-      const x = (i / chevronCount) * canvas.width;
-      const w = canvas.width / chevronCount;
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x + w * 0.5, chevronHeight * 0.9);
-      ctx.lineTo(x + w, 0);
-      ctx.closePath();
-      ctx.fill();
-    }
-    const accentBandHeight = canvas.height * 0.08;
-    ctx.fillStyle = active ? 'rgba(75,212,255,0.2)' : 'rgba(255,255,255,0.08)';
-    ctx.fillRect(0, chevronHeight, canvas.width, accentBandHeight);
-    ctx.fillStyle = textColor;
-    ctx.font = 'bold 120px "Inter", Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = active ? 'rgba(75,212,255,0.35)' : 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = active ? 18 : 12;
-    ctx.fillText('HIGH QUALITY TP CHALK', canvas.width / 2, canvas.height * 0.62);
-    ctx.shadowBlur = 0;
-    const footerAccent = ctx.createLinearGradient(0, canvas.height * 0.82, canvas.width, canvas.height);
-    footerAccent.addColorStop(0, '#0f141b');
-    footerAccent.addColorStop(1, '#171d25');
-    ctx.fillStyle = footerAccent;
-    ctx.fillRect(0, canvas.height * 0.8, canvas.width, canvas.height * 0.2);
-    const texture = new THREE.CanvasTexture(canvas);
-    return applyChalkTextureDefaults(texture);
-  };
-  const getChalkTextureSet = (state = 'base') => {
-    if (chalkTextureCache.has(state)) {
-      return chalkTextureCache.get(state);
-    }
-    const active = state === 'active';
-    const accentHex = active
-      ? '#4bd4ff'
-      : state === 'suggested'
-        ? '#38a6d5'
-        : '#2c8cb4';
-    const topTexture = createChalkTopTexture(colorToHexString(CHALK_TOP_COLOR), accentHex);
-    const sideTexture = createChalkSideTexture({
-      accent: '#ffffff',
-      textColor: active ? '#bdf1ff' : '#ffffff',
-      active
-    });
-    const textures = { top: topTexture, side: sideTexture };
-    chalkTextureCache.set(state, textures);
-    return textures;
-  };
-  const createChalkMaterials = (textureSet) => {
+  const createChalkMaterials = () => {
     const top = new THREE.MeshPhysicalMaterial({
       color: CHALK_TOP_COLOR,
-      map: textureSet?.top ?? null,
-      roughness: 0.32,
+      roughness: 0.42,
       metalness: 0.08,
       sheen: 0.2,
       sheenRoughness: 0.55,
@@ -9043,14 +8724,13 @@ function Table3D(
     });
     const bottom = new THREE.MeshPhysicalMaterial({
       color: CHALK_BOTTOM_COLOR,
-      roughness: 0.86,
+      roughness: 0.85,
       metalness: 0.02
     });
     const side = new THREE.MeshPhysicalMaterial({
       color: CHALK_SIDE_COLOR,
-      map: textureSet?.side ?? null,
-      roughness: 0.58,
-      metalness: 0.08,
+      roughness: 0.68,
+      metalness: 0.05,
       emissive: new THREE.Color(CHALK_EMISSIVE_COLOR),
       emissiveIntensity: 0.16
     });
@@ -9109,12 +8789,7 @@ function Table3D(
     }
   ];
   chalkSlots.forEach((slot, index) => {
-    const chalkTextures = {
-      base: getChalkTextureSet('base'),
-      active: getChalkTextureSet('active'),
-      suggested: getChalkTextureSet('suggested')
-    };
-    const mesh = new THREE.Mesh(chalkGeometry, createChalkMaterials(chalkTextures.base));
+    const mesh = new THREE.Mesh(chalkGeometry, createChalkMaterials());
     mesh.position
       .copy(slot.basePosition)
       .addScaledVector(slot.tangent, slot.defaultOffset ?? 0);
@@ -9125,8 +8800,7 @@ function Table3D(
     mesh.userData = {
       ...(mesh.userData || {}),
       isChalk: true,
-      chalkIndex: index,
-      chalkTextures
+      chalkIndex: index
     };
     chalkGroup.add(mesh);
     slot.position = mesh.position.clone();
@@ -9771,8 +9445,8 @@ function Table3D(
       return { meshes, legMeshes };
     },
     coffeeTableRound01: createPolyhavenTableBaseBuilder('coffee_table_round_01', {
-      footprintScale: 0.98,
-      footprintDepthScale: 1.06,
+      footprintScale: 1.05,
+      footprintDepthScale: 1.12,
       heightFill: 0.8,
       topInsetScale: 0.96,
       materialKey: 'trim'
@@ -10043,9 +9717,6 @@ function applyTableFinishToTable(table, finish) {
   finishInfo.parts.pocketRimMeshes.forEach((mesh) => swapMaterial(mesh, pocketRimMat));
   if (table.userData?.railMarkers?.updateBaseMaterial) {
     table.userData.railMarkers.updateBaseMaterial(trimMat);
-  }
-  if (table.userData?.brandPlates?.update) {
-    table.userData.brandPlates.update(trimMat);
   }
 
   const woodTextureEnabled =
@@ -11253,27 +10924,13 @@ function PoolRoyaleGame({
           : [mesh.material];
         const isActive = chalkIndex === activeIndex;
         const isSuggested = chalkIndex === suggestedIndex && !isActive;
-        const textures = mesh.userData?.chalkTextures;
-        const textureSet =
-          isActive
-            ? textures?.active ?? textures?.base
-            : isSuggested
-              ? textures?.suggested ?? textures?.active ?? textures?.base
-              : textures?.base;
         materials.forEach((mat, matIndex) => {
           if (!mat || !mat.color) return;
           if (matIndex === 2) {
-            if (textureSet?.top) {
-              mat.map = textureSet.top;
-            }
             mat.color.setHex(isActive ? CHALK_ACTIVE_COLOR : CHALK_TOP_COLOR);
           } else if (matIndex === 3) {
-            mat.map = null;
             mat.color.setHex(CHALK_BOTTOM_COLOR);
           } else {
-            if (textureSet?.side) {
-              mat.map = textureSet.side;
-            }
             mat.color.setHex(
               isActive || isSuggested
                 ? CHALK_SIDE_ACTIVE_COLOR
@@ -15259,19 +14916,6 @@ const powerRef = useRef(hud.power);
           const fallbackFov = Number.isFinite(storedReplayCamera?.fov)
             ? storedReplayCamera.fov
             : camera.fov;
-          const overheadDefault = resolveRailOverheadReplayCamera({
-            focusOverride: fallbackTarget,
-            minTargetY
-          });
-          const defaultPosition =
-            overheadDefault?.position?.clone?.() ??
-            fallbackPosition;
-          const defaultTarget =
-            overheadDefault?.target?.clone?.() ??
-            fallbackTarget;
-          const defaultFov = Number.isFinite(overheadDefault?.fov)
-            ? overheadDefault.fov
-            : fallbackFov;
           const lerpVector = (a, b, t) => {
             if (!a && !b) return null;
             const start = a ?? b;
@@ -15283,23 +14927,16 @@ const powerRef = useRef(hud.power);
             }
             return startVec.lerp(endVec, t);
           };
-          const cameraA =
-            replayFrameCamera?.frameA ??
-            replayFrameCamera?.frameB ??
-            overheadDefault ?? {
-              position: defaultPosition,
-              target: defaultTarget,
-              fov: defaultFov
-            };
+          const cameraA = replayFrameCamera?.frameA ?? replayFrameCamera?.frameB ?? null;
           const cameraB = replayFrameCamera?.frameB ?? cameraA;
           const alpha = THREE.MathUtils.clamp(replayFrameCamera?.alpha ?? 0, 0, 1);
-          const position = lerpVector(cameraA?.position, cameraB?.position, alpha) ?? defaultPosition;
-          const target = lerpVector(cameraA?.target, cameraB?.target, alpha) ?? defaultTarget;
+          const position = lerpVector(cameraA?.position, cameraB?.position, alpha) ?? fallbackPosition;
+          const target = lerpVector(cameraA?.target, cameraB?.target, alpha) ?? fallbackTarget;
           const fovA = Number.isFinite(cameraA?.fov) ? cameraA.fov : null;
           const fovB = Number.isFinite(cameraB?.fov) ? cameraB.fov : fovA;
           const resolvedFov = Number.isFinite(fovA) || Number.isFinite(fovB)
             ? THREE.MathUtils.lerp(fovA ?? fovB, fovB ?? fovA, alpha)
-            : defaultFov;
+            : fallbackFov;
           return { position, target, fov: resolvedFov, minTargetY };
         };
 
@@ -17214,25 +16851,6 @@ const powerRef = useRef(hud.power);
                   alpha: 0
                 };
               }
-            }
-          }
-          if (!replayFrameCameraRef.current) {
-            const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-            const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-            const focus =
-              lastCameraTargetRef.current?.clone?.() ??
-              broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ??
-              new THREE.Vector3(playerOffsetRef.current * scale, minTargetY, 0);
-            const overheadFallback = resolveRailOverheadReplayCamera({
-              focusOverride: focus,
-              minTargetY
-            });
-            if (overheadFallback) {
-              replayFrameCameraRef.current = {
-                frameA: overheadFallback,
-                frameB: overheadFallback,
-                alpha: 0
-              };
             }
           }
         };
