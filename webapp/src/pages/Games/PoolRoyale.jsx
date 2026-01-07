@@ -1437,7 +1437,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // Match cue grain scale to the table finish
-const CUE_WOOD_REPEAT_SCALE = 1 / 3;
+const CUE_WOOD_REPEAT_SCALE = 1 / 9;
 const CUE_WOOD_TEXTURE_SIZE = 4096; // 4k cue textures for sharper cue wood finish
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // enlarge grain 3× so rails, skirts, and legs read at table scale; push pattern larger for the new finish pass
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
@@ -2775,11 +2775,11 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.76; // tighten the pattern footprint so the scan resolves more clearly
+const CLOTH_PATTERN_SCALE = 0.62; // tighten the pattern footprint so the scan resolves more clearly
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
 const POLYHAVEN_ANISOTROPY_BOOST = 2.6;
-const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.55, 0.72);
+const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.85, 0.92);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
@@ -6211,7 +6211,7 @@ function Table3D(
   const clampClothColor = (baseColor) => {
     const hsl = { h: 0, s: 0, l: 0 };
     baseColor.getHSL(hsl);
-    const baseSaturationBoost = 1.18;
+    const baseSaturationBoost = 1.3;
     let hue = hsl.h;
     let saturationBoost = baseSaturationBoost;
     let lightnessBoost = 0;
@@ -6244,12 +6244,12 @@ function Table3D(
     return result;
   };
   const clothHighlightMix = THREE.MathUtils.clamp(
-    (0.28 + brightnessLift) - (isPolyHavenCloth ? 0.02 : 0),
+    (0.24 + brightnessLift) - (isPolyHavenCloth ? 0.02 : 0),
     0,
     1
   );
   const cushionHighlightMix = THREE.MathUtils.clamp(
-    (0.18 + brightnessLift) - (isPolyHavenCloth ? 0.02 : 0),
+    (0.16 + brightnessLift) - (isPolyHavenCloth ? 0.02 : 0),
     0,
     1
   );
@@ -6306,7 +6306,7 @@ function Table3D(
     clothMapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
   const baseRepeatApplied = baseRepeat * polyRepeatScale;
   const baseBumpScale =
-    (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) * CLOTH_QUALITY.bumpScaleMultiplier;
+    (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12 * 1.2) * CLOTH_QUALITY.bumpScaleMultiplier;
   const flattenedBumpScale = baseBumpScale * 0.48;
   if (clothMap) {
     clothMat.map = clothMap;
