@@ -19208,6 +19208,18 @@ const powerRef = useRef(hud.power);
         }
         return vec;
       };
+      const resolveCueTipGap = (spinOffset, baseGap = CUE_TIP_GAP) => {
+        if (!spinOffset) return baseGap;
+        const offset = Math.hypot(
+          spinOffset.x ?? 0,
+          spinOffset.y ?? 0,
+          spinOffset.z ?? 0
+        );
+        if (offset <= 1e-6) return baseGap;
+        const radius = Math.max(baseGap, 0);
+        if (offset >= radius) return 0;
+        return Math.sqrt(Math.max(radius * radius - offset * offset, 0));
+      };
       const computeSpinOffsets = (spin, ranges) => {
         const offsetSide = ranges?.offsetSide ?? 0;
         const offsetVertical = ranges?.offsetVertical ?? 0;
@@ -22040,15 +22052,16 @@ const powerRef = useRef(hud.power);
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
+          const cueTipGap = resolveCueTipGap(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
           const obstructionTiltFromLift =
             obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.x,
+            cue.pos.x - dir.x * (cueLen / 2 + visualPull + cueTipGap) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.y - dir.z * (cueLen / 2 + visualPull + cueTipGap) + spinWorld.z
           );
           const tiltAmount = hasSpin ? Math.abs(appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
@@ -22064,9 +22077,9 @@ const powerRef = useRef(hud.power);
           const buttTiltInfo = cueStick.userData?.buttTilt;
           const buttHeightOffset = buttTiltInfo?.buttHeightOffset ?? 0;
           TMP_VEC3_BUTT.set(
-            cue.pos.x - dir.x * (cueLen + visualPull + CUE_TIP_GAP) + spinWorld.x,
+            cue.pos.x - dir.x * (cueLen + visualPull + cueTipGap) + spinWorld.x,
             CUE_Y + spinWorld.y + buttHeightOffset,
-            cue.pos.y - dir.z * (cueLen + visualPull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.y - dir.z * (cueLen + visualPull + cueTipGap) + spinWorld.z
           );
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
@@ -22258,15 +22271,16 @@ const powerRef = useRef(hud.power);
           );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
+          const cueTipGap = resolveCueTipGap(spinWorld);
           const obstructionStrength = resolveCueObstruction(baseDir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
           const obstructionTiltFromLift =
             obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
           cueStick.position.set(
-            cue.pos.x - baseDir.x * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.x,
+            cue.pos.x - baseDir.x * (cueLen / 2 + visualPull + cueTipGap) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - baseDir.z * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.y - baseDir.z * (cueLen / 2 + visualPull + cueTipGap) + spinWorld.z
           );
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
@@ -22359,15 +22373,16 @@ const powerRef = useRef(hud.power);
           );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
+          const cueTipGap = resolveCueTipGap(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
           const obstructionTiltFromLift =
             obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.x,
+            cue.pos.x - dir.x * (cueLen / 2 + visualPull + cueTipGap) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.y - dir.z * (cueLen / 2 + visualPull + cueTipGap) + spinWorld.z
           );
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
