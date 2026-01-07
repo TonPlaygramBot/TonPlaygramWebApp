@@ -317,11 +317,11 @@ const POLYHAVEN_ASSET_ALIASES = {
 
 const polyHavenTextureSet = (assetId) => {
   const resolvedId = POLYHAVEN_ASSET_ALIASES[assetId] ?? assetId;
-  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${resolvedId}/${resolvedId}`;
+  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/${resolvedId}/${resolvedId}`;
   return {
-    mapUrl: `${base}_diff_2k.jpg`,
-    roughnessMapUrl: `${base}_rough_2k.jpg`,
-    normalMapUrl: `${base}_nor_gl_2k.jpg`
+    mapUrl: `${base}_diff_4k.jpg`,
+    roughnessMapUrl: `${base}_rough_4k.jpg`,
+    normalMapUrl: `${base}_nor_gl_4k.jpg`
   };
 };
 
@@ -363,13 +363,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('wood_peeling_paint_weathered')
     },
     frame: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('wood_peeling_paint_weathered')
     }
   }),
@@ -380,13 +380,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('oak_veneer_01')
     },
     frame: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('oak_veneer_01')
     }
   }),
@@ -397,13 +397,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('wood_table_001')
     },
     frame: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('wood_table_001')
     }
   }),
@@ -414,13 +414,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('dark_wood')
     },
     frame: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('dark_wood')
     }
   }),
@@ -431,13 +431,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 0.7, y: 0.7 }, // enlarge the veneer grain for the rails
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('rosewood_veneer_01')
     },
     frame: {
       repeat: { x: 0.72, y: 0.72 }, // slightly finer than rails to balance the border scale
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('rosewood_veneer_01')
     }
   }),
@@ -448,13 +448,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('kitchen_wood')
     },
     frame: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('kitchen_wood')
     }
   }),
@@ -465,13 +465,13 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     rail: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('japanese_sycamore')
     },
     frame: {
       repeat: { x: 1, y: 1 },
       rotation: 0,
-      textureSize: 2048,
+      textureSize: 4096,
       ...polyHavenTextureSet('japanese_sycamore')
     }
   })
