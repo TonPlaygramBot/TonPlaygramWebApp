@@ -224,7 +224,7 @@ const updateRendererAnisotropyCap = (renderer) => {
 const resolveTextureAnisotropy = (fallback = 1) =>
   Math.max(rendererAnisotropyCap, Number.isFinite(fallback) ? fallback : 1);
 
-const POCKET_NET_LINE_THICKNESS_SCALE = 1.28;
+const POCKET_NET_LINE_THICKNESS_SCALE = 1.6;
 
 const createPocketNetTexture = (size = 256, repeat = POCKET_NET_HEX_REPEAT) => {
   if (typeof document === 'undefined') return null;
@@ -1187,28 +1187,28 @@ const POCKET_TOP_R =
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
 const POCKET_WALL_OPEN_TRIM = TABLE.THICK * 0.18;
 const POCKET_WALL_HEIGHT = TABLE.THICK * 0.7 - POCKET_WALL_OPEN_TRIM;
-const POCKET_NET_DEPTH = TABLE.THICK * 2.18;
+const POCKET_NET_DEPTH = TABLE.THICK * 2.26;
 const POCKET_NET_SEGMENTS = 64;
 const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 0.9; // drop nearly the full net depth so potted balls clear the rim
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
-const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.12; // sit the ring directly against the bottom of the woven net
+const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.04; // sit the ring directly against the bottom of the woven net
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
 const POCKET_GUIDE_DROP = BALL_R * 0.28;
-const POCKET_GUIDE_SPREAD = BALL_R * 0.38;
+const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.1; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.3; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.3; // lower all chrome holder rails so balls ride directly on the guides
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.22; // lower all chrome holder rails so balls ride directly on the guides
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.2; // wider spacing so potted balls line up without overlapping on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 1.15; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 1.92; // drop the resting spot so potted balls settle onto the chrome rails
+const POCKET_HOLDER_REST_DROP = BALL_R * 2.15; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -2088,6 +2088,39 @@ const applySnookerStyleWoodPreset = (materials, finishId) => {
 };
 
 const pocketLeatherTextureCache = new Map();
+const pocketLeatherConsumers = new Map();
+
+const registerPocketLeatherConsumer = (textureId, materials = []) => {
+  if (!textureId) return;
+  let set = pocketLeatherConsumers.get(textureId);
+  if (!set) {
+    set = new Set();
+    pocketLeatherConsumers.set(textureId, set);
+  }
+  materials.forEach((material) => {
+    if (material) {
+      set.add(material);
+    }
+  });
+};
+
+const broadcastPocketLeatherTextures = (textureId) => {
+  if (!textureId) return;
+  const textures = pocketLeatherTextureCache.get(textureId);
+  if (!textures) return;
+  const consumers = pocketLeatherConsumers.get(textureId);
+  if (!consumers?.size) return;
+  consumers.forEach((material) => {
+    if (!material) return;
+    material.map = textures.map ?? null;
+    material.normalMap = textures.normal ?? null;
+    material.roughnessMap = textures.roughness ?? null;
+    applyPocketLeatherTextureDefaults(material.map, { isColor: true });
+    applyPocketLeatherTextureDefaults(material.normalMap);
+    applyPocketLeatherTextureDefaults(material.roughnessMap);
+    material.needsUpdate = true;
+  });
+};
 
 const applyPocketLeatherTextureDefaults = (
   texture,
@@ -2116,11 +2149,12 @@ const ensurePocketLeatherTextures = (textureId = POCKET_LEATHER_TEXTURE_ID) => {
       map: null,
       normal: null,
       roughness: null,
-      loading: false
+      loading: false,
+      ready: false
     });
   }
   const cacheEntry = pocketLeatherTextureCache.get(normalizedId);
-  if (cacheEntry.loading || cacheEntry.map) {
+  if (cacheEntry.loading || cacheEntry.ready) {
     return cacheEntry;
   }
   cacheEntry.loading = true;
@@ -2130,23 +2164,56 @@ const ensurePocketLeatherTextures = (textureId = POCKET_LEATHER_TEXTURE_ID) => {
   }
   const loader = new THREE.TextureLoader();
   loader.setCrossOrigin('anonymous');
-  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${normalizedId}/${normalizedId}_2K`;
-  const map = loader.load(
-    `${base}_Color.jpg`,
-    (texture) => applyPocketLeatherTextureDefaults(texture, { isColor: true })
-  );
-  const normal = loader.load(
-    `${base}_NormalGL.jpg`,
-    (texture) => applyPocketLeatherTextureDefaults(texture)
-  );
-  const roughness = loader.load(
-    `${base}_Roughness.jpg`,
-    (texture) => applyPocketLeatherTextureDefaults(texture)
-  );
-  cacheEntry.map = applyPocketLeatherTextureDefaults(map, { isColor: true });
-  cacheEntry.normal = applyPocketLeatherTextureDefaults(normal);
-  cacheEntry.roughness = applyPocketLeatherTextureDefaults(roughness);
-  cacheEntry.loading = false;
+  const loadTextures = (urls) => {
+    const map = urls.diffuse
+      ? loader.load(
+        urls.diffuse,
+        (texture) => applyPocketLeatherTextureDefaults(texture, { isColor: true })
+      )
+      : null;
+    const normal = urls.normal
+      ? loader.load(
+        urls.normal,
+        (texture) => applyPocketLeatherTextureDefaults(texture)
+      )
+      : null;
+    const roughness = urls.roughness
+      ? loader.load(
+        urls.roughness,
+        (texture) => applyPocketLeatherTextureDefaults(texture)
+      )
+      : null;
+    cacheEntry.map = map ? applyPocketLeatherTextureDefaults(map, { isColor: true }) : null;
+    cacheEntry.normal = normal ? applyPocketLeatherTextureDefaults(normal) : null;
+    cacheEntry.roughness = roughness ? applyPocketLeatherTextureDefaults(roughness) : null;
+    cacheEntry.ready = true;
+    cacheEntry.loading = false;
+    broadcastPocketLeatherTextures(normalizedId);
+  };
+  const fallback2k = buildPolyHavenTextureUrls(normalizedId, '2k');
+  const fallback1k = buildPolyHavenTextureUrls(normalizedId, '1k');
+  const fallbackUrls = {
+    diffuse: fallback2k?.diffuse ?? fallback1k?.diffuse,
+    normal: fallback2k?.normal ?? fallback1k?.normal,
+    roughness: fallback2k?.roughness ?? fallback1k?.roughness
+  };
+  if (typeof fetch !== 'function') {
+    loadTextures(fallbackUrls);
+    return cacheEntry;
+  }
+  fetch(`https://api.polyhaven.com/files/${encodeURIComponent(normalizedId)}`)
+    .then((response) => (response?.ok ? response.json() : null))
+    .then((json) => {
+      const urls = json ? pickPolyHavenTextureUrls(json) : {};
+      loadTextures({
+        diffuse: urls.diffuse ?? fallbackUrls.diffuse,
+        normal: urls.normal ?? fallbackUrls.normal,
+        roughness: urls.roughness ?? fallbackUrls.roughness
+      });
+    })
+    .catch(() => {
+      loadTextures(fallbackUrls);
+    });
   return cacheEntry;
 };
 
@@ -2681,9 +2748,8 @@ const POCKET_LINER_OPTIONS = Object.freeze(
 
 function createPocketLinerMaterials(option) {
   const selection = option ?? POCKET_LINER_OPTIONS[0];
-  const textures = ensurePocketLeatherTextures(
-    selection?.textureId ?? POCKET_LEATHER_TEXTURE_ID
-  );
+  const textureId = selection?.textureId ?? POCKET_LEATHER_TEXTURE_ID;
+  const textures = ensurePocketLeatherTextures(textureId);
   const baseColor = new THREE.Color(0xffffff);
   const jawMaterial = new THREE.MeshPhysicalMaterial({
     color: baseColor,
@@ -2714,6 +2780,7 @@ function createPocketLinerMaterials(option) {
   applyPocketLeatherTextureDefaults(rimMaterial.map, { isColor: true });
   applyPocketLeatherTextureDefaults(rimMaterial.normalMap);
   applyPocketLeatherTextureDefaults(rimMaterial.roughnessMap);
+  registerPocketLeatherConsumer(textureId, [jawMaterial, rimMaterial]);
   jawMaterial.needsUpdate = true;
   rimMaterial.needsUpdate = true;
   return { jawMaterial, rimMaterial };
@@ -2804,6 +2871,69 @@ function broadcastClothTextureReady(sourceId) {
   });
 }
 
+const buildPolyHavenTextureUrls = (sourceId, resolution) => {
+  if (!sourceId) return null;
+  const normalized = String(sourceId).replace(/\s+/g, '_');
+  const res = resolution.toUpperCase();
+  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${resolution}/${normalized}/${normalized}_${res}`;
+  return {
+    diffuse: `${base}_Color.jpg`,
+    normal: `${base}_NormalGL.jpg`,
+    roughness: `${base}_Roughness.jpg`
+  };
+};
+
+const pickPolyHavenTextureUrls = (apiJson) => {
+  const urls = [];
+  const walk = (v) => {
+    if (!v) return;
+    if (typeof v === 'string') {
+      const lower = v.toLowerCase();
+      if (
+        v.startsWith('http') &&
+        (lower.includes('.jpg') || lower.includes('.jpeg') || lower.includes('.png'))
+      ) {
+        urls.push(v);
+      }
+      return;
+    }
+    if (Array.isArray(v)) {
+      v.forEach(walk);
+      return;
+    }
+    if (typeof v === 'object') {
+      Object.values(v).forEach(walk);
+    }
+  };
+  walk(apiJson);
+  const scoreAndPick = (keywords) => {
+    const scored = urls
+      .filter((u) => keywords.some((kw) => u.toLowerCase().includes(kw)))
+      .map((u) => {
+        const lower = u.toLowerCase();
+        let score = 0;
+        if (lower.includes('4k')) score += 8;
+        if (lower.includes('2k')) score += 6;
+        if (lower.includes('1k')) score += 4;
+        if (lower.includes('jpg')) score += 3;
+        if (lower.includes('png')) score += 2;
+        if (lower.includes('diff') || lower.includes('albedo') || lower.includes('basecolor')) score += 2;
+        if (lower.includes('nor_gl') || lower.includes('normal_gl')) score += 2;
+        if (lower.includes('nor') || lower.includes('normal')) score += 1;
+        if (lower.includes('rough')) score += 1;
+        if (lower.includes('preview')) score -= 6;
+        return { url: u, score };
+      })
+      .sort((a, b) => b.score - a.score);
+    return scored[0]?.url ?? null;
+  };
+  return {
+    diffuse: scoreAndPick(['diff', 'diffuse', 'albedo', 'basecolor']),
+    normal: scoreAndPick(['nor_gl', 'normal_gl', 'nor', 'normal']),
+    roughness: scoreAndPick(['rough', 'roughness'])
+  };
+};
+
 const createClothTextures = (() => {
   const cache = new Map();
   const pendingLoads = new Map();
@@ -2821,57 +2951,6 @@ const createClothTextures = (() => {
       r: Math.round(color.r * 255),
       g: Math.round(color.g * 255),
       b: Math.round(color.b * 255)
-    };
-  };
-
-  const pickPolyHavenTextureUrls = (apiJson) => {
-    const urls = [];
-    const walk = (v) => {
-      if (!v) return;
-      if (typeof v === 'string') {
-        const lower = v.toLowerCase();
-        if (
-          v.startsWith('http') &&
-          (lower.includes('.jpg') || lower.includes('.jpeg') || lower.includes('.png'))
-        ) {
-          urls.push(v);
-        }
-        return;
-      }
-      if (Array.isArray(v)) {
-        v.forEach(walk);
-        return;
-      }
-      if (typeof v === 'object') {
-        Object.values(v).forEach(walk);
-      }
-    };
-    walk(apiJson);
-    const scoreAndPick = (keywords) => {
-      const scored = urls
-        .filter((u) => keywords.some((kw) => u.toLowerCase().includes(kw)))
-        .map((u) => {
-          const lower = u.toLowerCase();
-          let score = 0;
-          if (lower.includes('4k')) score += 8;
-          if (lower.includes('2k')) score += 6;
-          if (lower.includes('1k')) score += 4;
-          if (lower.includes('jpg')) score += 3;
-          if (lower.includes('png')) score += 2;
-          if (lower.includes('diff') || lower.includes('albedo') || lower.includes('basecolor')) score += 2;
-          if (lower.includes('nor_gl') || lower.includes('normal_gl')) score += 2;
-          if (lower.includes('nor') || lower.includes('normal')) score += 1;
-          if (lower.includes('rough')) score += 1;
-          if (lower.includes('preview')) score -= 6;
-          return { url: u, score };
-        })
-        .sort((a, b) => b.score - a.score);
-      return scored[0]?.url ?? null;
-    };
-    return {
-      diffuse: scoreAndPick(['diff', 'diffuse', 'albedo', 'basecolor']),
-      normal: scoreAndPick(['nor_gl', 'normal_gl', 'nor', 'normal']),
-      roughness: scoreAndPick(['rough', 'roughness'])
     };
   };
 
@@ -2904,18 +2983,6 @@ const createClothTextures = (() => {
       }
     }
     return null;
-  };
-
-  const buildPolyHavenTextureUrls = (sourceId, resolution) => {
-    if (!sourceId) return null;
-    const normalized = String(sourceId).replace(/\s+/g, '_');
-    const res = resolution.toUpperCase();
-    const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${resolution}/${normalized}/${normalized}_${res}`;
-    return {
-      diffuse: `${base}_Color.jpg`,
-      normal: `${base}_NormalGL.jpg`,
-      roughness: `${base}_Roughness.jpg`
-    };
   };
 
   const applyTextureDefaults = (texture, { isPolyHaven = false } = {}) => {
@@ -6714,16 +6781,16 @@ function Table3D(
     side: THREE.DoubleSide,
     depthWrite: false
   });
+  const pocketGuideRingRadius = POCKET_BOTTOM_R * POCKET_NET_RING_RADIUS_SCALE;
   const pocketNetProfile = [
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.98, 0),
+    new THREE.Vector2(pocketGuideRingRadius, 0),
     new THREE.Vector2(POCKET_BOTTOM_R * 0.94, -POCKET_NET_DEPTH * 0.16),
     new THREE.Vector2(POCKET_BOTTOM_R * 0.82, -POCKET_NET_DEPTH * 0.45),
     new THREE.Vector2(POCKET_BOTTOM_R * 0.66, -POCKET_NET_DEPTH * 0.74),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.62, -POCKET_NET_DEPTH * 1.04)
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.62, -POCKET_NET_DEPTH * 1.06)
   ];
   const pocketNetGeo = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
   const pocketGuideMaterial = trimMat;
-  const pocketGuideRingRadius = POCKET_BOTTOM_R * POCKET_NET_RING_RADIUS_SCALE;
   const pocketStrapLength = Math.max(POCKET_GUIDE_LENGTH * 0.62, BALL_DIAMETER * 5.4);
   const pocketStrapWidth = BALL_R * 1.2;
   const pocketStrapThickness = BALL_R * 0.12;
@@ -6759,7 +6826,7 @@ function Table3D(
     finishParts.pocketNetMeshes.push(net);
 
     // Add chrome cradle rails and holders beneath the pocket net to catch potted balls.
-    const netBottomY = net.position.y - POCKET_NET_DEPTH * 1.02;
+    const netBottomY = net.position.y - POCKET_NET_DEPTH * 1.06;
     const ringAnchor = new THREE.Vector3(
       p.x,
       netBottomY + POCKET_NET_RING_VERTICAL_OFFSET,
