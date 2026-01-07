@@ -9504,14 +9504,8 @@ export function PoolRoyaleGame({
     if (!dot) return;
     const x = clamp(value.x ?? 0, -1, 1);
     const y = clamp(value.y ?? 0, -1, 1);
-    const ranges = spinRangeRef.current || {};
-    const maxSide = Math.max(ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET, 1e-6);
-    const maxVertical = Math.max(ranges.offsetVertical ?? MAX_SPIN_VERTICAL, 1e-6);
-    const largest = Math.max(maxSide, maxVertical);
-    const scaledX = (x * maxSide) / largest;
-    const scaledY = (y * maxVertical) / largest;
-    dot.style.left = `${50 + scaledX * 50}%`;
-    dot.style.top = `${50 + scaledY * 50}%`;
+    dot.style.left = `${50 + x * 50}%`;
+    dot.style.top = `${50 + y * 50}%`;
     const magnitude = Math.hypot(x, y);
     const showBlocked = blocked ?? spinLegalityRef.current?.blocked;
     dot.style.backgroundColor = showBlocked
@@ -9521,6 +9515,13 @@ export function PoolRoyaleGame({
         : '#dc2626';
     dot.dataset.blocked = showBlocked ? '1' : '0';
   }, []);
+  const getSpinVisualRadius = (ranges = {}) => {
+    const maxSide = Math.max(ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET, 0);
+    const maxVertical = Math.max(ranges.offsetVertical ?? MAX_SPIN_VERTICAL, 0);
+    const radius = Math.min(maxSide, maxVertical);
+    if (radius > 1e-6) return radius;
+    return Math.max(maxSide, maxVertical, 1e-6);
+  };
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
   const pocketDropRef = useRef(new Map());
@@ -16181,11 +16182,10 @@ export function PoolRoyaleGame({
             CUE_PULL_SMOOTHING
           );
           cuePullCurrentRef.current = pull;
-          const offsetSide = ranges.offsetSide ?? 0;
-          const offsetVertical = ranges.offsetVertical ?? 0;
-          let side = appliedSpin.x * offsetSide;
-          let vert = -appliedSpin.y * offsetVertical;
-          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
+          const visualRadius = getSpinVisualRadius(ranges);
+          let side = (appliedSpin.x ?? 0) * visualRadius;
+          let vert = -(appliedSpin.y ?? 0) * visualRadius;
+          const maxContactOffset = visualRadius;
           if (maxContactOffset > 1e-6) {
             const combined = Math.hypot(side, vert);
             if (combined > maxContactOffset) {
@@ -16384,14 +16384,13 @@ export function PoolRoyaleGame({
             CUE_PULL_SMOOTHING
           );
           cuePullCurrentRef.current = pull;
-          const offsetSide = ranges.offsetSide ?? 0;
-          const offsetVertical = ranges.offsetVertical ?? 0;
+          const visualRadius = getSpinVisualRadius(ranges);
           const planSpin = activeAiPlan.spin ?? spinRef.current ?? { x: 0, y: 0 };
           const spinX = THREE.MathUtils.clamp(planSpin.x ?? 0, -1, 1);
           const spinY = THREE.MathUtils.clamp(planSpin.y ?? 0, -1, 1);
-          let side = spinX * offsetSide;
-          let vert = -spinY * offsetVertical;
-          const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
+          let side = spinX * visualRadius;
+          let vert = -spinY * visualRadius;
+          const maxContactOffset = visualRadius;
           if (maxContactOffset > 1e-6) {
             const combined = Math.hypot(side, vert);
             if (combined > maxContactOffset) {
