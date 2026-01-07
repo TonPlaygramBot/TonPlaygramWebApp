@@ -1207,7 +1207,7 @@ const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.3; // drop the centre rail to form th
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.12; // wider spacing so potted balls line up without overlapping on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 1.05; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 0.9; // keep the resting spot visibly below the pocket throat
+const POCKET_HOLDER_REST_DROP = BALL_R * 1.2; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -5185,7 +5185,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1.38; // pull the rail overhead broadcast heads farther to frame both end pockets and keep the far rail pockets in view on portrait, especially during replays
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.04; // keep broadcast overhead cuts tight to the table using the same framing as the 2D toggle camera
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -7335,7 +7335,7 @@ function Table3D(
     const strapDir = outwardDir.clone().setY(-Math.tan(POCKET_HOLDER_TILT_RAD)).normalize();
     const railStartOffset = Math.max(
       MICRO_EPS,
-      pocketGuideRingRadius + POCKET_GUIDE_RING_CLEARANCE - POCKET_GUIDE_RING_OVERLAP
+      pocketGuideRingRadius + POCKET_GUIDE_RING_CLEARANCE + POCKET_GUIDE_RING_OVERLAP
     );
     const buildGuideSegment = (start, end) => {
       const delta = end.clone().sub(start);
@@ -8839,34 +8839,29 @@ function Table3D(
     mat.sheenRoughness = Math.min(mat.sheenRoughness ?? 0.6, 0.6);
     return mat;
   };
-  const brandPlateThickness = chromePlateThickness;
-  const brandPlateDepth = Math.min(endRailW * 0.54, TABLE.THICK * 0.78);
+  const brandPlateThickness = chromePlateThickness * 0.8;
+  const brandPlateDepth = Math.min(endRailW * 0.32, TABLE.THICK * 0.42);
+  const brandPlateHeight = railH * 0.96;
   const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 11, PLAY_W * 0.28));
-  const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
-  const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.16;
+  const brandPlateY = frameTopY + railH * 0.5;
+  const shortRailOuterZ = outerHalfH + brandPlateDepth * 0.5 + TABLE.THICK * 0.02;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
-    brandPlateThickness,
+    brandPlateHeight,
     brandPlateDepth
   );
   [-1, 1].forEach((dirZ) => {
-    const materials = [
-      createBrandSideMaterial(),
-      createBrandSideMaterial(),
-      brandPlateTopMaterial,
-      createBrandSideMaterial(),
-      createBrandSideMaterial(),
-      createBrandSideMaterial()
-    ];
+    const outwardFaceIndex = dirZ > 0 ? 4 : 5;
+    const materials = Array.from({ length: 6 }, () => createBrandSideMaterial());
+    materials[outwardFaceIndex] = brandPlateTopMaterial;
     const plate = new THREE.Mesh(brandPlateGeom, materials);
-    plate.position.set(0, brandPlateY, dirZ * (shortRailCenterZ + brandPlateOutwardShift));
+    plate.position.set(0, brandPlateY, dirZ * shortRailOuterZ);
     plate.castShadow = true;
     plate.receiveShadow = true;
     plate.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.2;
     railsGroup.add(plate);
     const sideMaterials = Array.isArray(plate.material)
-      ? plate.material.filter((_, index) => index !== 2)
+      ? plate.material.filter((_, index) => index !== outwardFaceIndex)
       : [];
     finishParts.brandPlates.push({
       mesh: plate,
@@ -11962,6 +11957,7 @@ const powerRef = useRef(hud.power);
     applyLightingPreset(lightingId);
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
+  const [renderResetKey, setRenderResetKey] = useState(0);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const sceneRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
@@ -13109,6 +13105,13 @@ const powerRef = useRef(hud.power);
     }
     const cueRackDisposers = [];
     let disposed = false;
+    let contextLost = false;
+    const triggerRendererReset = () => {
+      if (disposed || contextLost) return;
+      contextLost = true;
+      setErr('Graphics renderer reset; restoring the table…');
+      setRenderResetKey((value) => value + 1);
+    };
     try {
       const updatePocketCameraState = (active) => {
         if (pocketCameraStateRef.current === active) return;
@@ -13134,9 +13137,15 @@ const powerRef = useRef(hud.power);
       updateRendererAnisotropyCap(renderer);
       applyRendererQuality();
       host.appendChild(renderer.domElement);
-      renderer.domElement.addEventListener('webglcontextlost', (e) =>
-        e.preventDefault()
-      );
+      const handleContextLost = (e) => {
+        e.preventDefault();
+        triggerRendererReset();
+      };
+      const handleContextRestored = () => {
+        triggerRendererReset();
+      };
+      renderer.domElement.addEventListener('webglcontextlost', handleContextLost, false);
+      renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored, false);
       renderer.domElement.style.transformOrigin = 'top left';
 
       // Scene & Camera
@@ -23255,7 +23264,9 @@ const powerRef = useRef(hud.power);
               );
               const holderSpacing = POCKET_HOLDER_REST_SPACING;
               const railStartOffset =
-                POCKET_NET_RING_RADIUS_SCALE * POCKET_BOTTOM_R + POCKET_GUIDE_RING_CLEARANCE;
+                POCKET_NET_RING_RADIUS_SCALE * POCKET_BOTTOM_R +
+                POCKET_GUIDE_RING_CLEARANCE +
+                POCKET_GUIDE_RING_OVERLAP;
               const restDistanceBase = Math.max(
                 railStartOffset + POCKET_GUIDE_LENGTH - POCKET_HOLDER_REST_PULLBACK,
                 railStartOffset + holderSpacing
@@ -23591,6 +23602,10 @@ const powerRef = useRef(hud.power);
           try {
             host.removeChild(renderer.domElement);
           } catch {}
+          if (renderer?.domElement) {
+            renderer.domElement.removeEventListener('webglcontextlost', handleContextLost, false);
+            renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored, false);
+          }
           dom.removeEventListener('mousedown', down);
           dom.removeEventListener('mousemove', move);
           window.removeEventListener('mouseup', up);
@@ -23675,7 +23690,7 @@ const powerRef = useRef(hud.power);
         console.error(e);
         setErr(e?.message || String(e));
       }
-  }, []);
+  }, [renderResetKey]);
 
   useEffect(() => {
     applyFinishRef.current?.(tableFinish);
