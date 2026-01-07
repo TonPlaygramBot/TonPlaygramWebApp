@@ -1197,9 +1197,7 @@ const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.12; // sit the ring directly
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
-const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 1.24; // extend the short L section so it reaches the ring and guides balls like the reference trays
-const POCKET_HOLDER_L_SPAN = Math.max(POCKET_NET_DEPTH * 1.3, BALL_DIAMETER * 5.4); // longer tray section that actually holds the balls
-const POCKET_GUIDE_LENGTH = POCKET_HOLDER_L_LEG + POCKET_HOLDER_L_SPAN; // total run length for the holder rails
+const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
 const POCKET_GUIDE_DROP = BALL_R * 0.28;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
@@ -1207,14 +1205,16 @@ const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow t
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.82; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.3; // drop the centre rail to form the floor of the holder
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
-const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.2; // wider spacing so potted balls line up without overlapping on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 0.85; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 1.7; // drop the resting spot so potted balls settle onto the chrome rails
+const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.12; // wider spacing so potted balls line up without overlapping on the holder rails
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 1.05; // stop the lead ball right against the leather strap without letting it bury the backstop
+const POCKET_HOLDER_REST_DROP = BALL_R * 1.45; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
 const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
 const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
+const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
+const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
@@ -5185,7 +5185,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 0.88; // pull the replay overhead closer to the table like the original broadcast cut
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1; // use the same distance as the 2D top view to avoid overly high broadcast framing
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -7368,14 +7368,12 @@ function Table3D(
         .addScaledVector(outwardDir, railStartOffset)
         .addScaledVector(sideDir, lateralOffset)
         .add(new THREE.Vector3(0, isCenterGuide ? -POCKET_GUIDE_FLOOR_DROP : 0, 0));
-      const legEnd = start.clone().addScaledVector(outwardDir, POCKET_HOLDER_L_LEG);
-      const stemEnd = legEnd.clone().add(new THREE.Vector3(0, -POCKET_GUIDE_STEM_DEPTH, 0));
+      const stemEnd = start.clone().add(new THREE.Vector3(0, -POCKET_GUIDE_STEM_DEPTH, 0));
       const runEnd = stemEnd
         .clone()
-        .addScaledVector(strapDir, POCKET_HOLDER_L_SPAN)
+        .addScaledVector(strapDir, POCKET_GUIDE_LENGTH)
         .add(new THREE.Vector3(0, -POCKET_GUIDE_DROP - (isCenterGuide ? POCKET_GUIDE_FLOOR_DROP * 0.35 : 0), 0));
-      buildGuideSegment(start, legEnd);
-      buildGuideSegment(legEnd, stemEnd);
+      buildGuideSegment(start, stemEnd);
       buildGuideSegment(stemEnd, runEnd);
 
       if (isCenterGuide) {
