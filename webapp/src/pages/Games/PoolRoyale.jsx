@@ -1207,7 +1207,7 @@ const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.3; // drop the centre rail to form th
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.12; // wider spacing so potted balls line up without overlapping on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 1.05; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 1.2; // drop the resting spot so potted balls settle onto the chrome rails
+const POCKET_HOLDER_REST_DROP = BALL_R * 1.45; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -5172,7 +5172,7 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
-const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI + 0.12;
+const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI; // align broadcast overhead with the 2D top-view angle
 const BROADCAST_MARGIN_WIDTH = (PLAY_W / 2) * (TOP_VIEW_MARGIN - 1);
 const BROADCAST_MARGIN_LENGTH = (PLAY_H / 2) * (TOP_VIEW_MARGIN - 1);
 const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) => {
@@ -5185,7 +5185,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1.04; // keep broadcast overhead cuts tight to the table using the same framing as the 2D toggle camera
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1; // use the same distance as the 2D top view to avoid overly high broadcast framing
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -7333,10 +7333,11 @@ function Table3D(
     const outwardDir = resolvePocketHolderDirection(p, pocketId);
     const sideDir = new THREE.Vector3().crossVectors(outwardDir, new THREE.Vector3(0, 1, 0)).normalize();
     const strapDir = outwardDir.clone().setY(-Math.tan(POCKET_HOLDER_TILT_RAD)).normalize();
-    const railStartOffset = Math.max(
+    const railStartDistance = Math.max(
       MICRO_EPS,
       pocketGuideRingRadius + POCKET_GUIDE_RING_CLEARANCE + POCKET_GUIDE_RING_OVERLAP
     );
+    const railStartOffset = -railStartDistance;
     const buildGuideSegment = (start, end) => {
       const delta = end.clone().sub(start);
       const length = delta.length();
@@ -8839,8 +8840,7 @@ function Table3D(
     mat.sheenRoughness = Math.min(mat.sheenRoughness ?? 0.6, 0.6);
     return mat;
   };
-  const brandPlateThickness = chromePlateThickness * 0.8;
-  const brandPlateDepth = Math.min(endRailW * 0.32, TABLE.THICK * 0.42);
+  const brandPlateDepth = chromePlateThickness;
   const brandPlateHeight = railH * 0.96;
   const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 11, PLAY_W * 0.28));
   const brandPlateY = frameTopY + railH * 0.5;
@@ -21942,7 +21942,8 @@ const powerRef = useRef(hud.power);
   let lastLiveAimSentAt = 0;
   const step = (now) => {
     if (disposed) return;
-    const playback = replayPlaybackRef.current;
+    try {
+      const playback = replayPlaybackRef.current;
         if (playback) {
           const frameTiming = frameTimingRef.current;
           const targetReplayFrameTime =
@@ -23263,17 +23264,18 @@ const powerRef = useRef(hud.power);
                 c.y
               );
               const holderSpacing = POCKET_HOLDER_REST_SPACING;
-              const railStartOffset =
+              const railStartDistance =
                 POCKET_NET_RING_RADIUS_SCALE * POCKET_BOTTOM_R +
                 POCKET_GUIDE_RING_CLEARANCE +
                 POCKET_GUIDE_RING_OVERLAP;
+              const railStartOffset = -railStartDistance;
               const restDistanceBase = Math.max(
-                railStartOffset + POCKET_GUIDE_LENGTH - POCKET_HOLDER_REST_PULLBACK,
-                railStartOffset + holderSpacing
+                railStartDistance + POCKET_GUIDE_LENGTH - POCKET_HOLDER_REST_PULLBACK,
+                railStartDistance + holderSpacing
               );
               const minRestDistance = Math.max(
-                railStartOffset + holderSpacing * 0.5,
-                railStartOffset + BALL_R * 0.6
+                railStartDistance + holderSpacing * 0.5,
+                railStartDistance + BALL_R * 0.6
               );
               const clampedRestIndex = Math.max(0, pocketRestIndex);
               const restDistance = Math.max(
@@ -23543,152 +23545,158 @@ const powerRef = useRef(hud.power);
           if (!disposed) {
             rafRef.current = requestAnimationFrame(step);
           }
-        };
-        step(performance.now());
+        } catch (error) {
+          console.error('Pool Royale render loop failed; attempting recovery.', error);
+          if (!disposed) {
+            rafRef.current = requestAnimationFrame(step);
+          }
+        }
+      };
+      step(performance.now());
 
       // Resize
-        const onResize = () => {
-          if (disposed || !host) return;
-          renderer.setSize(host.clientWidth, host.clientHeight);
-          // Update canvas dimensions when the window size changes so the table
-          // remains fully visible.
-          const scaleChanged = applyWorldScaleRef.current?.() ?? false;
-          if (!scaleChanged) {
-            const margin = Math.max(
-              STANDING_VIEW.margin,
-              topViewRef.current
-                ? TOP_VIEW_MARGIN
-                : window.innerHeight > window.innerWidth
-                  ? STANDING_VIEW_MARGIN_PORTRAIT
-                  : STANDING_VIEW_MARGIN_LANDSCAPE
-            );
-            fit(margin);
-          }
-          const resizeAspect = host.clientWidth / host.clientHeight;
-          pocketCamerasRef.current.forEach((entry) => {
-            if (!entry?.camera) return;
-            entry.camera.aspect = resizeAspect;
-            entry.camera.updateProjectionMatrix();
-          });
-        };
+      const onResize = () => {
+        if (disposed || !host) return;
+        renderer.setSize(host.clientWidth, host.clientHeight);
+        // Update canvas dimensions when the window size changes so the table
+        // remains fully visible.
+        const scaleChanged = applyWorldScaleRef.current?.() ?? false;
+        if (!scaleChanged) {
+          const margin = Math.max(
+            STANDING_VIEW.margin,
+            topViewRef.current
+              ? TOP_VIEW_MARGIN
+              : window.innerHeight > window.innerWidth
+                ? STANDING_VIEW_MARGIN_PORTRAIT
+                : STANDING_VIEW_MARGIN_LANDSCAPE
+          );
+          fit(margin);
+        }
+        const resizeAspect = host.clientWidth / host.clientHeight;
+        pocketCamerasRef.current.forEach((entry) => {
+          if (!entry?.camera) return;
+          entry.camera.aspect = resizeAspect;
+          entry.camera.updateProjectionMatrix();
+        });
+      };
       window.addEventListener('resize', onResize);
 
-        return () => {
-          disposed = true;
-          cancelCameraBlendTween();
-          applyWorldScaleRef.current = () => {};
-          topViewControlsRef.current = { enter: () => {}, exit: () => {} };
-          cameraUpdateRef.current = () => {};
-          cancelAnimationFrame(rafRef.current);
-          window.removeEventListener('resize', onResize);
-          updatePocketCameraState(false);
-          pocketCamerasRef.current.clear();
-          pocketDropRef.current.clear();
-          pocketRestIndexRef.current.clear();
-          captureBallSnapshotRef.current = null;
-          applyBallSnapshotRef.current = null;
-          pendingLayoutRef.current = null;
-          captureReplayCameraSnapshotRef.current = null;
-          pendingRemoteReplayRef.current = null;
-          incomingRemoteShotRef.current = null;
-          remoteShotActiveRef.current = false;
-          remoteShotUntilRef.current = 0;
-          remoteAimRef.current = null;
-          lightingRigRef.current = null;
-          worldRef.current = null;
-          activeRenderCameraRef.current = null;
-          cueBodyRef.current = null;
-          tipGroupRef.current = null;
+      return () => {
+        disposed = true;
+        cancelCameraBlendTween();
+        applyWorldScaleRef.current = () => {};
+        topViewControlsRef.current = { enter: () => {}, exit: () => {} };
+        cameraUpdateRef.current = () => {};
+        cancelAnimationFrame(rafRef.current);
+        window.removeEventListener('resize', onResize);
+        updatePocketCameraState(false);
+        pocketCamerasRef.current.clear();
+        pocketDropRef.current.clear();
+        pocketRestIndexRef.current.clear();
+        captureBallSnapshotRef.current = null;
+        applyBallSnapshotRef.current = null;
+        pendingLayoutRef.current = null;
+        captureReplayCameraSnapshotRef.current = null;
+        pendingRemoteReplayRef.current = null;
+        incomingRemoteShotRef.current = null;
+        remoteShotActiveRef.current = false;
+        remoteShotUntilRef.current = 0;
+        remoteAimRef.current = null;
+        lightingRigRef.current = null;
+        worldRef.current = null;
+        activeRenderCameraRef.current = null;
+        cueBodyRef.current = null;
+        tipGroupRef.current = null;
+        try {
+          host.removeChild(renderer.domElement);
+        } catch {}
+        if (renderer?.domElement) {
+          renderer.domElement.removeEventListener('webglcontextlost', handleContextLost, false);
+          renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored, false);
+        }
+        dom.removeEventListener('mousedown', down);
+        dom.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', up);
+        dom.removeEventListener('touchstart', down);
+        dom.removeEventListener('touchmove', move);
+        window.removeEventListener('touchend', up);
+        window.removeEventListener('keydown', keyRot);
+        dom.removeEventListener('pointerdown', handleInHandDown);
+        dom.removeEventListener('pointermove', handleInHandMove);
+        window.removeEventListener('pointerup', endInHandDrag);
+        dom.removeEventListener('pointercancel', endInHandDrag);
+        window.removeEventListener('pointercancel', endInHandDrag);
+        applyBaseRef.current = () => {};
+        applyFinishRef.current = () => {};
+        applyTableSlotRef.current = () => {};
+        clearSecondaryTableDecorRef.current?.();
+        refreshSecondaryTableDecorRef.current = () => {};
+        clearSecondaryTableDecorRef.current = () => {};
+        secondaryTableDecorRef.current = { group: null, dispose: null };
+        clearDecorTablesRef.current?.();
+        decorativeTablesRef.current = [];
+        updateDecorTablesRef.current = () => {};
+        clearDecorTablesRef.current = () => {};
+        clearHospitalityLayoutRef.current?.();
+        hospitalityGroupsRef.current = [];
+        updateHospitalityLayoutRef.current = () => {};
+        clearHospitalityLayoutRef.current = () => {};
+        chessBoardTextureRef.current?.dispose?.();
+        dartboardTextureRef.current?.dispose?.();
+        chessBoardTextureRef.current = null;
+        dartboardTextureRef.current = null;
+        applyRailMarkerStyleRef.current = () => {};
+        secondaryTableRef.current = null;
+        secondaryBaseSetterRef.current = null;
+        chalkMeshesRef.current = [];
+        chalkAreaRef.current = null;
+        visibleChalkIndexRef.current = null;
+        chalkAssistTargetRef.current = false;
+        while (cueRackDisposers.length) {
+          const dispose = cueRackDisposers.pop();
           try {
-            host.removeChild(renderer.domElement);
+            dispose?.();
           } catch {}
-          if (renderer?.domElement) {
-            renderer.domElement.removeEventListener('webglcontextlost', handleContextLost, false);
-            renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored, false);
+        }
+        cueRackGroupsRef.current = [];
+        cueOptionGroupsRef.current = [];
+        cueRackMetaRef.current = new Map();
+        if (cueMaterialsRef.current?.shaft) {
+          const textures = cueMaterialsRef.current.shaft.userData?.textures;
+          if (textures) {
+            Object.values(textures).forEach((tex) => tex?.dispose?.());
           }
-          dom.removeEventListener('mousedown', down);
-          dom.removeEventListener('mousemove', move);
-          window.removeEventListener('mouseup', up);
-          dom.removeEventListener('touchstart', down);
-          dom.removeEventListener('touchmove', move);
-          window.removeEventListener('touchend', up);
-          window.removeEventListener('keydown', keyRot);
-          dom.removeEventListener('pointerdown', handleInHandDown);
-          dom.removeEventListener('pointermove', handleInHandMove);
-          window.removeEventListener('pointerup', endInHandDrag);
-          dom.removeEventListener('pointercancel', endInHandDrag);
-          window.removeEventListener('pointercancel', endInHandDrag);
-          applyBaseRef.current = () => {};
-          applyFinishRef.current = () => {};
-          applyTableSlotRef.current = () => {};
-          clearSecondaryTableDecorRef.current?.();
-          refreshSecondaryTableDecorRef.current = () => {};
-          clearSecondaryTableDecorRef.current = () => {};
-          secondaryTableDecorRef.current = { group: null, dispose: null };
-          clearDecorTablesRef.current?.();
-          decorativeTablesRef.current = [];
-          updateDecorTablesRef.current = () => {};
-          clearDecorTablesRef.current = () => {};
-          clearHospitalityLayoutRef.current?.();
-          hospitalityGroupsRef.current = [];
-          updateHospitalityLayoutRef.current = () => {};
-          clearHospitalityLayoutRef.current = () => {};
-          chessBoardTextureRef.current?.dispose?.();
-          dartboardTextureRef.current?.dispose?.();
-          chessBoardTextureRef.current = null;
-          dartboardTextureRef.current = null;
-          applyRailMarkerStyleRef.current = () => {};
-          secondaryTableRef.current = null;
-          secondaryBaseSetterRef.current = null;
-          chalkMeshesRef.current = [];
-          chalkAreaRef.current = null;
-          visibleChalkIndexRef.current = null;
-          chalkAssistTargetRef.current = false;
-          while (cueRackDisposers.length) {
-            const dispose = cueRackDisposers.pop();
-            try {
-              dispose?.();
-            } catch {}
-          }
-          cueRackGroupsRef.current = [];
-          cueOptionGroupsRef.current = [];
-          cueRackMetaRef.current = new Map();
-          if (cueMaterialsRef.current?.shaft) {
-            const textures = cueMaterialsRef.current.shaft.userData?.textures;
-            if (textures) {
-              Object.values(textures).forEach((tex) => tex?.dispose?.());
-            }
-            disposeMaterialWithWood(cueMaterialsRef.current.shaft);
-          }
-          if (cueMaterialsRef.current?.buttMaterial) {
-            cueMaterialsRef.current.buttMaterial.dispose?.();
-          }
-          if (cueMaterialsRef.current?.buttRingMaterial) {
-            cueMaterialsRef.current.buttRingMaterial.dispose?.();
-          }
-          if (cueMaterialsRef.current?.buttCapMaterial) {
-            cueMaterialsRef.current.buttCapMaterial.dispose?.();
-          }
-          cueMaterialsRef.current.shaft = null;
-          cueMaterialsRef.current.buttMaterial = null;
-          cueMaterialsRef.current.buttRingMaterial = null;
-          cueMaterialsRef.current.buttCapMaterial = null;
-          cueMaterialsRef.current.styleIndex = null;
-          disposeEnvironmentRef.current?.();
-          disposeEnvironmentRef.current = null;
-          envTextureRef.current = null;
-          envSkyboxRef.current = null;
-          envSkyboxTextureRef.current = null;
-          cueGalleryStateRef.current.active = false;
-          cueGalleryStateRef.current.rackId = null;
-          cueGalleryStateRef.current.prev = null;
-          cueGalleryStateRef.current.position?.set(0, 0, 0);
-          cueGalleryStateRef.current.target?.set(0, 0, 0);
-          sceneRef.current = null;
-        };
+          disposeMaterialWithWood(cueMaterialsRef.current.shaft);
+        }
+        if (cueMaterialsRef.current?.buttMaterial) {
+          cueMaterialsRef.current.buttMaterial.dispose?.();
+        }
+        if (cueMaterialsRef.current?.buttRingMaterial) {
+          cueMaterialsRef.current.buttRingMaterial.dispose?.();
+        }
+        if (cueMaterialsRef.current?.buttCapMaterial) {
+          cueMaterialsRef.current.buttCapMaterial.dispose?.();
+        }
+        cueMaterialsRef.current.shaft = null;
+        cueMaterialsRef.current.buttMaterial = null;
+        cueMaterialsRef.current.buttRingMaterial = null;
+        cueMaterialsRef.current.buttCapMaterial = null;
+        cueMaterialsRef.current.styleIndex = null;
+        disposeEnvironmentRef.current?.();
+        disposeEnvironmentRef.current = null;
+        envTextureRef.current = null;
+        envSkyboxRef.current = null;
+        envSkyboxTextureRef.current = null;
+        cueGalleryStateRef.current.active = false;
+        cueGalleryStateRef.current.rackId = null;
+        cueGalleryStateRef.current.prev = null;
+        cueGalleryStateRef.current.position?.set(0, 0, 0);
+        cueGalleryStateRef.current.target?.set(0, 0, 0);
+        sceneRef.current = null;
+      };
       } catch (e) {
-        console.error(e);
-        setErr(e?.message || String(e));
+      console.error(e);
+      setErr(e?.message || String(e));
       }
   }, [renderResetKey]);
 
@@ -23715,44 +23723,44 @@ const powerRef = useRef(hud.power);
   useLayoutEffect(() => {
     const computeInsets = () => {
       if (!isPortrait) {
-        const left = uiScale * 150;
-        const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 150);
-        setHudInsets({
-          left: `${left}px`,
-          right: `${right}px`
-        });
-        setBottomHudOffset(0);
-        return;
+      const left = uiScale * 150;
+      const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 150);
+      setHudInsets({
+        left: `${left}px`,
+        right: `${right}px`
+      });
+      setBottomHudOffset(0);
+      return;
       }
       const leftBox = leftControlsRef.current?.getBoundingClientRect();
       const spinBox = spinBoxRef.current?.getBoundingClientRect();
       const viewportWidth =
-        typeof window !== 'undefined'
-          ? window.innerWidth || document.documentElement?.clientWidth || 0
-          : 0;
+      typeof window !== 'undefined'
+        ? window.innerWidth || document.documentElement?.clientWidth || 0
+        : 0;
       const fallbackLeftWidth = uiScale * 120;
       const fallbackSpinWidth = uiScale * (SPIN_CONTROL_DIAMETER_PX + 64);
       const leftInset = (leftBox?.width ?? fallbackLeftWidth) + 12;
       const rightInset =
-        (spinBox?.width ?? fallbackSpinWidth) +
-        uiScale * 32 +
-        12;
+      (spinBox?.width ?? fallbackSpinWidth) +
+      uiScale * 32 +
+      12;
       setHudInsets({
-        left: `${leftInset}px`,
-        right: `${rightInset}px`
+      left: `${leftInset}px`,
+      right: `${rightInset}px`
       });
       if (viewportWidth > 0) {
-        const sideMargin = 16;
-        const leftCenter =
-          (leftBox ? leftBox.left + leftBox.width / 2 : leftInset / 2 + sideMargin);
-        const spinWidth = spinBox?.width ?? fallbackSpinWidth;
-        const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
-        const spinCenter = spinLeft + spinWidth / 2;
-        const desiredCenter = (leftCenter + spinCenter) / 2;
-        const screenCenter = viewportWidth / 2;
-        setBottomHudOffset(desiredCenter - screenCenter - PORTRAIT_HUD_HORIZONTAL_NUDGE_PX);
+      const sideMargin = 16;
+      const leftCenter =
+        (leftBox ? leftBox.left + leftBox.width / 2 : leftInset / 2 + sideMargin);
+      const spinWidth = spinBox?.width ?? fallbackSpinWidth;
+      const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
+      const spinCenter = spinLeft + spinWidth / 2;
+      const desiredCenter = (leftCenter + spinCenter) / 2;
+      const screenCenter = viewportWidth / 2;
+      setBottomHudOffset(desiredCenter - screenCenter - PORTRAIT_HUD_HORIZONTAL_NUDGE_PX);
       } else {
-        setBottomHudOffset(0);
+      setBottomHudOffset(0);
       }
     };
     computeInsets();
@@ -23778,11 +23786,11 @@ const powerRef = useRef(hud.power);
       labels: true,
       onChange: (v) => applyPower(v / 100),
       onCommit: () => {
-        fireRef.current?.();
-        requestAnimationFrame(() => {
-          slider.set(slider.min, { animate: true });
-          applyPower(0);
-        });
+      fireRef.current?.();
+      requestAnimationFrame(() => {
+        slider.set(slider.min, { animate: true });
+        applyPower(0);
+      });
       }
     });
     sliderInstanceRef.current = slider;
@@ -23835,8 +23843,8 @@ const powerRef = useRef(hud.power);
     const clampToLimits = (nx, ny) => {
       const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
       return {
-        x: clamp(nx, limits.minX, limits.maxX),
-        y: clamp(ny, limits.minY, limits.maxY)
+      x: clamp(nx, limits.minX, limits.maxX),
+      y: clamp(ny, limits.minY, limits.maxY)
       };
     };
 
