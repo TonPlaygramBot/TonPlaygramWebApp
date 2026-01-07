@@ -1202,12 +1202,13 @@ const POCKET_GUIDE_DROP = BALL_R * 0.28;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
-const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.82; // lengthen the elbow so each rail meets the ring with a ball-length guide
+const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.1; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.3; // drop the centre rail to form the floor of the holder
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.22; // lower all chrome holder rails so balls ride directly on the guides
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
-const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.12; // wider spacing so potted balls line up without overlapping on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 1.05; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 1.45; // drop the resting spot so potted balls settle onto the chrome rails
+const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.2; // wider spacing so potted balls line up without overlapping on the holder rails
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 1.15; // stop the lead ball right against the leather strap without letting it bury the backstop
+const POCKET_HOLDER_REST_DROP = BALL_R * 1.72; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -5185,7 +5186,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1; // use the same distance as the 2D top view to avoid overly high broadcast framing
+const RAIL_OVERHEAD_DISTANCE_BIAS = 0.9; // pull the broadcast overhead camera closer to the table like the original framing
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -7367,7 +7368,13 @@ function Table3D(
         .clone()
         .addScaledVector(outwardDir, railStartOffset)
         .addScaledVector(sideDir, lateralOffset)
-        .add(new THREE.Vector3(0, isCenterGuide ? -POCKET_GUIDE_FLOOR_DROP : 0, 0));
+        .add(
+          new THREE.Vector3(
+            0,
+            -POCKET_GUIDE_VERTICAL_DROP - (isCenterGuide ? POCKET_GUIDE_FLOOR_DROP : 0),
+            0
+          )
+        );
       const stemEnd = start.clone().add(new THREE.Vector3(0, -POCKET_GUIDE_STEM_DEPTH, 0));
       const runEnd = stemEnd
         .clone()
@@ -23293,7 +23300,13 @@ const powerRef = useRef(hud.power);
               const railRunStart = ringAnchor
                 .clone()
                 .addScaledVector(holderDir, railStartOffset)
-                .add(new THREE.Vector3(0, -POCKET_GUIDE_FLOOR_DROP, 0));
+                .add(
+                  new THREE.Vector3(
+                    0,
+                    -POCKET_GUIDE_VERTICAL_DROP - POCKET_GUIDE_FLOOR_DROP,
+                    0
+                  )
+                );
               const dropEntry = {
                 start: dropStart,
                 fromY: BALL_CENTER_Y,
