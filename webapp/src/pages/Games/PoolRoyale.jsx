@@ -1007,7 +1007,7 @@ const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.032; // pull only the midd
 const CHALK_TOP_COLOR = 0xd9c489;
 const CHALK_SIDE_COLOR = 0x10141b;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1a2430;
-const CHALK_BOTTOM_COLOR = 0x0b0e14;
+const CHALK_BOTTOM_COLOR = 0x2a6fe3;
 const CHALK_ACTIVE_COLOR = 0xf3e3ae;
 const CHALK_EMISSIVE_COLOR = 0x0d1018;
 const CHALK_ACTIVE_EMISSIVE_COLOR = 0x1b2838;
@@ -1170,8 +1170,9 @@ const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(9); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
-const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({ x: 0.15, y: 0.15 });
+const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({ x: 0.02, y: 0.103 });
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
+const POCKET_LEATHER_NORMAL_SCALE = new THREE.Vector2(1.25, 1.25);
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
@@ -1191,7 +1192,12 @@ const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // raise the net so the weave si
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
-const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
+const POCKET_GUIDE_BASE_LENGTH = Math.max(
+  POCKET_NET_DEPTH * 1.35,
+  BALL_DIAMETER * 5.6
+); // stretch the holder run so it comfortably fits 5 balls
+const POCKET_GUIDE_EXTENSION = BALL_DIAMETER * 2; // extend the holders by two balls beyond the leather strap
+const POCKET_GUIDE_LENGTH = POCKET_GUIDE_BASE_LENGTH + POCKET_GUIDE_EXTENSION;
 const POCKET_GUIDE_DROP = BALL_R * 0.12;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
@@ -2115,7 +2121,7 @@ const broadcastPocketLeatherTextures = (textureId) => {
     applyPocketLeatherTextureDefaults(material.map, { isColor: true });
     applyPocketLeatherTextureDefaults(material.normalMap);
     applyPocketLeatherTextureDefaults(material.roughnessMap);
-    material.needsUpdate = true;
+    applyPocketLeatherMaterialTuning(material);
   });
 };
 
@@ -2137,6 +2143,14 @@ const applyPocketLeatherTextureDefaults = (
   }
   texture.needsUpdate = true;
   return texture;
+};
+
+const applyPocketLeatherMaterialTuning = (material) => {
+  if (!material) return;
+  if (material.normalMap) {
+    material.normalScale = POCKET_LEATHER_NORMAL_SCALE.clone();
+  }
+  material.needsUpdate = true;
 };
 
 const ensurePocketLeatherTextures = (textureId = POCKET_LEATHER_TEXTURE_ID) => {
@@ -2741,9 +2755,9 @@ function createPocketLinerMaterials(option) {
   applyPocketLeatherTextureDefaults(rimMaterial.map, { isColor: true });
   applyPocketLeatherTextureDefaults(rimMaterial.normalMap);
   applyPocketLeatherTextureDefaults(rimMaterial.roughnessMap);
+  applyPocketLeatherMaterialTuning(jawMaterial);
+  applyPocketLeatherMaterialTuning(rimMaterial);
   registerPocketLeatherConsumer(textureId, [jawMaterial, rimMaterial]);
-  jawMaterial.needsUpdate = true;
-  rimMaterial.needsUpdate = true;
   return { jawMaterial, rimMaterial };
 }
 
@@ -6088,6 +6102,13 @@ function Table3D(
   applyPocketLeatherTextureDefaults(pocketJawMat.map, { isColor: true });
   applyPocketLeatherTextureDefaults(pocketJawMat.normalMap);
   applyPocketLeatherTextureDefaults(pocketJawMat.roughnessMap);
+  applyPocketLeatherMaterialTuning(pocketJawMat);
+  applyPocketLeatherMaterialTuning(pocketRimMat);
+  applyPocketLeatherTextureDefaults(pocketJawMat.map, { isColor: true });
+  applyPocketLeatherTextureDefaults(pocketJawMat.normalMap);
+  applyPocketLeatherTextureDefaults(pocketJawMat.roughnessMap);
+  applyPocketLeatherMaterialTuning(pocketJawMat);
+  applyPocketLeatherMaterialTuning(pocketRimMat);
   const gapStripeMat =
     rawMaterials.gapStripe ||
     new THREE.MeshPhysicalMaterial({
@@ -6775,7 +6796,10 @@ function Table3D(
   ];
   const pocketNetGeo = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
   const pocketGuideMaterial = trimMat;
-  const pocketStrapLength = Math.max(POCKET_GUIDE_LENGTH * 0.62, BALL_DIAMETER * 5.4);
+  const pocketStrapLength = Math.max(
+    POCKET_GUIDE_BASE_LENGTH * 0.62,
+    BALL_DIAMETER * 5.4
+  );
   const pocketStrapWidth = BALL_R * 1.8;
   const pocketStrapThickness = BALL_R * 0.12;
   const pocketRingGeometry = new THREE.TorusGeometry(
@@ -6877,13 +6901,19 @@ function Table3D(
       const runEnd = stemEnd
         .clone()
         .addScaledVector(strapDir, POCKET_GUIDE_LENGTH)
-        .add(new THREE.Vector3(0, -POCKET_GUIDE_DROP - (isCenterGuide ? POCKET_GUIDE_FLOOR_DROP * 0.35 : 0), 0));
+        .add(
+          new THREE.Vector3(
+            0,
+            -POCKET_GUIDE_DROP - (isCenterGuide ? POCKET_GUIDE_FLOOR_DROP * 0.35 : 0),
+            0
+          )
+        );
       buildGuideSegment(start, stemEnd);
       buildGuideSegment(stemEnd, runEnd);
 
       if (isCenterGuide) {
         strapOrigin = stemEnd.clone();
-        strapEnd = runEnd.clone();
+        strapEnd = runEnd.clone().addScaledVector(strapDir, -POCKET_GUIDE_EXTENSION);
       }
     }
 
@@ -8366,7 +8396,7 @@ function Table3D(
       lines: [{ text: 'TonPlaygram', size: 0.34, weight: '800' }],
       borderWidth: Math.max(TABLE.THICK * 5.5, 20),
       padding: 140,
-      studScale: 0.2
+      studScale: 0.26
     }) || null;
   const brandPlateTopMaterial = brandPlateTexture
     ? new THREE.MeshPhysicalMaterial({
@@ -8401,8 +8431,11 @@ function Table3D(
     return mat;
   };
   const brandPlateThickness = chromePlateThickness;
-  const brandPlateDepth = Math.min(endRailW * 0.48, TABLE.THICK * 0.7);
-  const brandPlateWidth = Math.min(PLAY_W * 0.4, Math.max(BALL_R * 12, PLAY_W * 0.3));
+  const brandPlateDepth = Math.min(endRailW * 0.6, TABLE.THICK * 0.85);
+  const brandPlateWidth = Math.min(
+    PLAY_W * 0.34,
+    Math.max(BALL_R * 11, PLAY_W * 0.26)
+  );
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
   const brandPlateOutwardShift = endRailW * 0.28;
@@ -8683,14 +8716,16 @@ function Table3D(
       offsetLimits: { min: -chalkShortOffsetLimit, max: chalkShortOffsetLimit },
       rotationY: 0,
       rotationZ: Math.PI / 2,
-      height: chalkSize
+      height: chalkSize,
+      flip: true
     },
     {
       basePosition: new THREE.Vector3(0, chalkBaseY, endRailCenterZ + chalkEndRailOffset),
       tangent: new THREE.Vector3(1, 0, 0),
       defaultOffset: chalkShortAxisOffset,
       offsetLimits: { min: -chalkShortOffsetLimit, max: chalkShortOffsetLimit },
-      rotationY: Math.PI
+      rotationY: Math.PI,
+      flip: true
     }
   ];
   chalkSlots.forEach((slot, index) => {
@@ -8706,6 +8741,9 @@ function Table3D(
       slot.rotationY ?? 0,
       slot.rotationZ ?? 0
     );
+    if (slot.flip) {
+      mesh.rotateX(Math.PI);
+    }
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.visible = true;
@@ -22923,7 +22961,9 @@ const powerRef = useRef(hud.power);
                 POCKET_GUIDE_RING_OVERLAP;
               const railStartOffset = -railStartDistance;
               const restDistanceBase = Math.max(
-                railStartDistance + POCKET_GUIDE_LENGTH - POCKET_HOLDER_REST_PULLBACK,
+                railStartDistance +
+                  POCKET_GUIDE_BASE_LENGTH -
+                  POCKET_HOLDER_REST_PULLBACK,
                 railStartDistance + holderSpacing
               );
               const minRestDistance = Math.max(
