@@ -512,7 +512,7 @@ export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
   cueStyle: ['birch-frost'],
-  pocketLiner: ['fabric_leather_02'],
+  pocketLiner: ['blackPocket'],
   environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID],
   tableBase: POOL_ROYALE_BASE_VARIANTS.map((variant) => variant.id)
 });
@@ -568,12 +568,13 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     }, {})
   ),
   pocketLiner: Object.freeze({
-    fabric_leather_02: 'Fabric Leather 02 Pocket Jaws',
-    fabric_leather_01: 'Fabric Leather 01 Pocket Jaws',
-    brown_leather: 'Brown Leather Pocket Jaws',
-    leather_red_02: 'Leather Red 02 Pocket Jaws',
-    leather_red_03: 'Leather Red 03 Pocket Jaws',
-    leather_white: 'Leather White Pocket Jaws'
+    blackPocket: 'Black Pocket Jaws',
+    graphitePocket: 'Graphite Pocket Jaws',
+    titaniumPocket: 'Titanium Pocket Jaws',
+    copperPocket: 'Copper Pocket Jaws',
+    emeraldPocket: 'Emerald Pocket Jaws',
+    rubyPocket: 'Ruby Pocket Jaws',
+    pearlPocket: 'Pearl Pocket Jaws'
   })
 });
 
@@ -691,52 +692,52 @@ export const POOL_ROYALE_STORE_ITEMS = [
     description: variant.description
   })),
   {
-    id: 'pocket-fabric-leather-02',
+    id: 'pocket-graphite',
     type: 'pocketLiner',
-    optionId: 'fabric_leather_02',
-    name: 'Fabric Leather 02 Pocket Jaws',
+    optionId: 'graphitePocket',
+    name: 'Graphite Pocket Jaws',
     price: 520,
-    description: 'Warm brown leather jaws stitched with realistic creases and seams.'
+    description: 'Matte graphite jaws that mirror the fascia chrome glow.'
   },
   {
-    id: 'pocket-fabric-leather-01',
+    id: 'pocket-titanium',
     type: 'pocketLiner',
-    optionId: 'fabric_leather_01',
-    name: 'Fabric Leather 01 Pocket Jaws',
-    price: 530,
-    description: 'Soft-grain leather jaws with a tight weave and subtle patina.'
-  },
-  {
-    id: 'pocket-brown-leather',
-    type: 'pocketLiner',
-    optionId: 'brown_leather',
-    name: 'Brown Leather Pocket Jaws',
+    optionId: 'titaniumPocket',
+    name: 'Titanium Pocket Jaws',
     price: 540,
-    description: 'Classic brown leather jaws with rich grain and warm highlights.'
+    description: 'Cool titanium pocket liners with sharp metallic edges.'
   },
   {
-    id: 'pocket-leather-red-02',
+    id: 'pocket-copper',
     type: 'pocketLiner',
-    optionId: 'leather_red_02',
-    name: 'Leather Red 02 Pocket Jaws',
-    price: 550,
-    description: 'Deep red leather jaws with polished grain and soft sheen.'
-  },
-  {
-    id: 'pocket-leather-red-03',
-    type: 'pocketLiner',
-    optionId: 'leather_red_03',
-    name: 'Leather Red 03 Pocket Jaws',
+    optionId: 'copperPocket',
+    name: 'Copper Pocket Jaws',
     price: 560,
-    description: 'Crimson leather jaws with stronger creases and stitched texture.'
+    description: 'Burnished copper jaws for a warm contrast to the cloth.'
   },
   {
-    id: 'pocket-leather-white',
+    id: 'pocket-emerald',
     type: 'pocketLiner',
-    optionId: 'leather_white',
-    name: 'Leather White Pocket Jaws',
-    price: 570,
-    description: 'Bright ivory leather jaws with crisp seams and clean grain.'
+    optionId: 'emeraldPocket',
+    name: 'Emerald Pocket Jaws',
+    price: 580,
+    description: 'Emerald-infused liners that blend with rich green felts.'
+  },
+  {
+    id: 'pocket-ruby',
+    type: 'pocketLiner',
+    optionId: 'rubyPocket',
+    name: 'Ruby Pocket Jaws',
+    price: 590,
+    description: 'Ruby-toned jaws with a subtle gloss for red cloth pairings.'
+  },
+  {
+    id: 'pocket-pearl',
+    type: 'pocketLiner',
+    optionId: 'pearlPocket',
+    name: 'Pearl Pocket Jaws',
+    price: 600,
+    description: 'Pearlescent pocket liners with soft highlights.'
   },
   {
     id: 'cue-redwood',
@@ -826,11 +827,7 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
     label: POOL_ROYALE_CLOTH_VARIANTS[0].name
   },
   { type: 'cueStyle', optionId: 'birch-frost', label: 'Birch Frost Cue' },
-  {
-    type: 'pocketLiner',
-    optionId: 'fabric_leather_02',
-    label: 'Fabric Leather 02 Pocket Jaws'
-  },
+  { type: 'pocketLiner', optionId: 'blackPocket', label: 'Black Pocket Jaws' },
   {
     type: 'tableBase',
     optionId: POOL_ROYALE_BASE_VARIANTS[0].id,
