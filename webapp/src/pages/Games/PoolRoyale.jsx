@@ -11729,8 +11729,14 @@ const powerRef = useRef(hud.power);
     if (!dot) return;
     const x = clamp(value.x ?? 0, -1, 1);
     const y = clamp(value.y ?? 0, -1, 1);
-    dot.style.left = `${50 + x * 50}%`;
-    dot.style.top = `${50 + y * 50}%`;
+    const ranges = spinRangeRef.current || {};
+    const maxSide = Math.max(ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET, 1e-6);
+    const maxVertical = Math.max(ranges.offsetVertical ?? MAX_SPIN_VERTICAL, 1e-6);
+    const largest = Math.max(maxSide, maxVertical);
+    const scaledX = (x * maxSide) / largest;
+    const scaledY = (y * maxVertical) / largest;
+    dot.style.left = `${50 + scaledX * 50}%`;
+    dot.style.top = `${50 + scaledY * 50}%`;
     const magnitude = Math.hypot(x, y);
     const showBlocked = blocked ?? spinLegalityRef.current?.blocked;
     dot.style.backgroundColor = showBlocked
@@ -19168,26 +19174,17 @@ const powerRef = useRef(hud.power);
         }
         return vec;
       };
-      const getSpinVisualRadius = (ranges = {}) => {
-        const maxSide = Math.max(ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET, 0);
-        const maxVertical = Math.max(
-          ranges.offsetVertical ?? MAX_SPIN_VERTICAL,
-          0
-        );
-        const radius = Math.min(maxSide, maxVertical);
-        if (radius > 1e-6) return radius;
-        return Math.max(maxSide, maxVertical, 1e-6);
-      };
       const computeSpinOffsets = (spin, ranges) => {
-        const visualRadius = getSpinVisualRadius(ranges);
+        const offsetSide = ranges?.offsetSide ?? 0;
+        const offsetVertical = ranges?.offsetVertical ?? 0;
         const magnitude = Math.hypot(spin?.x ?? 0, spin?.y ?? 0);
         const hasSpin = magnitude > 1e-4;
-        let side = hasSpin ? (spin.x ?? 0) * visualRadius : 0;
-        let vert = hasSpin ? -(spin.y ?? 0) * visualRadius : 0;
+        let side = hasSpin ? spin.x * offsetSide : 0;
+        let vert = hasSpin ? -spin.y * offsetVertical : 0;
         if (hasSpin) {
           vert = THREE.MathUtils.clamp(vert, -MAX_SPIN_VISUAL_LIFT, MAX_SPIN_VISUAL_LIFT);
         }
-        const maxContactOffset = visualRadius;
+        const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
         if (hasSpin && maxContactOffset > 1e-6) {
           const combined = Math.hypot(side, vert);
           if (combined > maxContactOffset) {
