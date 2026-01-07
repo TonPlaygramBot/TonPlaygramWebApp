@@ -1207,7 +1207,7 @@ const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.3; // drop the centre rail to form th
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.12; // wider spacing so potted balls line up without overlapping on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 1.05; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 1.2; // drop the resting spot so potted balls settle onto the chrome rails
+const POCKET_HOLDER_REST_DROP = BALL_R * 1.55; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -5172,7 +5172,7 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
-const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI + 0.12;
+const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI; // keep broadcast overhead aligned to the 2D top view
 const BROADCAST_MARGIN_WIDTH = (PLAY_W / 2) * (TOP_VIEW_MARGIN - 1);
 const BROADCAST_MARGIN_LENGTH = (PLAY_H / 2) * (TOP_VIEW_MARGIN - 1);
 const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) => {
@@ -5185,7 +5185,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1.04; // keep broadcast overhead cuts tight to the table using the same framing as the 2D toggle camera
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1; // match the 2D top view distance for tighter broadcast overhead framing
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -5711,6 +5711,7 @@ const resolvePocketHolderDirection = (center, pocketId = null) => {
   const absX = Math.abs(center?.x ?? 0);
   const absZ = Math.abs(center?.y ?? 0);
   const isMiddlePocket = pocketId === 'TM' || pocketId === 'BM' || absZ < BALL_R * 0.6;
+  let direction = null;
   if (isMiddlePocket) {
     // Turn the middle-pocket holders to run along the rail like the corner trays instead of jutting outward.
     const zDir =
@@ -5719,22 +5720,31 @@ const resolvePocketHolderDirection = (center, pocketId = null) => {
         : pocketId === 'BM'
         ? 1
           : Math.sign(center?.y || 1) || 1;
-    return new THREE.Vector3(0, 0, zDir);
+    direction = new THREE.Vector3(0, 0, zDir);
+  } else {
+    const zDir = -Math.sign(center?.y || 1) || -1;
+    const sidePull = Math.sign(center?.x || 1) * 0.2;
+    const towardMiddlePocketSide = new THREE.Vector3(sidePull, 0, zDir);
+    if (towardMiddlePocketSide.lengthSq() > MICRO_EPS * MICRO_EPS) {
+      direction = towardMiddlePocketSide;
+    } else {
+      const outward = new THREE.Vector3(center?.x ?? 0, 0, center?.y ?? 0);
+      if (outward.lengthSq() > MICRO_EPS * MICRO_EPS) {
+        direction = outward;
+      } else if (absX >= absZ) {
+        direction = new THREE.Vector3(Math.sign(center?.x || 1), 0, 0);
+      } else {
+        direction = new THREE.Vector3(0, 0, Math.sign(center?.y || 1));
+      }
+    }
   }
-  const zDir = -Math.sign(center?.y || 1) || -1;
-  const sidePull = Math.sign(center?.x || 1) * 0.2;
-  const towardMiddlePocketSide = new THREE.Vector3(sidePull, 0, zDir);
-  if (towardMiddlePocketSide.lengthSq() > MICRO_EPS * MICRO_EPS) {
-    return towardMiddlePocketSide.normalize();
+  if (!direction) {
+    direction = new THREE.Vector3(0, 0, 1);
   }
-  const outward = new THREE.Vector3(center?.x ?? 0, 0, center?.y ?? 0);
-  if (outward.lengthSq() > MICRO_EPS * MICRO_EPS) {
-    return outward.normalize();
+  if (direction.lengthSq() > MICRO_EPS * MICRO_EPS) {
+    direction.normalize();
   }
-  if (absX >= absZ) {
-    return new THREE.Vector3(Math.sign(center?.x || 1), 0, 0);
-  }
-  return new THREE.Vector3(0, 0, Math.sign(center?.y || 1));
+  return direction.multiplyScalar(-1);
 };
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
@@ -8839,8 +8849,7 @@ function Table3D(
     mat.sheenRoughness = Math.min(mat.sheenRoughness ?? 0.6, 0.6);
     return mat;
   };
-  const brandPlateThickness = chromePlateThickness * 0.8;
-  const brandPlateDepth = Math.min(endRailW * 0.32, TABLE.THICK * 0.42);
+  const brandPlateDepth = chromePlateThickness;
   const brandPlateHeight = railH * 0.96;
   const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 11, PLAY_W * 0.28));
   const brandPlateY = frameTopY + railH * 0.5;
@@ -21943,79 +21952,80 @@ const powerRef = useRef(hud.power);
   const step = (now) => {
     if (disposed) return;
     const playback = replayPlaybackRef.current;
-        if (playback) {
-          const frameTiming = frameTimingRef.current;
-          const targetReplayFrameTime =
-            frameTiming && Number.isFinite(frameTiming.targetMs)
-              ? frameTiming.targetMs
-              : 1000 / 60;
-          if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
-            rafRef.current = requestAnimationFrame(step);
-            return;
-          }
-          lastReplayFrameAt = now;
-          const scheduleNext = () => {
-            if (disposed) return;
-            rafRef.current = requestAnimationFrame(step);
-          };
-          const frames = playback.frames || [];
-          const duration = Number.isFinite(playback.duration) ? playback.duration : 0;
-          const elapsed = now - playback.startedAt;
-          if (frames.length === 0) {
-            finishReplayPlayback(playback);
-            scheduleNext();
-            return;
-          }
-          try {
-            const targetTime = Math.min(elapsed, duration);
-            let frameIndex = playback.lastIndex ?? 0;
-            while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
-              frameIndex += 1;
-            }
-            playback.lastIndex = frameIndex;
-            const frameA = frames[frameIndex];
-            const frameB = frames[Math.min(frameIndex + 1, frames.length - 1)] ?? null;
-            const span = frameB ? Math.max(frameB.t - frameA.t, 1e-6) : 1;
-            const alpha = frameB
-              ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
-              : 0;
-            applyReplayFrame(frameA, frameB, alpha);
-            applyReplayCueStroke(playback, targetTime);
-            updateReplayTrail(playback.cuePath, targetTime);
-            if (!LOCK_REPLAY_CAMERA) {
-              const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
-              const previousFrameCamera =
-                replayFrameCameraRef.current?.frameB ??
-                replayFrameCameraRef.current?.frameA ??
-                null;
-              if (
-                nextFrameCamera &&
-                (!replayFrameCameraRef.current ||
-                  hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
-              ) {
-                replayFrameCameraRef.current = {
-                  frameA: nextFrameCamera,
-                  frameB: nextFrameCamera,
-                  alpha: 0
-                };
-              }
-            } else {
-              replayFrameCameraRef.current = null;
-            }
-            const frameCamera = updateCamera();
-            renderer.render(scene, frameCamera ?? camera);
-            const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
-            if (finished) {
-              finishReplayPlayback(playback);
-            }
-          } catch (err) {
-            console.error('Pool Royale replay playback failed; skipping.', err);
-            finishReplayPlayback(playback);
-          }
-          scheduleNext();
-          return;
+    if (playback) {
+      const frameTiming = frameTimingRef.current;
+      const targetReplayFrameTime =
+        frameTiming && Number.isFinite(frameTiming.targetMs)
+          ? frameTiming.targetMs
+          : 1000 / 60;
+      if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
+        rafRef.current = requestAnimationFrame(step);
+        return;
+      }
+      lastReplayFrameAt = now;
+      const scheduleNext = () => {
+        if (disposed) return;
+        rafRef.current = requestAnimationFrame(step);
+      };
+      const frames = playback.frames || [];
+      const duration = Number.isFinite(playback.duration) ? playback.duration : 0;
+      const elapsed = now - playback.startedAt;
+      if (frames.length === 0) {
+        finishReplayPlayback(playback);
+        scheduleNext();
+        return;
+      }
+      try {
+        const targetTime = Math.min(elapsed, duration);
+        let frameIndex = playback.lastIndex ?? 0;
+        while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
+          frameIndex += 1;
         }
-        const nowMs = now;
+        playback.lastIndex = frameIndex;
+        const frameA = frames[frameIndex];
+        const frameB = frames[Math.min(frameIndex + 1, frames.length - 1)] ?? null;
+        const span = frameB ? Math.max(frameB.t - frameA.t, 1e-6) : 1;
+        const alpha = frameB
+          ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
+          : 0;
+        applyReplayFrame(frameA, frameB, alpha);
+        applyReplayCueStroke(playback, targetTime);
+        updateReplayTrail(playback.cuePath, targetTime);
+        if (!LOCK_REPLAY_CAMERA) {
+          const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
+          const previousFrameCamera =
+            replayFrameCameraRef.current?.frameB ??
+            replayFrameCameraRef.current?.frameA ??
+            null;
+          if (
+            nextFrameCamera &&
+            (!replayFrameCameraRef.current ||
+              hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
+          ) {
+            replayFrameCameraRef.current = {
+              frameA: nextFrameCamera,
+              frameB: nextFrameCamera,
+              alpha: 0
+            };
+          }
+        } else {
+          replayFrameCameraRef.current = null;
+        }
+        const frameCamera = updateCamera();
+        renderer.render(scene, frameCamera ?? camera);
+        const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
+        if (finished) {
+          finishReplayPlayback(playback);
+        }
+      } catch (err) {
+        console.error('Pool Royale replay playback failed; skipping.', err);
+        finishReplayPlayback(playback);
+      }
+      scheduleNext();
+      return;
+    }
+    try {
+      const nowMs = now;
         if (remoteShotActiveRef.current && remoteShotUntilRef.current > 0 && nowMs > remoteShotUntilRef.current) {
           remoteShotActiveRef.current = false;
         }
@@ -23540,10 +23550,14 @@ const powerRef = useRef(hud.power);
               lastLiveSyncSentAt = now;
             }
           }
-          if (!disposed) {
-            rafRef.current = requestAnimationFrame(step);
-          }
-        };
+    } catch (err) {
+      console.error('Pool Royale frame step failed; recovering.', err);
+    } finally {
+      if (!disposed) {
+        rafRef.current = requestAnimationFrame(step);
+      }
+    }
+  };
         step(performance.now());
 
       // Resize
