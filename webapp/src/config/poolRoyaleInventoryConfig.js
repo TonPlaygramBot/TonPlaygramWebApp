@@ -512,7 +512,7 @@ export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
   cueStyle: ['birch-frost'],
-  pocketLiner: ['blackPocket'],
+  pocketLiner: ['fabric_leather_02'],
   environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID],
   tableBase: POOL_ROYALE_BASE_VARIANTS.map((variant) => variant.id)
 });
@@ -568,13 +568,12 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     }, {})
   ),
   pocketLiner: Object.freeze({
-    blackPocket: 'Black Pocket Jaws',
-    graphitePocket: 'Graphite Pocket Jaws',
-    titaniumPocket: 'Titanium Pocket Jaws',
-    copperPocket: 'Copper Pocket Jaws',
-    emeraldPocket: 'Emerald Pocket Jaws',
-    rubyPocket: 'Ruby Pocket Jaws',
-    pearlPocket: 'Pearl Pocket Jaws'
+    brown_leather: 'Brown Leather Pocket Jaws',
+    fabric_leather_01: 'Fabric Leather 01 Pocket Jaws',
+    fabric_leather_02: 'Fabric Leather 02 Pocket Jaws',
+    leather_red_02: 'Leather Red 02 Pocket Jaws',
+    leather_red_03: 'Leather Red 03 Pocket Jaws',
+    leather_white: 'Leather White Pocket Jaws'
   })
 });
 
@@ -692,52 +691,52 @@ export const POOL_ROYALE_STORE_ITEMS = [
     description: variant.description
   })),
   {
-    id: 'pocket-graphite',
+    id: 'pocket-brown-leather',
     type: 'pocketLiner',
-    optionId: 'graphitePocket',
-    name: 'Graphite Pocket Jaws',
+    optionId: 'brown_leather',
+    name: 'Brown Leather Pocket Jaws',
     price: 520,
-    description: 'Matte graphite jaws that mirror the fascia chrome glow.'
+    description: 'Vintage brown leather jaws with soft creases and warm grain.'
   },
   {
-    id: 'pocket-titanium',
+    id: 'pocket-fabric-leather-01',
     type: 'pocketLiner',
-    optionId: 'titaniumPocket',
-    name: 'Titanium Pocket Jaws',
+    optionId: 'fabric_leather_01',
+    name: 'Fabric Leather 01 Pocket Jaws',
     price: 540,
-    description: 'Cool titanium pocket liners with sharp metallic edges.'
+    description: 'Aged chestnut leather jaws with stitched upholstery detail.'
   },
   {
-    id: 'pocket-copper',
+    id: 'pocket-fabric-leather-02',
     type: 'pocketLiner',
-    optionId: 'copperPocket',
-    name: 'Copper Pocket Jaws',
+    optionId: 'fabric_leather_02',
+    name: 'Fabric Leather 02 Pocket Jaws',
     price: 560,
-    description: 'Burnished copper jaws for a warm contrast to the cloth.'
+    description: 'Warm stitched leather jaws that match the default table trim.'
   },
   {
-    id: 'pocket-emerald',
+    id: 'pocket-leather-red-02',
     type: 'pocketLiner',
-    optionId: 'emeraldPocket',
-    name: 'Emerald Pocket Jaws',
+    optionId: 'leather_red_02',
+    name: 'Leather Red 02 Pocket Jaws',
     price: 580,
-    description: 'Emerald-infused liners that blend with rich green felts.'
+    description: 'Deep red leather jaws with a worn, classic finish.'
   },
   {
-    id: 'pocket-ruby',
+    id: 'pocket-leather-red-03',
     type: 'pocketLiner',
-    optionId: 'rubyPocket',
-    name: 'Ruby Pocket Jaws',
+    optionId: 'leather_red_03',
+    name: 'Leather Red 03 Pocket Jaws',
     price: 590,
-    description: 'Ruby-toned jaws with a subtle gloss for red cloth pairings.'
+    description: 'Bold crimson leather jaws with pronounced creases.'
   },
   {
-    id: 'pocket-pearl',
+    id: 'pocket-leather-white',
     type: 'pocketLiner',
-    optionId: 'pearlPocket',
-    name: 'Pearl Pocket Jaws',
+    optionId: 'leather_white',
+    name: 'Leather White Pocket Jaws',
     price: 600,
-    description: 'Pearlescent pocket liners with soft highlights.'
+    description: 'Bright white leather jaws with crisp stitched panels.'
   },
   {
     id: 'cue-redwood',
@@ -827,7 +826,7 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
     label: POOL_ROYALE_CLOTH_VARIANTS[0].name
   },
   { type: 'cueStyle', optionId: 'birch-frost', label: 'Birch Frost Cue' },
-  { type: 'pocketLiner', optionId: 'blackPocket', label: 'Black Pocket Jaws' },
+  { type: 'pocketLiner', optionId: 'fabric_leather_02', label: 'Fabric Leather 02 Pocket Jaws' },
   {
     type: 'tableBase',
     optionId: POOL_ROYALE_BASE_VARIANTS[0].id,

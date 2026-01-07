@@ -1176,8 +1176,16 @@ const POCKET_DROP_REST_HOLD_MS = 360; // keep the ball visible on the strap brie
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(12); // slight angle so potted balls settle against the strap
+const POCKET_LEATHER_TEXTURES = Object.freeze([
+  { id: 'brown_leather', label: 'Brown Leather', color: 0x6a4a32 },
+  { id: 'fabric_leather_01', label: 'Fabric Leather 01', color: 0x7a4a2a },
+  { id: 'fabric_leather_02', label: 'Fabric Leather 02', color: 0x6a4a32 },
+  { id: 'leather_red_02', label: 'Leather Red 02', color: 0x6a1f2a },
+  { id: 'leather_red_03', label: 'Leather Red 03', color: 0x7d2a2f },
+  { id: 'leather_white', label: 'Leather White', color: 0xe9e5dc }
+]);
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
-const POCKET_LEATHER_TEXTURE_SCALE = 1.6;
+const POCKET_LEATHER_TEXTURE_SCALE = 1;
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
@@ -1199,16 +1207,16 @@ const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
 const POCKET_GUIDE_DROP = BALL_R * 0.28;
-const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
+const POCKET_GUIDE_SPREAD = BALL_R * 0.4;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.1; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.3; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.22; // lower all chrome holder rails so balls ride directly on the guides
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.28; // lower all chrome holder rails so balls ride directly on the guides
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.2; // wider spacing so potted balls line up without overlapping on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 1.15; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 1.72; // drop the resting spot so potted balls settle onto the chrome rails
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 0.8; // stop the lead ball right against the leather strap without letting it bury the backstop
+const POCKET_HOLDER_REST_DROP = BALL_R * 1.95; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -2169,12 +2177,7 @@ const applySnookerStyleWoodPreset = (materials, finishId) => {
   });
 };
 
-const pocketLeatherTextureCache = {
-  map: null,
-  normal: null,
-  roughness: null,
-  loading: false
-};
+const pocketLeatherTextureCache = new Map();
 
 const applyPocketLeatherTextureDefaults = (texture, { isColor = false } = {}) => {
   if (!texture) return texture;
@@ -2191,18 +2194,27 @@ const applyPocketLeatherTextureDefaults = (texture, { isColor = false } = {}) =>
   return texture;
 };
 
-const ensurePocketLeatherTextures = () => {
-  if (pocketLeatherTextureCache.loading || pocketLeatherTextureCache.map) {
-    return pocketLeatherTextureCache;
+const ensurePocketLeatherTextures = (textureId = POCKET_LEATHER_TEXTURE_ID) => {
+  const resolvedId = textureId || POCKET_LEATHER_TEXTURE_ID;
+  const cached = pocketLeatherTextureCache.get(resolvedId);
+  if (cached?.loading || cached?.map) {
+    return cached;
   }
-  pocketLeatherTextureCache.loading = true;
+  const entry = cached ?? {
+    map: null,
+    normal: null,
+    roughness: null,
+    loading: false
+  };
+  entry.loading = true;
+  pocketLeatherTextureCache.set(resolvedId, entry);
   if (typeof window === 'undefined') {
-    pocketLeatherTextureCache.loading = false;
-    return pocketLeatherTextureCache;
+    entry.loading = false;
+    return entry;
   }
   const loader = new THREE.TextureLoader();
   loader.setCrossOrigin('anonymous');
-  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${POCKET_LEATHER_TEXTURE_ID}/${POCKET_LEATHER_TEXTURE_ID}_2K`;
+  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${resolvedId}/${resolvedId}_2K`;
   const map = loader.load(
     `${base}_Color.jpg`,
     (texture) => applyPocketLeatherTextureDefaults(texture, { isColor: true })
@@ -2215,11 +2227,11 @@ const ensurePocketLeatherTextures = () => {
     `${base}_Roughness.jpg`,
     (texture) => applyPocketLeatherTextureDefaults(texture)
   );
-  pocketLeatherTextureCache.map = applyPocketLeatherTextureDefaults(map, { isColor: true });
-  pocketLeatherTextureCache.normal = applyPocketLeatherTextureDefaults(normal);
-  pocketLeatherTextureCache.roughness = applyPocketLeatherTextureDefaults(roughness);
-  pocketLeatherTextureCache.loading = false;
-  return pocketLeatherTextureCache;
+  entry.map = applyPocketLeatherTextureDefaults(map, { isColor: true });
+  entry.normal = applyPocketLeatherTextureDefaults(normal);
+  entry.roughness = applyPocketLeatherTextureDefaults(roughness);
+  entry.loading = false;
+  return entry;
 };
 
 const createPocketMaterials = () => {
@@ -2725,227 +2737,26 @@ const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
   BROADCAST_SYSTEM_OPTIONS[0];
 
-const POCKET_LINER_PRESETS = Object.freeze([
-  Object.freeze({
-    id: 'blackPocket',
-    label: 'Black Pocket Jaws',
-    type: 'metal',
-    jawColor: 0x000000,
-    rimColor: 0x000000,
-    sheenColor: 0x2a2a2a,
-    rimSheenColor: 0x1f1f1f,
-    sheen: 0.68,
-    sheenRoughness: 0.42,
-    roughness: 0.38,
-    rimRoughness: 0.4,
-    metalness: 0.68,
-    rimMetalness: 0.7,
-    clearcoat: 0.26,
-    clearcoatRoughness: 0.26,
-    envMapIntensity: 0.7,
-    bumpScale: 0.22,
-    rimBumpScale: 0.18,
-    texture: {
-      base: 0x0d0d0d,
-      highlight: 0x4a4a4a,
-      shadow: 0x000000,
-      density: 0.6,
-      grainSize: 0.7,
-      streakAlpha: 0.16,
-      creaseAlpha: 0.12,
-      seamContrast: 0.22,
-      repeatX: 2.1,
-      repeatY: 2.1,
-      seed: 4101
-    }
-  }),
-  Object.freeze({
-    id: 'graphitePocket',
-    label: 'Graphite Pocket Jaws',
-    type: 'metal',
-    jawColor: 0x1f222a,
-    rimColor: 0x2a2e38,
-    sheenColor: 0x424855,
-    rimSheenColor: 0x3a3f4a,
-    sheen: 0.64,
-    sheenRoughness: 0.4,
-    roughness: 0.3,
-    rimRoughness: 0.32,
-    metalness: 0.74,
-    rimMetalness: 0.76,
-    clearcoat: 0.3,
-    clearcoatRoughness: 0.18,
-    envMapIntensity: 0.92,
-    texture: {
-      base: 0x2c303a,
-      highlight: 0x6a707c,
-      shadow: 0x14171d,
-      density: 0.62,
-      grainSize: 0.8,
-      streakAlpha: 0.16,
-      creaseAlpha: 0.14,
-      seamContrast: 0.22,
-      repeatX: 2.1,
-      repeatY: 2.1,
-      seed: 5123
-    }
-  }),
-  Object.freeze({
-    id: 'titaniumPocket',
-    label: 'Titanium Pocket Jaws',
-    type: 'metal',
-    jawColor: 0x8d97a6,
-    rimColor: 0x9aa4b4,
-    sheenColor: 0xb9c2cf,
-    rimSheenColor: 0xaeb9c8,
-    sheen: 0.72,
-    sheenRoughness: 0.34,
-    roughness: 0.28,
-    rimRoughness: 0.32,
-    metalness: 0.78,
-    rimMetalness: 0.8,
-    clearcoat: 0.34,
-    clearcoatRoughness: 0.16,
-    envMapIntensity: 0.96,
-    texture: {
-      base: 0x8a93a1,
-      highlight: 0xd8dde5,
-      shadow: 0x6a7280,
-      density: 0.48,
-      grainSize: 0.76,
-      streakAlpha: 0.12,
-      creaseAlpha: 0.12,
-      seamContrast: 0.18,
-      repeatX: 2,
-      repeatY: 2,
-      seed: 5331
-    }
-  }),
-  Object.freeze({
-    id: 'copperPocket',
-    label: 'Copper Pocket Jaws',
-    type: 'metal',
-    jawColor: 0x8a4c2a,
-    rimColor: 0x9f5b36,
-    sheenColor: 0xbf7a52,
-    rimSheenColor: 0xb26a42,
-    sheen: 0.7,
-    sheenRoughness: 0.42,
-    roughness: 0.34,
-    rimRoughness: 0.36,
-    metalness: 0.76,
-    rimMetalness: 0.78,
-    clearcoat: 0.32,
-    clearcoatRoughness: 0.2,
-    envMapIntensity: 0.94,
-    texture: {
-      base: 0x9b623c,
-      highlight: 0xd89c74,
-      shadow: 0x5c2f1a,
-      density: 0.54,
-      grainSize: 0.82,
-      streakAlpha: 0.18,
-      creaseAlpha: 0.14,
-      seamContrast: 0.22,
-      repeatX: 2.2,
-      repeatY: 2.1,
-      seed: 5449
-    }
-  }),
-  Object.freeze({
-    id: 'emeraldPocket',
-    label: 'Emerald Pocket Jaws',
-    type: 'metal',
-    jawColor: 0x1f6b4b,
-    rimColor: 0x2a8a64,
-    sheenColor: 0x48b487,
-    rimSheenColor: 0x3da276,
-    sheen: 0.68,
-    sheenRoughness: 0.4,
-    roughness: 0.3,
-    rimRoughness: 0.34,
-    metalness: 0.7,
-    rimMetalness: 0.72,
-    clearcoat: 0.3,
-    clearcoatRoughness: 0.2,
-    envMapIntensity: 0.9,
-    texture: {
-      base: 0x2a8a64,
-      highlight: 0x6dd3a8,
-      shadow: 0x184332,
-      density: 0.56,
-      grainSize: 0.8,
-      streakAlpha: 0.16,
-      creaseAlpha: 0.14,
-      seamContrast: 0.22,
-      repeatX: 2.1,
-      repeatY: 2.1,
-      seed: 5567
-    }
-  }),
-  Object.freeze({
-    id: 'rubyPocket',
-    label: 'Ruby Pocket Jaws',
-    type: 'metal',
-    jawColor: 0x7b1d2d,
-    rimColor: 0x9a2e3f,
-    sheenColor: 0xbd3f56,
-    rimSheenColor: 0xac344a,
-    sheen: 0.7,
-    sheenRoughness: 0.42,
-    roughness: 0.32,
-    rimRoughness: 0.36,
-    metalness: 0.74,
-    rimMetalness: 0.76,
-    clearcoat: 0.34,
-    clearcoatRoughness: 0.2,
-    envMapIntensity: 0.92,
-    texture: {
-      base: 0x9a2e3f,
-      highlight: 0xe06478,
-      shadow: 0x4a0f1c,
-      density: 0.58,
-      grainSize: 0.82,
-      streakAlpha: 0.18,
-      creaseAlpha: 0.16,
-      seamContrast: 0.22,
-      repeatX: 2.2,
-      repeatY: 2.2,
-      seed: 5685
-    }
-  }),
-  Object.freeze({
-    id: 'pearlPocket',
-    label: 'Pearl Pocket Jaws',
-    type: 'metal',
-    jawColor: 0xe6e0d3,
-    rimColor: 0xf3ede3,
-    sheenColor: 0xf7f2e8,
-    rimSheenColor: 0xf0e9dc,
-    sheen: 0.62,
-    sheenRoughness: 0.5,
-    roughness: 0.28,
-    rimRoughness: 0.3,
-    metalness: 0.42,
-    rimMetalness: 0.44,
-    clearcoat: 0.4,
-    clearcoatRoughness: 0.18,
-    envMapIntensity: 0.86,
-    texture: {
-      base: 0xebe5db,
-      highlight: 0xffffff,
-      shadow: 0xb4ad9f,
-      density: 0.46,
-      grainSize: 0.76,
-      streakAlpha: 0.12,
-      creaseAlpha: 0.1,
-      seamContrast: 0.18,
-      repeatX: 2.2,
-      repeatY: 2.2,
-      seed: 5799
-    }
-  })
-]);
+const POCKET_LINER_PRESETS = Object.freeze(
+  POCKET_LEATHER_TEXTURES.map((texture) =>
+    Object.freeze({
+      id: texture.id,
+      label: `${texture.label} Pocket Jaws`,
+      type: 'leather',
+      textureId: texture.id,
+      color: texture.color,
+      roughness: 0.82,
+      rimRoughness: 0.9,
+      metalness: 0.04,
+      rimMetalness: 0.02,
+      clearcoat: 0.18,
+      clearcoatRoughness: 0.58,
+      sheen: 0.34,
+      sheenRoughness: 0.62,
+      envMapIntensity: 0.28
+    })
+  )
+);
 
 function resolvePocketLinerTextureColor(value, fallback) {
   if (typeof value === 'string') {
@@ -2964,7 +2775,9 @@ function resolvePocketLinerTextureColor(value, fallback) {
 }
 
 const DEFAULT_POCKET_LINER_OPTION_ID =
-  POCKET_LINER_PRESETS[0]?.id ?? 'walnutPocket';
+  POCKET_LINER_PRESETS.find((preset) => preset.id === POCKET_LEATHER_TEXTURE_ID)?.id ??
+  POCKET_LINER_PRESETS[0]?.id ??
+  POCKET_LEATHER_TEXTURE_ID;
 
 const POCKET_LINER_OPTIONS = Object.freeze(
   POCKET_LINER_PRESETS.map((config, index) => {
@@ -3018,6 +2831,24 @@ const POCKET_LINER_OPTIONS = Object.freeze(
           repeatY: textureConfig.repeatY ?? config.repeatY ?? 2.2,
           seed: textureConfig.seed ?? config.seed ?? 1103 + index * 517
         }
+      });
+    }
+    if (config.type === 'leather') {
+      return Object.freeze({
+        id: config.id,
+        label: config.label,
+        type: 'leather',
+        textureId: config.textureId ?? config.id,
+        color: config.color ?? 0xffffff,
+        roughness: config.roughness ?? 0.82,
+        rimRoughness: config.rimRoughness ?? 0.9,
+        metalness: config.metalness ?? 0.04,
+        rimMetalness: config.rimMetalness ?? 0.02,
+        clearcoat: config.clearcoat ?? 0.18,
+        clearcoatRoughness: config.clearcoatRoughness ?? 0.58,
+        sheen: config.sheen ?? 0.34,
+        sheenRoughness: config.sheenRoughness ?? 0.62,
+        envMapIntensity: config.envMapIntensity ?? 0.28
       });
     }
     if (config.type === 'metal') {
@@ -3092,6 +2923,17 @@ function createPocketLinerTextures(option) {
   const key = option?.id ?? DEFAULT_POCKET_LINER_OPTION_ID;
   if (POCKET_LINER_TEXTURE_CACHE.has(key)) {
     return POCKET_LINER_TEXTURE_CACHE.get(key);
+  }
+  if (option?.type === 'leather') {
+    const leather = ensurePocketLeatherTextures(option.textureId ?? key);
+    const textures = {
+      map: leather?.map ?? null,
+      normal: leather?.normal ?? null,
+      roughness: leather?.roughness ?? null,
+      repeat: { x: POCKET_LEATHER_TEXTURE_SCALE, y: POCKET_LEATHER_TEXTURE_SCALE }
+    };
+    POCKET_LINER_TEXTURE_CACHE.set(key, textures);
+    return textures;
   }
   const textureSettings = option?.texture ?? {};
   const repeat = {
@@ -3218,62 +3060,49 @@ function createPocketLinerTextures(option) {
 function createPocketLinerMaterials(option, clothColor) {
   const selection = option ?? POCKET_LINER_OPTIONS[0];
   const textures = createPocketLinerTextures(selection);
-  const baseSheenColor = new THREE.Color(selection.sheenColor ?? 0x9298a0);
-  const rimSheenColor = new THREE.Color(selection.rimSheenColor ?? selection.sheenColor ?? 0x8f949b);
-  const makeMaterial = (color, overrides = {}) => {
-    const material = new THREE.MeshPhysicalMaterial({
-      color,
-      roughness: overrides.roughness ?? selection.roughness ?? 0.7,
-      metalness: overrides.metalness ?? selection.metalness ?? 0.05,
-      clearcoat: overrides.clearcoat ?? selection.clearcoat ?? 0.15,
-      clearcoatRoughness:
-        overrides.clearcoatRoughness ?? selection.clearcoatRoughness ?? 0.48,
-      sheen: overrides.sheen ?? selection.sheen ?? 0.48,
-      sheenRoughness: overrides.sheenRoughness ?? selection.sheenRoughness ?? 0.6,
-      sheenColor: (overrides.sheenColor ?? baseSheenColor).clone(),
-      envMapIntensity: overrides.envMapIntensity ?? selection.envMapIntensity ?? 0.28
-    });
+  const applyLeatherMaps = (material) => {
+    if (!material || !textures) return;
     if (textures.map) {
       material.map = textures.map;
-      material.map.repeat.set(textures.repeat.x, textures.repeat.y);
-      material.map.needsUpdate = true;
+      applyPocketLeatherTextureDefaults(material.map, { isColor: true });
     }
-    if (textures.bump) {
-      material.bumpMap = textures.bump;
-      material.bumpMap.repeat.set(textures.repeat.x, textures.repeat.y);
-      material.bumpScale = overrides.bumpScale ?? selection.bumpScale ?? 0.32;
-      material.bumpMap.needsUpdate = true;
-    } else {
-      material.bumpScale = overrides.bumpScale ?? selection.bumpScale ?? 0.32;
+    if (textures.normal) {
+      material.normalMap = textures.normal;
+      applyPocketLeatherTextureDefaults(material.normalMap);
+    }
+    if (textures.roughness) {
+      material.roughnessMap = textures.roughness;
+      applyPocketLeatherTextureDefaults(material.roughnessMap);
     }
     material.needsUpdate = true;
-    return material;
   };
 
-  const jawMaterial = makeMaterial(selection.jawColor, {
-    roughness: selection.jawRoughness ?? selection.roughness,
-    bumpScale: selection.bumpScale,
-    sheenColor: baseSheenColor
+  const jawMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    roughness: selection.roughness ?? 0.82,
+    metalness: selection.metalness ?? 0.04,
+    clearcoat: selection.clearcoat ?? 0.18,
+    clearcoatRoughness: selection.clearcoatRoughness ?? 0.58,
+    sheen: selection.sheen ?? 0.34,
+    sheenRoughness: selection.sheenRoughness ?? 0.62,
+    sheenColor: new THREE.Color(0xffffff),
+    envMapIntensity: selection.envMapIntensity ?? 0.28
   });
-  const rimClothColor = clothColor
-    ? new THREE.Color(clothColor)
-    : selection.rimColor
-      ? new THREE.Color(selection.rimColor)
-      : rimSheenColor.clone();
+  applyLeatherMaps(jawMaterial);
+
   const rimMaterial = new THREE.MeshPhysicalMaterial({
-    color: rimClothColor,
-    roughness: 1,
-    metalness: 0,
-    sheen: 0,
-    sheenRoughness: 1,
-    sheenColor: rimClothColor.clone(),
-    clearcoat: 0,
-    clearcoatRoughness: 1,
-    envMapIntensity: 0,
-    reflectivity: 0,
-    emissive: rimClothColor.clone().multiplyScalar(0.02)
+    color: 0xffffff,
+    roughness: selection.rimRoughness ?? selection.roughness ?? 0.9,
+    metalness: selection.rimMetalness ?? selection.metalness ?? 0.02,
+    clearcoat: selection.clearcoat ?? 0.18,
+    clearcoatRoughness: selection.clearcoatRoughness ?? 0.6,
+    sheen: selection.sheen ?? 0.28,
+    sheenRoughness: selection.sheenRoughness ?? 0.65,
+    sheenColor: new THREE.Color(0xffffff),
+    envMapIntensity: Math.max(0.12, selection.envMapIntensity ?? 0.28)
   });
-  rimMaterial.needsUpdate = true;
+  applyLeatherMaps(rimMaterial);
+
   return { jawMaterial, rimMaterial };
 }
 
@@ -5255,6 +5084,7 @@ const REPLAY_BANNER_VARIANTS = {
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
 const REPLAY_CUE_RETURN_WINDOW_MS = 260;
+const REPLAY_CUE_FALLBACK_DURATION_MS = 320;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
@@ -7946,7 +7776,8 @@ function Table3D(
     lines = [],
     borderWidth = 22,
     padding = 64,
-    studScale = 0.18
+    studScale = 0.18,
+    transparentBackground = false
   } = {}) => {
     if (typeof document === 'undefined') return null;
     const canvas = document.createElement('canvas');
@@ -7957,18 +7788,22 @@ function Table3D(
     const pattern = carbonFiberPatternCanvas
       ? ctx.createPattern(carbonFiberPatternCanvas, 'repeat')
       : null;
-    ctx.fillStyle = pattern || '#0c1018';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    if (pattern) {
-      ctx.fillStyle = pattern;
+    if (!transparentBackground) {
+      ctx.fillStyle = pattern || '#0c1018';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (pattern) {
+        ctx.fillStyle = pattern;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      const gloss = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      gloss.addColorStop(0, 'rgba(255,255,255,0.12)');
+      gloss.addColorStop(0.45, 'rgba(255,255,255,0.05)');
+      gloss.addColorStop(1, 'rgba(0,0,0,0.36)');
+      ctx.fillStyle = gloss;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
-    const gloss = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gloss.addColorStop(0, 'rgba(255,255,255,0.12)');
-    gloss.addColorStop(0.45, 'rgba(255,255,255,0.05)');
-    gloss.addColorStop(1, 'rgba(0,0,0,0.36)');
-    ctx.fillStyle = gloss;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const borderGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
     borderGrad.addColorStop(0, '#f7e5c0');
@@ -8813,27 +8648,29 @@ function Table3D(
       lines: [{ text: 'TonPlaygram', size: 0.34, weight: '800' }],
       borderWidth: Math.max(TABLE.THICK * 5.5, 20),
       padding: 140,
-      studScale: 0.2
+      studScale: 0.2,
+      transparentBackground: true
     }) || null;
-  const brandPlateTopMaterial = brandPlateTexture
-    ? new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        map: brandPlateTexture,
-        metalness: 0.52,
-        roughness: 0.3,
-        clearcoat: 0.48,
-        clearcoatRoughness: 0.2,
-        sheen: 0.28,
-        sheenRoughness: 0.5,
-        emissive: new THREE.Color(CHALK_EMISSIVE_COLOR),
-        emissiveIntensity: 0.14
-      })
-    : new THREE.MeshPhysicalMaterial({
-        color: CHALK_TOP_COLOR,
-        metalness: 0.42,
-        roughness: 0.32,
-        clearcoat: 0.32
-      });
+  const brandPlateLeather = ensurePocketLeatherTextures(POCKET_LEATHER_TEXTURE_ID);
+  const brandPlateTopMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    map: brandPlateLeather?.map ?? null,
+    normalMap: brandPlateLeather?.normal ?? null,
+    roughnessMap: brandPlateLeather?.roughness ?? null,
+    metalness: 0.06,
+    roughness: 0.86,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.62,
+    sheen: 0.36,
+    sheenRoughness: 0.58,
+    envMapIntensity: 0.26,
+    emissive: new THREE.Color(0xffffff),
+    emissiveMap: brandPlateTexture,
+    emissiveIntensity: brandPlateTexture ? 0.22 : 0
+  });
+  applyPocketLeatherTextureDefaults(brandPlateTopMaterial.map, { isColor: true });
+  applyPocketLeatherTextureDefaults(brandPlateTopMaterial.normalMap);
+  applyPocketLeatherTextureDefaults(brandPlateTopMaterial.roughnessMap);
   const brandAccentColor = new THREE.Color(0xd4b163);
   const createBrandSideMaterial = () => {
     const mat = trimMat.clone();
@@ -10053,6 +9890,18 @@ function applyTableFinishToTable(table, finish) {
   if (Array.isArray(finishInfo.parts.brandPlates)) {
     const accentColor = new THREE.Color(0xd4b163);
     finishInfo.parts.brandPlates.forEach((entry) => {
+      const topMaterial = entry?.topMaterial;
+      if (topMaterial) {
+        topMaterial.map = pocketJawMat?.map ?? topMaterial.map ?? null;
+        topMaterial.normalMap = pocketJawMat?.normalMap ?? topMaterial.normalMap ?? null;
+        topMaterial.roughnessMap =
+          pocketJawMat?.roughnessMap ?? topMaterial.roughnessMap ?? null;
+        topMaterial.color.set(0xffffff);
+        applyPocketLeatherTextureDefaults(topMaterial.map, { isColor: true });
+        applyPocketLeatherTextureDefaults(topMaterial.normalMap);
+        applyPocketLeatherTextureDefaults(topMaterial.roughnessMap);
+        topMaterial.needsUpdate = true;
+      }
       const sideMaterials = entry?.sideMaterials;
       if (!Array.isArray(sideMaterials)) return;
       sideMaterials.forEach((mat) => {
@@ -11215,6 +11064,43 @@ function PoolRoyaleGame({
     });
   }, []);
 
+  const applyCueWoodFinish = useCallback((finishOverride = null) => {
+    const materials = cueMaterialsRef.current ?? {};
+    const shaftMaterial = materials.shaft;
+    const buttMaterial = materials.buttMaterial;
+    const buttCapMaterial = materials.buttCapMaterial;
+    if (!shaftMaterial && !buttMaterial && !buttCapMaterial) return;
+    const finish = finishOverride ?? tableFinishRef.current;
+    const defaultWoodOption =
+      WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
+    const resolvedWoodOption =
+      finish?.woodTexture ||
+      (finish?.woodTextureId && WOOD_GRAIN_OPTIONS_BY_ID[finish.woodTextureId]) ||
+      defaultWoodOption;
+    const cueSurface = resolveWoodSurfaceConfig(
+      resolvedWoodOption?.frame,
+      resolvedWoodOption?.rail ?? resolvedWoodOption?.frame
+    );
+    const woodRepeatScale = clampWoodRepeatScaleValue(
+      finish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
+    );
+    const cueSurfaceConfig = {
+      repeat: new THREE.Vector2(CUE_WOOD_REPEAT.x, CUE_WOOD_REPEAT.y),
+      rotation: cueSurface.rotation,
+      textureSize: cueSurface.textureSize,
+      mapUrl: cueSurface.mapUrl,
+      roughnessMapUrl: cueSurface.roughnessMapUrl,
+      normalMapUrl: cueSurface.normalMapUrl,
+      woodRepeatScale
+    };
+    [shaftMaterial, buttMaterial, buttCapMaterial].forEach((material) => {
+      if (!material) return;
+      applyWoodTextureToMaterial(material, cueSurfaceConfig);
+      material.color.set(0xffffff);
+      material.needsUpdate = true;
+    });
+  }, []);
+
   const applySelectedCueStyle = useCallback(
     (index) => {
       const paletteLength = CUE_RACK_PALETTE.length || CUE_STYLE_PRESETS.length || 1;
@@ -11225,8 +11111,7 @@ function PoolRoyaleGame({
       const materials = cueMaterialsRef.current ?? {};
       const shaftMaterial = materials.shaft;
       if (shaftMaterial && preset) {
-        const tintColor = new THREE.Color(color || 0xffffff);
-        shaftMaterial.color.copy(tintColor).lerp(new THREE.Color(0xffffff), 0.35);
+        shaftMaterial.color.set(0xffffff);
         shaftMaterial.roughness = 0.34;
         shaftMaterial.metalness = 0.0;
         shaftMaterial.clearcoat = 0.6;
@@ -11500,6 +11385,9 @@ function PoolRoyaleGame({
   useEffect(() => {
     tableFinishRef.current = tableFinish;
   }, [tableFinish]);
+  useEffect(() => {
+    applyCueWoodFinish(tableFinish);
+  }, [applyCueWoodFinish, tableFinish]);
   const activeVariantRef = useRef(activeVariant);
   useEffect(() => {
     activeVariantRef.current = activeVariant;
@@ -15277,6 +15165,22 @@ const powerRef = useRef(hud.power);
           return { position, target, fov: STANDING_VIEW_FOV, minTargetY };
         };
 
+        const resolveTopViewBroadcastCamera = ({ minTargetY = null } = {}) => {
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const target = TMP_VEC3_TOP_VIEW.set(
+            playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
+            ORBIT_FOCUS_BASE_Y,
+            TOP_VIEW_SCREEN_OFFSET.z
+          ).multiplyScalar(scale);
+          if (Number.isFinite(minTargetY)) {
+            target.y = Math.max(target.y ?? minTargetY, minTargetY);
+          }
+          const distance = computeTopViewBroadcastDistance(camera.aspect, STANDING_VIEW_FOV);
+          const spherical = TMP_SPH.set(distance, TOP_VIEW_RESOLVED_PHI, Math.PI);
+          const position = new THREE.Vector3().setFromSpherical(spherical).add(target);
+          return { position, target: target.clone(), fov: STANDING_VIEW_FOV, minTargetY };
+        };
+
         const hasReplayCameraChanged = (previous, next) => {
           if (!next) return false;
           if (!previous) return true;
@@ -15793,10 +15697,15 @@ const powerRef = useRef(hud.power);
                 lerp: lerpT
               };
               if (activeShotView.preferRailOverhead) {
-                const railReplayCamera = resolveRailOverheadReplayCamera({
-                  focusOverride: focusTargetVec3 ?? lookTarget ?? broadcastArgs.focusWorld,
-                  minTargetY: focusTargetVec3?.y ?? baseSurfaceWorldY
-                });
+                const minTargetY = focusTargetVec3?.y ?? baseSurfaceWorldY;
+                const overheadMode = activeShotView.overheadMode ?? 'replay';
+                const railReplayCamera =
+                  overheadMode === 'top'
+                    ? resolveTopViewBroadcastCamera({ minTargetY })
+                    : resolveRailOverheadReplayCamera({
+                        focusOverride: focusTargetVec3 ?? lookTarget ?? broadcastArgs.focusWorld,
+                        minTargetY
+                      });
                 if (railReplayCamera) {
                   broadcastArgs.focusWorld =
                     railReplayCamera.target?.clone?.() ??
@@ -16521,6 +16430,11 @@ const powerRef = useRef(hud.power);
             fallback: shortRailDir
           });
           const preferRailOverhead = Boolean(railNormal);
+          const overheadMode = preferRailOverhead
+            ? Math.random() < 0.5
+              ? 'top'
+              : 'replay'
+            : null;
           const now = performance.now();
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
@@ -16555,6 +16469,7 @@ const powerRef = useRef(hud.power);
             hasSwitchedRail: true,
             railNormal: railNormal ? railNormal.clone() : null,
             preferRailOverhead,
+            overheadMode,
             longShot,
             travelDistance,
             activationDelay,
@@ -17025,9 +16940,61 @@ const powerRef = useRef(hud.power);
           });
         };
 
+        const resolveReplayCueDirection = (playback) => {
+          const path = playback?.cuePath ?? [];
+          for (let i = 1; i < path.length; i += 1) {
+            const prev = path[i - 1]?.pos;
+            const next = path[i]?.pos;
+            if (!prev || !next) continue;
+            const dir = next.clone().sub(prev);
+            dir.y = 0;
+            if (dir.lengthSq() > 1e-6) return dir.normalize();
+          }
+          const frames = playback?.frames ?? [];
+          for (let i = 1; i < frames.length; i += 1) {
+            const prevFrame = frames[i - 1];
+            const nextFrame = frames[i];
+            const prevCue = prevFrame?.balls?.find((entry) => String(entry.id) === 'cue');
+            const nextCue = nextFrame?.balls?.find((entry) => String(entry.id) === 'cue');
+            const prevPos = normalizeVector3Snapshot(prevCue?.mesh?.position) ?? null;
+            const nextPos = normalizeVector3Snapshot(nextCue?.mesh?.position) ?? null;
+            if (!prevPos || !nextPos) continue;
+            const dir = new THREE.Vector3(
+              nextPos.x - prevPos.x,
+              0,
+              nextPos.z - prevPos.z
+            );
+            if (dir.lengthSq() > 1e-6) return dir.normalize();
+          }
+          return null;
+        };
+
         const applyReplayCueStroke = (playback, targetTime) => {
           const stroke = playback?.cueStroke;
           if (!stroke || !cueStick) {
+            const cueBallMesh = cueRef.current?.mesh ?? null;
+            const fallbackDir = cueStick ? resolveReplayCueDirection(playback) : null;
+            if (cueStick && cueBallMesh && fallbackDir) {
+              const cueLen = cueStick.userData?.cueLen ?? 1;
+              const tipGap = cueStick.userData?.tipGap ?? CUE_TIP_GAP;
+              const pullback = Math.min(BALL_R * 6, cueLen * 0.12);
+              const impactPos = cueBallMesh.position
+                .clone()
+                .addScaledVector(fallbackDir, -(cueLen / 2 + tipGap));
+              const startPos = impactPos
+                .clone()
+                .addScaledVector(fallbackDir, -pullback);
+              const t = THREE.MathUtils.clamp(
+                targetTime / Math.max(REPLAY_CUE_FALLBACK_DURATION_MS, 1),
+                0,
+                1
+              );
+              cueStick.rotation.y = Math.atan2(fallbackDir.x, fallbackDir.z) + Math.PI;
+              cueStick.visible = targetTime <= REPLAY_CUE_FALLBACK_DURATION_MS;
+              cueStick.position.lerpVectors(startPos, impactPos, t);
+              cueAnimating = cueStick.visible;
+              return;
+            }
             if (cueStick) cueStick.visible = false;
             cueAnimating = false;
             return;
@@ -18537,6 +18504,8 @@ const powerRef = useRef(hud.power);
         buttHeightOffset: -Math.sin(-buttTilt) * cueLen,
         length: cueLen
       };
+      cueStick.userData.cueLen = cueLen;
+      cueStick.userData.tipGap = CUE_TIP_GAP;
 
       const paletteLength = CUE_RACK_PALETTE.length || CUE_STYLE_PRESETS.length || 1;
       const initialIndexRaw = cueStyleIndexRef.current ?? cueStyleIndex ?? 0;
@@ -18545,12 +18514,7 @@ const powerRef = useRef(hud.power);
       const initialPreset =
         CUE_STYLE_PRESETS[initialIndex % CUE_STYLE_PRESETS.length] ??
         CUE_STYLE_PRESETS[0];
-      const { map: mapleMap, bump: mapleBump } = createCueMapleTextures();
-      const { map: ebonyMap, bump: ebonyBump } = createCueEbonyTextures();
       const shaftMaterial = new THREE.MeshPhysicalMaterial({
-        map: mapleMap,
-        bumpMap: mapleBump,
-        bumpScale: 0.02 * SCALE,
         roughness: 0.34,
         metalness: 0.0,
         clearcoat: 0.6,
@@ -18560,7 +18524,6 @@ const powerRef = useRef(hud.power);
       shaftMaterial.userData.isCueWood = true;
       shaftMaterial.userData.cueOptionIndex = initialIndex;
       shaftMaterial.userData.cueOptionColor = getCueColorFromIndex(initialIndex);
-      shaftMaterial.userData.textures = { mapleMap, mapleBump, ebonyMap, ebonyBump };
       cueMaterialsRef.current.shaft = shaftMaterial;
       cueMaterialsRef.current.buttMaterial = null;
       cueMaterialsRef.current.buttRingMaterial = null;
@@ -18640,21 +18603,30 @@ const powerRef = useRef(hud.power);
       const connectorHeight = 0.015 * SCALE;
       const tipRadius = CUE_TIP_RADIUS;
       const tipLen = 0.015 * SCALE * 1.5;
-      const tipCylinderLen = Math.max(0, tipLen - tipRadius * 2);
-      const tip = new THREE.Mesh(
-        tipCylinderLen > 0
-          ? new THREE.CapsuleGeometry(tipRadius, tipCylinderLen, 8, 16)
-          : new THREE.SphereGeometry(tipRadius, 16, 16),
-        new THREE.MeshStandardMaterial({
-          color: 0x1f3f73,
-          roughness: 1,
-          metalness: 0,
-          map: tipTex
-        })
+      const tipCylinderLen = Math.max(0, tipLen - tipRadius);
+      const tipMaterial = new THREE.MeshStandardMaterial({
+        color: 0x1f3f73,
+        roughness: 1,
+        metalness: 0,
+        map: tipTex
+      });
+      const tipAssembly = new THREE.Group();
+      if (tipCylinderLen > 1e-4) {
+        const tipBody = new THREE.Mesh(
+          new THREE.CylinderGeometry(tipRadius, tipRadius, tipCylinderLen, 24),
+          tipMaterial
+        );
+        tipBody.rotation.x = -Math.PI / 2;
+        tipBody.position.z = -(connectorHeight + tipCylinderLen / 2);
+        tipAssembly.add(tipBody);
+      }
+      const tipCap = new THREE.Mesh(
+        new THREE.SphereGeometry(tipRadius, 24, 16),
+        tipMaterial
       );
-      tip.rotation.x = -Math.PI / 2;
-      tip.position.z = -(tipCylinderLen / 2 + tipRadius + connectorHeight);
-      tipGroup.add(tip);
+      tipCap.position.z = -(connectorHeight + tipCylinderLen);
+      tipAssembly.add(tipCap);
+      tipGroup.add(tipAssembly);
 
       const connector = new THREE.Mesh(
         new THREE.CylinderGeometry(
@@ -18674,11 +18646,8 @@ const powerRef = useRef(hud.power);
       tipGroup.add(connector);
 
       const buttMaterial = new THREE.MeshPhysicalMaterial({
-        map: ebonyMap,
-        bumpMap: ebonyBump,
-        bumpScale: 0.015 * SCALE,
         roughness: 0.28,
-        metalness: 0.25,
+        metalness: 0.08,
         clearcoat: 0.35,
         clearcoatRoughness: 0.28,
       });
@@ -18741,6 +18710,7 @@ const powerRef = useRef(hud.power);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
+      applyCueWoodFinish(tableFinishRef.current);
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
       const closeCueGallery = () => {
@@ -23675,20 +23645,16 @@ const powerRef = useRef(hud.power);
         cueOptionGroupsRef.current = [];
         cueRackMetaRef.current = new Map();
         if (cueMaterialsRef.current?.shaft) {
-          const textures = cueMaterialsRef.current.shaft.userData?.textures;
-          if (textures) {
-            Object.values(textures).forEach((tex) => tex?.dispose?.());
-          }
           disposeMaterialWithWood(cueMaterialsRef.current.shaft);
         }
         if (cueMaterialsRef.current?.buttMaterial) {
-          cueMaterialsRef.current.buttMaterial.dispose?.();
+          disposeMaterialWithWood(cueMaterialsRef.current.buttMaterial);
         }
         if (cueMaterialsRef.current?.buttRingMaterial) {
           cueMaterialsRef.current.buttRingMaterial.dispose?.();
         }
         if (cueMaterialsRef.current?.buttCapMaterial) {
-          cueMaterialsRef.current.buttCapMaterial.dispose?.();
+          disposeMaterialWithWood(cueMaterialsRef.current.buttCapMaterial);
         }
         cueMaterialsRef.current.shaft = null;
         cueMaterialsRef.current.buttMaterial = null;
