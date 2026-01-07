@@ -1201,13 +1201,13 @@ const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.
 const POCKET_GUIDE_DROP = BALL_R * 0.28;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
-const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 0.35; // allow the L-arms to peek past the ring without blocking the pocket mouth without jumping across the ring
+const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.82; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.3; // drop the centre rail to form the floor of the holder
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.12; // wider spacing so potted balls line up without overlapping on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 1.05; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 1.15; // keep the resting spot visibly below the pocket throat and touching the chrome holders
+const POCKET_HOLDER_REST_DROP = BALL_R * 0.9; // keep the resting spot visibly below the pocket throat
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -5721,7 +5721,7 @@ const resolvePocketHolderDirection = (center, pocketId = null) => {
           : Math.sign(center?.y || 1) || 1;
     return new THREE.Vector3(0, 0, zDir);
   }
-  const zDir = Math.sign(center?.y || 1) || 1;
+  const zDir = -Math.sign(center?.y || 1) || -1;
   const sidePull = Math.sign(center?.x || 1) * 0.2;
   const towardMiddlePocketSide = new THREE.Vector3(sidePull, 0, zDir);
   if (towardMiddlePocketSide.lengthSq() > MICRO_EPS * MICRO_EPS) {
@@ -7334,9 +7334,8 @@ function Table3D(
     const sideDir = new THREE.Vector3().crossVectors(outwardDir, new THREE.Vector3(0, 1, 0)).normalize();
     const strapDir = outwardDir.clone().setY(-Math.tan(POCKET_HOLDER_TILT_RAD)).normalize();
     const railStartOffset = Math.max(
-      pocketGuideRingRadius * 0.96,
-      pocketGuideRingRadius + POCKET_GUIDE_RING_CLEARANCE - POCKET_GUIDE_RING_OVERLAP,
-      MICRO_EPS
+      MICRO_EPS,
+      pocketGuideRingRadius + POCKET_GUIDE_RING_CLEARANCE - POCKET_GUIDE_RING_OVERLAP
     );
     const buildGuideSegment = (start, end) => {
       const delta = end.clone().sub(start);
@@ -8841,29 +8840,33 @@ function Table3D(
     return mat;
   };
   const brandPlateThickness = chromePlateThickness;
-  const brandPlateHeight = railH;
+  const brandPlateDepth = Math.min(endRailW * 0.54, TABLE.THICK * 0.78);
   const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 11, PLAY_W * 0.28));
-  const brandPlateY = frameTopY + brandPlateHeight * 0.5;
-  const shortRailOuterZ = outerHalfH + brandPlateThickness * 0.5;
+  const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
+  const shortRailCenterZ = halfH + endRailW * 0.5;
+  const brandPlateOutwardShift = endRailW * 0.16;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
-    brandPlateHeight,
-    brandPlateThickness
+    brandPlateThickness,
+    brandPlateDepth
   );
   [-1, 1].forEach((dirZ) => {
-    const materials = Array(6)
-      .fill(null)
-      .map(() => createBrandSideMaterial());
-    const outwardFaceIndex = dirZ > 0 ? 4 : 5;
-    materials[outwardFaceIndex] = brandPlateTopMaterial;
+    const materials = [
+      createBrandSideMaterial(),
+      createBrandSideMaterial(),
+      brandPlateTopMaterial,
+      createBrandSideMaterial(),
+      createBrandSideMaterial(),
+      createBrandSideMaterial()
+    ];
     const plate = new THREE.Mesh(brandPlateGeom, materials);
-    plate.position.set(0, brandPlateY, dirZ * shortRailOuterZ);
+    plate.position.set(0, brandPlateY, dirZ * (shortRailCenterZ + brandPlateOutwardShift));
     plate.castShadow = true;
     plate.receiveShadow = true;
     plate.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.2;
     railsGroup.add(plate);
     const sideMaterials = Array.isArray(plate.material)
-      ? plate.material.filter((_, index) => index !== outwardFaceIndex)
+      ? plate.material.filter((_, index) => index !== 2)
       : [];
     finishParts.brandPlates.push({
       mesh: plate,
@@ -13791,17 +13794,15 @@ const powerRef = useRef(hud.power);
       };
       const { height: topDownHeight, horizontal: topDownHorizontal } =
         resolveTopDownCoords();
-      const broadcastCameraHeight = topDownHeight * 0.78;
-      const broadcastHorizontalReach = topDownHorizontal * 0.9;
       const broadcastClearance = arenaMargin * 0.3 + BALL_R * 4;
       const shortRailTarget = Math.max(
-        broadcastHorizontalReach,
+        topDownHorizontal,
         arenaHalfDepth - broadcastClearance
       );
       const shortRailSlideLimit = 0;
       const broadcastRig = createBroadcastCameras({
         floorY,
-        cameraHeight: broadcastCameraHeight,
+        cameraHeight: topDownHeight,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: Math.max(arenaHalfDepth - BALL_R * 4, BALL_R * 4)
@@ -21933,11 +21934,11 @@ const powerRef = useRef(hud.power);
   const step = (now) => {
     if (disposed) return;
     const playback = replayPlaybackRef.current;
-    if (playback) {
-      const frameTiming = frameTimingRef.current;
-      const targetReplayFrameTime =
-        frameTiming && Number.isFinite(frameTiming.targetMs)
-          ? frameTiming.targetMs
+        if (playback) {
+          const frameTiming = frameTimingRef.current;
+          const targetReplayFrameTime =
+            frameTiming && Number.isFinite(frameTiming.targetMs)
+              ? frameTiming.targetMs
               : 1000 / 60;
           if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
             rafRef.current = requestAnimationFrame(step);
@@ -22001,16 +22002,15 @@ const powerRef = useRef(hud.power);
           } catch (err) {
             console.error('Pool Royale replay playback failed; skipping.', err);
             finishReplayPlayback(playback);
-      }
-      scheduleNext();
-      return;
-    }
-    try {
-    const nowMs = now;
-    if (remoteShotActiveRef.current && remoteShotUntilRef.current > 0 && nowMs > remoteShotUntilRef.current) {
-      remoteShotActiveRef.current = false;
-    }
-    if (
+          }
+          scheduleNext();
+          return;
+        }
+        const nowMs = now;
+        if (remoteShotActiveRef.current && remoteShotUntilRef.current > 0 && nowMs > remoteShotUntilRef.current) {
+          remoteShotActiveRef.current = false;
+        }
+        if (
           remoteAimRef.current &&
           Number.isFinite(remoteAimRef.current.updatedAt) &&
           nowMs - remoteAimRef.current.updatedAt > 3500
@@ -23246,7 +23246,6 @@ const powerRef = useRef(hud.power);
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
               const holderDir = resolvePocketHolderDirection(c, pocketId);
-              const ringRadius = POCKET_BOTTOM_R * POCKET_NET_RING_RADIUS_SCALE;
               const pocketRestIndex =
                 pocketRestIndexRef.current.get(pocketId) ?? 0;
               const ringAnchor = new THREE.Vector3(
@@ -23256,11 +23255,7 @@ const powerRef = useRef(hud.power);
               );
               const holderSpacing = POCKET_HOLDER_REST_SPACING;
               const railStartOffset =
-                Math.max(
-                  ringRadius * 0.96,
-                  ringRadius + POCKET_GUIDE_RING_CLEARANCE - POCKET_GUIDE_RING_OVERLAP,
-                  MICRO_EPS
-                );
+                POCKET_NET_RING_RADIUS_SCALE * POCKET_BOTTOM_R + POCKET_GUIDE_RING_CLEARANCE;
               const restDistanceBase = Math.max(
                 railStartOffset + POCKET_GUIDE_LENGTH - POCKET_HOLDER_REST_PULLBACK,
                 railStartOffset + holderSpacing
@@ -23275,6 +23270,7 @@ const powerRef = useRef(hud.power);
                 restDistanceBase - clampedRestIndex * holderSpacing
               );
               pocketRestIndexRef.current.set(pocketId, pocketRestIndex + 1);
+              const tiltDrop = Math.tan(POCKET_HOLDER_TILT_RAD) * restDistance;
               const restTarget = new THREE.Vector3(c.x, 0, c.y).addScaledVector(
                 holderDir,
                 restDistance
@@ -23285,14 +23281,13 @@ const powerRef = useRef(hud.power);
                 .clone()
                 .addScaledVector(holderDir, railStartOffset)
                 .add(new THREE.Vector3(0, -POCKET_GUIDE_FLOOR_DROP, 0));
-              const restSlopeDrop = Math.tan(POCKET_HOLDER_TILT_RAD) * Math.max(restDistance - railStartOffset, 0);
-              const restBaseY = railRunStart.y;
-              const targetY = restBaseY - (POCKET_HOLDER_REST_DROP + restSlopeDrop);
               const dropEntry = {
                 start: dropStart,
                 fromY: BALL_CENTER_Y,
                 currentY: BALL_CENTER_Y,
-                targetY,
+                targetY:
+                  BALL_CENTER_Y -
+                  (POCKET_DROP_DEPTH + POCKET_HOLDER_REST_DROP + tiltDrop),
                 fromX: ringAnchor.x,
                 fromZ: ringAnchor.z,
                 toX: targetX,
@@ -23534,13 +23529,10 @@ const powerRef = useRef(hud.power);
               lastLiveSyncSentAt = now;
             }
           }
-    } catch (err) {
-      console.error('Pool Royale frame update failed; continuing render loop.', err);
-    }
-    if (!disposed) {
-      rafRef.current = requestAnimationFrame(step);
-    }
-  };
+          if (!disposed) {
+            rafRef.current = requestAnimationFrame(step);
+          }
+        };
         step(performance.now());
 
       // Resize
