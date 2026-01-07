@@ -39,7 +39,6 @@ import {
 } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
-import { CUE_RACK_PALETTE, CUE_STYLE_PRESETS } from '../../config/cueStyles.js';
 import { socket } from '../../utils/socket.js';
 import {
   WOOD_FINISH_PRESETS,
@@ -893,12 +892,6 @@ const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
 const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
-const DEFAULT_CUE_STYLE_ID =
-  POOL_ROYALE_DEFAULT_UNLOCKS.cueStyle?.[0] ?? 'birch-frost';
-const DEFAULT_CUE_STYLE_INDEX = Math.max(
-  CUE_STYLE_PRESETS.findIndex((preset) => preset.id === DEFAULT_CUE_STYLE_ID),
-  0
-);
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
@@ -925,10 +918,10 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 0.82; // trim the jaw bodies so the underside finishes closer to the cloth plane
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.098; // drop the visible rim a touch further so the pocket lips sit nearer the cloth plane
-const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.12; // stop the jaw extrusion right at the cloth surface so no extra lip hangs below
-const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // keep the underside tight to the cloth depth instead of the deeper pocket floor
+const POCKET_JAW_DEPTH_SCALE = 0.9; // extend the jaw bodies so the underside reaches the deeper profile used previously
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim so the pocket lips sit nearer the cloth plane
+const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.06; // let the jaw extrusion extend further below the cloth surface
+const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.22; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.12; // thin the outer lips more aggressively while leaving the centre crown unchanged
@@ -1177,7 +1170,7 @@ const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(12); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
-const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({ x: 1, y: 1 });
+const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({ x: 0.85, y: 0.85 });
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
@@ -2190,12 +2183,13 @@ const ensurePocketLeatherTextures = (textureId = POCKET_LEATHER_TEXTURE_ID) => {
     cacheEntry.loading = false;
     broadcastPocketLeatherTextures(normalizedId);
   };
+  const fallback4k = buildPolyHavenTextureUrls(normalizedId, '4k');
   const fallback2k = buildPolyHavenTextureUrls(normalizedId, '2k');
   const fallback1k = buildPolyHavenTextureUrls(normalizedId, '1k');
   const fallbackUrls = {
-    diffuse: fallback2k?.diffuse ?? fallback1k?.diffuse,
-    normal: fallback2k?.normal ?? fallback1k?.normal,
-    roughness: fallback2k?.roughness ?? fallback1k?.roughness
+    diffuse: fallback4k?.diffuse ?? fallback2k?.diffuse ?? fallback1k?.diffuse,
+    normal: fallback4k?.normal ?? fallback2k?.normal ?? fallback1k?.normal,
+    roughness: fallback4k?.roughness ?? fallback2k?.roughness ?? fallback1k?.roughness
   };
   if (typeof fetch !== 'function') {
     loadTextures(fallbackUrls);
@@ -2409,6 +2403,21 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.rosewoodVeneerHoney,
     TABLE_FINISHES.rosewoodVeneerAsh
   ].filter(Boolean)
+);
+
+const CUE_FINISH_OPTIONS = TABLE_FINISH_OPTIONS;
+const CUE_FINISH_PALETTE = Object.freeze(
+  CUE_FINISH_OPTIONS.map(
+    (finish) => finish?.colors?.rail ?? finish?.colors?.base ?? 0xdeb887
+  )
+);
+const DEFAULT_CUE_STYLE_ID =
+  POOL_ROYALE_DEFAULT_UNLOCKS.tableFinish?.[0] ??
+  POOL_ROYALE_DEFAULT_UNLOCKS.cueStyle?.[0] ??
+  DEFAULT_TABLE_FINISH_ID;
+const DEFAULT_CUE_STYLE_INDEX = Math.max(
+  CUE_FINISH_OPTIONS.findIndex((finish) => finish.id === DEFAULT_CUE_STYLE_ID),
+  0
 );
 
 const CHESS_BATTLE_DEFAULT_SET_URLS = Object.freeze([
@@ -8367,21 +8376,34 @@ function Table3D(
   railsGroup.add(railsMesh);
   finishParts.railMeshes.push(railsMesh);
 
-  const brandPlateLabelTexture =
-    createBrandPlateLabelTexture({
+  const brandPlateTexture =
+    createCarbonLabelTexture({
       width: 2048,
       height: 512,
-      lines: [{ text: 'TonPlaygram', size: 0.34, weight: '800' }]
+      lines: [{ text: 'TonPlaygram', size: 0.34, weight: '800' }],
+      borderWidth: Math.max(TABLE.THICK * 5.5, 20),
+      padding: 140,
+      studScale: 0.2
     }) || null;
-  const brandPlateTopMaterial =
-    buildBrandPlateTopMaterial(pocketJawMat, brandPlateLabelTexture) ??
-    new THREE.MeshPhysicalMaterial({
-      color: CHALK_TOP_COLOR,
-      metalness: 0.1,
-      roughness: 0.82,
-      clearcoat: 0.12,
-      clearcoatRoughness: 0.6
-    });
+  const brandPlateTopMaterial = brandPlateTexture
+    ? new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        map: brandPlateTexture,
+        metalness: 0.52,
+        roughness: 0.3,
+        clearcoat: 0.48,
+        clearcoatRoughness: 0.2,
+        sheen: 0.28,
+        sheenRoughness: 0.5,
+        emissive: new THREE.Color(CHALK_EMISSIVE_COLOR),
+        emissiveIntensity: 0.14
+      })
+    : new THREE.MeshPhysicalMaterial({
+        color: CHALK_TOP_COLOR,
+        metalness: 0.42,
+        roughness: 0.32,
+        clearcoat: 0.32
+      });
   const brandAccentColor = new THREE.Color(0xd4b163);
   const createBrandSideMaterial = () => {
     const mat = trimMat.clone();
@@ -8395,29 +8417,34 @@ function Table3D(
     mat.sheenRoughness = Math.min(mat.sheenRoughness ?? 0.6, 0.6);
     return mat;
   };
-  const brandPlateDepth = chromePlateThickness;
-  const brandPlateHeight = railH * 0.96;
+  const brandPlateThickness = chromePlateThickness;
+  const brandPlateDepth = Math.min(endRailW * 0.54, TABLE.THICK * 0.78);
   const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 11, PLAY_W * 0.28));
-  const brandPlateY = frameTopY + railH * 0.5;
-  const shortRailOuterZ = outerHalfH + brandPlateDepth * 0.5 + TABLE.THICK * 0.02;
+  const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
+  const shortRailCenterZ = halfH + endRailW * 0.5;
+  const brandPlateOutwardShift = endRailW * 0.16;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
-    brandPlateHeight,
+    brandPlateThickness,
     brandPlateDepth
   );
-  finishParts.brandPlateLabelTexture = brandPlateLabelTexture;
   [-1, 1].forEach((dirZ) => {
-    const outwardFaceIndex = dirZ > 0 ? 4 : 5;
-    const materials = Array.from({ length: 6 }, () => createBrandSideMaterial());
-    materials[outwardFaceIndex] = brandPlateTopMaterial;
+    const materials = [
+      createBrandSideMaterial(),
+      createBrandSideMaterial(),
+      brandPlateTopMaterial,
+      createBrandSideMaterial(),
+      createBrandSideMaterial(),
+      createBrandSideMaterial()
+    ];
     const plate = new THREE.Mesh(brandPlateGeom, materials);
-    plate.position.set(0, brandPlateY, dirZ * shortRailOuterZ);
+    plate.position.set(0, brandPlateY, dirZ * (shortRailCenterZ + brandPlateOutwardShift));
     plate.castShadow = true;
     plate.receiveShadow = true;
     plate.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.2;
     railsGroup.add(plate);
     const sideMaterials = Array.isArray(plate.material)
-      ? plate.material.filter((_, index) => index !== outwardFaceIndex)
+      ? plate.material.filter((_, index) => index !== 2)
       : [];
     finishParts.brandPlates.push({
       mesh: plate,
@@ -9601,7 +9628,6 @@ function applyTableFinishToTable(table, finish) {
   finishInfo.parts.pocketRimMeshes.forEach((mesh) => swapMaterial(mesh, pocketRimMat));
   if (Array.isArray(finishInfo.parts.brandPlates)) {
     const accentColor = new THREE.Color(0xd4b163);
-    const labelTexture = finishInfo.parts.brandPlateLabelTexture ?? null;
     finishInfo.parts.brandPlates.forEach((entry) => {
       const sideMaterials = entry?.sideMaterials;
       if (!Array.isArray(sideMaterials)) return;
@@ -9616,14 +9642,6 @@ function applyTableFinishToTable(table, finish) {
         mat.clearcoatRoughness = Math.min(mat.clearcoatRoughness ?? 0.32, 0.32);
         mat.needsUpdate = true;
       });
-      if (entry?.topMaterial && pocketJawMat) {
-        entry.topMaterial.copy(pocketJawMat);
-        entry.topMaterial.color.set(0xffffff);
-        entry.topMaterial.emissive = new THREE.Color(CHALK_EMISSIVE_COLOR);
-        entry.topMaterial.emissiveIntensity = 0.18;
-        entry.topMaterial.emissiveMap = labelTexture || null;
-        entry.topMaterial.needsUpdate = true;
-      }
     });
   }
   if (table.userData?.railMarkers?.updateBaseMaterial) {
@@ -9989,6 +10007,12 @@ function PoolRoyaleGame({
       cancelled = true;
     };
   }, [resolvedAccountId]);
+  const isCueFinishUnlocked = useCallback(
+    (finishId, inventory = poolInventory) =>
+      isPoolOptionUnlocked('cueStyle', finishId, inventory) ||
+      isPoolOptionUnlocked('tableFinish', finishId, inventory),
+    [poolInventory]
+  );
   const awardTournamentLoot = useCallback(async () => {
     if (!resolvedAccountId) return [];
     let currentInventory = poolInventory;
@@ -10021,10 +10045,15 @@ function PoolRoyaleGame({
         label: POOL_ROYALE_OPTION_LABELS.tableFinish?.[finishId] || finishId
       });
     }
-    const cueId = selectReward(
-      'cueStyle',
-      CUE_STYLE_PRESETS.map((preset) => preset.id)
+    const cueOptions = CUE_FINISH_OPTIONS.map((finish) => finish.id);
+    const cueLocked = cueOptions.filter((optionId) =>
+      !isCueFinishUnlocked(optionId, currentInventory)
     );
+    const cueId = cueLocked.length
+      ? randomPick(cueLocked)
+      : cueOptions.length
+        ? randomPick(cueOptions)
+        : null;
     if (cueId) {
       try {
         currentInventory = await addPoolRoyalUnlock('cueStyle', cueId, resolvedAccountId);
@@ -10034,7 +10063,10 @@ function PoolRoyaleGame({
       rewards.push({
         type: 'cueStyle',
         optionId: cueId,
-        label: POOL_ROYALE_OPTION_LABELS.cueStyle?.[cueId] || cueId
+        label:
+          POOL_ROYALE_OPTION_LABELS.tableFinish?.[cueId] ||
+          POOL_ROYALE_OPTION_LABELS.cueStyle?.[cueId] ||
+          cueId
       });
     }
     const clothId = selectReward(
@@ -10057,7 +10089,7 @@ function PoolRoyaleGame({
       setPoolInventory(currentInventory);
     }
     return rewards;
-  }, [poolInventory, resolvedAccountId]);
+  }, [isCueFinishUnlocked, poolInventory, resolvedAccountId]);
   const resolveStoredSelection = useCallback(
     (type, storageKey, isValid, fallbackId) => {
       const inventory = poolInventory;
@@ -10265,10 +10297,10 @@ function PoolRoyaleGame({
   );
   const availableCueStyles = useMemo(
     () =>
-      CUE_STYLE_PRESETS.map((preset, index) => ({ preset, index })).filter(({ preset }) =>
-        isPoolOptionUnlocked('cueStyle', preset.id, poolInventory)
+      CUE_FINISH_OPTIONS.map((finish, index) => ({ preset: finish, index })).filter(({ preset }) =>
+        isCueFinishUnlocked(preset.id, poolInventory)
       ),
-    [poolInventory]
+    [isCueFinishUnlocked, poolInventory]
   );
   const activeChromeOption = useMemo(
     () =>
@@ -10592,33 +10624,33 @@ function PoolRoyaleGame({
   const chalkAssistTargetRef = useRef(false);
   const visibleChalkIndexRef = useRef(null);
   const resolveCueIndex = useCallback(() => {
-    const paletteLength = CUE_RACK_PALETTE.length || CUE_STYLE_PRESETS.length || 1;
+    const paletteLength = CUE_FINISH_PALETTE.length || CUE_FINISH_OPTIONS.length || 1;
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(CUE_STYLE_STORAGE_KEY);
       if (stored != null) {
         const parsed = Number.parseInt(stored, 10);
         if (Number.isFinite(parsed)) {
           const normalized = ((parsed % paletteLength) + paletteLength) % paletteLength;
-          const preset = CUE_STYLE_PRESETS[normalized % CUE_STYLE_PRESETS.length];
-          if (preset && isPoolOptionUnlocked('cueStyle', preset.id, poolInventory)) {
+          const preset = CUE_FINISH_OPTIONS[normalized % CUE_FINISH_OPTIONS.length];
+          if (preset && isCueFinishUnlocked(preset.id, poolInventory)) {
             return normalized;
           }
         }
       }
     }
-    const defaultPreset = CUE_STYLE_PRESETS[DEFAULT_CUE_STYLE_INDEX];
+    const defaultPreset = CUE_FINISH_OPTIONS[DEFAULT_CUE_STYLE_INDEX];
     if (
       defaultPreset &&
-      isPoolOptionUnlocked('cueStyle', defaultPreset.id, poolInventory)
+      isCueFinishUnlocked(defaultPreset.id, poolInventory)
     ) {
       return DEFAULT_CUE_STYLE_INDEX;
     }
-    const firstUnlocked = CUE_STYLE_PRESETS.findIndex((preset) =>
-      isPoolOptionUnlocked('cueStyle', preset.id, poolInventory)
+    const firstUnlocked = CUE_FINISH_OPTIONS.findIndex((preset) =>
+      isCueFinishUnlocked(preset.id, poolInventory)
     );
     if (firstUnlocked >= 0) return firstUnlocked;
     return DEFAULT_CUE_STYLE_INDEX;
-  }, [poolInventory]);
+  }, [isCueFinishUnlocked, poolInventory]);
   const [cueStyleIndex, setCueStyleIndex] = useState(() => resolveCueIndex());
   const cueStyleIndexRef = useRef(cueStyleIndex);
   const cueRackGroupsRef = useRef([]);
@@ -10648,12 +10680,12 @@ function PoolRoyaleGame({
   const [cueGalleryActive, setCueGalleryActive] = useState(false);
 
   const getCueColorFromIndex = useCallback((index) => {
-    if (!Array.isArray(CUE_RACK_PALETTE) || CUE_RACK_PALETTE.length === 0) {
+    if (!Array.isArray(CUE_FINISH_PALETTE) || CUE_FINISH_PALETTE.length === 0) {
       return 0xdeb887;
     }
-    const paletteLength = CUE_RACK_PALETTE.length;
+    const paletteLength = CUE_FINISH_PALETTE.length;
     const normalized = ((index % paletteLength) + paletteLength) % paletteLength;
-    return CUE_RACK_PALETTE[normalized];
+    return CUE_FINISH_PALETTE[normalized];
   }, []);
 
   const createCueStripeTexture = useCallback((hexColor) => {
@@ -10775,14 +10807,43 @@ function PoolRoyaleGame({
 
   const applySelectedCueStyle = useCallback(
     (index) => {
-      const paletteLength = CUE_RACK_PALETTE.length || CUE_STYLE_PRESETS.length || 1;
+      const paletteLength = CUE_FINISH_PALETTE.length || CUE_FINISH_OPTIONS.length || 1;
       const normalized = ((index % paletteLength) + paletteLength) % paletteLength;
-      const preset = CUE_STYLE_PRESETS[normalized % CUE_STYLE_PRESETS.length];
+      const finish = CUE_FINISH_OPTIONS[normalized % CUE_FINISH_OPTIONS.length];
       const color = getCueColorFromIndex(normalized);
       cueStyleIndexRef.current = normalized;
       const materials = cueMaterialsRef.current ?? {};
       const shaftMaterial = materials.shaft;
-      if (shaftMaterial && preset) {
+      if (shaftMaterial && finish) {
+        const defaultWoodOption =
+          WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
+        const resolvedWoodOption =
+          finish?.woodTexture ||
+          (finish?.woodTextureId && WOOD_GRAIN_OPTIONS_BY_ID[finish.woodTextureId]) ||
+          defaultWoodOption;
+        const cueSurface = resolveWoodSurfaceConfig(
+          resolvedWoodOption?.rail,
+          resolvedWoodOption?.frame ?? { repeat: { x: 1, y: 1 }, rotation: 0 }
+        );
+        const woodRepeatScale = clampWoodRepeatScaleValue(
+          finish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
+        );
+        const cueSurfaceConfig = {
+          repeat: cueSurface.repeat,
+          rotation: cueSurface.rotation,
+          textureSize: cueSurface.textureSize,
+          mapUrl: cueSurface.mapUrl,
+          roughnessMapUrl: cueSurface.roughnessMapUrl,
+          normalMapUrl: cueSurface.normalMapUrl,
+          woodRepeatScale
+        };
+        [materials.shaft, materials.buttMaterial, materials.buttCapMaterial].forEach((mat) => {
+          if (!mat) return;
+          applyWoodTextureToMaterial(mat, cueSurfaceConfig);
+          applySharedWoodSurfaceProps(mat);
+          mat.color?.setHex(0xffffff);
+          mat.needsUpdate = true;
+        });
         const tintColor = new THREE.Color(color || 0xffffff);
         shaftMaterial.color.copy(tintColor).lerp(new THREE.Color(0xffffff), 0.35);
         shaftMaterial.roughness = 0.34;
@@ -10806,11 +10867,11 @@ function PoolRoyaleGame({
   );
 
   useEffect(() => {
-    const preset = CUE_STYLE_PRESETS[cueStyleIndex];
-    if (!preset || !isPoolOptionUnlocked('cueStyle', preset.id, poolInventory)) {
+    const preset = CUE_FINISH_OPTIONS[cueStyleIndex];
+    if (!preset || !isCueFinishUnlocked(preset.id, poolInventory)) {
       setCueStyleIndex(resolveCueIndex());
     }
-  }, [cueStyleIndex, poolInventory, resolveCueIndex]);
+  }, [cueStyleIndex, isCueFinishUnlocked, poolInventory, resolveCueIndex]);
 
   useEffect(() => {
     cueStyleIndexRef.current = cueStyleIndex;
@@ -11835,17 +11896,17 @@ const powerRef = useRef(hud.power);
     async (index) => {
       const charged = await ensureCueFeePaid();
       if (!charged) return;
-      const paletteLength = CUE_RACK_PALETTE.length || 1;
+      const paletteLength = CUE_FINISH_PALETTE.length || 1;
       const normalized = ((index % paletteLength) + paletteLength) % paletteLength;
-      const preset = CUE_STYLE_PRESETS[normalized % CUE_STYLE_PRESETS.length];
-      if (!preset || !isPoolOptionUnlocked('cueStyle', preset.id, poolInventory)) {
+      const preset = CUE_FINISH_OPTIONS[normalized % CUE_FINISH_OPTIONS.length];
+      if (!preset || !isCueFinishUnlocked(preset.id, poolInventory)) {
         setCueStyleIndex(resolveCueIndex());
         return;
       }
       applySelectedCueStyle(normalized);
       setCueStyleIndex(normalized);
     },
-    [applySelectedCueStyle, ensureCueFeePaid, poolInventory, resolveCueIndex]
+    [applySelectedCueStyle, ensureCueFeePaid, isCueFinishUnlocked, poolInventory, resolveCueIndex]
   );
 
   const routeAudioNode = useCallback((node) => {
@@ -17782,29 +17843,6 @@ const powerRef = useRef(hud.power);
         if (table && nextFinish) {
           applyTableFinishToTable(table, nextFinish);
         }
-        if (table?.userData?.finish) {
-          const finishInfo = table.userData.finish;
-          const cueSource =
-            finishInfo?.materials?.rail ??
-            finishInfo?.materials?.frame ??
-            null;
-          if (cueSource) {
-            const cueMap = cueSource.map ?? null;
-            const cueNormal = cueSource.normalMap ?? null;
-            const cueRoughness = cueSource.roughnessMap ?? null;
-            [
-              cueMaterialsRef.current?.shaft,
-              cueMaterialsRef.current?.buttMaterial,
-              cueMaterialsRef.current?.buttCapMaterial
-            ].forEach((mat) => {
-              if (!mat) return;
-              mat.map = cueMap;
-              mat.normalMap = cueNormal;
-              mat.roughnessMap = cueRoughness;
-              mat.needsUpdate = true;
-            });
-          }
-        }
         if (secondaryTableRef.current && nextFinish) {
           applyTableFinishToTable(secondaryTableRef.current, nextFinish);
         }
@@ -18142,26 +18180,15 @@ const powerRef = useRef(hud.power);
         length: cueLen
       };
 
-      const paletteLength = CUE_RACK_PALETTE.length || CUE_STYLE_PRESETS.length || 1;
+      const paletteLength = CUE_FINISH_PALETTE.length || CUE_FINISH_OPTIONS.length || 1;
       const initialIndexRaw = cueStyleIndexRef.current ?? cueStyleIndex ?? 0;
       const initialIndex =
         ((initialIndexRaw % paletteLength) + paletteLength) % paletteLength;
-      const initialPreset =
-        CUE_STYLE_PRESETS[initialIndex % CUE_STYLE_PRESETS.length] ??
-        CUE_STYLE_PRESETS[0];
-      const finishInfo = table?.userData?.finish ?? null;
-      const cueTextureSource =
-        finishInfo?.materials?.rail ??
-        finishInfo?.materials?.frame ??
-        null;
-      const cueMap = cueTextureSource?.map ?? null;
-      const cueNormal = cueTextureSource?.normalMap ?? null;
-      const cueRoughness = cueTextureSource?.roughnessMap ?? null;
       const shaftMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
-        map: cueMap,
-        normalMap: cueNormal,
-        roughnessMap: cueRoughness,
+        map: null,
+        normalMap: null,
+        roughnessMap: null,
         bumpScale: 0.02 * SCALE,
         roughness: 0.34,
         metalness: 0.0,
@@ -18295,9 +18322,9 @@ const powerRef = useRef(hud.power);
 
       const buttMaterial = new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
-        map: cueMap,
-        normalMap: cueNormal,
-        roughnessMap: cueRoughness,
+        map: null,
+        normalMap: null,
+        roughnessMap: null,
         bumpScale: 0.015 * SCALE,
         roughness: 0.28,
         metalness: 0.25,
@@ -18315,11 +18342,16 @@ const powerRef = useRef(hud.power);
         cueBody.add(butt);
       }
 
+      const stripeLength = rearLength * 0.42;
+      const stripeCenter = frontLength / 2 + rearLength * 0.32;
+      const stripeStart = stripeCenter - stripeLength / 2;
+      const buttRingTube = buttShaftRadius * 0.12;
+      const buttRingRadius = Math.max(buttShaftRadius - buttRingTube, buttRingTube * 1.2);
       const buttRing = new THREE.Mesh(
-        new THREE.TorusGeometry(buttShaftRadius * 1.05, buttShaftRadius * 0.16, 24, 64),
+        new THREE.TorusGeometry(buttRingRadius, buttRingTube, 24, 64),
         new THREE.MeshPhysicalMaterial({ color: 0xd7b86a, metalness: 1.0, roughness: 0.22 })
       );
-      buttRing.position.z = rearStart + rearShaftLength + Math.max(buttLength * 0.18, buttShaftRadius * 0.6);
+      buttRing.position.z = stripeStart;
       cueBody.add(buttRing);
       cueMaterialsRef.current.buttRingMaterial = buttRing.material;
 
@@ -18335,7 +18367,7 @@ const powerRef = useRef(hud.power);
         new THREE.CylinderGeometry(
           buttShaftRadius * 1.001,
           buttShaftRadius * 1.001,
-          rearLength * 0.42,
+          stripeLength,
           64,
           1,
           true
@@ -18353,7 +18385,7 @@ const powerRef = useRef(hud.power);
         })
       );
       stripeOverlay.rotation.x = -Math.PI / 2;
-      stripeOverlay.position.z = frontLength / 2 + rearLength * 0.32;
+      stripeOverlay.position.z = stripeCenter;
       stripeOverlay.userData.isCueStripe = true;
       cueMaterialsRef.current.stripe = stripeOverlay.material;
       cueBody.add(stripeOverlay);
@@ -18551,7 +18583,7 @@ const powerRef = useRef(hud.power);
         if (cueIndex == null) return true;
         const charged = await ensureCueFeePaid();
         if (!charged) return true;
-        const paletteLength = CUE_RACK_PALETTE.length || 1;
+        const paletteLength = CUE_FINISH_PALETTE.length || 1;
         const normalized =
           ((cueIndex % paletteLength) + paletteLength) % paletteLength;
         applySelectedCueStyle(normalized);
