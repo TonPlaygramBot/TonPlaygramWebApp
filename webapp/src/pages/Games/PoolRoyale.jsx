@@ -1437,7 +1437,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // Match cue grain scale to the table finish
-const CUE_WOOD_REPEAT_SCALE = 1 / 3;
+const CUE_WOOD_REPEAT_SCALE = 1 / 9;
 const CUE_WOOD_TEXTURE_SIZE = 4096; // 4k cue textures for sharper cue wood finish
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // enlarge grain 3× so rails, skirts, and legs read at table scale; push pattern larger for the new finish pass
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
@@ -1790,9 +1790,9 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 1.32;
-const CLOTH_HAIR_INTENSITY = 1.02;
-const CLOTH_BUMP_INTENSITY = 1.38;
+const CLOTH_TEXTURE_INTENSITY = 1.6;
+const CLOTH_HAIR_INTENSITY = 1.2;
+const CLOTH_BUMP_INTENSITY = 1.65;
 const CLOTH_SOFT_BLEND = 0.5;
 
 const CLOTH_QUALITY = (() => {
@@ -2775,14 +2775,14 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.76; // tighten the pattern footprint so the scan resolves more clearly
+const CLOTH_PATTERN_SCALE = 0.7; // open the pattern so the cloth weave reads richer and more visible
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
 const POLYHAVEN_ANISOTROPY_BOOST = 2.6;
-const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.55, 0.72);
-const CLOTH_ROUGHNESS_BASE = 0.82;
-const CLOTH_ROUGHNESS_TARGET = 0.78;
-const CLOTH_BRIGHTNESS_LERP = 0.05;
+const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.95);
+const CLOTH_ROUGHNESS_BASE = 0.8;
+const CLOTH_ROUGHNESS_TARGET = 0.76;
+const CLOTH_BRIGHTNESS_LERP = 0.06;
 const CLOTH_PATTERN_OVERRIDES = Object.freeze({
   polar_fleece: { repeatScale: 0.94 }, // 10% larger pattern to emphasize the fleece nap
   terry_cloth: { repeatScale: 3 } // counter Polyhaven repeat scale so terry cloth matches the standard thread density
