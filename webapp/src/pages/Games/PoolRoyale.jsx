@@ -4937,6 +4937,15 @@ const clampToUnitCircle = (x, y) => {
   const scale = L > 1e-6 ? 1 / L : 0;
   return { x: x * scale, y: y * scale };
 };
+const normalizeSpinInput = (spin) => {
+  const x = spin?.x ?? 0;
+  const y = spin?.y ?? 0;
+  const magnitude = Math.hypot(x, y);
+  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
+    return { x: 0, y: 0 };
+  }
+  return clampToUnitCircle(x, y);
+};
 
 const prepareSpinAxes = (aimDir) => {
   if (!aimDir) {
@@ -17065,10 +17074,17 @@ const powerRef = useRef(hud.power);
             spinLegalityRef.current = legality;
           }
           const applied = clampSpinToLimits();
-          if (updateUi) {
-            updateSpinDotPosition(applied, legality.blocked);
+          const normalized = normalizeSpinInput(applied);
+          if (
+            normalized.x !== applied.x ||
+            normalized.y !== applied.y
+          ) {
+            spinRef.current = normalized;
           }
-          const result = legality.blocked ? { x: 0, y: 0 } : applied;
+          if (updateUi) {
+            updateSpinDotPosition(normalized, legality.blocked);
+          }
+          const result = legality.blocked ? { x: 0, y: 0 } : normalized;
           const magnitude = Math.hypot(result.x ?? 0, result.y ?? 0);
           const mode = magnitude >= SWERVE_THRESHOLD ? 'swerve' : 'standard';
           spinAppliedRef.current = { ...result, magnitude, mode };
@@ -23519,16 +23535,17 @@ const powerRef = useRef(hud.power);
     const clampToLimits = (nx, ny) => {
       const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
       return {
-      x: clamp(nx, limits.minX, limits.maxX),
-      y: clamp(ny, limits.minY, limits.maxY)
+        x: clamp(nx, limits.minX, limits.maxX),
+        y: clamp(ny, limits.minY, limits.maxY)
       };
     };
 
     const setSpin = (nx, ny) => {
-      const normalized = clampToUnitCircle(nx, ny);
+      const normalized = normalizeSpinInput({ x: nx, y: ny });
       spinRequestRef.current = normalized;
       const limited = clampToLimits(normalized.x, normalized.y);
-      spinRef.current = limited;
+      const limitedNormalized = normalizeSpinInput(limited);
+      spinRef.current = limitedNormalized;
       const cueBall = cueRef.current;
       const ballsList = ballsRef.current?.length
         ? ballsRef.current
@@ -23549,7 +23566,7 @@ const powerRef = useRef(hud.power);
         }
       );
       spinLegalityRef.current = legality;
-      updateSpinDotPosition(limited, legality.blocked);
+      updateSpinDotPosition(limitedNormalized, legality.blocked);
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
