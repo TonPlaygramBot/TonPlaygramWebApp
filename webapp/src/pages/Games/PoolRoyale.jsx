@@ -21827,6 +21827,29 @@ const powerRef = useRef(hud.power);
           );
           const clearanceSq = CUE_OBSTRUCTION_CLEARANCE * CUE_OBSTRUCTION_CLEARANCE;
           let strength = 0;
+          const applyRailObstruction = (railPos, axis) => {
+            const axisPos = axis === 'x' ? origin.x : origin.y;
+            const axisDir = axis === 'x' ? backward.x : backward.y;
+            const distance = Math.abs(axisPos - railPos);
+            if (distance > CUE_OBSTRUCTION_CLEARANCE) return;
+            let closestT = 0;
+            if (Math.abs(axisDir) > 1e-6) {
+              const tAtRail = (railPos - axisPos) / axisDir;
+              closestT = THREE.MathUtils.clamp(tAtRail, 0, reach);
+            }
+            const depth = THREE.MathUtils.clamp(1 - closestT / reach, 0, 1);
+            const proximity = THREE.MathUtils.clamp(
+              1 - distance / CUE_OBSTRUCTION_CLEARANCE,
+              0,
+              1
+            );
+            const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
+            strength = Math.max(strength, influence);
+          };
+          applyRailObstruction(RAIL_LIMIT_X, 'x');
+          applyRailObstruction(-RAIL_LIMIT_X, 'x');
+          applyRailObstruction(RAIL_LIMIT_Y, 'y');
+          applyRailObstruction(-RAIL_LIMIT_Y, 'y');
           balls.forEach((b) => {
             if (!b?.active || b === cue) return;
             const delta = b.pos.clone().sub(origin);
