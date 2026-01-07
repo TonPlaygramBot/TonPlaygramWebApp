@@ -223,7 +223,7 @@ const updateRendererAnisotropyCap = (renderer) => {
 const resolveTextureAnisotropy = (fallback = 1) =>
   Math.max(rendererAnisotropyCap, Number.isFinite(fallback) ? fallback : 1);
 
-const POCKET_NET_LINE_THICKNESS_SCALE = 1.6;
+const POCKET_NET_LINE_THICKNESS_SCALE = 4.8;
 
 const createPocketNetTexture = (size = 256, repeat = POCKET_NET_HEX_REPEAT) => {
   if (typeof document === 'undefined') return null;
@@ -1170,7 +1170,7 @@ const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(9); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
-const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({ x: 0.45, y: 0.45 });
+const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({ x: 0.15, y: 0.15 });
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
@@ -1182,11 +1182,12 @@ const POCKET_WALL_OPEN_TRIM = TABLE.THICK * 0.18;
 const POCKET_WALL_HEIGHT = TABLE.THICK * 0.7 - POCKET_WALL_OPEN_TRIM;
 const POCKET_NET_DEPTH = TABLE.THICK * 2.26;
 const POCKET_NET_SEGMENTS = 64;
-const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 0.9; // drop nearly the full net depth so potted balls clear the rim
+const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 1.05; // drop deeper so potted balls meet the chrome holders cleanly
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.74; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
+const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // raise the net so the weave sits higher on screen
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
@@ -1200,8 +1201,8 @@ const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form t
 const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.2; // wider spacing so potted balls line up without overlapping on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 1.15; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 1.85; // drop the resting spot so potted balls settle lower on the chrome rails
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 0.78; // stop the lead ball closer to the leather strap without overshooting
+const POCKET_HOLDER_REST_DROP = BALL_R * 2.35; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -1431,7 +1432,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
-const CUE_WOOD_REPEAT_SCALE = 1.15; // enlarge cue grain slightly without affecting table rail tiling
+const CUE_WOOD_REPEAT_SCALE = 0.38; // enlarge cue grain ~3x for a bolder pattern
 const CUE_WOOD_TEXTURE_SIZE = 4096; // 4k cue textures for sharper cue wood finish
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // enlarge grain 3× so rails, skirts, and legs read at table scale; push pattern larger for the new finish pass
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
@@ -6769,8 +6770,8 @@ function Table3D(
     new THREE.Vector2(pocketGuideRingRadius, 0),
     new THREE.Vector2(POCKET_BOTTOM_R * 0.94, -POCKET_NET_DEPTH * 0.16),
     new THREE.Vector2(POCKET_BOTTOM_R * 0.82, -POCKET_NET_DEPTH * 0.45),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.66, -POCKET_NET_DEPTH * 0.74),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.62, -POCKET_NET_DEPTH * 1.06)
+    new THREE.Vector2(POCKET_BOTTOM_R * 0.7, -POCKET_NET_DEPTH * 0.74),
+    new THREE.Vector2(pocketGuideRingRadius, -POCKET_NET_DEPTH * 1.06)
   ];
   const pocketNetGeo = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
   const pocketGuideMaterial = trimMat;
@@ -6784,6 +6785,7 @@ function Table3D(
     28
   );
   const pocketMeshes = [];
+  table.userData.pocketHolderAnchors = [];
   pocketCenters().forEach((p, index) => {
     const pocketId = POCKET_IDS[index] ?? null;
     const isMiddlePocket = index >= 4;
@@ -6799,7 +6801,7 @@ function Table3D(
     const net = new THREE.Mesh(pocketNetGeo, pocketNetMaterial);
     net.position.set(
       p.x,
-      pocketTopY - POCKET_WALL_HEIGHT - POCKET_WALL_OPEN_TRIM + pocketLift,
+      pocketTopY - POCKET_WALL_HEIGHT - POCKET_WALL_OPEN_TRIM + pocketLift + POCKET_NET_VERTICAL_LIFT,
       p.y
     );
     net.castShadow = false;
@@ -6822,6 +6824,10 @@ function Table3D(
     ring.receiveShadow = true;
     table.add(ring);
     finishParts.pocketBaseMeshes.push(ring);
+    table.userData.pocketHolderAnchors[index] = {
+      pocketId,
+      ringAnchor: ringAnchor.clone()
+    };
 
     const outwardDir = resolvePocketHolderDirection(p, pocketId);
     const sideDir = new THREE.Vector3().crossVectors(outwardDir, new THREE.Vector3(0, 1, 0)).normalize();
@@ -8395,11 +8401,11 @@ function Table3D(
     return mat;
   };
   const brandPlateThickness = chromePlateThickness;
-  const brandPlateDepth = Math.min(endRailW * 0.54, TABLE.THICK * 0.78);
-  const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 11, PLAY_W * 0.28));
+  const brandPlateDepth = Math.min(endRailW * 0.48, TABLE.THICK * 0.7);
+  const brandPlateWidth = Math.min(PLAY_W * 0.4, Math.max(BALL_R * 12, PLAY_W * 0.3));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.2;
+  const brandPlateOutwardShift = endRailW * 0.28;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -8652,6 +8658,15 @@ function Table3D(
       tangent: new THREE.Vector3(0, 0, 1),
       defaultOffset: chalkLongAxisOffset,
       offsetLimits: { min: -chalkLongOffsetLimit, max: chalkLongOffsetLimit },
+      rotationY: Math.PI / 2,
+      rotationZ: Math.PI / 2,
+      height: chalkSize
+    },
+    {
+      basePosition: new THREE.Vector3(-sideRailCenterX - chalkSideRailOffset, chalkBaseY, 0),
+      tangent: new THREE.Vector3(0, 0, 1),
+      defaultOffset: -chalkLongAxisOffset,
+      offsetLimits: { min: -chalkLongOffsetLimit, max: chalkLongOffsetLimit },
       rotationY: Math.PI / 2
     },
     {
@@ -8666,7 +8681,9 @@ function Table3D(
       tangent: new THREE.Vector3(-1, 0, 0),
       defaultOffset: -chalkShortAxisOffset,
       offsetLimits: { min: -chalkShortOffsetLimit, max: chalkShortOffsetLimit },
-      rotationY: 0
+      rotationY: 0,
+      rotationZ: Math.PI / 2,
+      height: chalkSize
     },
     {
       basePosition: new THREE.Vector3(0, chalkBaseY, endRailCenterZ + chalkEndRailOffset),
@@ -8678,10 +8695,17 @@ function Table3D(
   ];
   chalkSlots.forEach((slot, index) => {
     const mesh = new THREE.Mesh(chalkGeometry, createChalkMaterials());
+    const chalkRestHeight = slot.height ?? chalkHeight;
+    const chalkRestY = railsTopY + chalkRestHeight / 2;
     mesh.position
       .copy(slot.basePosition)
       .addScaledVector(slot.tangent, slot.defaultOffset ?? 0);
-    mesh.rotation.set(0, slot.rotationY, 0);
+    mesh.position.y = chalkRestY;
+    mesh.rotation.set(
+      slot.rotationX ?? 0,
+      slot.rotationY ?? 0,
+      slot.rotationZ ?? 0
+    );
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.visible = true;
@@ -22880,11 +22904,18 @@ const powerRef = useRef(hud.power);
               const holderDir = resolvePocketHolderDirection(c, pocketId);
               const pocketRestIndex =
                 pocketRestIndexRef.current.get(pocketId) ?? 0;
-              const ringAnchor = new THREE.Vector3(
-                c.x,
-                BALL_CENTER_Y - POCKET_DROP_DEPTH * 0.5,
-                c.y
-              );
+              const pocketAnchors = table?.userData?.pocketHolderAnchors;
+              const anchorEntry =
+                Array.isArray(pocketAnchors) && pocketAnchors[pocketIndex]
+                  ? pocketAnchors[pocketIndex]
+                  : null;
+              const ringAnchor = anchorEntry?.ringAnchor
+                ? anchorEntry.ringAnchor.clone()
+                : new THREE.Vector3(
+                    c.x,
+                    BALL_CENTER_Y - POCKET_DROP_DEPTH + POCKET_NET_RING_VERTICAL_OFFSET,
+                    c.y
+                  );
               const holderSpacing = POCKET_HOLDER_REST_SPACING;
               const railStartDistance =
                 POCKET_NET_RING_RADIUS_SCALE * POCKET_BOTTOM_R +
@@ -22922,13 +22953,13 @@ const powerRef = useRef(hud.power);
                     0
                   )
                 );
+              const restY =
+                railRunStart.y - POCKET_HOLDER_REST_DROP - tiltDrop;
               const dropEntry = {
                 start: dropStart,
                 fromY: BALL_CENTER_Y,
                 currentY: BALL_CENTER_Y,
-                targetY:
-                  BALL_CENTER_Y -
-                  (POCKET_DROP_DEPTH + POCKET_HOLDER_REST_DROP + tiltDrop),
+                targetY: restY,
                 fromX: ringAnchor.x,
                 fromZ: ringAnchor.z,
                 toX: targetX,
