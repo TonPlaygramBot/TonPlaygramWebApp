@@ -918,9 +918,9 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 1.02; // extend the jaw bodies so the underside reaches deeper while the top stays aligned
+const POCKET_JAW_DEPTH_SCALE = 0.9; // extend the jaw bodies so the underside reaches the deeper profile used previously
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim so the pocket lips sit nearer the cloth plane
-const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.08; // let the jaw extrusion extend further below the cloth surface
+const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.06; // let the jaw extrusion extend further below the cloth surface
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.22; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
@@ -1170,7 +1170,7 @@ const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(12); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
-const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({ x: 0.7, y: 0.7 });
+const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({ x: 0.85, y: 0.85 });
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
@@ -1191,17 +1191,17 @@ const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
-const POCKET_GUIDE_DROP = BALL_R * 0.24;
+const POCKET_GUIDE_DROP = BALL_R * 0.28;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.1; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.3; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.18; // lower all chrome holder rails so balls ride directly on the guides
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.22; // lower all chrome holder rails so balls ride directly on the guides
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.2; // wider spacing so potted balls line up without overlapping on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 1.15; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 2.3; // drop the resting spot so potted balls settle onto the chrome rails
+const POCKET_HOLDER_REST_DROP = BALL_R * 2.15; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -1429,7 +1429,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
-const CUE_WOOD_REPEAT = new THREE.Vector2(0.85, 4.6); // Mirror the cue butt wood repeat for table finishes
+const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // enlarge grain 3× so rails, skirts, and legs read at table scale; push pattern larger for the new finish pass
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
 const WOOD_REPEAT_SCALE_MIN = 0.5;
@@ -2184,14 +2184,12 @@ const ensurePocketLeatherTextures = (textureId = POCKET_LEATHER_TEXTURE_ID) => {
     broadcastPocketLeatherTextures(normalizedId);
   };
   const fallback4k = buildPolyHavenTextureUrls(normalizedId, '4k');
+  const fallback2k = buildPolyHavenTextureUrls(normalizedId, '2k');
+  const fallback1k = buildPolyHavenTextureUrls(normalizedId, '1k');
   const fallbackUrls = {
-    diffuse: fallback4k?.diffuse ?? null,
-    normal: fallback4k?.normal ?? null,
-    roughness: fallback4k?.roughness ?? null
-  };
-  const ensure4kUrl = (url, fallback) => {
-    if (typeof url !== 'string') return fallback;
-    return url.toLowerCase().includes('4k') ? url : fallback;
+    diffuse: fallback4k?.diffuse ?? fallback2k?.diffuse ?? fallback1k?.diffuse,
+    normal: fallback4k?.normal ?? fallback2k?.normal ?? fallback1k?.normal,
+    roughness: fallback4k?.roughness ?? fallback2k?.roughness ?? fallback1k?.roughness
   };
   if (typeof fetch !== 'function') {
     loadTextures(fallbackUrls);
@@ -2202,9 +2200,9 @@ const ensurePocketLeatherTextures = (textureId = POCKET_LEATHER_TEXTURE_ID) => {
     .then((json) => {
       const urls = json ? pickPolyHavenTextureUrls(json) : {};
       loadTextures({
-        diffuse: ensure4kUrl(urls.diffuse, fallbackUrls.diffuse),
-        normal: ensure4kUrl(urls.normal, fallbackUrls.normal),
-        roughness: ensure4kUrl(urls.roughness, fallbackUrls.roughness)
+        diffuse: urls.diffuse ?? fallbackUrls.diffuse,
+        normal: urls.normal ?? fallbackUrls.normal,
+        roughness: urls.roughness ?? fallbackUrls.roughness
       });
     })
     .catch(() => {
@@ -2344,6 +2342,51 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
+  }),
+  rosewoodVeneerAmber: createStandardWoodFinish({
+    id: 'rosewoodVeneerAmber',
+    label: 'Rosewood Veneer Amber',
+    rail: 0xa25d35,
+    base: 0x874a29,
+    trim: 0xd78349,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: 1
+  }),
+  rosewoodVeneerWalnut: createStandardWoodFinish({
+    id: 'rosewoodVeneerWalnut',
+    label: 'Rosewood Veneer Walnut',
+    rail: 0x6a422f,
+    base: 0x523425,
+    trim: 0x9b6f4d,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: 1
+  }),
+  rosewoodVeneerEbony: createStandardWoodFinish({
+    id: 'rosewoodVeneerEbony',
+    label: 'Rosewood Veneer Ebony',
+    rail: 0x2c1c16,
+    base: 0x1f140f,
+    trim: 0x4b3227,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: 1
+  }),
+  rosewoodVeneerHoney: createStandardWoodFinish({
+    id: 'rosewoodVeneerHoney',
+    label: 'Rosewood Veneer Honey',
+    rail: 0xcd8642,
+    base: 0xab6b34,
+    trim: 0xe8ab61,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: 1
+  }),
+  rosewoodVeneerAsh: createStandardWoodFinish({
+    id: 'rosewoodVeneerAsh',
+    label: 'Rosewood Veneer Ash',
+    rail: 0x8b7d72,
+    base: 0x6f5f55,
+    trim: 0xb4a295,
+    woodTextureId: 'rosewood_veneer_01',
+    woodRepeatScale: 1
   })
 });
 
@@ -2353,7 +2396,12 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01
+    TABLE_FINISHES.rosewoodVeneer01,
+    TABLE_FINISHES.rosewoodVeneerAmber,
+    TABLE_FINISHES.rosewoodVeneerWalnut,
+    TABLE_FINISHES.rosewoodVeneerEbony,
+    TABLE_FINISHES.rosewoodVeneerHoney,
+    TABLE_FINISHES.rosewoodVeneerAsh
   ].filter(Boolean)
 );
 
@@ -8374,7 +8422,7 @@ function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 11, PLAY_W * 0.28));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.2;
+  const brandPlateOutwardShift = endRailW * 0.16;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
