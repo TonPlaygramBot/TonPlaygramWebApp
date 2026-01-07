@@ -918,10 +918,10 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 1.05; // extend the jaw bodies so the underside reaches deeper below the cloth
+const POCKET_JAW_DEPTH_SCALE = 1.12; // extend the jaw bodies so the underside reaches deeper below the cloth
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim so the pocket lips sit nearer the cloth plane
-const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // allow the jaw extrusion to extend farther down without lifting the top
-const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.22; // keep the underside tight to the cloth depth instead of the deeper pocket floor
+const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.05; // allow the jaw extrusion to extend farther down without lifting the top
+const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.12; // thin the outer lips more aggressively while leaving the centre crown unchanged
@@ -945,7 +945,7 @@ const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.58; // extend the corner jaw reach
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.22; // push the middle jaw reach a touch wider so the openings read larger
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.02; // lift the middle jaws so their rims sit level with the cloth like the corner pockets
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // lower the middle jaws slightly so their rims align with the corner pockets
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.072; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // taper the middle jaw edges sooner so they finish where the rails stop
@@ -1170,7 +1170,7 @@ const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(12); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
-const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({ x: 0.75, y: 0.75 });
+const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({ x: 0.55, y: 0.55 });
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
@@ -1186,18 +1186,18 @@ const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 0.9; // drop nearly the full net de
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.82; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
-const POCKET_NET_RING_VERTICAL_OFFSET = -BALL_R * 0.04; // sit the ring directly against the bottom of the woven net
+const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.04; // lift the ring slightly so the holder assembly sits higher
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
-const POCKET_GUIDE_DROP = BALL_R * 0.24;
+const POCKET_GUIDE_DROP = BALL_R * 0.18;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.1; // lengthen the elbow so each rail meets the ring with a ball-length guide
-const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.3; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.18; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.24; // drop the centre rail to form the floor of the holder
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.12; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.2; // wider spacing so potted balls line up without overlapping on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 1.15; // stop the lead ball right against the leather strap without letting it bury the backstop
@@ -1372,7 +1372,7 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.16; // widen the visible air gap so the blue tip never kisses the cue ball
+const CUE_TIP_CLEARANCE = BALL_R * 0.24; // widen the visible air gap so the blue tip is easy to see
 const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
@@ -1392,7 +1392,7 @@ const CUE_FOLLOW_MIN_MS = 180;
 const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.065; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.12; // rest the cue lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
@@ -6774,7 +6774,7 @@ function Table3D(
   const pocketNetGeo = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
   const pocketGuideMaterial = trimMat;
   const pocketStrapLength = Math.max(POCKET_GUIDE_LENGTH * 0.62, BALL_DIAMETER * 5.4);
-  const pocketStrapWidth = BALL_R * 1.2;
+  const pocketStrapWidth = BALL_R * 1.55;
   const pocketStrapThickness = BALL_R * 0.12;
   const pocketRingGeometry = new THREE.TorusGeometry(
     pocketGuideRingRadius,
@@ -18297,17 +18297,7 @@ const powerRef = useRef(hud.power);
       connector.position.z = -connectorHeight / 2;
       tipGroup.add(connector);
 
-      const buttMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        map: null,
-        normalMap: null,
-        roughnessMap: null,
-        bumpScale: 0.015 * SCALE,
-        roughness: 0.28,
-        metalness: 0.25,
-        clearcoat: 0.35,
-        clearcoatRoughness: 0.28
-      });
+      const buttMaterial = shaftMaterial;
       cueMaterialsRef.current.buttMaterial = buttMaterial;
       if (buttLength > 1e-4) {
         const butt = new THREE.Mesh(
@@ -18321,20 +18311,11 @@ const powerRef = useRef(hud.power);
 
       const stripeLength = rearLength * 0.42;
       const stripeCenter = frontLength / 2 + rearLength * 0.32;
-      const stripeStart = stripeCenter - stripeLength / 2;
-      const buttRingTube = buttShaftRadius * 0.12;
-      const buttRingRadius = Math.max(buttShaftRadius - buttRingTube, buttRingTube * 1.2);
-      const buttRing = new THREE.Mesh(
-        new THREE.TorusGeometry(buttRingRadius, buttRingTube, 24, 64),
-        new THREE.MeshPhysicalMaterial({ color: 0xd7b86a, metalness: 1.0, roughness: 0.22 })
-      );
-      buttRing.position.z = stripeStart;
-      cueBody.add(buttRing);
-      cueMaterialsRef.current.buttRingMaterial = buttRing.material;
+      cueMaterialsRef.current.buttRingMaterial = null;
 
       const buttCap = new THREE.Mesh(
         new THREE.SphereGeometry(0.03 * SCALE, 32, 16),
-        buttMaterial.clone()
+        buttMaterial
       );
       buttCap.position.z = cueLen / 2;
       cueBody.add(buttCap);
