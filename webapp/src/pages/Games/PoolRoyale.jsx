@@ -1201,13 +1201,13 @@ const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.
 const POCKET_GUIDE_DROP = BALL_R * 0.28;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.32;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
-const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
+const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 0.4; // push the L-arms onto the far side of the ring so they sit outside the drop line
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 0.82; // lengthen the elbow so each rail meets the ring with a ball-length guide
-const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.3; // drop the centre rail to form the floor of the holder
+const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.42; // drop the centre rail to form the floor of the holder and align with the chrome holders
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.12; // wider spacing so potted balls line up without overlapping on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 1.05; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 0.9; // keep the resting spot visibly below the pocket throat
+const POCKET_HOLDER_REST_DROP = BALL_R * 1.2; // drop resting balls until they sit directly on the chrome holders
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -5185,7 +5185,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1.38; // pull the rail overhead broadcast heads farther to frame both end pockets and keep the far rail pockets in view on portrait, especially during replays
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.06; // bring broadcast overheads down to the 2D top-view height so the rail cameras sit close to the cloth
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -5721,7 +5721,7 @@ const resolvePocketHolderDirection = (center, pocketId = null) => {
           : Math.sign(center?.y || 1) || 1;
     return new THREE.Vector3(0, 0, zDir);
   }
-  const zDir = -Math.sign(center?.y || 1) || -1;
+  const zDir = Math.sign(center?.y || 1) || 1;
   const sidePull = Math.sign(center?.x || 1) * 0.2;
   const towardMiddlePocketSide = new THREE.Vector3(sidePull, 0, zDir);
   if (towardMiddlePocketSide.lengthSq() > MICRO_EPS * MICRO_EPS) {
@@ -7335,7 +7335,7 @@ function Table3D(
     const strapDir = outwardDir.clone().setY(-Math.tan(POCKET_HOLDER_TILT_RAD)).normalize();
     const railStartOffset = Math.max(
       MICRO_EPS,
-      pocketGuideRingRadius + POCKET_GUIDE_RING_CLEARANCE - POCKET_GUIDE_RING_OVERLAP
+      pocketGuideRingRadius + POCKET_GUIDE_RING_CLEARANCE + POCKET_GUIDE_RING_OVERLAP
     );
     const buildGuideSegment = (start, end) => {
       const delta = end.clone().sub(start);
@@ -8839,34 +8839,36 @@ function Table3D(
     mat.sheenRoughness = Math.min(mat.sheenRoughness ?? 0.6, 0.6);
     return mat;
   };
-  const brandPlateThickness = chromePlateThickness;
-  const brandPlateDepth = Math.min(endRailW * 0.54, TABLE.THICK * 0.78);
+  const brandPlateHeight = railH * 0.98;
+  const brandPlateDepth = Math.min(endRailW * 0.32, TABLE.THICK * 0.32);
   const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 11, PLAY_W * 0.28));
-  const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
-  const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.16;
+  const brandPlateY = frameTopY + brandPlateHeight * 0.5;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
-    brandPlateThickness,
+    brandPlateHeight,
     brandPlateDepth
   );
   [-1, 1].forEach((dirZ) => {
+    const outwardMaterial = brandPlateTopMaterial;
+    const inwardMaterial = createBrandSideMaterial();
+    const labelIndex = dirZ > 0 ? 4 : 5;
     const materials = [
       createBrandSideMaterial(),
       createBrandSideMaterial(),
-      brandPlateTopMaterial,
       createBrandSideMaterial(),
       createBrandSideMaterial(),
-      createBrandSideMaterial()
+      dirZ > 0 ? outwardMaterial : inwardMaterial,
+      dirZ < 0 ? outwardMaterial : inwardMaterial
     ];
     const plate = new THREE.Mesh(brandPlateGeom, materials);
-    plate.position.set(0, brandPlateY, dirZ * (shortRailCenterZ + brandPlateOutwardShift));
+    const outwardZ = dirZ * (outerHalfH + brandPlateDepth * 0.5 + MICRO_EPS * 2);
+    plate.position.set(0, brandPlateY, outwardZ);
     plate.castShadow = true;
     plate.receiveShadow = true;
     plate.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.2;
     railsGroup.add(plate);
     const sideMaterials = Array.isArray(plate.material)
-      ? plate.material.filter((_, index) => index !== 2)
+      ? plate.material.filter((_, index) => index !== labelIndex)
       : [];
     finishParts.brandPlates.push({
       mesh: plate,
@@ -21933,6 +21935,13 @@ const powerRef = useRef(hud.power);
   let lastLiveAimSentAt = 0;
   const step = (now) => {
     if (disposed) return;
+    let scheduled = false;
+    const requestNext = () => {
+      if (disposed || scheduled) return;
+      scheduled = true;
+      rafRef.current = requestAnimationFrame(step);
+    };
+    try {
     const playback = replayPlaybackRef.current;
         if (playback) {
           const frameTiming = frameTimingRef.current;
@@ -21941,13 +21950,12 @@ const powerRef = useRef(hud.power);
               ? frameTiming.targetMs
               : 1000 / 60;
           if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
-            rafRef.current = requestAnimationFrame(step);
+            requestNext();
             return;
           }
           lastReplayFrameAt = now;
           const scheduleNext = () => {
-            if (disposed) return;
-            rafRef.current = requestAnimationFrame(step);
+            requestNext();
           };
           const frames = playback.frames || [];
           const duration = Number.isFinite(playback.duration) ? playback.duration : 0;
@@ -23255,7 +23263,9 @@ const powerRef = useRef(hud.power);
               );
               const holderSpacing = POCKET_HOLDER_REST_SPACING;
               const railStartOffset =
-                POCKET_NET_RING_RADIUS_SCALE * POCKET_BOTTOM_R + POCKET_GUIDE_RING_CLEARANCE;
+                POCKET_NET_RING_RADIUS_SCALE * POCKET_BOTTOM_R +
+                POCKET_GUIDE_RING_CLEARANCE +
+                POCKET_GUIDE_RING_OVERLAP;
               const restDistanceBase = Math.max(
                 railStartOffset + POCKET_GUIDE_LENGTH - POCKET_HOLDER_REST_PULLBACK,
                 railStartOffset + holderSpacing
@@ -23270,7 +23280,8 @@ const powerRef = useRef(hud.power);
                 restDistanceBase - clampedRestIndex * holderSpacing
               );
               pocketRestIndexRef.current.set(pocketId, pocketRestIndex + 1);
-              const tiltDrop = Math.tan(POCKET_HOLDER_TILT_RAD) * restDistance;
+              const restTravel = Math.max(restDistance - railStartOffset, 0);
+              const tiltDrop = Math.tan(POCKET_HOLDER_TILT_RAD) * restTravel;
               const restTarget = new THREE.Vector3(c.x, 0, c.y).addScaledVector(
                 holderDir,
                 restDistance
@@ -23281,13 +23292,15 @@ const powerRef = useRef(hud.power);
                 .clone()
                 .addScaledVector(holderDir, railStartOffset)
                 .add(new THREE.Vector3(0, -POCKET_GUIDE_FLOOR_DROP, 0));
+              const holderFloorY = Math.min(
+                BALL_CENTER_Y - (POCKET_DROP_DEPTH + POCKET_HOLDER_REST_DROP),
+                railRunStart.y - POCKET_GUIDE_DROP - POCKET_HOLDER_REST_DROP - tiltDrop
+              );
               const dropEntry = {
                 start: dropStart,
                 fromY: BALL_CENTER_Y,
                 currentY: BALL_CENTER_Y,
-                targetY:
-                  BALL_CENTER_Y -
-                  (POCKET_DROP_DEPTH + POCKET_HOLDER_REST_DROP + tiltDrop),
+                targetY: holderFloorY,
                 fromX: ringAnchor.x,
                 fromZ: ringAnchor.z,
                 toX: targetX,
@@ -23530,10 +23543,15 @@ const powerRef = useRef(hud.power);
             }
           }
           if (!disposed) {
-            rafRef.current = requestAnimationFrame(step);
+            requestNext();
           }
         };
         step(performance.now());
+    } catch (err) {
+      console.error('Pool Royale frame tick failed; recovering.', err);
+    } finally {
+      requestNext();
+    }
 
       // Resize
         const onResize = () => {
