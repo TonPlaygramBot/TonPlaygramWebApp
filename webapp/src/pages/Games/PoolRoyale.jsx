@@ -1007,7 +1007,7 @@ const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.032; // pull only the midd
 const CHALK_TOP_COLOR = 0xd9c489;
 const CHALK_SIDE_COLOR = 0x10141b;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1a2430;
-const CHALK_BOTTOM_COLOR = 0x0b0e14;
+const CHALK_BOTTOM_COLOR = 0x2f63da;
 const CHALK_ACTIVE_COLOR = 0xf3e3ae;
 const CHALK_EMISSIVE_COLOR = 0x0d1018;
 const CHALK_ACTIVE_EMISSIVE_COLOR = 0x1b2838;
@@ -1170,7 +1170,7 @@ const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(9); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
-const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({ x: 0.15, y: 0.15 });
+const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({ x: 0.08 / 3 * 0.7, y: 0.44 / 3 * 0.7 });
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
@@ -1191,7 +1191,7 @@ const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // raise the net so the weave si
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
-const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 5.6); // stretch the holder run so it comfortably fits 5 balls
+const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 7.6); // stretch the holder run so it comfortably fits 7 balls
 const POCKET_GUIDE_DROP = BALL_R * 0.12;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
@@ -1201,7 +1201,7 @@ const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form t
 const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.2; // wider spacing so potted balls line up without overlapping on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 0.78; // stop the lead ball closer to the leather strap without overshooting
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
 const POCKET_HOLDER_REST_DROP = BALL_R * 2.35; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
@@ -1341,7 +1341,7 @@ const LEG_HEIGHT_MULTIPLIER = 4.5;
 const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
 const TABLE_HEIGHT_REDUCTION = 1;
-const TABLE_HEIGHT_SCALE = 1.3;
+const TABLE_HEIGHT_SCALE = 1.56;
 const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION * TABLE_HEIGHT_SCALE;
 const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
@@ -1349,7 +1349,7 @@ const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
 const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
-const LEG_LENGTH_SHRINK = 0.7225; // shorten legs by an additional 15%
+const LEG_LENGTH_SHRINK = 0.867; // lengthen legs to extend the base downward with the taller table stance
 const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
 const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
@@ -1431,8 +1431,8 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
-const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
-const CUE_WOOD_REPEAT_SCALE = 0.38; // enlarge cue grain ~3x for a bolder pattern
+const CUE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // Match cue grain scale to the table finish
+const CUE_WOOD_REPEAT_SCALE = 1;
 const CUE_WOOD_TEXTURE_SIZE = 4096; // 4k cue textures for sharper cue wood finish
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // enlarge grain 3× so rails, skirts, and legs read at table scale; push pattern larger for the new finish pass
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
@@ -3957,7 +3957,7 @@ const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const MIN_HDRI_RADIUS = 24;
-const HDRI_GROUNDED_RESOLUTION = 96;
+const HDRI_GROUNDED_RESOLUTION = 256;
 
 function resolveHdriResolutionForTable(tableSizeMeta) {
   const widthMm = tableSizeMeta?.playfield?.widthMm;
@@ -8366,7 +8366,7 @@ function Table3D(
       lines: [{ text: 'TonPlaygram', size: 0.34, weight: '800' }],
       borderWidth: Math.max(TABLE.THICK * 5.5, 20),
       padding: 140,
-      studScale: 0.2
+      studScale: 0.28
     }) || null;
   const brandPlateTopMaterial = brandPlateTexture
     ? new THREE.MeshPhysicalMaterial({
@@ -8401,8 +8401,8 @@ function Table3D(
     return mat;
   };
   const brandPlateThickness = chromePlateThickness;
-  const brandPlateDepth = Math.min(endRailW * 0.48, TABLE.THICK * 0.7);
-  const brandPlateWidth = Math.min(PLAY_W * 0.4, Math.max(BALL_R * 12, PLAY_W * 0.3));
+  const brandPlateDepth = Math.min(endRailW * 0.58, TABLE.THICK * 0.84);
+  const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 10.5, PLAY_W * 0.27));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
   const brandPlateOutwardShift = endRailW * 0.28;
@@ -8667,6 +8667,7 @@ function Table3D(
       tangent: new THREE.Vector3(0, 0, 1),
       defaultOffset: -chalkLongAxisOffset,
       offsetLimits: { min: -chalkLongOffsetLimit, max: chalkLongOffsetLimit },
+      rotationX: Math.PI,
       rotationY: Math.PI / 2
     },
     {
@@ -8681,6 +8682,7 @@ function Table3D(
       tangent: new THREE.Vector3(-1, 0, 0),
       defaultOffset: -chalkShortAxisOffset,
       offsetLimits: { min: -chalkShortOffsetLimit, max: chalkShortOffsetLimit },
+      rotationX: Math.PI,
       rotationY: 0,
       rotationZ: Math.PI / 2,
       height: chalkSize
