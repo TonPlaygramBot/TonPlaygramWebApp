@@ -1207,7 +1207,7 @@ const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.3; // drop the centre rail to form th
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.12; // wider spacing so potted balls line up without overlapping on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 1.05; // stop the lead ball right against the leather strap without letting it bury the backstop
-const POCKET_HOLDER_REST_DROP = BALL_R * 1.2; // drop the resting spot so potted balls settle onto the chrome rails
+const POCKET_HOLDER_REST_DROP = BALL_R * 1.6; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -5721,12 +5721,6 @@ const resolvePocketHolderDirection = (center, pocketId = null) => {
           : Math.sign(center?.y || 1) || 1;
     return new THREE.Vector3(0, 0, zDir);
   }
-  const zDir = -Math.sign(center?.y || 1) || -1;
-  const sidePull = Math.sign(center?.x || 1) * 0.2;
-  const towardMiddlePocketSide = new THREE.Vector3(sidePull, 0, zDir);
-  if (towardMiddlePocketSide.lengthSq() > MICRO_EPS * MICRO_EPS) {
-    return towardMiddlePocketSide.normalize();
-  }
   const outward = new THREE.Vector3(center?.x ?? 0, 0, center?.y ?? 0);
   if (outward.lengthSq() > MICRO_EPS * MICRO_EPS) {
     return outward.normalize();
@@ -8839,7 +8833,7 @@ function Table3D(
     mat.sheenRoughness = Math.min(mat.sheenRoughness ?? 0.6, 0.6);
     return mat;
   };
-  const brandPlateThickness = chromePlateThickness * 0.8;
+  const brandPlateThickness = chromePlateThickness;
   const brandPlateDepth = Math.min(endRailW * 0.32, TABLE.THICK * 0.42);
   const brandPlateHeight = railH * 0.96;
   const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 11, PLAY_W * 0.28));
@@ -13781,21 +13775,9 @@ const powerRef = useRef(hud.power);
         updateCueRackHighlights();
       }
 
-      const resolveBroadcastDistance = () => {
-        const hostAspect = host?.clientWidth && host?.clientHeight
-          ? host.clientWidth / host.clientHeight
-          : null;
-        const aspect = Number.isFinite(hostAspect) ? hostAspect : 9 / 16; // fall back to worst-case portrait when unknown
-        const tempCamera = new THREE.PerspectiveCamera(STANDING_VIEW_FOV, aspect);
-        const topDownRadius = Math.max(
-          fitRadius(tempCamera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE,
-          CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
-        );
-        return topDownRadius;
-      };
       const resolveTopDownCoords = () => {
-        const radius = resolveBroadcastDistance();
-        const phi = TOP_VIEW_RESOLVED_PHI;
+        const radius = SHORT_RAIL_CAMERA_DISTANCE;
+        const phi = RAIL_OVERHEAD_PHI;
         const focusY = ORBIT_FOCUS_BASE_Y * worldScaleFactor;
         const height = focusY + Math.cos(phi) * radius;
         const horizontal = Math.sin(phi) * radius;
@@ -21942,7 +21924,8 @@ const powerRef = useRef(hud.power);
   let lastLiveAimSentAt = 0;
   const step = (now) => {
     if (disposed) return;
-    const playback = replayPlaybackRef.current;
+    try {
+      const playback = replayPlaybackRef.current;
         if (playback) {
           const frameTiming = frameTimingRef.current;
           const targetReplayFrameTime =
@@ -23543,7 +23526,13 @@ const powerRef = useRef(hud.power);
           if (!disposed) {
             rafRef.current = requestAnimationFrame(step);
           }
-        };
+        } catch (err) {
+          console.error('Pool Royale frame loop error; recovering.', err);
+          if (!disposed) {
+            rafRef.current = requestAnimationFrame(step);
+          }
+        }
+      };
         step(performance.now());
 
       // Resize
