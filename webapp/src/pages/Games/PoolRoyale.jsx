@@ -1170,8 +1170,12 @@ const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(9); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
-const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({ x: 0.08 / 3 * 0.7, y: 0.44 / 3 * 0.7 });
+const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({
+  x: 0.08 / 9 * 0.7,
+  y: 0.44 / 9 * 0.7
+});
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
+const POCKET_LEATHER_NORMAL_SCALE = new THREE.Vector2(1.35, 1.35);
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
@@ -1196,13 +1200,14 @@ const POCKET_GUIDE_DROP = BALL_R * 0.12;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
-const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.1; // lengthen the elbow so each rail meets the ring with a ball-length guide
+const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
 const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
-const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.2; // wider spacing so potted balls line up without overlapping on the holder rails
+const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
-const POCKET_HOLDER_REST_DROP = BALL_R * 2.35; // drop the resting spot so potted balls settle onto the chrome rails
+const POCKET_HOLDER_REST_DROP = BALL_R * 2.18; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -2735,6 +2740,12 @@ function createPocketLinerMaterials(option) {
   );
   rimMaterial.sheen = Math.max(0.24, (jawMaterial.sheen ?? 0.42) * 0.7);
   rimMaterial.emissive = baseColor.clone().multiplyScalar(0.04);
+  if (jawMaterial.normalMap) {
+    jawMaterial.normalScale = POCKET_LEATHER_NORMAL_SCALE.clone();
+  }
+  if (rimMaterial.normalMap) {
+    rimMaterial.normalScale = POCKET_LEATHER_NORMAL_SCALE.clone();
+  }
   applyPocketLeatherTextureDefaults(jawMaterial.map, { isColor: true });
   applyPocketLeatherTextureDefaults(jawMaterial.normalMap);
   applyPocketLeatherTextureDefaults(jawMaterial.roughnessMap);
@@ -6834,7 +6845,10 @@ function Table3D(
     const strapDir = outwardDir.clone().setY(-Math.tan(POCKET_HOLDER_TILT_RAD)).normalize();
     const railStartDistance = Math.max(
       MICRO_EPS,
-      pocketGuideRingRadius + POCKET_GUIDE_RING_CLEARANCE + POCKET_GUIDE_RING_OVERLAP
+      pocketGuideRingRadius +
+        POCKET_GUIDE_RING_CLEARANCE +
+        POCKET_GUIDE_RING_OVERLAP -
+        POCKET_GUIDE_RING_TOWARD_STRAP
     );
     const railStartOffset = -railStartDistance;
     const buildGuideSegment = (start, end) => {
@@ -22922,7 +22936,8 @@ const powerRef = useRef(hud.power);
               const railStartDistance =
                 POCKET_NET_RING_RADIUS_SCALE * POCKET_BOTTOM_R +
                 POCKET_GUIDE_RING_CLEARANCE +
-                POCKET_GUIDE_RING_OVERLAP;
+                POCKET_GUIDE_RING_OVERLAP -
+                POCKET_GUIDE_RING_TOWARD_STRAP;
               const railStartOffset = -railStartDistance;
               const restDistanceBase = Math.max(
                 railStartDistance + POCKET_GUIDE_LENGTH - POCKET_HOLDER_REST_PULLBACK,
