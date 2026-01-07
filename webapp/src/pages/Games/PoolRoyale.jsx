@@ -1437,7 +1437,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // Match cue grain scale to the table finish
-const CUE_WOOD_REPEAT_SCALE = 1;
+const CUE_WOOD_REPEAT_SCALE = 1 / 3;
 const CUE_WOOD_TEXTURE_SIZE = 4096; // 4k cue textures for sharper cue wood finish
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // enlarge grain 3× so rails, skirts, and legs read at table scale; push pattern larger for the new finish pass
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
@@ -1790,10 +1790,10 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 1.08;
-const CLOTH_HAIR_INTENSITY = 0.78;
-const CLOTH_BUMP_INTENSITY = 1.12;
-const CLOTH_SOFT_BLEND = 0.42;
+const CLOTH_TEXTURE_INTENSITY = 1.32;
+const CLOTH_HAIR_INTENSITY = 1.02;
+const CLOTH_BUMP_INTENSITY = 1.38;
+const CLOTH_SOFT_BLEND = 0.5;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
@@ -3015,6 +3015,8 @@ const createClothTextures = (() => {
       ctx.drawImage(image, 0, 0, width, height);
       const imageData = ctx.getImageData(0, 0, width, height);
       const data = imageData.data;
+      let luminanceSum = 0;
+      let luminanceCount = 0;
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i + 1];
@@ -3023,11 +3025,27 @@ const createClothTextures = (() => {
         data[i] = luminance;
         data[i + 1] = luminance;
         data[i + 2] = luminance;
+        luminanceSum += luminance;
+        luminanceCount += 1;
+      }
+      const average = luminanceCount ? luminanceSum / luminanceCount : 0;
+      if (average > 0) {
+        const scale = 255 / average;
+        for (let i = 0; i < data.length; i += 4) {
+          const value = Math.min(255, Math.round(data[i] * scale));
+          data[i] = value;
+          data[i + 1] = value;
+          data[i + 2] = value;
+        }
       }
       ctx.putImageData(imageData, 0, 0);
       texture.dispose();
       const neutralTexture = new THREE.CanvasTexture(canvas);
       applySRGBColorSpace(neutralTexture);
+      neutralTexture.userData = {
+        ...(neutralTexture.userData || {}),
+        averageLuminance: average
+      };
       return neutralTexture;
     } catch (err) {
       return texture;
@@ -6193,19 +6211,19 @@ function Table3D(
   const clampClothColor = (baseColor) => {
     const hsl = { h: 0, s: 0, l: 0 };
     baseColor.getHSL(hsl);
-    const baseSaturationBoost = isPolyHavenCloth ? 1.12 : 1.08;
+    const baseSaturationBoost = 1.18;
     let hue = hsl.h;
     let saturationBoost = baseSaturationBoost;
     let lightnessBoost = 0;
-    if (isPolyHavenCloth && hue >= 0.48 && hue <= 0.64) {
+    if (hue >= 0.48 && hue <= 0.64) {
       const blueBias = THREE.MathUtils.clamp((hue - 0.48) / 0.16, 0, 1);
       hue = THREE.MathUtils.lerp(hue, 0.61, 0.4 + 0.18 * blueBias);
-      saturationBoost = baseSaturationBoost + 0.08 * (0.5 + 0.5 * blueBias);
-      lightnessBoost = 0.06 * (0.4 + 0.6 * blueBias);
+      saturationBoost = baseSaturationBoost + 0.06 * (0.5 + 0.5 * blueBias);
+      lightnessBoost = 0.04 * (0.4 + 0.6 * blueBias);
     }
-    const saturationFloor = isPolyHavenCloth ? 0.32 : 0.18;
-    const minLightness = isPolyHavenCloth ? 0.3 : 0;
-    const maxLightness = isPolyHavenCloth ? 0.68 : 0.86;
+    const saturationFloor = 0.2;
+    const minLightness = 0.08;
+    const maxLightness = 0.86;
     const result = baseColor.clone();
     const baseSaturation = THREE.MathUtils.clamp(
       hsl.s * saturationBoost,
@@ -6215,11 +6233,9 @@ function Table3D(
     const clampedLightness = THREE.MathUtils.clamp(
       hsl.l + lightnessBoost,
       minLightness,
-      maxLightness + (isPolyHavenCloth ? 0.04 : 0)
+      maxLightness
     );
-    const balancedLightness = isPolyHavenCloth
-      ? THREE.MathUtils.lerp(clampedLightness, 0.52, 0.16)
-      : THREE.MathUtils.lerp(clampedLightness, 0.5, 0.08);
+    const balancedLightness = THREE.MathUtils.lerp(clampedLightness, 0.5, 0.1);
     result.setHSL(
       hue,
       baseSaturation,
@@ -6244,14 +6260,14 @@ function Table3D(
     cushionPrimary.clone().lerp(clothHighlight, cushionHighlightMix)
   );
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.14 + brightnessLift * 0.35);
-  const clothSheen = CLOTH_QUALITY.sheen * (isPolyHavenCloth ? 0.54 : 0.68);
+  const clothSheen = CLOTH_QUALITY.sheen * 0.68;
   const clothSheenRoughness = Math.min(
     1,
-    CLOTH_QUALITY.sheenRoughness * (isPolyHavenCloth ? 1.2 : 1.04)
+    CLOTH_QUALITY.sheenRoughness * 1.04
   );
-  const clothRoughnessBase = CLOTH_ROUGHNESS_BASE + (isPolyHavenCloth ? 0.1 : 0.02);
-  const clothRoughnessTarget = CLOTH_ROUGHNESS_TARGET + (isPolyHavenCloth ? 0.08 : 0.02);
-  const clothEmissiveIntensity = isPolyHavenCloth ? 0.16 : 0.32;
+  const clothRoughnessBase = CLOTH_ROUGHNESS_BASE + 0.02;
+  const clothRoughnessTarget = CLOTH_ROUGHNESS_TARGET + 0.02;
+  const clothEmissiveIntensity = 0.32;
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
     roughness: clothRoughnessBase,
@@ -10851,8 +10867,10 @@ function PoolRoyaleGame({
           resolvedWoodOption?.rail,
           resolvedWoodOption?.frame ?? { repeat: { x: 1, y: 1 }, rotation: 0 }
         );
+        const cueRepeatScale =
+          finish?.id === 'peelingPaintWeathered' ? 1 : CUE_WOOD_REPEAT_SCALE;
         const woodRepeatScale = clampWoodRepeatScaleValue(
-          (finish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE) * CUE_WOOD_REPEAT_SCALE
+          (finish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE) * cueRepeatScale
         );
         const cueTextureSize = Math.max(
           cueSurface.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
