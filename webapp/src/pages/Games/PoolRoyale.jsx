@@ -18248,11 +18248,11 @@ const powerRef = useRef(hud.power);
         TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
       };
       const resolveCueObstructionTilt = (strength) => {
-        const obstructionTilt = -strength * CUE_OBSTRUCTION_TILT;
+        const obstructionTilt = strength * CUE_OBSTRUCTION_TILT;
         const obstructionLift = strength * CUE_OBSTRUCTION_LIFT;
         const liftDivisor = cueLen * 0.55;
         const obstructionTiltFromLift =
-          obstructionLift > 0 ? -Math.atan2(obstructionLift, liftDivisor) : 0;
+          obstructionLift > 0 ? Math.atan2(obstructionLift, liftDivisor) : 0;
         return { obstructionTilt, obstructionLift, obstructionTiltFromLift };
       };
 
@@ -19594,10 +19594,11 @@ const powerRef = useRef(hud.power);
             contactVert,
             cuePerp.z * contactSide
           );
-          clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
-          const { obstructionTilt, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
+          spinWorld.y += obstructionLift;
+          clampCueTipOffset(spinWorld);
           const warmupRatio = isAiStroke ? AI_WARMUP_PULL_RATIO : PLAYER_WARMUP_PULL_RATIO;
           const minVisibleGap = Math.max(MIN_PULLBACK_GAP, visualPull * 0.08);
           const warmupPull = Math.max(
@@ -22064,10 +22065,11 @@ const powerRef = useRef(hud.power);
           const visualPull = applyVisualPullCompensation(pull, dir);
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
-          clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
-          const { obstructionTilt, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
+          spinWorld.y += obstructionLift;
+          clampCueTipOffset(spinWorld);
           const tiltAmount = hasSpin ? Math.abs(appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(
@@ -22269,10 +22271,11 @@ const powerRef = useRef(hud.power);
             ranges
           );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
-          clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(baseDir, pull);
-          const { obstructionTilt, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
+          spinWorld.y += obstructionLift;
+          clampCueTipOffset(spinWorld);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(
@@ -22364,10 +22367,11 @@ const powerRef = useRef(hud.power);
             ranges
           );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
-          clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
-          const { obstructionTilt, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
+          spinWorld.y += obstructionLift;
+          clampCueTipOffset(spinWorld);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(
