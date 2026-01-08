@@ -1321,6 +1321,13 @@ const RAIL_SPIN_THROW_SCALE = BALL_R * 0.24; // let cushion contacts inherit not
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SWERVE_THRESHOLD = 0.7; // outer 30% of the spin control activates swerve behaviour
+const SWERVE_TOPSPIN_THRESHOLD = -0.45; // allow topspin + side spin to trigger swerve earlier
+const SWERVE_TOPSPIN_SIDE_THRESHOLD = 0.24;
+const JUMP_POWER_THRESHOLD = 0.7;
+const JUMP_TOPSPIN_THRESHOLD = -0.6;
+const JUMP_STRAIGHT_SIDE_LIMIT = 0.18;
+const JUMP_LIFT_SCALE = 0.65;
+const JUMP_IMPULSE_SCALE = 0.7;
 const SWERVE_TRAVEL_MULTIPLIER = 0.86; // let swerve-driven roll carry more lateral energy while staying believable
 const PRE_IMPACT_SPIN_DRIFT = 0.1; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
@@ -1403,13 +1410,13 @@ const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
-const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
+const CUE_BUTT_LIFT = BALL_R * 0.42; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.6;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.35;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.24;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(4);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
@@ -17150,7 +17157,13 @@ const powerRef = useRef(hud.power);
           }
           const result = legality.blocked ? { x: 0, y: 0 } : normalized;
           const magnitude = Math.hypot(result.x ?? 0, result.y ?? 0);
-          const mode = magnitude >= SWERVE_THRESHOLD ? 'swerve' : 'standard';
+          const shouldSwerveTopspin =
+            (result.y ?? 0) <= SWERVE_TOPSPIN_THRESHOLD &&
+            Math.abs(result.x ?? 0) >= SWERVE_TOPSPIN_SIDE_THRESHOLD;
+          const mode =
+            magnitude >= SWERVE_THRESHOLD || shouldSwerveTopspin
+              ? 'swerve'
+              : 'standard';
           spinAppliedRef.current = { ...result, magnitude, mode };
           return result;
         };
@@ -18262,12 +18275,13 @@ const powerRef = useRef(hud.power);
         const baseTilt = info?.angle ?? buttTilt;
         const len = info?.length ?? cueLen;
         const totalTilt = baseTilt + extraTilt;
-        group.rotation.x = totalTilt;
+        const appliedTilt = -totalTilt;
+        group.rotation.x = appliedTilt;
         if (info) {
-          info.tipCompensation = Math.sin(totalTilt) * len * 0.5;
-          info.current = totalTilt;
+          info.tipCompensation = Math.sin(appliedTilt) * len * 0.5;
+          info.current = appliedTilt;
           info.extra = extraTilt;
-          info.buttHeightOffset = Math.sin(totalTilt) * len;
+          info.buttHeightOffset = Math.sin(appliedTilt) * len;
         }
       };
       cueStick.userData.buttTilt = {
@@ -19582,6 +19596,36 @@ const powerRef = useRef(hud.power);
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
+          const topspinAmount = Math.max(0, -(appliedSpin.y || 0));
+          const sideSpinAmount = Math.abs(appliedSpin.x || 0);
+          if (
+            clampedPower >= JUMP_POWER_THRESHOLD &&
+            (appliedSpin.y || 0) <= JUMP_TOPSPIN_THRESHOLD &&
+            sideSpinAmount <= JUMP_STRAIGHT_SIDE_LIMIT
+          ) {
+            const powerFactor = THREE.MathUtils.clamp(
+              (clampedPower - JUMP_POWER_THRESHOLD) / (1 - JUMP_POWER_THRESHOLD),
+              0,
+              1
+            );
+            const spinFactor = THREE.MathUtils.clamp(
+              (topspinAmount - Math.abs(JUMP_TOPSPIN_THRESHOLD)) /
+                (1 - Math.abs(JUMP_TOPSPIN_THRESHOLD)),
+              0,
+              1
+            );
+            const jumpStrength = powerFactor * spinFactor;
+            if (jumpStrength > 0) {
+              cue.lift = Math.max(
+                cue.lift ?? 0,
+                MAX_POWER_LIFT_HEIGHT * JUMP_LIFT_SCALE * jumpStrength
+              );
+              cue.liftVel = Math.max(
+                cue.liftVel ?? 0,
+                MAX_POWER_BOUNCE_IMPULSE * JUMP_IMPULSE_SCALE * jumpStrength
+              );
+            }
+          }
           playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
