@@ -18278,15 +18278,12 @@ const powerRef = useRef(hud.power);
       };
       const cueTipLocal = new THREE.Vector3(0, 0, -cueLen / 2);
       const cueButtLocal = new THREE.Vector3(0, 0, cueLen / 2);
-      const resolveCueTipTarget = (dir, pullAmount, spinWorld, lift = 0) => {
-        const baseY = CUE_Y + spinWorld.y;
-        const minY = CUE_Y + CUE_CLEARANCE_PADDING;
-        return TMP_VEC3_CUE_TIP_TARGET.set(
+      const resolveCueTipTarget = (dir, pullAmount, spinWorld) =>
+        TMP_VEC3_CUE_TIP_TARGET.set(
           cue.pos.x - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
-          Math.max(baseY, minY) + lift,
+          CUE_Y + spinWorld.y,
           cue.pos.y - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
         );
-      };
       const applyCueStickTransform = (tipTarget) => {
         TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
         TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
@@ -19642,7 +19639,7 @@ const powerRef = useRef(hud.power);
           );
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
-          const { obstructionTilt, obstructionTiltFromLift, obstructionLift } =
+          const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const warmupRatio = isAiStroke ? AI_WARMUP_PULL_RATIO : PLAYER_WARMUP_PULL_RATIO;
           const minVisibleGap = Math.max(MIN_PULLBACK_GAP, visualPull * 0.08);
@@ -19663,12 +19660,7 @@ const powerRef = useRef(hud.power);
           TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
           TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
           const buildCuePosition = (pullAmount = visualPull) => {
-            const tipTarget = resolveCueTipTarget(
-              dir,
-              pullAmount,
-              spinWorld,
-              obstructionLift
-            );
+            const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld);
             return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
@@ -22123,7 +22115,7 @@ const powerRef = useRef(hud.power);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
-          const { obstructionTilt, obstructionTiltFromLift, obstructionLift } =
+          const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
@@ -22135,12 +22127,7 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(
-            dir,
-            visualPull,
-            spinWorld,
-            obstructionLift
-          );
+          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
@@ -22333,9 +22320,9 @@ const powerRef = useRef(hud.power);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(baseDir, pull);
-          const { obstructionTilt, obstructionTiltFromLift, obstructionLift } =
+          const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
-          const tiltAmount = hasSpin ? Math.max(0, spinY) : 0;
+          const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(
             cueStick,
@@ -22345,12 +22332,7 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(
-            baseDir,
-            visualPull,
-            spinWorld,
-            obstructionLift
-          );
+          const tipTarget = resolveCueTipTarget(baseDir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
           cueStick.visible = true;
           updateChalkVisibility(null);
@@ -22433,9 +22415,9 @@ const powerRef = useRef(hud.power);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
-          const { obstructionTilt, obstructionTiltFromLift, obstructionLift } =
+          const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
-          const tiltAmount = hasSpin ? Math.max(0, spinY) : 0;
+          const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(
             cueStick,
@@ -22445,12 +22427,7 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(
-            dir,
-            visualPull,
-            spinWorld,
-            obstructionLift
-          );
+          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
           cueStick.visible = true;
         } else {
