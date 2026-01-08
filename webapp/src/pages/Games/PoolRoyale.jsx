@@ -1400,17 +1400,17 @@ const CUE_FOLLOW_MIN_MS = 180;
 const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
+const CUE_Y = BALL_CENTER_Y + BALL_R * 0.02; // rest the cue slightly above centre so the tip stays lifted without grazing the ball
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.6;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.25;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.9;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(10);
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.35;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(5.5);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -17116,14 +17116,60 @@ const powerRef = useRef(hud.power);
           spinRef.current = clamped;
           return clamped;
         };
+        const resolveLegalSpin = (spinValue, options = {}) => {
+          if (!spinValue) return { x: 0, y: 0, blocked: false };
+          const magnitude = Math.hypot(spinValue.x ?? 0, spinValue.y ?? 0);
+          if (magnitude < SPIN_INPUT_DEAD_ZONE) {
+            return { x: 0, y: 0, blocked: false };
+          }
+          const cueBall = options.cueBall;
+          const ballsList = options.ballsList ?? [];
+          const axes = options.axes;
+          const view = options.view;
+          if (!cueBall) return { ...spinValue, blocked: false };
+          if (!checkSpinLegality2D(cueBall, spinValue, ballsList, { axes, view }).blocked) {
+            return { ...spinValue, blocked: false };
+          }
+          let low = 0;
+          let high = 1;
+          let best = 0;
+          for (let i = 0; i < 8; i += 1) {
+            const mid = (low + high) * 0.5;
+            const candidate = {
+              x: spinValue.x * mid,
+              y: spinValue.y * mid
+            };
+            const blocked = checkSpinLegality2D(cueBall, candidate, ballsList, {
+              axes,
+              view
+            }).blocked;
+            if (blocked) {
+              high = mid;
+            } else {
+              best = mid;
+              low = mid;
+            }
+          }
+          return {
+            x: spinValue.x * best,
+            y: spinValue.y * best,
+            blocked: best < 0.999
+          };
+        };
         const applySpinConstraints = (aimVec, updateUi = false) => {
           const cueBall = cueRef.current || cue;
           let legality = spinLegalityRef.current || { blocked: false, reason: '' };
           const ballsList = ballsRef.current?.length ? ballsRef.current : balls;
+          let adjustedSpin = null;
+          let adjustedBlocked = false;
+          let viewData = null;
+          let axesData = null;
           if (cueBall && aimVec) {
             const axes = prepareSpinAxes(aimVec);
             const activeCamera = activeRenderCameraRef.current ?? camera;
             const viewVec = computeCueViewVector(cueBall, activeCamera);
+            axesData = axes;
+            viewData = viewVec ? { x: viewVec.x, y: viewVec.y } : null;
             spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls, axes);
             const requested = spinRequestRef.current || spinRef.current || {
               x: 0,
@@ -17131,24 +17177,35 @@ const powerRef = useRef(hud.power);
             };
             legality = checkSpinLegality2D(cueBall, requested, ballsList, {
               axes,
-              view: viewVec
-                ? { x: viewVec.x, y: viewVec.y }
-                : null
+              view: viewData
             });
             spinLegalityRef.current = legality;
           }
           const applied = clampSpinToLimits();
           const normalized = normalizeSpinInput(applied);
+          if (cueBall) {
+            adjustedSpin = resolveLegalSpin(normalized, {
+              cueBall,
+              ballsList,
+              axes: axesData,
+              view: viewData
+            });
+            adjustedBlocked = Boolean(adjustedSpin?.blocked);
+          }
+          const resolved =
+            adjustedSpin && Number.isFinite(adjustedSpin.x) && Number.isFinite(adjustedSpin.y)
+              ? normalizeSpinInput(adjustedSpin)
+              : normalized;
           if (
-            normalized.x !== applied.x ||
-            normalized.y !== applied.y
+            resolved.x !== applied.x ||
+            resolved.y !== applied.y
           ) {
-            spinRef.current = normalized;
+            spinRef.current = resolved;
           }
           if (updateUi) {
-            updateSpinDotPosition(normalized, legality.blocked);
+            updateSpinDotPosition(resolved, adjustedBlocked || legality.blocked);
           }
-          const result = legality.blocked ? { x: 0, y: 0 } : normalized;
+          const result = adjustedBlocked ? resolved : normalized;
           const magnitude = Math.hypot(result.x ?? 0, result.y ?? 0);
           const mode = magnitude >= SWERVE_THRESHOLD ? 'swerve' : 'standard';
           spinAppliedRef.current = { ...result, magnitude, mode };
