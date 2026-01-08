@@ -18218,19 +18218,19 @@ const powerRef = useRef(hud.power);
         const info = group.userData?.buttTilt;
         const baseTilt = info?.angle ?? buttTilt;
         const len = info?.length ?? cueLen;
-        const totalTilt = -(baseTilt + extraTilt);
+        const totalTilt = baseTilt + extraTilt;
         group.rotation.x = totalTilt;
         if (info) {
-          info.tipCompensation = -Math.sin(totalTilt) * len * 0.5;
+          info.tipCompensation = Math.sin(totalTilt) * len * 0.5;
           info.current = totalTilt;
           info.extra = extraTilt;
-          info.buttHeightOffset = -Math.sin(totalTilt) * len;
+          info.buttHeightOffset = Math.sin(totalTilt) * len;
         }
       };
       cueStick.userData.buttTilt = {
         angle: buttTilt,
-        tipCompensation: -Math.sin(-buttTilt) * cueLen * 0.5,
-        buttHeightOffset: -Math.sin(-buttTilt) * cueLen,
+        tipCompensation: Math.sin(buttTilt) * cueLen * 0.5,
+        buttHeightOffset: Math.sin(buttTilt) * cueLen,
         length: cueLen
       };
       const cueTipLocal = new THREE.Vector3(0, 0, -cueLen / 2);
