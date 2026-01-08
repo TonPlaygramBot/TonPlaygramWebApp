@@ -18248,11 +18248,11 @@ const powerRef = useRef(hud.power);
         TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
       };
       const resolveCueObstructionTilt = (strength) => {
-        const obstructionTilt = strength * CUE_OBSTRUCTION_TILT;
+        const obstructionTilt = -strength * CUE_OBSTRUCTION_TILT;
         const obstructionLift = strength * CUE_OBSTRUCTION_LIFT;
         const liftDivisor = cueLen * 0.55;
         const obstructionTiltFromLift =
-          obstructionLift > 0 ? Math.atan2(obstructionLift, liftDivisor) : 0;
+          obstructionLift > 0 ? -Math.atan2(obstructionLift, liftDivisor) : 0;
         return { obstructionTilt, obstructionLift, obstructionTiltFromLift };
       };
 
