@@ -6940,6 +6940,9 @@ function Table3D(
         pocketStrapThickness
       );
       const strap = new THREE.Mesh(strapGeom, pocketJawMat);
+      applyPocketLeatherTextureDefaults(strap.material?.map, { isColor: true });
+      applyPocketLeatherTextureDefaults(strap.material?.normalMap);
+      applyPocketLeatherTextureDefaults(strap.material?.roughnessMap);
       const strapBase = strapEnd.clone();
       const strapTopLimit = pocketTopY - TABLE.THICK * 0.08;
       const strapBaseY = Math.min(
@@ -19677,7 +19680,11 @@ const powerRef = useRef(hud.power);
             cuePerp.z * contactSide
           );
           clampCueTipOffset(spinWorld);
-          const obstructionStrength = resolveCueObstruction(dir, pull);
+          const obstructionStrength = resolveCueObstruction(
+            dir,
+            pull,
+            activeRenderCameraRef.current ?? cameraRef.current ?? camera
+          );
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const warmupRatio = isAiStroke ? AI_WARMUP_PULL_RATIO : PLAYER_WARMUP_PULL_RATIO;
@@ -20238,6 +20245,20 @@ const powerRef = useRef(hud.power);
             if (plan.targetBall?.id != null) ignore.add(plan.targetBall.id);
             return !isPathClear(cuePos, aimTarget, ignore);
           };
+          const isFirstContactLegal = (plan) => {
+            if (!plan?.aimDir) return false;
+            if (plan.viaCushion) return true;
+            const contact = calcTarget(cueBall, plan.aimDir, activeBalls);
+            const hitBall = contact?.targetBall ?? null;
+            if (!hitBall) return false;
+            if (plan.targetBall) {
+              return String(hitBall.id) === String(plan.targetBall.id);
+            }
+            if (plan.target) {
+              return matchesTargetId(hitBall, plan.target);
+            }
+            return true;
+          };
           const measureLaneClearance = (plan) => {
             if (!plan?.aimDir || !plan?.cueToTarget || !cuePos) return 1;
             const aimTarget = cuePos.clone().add(
@@ -20271,6 +20292,7 @@ const powerRef = useRef(hud.power);
             const qualityOk = (plan.quality ?? 0) >= 0.12;
             if (!qualityOk) return false;
             if (!allowCushion && plan.viaCushion) return false;
+            if (!isFirstContactLegal(plan)) return false;
             if (isAimLaneBlocked(plan)) return false;
             const clearanceTarget = isRotationVariant ? 0.7 : 0.6;
             if (measureLaneClearance(plan) < clearanceTarget) return false;
@@ -20578,6 +20600,7 @@ const powerRef = useRef(hud.power);
           const scorePotPlan = (plan) => {
             if (!plan) return -Infinity;
             if (plan.targetBall && !plan.targetBall.active) return -Infinity;
+            if (!isFirstContactLegal(plan)) return -Infinity;
             if (detectScratchRisk(plan)) return -Infinity;
             if (isAimLaneBlocked(plan)) return -Infinity;
             const laneClearance = measureLaneClearance(plan);
@@ -20923,6 +20946,12 @@ const powerRef = useRef(hud.power);
         };
         const startAiThinking = () => {
           stopAiThinking();
+          if (!allStopped(balls)) {
+            aiPlanRef.current = null;
+            setAiPlanning(null);
+            aiThinkingHandle = requestAnimationFrame(startAiThinking);
+            return;
+          }
           if (!cue?.active) {
             setAiPlanning(null);
             return;
@@ -21249,6 +21278,13 @@ const powerRef = useRef(hud.power);
               }, 250);
               return;
             }
+          }
+          if (!allStopped(balls)) {
+            aiRetryTimeoutRef.current = window.setTimeout(() => {
+              aiRetryTimeoutRef.current = null;
+              aiShoot.current();
+            }, 200);
+            return;
           }
           if (currentHud?.over || currentHud?.inHand || shooting) return;
           try {
@@ -21978,16 +22014,27 @@ const powerRef = useRef(hud.power);
           isOnlineMatch &&
           currentHud?.turn === 1 &&
           remoteAimFresh;
-        function resolveCueObstruction(dirVec3, pullDistance = cuePullTargetRef.current ?? 0) {
+        function resolveCueObstruction(
+          dirVec3,
+          pullDistance = cuePullTargetRef.current ?? 0,
+          viewCamera = null
+        ) {
           if (!cue?.pos || !dirVec3) return 0;
+          if (viewCamera?.getWorldDirection) {
+            viewCamera.getWorldDirection(TMP_VEC3_CAM_DIR);
+            TMP_VEC3_CAM_DIR.y = 0;
+            if (TMP_VEC3_CAM_DIR.lengthSq() > 1e-8) {
+              TMP_VEC3_CAM_DIR.normalize();
+              if (TMP_VEC3_CAM_DIR.dot(dirVec3) < -0.15) {
+                return 0;
+              }
+            }
+          }
           const backward = new THREE.Vector2(-dirVec3.x, -dirVec3.z);
           if (backward.lengthSq() < 1e-8) return 0;
           backward.normalize();
           const origin = new THREE.Vector2(cue.pos.x, cue.pos.y);
-          const reach = Math.max(
-            CUE_OBSTRUCTION_RANGE,
-            cueLen + pullDistance + CUE_TIP_GAP
-          );
+          const reach = cueLen + pullDistance + CUE_TIP_GAP;
           const clearanceSq = CUE_OBSTRUCTION_CLEARANCE * CUE_OBSTRUCTION_CLEARANCE;
           let strength = 0;
           const applyRailObstruction = (railPos, axis) => {
@@ -22392,7 +22439,11 @@ const powerRef = useRef(hud.power);
           );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
-          const obstructionStrength = resolveCueObstruction(baseDir, pull);
+          const obstructionStrength = resolveCueObstruction(
+            baseDir,
+            pull,
+            activeRenderCameraRef.current ?? cameraRef.current ?? camera
+          );
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
@@ -22487,7 +22538,11 @@ const powerRef = useRef(hud.power);
           );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
-          const obstructionStrength = resolveCueObstruction(dir, pull);
+          const obstructionStrength = resolveCueObstruction(
+            dir,
+            pull,
+            activeRenderCameraRef.current ?? cameraRef.current ?? camera
+          );
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
