@@ -1404,6 +1404,7 @@ const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so t
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
+const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.08; // keep the cue butt from dipping below the cushion top surface
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_FRONT_SECTION_RATIO = 0.28;
@@ -18332,6 +18333,29 @@ const powerRef = useRef(hud.power);
         cueStick.position.copy(tipTarget).sub(TMP_VEC3_CUE_TIP_OFFSET);
         TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
       };
+      const clampCueButtAboveCushion = (tipTarget) => {
+        if (!tipTarget) return;
+        const cushionTop = table?.userData?.cushionTopLocal;
+        if (!Number.isFinite(cushionTop)) return;
+        const info = cueStick.userData?.buttTilt;
+        const len = info?.length ?? cueLen;
+        if (!Number.isFinite(len) || len <= 1e-4) return;
+        const minButtHeight = cushionTop + CUE_BUTT_CUSHION_CLEARANCE;
+        const requiredOffset = minButtHeight - tipTarget.y;
+        if (requiredOffset <= 0) return;
+        const requiredTilt = Math.asin(
+          THREE.MathUtils.clamp(requiredOffset / len, 0, 1)
+        );
+        if (!Number.isFinite(requiredTilt) || requiredTilt <= cueStick.rotation.x) return;
+        cueStick.rotation.x = requiredTilt;
+        if (info) {
+          info.tipCompensation = Math.sin(requiredTilt) * len * 0.5;
+          info.current = requiredTilt;
+          info.extra = requiredTilt - (info.angle ?? 0);
+          info.buttHeightOffset = Math.sin(requiredTilt) * len;
+        }
+        applyCueStickTransform(tipTarget);
+      };
       const resolveCueObstructionTilt = (strength) => {
         const obstructionTilt = strength * CUE_OBSTRUCTION_TILT;
         const obstructionLift = strength * CUE_OBSTRUCTION_LIFT;
@@ -22249,6 +22273,7 @@ const powerRef = useRef(hud.power);
           }
           const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
+          clampCueButtAboveCushion(tipTarget);
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
           if (chalkMeta) {
@@ -22458,6 +22483,7 @@ const powerRef = useRef(hud.power);
           }
           const tipTarget = resolveCueTipTarget(baseDir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
+          clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
           updateChalkVisibility(null);
           if (targetDir && targetBall) {
@@ -22557,6 +22583,7 @@ const powerRef = useRef(hud.power);
           }
           const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
+          clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
         } else {
           aimFocusRef.current = null;
