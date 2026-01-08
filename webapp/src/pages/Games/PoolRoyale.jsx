@@ -1171,8 +1171,8 @@ const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls 
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(9); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({
-  x: 0.08 / 9 * 0.7,
-  y: 0.44 / 9 * 0.7
+  x: 0.08 / 27 * 0.7,
+  y: 0.44 / 27 * 0.7
 });
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
 const POCKET_LEATHER_NORMAL_SCALE = new THREE.Vector2(1.35, 1.35);
@@ -1437,7 +1437,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // Match cue grain scale to the table finish
-const CUE_WOOD_REPEAT_SCALE = 1 / 3;
+const CUE_WOOD_REPEAT_SCALE = 1 / 9; // enlarge cue wood grain 3× so the pattern reads more clearly at table scale
 const CUE_WOOD_TEXTURE_SIZE = 4096; // 4k cue textures for sharper cue wood finish
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // enlarge grain 3× so rails, skirts, and legs read at table scale; push pattern larger for the new finish pass
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
@@ -1790,10 +1790,10 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 1.32;
-const CLOTH_HAIR_INTENSITY = 1.02;
-const CLOTH_BUMP_INTENSITY = 1.38;
-const CLOTH_SOFT_BLEND = 0.5;
+const CLOTH_TEXTURE_INTENSITY = 2.05;
+const CLOTH_HAIR_INTENSITY = 1.45;
+const CLOTH_BUMP_INTENSITY = 2.2;
+const CLOTH_SOFT_BLEND = 0.32;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
@@ -2779,7 +2779,7 @@ const CLOTH_PATTERN_SCALE = 0.76; // tighten the pattern footprint so the scan r
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
 const POLYHAVEN_ANISOTROPY_BOOST = 2.6;
-const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.55, 0.72);
+const CLOTH_NORMAL_SCALE = new THREE.Vector2(2.25, 1.05);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
@@ -4905,6 +4905,9 @@ const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
 const TMP_VEC3_A = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
+const TMP_VEC3_CUE_TIP_OFFSET = new THREE.Vector3();
+const TMP_VEC3_CUE_BUTT_OFFSET = new THREE.Vector3();
+const TMP_VEC3_CUE_TIP_TARGET = new THREE.Vector3();
 const TMP_VEC3_CHALK = new THREE.Vector3();
 const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
 const TMP_VEC3_TOP_VIEW = new THREE.Vector3();
@@ -18210,29 +18213,45 @@ const powerRef = useRef(hud.power);
       const buttTilt = Math.asin(
         Math.min(1, buttLift / Math.max(cueLen, 1e-4))
       );
-      const applyCueButtTilt = (group, extraTilt = 0, anchorY = null) => {
+      const applyCueButtTilt = (group, extraTilt = 0) => {
         if (!group) return;
         const info = group.userData?.buttTilt;
         const baseTilt = info?.angle ?? buttTilt;
         const len = info?.length ?? cueLen;
         const totalTilt = -(baseTilt + extraTilt);
         group.rotation.x = totalTilt;
-        const tipComp = -Math.sin(totalTilt) * len * 0.5;
-        const baseY = anchorY ?? group.position.y;
-        group.position.y = baseY + tipComp;
         if (info) {
-          info.baseAnchor = baseY;
-          info.tipCompensation = tipComp;
+          info.tipCompensation = -Math.sin(totalTilt) * len * 0.5;
           info.current = totalTilt;
           info.extra = extraTilt;
           info.buttHeightOffset = -Math.sin(totalTilt) * len;
         }
+      };
+      const resolveObstructionTilt = (liftAmount, length = cueLen) => {
+        if (!liftAmount || liftAmount <= 0) return 0;
+        const safeLength = Math.max(length, 1e-4);
+        const ratio = THREE.MathUtils.clamp(liftAmount / safeLength, 0, 1);
+        return Math.asin(ratio);
       };
       cueStick.userData.buttTilt = {
         angle: buttTilt,
         tipCompensation: -Math.sin(-buttTilt) * cueLen * 0.5,
         buttHeightOffset: -Math.sin(-buttTilt) * cueLen,
         length: cueLen
+      };
+      const cueTipLocal = new THREE.Vector3(0, 0, -cueLen / 2);
+      const cueButtLocal = new THREE.Vector3(0, 0, cueLen / 2);
+      const resolveCueTipTarget = (dir, pullAmount, spinWorld) =>
+        TMP_VEC3_CUE_TIP_TARGET.set(
+          cue.pos.x - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
+          CUE_Y + spinWorld.y,
+          cue.pos.y - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
+        );
+      const applyCueStickTransform = (tipTarget) => {
+        TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
+        TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
+        cueStick.position.copy(tipTarget).sub(TMP_VEC3_CUE_TIP_OFFSET);
+        TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
       };
 
       const paletteLength = CUE_FINISH_PALETTE.length || CUE_FINISH_OPTIONS.length || 1;
@@ -18426,7 +18445,7 @@ const powerRef = useRef(hud.power);
       cueBody.add(stripeOverlay);
 
       cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
-      applyCueButtTilt(cueStick, 0, CUE_Y);
+      applyCueButtTilt(cueStick, 0);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
@@ -19577,34 +19596,34 @@ const powerRef = useRef(hud.power);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
-          const obstructionTiltFromLift =
-            obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
-          const buildCuePosition = (pullAmount = visualPull) =>
-            new THREE.Vector3(
-              cue.pos.x - dir.x * (cueLen / 2 + pullAmount + CUE_TIP_GAP) + spinWorld.x,
-              CUE_Y + spinWorld.y,
-              cue.pos.y - dir.z * (cueLen / 2 + pullAmount + CUE_TIP_GAP) + spinWorld.z
-            );
+          const obstructionTiltFromLift = resolveObstructionTilt(obstructionLift, cueLen);
           const warmupRatio = isAiStroke ? AI_WARMUP_PULL_RATIO : PLAYER_WARMUP_PULL_RATIO;
           const minVisibleGap = Math.max(MIN_PULLBACK_GAP, visualPull * 0.08);
           const warmupPull = Math.max(
             0,
             Math.min(visualPull - minVisibleGap, visualPull * warmupRatio)
           );
-          const startPos = buildCuePosition(visualPull);
-          const warmupPos = buildCuePosition(warmupPull);
           const tiltAmount = hasSpin ? Math.abs(appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(
             cueStick,
-            extraTilt + obstructionTilt + obstructionTiltFromLift,
-            CUE_Y + spinWorld.y + obstructionLift * 0.25
+            extraTilt + obstructionTilt + obstructionTiltFromLift
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
+          TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
+          TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
+          const buildCuePosition = (pullAmount = visualPull) => {
+            const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld);
+            return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
+              .sub(TMP_VEC3_CUE_TIP_OFFSET);
+          };
+          const startPos = buildCuePosition(visualPull);
+          const warmupPos = buildCuePosition(warmupPull);
           cueStick.position.copy(warmupPos);
+          TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           const topSpinWeight = Math.max(0, -(appliedSpin.y || 0));
           const backSpinWeight = Math.max(0, appliedSpin.y || 0);
@@ -20038,6 +20057,8 @@ const powerRef = useRef(hud.power);
           if (!cue?.active) return { bestPot: null, bestSafety: null };
           const state = frameRef.current ?? frameState;
           const activeVariantId = activeVariantRef.current?.id ?? variantKey;
+          const isRotationVariant =
+            activeVariantId === 'american' || activeVariantId === '9ball';
           const activeBalls = balls.filter((b) => b.active);
           const targetOrder = resolveTargetPriorities(state, activeVariantId, activeBalls);
           const legalTargetsRaw =
@@ -20148,7 +20169,8 @@ const powerRef = useRef(hud.power);
             if (!qualityOk) return false;
             if (!allowCushion && plan.viaCushion) return false;
             if (isAimLaneBlocked(plan)) return false;
-            if (measureLaneClearance(plan) < 0.6) return false;
+            const clearanceTarget = isRotationVariant ? 0.7 : 0.6;
+            if (measureLaneClearance(plan) < clearanceTarget) return false;
             if (detectScratchRisk(plan)) return false;
             return true;
           };
@@ -20452,6 +20474,7 @@ const powerRef = useRef(hud.power);
           }
           const scorePotPlan = (plan) => {
             if (!plan) return -Infinity;
+            if (plan.targetBall && !plan.targetBall.active) return -Infinity;
             if (detectScratchRisk(plan)) return -Infinity;
             if (isAimLaneBlocked(plan)) return -Infinity;
             const laneClearance = measureLaneClearance(plan);
@@ -20482,7 +20505,8 @@ const powerRef = useRef(hud.power);
             );
             const priorityBonus =
               priorityIndex >= 0 ? 1 - Math.min(priorityIndex * 0.18, 0.72) : 0;
-            const cushionPenalty = plan.viaCushion ? 0.18 : 0;
+            const priorityWeight = isRotationVariant ? 0.16 : 0.1;
+            const cushionPenalty = plan.viaCushion ? (isRotationVariant ? 0.28 : 0.18) : 0;
             const finishBonus =
               activeBalls.filter((ball) => ball.active && matchesTargetId(ball, plan.target))
                 .length <= 2
@@ -20494,7 +20518,7 @@ const powerRef = useRef(hud.power);
               difficultyEase * 0.18 +
               pocketEase * 0.1 +
               cueEase * 0.08 +
-              priorityBonus * 0.1 +
+              priorityBonus * priorityWeight +
               routeEase * 0.06 +
               laneBonus * 0.08 +
               finishBonus -
@@ -22043,31 +22067,19 @@ const powerRef = useRef(hud.power);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
-          const obstructionTiltFromLift =
-            obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
-          cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.z
-          );
+          const obstructionTiltFromLift = resolveObstructionTilt(obstructionLift, cueLen);
           const tiltAmount = hasSpin ? Math.abs(appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(
             cueStick,
-            extraTilt + obstructionTilt + obstructionTiltFromLift,
-            CUE_Y + spinWorld.y + obstructionLift * 0.25
+            extraTilt + obstructionTilt + obstructionTiltFromLift
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const buttTiltInfo = cueStick.userData?.buttTilt;
-          const buttHeightOffset = buttTiltInfo?.buttHeightOffset ?? 0;
-          TMP_VEC3_BUTT.set(
-            cue.pos.x - dir.x * (cueLen + visualPull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y + buttHeightOffset,
-            cue.pos.y - dir.z * (cueLen + visualPull + CUE_TIP_GAP) + spinWorld.z
-          );
+          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
+          applyCueStickTransform(tipTarget);
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
           if (chalkMeta) {
@@ -22261,24 +22273,19 @@ const powerRef = useRef(hud.power);
           const obstructionStrength = resolveCueObstruction(baseDir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
-          const obstructionTiltFromLift =
-            obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
-          cueStick.position.set(
-            cue.pos.x - baseDir.x * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y,
-            cue.pos.y - baseDir.z * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.z
-          );
+          const obstructionTiltFromLift = resolveObstructionTilt(obstructionLift, cueLen);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(
             cueStick,
-            extraTilt + obstructionTilt + obstructionTiltFromLift,
-            CUE_Y + spinWorld.y + obstructionLift * 0.25
+            extraTilt + obstructionTilt + obstructionTiltFromLift
           );
           cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
+          const tipTarget = resolveCueTipTarget(baseDir, visualPull, spinWorld);
+          applyCueStickTransform(tipTarget);
           cueStick.visible = true;
           updateChalkVisibility(null);
           if (targetDir && targetBall) {
@@ -22362,24 +22369,19 @@ const powerRef = useRef(hud.power);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
-          const obstructionTiltFromLift =
-            obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
-          cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.z
-          );
+          const obstructionTiltFromLift = resolveObstructionTilt(obstructionLift, cueLen);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(
             cueStick,
-            extraTilt + obstructionTilt + obstructionTiltFromLift,
-            CUE_Y + spinWorld.y
+            extraTilt + obstructionTilt + obstructionTiltFromLift
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
+          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
+          applyCueStickTransform(tipTarget);
           cueStick.visible = true;
         } else {
           aimFocusRef.current = null;
