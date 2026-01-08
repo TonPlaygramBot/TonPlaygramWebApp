@@ -1411,6 +1411,8 @@ const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.6;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
 const CUE_OBSTRUCTION_LIFT = BALL_R * 0.35;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(4);
+const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.6;
+const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.45;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -8163,9 +8165,46 @@ function Table3D(
     return { group, jawMesh, rimMesh };
   };
 
+  const scalePocketJawUvs = (geometry, referenceScale = pocketStrapWidth) => {
+    if (!geometry?.attributes?.uv) return;
+    geometry.computeBoundingBox();
+    if (!geometry.boundingBox) return;
+    const size = new THREE.Vector3();
+    geometry.boundingBox.getSize(size);
+    const uvAttr = geometry.attributes.uv;
+    let uMin = Infinity;
+    let uMax = -Infinity;
+    let vMin = Infinity;
+    let vMax = -Infinity;
+    for (let i = 0; i < uvAttr.count; i += 1) {
+      const u = uvAttr.getX(i);
+      const v = uvAttr.getY(i);
+      if (u < uMin) uMin = u;
+      if (u > uMax) uMax = u;
+      if (v < vMin) vMin = v;
+      if (v > vMax) vMax = v;
+    }
+    const uRange = uMax - uMin;
+    const vRange = vMax - vMin;
+    if (uRange < 1e-6 || vRange < 1e-6 || !Number.isFinite(referenceScale)) return;
+    const targetURange = size.x / Math.max(referenceScale, 1e-6);
+    const targetVRange = size.z / Math.max(referenceScale, 1e-6);
+    const scaleU = targetURange / uRange;
+    const scaleV = targetVRange / vRange;
+    const uMid = (uMin + uMax) * 0.5;
+    const vMid = (vMin + vMax) * 0.5;
+    for (let i = 0; i < uvAttr.count; i += 1) {
+      const u = uvAttr.getX(i);
+      const v = uvAttr.getY(i);
+      uvAttr.setXY(i, (u - uMid) * scaleU + uMid, (v - vMid) * scaleV + vMid);
+    }
+    uvAttr.needsUpdate = true;
+  };
+
   const addPocketJaw = (config) => {
     const assembly = createPocketJawAssembly(config);
     if (!assembly) return;
+    scalePocketJawUvs(assembly.jawMesh?.geometry);
     pocketJawGroup.add(assembly.group);
     finishParts.pocketJawMeshes.push(assembly.jawMesh);
     if (assembly.rimMesh) {
@@ -20163,12 +20202,29 @@ const powerRef = useRef(hud.power);
               Number.isFinite(plan?.cueToTarget) && plan.cueToTarget > BALL_R * 2
                 ? plan.cueToTarget
                 : Math.max(PLAY_W, PLAY_H);
-            const scratchRadiusSq = (BALL_R * 1.05) * (BALL_R * 1.05);
-            return centers.some((pocket) => {
+            const scratchRadiusSq = (BALL_R * 1.15) * (BALL_R * 1.15);
+            const willScratchOnLine = centers.some((pocket) => {
               const toPocket = pocket.clone().sub(cuePos);
               const proj = toPocket.dot(dir);
               if (proj <= 0 || proj >= maxTravel) return false;
               const closest = cuePos.clone().add(dir.clone().multiplyScalar(proj));
+              return pocket.distanceToSquared(closest) < scratchRadiusSq;
+            });
+            if (willScratchOnLine) return true;
+            if (!plan?.targetBall || !Number.isFinite(plan?.cueToTarget)) return false;
+            const toTarget = plan.targetBall.pos.clone().sub(cuePos);
+            if (toTarget.lengthSq() < 1e-6) return false;
+            const lineDir = toTarget.normalize();
+            const deflection = dir.clone().sub(lineDir.clone().multiplyScalar(dir.dot(lineDir)));
+            if (deflection.lengthSq() < 1e-6) return false;
+            deflection.normalize();
+            const impactPoint = cuePos.clone().add(dir.clone().multiplyScalar(plan.cueToTarget));
+            const postTravel = Math.max(PLAY_W, PLAY_H) * 0.9;
+            return centers.some((pocket) => {
+              const toPocket = pocket.clone().sub(impactPoint);
+              const proj = toPocket.dot(deflection);
+              if (proj <= 0 || proj >= postTravel) return false;
+              const closest = impactPoint.clone().add(deflection.clone().multiplyScalar(proj));
               return pocket.distanceToSquared(closest) < scratchRadiusSq;
             });
           };
@@ -20895,6 +20951,14 @@ const powerRef = useRef(hud.power);
             }
             const now = performance.now();
             const remaining = Math.max(0, deadline - now);
+            const ballsList =
+              ballsRef.current?.length > 0 ? ballsRef.current : balls;
+            if (!allStopped(ballsList)) {
+              aiPlanRef.current = null;
+              updateAiPlanningState(null, { bestPot: null, bestSafety: null }, remaining / 1000);
+              aiThinkingHandle = requestAnimationFrame(think);
+              return;
+            }
             const options = evaluateShotOptions();
             const plan = options.bestPot ?? options.bestSafety ?? null;
             if (plan) {
@@ -21164,6 +21228,15 @@ const powerRef = useRef(hud.power);
           if (aiRetryTimeoutRef.current) {
             clearTimeout(aiRetryTimeoutRef.current);
             aiRetryTimeoutRef.current = null;
+          }
+          const ballsList =
+            ballsRef.current?.length > 0 ? ballsRef.current : balls;
+          if (!allStopped(ballsList)) {
+            aiRetryTimeoutRef.current = window.setTimeout(() => {
+              aiRetryTimeoutRef.current = null;
+              aiShoot.current();
+            }, 120);
+            return;
           }
           let currentHud = hudRef.current;
           if (currentHud?.turn === 1 && currentHud?.inHand) {
@@ -21928,15 +22001,15 @@ const powerRef = useRef(hud.power);
               const closestPos = axisPos + axisDir * closestT;
               distance = Math.abs(closestPos - railPos);
             }
-            if (distance > CUE_OBSTRUCTION_CLEARANCE) return;
+            if (distance > CUE_OBSTRUCTION_RAIL_CLEARANCE) return;
             const depth = THREE.MathUtils.clamp(1 - closestT / reach, 0, 1);
             const proximity = THREE.MathUtils.clamp(
-              1 - distance / CUE_OBSTRUCTION_CLEARANCE,
+              1 - distance / CUE_OBSTRUCTION_RAIL_CLEARANCE,
               0,
               1
             );
             const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
-            strength = Math.max(strength, influence);
+            strength = Math.max(strength, influence * CUE_OBSTRUCTION_RAIL_INFLUENCE);
           };
           applyRailObstruction(RAIL_LIMIT_X, 'x');
           applyRailObstruction(-RAIL_LIMIT_X, 'x');
