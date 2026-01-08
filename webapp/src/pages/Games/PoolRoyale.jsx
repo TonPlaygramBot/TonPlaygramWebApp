@@ -891,6 +891,7 @@ const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
+const SKIP_REPLAYS_STORAGE_KEY = 'poolSkipReplays';
 const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
@@ -1171,11 +1172,11 @@ const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls 
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(9); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({
-  x: (0.08 / 27) * 0.7 / 3,
-  y: (0.44 / 27) * 0.7 / 3
+  x: (0.08 / 27) * 0.7 / 2,
+  y: (0.44 / 27) * 0.7 / 2
 });
-const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
-const POCKET_LEATHER_NORMAL_SCALE = new THREE.Vector2(1.8, 1.8);
+const POCKET_LEATHER_TEXTURE_ANISOTROPY = 10;
+const POCKET_LEATHER_NORMAL_SCALE = new THREE.Vector2(2.4, 2.4);
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
@@ -1406,16 +1407,16 @@ const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance whi
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.35;
-const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.7;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(8.5);
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.6;
+const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.9;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(10);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_SIDE = BALL_R * 0.35;
-const MAX_SPIN_VERTICAL = BALL_R * 0.6;
-const MAX_SPIN_VISUAL_LIFT = BALL_R * 0.6; // cap vertical spin offsets so the cue stays just above the ball surface
+const MAX_SPIN_VERTICAL = BALL_R * 0.75;
+const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so the cue stays just above the ball surface
 const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
@@ -5364,7 +5365,7 @@ const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 function makeClothTexture(
   palette = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID]?.colors
 ) {
-  const size = 1024;
+  const size = 1536;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
@@ -5382,16 +5383,16 @@ function makeClothTexture(
   ctx.fillStyle = diagonalShade;
   ctx.fillRect(0, 0, size, size);
 
-  const threadStep = 4 * 1.3; // widen spacing so the thread pattern reads ~30% larger
-  ctx.lineWidth = 0.78;
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  const threadStep = 3.6; // tighten spacing so the weave reads sharper without getting noisy
+  ctx.lineWidth = 1.05;
+  ctx.strokeStyle = 'rgba(255,255,255,0.26)';
   for (let x = -threadStep; x < size + threadStep; x += threadStep) {
     ctx.beginPath();
     ctx.moveTo(x + threadStep * 0.35, 0);
     ctx.lineTo(x + threadStep * 0.35, size);
     ctx.stroke();
   }
-  ctx.strokeStyle = 'rgba(0,0,0,0.24)';
+  ctx.strokeStyle = 'rgba(0,0,0,0.32)';
   for (let y = -threadStep; y < size + threadStep; y += threadStep) {
     ctx.beginPath();
     ctx.moveTo(0, y + threadStep * 0.6);
@@ -5399,25 +5400,25 @@ function makeClothTexture(
     ctx.stroke();
   }
 
-  const weaveSpacing = 2 * 1.3;
-  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  const weaveSpacing = 1.8;
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
   for (let y = 0; y < size; y += weaveSpacing) {
     const offset = (y / weaveSpacing) % 2 === 0 ? 0 : weaveSpacing * 0.5;
     for (let x = 0; x < size; x += weaveSpacing) {
-      ctx.fillRect(x + offset, y, 0.9, 1.2);
+      ctx.fillRect(x + offset, y, 1.1, 1.5);
     }
   }
-  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fillStyle = 'rgba(0,0,0,0.26)';
   for (let x = 0; x < size; x += weaveSpacing) {
     const offset = (x / weaveSpacing) % 2 === 0 ? 0 : weaveSpacing * 0.5;
     for (let y = 0; y < size; y += weaveSpacing) {
-      ctx.fillRect(x, y + offset, 1.2, 0.9);
+      ctx.fillRect(x, y + offset, 1.5, 1.1);
     }
   }
 
-  ctx.lineWidth = 0.4;
-  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-  for (let i = 0; i < 210000; i++) {
+  ctx.lineWidth = 0.45;
+  ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+  for (let i = 0; i < 150000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
     const horizontal = Math.random() > 0.5;
@@ -5433,8 +5434,8 @@ function makeClothTexture(
     ctx.stroke();
   }
 
-  ctx.strokeStyle = 'rgba(255,255,255,0.24)';
-  for (let i = 0; i < 150000; i++) {
+  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+  for (let i = 0; i < 110000; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
     const horizontal = Math.random() > 0.5;
@@ -10177,6 +10178,24 @@ function PoolRoyaleGame({
       DEFAULT_CLOTH_COLOR_ID
     );
   });
+  const [skipAllReplays, setSkipAllReplays] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(SKIP_REPLAYS_STORAGE_KEY);
+      if (stored === '1') return true;
+      if (stored === '0') return false;
+    }
+    return false;
+  });
+  const skipReplayRef = useRef(() => {});
+  const skipAllReplaysRef = useRef(skipAllReplays);
+  useEffect(() => {
+    skipAllReplaysRef.current = skipAllReplays;
+  }, [skipAllReplays]);
+  useEffect(() => {
+    if (skipAllReplays) {
+      skipReplayRef.current?.();
+    }
+  }, [skipAllReplays]);
   const [pocketLinerId, setPocketLinerId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(POCKET_LINER_STORAGE_KEY);
@@ -11189,6 +11208,14 @@ function PoolRoyaleGame({
       window.localStorage.setItem(CLOTH_COLOR_STORAGE_KEY, clothColorId);
     }
   }, [clothColorId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(
+        SKIP_REPLAYS_STORAGE_KEY,
+        skipAllReplays ? '1' : '0'
+      );
+    }
+  }, [skipAllReplays]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(POCKET_LINER_STORAGE_KEY, pocketLinerId);
@@ -17001,6 +17028,22 @@ const powerRef = useRef(hud.power);
           replayFrameCameraRef.current = null;
           setReplayActive(false);
         };
+        const skipReplay = () => {
+          if (replayBannerTimeoutRef.current) {
+            clearTimeout(replayBannerTimeoutRef.current);
+            replayBannerTimeoutRef.current = null;
+          }
+          if (replaySlateTimeoutRef.current) {
+            clearTimeout(replaySlateTimeoutRef.current);
+            replaySlateTimeoutRef.current = null;
+          }
+          setReplayBanner(null);
+          setReplaySlate(null);
+          if (replayPlaybackRef.current) {
+            finishReplayPlayback(replayPlaybackRef.current);
+          }
+        };
+        skipReplayRef.current = skipReplay;
 
         const enterTopView = (immediate = false) => {
           topViewRef.current = true;
@@ -20055,12 +20098,15 @@ const powerRef = useRef(hud.power);
         };
 
         const evaluateShotOptionsBaseline = () => {
-          if (!cue?.active) return { bestPot: null, bestSafety: null };
+          const cueBall = cueRef.current ?? cue;
+          if (!cueBall?.active) return { bestPot: null, bestSafety: null };
+          const ballsList =
+            ballsRef.current?.length > 0 ? ballsRef.current : balls;
           const state = frameRef.current ?? frameState;
           const activeVariantId = activeVariantRef.current?.id ?? variantKey;
           const isRotationVariant =
             activeVariantId === 'american' || activeVariantId === '9ball';
-          const activeBalls = balls.filter((b) => b.active);
+          const activeBalls = ballsList.filter((b) => b.active);
           const targetOrder = resolveTargetPriorities(state, activeVariantId, activeBalls);
           const legalTargetsRaw =
             targetOrder.length > 0
@@ -20086,7 +20132,7 @@ const powerRef = useRef(hud.power);
             }
             if (legalTargets.size === 0) legalTargets.add('RED');
           }
-          const cuePos = cue.pos.clone();
+          const cuePos = cueBall.pos.clone();
           const clearance = BALL_R * (activeVariantId === 'uk' ? 1.4 : 1.65);
           const clearanceSq = clearance * clearance;
           const ballDiameter = BALL_R * 2;
@@ -20132,7 +20178,7 @@ const powerRef = useRef(hud.power);
             const aimTarget = cuePos.clone().add(
               plan.aimDir.clone().normalize().multiplyScalar(plan.cueToTarget)
             );
-            const ignore = new Set([cue.id]);
+            const ignore = new Set([cueBall.id]);
             if (plan.targetBall?.id != null) ignore.add(plan.targetBall.id);
             return !isPathClear(cuePos, aimTarget, ignore);
           };
@@ -20141,7 +20187,7 @@ const powerRef = useRef(hud.power);
             const aimTarget = cuePos.clone().add(
               plan.aimDir.clone().normalize().multiplyScalar(plan.cueToTarget)
             );
-            const ignore = new Set([cue.id]);
+            const ignore = new Set([cueBall.id]);
             if (plan.targetBall?.id != null) ignore.add(plan.targetBall.id);
             let minClearanceSq = Infinity;
             activeBalls.forEach((ball) => {
@@ -20227,13 +20273,13 @@ const powerRef = useRef(hud.power);
           const safetyShots = [];
           let fallbackPlan = null;
           activeBalls.forEach((targetBall) => {
-            if (targetBall === cue) return;
+            if (targetBall === cueBall) return;
             const colorId = toBallColorId(targetBall.id);
             const targetAllowed =
               legalTargets.size > 0 &&
               Array.from(legalTargets).some((id) => matchesTargetId(targetBall, id));
             if (!colorId || !targetAllowed) return;
-            const ignore = new Set([cue.id, targetBall.id]);
+            const ignore = new Set([cueBall.id, targetBall.id]);
             const directClear = isPathClear(cuePos, targetBall.pos, ignore);
             for (let i = 0; i < centers.length; i++) {
               const pocketCenter = centers[i];
@@ -20379,7 +20425,7 @@ const powerRef = useRef(hud.power);
           });
           if (!potShots.length && (activeVariantId === 'american' || activeVariantId === '9ball')) {
             const targetBall = activeBalls
-              .filter((b) => b.id !== cue.id)
+              .filter((b) => b.id !== cueBall.id)
               .sort((a, b) => a.id - b.id)[0];
             if (targetBall) {
               const pocketCenter = centers
@@ -21291,6 +21337,7 @@ const powerRef = useRef(hud.power);
             shotRecording.zoomOnly = replayDecision.zoomOnly;
           }
           const shouldStartReplay =
+            !skipAllReplaysRef.current &&
             Boolean(replayDecision?.shouldReplay) &&
             (shotRecording?.frames?.length ?? 0) > 1;
           const replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
@@ -21751,7 +21798,7 @@ const powerRef = useRef(hud.power);
         if (!shooting && !shotRecording && !replayPlaybackRef.current && pendingRemoteReplayRef.current) {
           const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
-          if (pending?.frames?.length > 1) {
+          if (!skipAllReplaysRef.current && pending?.frames?.length > 1) {
             shotRecording = {
               ...pending,
               startTime: pending.startTime ?? nowMs,
@@ -21873,13 +21920,15 @@ const powerRef = useRef(hud.power);
           const applyRailObstruction = (railPos, axis) => {
             const axisPos = axis === 'x' ? origin.x : origin.y;
             const axisDir = axis === 'x' ? backward.x : backward.y;
-            const distance = Math.abs(axisPos - railPos);
-            if (distance > CUE_OBSTRUCTION_CLEARANCE) return;
             let closestT = 0;
+            let distance = Math.abs(axisPos - railPos);
             if (Math.abs(axisDir) > 1e-6) {
               const tAtRail = (railPos - axisPos) / axisDir;
               closestT = THREE.MathUtils.clamp(tAtRail, 0, reach);
+              const closestPos = axisPos + axisDir * closestT;
+              distance = Math.abs(closestPos - railPos);
             }
+            if (distance > CUE_OBSTRUCTION_CLEARANCE) return;
             const depth = THREE.MathUtils.clamp(1 - closestT / reach, 0, 1);
             const proximity = THREE.MathUtils.clamp(
               1 - distance / CUE_OBSTRUCTION_CLEARANCE,
@@ -21897,7 +21946,7 @@ const powerRef = useRef(hud.power);
             if (!b?.active || b === cue) return;
             const delta = b.pos.clone().sub(origin);
             const along = delta.dot(backward);
-            if (along < BALL_R * 0.25 || along > reach) return;
+            if (along < 0 || along > reach) return;
             const lateralSq = delta.lengthSq() - along * along;
             if (lateralSq > clearanceSq) return;
             const lateral = Math.sqrt(Math.max(lateralSq, 0));
@@ -23330,6 +23379,7 @@ const powerRef = useRef(hud.power);
         applyBallSnapshotRef.current = null;
         pendingLayoutRef.current = null;
         captureReplayCameraSnapshotRef.current = null;
+        skipReplayRef.current = () => {};
         pendingRemoteReplayRef.current = null;
         incomingRemoteShotRef.current = null;
         remoteShotActiveRef.current = false;
@@ -24066,10 +24116,26 @@ const powerRef = useRef(hud.power);
         </div>
       )}
       {replayActive && (
-        <div className="pointer-events-none absolute top-4 right-4 z-50 flex justify-end">
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
           <div className="rounded-full border border-white/25 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
             Replay
           </div>
+          <button
+            type="button"
+            onClick={() => skipReplayRef.current?.()}
+            className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path d="M4 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75A1 1 0 0 1 4 16.75zM12.5 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75a1 1 0 0 1-1.6-.8z" />
+            </svg>
+            <span className="sr-only">Skip replay</span>
+          </button>
         </div>
       )}
 
@@ -24137,6 +24203,32 @@ const powerRef = useRef(hud.power);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Replays
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setSkipAllReplays((prev) => !prev)}
+                  aria-pressed={skipAllReplays}
+                  className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                    skipAllReplays
+                      ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                      : 'bg-white/10 text-white/80 hover:bg-white/20'
+                  }`}
+                >
+                  <span>Skip all replays</span>
+                  <span
+                    className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
+                      skipAllReplays
+                        ? 'border-black/30 text-black/70'
+                        : 'border-white/30 text-white/70'
+                    }`}
+                  >
+                    {skipAllReplays ? 'On' : 'Off'}
+                  </span>
+                </button>
+              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Table Finish
