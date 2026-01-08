@@ -1409,8 +1409,8 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.6;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.9;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(10);
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.35;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(4);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -1419,7 +1419,7 @@ const MAX_SPIN_VERTICAL = BALL_R * 0.75;
 const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so the cue stays just above the ball surface
 const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
-const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
+const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
 const SIDE_SPIN_MULTIPLIER = 1.25;
 const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.3;
@@ -18262,12 +18262,13 @@ const powerRef = useRef(hud.power);
         const baseTilt = info?.angle ?? buttTilt;
         const len = info?.length ?? cueLen;
         const totalTilt = baseTilt + extraTilt;
-        group.rotation.x = totalTilt;
+        const appliedTilt = -totalTilt;
+        group.rotation.x = appliedTilt;
         if (info) {
-          info.tipCompensation = Math.sin(totalTilt) * len * 0.5;
-          info.current = totalTilt;
+          info.tipCompensation = Math.sin(appliedTilt) * len * 0.5;
+          info.current = appliedTilt;
           info.extra = extraTilt;
-          info.buttHeightOffset = Math.sin(totalTilt) * len;
+          info.buttHeightOffset = Math.sin(appliedTilt) * len;
         }
       };
       cueStick.userData.buttTilt = {
@@ -19647,7 +19648,7 @@ const powerRef = useRef(hud.power);
             0,
             Math.min(visualPull - minVisibleGap, visualPull * warmupRatio)
           );
-          const tiltAmount = hasSpin ? Math.abs(appliedSpin.y || 0) : 0;
+          const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(
             cueStick,
@@ -22117,7 +22118,7 @@ const powerRef = useRef(hud.power);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
-          const tiltAmount = hasSpin ? Math.abs(appliedSpin.y || 0) : 0;
+          const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(
             cueStick,
