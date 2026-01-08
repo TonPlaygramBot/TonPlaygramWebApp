@@ -18248,11 +18248,11 @@ const powerRef = useRef(hud.power);
         TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
       };
       const resolveCueObstructionTilt = (strength) => {
-        const obstructionTilt = -strength * CUE_OBSTRUCTION_TILT;
+        const obstructionTilt = strength * CUE_OBSTRUCTION_TILT;
         const obstructionLift = strength * CUE_OBSTRUCTION_LIFT;
         const liftDivisor = cueLen * 0.55;
         const obstructionTiltFromLift =
-          obstructionLift > 0 ? -Math.atan2(obstructionLift, liftDivisor) : 0;
+          obstructionLift > 0 ? Math.atan2(obstructionLift, liftDivisor) : 0;
         return { obstructionTilt, obstructionLift, obstructionTiltFromLift };
       };
 
@@ -19608,7 +19608,7 @@ const powerRef = useRef(hud.power);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(
             cueStick,
-            extraTilt + obstructionTilt + obstructionTiltFromLift
+            extraTilt - obstructionTilt - obstructionTiltFromLift
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -22072,7 +22072,7 @@ const powerRef = useRef(hud.power);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(
             cueStick,
-            extraTilt + obstructionTilt + obstructionTiltFromLift
+            extraTilt - obstructionTilt - obstructionTiltFromLift
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -22277,7 +22277,7 @@ const powerRef = useRef(hud.power);
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(
             cueStick,
-            extraTilt + obstructionTilt + obstructionTiltFromLift
+            extraTilt - obstructionTilt - obstructionTiltFromLift
           );
           cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -22372,7 +22372,7 @@ const powerRef = useRef(hud.power);
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(
             cueStick,
-            extraTilt + obstructionTilt + obstructionTiltFromLift
+            extraTilt - obstructionTilt - obstructionTiltFromLift
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
