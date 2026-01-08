@@ -1408,9 +1408,9 @@ const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear secti
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.6;
-const CUE_OBSTRUCTION_RANGE = BALL_R * 7.5;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.38;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6);
+const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.9;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(10);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -17129,14 +17129,7 @@ const powerRef = useRef(hud.power);
               x: 0,
               y: 0
             };
-            const normalizedRequested = normalizeSpinInput(requested);
-            spinRef.current = normalizedRequested;
-            const limited = clampSpinToLimits();
-            const normalized = normalizeSpinInput(limited);
-            if (normalized.x !== limited.x || normalized.y !== limited.y) {
-              spinRef.current = normalized;
-            }
-            legality = checkSpinLegality2D(cueBall, normalized, ballsList, {
+            legality = checkSpinLegality2D(cueBall, requested, ballsList, {
               axes,
               view: viewVec
                 ? { x: viewVec.x, y: viewVec.y }
@@ -17146,7 +17139,10 @@ const powerRef = useRef(hud.power);
           }
           const applied = clampSpinToLimits();
           const normalized = normalizeSpinInput(applied);
-          if (normalized.x !== applied.x || normalized.y !== applied.y) {
+          if (
+            normalized.x !== applied.x ||
+            normalized.y !== applied.y
+          ) {
             spinRef.current = normalized;
           }
           if (updateUi) {
