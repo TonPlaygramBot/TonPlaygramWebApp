@@ -1404,6 +1404,7 @@ const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so t
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
+const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.05; // keep the butt above the cushion lip when aiming from behind the rack
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_FRONT_SECTION_RATIO = 0.28;
@@ -18318,6 +18319,17 @@ const powerRef = useRef(hud.power);
         buttHeightOffset: Math.sin(buttTilt) * cueLen,
         length: cueLen
       };
+      const clampCueButtTilt = (tipTarget, extraTilt = 0) => {
+        const info = cueStick.userData?.buttTilt;
+        const baseTilt = info?.angle ?? buttTilt;
+        const len = info?.length ?? cueLen;
+        const cushionHeight = cushionHeightRef.current ?? TABLE.THICK;
+        const minButtHeight = cushionHeight + CUE_BUTT_CUSHION_CLEARANCE;
+        const requiredSin = (minButtHeight - tipTarget.y) / len;
+        if (requiredSin <= 0) return extraTilt;
+        const requiredTilt = Math.asin(THREE.MathUtils.clamp(requiredSin, 0, 1));
+        return Math.max(extraTilt, requiredTilt - baseTilt);
+      };
       const cueTipLocal = new THREE.Vector3(0, 0, -cueLen / 2);
       const cueButtLocal = new THREE.Vector3(0, 0, cueLen / 2);
       const resolveCueTipTarget = (dir, pullAmount, spinWorld) =>
@@ -22239,15 +22251,16 @@ const powerRef = useRef(hud.power);
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
-          applyCueButtTilt(
-            cueStick,
+          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
+          const clampedTilt = clampCueButtTilt(
+            tipTarget,
             extraTilt + obstructionTilt + obstructionTiltFromLift
           );
+          applyCueButtTilt(cueStick, clampedTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
@@ -22448,15 +22461,16 @@ const powerRef = useRef(hud.power);
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
-          applyCueButtTilt(
-            cueStick,
+          const tipTarget = resolveCueTipTarget(baseDir, visualPull, spinWorld);
+          const clampedTilt = clampCueButtTilt(
+            tipTarget,
             extraTilt + obstructionTilt + obstructionTiltFromLift
           );
+          applyCueButtTilt(cueStick, clampedTilt);
           cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(baseDir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
           cueStick.visible = true;
           updateChalkVisibility(null);
@@ -22547,15 +22561,16 @@ const powerRef = useRef(hud.power);
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
-          applyCueButtTilt(
-            cueStick,
+          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
+          const clampedTilt = clampCueButtTilt(
+            tipTarget,
             extraTilt + obstructionTilt + obstructionTiltFromLift
           );
+          applyCueButtTilt(cueStick, clampedTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
           cueStick.visible = true;
         } else {
