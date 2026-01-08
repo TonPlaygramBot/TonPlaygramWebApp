@@ -1171,8 +1171,8 @@ const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls 
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(9); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({
-  x: 0.08 / 9 * 0.7,
-  y: 0.44 / 9 * 0.7
+  x: 0.08 / 27 * 0.7,
+  y: 0.44 / 27 * 0.7
 });
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
 const POCKET_LEATHER_NORMAL_SCALE = new THREE.Vector2(1.35, 1.35);
@@ -1379,8 +1379,6 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.22; // widen the visible air gap so the blue tip never kisses the cue ball
-const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -1437,11 +1435,11 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // Match cue grain scale to the table finish
-const CUE_WOOD_REPEAT_SCALE = 1 / 3;
+const CUE_WOOD_REPEAT_SCALE = 1 / 6;
 const CUE_WOOD_TEXTURE_SIZE = 4096; // 4k cue textures for sharper cue wood finish
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // enlarge grain 3× so rails, skirts, and legs read at table scale; push pattern larger for the new finish pass
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
-const WOOD_REPEAT_SCALE_MIN = 0.5;
+const WOOD_REPEAT_SCALE_MIN = 0.15;
 const WOOD_REPEAT_SCALE_MAX = 2;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
 const DEFAULT_POOL_VARIANT = 'american';
@@ -1790,10 +1788,10 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 1.32;
-const CLOTH_HAIR_INTENSITY = 1.02;
-const CLOTH_BUMP_INTENSITY = 1.38;
-const CLOTH_SOFT_BLEND = 0.5;
+const CLOTH_TEXTURE_INTENSITY = 1.5;
+const CLOTH_HAIR_INTENSITY = 1.12;
+const CLOTH_BUMP_INTENSITY = 1.65;
+const CLOTH_SOFT_BLEND = 0.42;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
@@ -18357,6 +18355,11 @@ const powerRef = useRef(hud.power);
       tip.add(tipCap);
       tip.position.z = -connectorHeight;
       tipGroup.add(tip);
+      const tipFrontOffset = Math.abs(
+        tipGroup.position.z + tip.position.z - tipBodyLength - tipRadius
+      );
+      cueStick.userData.tipFrontOffset = tipFrontOffset;
+      cueStick.userData.tipFrontExtra = Math.max(0, tipFrontOffset - cueLen / 2);
 
       const connector = new THREE.Mesh(
         new THREE.CylinderGeometry(
@@ -19229,6 +19232,19 @@ const powerRef = useRef(hud.power);
         }
         return { side, vert, hasSpin };
       };
+      const resolveCueTipFrontOffset = () =>
+        cueStick.userData?.tipFrontOffset ?? cueLen / 2;
+      const resolveCueTipContactDepth = (spinWorld) => {
+        const offset = Math.hypot(spinWorld?.x ?? 0, spinWorld?.y ?? 0, spinWorld?.z ?? 0);
+        const surfaceRadius = BALL_R;
+        return Math.sqrt(Math.max(surfaceRadius * surfaceRadius - offset * offset, 0));
+      };
+      const resolveCueStickDistance = (spinWorld, pull = 0) =>
+        resolveCueTipFrontOffset() + resolveCueTipContactDepth(spinWorld) + pull;
+      const resolveCueButtDistance = (spinWorld, pull = 0) =>
+        resolveCueStickDistance(spinWorld, pull) + cueLen / 2;
+      const resolveCueTipGap = () =>
+        (cueStick.userData?.tipFrontExtra ?? 0) + BALL_R;
 
       // Fire (slider triggers on release)
       const fire = () => {
@@ -19548,7 +19564,7 @@ const powerRef = useRef(hud.power);
             aimDir.clone().multiplyScalar(-1),
             balls
           );
-          const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - resolveCueTipGap());
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           const isAiStroke = aiOpponentEnabled && hudRef.current?.turn === 1;
           const pullVisibilityBoost = isAiStroke
@@ -19581,9 +19597,9 @@ const powerRef = useRef(hud.power);
             obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
           const buildCuePosition = (pullAmount = visualPull) =>
             new THREE.Vector3(
-              cue.pos.x - dir.x * (cueLen / 2 + pullAmount + CUE_TIP_GAP) + spinWorld.x,
+              cue.pos.x - dir.x * resolveCueStickDistance(spinWorld, pullAmount) + spinWorld.x,
               CUE_Y + spinWorld.y,
-              cue.pos.y - dir.z * (cueLen / 2 + pullAmount + CUE_TIP_GAP) + spinWorld.z
+              cue.pos.y - dir.z * resolveCueStickDistance(spinWorld, pullAmount) + spinWorld.z
             );
           const warmupRatio = isAiStroke ? AI_WARMUP_PULL_RATIO : PLAYER_WARMUP_PULL_RATIO;
           const minVisibleGap = Math.max(MIN_PULLBACK_GAP, visualPull * 0.08);
@@ -20033,10 +20049,10 @@ const powerRef = useRef(hud.power);
           }
           return null;
         };
-
         const evaluateShotOptionsBaseline = () => {
           if (!cue?.active) return { bestPot: null, bestSafety: null };
           const state = frameRef.current ?? frameState;
+          const metaState = state?.meta?.state ?? null;
           const activeVariantId = activeVariantRef.current?.id ?? variantKey;
           const activeBalls = balls.filter((b) => b.active);
           const targetOrder = resolveTargetPriorities(state, activeVariantId, activeBalls);
@@ -20088,6 +20104,41 @@ const powerRef = useRef(hud.power);
             }
             return true;
           };
+          const isDirectLaneOpen = (target) => {
+            if (!target) return false;
+            const ignore = new Set([cue.id, target.id]);
+            return isPathClear(cuePos, target.pos, ignore);
+          };
+          if (activeVariantId === '9ball') {
+            const lowestActive = activeBalls
+              .filter((b) => b.active && b.id !== cue.id && typeof b.id === 'number')
+              .sort((a, b) => a.id - b.id)[0];
+            if (lowestActive) {
+              legalTargets.clear();
+              const targetId = toBallColorId(lowestActive.id);
+              if (targetId) legalTargets.add(targetId);
+            }
+          }
+          if (activeVariantId === 'american' && metaState?.isOpenTable) {
+            const scoreGroup = (groupId) => {
+              const groupBalls = activeBalls.filter((ball) => matchesTargetId(ball, groupId));
+              if (groupBalls.length === 0) return -Infinity;
+              return groupBalls.reduce((bestScore, ball) => {
+                const laneWeight = isDirectLaneOpen(ball) ? 1 : 0.4;
+                const score = scoreBallForAim(ball, cuePos) * laneWeight;
+                return Math.max(bestScore, score);
+              }, -Infinity);
+            };
+            const solidScore = scoreGroup('SOLID');
+            const stripeScore = scoreGroup('STRIPE');
+            if (solidScore > stripeScore) {
+              legalTargets.clear();
+              legalTargets.add('SOLID');
+            } else if (stripeScore > solidScore) {
+              legalTargets.clear();
+              legalTargets.add('STRIPE');
+            }
+          }
           const detectScratchRisk = (plan) => {
             if (!plan?.aimDir || !cuePos) return false;
             const dir = plan.aimDir.clone().normalize();
@@ -21841,7 +21892,7 @@ const powerRef = useRef(hud.power);
           const origin = new THREE.Vector2(cue.pos.x, cue.pos.y);
           const reach = Math.max(
             CUE_OBSTRUCTION_RANGE,
-            cueLen + pullDistance + CUE_TIP_GAP
+            cueLen + pullDistance + resolveCueTipGap()
           );
           const clearanceSq = CUE_OBSTRUCTION_CLEARANCE * CUE_OBSTRUCTION_CLEARANCE;
           let strength = 0;
@@ -22028,7 +22079,7 @@ const powerRef = useRef(hud.power);
             aimDir2D.clone().multiplyScalar(-1),
             balls
           );
-          const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const maxPull = Math.max(0, backInfo.tHit - cueLen - resolveCueTipGap());
           const desiredPull = computePullTargetFromPower(
             powerRef.current,
             maxPull
@@ -22040,15 +22091,17 @@ const powerRef = useRef(hud.power);
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
+          const cueStickDistance = resolveCueStickDistance(spinWorld, visualPull);
+          const cueButtDistance = resolveCueButtDistance(spinWorld, visualPull);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
           const obstructionTiltFromLift =
             obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.x,
+            cue.pos.x - dir.x * cueStickDistance + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.y - dir.z * cueStickDistance + spinWorld.z
           );
           const tiltAmount = hasSpin ? Math.abs(appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
@@ -22064,9 +22117,9 @@ const powerRef = useRef(hud.power);
           const buttTiltInfo = cueStick.userData?.buttTilt;
           const buttHeightOffset = buttTiltInfo?.buttHeightOffset ?? 0;
           TMP_VEC3_BUTT.set(
-            cue.pos.x - dir.x * (cueLen + visualPull + CUE_TIP_GAP) + spinWorld.x,
+            cue.pos.x - dir.x * cueButtDistance + spinWorld.x,
             CUE_Y + spinWorld.y + buttHeightOffset,
-            cue.pos.y - dir.z * (cueLen + visualPull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.y - dir.z * cueButtDistance + spinWorld.z
           );
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
@@ -22246,7 +22299,7 @@ const powerRef = useRef(hud.power);
             remoteAimDir.clone().multiplyScalar(-1),
             balls
           );
-          const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const maxPull = Math.max(0, backInfo.tHit - cueLen - resolveCueTipGap());
           const desiredPull = computePullTargetFromPower(powerStrength, maxPull);
           const pull = computeCuePull(desiredPull, maxPull);
           const visualPull = applyVisualPullCompensation(pull, baseDir);
@@ -22258,15 +22311,16 @@ const powerRef = useRef(hud.power);
           );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
+          const cueStickDistance = resolveCueStickDistance(spinWorld, visualPull);
           const obstructionStrength = resolveCueObstruction(baseDir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
           const obstructionTiltFromLift =
             obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
           cueStick.position.set(
-            cue.pos.x - baseDir.x * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.x,
+            cue.pos.x - baseDir.x * cueStickDistance + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - baseDir.z * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.y - baseDir.z * cueStickDistance + spinWorld.z
           );
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
@@ -22341,7 +22395,7 @@ const powerRef = useRef(hud.power);
             planDir.clone().multiplyScalar(-1),
             balls
           );
-          const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - resolveCueTipGap());
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           const pullVisibilityBoost =
             aiOpponentEnabled && hudRef.current?.turn === 1
@@ -22359,15 +22413,16 @@ const powerRef = useRef(hud.power);
           );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
+          const cueStickDistance = resolveCueStickDistance(spinWorld, visualPull);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const obstructionTilt = obstructionStrength * CUE_OBSTRUCTION_TILT;
           const obstructionLift = obstructionStrength * CUE_OBSTRUCTION_LIFT;
           const obstructionTiltFromLift =
             obstructionLift > 0 ? Math.atan2(obstructionLift, cueLen) : 0;
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.x,
+            cue.pos.x - dir.x * cueStickDistance + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + visualPull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.y - dir.z * cueStickDistance + spinWorld.z
           );
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
