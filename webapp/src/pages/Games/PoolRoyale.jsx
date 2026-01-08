@@ -21985,7 +21985,27 @@ const powerRef = useRef(hud.power);
           tmpAim.copy(fallbackAim.normalize());
         } else {
           camera.getWorldDirection(camFwd);
-          tmpAim.set(camFwd.x, camFwd.z).normalize();
+          tmpAim.set(camFwd.x, camFwd.z);
+          if (tmpAim.lengthSq() > 1e-6) {
+            tmpAim.normalize();
+          } else {
+            tmpAim.set(0, 1);
+          }
+          if (cue?.pos) {
+            const scale = Number.isFinite(worldScaleFactor)
+              ? worldScaleFactor
+              : WORLD_SCALE;
+            const cueToCamera = new THREE.Vector2(
+              camera.position.x / scale - cue.pos.x,
+              camera.position.z / scale - cue.pos.y
+            );
+            if (cueToCamera.lengthSq() > 1e-6) {
+              cueToCamera.normalize();
+              if (tmpAim.dot(cueToCamera) > 0) {
+                tmpAim.multiplyScalar(-1);
+              }
+            }
+          }
         }
         const cameraBlend = THREE.MathUtils.clamp(
           cameraBlendRef.current ?? 1,
