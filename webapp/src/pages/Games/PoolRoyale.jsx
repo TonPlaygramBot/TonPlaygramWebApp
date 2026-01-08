@@ -18262,13 +18262,12 @@ const powerRef = useRef(hud.power);
         const baseTilt = info?.angle ?? buttTilt;
         const len = info?.length ?? cueLen;
         const totalTilt = baseTilt + extraTilt;
-        const appliedTilt = -totalTilt;
-        group.rotation.x = appliedTilt;
+        group.rotation.x = totalTilt;
         if (info) {
-          info.tipCompensation = Math.sin(appliedTilt) * len * 0.5;
-          info.current = appliedTilt;
+          info.tipCompensation = Math.sin(totalTilt) * len * 0.5;
+          info.current = totalTilt;
           info.extra = extraTilt;
-          info.buttHeightOffset = Math.sin(appliedTilt) * len;
+          info.buttHeightOffset = Math.sin(totalTilt) * len;
         }
       };
       cueStick.userData.buttTilt = {
