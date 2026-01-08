@@ -37,6 +37,7 @@ import {
   createBallPreviewDataUrl,
   getBallMaterial as getBilliardBallMaterial
 } from '../../utils/ballMaterialFactory.js';
+import planPoolAiShot from '../../../../lib/poolAi.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
 import { socket } from '../../utils/socket.js';
@@ -1171,8 +1172,8 @@ const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls 
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(9); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({
-  x: 0.08 / 9 * 0.7,
-  y: 0.44 / 9 * 0.7
+  x: 0.08 / 27 * 0.7,
+  y: 0.44 / 27 * 0.7
 });
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
 const POCKET_LEATHER_NORMAL_SCALE = new THREE.Vector2(1.35, 1.35);
@@ -1379,8 +1380,9 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.22; // widen the visible air gap so the blue tip never kisses the cue ball
-const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
+const CUE_TIP_CLEARANCE = 0; // keep the blue tip aligned to the spin contact point without added gap
+const CUE_TIP_FRONT_OFFSET = (BALL_R / 0.0525) * 0.0375; // tip geometry length (connector + cap) in world units
+const CUE_TIP_GAP = Math.max(BALL_R - CUE_TIP_FRONT_OFFSET + CUE_TIP_CLEARANCE, 0); // keep the tip front on the cue-ball radius
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -1437,7 +1439,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // Match cue grain scale to the table finish
-const CUE_WOOD_REPEAT_SCALE = 1 / 3;
+const CUE_WOOD_REPEAT_SCALE = 1 / 9; // enlarge cue grain 3× by reducing texture repeats
 const CUE_WOOD_TEXTURE_SIZE = 4096; // 4k cue textures for sharper cue wood finish
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // enlarge grain 3× so rails, skirts, and legs read at table scale; push pattern larger for the new finish pass
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
@@ -1790,9 +1792,9 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 1.32;
+const CLOTH_TEXTURE_INTENSITY = 1.6;
 const CLOTH_HAIR_INTENSITY = 1.02;
-const CLOTH_BUMP_INTENSITY = 1.38;
+const CLOTH_BUMP_INTENSITY = 1.7;
 const CLOTH_SOFT_BLEND = 0.5;
 
 const CLOTH_QUALITY = (() => {
@@ -11352,6 +11354,7 @@ function PoolRoyaleGame({
   const startUserSuggestionRef = useRef(() => {});
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
+  const aiPlanCacheRef = useRef({ key: null, plan: null, updatedAt: 0 });
   const inHandCameraRestoreRef = useRef(null);
 const initialHudInHand = useMemo(
   () => deriveInHandFromFrame(initialFrame),
@@ -19598,7 +19601,7 @@ const powerRef = useRef(hud.power);
           applyCueButtTilt(
             cueStick,
             extraTilt + obstructionTilt + obstructionTiltFromLift,
-            CUE_Y + spinWorld.y + obstructionLift * 0.25
+            CUE_Y + spinWorld.y
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -20623,6 +20626,185 @@ const powerRef = useRef(hud.power);
           }
         };
 
+        const mapAssignmentToPoolAiGroup = (assignment) => {
+          if (!assignment) return undefined;
+          const normalized = `${assignment}`.toUpperCase();
+          if (normalized.includes('SOLID') || normalized === 'RED') return 'SOLIDS';
+          if (normalized.includes('STRIPE') || normalized === 'BLUE') return 'STRIPES';
+          return undefined;
+        };
+
+        const buildPoolAiSnapshotKey = (variantId, frameSnapshot, allBalls) => {
+          const metaState = frameSnapshot?.meta?.state ?? {};
+          const assignments = metaState?.assignments ?? {};
+          const activePlayer = frameSnapshot?.activePlayer ?? '';
+          const ballOnKey = Array.isArray(frameSnapshot?.ballOn)
+            ? frameSnapshot.ballOn.join(',')
+            : '';
+          const inHandKey = metaState?.ballInHand ? '1' : '0';
+          const baulkKey = metaState?.mustPlayFromBaulk ? '1' : '0';
+          const ballKey = allBalls
+            .map((ball) => {
+              if (!ball?.pos) return '';
+              const x = Math.round(ball.pos.x * 100);
+              const y = Math.round(ball.pos.y * 100);
+              return `${ball.id}:${ball.active ? 1 : 0}:${x}:${y}`;
+            })
+            .join('|');
+          return `${variantId}|${activePlayer}|${ballOnKey}|${inHandKey}|${baulkKey}|${JSON.stringify(assignments)}|${ballKey}`;
+        };
+
+        const computePoolAiPlan = (allBalls, cueBall, frameSnapshot) => {
+          if (!cueBall?.active) return null;
+          const variantId = activeVariantRef.current?.id ?? variantKey;
+          const game =
+            variantId === '9ball'
+              ? 'NINE_BALL'
+              : variantId === 'uk'
+                ? 'EIGHT_POOL_UK'
+                : variantId === 'american'
+                  ? 'AMERICAN_BILLIARDS'
+                  : null;
+          if (!game) return null;
+          const snapshotKey = buildPoolAiSnapshotKey(variantId, frameSnapshot, allBalls);
+          const cache = aiPlanCacheRef.current;
+          if (cache?.key === snapshotKey && cache.plan) {
+            return cache.plan;
+          }
+          const width = PLAY_W;
+          const height = PLAY_H;
+          const toAi = (vec) => ({ x: vec.x + width / 2, y: vec.y + height / 2 });
+          const pockets = pocketEntranceCenters().map((center) => toAi(center));
+          const aiBalls = [];
+          allBalls.forEach((ball) => {
+            if (!ball?.pos) return;
+            const isCue = ball === cueBall || ball.id === 'cue' || ball.id === 0;
+            const id = isCue ? 0 : Number(ball.id);
+            if (!Number.isFinite(id)) return;
+            const pos = toAi(ball.pos);
+            aiBalls.push({
+              id,
+              x: pos.x,
+              y: pos.y,
+              vx: ball.vel?.x ?? 0,
+              vy: ball.vel?.y ?? 0,
+              pocketed: !ball.active
+            });
+          });
+          const metaState = frameSnapshot?.meta?.state ?? null;
+          const shooterSeat = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
+          const myGroup = mapAssignmentToPoolAiGroup(metaState?.assignments?.[shooterSeat]);
+          const ballOnColour =
+            variantId === 'uk' ? resolveUkBallOnColour(frameSnapshot, metaState) : null;
+          const baulkLineY =
+            typeof baulkZ === 'number' ? baulkZ + height / 2 : null;
+          try {
+            const decision = planPoolAiShot({
+              game,
+              state: {
+                balls: aiBalls,
+                pockets,
+                width,
+                height,
+                ballRadius: BALL_R,
+                friction: TABLE_FRICTION,
+                myGroup,
+                ballOn: ballOnColour,
+                ballInHand: Boolean(metaState?.ballInHand),
+                mustPlayFromBaulk: Boolean(metaState?.mustPlayFromBaulk),
+                baulkLineY: baulkLineY ?? undefined
+              },
+              timeBudgetMs: 24
+            });
+            if (!decision) return null;
+            const cuePos = new THREE.Vector2(cueBall.pos.x, cueBall.pos.y);
+            let aimDir = null;
+            if (decision.aimPoint) {
+              const aimPoint = new THREE.Vector2(
+                decision.aimPoint.x - width / 2,
+                decision.aimPoint.y - height / 2
+              );
+              aimDir = aimPoint.clone().sub(cuePos);
+            } else if (Number.isFinite(decision.angleRad)) {
+              aimDir = new THREE.Vector2(
+                Math.cos(decision.angleRad),
+                Math.sin(decision.angleRad)
+              );
+            }
+            if (!aimDir || aimDir.lengthSq() < 1e-6) return null;
+            aimDir.normalize();
+            const targetBall =
+              Number.isFinite(decision.targetBallId)
+                ? allBalls.find((ball) => Number(ball.id) === decision.targetBallId)
+                : null;
+            const targetPocket = decision.targetPocket
+              ? new THREE.Vector2(
+                  decision.targetPocket.x - width / 2,
+                  decision.targetPocket.y - height / 2
+                )
+              : null;
+            const pocketCenters = pocketEntranceCenters();
+            let pocketId = 'SAFETY';
+            let pocketCenter = null;
+            if (targetPocket && pocketCenters.length > 0) {
+              let bestIndex = -1;
+              let bestDist = Infinity;
+              pocketCenters.forEach((center, idx) => {
+                const dist = center.distanceToSquared(targetPocket);
+                if (dist < bestDist) {
+                  bestDist = dist;
+                  bestIndex = idx;
+                }
+              });
+              if (bestIndex >= 0) {
+                pocketId = POCKET_IDS[bestIndex] ?? 'SAFETY';
+                pocketCenter = pocketCenters[bestIndex].clone();
+              }
+            }
+            const spinSide = decision.spin?.side ?? 0;
+            const spinY = (decision.spin?.back ?? 0) - (decision.spin?.top ?? 0);
+            const spin = {
+              x: THREE.MathUtils.clamp(spinSide, -1, 1),
+              y: THREE.MathUtils.clamp(spinY, -1, 1)
+            };
+            const cueToTarget = targetBall ? cueBall.pos.distanceTo(targetBall.pos) : null;
+            const targetToPocket =
+              targetBall && pocketCenter ? targetBall.pos.distanceTo(pocketCenter) : null;
+            const plan = {
+              type: targetBall ? 'pot' : 'safety',
+              aimDir,
+              power: THREE.MathUtils.clamp(decision.power ?? 0.55, 0.3, 0.95),
+              target: targetBall ? toBallColorId(targetBall.id) : 'SAFETY',
+              targetBall: targetBall ?? null,
+              pocketId,
+              pocketCenter,
+              difficulty:
+                cueToTarget != null && targetToPocket != null
+                  ? cueToTarget + targetToPocket
+                  : cueToTarget ?? undefined,
+              cueToTarget: cueToTarget ?? undefined,
+              targetToPocket: targetToPocket ?? undefined,
+              railNormal: null,
+              viaCushion: false,
+              quality: decision.quality ?? 0,
+              spin,
+              aiMeta: {
+                rationale: decision.rationale ?? null,
+                source: 'poolAi'
+              }
+            };
+            aiPlanCacheRef.current = {
+              key: snapshotKey,
+              plan,
+              updatedAt: performance.now()
+            };
+            return plan;
+          } catch (err) {
+            console.warn('pool AI planning failed', err);
+            return null;
+          }
+        };
+
         const computeUkAdvancedPlan = (allBalls, cueBall, frameSnapshot) => {
           if (!cueBall?.active) return null;
           const variantId = activeVariantRef.current?.id ?? variantKey;
@@ -20748,9 +20930,15 @@ const powerRef = useRef(hud.power);
           try {
             const baseline = evaluateShotOptionsBaseline();
             const variantId = activeVariantRef.current?.id ?? variantKey;
-            if (variantId !== 'uk' || !cue?.active) return baseline;
+            if (!cue?.active) return baseline;
             const stateSnapshot = frameRef.current ?? frameState;
-            const advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
+            let advancedPlan = null;
+            if (variantId === 'uk') {
+              advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
+            }
+            if (!advancedPlan) {
+              advancedPlan = computePoolAiPlan(balls, cue, stateSnapshot);
+            }
             if (!advancedPlan) return baseline;
             const result = { ...baseline };
             if (advancedPlan.type === 'pot') {
@@ -22055,7 +22243,7 @@ const powerRef = useRef(hud.power);
           applyCueButtTilt(
             cueStick,
             extraTilt + obstructionTilt + obstructionTiltFromLift,
-            CUE_Y + spinWorld.y + obstructionLift * 0.25
+            CUE_Y + spinWorld.y
           );
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
@@ -22273,7 +22461,7 @@ const powerRef = useRef(hud.power);
           applyCueButtTilt(
             cueStick,
             extraTilt + obstructionTilt + obstructionTiltFromLift,
-            CUE_Y + spinWorld.y + obstructionLift * 0.25
+            CUE_Y + spinWorld.y
           );
           cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
           if (tipGroupRef.current) {
