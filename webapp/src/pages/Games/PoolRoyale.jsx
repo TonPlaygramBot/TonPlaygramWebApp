@@ -891,6 +891,7 @@ const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
+const SKIP_REPLAYS_STORAGE_KEY = 'poolRoyaleSkipReplays';
 const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
@@ -1171,11 +1172,11 @@ const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls 
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(9); // slight angle so potted balls settle against the strap
 const POCKET_LEATHER_TEXTURE_ID = 'fabric_leather_02';
 const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({
-  x: (0.08 / 27) * 0.7 / 3,
-  y: (0.44 / 27) * 0.7 / 3
+  x: (0.08 / 27) * 0.62 / 3,
+  y: (0.44 / 27) * 0.62 / 3
 });
-const POCKET_LEATHER_TEXTURE_ANISOTROPY = 8;
-const POCKET_LEATHER_NORMAL_SCALE = new THREE.Vector2(1.8, 1.8);
+const POCKET_LEATHER_TEXTURE_ANISOTROPY = 12;
+const POCKET_LEATHER_NORMAL_SCALE = new THREE.Vector2(2.3, 2.3);
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
@@ -1406,16 +1407,16 @@ const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance whi
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.35;
-const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.7;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(8.5);
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.65;
+const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 1.05;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(12);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_SIDE = BALL_R * 0.35;
-const MAX_SPIN_VERTICAL = BALL_R * 0.6;
-const MAX_SPIN_VISUAL_LIFT = BALL_R * 0.6; // cap vertical spin offsets so the cue stays just above the ball surface
+const MAX_SPIN_VERTICAL = BALL_R * 0.85;
+const MAX_SPIN_VISUAL_LIFT = BALL_R * 0.85; // allow full backspin lift to match the spin control indicator
 const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
@@ -1790,10 +1791,10 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 1.6;
-const CLOTH_HAIR_INTENSITY = 1.2;
-const CLOTH_BUMP_INTENSITY = 1.8;
-const CLOTH_SOFT_BLEND = 0.5;
+const CLOTH_TEXTURE_INTENSITY = 2.15;
+const CLOTH_HAIR_INTENSITY = 1.5;
+const CLOTH_BUMP_INTENSITY = 2.3;
+const CLOTH_SOFT_BLEND = 0.35;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
@@ -10545,6 +10546,10 @@ function PoolRoyaleGame({
     broadcastSystemRef.current = activeBroadcastSystem;
   }, [activeBroadcastSystem]);
   const [configOpen, setConfigOpen] = useState(false);
+  const [skipAllReplays, setSkipAllReplays] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(SKIP_REPLAYS_STORAGE_KEY) === 'true';
+  });
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
   const accountIdRef = useRef(accountId || '');
@@ -11210,6 +11215,16 @@ function PoolRoyaleGame({
     }
   }, [broadcastSystemId]);
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(SKIP_REPLAYS_STORAGE_KEY, String(skipAllReplays));
+    }
+  }, [skipAllReplays]);
+  useEffect(() => {
+    if (skipAllReplays && replayPlaybackRef.current) {
+      skipReplayRef.current?.();
+    }
+  }, [skipAllReplays]);
+  useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
@@ -11753,6 +11768,7 @@ const powerRef = useRef(hud.power);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
+  const skipReplayRef = useRef(() => {});
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
@@ -17001,6 +17017,7 @@ const powerRef = useRef(hud.power);
           replayFrameCameraRef.current = null;
           setReplayActive(false);
         };
+        skipReplayRef.current = () => finishReplayPlayback(replayPlaybackRef.current);
 
         const enterTopView = (immediate = false) => {
           topViewRef.current = true;
@@ -19589,15 +19606,18 @@ const powerRef = useRef(hud.power);
             appliedSpin,
             ranges
           );
-          const spinWorld = new THREE.Vector3(
+          let spinWorld = new THREE.Vector3(
             cuePerp.x * contactSide,
             contactVert,
             cuePerp.z * contactSide
           );
-          clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
-          const { obstructionTilt, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
+          if (obstructionLift > 0) {
+            spinWorld.y += obstructionLift;
+          }
+          clampCueTipOffset(spinWorld);
           const warmupRatio = isAiStroke ? AI_WARMUP_PULL_RATIO : PLAYER_WARMUP_PULL_RATIO;
           const minVisibleGap = Math.max(MIN_PULLBACK_GAP, visualPull * 0.08);
           const warmupPull = Math.max(
@@ -21291,6 +21311,7 @@ const powerRef = useRef(hud.power);
             shotRecording.zoomOnly = replayDecision.zoomOnly;
           }
           const shouldStartReplay =
+            !skipAllReplays &&
             Boolean(replayDecision?.shouldReplay) &&
             (shotRecording?.frames?.length ?? 0) > 1;
           const replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
@@ -21617,6 +21638,11 @@ const powerRef = useRef(hud.power);
           }
           aiPlanRef.current = null;
           setAiPlanning(null);
+          const hudState = hudRef.current;
+          if (aiOpponentEnabled && hudState?.turn === 1 && !hudState.over) {
+            stopAiThinkingRef.current?.();
+            startAiThinkingRef.current?.();
+          }
           window.setTimeout(() => {
             const hudState = hudRef.current;
             if (hudState?.turn === 0 && !hudState.over) {
@@ -22063,11 +22089,14 @@ const powerRef = useRef(hud.power);
           });
           const visualPull = applyVisualPullCompensation(pull, dir);
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
-          const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
-          clampCueTipOffset(spinWorld);
+          let spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           const obstructionStrength = resolveCueObstruction(dir, pull);
-          const { obstructionTilt, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
+          if (obstructionLift > 0) {
+            spinWorld.y += obstructionLift;
+          }
+          clampCueTipOffset(spinWorld);
           const tiltAmount = hasSpin ? Math.abs(appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(
@@ -22268,11 +22297,14 @@ const powerRef = useRef(hud.power);
             { x: spinX, y: spinY },
             ranges
           );
-          const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
-          clampCueTipOffset(spinWorld);
+          let spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           const obstructionStrength = resolveCueObstruction(baseDir, pull);
-          const { obstructionTilt, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
+          if (obstructionLift > 0) {
+            spinWorld.y += obstructionLift;
+          }
+          clampCueTipOffset(spinWorld);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(
@@ -22363,11 +22395,14 @@ const powerRef = useRef(hud.power);
             { x: spinX, y: spinY },
             ranges
           );
-          const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
-          clampCueTipOffset(spinWorld);
+          let spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           const obstructionStrength = resolveCueObstruction(dir, pull);
-          const { obstructionTilt, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
+          if (obstructionLift > 0) {
+            spinWorld.y += obstructionLift;
+          }
+          clampCueTipOffset(spinWorld);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(
@@ -24066,10 +24101,18 @@ const powerRef = useRef(hud.power);
         </div>
       )}
       {replayActive && (
-        <div className="pointer-events-none absolute top-4 right-4 z-50 flex justify-end">
+        <div className="pointer-events-none absolute top-4 right-4 z-50 flex items-center justify-end gap-2">
           <div className="rounded-full border border-white/25 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
             Replay
           </div>
+          <button
+            type="button"
+            aria-label="Skip replay"
+            onClick={() => skipReplayRef.current?.()}
+            className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-black/70 text-xs font-semibold text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] transition hover:border-white/40 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+          >
+            ⏭
+          </button>
         </div>
       )}
 
@@ -24137,6 +24180,34 @@ const powerRef = useRef(hud.power);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Replays
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[
+                    { id: false, label: 'Show replays' },
+                    { id: true, label: 'Skip all replays' }
+                  ].map(({ id, label }) => {
+                    const active = skipAllReplays === id;
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => setSkipAllReplays(id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[9rem] rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Table Finish
