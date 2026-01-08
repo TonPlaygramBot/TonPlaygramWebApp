@@ -1400,17 +1400,17 @@ const CUE_FOLLOW_MIN_MS = 180;
 const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.03; // keep the cue closer to centre so it doesn't dip below the cue ball
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.15;
-const CUE_OBSTRUCTION_RANGE = BALL_R * 8;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.35;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6);
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.6;
+const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.9;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(10);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -1419,7 +1419,7 @@ const MAX_SPIN_VERTICAL = BALL_R * 0.75;
 const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so the cue stays just above the ball surface
 const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
-const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.2;
+const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
 const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.3;
@@ -4949,7 +4949,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_INPUT_DEAD_ZONE = 0.06;
-const SPIN_CUSHION_EPS = BALL_R * 0.35;
+const SPIN_CUSHION_EPS = BALL_R * 0.5;
 
 const clampToUnitCircle = (x, y) => {
   const L = Math.hypot(x, y);
