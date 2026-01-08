@@ -21984,8 +21984,15 @@ const powerRef = useRef(hud.power);
           if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
           tmpAim.copy(fallbackAim.normalize());
         } else {
-          camera.getWorldDirection(camFwd);
-          tmpAim.set(camFwd.x, camFwd.z).normalize();
+          const cueBall = cueRef.current || cue;
+          const activeCamera = activeRenderCameraRef.current ?? camera;
+          const viewVec = cueBall ? computeCueViewVector(cueBall, activeCamera) : null;
+          if (viewVec && viewVec.lengthSq() > 1e-8) {
+            tmpAim.set(-viewVec.x, -viewVec.y).normalize();
+          } else {
+            camera.getWorldDirection(camFwd);
+            tmpAim.set(camFwd.x, camFwd.z).normalize();
+          }
         }
         const cameraBlend = THREE.MathUtils.clamp(
           cameraBlendRef.current ?? 1,
