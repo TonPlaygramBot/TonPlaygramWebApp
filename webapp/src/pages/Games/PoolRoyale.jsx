@@ -9604,6 +9604,12 @@ function applyTableFinishToTable(table, finish) {
   const pocketJawMat = rawMaterials.pocketJaw ?? getFallbackMaterial('pocketJaw');
   const pocketRimMat = rawMaterials.pocketRim ?? getFallbackMaterial('pocketRim');
   const accentConfig = rawMaterials.accent ?? null;
+  applyPocketLeatherTextureDefaults(pocketJawMat.map, { isColor: true });
+  applyPocketLeatherTextureDefaults(pocketJawMat.normalMap);
+  applyPocketLeatherTextureDefaults(pocketJawMat.roughnessMap);
+  applyPocketLeatherTextureDefaults(pocketRimMat.map, { isColor: true });
+  applyPocketLeatherTextureDefaults(pocketRimMat.normalMap);
+  applyPocketLeatherTextureDefaults(pocketRimMat.roughnessMap);
   frameMat.needsUpdate = true;
   railMat.needsUpdate = true;
   legMat.needsUpdate = true;
@@ -20164,11 +20170,27 @@ const powerRef = useRef(hud.power);
                 ? plan.cueToTarget
                 : Math.max(PLAY_W, PLAY_H);
             const scratchRadiusSq = (BALL_R * 1.05) * (BALL_R * 1.05);
-            return centers.some((pocket) => {
+            const scratchBeforeImpact = centers.some((pocket) => {
               const toPocket = pocket.clone().sub(cuePos);
               const proj = toPocket.dot(dir);
               if (proj <= 0 || proj >= maxTravel) return false;
               const closest = cuePos.clone().add(dir.clone().multiplyScalar(proj));
+              return pocket.distanceToSquared(closest) < scratchRadiusSq;
+            });
+            if (scratchBeforeImpact) return true;
+            if (!plan?.targetBall || !cue?.pos) return false;
+            const impactInfo = calcTarget(cue, dir, balls);
+            if (!impactInfo?.cueDir || !impactInfo?.impact) return false;
+            const postDir = impactInfo.cueDir.clone();
+            if (postDir.lengthSq() < 1e-6) return false;
+            postDir.normalize();
+            const impactPos = new THREE.Vector2(impactInfo.impact.x, impactInfo.impact.y);
+            const maxPostTravel = Math.max(PLAY_W, PLAY_H);
+            return centers.some((pocket) => {
+              const toPocket = pocket.clone().sub(impactPos);
+              const proj = toPocket.dot(postDir);
+              if (proj <= 0 || proj >= maxPostTravel) return false;
+              const closest = impactPos.clone().add(postDir.clone().multiplyScalar(proj));
               return pocket.distanceToSquared(closest) < scratchRadiusSq;
             });
           };
@@ -20893,6 +20915,11 @@ const powerRef = useRef(hud.power);
               clearEarlyAiShot();
               return;
             }
+            if (!allStopped(balls)) {
+              aiPlanRef.current = null;
+              aiThinkingHandle = requestAnimationFrame(think);
+              return;
+            }
             const now = performance.now();
             const remaining = Math.max(0, deadline - now);
             const options = evaluateShotOptions();
@@ -21164,6 +21191,14 @@ const powerRef = useRef(hud.power);
           if (aiRetryTimeoutRef.current) {
             clearTimeout(aiRetryTimeoutRef.current);
             aiRetryTimeoutRef.current = null;
+          }
+          if (!allStopped(balls)) {
+            aiPlanRef.current = null;
+            aiRetryTimeoutRef.current = window.setTimeout(() => {
+              aiRetryTimeoutRef.current = null;
+              aiShoot.current();
+            }, 180);
+            return;
           }
           let currentHud = hudRef.current;
           if (currentHud?.turn === 1 && currentHud?.inHand) {
@@ -21913,7 +21948,7 @@ const powerRef = useRef(hud.power);
           const origin = new THREE.Vector2(cue.pos.x, cue.pos.y);
           const reach = Math.max(
             CUE_OBSTRUCTION_RANGE,
-            cueLen + pullDistance + CUE_TIP_GAP
+            cueLen * 0.78 + pullDistance + CUE_TIP_GAP
           );
           const clearanceSq = CUE_OBSTRUCTION_CLEARANCE * CUE_OBSTRUCTION_CLEARANCE;
           let strength = 0;
