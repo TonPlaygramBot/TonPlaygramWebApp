@@ -1177,7 +1177,6 @@ const POCKET_LEATHER_TEXTURE_REPEAT = Object.freeze({
 });
 const POCKET_LEATHER_TEXTURE_ANISOTROPY = 10;
 const POCKET_LEATHER_NORMAL_SCALE = new THREE.Vector2(2.4, 2.4);
-const POCKET_LEATHER_UV_WORLD_SCALE = 1 / (BALL_DIAMETER * 2.6);
 const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
@@ -1393,7 +1392,6 @@ const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while 
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
-const CUE_REVERSE_VIEW_LIFT = BALL_R * 0.18; // keep the cue height consistent when aiming back toward the break line
 const CUE_STROKE_MIN_MS = 95;
 const CUE_STROKE_MAX_MS = 420;
 const CUE_STROKE_SPEED_MIN = BALL_R * 18;
@@ -2147,21 +2145,6 @@ const applyPocketLeatherTextureDefaults = (
   }
   texture.needsUpdate = true;
   return texture;
-};
-
-const scalePocketLeatherUvs = (geometry, { uAxis = 'x', vAxis = 'z' } = {}) => {
-  if (!geometry?.attributes?.uv) return;
-  geometry.computeBoundingBox();
-  if (!geometry.boundingBox) return;
-  const size = new THREE.Vector3();
-  geometry.boundingBox.getSize(size);
-  const uScale = Math.max(MICRO_EPS, size[uAxis] * POCKET_LEATHER_UV_WORLD_SCALE);
-  const vScale = Math.max(MICRO_EPS, size[vAxis] * POCKET_LEATHER_UV_WORLD_SCALE);
-  const uv = geometry.attributes.uv;
-  for (let i = 0; i < uv.count; i += 1) {
-    uv.setXY(i, uv.getX(i) * uScale, uv.getY(i) * vScale);
-  }
-  uv.needsUpdate = true;
 };
 
 const ensurePocketLeatherTextures = (textureId = POCKET_LEATHER_TEXTURE_ID) => {
@@ -6956,7 +6939,6 @@ function Table3D(
         strapHeight,
         pocketStrapThickness
       );
-      scalePocketLeatherUvs(strapGeom, { uAxis: 'z', vAxis: 'y' });
       const strap = new THREE.Mesh(strapGeom, pocketJawMat);
       const strapBase = strapEnd.clone();
       const strapTopLimit = pocketTopY - TABLE.THICK * 0.08;
@@ -8142,7 +8124,6 @@ function Table3D(
     });
     jawGeom.rotateX(-Math.PI / 2);
     jawGeom.translate(0, -jawDepth, 0);
-    scalePocketLeatherUvs(jawGeom, { uAxis: 'x', vAxis: 'z' });
     jawGeom.computeVertexNormals();
     const jawMesh = new THREE.Mesh(jawGeom, pocketJawMat);
     jawMesh.position.y = jawTopY;
@@ -18336,10 +18317,10 @@ const powerRef = useRef(hud.power);
       };
       const cueTipLocal = new THREE.Vector3(0, 0, -cueLen / 2);
       const cueButtLocal = new THREE.Vector3(0, 0, cueLen / 2);
-      const resolveCueTipTarget = (dir, pullAmount, spinWorld, viewLift = 0) =>
+      const resolveCueTipTarget = (dir, pullAmount, spinWorld) =>
         TMP_VEC3_CUE_TIP_TARGET.set(
           cue.pos.x - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
-          CUE_Y + spinWorld.y + viewLift,
+          CUE_Y + spinWorld.y,
           cue.pos.y - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
         );
       const applyCueStickTransform = (tipTarget) => {
@@ -19313,24 +19294,6 @@ const powerRef = useRef(hud.power);
         const maxScale = 1 + CUE_PULL_MAX_VISUAL_BONUS;
         return Math.min(compensated, basePull * maxScale);
       };
-      const resolveCueViewLift = (dirVec3) => {
-        if (!dirVec3) return 0;
-        const cam =
-          activeRenderCameraRef.current ??
-          cameraRef.current ??
-          camera;
-        if (!cam?.getWorldDirection) return 0;
-        TMP_VEC3_CUE_DIR.set(dirVec3.x, 0, dirVec3.z);
-        if (TMP_VEC3_CUE_DIR.lengthSq() < 1e-8) return 0;
-        TMP_VEC3_CUE_DIR.normalize();
-        cam.getWorldDirection(TMP_VEC3_CAM_DIR);
-        TMP_VEC3_CAM_DIR.y = 0;
-        if (TMP_VEC3_CAM_DIR.lengthSq() < 1e-8) return 0;
-        TMP_VEC3_CAM_DIR.normalize();
-        const alignment = TMP_VEC3_CAM_DIR.dot(TMP_VEC3_CUE_DIR);
-        if (alignment >= 0) return 0;
-        return Math.min(1, Math.abs(alignment)) * CUE_REVERSE_VIEW_LIFT;
-      };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
@@ -19714,7 +19677,6 @@ const powerRef = useRef(hud.power);
             cuePerp.z * contactSide
           );
           clampCueTipOffset(spinWorld);
-          const cueViewLift = resolveCueViewLift(dir);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
@@ -19737,12 +19699,7 @@ const powerRef = useRef(hud.power);
           TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
           TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
           const buildCuePosition = (pullAmount = visualPull) => {
-            const tipTarget = resolveCueTipTarget(
-              dir,
-              pullAmount,
-              spinWorld,
-              cueViewLift
-            );
+            const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld);
             return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
@@ -20222,14 +20179,6 @@ const powerRef = useRef(hud.power);
           const halfW = PLAY_W / 2;
           const halfH = PLAY_H / 2;
           const cushionMargin = BALL_R * 1.4;
-          const isPlanTargetLegal = (plan) => {
-            if (!plan?.targetBall) return false;
-            const colorId = toBallColorId(plan.targetBall.id);
-            if (!colorId) return false;
-            return Array.from(legalTargets).some((entry) =>
-              matchesTargetId(plan.targetBall, entry)
-            );
-          };
           const isPathClear = (start, end, ignoreIds = new Set()) => {
             const delta = end.clone().sub(start);
             const lenSq = delta.lengthSq();
@@ -20319,7 +20268,6 @@ const powerRef = useRef(hud.power);
           };
           const isPlayablePlan = (plan, { allowCushion = true } = {}) => {
             if (!plan) return false;
-            if (!isPlanTargetLegal(plan)) return false;
             const qualityOk = (plan.quality ?? 0) >= 0.12;
             if (!qualityOk) return false;
             if (!allowCushion && plan.viaCushion) return false;
@@ -20629,7 +20577,6 @@ const powerRef = useRef(hud.power);
           }
           const scorePotPlan = (plan) => {
             if (!plan) return -Infinity;
-            if (!isPlanTargetLegal(plan)) return -Infinity;
             if (plan.targetBall && !plan.targetBall.active) return -Infinity;
             if (detectScratchRisk(plan)) return -Infinity;
             if (isAimLaneBlocked(plan)) return -Infinity;
@@ -21002,14 +20949,6 @@ const powerRef = useRef(hud.power);
               clearEarlyAiShot();
               return;
             }
-            const ballsSnapshot =
-              ballsRef.current?.length > 0 ? ballsRef.current : balls;
-            if (!allStopped(ballsSnapshot)) {
-              setAiPlanning(null);
-              aiPlanRef.current = null;
-              aiThinkingHandle = requestAnimationFrame(think);
-              return;
-            }
             const now = performance.now();
             const remaining = Math.max(0, deadline - now);
             const ballsList =
@@ -21312,15 +21251,6 @@ const powerRef = useRef(hud.power);
             }
           }
           if (currentHud?.over || currentHud?.inHand || shooting) return;
-          const ballsSnapshot =
-            ballsRef.current?.length > 0 ? ballsRef.current : balls;
-          if (!allStopped(ballsSnapshot)) {
-            aiRetryTimeoutRef.current = window.setTimeout(() => {
-              aiRetryTimeoutRef.current = null;
-              aiShoot.current();
-            }, 120);
-            return;
-          }
           try {
             cancelAiShotPreview();
             aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
@@ -22257,7 +22187,6 @@ const powerRef = useRef(hud.power);
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
-          const cueViewLift = resolveCueViewLift(dir);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
@@ -22271,7 +22200,7 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld, cueViewLift);
+          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
@@ -22463,7 +22392,6 @@ const powerRef = useRef(hud.power);
           );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
-          const cueViewLift = resolveCueViewLift(baseDir);
           const obstructionStrength = resolveCueObstruction(baseDir, pull);
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
@@ -22477,7 +22405,7 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(baseDir, visualPull, spinWorld, cueViewLift);
+          const tipTarget = resolveCueTipTarget(baseDir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
           cueStick.visible = true;
           updateChalkVisibility(null);
@@ -22559,7 +22487,6 @@ const powerRef = useRef(hud.power);
           );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
-          const cueViewLift = resolveCueViewLift(dir);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
@@ -22573,7 +22500,7 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld, cueViewLift);
+          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
           cueStick.visible = true;
         } else {
