@@ -1110,8 +1110,8 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const MAX_POWER_BOUNCE_THRESHOLD = 0.7;
-const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.65; // push full-power launches higher so cue-ball jumps read stronger
+const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
+const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
@@ -1312,7 +1312,6 @@ const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
 const SPIN_STRENGTH = BALL_R * 0.0295 * 1.15;
-const SPIN_CURVE_STRENGTH = 0.18; // magnus-like sideways force so applied spin visibly bends the path
 const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * 1.15;
 const SPIN_ROLL_DECAY = 0.978;
@@ -1321,7 +1320,7 @@ const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.6; // inject extra sideways c
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.24; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
-const SWERVE_THRESHOLD = 0.65; // outer 35% of the spin control activates swerve behaviour
+const SWERVE_THRESHOLD = 0.7; // outer 30% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.86; // let swerve-driven roll carry more lateral energy while staying believable
 const PRE_IMPACT_SPIN_DRIFT = 0.1; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
@@ -1381,8 +1380,7 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.18; // widen the visible air gap so the blue tip never kisses the cue ball
-const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.06; // keep the cue butt hovering above the cushion lip
+const CUE_TIP_CLEARANCE = BALL_R * 0.22; // widen the visible air gap so the blue tip never kisses the cue ball
 const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
@@ -1402,17 +1400,17 @@ const CUE_FOLLOW_MIN_MS = 180;
 const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.12; // rest the cue lower so the tip stays closer to the cue-ball centre on portrait screens
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
-const CUE_BUTT_LIFT = BALL_R * 0.44; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
+const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.6;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.26;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(3);
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.35;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(4);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -4901,7 +4899,6 @@ const TMP_VEC2_B = new THREE.Vector2();
 const TMP_VEC2_C = new THREE.Vector2();
 const TMP_VEC2_D = new THREE.Vector2();
 const TMP_VEC2_SPIN = new THREE.Vector2();
-const TMP_VEC2_CURVE = new THREE.Vector2();
 const TMP_VEC2_FORWARD = new THREE.Vector2();
 const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
@@ -18287,20 +18284,11 @@ const powerRef = useRef(hud.power);
           CUE_Y + spinWorld.y,
           cue.pos.y - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
         );
-      const clampCueButtClearance = () => {
-        const cushionTopWorld = table.userData?.cushionTopWorld;
-        if (Number.isFinite(cushionTopWorld) && TMP_VEC3_BUTT.y < cushionTopWorld) {
-          const lift = cushionTopWorld - TMP_VEC3_BUTT.y + CUE_BUTT_CUSHION_CLEARANCE;
-          cueStick.position.y += lift;
-          TMP_VEC3_BUTT.y += lift;
-        }
-      };
       const applyCueStickTransform = (tipTarget) => {
         TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
         TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
         cueStick.position.copy(tipTarget).sub(TMP_VEC3_CUE_TIP_OFFSET);
         TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
-        clampCueButtClearance();
       };
       const resolveCueObstructionTilt = (strength) => {
         const obstructionTilt = strength * CUE_OBSTRUCTION_TILT;
@@ -19651,12 +19639,8 @@ const powerRef = useRef(hud.power);
           );
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
-          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
-          const obstructionLiftOffset = obstructionLift * 0.75;
-          if (obstructionLiftOffset > 1e-6) {
-            spinWorld.y += obstructionLiftOffset;
-          }
           const warmupRatio = isAiStroke ? AI_WARMUP_PULL_RATIO : PLAYER_WARMUP_PULL_RATIO;
           const minVisibleGap = Math.max(MIN_PULLBACK_GAP, visualPull * 0.08);
           const warmupPull = Math.max(
@@ -19684,7 +19668,6 @@ const powerRef = useRef(hud.power);
           const warmupPos = buildCuePosition(warmupPull);
           cueStick.position.copy(warmupPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
-          clampCueButtClearance();
           cueAnimating = true;
           const topSpinWeight = Math.max(0, -(appliedSpin.y || 0));
           const backSpinWeight = Math.max(0, appliedSpin.y || 0);
@@ -19826,8 +19809,6 @@ const powerRef = useRef(hud.power);
               }
               return;
             }
-            TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
-            clampCueButtClearance();
             requestAnimationFrame(animateStroke);
           };
           requestAnimationFrame(animateStroke);
@@ -22134,12 +22115,8 @@ const powerRef = useRef(hud.power);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
-          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
-          const obstructionLiftOffset = obstructionLift * 0.75;
-          if (obstructionLiftOffset > 1e-6) {
-            spinWorld.y += obstructionLiftOffset;
-          }
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(
@@ -22343,12 +22320,8 @@ const powerRef = useRef(hud.power);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(baseDir, pull);
-          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
-          const obstructionLiftOffset = obstructionLift * 0.75;
-          if (obstructionLiftOffset > 1e-6) {
-            spinWorld.y += obstructionLiftOffset;
-          }
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(
@@ -22442,12 +22415,8 @@ const powerRef = useRef(hud.power);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(dir, pull);
-          const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
+          const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
-          const obstructionLiftOffset = obstructionLift * 0.75;
-          if (obstructionLiftOffset > 1e-6) {
-            spinWorld.y += obstructionLiftOffset;
-          }
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(
@@ -22551,12 +22520,6 @@ const powerRef = useRef(hud.power);
               }
             }
             if (hasSpin) {
-              const travelSpeed = b.vel.length();
-              const curveScale = SPIN_CURVE_STRENGTH * stepScale * (0.18 + travelSpeed * 0.06);
-              if (curveScale > 0) {
-                TMP_VEC2_CURVE.set(b.spin.y, -b.spin.x).multiplyScalar(curveScale);
-                b.vel.add(TMP_VEC2_CURVE);
-              }
               const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
               const allowRoll = !isCue || b.impacted || swerveTravel;
               const preImpact = isCue && !b.impacted;
