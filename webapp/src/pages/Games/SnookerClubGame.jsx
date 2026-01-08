@@ -1161,12 +1161,13 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_SMOOTHING = 0.2;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
+const CUE_Y = BALL_CENTER_Y; // align cue tip center precisely with the cue ball center
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
+const CUE_TIP_GAP = BALL_R + CUE_TIP_RADIUS; // keep the cue tip centered on the cue ball radius for precise contact
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
+const CUE_BUTT_CLEAR_TILT = 0.08; // lift the butt slightly when nearby balls would clip the rear section
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
@@ -1195,7 +1196,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.16; // push the playabl
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
-const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
+const CUE_WOOD_REPEAT = new THREE.Vector2(1 / 3, 5.5 / 3); // Mirror the cue butt wood repeat for table finishes
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3, 0.44 / 3); // enlarge grain 3× so rails, skirts, and legs read at table scale
 const FIXED_WOOD_REPEAT_SCALE = 8; // tighten grain repetition so table finishes stay sharp on cloth and rails
 const WOOD_REPEAT_SCALE_MIN = FIXED_WOOD_REPEAT_SCALE;
@@ -1421,13 +1422,13 @@ function createCueMapleTextures() {
   }
   const map = new THREE.CanvasTexture(canvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
-  map.repeat.set(6, 1);
+  map.repeat.set(6 / 3, 1);
   map.anisotropy = 8;
   applySRGBColorSpace(map);
   map.needsUpdate = true;
   const bump = new THREE.CanvasTexture(canvas);
   bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
-  bump.repeat.set(6, 1);
+  bump.repeat.set(6 / 3, 1);
   bump.anisotropy = 8;
   bump.needsUpdate = true;
   return { map, bump };
@@ -1461,13 +1462,13 @@ function createCueEbonyTextures() {
   }
   const map = new THREE.CanvasTexture(canvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
-  map.repeat.set(8, 1);
+  map.repeat.set(8 / 3, 1);
   map.anisotropy = 8;
   applySRGBColorSpace(map);
   map.needsUpdate = true;
   const bump = new THREE.CanvasTexture(canvas);
   bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
-  bump.repeat.set(8, 1);
+  bump.repeat.set(8 / 3, 1);
   bump.anisotropy = 8;
   bump.needsUpdate = true;
   return { map, bump };
@@ -1612,10 +1613,10 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 0.74;
+const CLOTH_TEXTURE_INTENSITY = 0.82;
 const CLOTH_HAIR_INTENSITY = 0.7;
-const CLOTH_BUMP_INTENSITY = 0.94;
-const CLOTH_SOFT_BLEND = 0.42;
+const CLOTH_BUMP_INTENSITY = 1.05;
+const CLOTH_SOFT_BLEND = 0.36;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
@@ -1673,6 +1674,19 @@ const CLOTH_QUALITY = (() => {
 
   return defaults;
 })();
+
+const CLOTH_THREAD_PITCH = 12 * 1.32 * 1.15; // widen thread spacing for a larger, sharper weave
+let clothTextureSizeOverride = null;
+const resolveClothTextureSize = () =>
+  clothTextureSizeOverride ?? CLOTH_QUALITY.textureSize;
+const setClothTextureSizeOverride = (value) => {
+  const next = Number.isFinite(value) ? Math.max(512, Math.round(value)) : null;
+  if (next === clothTextureSizeOverride) return false;
+  clothTextureSizeOverride = next;
+  return true;
+};
+const resolveClothThreadsPerTile = () =>
+  CLOTH_QUALITY.textureSize / CLOTH_THREAD_PITCH;
 
 const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff, cushion }) => ({
   cloth,
@@ -2420,8 +2434,9 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1.35,
     pixelRatioCap: 2,
-    resolution: 'Ultra HD render • DPR 2.0 cap',
-    description: '4K-oriented profile for 120 Hz flagships and desktops.'
+    clothTextureSize: 16384,
+    resolution: 'Ultra HD render • DPR 2.0 cap • 16K cloth',
+    description: '4K-oriented profile with 16K cloth detail for 120 Hz flagships and desktops.'
   },
   {
     id: 'ultra144',
@@ -2630,6 +2645,7 @@ const POCKET_LINER_OPTIONS = Object.freeze(
 );
 
 const POCKET_LINER_TEXTURE_CACHE = new Map();
+const POCKET_LINER_REPEAT_SCALE = 1 / 3;
 
 function createSeededRandom(seed = 1) {
   let state = seed >>> 0;
@@ -2646,8 +2662,8 @@ function createPocketLinerTextures(option) {
   }
   const textureSettings = option?.texture ?? {};
   const repeat = {
-    x: textureSettings.repeatX ?? 2.4,
-    y: textureSettings.repeatY ?? 2.2
+    x: (textureSettings.repeatX ?? 2.4) * POCKET_LINER_REPEAT_SCALE,
+    y: (textureSettings.repeatY ?? 2.2) * POCKET_LINER_REPEAT_SCALE
   };
   if (typeof document === 'undefined') {
     const fallback = { map: null, bump: null, repeat };
@@ -2842,10 +2858,6 @@ const ORIGINAL_HALF_H = ORIGINAL_PLAY_H / 2;
 const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
-const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
-const CLOTH_THREAD_PITCH = 12 * 1.32; // widen thread spacing (~10% more) for a coarser weave
-const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-
 const createClothTextures = (() => {
   const cache = new Map();
   const clamp255 = (value) => Math.max(0, Math.min(255, value));
@@ -2868,8 +2880,10 @@ const createClothTextures = (() => {
     const preset =
       CLOTH_TEXTURE_PRESETS[textureKey] ??
       CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY];
-    if (cache.has(preset.id)) {
-      const entry = cache.get(preset.id);
+    const textureSize = resolveClothTextureSize();
+    const cacheKey = `${preset.id}:${textureSize}`;
+    if (cache.has(cacheKey)) {
+      const entry = cache.get(cacheKey);
       return {
         map: cloneTexture(entry.map),
         bump: cloneTexture(entry.bump),
@@ -2877,11 +2891,11 @@ const createClothTextures = (() => {
       };
     }
     if (typeof document === 'undefined') {
-      cache.set(preset.id, { map: null, bump: null });
+      cache.set(cacheKey, { map: null, bump: null });
       return { map: null, bump: null, presetId: preset.id };
     }
 
-    const SIZE = CLOTH_TEXTURE_SIZE;
+    const SIZE = textureSize;
     const THREAD_PITCH = CLOTH_THREAD_PITCH;
     const DIAG = Math.PI / 4;
     const COS = Math.cos(DIAG);
@@ -2891,7 +2905,7 @@ const createClothTextures = (() => {
     canvas.width = canvas.height = SIZE;
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      cache.set(preset.id, { map: null, bump: null });
+      cache.set(cacheKey, { map: null, bump: null });
       return { map: null, bump: null, presetId: preset.id };
     }
 
@@ -3044,7 +3058,7 @@ const createClothTextures = (() => {
     bumpCanvas.width = bumpCanvas.height = SIZE;
     const bumpCtx = bumpCanvas.getContext('2d');
     if (!bumpCtx) {
-      cache.set(preset.id, { map: colorMap, bump: null });
+      cache.set(cacheKey, { map: colorMap, bump: null });
       return { map: cloneTexture(colorMap), bump: null, presetId: preset.id };
     }
     const bumpImage = bumpCtx.createImageData(SIZE, SIZE);
@@ -3096,7 +3110,7 @@ const createClothTextures = (() => {
     bumpMap.magFilter = THREE.LinearFilter;
     bumpMap.needsUpdate = true;
 
-    cache.set(preset.id, { map: colorMap, bump: bumpMap });
+    cache.set(cacheKey, { map: colorMap, bump: bumpMap });
     return {
       map: cloneTexture(colorMap),
       bump: cloneTexture(bumpMap),
@@ -4388,6 +4402,54 @@ const TMP_VEC2_TANGENT = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
+const TMP_VEC2_BUTT_A = new THREE.Vector2();
+const TMP_VEC2_BUTT_B = new THREE.Vector2();
+const TMP_VEC2_BUTT_C = new THREE.Vector2();
+
+function computeCueButtClearanceTilt({
+  cuePos,
+  dir,
+  pull,
+  cueTipGap,
+  cueLength,
+  balls,
+  cueBall
+}) {
+  if (!cuePos || !dir || !Array.isArray(balls) || balls.length === 0) return 0;
+  const backDirX = -dir.x;
+  const backDirY = -dir.z;
+  const start = TMP_VEC2_BUTT_A.set(
+    cuePos.x + backDirX * (cueTipGap + pull),
+    cuePos.y + backDirY * (cueTipGap + pull)
+  );
+  const end = TMP_VEC2_BUTT_B.set(
+    start.x + backDirX * cueLength,
+    start.y + backDirY * cueLength
+  );
+  TMP_VEC2_BUTT_C.set(end.x - start.x, end.y - start.y);
+  const segLenSq = TMP_VEC2_BUTT_C.lengthSq();
+  if (segLenSq < 1e-6) return 0;
+  let maxLift = 0;
+  const threshold = BALL_R * 1.35;
+  for (const ball of balls) {
+    if (!ball?.active || ball === cueBall) continue;
+    const dx = ball.pos.x - start.x;
+    const dy = ball.pos.y - start.y;
+    const t = THREE.MathUtils.clamp(
+      (dx * TMP_VEC2_BUTT_C.x + dy * TMP_VEC2_BUTT_C.y) / segLenSq,
+      0,
+      1
+    );
+    const closestX = start.x + TMP_VEC2_BUTT_C.x * t;
+    const closestY = start.y + TMP_VEC2_BUTT_C.y * t;
+    const dist = Math.hypot(ball.pos.x - closestX, ball.pos.y - closestY);
+    if (dist < threshold) {
+      const lift = (1 - dist / threshold) * CUE_BUTT_CLEAR_TILT;
+      if (lift > maxLift) maxLift = lift;
+    }
+  }
+  return maxLift;
+}
 const TMP_VEC3_A = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CHALK = new THREE.Vector3();
@@ -5641,11 +5703,11 @@ function Table3D(
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 12; // base density before global scaling adjustments
-  const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25 * 1.5; // double the thread pattern size for a looser, woollier weave
+  const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25 * 1.5 * 0.9; // slightly enlarge the cloth weave for better visibility
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping the cloth visibly taut
   const baseRepeat =
-    ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
+    ((threadsPerBallTarget * ballsAcrossWidth) / resolveClothThreadsPerTile()) *
     clothTextureScale;
   const repeatRatio = 3.45;
   const baseBumpScale =
@@ -8412,6 +8474,18 @@ export function PoolRoyaleGame({
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
   }, [frameQualityProfile]);
+  useEffect(() => {
+    const targetSize = activeFrameRateOption?.clothTextureSize ?? null;
+    const changed = setClothTextureSizeOverride(targetSize);
+    if (!changed) return;
+    const table = tableGroupRef.current;
+    const finishInfo = table?.userData?.finish;
+    if (!finishInfo) return;
+    updateClothTexturesForFinish(
+      finishInfo,
+      finishInfo.clothTextureKey ?? DEFAULT_CLOTH_TEXTURE_KEY
+    );
+  }, [activeFrameRateOption]);
   const activeBroadcastSystem = useMemo(
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
@@ -8991,6 +9065,7 @@ export function PoolRoyaleGame({
   useEffect(() => {
     tableSizeRef.current = responsiveTableSize;
   }, [responsiveTableSize]);
+  const tableGroupRef = useRef(null);
   const applyWorldScaleRef = useRef(() => {});
   useEffect(() => {
     applyWorldScaleRef.current?.();
@@ -13221,6 +13296,7 @@ export function PoolRoyaleGame({
       // Table
       const finishForScene = tableFinishRef.current;
       const tableSizeMeta = tableSizeRef.current;
+      setClothTextureSizeOverride(activeFrameRateOption?.clothTextureSize ?? null);
       const {
         centers,
         baulkZ,
@@ -13229,6 +13305,7 @@ export function PoolRoyaleGame({
         cushionMat: tableCushion,
         railMarkers
       } = Table3D(world, finishForScene, tableSizeMeta, railMarkerStyleRef.current);
+      tableGroupRef.current = table;
       clothMat = tableCloth;
       cushionMat = tableCushion;
       chalkMeshesRef.current = Array.isArray(table?.userData?.chalks)
@@ -13523,13 +13600,9 @@ export function PoolRoyaleGame({
         if (!group) return;
         const info = group.userData?.buttTilt;
         const baseTilt = info?.angle ?? buttTilt;
-        const len = info?.length ?? cueLen;
         const totalTilt = baseTilt + extraTilt;
         group.rotation.x = totalTilt;
-        const tipComp = Math.sin(totalTilt) * len * 0.5;
-        group.position.y += tipComp;
         if (info) {
-          info.tipCompensation = tipComp;
           info.current = totalTilt;
           info.extra = extraTilt;
         }
@@ -13674,6 +13747,9 @@ export function PoolRoyaleGame({
       connector.rotation.x = -Math.PI / 2;
       connector.position.z = -connectorHeight / 2;
       tipGroup.add(connector);
+      const tipOffset = tipCylinderLen / 2 + tipRadius + connectorHeight;
+      cueStick.userData.tipOffset = tipOffset;
+      cueBody.position.z = cueLen / 2 + tipOffset;
 
       const buttMaterial = new THREE.MeshPhysicalMaterial({
         map: ebonyMap,
@@ -14698,7 +14774,11 @@ export function PoolRoyaleGame({
             aimDir.clone().multiplyScalar(-1),
             balls
           );
-          const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const cueBackLength = cueLen + (cueStick.userData?.tipOffset ?? 0);
+          const rawMaxPull = Math.max(
+            0,
+            backInfo.tHit - cueBackLength - CUE_TIP_GAP
+          );
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           cuePullTargetRef.current = Math.min(CUE_PULL_BASE * clampedPower, maxPull);
           const pull = THREE.MathUtils.clamp(
@@ -16172,7 +16252,8 @@ export function PoolRoyaleGame({
             aimDir2D.clone().multiplyScalar(-1),
             balls
           );
-          const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const cueBackLength = cueLen + (cueStick.userData?.tipOffset ?? 0);
+          const maxPull = Math.max(0, backInfo.tHit - cueBackLength - CUE_TIP_GAP);
           const pullTarget = Math.min(desiredPull, maxPull);
           cuePullTargetRef.current = pullTarget;
           const pull = THREE.MathUtils.lerp(
@@ -16209,21 +16290,30 @@ export function PoolRoyaleGame({
             Math.max(0, CUE_TIP_GAP * CUE_TIP_GAP - side * side - vert * vert)
           );
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + cueTipGap) + spinWorld.x,
+            cue.pos.x - dir.x * (pull + cueTipGap) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + cueTipGap) + spinWorld.z
+            cue.pos.y - dir.z * (pull + cueTipGap) + spinWorld.z
           );
           const tiltAmount = Math.abs(appliedSpin.y || 0);
-          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
+          const buttClearTilt = computeCueButtClearanceTilt({
+            cuePos: cue.pos,
+            dir,
+            pull,
+            cueTipGap,
+            cueLength: cueBackLength,
+            balls,
+            cueBall: cue
+          });
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + buttClearTilt;
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           TMP_VEC3_BUTT.set(
-            cue.pos.x - dir.x * (cueLen + pull + cueTipGap) + spinWorld.x,
+            cue.pos.x - dir.x * (cueBackLength + pull + cueTipGap) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen + pull + cueTipGap) + spinWorld.z
+            cue.pos.y - dir.z * (cueBackLength + pull + cueTipGap) + spinWorld.z
           );
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
@@ -16377,7 +16467,11 @@ export function PoolRoyaleGame({
             planDir.clone().multiplyScalar(-1),
             balls
           );
-          const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const cueBackLength = cueLen + (cueStick.userData?.tipOffset ?? 0);
+          const rawMaxPull = Math.max(
+            0,
+            backInfo.tHit - cueBackLength - CUE_TIP_GAP
+          );
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           const pullTarget = Math.min(desiredPull, maxPull);
           cuePullTargetRef.current = pullTarget;
@@ -16408,12 +16502,22 @@ export function PoolRoyaleGame({
             Math.max(0, CUE_TIP_GAP * CUE_TIP_GAP - side * side - vert * vert)
           );
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + cueTipGap) + spinWorld.x,
+            cue.pos.x - dir.x * (pull + cueTipGap) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + cueTipGap) + spinWorld.z
+            cue.pos.y - dir.z * (pull + cueTipGap) + spinWorld.z
           );
           const tiltAmount = Math.abs(spinY);
-          const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
+          const buttClearTilt = computeCueButtClearanceTilt({
+            cuePos: cue.pos,
+            dir,
+            pull,
+            cueTipGap,
+            cueLength: cueBackLength,
+            balls,
+            cueBall: cue
+          });
+          const extraTilt =
+            MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1) + buttClearTilt;
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
