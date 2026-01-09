@@ -97,16 +97,6 @@ function clearanceMargin (a, b, balls, ignoreIds, radius, multiplier = 1.35) {
   return Math.min(Math.max(ratio, 0), 2)
 }
 
-function clampPower (value, min = 0.35, max = 0.98) {
-  if (!Number.isFinite(value)) return min
-  return Math.min(Math.max(value, min), max)
-}
-
-function clampRange (value, min = -1, max = 1) {
-  if (!Number.isFinite(value)) return min
-  return Math.min(Math.max(value, min), max)
-}
-
 function scratchRiskAlongLine (cue, aimPoint, pockets, radius) {
   const dir = { x: aimPoint.x - cue.x, y: aimPoint.y - cue.y }
   const len = Math.hypot(dir.x, dir.y) || 1
@@ -152,90 +142,6 @@ function pocketAlignment (pocket, target, width, height) {
   const len = Math.hypot(approach.x, approach.y) || 1
   const normal = pocketNormal(pocket, width, height)
   return Math.max(0, (approach.x / len) * normal.x + (approach.y / len) * normal.y)
-}
-
-function buildPowerCandidates (req, cuePos, target, pocket, nextTargets = []) {
-  const entry = pocketEntry(pocket, req.state.ballRadius, req.state.width, req.state.height, target)
-  const shotLength = dist(cuePos, target)
-  const pocketLength = dist(target, entry)
-  const tableScale = Math.max(req.state.width, req.state.height) || 1
-  const shotDir = { x: target.x - cuePos.x, y: target.y - cuePos.y }
-  const shotLen = Math.hypot(shotDir.x, shotDir.y) || 1
-  shotDir.x /= shotLen
-  shotDir.y /= shotLen
-  const potDir = { x: entry.x - target.x, y: entry.y - target.y }
-  const potLen = Math.hypot(potDir.x, potDir.y) || 1
-  potDir.x /= potLen
-  potDir.y /= potLen
-  let cutAngle = Math.abs(Math.atan2(potDir.y, potDir.x) - Math.atan2(shotDir.y, shotDir.x))
-  if (cutAngle > Math.PI) cutAngle = Math.abs(cutAngle - Math.PI * 2)
-  const cutSeverity = Math.min(cutAngle / (Math.PI / 2), 1)
-  let base =
-    (shotLength + pocketLength * 0.55) /
-    (tableScale * (1.08 + cutSeverity * 0.22))
-  base = clampPower(base + cutSeverity * 0.06)
-  const candidates = new Set([
-    base,
-    clampPower(base * 0.9),
-    clampPower(base * 1.08)
-  ])
-  if (nextTargets.length > 0) {
-    const next = nextTargets[0]
-    const cueAfter = estimateCueAfterShot(
-      cuePos,
-      target,
-      entry,
-      base,
-      { top: 0, side: 0, back: 0 },
-      req.state
-    )
-    const distToNext = dist(cueAfter, next)
-    const baseline = Math.min(dist(cuePos, next) / tableScale, 1)
-    if (distToNext > baseline * tableScale) {
-      candidates.add(clampPower(base + 0.07))
-    } else {
-      candidates.add(clampPower(base - 0.07))
-    }
-  }
-  return Array.from(candidates).sort((a, b) => a - b)
-}
-
-function buildSpinCandidates (req, cuePos, target, pocket, basePower, nextTargets = []) {
-  const spins = [
-    { top: 0, side: 0, back: 0 },
-    { top: 0.25, side: 0, back: 0 },
-    { top: -0.25, side: 0, back: 0 },
-    { top: 0, side: 0.2, back: 0 },
-    { top: 0, side: -0.2, back: 0 }
-  ]
-  if (nextTargets.length === 0) return spins
-  const next = nextTargets[0]
-  const entry = pocketEntry(pocket, req.state.ballRadius, req.state.width, req.state.height, target)
-  const cueAfter = estimateCueAfterShot(
-    cuePos,
-    target,
-    entry,
-    basePower,
-    { top: 0, side: 0, back: 0 },
-    req.state
-  )
-  const shotDir = { x: target.x - cuePos.x, y: target.y - cuePos.y }
-  const shotLen = Math.hypot(shotDir.x, shotDir.y) || 1
-  shotDir.x /= shotLen
-  shotDir.y /= shotLen
-  const lateral = { x: -shotDir.y, y: shotDir.x }
-  const toNext = { x: next.x - cueAfter.x, y: next.y - cueAfter.y }
-  const tableScale = Math.max(req.state.width, req.state.height) || 1
-  const sideBias = clampRange(
-    (toNext.x * lateral.x + toNext.y * lateral.y) / (tableScale * 0.45),
-    -0.35,
-    0.35
-  )
-  if (Math.abs(sideBias) > 0.04) {
-    spins.push({ top: 0.15, side: sideBias, back: 0 })
-    spins.push({ top: 0, side: sideBias * 0.85, back: 0.2 })
-  }
-  return spins
 }
 
 function currentGroup (state) {
@@ -381,15 +287,9 @@ export function estimateCueAfterShot (cue, target, pocket, power, spin, table) {
   const dir = { x: toTarget.x - toPocket.x, y: toTarget.y - toPocket.y }
   const len = Math.hypot(dir.x, dir.y) || 1
 
-  const shotDir = { x: toTarget.x / (Math.hypot(toTarget.x, toTarget.y) || 1), y: toTarget.y / (Math.hypot(toTarget.x, toTarget.y) || 1) }
-  const potDir = { x: toPocket.x / (Math.hypot(toPocket.x, toPocket.y) || 1), y: toPocket.y / (Math.hypot(toPocket.x, toPocket.y) || 1) }
-  const alignment = Math.max(0, shotDir.x * potDir.x + shotDir.y * potDir.y)
-  const tableScale = Math.max(table.width, table.height) || 1
-  const distFactor = Math.min(dist(cue, target) / tableScale, 1)
-  const carryScale = 0.38 + 0.32 * alignment + 0.2 * distFactor
   // Base travel of the cue ball after striking the target – this is the
   // straight path with no spin influence. Power only affects distance.
-  const baseDist = power * tableScale * carryScale
+  const baseDist = (power * 120) / len
   const result = {
     x: target.x + dir.x * baseDist,
     y: target.y + dir.y * baseDist
@@ -401,8 +301,8 @@ export function estimateCueAfterShot (cue, target, pocket, power, spin, table) {
   result.x += dir.x * baseDist * (distScale - 1)
   result.y += dir.y * baseDist * (distScale - 1)
 
-  const sideScale = Math.max(table.width, table.height) * 0.045
-  const sideOffset = spin.side * power * sideScale
+  const tableScale = Math.max(table.width, table.height) * 0.04
+  const sideOffset = spin.side * power * tableScale
   const perp = { x: -dir.y / len, y: dir.x / len }
   result.x += perp.x * sideOffset
   result.y += perp.y * sideOffset
@@ -687,6 +587,15 @@ export function planShot (req) {
   let fallback = null
   let hasViableShot = false
 
+  const powers = [0.5, 0.7, 0.85]
+  const spins = [
+    { top: 0, side: 0, back: 0 },
+    { top: 0.3, side: 0, back: -0.3 },
+    { top: -0.3, side: 0.3, back: 0 },
+    { top: -0.3, side: -0.3, back: 0 },
+    { top: 0, side: 0.3, back: 0 }
+  ]
+
   // first, gather candidate target/pocket pairs meeting strict criteria
   let candidatePairs = clearShotCandidates(req)
   if (candidatePairs.length === 0) {
@@ -742,19 +651,14 @@ export function planShot (req) {
         const balls = req.state.balls.map(b =>
           b.id === 0 ? { ...b, x: cuePos.x, y: cuePos.y } : b
         )
-        const nextTargets = nextTargetsAfter(target.id, { ...req, state: { ...req.state, balls } })
-        const powers = buildPowerCandidates(req, cuePos, target, pocket, nextTargets)
-        const basePower = powers[Math.floor(powers.length / 2)] ?? 0.65
-        const spins = buildSpinCandidates(req, cuePos, target, pocket, basePower, nextTargets)
-        const baseSpin = spins[0] ?? { top: 0, side: 0, back: 0 }
 
         const baseCand = evaluate(
           req,
           cuePos,
           target,
           pocket,
-          basePower,
-          baseSpin,
+          powers[0],
+          spins[0],
           balls,
           strict,
           { lookaheadDepth: LOOKAHEAD_DEPTH, rng }
