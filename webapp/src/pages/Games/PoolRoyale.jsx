@@ -1193,20 +1193,21 @@ const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass clean
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
 const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // raise the net so the weave sits higher on screen
+const POCKET_NET_TOP_LIFT = BALL_R * 0.16; // extend the net upward without moving the bottom
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 7.6); // stretch the holder run so it comfortably fits 7 balls
 const POCKET_GUIDE_DROP = BALL_R * 0.12;
-const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
+const POCKET_GUIDE_SPREAD = BALL_R * 0.56;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
-const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.18; // drop the centre rail slightly lower to form the floor of the holder
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.04; // raise the short L segments closer to the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
-const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
+const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.05; // ease spacing so balls sit a touch farther apart on the holders
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
 const POCKET_HOLDER_REST_DROP = BALL_R * 2.18; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
@@ -1218,6 +1219,7 @@ const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section 
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
 const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_HEIGHT_SCALE = 1.04; // stretch the leather strap slightly downward
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -1321,6 +1323,7 @@ const RAIL_SPIN_THROW_SCALE = BALL_R * 0.24; // let cushion contacts inherit not
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SWERVE_THRESHOLD = 0.7; // outer 30% of the spin control activates swerve behaviour
+const SWERVE_CURVE_STRENGTH = 0.55; // add visible pre-impact curve when swerve spin is set
 const SWERVE_TRAVEL_MULTIPLIER = 0.86; // let swerve-driven roll carry more lateral energy while staying believable
 const PRE_IMPACT_SPIN_DRIFT = 0.1; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
@@ -1444,7 +1447,7 @@ const CUE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // Ma
 const CUE_WOOD_REPEAT_SCALE = 1 / 9; // enlarge cue wood grain 3× so the pattern reads more clearly at table scale
 const CUE_WOOD_TEXTURE_SIZE = 4096; // 4k cue textures for sharper cue wood finish
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // enlarge grain 3× so rails, skirts, and legs read at table scale; push pattern larger for the new finish pass
-const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
+const FIXED_WOOD_REPEAT_SCALE = 2; // shrink finish patterns 50% so the table grain reads tighter
 const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
@@ -6804,6 +6807,7 @@ function Table3D(
   });
   const pocketGuideRingRadius = POCKET_BOTTOM_R * POCKET_NET_RING_RADIUS_SCALE;
   const pocketNetProfile = [
+    new THREE.Vector2(pocketGuideRingRadius, POCKET_NET_TOP_LIFT),
     new THREE.Vector2(pocketGuideRingRadius, 0),
     new THREE.Vector2(POCKET_BOTTOM_R * 0.94, -POCKET_NET_DEPTH * 0.16),
     new THREE.Vector2(POCKET_BOTTOM_R * 0.82, -POCKET_NET_DEPTH * 0.45),
@@ -6928,7 +6932,8 @@ function Table3D(
     }
 
     if (strapOrigin && strapEnd) {
-      const strapHeight = Math.max(BALL_DIAMETER * 2.6, pocketStrapLength * 0.72);
+      const strapHeight =
+        Math.max(BALL_DIAMETER * 2.6, pocketStrapLength * 0.72) * POCKET_STRAP_HEIGHT_SCALE;
       const strapGeom = new THREE.BoxGeometry(
         pocketStrapWidth,
         strapHeight,
@@ -22894,6 +22899,9 @@ const powerRef = useRef(hud.power);
                   const alignedSpeed = b.vel.dot(launchDir);
                   TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
                   b.vel.copy(TMP_VEC2_AXIS);
+                  if (isCue && b.spinMode === 'swerve') {
+                    b.vel.addScaledVector(TMP_VEC2_LATERAL, SWERVE_CURVE_STRENGTH);
+                  }
                 } else {
                   b.vel.add(TMP_VEC2_SPIN);
                   if (
