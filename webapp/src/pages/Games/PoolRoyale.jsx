@@ -2462,10 +2462,9 @@ const DEFAULT_CLOTH_TEXTURE_KEY =
 const DEFAULT_CLOTH_COLOR_ID = DEFAULT_CLOTH_TEXTURE_KEY;
 const CLOTH_TEXTURE_SOURCE_STORAGE_KEY = 'poolRoyaleClothSource';
 const CLOTH_TEXTURE_SOURCE_OPTIONS = Object.freeze([
-  { id: 'gltf', label: 'GLTF Cloth' },
   { id: 'procedural', label: 'Procedural Cloth' }
 ]);
-const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'gltf';
+const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'procedural';
 const CLOTH_COLOR_OPTIONS = Object.freeze(
   CLOTH_LIBRARY.map((cloth) => ({
     id: cloth.id,
@@ -11734,6 +11733,8 @@ const powerRef = useRef(hud.power);
   const envTextureRef = useRef(null);
   const envSkyboxRef = useRef(null);
   const envSkyboxTextureRef = useRef(null);
+  const baseSkyboxScaleRef = useRef(1);
+  const baseCameraRadiusRef = useRef(null);
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
@@ -11766,7 +11767,7 @@ const powerRef = useRef(hud.power);
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
   const topViewLockedRef = useRef(false);
-  const overheadBroadcastVariantRef = useRef('top');
+  const overheadBroadcastVariantRef = useRef('replay');
   const preShotTopViewRef = useRef(false);
   const preShotTopViewLockRef = useRef(false);
   const sidePocketAimRef = useRef(false);
@@ -12979,10 +12980,13 @@ const powerRef = useRef(hud.power);
             skybox.position.y = floorWorldY + skyboxHeight;
             skybox.rotation.y = hdriRotationY;
             skybox.material.depthWrite = false;
+            skybox.userData.cameraHeight = skyboxHeight;
             sceneInstance.background = null;
             sceneInstance.add(skybox);
             envSkyboxRef.current = skybox;
             envSkyboxTextureRef.current = skyboxMap;
+            baseSkyboxScaleRef.current = skybox.scale?.x ?? 1;
+            baseCameraRadiusRef.current = null;
           } catch (error) {
             console.warn('Failed to create grounded HDRI skybox', error);
             skybox = null;
@@ -15102,6 +15106,29 @@ const powerRef = useRef(hud.power);
           return { position, target, fov: resolvedFov, minTargetY };
         };
 
+        const syncGroundedSkyboxToCamera = (focusTarget = null) => {
+          const skybox = envSkyboxRef.current;
+          if (!skybox || !camera) return;
+          const target =
+            focusTarget?.clone?.() ?? lastCameraTargetRef.current?.clone?.() ?? null;
+          if (!target) return;
+          const radius = camera.position.distanceTo(target);
+          if (!Number.isFinite(radius) || radius <= 0) return;
+          const baseRadius = baseCameraRadiusRef.current ?? radius;
+          if (!baseCameraRadiusRef.current) {
+            baseCameraRadiusRef.current = radius;
+          }
+          const baseScale = baseSkyboxScaleRef.current || 1;
+          const scale = THREE.MathUtils.clamp(radius / baseRadius, 0.35, 3.5);
+          skybox.scale.setScalar(baseScale * scale);
+          const worldOffsetY = worldRef.current?.position?.y ?? 0;
+          const resolvedScale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const floorWorldY = FLOOR_Y * resolvedScale + worldOffsetY;
+          if (Number.isFinite(skybox.userData?.cameraHeight)) {
+            skybox.position.y = floorWorldY + skybox.userData.cameraHeight;
+          }
+        };
+
         const updateCamera = () => {
           const replayPlaybackActive = Boolean(replayPlaybackRef.current);
           let renderCamera = camera;
@@ -16127,6 +16154,9 @@ const powerRef = useRef(hud.power);
               clothMat.bumpScale = clothMat.userData.bumpScale;
             }
           }
+          if (lookTarget) {
+            syncGroundedSkyboxToCamera(lookTarget);
+          }
           updateBroadcastCameras(broadcastArgs);
           activeRenderCameraRef.current = renderCamera;
           return renderCamera;
@@ -17113,7 +17143,7 @@ const powerRef = useRef(hud.power);
         const enterTopView = (immediate = false) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
-          overheadBroadcastVariantRef.current = Math.random() < 0.5 ? 'top' : 'replay';
+          overheadBroadcastVariantRef.current = 'replay';
           const margin = TOP_VIEW_MARGIN;
           fit(margin);
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
@@ -18097,6 +18127,7 @@ const powerRef = useRef(hud.power);
         }
         if (changed) {
           world.updateMatrixWorld(true);
+          baseCameraRadiusRef.current = null;
         }
         return changed;
       };
@@ -24605,32 +24636,7 @@ const powerRef = useRef(hud.power);
                           </span>
                         </button>
                       );
-                    })}
-                  </div>
-                  <div className="mt-3">
-                    <h4 className="text-[10px] uppercase tracking-[0.32em] text-emerald-100/70">
-                      Cloth Texture
-                    </h4>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {CLOTH_TEXTURE_SOURCE_OPTIONS.map((option) => {
-                        const active = option.id === clothTextureSourceId;
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => setClothTextureSourceId(option.id)}
-                            aria-pressed={active}
-                            className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                              active
-                                ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                                : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                            }`}
-                          >
-                            {option.label}
-                          </button>
-                        );
-                      })}
-                    </div>
+                  })}
                   </div>
                 </div>
               ) : null}
