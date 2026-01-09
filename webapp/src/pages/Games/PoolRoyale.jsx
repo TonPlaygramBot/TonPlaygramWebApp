@@ -1431,8 +1431,8 @@ const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
-// middle pocket cushion cuts are trimmed to a 33° cut for a natural rebound line
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 33;
+// middle pocket cushion cuts are sharpened to a 29° cut to align the side-rail cushions with the updated spec
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 34;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -19969,12 +19969,6 @@ const powerRef = useRef(hud.power);
           const n = THREE.MathUtils.clamp(dist / MAX_ROUTE_DISTANCE, 0, 1);
           return THREE.MathUtils.lerp(0.35, 0.9, n);
         };
-        const computePotPower = (distance, cutAngle, viaCushion) => {
-          const base = computePowerFromDistance(distance);
-          const cutBoost = THREE.MathUtils.clamp(cutAngle / (Math.PI / 2), 0, 1) * 0.08;
-          const cushionBoost = viaCushion ? 0.05 : 0;
-          return THREE.MathUtils.clamp(base + cutBoost + cushionBoost, 0.3, 0.95);
-        };
         const computePlanSpin = (plan, stateSnapshot) => {
           const fallback = { x: 0, y: -0.1 };
           if (!plan || plan.type !== 'pot') return fallback;
@@ -20024,32 +20018,7 @@ const powerRef = useRef(hud.power);
                 (b) => b.active && toBallColorId(b.id) === 'RED'
               );
             }
-            if (!nextBall) {
-              if (!plan.targetBall || !plan.pocketCenter || !plan.aimDir) return fallback;
-              const aimDir = plan.aimDir.clone();
-              if (aimDir.lengthSq() < 1e-6) return fallback;
-              aimDir.normalize();
-              const toPocket = plan.pocketCenter.clone().sub(plan.targetBall.pos);
-              if (toPocket.lengthSq() < 1e-6) return fallback;
-              toPocket.normalize();
-              const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
-              const cutSide = Math.sign(perp.dot(toPocket)) || 1;
-              const cutStrength = THREE.MathUtils.clamp(
-                (plan.cutAngle ?? 0) / (Math.PI / 2),
-                0,
-                1
-              );
-              const travel =
-                (plan.cueToTarget ?? 0) + (plan.targetToPocket ?? 0);
-              const travelRatio = THREE.MathUtils.clamp(
-                travel / Math.max(MAX_ROUTE_DISTANCE, 1e-6),
-                0,
-                1
-              );
-              const spinX = THREE.MathUtils.clamp(cutSide * cutStrength * 0.22, -0.4, 0.4);
-              const spinY = THREE.MathUtils.clamp(-0.18 - travelRatio * 0.32, -0.65, -0.08);
-              return { x: spinX, y: spinY };
-            }
+            if (!nextBall) return fallback;
             const aimDir = plan.aimDir.clone();
             if (aimDir.lengthSq() < 1e-6) return fallback;
             aimDir.normalize();
@@ -20487,7 +20456,7 @@ const powerRef = useRef(hud.power);
               const plan = {
                 type: 'pot',
                 aimDir,
-                power: computePotPower(totalDist + cushionTax, cutAngle, Boolean(cushionAid)),
+                power: computePowerFromDistance(totalDist + cushionTax),
                 target: colorId,
                 targetBall,
                 pocketId: POCKET_IDS[i],
@@ -20496,9 +20465,7 @@ const powerRef = useRef(hud.power);
                 cueToTarget: cueDist,
                 targetToPocket: toPocketLen,
                 railNormal: cushionAid?.railNormal ?? null,
-                viaCushion: Boolean(cushionAid),
-                entryAlignment,
-                cutAngle
+                viaCushion: Boolean(cushionAid)
               };
               const leaveProbe = targetBall.pos
                 .clone()
@@ -20521,21 +20488,12 @@ const powerRef = useRef(hud.power);
                 1
               );
               const cushionPenalty = cushionAid ? 0.18 : 0;
-              const pocketScore = THREE.MathUtils.clamp(
-                entryAlignment * 0.55 +
-                  (1 - cutSeverity) * 0.25 +
-                  viewScore * 0.2,
-                0,
-                1
-              );
-              plan.pocketScore = pocketScore;
               plan.quality = THREE.MathUtils.clamp(
-                0.28 * entryAlignment +
-                  0.2 * (1 - cutSeverity) +
-                  0.18 * openLaneNorm +
+                0.32 * entryAlignment +
+                  0.24 * (1 - cutSeverity) +
+                  0.16 * openLaneNorm +
                   0.14 * (1 - travelPenalty) +
-                  0.12 * viewScore +
-                  0.08 * pocketScore -
+                  0.14 * viewScore -
                   cushionPenalty,
                 0,
                 1
@@ -20608,7 +20566,7 @@ const powerRef = useRef(hud.power);
                 const aimDir = cueVec.clone().normalize();
                 const cueDist = cueVec.length();
                 const toPocket = targetBall.pos.distanceTo(pocketCenter);
-                const power = computePotPower(cueDist + toPocket, cutAngle, false);
+                const power = computePowerFromDistance(cueDist + toPocket);
                 const entryAlignment = Math.max(
                   0,
                   toPocketDir
@@ -20629,20 +20587,12 @@ const powerRef = useRef(hud.power);
                 );
                 const viewAngle = Math.atan2(ballDiameter, toPocket);
                 const viewScore = Math.min(viewAngle / (Math.PI / 2), 1);
-                const pocketScore = THREE.MathUtils.clamp(
-                  entryAlignment * 0.55 +
-                    (1 - cutSeverity) * 0.25 +
-                    viewScore * 0.2,
-                  0,
-                  1
-                );
                 const quality = THREE.MathUtils.clamp(
-                  0.28 * entryAlignment +
-                    0.2 * (1 - cutSeverity) +
+                  0.32 * entryAlignment +
+                    0.24 * (1 - cutSeverity) +
                     0.18 * (1 - travelPenalty) +
-                    0.12 * viewScore +
-                    0.12 * pocketScore +
-                    0.1,
+                    0.14 * viewScore +
+                    0.12,
                   0,
                   1
                 );
@@ -20660,9 +20610,6 @@ const powerRef = useRef(hud.power);
                   railNormal: null,
                   viaCushion: false,
                   quality,
-                  entryAlignment,
-                  cutAngle,
-                  pocketScore,
                   spin: computePlanSpin(
                     {
                       type: 'pot',
@@ -20677,10 +20624,7 @@ const powerRef = useRef(hud.power);
                       targetToPocket: toPocket,
                       railNormal: null,
                       viaCushion: false,
-                      quality,
-                      entryAlignment,
-                      cutAngle,
-                      pocketScore
+                      quality
                     },
                     state
                   )
@@ -20722,10 +20666,6 @@ const powerRef = useRef(hud.power);
             );
             const cueEase = Math.max(0, 1 - cueToTarget / Math.max(PLAY_W, PLAY_H, BALL_R));
             const quality = plan.quality ?? 0;
-            const pocketScore = Number.isFinite(plan.pocketScore) ? plan.pocketScore : 0;
-            const cutEase = Number.isFinite(plan.cutAngle)
-              ? 1 - Math.min(plan.cutAngle / (Math.PI / 2), 1)
-              : 0;
             const routeEase = Math.max(
               0,
               1 - (cueToTarget + targetToPocket) / Math.max(PLAY_W, PLAY_H, BALL_R * 2)
@@ -20744,12 +20684,10 @@ const powerRef = useRef(hud.power);
                 : 0;
             const laneBonus = Math.max(0, Math.min((laneClearance - 0.6) / 0.8, 1));
             return (
-              quality * 0.42 +
-              pocketScore * 0.12 +
-              cutEase * 0.08 +
-              difficultyEase * 0.14 +
-              pocketEase * 0.08 +
-              cueEase * 0.06 +
+              quality * 0.48 +
+              difficultyEase * 0.18 +
+              pocketEase * 0.1 +
+              cueEase * 0.08 +
               priorityBonus * priorityWeight +
               routeEase * 0.06 +
               laneBonus * 0.08 +
