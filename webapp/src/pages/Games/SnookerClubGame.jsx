@@ -15438,22 +15438,12 @@ export function PoolRoyaleGame({
           const assignments = metaState.assignments ?? {};
           const current = metaState.currentPlayer ?? 'A';
           const assigned = assignments[current];
-          const normalizedAssigned = typeof assigned === 'string'
-            ? assigned.toLowerCase()
-            : null;
-          if (normalizedAssigned) {
-            if (normalizedAssigned.includes('yellow') || normalizedAssigned.includes('blue')) {
-              return 'blue';
-            }
-            if (normalizedAssigned.includes('red')) return 'red';
-            if (normalizedAssigned.includes('black')) return 'black';
-          }
-          const ballOnRaw = frameSnapshot?.ballOn ?? metaState?.ballOn;
-          const raw = Array.isArray(ballOnRaw)
-            ? ballOnRaw
-            : ballOnRaw != null
-              ? [ballOnRaw]
-              : [];
+          if (assigned === 'blue' || assigned === 'yellow') return 'blue';
+          if (assigned === 'red') return 'red';
+          if (assigned === 'black') return 'black';
+          const raw = Array.isArray(frameSnapshot?.ballOn)
+            ? frameSnapshot.ballOn
+            : [];
           const normalized = raw
             .map((entry) => (typeof entry === 'string' ? entry.toUpperCase() : ''))
             .filter(Boolean);
