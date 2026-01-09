@@ -9650,14 +9650,20 @@ export function PoolRoyaleGame({
       typeof quality?.renderScale === 'number' && Number.isFinite(quality.renderScale)
         ? THREE.MathUtils.clamp(quality.renderScale, 0.75, 1)
         : 1;
+    const fallbackWidth =
+      typeof window !== 'undefined' && typeof window.innerWidth === 'number'
+        ? window.innerWidth
+        : host.clientWidth;
+    const fallbackHeight =
+      typeof window !== 'undefined' && typeof window.innerHeight === 'number'
+        ? window.innerHeight
+        : host.clientHeight;
+    const hostWidth = host.clientWidth || fallbackWidth || 1;
+    const hostHeight = host.clientHeight || fallbackHeight || 1;
     renderer.setPixelRatio(Math.min(pixelRatioCap, dpr));
-    renderer.setSize(
-      host.clientWidth * renderScale,
-      host.clientHeight * renderScale,
-      false
-    );
-    renderer.domElement.style.width = '100%';
-    renderer.domElement.style.height = '100%';
+    renderer.setSize(hostWidth * renderScale, hostHeight * renderScale, false);
+    renderer.domElement.style.width = host.clientWidth ? '100%' : `${hostWidth}px`;
+    renderer.domElement.style.height = host.clientHeight ? '100%' : `${hostHeight}px`;
   }, []);
   useEffect(() => {
     applyRendererQuality();
