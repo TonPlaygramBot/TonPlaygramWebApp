@@ -41,6 +41,16 @@ const LOOKAHEAD_DEPTH = 2
 const LOOKAHEAD_CANDIDATES = 3
 const MONTE_CARLO_BASE_SAMPLES = 28
 
+function createRng (seed) {
+  let state = (seed ?? 0) >>> 0
+  return function rng () {
+    state += 0x6D2B79F5
+    let t = Math.imul(state ^ (state >>> 15), state | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
 function dist (a, b) {
   const dx = a.x - b.x
   const dy = a.y - b.y
@@ -327,7 +337,7 @@ function cloneBallsForNextShot (balls, cueAfter, targetId, state) {
 // Rough Monte Carlo estimate of potting probability by jittering the cue
 // aim slightly and checking if paths remain clear. This models human
 // imprecision and rewards shorter, straighter shots.
-function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 20) {
+function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 20, rng = Math.random) {
   const r = req.state.ballRadius
   const baseAngle = Math.atan2(ghost.y - cue.y, ghost.x - cue.x)
   const distCG = dist(cue, ghost)
@@ -337,7 +347,7 @@ function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 2
   const jitterScale = 0.015 + 0.025 * distanceFactor
   let success = 0
   for (let i = 0; i < sampleCount; i++) {
-    const a = baseAngle + (Math.random() - 0.5) * jitterScale
+    const a = baseAngle + (rng() - 0.5) * jitterScale
     const g = { x: cue.x + Math.cos(a) * distCG, y: cue.y + Math.sin(a) * distCG }
     if (
       g.x < r ||
@@ -354,7 +364,7 @@ function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 2
   return success / sampleCount
 }
 
-function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1) {
+function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1, rng = Math.random) {
   if (!req?.state || depth <= 0) return 0
   const nextBalls = cloneBallsForNextShot(balls, cueAfter, targetId, req.state)
   const nextReq = { ...req, state: { ...req.state, balls: nextBalls, ballInHand: false } }
@@ -373,7 +383,7 @@ function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1) {
       { top: 0, side: 0, back: 0 },
       nextBalls,
       true,
-      { skipLookahead: true }
+      { skipLookahead: true, rng }
     )
     if (!preview) continue
     let score = preview.quality
@@ -387,7 +397,7 @@ function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1) {
         preview.spin ?? { top: 0, side: 0, back: 0 },
         req.state
       )
-      const follow = estimateRunoutPotential(nextReq, nextCueAfter, target.id, nextBalls, depth - 1)
+      const follow = estimateRunoutPotential(nextReq, nextCueAfter, target.id, nextBalls, depth - 1, rng)
       score = Math.max(score, (score + follow) / 2)
     }
     best = Math.max(best, score)
@@ -397,6 +407,7 @@ function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1) {
 
 function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict = false, options = {}) {
   const r = req.state.ballRadius
+  const rng = options.rng ?? Math.random
   const balls = ballsOverride || req.state.balls
   const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
   const ghost = {
@@ -427,7 +438,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     return null
   }
   const maxD = Math.hypot(req.state.width, req.state.height)
-  const potChance = monteCarloPotChance(req, cue, target, entry, ghost, balls)
+  const potChance = monteCarloPotChance(req, cue, target, entry, ghost, balls, 20, rng)
   const cueAfter = estimateCueAfterShot(cue, target, entry, power, spin, req.state)
   const nextTargets = nextTargetsAfter(target.id, { ...req, state: { ...req.state, balls } })
   let nextScore = 0
@@ -461,7 +472,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     : LOOKAHEAD_DEPTH
   const runoutPotential = options.skipLookahead
     ? 0
-    : estimateRunoutPotential(req, cueAfter, target.id, balls, lookaheadDepth)
+    : estimateRunoutPotential(req, cueAfter, target.id, balls, lookaheadDepth, rng)
   const quality = Math.max(
     0,
     Math.min(
@@ -570,6 +581,7 @@ export function planShot (req) {
   const r = req.state.ballRadius
   const start = Date.now()
   const deadline = req.timeBudgetMs ? start + req.timeBudgetMs : Infinity
+  const rng = Number.isFinite(req.rngSeed) ? createRng(req.rngSeed) : Math.random
   let best = null
   let fallback = null
   let hasViableShot = false
@@ -648,7 +660,7 @@ export function planShot (req) {
           spins[0],
           balls,
           strict,
-          { lookaheadDepth: LOOKAHEAD_DEPTH }
+          { lookaheadDepth: LOOKAHEAD_DEPTH, rng }
         )
         if (baseCand) {
           hasViableShot = true
@@ -677,7 +689,7 @@ export function planShot (req) {
               spin,
               balls,
               strict,
-              { lookaheadDepth: LOOKAHEAD_DEPTH }
+              { lookaheadDepth: LOOKAHEAD_DEPTH, rng }
             )
             if (cand) {
               hasViableShot = true
