@@ -4907,6 +4907,7 @@ const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
+const TMP_EULER_A = new THREE.Euler();
 const TMP_VEC3_A = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CUE_TIP_OFFSET = new THREE.Vector3();
@@ -18299,20 +18300,6 @@ const powerRef = useRef(hud.power);
       const buttTilt = Math.asin(
         Math.min(1, buttLift / Math.max(cueLen, 1e-4))
       );
-      const applyCueButtTilt = (group, extraTilt = 0) => {
-        if (!group) return;
-        const info = group.userData?.buttTilt;
-        const baseTilt = info?.angle ?? buttTilt;
-        const len = info?.length ?? cueLen;
-        const totalTilt = baseTilt + extraTilt;
-        group.rotation.x = totalTilt;
-        if (info) {
-          info.tipCompensation = Math.sin(totalTilt) * len * 0.5;
-          info.current = totalTilt;
-          info.extra = extraTilt;
-          info.buttHeightOffset = Math.sin(totalTilt) * len;
-        }
-      };
       cueStick.userData.buttTilt = {
         angle: buttTilt,
         tipCompensation: Math.sin(buttTilt) * cueLen * 0.5,
@@ -18321,6 +18308,32 @@ const powerRef = useRef(hud.power);
       };
       const cueTipLocal = new THREE.Vector3(0, 0, -cueLen / 2);
       const cueButtLocal = new THREE.Vector3(0, 0, cueLen / 2);
+      const resolveCueButtTiltSign = (group, tilt) => {
+        if (!group || !Number.isFinite(tilt) || tilt === 0) return 1;
+        const rotY = group.rotation.y;
+        const rotZ = group.rotation.z;
+        TMP_EULER_A.set(tilt, rotY, rotZ);
+        TMP_VEC3_A.copy(cueButtLocal).applyEuler(TMP_EULER_A);
+        TMP_EULER_A.set(-tilt, rotY, rotZ);
+        TMP_VEC3_BUTT.copy(cueButtLocal).applyEuler(TMP_EULER_A);
+        return TMP_VEC3_A.y >= TMP_VEC3_BUTT.y ? 1 : -1;
+      };
+      const applyCueButtTilt = (group, extraTilt = 0) => {
+        if (!group) return;
+        const info = group.userData?.buttTilt;
+        const baseTilt = info?.angle ?? buttTilt;
+        const len = info?.length ?? cueLen;
+        const totalTilt = baseTilt + extraTilt;
+        const tiltSign = resolveCueButtTiltSign(group, totalTilt);
+        const signedTilt = totalTilt * tiltSign;
+        group.rotation.x = signedTilt;
+        if (info) {
+          info.tipCompensation = Math.sin(signedTilt) * len * 0.5;
+          info.current = signedTilt;
+          info.extra = signedTilt - baseTilt;
+          info.buttHeightOffset = Math.sin(signedTilt) * len;
+        }
+      };
       const resolveCueTipTarget = (dir, pullAmount, spinWorld) =>
         TMP_VEC3_CUE_TIP_TARGET.set(
           cue.pos.x - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
@@ -18346,13 +18359,20 @@ const powerRef = useRef(hud.power);
         const requiredTilt = Math.asin(
           THREE.MathUtils.clamp(requiredOffset / len, 0, 1)
         );
-        if (!Number.isFinite(requiredTilt) || requiredTilt <= cueStick.rotation.x) return;
-        cueStick.rotation.x = requiredTilt;
+        const tiltSign = resolveCueButtTiltSign(cueStick, requiredTilt);
+        const signedRequiredTilt = requiredTilt * tiltSign;
+        if (
+          !Number.isFinite(signedRequiredTilt) ||
+          Math.abs(signedRequiredTilt) <= Math.abs(cueStick.rotation.x)
+        ) {
+          return;
+        }
+        cueStick.rotation.x = signedRequiredTilt;
         if (info) {
-          info.tipCompensation = Math.sin(requiredTilt) * len * 0.5;
-          info.current = requiredTilt;
-          info.extra = requiredTilt - (info.angle ?? 0);
-          info.buttHeightOffset = Math.sin(requiredTilt) * len;
+          info.tipCompensation = Math.sin(signedRequiredTilt) * len * 0.5;
+          info.current = signedRequiredTilt;
+          info.extra = signedRequiredTilt - (info.angle ?? 0);
+          info.buttHeightOffset = Math.sin(signedRequiredTilt) * len;
         }
         applyCueStickTransform(tipTarget);
       };
@@ -19719,11 +19739,11 @@ const powerRef = useRef(hud.power);
           );
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
+          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           applyCueButtTilt(
             cueStick,
             extraTilt + obstructionTilt + obstructionTiltFromLift
           );
-          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
@@ -22263,11 +22283,11 @@ const powerRef = useRef(hud.power);
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
+          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           applyCueButtTilt(
             cueStick,
             extraTilt + obstructionTilt + obstructionTiltFromLift
           );
-          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
@@ -22473,11 +22493,11 @@ const powerRef = useRef(hud.power);
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
+          cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
           applyCueButtTilt(
             cueStick,
             extraTilt + obstructionTilt + obstructionTiltFromLift
           );
-          cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
@@ -22573,11 +22593,11 @@ const powerRef = useRef(hud.power);
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
+          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           applyCueButtTilt(
             cueStick,
             extraTilt + obstructionTilt + obstructionTiltFromLift
           );
-          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
