@@ -11388,6 +11388,8 @@ function PoolRoyaleGame({
   const [aiPlanning, setAiPlanning] = useState(null);
   const aiPlanRef = useRef(null);
   const aiPlanningRef = useRef(null);
+  const aiTurnShotCountRef = useRef(0);
+  const lastTurnRef = useRef(0);
   useEffect(() => {
     aiPlanningRef.current = aiPlanning;
   }, [aiPlanning]);
@@ -11465,6 +11467,12 @@ const [hud, setHud] = useState({
   over: false
 });
 const [turnCycle, setTurnCycle] = useState(0);
+useEffect(() => {
+  if (lastTurnRef.current !== hud.turn) {
+    aiTurnShotCountRef.current = 0;
+    lastTurnRef.current = hud.turn;
+  }
+}, [hud.turn]);
 const [pottedBySeat, setPottedBySeat] = useState({ A: [], B: [] });
 const lastPottedBySeatRef = useRef({ A: null, B: null });
 const lastAssignmentsRef = useRef({ A: null, B: null });
@@ -19460,6 +19468,9 @@ const powerRef = useRef(hud.power);
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
         }
+        if (aiOpponentEnabled && currentHud?.turn === 1) {
+          aiTurnShotCountRef.current += 1;
+        }
         const shotStartTime = performance.now();
         const forcedCueView = aiShotCueViewRef.current;
         setAiShotCueViewActive(false);
@@ -20254,6 +20265,10 @@ const powerRef = useRef(hud.power);
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
           const state = frameRef.current ?? frameState;
           const activeVariantId = activeVariantRef.current?.id ?? variantKey;
+          const shouldAnalyzeLeave =
+            aiOpponentEnabled &&
+            hudRef.current?.turn === 1 &&
+            aiTurnShotCountRef.current > 0;
           const isRotationVariant =
             activeVariantId === 'american' || activeVariantId === '9ball';
           const activeBalls = ballsList.filter((b) => b.active);
@@ -20289,6 +20304,61 @@ const powerRef = useRef(hud.power);
           const halfW = PLAY_W / 2;
           const halfH = PLAY_H / 2;
           const cushionMargin = BALL_R * 1.4;
+          const clampCueToPlay = (pos) =>
+            new THREE.Vector2(
+              THREE.MathUtils.clamp(pos.x, -halfW + BALL_R, halfW - BALL_R),
+              THREE.MathUtils.clamp(pos.y, -halfH + BALL_R, halfH - BALL_R)
+            );
+          const estimateCueAfterPot = (plan) => {
+            if (!plan?.aimDir || !plan?.targetBall?.pos) return null;
+            const cueDir = plan.aimDir.clone().normalize();
+            let exitDir = cueDir.clone();
+            if (plan.pocketCenter && plan.targetBall?.pos) {
+              const toPocket = plan.pocketCenter.clone().sub(plan.targetBall.pos);
+              if (toPocket.lengthSq() > 1e-6) {
+                const pocketDir = toPocket.normalize();
+                const combined = cueDir.clone().sub(pocketDir);
+                if (combined.lengthSq() > 1e-6) {
+                  exitDir = combined.normalize();
+                }
+              }
+            }
+            const power = Number.isFinite(plan.power) ? plan.power : 0.6;
+            const tableSpan = Math.max(PLAY_W, PLAY_H);
+            const baseTravel = THREE.MathUtils.lerp(tableSpan * 0.18, tableSpan * 0.46, power);
+            const spinBias = THREE.MathUtils.clamp(plan.spin?.y ?? 0, -0.45, 0.45);
+            const travel = baseTravel * (1 - spinBias * 0.25);
+            const cueAfter = plan.targetBall.pos.clone().add(exitDir.multiplyScalar(travel));
+            return clampCueToPlay(cueAfter);
+          };
+          const scoreNextShotPosition = (plan) => {
+            if (!shouldAnalyzeLeave) return 0;
+            const cueAfter = estimateCueAfterPot(plan);
+            if (!cueAfter) return 0;
+            const remainingTargets = activeBalls.filter((ball) => {
+              if (!ball.active || ball === cueBall || ball === plan.targetBall) return false;
+              if (legalTargets.size === 0) return true;
+              return Array.from(legalTargets).some((entry) => matchesTargetId(ball, entry));
+            });
+            if (remainingTargets.length === 0) return 0.15;
+            let bestScore = -Infinity;
+            remainingTargets.forEach((ball) => {
+              const base = scoreBallForAim(ball, cueAfter);
+              const ignore = new Set([cueBall.id, plan.targetBall?.id, ball.id].filter(Boolean));
+              const laneClear = isPathClear(cueAfter, ball.pos, ignore) ? 1 : 0.55;
+              bestScore = Math.max(bestScore, base * laneClear);
+            });
+            const scratchRadiusSq = (BALL_R * 1.25) * (BALL_R * 1.25);
+            const scratchPenalty = centers.some(
+              (pocket) => cueAfter.distanceToSquared(pocket) < scratchRadiusSq
+            )
+              ? 0.2
+              : 0;
+            const score = THREE.MathUtils.clamp(bestScore - scratchPenalty, 0, 1);
+            plan.cueAfter = cueAfter;
+            plan.nextShotScore = score;
+            return score;
+          };
           const isPathClear = (start, end, ignoreIds = new Set()) => {
             const delta = end.clone().sub(start);
             const lenSq = delta.lengthSq();
@@ -20742,6 +20812,8 @@ const powerRef = useRef(hud.power);
                 ? 0.06
                 : 0;
             const laneBonus = Math.max(0, Math.min((laneClearance - 0.6) / 0.8, 1));
+            const leaveScore = scoreNextShotPosition(plan);
+            const leaveWeight = shouldAnalyzeLeave ? 0.12 : 0;
             return (
               quality * 0.48 +
               difficultyEase * 0.18 +
@@ -20750,7 +20822,8 @@ const powerRef = useRef(hud.power);
               priorityBonus * priorityWeight +
               routeEase * 0.06 +
               laneBonus * 0.08 +
-              finishBonus -
+              finishBonus +
+              leaveScore * leaveWeight -
               cushionPenalty
             );
           };
