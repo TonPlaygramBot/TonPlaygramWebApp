@@ -909,25 +909,35 @@ async function buildTableForTheme({
 
 function pickPolyHavenHdriUrl(fileMap, preferredResolutions = PREFERRED_HDRI_RESOLUTIONS) {
   if (!fileMap || typeof fileMap !== 'object') return null;
-  const exr = fileMap?.exr || {};
-  const hdr = fileMap?.hdr || {};
-  for (const res of preferredResolutions) {
-    if (exr[res]) return exr[res];
-    if (hdr[res]) return hdr[res];
+  const resolutions = Array.isArray(preferredResolutions) && preferredResolutions.length ? preferredResolutions : PREFERRED_HDRI_RESOLUTIONS;
+  for (const res of resolutions) {
+    const entry = fileMap[res];
+    if (entry?.hdr) return entry.hdr;
+    if (entry?.exr) return entry.exr;
   }
-  const exrValues = Object.values(exr);
-  const hdrValues = Object.values(hdr);
-  return exrValues[0] || hdrValues[0] || null;
+  const fallback = Object.values(fileMap).find((value) => value?.hdr || value?.exr);
+  if (!fallback) return null;
+  return fallback.hdr || fallback.exr || null;
 }
 
 async function resolvePolyHavenHdriUrl(config = {}, preferred = PREFERRED_HDRI_RESOLUTIONS) {
-  const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/${config?.assetId || 'neon_photostudio'}.hdr`;
+  const resolutions = Array.isArray(preferred) && preferred.length ? preferred : PREFERRED_HDRI_RESOLUTIONS;
+  const fallbackRes = config?.fallbackResolution || resolutions[0] || '4k';
+  const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
+  if (config?.assetUrls && typeof config.assetUrls === 'object') {
+    for (const res of resolutions) {
+      if (config.assetUrls[res]) return config.assetUrls[res];
+    }
+    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
+    if (manual) return manual;
+  }
+  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
   if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
   try {
     const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
     if (!response?.ok) return fallbackUrl;
     const json = await response.json();
-    const picked = pickPolyHavenHdriUrl(json, preferred);
+    const picked = pickPolyHavenHdriUrl(json, resolutions);
     return picked || fallbackUrl;
   } catch (error) {
     console.warn('Failed to resolve Poly Haven HDRI url', error);
@@ -940,22 +950,22 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   const url = await resolvePolyHavenHdriUrl(config);
   const lowerUrl = `${url ?? ''}`.toLowerCase();
   const useExr = lowerUrl.endsWith('.exr');
-  const loader = useExr ? new EXRLoader() : null;
-  const rgbeLoader = new RGBELoader();
-  const activeLoader = useExr && loader ? loader : rgbeLoader;
-  if (!activeLoader) return null;
-  activeLoader.setCrossOrigin?.('anonymous');
+  const loader = useExr ? new EXRLoader() : new RGBELoader();
+  loader.setCrossOrigin?.('anonymous');
   return new Promise((resolve) => {
-    activeLoader.load(
+    loader.load(
       url,
       (texture) => {
         const pmrem = new THREE.PMREMGenerator(renderer);
         pmrem.compileEquirectangularShader();
         const envMap = pmrem.fromEquirectangular(texture).texture;
         envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
-        texture.dispose();
+        const skyboxMap = texture;
+        skyboxMap.name = `${config?.assetId ?? 'polyhaven'}-skybox`;
+        skyboxMap.mapping = THREE.EquirectangularReflectionMapping;
+        skyboxMap.needsUpdate = true;
         pmrem.dispose();
-        resolve({ envMap, url });
+        resolve({ envMap, skyboxMap, url });
       },
       undefined,
       (error) => {
@@ -2958,7 +2968,7 @@ function TexasHoldemArena({ search }) {
       const prevDispose = disposeEnvironmentRef.current;
       const prevTexture = envTextureRef.current;
       three.scene.environment = envResult.envMap;
-      three.scene.background = envResult.envMap;
+      three.scene.background = envResult.skyboxMap || envResult.envMap;
       if ('backgroundIntensity' in three.scene && typeof activeVariant?.backgroundIntensity === 'number') {
         three.scene.backgroundIntensity = activeVariant.backgroundIntensity;
       }
@@ -2972,11 +2982,12 @@ function TexasHoldemArena({ search }) {
           if (three.scene.environment === envResult.envMap) {
             three.scene.environment = null;
           }
-          if (three.scene.background === envResult.envMap) {
+          if (three.scene.background === envResult.envMap || three.scene.background === envResult.skyboxMap) {
             three.scene.background = null;
           }
         }
         envResult.envMap.dispose?.();
+        envResult.skyboxMap?.dispose?.();
       };
       if (prevDispose && prevTexture !== envResult.envMap) {
         prevDispose();
@@ -2991,6 +3002,8 @@ function TexasHoldemArena({ search }) {
     if (!mount) return;
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     applyRendererSRGB(renderer);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.45;
     renderer.shadowMap.enabled = true;
     mount.appendChild(renderer.domElement);
 
