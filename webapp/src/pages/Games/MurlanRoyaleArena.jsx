@@ -38,6 +38,7 @@ import {
   MURLAN_STOOL_THEMES as STOOL_THEMES,
   MURLAN_TABLE_THEMES as TABLE_THEMES
 } from '../../config/murlanThemes.js';
+import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
@@ -53,6 +54,13 @@ const resolveHdriVariant = (index) => {
   const max = MURLAN_HDRI_OPTIONS.length - 1;
   const idx = Number.isFinite(index) ? Math.min(Math.max(Math.round(index), 0), max) : DEFAULT_HDRI_INDEX;
   return MURLAN_HDRI_OPTIONS[idx] ?? MURLAN_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? MURLAN_HDRI_OPTIONS[0];
+};
+
+const DEFAULT_TABLE_FINISH_INDEX = 0;
+const resolveTableFinish = (index) => {
+  const max = MURLAN_TABLE_FINISHES.length - 1;
+  const idx = Number.isFinite(index) ? Math.min(Math.max(Math.round(index), 0), max) : DEFAULT_TABLE_FINISH_INDEX;
+  return MURLAN_TABLE_FINISHES[idx] ?? MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX] ?? null;
 };
 
 const DEFAULT_FRAME_RATE_ID = 'uhd120';
@@ -601,12 +609,14 @@ const DEFAULT_APPEARANCE = {
   cards: 0,
   stools: 0,
   tables: 0,
+  tableFinish: DEFAULT_TABLE_FINISH_INDEX,
   environmentHdri: DEFAULT_HDRI_INDEX
 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const FRAME_RATE_STORAGE_KEY = 'murlanFrameRate';
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tables', label: 'Table Model', options: TABLE_THEMES },
+  { key: 'tableFinish', label: 'Table Finish', options: MURLAN_TABLE_FINISHES },
   { key: 'cards', label: 'Cards', options: CARD_THEMES },
   { key: 'stools', label: 'Stools', options: STOOL_THEMES },
   { key: 'environmentHdri', label: 'HDR Environment', options: MURLAN_HDRI_OPTIONS }
@@ -632,6 +642,7 @@ function normalizeAppearance(value = {}) {
     ['cards', CARD_THEMES.length],
     ['stools', STOOL_THEMES.length],
     ['tables', TABLE_THEMES.length],
+    ['tableFinish', MURLAN_TABLE_FINISHES.length],
     ['environmentHdri', MURLAN_HDRI_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
@@ -1291,6 +1302,7 @@ export default function MurlanRoyaleArena({ search }) {
         cards: CARD_THEMES,
         stools: STOOL_THEMES,
         tables: TABLE_THEMES,
+        tableFinish: MURLAN_TABLE_FINISHES,
         environmentHdri: MURLAN_HDRI_OPTIONS
       };
       let changed = false;
@@ -1361,6 +1373,7 @@ export default function MurlanRoyaleArena({ search }) {
     scoreboard: null,
     tableInfo: null,
     tableThemeId: null,
+    tableFinishId: null,
     chairMaterials: null,
     chairTemplate: null,
     chairThemePreserve: false,
@@ -1656,7 +1669,7 @@ export default function MurlanRoyaleArena({ search }) {
   }, []);
 
   const rebuildTable = useCallback(
-    async (tableTheme) => {
+    async (tableTheme, tableFinish) => {
       const three = threeStateRef.current;
       if (!three?.arena || !three.renderer) return null;
       const token = ++tableBuildTokenRef.current;
@@ -1666,6 +1679,7 @@ export default function MurlanRoyaleArena({ search }) {
       }
 
       const theme = tableTheme || TABLE_THEMES[0];
+      const finish = tableFinish || MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX] || null;
       let tableInfo = null;
 
       if (theme?.source === 'polyhaven' && theme?.assetId) {
@@ -1713,7 +1727,8 @@ export default function MurlanRoyaleArena({ search }) {
           renderer: three.renderer,
           tableRadius: TABLE_RADIUS,
           tableHeight: TABLE_HEIGHT,
-          includeBase: false
+          includeBase: false,
+          woodOption: finish?.woodOption || undefined
         });
         tableInfo = { ...procedural, themeId: theme?.id || 'murlan-default' };
       }
@@ -1725,6 +1740,7 @@ export default function MurlanRoyaleArena({ search }) {
 
       three.tableInfo = tableInfo;
       three.tableThemeId = theme?.id || 'murlan-default';
+      three.tableFinishId = finish?.id ?? null;
       three.tableAnchor = new THREE.Vector3(0, tableInfo.surfaceY + CARD_SURFACE_OFFSET, 0);
       three.discardAnchor = new THREE.Vector3(
         -TABLE_RADIUS * 0.76,
@@ -1828,15 +1844,21 @@ export default function MurlanRoyaleArena({ search }) {
       const outfitTheme = OUTFIT_THEMES[safe.outfit] ?? OUTFIT_THEMES[0];
       const cardTheme = CARD_THEMES[safe.cards] ?? CARD_THEMES[0];
       const tableTheme = TABLE_THEMES[safe.tables] ?? TABLE_THEMES[0];
+      const tableFinish = resolveTableFinish(safe.tableFinish);
+      const tableFinishId =
+        tableFinish?.id ?? MURLAN_TABLE_FINISHES[DEFAULT_TABLE_FINISH_INDEX]?.id ?? null;
       const environmentVariant = resolveHdriVariant(safe.environmentHdri);
       hdriVariantRef.current = environmentVariant;
 
       void (async () => {
         const three = threeStateRef.current;
         if (!three.scene) return;
-        const tableChanged = three.tableThemeId !== tableTheme.id || !three.tableInfo;
+        const tableChanged =
+          three.tableThemeId !== tableTheme.id ||
+          !three.tableInfo ||
+          (tableTheme?.source === 'procedural' && three.tableFinishId !== tableFinishId);
         if (tableChanged) {
-          await rebuildTable(tableTheme);
+          await rebuildTable(tableTheme, tableFinish);
         }
 
         const preserveRequested = shouldPreserveChairMaterials(stoolTheme);
@@ -1881,6 +1903,20 @@ export default function MurlanRoyaleArena({ search }) {
             <div className="absolute bottom-1 left-1 rounded-md bg-black/60 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-emerald-100/80">
               {(option?.label || 'Table').slice(0, 22)}
             </div>
+          </div>
+        );
+      }
+      case 'tableFinish': {
+        const swatches = option?.swatches ?? ['#b8b3aa', '#d6d0c7'];
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10">
+            <div
+              className="h-full w-full"
+              style={{
+                background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1] ?? swatches[0]})`
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-transparent to-black/50" />
           </div>
         );
       }
