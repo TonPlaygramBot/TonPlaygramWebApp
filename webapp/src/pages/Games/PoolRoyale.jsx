@@ -20258,12 +20258,11 @@ const powerRef = useRef(hud.power);
             activeVariantId === 'american' || activeVariantId === '9ball';
           const activeBalls = ballsList.filter((b) => b.active);
           const targetOrder = resolveTargetPriorities(state, activeVariantId, activeBalls);
-          const legalTargetsRaw =
-            targetOrder.length > 0
+          const legalTargetsRaw = Array.isArray(state?.ballOn) && state.ballOn.length > 0
+            ? state.ballOn
+            : targetOrder.length > 0
               ? targetOrder
-              : Array.isArray(state?.ballOn)
-                ? state.ballOn
-                : ['RED'];
+              : ['RED'];
           const legalTargets = new Set(
             legalTargetsRaw
               .map((entry) => normalizeTargetId(entry))
