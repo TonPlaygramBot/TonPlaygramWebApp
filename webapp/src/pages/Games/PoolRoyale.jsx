@@ -2462,9 +2462,10 @@ const DEFAULT_CLOTH_TEXTURE_KEY =
 const DEFAULT_CLOTH_COLOR_ID = DEFAULT_CLOTH_TEXTURE_KEY;
 const CLOTH_TEXTURE_SOURCE_STORAGE_KEY = 'poolRoyaleClothSource';
 const CLOTH_TEXTURE_SOURCE_OPTIONS = Object.freeze([
+  { id: 'gltf', label: 'GLTF Cloth' },
   { id: 'procedural', label: 'Procedural Cloth' }
 ]);
-const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'procedural';
+const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'gltf';
 const CLOTH_COLOR_OPTIONS = Object.freeze(
   CLOTH_LIBRARY.map((cloth) => ({
     id: cloth.id,
@@ -11735,7 +11736,6 @@ const powerRef = useRef(hud.power);
   const envSkyboxTextureRef = useRef(null);
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
-  const environmentFloorRef = useRef(FLOOR_Y);
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
   const initialOrbitRef = useRef(null);
@@ -12945,10 +12945,7 @@ const powerRef = useRef(hud.power);
         const resolvedWorldScale = Number.isFinite(worldScaleFactor) && worldScaleFactor > 0
           ? worldScaleFactor
           : WORLD_SCALE * tableScale;
-        const floorLocalY = Number.isFinite(environmentFloorRef.current)
-          ? environmentFloorRef.current
-          : FLOOR_Y;
-        const floorWorldY = floorLocalY * resolvedWorldScale + worldOffsetY;
+        const floorWorldY = FLOOR_Y * resolvedWorldScale + worldOffsetY;
         const unitsPerMeter = MM_TO_UNITS * 1000 * resolvedWorldScale;
         const cameraHeightMeters = Math.max(
           activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M,
@@ -12982,13 +12979,6 @@ const powerRef = useRef(hud.power);
             skybox.position.y = floorWorldY + skyboxHeight;
             skybox.rotation.y = hdriRotationY;
             skybox.material.depthWrite = false;
-            skybox.userData = {
-              ...(skybox.userData || {}),
-              baseHeight: skyboxHeight,
-              baseRadius: skyboxRadius,
-              baseFloorY: floorWorldY,
-              baseDistance: null
-            };
             sceneInstance.background = null;
             sceneInstance.add(skybox);
             envSkyboxRef.current = skybox;
@@ -16137,36 +16127,6 @@ const powerRef = useRef(hud.power);
               clothMat.bumpScale = clothMat.userData.bumpScale;
             }
           }
-          const skybox = envSkyboxRef.current;
-          if (skybox && renderCamera) {
-            const focusTarget =
-              lookTarget?.clone?.() ??
-              lastCameraTargetRef.current?.clone?.() ??
-              broadcastArgs.targetWorld?.clone?.() ??
-              null;
-            const distance = focusTarget
-              ? renderCamera.position.distanceTo(focusTarget)
-              : null;
-            if (Number.isFinite(distance)) {
-              const baseDistance = Number.isFinite(skybox.userData?.baseDistance)
-                ? skybox.userData.baseDistance
-                : distance;
-              if (!Number.isFinite(skybox.userData?.baseDistance)) {
-                skybox.userData.baseDistance = baseDistance;
-              }
-              if (Number.isFinite(baseDistance) && baseDistance > 1e-6) {
-                const scaleFactor = THREE.MathUtils.clamp(
-                  distance / baseDistance,
-                  0.6,
-                  1.8
-                );
-                const baseHeight = skybox.userData?.baseHeight ?? 0;
-                const baseFloorY = skybox.userData?.baseFloorY ?? 0;
-                skybox.scale.setScalar(scaleFactor);
-                skybox.position.y = baseFloorY + baseHeight * scaleFactor;
-              }
-            }
-          }
           updateBroadcastCameras(broadcastArgs);
           activeRenderCameraRef.current = renderCamera;
           return renderCamera;
@@ -17153,7 +17113,7 @@ const powerRef = useRef(hud.power);
         const enterTopView = (immediate = false) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
-          overheadBroadcastVariantRef.current = 'replay';
+          overheadBroadcastVariantRef.current = Math.random() < 0.5 ? 'top' : 'replay';
           const margin = TOP_VIEW_MARGIN;
           fit(margin);
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
@@ -17614,26 +17574,6 @@ const powerRef = useRef(hud.power);
         activeTableBase,
         rendererRef.current
       );
-      const updateEnvironmentFloorFromTable = (tableGroup) => {
-        const legMeshes = tableGroup?.userData?.finish?.parts?.legMeshes ?? [];
-        if (!legMeshes.length) return;
-        const legBox = new THREE.Box3();
-        let minLocalY = Infinity;
-        legMeshes.forEach((mesh) => {
-          if (!mesh) return;
-          legBox.setFromObject(mesh);
-          const legBottom = legBox.min.clone();
-          tableGroup.worldToLocal(legBottom);
-          if (Number.isFinite(legBottom.y)) {
-            minLocalY = Math.min(minLocalY, legBottom.y);
-          }
-        });
-        if (Number.isFinite(minLocalY) && minLocalY !== Infinity) {
-          environmentFloorRef.current = minLocalY;
-          updateEnvironmentRef.current?.(activeEnvironmentVariantRef.current);
-        }
-      };
-      updateEnvironmentFloorFromTable(table);
       const SPOTS = spotPositions(baulkZ);
       const longestSide = Math.max(PLAY_W, PLAY_H);
       const secondarySpacingBase =
@@ -24666,6 +24606,31 @@ const powerRef = useRef(hud.power);
                         </button>
                       );
                     })}
+                  </div>
+                  <div className="mt-3">
+                    <h4 className="text-[10px] uppercase tracking-[0.32em] text-emerald-100/70">
+                      Cloth Texture
+                    </h4>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {CLOTH_TEXTURE_SOURCE_OPTIONS.map((option) => {
+                        const active = option.id === clothTextureSourceId;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setClothTextureSourceId(option.id)}
+                            aria-pressed={active}
+                            className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                              active
+                                ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                                : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               ) : null}
