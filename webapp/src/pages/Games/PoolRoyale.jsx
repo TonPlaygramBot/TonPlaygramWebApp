@@ -2782,8 +2782,10 @@ const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.76; // tighten the pattern footprint so the scan resolves more clearly
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
-const POLYHAVEN_ANISOTROPY_BOOST = 2.6;
+const POLYHAVEN_ANISOTROPY_BOOST = 3.6;
+const POLYHAVEN_TEXTURE_RESOLUTION = '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
+const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(2.6, 1.4);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
@@ -3246,29 +3248,35 @@ const createClothTextures = (() => {
           const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(preset.sourceId)}`);
           if (response?.ok) {
             const json = await response.json();
-            urls = pickPolyHavenTextureUrls(json);
+            urls =
+              pickPolyHavenTextureUrlsAtResolution(json, POLYHAVEN_TEXTURE_RESOLUTION) ||
+              pickPolyHavenTextureUrls(json);
           }
         } catch (error) {
           urls = {};
         }
 
+        const fallback4k = buildPolyHavenTextureUrls(preset.sourceId, '4k');
         const fallback2k = buildPolyHavenTextureUrls(preset.sourceId, '2k');
         const fallback1k = buildPolyHavenTextureUrls(preset.sourceId, '1k');
         const loader = new THREE.TextureLoader();
         loader.setCrossOrigin('anonymous');
 
         const diffuseCandidates = [
-          urls.diffuse,
+          upgradePolyHavenTextureUrlTo4k(urls.diffuse),
+          fallback4k?.diffuse,
           fallback2k?.diffuse,
           fallback1k?.diffuse
         ].filter(Boolean);
         const normalCandidates = [
-          urls.normal,
+          upgradePolyHavenTextureUrlTo4k(urls.normal),
+          fallback4k?.normal,
           fallback2k?.normal,
           fallback1k?.normal
         ].filter(Boolean);
         const roughnessCandidates = [
-          urls.roughness,
+          upgradePolyHavenTextureUrlTo4k(urls.roughness),
+          fallback4k?.roughness,
           fallback2k?.roughness,
           fallback1k?.roughness
         ].filter(Boolean);
@@ -3398,6 +3406,10 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
   registerClothTextureConsumer(textureKey, finishInfo);
   const textures = createClothTextures(textureKey);
   const textureScale = textures.mapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
+  const targetNormalScale =
+    finishInfo.clothBase?.isPolyHavenCloth && textures.normal
+      ? POLYHAVEN_NORMAL_SCALE
+      : CLOTH_NORMAL_SCALE;
   const roughnessBase =
     finishInfo.clothBase?.roughness ?? finishInfo.clothMat.roughness ?? CLOTH_ROUGHNESS_BASE;
   const roughnessTarget =
@@ -3430,7 +3442,7 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     { preserveExisting: true }
   );
   if (textures.normal) {
-    finishInfo.clothMat.normalScale = CLOTH_NORMAL_SCALE.clone();
+    finishInfo.clothMat.normalScale = targetNormalScale.clone();
     replaceMaterialTexture(finishInfo.clothMat, 'bumpMap', null, fallbackRepeat);
   } else {
     replaceMaterialTexture(
@@ -3475,7 +3487,7 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
       { preserveExisting: true }
     );
     if (textures.normal) {
-      finishInfo.cushionMat.normalScale = CLOTH_NORMAL_SCALE.clone();
+      finishInfo.cushionMat.normalScale = targetNormalScale.clone();
       replaceMaterialTexture(finishInfo.cushionMat, 'bumpMap', null, fallbackRepeat);
     } else {
       replaceMaterialTexture(
@@ -6216,57 +6228,8 @@ function Table3D(
   const cushionPrimary = new THREE.Color(palette.cushion ?? palette.cloth);
   const clothHighlight = new THREE.Color(0xedfff4);
   const brightnessLift = CLOTH_BRIGHTNESS_LERP;
-  const clampClothColor = (baseColor) => {
-    const hsl = { h: 0, s: 0, l: 0 };
-    baseColor.getHSL(hsl);
-    const baseSaturationBoost = 1.18;
-    let hue = hsl.h;
-    let saturationBoost = baseSaturationBoost;
-    let lightnessBoost = 0;
-    if (hue >= 0.48 && hue <= 0.64) {
-      const blueBias = THREE.MathUtils.clamp((hue - 0.48) / 0.16, 0, 1);
-      hue = THREE.MathUtils.lerp(hue, 0.61, 0.4 + 0.18 * blueBias);
-      saturationBoost = baseSaturationBoost + 0.06 * (0.5 + 0.5 * blueBias);
-      lightnessBoost = 0.04 * (0.4 + 0.6 * blueBias);
-    }
-    const saturationFloor = 0.2;
-    const minLightness = 0.08;
-    const maxLightness = 0.86;
-    const result = baseColor.clone();
-    const baseSaturation = THREE.MathUtils.clamp(
-      hsl.s * saturationBoost,
-      saturationFloor,
-      1
-    );
-    const clampedLightness = THREE.MathUtils.clamp(
-      hsl.l + lightnessBoost,
-      minLightness,
-      maxLightness
-    );
-    const balancedLightness = THREE.MathUtils.lerp(clampedLightness, 0.5, 0.1);
-    result.setHSL(
-      hue,
-      baseSaturation,
-      balancedLightness
-    );
-    return result;
-  };
-  const clothHighlightMix = THREE.MathUtils.clamp(
-    (0.28 + brightnessLift) - (isPolyHavenCloth ? 0.02 : 0),
-    0,
-    1
-  );
-  const cushionHighlightMix = THREE.MathUtils.clamp(
-    (0.18 + brightnessLift) - (isPolyHavenCloth ? 0.02 : 0),
-    0,
-    1
-  );
-  const clothColor = clampClothColor(
-    clothPrimary.clone().lerp(clothHighlight, clothHighlightMix)
-  );
-  const cushionColor = clampClothColor(
-    cushionPrimary.clone().lerp(clothHighlight, cushionHighlightMix)
-  );
+  const clothColor = clothPrimary.clone();
+  const cushionColor = cushionPrimary.clone();
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.14 + brightnessLift * 0.35);
   const clothSheen = CLOTH_QUALITY.sheen * 0.68;
   const clothSheenRoughness = Math.min(
@@ -6276,6 +6239,7 @@ function Table3D(
   const clothRoughnessBase = CLOTH_ROUGHNESS_BASE + 0.02;
   const clothRoughnessTarget = CLOTH_ROUGHNESS_TARGET + 0.02;
   const clothEmissiveIntensity = 0.32;
+  const clothNormalScale = isPolyHavenCloth ? POLYHAVEN_NORMAL_SCALE : CLOTH_NORMAL_SCALE;
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
     roughness: clothRoughnessBase,
@@ -6314,7 +6278,9 @@ function Table3D(
     clothMapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
   const baseRepeatApplied = baseRepeat * polyRepeatScale;
   const baseBumpScale =
-    (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) * CLOTH_QUALITY.bumpScaleMultiplier;
+    (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) *
+    CLOTH_QUALITY.bumpScaleMultiplier *
+    (isPolyHavenCloth ? 1.2 : 1);
   const flattenedBumpScale = baseBumpScale * 0.48;
   if (clothMap) {
     clothMat.map = clothMap;
@@ -6324,7 +6290,7 @@ function Table3D(
   if (clothNormal) {
     clothMat.normalMap = clothNormal;
     clothMat.normalMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
-    clothMat.normalScale = CLOTH_NORMAL_SCALE.clone();
+    clothMat.normalScale = clothNormalScale.clone();
     clothMat.normalMap.needsUpdate = true;
     clothMat.bumpScale = flattenedBumpScale;
     clothMat.bumpMap = null;
