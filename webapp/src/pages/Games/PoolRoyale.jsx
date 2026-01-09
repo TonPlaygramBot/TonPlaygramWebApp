@@ -19563,9 +19563,7 @@ const powerRef = useRef(hud.power);
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
-          const isBreakShot =
-            frameStateCurrent?.meta?.breakInProgress ??
-            ((frameStateCurrent?.currentBreak ?? 0) === 0);
+          const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = aimDir
@@ -21214,10 +21212,7 @@ const powerRef = useRef(hud.power);
             }, null);
 
           let targetBall = null;
-          const isOpeningBreak =
-            frameSnapshot?.meta?.breakInProgress ??
-            ((frameSnapshot?.currentBreak ?? 0) === 0);
-          if (isOpeningBreak) {
+          if ((frameSnapshot?.currentBreak ?? 0) === 0) {
             targetBall = findRackApex();
           }
 
