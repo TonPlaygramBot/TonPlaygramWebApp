@@ -73,7 +73,7 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     description: 'Monochrome slate backs with steel edging.'
   }
 ].concat(
-  MURLAN_TABLE_THEMES.map((theme, idx) => ({
+  MURLAN_TABLE_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
     id: `table-${theme.id}`,
     type: 'tables',
     optionId: theme.id,

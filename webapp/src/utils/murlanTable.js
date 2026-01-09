@@ -20,10 +20,10 @@ const DEFAULT_TABLE_BASE_OPTION = Object.freeze({
 });
 
 const DEFAULT_TABLE_WOOD_OPTION = Object.freeze({
-  id: 'peelingPaintWeathered',
-  label: 'Wood Peeling Paint Weathered',
+  id: 'oakEstate',
+  label: 'Lis Estate',
   presetId: 'oak',
-  grainId: 'wood_peeling_paint_weathered'
+  grainId: 'estateBands'
 });
 
 export const DEFAULT_TABLE_CLOTH_OPTION = Object.freeze({
@@ -261,29 +261,21 @@ function applyWoodSelectionToMaterials(topMat, rimMat, option) {
     roughnessVariance: 0.28
   };
   const sharedKey = `murlan-wood-${option?.id ?? preset.id}`;
-  const frameSurface = grain?.frame ?? {};
-  const railSurface = grain?.rail ?? {};
   if (topMat) {
     applyWoodTextures(topMat, {
       ...sharedOptions,
-      repeat: frameSurface.repeat ?? railSurface.repeat ?? { x: 0.24, y: 0.38 },
-      rotation: frameSurface.rotation ?? 0,
-      textureSize: frameSurface.textureSize,
-      mapUrl: frameSurface.mapUrl,
-      roughnessMapUrl: frameSurface.roughnessMapUrl,
-      normalMapUrl: frameSurface.normalMapUrl,
+      repeat: grain?.frame?.repeat ?? grain?.rail?.repeat ?? { x: 0.24, y: 0.38 },
+      rotation: grain?.frame?.rotation ?? 0,
+      textureSize: grain?.frame?.textureSize,
       sharedKey
     });
   }
   if (rimMat) {
     applyWoodTextures(rimMat, {
       ...sharedOptions,
-      repeat: railSurface.repeat ?? frameSurface.repeat ?? { x: 0.12, y: 0.62 },
-      rotation: railSurface.rotation ?? 0,
-      textureSize: railSurface.textureSize,
-      mapUrl: railSurface.mapUrl,
-      roughnessMapUrl: railSurface.roughnessMapUrl,
-      normalMapUrl: railSurface.normalMapUrl,
+      repeat: grain?.rail?.repeat ?? grain?.frame?.repeat ?? { x: 0.12, y: 0.62 },
+      rotation: grain?.rail?.rotation ?? 0,
+      textureSize: grain?.rail?.textureSize,
       sharedKey
     });
   }
