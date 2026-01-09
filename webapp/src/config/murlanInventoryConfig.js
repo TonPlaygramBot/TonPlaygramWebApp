@@ -1,5 +1,6 @@
 import { CARD_THEMES } from '../utils/cardThemes.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
+import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
 import { MURLAN_OUTFIT_THEMES, MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 
 const mapLabels = (options) =>
@@ -15,6 +16,7 @@ export const MURLAN_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   cards: [CARD_THEMES[0].id],
   stools: [MURLAN_STOOL_THEMES[0].id],
   tables: [MURLAN_TABLE_THEMES[0].id],
+  tableFinish: [MURLAN_TABLE_FINISHES[0].id],
   environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map((variant) => variant.id)
 });
 
@@ -23,6 +25,7 @@ export const MURLAN_ROYALE_OPTION_LABELS = Object.freeze({
   cards: mapLabels(CARD_THEMES),
   stools: mapLabels(MURLAN_STOOL_THEMES),
   tables: mapLabels(MURLAN_TABLE_THEMES),
+  tableFinish: mapLabels(MURLAN_TABLE_FINISHES),
   environmentHdri: mapLabels(
     POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
       id: variant.id,
@@ -32,6 +35,16 @@ export const MURLAN_ROYALE_OPTION_LABELS = Object.freeze({
 });
 
 export const MURLAN_ROYALE_STORE_ITEMS = [
+  ...MURLAN_TABLE_FINISHES.map((finish, idx) => ({
+    id: `table-finish-${finish.id}`,
+    type: 'tableFinish',
+    optionId: finish.id,
+    name: finish.label,
+    price: finish.price ?? 980 + idx * 40,
+    description: finish.description,
+    swatches: finish.swatches,
+    previewShape: 'table'
+  })),
   {
     id: 'cards-solstice',
     type: 'cards',
@@ -107,6 +120,11 @@ export const MURLAN_ROYALE_DEFAULT_LOADOUT = [
   { type: 'cards', optionId: CARD_THEMES[0].id, label: CARD_THEMES[0].label },
   { type: 'tables', optionId: MURLAN_TABLE_THEMES[0].id, label: MURLAN_TABLE_THEMES[0].label },
   { type: 'stools', optionId: MURLAN_STOOL_THEMES[0].id, label: MURLAN_STOOL_THEMES[0].label },
+  {
+    type: 'tableFinish',
+    optionId: MURLAN_TABLE_FINISHES[0].id,
+    label: MURLAN_TABLE_FINISHES[0].label
+  },
   {
     type: 'environmentHdri',
     optionId: POOL_ROYALE_DEFAULT_HDRI_ID,
