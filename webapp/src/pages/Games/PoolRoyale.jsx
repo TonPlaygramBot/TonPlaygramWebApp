@@ -1193,20 +1193,21 @@ const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass clean
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
 const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // raise the net so the weave sits higher on screen
+const POCKET_NET_TOP_LIFT = BALL_R * 0.18; // extend the net upward from the ring while keeping the bottom depth unchanged
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 7.6); // stretch the holder run so it comfortably fits 7 balls
 const POCKET_GUIDE_DROP = BALL_R * 0.12;
-const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
+const POCKET_GUIDE_SPREAD = BALL_R * 0.56;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
-const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.18; // drop the centre rail to form the floor of the holder
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.04; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
-const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
+const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.06; // tighten the spacing so potted balls sit just a touch farther apart on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
 const POCKET_HOLDER_REST_DROP = BALL_R * 2.18; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
@@ -1218,6 +1219,7 @@ const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section 
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
 const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_HEIGHT_SCALE = 1.04; // let the leather strap hang slightly farther downward
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -1322,6 +1324,7 @@ const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SWERVE_THRESHOLD = 0.7; // outer 30% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.86; // let swerve-driven roll carry more lateral energy while staying believable
+const SWERVE_PRE_IMPACT_DRIFT = 0.42; // allow visible cue-ball curve before impact when swerve is engaged
 const PRE_IMPACT_SPIN_DRIFT = 0.1; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
@@ -1443,7 +1446,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 const CUE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // Match cue grain scale to the table finish
 const CUE_WOOD_REPEAT_SCALE = 1 / 9; // enlarge cue wood grain 3× so the pattern reads more clearly at table scale
 const CUE_WOOD_TEXTURE_SIZE = 4096; // 4k cue textures for sharper cue wood finish
-const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // enlarge grain 3× so rails, skirts, and legs read at table scale; push pattern larger for the new finish pass
+const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7 * 2, 0.44 / 3 * 0.7 * 2); // shrink the table finish pattern to 50% of the previous size for a tighter grain
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
 const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
@@ -6804,7 +6807,7 @@ function Table3D(
   });
   const pocketGuideRingRadius = POCKET_BOTTOM_R * POCKET_NET_RING_RADIUS_SCALE;
   const pocketNetProfile = [
-    new THREE.Vector2(pocketGuideRingRadius, 0),
+    new THREE.Vector2(pocketGuideRingRadius, POCKET_NET_TOP_LIFT),
     new THREE.Vector2(POCKET_BOTTOM_R * 0.94, -POCKET_NET_DEPTH * 0.16),
     new THREE.Vector2(POCKET_BOTTOM_R * 0.82, -POCKET_NET_DEPTH * 0.45),
     new THREE.Vector2(POCKET_BOTTOM_R * 0.7, -POCKET_NET_DEPTH * 0.74),
@@ -6928,7 +6931,9 @@ function Table3D(
     }
 
     if (strapOrigin && strapEnd) {
-      const strapHeight = Math.max(BALL_DIAMETER * 2.6, pocketStrapLength * 0.72);
+      const strapHeight =
+        Math.max(BALL_DIAMETER * 2.6, pocketStrapLength * 0.72) *
+        POCKET_STRAP_HEIGHT_SCALE;
       const strapGeom = new THREE.BoxGeometry(
         pocketStrapWidth,
         strapHeight,
@@ -20037,13 +20042,14 @@ const powerRef = useRef(hud.power);
           Math.hypot(PLAY_W, PLAY_H) + Math.max(PLAY_W, PLAY_H);
         const computePowerFromDistance = (dist) => {
           const n = THREE.MathUtils.clamp(dist / MAX_ROUTE_DISTANCE, 0, 1);
-          return THREE.MathUtils.lerp(0.35, 0.9, n);
+          return 0.32 + 0.62 * Math.pow(n, 0.86);
         };
-        const computePlanSpin = (plan, stateSnapshot) => {
-          const fallback = { x: 0, y: -0.1 };
-          if (!plan || plan.type !== 'pot') return fallback;
+        const resolveNextBallForPlan = (plan, stateSnapshot, ballsList) => {
+          if (!plan || plan.type !== 'pot') return null;
           const colorId = plan.target;
-          if (!colorId) return fallback;
+          if (!colorId) return null;
+          const activeBalls =
+            Array.isArray(ballsList) && ballsList.length > 0 ? ballsList : balls;
           try {
             const events = [
               {
@@ -20076,7 +20082,7 @@ const powerRef = useRef(hud.power);
             const nextTargets = new Set(nextTargetsRaw);
             let nextBall = null;
             if (nextTargets.size > 0) {
-              nextBall = balls.find(
+              nextBall = activeBalls.find(
                 (b) =>
                   b.active &&
                   b !== plan.targetBall &&
@@ -20084,10 +20090,23 @@ const powerRef = useRef(hud.power);
               );
             }
             if (!nextBall && nextTargets.has('RED')) {
-              nextBall = balls.find(
+              nextBall = activeBalls.find(
                 (b) => b.active && toBallColorId(b.id) === 'RED'
               );
             }
+            return nextBall ?? null;
+          } catch (err) {
+            console.warn('next-shot prediction failed', err);
+            return null;
+          }
+        };
+        const computePlanSpin = (plan, stateSnapshot) => {
+          const fallback = { x: 0, y: -0.1 };
+          if (!plan || plan.type !== 'pot') return fallback;
+          const colorId = plan.target;
+          if (!colorId) return fallback;
+          try {
+            const nextBall = resolveNextBallForPlan(plan, stateSnapshot, balls);
             if (!nextBall) return fallback;
             const aimDir = plan.aimDir.clone();
             if (aimDir.lengthSq() < 1e-6) return fallback;
@@ -20098,9 +20117,24 @@ const powerRef = useRef(hud.power);
             const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
             const lateral = THREE.MathUtils.clamp(perp.dot(nextDir), -1, 1);
             const forward = THREE.MathUtils.clamp(aimDir.dot(nextDir), -1, 1);
-            const spinX = THREE.MathUtils.clamp(lateral * 0.45, -0.6, 0.6);
+            const powerScale = THREE.MathUtils.clamp(plan.power ?? 0.6, 0.3, 1);
+            const cutScale = Number.isFinite(plan.cutAngle)
+              ? THREE.MathUtils.clamp(plan.cutAngle / (Math.PI / 3), 0, 1)
+              : 0;
+            const distanceScale = Number.isFinite(plan.cueToTarget)
+              ? THREE.MathUtils.clamp(plan.cueToTarget / Math.max(PLAY_W, PLAY_H, BALL_R), 0, 1)
+              : 0.6;
+            const spinIntensity = (0.45 + powerScale * 0.45) * (0.5 + distanceScale * 0.5);
+            let spinX = THREE.MathUtils.clamp(lateral * spinIntensity, -0.75, 0.75);
+            if (Math.abs(spinX) < 0.08 && cutScale > 0.35) {
+              spinX = THREE.MathUtils.clamp(
+                spinX + Math.sign(lateral || 1) * 0.08 * cutScale,
+                -0.65,
+                0.65
+              );
+            }
             const spinY = THREE.MathUtils.clamp(
-              -forward * (MAX_SPIN_FORWARD / BALL_R),
+              -forward * (MAX_SPIN_FORWARD / BALL_R) * (0.55 + powerScale * 0.45),
               -1,
               1
             );
@@ -20109,6 +20143,53 @@ const powerRef = useRef(hud.power);
             console.warn('spin prediction failed', err);
             return fallback;
           }
+        };
+        const computePlanPower = (plan, totalDist, cutAngle, cushionTax, stateSnapshot) => {
+          const basePower = computePowerFromDistance(totalDist + cushionTax);
+          if (!plan || plan.type !== 'pot' || !plan.targetBall) {
+            return THREE.MathUtils.clamp(basePower, 0.3, 0.95);
+          }
+          const nextBall = resolveNextBallForPlan(plan, stateSnapshot, balls);
+          if (!nextBall) {
+            const cutPenalty = THREE.MathUtils.clamp((cutAngle ?? 0) / (Math.PI / 2), 0, 1);
+            const cushionPenalty = plan.viaCushion ? 0.08 : 0;
+            return THREE.MathUtils.clamp(basePower + cutPenalty * 0.08 + cushionPenalty, 0.32, 0.95);
+          }
+          const cueDir = plan.aimDir?.clone()?.normalize() ?? null;
+          let exitDir = cueDir ? cueDir.clone() : null;
+          if (exitDir && plan.pocketCenter && plan.targetBall?.pos) {
+            const toPocket = plan.pocketCenter.clone().sub(plan.targetBall.pos);
+            if (toPocket.lengthSq() > 1e-6) {
+              const pocketDir = toPocket.normalize();
+              const combined = exitDir.clone().sub(pocketDir);
+              if (combined.lengthSq() > 1e-6) {
+                exitDir = combined.normalize();
+              }
+            }
+          }
+          const toNext = nextBall.pos.clone().sub(plan.targetBall.pos);
+          const tableSpan = Math.max(PLAY_W, PLAY_H, BALL_R);
+          const alignment =
+            exitDir && toNext.lengthSq() > 1e-6
+              ? THREE.MathUtils.clamp(exitDir.dot(toNext.clone().normalize()), 0, 1)
+              : 0;
+          const desiredTravel = toNext.length() * Math.max(0.25, alignment);
+          const desiredPower = THREE.MathUtils.clamp(
+            THREE.MathUtils.mapLinear(
+              desiredTravel,
+              tableSpan * 0.12,
+              tableSpan * 0.62,
+              0.35,
+              0.95
+            ),
+            0.32,
+            0.95
+          );
+          const cutPenalty = THREE.MathUtils.clamp((cutAngle ?? 0) / (Math.PI / 2), 0, 1);
+          const cushionPenalty = plan.viaCushion ? 0.08 : 0;
+          const alignmentBlend = THREE.MathUtils.clamp(alignment * 0.65, 0, 0.65);
+          const adjusted = THREE.MathUtils.lerp(basePower, desiredPower, alignmentBlend);
+          return THREE.MathUtils.clamp(adjusted + cutPenalty * 0.08 + cushionPenalty, 0.32, 0.95);
         };
         const normalizeTargetId = (value) => {
           if (typeof value === 'string') return value.toUpperCase();
@@ -20585,7 +20666,6 @@ const powerRef = useRef(hud.power);
               const plan = {
                 type: 'pot',
                 aimDir,
-                power: computePowerFromDistance(totalDist + cushionTax),
                 target: colorId,
                 targetBall,
                 pocketId: POCKET_IDS[i],
@@ -20594,8 +20674,10 @@ const powerRef = useRef(hud.power);
                 cueToTarget: cueDist,
                 targetToPocket: toPocketLen,
                 railNormal: cushionAid?.railNormal ?? null,
-                viaCushion: Boolean(cushionAid)
+                viaCushion: Boolean(cushionAid),
+                cutAngle
               };
+              plan.power = computePlanPower(plan, totalDist, cutAngle, cushionTax, state);
               const leaveProbe = targetBall.pos
                 .clone()
                 .add(aimDir.clone().multiplyScalar(ballDiameter * 2.5));
@@ -20695,7 +20777,33 @@ const powerRef = useRef(hud.power);
                 const aimDir = cueVec.clone().normalize();
                 const cueDist = cueVec.length();
                 const toPocket = targetBall.pos.distanceTo(pocketCenter);
-                const power = computePowerFromDistance(cueDist + toPocket);
+                const cutCos = THREE.MathUtils.clamp(
+                  targetBall.pos.clone().sub(ghost).normalize().dot(aimDir),
+                  -1,
+                  1
+                );
+                const cutAngle = Math.acos(Math.abs(cutCos));
+                const basePlan = {
+                  type: 'pot',
+                  aimDir,
+                  target: toBallColorId(targetBall.id),
+                  targetBall,
+                  pocketId: POCKET_IDS[centers.indexOf(pocketCenter)] ?? 'TM',
+                  pocketCenter: pocketCenter.clone(),
+                  difficulty: cueDist + toPocket,
+                  cueToTarget: cueDist,
+                  targetToPocket: toPocket,
+                  railNormal: null,
+                  viaCushion: false,
+                  cutAngle
+                };
+                const power = computePlanPower(
+                  basePlan,
+                  cueDist + toPocket,
+                  cutAngle,
+                  0,
+                  state
+                );
                 const entryAlignment = Math.max(
                   0,
                   toPocketDir
@@ -20703,12 +20811,6 @@ const powerRef = useRef(hud.power);
                     .normalize()
                     .dot(pocketCenter.clone().normalize().multiplyScalar(-1))
                 );
-                const cutCos = THREE.MathUtils.clamp(
-                  targetBall.pos.clone().sub(ghost).normalize().dot(aimDir),
-                  -1,
-                  1
-                );
-                const cutAngle = Math.acos(Math.abs(cutCos));
                 const cutSeverity = Math.min(cutAngle / (Math.PI / 2), 1);
                 const travelPenalty = Math.min(
                   (cueDist + toPocket) / Math.max(PLAY_W, PLAY_H, BALL_R),
@@ -20725,39 +20827,13 @@ const powerRef = useRef(hud.power);
                   0,
                   1
                 );
-                potShots.push({
-                  type: 'pot',
-                  aimDir,
+                const plan = {
+                  ...basePlan,
                   power,
-                  target: toBallColorId(targetBall.id),
-                  targetBall,
-                  pocketId: POCKET_IDS[centers.indexOf(pocketCenter)] ?? 'TM',
-                  pocketCenter: pocketCenter.clone(),
-                  difficulty: cueDist + toPocket,
-                  cueToTarget: cueDist,
-                  targetToPocket: toPocket,
-                  railNormal: null,
-                  viaCushion: false,
-                  quality,
-                  spin: computePlanSpin(
-                    {
-                      type: 'pot',
-                      aimDir,
-                      power,
-                      target: toBallColorId(targetBall.id),
-                      targetBall,
-                      pocketId: POCKET_IDS[centers.indexOf(pocketCenter)] ?? 'TM',
-                      pocketCenter: pocketCenter.clone(),
-                      difficulty: cueDist + toPocket,
-                      cueToTarget: cueDist,
-                      targetToPocket: toPocket,
-                      railNormal: null,
-                      viaCushion: false,
-                      quality
-                    },
-                    state
-                  )
-                });
+                  quality
+                };
+                plan.spin = computePlanSpin(plan, state);
+                potShots.push(plan);
               }
             }
           }
@@ -22888,12 +22964,20 @@ const powerRef = useRef(hud.power);
                   TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
                   b.vel.add(TMP_VEC2_AXIS);
                   TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
-                  if (b.spinMode === 'swerve' && b.pendingSpin) {
-                    b.pendingSpin.add(TMP_VEC2_LATERAL);
+                  if (b.spinMode === 'swerve') {
+                    const drift = SWERVE_PRE_IMPACT_DRIFT;
+                    b.vel.addScaledVector(TMP_VEC2_LATERAL, drift);
+                    if (b.pendingSpin) {
+                      b.pendingSpin.addScaledVector(TMP_VEC2_LATERAL, 1 - drift);
+                    }
                   }
                   const alignedSpeed = b.vel.dot(launchDir);
                   TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
-                  b.vel.copy(TMP_VEC2_AXIS);
+                  if (b.spinMode === 'swerve') {
+                    b.vel.lerp(TMP_VEC2_AXIS, 0.35);
+                  } else {
+                    b.vel.copy(TMP_VEC2_AXIS);
+                  }
                 } else {
                   b.vel.add(TMP_VEC2_SPIN);
                   if (
