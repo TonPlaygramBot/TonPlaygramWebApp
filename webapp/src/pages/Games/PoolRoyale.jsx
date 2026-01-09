@@ -18294,7 +18294,6 @@ const powerRef = useRef(hud.power);
       const cueBody = new THREE.Group();
       cueStick.add(cueBody);
       cueStick.userData.body = cueBody;
-      cueStick.rotation.order = 'YXZ';
       cueBodyRef.current = cueBody;
       const buttLift = Math.min(CUE_BUTT_LIFT, cueLen);
       const buttTilt = Math.asin(
