@@ -20170,7 +20170,8 @@ const powerRef = useRef(hud.power);
             if (!order.includes(normalized)) order.push(normalized);
           };
           const metaState = frameSnapshot?.meta?.state ?? null;
-          const shooterSeat = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
+          const activeSeat = metaState?.currentPlayer ?? frameSnapshot?.activePlayer;
+          const shooterSeat = activeSeat === 'B' ? 'B' : 'A';
           const assignments = metaState?.assignments ?? {};
           const assignmentTargets = mapAssignmentToTargets(
             shooterSeat ? assignments[shooterSeat] : null,
