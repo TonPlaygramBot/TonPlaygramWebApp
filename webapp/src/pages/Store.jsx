@@ -175,7 +175,6 @@ const MURLAN_TYPE_LABELS = {
   cards: 'Card Themes',
   stools: 'Stools & Chairs',
   tables: 'Table Models',
-  tableFinish: 'Table Finishes',
   environmentHdri: 'HDR Environments'
 };
 
