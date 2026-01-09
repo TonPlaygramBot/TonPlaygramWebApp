@@ -1185,29 +1185,28 @@ const POCKET_TOP_R =
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
 const POCKET_WALL_OPEN_TRIM = TABLE.THICK * 0.18;
 const POCKET_WALL_HEIGHT = TABLE.THICK * 0.7 - POCKET_WALL_OPEN_TRIM;
-const POCKET_NET_TOP_EXPANSION = BALL_R * 0.18; // stretch the net upward while preserving the bottom drop
-const POCKET_NET_DEPTH = TABLE.THICK * 2.26 + POCKET_NET_TOP_EXPANSION;
+const POCKET_NET_DEPTH = TABLE.THICK * 2.26;
 const POCKET_NET_SEGMENTS = 64;
 const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 1.05; // drop deeper so potted balls meet the chrome holders cleanly
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.74; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
-const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16 + POCKET_NET_TOP_EXPANSION * 1.06; // raise the net so the weave sits higher on screen
+const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // raise the net so the weave sits higher on screen
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 7.6); // stretch the holder run so it comfortably fits 7 balls
 const POCKET_GUIDE_DROP = BALL_R * 0.12;
-const POCKET_GUIDE_SPREAD = BALL_R * 0.56;
+const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
-const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.18; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.04; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
-const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.08; // give potted balls a touch more breathing room on the holder rails
+const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
 const POCKET_HOLDER_REST_DROP = BALL_R * 2.18; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
@@ -1219,7 +1218,6 @@ const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section 
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
 const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so it meets the raised holder rails
-const POCKET_STRAP_EXTRA_DROP = BALL_R * 0.12; // extend the strap slightly downward without lifting the top edge
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -1318,14 +1316,12 @@ const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * 1.15;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
-const SPIN_CURVE_STRENGTH = 0.2; // add a gentle curve so side spin visibly bends long cue-ball paths
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.6; // inject extra sideways carry while the cue ball is airborne
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.24; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SWERVE_THRESHOLD = 0.7; // outer 30% of the spin control activates swerve behaviour
-const SWERVE_TRAVEL_MULTIPLIER = 0.95; // let swerve-driven roll carry more lateral energy while staying believable
-const SWERVE_CURVE_BOOST = 1.35; // amplify curve response while the cue ball is in swerve mode
+const SWERVE_TRAVEL_MULTIPLIER = 0.86; // let swerve-driven roll carry more lateral energy while staying believable
 const PRE_IMPACT_SPIN_DRIFT = 0.1; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
@@ -2788,7 +2784,7 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.38; // halve the pattern footprint so the scan resolves more clearly
+const CLOTH_PATTERN_SCALE = 0.76; // tighten the pattern footprint so the scan resolves more clearly
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
 const POLYHAVEN_ANISOTROPY_BOOST = 3.6;
@@ -4941,7 +4937,6 @@ const TMP_VEC2_A = new THREE.Vector2();
 const TMP_VEC2_B = new THREE.Vector2();
 const TMP_VEC2_C = new THREE.Vector2();
 const TMP_VEC2_D = new THREE.Vector2();
-const TMP_VEC2_CURVE = new THREE.Vector2();
 const TMP_VEC2_SPIN = new THREE.Vector2();
 const TMP_VEC2_FORWARD = new THREE.Vector2();
 const TMP_VEC2_LATERAL = new THREE.Vector2();
@@ -6933,9 +6928,7 @@ function Table3D(
     }
 
     if (strapOrigin && strapEnd) {
-      const strapHeight =
-        Math.max(BALL_DIAMETER * 2.6, pocketStrapLength * 0.72) +
-        POCKET_STRAP_EXTRA_DROP;
+      const strapHeight = Math.max(BALL_DIAMETER * 2.6, pocketStrapLength * 0.72);
       const strapGeom = new THREE.BoxGeometry(
         pocketStrapWidth,
         strapHeight,
@@ -6947,11 +6940,10 @@ function Table3D(
       applyPocketLeatherTextureDefaults(strap.material?.roughnessMap);
       const strapBase = strapEnd.clone();
       const strapTopLimit = pocketTopY - TABLE.THICK * 0.08;
-      const strapBaseY =
-        Math.min(
-          strapBase.y + POCKET_STRAP_VERTICAL_LIFT,
-          strapTopLimit - strapHeight
-        ) - POCKET_STRAP_EXTRA_DROP;
+      const strapBaseY = Math.min(
+        strapBase.y + POCKET_STRAP_VERTICAL_LIFT,
+        strapTopLimit - strapHeight
+      );
       const strapMid = strapBase.clone();
       strapMid.y = strapBaseY + strapHeight * 0.5;
       const flatDir = strapDir.clone().setY(0);
@@ -20043,25 +20035,15 @@ const powerRef = useRef(hud.power);
         };
         const MAX_ROUTE_DISTANCE =
           Math.hypot(PLAY_W, PLAY_H) + Math.max(PLAY_W, PLAY_H);
-        const TABLE_SPAN = Math.max(PLAY_W, PLAY_H);
-        const MIN_CUE_TRAVEL = TABLE_SPAN * 0.18;
-        const MAX_CUE_TRAVEL = TABLE_SPAN * 0.58;
-        const powerForCueTravel = (travel, spinY = 0) => {
-          const spinBias = THREE.MathUtils.clamp(spinY, -0.6, 0.6);
-          const adjustedTravel =
-            travel / Math.max(0.35, 1 - spinBias * 0.25);
-          const normalized =
-            (adjustedTravel - MIN_CUE_TRAVEL) / (MAX_CUE_TRAVEL - MIN_CUE_TRAVEL);
-          return THREE.MathUtils.clamp(normalized, 0, 1);
-        };
         const computePowerFromDistance = (dist) => {
           const n = THREE.MathUtils.clamp(dist / MAX_ROUTE_DISTANCE, 0, 1);
           return THREE.MathUtils.lerp(0.35, 0.9, n);
         };
-        const resolveNextTargetBall = (plan, stateSnapshot) => {
-          if (!plan || plan.type !== 'pot') return null;
+        const computePlanSpin = (plan, stateSnapshot) => {
+          const fallback = { x: 0, y: -0.1 };
+          if (!plan || plan.type !== 'pot') return fallback;
           const colorId = plan.target;
-          if (!colorId) return null;
+          if (!colorId) return fallback;
           try {
             const events = [
               {
@@ -20106,37 +20088,6 @@ const powerRef = useRef(hud.power);
                 (b) => b.active && toBallColorId(b.id) === 'RED'
               );
             }
-            return nextBall;
-          } catch (err) {
-            console.warn('next-ball prediction failed', err);
-            return null;
-          }
-        };
-        const computePlanPower = (plan, totalDistance, stateSnapshot) => {
-          const basePower = computePowerFromDistance(totalDistance);
-          if (!plan || plan.type !== 'pot' || !plan.targetBall) return basePower;
-          const nextBall = resolveNextTargetBall(plan, stateSnapshot);
-          if (!nextBall) return basePower;
-          const nextDistance = plan.targetBall.pos.distanceTo(nextBall.pos);
-          const desiredTravel = THREE.MathUtils.clamp(
-            nextDistance * 0.55,
-            MIN_CUE_TRAVEL,
-            MAX_CUE_TRAVEL
-          );
-          const leavePower = powerForCueTravel(desiredTravel, plan.spin?.y ?? 0);
-          const pocketBias = THREE.MathUtils.clamp(
-            (plan.targetToPocket ?? 0) / TABLE_SPAN,
-            0,
-            1
-          );
-          const blend = 0.4 + pocketBias * 0.2;
-          return THREE.MathUtils.lerp(basePower, leavePower, blend);
-        };
-        const computePlanSpin = (plan, stateSnapshot) => {
-          const fallback = { x: 0, y: -0.1 };
-          if (!plan || plan.type !== 'pot') return fallback;
-          try {
-            const nextBall = resolveNextTargetBall(plan, stateSnapshot);
             if (!nextBall) return fallback;
             const aimDir = plan.aimDir.clone();
             if (aimDir.lengthSq() < 1e-6) return fallback;
@@ -20147,15 +20098,9 @@ const powerRef = useRef(hud.power);
             const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
             const lateral = THREE.MathUtils.clamp(perp.dot(nextDir), -1, 1);
             const forward = THREE.MathUtils.clamp(aimDir.dot(nextDir), -1, 1);
-            const distanceBias = THREE.MathUtils.clamp(
-              plan.targetBall.pos.distanceTo(nextBall.pos) / TABLE_SPAN,
-              0,
-              1
-            );
-            const sideScale = THREE.MathUtils.lerp(0.34, 0.52, distanceBias);
-            const spinX = THREE.MathUtils.clamp(lateral * sideScale, -0.7, 0.7);
+            const spinX = THREE.MathUtils.clamp(lateral * 0.45, -0.6, 0.6);
             const spinY = THREE.MathUtils.clamp(
-              -forward * (MAX_SPIN_FORWARD / BALL_R) * (0.65 + distanceBias * 0.35),
+              -forward * (MAX_SPIN_FORWARD / BALL_R),
               -1,
               1
             );
@@ -20683,7 +20628,6 @@ const powerRef = useRef(hud.power);
                 1
               );
               plan.spin = computePlanSpin(plan, state);
-              plan.power = computePlanPower(plan, totalDist + cushionTax, state);
               potShots.push(plan);
             }
             const cueToBall = targetBall.pos.clone().sub(cuePos);
@@ -20781,7 +20725,7 @@ const powerRef = useRef(hud.power);
                   0,
                   1
                 );
-                const plan = {
+                potShots.push({
                   type: 'pot',
                   aimDir,
                   power,
@@ -20794,11 +20738,26 @@ const powerRef = useRef(hud.power);
                   targetToPocket: toPocket,
                   railNormal: null,
                   viaCushion: false,
-                  quality
-                };
-                plan.spin = computePlanSpin(plan, state);
-                plan.power = computePlanPower(plan, cueDist + toPocket, state);
-                potShots.push(plan);
+                  quality,
+                  spin: computePlanSpin(
+                    {
+                      type: 'pot',
+                      aimDir,
+                      power,
+                      target: toBallColorId(targetBall.id),
+                      targetBall,
+                      pocketId: POCKET_IDS[centers.indexOf(pocketCenter)] ?? 'TM',
+                      pocketCenter: pocketCenter.clone(),
+                      difficulty: cueDist + toPocket,
+                      cueToTarget: cueDist,
+                      targetToPocket: toPocket,
+                      railNormal: null,
+                      viaCushion: false,
+                      quality
+                    },
+                    state
+                  )
+                });
               }
             }
           }
@@ -21077,11 +21036,17 @@ const powerRef = useRef(hud.power);
               targetBall && pocketCenter
                 ? targetBall.pos.distanceTo(pocketCenter)
                 : 0;
-            const speedScale = mapSpeedPresetScale(plan.cueParams?.speed);
-            const spinPreset = mapSpinPreset(plan.cueParams?.spin);
-            const aiPlan = {
+            const basePower = computePowerFromDistance(cueToAim + pocketDistance);
+            const power = THREE.MathUtils.clamp(
+              basePower * mapSpeedPresetScale(plan.cueParams?.speed),
+              0.3,
+              0.95
+            );
+            const spin = mapSpinPreset(plan.cueParams?.spin);
+            return {
               type: plan.actionType === 'pot' ? 'pot' : 'safety',
               aimDir,
+              power,
               target: targetColor ?? 'SAFETY',
               targetBall,
               pocketId: localPocketId ?? 'SAFETY',
@@ -21092,28 +21057,13 @@ const powerRef = useRef(hud.power);
                 ? cueBall.pos.distanceTo(targetBall.pos)
                 : cueToAim,
               targetToPocket: pocketDistance,
+              spin,
               aiMeta: {
                 EV: plan.EV ?? null,
                 notes: plan.notes ?? null,
                 source: 'advanced'
               }
             };
-            const positioningSpin = computePlanSpin(aiPlan, frameSnapshot);
-            aiPlan.spin = {
-              x: THREE.MathUtils.clamp(
-                spinPreset.x * 0.6 + positioningSpin.x * 0.4,
-                -1,
-                1
-              ),
-              y: THREE.MathUtils.clamp(
-                spinPreset.y * 0.6 + positioningSpin.y * 0.4,
-                -1,
-                1
-              )
-            };
-            const tunedPower = computePlanPower(aiPlan, cueToAim + pocketDistance, frameSnapshot);
-            aiPlan.power = THREE.MathUtils.clamp(tunedPower * speedScale, 0.3, 0.95);
-            return aiPlan;
           } catch (err) {
             console.warn('advanced UK AI planning failed', err);
             return null;
@@ -22924,15 +22874,6 @@ const powerRef = useRef(hud.power);
               }
             }
             if (hasSpin) {
-              const travelSpeed = b.vel.length();
-              const swerveBoost =
-                isCue && b.spinMode === 'swerve' && !b.impacted ? SWERVE_CURVE_BOOST : 1;
-              const curveScale =
-                SPIN_CURVE_STRENGTH * stepScale * (0.18 + travelSpeed * 0.06) * swerveBoost;
-              if (curveScale > 0) {
-                TMP_VEC2_CURVE.set(-b.spin.y, b.spin.x).multiplyScalar(curveScale);
-                b.vel.add(TMP_VEC2_CURVE);
-              }
               const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
               const allowRoll = !isCue || b.impacted || swerveTravel;
               const preImpact = isCue && !b.impacted;
