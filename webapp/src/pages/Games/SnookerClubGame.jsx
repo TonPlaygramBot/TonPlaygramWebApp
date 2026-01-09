@@ -1387,6 +1387,9 @@ function deriveInHandFromFrame(frame) {
   if (meta.variant === 'uk' && meta.state) {
     return Boolean(meta.state.mustPlayFromBaulk);
   }
+  if (meta.variant === 'snooker' && meta.state) {
+    return Boolean(meta.state.ballInHand);
+  }
   return false;
 }
 
@@ -2495,6 +2498,204 @@ const POCKET_LINER_PRESETS = Object.freeze([
       repeatY: 2.1,
       seed: 4101
     }
+  }),
+  Object.freeze({
+    id: 'fabric_leather_02',
+    label: 'Fabric Leather 02',
+    type: 'metal',
+    jawColor: 0x4a362d,
+    rimColor: 0x3f2c23,
+    sheenColor: 0x7a5e4f,
+    rimSheenColor: 0x6b5246,
+    sheen: 0.54,
+    sheenRoughness: 0.56,
+    roughness: 0.56,
+    rimRoughness: 0.6,
+    metalness: 0.1,
+    rimMetalness: 0.12,
+    clearcoat: 0.18,
+    clearcoatRoughness: 0.42,
+    envMapIntensity: 0.45,
+    bumpScale: 0.26,
+    rimBumpScale: 0.2,
+    texture: {
+      base: 0x4a362d,
+      highlight: 0x7a5e4f,
+      shadow: 0x2a1d16,
+      density: 0.75,
+      grainSize: 0.8,
+      streakAlpha: 0.2,
+      creaseAlpha: 0.22,
+      seamContrast: 0.24,
+      repeatX: 2.3,
+      repeatY: 2.1,
+      seed: 4211
+    }
+  }),
+  Object.freeze({
+    id: 'fabric_leather_01',
+    label: 'Fabric Leather 01',
+    type: 'metal',
+    jawColor: 0x6c5241,
+    rimColor: 0x5b4335,
+    sheenColor: 0x9b7a62,
+    rimSheenColor: 0x8a6d58,
+    sheen: 0.5,
+    sheenRoughness: 0.6,
+    roughness: 0.6,
+    rimRoughness: 0.65,
+    metalness: 0.08,
+    rimMetalness: 0.1,
+    clearcoat: 0.16,
+    clearcoatRoughness: 0.48,
+    envMapIntensity: 0.4,
+    bumpScale: 0.24,
+    rimBumpScale: 0.18,
+    texture: {
+      base: 0x6c5241,
+      highlight: 0x9b7a62,
+      shadow: 0x3b2a22,
+      density: 0.7,
+      grainSize: 0.85,
+      streakAlpha: 0.18,
+      creaseAlpha: 0.2,
+      seamContrast: 0.22,
+      repeatX: 2.2,
+      repeatY: 2.1,
+      seed: 4313
+    }
+  }),
+  Object.freeze({
+    id: 'brown_leather',
+    label: 'Brown Leather',
+    type: 'metal',
+    jawColor: 0x3f2b21,
+    rimColor: 0x352319,
+    sheenColor: 0x634233,
+    rimSheenColor: 0x56392d,
+    sheen: 0.58,
+    sheenRoughness: 0.52,
+    roughness: 0.52,
+    rimRoughness: 0.56,
+    metalness: 0.12,
+    rimMetalness: 0.14,
+    clearcoat: 0.2,
+    clearcoatRoughness: 0.36,
+    envMapIntensity: 0.48,
+    bumpScale: 0.28,
+    rimBumpScale: 0.22,
+    texture: {
+      base: 0x3f2b21,
+      highlight: 0x634233,
+      shadow: 0x22150d,
+      density: 0.8,
+      grainSize: 0.75,
+      streakAlpha: 0.22,
+      creaseAlpha: 0.24,
+      seamContrast: 0.26,
+      repeatX: 2.2,
+      repeatY: 2.1,
+      seed: 4417
+    }
+  }),
+  Object.freeze({
+    id: 'leather_red_02',
+    label: 'Leather Red 02',
+    type: 'metal',
+    jawColor: 0x6a1c1f,
+    rimColor: 0x57171b,
+    sheenColor: 0x9c3b3d,
+    rimSheenColor: 0x8d3436,
+    sheen: 0.6,
+    sheenRoughness: 0.5,
+    roughness: 0.5,
+    rimRoughness: 0.54,
+    metalness: 0.12,
+    rimMetalness: 0.14,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.34,
+    envMapIntensity: 0.52,
+    bumpScale: 0.26,
+    rimBumpScale: 0.2,
+    texture: {
+      base: 0x6a1c1f,
+      highlight: 0x9c3b3d,
+      shadow: 0x3a0f12,
+      density: 0.85,
+      grainSize: 0.7,
+      streakAlpha: 0.24,
+      creaseAlpha: 0.24,
+      seamContrast: 0.28,
+      repeatX: 2.1,
+      repeatY: 2.1,
+      seed: 4511
+    }
+  }),
+  Object.freeze({
+    id: 'leather_red_03',
+    label: 'Leather Red 03',
+    type: 'metal',
+    jawColor: 0x4b1013,
+    rimColor: 0x3d0d10,
+    sheenColor: 0x7a2b2d,
+    rimSheenColor: 0x6d2527,
+    sheen: 0.62,
+    sheenRoughness: 0.5,
+    roughness: 0.5,
+    rimRoughness: 0.55,
+    metalness: 0.12,
+    rimMetalness: 0.15,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.32,
+    envMapIntensity: 0.55,
+    bumpScale: 0.28,
+    rimBumpScale: 0.22,
+    texture: {
+      base: 0x4b1013,
+      highlight: 0x7a2b2d,
+      shadow: 0x24070a,
+      density: 0.9,
+      grainSize: 0.68,
+      streakAlpha: 0.25,
+      creaseAlpha: 0.26,
+      seamContrast: 0.3,
+      repeatX: 2.1,
+      repeatY: 2.1,
+      seed: 4619
+    }
+  }),
+  Object.freeze({
+    id: 'leather_white',
+    label: 'Leather White',
+    type: 'metal',
+    jawColor: 0xd8d2c9,
+    rimColor: 0xc6bfb6,
+    sheenColor: 0xf1ece3,
+    rimSheenColor: 0xe2dbd2,
+    sheen: 0.46,
+    sheenRoughness: 0.62,
+    roughness: 0.7,
+    rimRoughness: 0.75,
+    metalness: 0.04,
+    rimMetalness: 0.05,
+    clearcoat: 0.12,
+    clearcoatRoughness: 0.6,
+    envMapIntensity: 0.36,
+    bumpScale: 0.2,
+    rimBumpScale: 0.16,
+    texture: {
+      base: 0xd8d2c9,
+      highlight: 0xf1ece3,
+      shadow: 0x9b9289,
+      density: 0.6,
+      grainSize: 0.9,
+      streakAlpha: 0.16,
+      creaseAlpha: 0.2,
+      seamContrast: 0.2,
+      repeatX: 2.2,
+      repeatY: 2.1,
+      seed: 4711
+    }
   })
 ]);
 
@@ -2515,7 +2716,9 @@ function resolvePocketLinerTextureColor(value, fallback) {
 }
 
 const DEFAULT_POCKET_LINER_OPTION_ID =
-  POCKET_LINER_PRESETS[0]?.id ?? 'walnutPocket';
+  POCKET_LINER_PRESETS.find((preset) => preset.id === 'fabric_leather_02')?.id ??
+  POCKET_LINER_PRESETS[0]?.id ??
+  'fabric_leather_02';
 
 const POCKET_LINER_OPTIONS = Object.freeze(
   POCKET_LINER_PRESETS.map((config, index) => {
