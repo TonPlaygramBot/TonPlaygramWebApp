@@ -77,6 +77,18 @@ const POLYHAVEN_TABLE_THEMES = [
   description: option.description || `${option.label} with preserved Poly Haven materials.`
 }));
 
+export const MURLAN_TABLE_FINISHES = [
+  {
+    id: 'peelingPaintWeathered',
+    label: 'Wood Peeling Paint Weathered',
+    presetId: 'oak',
+    grainId: 'wood_peeling_paint_weathered',
+    price: 980,
+    swatches: ['#a89f95', '#b8b3aa'],
+    description: 'Weathered peeling paint wood rails with a reclaimed finish.'
+  }
+];
+
 export const MURLAN_TABLE_THEMES = [
   {
     id: 'murlan-default',
