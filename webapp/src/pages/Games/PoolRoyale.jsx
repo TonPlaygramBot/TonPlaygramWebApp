@@ -2460,6 +2460,12 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze(
 const DEFAULT_CLOTH_TEXTURE_KEY =
   POOL_ROYALE_DEFAULT_UNLOCKS.clothColor?.[0] ?? CLOTH_LIBRARY[0].id;
 const DEFAULT_CLOTH_COLOR_ID = DEFAULT_CLOTH_TEXTURE_KEY;
+const CLOTH_TEXTURE_SOURCE_STORAGE_KEY = 'poolRoyaleClothSource';
+const CLOTH_TEXTURE_SOURCE_OPTIONS = Object.freeze([
+  { id: 'gltf', label: 'GLTF Cloth' },
+  { id: 'procedural', label: 'Procedural Cloth' }
+]);
+const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'gltf';
 const CLOTH_COLOR_OPTIONS = Object.freeze(
   CLOTH_LIBRARY.map((cloth) => ({
     id: cloth.id,
@@ -2845,7 +2851,13 @@ function broadcastClothTextureReady(sourceId) {
   textureKeys.forEach((textureKey) => {
     const consumers = CLOTH_TEXTURE_CONSUMERS.get(textureKey);
     if (!consumers?.size) return;
-    consumers.forEach((finishInfo) => updateClothTexturesForFinish(finishInfo, textureKey));
+    consumers.forEach((finishInfo) =>
+      updateClothTexturesForFinish(
+        finishInfo,
+        textureKey,
+        finishInfo?.clothTextureSource ?? DEFAULT_CLOTH_TEXTURE_SOURCE_ID
+      )
+    );
   });
 }
 
@@ -3320,7 +3332,7 @@ const createClothTextures = (() => {
     pendingLoads.set(cacheKey, promise);
   };
 
-  return (textureKey = DEFAULT_CLOTH_TEXTURE_KEY) => {
+  return (textureKey = DEFAULT_CLOTH_TEXTURE_KEY, textureSource = DEFAULT_CLOTH_TEXTURE_SOURCE_ID) => {
     const preset =
       CLOTH_TEXTURE_PRESETS[textureKey] ??
       CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY];
@@ -3330,6 +3342,8 @@ const createClothTextures = (() => {
       const procedural = generateProceduralClothTextures(preset);
       entry = {
         ...procedural,
+        proceduralMap: procedural.map ?? null,
+        proceduralBump: procedural.bump ?? null,
         normal: null,
         roughness: null,
         presetId: preset.id,
@@ -3340,17 +3354,20 @@ const createClothTextures = (() => {
       cache.set(cacheKey, entry);
     }
 
-    ensurePolyHavenTextures(preset, cacheKey);
+    const useProcedural = textureSource === 'procedural';
+    if (!useProcedural) {
+      ensurePolyHavenTextures(preset, cacheKey);
+    }
 
     return {
-      map: cloneTexture(entry.map),
-      bump: cloneTexture(entry.bump),
-      normal: cloneTexture(entry.normal),
-      roughness: cloneTexture(entry.roughness),
+      map: cloneTexture(useProcedural ? entry.proceduralMap ?? entry.map : entry.map),
+      bump: cloneTexture(useProcedural ? entry.proceduralBump ?? entry.bump : entry.bump),
+      normal: cloneTexture(useProcedural ? null : entry.normal),
+      roughness: cloneTexture(useProcedural ? null : entry.roughness),
       presetId: preset.id,
       sourceId: entry.sourceId,
-      mapSource: entry.mapSource ?? 'procedural',
-      ready: Boolean(entry.ready)
+      mapSource: useProcedural ? 'procedural' : entry.mapSource ?? 'procedural',
+      ready: useProcedural ? true : Boolean(entry.ready)
     };
   };
 })();
@@ -3401,10 +3418,14 @@ function replaceMaterialTexture (
   material.needsUpdate = true;
 }
 
-function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TEXTURE_KEY) {
+function updateClothTexturesForFinish (
+  finishInfo,
+  textureKey = DEFAULT_CLOTH_TEXTURE_KEY,
+  textureSource = DEFAULT_CLOTH_TEXTURE_SOURCE_ID
+) {
   if (!finishInfo?.clothMat) return;
   registerClothTextureConsumer(textureKey, finishInfo);
-  const textures = createClothTextures(textureKey);
+  const textures = createClothTextures(textureKey, textureSource);
   const textureScale = textures.mapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
   const targetNormalScale =
     finishInfo.clothBase?.isPolyHavenCloth && textures.normal
@@ -3542,6 +3563,7 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     mesh.material.needsUpdate = true;
   });
   finishInfo.clothTextureKey = textureKey;
+  finishInfo.clothTextureSource = textureSource;
 }
 
 function resolveRepeatVector(settings, material) {
@@ -6112,6 +6134,8 @@ function Table3D(
   );
   const clothTextureKey =
     resolvedFinish?.clothTextureKey ?? DEFAULT_CLOTH_TEXTURE_KEY;
+  const clothTextureSource =
+    resolvedFinish?.clothTextureSource ?? DEFAULT_CLOTH_TEXTURE_SOURCE_ID;
   const palette = resolvedFinish?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
   const defaultWoodOption =
     WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
@@ -6222,7 +6246,7 @@ function Table3D(
     normal: clothNormal,
     roughness: clothRoughness,
     mapSource: clothMapSource
-  } = createClothTextures(clothTextureKey);
+  } = createClothTextures(clothTextureKey, clothTextureSource);
   const isPolyHavenCloth = clothMapSource === 'polyhaven';
   const clothPrimary = new THREE.Color(palette.cloth);
   const cushionPrimary = new THREE.Color(palette.cushion ?? palette.cloth);
@@ -6459,6 +6483,7 @@ function Table3D(
     applyClothDetail,
     woodTextureId: finishParts.woodTextureId,
     clothTextureKey,
+    clothTextureSource,
     woodRepeatScale
   };
   registerClothTextureConsumer(clothTextureKey, finishInfo);
@@ -9822,8 +9847,15 @@ function applyTableFinishToTable(table, finish) {
 
   const clothTextureKey =
     resolvedFinish?.clothTextureKey ?? finishInfo.clothTextureKey ?? DEFAULT_CLOTH_TEXTURE_KEY;
-  if (finishInfo.clothTextureKey !== clothTextureKey) {
-    updateClothTexturesForFinish(finishInfo, clothTextureKey);
+  const clothTextureSource =
+    resolvedFinish?.clothTextureSource ??
+    finishInfo.clothTextureSource ??
+    DEFAULT_CLOTH_TEXTURE_SOURCE_ID;
+  if (
+    finishInfo.clothTextureKey !== clothTextureKey ||
+    finishInfo.clothTextureSource !== clothTextureSource
+  ) {
+    updateClothTexturesForFinish(finishInfo, clothTextureKey, clothTextureSource);
   }
 
   const { accentMesh, accentParent, dimensions } = finishInfo.parts;
@@ -10187,6 +10219,15 @@ function PoolRoyaleGame({
       (id) => CLOTH_COLOR_OPTIONS.some((opt) => opt.id === id),
       DEFAULT_CLOTH_COLOR_ID
     );
+  });
+  const [clothTextureSourceId, setClothTextureSourceId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(CLOTH_TEXTURE_SOURCE_STORAGE_KEY);
+      if (stored && CLOTH_TEXTURE_SOURCE_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_CLOTH_TEXTURE_SOURCE_ID;
   });
   const [skipAllReplays, setSkipAllReplays] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -11145,12 +11186,15 @@ function PoolRoyaleGame({
     const chromeSelection = activeChromeOption;
     const clothSelection = activeClothOption;
     const linerSelection = activePocketLinerOption;
-    const clothTextureKey = clothSelection.textureKey ?? clothSelection.id ?? DEFAULT_CLOTH_TEXTURE_KEY;
+    const clothTextureKey =
+      clothSelection.textureKey ?? clothSelection.id ?? DEFAULT_CLOTH_TEXTURE_KEY;
+    const clothTextureSource = clothTextureSourceId;
     return {
       ...baseFinish,
       clothDetail:
         clothSelection.detail ?? baseFinish?.clothDetail ?? null,
       clothTextureKey,
+      clothTextureSource,
       colors: {
         ...baseFinish.colors,
         cloth: clothSelection.color,
@@ -11194,7 +11238,13 @@ function PoolRoyaleGame({
         return materials;
       }
     };
-  }, [tableFinishId, activeChromeOption, activeClothOption, activePocketLinerOption]);
+  }, [
+    tableFinishId,
+    activeChromeOption,
+    activeClothOption,
+    activePocketLinerOption,
+    clothTextureSourceId
+  ]);
   const tableFinishRef = useRef(tableFinish);
   useEffect(() => {
     tableFinishRef.current = tableFinish;
@@ -11218,6 +11268,11 @@ function PoolRoyaleGame({
       window.localStorage.setItem(CLOTH_COLOR_STORAGE_KEY, clothColorId);
     }
   }, [clothColorId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(CLOTH_TEXTURE_SOURCE_STORAGE_KEY, clothTextureSourceId);
+    }
+  }, [clothTextureSourceId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(
@@ -24551,6 +24606,31 @@ const powerRef = useRef(hud.power);
                         </button>
                       );
                     })}
+                  </div>
+                  <div className="mt-3">
+                    <h4 className="text-[10px] uppercase tracking-[0.32em] text-emerald-100/70">
+                      Cloth Texture
+                    </h4>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {CLOTH_TEXTURE_SOURCE_OPTIONS.map((option) => {
+                        const active = option.id === clothTextureSourceId;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setClothTextureSourceId(option.id)}
+                            aria-pressed={active}
+                            className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                              active
+                                ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                                : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               ) : null}
