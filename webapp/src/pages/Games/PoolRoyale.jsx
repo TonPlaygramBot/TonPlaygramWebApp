@@ -2781,7 +2781,7 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.76; // tighten the pattern footprint so the scan resolves more clearly
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 0.42;
 const POLYHAVEN_ANISOTROPY_BOOST = 2.6;
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
 const CLOTH_ROUGHNESS_BASE = 0.82;
@@ -3033,10 +3033,23 @@ const createClothTextures = (() => {
         luminanceCount += 1;
       }
       const average = luminanceCount ? luminanceSum / luminanceCount : 0;
-      if (average > 0) {
-        const scale = 255 / average;
+      const contrast = 1.35;
+      let contrastSum = 0;
+      let contrastCount = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        const value = data[i];
+        const adjusted = clamp255(average + (value - average) * contrast);
+        data[i] = adjusted;
+        data[i + 1] = adjusted;
+        data[i + 2] = adjusted;
+        contrastSum += adjusted;
+        contrastCount += 1;
+      }
+      const contrastAverage = contrastCount ? contrastSum / contrastCount : average;
+      if (contrastAverage > 0) {
+        const scale = 255 / contrastAverage;
         for (let i = 0; i < data.length; i += 4) {
-          const value = Math.min(255, Math.round(data[i] * scale));
+          const value = clamp255(data[i] * scale);
           data[i] = value;
           data[i + 1] = value;
           data[i + 2] = value;
@@ -3246,12 +3259,17 @@ const createClothTextures = (() => {
           const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(preset.sourceId)}`);
           if (response?.ok) {
             const json = await response.json();
-            urls = pickPolyHavenTextureUrls(json);
+            const pick4k = pickPolyHavenTextureUrlsAtResolution(json, '4k');
+            urls =
+              (pick4k?.diffuse || pick4k?.normal || pick4k?.roughness)
+                ? pick4k
+                : pickPolyHavenTextureUrls(json);
           }
         } catch (error) {
           urls = {};
         }
 
+        const fallback4k = buildPolyHavenTextureUrls(preset.sourceId, '4k');
         const fallback2k = buildPolyHavenTextureUrls(preset.sourceId, '2k');
         const fallback1k = buildPolyHavenTextureUrls(preset.sourceId, '1k');
         const loader = new THREE.TextureLoader();
@@ -3259,16 +3277,19 @@ const createClothTextures = (() => {
 
         const diffuseCandidates = [
           urls.diffuse,
+          fallback4k?.diffuse,
           fallback2k?.diffuse,
           fallback1k?.diffuse
         ].filter(Boolean);
         const normalCandidates = [
           urls.normal,
+          fallback4k?.normal,
           fallback2k?.normal,
           fallback1k?.normal
         ].filter(Boolean);
         const roughnessCandidates = [
           urls.roughness,
+          fallback4k?.roughness,
           fallback2k?.roughness,
           fallback1k?.roughness
         ].filter(Boolean);
@@ -6252,12 +6273,12 @@ function Table3D(
     return result;
   };
   const clothHighlightMix = THREE.MathUtils.clamp(
-    (0.28 + brightnessLift) - (isPolyHavenCloth ? 0.02 : 0),
+    0.28 + brightnessLift,
     0,
     1
   );
   const cushionHighlightMix = THREE.MathUtils.clamp(
-    (0.18 + brightnessLift) - (isPolyHavenCloth ? 0.02 : 0),
+    0.18 + brightnessLift,
     0,
     1
   );
