@@ -1316,6 +1316,7 @@ const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * 1.15;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
+const SWERVE_CURVE_STRENGTH = 0.22; // magnus-like sideways force so heavy swerve visibly bends the path
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.6; // inject extra sideways carry while the cue ball is airborne
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.24; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
@@ -4943,6 +4944,7 @@ const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
+const TMP_VEC2_CURVE = new THREE.Vector2();
 const TMP_EULER_A = new THREE.Euler();
 const TMP_VEC3_A = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
@@ -22875,6 +22877,17 @@ const powerRef = useRef(hud.power);
             }
             if (hasSpin) {
               const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
+              if (swerveTravel) {
+                const travelSpeed = b.vel.length();
+                const curveScale =
+                  SWERVE_CURVE_STRENGTH * stepScale * (0.18 + travelSpeed * 0.06);
+                if (curveScale > 0) {
+                  TMP_VEC2_CURVE
+                    .set(-b.spin.y, b.spin.x)
+                    .multiplyScalar(curveScale);
+                  b.vel.add(TMP_VEC2_CURVE);
+                }
+              }
               const allowRoll = !isCue || b.impacted || swerveTravel;
               const preImpact = isCue && !b.impacted;
               if (allowRoll) {
@@ -22891,9 +22904,13 @@ const powerRef = useRef(hud.power);
                   if (b.spinMode === 'swerve' && b.pendingSpin) {
                     b.pendingSpin.add(TMP_VEC2_LATERAL);
                   }
-                  const alignedSpeed = b.vel.dot(launchDir);
-                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
-                  b.vel.copy(TMP_VEC2_AXIS);
+                  if (b.spinMode !== 'swerve') {
+                    const alignedSpeed = b.vel.dot(launchDir);
+                    TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
+                    b.vel.copy(TMP_VEC2_AXIS);
+                  } else {
+                    b.vel.add(TMP_VEC2_LATERAL);
+                  }
                 } else {
                   b.vel.add(TMP_VEC2_SPIN);
                   if (
