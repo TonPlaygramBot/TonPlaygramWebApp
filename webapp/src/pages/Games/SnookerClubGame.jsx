@@ -50,6 +50,7 @@ import {
   snookerClubAccountId
 } from '../../utils/snookerClubInventory.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import { safeGetItem, safeSetItem } from '../../utils/storage.js';
 
 function applyTablePhysicsSpec(meta) {
   const cushionAngle = Number.isFinite(meta?.cushionCutAngleDeg)
@@ -8490,8 +8491,8 @@ export function PoolRoyaleGame({
   const resolveStoredSelection = useCallback(
     (type, storageKey, isValid, fallbackId) => {
       const inventory = snookerInventory;
-      if (typeof window !== 'undefined' && storageKey) {
-        const stored = window.localStorage.getItem(storageKey);
+      if (storageKey) {
+        const stored = safeGetItem(storageKey);
         if (
           stored &&
           isValid(stored) &&
@@ -8527,7 +8528,7 @@ export function PoolRoyaleGame({
   });
   const [pocketLinerId, setPocketLinerId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(POCKET_LINER_STORAGE_KEY);
+      const stored = safeGetItem(POCKET_LINER_STORAGE_KEY);
       if (stored && POCKET_LINER_OPTIONS.some((opt) => opt?.id === stored)) {
         return stored;
       }
@@ -8536,7 +8537,7 @@ export function PoolRoyaleGame({
   });
   const [railMarkerShapeId, setRailMarkerShapeId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('poolRailMarkerShape');
+      const stored = safeGetItem('poolRailMarkerShape');
       if (stored && RAIL_MARKER_SHAPE_OPTIONS.some((opt) => opt.id === stored)) {
         return stored;
       }
@@ -8570,7 +8571,7 @@ export function PoolRoyaleGame({
   });
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
+      const stored = safeGetItem(FRAME_RATE_STORAGE_KEY);
       if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
         return stored;
       }
@@ -8884,7 +8885,7 @@ export function PoolRoyaleGame({
   const resolveCueIndex = useCallback(() => {
     const paletteLength = CUE_RACK_PALETTE.length || CUE_STYLE_PRESETS.length || 1;
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(CUE_STYLE_STORAGE_KEY);
+      const stored = safeGetItem(CUE_STYLE_STORAGE_KEY);
       if (stored != null) {
         const parsed = Number.parseInt(stored, 10);
         if (Number.isFinite(parsed)) {
@@ -9104,10 +9105,7 @@ export function PoolRoyaleGame({
   useEffect(() => {
     cueStyleIndexRef.current = cueStyleIndex;
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(
-        CUE_STYLE_STORAGE_KEY,
-        String(cueStyleIndex)
-      );
+      safeSetItem(CUE_STYLE_STORAGE_KEY, String(cueStyleIndex));
     }
     applySelectedCueStyle(cueStyleIndex);
   }, [cueStyleIndex, applySelectedCueStyle]);
@@ -9206,15 +9204,15 @@ export function PoolRoyaleGame({
   }, [railMarkerColorId, railMarkerShapeId]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem('poolRailMarkerShape', railMarkerShapeId);
+    safeSetItem('poolRailMarkerShape', railMarkerShapeId);
   }, [railMarkerShapeId]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem('poolRailMarkerColor', railMarkerColorId);
+    safeSetItem('poolRailMarkerColor', railMarkerColorId);
   }, [railMarkerColorId]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem(LIGHTING_STORAGE_KEY, lightingId);
+    safeSetItem(LIGHTING_STORAGE_KEY, lightingId);
   }, [lightingId]);
   useEffect(() => {
     applyRailMarkerStyleRef.current?.(railMarkerStyleRef.current);
@@ -9298,22 +9296,22 @@ export function PoolRoyaleGame({
   const updateEnvironmentRef = useRef(() => {});
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(TABLE_FINISH_STORAGE_KEY, tableFinishId);
+      safeSetItem(TABLE_FINISH_STORAGE_KEY, tableFinishId);
     }
   }, [tableFinishId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(CLOTH_COLOR_STORAGE_KEY, clothColorId);
+      safeSetItem(CLOTH_COLOR_STORAGE_KEY, clothColorId);
     }
   }, [clothColorId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(POCKET_LINER_STORAGE_KEY, pocketLinerId);
+      safeSetItem(POCKET_LINER_STORAGE_KEY, pocketLinerId);
     }
   }, [pocketLinerId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(HDRI_STORAGE_KEY, environmentHdriId);
+      safeSetItem(HDRI_STORAGE_KEY, environmentHdriId);
     }
     if (typeof updateEnvironmentRef.current === 'function') {
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
@@ -9321,17 +9319,17 @@ export function PoolRoyaleGame({
   }, [activeEnvironmentHdri, environmentHdriId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem('poolChromeColor', chromeColorId);
+      safeSetItem('poolChromeColor', chromeColorId);
     }
   }, [chromeColorId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
+      safeSetItem(FRAME_RATE_STORAGE_KEY, frameRateId);
     }
   }, [frameRateId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(BROADCAST_SYSTEM_STORAGE_KEY, broadcastSystemId);
+      safeSetItem(BROADCAST_SYSTEM_STORAGE_KEY, broadcastSystemId);
     }
   }, [broadcastSystemId]);
   useEffect(() => {
