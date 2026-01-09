@@ -9608,6 +9608,8 @@ export function PoolRoyaleGame({
     applyLightingPreset(lightingId);
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
+  const [isBooting, setIsBooting] = useState(true);
+  const hasRenderedRef = useRef(false);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
@@ -10261,8 +10263,11 @@ export function PoolRoyaleGame({
     const host = mountRef.current;
     if (!host) return;
     setErr(null);
+    setIsBooting(true);
+    hasRenderedRef.current = false;
     if (!isWebGLAvailable()) {
       setErr('WebGL is not available on this device. Enable hardware acceleration to play.');
+      setIsBooting(false);
       return;
     }
     const cueRackDisposers = [];
@@ -16134,6 +16139,10 @@ export function PoolRoyaleGame({
       // Loop
       let lastStepTime = performance.now();
       const step = (now) => {
+        if (!hasRenderedRef.current) {
+          hasRenderedRef.current = true;
+          setIsBooting(false);
+        }
         const playback = replayPlaybackRef.current;
         if (playback) {
           const elapsed = now - playback.startedAt;
@@ -17363,6 +17372,7 @@ export function PoolRoyaleGame({
       } catch (e) {
         console.error(e);
         setErr(e?.message || String(e));
+        setIsBooting(false);
       }
   }, []);
 
@@ -17565,6 +17575,12 @@ export function PoolRoyaleGame({
     >
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {isBooting && !err && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 text-sm text-white">
+          Loading Snooker Club…
+        </div>
+      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
