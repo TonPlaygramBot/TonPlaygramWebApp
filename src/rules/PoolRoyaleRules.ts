@@ -55,6 +55,7 @@ type PoolMeta =
       state: UkSerializedState;
       totals: { blue: number; red: number };
       hud: HudInfo;
+      breakInProgress?: boolean;
     }
   | {
       variant: 'american';
@@ -245,7 +246,8 @@ export class PoolRoyaleRules {
           variant: 'uk',
           state: snapshot,
           totals: { blue: UK_TOTAL_PER_COLOUR, red: UK_TOTAL_PER_COLOUR },
-          hud
+          hud,
+          breakInProgress: true
         } satisfies PoolMeta;
         return base;
       }
@@ -384,7 +386,8 @@ export class PoolRoyaleRules {
         variant: 'uk',
         state: snapshot,
         totals,
-        hud
+        hud,
+        breakInProgress: false
       } satisfies PoolMeta
     };
     return nextState;
