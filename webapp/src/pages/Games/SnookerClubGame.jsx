@@ -9618,6 +9618,7 @@ export function PoolRoyaleGame({
   const pocketCamerasRef = useRef(new Map());
   const broadcastCamerasRef = useRef(null);
   const lightingRigRef = useRef(null);
+  const fallbackLightingRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
@@ -10312,6 +10313,40 @@ export function PoolRoyaleGame({
       scene.add(world);
       worldRef.current = world;
       let worldScaleFactor = WORLD_SCALE * (tableSizeRef.current?.scale ?? 1);
+      const ensureFallbackLighting = () => {
+        const worldInstance = worldRef.current || world;
+        if (!worldInstance || fallbackLightingRef.current) return;
+        const group = new THREE.Group();
+        group.name = 'fallbackLighting';
+        const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+        const key = new THREE.DirectionalLight(0xffffff, 0.9);
+        key.position.set(TABLE.W * 0.35, TABLE.THICK * 8, PLAY_H);
+        key.target.position.set(0, TABLE_Y, 0);
+        group.add(ambient);
+        group.add(key);
+        group.add(key.target);
+        worldInstance.add(group);
+        fallbackLightingRef.current = {
+          group,
+          key,
+          fill: null,
+          center: null,
+          wash: null,
+          rim: null,
+          ambient
+        };
+        lightingRigRef.current = fallbackLightingRef.current;
+        applyLightingPreset();
+      };
+      const clearFallbackLighting = () => {
+        const fallback = fallbackLightingRef.current;
+        if (!fallback) return;
+        fallback.group?.parent?.remove(fallback.group);
+        fallbackLightingRef.current = null;
+        if (lightingRigRef.current === fallback) {
+          lightingRigRef.current = null;
+        }
+      };
       const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
         const rendererInstance = rendererRef.current || renderer;
         const sceneInstance = sceneRef.current || scene;
@@ -10322,14 +10357,21 @@ export function PoolRoyaleGame({
           POOL_ROYALE_HDRI_VARIANT_MAP[POOL_ROYALE_DEFAULT_HDRI_ID] ||
           POOL_ROYALE_HDRI_VARIANTS[0];
         const envResult = await loadPolyHavenHdriEnvironment(rendererInstance, activeVariant);
-        if (!envResult) return;
+        if (!envResult) {
+          ensureFallbackLighting();
+          return;
+        }
         const { envMap, skyboxMap } = envResult;
-        if (!envMap) return;
+        if (!envMap) {
+          ensureFallbackLighting();
+          return;
+        }
         if (disposed) {
           envMap.dispose?.();
           skyboxMap?.dispose?.();
           return;
         }
+        clearFallbackLighting();
         const prevDispose = disposeEnvironmentRef.current;
         const prevTexture = envTextureRef.current;
         const worldOffsetY = worldRef.current?.position?.y ?? 0;
@@ -10420,6 +10462,7 @@ export function PoolRoyaleGame({
         }
       };
       updateEnvironmentRef.current = applyHdriEnvironment;
+      ensureFallbackLighting();
       void applyHdriEnvironment(activeEnvironmentVariantRef.current);
       let cue;
       let clothMat;
@@ -17300,6 +17343,7 @@ export function PoolRoyaleGame({
           disposed = true;
           disposeEnvironmentRef.current?.();
           disposeEnvironmentRef.current = null;
+          clearFallbackLighting();
           envSkyboxRef.current = null;
           envSkyboxTextureRef.current = null;
           envTextureRef.current = null;
