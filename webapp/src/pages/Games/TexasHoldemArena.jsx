@@ -921,13 +921,20 @@ function pickPolyHavenHdriUrl(fileMap, preferredResolutions = PREFERRED_HDRI_RES
 }
 
 async function resolvePolyHavenHdriUrl(config = {}, preferred = PREFERRED_HDRI_RESOLUTIONS) {
-  const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/${config?.assetId || 'neon_photostudio'}.hdr`;
+  const preferredResolutions =
+    Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+      ? config.preferredResolutions
+      : preferred;
+  const fallbackResolution =
+    config?.fallbackResolution || preferredResolutions?.[0] || PREFERRED_HDRI_RESOLUTIONS[0] || '2k';
+  const assetId = config?.assetId || 'neon_photostudio';
+  const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackResolution}/${assetId}_${fallbackResolution}.hdr`;
   if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
   try {
     const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
     if (!response?.ok) return fallbackUrl;
     const json = await response.json();
-    const picked = pickPolyHavenHdriUrl(json, preferred);
+    const picked = pickPolyHavenHdriUrl(json, preferredResolutions);
     return picked || fallbackUrl;
   } catch (error) {
     console.warn('Failed to resolve Poly Haven HDRI url', error);
@@ -1208,8 +1215,8 @@ function extractChairMaterials(model) {
   };
 }
 
-async function loadGltfChair() {
-  const loader = createConfiguredGLTFLoader();
+async function loadGltfChair(renderer = null) {
+  const loader = createConfiguredGLTFLoader(renderer);
 
   let gltf = null;
   let lastError = null;
@@ -1322,7 +1329,7 @@ async function buildChairTemplate(theme, renderer) {
       }
       return { chairTemplate: model, materials, preserveOriginal: preserveMaterials };
     }
-    const gltfChair = await loadGltfChair();
+    const gltfChair = await loadGltfChair(renderer);
     if (rotationY && gltfChair?.chairTemplate) {
       gltfChair.chairTemplate.rotation.y += rotationY;
     }
