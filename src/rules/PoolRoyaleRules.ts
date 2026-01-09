@@ -355,6 +355,7 @@ export class PoolRoyaleRules {
       noCushionAfterContact: Boolean(context.noCushionAfterContact),
       placedFromHand: Boolean(context.placedFromHand)
     });
+    const pottedCount = potted.filter((colour) => colour !== 'cue').length;
     const snapshot = serializeUkState(game.state);
     const totals = previous ? previous.totals : { blue: UK_TOTAL_PER_COLOUR, red: UK_TOTAL_PER_COLOUR };
     const playerScores = this.computeUkScores(snapshot, totals);
@@ -364,6 +365,11 @@ export class PoolRoyaleRules {
       phase: snapshot.isOpenTable ? 'open' : 'groups',
       scores: playerScores
     };
+    const isFoul = Boolean(shotResult.foul);
+    const shooter = state.activePlayer ?? game.state.currentPlayer;
+    const sameShooter = shooter === game.state.currentPlayer;
+    const currentBreak =
+      !isFoul && sameShooter && pottedCount > 0 ? (state.currentBreak ?? 0) + pottedCount : 0;
     const nextState: FrameState = {
       ...state,
       activePlayer: game.state.currentPlayer,
@@ -371,6 +377,7 @@ export class PoolRoyaleRules {
         A: { ...state.players.A, score: playerScores.A },
         B: { ...state.players.B, score: playerScores.B }
       },
+      currentBreak,
       ballOn,
       frameOver: game.state.frameOver,
       winner: game.state.winner ?? undefined,
@@ -455,6 +462,7 @@ export class PoolRoyaleRules {
       placedFromHand: Boolean(context.placedFromHand),
       noCushionAfterContact: Boolean(context.noCushionAfterContact)
     });
+    const pottedCount = potted.filter((id) => id !== 0).length;
     const snapshot = serializeAmericanState(game.state);
     const lowest = lowestBall(snapshot.ballsOnTable);
     const tableClear = snapshot.ballsOnTable.length === 0;
@@ -486,6 +494,10 @@ export class PoolRoyaleRules {
         A: { ...state.players.A, score: snapshot.scores.A },
         B: { ...state.players.B, score: snapshot.scores.B }
       },
+      currentBreak:
+        !result.foul && game.state.currentPlayer === state.activePlayer && pottedCount > 0
+          ? (state.currentBreak ?? 0) + pottedCount
+          : 0,
       ballOn: lowest != null && !frameOver ? [`BALL_${lowest}`] : [],
       frameOver,
       winner,
@@ -537,6 +549,7 @@ export class PoolRoyaleRules {
       placedFromHand: Boolean(context.placedFromHand),
       noCushionAfterContact: Boolean(context.noCushionAfterContact)
     });
+    const pottedCount = potted.filter((id) => id !== 0).length;
     const snapshot = serializeNineState(game.state);
     const lowest = lowestBall(snapshot.ballsOnTable);
     const hud: HudInfo = {
@@ -551,6 +564,10 @@ export class PoolRoyaleRules {
         A: { ...state.players.A, score: 0 },
         B: { ...state.players.B, score: 0 }
       },
+      currentBreak:
+        !result.foul && game.state.currentPlayer === state.activePlayer && pottedCount > 0
+          ? (state.currentBreak ?? 0) + pottedCount
+          : 0,
       ballOn: lowest != null && !snapshot.gameOver ? [`BALL_${lowest}`] : [],
       frameOver: game.state.gameOver,
       winner: game.state.winner ?? undefined,
