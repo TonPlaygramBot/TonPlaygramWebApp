@@ -21,61 +21,6 @@ function resolveVariant(variantId) {
   return 'snooker';
 }
 
-class SnookerClubErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error) {
-    console.error('Snooker Club render failed:', error);
-  }
-
-  handleReload = () => {
-    window.location.reload();
-  };
-
-  handleExit = () => {
-    const { lobbyPath } = this.props;
-    window.location.href = lobbyPath || '/games/snookerclub/lobby';
-  };
-
-  render() {
-    const { hasError, error } = this.state;
-    if (!hasError) {
-      return this.props.children;
-    }
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-6 text-center text-white">
-        <h1 className="text-lg font-semibold">Snooker Club failed to load</h1>
-        <p className="text-xs text-white/70">
-          {error?.message || 'The game encountered an unexpected error.'}
-        </p>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={this.handleReload}
-            className="rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-black"
-          >
-            Reload
-          </button>
-          <button
-            type="button"
-            onClick={this.handleExit}
-            className="rounded-full border border-white/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white"
-          >
-            Back to lobby
-          </button>
-        </div>
-      </div>
-    );
-  }
-}
-
 export default function SnookerClub() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -244,25 +189,23 @@ export default function SnookerClub() {
   }, [location.search]);
 
   return (
-    <SnookerClubErrorBoundary lobbyPath={lobbyPath}>
-      <SnookerClubGame
-        variantKey={variantKey}
-        tableSizeKey={tableSizeKey}
-        playType={playType}
-        mode={mode}
-        trainingMode={trainingMode}
-        trainingRulesEnabled={trainingRulesEnabled}
-        accountId={accountId}
-        tgId={tgId}
-        playerName={playerName}
-        playerAvatar={playerAvatar}
-        opponentName={opponentName}
-        opponentAvatar={opponentAvatar}
-        tableId={tableId}
-        gameId="snookerclub"
-        lobbyPath={lobbyPath}
-        tableResolver={resolveSnookerTableSize}
-      />
-    </SnookerClubErrorBoundary>
+    <SnookerClubGame
+      variantKey={variantKey}
+      tableSizeKey={tableSizeKey}
+      playType={playType}
+      mode={mode}
+      trainingMode={trainingMode}
+      trainingRulesEnabled={trainingRulesEnabled}
+      accountId={accountId}
+      tgId={tgId}
+      playerName={playerName}
+      playerAvatar={playerAvatar}
+      opponentName={opponentName}
+      opponentAvatar={opponentAvatar}
+      tableId={tableId}
+      gameId="snookerclub"
+      lobbyPath={lobbyPath}
+      tableResolver={resolveSnookerTableSize}
+    />
   );
 }

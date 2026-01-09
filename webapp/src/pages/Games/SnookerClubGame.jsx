@@ -9608,31 +9608,6 @@ export function PoolRoyaleGame({
     applyLightingPreset(lightingId);
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
-  useEffect(() => {
-    const handleError = (event) => {
-      const message =
-        event?.error?.message ||
-        event?.message ||
-        'Unexpected error while loading Snooker Club.';
-      setErr(message);
-    };
-    const handleRejection = (event) => {
-      const reason = event?.reason;
-      const message =
-        reason instanceof Error
-          ? reason.message
-          : reason
-            ? String(reason)
-            : 'Unexpected error while loading Snooker Club.';
-      setErr(message);
-    };
-    window.addEventListener('error', handleError);
-    window.addEventListener('unhandledrejection', handleRejection);
-    return () => {
-      window.removeEventListener('error', handleError);
-      window.removeEventListener('unhandledrejection', handleRejection);
-    };
-  }, []);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
