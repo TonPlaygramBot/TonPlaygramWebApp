@@ -20,10 +20,10 @@ const DEFAULT_TABLE_BASE_OPTION = Object.freeze({
 });
 
 const DEFAULT_TABLE_WOOD_OPTION = Object.freeze({
-  id: 'oakEstate',
-  label: 'Lis Estate',
+  id: 'peelingPaintWeathered',
+  label: 'Wood Peeling Paint Weathered',
   presetId: 'oak',
-  grainId: 'estateBands'
+  grainId: 'wood_peeling_paint_weathered'
 });
 
 export const DEFAULT_TABLE_CLOTH_OPTION = Object.freeze({
