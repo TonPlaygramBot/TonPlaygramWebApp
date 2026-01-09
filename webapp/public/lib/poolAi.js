@@ -40,29 +40,11 @@
 const LOOKAHEAD_DEPTH = 2
 const LOOKAHEAD_CANDIDATES = 3
 const MONTE_CARLO_BASE_SAMPLES = 28
-const POWER_MARGIN = 0.12
 
 function dist (a, b) {
   const dx = a.x - b.x
   const dy = a.y - b.y
   return Math.hypot(dx, dy)
-}
-
-function clamp (value, min, max) {
-  return Math.min(Math.max(value, min), max)
-}
-
-function normalize (vec) {
-  const len = Math.hypot(vec.x, vec.y) || 1
-  return { x: vec.x / len, y: vec.y / len, len }
-}
-
-function dot (a, b) {
-  return a.x * b.x + a.y * b.y
-}
-
-function crossZ (a, b) {
-  return a.x * b.y - a.y * b.x
 }
 
 function lineIntersectsBall (a, b, ball, radius) {
@@ -147,9 +129,9 @@ function pocketEntry (pocket, radius, width, height, target) {
 function pocketAlignment (pocket, target, width, height) {
   if (!target) return 1
   const approach = { x: pocket.x - target.x, y: pocket.y - target.y }
-  const { x, y } = normalize(approach)
+  const len = Math.hypot(approach.x, approach.y) || 1
   const normal = pocketNormal(pocket, width, height)
-  return Math.max(0, x * normal.x + y * normal.y)
+  return Math.max(0, (approach.x / len) * normal.x + (approach.y / len) * normal.y)
 }
 
 function currentGroup (state) {
@@ -265,9 +247,6 @@ function clearShotCandidates (req) {
         continue
       }
 
-      const objectClearance = clearanceMargin(target, entry, req.state.balls, [0, target.id], r, 1.3)
-      if (objectClearance < 0.65) continue
-
       const shotVec = { x: target.x - cue.x, y: target.y - cue.y }
       const potVec = { x: entry.x - target.x, y: entry.y - target.y }
       let cut = Math.abs(Math.atan2(potVec.y, potVec.x) - Math.atan2(shotVec.y, shotVec.x))
@@ -279,11 +258,7 @@ function clearShotCandidates (req) {
       const approachStraightness = 1 - Math.min(cut / (Math.PI / 2), 1)
       const cueToTarget = cue ? dist(cue, target) : 0
       const distanceScore = cue ? Math.max(0, 1 - cueToTarget / (r * 60)) : 0
-      const rank =
-        weightedView * 0.45 +
-        approachStraightness * 0.3 +
-        distanceScore * 0.15 +
-        objectClearance * 0.1
+      const rank = weightedView * 0.5 + approachStraightness * 0.3 + distanceScore * 0.2
 
       // require fairly central hit and open pocket view
       if (cut <= maxCut && weightedView >= minView) {
@@ -300,25 +275,25 @@ export function estimateCueAfterShot (cue, target, pocket, power, spin, table) {
   const toTarget = { x: target.x - cue.x, y: target.y - cue.y }
   const toPocket = { x: pocket.x - target.x, y: pocket.y - target.y }
   const dir = { x: toTarget.x - toPocket.x, y: toTarget.y - toPocket.y }
-  const { x, y, len } = normalize(dir)
+  const len = Math.hypot(dir.x, dir.y) || 1
 
   // Base travel of the cue ball after striking the target – this is the
   // straight path with no spin influence. Power only affects distance.
   const baseDist = (power * 120) / len
   const result = {
-    x: target.x + x * baseDist,
-    y: target.y + y * baseDist
+    x: target.x + dir.x * baseDist,
+    y: target.y + dir.y * baseDist
   }
   // Apply spin after the straight path has been established. Top/back spin
   // extend or reduce travel along the shot line while side spin adds a
   // perpendicular offset after impact.
   const distScale = 1 + spin.top - spin.back
-  result.x += x * baseDist * (distScale - 1)
-  result.y += y * baseDist * (distScale - 1)
+  result.x += dir.x * baseDist * (distScale - 1)
+  result.y += dir.y * baseDist * (distScale - 1)
 
   const tableScale = Math.max(table.width, table.height) * 0.04
   const sideOffset = spin.side * power * tableScale
-  const perp = { x: -y, y: x }
+  const perp = { x: -dir.y / len, y: dir.x / len }
   result.x += perp.x * sideOffset
   result.y += perp.y * sideOffset
   return result
@@ -359,7 +334,7 @@ function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 2
   const shotLength = dist(cue, target)
   const distanceFactor = Math.min(shotLength / (r * 20 || 1), 2)
   const sampleCount = Math.max(samples, Math.round(MONTE_CARLO_BASE_SAMPLES * (1 + distanceFactor)))
-  const jitterScale = 0.012 + 0.02 * distanceFactor
+  const jitterScale = 0.015 + 0.025 * distanceFactor
   let success = 0
   for (let i = 0; i < sampleCount; i++) {
     const a = baseAngle + (Math.random() - 0.5) * jitterScale
@@ -377,70 +352,6 @@ function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 2
     success++
   }
   return success / sampleCount
-}
-
-function estimatePower (req, cue, target, entry) {
-  if (!cue) return 0.65
-  const cueToTarget = dist(cue, target)
-  const targetToPocket = dist(target, entry)
-  const tableSpan = Math.max(req.state.width, req.state.height)
-  const travel = cueToTarget * 0.55 + targetToPocket * 0.75
-  const base = 0.3 + travel / (tableSpan * 1.05)
-  return clamp(base, 0.38, 0.95)
-}
-
-function nearestPocket (req, point) {
-  let best = null
-  let bestD = Infinity
-  for (const pocket of req.state.pockets) {
-    const d = dist(point, pocket)
-    if (d < bestD) {
-      bestD = d
-      best = pocket
-    }
-  }
-  return { pocket: best, distance: bestD }
-}
-
-function suggestSpin (req, cue, target, entry, nextTarget, power) {
-  const r = req.state.ballRadius
-  const shotDir = normalize({ x: entry.x - target.x, y: entry.y - target.y })
-  const baseCueAfter = estimateCueAfterShot(
-    cue,
-    target,
-    entry,
-    power,
-    { top: 0, side: 0, back: 0 },
-    req.state
-  )
-  const { pocket: nearPocket, distance: pocketDist } = nearestPocket(req, baseCueAfter)
-  const pocketRisk = nearPocket && pocketDist < r * 2.2
-  let spin = { top: 0, side: 0, back: 0 }
-
-  if (nextTarget) {
-    const desired = normalize({ x: nextTarget.x - baseCueAfter.x, y: nextTarget.y - baseCueAfter.y })
-    const sideBias = clamp(crossZ(shotDir, desired) * 0.4, -0.45, 0.45)
-    spin.side = sideBias
-    const align = dot(shotDir, desired)
-    if (align > 0.15) {
-      spin.top = clamp(align * 0.35, 0, 0.35)
-    } else if (align < -0.15) {
-      spin.back = clamp(-align * 0.35, 0, 0.35)
-    }
-  } else {
-    spin.top = 0.12
-  }
-
-  if (pocketRisk) {
-    spin.back = Math.max(spin.back, 0.25)
-    if (nearPocket) {
-      const away = normalize({ x: baseCueAfter.x - nearPocket.x, y: baseCueAfter.y - nearPocket.y })
-      spin.side += clamp(crossZ(shotDir, away) * 0.3, -0.25, 0.25)
-    }
-    spin.side = clamp(spin.side, -0.45, 0.45)
-  }
-
-  return spin
 }
 
 function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1) {
@@ -515,10 +426,6 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   ) {
     return null
   }
-  const objectClearance = clearanceMargin(target, entry, balls, [0, target.id], r, 1.3)
-  if (objectClearance < 0.55) {
-    return null
-  }
   const maxD = Math.hypot(req.state.width, req.state.height)
   const potChance = monteCarloPotChance(req, cue, target, entry, ghost, balls)
   const cueAfter = estimateCueAfterShot(cue, target, entry, power, spin, req.state)
@@ -546,7 +453,6 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   const pocketTightness = 1 - pocketOpen
   const difficultyPenalty = 0.25 * (0.5 * cutSeverity + 0.3 * shotLengthFactor + 0.2 * pocketTightness)
   const clearanceScore = Math.max(0, Math.min((laneClearance - 0.5) / 0.7, 1))
-  const objectClearanceScore = Math.max(0, Math.min((objectClearance - 0.5) / 0.7, 1))
   if (strict && (centerAlign < 0.5 || pocketOpen < 0.3)) {
     return null
   }
@@ -566,8 +472,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
         0.06 * nextScore +
         0.06 * nearHole +
         0.08 * runoutPotential +
-        0.05 * clearanceScore +
-        0.05 * objectClearanceScore -
+        0.08 * clearanceScore -
         0.18 * risk -
         difficultyPenalty
     )
@@ -669,6 +574,15 @@ export function planShot (req) {
   let fallback = null
   let hasViableShot = false
 
+  const powers = [0.5, 0.7, 0.85]
+  const spins = [
+    { top: 0, side: 0, back: 0 },
+    { top: 0.3, side: 0, back: -0.3 },
+    { top: -0.3, side: 0.3, back: 0 },
+    { top: -0.3, side: -0.3, back: 0 },
+    { top: 0, side: 0.3, back: 0 }
+  ]
+
   // first, gather candidate target/pocket pairs meeting strict criteria
   let candidatePairs = clearShotCandidates(req)
   if (candidatePairs.length === 0) {
@@ -724,25 +638,14 @@ export function planShot (req) {
         const balls = req.state.balls.map(b =>
           b.id === 0 ? { ...b, x: cuePos.x, y: cuePos.y } : b
         )
-        const cue = balls.find(b => b.id === 0)
-        const nextTargets = nextTargetsAfter(target.id, { ...req, state: { ...req.state, balls } })
-        const primaryNext = nextTargets[0]
-        const basePower = estimatePower(req, cue, target, entry)
-        const powers = [
-          clamp(basePower - POWER_MARGIN, 0.35, 0.95),
-          clamp(basePower, 0.35, 0.95),
-          clamp(basePower + POWER_MARGIN, 0.35, 0.95)
-        ]
 
-        const basePowerCandidate = powers[1]
-        const baseSpin = suggestSpin(req, cue, target, entry, primaryNext, basePowerCandidate)
         const baseCand = evaluate(
           req,
           cuePos,
           target,
           pocket,
-          basePowerCandidate,
-          baseSpin,
+          powers[0],
+          spins[0],
           balls,
           strict,
           { lookaheadDepth: LOOKAHEAD_DEPTH }
@@ -760,14 +663,8 @@ export function planShot (req) {
         }
 
         for (const power of powers) {
-          const spinOptions = [
-            suggestSpin(req, cue, target, entry, primaryNext, power),
-            { top: 0, side: 0, back: 0 },
-            { top: 0.2, side: 0, back: 0 },
-            { top: 0, side: 0, back: 0.2 }
-          ]
-          for (const spin of spinOptions) {
-            if (power === basePowerCandidate && spin === baseSpin) continue
+          for (const spin of spins) {
+            if (power === powers[0] && spin === spins[0]) continue
             if (Date.now() > deadline) {
               return best && best.quality >= 0.1 ? best : fallbackAimAtTarget(req) || safetyShot(req)
             }
