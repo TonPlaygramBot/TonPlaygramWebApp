@@ -451,7 +451,8 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   const risk = req.state.pockets.some(p => dist(cueAfter, p) < r * 1.2) ? 1 : 0
   const shotVec = { x: target.x - cue.x, y: target.y - cue.y }
   const potVec = { x: entry.x - target.x, y: entry.y - target.y }
-  const cutAngle = Math.abs(Math.atan2(potVec.y, potVec.x) - Math.atan2(shotVec.y, shotVec.x))
+  let cutAngle = Math.abs(Math.atan2(potVec.y, potVec.x) - Math.atan2(shotVec.y, shotVec.x))
+  if (cutAngle > Math.PI) cutAngle = Math.abs(cutAngle - Math.PI * 2)
   const centerAlign = 1 - Math.min(cutAngle / (Math.PI / 2), 1)
   const nearHole = 1 - Math.min(dist(target, entry) / (r * 20), 1)
   const viewAngle = Math.atan2(r * 2, dist(target, entry))
