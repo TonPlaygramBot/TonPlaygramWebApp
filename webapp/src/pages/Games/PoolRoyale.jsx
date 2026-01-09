@@ -21019,6 +21019,53 @@ const powerRef = useRef(hud.power);
             return evaluateShotOptionsBaseline();
           }
         };
+        const normalizeAiPlanAim = (plan) => {
+          if (!plan?.aimDir || !cue?.active) return plan;
+          const cueBall = cue;
+          const activeBalls =
+            ballsRef.current?.length > 0 ? ballsRef.current : balls;
+          const aimDir = plan.aimDir.clone();
+          if (aimDir.lengthSq() < 1e-6) return plan;
+          aimDir.normalize();
+          plan.aimDir = aimDir;
+          if (plan.type !== 'pot' || plan.viaCushion || !plan.targetBall?.active) {
+            return plan;
+          }
+          const contact = calcTarget(cueBall, aimDir, activeBalls);
+          const hitBall = contact?.targetBall ?? null;
+          if (hitBall && String(hitBall.id) === String(plan.targetBall.id)) {
+            if (Number.isFinite(contact?.tHit)) {
+              plan.cueToTarget = contact.tHit;
+            }
+            return plan;
+          }
+          let corrected = null;
+          if (plan.pocketCenter && plan.targetBall?.pos) {
+            const toPocket = plan.pocketCenter.clone().sub(plan.targetBall.pos);
+            if (toPocket.lengthSq() > 1e-6) {
+              const toPocketDir = toPocket.normalize();
+              const ghost = plan.targetBall.pos
+                .clone()
+                .sub(toPocketDir.multiplyScalar(BALL_R * 2));
+              const cueVec = ghost.sub(cueBall.pos);
+              if (cueVec.lengthSq() > 1e-6) {
+                corrected = cueVec.normalize();
+                plan.cueToTarget = cueBall.pos.distanceTo(ghost);
+              }
+            }
+          }
+          if (!corrected && plan.targetBall?.pos) {
+            const direct = plan.targetBall.pos.clone().sub(cueBall.pos);
+            if (direct.lengthSq() > 1e-6) {
+              corrected = direct.normalize();
+              plan.cueToTarget = cueBall.pos.distanceTo(plan.targetBall.pos);
+            }
+          }
+          if (corrected) {
+            plan.aimDir = corrected;
+          }
+          return plan;
+        };
         const updateAiPlanningState = (plan, options, countdownSeconds) => {
           const summary = summarizePlan(plan);
           const potSummary = summarizePlan(options?.bestPot ?? null);
@@ -21092,7 +21139,7 @@ const powerRef = useRef(hud.power);
               return;
             }
             const options = evaluateShotOptions();
-            const plan = options.bestPot ?? options.bestSafety ?? null;
+            const plan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
             if (plan) {
               aiPlanRef.current = plan;
               aimDirRef.current.copy(plan.aimDir);
@@ -21394,7 +21441,7 @@ const powerRef = useRef(hud.power);
             cancelAiShotPreview();
             aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
             const options = evaluateShotOptions();
-            let plan = options.bestPot ?? options.bestSafety ?? null;
+            let plan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
             if (!plan) {
               const cuePos = cue?.pos ? cue.pos.clone() : null;
               if (!cuePos) return;
