@@ -2462,10 +2462,9 @@ const DEFAULT_CLOTH_TEXTURE_KEY =
 const DEFAULT_CLOTH_COLOR_ID = DEFAULT_CLOTH_TEXTURE_KEY;
 const CLOTH_TEXTURE_SOURCE_STORAGE_KEY = 'poolRoyaleClothSource';
 const CLOTH_TEXTURE_SOURCE_OPTIONS = Object.freeze([
-  { id: 'gltf', label: 'GLTF Cloth' },
   { id: 'procedural', label: 'Procedural Cloth' }
 ]);
-const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'gltf';
+const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'procedural';
 const CLOTH_COLOR_OPTIONS = Object.freeze(
   CLOTH_LIBRARY.map((cloth) => ({
     id: cloth.id,
@@ -4025,6 +4024,9 @@ const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const MIN_HDRI_RADIUS = 24;
 const HDRI_GROUNDED_RESOLUTION = 256;
+const HDRI_CAMERA_SCALE_MIN = 0.78;
+const HDRI_CAMERA_SCALE_MAX = 1.32;
+const HDRI_CAMERA_SCALE_LERP = 0.18;
 
 function resolveHdriResolutionForTable(tableSizeMeta) {
   const widthMm = tableSizeMeta?.playfield?.widthMm;
@@ -11734,6 +11736,8 @@ const powerRef = useRef(hud.power);
   const envTextureRef = useRef(null);
   const envSkyboxRef = useRef(null);
   const envSkyboxTextureRef = useRef(null);
+  const envSkyboxSettingsRef = useRef(null);
+  const envSkyboxScaleRef = useRef(1);
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
@@ -11766,7 +11770,7 @@ const powerRef = useRef(hud.power);
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
   const topViewLockedRef = useRef(false);
-  const overheadBroadcastVariantRef = useRef('top');
+  const overheadBroadcastVariantRef = useRef('replay');
   const preShotTopViewRef = useRef(false);
   const preShotTopViewLockRef = useRef(false);
   const sidePocketAimRef = useRef(false);
@@ -12983,6 +12987,12 @@ const powerRef = useRef(hud.power);
             sceneInstance.add(skybox);
             envSkyboxRef.current = skybox;
             envSkyboxTextureRef.current = skyboxMap;
+            envSkyboxSettingsRef.current = {
+              baseHeight: skyboxHeight,
+              baseRadius: skyboxRadius,
+              floorWorldY
+            };
+            envSkyboxScaleRef.current = 1;
           } catch (error) {
             console.warn('Failed to create grounded HDRI skybox', error);
             skybox = null;
@@ -12993,6 +13003,8 @@ const powerRef = useRef(hud.power);
           sceneInstance.background = envMap;
           envSkyboxRef.current = null;
           envSkyboxTextureRef.current = null;
+          envSkyboxSettingsRef.current = null;
+          envSkyboxScaleRef.current = 1;
           if (
             'backgroundIntensity' in sceneInstance &&
             typeof activeVariant?.backgroundIntensity === 'number'
@@ -13023,6 +13035,8 @@ const powerRef = useRef(hud.power);
             if (envSkyboxRef.current === skybox) {
               envSkyboxRef.current = null;
             }
+            envSkyboxSettingsRef.current = null;
+            envSkyboxScaleRef.current = 1;
           }
           if (skyboxMap) {
             skyboxMap.dispose?.();
@@ -15102,6 +15116,29 @@ const powerRef = useRef(hud.power);
           return { position, target, fov: resolvedFov, minTargetY };
         };
 
+        const updateHdriScale = (renderCamera, target = null) => {
+          const skybox = envSkyboxRef.current;
+          const settings = envSkyboxSettingsRef.current;
+          if (!skybox || !settings || !renderCamera) return;
+          const focusTarget = target ?? lastCameraTargetRef.current ?? null;
+          if (!focusTarget) return;
+          const baseDistance = Math.max(fitRadius(renderCamera, STANDING_VIEW.margin), 1e-3);
+          const currentDistance = renderCamera.position.distanceTo(focusTarget);
+          if (!Number.isFinite(currentDistance) || currentDistance <= 0) return;
+          const rawScale = THREE.MathUtils.clamp(
+            currentDistance / baseDistance,
+            HDRI_CAMERA_SCALE_MIN,
+            HDRI_CAMERA_SCALE_MAX
+          );
+          const prevScale = Number.isFinite(envSkyboxScaleRef.current)
+            ? envSkyboxScaleRef.current
+            : 1;
+          const nextScale = THREE.MathUtils.lerp(prevScale, rawScale, HDRI_CAMERA_SCALE_LERP);
+          skybox.scale.setScalar(nextScale);
+          skybox.position.y = settings.floorWorldY + settings.baseHeight * nextScale;
+          envSkyboxScaleRef.current = nextScale;
+        };
+
         const updateCamera = () => {
           const replayPlaybackActive = Boolean(replayPlaybackRef.current);
           let renderCamera = camera;
@@ -16127,6 +16164,7 @@ const powerRef = useRef(hud.power);
               clothMat.bumpScale = clothMat.userData.bumpScale;
             }
           }
+          updateHdriScale(renderCamera, lookTarget);
           updateBroadcastCameras(broadcastArgs);
           activeRenderCameraRef.current = renderCamera;
           return renderCamera;
@@ -17113,7 +17151,7 @@ const powerRef = useRef(hud.power);
         const enterTopView = (immediate = false) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
-          overheadBroadcastVariantRef.current = Math.random() < 0.5 ? 'top' : 'replay';
+          overheadBroadcastVariantRef.current = 'replay';
           const margin = TOP_VIEW_MARGIN;
           fit(margin);
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
