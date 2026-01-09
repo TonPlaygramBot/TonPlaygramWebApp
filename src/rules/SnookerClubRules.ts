@@ -84,6 +84,8 @@ type PoolMeta =
     };
 
 const UK_TOTAL_PER_COLOUR = 7;
+const SNOOKER_RED_COUNT = 15;
+const SNOOKER_COLORS: BallColor[] = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
 
 function normalizeVariantId(value: string | null | undefined): string {
   if (typeof value !== 'string') return '';
@@ -220,6 +222,32 @@ function lowestBall(balls: Iterable<number>): number | null {
   return lowest;
 }
 
+function buildSnookerBalls(
+  redsRemaining: number,
+  colorsOnTable: Set<BallColor>
+): FrameState['balls'] {
+  const balls: FrameState['balls'] = [];
+  for (let i = 0; i < SNOOKER_RED_COUNT; i += 1) {
+    const onTable = i < redsRemaining;
+    balls.push({
+      id: `RED_${i + 1}`,
+      color: 'RED',
+      onTable,
+      potted: !onTable
+    });
+  }
+  SNOOKER_COLORS.forEach((color) => {
+    const onTable = colorsOnTable.has(color);
+    balls.push({
+      id: color.toLowerCase(),
+      color,
+      onTable,
+      potted: !onTable
+    });
+  });
+  return balls;
+}
+
 export class PoolRoyaleRules {
   private readonly variant: PoolVariantId;
 
@@ -243,14 +271,14 @@ export class PoolRoyaleRules {
   getInitialFrame(playerA: string, playerB: string): FrameState {
     switch (this.variant) {
       case 'snooker': {
-        const colorsOnTable: BallColor[] = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
+        const colorsOnTable: BallColor[] = [...SNOOKER_COLORS];
         const base: FrameState = {
-          balls: [],
+          balls: buildSnookerBalls(SNOOKER_RED_COUNT, new Set(colorsOnTable)),
           activePlayer: 'A',
           players: basePlayers(playerA, playerB),
           currentBreak: 0,
           phase: 'REDS_AND_COLORS',
-          redsRemaining: 15,
+          redsRemaining: SNOOKER_RED_COUNT,
           colorOnAfterRed: false,
           ballOn: ['RED'],
           frameOver: false
@@ -424,12 +452,12 @@ export class PoolRoyaleRules {
   }
 
   private applySnookerShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
-    const defaultColors: BallColor[] = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
+    const defaultColors: BallColor[] = [...SNOOKER_COLORS];
     const meta = (state.meta ?? {}) as PoolMeta;
     const previous: SnookerSerializedState | null =
       meta.variant === 'snooker' && meta.state ? (meta.state as SnookerSerializedState) : null;
 
-    let redsRemaining = Number.isFinite(state.redsRemaining) ? state.redsRemaining : 15;
+    let redsRemaining = Number.isFinite(state.redsRemaining) ? state.redsRemaining : SNOOKER_RED_COUNT;
     let colorOnAfterRed = Boolean(state.colorOnAfterRed);
     let phase: FrameState['phase'] = state.phase === 'COLORS_ORDER' ? 'COLORS_ORDER' : 'REDS_AND_COLORS';
     const colorsOnTable = new Set<BallColor>(previous?.colorsOnTable ?? defaultColors);
@@ -464,7 +492,20 @@ export class PoolRoyaleRules {
       }
     }
 
-    const ballOnValue = Math.max(...Array.from(ballOnSet).map((b) => this.ballValue(b)), 0);
+    const resolveBallOnValue = () => {
+      if (ballOnSet.size === 1) {
+        return this.ballValue(Array.from(ballOnSet)[0]);
+      }
+      if (firstContact && ballOnSet.has(firstContact)) {
+        return this.ballValue(firstContact);
+      }
+      const pottedOn = potted.filter((colour) => ballOnSet.has(colour));
+      if (pottedOn.length > 0) {
+        return Math.max(...pottedOn.map((colour) => this.ballValue(colour)), 0);
+      }
+      return Math.max(...Array.from(ballOnSet).map((b) => this.ballValue(b)), 0);
+    };
+    const ballOnValue = resolveBallOnValue();
     let foulReason: string | null = null;
     let foulValue = ballOnValue;
 
@@ -475,6 +516,17 @@ export class PoolRoyaleRules {
     } else if (!ballOnSet.has(firstContact)) {
       foulReason = `Incorrect first contact (${firstContact.toLowerCase()})`;
       foulValue = Math.max(foulValue, this.ballValue(firstContact));
+    }
+
+    if (!foulReason && colorOnAfterRed) {
+      const colorsPotted = potted.filter((colour) => colour !== 'RED');
+      if (colorsPotted.length > 1) {
+        foulReason = 'Multiple colors potted';
+        foulValue = Math.max(
+          foulValue,
+          ...colorsPotted.map((colour) => this.ballValue(colour))
+        );
+      }
     }
 
     const illegalPot = potted.find((c) => !ballOnSet.has(c));
@@ -517,8 +569,10 @@ export class PoolRoyaleRules {
             ? 'A'
             : 'B'
         : undefined;
+      const nextBalls = buildSnookerBalls(redsRemaining, colorsOnTable);
       return {
         ...state,
+        balls: nextBalls,
         activePlayer,
         players,
         currentBreak,
@@ -591,8 +645,10 @@ export class PoolRoyaleRules {
           : 'B'
       : undefined;
 
+    const nextBalls = buildSnookerBalls(redsRemaining, colorsOnTable);
     return {
       ...state,
+      balls: nextBalls,
       activePlayer,
       players,
       currentBreak,

@@ -2495,6 +2495,132 @@ const POCKET_LINER_PRESETS = Object.freeze([
       repeatY: 2.1,
       seed: 4101
     }
+  }),
+  Object.freeze({
+    id: 'fabric_leather_02',
+    label: 'Fabric Leather 02 Pocket Jaws',
+    type: 'leather',
+    jawColor: 0xc08b5a,
+    rimColor: 0x704c2d,
+    sheenColor: 0xd6b18a,
+    texture: {
+      base: 0xc79a6d,
+      highlight: 0xe1c3a0,
+      shadow: 0x7a4b2c,
+      density: 1.1,
+      grainSize: 0.9,
+      streakAlpha: 0.22,
+      creaseAlpha: 0.3,
+      seamContrast: 0.32,
+      repeatX: 2.6,
+      repeatY: 2.3,
+      seed: 4521
+    }
+  }),
+  Object.freeze({
+    id: 'fabric_leather_01',
+    label: 'Fabric Leather 01 Pocket Jaws',
+    type: 'leather',
+    jawColor: 0xb07a4b,
+    rimColor: 0x6a3f23,
+    sheenColor: 0xcda47f,
+    texture: {
+      base: 0xb88459,
+      highlight: 0xd4b08a,
+      shadow: 0x6b3f23,
+      density: 1,
+      grainSize: 0.95,
+      streakAlpha: 0.21,
+      creaseAlpha: 0.28,
+      seamContrast: 0.3,
+      repeatX: 2.5,
+      repeatY: 2.2,
+      seed: 4629
+    }
+  }),
+  Object.freeze({
+    id: 'brown_leather',
+    label: 'Brown Leather Pocket Jaws',
+    type: 'leather',
+    jawColor: 0x7a4a2a,
+    rimColor: 0x4e2c18,
+    sheenColor: 0x9a6a45,
+    texture: {
+      base: 0x6d4023,
+      highlight: 0x8b5a36,
+      shadow: 0x3f2414,
+      density: 1.05,
+      grainSize: 1.02,
+      streakAlpha: 0.2,
+      creaseAlpha: 0.34,
+      seamContrast: 0.34,
+      repeatX: 2.7,
+      repeatY: 2.3,
+      seed: 4809
+    }
+  }),
+  Object.freeze({
+    id: 'leather_red_02',
+    label: 'Leather Red 02 Pocket Jaws',
+    type: 'leather',
+    jawColor: 0x9a3c3c,
+    rimColor: 0x642020,
+    sheenColor: 0xc05c5c,
+    texture: {
+      base: 0x8f2f2f,
+      highlight: 0xb75858,
+      shadow: 0x4a1b1b,
+      density: 1.08,
+      grainSize: 0.98,
+      streakAlpha: 0.2,
+      creaseAlpha: 0.33,
+      seamContrast: 0.34,
+      repeatX: 2.6,
+      repeatY: 2.25,
+      seed: 4907
+    }
+  }),
+  Object.freeze({
+    id: 'leather_red_03',
+    label: 'Leather Red 03 Pocket Jaws',
+    type: 'leather',
+    jawColor: 0x7d2029,
+    rimColor: 0x4a1116,
+    sheenColor: 0xa63b43,
+    texture: {
+      base: 0x751821,
+      highlight: 0xa63f47,
+      shadow: 0x3a0c11,
+      density: 1.12,
+      grainSize: 0.96,
+      streakAlpha: 0.21,
+      creaseAlpha: 0.36,
+      seamContrast: 0.36,
+      repeatX: 2.7,
+      repeatY: 2.3,
+      seed: 5003
+    }
+  }),
+  Object.freeze({
+    id: 'leather_white',
+    label: 'Leather White Pocket Jaws',
+    type: 'leather',
+    jawColor: 0xe5e0d6,
+    rimColor: 0x9f988f,
+    sheenColor: 0xffffff,
+    texture: {
+      base: 0xede7dc,
+      highlight: 0xffffff,
+      shadow: 0xb9b2a8,
+      density: 0.85,
+      grainSize: 1.05,
+      streakAlpha: 0.18,
+      creaseAlpha: 0.26,
+      seamContrast: 0.25,
+      repeatX: 2.4,
+      repeatY: 2.1,
+      seed: 5121
+    }
   })
 ]);
 
@@ -2571,10 +2697,12 @@ const POCKET_LINER_OPTIONS = Object.freeze(
         }
       });
     }
-    if (config.type === 'metal') {
+    if (config.type === 'metal' || config.type === 'leather') {
       const jawHex = config.jawColor ?? 0x6d7177;
       const rimHex = config.rimColor ?? jawHex;
-      const sheenHex = config.sheenColor ?? mixHexColors(jawHex, 0xffffff, 0.35);
+      const sheenHex =
+        config.sheenColor ??
+        mixHexColors(jawHex, 0xffffff, config.type === 'leather' ? 0.2 : 0.35);
       const rimSheenHex =
         config.rimSheenColor ?? mixHexColors(rimHex, 0xffffff, 0.28);
       const highlightHex =
@@ -2582,6 +2710,7 @@ const POCKET_LINER_OPTIONS = Object.freeze(
       const shadowHex =
         config.shadowColor ?? mixHexColors(jawHex, 0x111111, 0.4);
       const textureConfig = config.texture ?? {};
+      const resolvedMetalness = config.metalness ?? (config.type === 'leather' ? 0.06 : 0.72);
       return Object.freeze({
         id: config.id,
         label: config.label,
@@ -2590,17 +2719,18 @@ const POCKET_LINER_OPTIONS = Object.freeze(
         rimColor: rimHex,
         sheenColor: sheenHex,
         rimSheenColor: rimSheenHex,
-        sheen: config.sheen ?? 0.72,
-        sheenRoughness: config.sheenRoughness ?? 0.36,
-        roughness: config.roughness ?? 0.32,
-        rimRoughness: config.rimRoughness ?? 0.36,
-        metalness: config.metalness ?? 0.72,
-        rimMetalness: config.rimMetalness ?? config.metalness ?? 0.72,
-        clearcoat: config.clearcoat ?? 0.32,
-        clearcoatRoughness: config.clearcoatRoughness ?? 0.18,
-        envMapIntensity: config.envMapIntensity ?? 0.9,
-        bumpScale: config.bumpScale ?? 0.2,
-        rimBumpScale: config.rimBumpScale ?? 0.16,
+        sheen: config.sheen ?? (config.type === 'leather' ? 0.38 : 0.72),
+        sheenRoughness: config.sheenRoughness ?? (config.type === 'leather' ? 0.56 : 0.36),
+        roughness: config.roughness ?? (config.type === 'leather' ? 0.78 : 0.32),
+        rimRoughness: config.rimRoughness ?? (config.type === 'leather' ? 0.86 : 0.36),
+        metalness: resolvedMetalness,
+        rimMetalness: config.rimMetalness ?? resolvedMetalness,
+        clearcoat: config.clearcoat ?? (config.type === 'leather' ? 0.18 : 0.32),
+        clearcoatRoughness:
+          config.clearcoatRoughness ?? (config.type === 'leather' ? 0.55 : 0.18),
+        envMapIntensity: config.envMapIntensity ?? (config.type === 'leather' ? 0.3 : 0.9),
+        bumpScale: config.bumpScale ?? (config.type === 'leather' ? 0.34 : 0.2),
+        rimBumpScale: config.rimBumpScale ?? (config.type === 'leather' ? 0.28 : 0.16),
         texture: {
           base: resolvePocketLinerTextureColor(
             textureConfig.base,
@@ -2614,11 +2744,24 @@ const POCKET_LINER_OPTIONS = Object.freeze(
             textureConfig.shadow,
             config.shadowColor ?? shadowHex
           ),
-          density: textureConfig.density ?? config.textureDensity ?? 0.5,
-          grainSize: textureConfig.grainSize ?? config.grainSize ?? 0.7,
-          streakAlpha: textureConfig.streakAlpha ?? config.streakAlpha ?? 0.14,
-          creaseAlpha: textureConfig.creaseAlpha ?? config.creaseAlpha ?? 0.12,
-          seamContrast: textureConfig.seamContrast ?? config.seamContrast ?? 0.2,
+          density:
+            textureConfig.density ??
+            config.textureDensity ??
+            (config.type === 'leather' ? 1 : 0.5),
+          grainSize:
+            textureConfig.grainSize ?? config.grainSize ?? (config.type === 'leather' ? 1 : 0.7),
+          streakAlpha:
+            textureConfig.streakAlpha ??
+            config.streakAlpha ??
+            (config.type === 'leather' ? 0.2 : 0.14),
+          creaseAlpha:
+            textureConfig.creaseAlpha ??
+            config.creaseAlpha ??
+            (config.type === 'leather' ? 0.28 : 0.12),
+          seamContrast:
+            textureConfig.seamContrast ??
+            config.seamContrast ??
+            (config.type === 'leather' ? 0.28 : 0.2),
           repeatX: textureConfig.repeatX ?? config.repeatX ?? 2.1,
           repeatY: textureConfig.repeatY ?? config.repeatY ?? 2.1,
           seed: textureConfig.seed ?? config.seed ?? 4103 + index * 211
