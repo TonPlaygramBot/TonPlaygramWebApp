@@ -10274,12 +10274,7 @@ export function PoolRoyaleGame({
         setPocketCameraActive(active);
       };
       updatePocketCameraState(false);
-      const orientationLock = typeof screen !== 'undefined'
-        ? screen.orientation?.lock?.('portrait')
-        : null;
-      if (orientationLock && typeof orientationLock.catch === 'function') {
-        orientationLock.catch(() => {});
-      }
+      screen.orientation?.lock?.('portrait').catch(() => {});
       // Renderer
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
