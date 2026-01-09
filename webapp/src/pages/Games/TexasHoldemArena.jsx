@@ -921,10 +921,7 @@ function pickPolyHavenHdriUrl(fileMap, preferredResolutions = PREFERRED_HDRI_RES
 }
 
 async function resolvePolyHavenHdriUrl(config = {}, preferred = PREFERRED_HDRI_RESOLUTIONS) {
-  const fallbackRes =
-    (Array.isArray(preferred) && preferred[0]) || config?.fallbackResolution || '4k';
-  const fallbackAsset = config?.assetId || 'neon_photostudio';
-  const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${fallbackAsset}_${fallbackRes}.hdr`;
+  const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/${config?.assetId || 'neon_photostudio'}.hdr`;
   if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
   try {
     const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
@@ -1211,8 +1208,8 @@ function extractChairMaterials(model) {
   };
 }
 
-async function loadGltfChair(renderer) {
-  const loader = createConfiguredGLTFLoader(renderer);
+async function loadGltfChair() {
+  const loader = createConfiguredGLTFLoader();
 
   let gltf = null;
   let lastError = null;
@@ -1325,7 +1322,7 @@ async function buildChairTemplate(theme, renderer) {
       }
       return { chairTemplate: model, materials, preserveOriginal: preserveMaterials };
     }
-    const gltfChair = await loadGltfChair(renderer);
+    const gltfChair = await loadGltfChair();
     if (rotationY && gltfChair?.chairTemplate) {
       gltfChair.chairTemplate.rotation.y += rotationY;
     }
