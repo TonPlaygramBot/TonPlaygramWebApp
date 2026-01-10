@@ -7,7 +7,7 @@ import { applySRGBColorSpace } from './colorSpace.js';
 const BALL_TEXTURE_SIZE = 1024;
 const BALL_TEXTURE_CACHE = new Map();
 const BALL_MATERIAL_CACHE = new Map();
-const CUE_TIP_RADIUS_RATIO = 0.1714285714;
+const CUE_TIP_RADIUS_RATIO = 0.155;
 
 function clamp01(value) {
   return Math.min(1, Math.max(0, value));
@@ -125,7 +125,7 @@ function drawCueBallDots(ctx, size) {
   const dotRadius = size * 0.5 * CUE_TIP_RADIUS_RATIO;
   const poleInset = dotRadius * 2.2;
   const angularRadius = (dotRadius / size) * Math.PI;
-  const seamInset = Math.min(0.05, Math.max(0.02, angularRadius / (Math.PI * 2)));
+  const seamInset = 0;
   const dotPositions = [
     { u: 0.5, v: 0.5 }, // front
     { u: 0.25, v: 0.5 }, // left
