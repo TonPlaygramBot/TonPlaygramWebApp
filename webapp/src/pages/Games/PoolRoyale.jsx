@@ -5017,7 +5017,7 @@ const normalizeSpinInput = (spin) => {
   return clampToUnitCircle(x, y);
 };
 const mapSpinForPhysics = (spin) => ({
-  x: -(spin?.x ?? 0),
+  x: spin?.x ?? 0,
   y: spin?.y ?? 0
 });
 const normalizeCueLift = (liftAngle = 0) => {

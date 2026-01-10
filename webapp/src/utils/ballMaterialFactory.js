@@ -125,7 +125,11 @@ function drawCueBallDots(ctx, size) {
   const dotRadius = size * 0.5 * CUE_TIP_RADIUS_RATIO;
   const angularRadius = (dotRadius / size) * Math.PI;
   const poleOffset = angularRadius * 1.35;
-  const poleV = Math.min(0.5, Math.max(0, poleOffset / Math.PI));
+  const polePadding = angularRadius / Math.PI;
+  const poleV = Math.min(
+    0.5,
+    Math.max(polePadding, poleOffset / Math.PI)
+  );
   const seamInset = 0;
   const dotPositions = [
     { u: 0.5, v: 0.5 }, // front
