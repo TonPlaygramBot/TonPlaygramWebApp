@@ -612,7 +612,6 @@ const DEFAULT_APPEARANCE = {
   tableFinish: DEFAULT_TABLE_FINISH_INDEX,
   environmentHdri: DEFAULT_HDRI_INDEX
 };
-const DEFAULT_TABLE_THEME_ID = 'murlan-default';
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const FRAME_RATE_STORAGE_KEY = 'murlanFrameRate';
 const CUSTOMIZATION_SECTIONS = [
@@ -1214,26 +1213,16 @@ export default function MurlanRoyaleArena({ search }) {
     });
     return map;
   }, [seatAnchors]);
-  const isDefaultTableSelected = useMemo(
-    () => (TABLE_THEMES[appearance.tables]?.id ?? DEFAULT_TABLE_THEME_ID) === DEFAULT_TABLE_THEME_ID,
-    [appearance.tables]
-  );
 
   const customizationSections = useMemo(
     () =>
-      CUSTOMIZATION_SECTIONS.map((section) => {
-        const isTableFinish = section.key === 'tableFinish';
-        if (isTableFinish && !isDefaultTableSelected) {
-          return { ...section, options: [] };
-        }
-        return {
-          ...section,
-          options: section.options
-            .map((option, idx) => ({ ...option, idx }))
-            .filter(({ id }) => isMurlanOptionUnlocked(section.key, id, murlanInventory))
-        };
-      }).filter((section) => section.options.length > 0),
-    [isDefaultTableSelected, murlanInventory]
+      CUSTOMIZATION_SECTIONS.map((section) => ({
+        ...section,
+        options: section.options
+          .map((option, idx) => ({ ...option, idx }))
+          .filter(({ id }) => isMurlanOptionUnlocked(section.key, id, murlanInventory))
+      })).filter((section) => section.options.length > 0),
+    [murlanInventory]
   );
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
