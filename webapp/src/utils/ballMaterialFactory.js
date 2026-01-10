@@ -123,7 +123,7 @@ function drawPoolNumberBadge(ctx, size, number) {
 
 function drawCueBallDots(ctx, size) {
   const dotRadius = size * 0.5 * CUE_TIP_RADIUS_RATIO;
-  const poleInset = dotRadius * 1.6;
+  const poleInset = dotRadius * 1.25;
   const dotPositions = [
     { u: 0.5, v: 0.5 }, // front
     { u: 0.25, v: 0.5 }, // left
@@ -132,23 +132,24 @@ function drawCueBallDots(ctx, size) {
     { u: 0.5, v: 1 - poleInset / size } // bottom
   ];
 
-  const drawDot = ({ u, v }) => {
-    const latitude = (0.5 - v) * Math.PI;
-    const cosLatitude = Math.cos(latitude);
-    const correctedRadiusX = dotRadius / Math.max(0.6, cosLatitude);
-    ctx.beginPath();
-    ctx.ellipse(u * size, v * size, correctedRadiusX, dotRadius, 0, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.fill();
-  };
-
   ctx.save();
   ctx.fillStyle = '#dc2626';
-  dotPositions.forEach(drawDot);
+  dotPositions.forEach(({ u, v }) => {
+    ctx.beginPath();
+    ctx.arc(u * size, v * size, dotRadius, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+  });
 
   // Back dot spans the seam to keep a full circle.
-  drawDot({ u: 0, v: 0.5 });
-  drawDot({ u: 1, v: 0.5 });
+  ctx.beginPath();
+  ctx.arc(0, size * 0.5, dotRadius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(size, size * 0.5, dotRadius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fill();
   ctx.restore();
 }
 
