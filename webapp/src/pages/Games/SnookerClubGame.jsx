@@ -216,22 +216,6 @@ function classifyRendererTier(rendererString) {
   return 'unknown';
 }
 
-function isSoftwareRenderer(rendererString) {
-  if (typeof rendererString !== 'string' || rendererString.length === 0) {
-    return false;
-  }
-  const signature = rendererString.toLowerCase();
-  return (
-    signature.includes('swiftshader') ||
-    signature.includes('llvmpipe') ||
-    signature.includes('software') ||
-    signature.includes('mesa') ||
-    signature.includes('virtualbox') ||
-    signature.includes('basic render') ||
-    signature.includes('angle (software')
-  );
-}
-
 function detectPreferredFrameRateId() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return 'balanced60';
@@ -10283,17 +10267,6 @@ export function PoolRoyaleGame({
     if (!host) return;
     setErr(null);
     setWebglUnavailable(false);
-    const rendererLabel = readGraphicsRendererString();
-    const softwareRenderer = isSoftwareRenderer(rendererLabel);
-    if (!isWebGLAvailable() || softwareRenderer) {
-      setWebglUnavailable(true);
-      setErr(
-        softwareRenderer
-          ? 'Hardware-accelerated WebGL is disabled. Enable GPU acceleration to play.'
-          : 'WebGL is not available on this device. Enable hardware acceleration to play.'
-      );
-      return;
-    }
     const cueRackDisposers = [];
     let disposed = false;
     try {
