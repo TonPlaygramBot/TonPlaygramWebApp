@@ -5017,8 +5017,8 @@ const normalizeSpinInput = (spin) => {
   return clampToUnitCircle(x, y);
 };
 const mapSpinForPhysics = (spin) => ({
-  x: -(spin?.x ?? 0),
-  y: -(spin?.y ?? 0)
+  x: spin?.x ?? 0,
+  y: spin?.y ?? 0
 });
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
@@ -17651,7 +17651,7 @@ const powerRef = useRef(hud.power);
                 ? CHALK_PRECISION_SLOW_MULTIPLIER
                 : 1;
             const precisionScale = basePrecisionScale * slowScale;
-            sph.theta += dx * 0.0026 * precisionScale;
+            sph.theta -= dx * 0.0026 * precisionScale;
             const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
             const phiDelta = dy * 0.0019 * precisionScale;
             const blendDelta =
@@ -17714,9 +17714,9 @@ const powerRef = useRef(hud.power);
               : 1;
           const step = baseStep * slowScale;
           if (e.code === 'ArrowLeft') {
-            sph.theta -= step;
-          } else if (e.code === 'ArrowRight') {
             sph.theta += step;
+          } else if (e.code === 'ArrowRight') {
+            sph.theta -= step;
           } else if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
             const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
             const dir = e.code === 'ArrowUp' ? -1 : 1;
