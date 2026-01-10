@@ -5798,7 +5798,8 @@ function resolveSpinFrame(ball) {
 function resolveSpinWorldVector(ball, output) {
   if (!ball?.spin) return null;
   const { forward, lateral } = resolveSpinFrame(ball);
-  const sideSpin = ball.spin.x || 0;
+  const sideSpin =
+    ball.spinMode === 'swerve' ? -(ball.spin.x || 0) : (ball.spin.x || 0);
   const forwardSpin = ball.spin.y || 0;
   const target = output ?? TMP_VEC2_SPIN;
   target.copy(lateral).multiplyScalar(sideSpin).addScaledVector(forward, forwardSpin);
@@ -5938,8 +5939,9 @@ function resolveSwerveAimDir(
     (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
   const powerScale = 4 + powerStrength * 6;
   const swerveScale = 0.6 + swerve.intensity * 0.9;
+  const sideSpin = -swerve.sideSpin;
   const adjust =
-    swerve.sideSpin *
+    sideSpin *
     swerve.intensity *
     curveBase *
     powerScale *
@@ -5969,7 +5971,7 @@ function buildSwerveAimLinePoints(
     swerveActive,
     liftStrength
   );
-  const sideSpin = swerve.sideSpin;
+  const sideSpin = -swerve.sideSpin;
   const travel = start.distanceTo(end);
   if (swerve.intensity <= 0 || Math.abs(sideSpin) < 1e-3 || travel < 1e-4) {
     points.length = 2;
@@ -19989,7 +19991,7 @@ const powerRef = useRef(hud.power);
           const liftStrength = normalizeCueLift(liftAngle);
           const physicsSpin = mapSpinForPhysics(appliedSpin);
           const ranges = spinRangeRef.current || {};
-          const powerSpinScale = powerScale;
+          const powerSpinScale = 1;
           const baseSide = physicsSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
           let spinTop = -physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
