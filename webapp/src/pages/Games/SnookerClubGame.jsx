@@ -133,32 +133,19 @@ function detectHighRefreshDisplay() {
   return false;
 }
 
-const WEBGL_CONTEXT_ATTRIBUTES = {
-  antialias: true,
-  powerPreference: 'high-performance'
-};
-
-function createPreferredWebGLContext() {
-  if (typeof document === 'undefined') return null;
+function isWebGLAvailable() {
+  if (typeof document === 'undefined') return false;
   try {
     const canvas = document.createElement('canvas');
-    const context =
-      canvas.getContext('webgl', WEBGL_CONTEXT_ATTRIBUTES) ||
-      canvas.getContext('experimental-webgl', WEBGL_CONTEXT_ATTRIBUTES) ||
-      canvas.getContext('webgl2', WEBGL_CONTEXT_ATTRIBUTES);
-    if (!context) {
-      return null;
-    }
-    return { canvas, context };
+    const gl =
+      canvas.getContext('webgl2') ||
+      canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl');
+    return Boolean(gl);
   } catch (err) {
-    console.warn('WebGL context creation failed', err);
-    return null;
+    console.warn('WebGL availability check failed', err);
+    return false;
   }
-}
-
-function isWebGLAvailable() {
-  const context = createPreferredWebGLContext();
-  return Boolean(context);
 }
 
 let cachedRendererString = null;
@@ -10288,13 +10275,10 @@ export function PoolRoyaleGame({
     const cueRackDisposers = [];
     let disposed = false;
     try {
-      const preferredContext = createPreferredWebGLContext();
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: false,
-        powerPreference: 'high-performance',
-        canvas: preferredContext?.canvas,
-        context: preferredContext?.context
+        powerPreference: 'high-performance'
       });
       const updatePocketCameraState = (active) => {
         if (pocketCameraStateRef.current === active) return;
