@@ -10267,6 +10267,11 @@ export function PoolRoyaleGame({
     if (!host) return;
     setErr(null);
     setWebglUnavailable(false);
+    if (!isWebGLAvailable()) {
+      setWebglUnavailable(true);
+      setErr('WebGL is not available on this device. Enable hardware acceleration to play.');
+      return;
+    }
     const cueRackDisposers = [];
     let disposed = false;
     try {
@@ -10292,9 +10297,15 @@ export function PoolRoyaleGame({
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
       host.appendChild(renderer.domElement);
-      renderer.domElement.addEventListener('webglcontextlost', (e) =>
-        e.preventDefault()
-      );
+      const handleContextLost = (e) => {
+        e.preventDefault();
+        setErr('WebGL context lost. Please reload or enable hardware acceleration.');
+      };
+      const handleContextRestored = () => {
+        setErr('WebGL context restored. Please reload to continue.');
+      };
+      renderer.domElement.addEventListener('webglcontextlost', handleContextLost, false);
+      renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored, false);
       applyRendererQuality();
       renderer.domElement.style.transformOrigin = 'top left';
       rendererRef.current = renderer;
@@ -17307,6 +17318,8 @@ export function PoolRoyaleGame({
           try {
             host.removeChild(renderer.domElement);
           } catch {}
+          renderer.domElement.removeEventListener('webglcontextlost', handleContextLost, false);
+          renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored, false);
           dom.removeEventListener('mousedown', down);
           dom.removeEventListener('mousemove', move);
           window.removeEventListener('mouseup', up);
