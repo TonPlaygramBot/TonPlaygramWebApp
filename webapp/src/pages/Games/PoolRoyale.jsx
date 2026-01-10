@@ -1337,8 +1337,8 @@ const SHOT_FORCE_BOOST =
   1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * 1.15;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST * 1.15; // lift every stroke by 15% for a stronger launch
-const SHOT_MIN_FACTOR = 0.25;
-const SHOT_POWER_RANGE = 0.75;
+const SHOT_MIN_FACTOR = 0;
+const SHOT_POWER_RANGE = 1;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
 const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
@@ -5798,7 +5798,8 @@ function resolveSpinFrame(ball) {
 function resolveSpinWorldVector(ball, output) {
   if (!ball?.spin) return null;
   const { forward, lateral } = resolveSpinFrame(ball);
-  const sideSpin = ball.spin.x || 0;
+  const baseSideSpin = ball.spin.x || 0;
+  const sideSpin = ball.spinMode === 'swerve' ? -baseSideSpin : baseSideSpin;
   const forwardSpin = ball.spin.y || 0;
   const target = output ?? TMP_VEC2_SPIN;
   target.copy(lateral).multiplyScalar(sideSpin).addScaledVector(forward, forwardSpin);
@@ -5876,14 +5877,15 @@ function resolveSwerveSettings(
       intensity: 0
     };
   }
+  const swerveSideSpin = -sideSpin;
   const threshold = Math.max(1 - SWERVE_THRESHOLD, 1e-6);
   const normalized = clamp((magnitude - SWERVE_THRESHOLD) / threshold, 0, 1);
   const liftBoost = 0.75 + Math.max(0, liftStrength) * 0.5;
   const powerBoost = 0.7 + powerStrength * 0.85;
-  const spinBoost = 0.75 + Math.min(Math.abs(sideSpin), 1) * 0.6;
+  const spinBoost = 0.75 + Math.min(Math.abs(swerveSideSpin), 1) * 0.6;
   return {
     active: true,
-    sideSpin,
+    sideSpin: swerveSideSpin,
     magnitude,
     intensity: normalized * powerBoost * spinBoost * liftBoost
   };
