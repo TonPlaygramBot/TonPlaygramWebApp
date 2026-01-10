@@ -1325,7 +1325,7 @@ const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 2.6; // inject extra sideways c
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.3; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
-const SWERVE_THRESHOLD = 0.52; // outer 48% of the spin control activates swerve behaviour
+const SWERVE_THRESHOLD = 2; // disable swerve by keeping activation above the spin input range
 const SWERVE_TRAVEL_MULTIPLIER = 1.28; // let swerve-driven roll carry more lateral energy while staying believable
 const SWERVE_PRE_IMPACT_DRIFT = 0.8; // allow a visible curve before the cue ball hits the object ball
 const PRE_IMPACT_SPIN_DRIFT = 0.24; // reapply stored sideways swerve once the cue ball is rolling after impact
@@ -12084,13 +12084,8 @@ const powerRef = useRef(hud.power);
     const scaledY = (y * maxVertical) / largest;
     dot.style.left = `${50 + scaledX * 50}%`;
     dot.style.top = `${50 + scaledY * 50}%`;
-    const magnitude = Math.hypot(x, y);
     const showBlocked = blocked ?? spinLegalityRef.current?.blocked;
-    dot.style.backgroundColor = showBlocked
-      ? '#9ca3af'
-      : magnitude >= SWERVE_THRESHOLD
-        ? '#facc15'
-        : '#dc2626';
+    dot.style.backgroundColor = '#dc2626';
     dot.dataset.blocked = showBlocked ? '1' : '0';
   }, []);
   const cueRef = useRef(null);
@@ -17474,7 +17469,7 @@ const powerRef = useRef(hud.power);
           }
           const result = legality.blocked ? { x: 0, y: 0 } : normalized;
           const magnitude = Math.hypot(result.x ?? 0, result.y ?? 0);
-          const mode = magnitude >= SWERVE_THRESHOLD ? 'swerve' : 'standard';
+          const mode = 'standard';
           spinAppliedRef.current = { ...result, magnitude, mode };
           return result;
         };
@@ -25680,11 +25675,11 @@ const powerRef = useRef(hud.power);
         >
           <div
             id="spinBox"
-            className={`relative rounded-full shadow-lg border border-white/70 overflow-hidden ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
+            className={`relative rounded-full overflow-hidden ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
               height: `${SPIN_CONTROL_DIAMETER_PX}px`,
-              background: '#f9fafb'
+              background: 'transparent'
             }}
           >
             <div

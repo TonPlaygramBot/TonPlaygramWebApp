@@ -1,16 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import RoomSelector from '../../components/RoomSelector.jsx';
 import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { ensureAccountId, getTelegramFirstName, getTelegramId, getTelegramPhotoUrl } from '../../utils/telegram.js';
-import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
-import { socket } from '../../utils/socket.js';
-import { getOnlineUsers } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { runPoolRoyaleOnlineFlow } from './poolRoyaleOnlineFlow.js';
 
 const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
@@ -26,8 +21,7 @@ export default function PoolRoyaleLobby() {
     return requestedType === 'tournament' ? 'tournament' : 'regular';
   })();
 
-  const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
-  const [mode, setMode] = useState('ai');
+  const mode = 'ai';
   const [avatar, setAvatar] = useState('');
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
@@ -38,22 +32,7 @@ export default function PoolRoyaleLobby() {
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
-  const [onlinePlayers, setOnlinePlayers] = useState([]);
-  const [matching, setMatching] = useState(false);
-  const [spinningPlayer, setSpinningPlayer] = useState('');
-  const [matchPlayers, setMatchPlayers] = useState([]);
-  const matchPlayersRef = useRef([]);
-  const [readyList, setReadyList] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [matchingError, setMatchingError] = useState('');
-  const [matchStatus, setMatchStatus] = useState('');
-  const spinIntervalRef = useRef(null);
   const accountIdRef = useRef(null);
-  const pendingTableRef = useRef('');
-  const cleanupRef = useRef(() => {});
-  const stakeDebitRef = useRef(null);
-  const matchTimeoutRef = useRef(null);
-  const seatTimeoutRef = useRef(null);
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
@@ -82,102 +61,12 @@ export default function PoolRoyaleLobby() {
   }, []);
 
   useEffect(() => {
-    matchPlayersRef.current = matchPlayers;
-  }, [matchPlayers]);
-
-  useEffect(() => {
     if (variant !== 'uk') {
       setUkBallSet('uk');
     }
   }, [variant]);
 
-  const navigateToPoolRoyale = ({ tableId: startedId, roster = [], accountId, currentTurn }) => {
-    const selfId = accountId || accountIdRef.current;
-    const selfEntry = roster.find((p) => String(p.id) === String(selfId));
-    const opponentEntry = roster.find((p) => String(p.id) !== String(selfId));
-    const starterId = currentTurn || roster?.[0]?.id || null;
-    const selfIndex = roster.findIndex((p) => String(p.id) === String(selfId));
-    const seat = selfIndex === 1 ? 'B' : 'A';
-    const starterSeat = starterId && String(starterId) === String(selfId) ? seat : seat === 'A' ? 'B' : 'A';
-    const friendlyName =
-      selfEntry?.name ||
-      getTelegramFirstName() ||
-      getTelegramId() ||
-      (selfId ? `TPC ${selfId}` : 'Player');
-    const friendlyAvatar = selfEntry?.avatar || avatar;
-    const opponentName =
-      opponentEntry?.name ||
-      opponentEntry?.username ||
-      opponentEntry?.telegramName ||
-      (opponentEntry?.id ? `TPC ${opponentEntry.id}` : '');
-    const opponentAvatar = opponentEntry?.avatar || '';
-    cleanupRef.current?.({ account: accountId, skipRefReset: true });
-    const params = new URLSearchParams();
-    params.set('variant', variant);
-    if (variant === 'uk' && ukBallSet === 'american') {
-      params.set('ballSet', 'american');
-    }
-    params.set('type', playType);
-    params.set('mode', 'online');
-    params.set('tableId', startedId);
-    if (stake.token) params.set('token', stake.token);
-    if (stake.amount) params.set('amount', stake.amount);
-    if (friendlyAvatar) params.set('avatar', friendlyAvatar);
-    const tgId = getTelegramId();
-    if (tgId) params.set('tgId', tgId);
-    const resolvedAccountId = accountIdRef.current;
-    if (resolvedAccountId) params.set('accountId', resolvedAccountId);
-    if (tableSize) params.set('tableSize', tableSize);
-    params.set('seat', seat);
-    params.set('starter', starterSeat);
-    const name = (friendlyName || '').trim();
-    if (name) params.set('name', name);
-    if (opponentName) params.set('opponent', opponentName);
-    if (opponentAvatar) params.set('opponentAvatar', opponentAvatar);
-    navigate(`/games/poolroyale?${params.toString()}`);
-  };
-
   const startGame = async () => {
-    const isOnlineMatch = mode === 'online' && playType === 'regular';
-    if (matching) return;
-    await cleanupRef.current?.();
-    setMatchStatus('');
-    setMatchingError('');
-
-    if (isOnlineMatch) {
-      await runPoolRoyaleOnlineFlow({
-        stake,
-        variant,
-        ballSet: ukBallSet,
-        playType,
-        mode,
-        tableSize,
-        avatar,
-        deps: { ensureAccountId, getAccountBalance, addTransaction, getTelegramId, getTelegramFirstName, socket },
-        state: {
-          setMatchingError,
-          setMatchStatus,
-          setMatching,
-          setIsSearching,
-          setMatchPlayers,
-          setReadyList,
-          setSpinningPlayer
-        },
-        refs: {
-          accountIdRef,
-          matchPlayersRef,
-          pendingTableRef,
-          cleanupRef,
-          spinIntervalRef,
-          stakeDebitRef,
-          matchTimeoutRef,
-          seatTimeoutRef
-        },
-        onGameStart: navigateToPoolRoyale
-      });
-      return;
-    }
-
     let tgId;
     let accountId;
     try {
@@ -185,7 +74,6 @@ export default function PoolRoyaleLobby() {
       accountId = await ensureAccountId();
     } catch (error) {
       const message = 'Unable to verify your TPC account. Please retry.';
-      setMatchingError(message);
       try {
         window?.Telegram?.WebApp?.showAlert?.(message);
       } catch {}
@@ -203,10 +91,6 @@ export default function PoolRoyaleLobby() {
     params.set('tableSize', tableSize);
     params.set('type', playType);
     params.set('mode', mode);
-    if (isOnlineMatch) {
-      if (stake.token) params.set('token', stake.token);
-      if (stake.amount) params.set('amount', stake.amount);
-    }
     if (playType === 'tournament') params.set('players', players);
     const initData = window.Telegram?.WebApp?.initData;
     if (avatar) params.set('avatar', avatar);
@@ -232,94 +116,6 @@ export default function PoolRoyaleLobby() {
     navigate(`/games/poolroyale?${params.toString()}`);
   };
 
-  useEffect(() => {
-    let active = true;
-    const loadOnline = () => {
-      getOnlineUsers()
-        .then((data) => {
-          if (!active) return;
-          const list = Array.isArray(data?.users)
-            ? data.users
-            : Array.isArray(data)
-            ? data
-            : [];
-          setOnlinePlayers(list);
-        })
-        .catch(() => {});
-    };
-    loadOnline();
-    const id = setInterval(loadOnline, 15000);
-    return () => {
-      active = false;
-      clearInterval(id);
-    };
-  }, []);
-
-  const matchingCandidates = useMemo(() => {
-    const base = (onlinePlayers || []).map((p) => ({
-      id: p.accountId || p.playerId || p.id,
-      name: p.username || p.name || p.telegramName || p.telegramId || p.accountId
-    }));
-    const lobbyEntries = (matchPlayers || []).map((p) => ({ id: p.id, name: p.name || p.id }));
-    const merged = [...base, ...lobbyEntries].filter((p) => p.id);
-    const seen = new Set();
-    return merged.filter((p) => {
-      const key = String(p.id);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [matchPlayers, onlinePlayers]);
-
-  useEffect(() => {
-    if (spinIntervalRef.current) {
-      clearInterval(spinIntervalRef.current);
-      spinIntervalRef.current = null;
-    }
-    if (!matching || matchingCandidates.length === 0) return undefined;
-    setSpinningPlayer(matchingCandidates[0].name || 'Searching…');
-    spinIntervalRef.current = setInterval(() => {
-      const pick = matchingCandidates[Math.floor(Math.random() * matchingCandidates.length)];
-      setSpinningPlayer(pick?.name || 'Searching…');
-    }, 500);
-    return () => {
-      if (spinIntervalRef.current) clearInterval(spinIntervalRef.current);
-    };
-  }, [matching, matchingCandidates]);
-
-  useEffect(() => () => cleanupRef.current?.(), []);
-
-  useEffect(() => {
-    if (playType === 'tournament') {
-      setMode('ai');
-    }
-  }, [playType]);
-
-  useEffect(() => {
-    if (mode !== 'online' || playType !== 'regular') {
-      cleanupRef.current?.();
-      setMatching(false);
-      setMatchStatus('');
-      setMatchPlayers([]);
-      setReadyList([]);
-      setIsSearching(false);
-    }
-  }, [mode, playType]);
-
-  useEffect(() => {
-    if (!matching) return;
-    const readyIds = new Set((readyList || []).map((id) => String(id)));
-    const selfId = accountIdRef.current;
-    if (selfId && readyIds.has(String(selfId)) && readyIds.size >= 2) {
-      setMatchStatus('All players ready. Launching match…');
-    }
-  }, [matching, readyList]);
-
-  const readyIds = useMemo(
-    () => new Set((readyList || []).map((id) => String(id))),
-    [readyList]
-  );
-
   const winnerParam = searchParams.get('winner');
 
   return (
@@ -344,32 +140,6 @@ export default function PoolRoyaleLobby() {
             >
               {label}
             </button>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Mode</h3>
-        <div className="flex gap-2">
-          {[
-            { id: 'ai', label: 'Vs AI' },
-            { id: 'online', label: '1v1 Online', disabled: playType === 'tournament' }
-          ].map(({ id, label, disabled }) => (
-            <div key={id} className="relative">
-              <button
-                onClick={() => !disabled && setMode(id)}
-                className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
-                  disabled ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-                disabled={disabled}
-              >
-                {label}
-              </button>
-              {disabled && (
-                <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
-                  Tournament bracket only
-                </span>
-              )}
-            </div>
           ))}
         </div>
       </div>
@@ -429,15 +199,6 @@ export default function PoolRoyaleLobby() {
           <p className="text-xs">Winner takes pot minus 10% developer fee.</p>
         </div>
       )}
-      {mode === 'online' && playType === 'regular' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Stake</h3>
-          <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-          <p className="text-center text-xs text-subtext">
-            Online games use your TPC stake as escrow, while AI matches stay free.
-          </p>
-        </div>
-      )}
       <div className="space-y-2">
         <h3 className="font-semibold">Your Flag & Avatar</h3>
         <div className="rounded-xl border border-border bg-surface/60 p-3 space-y-2 shadow">
@@ -479,72 +240,11 @@ export default function PoolRoyaleLobby() {
           </div>
         </button>
       </div>
-      {mode === 'online' && playType === 'regular' && (
-        <div className="space-y-3 p-3 rounded-lg border border-border bg-surface/60">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold">Online Arena</h3>
-              <p className="text-sm text-subtext">
-                We match players by TPC account number, stake ({stake.amount} {stake.token}),
-                and Pool Royale game type.
-              </p>
-            </div>
-            <div className="text-xs text-subtext">{onlinePlayers.length} online</div>
-          </div>
-          {matchingError && (
-            <div className="text-sm text-red-400">{matchingError}</div>
-          )}
-          {matching && (
-            <div className="space-y-2">
-              {matchStatus && <div className="text-xs text-subtext">{matchStatus}</div>}
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold">Spinning wheel</span>
-                <span className="text-xs text-subtext">Searching for stake match…</span>
-              </div>
-              <div className="lobby-tile w-full flex items-center justify-between">
-                <span>🎯 {spinningPlayer || 'Searching…'}</span>
-                <span className="text-xs text-subtext">Stake {stake.amount} {stake.token}</span>
-              </div>
-              <div className="space-y-1">
-                {matchPlayers.map((p) => (
-                  <div
-                    key={p.id}
-                    className="lobby-tile w-full flex items-center justify-between"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold">{p.name || `TPC ${p.id}`}</p>
-                      <p className="text-xs text-subtext">Account #{p.id}</p>
-                    </div>
-                    <span
-                      className={`text-xs font-semibold ${
-                        readyIds.has(String(p.id)) ? 'text-emerald-400' : 'text-subtext'
-                      }`}
-                    >
-                      {readyIds.has(String(p.id)) ? 'Ready' : 'Waiting'}
-                    </span>
-                  </div>
-                ))}
-                {matchPlayers.length === 0 && (
-                  <div className="lobby-tile w-full text-sm text-subtext">
-                    Waiting for another player in this pool arena…
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          {!matching && (
-            <div className="text-sm text-subtext">
-              Start to join a 1v1 pool arena. We keep you at the same table until the match begins.
-            </div>
-          )}
-        </div>
-      )}
       <button
         onClick={startGame}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded"
-        disabled={mode === 'online' && (isSearching || matching)}
       >
-        {mode === 'online' ? (matching ? 'Waiting for opponent…' : 'START ONLINE') : 'START'}
+        START
       </button>
 
       <FlagPickerModal
