@@ -2448,15 +2448,6 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
   },
   {
-    id: 'uhd120',
-    label: 'Ultra HD (120 Hz)',
-    fps: 120,
-    renderScale: 1.35,
-    pixelRatioCap: 2,
-    resolution: 'Ultra HD render • DPR 2.0 cap',
-    description: '4K-oriented profile for 120 Hz flagships and desktops.'
-  },
-  {
     id: 'ultra144',
     label: 'Ultra HD+ (144 Hz)',
     fps: 144,
@@ -2466,7 +2457,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const DEFAULT_FRAME_RATE_ID = 'ultra144';
 
 function resolveDefaultPixelRatioCap() {
   if (typeof window === 'undefined') {
