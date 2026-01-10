@@ -5020,6 +5020,26 @@ const mapSpinForPhysics = (spin) => ({
   x: spin?.x ?? 0,
   y: spin?.y ?? 0
 });
+const resolveSpinLaunch = (spin, ranges = {}, powerScale = 1) => {
+  const physicsSpin = mapSpinForPhysics(spin);
+  const baseSide = physicsSpin.x * (ranges.side ?? 0);
+  let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerScale;
+  let spinTop = -physicsSpin.y * (ranges.forward ?? 0) * powerScale;
+  if (physicsSpin.y > 0) {
+    spinTop *= BACKSPIN_MULTIPLIER;
+  } else if (physicsSpin.y < 0) {
+    spinTop *= TOPSPIN_MULTIPLIER;
+  }
+  return { physicsSpin, spinSide, spinTop };
+};
+const normalizeSpinForPreview = (spinSide, spinTop, ranges = {}) => {
+  const sideScale = Math.max(Math.abs(ranges.side ?? MAX_SPIN_SIDE), 1e-6);
+  const forwardScale = Math.max(Math.abs(ranges.forward ?? MAX_SPIN_FORWARD), 1e-6);
+  return {
+    x: clamp(spinSide / sideScale, -1, 1),
+    y: clamp(spinTop / forwardScale, -1, 1)
+  };
+};
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
   return THREE.MathUtils.clamp(liftAngle / CUE_LIFT_MAX_TILT, 0, 1);
@@ -5810,9 +5830,14 @@ function applySpinImpulse(ball, scale = 1) {
     ball.swervePowerStrength = 0;
   }
   const decayFactor = Math.pow(SPIN_DECAY, Math.max(scale, 0.5));
-  ball.spin.multiplyScalar(decayFactor);
-  if (ball.spin.lengthSq() < 1e-6) {
-    ball.spin.set(0, 0);
+  const spinLocal = ball.spinLocal ?? ball.spin;
+  if (spinLocal) spinLocal.multiplyScalar(decayFactor);
+  if (ball.spin && ball.spin !== spinLocal) {
+    ball.spin.multiplyScalar(decayFactor);
+  }
+  if (spinLocal && spinLocal.lengthSq() < 1e-6) {
+    spinLocal.set(0, 0);
+    if (ball.spin) ball.spin.set(0, 0);
     if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
     if (ball.id === 'cue') ball.swervePowerStrength = 0;
   }
@@ -6102,6 +6127,7 @@ function Guret(parent, id, color, x, y, options = {}) {
     pos: new THREE.Vector2(x, y),
     vel: new THREE.Vector2(),
     spin: new THREE.Vector2(),
+    spinLocal: new THREE.Vector2(),
     spinMode: 'standard',
     swerveStrength: 0,
     swervePowerStrength: 0,
@@ -16892,6 +16918,7 @@ const powerRef = useRef(hud.power);
             ball.active = state.active;
             if (ball.vel) ball.vel.set(0, 0);
             if (ball.spin) ball.spin.set(0, 0);
+            if (ball.spinLocal) ball.spinLocal.set(0, 0);
             if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
             ball.impacted = false;
             ball.launchDir = null;
@@ -16969,6 +16996,7 @@ const powerRef = useRef(hud.power);
             ball.pos.set(posX, posY);
             if (ball.vel) ball.vel.set(0, 0);
             if (ball.spin) ball.spin.set(0, 0);
+            if (ball.spinLocal) ball.spinLocal.set(0, 0);
             if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
             ball.impacted = false;
             ball.launchDir = null;
@@ -19240,6 +19268,7 @@ const powerRef = useRef(hud.power);
         cue.mesh.position.set(pos.x, BALL_CENTER_Y, pos.y);
         cue.vel.set(0, 0);
         cue.spin?.set(0, 0);
+        cue.spinLocal?.set(0, 0);
         cue.pendingSpin?.set(0, 0);
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
@@ -19939,17 +19968,13 @@ const powerRef = useRef(hud.power);
           const appliedSpin = applySpinConstraints(aimDir, true);
           const liftAngle = resolveUserCueLift();
           const liftStrength = normalizeCueLift(liftAngle);
-          const physicsSpin = mapSpinForPhysics(appliedSpin);
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = powerScale;
-          const baseSide = physicsSpin.x * (ranges.side ?? 0);
-          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = -physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (physicsSpin.y > 0) {
-            spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (physicsSpin.y < 0) {
-            spinTop *= TOPSPIN_MULTIPLIER;
-          }
+          const { physicsSpin, spinSide, spinTop } = resolveSpinLaunch(
+            appliedSpin,
+            ranges,
+            powerSpinScale
+          );
           const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
           cue.vel.copy(base);
           if (cue.spin) {
@@ -19957,6 +19982,9 @@ const powerRef = useRef(hud.power);
               perp.x * spinSide + aimDir.x * spinTop,
               perp.y * spinSide + aimDir.y * spinTop
             );
+          }
+          if (cue.spinLocal) {
+            cue.spinLocal.set(spinSide, spinTop);
           }
           if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
           cue.spinMode =
@@ -22148,6 +22176,7 @@ const powerRef = useRef(hud.power);
                   simBall.mesh.position.set(sx, BALL_CENTER_Y, sy);
                   simBall.vel.set(0, 0);
                   simBall.spin?.set(0, 0);
+                  simBall.spinLocal?.set(0, 0);
                   simBall.pendingSpin?.set(0, 0);
                   simBall.spinMode = 'standard';
                   simBall.swerveStrength = 0;
@@ -22191,6 +22220,7 @@ const powerRef = useRef(hud.power);
               cue.active = true;
               cue.vel.set(0, 0);
               cue.spin?.set(0, 0);
+              cue.spinLocal?.set(0, 0);
               cue.pendingSpin?.set(0, 0);
               cue.spinMode = 'standard';
               cue.swerveStrength = 0;
@@ -22485,8 +22515,14 @@ const powerRef = useRef(hud.power);
         }
         const appliedSpin = applySpinConstraints(aimDir, true);
         const liftStrength = normalizeCueLift(resolveUserCueLift());
-        const physicsSpin = mapSpinForPhysics(appliedSpin);
         const ranges = spinRangeRef.current || {};
+        const powerStrength = THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1);
+        const { spinSide, spinTop } = resolveSpinLaunch(
+          appliedSpin,
+          ranges,
+          powerStrength
+        );
+        const previewSpin = normalizeSpinForPreview(spinSide, spinTop, ranges);
         const newCollisions = new Set();
         let shouldSlowAim = false;
         // Aiming vizual
@@ -22595,16 +22631,11 @@ const powerRef = useRef(hud.power);
           else baseAimDir.normalize();
           const basePerp = new THREE.Vector3(-baseAimDir.z, 0, baseAimDir.x);
           if (basePerp.lengthSq() > 1e-8) basePerp.normalize();
-          const powerStrength = THREE.MathUtils.clamp(
-            powerRef.current ?? 0,
-            0,
-            1
-          );
           const swerveActive = spinAppliedRef.current?.mode === 'swerve';
           const aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
           const guideAimDir2D = resolveSwerveAimDir(
             aimDir2D,
-            physicsSpin,
+            previewSpin,
             powerStrength,
             swerveActive,
             liftStrength
@@ -22629,7 +22660,7 @@ const powerRef = useRef(hud.power);
             end,
             dir,
             perp,
-            physicsSpin,
+            previewSpin,
             powerStrength,
             swerveActive,
             liftStrength
@@ -22704,8 +22735,8 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const spinSideInfluence = (physicsSpin.x || 0) * (0.4 + 0.42 * powerStrength);
-          const spinVerticalInfluence = (physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
+          const spinSideInfluence = (previewSpin.x || 0) * (0.4 + 0.42 * powerStrength);
+          const spinVerticalInfluence = (previewSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
             .add(perp.clone().multiplyScalar(spinSideInfluence))
@@ -22713,7 +22744,7 @@ const powerRef = useRef(hud.power);
           if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
             cueFollowDirSpinAdjusted.normalize();
           }
-          const backSpinWeight = Math.max(0, appliedSpin.y || 0);
+          const backSpinWeight = Math.max(0, -(previewSpin.y || 0));
           if (backSpinWeight > 1e-8) {
             const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
             const drawDir = dir.clone().negate();
@@ -22922,10 +22953,19 @@ const powerRef = useRef(hud.power);
           const remoteSpin = remoteAimState?.spin ?? { x: 0, y: 0 };
           const remoteSpinMagnitude = Math.hypot(remoteSpin.x ?? 0, remoteSpin.y ?? 0);
           const remoteSwerveActive = remoteSpinMagnitude >= SWERVE_THRESHOLD;
-          const remotePhysicsSpin = mapSpinForPhysics(remoteSpin);
+          const { spinSide: remoteSpinSide, spinTop: remoteSpinTop } = resolveSpinLaunch(
+            remoteSpin,
+            ranges,
+            powerStrength
+          );
+          const remotePreviewSpin = normalizeSpinForPreview(
+            remoteSpinSide,
+            remoteSpinTop,
+            ranges
+          );
           const guideAimDir2D = resolveSwerveAimDir(
             remoteAimDir,
-            remotePhysicsSpin,
+            remotePreviewSpin,
             powerStrength,
             remoteSwerveActive
           );
@@ -22946,7 +22986,7 @@ const powerRef = useRef(hud.power);
             end,
             baseDir,
             perp,
-            remotePhysicsSpin,
+            remotePreviewSpin,
             powerStrength,
             remoteSwerveActive
           );
@@ -22962,10 +23002,30 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : baseDir.clone();
+          const spinSideInfluence =
+            (remotePreviewSpin.x || 0) * (0.4 + 0.42 * powerStrength);
+          const spinVerticalInfluence =
+            (remotePreviewSpin.y || 0) * (0.68 + 0.45 * powerStrength);
+          const cueFollowDirSpinAdjusted = cueFollowDir
+            .clone()
+            .add(perp.clone().multiplyScalar(spinSideInfluence))
+            .add(baseDir.clone().multiplyScalar(spinVerticalInfluence * 0.16));
+          if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
+            cueFollowDirSpinAdjusted.normalize();
+          }
+          const backSpinWeight = Math.max(0, -(remotePreviewSpin.y || 0));
+          if (backSpinWeight > 1e-8) {
+            const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
+            const drawDir = baseDir.clone().negate();
+            cueFollowDirSpinAdjusted.lerp(drawDir, drawLerp);
+            if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
+              cueFollowDirSpinAdjusted.normalize();
+            }
+          }
           const cueFollowLength = BALL_R * (12 + powerStrength * 18);
           const followEnd = end
             .clone()
-            .add(cueFollowDir.clone().multiplyScalar(cueFollowLength));
+            .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
@@ -23155,8 +23215,26 @@ const powerRef = useRef(hud.power);
           balls.forEach((b) => {
             if (!b.active) return;
             const isCue = b.id === 'cue';
-            const hasSpin = b.spin?.lengthSq() > 1e-6;
+            const spinLocal = b.spinLocal ?? b.spin;
+            const hasSpin = spinLocal?.lengthSq() > 1e-6;
             const hasLift = (b.lift ?? 0) > 1e-6 || Math.abs(b.liftVel ?? 0) > 1e-6;
+            if (hasSpin && spinLocal) {
+              const speedSq = b.vel.lengthSq();
+              if (speedSq > 1e-8) {
+                TMP_VEC2_FORWARD.copy(b.vel).normalize();
+              } else if (b.launchDir && b.launchDir.lengthSq() > 1e-8) {
+                TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
+              } else {
+                TMP_VEC2_FORWARD.set(0, 1);
+              }
+              TMP_VEC2_LATERAL.set(-TMP_VEC2_FORWARD.y, TMP_VEC2_FORWARD.x);
+              if (b.spin) {
+                b.spin.set(
+                  TMP_VEC2_LATERAL.x * spinLocal.x + TMP_VEC2_FORWARD.x * spinLocal.y,
+                  TMP_VEC2_LATERAL.y * spinLocal.x + TMP_VEC2_FORWARD.y * spinLocal.y
+                );
+              }
+            }
             if (hasLift) {
               const dampedVel = (b.liftVel ?? 0) * Math.pow(MAX_POWER_BOUNCE_DAMPING, stepScale);
               const nextLift = Math.max(0, (b.lift ?? 0) + dampedVel * stepScale);
@@ -23228,7 +23306,8 @@ const powerRef = useRef(hud.power);
                 b.pendingSpin.multiplyScalar(0);
               }
               const rollDecay = Math.pow(SPIN_ROLL_DECAY, stepScale);
-              b.spin.multiplyScalar(rollDecay);
+              if (spinLocal) spinLocal.multiplyScalar(rollDecay);
+              if (b.spin && b.spin !== spinLocal) b.spin.multiplyScalar(rollDecay);
               if (isCue && b.swerveStrength > 0) {
                 b.swerveStrength *= rollDecay;
                 if (b.swerveStrength < 1e-3) {
@@ -23236,8 +23315,9 @@ const powerRef = useRef(hud.power);
                   b.swervePowerStrength = 0;
                 }
               }
-              if (b.spin.lengthSq() < 1e-6) {
-                b.spin.set(0, 0);
+              if (spinLocal && spinLocal.lengthSq() < 1e-6) {
+                spinLocal.set(0, 0);
+                if (b.spin) b.spin.set(0, 0);
                 if (b.pendingSpin) b.pendingSpin.set(0, 0);
                 if (isCue) {
                   b.spinMode = 'standard';
@@ -23255,10 +23335,11 @@ const powerRef = useRef(hud.power);
               speed = b.vel.length();
               scaledSpeed = speed * stepScale;
             }
-            const hasSpinAfter = b.spin?.lengthSq() > 1e-6;
+            const hasSpinAfter = spinLocal?.lengthSq() > 1e-6;
             if (scaledSpeed < STOP_FINAL_EPS) {
               b.vel.set(0, 0);
               if (!hasSpinAfter && b.spin) b.spin.set(0, 0);
+              if (!hasSpinAfter && b.spinLocal) b.spinLocal.set(0, 0);
               if (!hasSpinAfter && b.pendingSpin) b.pendingSpin.set(0, 0);
               if (isCue && !hasSpinAfter) {
                 b.impacted = false;
@@ -23699,6 +23780,7 @@ const powerRef = useRef(hud.power);
               b.active = false;
               b.vel.set(0, 0);
               if (b.spin) b.spin.set(0, 0);
+              if (b.spinLocal) b.spinLocal.set(0, 0);
               if (b.pendingSpin) b.pendingSpin.set(0, 0);
               b.spinMode = 'standard';
               b.swerveStrength = 0;
@@ -23892,6 +23974,7 @@ const powerRef = useRef(hud.power);
                 if (!ball) return;
                 if (ball.vel) ball.vel.set(0, 0);
                 if (ball.spin) ball.spin.set(0, 0);
+                if (ball.spinLocal) ball.spinLocal.set(0, 0);
                 if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
                 ball.launchDir = null;
                 ball.impacted = false;
