@@ -17,20 +17,41 @@ public static class AimPreview
     public static Result Build(BilliardsSolver solver, Vec2 cueStart, Vec2 dir, double speed, List<BilliardsSolver.Ball> others)
     {
         var preview = solver.PreviewShot(cueStart, dir, speed, others);
-        var impact = solver.SimulateFirstImpact(cueStart, dir, speed, others);
 
-        List<Vec2> path = new List<Vec2> { cueStart, impact.Point };
-        if (impact.CueVelocity.Length > PhysicsConstants.Epsilon)
+        List<Vec2> path = preview.Path.Count > 0 ? preview.Path : new List<Vec2> { cueStart };
+        if (preview.CuePostVelocity.Length > PhysicsConstants.Epsilon)
         {
-            path.Add(impact.Point + impact.CueVelocity.Normalized() * PhysicsConstants.BallRadius);
+            var endPoint = preview.ContactPoint;
+            path.Add(endPoint + preview.CuePostVelocity.Normalized() * PhysicsConstants.BallRadius);
         }
 
         return new Result
         {
             Path = path.ToArray(),
-            ContactPoint = impact.Point,
-            CuePostVelocity = impact.CueVelocity,
-            TargetPostVelocity = impact.TargetVelocity ?? preview.TargetPostVelocity
+            ContactPoint = preview.ContactPoint,
+            CuePostVelocity = preview.CuePostVelocity,
+            TargetPostVelocity = preview.TargetPostVelocity
+        };
+    }
+
+    /// <summary>Preview with explicit spin and cue elevation inputs.</summary>
+    public static Result Build(BilliardsSolver solver, Vec2 cueStart, BilliardsSolver.ShotParams shot, List<BilliardsSolver.Ball> others)
+    {
+        var preview = solver.PreviewShot(shot, cueStart, others);
+
+        List<Vec2> path = preview.Path.Count > 0 ? preview.Path : new List<Vec2> { cueStart };
+        if (preview.CuePostVelocity.Length > PhysicsConstants.Epsilon)
+        {
+            var endPoint = preview.ContactPoint;
+            path.Add(endPoint + preview.CuePostVelocity.Normalized() * PhysicsConstants.BallRadius);
+        }
+
+        return new Result
+        {
+            Path = path.ToArray(),
+            ContactPoint = preview.ContactPoint,
+            CuePostVelocity = preview.CuePostVelocity,
+            TargetPostVelocity = preview.TargetPostVelocity
         };
     }
 }
