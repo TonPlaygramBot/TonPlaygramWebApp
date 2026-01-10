@@ -17900,8 +17900,11 @@ export function PoolRoyaleGame({
       )}
 
       {err && (
-        <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
-          Init error: {String(err)}
+        <div className="pointer-events-none absolute left-1/2 top-4 z-50 -translate-x-1/2 px-4">
+          <div className="pointer-events-auto flex max-w-xl items-center gap-2 rounded-2xl border border-red-400/50 bg-red-900/85 px-4 py-3 text-xs font-semibold text-white shadow-[0_16px_34px_rgba(0,0,0,0.5)] backdrop-blur">
+            <span className="text-red-200">Init issue:</span>
+            <span className="text-white/90">{String(err)}</span>
+          </div>
         </div>
       )}
       {hud?.inHand && (
