@@ -19950,11 +19950,12 @@ const powerRef = useRef(hud.power);
             spinTop *= TOPSPIN_MULTIPLIER;
           }
           const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
+          const appliedSideSpin = -spinSide;
           cue.vel.copy(base);
           if (cue.spin) {
             cue.spin.set(
-              perp.x * spinSide + aimDir.x * spinTop,
-              perp.y * spinSide + aimDir.y * spinTop
+              perp.x * appliedSideSpin + aimDir.x * spinTop,
+              perp.y * appliedSideSpin + aimDir.y * spinTop
             );
           }
           if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
