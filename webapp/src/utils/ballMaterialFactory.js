@@ -123,7 +123,8 @@ function drawPoolNumberBadge(ctx, size, number) {
 
 function drawCueBallDots(ctx, size) {
   const dotRadius = size * 0.5 * CUE_TIP_RADIUS_RATIO;
-  const poleInset = dotRadius * 1.25;
+  const poleInset = dotRadius * 1.6;
+  const angularRadius = (dotRadius / size) * Math.PI;
   const dotPositions = [
     { u: 0.5, v: 0.5 }, // front
     { u: 0.25, v: 0.5 }, // left
@@ -132,24 +133,61 @@ function drawCueBallDots(ctx, size) {
     { u: 0.5, v: 1 - poleInset / size } // bottom
   ];
 
+  const uvToVec3 = (u, v) => {
+    const longitude = (u - 0.5) * Math.PI * 2;
+    const latitude = (0.5 - v) * Math.PI;
+    const cosLat = Math.cos(latitude);
+    return {
+      x: Math.sin(longitude) * cosLat,
+      y: Math.sin(latitude),
+      z: Math.cos(longitude) * cosLat
+    };
+  };
+
+  const drawDot = ({ u, v }) => {
+    const du = angularRadius / (Math.PI * 2);
+    const dv = angularRadius / Math.PI;
+    const minU = Math.max(0, u - du);
+    const maxU = Math.min(1, u + du);
+    const minV = Math.max(0, v - dv);
+    const maxV = Math.min(1, v + dv);
+    const startX = Math.floor(minU * size);
+    const endX = Math.ceil(maxU * size);
+    const startY = Math.floor(minV * size);
+    const endY = Math.ceil(maxV * size);
+    const width = Math.max(1, endX - startX);
+    const height = Math.max(1, endY - startY);
+    const imageData = ctx.getImageData(startX, startY, width, height);
+    const data = imageData.data;
+    const center = uvToVec3(u, v);
+    const cosRadius = Math.cos(angularRadius);
+
+    for (let y = 0; y < height; y += 1) {
+      const vSample = (startY + y + 0.5) / size;
+      for (let x = 0; x < width; x += 1) {
+        const uSample = (startX + x + 0.5) / size;
+        const point = uvToVec3(uSample, vSample);
+        const dot =
+          center.x * point.x + center.y * point.y + center.z * point.z;
+        if (dot >= cosRadius) {
+          const idx = (y * width + x) * 4;
+          data[idx] = 220;
+          data[idx + 1] = 38;
+          data[idx + 2] = 38;
+          data[idx + 3] = 255;
+        }
+      }
+    }
+
+    ctx.putImageData(imageData, startX, startY);
+  };
+
   ctx.save();
-  ctx.fillStyle = '#dc2626';
-  dotPositions.forEach(({ u, v }) => {
-    ctx.beginPath();
-    ctx.arc(u * size, v * size, dotRadius, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.fill();
-  });
+  dotPositions.forEach(drawDot);
 
   // Back dot spans the seam to keep a full circle.
-  ctx.beginPath();
-  ctx.arc(0, size * 0.5, dotRadius, 0, Math.PI * 2);
-  ctx.closePath();
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(size, size * 0.5, dotRadius, 0, Math.PI * 2);
-  ctx.closePath();
-  ctx.fill();
+  drawDot({ u: 0, v: 0.5 });
+  drawDot({ u: 1, v: 0.5 });
   ctx.restore();
 }
 

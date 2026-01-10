@@ -16717,45 +16717,23 @@ export function PoolRoyaleGame({
                 TMP_VEC2_CURVE.set(-b.spin.y, b.spin.x).multiplyScalar(curveScale);
                 b.vel.add(TMP_VEC2_CURVE);
               }
-              const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
-              const allowRoll =
-                !isCue || b.impacted || swerveTravel || (isCue && b.spin?.lengthSq() > 1e-8);
-              const preImpact = isCue && !b.impacted;
-              if (allowRoll) {
-                const rollMultiplier = swerveTravel ? SWERVE_TRAVEL_MULTIPLIER : 1;
-                TMP_VEC2_SPIN.copy(b.spin).multiplyScalar(
-                  SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
-                );
-                if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
-                  const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
-                  const forwardMag = TMP_VEC2_SPIN.dot(launchDir);
-                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
-                  b.vel.add(TMP_VEC2_AXIS);
-                  TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
-                  if (b.spinMode === 'swerve' && b.pendingSpin) {
-                    b.pendingSpin.add(TMP_VEC2_LATERAL);
-                  }
-                  const alignedSpeed = b.vel.dot(launchDir);
-                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
-                  b.vel.copy(TMP_VEC2_AXIS);
-                } else {
-                  b.vel.add(TMP_VEC2_SPIN);
-                  if (
-                    isCue &&
-                    b.spinMode === 'swerve' &&
-                    b.pendingSpin &&
-                    b.pendingSpin.lengthSq() > 0
-                  ) {
-                    b.vel.addScaledVector(b.pendingSpin, PRE_IMPACT_SPIN_DRIFT);
-                    b.pendingSpin.multiplyScalar(0);
-                  }
-                }
-                const rollDecay = Math.pow(SPIN_ROLL_DECAY, stepScale);
-                b.spin.multiplyScalar(rollDecay);
-              } else {
-                const airDecay = Math.pow(SPIN_AIR_DECAY, stepScale);
-                b.spin.multiplyScalar(airDecay);
+              const swerveTravel = isCue && b.spinMode === 'swerve';
+              const rollMultiplier = swerveTravel ? SWERVE_TRAVEL_MULTIPLIER : 1;
+              TMP_VEC2_SPIN.copy(b.spin).multiplyScalar(
+                SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
+              );
+              b.vel.add(TMP_VEC2_SPIN);
+              if (
+                isCue &&
+                b.spinMode === 'swerve' &&
+                b.pendingSpin &&
+                b.pendingSpin.lengthSq() > 0
+              ) {
+                b.vel.addScaledVector(b.pendingSpin, PRE_IMPACT_SPIN_DRIFT);
+                b.pendingSpin.multiplyScalar(0);
               }
+              const rollDecay = Math.pow(SPIN_ROLL_DECAY, stepScale);
+              b.spin.multiplyScalar(rollDecay);
               if (b.spin.lengthSq() < 1e-6) {
                 b.spin.set(0, 0);
                 if (b.pendingSpin) b.pendingSpin.set(0, 0);
