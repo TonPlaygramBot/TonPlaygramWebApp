@@ -51,6 +51,71 @@ const COLOR_OPTIONS = [
   '#94a3b8'
 ];
 const FRAME_STYLE_OPTIONS = Array.from({ length: 10 }, (_, i) => (i + 1).toString());
+const ZOOM_STORAGE_KEY = 'thZoom';
+const ZOOM_RANGE = {
+  min: 0.85,
+  max: 1.15,
+  step: 0.01
+};
+const ZOOM_BASE = {
+  tableScale: 0.68,
+  bgScaleX: 0.74,
+  bgScaleY: 0.72,
+  tableOffsetVh: 8,
+  bgOffsetY: 42
+};
+
+function clampZoom(value) {
+  return Math.min(ZOOM_RANGE.max, Math.max(ZOOM_RANGE.min, value));
+}
+
+function loadZoom() {
+  const stored = Number.parseFloat(localStorage.getItem(ZOOM_STORAGE_KEY));
+  if (!Number.isFinite(stored)) return 1;
+  return clampZoom(stored);
+}
+
+let zoomLevel = loadZoom();
+
+function applyZoom() {
+  const level = clampZoom(zoomLevel);
+  const style = document.documentElement.style;
+  style.setProperty('--table-scale', (ZOOM_BASE.tableScale * level).toFixed(3));
+  style.setProperty('--table-bg-scale-x', (ZOOM_BASE.bgScaleX * level).toFixed(3));
+  style.setProperty('--table-bg-scale-y', (ZOOM_BASE.bgScaleY * level).toFixed(3));
+  style.setProperty('--table-offset-y', `${(ZOOM_BASE.tableOffsetVh * level).toFixed(2)}vh`);
+  style.setProperty(
+    '--table-bg-offset-y',
+    `${(ZOOM_BASE.bgOffsetY + (level - 1) * 10).toFixed(2)}%`
+  );
+  const zoomRange = document.getElementById('zoomRange');
+  if (zoomRange) zoomRange.value = Math.round(level * 100).toString();
+  try {
+    localStorage.setItem(ZOOM_STORAGE_KEY, level.toString());
+  } catch {}
+}
+
+function initZoomControls() {
+  const zoomRange = document.getElementById('zoomRange');
+  const zoomOut = document.getElementById('zoomOut');
+  const zoomIn = document.getElementById('zoomIn');
+  if (!zoomRange) return;
+
+  zoomRange.value = Math.round(zoomLevel * 100).toString();
+  zoomRange.addEventListener('input', (event) => {
+    zoomLevel = clampZoom(Number(event.target.value) / 100);
+    applyZoom();
+  });
+  zoomOut?.addEventListener('click', () => {
+    zoomLevel = clampZoom(zoomLevel - 0.05);
+    applyZoom();
+  });
+  zoomIn?.addEventListener('click', () => {
+    zoomLevel = clampZoom(zoomLevel + 0.05);
+    applyZoom();
+  });
+  applyZoom();
+}
 
 function loadSettings() {
   try {
@@ -201,6 +266,7 @@ function initSettingsMenu() {
     applySettings();
   });
 }
+
 
 let myAccountId = '';
 let myTelegramId;
@@ -1409,6 +1475,7 @@ document.getElementById('lobbyIcon')?.addEventListener('click', () => {
 document.addEventListener('DOMContentLoaded', () => {
   initSettingsMenu();
   applySettings();
+  initZoomControls();
   init();
 });
 

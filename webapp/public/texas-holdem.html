@@ -12,6 +12,8 @@
         --table-scale: 0.68;
         --table-bg-scale-x: 0.74;
         --table-bg-scale-y: 0.72;
+        --table-offset-y: 8vh;
+        --table-bg-offset-y: 42%;
         --shadow: rgba(0, 0, 0, 0.45);
         /* Smaller default card scale so non-player seats appear smaller */
         --card-scale: 0.68;
@@ -64,7 +66,7 @@
         left: 0.5vw;
         right: 0.5vw;
         background: url('assets/icons/de2a24a7-922a-4400-8edc-027a1017224e.webp')
-          center/cover no-repeat;
+          50% var(--table-bg-offset-y) / cover no-repeat;
         transform: scaleX(var(--table-bg-scale-x)) scaleY(var(--table-bg-scale-y));
         transform-origin: center;
         z-index: 0;
@@ -72,8 +74,8 @@
       .table-layer {
         position: absolute;
         inset: 0;
-        transform: scale(var(--table-scale));
-        transform-origin: center;
+        transform: translateY(var(--table-offset-y)) scale(var(--table-scale));
+        transform-origin: 50% 82%;
       }
       /* Community cards slightly larger */
       .center {
@@ -883,6 +885,34 @@
       .folded-area {
         display: none;
       }
+      .zoom-controls {
+        position: absolute;
+        right: 12px;
+        bottom: 18px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 18px;
+        background: rgba(8, 12, 24, 0.7);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        z-index: 20;
+        backdrop-filter: blur(6px);
+      }
+      .zoom-controls button {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+        font-size: 18px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .zoom-controls input[type='range'] {
+        width: 110px;
+      }
     </style>
   </head>
   <body class="frame-style-1">
@@ -925,6 +955,19 @@
         <span class="arrow">&#8592;</span
         ><span class="label">Return Lobby</span>
       </button>
+    </div>
+    <div class="zoom-controls" aria-label="Zoom controls">
+      <button id="zoomOut" type="button" aria-label="Zoom out">−</button>
+      <input
+        type="range"
+        id="zoomRange"
+        min="85"
+        max="115"
+        value="100"
+        step="1"
+        aria-label="Zoom level"
+      />
+      <button id="zoomIn" type="button" aria-label="Zoom in">+</button>
     </div>
     <div id="settingsPanel" class="settings-panel">
       <label><input type="checkbox" id="muteCards" /> Mute Cards</label>
