@@ -123,7 +123,7 @@ function drawPoolNumberBadge(ctx, size, number) {
 
 function drawCueBallDots(ctx, size) {
   const dotRadius = size * 0.5 * CUE_TIP_RADIUS_RATIO;
-  const poleInset = dotRadius * 1.1;
+  const poleInset = dotRadius * 2.2;
   const angularRadius = (dotRadius / size) * Math.PI;
   const seamInset = 0;
   const dotPositions = [
