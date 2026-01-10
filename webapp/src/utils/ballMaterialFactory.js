@@ -132,24 +132,24 @@ function drawCueBallDots(ctx, size) {
     { u: 0.5, v: 1 - poleInset / size } // bottom
   ];
 
-  const drawCompensatedDot = ({ u, v }) => {
-    const latitude = (0.5 - v) * Math.PI;
-    const cosLat = Math.max(0.35, Math.cos(latitude));
-    const stretchX = dotRadius / cosLat;
-
-    ctx.beginPath();
-    ctx.ellipse(u * size, v * size, stretchX, dotRadius, 0, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.fill();
-  };
-
   ctx.save();
   ctx.fillStyle = '#dc2626';
-  dotPositions.forEach(drawCompensatedDot);
+  dotPositions.forEach(({ u, v }) => {
+    ctx.beginPath();
+    ctx.arc(u * size, v * size, dotRadius, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+  });
 
   // Back dot spans the seam to keep a full circle.
-  drawCompensatedDot({ u: 0, v: 0.5 });
-  drawCompensatedDot({ u: 1, v: 0.5 });
+  ctx.beginPath();
+  ctx.arc(0, size * 0.5, dotRadius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(size, size * 0.5, dotRadius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fill();
   ctx.restore();
 }
 
