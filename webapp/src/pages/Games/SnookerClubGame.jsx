@@ -14727,7 +14727,8 @@ export function PoolRoyaleGame({
           }
           const appliedSpin = applySpinConstraints(aimDir, true);
           const ranges = spinRangeRef.current || {};
-          const baseSide = appliedSpin.x * (ranges.side ?? 0);
+          const spinSideInput = -(appliedSpin.x ?? 0);
+          const baseSide = spinSideInput * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER;
           let spinTop = -appliedSpin.y * (ranges.forward ?? 0);
           if (appliedSpin.y > 0) {
@@ -16105,6 +16106,7 @@ export function PoolRoyaleGame({
           aimDir.lerp(tmpAim, aimLerpFactor);
         }
         const appliedSpin = applySpinConstraints(aimDir, true);
+        const spinSideInput = -(appliedSpin.x ?? 0);
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
         let shouldSlowAim = false;
@@ -16208,7 +16210,7 @@ export function PoolRoyaleGame({
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const spinSideInfluence = (appliedSpin.x || 0) * (0.4 + 0.42 * powerStrength);
+          const spinSideInfluence = spinSideInput * (0.4 + 0.42 * powerStrength);
           const spinVerticalInfluence = (appliedSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
@@ -16264,7 +16266,7 @@ export function PoolRoyaleGame({
           cuePullCurrentRef.current = pull;
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
-          let side = appliedSpin.x * offsetSide;
+          let side = spinSideInput * offsetSide;
           let vert = -appliedSpin.y * offsetVertical;
           const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
           if (maxContactOffset > 1e-6) {
@@ -16470,7 +16472,8 @@ export function PoolRoyaleGame({
           const planSpin = activeAiPlan.spin ?? spinRef.current ?? { x: 0, y: 0 };
           const spinX = THREE.MathUtils.clamp(planSpin.x ?? 0, -1, 1);
           const spinY = THREE.MathUtils.clamp(planSpin.y ?? 0, -1, 1);
-          let side = spinX * offsetSide;
+          const spinSideInput = -spinX;
+          let side = spinSideInput * offsetSide;
           let vert = -spinY * offsetVertical;
           const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
           if (maxContactOffset > 1e-6) {
