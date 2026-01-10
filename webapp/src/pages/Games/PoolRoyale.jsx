@@ -5820,6 +5820,79 @@ function applyRailSpinResponse(ball, impact) {
   applySpinImpulse(ball, 0.6);
 }
 
+function resolveSwerveAimDir(aimDir, spin, powerStrength, forceSwerve = false) {
+  if (!aimDir || aimDir.lengthSq() < 1e-8) return aimDir;
+  const magnitude = Math.hypot(spin?.x ?? 0, spin?.y ?? 0);
+  if (!forceSwerve && magnitude < SWERVE_THRESHOLD) return aimDir;
+  const sideSpin = spin?.x ?? 0;
+  if (Math.abs(sideSpin) < 1e-3) return aimDir;
+  const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
+  const curveBase =
+    (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
+  const powerScale = 5 + powerStrength * 7;
+  const adjust = sideSpin * curveBase * powerScale * AIM_SPIN_PREVIEW_SIDE;
+  const adjusted = aimDir.clone().add(perp.multiplyScalar(adjust));
+  if (adjusted.lengthSq() > 1e-8) adjusted.normalize();
+  return adjusted;
+}
+
+function buildSwerveAimLinePoints(
+  points,
+  controlPoint,
+  start,
+  end,
+  dir,
+  perp,
+  spin,
+  powerStrength,
+  swerveActive
+) {
+  if (!points) return [start, end];
+  const sideSpin = spin?.x ?? 0;
+  const travel = start.distanceTo(end);
+  if (!swerveActive || Math.abs(sideSpin) < 1e-3 || travel < 1e-4) {
+    points.length = 2;
+    if (!points[0]) points[0] = new THREE.Vector3();
+    if (!points[1]) points[1] = new THREE.Vector3();
+    points[0].copy(start);
+    points[1].copy(end);
+    return points;
+  }
+  const segments = clamp(Math.round(travel / (BALL_R * 1.6)), 6, 14);
+  const curveBase =
+    (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
+  const curveScale = curveBase * (5 + powerStrength * 7) * AIM_SPIN_PREVIEW_SIDE;
+  const curveAmount = sideSpin * curveScale * travel;
+  controlPoint
+    .copy(start)
+    .addScaledVector(dir, travel * 0.5)
+    .addScaledVector(perp, curveAmount);
+  points.length = segments + 1;
+  const ax = start.x;
+  const ay = start.y;
+  const az = start.z;
+  const bx = controlPoint.x;
+  const by = controlPoint.y;
+  const bz = controlPoint.z;
+  const cx = end.x;
+  const cy = end.y;
+  const cz = end.z;
+  for (let i = 0; i <= segments; i += 1) {
+    const t = segments === 0 ? 0 : i / segments;
+    const omt = 1 - t;
+    const omt2 = omt * omt;
+    const t2 = t * t;
+    const point = points[i] ?? new THREE.Vector3();
+    point.set(
+      omt2 * ax + 2 * omt * t * bx + t2 * cx,
+      omt2 * ay + 2 * omt * t * by + t2 * cy,
+      omt2 * az + 2 * omt * t * bz + t2 * cz
+    );
+    points[i] = point;
+  }
+  return points;
+}
+
 // calculate impact point and post-collision direction for aiming guide
 function calcTarget(cue, dir, balls) {
   if (!cue) {
@@ -11853,6 +11926,8 @@ const powerRef = useRef(hud.power);
   const spinAppliedRef = useRef({ x: 0, y: 0, mode: 'standard', magnitude: 0 });
   const spinDotElRef = useRef(null);
   const spinLegalityRef = useRef({ blocked: false, reason: '' });
+  const aimCurvePointsRef = useRef([]);
+  const aimCurveControlRef = useRef(new THREE.Vector3());
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
@@ -22318,10 +22393,17 @@ const powerRef = useRef(hud.power);
             0,
             1
           );
+          const swerveActive = spinAppliedRef.current?.mode === 'swerve';
           const aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
+          const guideAimDir2D = resolveSwerveAimDir(
+            aimDir2D,
+            appliedSpin,
+            powerStrength,
+            swerveActive
+          );
           const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
             cue,
-            aimDir2D,
+            guideAimDir2D,
             balls
           );
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
@@ -22330,7 +22412,20 @@ const powerRef = useRef(hud.power);
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
           }
-          aimGeom.setFromPoints([start, end]);
+          const perp = new THREE.Vector3(-dir.z, 0, dir.x);
+          if (perp.lengthSq() > 1e-8) perp.normalize();
+          const aimPoints = buildSwerveAimLinePoints(
+            aimCurvePointsRef.current,
+            aimCurveControlRef.current,
+            start,
+            end,
+            dir,
+            perp,
+            appliedSpin,
+            powerStrength,
+            swerveActive
+          );
+          aimGeom.setFromPoints(aimPoints);
           aim.visible = true;
           const slowAssistEnabled = chalkAssistEnabledRef.current;
           const hasTarget = slowAssistEnabled && (targetBall || railNormal);
@@ -22384,8 +22479,6 @@ const powerRef = useRef(hud.power);
               : 0x7ce7ff;
           aim.material.color.set(primaryColor);
           aim.material.opacity = 0.55 + 0.35 * powerStrength;
-          const perp = new THREE.Vector3(-dir.z, 0, dir.x);
-          if (perp.lengthSq() > 1e-8) perp.normalize();
           tickGeom.setFromPoints([
             end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
             end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
@@ -22616,9 +22709,18 @@ const powerRef = useRef(hud.power);
           const perp = new THREE.Vector3(-baseDir.z, 0, baseDir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           const powerStrength = THREE.MathUtils.clamp(remoteAimState?.power ?? 0, 0, 1);
+          const remoteSpin = remoteAimState?.spin ?? { x: 0, y: 0 };
+          const remoteSpinMagnitude = Math.hypot(remoteSpin.x ?? 0, remoteSpin.y ?? 0);
+          const remoteSwerveActive = remoteSpinMagnitude >= SWERVE_THRESHOLD;
+          const guideAimDir2D = resolveSwerveAimDir(
+            remoteAimDir,
+            remoteSpin,
+            powerStrength,
+            remoteSwerveActive
+          );
           const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
             cue,
-            remoteAimDir,
+            guideAimDir2D,
             balls
           );
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
@@ -22626,7 +22728,18 @@ const powerRef = useRef(hud.power);
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(baseDir.clone().multiplyScalar(BALL_R));
           }
-          aimGeom.setFromPoints([start, end]);
+          const aimPoints = buildSwerveAimLinePoints(
+            aimCurvePointsRef.current,
+            aimCurveControlRef.current,
+            start,
+            end,
+            baseDir,
+            perp,
+            remoteSpin,
+            powerStrength,
+            remoteSwerveActive
+          );
+          aimGeom.setFromPoints(aimPoints);
           aim.material.color.set(0x7ce7ff);
           aim.material.opacity = 0.55 + 0.35 * powerStrength;
           aim.visible = true;
