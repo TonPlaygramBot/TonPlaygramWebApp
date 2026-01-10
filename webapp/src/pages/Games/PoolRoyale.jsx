@@ -5822,9 +5822,9 @@ function applyRailSpinResponse(ball, impact) {
 
 function resolveSwerveAimDir(aimDir, spin, powerStrength, forceSwerve = false) {
   if (!aimDir || aimDir.lengthSq() < 1e-8) return aimDir;
-  const magnitude = Math.hypot(spin?.x ?? 0, spin?.y ?? 0);
-  if (!forceSwerve && magnitude < SWERVE_THRESHOLD) return aimDir;
   const sideSpin = spin?.x ?? 0;
+  const magnitude = Math.abs(sideSpin);
+  if (!forceSwerve && magnitude < SWERVE_THRESHOLD) return aimDir;
   if (Math.abs(sideSpin) < 1e-3) return aimDir;
   const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
   const curveBase =
@@ -17337,7 +17337,8 @@ const powerRef = useRef(hud.power);
           }
           const result = legality.blocked ? { x: 0, y: 0 } : normalized;
           const magnitude = Math.hypot(result.x ?? 0, result.y ?? 0);
-          const mode = magnitude >= SWERVE_THRESHOLD ? 'swerve' : 'standard';
+          const sideMagnitude = Math.abs(result.x ?? 0);
+          const mode = sideMagnitude >= SWERVE_THRESHOLD ? 'swerve' : 'standard';
           spinAppliedRef.current = { ...result, magnitude, mode };
           return result;
         };
@@ -22401,6 +22402,9 @@ const powerRef = useRef(hud.power);
             powerStrength,
             swerveActive
           );
+          const guideDir = new THREE.Vector3(guideAimDir2D.x, 0, guideAimDir2D.y);
+          if (guideDir.lengthSq() < 1e-8) guideDir.copy(baseAimDir);
+          else guideDir.normalize();
           const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
             cue,
             guideAimDir2D,
@@ -22408,7 +22412,7 @@ const powerRef = useRef(hud.power);
           );
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
-          const dir = baseAimDir.clone();
+          const dir = swerveActive ? guideDir : baseAimDir.clone();
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
           }
@@ -22706,18 +22710,22 @@ const powerRef = useRef(hud.power);
             remoteAimDir.normalize();
           }
           const baseDir = new THREE.Vector3(remoteAimDir.x, 0, remoteAimDir.y);
-          const perp = new THREE.Vector3(-baseDir.z, 0, baseDir.x);
-          if (perp.lengthSq() > 1e-8) perp.normalize();
           const powerStrength = THREE.MathUtils.clamp(remoteAimState?.power ?? 0, 0, 1);
           const remoteSpin = remoteAimState?.spin ?? { x: 0, y: 0 };
-          const remoteSpinMagnitude = Math.hypot(remoteSpin.x ?? 0, remoteSpin.y ?? 0);
-          const remoteSwerveActive = remoteSpinMagnitude >= SWERVE_THRESHOLD;
+          const remoteSideMagnitude = Math.abs(remoteSpin.x ?? 0);
+          const remoteSwerveActive = remoteSideMagnitude >= SWERVE_THRESHOLD;
           const guideAimDir2D = resolveSwerveAimDir(
             remoteAimDir,
             remoteSpin,
             powerStrength,
             remoteSwerveActive
           );
+          const guideDir = new THREE.Vector3(guideAimDir2D.x, 0, guideAimDir2D.y);
+          if (guideDir.lengthSq() < 1e-8) guideDir.copy(baseDir);
+          else guideDir.normalize();
+          const dir = remoteSwerveActive ? guideDir : baseDir.clone();
+          const perp = new THREE.Vector3(-dir.z, 0, dir.x);
+          if (perp.lengthSq() > 1e-8) perp.normalize();
           const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
             cue,
             guideAimDir2D,
@@ -22726,14 +22734,14 @@ const powerRef = useRef(hud.power);
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           if (start.distanceTo(end) < 1e-4) {
-            end = start.clone().add(baseDir.clone().multiplyScalar(BALL_R));
+            end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
           }
           const aimPoints = buildSwerveAimLinePoints(
             aimCurvePointsRef.current,
             aimCurveControlRef.current,
             start,
             end,
-            baseDir,
+            dir,
             perp,
             remoteSpin,
             powerStrength,
@@ -22750,7 +22758,7 @@ const powerRef = useRef(hud.power);
           tick.visible = true;
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
-            : baseDir.clone();
+            : dir.clone();
           const cueFollowLength = BALL_R * (12 + powerStrength * 18);
           const followEnd = end
             .clone()
@@ -23005,14 +23013,15 @@ const powerRef = useRef(hud.power);
                   if (b.spinMode === 'swerve' && b.pendingSpin) {
                     b.pendingSpin.add(TMP_VEC2_LATERAL);
                   }
-                  const alignedSpeed = b.vel.dot(launchDir);
-                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
-                  b.vel.copy(TMP_VEC2_AXIS);
                   if (b.spinMode === 'swerve') {
                     b.vel.addScaledVector(
                       TMP_VEC2_LATERAL,
                       SWERVE_PRE_IMPACT_DRIFT
                     );
+                  } else {
+                    const alignedSpeed = b.vel.dot(launchDir);
+                    TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
+                    b.vel.copy(TMP_VEC2_AXIS);
                   }
                 } else {
                   b.vel.add(TMP_VEC2_SPIN);
