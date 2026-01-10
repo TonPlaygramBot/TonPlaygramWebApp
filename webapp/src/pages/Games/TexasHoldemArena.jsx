@@ -34,7 +34,7 @@ import {
 } from '../../utils/tableCustomizationOptions.js';
 import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
-import { TEXAS_HDRI_OPTIONS } from '../../config/texasHoldemInventoryConfig.js';
+import { TEXAS_HDRI_OPTIONS, TEXAS_TABLE_FINISH_OPTIONS } from '../../config/texasHoldemInventoryConfig.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID } from '../../config/poolRoyaleInventoryConfig.js';
 
 import {
@@ -322,6 +322,7 @@ const CHAIR_MODEL_URLS = [
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.6/';
 const BASIS_TRANSCODER_PATH = 'https://www.gstatic.com/basis-universal/1.0.0/';
 const PREFERRED_HDRI_RESOLUTIONS = Object.freeze(['4k']);
+const DEFAULT_TABLE_THEME_ID = TEXAS_TABLE_THEME_OPTIONS[0]?.id ?? 'murlan-default';
 const TEXAS_DEFAULT_HDRI_INDEX = Math.max(
   0,
   TEXAS_HDRI_OPTIONS.findIndex(
@@ -330,6 +331,62 @@ const TEXAS_DEFAULT_HDRI_INDEX = Math.max(
 );
 let sharedKtx2Loader = null;
 const POLYHAVEN_MODEL_CACHE = new Map();
+
+function stripQueryHash(u) {
+  return u.split('#')[0].split('?')[0];
+}
+
+function basename(p) {
+  const s = p.replace(/\\/g, '/');
+  const parts = s.split('/');
+  return parts[parts.length - 1] || s;
+}
+
+function isModelUrl(u) {
+  const s = stripQueryHash(u).toLowerCase();
+  return s.endsWith('.glb') || s.endsWith('.gltf');
+}
+
+function extractAllHttpUrls(apiJson) {
+  const out = new Set();
+  const walk = (v) => {
+    if (!v) return;
+    if (typeof v === 'string') {
+      if (v.startsWith('http')) out.add(v);
+      return;
+    }
+    if (typeof v !== 'object') return;
+    if (Array.isArray(v)) {
+      v.forEach(walk);
+      return;
+    }
+    Object.values(v).forEach(walk);
+  };
+  walk(apiJson);
+  return Array.from(out);
+}
+
+function pickBestModelUrl(urls) {
+  const modelUrls = urls.filter(isModelUrl);
+  const glbs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.glb'));
+  const gltfs = modelUrls.filter((u) => stripQueryHash(u).toLowerCase().endsWith('.gltf'));
+
+  const score = (u) => {
+    const lu = u.toLowerCase();
+    let s = 0;
+    if (lu.includes('2k')) s += 3;
+    if (lu.includes('1k')) s += 2;
+    if (lu.includes('4k')) s += 1;
+    if (lu.includes('8k')) s -= 2;
+    if (lu.includes('download')) s += 1;
+    return s;
+  };
+
+  glbs.sort((a, b) => score(b) - score(a));
+  gltfs.sort((a, b) => score(b) - score(a));
+
+  return glbs[0] || gltfs[0] || null;
+}
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 const LABEL_SIZE = Object.freeze({ width: 1.24 * MODEL_SCALE, height: 0.58 * MODEL_SCALE });
@@ -511,12 +568,14 @@ const DEFAULT_APPEARANCE = {
   tableCloth: 0,
   chairTheme: 0,
   tableTheme: 0,
+  tableFinish: 0,
   tableShape: 0,
   environmentHdri: TEXAS_DEFAULT_HDRI_INDEX
 };
 
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tableTheme', label: 'Table Model', options: TEXAS_TABLE_THEME_OPTIONS },
+  { key: 'tableFinish', label: 'Table Finish', options: TEXAS_TABLE_FINISH_OPTIONS },
   { key: 'chairTheme', label: 'Chairs', options: TEXAS_CHAIR_THEME_OPTIONS },
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
@@ -550,6 +609,18 @@ function getEffectiveShapeConfig(shapeIndex, playerCount) {
 }
 
 const REGION_NAMES = typeof Intl !== 'undefined' ? new Intl.DisplayNames(['en'], { type: 'region' }) : null;
+
+const resolveDefaultTableFinish = (index) =>
+  TEXAS_TABLE_FINISH_OPTIONS[index] ?? TEXAS_TABLE_FINISH_OPTIONS[0] ?? null;
+
+const resolveEffectiveWoodOption = ({ tableTheme, tableFinish, tableWood }) => {
+  const baseWoodOption = TABLE_WOOD_OPTIONS[tableWood] ?? TABLE_WOOD_OPTIONS[0];
+  if (tableTheme?.id !== DEFAULT_TABLE_THEME_ID) {
+    return baseWoodOption;
+  }
+  const finishOption = resolveDefaultTableFinish(tableFinish);
+  return finishOption?.woodOption ?? baseWoodOption;
+};
 
 function flagToName(flag) {
   if (!flag || !REGION_NAMES) return 'Guest';
@@ -676,6 +747,7 @@ function buildClassicOctagonAngles(count) {
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const entries = [
+    ['tableFinish', TEXAS_TABLE_FINISH_OPTIONS.length],
     ['tableWood', TABLE_WOOD_OPTIONS.length],
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
@@ -814,28 +886,89 @@ function fitTableModelToArena(model) {
 async function loadPolyhavenModel(assetId, renderer = null) {
   if (!assetId) throw new Error('Missing Poly Haven asset id');
   const cacheKey = assetId.toLowerCase();
-  if (POLYHAVEN_MODEL_CACHE.has(cacheKey)) {
-    return POLYHAVEN_MODEL_CACHE.get(cacheKey).clone(true);
+  let cached = POLYHAVEN_MODEL_CACHE.get(cacheKey);
+  if (!cached) {
+    const promise = (async () => {
+      let fileMap = new Map();
+      const modelCandidates = new Set();
+      const assetCandidates = Array.from(new Set([assetId, cacheKey]));
+
+      for (const candidateId of assetCandidates) {
+        try {
+          const filesJson = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(candidateId)}`).then((r) => r.json());
+          const allUrls = extractAllHttpUrls(filesJson);
+          const apiModelUrl = pickBestModelUrl(allUrls);
+          if (apiModelUrl) modelCandidates.add(apiModelUrl);
+          if (!fileMap.size) {
+            fileMap = allUrls.reduce((acc, u) => {
+              const b = basename(stripQueryHash(u));
+              if (!acc.has(b)) acc.set(b, u);
+              return acc;
+            }, new Map());
+          }
+        } catch (error) {
+          console.warn('Poly Haven file lookup failed, falling back to direct URLs', error);
+        }
+
+        buildPolyhavenModelUrls(candidateId).forEach((u) => modelCandidates.add(u));
+      }
+
+      const modelUrlList = Array.from(modelCandidates);
+      if (!modelUrlList.length) {
+        throw new Error(`No model URL found for ${assetId}`);
+      }
+
+      const manager = fileMap.size ? new THREE.LoadingManager() : undefined;
+      const loader = createConfiguredGLTFLoader(renderer, manager);
+
+      if (fileMap.size) {
+        const base = stripQueryHash(modelUrlList[0]);
+        const baseDir = base.substring(0, base.lastIndexOf('/') + 1);
+        loader.manager.setURLModifier((requestedUrl) => {
+          if (/^https?:\/\//i.test(requestedUrl)) return requestedUrl;
+          const req = stripQueryHash(requestedUrl);
+          const b = basename(req);
+          const mapped = fileMap.get(b);
+          if (mapped) return mapped;
+          try {
+            return new URL(req, baseDir).toString();
+          } catch {
+            return requestedUrl;
+          }
+        });
+      }
+
+      let gltf = null;
+      let lastError = null;
+      for (const modelUrl of modelUrlList) {
+        try {
+          const resolvedUrl = new URL(modelUrl, typeof window !== 'undefined' ? window.location?.href : modelUrl).href;
+          const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+          loader.setResourcePath?.(resourcePath);
+          loader.setPath?.('');
+          gltf = await loader.loadAsync(resolvedUrl);
+          break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      if (!gltf) {
+        throw lastError || new Error(`Failed to load Poly Haven model for ${assetId}`);
+      }
+
+      const model = gltf.scene || gltf.scenes?.[0] || gltf;
+      if (!model) throw new Error(`Poly Haven model missing scene for ${assetId}`);
+      prepareLoadedModel(model);
+      return model;
+    })();
+
+    POLYHAVEN_MODEL_CACHE.set(cacheKey, promise);
+    promise.catch(() => POLYHAVEN_MODEL_CACHE.delete(cacheKey));
+    cached = promise;
   }
-  const urls = buildPolyhavenModelUrls(cacheKey);
-  const loader = createConfiguredGLTFLoader(renderer);
-  let gltf = null;
-  for (const url of urls) {
-    try {
-      gltf = await loader.loadAsync(url);
-      break;
-    } catch (err) {
-      console.warn('Poly Haven model load failed', err);
-    }
-  }
-  if (!gltf) {
-    throw new Error('Unable to load Poly Haven model');
-  }
-  const model = (gltf.scene || gltf.scenes?.[0])?.clone(true);
-  if (!model) throw new Error('Poly Haven model missing scene');
-  prepareLoadedModel(model);
-  POLYHAVEN_MODEL_CACHE.set(cacheKey, model.clone(true));
-  return model;
+  const baseModel = await cached;
+  return baseModel.clone(true);
 }
 
 const shouldPreserveChairMaterials = (theme) => Boolean(theme?.preserveMaterials || theme?.source === 'polyhaven');
@@ -928,7 +1061,17 @@ async function resolvePolyHavenHdriUrl(config = {}, preferred = PREFERRED_HDRI_R
   const fallbackResolution =
     config?.fallbackResolution || preferredResolutions?.[0] || PREFERRED_HDRI_RESOLUTIONS[0] || '2k';
   const assetId = config?.assetId || 'neon_photostudio';
-  const fallbackUrl = `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackResolution}/${assetId}_${fallbackResolution}.hdr`;
+  const fallbackUrl =
+    config?.fallbackUrl ||
+    `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackResolution}/${assetId}_${fallbackResolution}.hdr`;
+  if (config?.assetUrls && typeof config.assetUrls === 'object') {
+    for (const res of preferredResolutions) {
+      if (config.assetUrls[res]) return config.assetUrls[res];
+    }
+    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
+    if (manual) return manual;
+  }
+  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
   if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
   try {
     const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
@@ -942,9 +1085,38 @@ async function resolvePolyHavenHdriUrl(config = {}, preferred = PREFERRED_HDRI_R
   }
 }
 
+async function createFallbackHdriEnvironment(renderer) {
+  if (!renderer) return null;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+  const hemi = new THREE.HemisphereLight(0x94a3b8, 0x0f172a, 1.05);
+  const floor = new THREE.Mesh(
+    new THREE.CircleGeometry(6, 24),
+    new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.78, metalness: 0.05 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  const tempScene = new THREE.Scene();
+  tempScene.add(hemi);
+  tempScene.add(floor);
+  const { texture } = pmrem.fromScene(tempScene);
+  texture.name = 'texas-holdem-fallback-env';
+  pmrem.dispose();
+  floor.geometry.dispose();
+  floor.material.dispose();
+  return { envMap: texture, url: null };
+}
+
 async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   if (!renderer) return null;
   const url = await resolvePolyHavenHdriUrl(config);
+  const resolveFallback = async () => {
+    try {
+      return await createFallbackHdriEnvironment(renderer);
+    } catch (error) {
+      console.warn('Failed to build fallback HDRI environment', error);
+      return null;
+    }
+  };
   const lowerUrl = `${url ?? ''}`.toLowerCase();
   const useExr = lowerUrl.endsWith('.exr');
   const loader = useExr ? new EXRLoader() : null;
@@ -953,6 +1125,10 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   if (!activeLoader) return null;
   activeLoader.setCrossOrigin?.('anonymous');
   return new Promise((resolve) => {
+    if (!url) {
+      resolveFallback().then(resolve);
+      return;
+    }
     activeLoader.load(
       url,
       (texture) => {
@@ -965,9 +1141,10 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
         resolve({ envMap, url });
       },
       undefined,
-      (error) => {
+      async (error) => {
         console.warn('Failed to load Poly Haven HDRI', error);
-        resolve(null);
+        const fallbackEnv = await resolveFallback();
+        resolve(fallbackEnv);
       }
     );
   });
@@ -2349,6 +2526,7 @@ function TexasHoldemArena({ search }) {
     (value = DEFAULT_APPEARANCE) => {
       const normalized = normalizeAppearance(value);
       const map = {
+        tableFinish: TEXAS_TABLE_FINISH_OPTIONS,
         tableWood: TABLE_WOOD_OPTIONS,
         tableCloth: TABLE_CLOTH_OPTIONS,
         tableBase: TABLE_BASE_OPTIONS,
@@ -2400,8 +2578,14 @@ function TexasHoldemArena({ search }) {
         options: section.options
           .map((option, idx) => ({ ...option, idx }))
           .filter(({ id }) => isTexasOptionUnlocked(section.key, id, texasInventory))
-      })).filter((section) => section.options.length > 0),
-    [texasInventory]
+      }))
+        .filter((section) => section.options.length > 0)
+        .filter((section) => {
+          if (section.key !== 'tableFinish') return true;
+          const tableTheme = TEXAS_TABLE_THEME_OPTIONS[appearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
+          return tableTheme?.id === DEFAULT_TABLE_THEME_ID;
+        }),
+    [appearance.tableTheme, texasInventory]
   );
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -2621,11 +2805,15 @@ function TexasHoldemArena({ search }) {
     if (!three) return;
     const normalized = normalizeAppearance(appearance);
     const safe = enforceShapeForPlayers(normalized, effectivePlayerCount);
-    const woodOption = TABLE_WOOD_OPTIONS[safe.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+    const tableTheme = TEXAS_TABLE_THEME_OPTIONS[safe.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
+    const woodOption = resolveEffectiveWoodOption({
+      tableTheme,
+      tableFinish: safe.tableFinish,
+      tableWood: safe.tableWood
+    });
     const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const chairOption = TEXAS_CHAIR_THEME_OPTIONS[safe.chairTheme] ?? TEXAS_CHAIR_THEME_OPTIONS[0];
-    const tableTheme = TEXAS_TABLE_THEME_OPTIONS[safe.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
     const environmentOption =
       TEXAS_HDRI_OPTIONS[safe.environmentHdri] ??
       TEXAS_HDRI_OPTIONS[TEXAS_DEFAULT_HDRI_INDEX] ??
@@ -2861,6 +3049,24 @@ function TexasHoldemArena({ search }) {
           </div>
         );
       }
+      case 'tableFinish': {
+        const swatches = option?.swatches ?? ['#8b5a2b', '#3b2f2f'];
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[swatches.length - 1]})`
+              }}
+            />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="rounded-full bg-black/50 px-3 py-1 text-[0.55rem] font-semibold uppercase tracking-[0.2em] text-white/80">
+                {option?.label || 'Finish'}
+              </span>
+            </div>
+          </div>
+        );
+      }
       case 'chairTheme': {
         const seat = option?.seatColor ?? option?.primary ?? '#7c3aed';
         const leg = option?.legColor ?? option?.accent ?? '#111827';
@@ -3032,7 +3238,12 @@ function TexasHoldemArena({ search }) {
 
     const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
     const initialAppearance = enforceShapeForPlayers(initialAppearanceRaw, effectivePlayerCount);
-    const initialWood = TABLE_WOOD_OPTIONS[initialAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+    const initialTheme = TEXAS_TABLE_THEME_OPTIONS[initialAppearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
+    const initialWood = resolveEffectiveWoodOption({
+      tableTheme: initialTheme,
+      tableFinish: initialAppearance.tableFinish,
+      tableWood: initialAppearance.tableWood
+    });
     const initialCloth = TABLE_CLOTH_OPTIONS[initialAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const initialBase = TABLE_BASE_OPTIONS[initialAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const initialChair = TEXAS_CHAIR_THEME_OPTIONS[initialAppearance.chairTheme] ?? TEXAS_CHAIR_THEME_OPTIONS[0];
@@ -3053,7 +3264,7 @@ function TexasHoldemArena({ search }) {
       includeBase: false
     });
     applyTableMaterials(tableInfo.materials, { woodOption: initialWood, clothOption: initialCloth, baseOption: initialBase }, renderer);
-    const initialTableTheme = TEXAS_TABLE_THEME_OPTIONS[initialAppearance.tableTheme] ?? TEXAS_TABLE_THEME_OPTIONS[0];
+    const initialTableTheme = initialTheme;
     const initialTableThemeId = initialTableTheme?.source === 'polyhaven' ? null : initialTableTheme?.id;
 
     const cardGeometry = createCardGeometry(CARD_W, CARD_H, CARD_D);
