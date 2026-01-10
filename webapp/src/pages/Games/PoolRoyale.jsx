@@ -1317,8 +1317,6 @@ const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * 1.15;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_CURVE_STRENGTH = 0.22; // magnus-like sideways force so heavy swerve visibly bends the path
-const SWERVE_AIM_CURVE_SCALE = 0.32; // scale the aim-line bend to match the swerve preview
-const SWERVE_AIM_SEGMENTS = 14; // point count for the curved aim line
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.6; // inject extra sideways carry while the cue ball is airborne
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.24; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
@@ -5821,36 +5819,6 @@ function applyRailSpinResponse(ball, impact) {
   }
   ball.spin.copy(preImpactSpin);
   applySpinImpulse(ball, 0.6);
-}
-
-function buildSwerveAimPoints({
-  start,
-  end,
-  dir,
-  perp,
-  spinX,
-  powerStrength
-}) {
-  if (!start || !end || !dir || !perp) return [start, end];
-  const distance = start.distanceTo(end);
-  if (!Number.isFinite(distance) || distance < 1e-4) {
-    return [start, end];
-  }
-  const spinStrength = Math.min(1, Math.abs(spinX ?? 0));
-  if (spinStrength < 1e-3) return [start, end];
-  const bendStrength =
-    distance *
-    SWERVE_CURVE_STRENGTH *
-    SWERVE_AIM_CURVE_SCALE *
-    (0.45 + 0.55 * powerStrength) *
-    spinStrength;
-  if (bendStrength < 1e-4) return [start, end];
-  const control = start
-    .clone()
-    .add(dir.clone().multiplyScalar(distance * 0.5))
-    .add(perp.clone().multiplyScalar(Math.sign(spinX) * bendStrength));
-  const curve = new THREE.QuadraticBezierCurve3(start, control, end);
-  return curve.getPoints(SWERVE_AIM_SEGMENTS);
 }
 
 // calculate impact point and post-collision direction for aiming guide
@@ -22363,18 +22331,7 @@ const powerRef = useRef(hud.power);
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
           }
-          const swerveMode = spinAppliedRef.current?.mode === 'swerve';
-          const aimPoints = swerveMode
-            ? buildSwerveAimPoints({
-                start,
-                end,
-                dir,
-                perp: basePerp,
-                spinX: appliedSpin.x ?? 0,
-                powerStrength
-              })
-            : [start, end];
-          aimGeom.setFromPoints(aimPoints);
+          aimGeom.setFromPoints([start, end]);
           aim.visible = true;
           const slowAssistEnabled = chalkAssistEnabledRef.current;
           const hasTarget = slowAssistEnabled && (targetBall || railNormal);
