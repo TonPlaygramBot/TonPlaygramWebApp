@@ -42,7 +42,6 @@ import {
   DEFAULT_WOOD_TEXTURE_SIZE,
   applyWoodTextures,
   disposeMaterialWithWood,
-  setWoodTextureAnisotropyCap,
 } from '../../utils/woodMaterials.js';
 import { SNOOKER_CLUB_DEFAULT_UNLOCKS } from '../../config/snookerClubInventoryConfig.js';
 import {
@@ -165,18 +164,6 @@ function isWebGLAvailable() {
     return false;
   }
 }
-
-let rendererAnisotropyCap = 16;
-setWoodTextureAnisotropyCap(rendererAnisotropyCap);
-const updateRendererAnisotropyCap = (renderer) => {
-  if (renderer?.capabilities?.getMaxAnisotropy) {
-    const max = renderer.capabilities.getMaxAnisotropy();
-    if (Number.isFinite(max)) {
-      rendererAnisotropyCap = Math.max(rendererAnisotropyCap, max);
-    }
-  }
-  setWoodTextureAnisotropyCap(rendererAnisotropyCap);
-};
 
 let cachedRendererString = null;
 let rendererLookupAttempted = false;
@@ -3673,47 +3660,14 @@ async function resolvePolyHavenHdriUrl(config = {}) {
   }
 }
 
-async function createFallbackHdriEnvironment(renderer) {
-  if (!renderer) return null;
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  pmrem.compileEquirectangularShader();
-  const hemi = new THREE.HemisphereLight(0x94a3b8, 0x0f172a, 1.05);
-  const floor = new THREE.Mesh(
-    new THREE.CircleGeometry(6, 24),
-    new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.78, metalness: 0.05 })
-  );
-  floor.rotation.x = -Math.PI / 2;
-  const tempScene = new THREE.Scene();
-  tempScene.add(hemi);
-  tempScene.add(floor);
-  const { texture } = pmrem.fromScene(tempScene);
-  texture.name = 'snooker-club-fallback-env';
-  pmrem.dispose();
-  floor.geometry.dispose();
-  floor.material.dispose();
-  return { envMap: texture, skyboxMap: null, url: null };
-}
-
 async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   if (!renderer) return null;
   const url = await resolvePolyHavenHdriUrl(config);
-  const resolveFallback = async () => {
-    try {
-      return await createFallbackHdriEnvironment(renderer);
-    } catch (error) {
-      console.warn('Failed to build fallback HDRI environment', error);
-      return null;
-    }
-  };
   const lowerUrl = `${url ?? ''}`.toLowerCase();
   const useExr = lowerUrl.endsWith('.exr');
   const loader = useExr ? new EXRLoader() : new RGBELoader();
   loader.setCrossOrigin?.('anonymous');
   return new Promise((resolve) => {
-    if (!url) {
-      resolveFallback().then(resolve);
-      return;
-    }
     loader.load(
       url,
       (texture) => {
@@ -3729,10 +3683,9 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
         resolve({ envMap, skyboxMap, url });
       },
       undefined,
-      async (error) => {
+      (error) => {
         console.warn('Failed to load Poly Haven HDRI', error);
-        const fallbackEnv = await resolveFallback();
-        resolve(fallbackEnv);
+        resolve(null);
       }
     );
   });
@@ -10164,7 +10117,6 @@ export function PoolRoyaleGame({
       renderer.sortObjects = true;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      updateRendererAnisotropyCap(renderer);
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
       host.appendChild(renderer.domElement);
@@ -17653,51 +17605,15 @@ export function PoolRoyaleGame({
                     Cloth Color
                   </h3>
                   <div className="mt-2 flex flex-wrap gap-2">
-              {availableClothOptions.map((option) => {
-                const active = option.id === clothColorId;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => setClothColorId(option.id)}
-                    aria-pressed={active}
-                    className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                      active
-                        ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                        : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                    }`}
-                  >
-                    <span className="flex items-center justify-center gap-2">
-                      <span
-                        className="h-3.5 w-3.5 rounded-full border border-white/40"
-                        style={{ backgroundColor: toHexColor(option.color) }}
-                        aria-hidden="true"
-                      />
-                      {option.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
-              {availablePocketLiners.length > 0 ? (
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Pocket Jaws
-                  </h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {availablePocketLiners.map((option) => {
-                      const active = option.id === pocketLinerId;
-                      const swatchColor =
-                        option.jawColor ?? option.rimColor ?? option.sheenColor ?? option.color;
+                    {availableClothOptions.map((option) => {
+                      const active = option.id === clothColorId;
                       return (
                         <button
                           key={option.id}
                           type="button"
-                          onClick={() => setPocketLinerId(option.id)}
+                          onClick={() => setClothColorId(option.id)}
                           aria-pressed={active}
-                          className={`flex-1 min-w-[9rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                             active
                               ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                               : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
@@ -17706,7 +17622,7 @@ export function PoolRoyaleGame({
                           <span className="flex items-center justify-center gap-2">
                             <span
                               className="h-3.5 w-3.5 rounded-full border border-white/40"
-                              style={{ backgroundColor: toHexColor(swatchColor) }}
+                              style={{ backgroundColor: toHexColor(option.color) }}
                               aria-hidden="true"
                             />
                             {option.label}
@@ -17714,9 +17630,9 @@ export function PoolRoyaleGame({
                         </button>
                       );
                     })}
-                  </div>
                 </div>
-              ) : null}
+              </div>
+            ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Rail Markers
