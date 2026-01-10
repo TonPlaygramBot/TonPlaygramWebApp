@@ -1428,7 +1428,6 @@ const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_SIDE = BALL_R * 0.45;
 const MAX_SPIN_VERTICAL = BALL_R * 0.92;
 const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so the cue stays just above the ball surface
-const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
 const SIDE_SPIN_MULTIPLIER = 1.5;
@@ -5969,6 +5968,41 @@ function buildSwerveAimLinePoints(
   return points;
 }
 
+function applySwerveSteering(ball, launchDir, stepScale) {
+  if (!ball?.vel || !launchDir || launchDir.lengthSq() < 1e-8) return;
+  const swerveSpin = ball.swerveSpin ?? ball.spin;
+  const swervePower = ball.swervePower ?? 0;
+  const swerveLift = ball.swerveLift ?? 0;
+  const swerve = resolveSwerveSettings(
+    swerveSpin,
+    swervePower,
+    true,
+    swerveLift
+  );
+  if (!swerve.active) return;
+  const speed = ball.vel.length();
+  if (speed < 1e-6) return;
+  const perp = TMP_VEC2_LATERAL.set(-launchDir.y, launchDir.x);
+  const curveBase =
+    (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
+  const powerScale = 4 + swervePower * 6.5;
+  const swerveScale = 0.6 + swerve.intensity * 0.9;
+  const adjust =
+    swerve.sideSpin *
+    swerve.intensity *
+    curveBase *
+    powerScale *
+    AIM_SPIN_PREVIEW_SIDE *
+    swerveScale;
+  if (!Number.isFinite(adjust) || Math.abs(adjust) < 1e-8) return;
+  const steer = adjust * stepScale;
+  TMP_VEC2_AXIS.copy(launchDir).addScaledVector(perp, steer);
+  if (TMP_VEC2_AXIS.lengthSq() > 1e-8) {
+    TMP_VEC2_AXIS.normalize();
+    ball.vel.copy(TMP_VEC2_AXIS.multiplyScalar(speed));
+  }
+}
+
 // calculate impact point and post-collision direction for aiming guide
 function calcTarget(cue, dir, balls) {
   if (!cue) {
@@ -6102,6 +6136,9 @@ function Guret(parent, id, color, x, y, options = {}) {
     spin: new THREE.Vector2(),
     spinMode: 'standard',
     swerveStrength: 0,
+    swerveSpin: new THREE.Vector2(),
+    swervePower: 0,
+    swerveLift: 0,
     impacted: false,
     launchDir: null,
     pendingSpin: new THREE.Vector2(),
@@ -19963,6 +20000,9 @@ const powerRef = useRef(hud.power);
             liftStrength
           );
           cue.swerveStrength = cue.spinMode === 'swerve' ? swerveSettings.intensity : 0;
+          cue.swerveSpin?.set(physicsSpin.x ?? 0, physicsSpin.y ?? 0);
+          cue.swervePower = clampedPower;
+          cue.swerveLift = liftStrength;
           resetSpinRef.current?.();
           cueLiftRef.current.lift = 0;
           cueLiftRef.current.startLift = 0;
@@ -23216,10 +23256,7 @@ const powerRef = useRef(hud.power);
                   TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
                   b.vel.copy(TMP_VEC2_AXIS);
                   if (b.spinMode === 'swerve' && swerveScale > 0) {
-                    b.vel.addScaledVector(
-                      TMP_VEC2_LATERAL,
-                      SWERVE_PRE_IMPACT_DRIFT * swerveScale
-                    );
+                    applySwerveSteering(b, launchDir, stepScale);
                   }
                 } else {
                   b.vel.add(TMP_VEC2_SPIN);
@@ -23257,6 +23294,9 @@ const powerRef = useRef(hud.power);
                 if (isCue) {
                   b.spinMode = 'standard';
                   b.swerveStrength = 0;
+                  if (b.swerveSpin) b.swerveSpin.set(0, 0);
+                  b.swervePower = 0;
+                  b.swerveLift = 0;
                 }
               }
             }
@@ -23278,6 +23318,9 @@ const powerRef = useRef(hud.power);
                 b.impacted = false;
                 b.spinMode = 'standard';
                 b.swerveStrength = 0;
+                if (b.swerveSpin) b.swerveSpin.set(0, 0);
+                b.swervePower = 0;
+                b.swerveLift = 0;
               }
               b.launchDir = null;
             }
@@ -25647,37 +25690,6 @@ const powerRef = useRef(hud.power);
               background: '#f9fafb'
             }}
           >
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background: `radial-gradient(circle, transparent ${SWERVE_THRESHOLD * 100}%, rgba(250, 204, 21, 0.28) ${
-                  SWERVE_THRESHOLD * 100
-                }%, rgba(250, 204, 21, 0.32) 100%)`
-              }}
-            />
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute rounded-full"
-              style={{
-                border: '2px solid #facc15',
-                width: `${SWERVE_THRESHOLD * 100}%`,
-                height: `${SWERVE_THRESHOLD * 100}%`,
-                left: `${(1 - SWERVE_THRESHOLD) * 50}%`,
-                top: `${(1 - SWERVE_THRESHOLD) * 50}%`,
-                boxShadow: '0 0 0 6px rgba(250, 204, 21, 0.2)'
-              }}
-            />
-            <div
-              aria-hidden="true"
-              className="absolute rounded-full border-2 border-red-500 pointer-events-none"
-              style={{
-                width: `${SPIN_RING_RATIO * 100}%`,
-                height: `${SPIN_RING_RATIO * 100}%`,
-                left: `${(1 - SPIN_RING_RATIO) * 50}%`,
-                top: `${(1 - SPIN_RING_RATIO) * 50}%`
-              }}
-            />
             <div
               id="spinDot"
               className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2"

@@ -133,6 +133,26 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
     ctx.fillRect(0, stripeY, size, stripeHeight);
   }
 
+  if (pattern === 'cue') {
+    const tipRadiusRatio = 0.1714;
+    const dotRadius = (size * 0.5) * tipRadiusRatio;
+    const edgeMargin = dotRadius + size * 0.02;
+    const mid = size * 0.5;
+    ctx.fillStyle = '#d71b1b';
+    const drawDot = (x, y) => {
+      ctx.beginPath();
+      ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    drawDot(mid, edgeMargin); // top
+    drawDot(mid, size - edgeMargin); // bottom
+    drawDot(mid, mid); // front
+    drawDot(size * 0.25, mid); // left
+    drawDot(size * 0.75, mid); // right
+    drawDot(0, mid); // back seam (left edge)
+    drawDot(size, mid); // back seam (right edge)
+  }
+
   if (Number.isFinite(number)) {
     drawPoolNumberBadge(ctx, size, number);
   }
