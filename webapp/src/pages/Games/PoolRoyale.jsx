@@ -4784,7 +4784,7 @@ const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor whi
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
 const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-ball follow line toward a draw path
-const AIM_SPIN_PREVIEW_SIDE = 0.22;
+const AIM_SPIN_PREVIEW_SIDE = 0.32;
 const AIM_SPIN_PREVIEW_FORWARD = 0.12;
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
@@ -5791,6 +5791,7 @@ function applySpinImpulse(ball, scale = 1) {
   }
   if (ball.id === 'cue' && ball.spinMode === 'swerve') {
     ball.spinMode = 'standard';
+    ball.swerveStrength = 0;
   }
   const decayFactor = Math.pow(SPIN_DECAY, Math.max(scale, 0.5));
   ball.spin.multiplyScalar(decayFactor);
@@ -5820,17 +5821,45 @@ function applyRailSpinResponse(ball, impact) {
   applySpinImpulse(ball, 0.6);
 }
 
+function resolveSwerveSettings(spin, powerStrength, forceSwerve = false) {
+  const sideSpin = spin?.x ?? 0;
+  const magnitude = Math.hypot(spin?.x ?? 0, spin?.y ?? 0);
+  const active =
+    (forceSwerve || magnitude >= SWERVE_THRESHOLD) &&
+    Math.abs(sideSpin) >= 1e-3;
+  if (!active) {
+    return {
+      active: false,
+      sideSpin: 0,
+      magnitude,
+      intensity: 0
+    };
+  }
+  const threshold = Math.max(1 - SWERVE_THRESHOLD, 1e-6);
+  const normalized = clamp((magnitude - SWERVE_THRESHOLD) / threshold, 0, 1);
+  const powerBoost = 0.55 + powerStrength * 0.65;
+  return {
+    active: true,
+    sideSpin,
+    magnitude,
+    intensity: normalized * powerBoost
+  };
+}
+
 function resolveSwerveAimDir(aimDir, spin, powerStrength, forceSwerve = false) {
   if (!aimDir || aimDir.lengthSq() < 1e-8) return aimDir;
-  const magnitude = Math.hypot(spin?.x ?? 0, spin?.y ?? 0);
-  if (!forceSwerve && magnitude < SWERVE_THRESHOLD) return aimDir;
-  const sideSpin = spin?.x ?? 0;
-  if (Math.abs(sideSpin) < 1e-3) return aimDir;
+  const swerve = resolveSwerveSettings(spin, powerStrength, forceSwerve);
+  if (!swerve.active) return aimDir;
   const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
   const curveBase =
     (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
-  const powerScale = 5 + powerStrength * 7;
-  const adjust = sideSpin * curveBase * powerScale * AIM_SPIN_PREVIEW_SIDE;
+  const powerScale = 4 + powerStrength * 6;
+  const adjust =
+    swerve.sideSpin *
+    swerve.intensity *
+    curveBase *
+    powerScale *
+    AIM_SPIN_PREVIEW_SIDE;
   const adjusted = aimDir.clone().add(perp.multiplyScalar(adjust));
   if (adjusted.lengthSq() > 1e-8) adjusted.normalize();
   return adjusted;
@@ -5848,9 +5877,10 @@ function buildSwerveAimLinePoints(
   swerveActive
 ) {
   if (!points) return [start, end];
-  const sideSpin = spin?.x ?? 0;
+  const swerve = resolveSwerveSettings(spin, powerStrength, swerveActive);
+  const sideSpin = swerve.sideSpin;
   const travel = start.distanceTo(end);
-  if (!swerveActive || Math.abs(sideSpin) < 1e-3 || travel < 1e-4) {
+  if (!swerve.active || Math.abs(sideSpin) < 1e-3 || travel < 1e-4) {
     points.length = 2;
     if (!points[0]) points[0] = new THREE.Vector3();
     if (!points[1]) points[1] = new THREE.Vector3();
@@ -5861,7 +5891,11 @@ function buildSwerveAimLinePoints(
   const segments = clamp(Math.round(travel / (BALL_R * 1.6)), 6, 14);
   const curveBase =
     (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
-  const curveScale = curveBase * (5 + powerStrength * 7) * AIM_SPIN_PREVIEW_SIDE;
+  const curveScale =
+    curveBase *
+    (4 + powerStrength * 6) *
+    AIM_SPIN_PREVIEW_SIDE *
+    Math.max(0.45, swerve.intensity);
   const curveAmount = sideSpin * curveScale * travel;
   controlPoint
     .copy(start)
@@ -6025,6 +6059,7 @@ function Guret(parent, id, color, x, y, options = {}) {
     vel: new THREE.Vector2(),
     spin: new THREE.Vector2(),
     spinMode: 'standard',
+    swerveStrength: 0,
     impacted: false,
     launchDir: null,
     pendingSpin: new THREE.Vector2(),
@@ -19095,6 +19130,7 @@ const powerRef = useRef(hud.power);
         cue.spin?.set(0, 0);
         cue.pendingSpin?.set(0, 0);
         cue.spinMode = 'standard';
+        cue.swerveStrength = 0;
       };
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
@@ -19808,6 +19844,12 @@ const powerRef = useRef(hud.power);
           if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
           cue.spinMode =
             spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
+          const swerveSettings = resolveSwerveSettings(
+            appliedSpin,
+            clampedPower,
+            cue.spinMode === 'swerve'
+          );
+          cue.swerveStrength = cue.spinMode === 'swerve' ? swerveSettings.intensity : 0;
           resetSpinRef.current?.();
           cue.impacted = false;
           cue.launchDir = aimDir.clone().normalize();
@@ -21949,6 +21991,7 @@ const powerRef = useRef(hud.power);
                   simBall.spin?.set(0, 0);
                   simBall.pendingSpin?.set(0, 0);
                   simBall.spinMode = 'standard';
+                  simBall.swerveStrength = 0;
                 }
               } else {
                 simBall.active = false;
@@ -21990,6 +22033,7 @@ const powerRef = useRef(hud.power);
               cue.spin?.set(0, 0);
               cue.pendingSpin?.set(0, 0);
               cue.spinMode = 'standard';
+              cue.swerveStrength = 0;
               cue.impacted = false;
               cue.launchDir = null;
             }
@@ -22989,10 +23033,14 @@ const powerRef = useRef(hud.power);
             }
             if (hasSpin) {
               const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
+              const swerveStrength = swerveTravel ? Math.max(0, b.swerveStrength ?? 0) : 0;
+              const swerveScale = swerveStrength > 0 ? 0.6 + swerveStrength * 0.9 : 0;
               const allowRoll = !isCue || b.impacted || swerveTravel;
               const preImpact = isCue && !b.impacted;
               if (allowRoll) {
-                const rollMultiplier = swerveTravel ? SWERVE_TRAVEL_MULTIPLIER : 1;
+                const rollMultiplier = swerveTravel
+                  ? SWERVE_TRAVEL_MULTIPLIER * (0.9 + swerveStrength * 0.6)
+                  : 1;
                 TMP_VEC2_SPIN.copy(b.spin).multiplyScalar(
                   SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
                 );
@@ -23002,16 +23050,16 @@ const powerRef = useRef(hud.power);
                   TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
                   b.vel.add(TMP_VEC2_AXIS);
                   TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
-                  if (b.spinMode === 'swerve' && b.pendingSpin) {
-                    b.pendingSpin.add(TMP_VEC2_LATERAL);
+                  if (b.spinMode === 'swerve' && b.pendingSpin && swerveScale > 0) {
+                    b.pendingSpin.addScaledVector(TMP_VEC2_LATERAL, swerveScale);
                   }
                   const alignedSpeed = b.vel.dot(launchDir);
                   TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
                   b.vel.copy(TMP_VEC2_AXIS);
-                  if (b.spinMode === 'swerve') {
+                  if (b.spinMode === 'swerve' && swerveScale > 0) {
                     b.vel.addScaledVector(
                       TMP_VEC2_LATERAL,
-                      SWERVE_PRE_IMPACT_DRIFT
+                      SWERVE_PRE_IMPACT_DRIFT * swerveScale
                     );
                   }
                 } else {
@@ -23022,20 +23070,35 @@ const powerRef = useRef(hud.power);
                     b.pendingSpin &&
                     b.pendingSpin.lengthSq() > 0
                   ) {
-                    b.vel.addScaledVector(b.pendingSpin, PRE_IMPACT_SPIN_DRIFT);
+                    const driftScale = swerveScale > 0 ? swerveScale : 1;
+                    b.vel.addScaledVector(
+                      b.pendingSpin,
+                      PRE_IMPACT_SPIN_DRIFT * driftScale
+                    );
                     b.pendingSpin.multiplyScalar(0);
                   }
                 }
                 const rollDecay = Math.pow(SPIN_ROLL_DECAY, stepScale);
                 b.spin.multiplyScalar(rollDecay);
+                if (isCue && b.swerveStrength > 0) {
+                  b.swerveStrength *= rollDecay;
+                  if (b.swerveStrength < 1e-3) b.swerveStrength = 0;
+                }
               } else {
                 const airDecay = Math.pow(SPIN_AIR_DECAY, stepScale);
                 b.spin.multiplyScalar(airDecay);
+                if (isCue && b.swerveStrength > 0) {
+                  b.swerveStrength *= airDecay;
+                  if (b.swerveStrength < 1e-3) b.swerveStrength = 0;
+                }
               }
               if (b.spin.lengthSq() < 1e-6) {
                 b.spin.set(0, 0);
                 if (b.pendingSpin) b.pendingSpin.set(0, 0);
-                if (isCue) b.spinMode = 'standard';
+                if (isCue) {
+                  b.spinMode = 'standard';
+                  b.swerveStrength = 0;
+                }
               }
             }
             b.pos.addScaledVector(b.vel, stepScale);
@@ -23055,6 +23118,7 @@ const powerRef = useRef(hud.power);
               if (isCue && !hasSpinAfter) {
                 b.impacted = false;
                 b.spinMode = 'standard';
+                b.swerveStrength = 0;
               }
               b.launchDir = null;
             }
@@ -23491,6 +23555,7 @@ const powerRef = useRef(hud.power);
               if (b.spin) b.spin.set(0, 0);
               if (b.pendingSpin) b.pendingSpin.set(0, 0);
               b.spinMode = 'standard';
+              b.swerveStrength = 0;
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
               const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
