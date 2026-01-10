@@ -1320,9 +1320,9 @@ const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.6; // inject extra sideways c
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.24; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
-const SWERVE_THRESHOLD = 0.7; // outer 30% of the spin control activates swerve behaviour
-const SWERVE_TRAVEL_MULTIPLIER = 0.86; // let swerve-driven roll carry more lateral energy while staying believable
-const SWERVE_PRE_IMPACT_DRIFT = 0.24; // allow a visible curve before the cue ball hits the object ball
+const SWERVE_THRESHOLD = 0.62; // outer 38% of the spin control activates swerve behaviour
+const SWERVE_TRAVEL_MULTIPLIER = 1.05; // let swerve-driven roll carry more lateral energy while staying believable
+const SWERVE_PRE_IMPACT_DRIFT = 0.4; // allow a visible curve before the cue ball hits the object ball
 const PRE_IMPACT_SPIN_DRIFT = 0.1; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
@@ -1408,6 +1408,8 @@ const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance whi
 const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.08; // keep the cue butt from dipping below the cushion top surface
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
+const CUE_LIFT_DRAG_SCALE = 0.0035;
+const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(9);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.6;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
@@ -5779,7 +5781,7 @@ function applySpinImpulse(ball, scale = 1) {
   const lateral = TMP_VEC2_LATERAL.set(-forward.y, forward.x);
   const sideSpin = ball.spin.x || 0;
   const verticalSpin = ball.spin.y || 0;
-  const swerveScale = 0.65 + Math.min(speed, 8) * 0.12;
+  const swerveScale = 0.8 + Math.min(speed, 8) * 0.15;
   const liftScale = 0.35 + Math.min(speed, 6) * 0.08;
   const lateralKick = sideSpin * SPIN_STRENGTH * swerveScale * scale;
   const forwardKick = verticalSpin * SPIN_STRENGTH * liftScale * scale * 0.5;
@@ -5837,12 +5839,13 @@ function resolveSwerveSettings(spin, powerStrength, forceSwerve = false) {
   }
   const threshold = Math.max(1 - SWERVE_THRESHOLD, 1e-6);
   const normalized = clamp((magnitude - SWERVE_THRESHOLD) / threshold, 0, 1);
-  const powerBoost = 0.55 + powerStrength * 0.65;
+  const powerBoost = 0.7 + powerStrength * 0.85;
+  const spinBoost = 0.75 + Math.min(Math.abs(sideSpin), 1) * 0.6;
   return {
     active: true,
     sideSpin,
     magnitude,
-    intensity: normalized * powerBoost
+    intensity: normalized * powerBoost * spinBoost
   };
 }
 
@@ -5893,7 +5896,7 @@ function buildSwerveAimLinePoints(
     (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
   const curveScale =
     curveBase *
-    (4 + powerStrength * 6) *
+    (4 + powerStrength * 6.5) *
     AIM_SPIN_PREVIEW_SIDE *
     Math.max(0.45, swerve.intensity);
   const curveAmount = sideSpin * curveScale * travel;
@@ -11965,6 +11968,13 @@ const powerRef = useRef(hud.power);
   const aimCurveControlRef = useRef(new THREE.Vector3());
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
+  const cueLiftRef = useRef({
+    active: false,
+    startY: 0,
+    startLift: 0,
+    lift: 0,
+    moved: false
+  });
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
   const replayFrameCameraRef = useRef(null);
@@ -17388,6 +17398,11 @@ const powerRef = useRef(hud.power);
         const registerInteraction = () => {
           lastInteraction = performance.now();
         };
+        const resolveUserCueLift = () => {
+          const lift = cueLiftRef.current?.lift ?? 0;
+          if (!Number.isFinite(lift)) return 0;
+          return THREE.MathUtils.clamp(lift, 0, CUE_LIFT_MAX_TILT);
+        };
         const attemptChalkPress = (ev) => {
           const meshes = chalkMeshesRef.current;
           if (!meshes || meshes.length === 0) return false;
@@ -17420,6 +17435,37 @@ const powerRef = useRef(hud.power);
           toggleChalkAssist(hit.userData?.chalkIndex ?? null);
           return true;
         };
+        const attemptCueLiftPress = (ev) => {
+          if (!cueStick?.visible) return false;
+          if (shooting || (hudRef.current?.inHand ?? false)) return false;
+          if (ev.touches?.length && ev.touches.length > 1) return false;
+          if (ev?.button !== undefined && ev.button !== 0) return false;
+          const rect = dom.getBoundingClientRect();
+          const clientX = ev.clientX ?? ev.touches?.[0]?.clientX;
+          const clientY = ev.clientY ?? ev.touches?.[0]?.clientY;
+          if (clientX == null || clientY == null) return false;
+          if (
+            clientX < rect.left ||
+            clientX > rect.right ||
+            clientY < rect.top ||
+            clientY > rect.bottom
+          ) {
+            return false;
+          }
+          const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
+          const ny = -(((clientY - rect.top) / rect.height) * 2 - 1);
+          pointer.set(nx, ny);
+          const currentCamera = activeRenderCameraRef.current ?? camera;
+          ray.setFromCamera(pointer, currentCamera);
+          const intersects = ray.intersectObject(cueStick, true);
+          if (intersects.length === 0) return false;
+          const liftState = cueLiftRef.current;
+          liftState.active = true;
+          liftState.moved = false;
+          liftState.startY = clientY;
+          liftState.startLift = resolveUserCueLift();
+          return true;
+        };
         const down = (e) => {
           if (replayPlaybackRef.current) return;
           registerInteraction();
@@ -17439,6 +17485,7 @@ const powerRef = useRef(hud.power);
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
           if (e.touches?.length === 2) return;
+          if (attemptCueLiftPress(e)) return;
           if (topViewRef.current && !topViewLockedRef.current)
             exitTopView(true, { preserveLock: true });
           drag.on = true;
@@ -17496,6 +17543,23 @@ const powerRef = useRef(hud.power);
                 galleryState.lateralOffset = nextOffset;
                 updateCamera();
               }
+            }
+            registerInteraction();
+            return;
+          }
+          if (cueLiftRef.current.active) {
+            const clientY = e.clientY ?? e.touches?.[0]?.clientY;
+            if (clientY == null) return;
+            const liftState = cueLiftRef.current;
+            const delta = liftState.startY - clientY;
+            if (!liftState.moved && Math.abs(delta) > 2) liftState.moved = true;
+            const nextLift = THREE.MathUtils.clamp(
+              liftState.startLift + delta * CUE_LIFT_DRAG_SCALE,
+              0,
+              CUE_LIFT_MAX_TILT
+            );
+            if (Math.abs(nextLift - liftState.lift) > 1e-5) {
+              liftState.lift = nextLift;
             }
             registerInteraction();
             return;
@@ -17568,6 +17632,11 @@ const powerRef = useRef(hud.power);
             if (!wasMoved) {
               attemptCueSelection(e);
             }
+            return;
+          }
+          if (cueLiftRef.current.active) {
+            cueLiftRef.current.active = false;
+            cueLiftRef.current.moved = false;
             return;
           }
           const moved = drag.moved;
@@ -18473,6 +18542,7 @@ const powerRef = useRef(hud.power);
       const cueBody = new THREE.Group();
       cueStick.add(cueBody);
       cueStick.userData.body = cueBody;
+      cueStick.userData.isCueStick = true;
       cueBodyRef.current = cueBody;
       const buttLift = Math.min(CUE_BUTT_LIFT, cueLen);
       const buttTilt = Math.asin(
@@ -19851,6 +19921,8 @@ const powerRef = useRef(hud.power);
           );
           cue.swerveStrength = cue.spinMode === 'swerve' ? swerveSettings.intensity : 0;
           resetSpinRef.current?.();
+          cueLiftRef.current.lift = 0;
+          cueLiftRef.current.startLift = 0;
           cue.impacted = false;
           cue.launchDir = aimDir.clone().normalize();
           maxPowerLiftTriggered = false;
@@ -19926,7 +19998,8 @@ const powerRef = useRef(hud.power);
             Math.min(visualPull - minVisibleGap, visualPull * warmupRatio)
           );
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
-          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
+          const liftTilt = resolveUserCueLift();
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftTilt;
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           applyCueButtTilt(
             cueStick,
@@ -22599,7 +22672,8 @@ const powerRef = useRef(hud.power);
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
-          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
+          const liftTilt = resolveUserCueLift();
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftTilt;
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           applyCueButtTilt(
             cueStick,
