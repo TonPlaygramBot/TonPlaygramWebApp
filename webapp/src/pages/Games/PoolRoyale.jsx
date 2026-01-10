@@ -5807,12 +5807,14 @@ function applySpinImpulse(ball, scale = 1) {
   if (ball.id === 'cue' && ball.spinMode === 'swerve') {
     ball.spinMode = 'standard';
     ball.swerveStrength = 0;
+    ball.swervePowerStrength = 0;
   }
   const decayFactor = Math.pow(SPIN_DECAY, Math.max(scale, 0.5));
   ball.spin.multiplyScalar(decayFactor);
   if (ball.spin.lengthSq() < 1e-6) {
     ball.spin.set(0, 0);
     if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
+    if (ball.id === 'cue') ball.swervePowerStrength = 0;
   }
   return true;
 }
@@ -6102,6 +6104,7 @@ function Guret(parent, id, color, x, y, options = {}) {
     spin: new THREE.Vector2(),
     spinMode: 'standard',
     swerveStrength: 0,
+    swervePowerStrength: 0,
     impacted: false,
     launchDir: null,
     pendingSpin: new THREE.Vector2(),
@@ -19240,6 +19243,7 @@ const powerRef = useRef(hud.power);
         cue.pendingSpin?.set(0, 0);
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
+        cue.swervePowerStrength = 0;
       };
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
@@ -19963,6 +19967,7 @@ const powerRef = useRef(hud.power);
             liftStrength
           );
           cue.swerveStrength = cue.spinMode === 'swerve' ? swerveSettings.intensity : 0;
+          cue.swervePowerStrength = cue.spinMode === 'swerve' ? clampedPower : 0;
           resetSpinRef.current?.();
           cueLiftRef.current.lift = 0;
           cueLiftRef.current.startLift = 0;
@@ -22145,6 +22150,7 @@ const powerRef = useRef(hud.power);
                   simBall.pendingSpin?.set(0, 0);
                   simBall.spinMode = 'standard';
                   simBall.swerveStrength = 0;
+                  simBall.swervePowerStrength = 0;
                 }
               } else {
                 simBall.active = false;
@@ -22187,6 +22193,7 @@ const powerRef = useRef(hud.power);
               cue.pendingSpin?.set(0, 0);
               cue.spinMode = 'standard';
               cue.swerveStrength = 0;
+              cue.swervePowerStrength = 0;
               cue.impacted = false;
               cue.launchDir = null;
             }
@@ -23193,7 +23200,12 @@ const powerRef = useRef(hud.power);
             if (hasSpin) {
               const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
               const swerveStrength = swerveTravel ? Math.max(0, b.swerveStrength ?? 0) : 0;
-              const swerveScale = swerveStrength > 0 ? 0.6 + swerveStrength * 0.9 : 0;
+              const swervePower = swerveTravel
+                ? Math.max(0, b.swervePowerStrength ?? 0)
+                : 0;
+              const swervePowerScale = swerveStrength > 0 ? 0.85 + swervePower * 0.9 : 0;
+              const swerveScale =
+                swerveStrength > 0 ? (0.6 + swerveStrength * 0.9) * swervePowerScale : 0;
               const allowRoll = !isCue || b.impacted || swerveTravel;
               const preImpact = isCue && !b.impacted;
               if (allowRoll) {
@@ -23241,14 +23253,20 @@ const powerRef = useRef(hud.power);
                 b.spin.multiplyScalar(rollDecay);
                 if (isCue && b.swerveStrength > 0) {
                   b.swerveStrength *= rollDecay;
-                  if (b.swerveStrength < 1e-3) b.swerveStrength = 0;
+                  if (b.swerveStrength < 1e-3) {
+                    b.swerveStrength = 0;
+                    b.swervePowerStrength = 0;
+                  }
                 }
               } else {
                 const airDecay = Math.pow(SPIN_AIR_DECAY, stepScale);
                 b.spin.multiplyScalar(airDecay);
                 if (isCue && b.swerveStrength > 0) {
                   b.swerveStrength *= airDecay;
-                  if (b.swerveStrength < 1e-3) b.swerveStrength = 0;
+                  if (b.swerveStrength < 1e-3) {
+                    b.swerveStrength = 0;
+                    b.swervePowerStrength = 0;
+                  }
                 }
               }
               if (b.spin.lengthSq() < 1e-6) {
@@ -23257,6 +23275,7 @@ const powerRef = useRef(hud.power);
                 if (isCue) {
                   b.spinMode = 'standard';
                   b.swerveStrength = 0;
+                  b.swervePowerStrength = 0;
                 }
               }
             }
@@ -23278,6 +23297,7 @@ const powerRef = useRef(hud.power);
                 b.impacted = false;
                 b.spinMode = 'standard';
                 b.swerveStrength = 0;
+                b.swervePowerStrength = 0;
               }
               b.launchDir = null;
             }
@@ -23715,6 +23735,7 @@ const powerRef = useRef(hud.power);
               if (b.pendingSpin) b.pendingSpin.set(0, 0);
               b.spinMode = 'standard';
               b.swerveStrength = 0;
+              b.swervePowerStrength = 0;
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
               const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
@@ -25647,37 +25668,6 @@ const powerRef = useRef(hud.power);
               background: '#f9fafb'
             }}
           >
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background: `radial-gradient(circle, transparent ${SWERVE_THRESHOLD * 100}%, rgba(250, 204, 21, 0.28) ${
-                  SWERVE_THRESHOLD * 100
-                }%, rgba(250, 204, 21, 0.32) 100%)`
-              }}
-            />
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute rounded-full"
-              style={{
-                border: '2px solid #facc15',
-                width: `${SWERVE_THRESHOLD * 100}%`,
-                height: `${SWERVE_THRESHOLD * 100}%`,
-                left: `${(1 - SWERVE_THRESHOLD) * 50}%`,
-                top: `${(1 - SWERVE_THRESHOLD) * 50}%`,
-                boxShadow: '0 0 0 6px rgba(250, 204, 21, 0.2)'
-              }}
-            />
-            <div
-              aria-hidden="true"
-              className="absolute rounded-full border-2 border-red-500 pointer-events-none"
-              style={{
-                width: `${SPIN_RING_RATIO * 100}%`,
-                height: `${SPIN_RING_RATIO * 100}%`,
-                left: `${(1 - SPIN_RING_RATIO) * 50}%`,
-                top: `${(1 - SPIN_RING_RATIO) * 50}%`
-              }}
-            />
             <div
               id="spinDot"
               className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2"
