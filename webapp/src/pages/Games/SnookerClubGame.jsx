@@ -10275,34 +10275,11 @@ export function PoolRoyaleGame({
     const cueRackDisposers = [];
     let disposed = false;
     try {
-      const rendererOptions = {
+      const renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: false,
         powerPreference: 'high-performance'
-      };
-      let renderer;
-      try {
-        renderer = new THREE.WebGLRenderer(rendererOptions);
-      } catch (err) {
-        const fallbackCanvas = document.createElement('canvas');
-        const fallbackContext =
-          fallbackCanvas.getContext('webgl', {
-            antialias: rendererOptions.antialias,
-            powerPreference: rendererOptions.powerPreference
-          }) ||
-          fallbackCanvas.getContext('experimental-webgl', {
-            antialias: rendererOptions.antialias,
-            powerPreference: rendererOptions.powerPreference
-          });
-        if (!fallbackContext) {
-          throw err;
-        }
-        renderer = new THREE.WebGLRenderer({
-          ...rendererOptions,
-          canvas: fallbackCanvas,
-          context: fallbackContext
-        });
-      }
+      });
       const updatePocketCameraState = (active) => {
         if (pocketCameraStateRef.current === active) return;
         pocketCameraStateRef.current = active;
