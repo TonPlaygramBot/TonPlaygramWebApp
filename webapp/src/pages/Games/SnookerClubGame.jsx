@@ -42,6 +42,7 @@ import {
   DEFAULT_WOOD_TEXTURE_SIZE,
   applyWoodTextures,
   disposeMaterialWithWood,
+  setWoodTextureAnisotropyCap,
 } from '../../utils/woodMaterials.js';
 import { SNOOKER_CLUB_DEFAULT_UNLOCKS } from '../../config/snookerClubInventoryConfig.js';
 import {
@@ -164,6 +165,20 @@ function isWebGLAvailable() {
     return false;
   }
 }
+
+let rendererAnisotropyCap = 16;
+setWoodTextureAnisotropyCap(rendererAnisotropyCap);
+const updateRendererAnisotropyCap = (renderer) => {
+  if (renderer?.capabilities?.getMaxAnisotropy) {
+    const max = renderer.capabilities.getMaxAnisotropy();
+    if (Number.isFinite(max)) {
+      rendererAnisotropyCap = Math.max(rendererAnisotropyCap, max);
+    }
+  }
+  setWoodTextureAnisotropyCap(rendererAnisotropyCap);
+};
+const resolveTextureAnisotropy = (fallback = 1) =>
+  Math.max(rendererAnisotropyCap, Number.isFinite(fallback) ? fallback : 1);
 
 let cachedRendererString = null;
 let rendererLookupAttempted = false;
@@ -1440,13 +1455,13 @@ function createCueMapleTextures() {
   const map = new THREE.CanvasTexture(canvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   map.repeat.set(6, 1);
-  map.anisotropy = 8;
+  map.anisotropy = resolveTextureAnisotropy(8);
   applySRGBColorSpace(map);
   map.needsUpdate = true;
   const bump = new THREE.CanvasTexture(canvas);
   bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
   bump.repeat.set(6, 1);
-  bump.anisotropy = 8;
+  bump.anisotropy = resolveTextureAnisotropy(8);
   bump.needsUpdate = true;
   return { map, bump };
 }
@@ -1480,13 +1495,13 @@ function createCueEbonyTextures() {
   const map = new THREE.CanvasTexture(canvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   map.repeat.set(8, 1);
-  map.anisotropy = 8;
+  map.anisotropy = resolveTextureAnisotropy(8);
   applySRGBColorSpace(map);
   map.needsUpdate = true;
   const bump = new THREE.CanvasTexture(canvas);
   bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
   bump.repeat.set(8, 1);
-  bump.anisotropy = 8;
+  bump.anisotropy = resolveTextureAnisotropy(8);
   bump.needsUpdate = true;
   return { map, bump };
 }
@@ -2770,13 +2785,13 @@ function createPocketLinerTextures(option) {
   applySRGBColorSpace(map);
   map.wrapS = THREE.RepeatWrapping;
   map.wrapT = THREE.RepeatWrapping;
-  map.anisotropy = 4;
+  map.anisotropy = resolveTextureAnisotropy(4);
   map.needsUpdate = true;
 
   const bump = new THREE.CanvasTexture(bumpCanvas);
   bump.wrapS = THREE.RepeatWrapping;
   bump.wrapT = THREE.RepeatWrapping;
-  bump.anisotropy = 2;
+  bump.anisotropy = resolveTextureAnisotropy(2);
   bump.needsUpdate = true;
 
   const textures = { map, bump, repeat };
@@ -3049,7 +3064,7 @@ const createClothTextures = (() => {
 
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.anisotropy = CLOTH_QUALITY.anisotropy;
+    colorMap.anisotropy = resolveTextureAnisotropy(CLOTH_QUALITY.anisotropy);
     colorMap.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
     colorMap.minFilter = CLOTH_QUALITY.generateMipmaps
       ? THREE.LinearMipmapLinearFilter
@@ -3106,7 +3121,7 @@ const createClothTextures = (() => {
     const bumpMap = new THREE.CanvasTexture(bumpCanvas);
     bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
     bumpMap.repeat.copy(colorMap.repeat);
-    bumpMap.anisotropy = CLOTH_QUALITY.anisotropy;
+    bumpMap.anisotropy = resolveTextureAnisotropy(CLOTH_QUALITY.anisotropy);
     bumpMap.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
     bumpMap.minFilter = CLOTH_QUALITY.generateMipmaps
       ? THREE.LinearMipmapLinearFilter
@@ -4953,7 +4968,7 @@ function makeClothTexture(
   const repeatX = baseRepeat * (PLAY_W / TABLE.W);
   const repeatY = baseRepeat * (PLAY_H / TABLE.H);
   texture.repeat.set(repeatX, repeatY);
-  texture.anisotropy = 48;
+  texture.anisotropy = resolveTextureAnisotropy(48);
   applySRGBColorSpace(texture);
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
@@ -5044,7 +5059,7 @@ function makeWoodTexture({
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeatX, repeatY);
-  texture.anisotropy = 8;
+  texture.anisotropy = resolveTextureAnisotropy(8);
   applySRGBColorSpace(texture);
   texture.needsUpdate = true;
   return texture;
@@ -8833,7 +8848,7 @@ export function PoolRoyaleGame({
     applySRGBColorSpace(texture);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.anisotropy = 8;
+    texture.anisotropy = resolveTextureAnisotropy(8);
     texture.needsUpdate = true;
     return texture;
   }, []);
@@ -10126,6 +10141,7 @@ export function PoolRoyaleGame({
       applyRendererQuality();
       renderer.domElement.style.transformOrigin = 'top left';
       rendererRef.current = renderer;
+      updateRendererAnisotropyCap(renderer);
 
       // Scene & Camera
       const scene = new THREE.Scene();
@@ -10344,7 +10360,7 @@ export function PoolRoyaleGame({
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = 4;
+        texture.anisotropy = resolveTextureAnisotropy(4);
         applySRGBColorSpace(texture);
         let offset = 0;
         return {
@@ -10383,7 +10399,7 @@ export function PoolRoyaleGame({
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = 8;
+        texture.anisotropy = resolveTextureAnisotropy(8);
         applySRGBColorSpace(texture);
         let pulse = 0;
         const createAvatarStore = () => ({
@@ -17630,9 +17646,45 @@ export function PoolRoyaleGame({
                         </button>
                       );
                     })}
+                  </div>
                 </div>
-              </div>
-            ) : null}
+              ) : null}
+              {availablePocketLiners.length > 0 ? (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                    Pocket Jaws
+                  </h3>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {availablePocketLiners.map((option) => {
+                      const active = option.id === pocketLinerId;
+                      const swatchColor =
+                        option.jawColor ?? option.rimColor ?? option.sheenColor ?? option.color;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setPocketLinerId(option.id)}
+                          aria-pressed={active}
+                          className={`flex-1 min-w-[9rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className="flex items-center justify-center gap-2">
+                            <span
+                              className="h-3.5 w-3.5 rounded-full border border-white/40"
+                              style={{ backgroundColor: toHexColor(swatchColor) }}
+                              aria-hidden="true"
+                            />
+                            {option.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Rail Markers
@@ -17712,6 +17764,43 @@ export function PoolRoyaleGame({
                             {option.resolution
                               ? `${option.resolution} • ${option.fps} FPS`
                               : `${option.fps} FPS`}
+                          </span>
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Broadcast Modes
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {BROADCAST_SYSTEM_OPTIONS.map((option) => {
+                    const active = option.id === broadcastSystemId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setBroadcastSystemId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                            {option.label}
+                          </span>
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-100/80">
+                            {option.method}
                           </span>
                         </span>
                         {option.description ? (
