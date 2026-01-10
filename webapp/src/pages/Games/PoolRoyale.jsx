@@ -1322,6 +1322,7 @@ const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SWERVE_THRESHOLD = 0.7; // outer 30% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.86; // let swerve-driven roll carry more lateral energy while staying believable
+const SWERVE_PRE_IMPACT_DRIFT = 0.24; // allow a visible curve before the cue ball hits the object ball
 const PRE_IMPACT_SPIN_DRIFT = 0.1; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
@@ -22894,6 +22895,12 @@ const powerRef = useRef(hud.power);
                   const alignedSpeed = b.vel.dot(launchDir);
                   TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
                   b.vel.copy(TMP_VEC2_AXIS);
+                  if (b.spinMode === 'swerve') {
+                    b.vel.addScaledVector(
+                      TMP_VEC2_LATERAL,
+                      SWERVE_PRE_IMPACT_DRIFT
+                    );
+                  }
                 } else {
                   b.vel.add(TMP_VEC2_SPIN);
                   if (
