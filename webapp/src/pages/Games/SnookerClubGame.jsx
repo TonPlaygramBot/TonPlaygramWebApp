@@ -9606,6 +9606,7 @@ export function PoolRoyaleGame({
     applyLightingPreset(lightingId);
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
+  const [webglUnavailable, setWebglUnavailable] = useState(false);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
@@ -10265,13 +10266,15 @@ export function PoolRoyaleGame({
     const host = mountRef.current;
     if (!host) return;
     setErr(null);
-    if (!isWebGLAvailable()) {
-      setErr('WebGL is not available on this device. Enable hardware acceleration to play.');
-      return;
-    }
+    setWebglUnavailable(false);
     const cueRackDisposers = [];
     let disposed = false;
     try {
+      const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: false,
+        powerPreference: 'high-performance'
+      });
       const updatePocketCameraState = (active) => {
         if (pocketCameraStateRef.current === active) return;
         pocketCameraStateRef.current = active;
@@ -10279,12 +10282,6 @@ export function PoolRoyaleGame({
       };
       updatePocketCameraState(false);
       screen.orientation?.lock?.('portrait').catch(() => {});
-      // Renderer
-      const renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: false,
-        powerPreference: 'high-performance'
-      });
       renderer.useLegacyLights = false;
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -17366,7 +17363,12 @@ export function PoolRoyaleGame({
         };
       } catch (e) {
         console.error(e);
-        setErr(e?.message || String(e));
+        const webglAvailable = isWebGLAvailable();
+        const fallbackMessage = webglAvailable
+          ? e?.message || String(e)
+          : 'WebGL is not available on this device. Enable hardware acceleration to play.';
+        setWebglUnavailable(!webglAvailable);
+        setErr(fallbackMessage);
       }
   }, []);
 
@@ -18065,7 +18067,42 @@ export function PoolRoyaleGame({
         </div>
       )}
 
-      {err && (
+      {webglUnavailable && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 px-6 text-white">
+          <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
+            <div className="w-full rounded-3xl border border-emerald-400/40 bg-emerald-950/60 p-5 shadow-[0_24px_48px_rgba(0,0,0,0.6)]">
+              <svg
+                viewBox="0 0 320 200"
+                className="h-36 w-full"
+                role="img"
+                aria-label="Snooker table preview"
+              >
+                <rect x="8" y="24" width="304" height="152" rx="18" fill="#065f46" stroke="#34d399" strokeWidth="6" />
+                <rect x="34" y="50" width="252" height="100" rx="12" fill="#0f766e" />
+                <circle cx="34" cy="50" r="10" fill="#0f172a" />
+                <circle cx="286" cy="50" r="10" fill="#0f172a" />
+                <circle cx="34" cy="150" r="10" fill="#0f172a" />
+                <circle cx="286" cy="150" r="10" fill="#0f172a" />
+                <circle cx="160" cy="50" r="10" fill="#0f172a" />
+                <circle cx="160" cy="150" r="10" fill="#0f172a" />
+                <circle cx="110" cy="100" r="9" fill="#f8fafc" />
+                <circle cx="160" cy="100" r="9" fill="#ef4444" />
+                <circle cx="210" cy="100" r="9" fill="#fbbf24" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-emerald-200">
+                WebGL required
+              </p>
+              <p className="mt-2 text-sm text-white/80">
+                Your browser has WebGL disabled, so the 3D table cannot render. Enable hardware acceleration
+                or try another browser to play.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {err && !webglUnavailable && (
         <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
           Init error: {String(err)}
         </div>
