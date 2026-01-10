@@ -15,6 +15,7 @@ public class BilliardsSolver
         public double ForwardSpin;
         public double Height;
         public double VerticalVelocity;
+        public double MasseFactor = 1.0;
     }
 
     public struct ShotSpin
@@ -421,6 +422,13 @@ public class BilliardsSolver
         var dir = shot.Direction.Normalized();
         var planarSpeed = shot.Speed * Math.Cos(elevationRad);
         var verticalSpeed = shot.Speed * Math.Sin(elevationRad);
+        double spinMagnitude = Math.Sqrt(clamped.Side * clamped.Side + forwardSpin * forwardSpin);
+        double normalizedSpin = Math.Min(1.0, spinMagnitude / PhysicsConstants.MaxTipOffsetRatio);
+        double jumpThreshold = Math.Max(0.0, PhysicsConstants.JumpVelocityThreshold - PhysicsConstants.JumpTipOffsetBoost * normalizedSpin);
+        if (verticalSpeed < jumpThreshold)
+            verticalSpeed = 0;
+        double masseBlend = Smoothstep(PhysicsConstants.MasseAngleMin, PhysicsConstants.MasseAngleMax, cueElevation);
+        double masseFactor = 1.0 + (PhysicsConstants.MasseSwerveBoost - 1.0) * masseBlend;
         return new Ball
         {
             Position = cueStart,
@@ -428,7 +436,8 @@ public class BilliardsSolver
             Height = 0,
             VerticalVelocity = verticalSpeed,
             SideSpin = clamped.Side,
-            ForwardSpin = forwardSpin
+            ForwardSpin = forwardSpin,
+            MasseFactor = masseFactor
         };
     }
 
@@ -461,7 +470,13 @@ public class BilliardsSolver
             b.Velocity += dir * forwardAccel * dt;
 
             var lateral = new Vec2(-dir.Y, dir.X);
-            var swerveAccel = PhysicsConstants.SwerveCoefficient * b.SideSpin * speed;
+            double speedFactor = 1.0;
+            if (speed > PhysicsConstants.SwerveSpeedCutoff)
+            {
+                double excess = speed - PhysicsConstants.SwerveSpeedCutoff;
+                speedFactor = Math.Max(0.0, 1.0 - excess / PhysicsConstants.SwerveSpeedFadeRange);
+            }
+            var swerveAccel = PhysicsConstants.SwerveCoefficient * b.SideSpin * speed * b.MasseFactor * speedFactor;
             b.Velocity += lateral * swerveAccel * dt;
 
             double decay = Math.Exp(-PhysicsConstants.SpinDecay * dt);
@@ -490,6 +505,7 @@ public class BilliardsSolver
         if (Math.Abs(b.VerticalVelocity) < PhysicsConstants.Epsilon && b.Height <= 0)
             return;
 
+        bool wasAbove = b.Height > 0;
         b.VerticalVelocity -= PhysicsConstants.Gravity * dt;
         b.Height += b.VerticalVelocity * dt;
         if (b.Height <= 0)
@@ -502,6 +518,12 @@ public class BilliardsSolver
             else
             {
                 b.VerticalVelocity = 0;
+            }
+            if (wasAbove)
+            {
+                b.Velocity *= PhysicsConstants.LandingHorizontalDamping;
+                b.SideSpin *= PhysicsConstants.LandingSpinDamping;
+                b.ForwardSpin *= PhysicsConstants.LandingSpinDamping;
             }
         }
     }
@@ -583,5 +605,13 @@ public class BilliardsSolver
             path.Add(point);
             lastSample = point;
         }
+    }
+
+    private static double Smoothstep(double edge0, double edge1, double x)
+    {
+        if (edge1 <= edge0)
+            return x >= edge1 ? 1.0 : 0.0;
+        double t = Math.Clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+        return t * t * (3.0 - 2.0 * t);
     }
 }
