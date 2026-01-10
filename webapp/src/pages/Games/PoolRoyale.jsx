@@ -1317,8 +1317,6 @@ const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * 1.15;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_CURVE_STRENGTH = 0.22; // magnus-like sideways force so heavy swerve visibly bends the path
-const SWERVE_AIM_CURVE_SCALE = 0.08;
-const SWERVE_AIM_SEGMENTS = 12;
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.6; // inject extra sideways carry while the cue ball is airborne
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.24; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
@@ -4958,12 +4956,6 @@ const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
 const TMP_VEC3_TOP_VIEW = new THREE.Vector3();
 const TMP_VEC3_CAM_DIR = new THREE.Vector3();
 const TMP_VEC3_CUE_DIR = new THREE.Vector3();
-const TMP_VEC3_SWERVE_SPIN = new THREE.Vector3();
-const TMP_VEC3_SWERVE_DIR = new THREE.Vector3();
-const TMP_VEC3_SWERVE_CTRL = new THREE.Vector3();
-const SWERVE_AIM_POINTS = Array.from({ length: SWERVE_AIM_SEGMENTS + 1 }, () =>
-  new THREE.Vector3()
-);
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -19456,74 +19448,6 @@ const powerRef = useRef(hud.power);
         }
         return { side, vert, hasSpin };
       };
-      const buildSwerveAimPoints = (
-        start,
-        end,
-        dir,
-        perp,
-        spinInput,
-        powerStrength,
-        ranges
-      ) => {
-        if (!start || !end || !dir || !perp) return null;
-        const spinX = spinInput?.x ?? 0;
-        const spinY = spinInput?.y ?? 0;
-        const magnitude = Math.hypot(spinX, spinY);
-        if (magnitude < SWERVE_THRESHOLD) return null;
-        const rangeSide = ranges?.side ?? 0;
-        const rangeForward = ranges?.forward ?? 0;
-        if (rangeSide <= 1e-6 && rangeForward <= 1e-6) return null;
-        const powerScale = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
-        let spinSide = spinX * rangeSide * SIDE_SPIN_MULTIPLIER * powerScale;
-        let spinTop = -spinY * rangeForward * powerScale;
-        if (spinY > 0) {
-          spinTop *= BACKSPIN_MULTIPLIER;
-        } else if (spinY < 0) {
-          spinTop *= TOPSPIN_MULTIPLIER;
-        }
-        TMP_VEC3_SWERVE_SPIN.copy(perp)
-          .multiplyScalar(spinSide)
-          .add(TMP_VEC3_SWERVE_DIR.copy(dir).multiplyScalar(spinTop));
-        const spinMagnitude = TMP_VEC3_SWERVE_SPIN.length();
-        if (spinMagnitude < 1e-6) return null;
-        TMP_VEC3_SWERVE_DIR.set(
-          -TMP_VEC3_SWERVE_SPIN.z,
-          0,
-          TMP_VEC3_SWERVE_SPIN.x
-        );
-        if (TMP_VEC3_SWERVE_DIR.lengthSq() < 1e-8) return null;
-        TMP_VEC3_SWERVE_DIR.normalize();
-        const distance = start.distanceTo(end);
-        const normalized =
-          (magnitude - SWERVE_THRESHOLD) / Math.max(1 - SWERVE_THRESHOLD, 1e-6);
-        const swerveStrength = THREE.MathUtils.clamp(normalized, 0, 1);
-        const spinScale = THREE.MathUtils.clamp(spinMagnitude * 0.6, 0, 1);
-        const curveOffset =
-          distance *
-          SWERVE_AIM_CURVE_SCALE *
-          swerveStrength *
-          spinScale *
-          (0.6 + 0.4 * powerScale);
-        if (curveOffset <= 1e-5) return null;
-        TMP_VEC3_SWERVE_CTRL.copy(start).add(end).multiplyScalar(0.5);
-        TMP_VEC3_SWERVE_CTRL.addScaledVector(TMP_VEC3_SWERVE_DIR, curveOffset);
-        for (let i = 0; i <= SWERVE_AIM_SEGMENTS; i += 1) {
-          const t = i / SWERVE_AIM_SEGMENTS;
-          const inv = 1 - t;
-          SWERVE_AIM_POINTS[i].set(
-            inv * inv * start.x +
-              2 * inv * t * TMP_VEC3_SWERVE_CTRL.x +
-              t * t * end.x,
-            inv * inv * start.y +
-              2 * inv * t * TMP_VEC3_SWERVE_CTRL.y +
-              t * t * end.y,
-            inv * inv * start.z +
-              2 * inv * t * TMP_VEC3_SWERVE_CTRL.z +
-              t * t * end.z
-          );
-        }
-        return SWERVE_AIM_POINTS;
-      };
 
       // Fire (slider triggers on release)
       const fire = () => {
@@ -22407,16 +22331,7 @@ const powerRef = useRef(hud.power);
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
           }
-          const aimPoints = buildSwerveAimPoints(
-            start,
-            end,
-            dir,
-            basePerp,
-            appliedSpin,
-            powerStrength,
-            ranges
-          );
-          aimGeom.setFromPoints(aimPoints ?? [start, end]);
+          aimGeom.setFromPoints([start, end]);
           aim.visible = true;
           const slowAssistEnabled = chalkAssistEnabledRef.current;
           const hasTarget = slowAssistEnabled && (targetBall || railNormal);
@@ -22702,8 +22617,6 @@ const powerRef = useRef(hud.power);
           const perp = new THREE.Vector3(-baseDir.z, 0, baseDir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           const powerStrength = THREE.MathUtils.clamp(remoteAimState?.power ?? 0, 0, 1);
-          const spinX = THREE.MathUtils.clamp(remoteAimState?.spin?.x ?? 0, -1, 1);
-          const spinY = THREE.MathUtils.clamp(remoteAimState?.spin?.y ?? 0, -1, 1);
           const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
             cue,
             remoteAimDir,
@@ -22714,16 +22627,7 @@ const powerRef = useRef(hud.power);
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(baseDir.clone().multiplyScalar(BALL_R));
           }
-          const aimPoints = buildSwerveAimPoints(
-            start,
-            end,
-            baseDir,
-            perp,
-            { x: spinX, y: spinY },
-            powerStrength,
-            ranges
-          );
-          aimGeom.setFromPoints(aimPoints ?? [start, end]);
+          aimGeom.setFromPoints([start, end]);
           aim.material.color.set(0x7ce7ff);
           aim.material.opacity = 0.55 + 0.35 * powerStrength;
           aim.visible = true;
@@ -22753,6 +22657,8 @@ const powerRef = useRef(hud.power);
           const desiredPull = computePullTargetFromPower(powerStrength, maxPull);
           const pull = computeCuePull(desiredPull, maxPull);
           const visualPull = applyVisualPullCompensation(pull, baseDir);
+          const spinX = THREE.MathUtils.clamp(remoteAimState?.spin?.x ?? 0, -1, 1);
+          const spinY = THREE.MathUtils.clamp(remoteAimState?.spin?.y ?? 0, -1, 1);
           const { side, vert, hasSpin } = computeSpinOffsets(
             { x: spinX, y: spinY },
             ranges
