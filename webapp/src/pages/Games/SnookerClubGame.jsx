@@ -9426,6 +9426,7 @@ export function PoolRoyaleGame({
     applyLightingPreset(lightingId);
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
+  const [isBooted, setIsBooted] = useState(false);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
@@ -9437,6 +9438,7 @@ export function PoolRoyaleGame({
   const broadcastCamerasRef = useRef(null);
   const lightingRigRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
+  const hasRenderedRef = useRef(false);
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
@@ -10079,12 +10081,21 @@ export function PoolRoyaleGame({
     const host = mountRef.current;
     if (!host) return;
     setErr(null);
+    setIsBooted(false);
+    hasRenderedRef.current = false;
     if (!isWebGLAvailable()) {
       setErr('WebGL is not available on this device. Enable hardware acceleration to play.');
       return;
     }
     const cueRackDisposers = [];
     let disposed = false;
+    const markFrameRendered = () => {
+      if (hasRenderedRef.current) return;
+      hasRenderedRef.current = true;
+      if (!disposed) {
+        setIsBooted(true);
+      }
+    };
     try {
       const updatePocketCameraState = (active) => {
         if (pocketCameraStateRef.current === active) return;
@@ -15970,6 +15981,7 @@ export function PoolRoyaleGame({
           updateReplayTrail(playback.cuePath, targetTime);
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
+          markFrameRendered();
           if (elapsed >= playback.duration) {
             if (playback.postState) {
               applyBallSnapshot(playback.postState);
@@ -17064,6 +17076,7 @@ export function PoolRoyaleGame({
           }
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
+          markFrameRendered();
           rafRef.current = requestAnimationFrame(step);
         };
         step(performance.now());
@@ -17377,6 +17390,19 @@ export function PoolRoyaleGame({
     >
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+      {!isBooted && !err && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-gradient-to-b from-slate-950 via-black to-emerald-950/40">
+          <div className="flex flex-col items-center gap-3 text-emerald-100">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-400/70 border-t-transparent" />
+            <div className="text-[11px] font-semibold uppercase tracking-[0.4em] text-emerald-200/80">
+              Loading Snooker Club
+            </div>
+            <div className="text-[10px] uppercase tracking-[0.3em] text-white/50">
+              Preparing table
+            </div>
+          </div>
+        </div>
+      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
