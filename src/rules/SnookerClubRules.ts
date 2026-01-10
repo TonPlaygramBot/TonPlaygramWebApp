@@ -9,7 +9,6 @@ type SnookerSerializedState = {
   redsRemaining: number;
   colorsOnTable: BallColor[];
   colorOnAfterRed: boolean;
-  ballInHand: boolean;
   currentPlayer: 'A' | 'B';
   frameOver: boolean;
   winner: 'A' | 'B' | null;
@@ -85,41 +84,6 @@ type PoolMeta =
     };
 
 const UK_TOTAL_PER_COLOUR = 7;
-const SNOOKER_RED_COUNT = 15;
-
-function buildSnookerBalls(
-  redsRemaining: number,
-  colorsOnTable: Set<BallColor>,
-  cueOnTable = true
-): FrameState['balls'] {
-  const balls: FrameState['balls'] = [];
-  for (let idx = 1; idx <= SNOOKER_RED_COUNT; idx += 1) {
-    const onTable = idx <= redsRemaining;
-    balls.push({
-      id: `RED_${idx}`,
-      color: 'RED',
-      onTable,
-      potted: !onTable
-    });
-  }
-  const orderedColors: BallColor[] = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
-  orderedColors.forEach((color) => {
-    const onTable = colorsOnTable.has(color);
-    balls.push({
-      id: color,
-      color,
-      onTable,
-      potted: !onTable
-    });
-  });
-  balls.push({
-    id: 'CUE',
-    color: 'CUE',
-    onTable: cueOnTable,
-    potted: !cueOnTable
-  });
-  return balls;
-}
 
 function normalizeVariantId(value: string | null | undefined): string {
   if (typeof value !== 'string') return '';
@@ -281,12 +245,12 @@ export class PoolRoyaleRules {
       case 'snooker': {
         const colorsOnTable: BallColor[] = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
         const base: FrameState = {
-          balls: buildSnookerBalls(SNOOKER_RED_COUNT, new Set(colorsOnTable), true),
+          balls: [],
           activePlayer: 'A',
           players: basePlayers(playerA, playerB),
           currentBreak: 0,
           phase: 'REDS_AND_COLORS',
-          redsRemaining: SNOOKER_RED_COUNT,
+          redsRemaining: 15,
           colorOnAfterRed: false,
           ballOn: ['RED'],
           frameOver: false
@@ -294,10 +258,9 @@ export class PoolRoyaleRules {
         base.meta = {
           variant: 'snooker',
           state: {
-            redsRemaining: SNOOKER_RED_COUNT,
+            redsRemaining: 15,
             colorsOnTable,
             colorOnAfterRed: false,
-            ballInHand: false,
             currentPlayer: 'A',
             frameOver: false,
             winner: null
@@ -533,7 +496,6 @@ export class PoolRoyaleRules {
     redsRemaining = Math.max(0, redsRemaining - redPots);
 
     if (foulReason) {
-      colorOnAfterRed = false;
       const foulPoints = Math.max(4, foulValue || 4);
       players[opponent].score = (players[opponent].score ?? 0) + foulPoints;
       activePlayer = opponent;
@@ -564,7 +526,6 @@ export class PoolRoyaleRules {
         redsRemaining,
         colorOnAfterRed,
         ballOn: ballOnNext,
-        balls: buildSnookerBalls(redsRemaining, colorsOnTable, !cueBallPotted),
         frameOver,
         winner,
         foul: {
@@ -577,7 +538,6 @@ export class PoolRoyaleRules {
             redsRemaining,
             colorsOnTable: Array.from(colorsOnTable),
             colorOnAfterRed,
-            ballInHand: cueBallPotted,
             currentPlayer: activePlayer,
             frameOver,
             winner: winner ?? null
@@ -621,7 +581,6 @@ export class PoolRoyaleRules {
     } else {
       activePlayer = opponent;
       currentBreak = 0;
-      colorOnAfterRed = false;
     }
 
     const winner = frameOver
@@ -641,7 +600,6 @@ export class PoolRoyaleRules {
       redsRemaining,
       colorOnAfterRed,
       ballOn: ballOnNext,
-      balls: buildSnookerBalls(redsRemaining, colorsOnTable, true),
       frameOver,
       winner,
       foul: undefined,
@@ -651,7 +609,6 @@ export class PoolRoyaleRules {
           redsRemaining,
           colorsOnTable: Array.from(colorsOnTable),
           colorOnAfterRed,
-          ballInHand: false,
           currentPlayer: activePlayer,
           frameOver,
           winner: winner ?? null
