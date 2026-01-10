@@ -5017,7 +5017,7 @@ const normalizeSpinInput = (spin) => {
   return clampToUnitCircle(x, y);
 };
 const mapSpinForPhysics = (spin) => ({
-  x: -(spin?.x ?? 0),
+  x: spin?.x ?? 0,
   y: spin?.y ?? 0
 });
 const normalizeCueLift = (liftAngle = 0) => {
@@ -19655,7 +19655,7 @@ const powerRef = useRef(hud.power);
         const offsetVertical = ranges?.offsetVertical ?? 0;
         const magnitude = Math.hypot(spin?.x ?? 0, spin?.y ?? 0);
         const hasSpin = magnitude > 1e-4;
-        const sideInput = -(spin?.x ?? 0);
+        const sideInput = spin?.x ?? 0;
         let side = hasSpin ? sideInput * offsetSide : 0;
         let vert = hasSpin ? -spin.y * offsetVertical : 0;
         if (hasSpin) {
