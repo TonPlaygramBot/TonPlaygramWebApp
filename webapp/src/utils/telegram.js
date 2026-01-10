@@ -1,5 +1,4 @@
 import { fetchTelegramInfo } from "./api.js";
-import { safeGetItem, safeRemoveItem, safeSetItem } from './storage.js';
 
 export function isTelegramWebView() {
   if (typeof window === 'undefined') return false;
@@ -18,7 +17,7 @@ export function getTelegramId() {
     const tgId = window?.Telegram?.WebApp?.initDataUnsafe?.user?.id;
     const telegramId = parseTelegramId(tgId);
     if (telegramId != null) {
-      safeSetItem('telegramId', telegramId);
+      localStorage.setItem('telegramId', telegramId);
       return telegramId;
     }
     const params = new URLSearchParams(window.location.search);
@@ -26,16 +25,16 @@ export function getTelegramId() {
     if (urlId) {
       const parsed = parseTelegramId(urlId);
       if (parsed != null) {
-        safeSetItem('telegramId', parsed);
+        localStorage.setItem('telegramId', parsed);
         return parsed;
       }
-      safeRemoveItem('telegramId');
+      localStorage.removeItem('telegramId');
     }
-    const stored = safeGetItem('telegramId');
+    const stored = localStorage.getItem('telegramId');
     if (stored) {
       const parsed = parseTelegramId(stored);
       if (parsed != null) return parsed;
-      safeRemoveItem('telegramId');
+      localStorage.removeItem('telegramId');
     }
   }
   return null;
@@ -53,10 +52,10 @@ function generateAccountId() {
 
 export function getPlayerId() {
   if (typeof window === 'undefined') return null;
-  let id = safeGetItem('accountId');
+  let id = localStorage.getItem('accountId');
   if (!id) {
     id = generateAccountId();
-    if (id) safeSetItem('accountId', id);
+    if (id) localStorage.setItem('accountId', id);
   }
   return id;
 }
@@ -70,7 +69,7 @@ export function getTelegramUsername() {
   if (typeof window !== 'undefined') {
     const name = window?.Telegram?.WebApp?.initDataUnsafe?.user?.username;
     if (name) return name;
-    const stored = safeGetItem('telegramUsername');
+    const stored = localStorage.getItem('telegramUsername');
     if (stored) return stored;
   }
   return '';
@@ -80,7 +79,7 @@ export function getTelegramFirstName() {
   if (typeof window !== 'undefined') {
     const first = window?.Telegram?.WebApp?.initDataUnsafe?.user?.first_name;
     if (first) return first;
-    const stored = safeGetItem('telegramFirstName');
+    const stored = localStorage.getItem('telegramFirstName');
     if (stored) return stored;
   }
   return '';
@@ -90,7 +89,7 @@ export function getTelegramLastName() {
   if (typeof window !== 'undefined') {
     const last = window?.Telegram?.WebApp?.initDataUnsafe?.user?.last_name;
     if (last) return last;
-    const stored = safeGetItem('telegramLastName');
+    const stored = localStorage.getItem('telegramLastName');
     if (stored) return stored;
   }
   return '';
@@ -100,7 +99,7 @@ export function getTelegramUserData() {
   if (typeof window !== 'undefined') {
     const user = window?.Telegram?.WebApp?.initDataUnsafe?.user;
     if (user) return user;
-    const stored = safeGetItem('telegramUserData');
+    const stored = localStorage.getItem('telegramUserData');
     if (stored) {
       try {
         return JSON.parse(stored);
@@ -116,17 +115,17 @@ export function getTelegramPhotoUrl() {
   if (typeof window !== 'undefined') {
     const photo = window?.Telegram?.WebApp?.initDataUnsafe?.user?.photo_url;
     if (photo) {
-      safeSetItem('telegramPhotoUrl', photo);
+      localStorage.setItem('telegramPhotoUrl', photo);
       return photo;
     }
-    const stored = safeGetItem('telegramPhotoUrl');
+    const stored = localStorage.getItem('telegramPhotoUrl');
     if (stored) return stored;
     const id = getTelegramId();
     if (id) {
       fetchTelegramInfo(id)
         .then((info) => {
           if (info?.photoUrl) {
-            safeSetItem('telegramPhotoUrl', info.photoUrl);
+            localStorage.setItem('telegramPhotoUrl', info.photoUrl);
             window.dispatchEvent(new Event('profilePhotoUpdated'));
           }
         })
@@ -154,7 +153,7 @@ export function clearTelegramCache() {
       'telegramLastName',
       'telegramUserData',
       'telegramPhotoUrl'
-    ].forEach((key) => safeRemoveItem(key));
+    ].forEach((key) => localStorage.removeItem(key));
   } catch {
     // ignore
   }
