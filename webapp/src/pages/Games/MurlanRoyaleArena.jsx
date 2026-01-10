@@ -1214,16 +1214,18 @@ export default function MurlanRoyaleArena({ search }) {
     return map;
   }, [seatAnchors]);
 
-  const customizationSections = useMemo(
-    () =>
-      CUSTOMIZATION_SECTIONS.map((section) => ({
-        ...section,
-        options: section.options
-          .map((option, idx) => ({ ...option, idx }))
-          .filter(({ id }) => isMurlanOptionUnlocked(section.key, id, murlanInventory))
-      })).filter((section) => section.options.length > 0),
-    [murlanInventory]
-  );
+  const customizationSections = useMemo(() => {
+    const tableTheme = TABLE_THEMES[appearance.tables] ?? TABLE_THEMES[0];
+    const allowTableFinish = tableTheme?.source === 'procedural';
+    return CUSTOMIZATION_SECTIONS.map((section) => ({
+      ...section,
+      options: section.options
+        .map((option, idx) => ({ ...option, idx }))
+        .filter(({ id }) => isMurlanOptionUnlocked(section.key, id, murlanInventory))
+    }))
+      .filter((section) => section.options.length > 0)
+      .filter((section) => (section.key === 'tableFinish' ? allowTableFinish : true));
+  }, [appearance.tables, murlanInventory]);
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
