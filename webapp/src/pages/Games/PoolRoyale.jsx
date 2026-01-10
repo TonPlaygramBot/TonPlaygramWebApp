@@ -5933,13 +5933,14 @@ function resolveSwerveAimDir(
     liftStrength
   );
   if (swerve.intensity <= 0 || Math.abs(swerve.sideSpin) < 1e-3) return aimDir;
+  const sideSpin = swerve.active ? -swerve.sideSpin : swerve.sideSpin;
   const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
   const curveBase =
     (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
   const powerScale = 4 + powerStrength * 6;
   const swerveScale = 0.6 + swerve.intensity * 0.9;
   const adjust =
-    swerve.sideSpin *
+    sideSpin *
     swerve.intensity *
     curveBase *
     powerScale *
@@ -5969,7 +5970,7 @@ function buildSwerveAimLinePoints(
     swerveActive,
     liftStrength
   );
-  const sideSpin = swerve.sideSpin;
+  const sideSpin = swerveActive ? -swerve.sideSpin : swerve.sideSpin;
   const travel = start.distanceTo(end);
   if (swerve.intensity <= 0 || Math.abs(sideSpin) < 1e-3 || travel < 1e-4) {
     points.length = 2;
@@ -19849,7 +19850,7 @@ const powerRef = useRef(hud.power);
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
-          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
+          const powerScale = THREE.MathUtils.clamp(clampedPower, 0, 1);
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = aimDir
             .clone()
@@ -19989,7 +19990,7 @@ const powerRef = useRef(hud.power);
           const liftStrength = normalizeCueLift(liftAngle);
           const physicsSpin = mapSpinForPhysics(appliedSpin);
           const ranges = spinRangeRef.current || {};
-          const powerSpinScale = powerScale;
+          const powerSpinScale = clampedPower;
           const baseSide = physicsSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
           let spinTop = -physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
@@ -23256,6 +23257,15 @@ const powerRef = useRef(hud.power);
                 : 1;
               const spinWorld = resolveSpinWorldVector(b, TMP_VEC2_SPIN);
               if (spinWorld) {
+                if (swerveTravel) {
+                  const { forward, lateral } = resolveSpinFrame(b);
+                  const sideSpin = b.spin.x || 0;
+                  const forwardSpin = b.spin.y || 0;
+                  spinWorld
+                    .copy(lateral)
+                    .multiplyScalar(-sideSpin)
+                    .addScaledVector(forward, forwardSpin);
+                }
                 spinWorld.multiplyScalar(
                   SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
                 );
