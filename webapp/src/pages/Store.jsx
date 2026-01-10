@@ -203,6 +203,7 @@ const SNAKE_TYPE_LABELS = {
 };
 
 const TEXAS_TYPE_LABELS = {
+  tableFinish: 'Table Finish',
   tableWood: 'Table Wood',
   tableCloth: 'Table Cloth',
   tableBase: 'Table Base',

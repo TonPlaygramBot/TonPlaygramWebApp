@@ -2,7 +2,11 @@ import { TABLE_BASE_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_WOOD_OPTIONS } from '../
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import { CARD_THEMES } from '../utils/cards3d.js';
 import { TEXAS_CHAIR_THEME_OPTIONS, TEXAS_TABLE_THEME_OPTIONS } from './texasHoldemOptions.js';
-import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
+import {
+  POOL_ROYALE_DEFAULT_HDRI_ID,
+  POOL_ROYALE_HDRI_VARIANTS,
+  POOL_ROYALE_OPTION_LABELS
+} from './poolRoyaleInventoryConfig.js';
 
 const reduceLabels = (items) =>
   items.reduce((acc, option) => {
@@ -15,9 +19,78 @@ export const TEXAS_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   label: `${variant.name} HDRI`
 }));
 
+export const TEXAS_TABLE_FINISH_OPTIONS = Object.freeze([
+  {
+    id: 'peelingPaintWeathered',
+    label: POOL_ROYALE_OPTION_LABELS.tableFinish.peelingPaintWeathered,
+    description: 'Weathered peeling paint wood rails with a reclaimed finish.',
+    price: 980,
+    swatches: ['#a89f95', '#b8b3aa'],
+    woodOption: {
+      id: 'peelingPaintWeathered',
+      label: POOL_ROYALE_OPTION_LABELS.tableFinish.peelingPaintWeathered,
+      presetId: 'oak',
+      grainId: 'wood_peeling_paint_weathered'
+    }
+  },
+  {
+    id: 'oakVeneer01',
+    label: POOL_ROYALE_OPTION_LABELS.tableFinish.oakVeneer01,
+    description: 'Warm oak veneer rails with smooth satin polish.',
+    price: 990,
+    swatches: ['#b9854e', '#c89a64'],
+    woodOption: {
+      id: 'oakVeneer01',
+      label: POOL_ROYALE_OPTION_LABELS.tableFinish.oakVeneer01,
+      presetId: 'oak',
+      grainId: 'oak_veneer_01'
+    }
+  },
+  {
+    id: 'woodTable001',
+    label: POOL_ROYALE_OPTION_LABELS.tableFinish.woodTable001,
+    description: 'Balanced walnut-brown rails inspired by classic table slabs.',
+    price: 1000,
+    swatches: ['#8f6243', '#a4724f'],
+    woodOption: {
+      id: 'woodTable001',
+      label: POOL_ROYALE_OPTION_LABELS.tableFinish.woodTable001,
+      presetId: 'walnut',
+      grainId: 'wood_table_001'
+    }
+  },
+  {
+    id: 'darkWood',
+    label: POOL_ROYALE_OPTION_LABELS.tableFinish.darkWood,
+    description: 'Deep espresso rails with strong grain contrast.',
+    price: 1010,
+    swatches: ['#2f241f', '#3d2f2a'],
+    woodOption: {
+      id: 'darkWood',
+      label: POOL_ROYALE_OPTION_LABELS.tableFinish.darkWood,
+      presetId: 'smokedOak',
+      grainId: 'dark_wood'
+    }
+  },
+  {
+    id: 'rosewoodVeneer01',
+    label: POOL_ROYALE_OPTION_LABELS.tableFinish.rosewoodVeneer01,
+    description: 'Rosewood veneer rails with rich, reddish undertones.',
+    price: 1020,
+    swatches: ['#5b2f26', '#6f3a2f'],
+    woodOption: {
+      id: 'rosewoodVeneer01',
+      label: POOL_ROYALE_OPTION_LABELS.tableFinish.rosewoodVeneer01,
+      presetId: 'cherry',
+      grainId: 'rosewood_veneer_01'
+    }
+  }
+]);
+
 const DEFAULT_HDRI_INDEX = Math.max(0, TEXAS_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID));
 
 export const TEXAS_HOLDEM_DEFAULT_UNLOCKS = Object.freeze({
+  tableFinish: [TEXAS_TABLE_FINISH_OPTIONS[0]?.id],
   tableWood: [TABLE_WOOD_OPTIONS[0]?.id],
   tableCloth: [TABLE_CLOTH_OPTIONS[0]?.id],
   tableBase: [TABLE_BASE_OPTIONS[0]?.id],
@@ -29,6 +102,7 @@ export const TEXAS_HOLDEM_DEFAULT_UNLOCKS = Object.freeze({
 });
 
 export const TEXAS_HOLDEM_OPTION_LABELS = Object.freeze({
+  tableFinish: Object.freeze(reduceLabels(TEXAS_TABLE_FINISH_OPTIONS)),
   tableWood: Object.freeze(reduceLabels(TABLE_WOOD_OPTIONS)),
   tableCloth: Object.freeze(reduceLabels(TABLE_CLOTH_OPTIONS)),
   tableBase: Object.freeze(reduceLabels(TABLE_BASE_OPTIONS)),
@@ -45,6 +119,15 @@ export const TEXAS_HOLDEM_OPTION_LABELS = Object.freeze({
 });
 
 export const TEXAS_HOLDEM_STORE_ITEMS = [
+  ...TEXAS_TABLE_FINISH_OPTIONS.map((option) => ({
+    id: `texas-finish-${option.id}`,
+    type: 'tableFinish',
+    optionId: option.id,
+    name: `${option.label} Finish`,
+    price: option.price,
+    description: option.description,
+    swatches: option.swatches
+  })),
   ...TABLE_WOOD_OPTIONS.slice(1).map((option, idx) => ({
     id: `texas-wood-${option.id}`,
     type: 'tableWood',
@@ -114,6 +197,11 @@ export const TEXAS_HOLDEM_STORE_ITEMS = [
 ];
 
 export const TEXAS_HOLDEM_DEFAULT_LOADOUT = [
+  {
+    type: 'tableFinish',
+    optionId: TEXAS_TABLE_FINISH_OPTIONS[0]?.id,
+    label: TEXAS_TABLE_FINISH_OPTIONS[0]?.label
+  },
   { type: 'tableWood', optionId: TABLE_WOOD_OPTIONS[0]?.id, label: TABLE_WOOD_OPTIONS[0]?.label },
   { type: 'tableCloth', optionId: TABLE_CLOTH_OPTIONS[0]?.id, label: TABLE_CLOTH_OPTIONS[0]?.label },
   { type: 'tableBase', optionId: TABLE_BASE_OPTIONS[0]?.id, label: TABLE_BASE_OPTIONS[0]?.label },
