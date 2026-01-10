@@ -7,6 +7,7 @@ import { applySRGBColorSpace } from './colorSpace.js';
 const BALL_TEXTURE_SIZE = 1024;
 const BALL_TEXTURE_CACHE = new Map();
 const BALL_MATERIAL_CACHE = new Map();
+const CUE_TIP_RADIUS_RATIO = 0.1714285714;
 
 function clamp01(value) {
   return Math.min(1, Math.max(0, value));
@@ -120,6 +121,38 @@ function drawPoolNumberBadge(ctx, size, number) {
   ctx.restore();
 }
 
+function drawCueBallDots(ctx, size) {
+  const dotRadius = size * 0.5 * CUE_TIP_RADIUS_RATIO;
+  const poleInset = dotRadius * 1.25;
+  const dotPositions = [
+    { u: 0.5, v: 0.5 }, // front
+    { u: 0.25, v: 0.5 }, // left
+    { u: 0.75, v: 0.5 }, // right
+    { u: 0.5, v: poleInset / size }, // top
+    { u: 0.5, v: 1 - poleInset / size } // bottom
+  ];
+
+  ctx.save();
+  ctx.fillStyle = '#dc2626';
+  dotPositions.forEach(({ u, v }) => {
+    ctx.beginPath();
+    ctx.arc(u * size, v * size, dotRadius, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+  });
+
+  // Back dot spans the seam to keep a full circle.
+  ctx.beginPath();
+  ctx.arc(0, size * 0.5, dotRadius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(size, size * 0.5, dotRadius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
   const baseHex = toHexString(baseColor);
 
@@ -131,6 +164,10 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
     const stripeHeight = size * 0.45;
     const stripeY = (size - stripeHeight) / 2;
     ctx.fillRect(0, stripeY, size, stripeHeight);
+  }
+
+  if (pattern === 'cue') {
+    drawCueBallDots(ctx, size);
   }
 
   if (Number.isFinite(number)) {
