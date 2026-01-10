@@ -1112,7 +1112,7 @@ const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without explodin
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 0.98;
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
-const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 3.2;
+const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 4.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
 const MAX_POWER_LANDING_SOUND_COOLDOWN_MS = 240;
 const MAX_POWER_CAMERA_HOLD_MS = 2000;
@@ -1316,19 +1316,19 @@ const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
-const SPIN_STRENGTH = BALL_R * 0.0295 * 1.35;
-const SPIN_DECAY = 0.925;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * 1.32;
-const SPIN_ROLL_DECAY = 0.985;
-const SPIN_AIR_DECAY = 0.9985; // hold spin energy while the cue ball travels straight pre-impact
-const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 2.1; // inject extra sideways carry while the cue ball is airborne
-const RAIL_SPIN_THROW_SCALE = BALL_R * 0.24; // let cushion contacts inherit noticeable throw from active side spin
+const SPIN_STRENGTH = BALL_R * 0.0295 * 1.6;
+const SPIN_DECAY = 0.945;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * 1.55;
+const SPIN_ROLL_DECAY = 0.992;
+const SPIN_AIR_DECAY = 0.999; // hold spin energy while the cue ball travels straight pre-impact
+const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 2.6; // inject extra sideways carry while the cue ball is airborne
+const RAIL_SPIN_THROW_SCALE = BALL_R * 0.3; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
-const SWERVE_THRESHOLD = 0.62; // outer 38% of the spin control activates swerve behaviour
-const SWERVE_TRAVEL_MULTIPLIER = 1.12; // let swerve-driven roll carry more lateral energy while staying believable
-const SWERVE_PRE_IMPACT_DRIFT = 0.55; // allow a visible curve before the cue ball hits the object ball
-const PRE_IMPACT_SPIN_DRIFT = 0.16; // reapply stored sideways swerve once the cue ball is rolling after impact
+const SWERVE_THRESHOLD = 0.52; // outer 48% of the spin control activates swerve behaviour
+const SWERVE_TRAVEL_MULTIPLIER = 1.28; // let swerve-driven roll carry more lateral energy while staying believable
+const SWERVE_PRE_IMPACT_DRIFT = 0.8; // allow a visible curve before the cue ball hits the object ball
+const PRE_IMPACT_SPIN_DRIFT = 0.24; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
@@ -1423,17 +1423,17 @@ const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(4);
 const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.6;
 const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.45;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
-const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
+const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.92;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
-const MAX_SPIN_SIDE = BALL_R * 0.35;
-const MAX_SPIN_VERTICAL = BALL_R * 0.85;
+const MAX_SPIN_SIDE = BALL_R * 0.45;
+const MAX_SPIN_VERTICAL = BALL_R * 0.92;
 const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so the cue stays just above the ball surface
 const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
-const SIDE_SPIN_MULTIPLIER = 1.25;
-const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5;
-const TOPSPIN_MULTIPLIER = 1.3;
+const SIDE_SPIN_MULTIPLIER = 1.5;
+const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.5;
+const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
@@ -4791,8 +4791,8 @@ const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor whi
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
 const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-ball follow line toward a draw path
-const AIM_SPIN_PREVIEW_SIDE = 0.32;
-const AIM_SPIN_PREVIEW_FORWARD = 0.12;
+const AIM_SPIN_PREVIEW_SIDE = 1;
+const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
@@ -5887,12 +5887,14 @@ function resolveSwerveAimDir(
   const curveBase =
     (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
   const powerScale = 4 + powerStrength * 6;
+  const swerveScale = 0.6 + swerve.intensity * 0.9;
   const adjust =
     swerve.sideSpin *
     swerve.intensity *
     curveBase *
     powerScale *
-    AIM_SPIN_PREVIEW_SIDE;
+    AIM_SPIN_PREVIEW_SIDE *
+    swerveScale;
   const adjusted = aimDir.clone().add(perp.multiplyScalar(adjust));
   if (adjusted.lengthSq() > 1e-8) adjusted.normalize();
   return adjusted;
@@ -5930,11 +5932,12 @@ function buildSwerveAimLinePoints(
   const segments = clamp(Math.round(travel / (BALL_R * 1.6)), 6, 14);
   const curveBase =
     (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
+  const swerveScale = 0.6 + swerve.intensity * 0.9;
   const curveScale =
     curveBase *
     (4 + powerStrength * 6.5) *
     AIM_SPIN_PREVIEW_SIDE *
-    Math.max(0.45, swerve.intensity);
+    swerveScale;
   const curveAmount = sideSpin * curveScale * travel;
   controlPoint
     .copy(start)
@@ -19997,7 +20000,13 @@ const powerRef = useRef(hud.power);
               (0.4 + 0.6 * liftRatio) *
               (0.55 + 0.45 * spinRatio);
             const jumpVelocity = MAX_POWER_BOUNCE_IMPULSE * JUMP_SHOT_LAUNCH_SCALE * jumpStrength;
-            const jumpHeight = MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE * jumpStrength;
+            const physicsHeight =
+              (jumpVelocity * jumpVelocity) /
+              (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
+            const jumpHeight = Math.min(
+              MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE,
+              physicsHeight
+            );
             cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
             cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
           }
