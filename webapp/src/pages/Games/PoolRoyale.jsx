@@ -1325,7 +1325,6 @@ const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 2.6; // inject extra sideways c
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.3; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
-const SWERVE_THRESHOLD = 0.52; // outer 48% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 1.28; // let swerve-driven roll carry more lateral energy while staying believable
 const SWERVE_PRE_IMPACT_DRIFT = 0.8; // allow a visible curve before the cue ball hits the object ball
 const PRE_IMPACT_SPIN_DRIFT = 0.24; // reapply stored sideways swerve once the cue ball is rolling after impact
@@ -1428,7 +1427,6 @@ const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_SIDE = BALL_R * 0.45;
 const MAX_SPIN_VERTICAL = BALL_R * 0.92;
 const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so the cue stays just above the ball surface
-const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
 const SIDE_SPIN_MULTIPLIER = 1.5;
@@ -5798,8 +5796,7 @@ function resolveSpinFrame(ball) {
 function resolveSpinWorldVector(ball, output) {
   if (!ball?.spin) return null;
   const { forward, lateral } = resolveSpinFrame(ball);
-  const sideSpin =
-    ball.spinMode === 'swerve' ? -(ball.spin.x || 0) : (ball.spin.x || 0);
+  const sideSpin = ball.spin.x || 0;
   const forwardSpin = ball.spin.y || 0;
   const target = output ?? TMP_VEC2_SPIN;
   target.copy(lateral).multiplyScalar(sideSpin).addScaledVector(forward, forwardSpin);
@@ -5821,11 +5818,6 @@ function applySpinImpulse(ball, scale = 1) {
   }
   if (Math.abs(forwardKick) > 1e-8) {
     ball.vel.addScaledVector(forward, forwardKick);
-  }
-  if (ball.id === 'cue' && ball.spinMode === 'swerve') {
-    ball.spinMode = 'standard';
-    ball.swerveStrength = 0;
-    ball.swervePowerStrength = 0;
   }
   const decayFactor = Math.pow(SPIN_DECAY, Math.max(scale, 0.5));
   ball.spin.multiplyScalar(decayFactor);
@@ -5864,29 +5856,11 @@ function resolveSwerveSettings(
   forceSwerve = false,
   liftStrength = 0
 ) {
-  const sideSpin = spin?.x ?? 0;
-  const magnitude = Math.hypot(spin?.x ?? 0, spin?.y ?? 0);
-  const active =
-    (forceSwerve || magnitude >= SWERVE_THRESHOLD) &&
-    Math.abs(sideSpin) >= 1e-3;
-  if (!active) {
-    return {
-      active: false,
-      sideSpin: 0,
-      magnitude,
-      intensity: 0
-    };
-  }
-  const threshold = Math.max(1 - SWERVE_THRESHOLD, 1e-6);
-  const normalized = clamp((magnitude - SWERVE_THRESHOLD) / threshold, 0, 1);
-  const liftBoost = 0.75 + Math.max(0, liftStrength) * 0.5;
-  const powerBoost = 0.7 + powerStrength * 0.85;
-  const spinBoost = 0.75 + Math.min(Math.abs(sideSpin), 1) * 0.6;
   return {
-    active: true,
-    sideSpin,
-    magnitude,
-    intensity: normalized * powerBoost * spinBoost * liftBoost
+    active: false,
+    sideSpin: 0,
+    magnitude: Math.hypot(spin?.x ?? 0, spin?.y ?? 0),
+    intensity: 0
   };
 }
 
@@ -5898,24 +5872,11 @@ function resolveSpinPreviewSettings(
 ) {
   const swerve = resolveSwerveSettings(spin, powerStrength, forceSwerve, liftStrength);
   if (swerve.active) return swerve;
-  const sideSpin = spin?.x ?? 0;
-  const magnitude = Math.abs(sideSpin);
-  if (magnitude < 1e-3) {
-    return {
-      active: false,
-      sideSpin: 0,
-      magnitude,
-      intensity: 0
-    };
-  }
-  const powerBoost = 0.55 + powerStrength * 0.35;
-  const liftBoost = 0.8 + Math.max(0, liftStrength) * 0.3;
-  const intensity = Math.min(magnitude, 1) * powerBoost * liftBoost * 0.35;
   return {
     active: false,
-    sideSpin,
-    magnitude,
-    intensity
+    sideSpin: 0,
+    magnitude: 0,
+    intensity: 0
   };
 }
 
@@ -12084,13 +12045,10 @@ const powerRef = useRef(hud.power);
     const scaledY = (y * maxVertical) / largest;
     dot.style.left = `${50 + scaledX * 50}%`;
     dot.style.top = `${50 + scaledY * 50}%`;
-    const magnitude = Math.hypot(x, y);
     const showBlocked = blocked ?? spinLegalityRef.current?.blocked;
     dot.style.backgroundColor = showBlocked
       ? '#9ca3af'
-      : magnitude >= SWERVE_THRESHOLD
-        ? '#facc15'
-        : '#dc2626';
+      : '#dc2626';
     dot.dataset.blocked = showBlocked ? '1' : '0';
   }, []);
   const cueRef = useRef(null);
@@ -17474,8 +17432,7 @@ const powerRef = useRef(hud.power);
           }
           const result = legality.blocked ? { x: 0, y: 0 } : normalized;
           const magnitude = Math.hypot(result.x ?? 0, result.y ?? 0);
-          const mode = magnitude >= SWERVE_THRESHOLD ? 'swerve' : 'standard';
-          spinAppliedRef.current = { ...result, magnitude, mode };
+          spinAppliedRef.current = { ...result, magnitude, mode: 'standard' };
           return result;
         };
         const drag = { on: false, x: 0, y: 0, moved: false };
@@ -20005,16 +19962,9 @@ const powerRef = useRef(hud.power);
             cue.spin.set(spinSide, spinTop);
           }
           if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-          cue.spinMode =
-            spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
-          const swerveSettings = resolveSwerveSettings(
-            physicsSpin,
-            clampedPower,
-            cue.spinMode === 'swerve',
-            liftStrength
-          );
-          cue.swerveStrength = cue.spinMode === 'swerve' ? swerveSettings.intensity : 0;
-          cue.swervePowerStrength = cue.spinMode === 'swerve' ? clampedPower : 0;
+          cue.spinMode = 'standard';
+          cue.swerveStrength = 0;
+          cue.swervePowerStrength = 0;
           resetSpinRef.current?.();
           cueLiftRef.current.lift = 0;
           cueLiftRef.current.startLift = 0;
@@ -22646,7 +22596,7 @@ const powerRef = useRef(hud.power);
             0,
             1
           );
-          const swerveActive = spinAppliedRef.current?.mode === 'swerve';
+          const swerveActive = false;
           const aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
           const guideAimDir2D = resolveSwerveAimDir(
             aimDir2D,
@@ -22966,8 +22916,7 @@ const powerRef = useRef(hud.power);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           const powerStrength = THREE.MathUtils.clamp(remoteAimState?.power ?? 0, 0, 1);
           const remoteSpin = remoteAimState?.spin ?? { x: 0, y: 0 };
-          const remoteSpinMagnitude = Math.hypot(remoteSpin.x ?? 0, remoteSpin.y ?? 0);
-          const remoteSwerveActive = remoteSpinMagnitude >= SWERVE_THRESHOLD;
+          const remoteSwerveActive = false;
           const remotePhysicsSpin = mapSpinForPhysics(remoteSpin);
           const guideAimDir2D = resolveSwerveAimDir(
             remoteAimDir,
