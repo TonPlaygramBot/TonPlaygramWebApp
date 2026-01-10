@@ -10267,11 +10267,6 @@ export function PoolRoyaleGame({
     if (!host) return;
     setErr(null);
     setWebglUnavailable(false);
-    if (!isWebGLAvailable()) {
-      setWebglUnavailable(true);
-      setErr('WebGL is not available on this device. Enable hardware acceleration to play.');
-      return;
-    }
     const cueRackDisposers = [];
     let disposed = false;
     try {
