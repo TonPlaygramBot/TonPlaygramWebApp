@@ -4476,6 +4476,15 @@ const clampToUnitCircle = (x, y) => {
   const scale = L > 1e-6 ? 1 / L : 0;
   return { x: x * scale, y: y * scale };
 };
+const normalizeSpinInput = (spin) => {
+  const x = spin?.x ?? 0;
+  const y = spin?.y ?? 0;
+  const magnitude = Math.hypot(x, y);
+  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
+    return { x: 0, y: 0 };
+  }
+  return clampToUnitCircle(x, y);
+};
 
 const prepareSpinAxes = (aimDir) => {
   if (!aimDir) {
@@ -13037,10 +13046,17 @@ export function PoolRoyaleGame({
             spinLegalityRef.current = legality;
           }
           const applied = clampSpinToLimits();
-          if (updateUi) {
-            updateSpinDotPosition(applied, legality.blocked);
+          const normalized = normalizeSpinInput(applied);
+          if (
+            normalized.x !== applied.x ||
+            normalized.y !== applied.y
+          ) {
+            spinRef.current = normalized;
           }
-          const result = legality.blocked ? { x: 0, y: 0 } : applied;
+          if (updateUi) {
+            updateSpinDotPosition(normalized, legality.blocked);
+          }
+          const result = legality.blocked ? { x: 0, y: 0 } : normalized;
           const magnitude = Math.hypot(result.x ?? 0, result.y ?? 0);
           const mode = magnitude >= SWERVE_THRESHOLD ? 'swerve' : 'standard';
           spinAppliedRef.current = { ...result, magnitude, mode };
@@ -16611,7 +16627,7 @@ export function PoolRoyaleGame({
             }
             b.mesh.position.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
             if (scaledSpeed > 0) {
-              const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
+              const axis = new THREE.Vector3(-b.vel.y, 0, b.vel.x).normalize();
               const angle = scaledSpeed / BALL_R;
               b.mesh.rotateOnWorldAxis(axis, angle);
             }
@@ -17296,10 +17312,11 @@ export function PoolRoyaleGame({
     };
 
     const setSpin = (nx, ny) => {
-      const normalized = clampToUnitCircle(nx, ny);
+      const normalized = normalizeSpinInput({ x: nx, y: ny });
       spinRequestRef.current = normalized;
       const limited = clampToLimits(normalized.x, normalized.y);
-      spinRef.current = limited;
+      const limitedNormalized = normalizeSpinInput(limited);
+      spinRef.current = limitedNormalized;
       const cueBall = cueRef.current;
       const ballsList = ballsRef.current?.length
         ? ballsRef.current
@@ -17320,7 +17337,7 @@ export function PoolRoyaleGame({
         }
       );
       spinLegalityRef.current = legality;
-      updateSpinDotPosition(limited, legality.blocked);
+      updateSpinDotPosition(limitedNormalized, legality.blocked);
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
