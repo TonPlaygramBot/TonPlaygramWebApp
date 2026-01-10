@@ -5017,7 +5017,7 @@ const normalizeSpinInput = (spin) => {
   return clampToUnitCircle(x, y);
 };
 const mapSpinForPhysics = (spin) => ({
-  x: -(spin?.x ?? 0),
+  x: spin?.x ?? 0,
   y: spin?.y ?? 0
 });
 const normalizeCueLift = (liftAngle = 0) => {
@@ -12032,10 +12032,8 @@ const powerRef = useRef(hud.power);
     const largest = Math.max(maxSide, maxVertical);
     const scaledX = (x * maxSide) / largest;
     const scaledY = (y * maxVertical) / largest;
-    const dotInset = (SPIN_DOT_DIAMETER_PX / SPIN_CONTROL_DIAMETER_PX) * 50;
-    const maxOffset = 50 - dotInset;
-    dot.style.left = `${50 + scaledX * maxOffset}%`;
-    dot.style.top = `${50 + scaledY * maxOffset}%`;
+    dot.style.left = `${50 + scaledX * 50}%`;
+    dot.style.top = `${50 + scaledY * 50}%`;
     const magnitude = Math.hypot(x, y);
     const showBlocked = blocked ?? spinLegalityRef.current?.blocked;
     dot.style.backgroundColor = showBlocked
