@@ -7,7 +7,7 @@ import { applySRGBColorSpace } from './colorSpace.js';
 const BALL_TEXTURE_SIZE = 1024;
 const BALL_TEXTURE_CACHE = new Map();
 const BALL_MATERIAL_CACHE = new Map();
-const CUE_TIP_RADIUS_RATIO = 0.1714285714;
+const CUE_TIP_RADIUS_RATIO = 0.155;
 
 function clamp01(value) {
   return Math.min(1, Math.max(0, value));
@@ -125,7 +125,9 @@ function drawCueBallDots(ctx, size) {
   const dotRadius = size * 0.5 * CUE_TIP_RADIUS_RATIO;
   const poleInset = dotRadius * 2.2;
   const angularRadius = (dotRadius / size) * Math.PI;
-  const seamInset = Math.min(0.05, Math.max(0.02, angularRadius / (Math.PI * 2)));
+  const baseLongitudeSpan = angularRadius;
+  const baseDu = baseLongitudeSpan / (Math.PI * 2);
+  const seamInset = Math.min(0.02, baseDu * 0.5);
   const dotPositions = [
     { u: 0.5, v: 0.5 }, // front
     { u: 0.25, v: 0.5 }, // left
@@ -146,7 +148,25 @@ function drawCueBallDots(ctx, size) {
   };
 
   const drawDot = ({ u, v }) => {
-    const du = angularRadius / (Math.PI * 2);
+    const latitude = (0.5 - v) * Math.PI;
+    const cosLat = Math.cos(latitude);
+    const sinLat = Math.sin(latitude);
+    const cosRadius = Math.cos(angularRadius);
+    let longitudeSpan = angularRadius;
+    if (Math.abs(cosLat) > 0.0001) {
+      const cosDelta =
+        (cosRadius - sinLat * sinLat) / (cosLat * cosLat);
+      if (cosDelta <= -1) {
+        longitudeSpan = Math.PI;
+      } else if (cosDelta >= 1) {
+        longitudeSpan = 0;
+      } else {
+        longitudeSpan = Math.acos(cosDelta);
+      }
+    } else {
+      longitudeSpan = Math.PI;
+    }
+    const du = longitudeSpan / (Math.PI * 2);
     const dv = angularRadius / Math.PI;
     const minU = Math.max(0, u - du);
     const maxU = Math.min(1, u + du);
@@ -161,7 +181,7 @@ function drawCueBallDots(ctx, size) {
     const imageData = ctx.getImageData(startX, startY, width, height);
     const data = imageData.data;
     const center = uvToVec3(u, v);
-    const cosRadius = Math.cos(angularRadius);
+    const dotCosRadius = cosRadius;
 
     for (let y = 0; y < height; y += 1) {
       const vSample = (startY + y + 0.5) / size;
@@ -170,7 +190,7 @@ function drawCueBallDots(ctx, size) {
         const point = uvToVec3(uSample, vSample);
         const dot =
           center.x * point.x + center.y * point.y + center.z * point.z;
-        if (dot >= cosRadius) {
+        if (dot >= dotCosRadius) {
           const idx = (y * width + x) * 4;
           data[idx] = 220;
           data[idx + 1] = 38;
