@@ -1193,21 +1193,22 @@ const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass clean
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
 const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // raise the net so the weave sits higher on screen
+const POCKET_NET_TOP_EXTENSION = BALL_R * 0.12; // extend the net upwards without changing the bottom depth
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 7.6); // stretch the holder run so it comfortably fits 7 balls
 const POCKET_GUIDE_DROP = BALL_R * 0.12;
-const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
+const POCKET_GUIDE_SPREAD = BALL_R * 0.54;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
-const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.18; // drop the centre rail to form the floor of the holder
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.045; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.46; // keep the ball rest point unchanged while the chrome guides extend
 const POCKET_HOLDER_REST_DROP = BALL_R * 2.18; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
@@ -1322,6 +1323,7 @@ const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SWERVE_THRESHOLD = 0.7; // outer 30% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.86; // let swerve-driven roll carry more lateral energy while staying believable
+const SWERVE_CURVE_STRENGTH = SPIN_STRENGTH * 0.18; // add lateral curve while the cue ball travels with swerve spin
 const PRE_IMPACT_SPIN_DRIFT = 0.1; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
@@ -2784,7 +2786,7 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.76; // tighten the pattern footprint so the scan resolves more clearly
+const CLOTH_PATTERN_SCALE = 0.38; // tighten the pattern footprint so the scan resolves more clearly
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
 const POLYHAVEN_ANISOTROPY_BOOST = 3.6;
@@ -6804,6 +6806,7 @@ function Table3D(
   });
   const pocketGuideRingRadius = POCKET_BOTTOM_R * POCKET_NET_RING_RADIUS_SCALE;
   const pocketNetProfile = [
+    new THREE.Vector2(pocketGuideRingRadius, POCKET_NET_TOP_EXTENSION),
     new THREE.Vector2(pocketGuideRingRadius, 0),
     new THREE.Vector2(POCKET_BOTTOM_R * 0.94, -POCKET_NET_DEPTH * 0.16),
     new THREE.Vector2(POCKET_BOTTOM_R * 0.82, -POCKET_NET_DEPTH * 0.45),
@@ -6928,7 +6931,7 @@ function Table3D(
     }
 
     if (strapOrigin && strapEnd) {
-      const strapHeight = Math.max(BALL_DIAMETER * 2.6, pocketStrapLength * 0.72);
+      const strapHeight = Math.max(BALL_DIAMETER * 2.6, pocketStrapLength * 0.78);
       const strapGeom = new THREE.BoxGeometry(
         pocketStrapWidth,
         strapHeight,
@@ -20035,9 +20038,20 @@ const powerRef = useRef(hud.power);
         };
         const MAX_ROUTE_DISTANCE =
           Math.hypot(PLAY_W, PLAY_H) + Math.max(PLAY_W, PLAY_H);
-        const computePowerFromDistance = (dist) => {
+        const computePowerFromDistance = (dist, options = {}) => {
           const n = THREE.MathUtils.clamp(dist / MAX_ROUTE_DISTANCE, 0, 1);
-          return THREE.MathUtils.lerp(0.35, 0.9, n);
+          let power = THREE.MathUtils.lerp(0.32, 0.92, n);
+          const cutSeverity = THREE.MathUtils.clamp(options.cutSeverity ?? 0, 0, 1);
+          if (cutSeverity > 0) {
+            power += cutSeverity * 0.06;
+          }
+          if (options.viaCushion) {
+            power += 0.04;
+          }
+          if (options.speedBias) {
+            power *= options.speedBias;
+          }
+          return THREE.MathUtils.clamp(power, 0.28, 0.95);
         };
         const computePlanSpin = (plan, stateSnapshot) => {
           const fallback = { x: 0, y: -0.1 };
@@ -20104,7 +20118,14 @@ const powerRef = useRef(hud.power);
               -1,
               1
             );
-            return { x: spinX, y: spinY };
+            const shotDistance = (plan.cueToTarget ?? 0) + (plan.targetToPocket ?? 0);
+            const distanceNorm = THREE.MathUtils.clamp(
+              shotDistance / Math.max(PLAY_W, PLAY_H, BALL_R),
+              0,
+              1
+            );
+            const distanceScale = THREE.MathUtils.lerp(1.05, 0.7, distanceNorm);
+            return { x: spinX * distanceScale, y: spinY * distanceScale };
           } catch (err) {
             console.warn('spin prediction failed', err);
             return fallback;
@@ -20359,6 +20380,31 @@ const powerRef = useRef(hud.power);
             plan.nextShotScore = score;
             return score;
           };
+          const tunePlanPowerForLeave = (plan) => {
+            if (!shouldAnalyzeLeave || !plan || plan.type !== 'pot') return plan?.power ?? 0;
+            const basePower = Number.isFinite(plan.power) ? plan.power : 0.6;
+            const candidates = [
+              basePower - 0.1,
+              basePower - 0.05,
+              basePower,
+              basePower + 0.06,
+              basePower + 0.12
+            ];
+            let bestPower = basePower;
+            let bestScore = -Infinity;
+            candidates.forEach((candidate) => {
+              const clamped = THREE.MathUtils.clamp(candidate, 0.28, 0.95);
+              plan.power = clamped;
+              const score = scoreNextShotPosition(plan);
+              if (score > bestScore) {
+                bestScore = score;
+                bestPower = clamped;
+              }
+            });
+            plan.power = bestPower;
+            scoreNextShotPosition(plan);
+            return bestPower;
+          };
           const isPathClear = (start, end, ignoreIds = new Set()) => {
             const delta = end.clone().sub(start);
             const lenSq = delta.lengthSq();
@@ -20578,6 +20624,7 @@ const powerRef = useRef(hud.power);
                 1
               );
               const cutAngle = Math.acos(Math.abs(cutCos));
+              const cutSeverity = Math.min(cutAngle / (Math.PI / 2), 1);
               const totalDist = cueDist + toPocketLen;
               const cushionTax = cushionAid ? BALL_R * 30 + cushionAid.totalDist * 0.08 : 0;
               const baseDifficulty =
@@ -20585,7 +20632,10 @@ const powerRef = useRef(hud.power);
               const plan = {
                 type: 'pot',
                 aimDir,
-                power: computePowerFromDistance(totalDist + cushionTax),
+                power: computePowerFromDistance(totalDist + cushionTax, {
+                  cutSeverity,
+                  viaCushion: Boolean(cushionAid)
+                }),
                 target: colorId,
                 targetBall,
                 pocketId: POCKET_IDS[i],
@@ -20611,7 +20661,6 @@ const powerRef = useRef(hud.power);
               const viewAngle = Math.atan2(ballDiameter, toPocketLen);
               const viewScore = Math.min(viewAngle / (Math.PI / 2), 1);
               const openLaneNorm = THREE.MathUtils.clamp(openLaneScore / 3, 0, 1);
-              const cutSeverity = Math.min(cutAngle / (Math.PI / 2), 1);
               const travelPenalty = Math.min(
                 (cueDist + toPocketLen) / Math.max(PLAY_W, PLAY_H, BALL_R),
                 1
@@ -20628,6 +20677,7 @@ const powerRef = useRef(hud.power);
                 1
               );
               plan.spin = computePlanSpin(plan, state);
+              tunePlanPowerForLeave(plan);
               potShots.push(plan);
             }
             const cueToBall = targetBall.pos.clone().sub(cuePos);
@@ -20638,7 +20688,9 @@ const powerRef = useRef(hud.power);
               const blockedPlan = {
                 type: 'safety',
                 aimDir: cueToBall.clone().normalize(),
-                power: computePowerFromDistance((cueDist + safetyDist) * 0.6),
+                power: computePowerFromDistance((cueDist + safetyDist) * 0.6, {
+                  speedBias: 0.92
+                }),
                 target: colorId,
                 targetBall,
                 pocketId: 'SAFETY',
@@ -20656,22 +20708,24 @@ const powerRef = useRef(hud.power);
               }
               return;
             }
-              const safetyPlan = {
-                type: 'safety',
-                aimDir: cueToBall.clone().normalize(),
-                power: computePowerFromDistance((cueDist + safetyDist) * 0.85),
-                target: colorId,
+            const safetyPlan = {
+              type: 'safety',
+              aimDir: cueToBall.clone().normalize(),
+              power: computePowerFromDistance((cueDist + safetyDist) * 0.85, {
+                speedBias: 0.96
+              }),
+              target: colorId,
               targetBall,
               pocketId: 'SAFETY',
-                difficulty: cueDist + safetyDist * 1.2,
-                cueToTarget: cueDist,
-                targetToPocket: safetyDist,
-                spin: { x: 0, y: -0.2 },
-                quality: Math.max(
-                  0,
-                  1 - (cueDist + safetyDist * 1.2) / (PLAY_W + PLAY_H)
-                )
-              };
+              difficulty: cueDist + safetyDist * 1.2,
+              cueToTarget: cueDist,
+              targetToPocket: safetyDist,
+              spin: { x: 0, y: -0.2 },
+              quality: Math.max(
+                0,
+                1 - (cueDist + safetyDist * 1.2) / (PLAY_W + PLAY_H)
+              )
+            };
             safetyShots.push(safetyPlan);
           });
           if (!potShots.length && (activeVariantId === 'american' || activeVariantId === '9ball')) {
@@ -20695,7 +20749,6 @@ const powerRef = useRef(hud.power);
                 const aimDir = cueVec.clone().normalize();
                 const cueDist = cueVec.length();
                 const toPocket = targetBall.pos.distanceTo(pocketCenter);
-                const power = computePowerFromDistance(cueDist + toPocket);
                 const entryAlignment = Math.max(
                   0,
                   toPocketDir
@@ -20716,6 +20769,9 @@ const powerRef = useRef(hud.power);
                 );
                 const viewAngle = Math.atan2(ballDiameter, toPocket);
                 const viewScore = Math.min(viewAngle / (Math.PI / 2), 1);
+                const power = computePowerFromDistance(cueDist + toPocket, {
+                  cutSeverity
+                });
                 const quality = THREE.MathUtils.clamp(
                   0.32 * entryAlignment +
                     0.24 * (1 - cutSeverity) +
@@ -20725,7 +20781,7 @@ const powerRef = useRef(hud.power);
                   0,
                   1
                 );
-                potShots.push({
+                const fallbackPotPlan = {
                   type: 'pot',
                   aimDir,
                   power,
@@ -20757,7 +20813,9 @@ const powerRef = useRef(hud.power);
                     },
                     state
                   )
-                });
+                };
+                tunePlanPowerForLeave(fallbackPotPlan);
+                potShots.push(fallbackPotPlan);
               }
             }
           }
@@ -21036,7 +21094,20 @@ const powerRef = useRef(hud.power);
               targetBall && pocketCenter
                 ? targetBall.pos.distanceTo(pocketCenter)
                 : 0;
-            const basePower = computePowerFromDistance(cueToAim + pocketDistance);
+            let cutSeverity = 0;
+            if (targetBall && pocketCenter) {
+              const toPocketDir = pocketCenter.clone().sub(targetBall.pos).normalize();
+              const ghost = targetBall.pos
+                .clone()
+                .sub(toPocketDir.clone().multiplyScalar(BALL_R * 2));
+              const impactNormal = targetBall.pos.clone().sub(ghost).normalize();
+              const cutCos = THREE.MathUtils.clamp(impactNormal.dot(aimDir), -1, 1);
+              const cutAngle = Math.acos(Math.abs(cutCos));
+              cutSeverity = Math.min(cutAngle / (Math.PI / 2), 1);
+            }
+            const basePower = computePowerFromDistance(cueToAim + pocketDistance, {
+              cutSeverity
+            });
             const power = THREE.MathUtils.clamp(
               basePower * mapSpeedPresetScale(plan.cueParams?.speed),
               0.3,
@@ -22894,6 +22965,13 @@ const powerRef = useRef(hud.power);
                   const alignedSpeed = b.vel.dot(launchDir);
                   TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
                   b.vel.copy(TMP_VEC2_AXIS);
+                  if (swerveTravel) {
+                    const lateralDir = TMP_VEC2_LATERAL.copy(launchDir).set(-launchDir.y, launchDir.x);
+                    const sideComponent = b.spin.dot(lateralDir);
+                    const swerveSpeed = Math.min(b.vel.length(), 8);
+                    const curveStrength = SWERVE_CURVE_STRENGTH * (0.65 + swerveSpeed * 0.08);
+                    b.vel.addScaledVector(lateralDir, sideComponent * curveStrength * stepScale);
+                  }
                 } else {
                   b.vel.add(TMP_VEC2_SPIN);
                   if (
