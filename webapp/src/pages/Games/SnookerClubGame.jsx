@@ -42,6 +42,7 @@ import {
   DEFAULT_WOOD_TEXTURE_SIZE,
   applyWoodTextures,
   disposeMaterialWithWood,
+  setWoodTextureAnisotropyCap,
 } from '../../utils/woodMaterials.js';
 import { SNOOKER_CLUB_DEFAULT_UNLOCKS } from '../../config/snookerClubInventoryConfig.js';
 import {
@@ -164,6 +165,20 @@ function isWebGLAvailable() {
     return false;
   }
 }
+
+let rendererAnisotropyCap = 16;
+setWoodTextureAnisotropyCap(rendererAnisotropyCap);
+const updateRendererAnisotropyCap = (renderer) => {
+  if (renderer?.capabilities?.getMaxAnisotropy) {
+    const max = renderer.capabilities.getMaxAnisotropy();
+    if (Number.isFinite(max)) {
+      rendererAnisotropyCap = Math.max(rendererAnisotropyCap, max);
+    }
+  }
+  setWoodTextureAnisotropyCap(rendererAnisotropyCap);
+};
+const resolveTextureAnisotropy = (fallback = 1) =>
+  Math.max(rendererAnisotropyCap, Number.isFinite(fallback) ? fallback : 1);
 
 let cachedRendererString = null;
 let rendererLookupAttempted = false;
@@ -1440,13 +1455,13 @@ function createCueMapleTextures() {
   const map = new THREE.CanvasTexture(canvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   map.repeat.set(6, 1);
-  map.anisotropy = 8;
+  map.anisotropy = resolveTextureAnisotropy(8);
   applySRGBColorSpace(map);
   map.needsUpdate = true;
   const bump = new THREE.CanvasTexture(canvas);
   bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
   bump.repeat.set(6, 1);
-  bump.anisotropy = 8;
+  bump.anisotropy = resolveTextureAnisotropy(8);
   bump.needsUpdate = true;
   return { map, bump };
 }
@@ -1480,13 +1495,13 @@ function createCueEbonyTextures() {
   const map = new THREE.CanvasTexture(canvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   map.repeat.set(8, 1);
-  map.anisotropy = 8;
+  map.anisotropy = resolveTextureAnisotropy(8);
   applySRGBColorSpace(map);
   map.needsUpdate = true;
   const bump = new THREE.CanvasTexture(canvas);
   bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
   bump.repeat.set(8, 1);
-  bump.anisotropy = 8;
+  bump.anisotropy = resolveTextureAnisotropy(8);
   bump.needsUpdate = true;
   return { map, bump };
 }
@@ -2770,13 +2785,13 @@ function createPocketLinerTextures(option) {
   applySRGBColorSpace(map);
   map.wrapS = THREE.RepeatWrapping;
   map.wrapT = THREE.RepeatWrapping;
-  map.anisotropy = 4;
+  map.anisotropy = resolveTextureAnisotropy(4);
   map.needsUpdate = true;
 
   const bump = new THREE.CanvasTexture(bumpCanvas);
   bump.wrapS = THREE.RepeatWrapping;
   bump.wrapT = THREE.RepeatWrapping;
-  bump.anisotropy = 2;
+  bump.anisotropy = resolveTextureAnisotropy(2);
   bump.needsUpdate = true;
 
   const textures = { map, bump, repeat };
@@ -3049,7 +3064,7 @@ const createClothTextures = (() => {
 
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.anisotropy = CLOTH_QUALITY.anisotropy;
+    colorMap.anisotropy = resolveTextureAnisotropy(CLOTH_QUALITY.anisotropy);
     colorMap.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
     colorMap.minFilter = CLOTH_QUALITY.generateMipmaps
       ? THREE.LinearMipmapLinearFilter
@@ -3106,7 +3121,7 @@ const createClothTextures = (() => {
     const bumpMap = new THREE.CanvasTexture(bumpCanvas);
     bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
     bumpMap.repeat.copy(colorMap.repeat);
-    bumpMap.anisotropy = CLOTH_QUALITY.anisotropy;
+    bumpMap.anisotropy = resolveTextureAnisotropy(CLOTH_QUALITY.anisotropy);
     bumpMap.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
     bumpMap.minFilter = CLOTH_QUALITY.generateMipmaps
       ? THREE.LinearMipmapLinearFilter
@@ -4953,7 +4968,7 @@ function makeClothTexture(
   const repeatX = baseRepeat * (PLAY_W / TABLE.W);
   const repeatY = baseRepeat * (PLAY_H / TABLE.H);
   texture.repeat.set(repeatX, repeatY);
-  texture.anisotropy = 48;
+  texture.anisotropy = resolveTextureAnisotropy(48);
   applySRGBColorSpace(texture);
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
@@ -5044,7 +5059,7 @@ function makeWoodTexture({
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeatX, repeatY);
-  texture.anisotropy = 8;
+  texture.anisotropy = resolveTextureAnisotropy(8);
   applySRGBColorSpace(texture);
   texture.needsUpdate = true;
   return texture;
@@ -8833,7 +8848,7 @@ export function PoolRoyaleGame({
     applySRGBColorSpace(texture);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.anisotropy = 8;
+    texture.anisotropy = resolveTextureAnisotropy(8);
     texture.needsUpdate = true;
     return texture;
   }, []);
@@ -9427,6 +9442,7 @@ export function PoolRoyaleGame({
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
   const [isBooted, setIsBooted] = useState(false);
+  const [renderResetKey, setRenderResetKey] = useState(0);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
@@ -10089,6 +10105,13 @@ export function PoolRoyaleGame({
     }
     const cueRackDisposers = [];
     let disposed = false;
+    let contextLost = false;
+    const triggerRendererReset = () => {
+      if (disposed || contextLost) return;
+      contextLost = true;
+      setErr('Graphics renderer reset; restoring the table…');
+      setRenderResetKey((value) => value + 1);
+    };
     const markFrameRendered = () => {
       if (hasRenderedRef.current) return;
       hasRenderedRef.current = true;
@@ -10115,17 +10138,24 @@ export function PoolRoyaleGame({
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.enabled = false;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      rendererRef.current = renderer;
+      updateRendererAnisotropyCap(renderer);
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
       host.appendChild(renderer.domElement);
-      renderer.domElement.addEventListener('webglcontextlost', (e) =>
-        e.preventDefault()
-      );
+      const handleContextLost = (e) => {
+        e.preventDefault();
+        triggerRendererReset();
+      };
+      const handleContextRestored = () => {
+        triggerRendererReset();
+      };
+      renderer.domElement.addEventListener('webglcontextlost', handleContextLost, false);
+      renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored, false);
       applyRendererQuality();
       renderer.domElement.style.transformOrigin = 'top left';
-      rendererRef.current = renderer;
 
       // Scene & Camera
       const scene = new THREE.Scene();
@@ -10344,7 +10374,7 @@ export function PoolRoyaleGame({
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = 4;
+        texture.anisotropy = resolveTextureAnisotropy(4);
         applySRGBColorSpace(texture);
         let offset = 0;
         return {
@@ -10383,7 +10413,7 @@ export function PoolRoyaleGame({
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = 8;
+        texture.anisotropy = resolveTextureAnisotropy(8);
         applySRGBColorSpace(texture);
         let pulse = 0;
         const createAvatarStore = () => ({
@@ -17137,6 +17167,8 @@ export function PoolRoyaleGame({
           dom.removeEventListener('touchstart', down);
           dom.removeEventListener('touchmove', move);
           window.removeEventListener('touchend', up);
+          dom.removeEventListener('webglcontextlost', handleContextLost, false);
+          dom.removeEventListener('webglcontextrestored', handleContextRestored, false);
           window.removeEventListener('keydown', keyRot);
           dom.removeEventListener('pointerdown', handleInHandDown);
           dom.removeEventListener('pointermove', handleInHandMove);
@@ -17189,7 +17221,7 @@ export function PoolRoyaleGame({
         console.error(e);
         setErr(e?.message || String(e));
       }
-  }, []);
+  }, [renderResetKey]);
 
   useEffect(() => {
     applyFinishRef.current?.(tableFinish);
