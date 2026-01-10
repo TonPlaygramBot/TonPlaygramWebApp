@@ -5820,6 +5820,173 @@ function applyRailSpinResponse(ball, impact) {
   applySpinImpulse(ball, 0.6);
 }
 
+function computeShotSpinVector(aimDir, appliedSpin, ranges, powerStrength) {
+  const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * powerStrength;
+  const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
+  const baseSide = (appliedSpin?.x ?? 0) * (ranges.side ?? 0);
+  let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerScale;
+  let spinTop = -(appliedSpin?.y ?? 0) * (ranges.forward ?? 0) * powerScale;
+  if ((appliedSpin?.y ?? 0) > 0) {
+    spinTop *= BACKSPIN_MULTIPLIER;
+  } else if ((appliedSpin?.y ?? 0) < 0) {
+    spinTop *= TOPSPIN_MULTIPLIER;
+  }
+  const spin = new THREE.Vector2(
+    perp.x * spinSide + aimDir.x * spinTop,
+    perp.y * spinSide + aimDir.y * spinTop
+  );
+  const speed = SHOT_BASE_SPEED * powerScale;
+  return { spin, speed };
+}
+
+function resolveSegmentImpact(start, end, balls, cue) {
+  const segment = end.clone().sub(start);
+  const segmentLengthSq = segment.lengthSq();
+  if (segmentLengthSq < 1e-8) return null;
+  let bestT = Infinity;
+  let bestBall = null;
+  let bestNormal = null;
+  const consider = (t, normal, ball) => {
+    if (t < 0 || t > 1 || t >= bestT) return;
+    bestT = t;
+    bestNormal = normal ?? null;
+    bestBall = ball ?? null;
+  };
+  const checkRail = (limit, axis) => {
+    const delta = axis === 'x' ? segment.x : segment.y;
+    if (Math.abs(delta) < 1e-8) return;
+    const startCoord = axis === 'x' ? start.x : start.y;
+    const endCoord = axis === 'x' ? end.x : end.y;
+    if ((startCoord < limit && endCoord < limit) || (startCoord > limit && endCoord > limit)) {
+      return;
+    }
+    const t = (limit - startCoord) / delta;
+    if (t < 0 || t > 1) return;
+    const cross = start.clone().add(segment.clone().multiplyScalar(t));
+    if (axis === 'x') {
+      if (Math.abs(cross.y) <= RAIL_LIMIT_Y + 1e-5) {
+        const normal = new THREE.Vector2(limit > 0 ? -1 : 1, 0);
+        consider(t, normal, null);
+      }
+    } else if (Math.abs(cross.x) <= RAIL_LIMIT_X + 1e-5) {
+      const normal = new THREE.Vector2(0, limit > 0 ? -1 : 1);
+      consider(t, normal, null);
+    }
+  };
+  checkRail(RAIL_LIMIT_X, 'x');
+  checkRail(-RAIL_LIMIT_X, 'x');
+  checkRail(RAIL_LIMIT_Y, 'y');
+  checkRail(-RAIL_LIMIT_Y, 'y');
+  const contactRadius = BALL_R * 2;
+  const contactRadiusSq = contactRadius * contactRadius;
+  const ballList = Array.isArray(balls) ? balls : [];
+  ballList.forEach((ball) => {
+    if (!ball?.active || ball === cue) return;
+    const f = start.clone().sub(ball.pos);
+    const a = segmentLengthSq;
+    const b = 2 * f.dot(segment);
+    const c = f.dot(f) - contactRadiusSq;
+    const disc = b * b - 4 * a * c;
+    if (disc < 0) return;
+    const sqrtDisc = Math.sqrt(disc);
+    const t1 = (-b - sqrtDisc) / (2 * a);
+    const t2 = (-b + sqrtDisc) / (2 * a);
+    const t = t1 >= 0 && t1 <= 1 ? t1 : t2 >= 0 && t2 <= 1 ? t2 : null;
+    if (t == null) return;
+    consider(t, null, ball);
+  });
+  if (!Number.isFinite(bestT)) return null;
+  const point = start.clone().add(segment.multiplyScalar(bestT));
+  return { point, targetBall: bestBall, railNormal: bestNormal };
+}
+
+function buildSwerveAimPreview(cue, dir, appliedSpin, ranges, powerStrength, balls) {
+  if (!cue || !dir || dir.lengthSq() < 1e-8) return null;
+  const aimDir = dir.clone().normalize();
+  const { spin, speed } = computeShotSpinVector(
+    aimDir,
+    appliedSpin,
+    ranges,
+    powerStrength
+  );
+  if (!Number.isFinite(speed) || speed <= 0) return null;
+  const maxDistance = Math.sqrt(PLAY_W * PLAY_W + PLAY_H * PLAY_H);
+  const stepScale = 0.25;
+  const maxSteps = Math.max(
+    1,
+    Math.min(240, Math.ceil(maxDistance / Math.max(speed * stepScale, 1e-4)))
+  );
+  const sampleStride = Math.max(1, Math.floor(maxSteps / 24));
+  const points = [];
+  const pos = cue.pos.clone();
+  const vel = aimDir.clone().multiplyScalar(speed);
+  const spinVec = spin.clone();
+  points.push(pos.clone());
+  let impactPoint = null;
+  let targetBall = null;
+  let railNormal = null;
+  let impactDir = aimDir.clone();
+  for (let step = 0; step < maxSteps; step += 1) {
+    const prev = pos.clone();
+    const rollMultiplier = SWERVE_TRAVEL_MULTIPLIER;
+    const spinStep = spinVec
+      .clone()
+      .multiplyScalar(SPIN_ROLL_STRENGTH * rollMultiplier * stepScale);
+    const forwardMag = spinStep.dot(aimDir);
+    const forward = aimDir.clone().multiplyScalar(forwardMag);
+    vel.add(forward);
+    const alignedSpeed = vel.dot(aimDir);
+    vel.copy(aimDir).multiplyScalar(alignedSpeed);
+    const lateral = spinStep.sub(forward);
+    vel.addScaledVector(lateral, SWERVE_PRE_IMPACT_DRIFT);
+    spinVec.multiplyScalar(Math.pow(SPIN_ROLL_DECAY, stepScale));
+    vel.multiplyScalar(Math.pow(FRICTION, stepScale));
+    pos.addScaledVector(vel, stepScale);
+    const impact = resolveSegmentImpact(prev, pos, balls, cue);
+    if (impact) {
+      impactPoint = impact.point.clone();
+      targetBall = impact.targetBall ?? null;
+      railNormal = impact.railNormal ?? null;
+      impactDir =
+        vel.lengthSq() > 1e-8 ? vel.clone().normalize() : aimDir.clone();
+      points.push(impactPoint.clone());
+      break;
+    }
+    if (step % sampleStride === 0 || step === maxSteps - 1) {
+      points.push(pos.clone());
+    }
+  }
+  if (!impactPoint) {
+    impactPoint = pos.clone();
+  }
+  let targetDir = null;
+  let cueDir = null;
+  if (targetBall) {
+    const contactNormal = targetBall.pos.clone().sub(impactPoint);
+    if (contactNormal.lengthSq() > 1e-8) contactNormal.normalize();
+    else contactNormal.copy(impactDir);
+    targetDir = contactNormal.clone();
+    const projected = impactDir.dot(targetDir);
+    cueDir = impactDir.clone().sub(targetDir.clone().multiplyScalar(projected));
+    if (cueDir.lengthSq() > 1e-8) cueDir.normalize();
+    else cueDir = null;
+  } else if (railNormal) {
+    const n = railNormal.clone().normalize();
+    cueDir = impactDir
+      .clone()
+      .sub(n.clone().multiplyScalar(2 * impactDir.dot(n)))
+      .normalize();
+  }
+  return {
+    points,
+    impact: impactPoint,
+    targetDir,
+    cueDir,
+    targetBall,
+    railNormal
+  };
+}
+
 // calculate impact point and post-collision direction for aiming guide
 function calcTarget(cue, dir, balls) {
   if (!cue) {
@@ -22319,21 +22486,29 @@ const powerRef = useRef(hud.power);
             1
           );
           const aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
-          const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
-            cue,
-            aimDir2D,
-            balls
-          );
+          const swervePreview =
+            spinAppliedRef.current?.mode === 'swerve'
+              ? buildSwerveAimPreview(cue, aimDir2D, appliedSpin, ranges, powerStrength, balls)
+              : null;
+          const aimDirInfo = swervePreview ?? calcTarget(cue, aimDir2D, balls);
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
-          let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
+          let end = new THREE.Vector3(aimDirInfo.impact.x, BALL_CENTER_Y, aimDirInfo.impact.y);
           const dir = baseAimDir.clone();
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
           }
-          aimGeom.setFromPoints([start, end]);
+          if (swervePreview?.points?.length) {
+            const curvePoints = swervePreview.points.map(
+              (point) => new THREE.Vector3(point.x, BALL_CENTER_Y, point.y)
+            );
+            aimGeom.setFromPoints(curvePoints);
+            end = curvePoints[curvePoints.length - 1] ?? end;
+          } else {
+            aimGeom.setFromPoints([start, end]);
+          }
           aim.visible = true;
           const slowAssistEnabled = chalkAssistEnabledRef.current;
-          const hasTarget = slowAssistEnabled && (targetBall || railNormal);
+          const hasTarget = slowAssistEnabled && (aimDirInfo.targetBall || aimDirInfo.railNormal);
           shouldSlowAim = hasTarget;
           const precisionArea = chalkAreaRef.current;
           if (precisionArea) {
@@ -22345,12 +22520,14 @@ const powerRef = useRef(hud.power);
                 end.z
               );
               precisionArea.material.color.setHex(
-                targetBall ? CHALK_ACTIVE_COLOR : CHALK_SIDE_ACTIVE_COLOR
+                aimDirInfo.targetBall ? CHALK_ACTIVE_COLOR : CHALK_SIDE_ACTIVE_COLOR
               );
               precisionArea.material.needsUpdate = true;
             }
           }
-          const targetBallColor = targetBall ? toBallColorId(targetBall.id) : null;
+          const targetBallColor = aimDirInfo.targetBall
+            ? toBallColorId(aimDirInfo.targetBall.id)
+            : null;
           const legalTargetsRaw =
             frameRef.current?.ballOn ?? frameState.ballOn ?? [];
           const legalTargets = Array.isArray(legalTargetsRaw)
@@ -22363,8 +22540,8 @@ const powerRef = useRef(hud.power);
           const suggestionPlan = userSuggestionPlanRef.current;
           const suggestionMatchesTarget =
             suggestionPlan?.targetBall &&
-            targetBall &&
-            String(suggestionPlan.targetBall.id) === String(targetBall.id);
+            aimDirInfo.targetBall &&
+            String(suggestionPlan.targetBall.id) === String(aimDirInfo.targetBall.id);
           if (
             suggestionMatchesTarget &&
             (suggestionPlan.pocketId === 'TM' || suggestionPlan.pocketId === 'BM')
@@ -22372,19 +22549,28 @@ const powerRef = useRef(hud.power);
             sidePocketAimRef.current = true;
           }
           const aimingWrong =
-            targetBall &&
-            !railNormal &&
+            aimDirInfo.targetBall &&
+            !aimDirInfo.railNormal &&
             targetBallColor &&
             legalTargets.length > 0 &&
             !legalTargets.includes(targetBallColor);
           const primaryColor = aimingWrong
             ? 0xff3333
-            : targetBall && !railNormal
+            : aimDirInfo.targetBall && !aimDirInfo.railNormal
               ? 0xffd166
               : 0x7ce7ff;
           aim.material.color.set(primaryColor);
           aim.material.opacity = 0.55 + 0.35 * powerStrength;
-          const perp = new THREE.Vector3(-dir.z, 0, dir.x);
+          let aimTangent = dir.clone();
+          if (swervePreview?.points?.length > 1) {
+            const tail = swervePreview.points[swervePreview.points.length - 1];
+            const previous = swervePreview.points[swervePreview.points.length - 2];
+            const tangent = tail.clone().sub(previous);
+            if (tangent.lengthSq() > 1e-8) {
+              aimTangent = new THREE.Vector3(tangent.x, 0, tangent.y).normalize();
+            }
+          }
+          const perp = new THREE.Vector3(-aimTangent.z, 0, aimTangent.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           tickGeom.setFromPoints([
             end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
@@ -22392,15 +22578,19 @@ const powerRef = useRef(hud.power);
           ]);
           tick.visible = true;
           if (lookModeRef.current) {
-            const lookFocus = targetBall
-              ? new THREE.Vector3(targetBall.pos.x, BALL_CENTER_Y, targetBall.pos.y)
+            const lookFocus = aimDirInfo.targetBall
+              ? new THREE.Vector3(
+                  aimDirInfo.targetBall.pos.x,
+                  BALL_CENTER_Y,
+                  aimDirInfo.targetBall.pos.y
+                )
               : end.clone();
             aimFocusRef.current = lookFocus;
           } else {
             aimFocusRef.current = null;
           }
-          const cueFollowDir = cueDir
-            ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
+          const cueFollowDir = aimDirInfo.cueDir
+            ? new THREE.Vector3(aimDirInfo.cueDir.x, 0, aimDirInfo.cueDir.y).normalize()
             : dir.clone();
           const spinSideInfluence = (appliedSpin.x || 0) * (0.4 + 0.42 * powerStrength);
           const spinVerticalInfluence = (appliedSpin.y || 0) * (0.68 + 0.45 * powerStrength);
@@ -22565,18 +22755,22 @@ const powerRef = useRef(hud.power);
           }
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
-          if (targetDir && targetBall) {
+          if (aimDirInfo.targetDir && aimDirInfo.targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
-            const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
+            const tDir = new THREE.Vector3(
+              aimDirInfo.targetDir.x,
+              0,
+              aimDirInfo.targetDir.y
+            );
             if (tDir.lengthSq() > 1e-8) {
               tDir.normalize();
             } else {
               tDir.copy(dir);
             }
             const targetStart = new THREE.Vector3(
-              targetBall.pos.x,
+              aimDirInfo.targetBall.pos.x,
               BALL_CENTER_Y,
-              targetBall.pos.y
+              aimDirInfo.targetBall.pos.y
             );
             const distanceScale = travelScale;
             const tEnd = targetStart
@@ -22587,8 +22781,12 @@ const powerRef = useRef(hud.power);
             target.material.opacity = 0.65 + 0.3 * powerStrength;
             target.visible = true;
             target.computeLineDistances();
-          } else if (railNormal && cueDir) {
-            const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
+          } else if (aimDirInfo.railNormal && aimDirInfo.cueDir) {
+            const bounceDir = new THREE.Vector3(
+              aimDirInfo.cueDir.x,
+              0,
+              aimDirInfo.cueDir.y
+            ).normalize();
             const bounceLength = BALL_R * (12 + powerStrength * 18);
             const bounceEnd = end
               .clone()
@@ -22616,27 +22814,51 @@ const powerRef = useRef(hud.power);
           const perp = new THREE.Vector3(-baseDir.z, 0, baseDir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           const powerStrength = THREE.MathUtils.clamp(remoteAimState?.power ?? 0, 0, 1);
-          const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
-            cue,
-            remoteAimDir,
-            balls
-          );
+          const remoteSpin = {
+            x: THREE.MathUtils.clamp(remoteAimState?.spin?.x ?? 0, -1, 1),
+            y: THREE.MathUtils.clamp(remoteAimState?.spin?.y ?? 0, -1, 1)
+          };
+          const remoteSpinMagnitude = Math.hypot(remoteSpin.x, remoteSpin.y);
+          const useRemoteSwerve = remoteSpinMagnitude >= SWERVE_THRESHOLD;
+          const remotePreview = useRemoteSwerve
+            ? buildSwerveAimPreview(cue, remoteAimDir, remoteSpin, ranges, powerStrength, balls)
+            : null;
+          const aimDirInfo = remotePreview ?? calcTarget(cue, remoteAimDir, balls);
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
-          let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
+          let end = new THREE.Vector3(aimDirInfo.impact.x, BALL_CENTER_Y, aimDirInfo.impact.y);
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(baseDir.clone().multiplyScalar(BALL_R));
           }
-          aimGeom.setFromPoints([start, end]);
+          if (remotePreview?.points?.length) {
+            const curvePoints = remotePreview.points.map(
+              (point) => new THREE.Vector3(point.x, BALL_CENTER_Y, point.y)
+            );
+            aimGeom.setFromPoints(curvePoints);
+            end = curvePoints[curvePoints.length - 1] ?? end;
+          } else {
+            aimGeom.setFromPoints([start, end]);
+          }
           aim.material.color.set(0x7ce7ff);
           aim.material.opacity = 0.55 + 0.35 * powerStrength;
           aim.visible = true;
+          let aimTangent = baseDir.clone();
+          if (remotePreview?.points?.length > 1) {
+            const tail = remotePreview.points[remotePreview.points.length - 1];
+            const previous = remotePreview.points[remotePreview.points.length - 2];
+            const tangent = tail.clone().sub(previous);
+            if (tangent.lengthSq() > 1e-8) {
+              aimTangent = new THREE.Vector3(tangent.x, 0, tangent.y).normalize();
+            }
+          }
+          const tickPerp = new THREE.Vector3(-aimTangent.z, 0, aimTangent.x);
+          if (tickPerp.lengthSq() > 1e-8) tickPerp.normalize();
           tickGeom.setFromPoints([
-            end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
-            end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
+            end.clone().add(tickPerp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
+            end.clone().add(tickPerp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
           ]);
           tick.visible = true;
-          const cueFollowDir = cueDir
-            ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
+          const cueFollowDir = aimDirInfo.cueDir
+            ? new THREE.Vector3(aimDirInfo.cueDir.x, 0, aimDirInfo.cueDir.y).normalize()
             : baseDir.clone();
           const cueFollowLength = BALL_R * (12 + powerStrength * 18);
           const followEnd = end
@@ -22656,10 +22878,8 @@ const powerRef = useRef(hud.power);
           const desiredPull = computePullTargetFromPower(powerStrength, maxPull);
           const pull = computeCuePull(desiredPull, maxPull);
           const visualPull = applyVisualPullCompensation(pull, baseDir);
-          const spinX = THREE.MathUtils.clamp(remoteAimState?.spin?.x ?? 0, -1, 1);
-          const spinY = THREE.MathUtils.clamp(remoteAimState?.spin?.y ?? 0, -1, 1);
           const { side, vert, hasSpin } = computeSpinOffsets(
-            { x: spinX, y: spinY },
+            { x: remoteSpin.x, y: remoteSpin.y },
             ranges
           );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
@@ -22671,7 +22891,7 @@ const powerRef = useRef(hud.power);
           );
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
-          const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
+          const tiltAmount = hasSpin ? Math.abs(remoteSpin.y) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
           applyCueButtTilt(
@@ -22686,18 +22906,22 @@ const powerRef = useRef(hud.power);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
           updateChalkVisibility(null);
-          if (targetDir && targetBall) {
+          if (aimDirInfo.targetDir && aimDirInfo.targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
-            const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
+            const tDir = new THREE.Vector3(
+              aimDirInfo.targetDir.x,
+              0,
+              aimDirInfo.targetDir.y
+            );
             if (tDir.lengthSq() > 1e-8) {
               tDir.normalize();
             } else {
               tDir.copy(baseDir);
             }
             const targetStart = new THREE.Vector3(
-              targetBall.pos.x,
+              aimDirInfo.targetBall.pos.x,
               BALL_CENTER_Y,
-              targetBall.pos.y
+              aimDirInfo.targetBall.pos.y
             );
             const distanceScale = travelScale;
             const tEnd = targetStart
@@ -22708,8 +22932,12 @@ const powerRef = useRef(hud.power);
             target.material.opacity = 0.65 + 0.3 * powerStrength;
             target.visible = true;
             target.computeLineDistances();
-          } else if (railNormal && cueDir) {
-            const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
+          } else if (aimDirInfo.railNormal && aimDirInfo.cueDir) {
+            const bounceDir = new THREE.Vector3(
+              aimDirInfo.cueDir.x,
+              0,
+              aimDirInfo.cueDir.y
+            ).normalize();
             const bounceLength = BALL_R * (12 + powerStrength * 18);
             const bounceEnd = end
               .clone()
