@@ -9426,6 +9426,8 @@ export function PoolRoyaleGame({
     applyLightingPreset(lightingId);
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
+  const [sceneReady, setSceneReady] = useState(false);
+  const hasRenderedRef = useRef(false);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
@@ -10079,6 +10081,8 @@ export function PoolRoyaleGame({
     const host = mountRef.current;
     if (!host) return;
     setErr(null);
+    setSceneReady(false);
+    hasRenderedRef.current = false;
     if (!isWebGLAvailable()) {
       setErr('WebGL is not available on this device. Enable hardware acceleration to play.');
       return;
@@ -17062,9 +17066,13 @@ export function PoolRoyaleGame({
             const edge = Math.min(1, Math.max(edgeX, edgeY) / 5);
             fit(1 + edge * 0.08);
           }
-          const frameCamera = updateCamera();
-          renderer.render(scene, frameCamera ?? camera);
-          rafRef.current = requestAnimationFrame(step);
+        const frameCamera = updateCamera();
+        renderer.render(scene, frameCamera ?? camera);
+        if (!hasRenderedRef.current) {
+          hasRenderedRef.current = true;
+          setSceneReady(true);
+        }
+        rafRef.current = requestAnimationFrame(step);
         };
         step(performance.now());
 
@@ -17876,6 +17884,14 @@ export function PoolRoyaleGame({
       {err && (
         <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
           Init error: {String(err)}
+        </div>
+      )}
+      {!sceneReady && !err && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-gradient-to-b from-[#0b1324] via-[#070f1f] to-black text-white">
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-emerald-400/30 bg-black/60 px-6 py-5 text-center text-xs uppercase tracking-[0.35em] shadow-[0_24px_48px_rgba(0,0,0,0.45)] backdrop-blur">
+            <span className="text-[11px] text-emerald-200/80">Snooker Club</span>
+            <span className="text-[10px] text-white/60">Loading table...</span>
+          </div>
         </div>
       )}
       {hud?.inHand && (
