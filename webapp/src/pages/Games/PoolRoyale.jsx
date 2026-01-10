@@ -12032,7 +12032,7 @@ const powerRef = useRef(hud.power);
     const largest = Math.max(maxSide, maxVertical);
     const scaledX = (x * maxSide) / largest;
     const scaledY = (y * maxVertical) / largest;
-    dot.style.left = `${50 + scaledX * 50}%`;
+    dot.style.left = `${50 - scaledX * 50}%`;
     dot.style.top = `${50 + scaledY * 50}%`;
     const magnitude = Math.hypot(x, y);
     const showBlocked = blocked ?? spinLegalityRef.current?.blocked;
@@ -24354,7 +24354,7 @@ const powerRef = useRef(hud.power);
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
       let ny = ((cy - rect.top) / rect.height) * 2 - 1;
-      setSpin(nx, ny);
+      setSpin(-nx, ny);
     };
 
     const scaleBox = (value) => {
