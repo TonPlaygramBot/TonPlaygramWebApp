@@ -148,9 +148,8 @@ function drawCueBallDots(ctx, size) {
   const drawDot = ({ u, v }) => {
     const du = angularRadius / (Math.PI * 2);
     const dv = angularRadius / Math.PI;
-    const poleOverlap = v - dv <= 0 || v + dv >= 1;
-    const minU = poleOverlap ? 0 : Math.max(0, u - du);
-    const maxU = poleOverlap ? 1 : Math.min(1, u + du);
+    const minU = Math.max(0, u - du);
+    const maxU = Math.min(1, u + du);
     const minV = Math.max(0, v - dv);
     const maxV = Math.min(1, v + dv);
     const startX = Math.floor(minU * size);
