@@ -175,7 +175,6 @@ const MURLAN_TYPE_LABELS = {
   cards: 'Card Themes',
   stools: 'Stools & Chairs',
   tables: 'Table Models',
-  tableFinish: 'Table Finish',
   environmentHdri: 'HDR Environments'
 };
 
@@ -203,7 +202,6 @@ const SNAKE_TYPE_LABELS = {
 };
 
 const TEXAS_TYPE_LABELS = {
-  tableFinish: 'Table Finish',
   tableWood: 'Table Wood',
   tableCloth: 'Table Cloth',
   tableBase: 'Table Base',
@@ -304,6 +302,11 @@ const OPTION_SWATCH_OVERRIDES = {
   woodTable001: ['#8f6243', '#a4724f'],
   darkWood: ['#2f241f', '#3d2f2a'],
   rosewoodVeneer01: ['#5b2f26', '#6f3a2f'],
+  rosewoodVeneerAmber: ['#874a29', '#a25d35'],
+  rosewoodVeneerWalnut: ['#523425', '#6a422f'],
+  rosewoodVeneerEbony: ['#1f140f', '#2c1c16'],
+  rosewoodVeneerHoney: ['#ab6b34', '#cd8642'],
+  rosewoodVeneerAsh: ['#6f5f55', '#8b7d72'],
   gold: ['#f59e0b', '#fbbf24'],
   chrome: ['#e5e7eb', '#a1a1aa'],
   pearl: ['#f5f3ff', '#e2e8f0'],
