@@ -5020,8 +5020,6 @@ const mapSpinForPhysics = (spin) => ({
   x: spin?.x ?? 0,
   y: spin?.y ?? 0
 });
-const resolvePowerSpinScale = (powerStrength = 0) =>
-  THREE.MathUtils.clamp(0.35 + powerStrength * 0.65, 0.35, 1);
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
   return THREE.MathUtils.clamp(liftAngle / CUE_LIFT_MAX_TILT, 0, 1);
@@ -19993,14 +19991,10 @@ const powerRef = useRef(hud.power);
           const liftStrength = normalizeCueLift(liftAngle);
           const physicsSpin = mapSpinForPhysics(appliedSpin);
           const ranges = spinRangeRef.current || {};
-          const powerSpinScale = resolvePowerSpinScale(clampedPower);
-          const scaledSpin = {
-            x: physicsSpin.x * powerSpinScale,
-            y: physicsSpin.y * powerSpinScale
-          };
-          const baseSide = scaledSpin.x * (ranges.side ?? 0);
-          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER;
-          let spinTop = -scaledSpin.y * (ranges.forward ?? 0);
+          const powerSpinScale = 1;
+          const baseSide = physicsSpin.x * (ranges.side ?? 0);
+          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
+          let spinTop = -physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
           if (physicsSpin.y > 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
           } else if (physicsSpin.y < 0) {
@@ -20014,7 +20008,7 @@ const powerRef = useRef(hud.power);
           cue.spinMode =
             spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
           const swerveSettings = resolveSwerveSettings(
-            scaledSpin,
+            physicsSpin,
             clampedPower,
             cue.spinMode === 'swerve',
             liftStrength
@@ -22653,15 +22647,10 @@ const powerRef = useRef(hud.power);
             1
           );
           const swerveActive = spinAppliedRef.current?.mode === 'swerve';
-          const powerSpinScale = resolvePowerSpinScale(powerStrength);
-          const scaledPhysicsSpin = {
-            x: physicsSpin.x * powerSpinScale,
-            y: physicsSpin.y * powerSpinScale
-          };
           const aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
           const guideAimDir2D = resolveSwerveAimDir(
             aimDir2D,
-            scaledPhysicsSpin,
+            physicsSpin,
             powerStrength,
             swerveActive,
             liftStrength
@@ -22686,7 +22675,7 @@ const powerRef = useRef(hud.power);
             end,
             dir,
             perp,
-            scaledPhysicsSpin,
+            physicsSpin,
             powerStrength,
             swerveActive,
             liftStrength
@@ -22761,10 +22750,8 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const spinSideInfluence =
-            (scaledPhysicsSpin.x || 0) * (0.4 + 0.42 * powerStrength);
-          const spinVerticalInfluence =
-            -(scaledPhysicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
+          const spinSideInfluence = (physicsSpin.x || 0) * (0.4 + 0.42 * powerStrength);
+          const spinVerticalInfluence = -(physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
             .add(perp.clone().multiplyScalar(spinSideInfluence))
@@ -22982,14 +22969,9 @@ const powerRef = useRef(hud.power);
           const remoteSpinMagnitude = Math.hypot(remoteSpin.x ?? 0, remoteSpin.y ?? 0);
           const remoteSwerveActive = remoteSpinMagnitude >= SWERVE_THRESHOLD;
           const remotePhysicsSpin = mapSpinForPhysics(remoteSpin);
-          const remoteSpinScale = resolvePowerSpinScale(powerStrength);
-          const scaledRemoteSpin = {
-            x: remotePhysicsSpin.x * remoteSpinScale,
-            y: remotePhysicsSpin.y * remoteSpinScale
-          };
           const guideAimDir2D = resolveSwerveAimDir(
             remoteAimDir,
-            scaledRemoteSpin,
+            remotePhysicsSpin,
             powerStrength,
             remoteSwerveActive
           );
@@ -23010,7 +22992,7 @@ const powerRef = useRef(hud.power);
             end,
             baseDir,
             perp,
-            scaledRemoteSpin,
+            remotePhysicsSpin,
             powerStrength,
             remoteSwerveActive
           );
@@ -23354,7 +23336,7 @@ const powerRef = useRef(hud.power);
             const liftAmount = b.lift ?? 0;
             b.mesh.position.set(b.pos.x, BALL_CENTER_Y + liftAmount, b.pos.y);
             if (scaledSpeed > 0) {
-              const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
+              const axis = new THREE.Vector3(-b.vel.y, 0, b.vel.x).normalize();
               const angle = scaledSpeed / BALL_R;
               b.mesh.rotateOnWorldAxis(axis, angle);
             }
@@ -24373,7 +24355,6 @@ const powerRef = useRef(hud.power);
 
     box.style.transition = 'transform 0.18s ease';
     box.style.transformOrigin = '50% 50%';
-    box.style.transform = 'scale(1)';
     box.style.touchAction = 'none';
 
     let revertTimer = null;
@@ -24429,7 +24410,10 @@ const powerRef = useRef(hud.power);
       setSpin(nx, ny);
     };
 
-    const scaleBox = () => {};
+    const scaleBox = (value) => {
+      box.style.transform = `scale(${value})`;
+    };
+    scaleBox(1);
 
     const clearTimer = () => {
       if (revertTimer) {
