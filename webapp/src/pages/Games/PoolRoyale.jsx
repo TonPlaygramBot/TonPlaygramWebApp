@@ -1415,6 +1415,11 @@ const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear secti
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
+const CUE_LIFT_VERTICAL_SCALE = 0.6; // portion of strike speed converted into vertical launch
+const CUE_LIFT_HEIGHT_SCALE = 0.5; // cap baseline lift so only max jumps use the higher ceiling
+const CUE_LIFT_MIN_IMPULSE = BALL_R * 0.06; // ignore tiny hops to avoid lift jitter
+const AIRBORNE_HEIGHT_THRESHOLD = BALL_R * 0.25; // height before skipping table contacts
+const AIRBORNE_LINEAR_DAMPING = 0.998; // small damping while airborne to avoid long glides
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.6;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
@@ -5631,6 +5636,7 @@ function makeWoodTexture({
   return texture;
 }
 function reflectRails(ball) {
+  if ((ball?.lift ?? 0) > AIRBORNE_HEIGHT_THRESHOLD) return null;
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
   const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
@@ -19803,9 +19809,14 @@ const powerRef = useRef(hud.power);
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
+          const liftAngle = resolveUserCueLift();
+          const liftStrength = normalizeCueLift(liftAngle);
+          const liftVerticalFactor = Math.sin(liftAngle);
+          const liftHorizontalFactor = Math.cos(liftAngle);
+          const speedScalar = speedBase * powerScale;
           const base = aimDir
             .clone()
-            .multiplyScalar(speedBase * powerScale);
+            .multiplyScalar(speedScalar * liftHorizontalFactor);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
@@ -19937,8 +19948,6 @@ const powerRef = useRef(hud.power);
             }
           }
           const appliedSpin = applySpinConstraints(aimDir, true);
-          const liftAngle = resolveUserCueLift();
-          const liftStrength = normalizeCueLift(liftAngle);
           const physicsSpin = mapSpinForPhysics(appliedSpin);
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = powerScale;
@@ -19977,6 +19986,20 @@ const powerRef = useRef(hud.power);
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
+          if (liftStrength > 1e-4 && liftVerticalFactor > 1e-4) {
+            const liftImpulse = speedScalar * liftVerticalFactor * CUE_LIFT_VERTICAL_SCALE;
+            if (liftImpulse > CUE_LIFT_MIN_IMPULSE) {
+              const liftHeight =
+                (liftImpulse * liftImpulse) /
+                (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
+              const cappedHeight = Math.min(
+                MAX_POWER_LIFT_HEIGHT * CUE_LIFT_HEIGHT_SCALE,
+                liftHeight
+              );
+              cue.lift = Math.max(cue.lift ?? 0, cappedHeight);
+              cue.liftVel = Math.max(cue.liftVel ?? 0, liftImpulse);
+            }
+          }
           const topSpinWeight = Math.max(0, -(appliedSpin.y || 0));
           if (
             clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
@@ -23198,43 +23221,49 @@ const powerRef = useRef(hud.power);
                 }
               }
             }
+            const airborne = (b.lift ?? 0) > AIRBORNE_HEIGHT_THRESHOLD;
             if (hasSpin) {
-              const swerveTravel = isCue && b.spinMode === 'swerve';
-              const swerveStrength = swerveTravel ? Math.max(0, b.swerveStrength ?? 0) : 0;
-              const swervePower = swerveTravel
-                ? Math.max(0, b.swervePowerStrength ?? 0)
-                : 0;
-              const swervePowerScale = swerveStrength > 0 ? 0.85 + swervePower * 0.9 : 0;
-              const swerveScale =
-                swerveStrength > 0 ? (0.6 + swerveStrength * 0.9) * swervePowerScale : 0;
-              const rollMultiplier = swerveTravel
-                ? SWERVE_TRAVEL_MULTIPLIER * (0.9 + swerveStrength * 0.6)
-                : 1;
-              TMP_VEC2_SPIN.copy(b.spin).multiplyScalar(
-                SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
-              );
-              b.vel.add(TMP_VEC2_SPIN);
-              if (
-                isCue &&
-                b.spinMode === 'swerve' &&
-                b.pendingSpin &&
-                b.pendingSpin.lengthSq() > 0
-              ) {
-                const driftScale = swerveScale > 0 ? swerveScale : 1;
-                b.vel.addScaledVector(
-                  b.pendingSpin,
-                  PRE_IMPACT_SPIN_DRIFT * driftScale
+              if (!airborne) {
+                const swerveTravel = isCue && b.spinMode === 'swerve';
+                const swerveStrength = swerveTravel ? Math.max(0, b.swerveStrength ?? 0) : 0;
+                const swervePower = swerveTravel
+                  ? Math.max(0, b.swervePowerStrength ?? 0)
+                  : 0;
+                const swervePowerScale = swerveStrength > 0 ? 0.85 + swervePower * 0.9 : 0;
+                const swerveScale =
+                  swerveStrength > 0 ? (0.6 + swerveStrength * 0.9) * swervePowerScale : 0;
+                const rollMultiplier = swerveTravel
+                  ? SWERVE_TRAVEL_MULTIPLIER * (0.9 + swerveStrength * 0.6)
+                  : 1;
+                TMP_VEC2_SPIN.copy(b.spin).multiplyScalar(
+                  SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
                 );
-                b.pendingSpin.multiplyScalar(0);
-              }
-              const rollDecay = Math.pow(SPIN_ROLL_DECAY, stepScale);
-              b.spin.multiplyScalar(rollDecay);
-              if (isCue && b.swerveStrength > 0) {
-                b.swerveStrength *= rollDecay;
-                if (b.swerveStrength < 1e-3) {
-                  b.swerveStrength = 0;
-                  b.swervePowerStrength = 0;
+                b.vel.add(TMP_VEC2_SPIN);
+                if (
+                  isCue &&
+                  b.spinMode === 'swerve' &&
+                  b.pendingSpin &&
+                  b.pendingSpin.lengthSq() > 0
+                ) {
+                  const driftScale = swerveScale > 0 ? swerveScale : 1;
+                  b.vel.addScaledVector(
+                    b.pendingSpin,
+                    PRE_IMPACT_SPIN_DRIFT * driftScale
+                  );
+                  b.pendingSpin.multiplyScalar(0);
                 }
+                const rollDecay = Math.pow(SPIN_ROLL_DECAY, stepScale);
+                b.spin.multiplyScalar(rollDecay);
+                if (isCue && b.swerveStrength > 0) {
+                  b.swerveStrength *= rollDecay;
+                  if (b.swerveStrength < 1e-3) {
+                    b.swerveStrength = 0;
+                    b.swervePowerStrength = 0;
+                  }
+                }
+              } else {
+                const airDecay = Math.pow(SPIN_AIR_DECAY, stepScale);
+                b.spin.multiplyScalar(airDecay);
               }
               if (b.spin.lengthSq() < 1e-6) {
                 b.spin.set(0, 0);
@@ -23247,26 +23276,30 @@ const powerRef = useRef(hud.power);
               }
             }
             b.pos.addScaledVector(b.vel, stepScale);
-            b.vel.multiplyScalar(Math.pow(FRICTION, stepScale));
-            let speed = b.vel.length();
-            let scaledSpeed = speed * stepScale;
-            if (scaledSpeed < STOP_EPS) {
-              b.vel.multiplyScalar(Math.pow(STOP_SOFTENING, stepScale));
-              speed = b.vel.length();
-              scaledSpeed = speed * stepScale;
-            }
-            const hasSpinAfter = b.spin?.lengthSq() > 1e-6;
-            if (scaledSpeed < STOP_FINAL_EPS) {
-              b.vel.set(0, 0);
-              if (!hasSpinAfter && b.spin) b.spin.set(0, 0);
-              if (!hasSpinAfter && b.pendingSpin) b.pendingSpin.set(0, 0);
-              if (isCue && !hasSpinAfter) {
-                b.impacted = false;
-                b.spinMode = 'standard';
-                b.swerveStrength = 0;
-                b.swervePowerStrength = 0;
+            if (!airborne) {
+              b.vel.multiplyScalar(Math.pow(FRICTION, stepScale));
+              let speed = b.vel.length();
+              let scaledSpeed = speed * stepScale;
+              if (scaledSpeed < STOP_EPS) {
+                b.vel.multiplyScalar(Math.pow(STOP_SOFTENING, stepScale));
+                speed = b.vel.length();
+                scaledSpeed = speed * stepScale;
               }
-              b.launchDir = null;
+              const hasSpinAfter = b.spin?.lengthSq() > 1e-6;
+              if (scaledSpeed < STOP_FINAL_EPS) {
+                b.vel.set(0, 0);
+                if (!hasSpinAfter && b.spin) b.spin.set(0, 0);
+                if (!hasSpinAfter && b.pendingSpin) b.pendingSpin.set(0, 0);
+                if (isCue && !hasSpinAfter) {
+                  b.impacted = false;
+                  b.spinMode = 'standard';
+                  b.swerveStrength = 0;
+                  b.swervePowerStrength = 0;
+                }
+                b.launchDir = null;
+              }
+            } else {
+              b.vel.multiplyScalar(Math.pow(AIRBORNE_LINEAR_DAMPING, stepScale));
             }
             const railImpact = reflectRails(b);
             if (railImpact && b.id === 'cue') b.impacted = true;
@@ -23320,6 +23353,12 @@ const powerRef = useRef(hud.power);
               const a = balls[i],
                 b = balls[j];
               if (!a.active || !b.active) continue;
+              if (
+                (a.lift ?? 0) > AIRBORNE_HEIGHT_THRESHOLD ||
+                (b.lift ?? 0) > AIRBORNE_HEIGHT_THRESHOLD
+              ) {
+                continue;
+              }
               const dx = b.pos.x - a.pos.x,
                 dy = b.pos.y - a.pos.y;
               const d2 = dx * dx + dy * dy;
@@ -23682,6 +23721,7 @@ const powerRef = useRef(hud.power);
             : centers.map((_, idx) => (idx >= 4 ? SIDE_CAPTURE_R : CAPTURE_R));
         balls.forEach((b) => {
           if (!b.active) return;
+          if ((b.lift ?? 0) > AIRBORNE_HEIGHT_THRESHOLD) return;
           for (let pocketIndex = 0; pocketIndex < captureCenters.length; pocketIndex++) {
             const c = captureCenters[pocketIndex];
             const captureRadius = captureRadii[pocketIndex] ?? CAPTURE_R;
