@@ -12033,7 +12033,7 @@ const powerRef = useRef(hud.power);
     const scaledX = (x * maxSide) / largest;
     const scaledY = (y * maxVertical) / largest;
     dot.style.left = `${50 + scaledX * 50}%`;
-    dot.style.top = `${50 + scaledY * 50}%`;
+    dot.style.top = `${50 - scaledY * 50}%`;
     const magnitude = Math.hypot(x, y);
     const showBlocked = blocked ?? spinLegalityRef.current?.blocked;
     dot.style.backgroundColor = showBlocked
@@ -19656,7 +19656,7 @@ const powerRef = useRef(hud.power);
         const magnitude = Math.hypot(spin?.x ?? 0, spin?.y ?? 0);
         const hasSpin = magnitude > 1e-4;
         let side = hasSpin ? spin.x * offsetSide : 0;
-        let vert = hasSpin ? -spin.y * offsetVertical : 0;
+        let vert = hasSpin ? spin.y * offsetVertical : 0;
         if (hasSpin) {
           vert = THREE.MathUtils.clamp(vert, -MAX_SPIN_VISUAL_LIFT, MAX_SPIN_VISUAL_LIFT);
         }
@@ -19943,10 +19943,10 @@ const powerRef = useRef(hud.power);
           const powerSpinScale = powerScale;
           const baseSide = physicsSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = -physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (physicsSpin.y > 0) {
+          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+          if (physicsSpin.y < 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (physicsSpin.y < 0) {
+          } else if (physicsSpin.y > 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
           }
           const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
@@ -19976,7 +19976,7 @@ const powerRef = useRef(hud.power);
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
-          const topSpinWeight = Math.max(0, -(appliedSpin.y || 0));
+          const topSpinWeight = Math.max(0, appliedSpin.y || 0);
           if (
             clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
             liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
@@ -20084,7 +20084,7 @@ const powerRef = useRef(hud.power);
             0,
             Math.min(visualPull - minVisibleGap, visualPull * warmupRatio)
           );
-          const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
+          const tiltAmount = hasSpin ? Math.max(0, -(appliedSpin.y || 0)) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftAngle;
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           applyCueButtTilt(
@@ -20106,7 +20106,7 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(warmupPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
-          const backSpinWeight = Math.max(0, appliedSpin.y || 0);
+          const backSpinWeight = Math.max(0, -(appliedSpin.y || 0));
           const strokeDistance = Math.max(visualPull, CUE_PULL_MIN_VISUAL);
           const topSpinFollowThrough =
             BALL_R * (1 + 3 * clampedPower) * topSpinWeight;
@@ -20316,7 +20316,7 @@ const powerRef = useRef(hud.power);
           return THREE.MathUtils.lerp(0.35, 0.9, n);
         };
         const computePlanSpin = (plan, stateSnapshot) => {
-          const fallback = { x: 0, y: -0.1 };
+          const fallback = { x: 0, y: 0.1 };
           if (!plan || plan.type !== 'pot') return fallback;
           const colorId = plan.target;
           if (!colorId) return fallback;
@@ -20376,7 +20376,7 @@ const powerRef = useRef(hud.power);
             const forward = THREE.MathUtils.clamp(aimDir.dot(nextDir), -1, 1);
             const spinX = THREE.MathUtils.clamp(lateral * 0.45, -0.6, 0.6);
             const spinY = THREE.MathUtils.clamp(
-              -forward * (MAX_SPIN_FORWARD / BALL_R),
+              forward * (MAX_SPIN_FORWARD / BALL_R),
               -1,
               1
             );
@@ -20921,7 +20921,7 @@ const powerRef = useRef(hud.power);
                 difficulty: cueDist + safetyDist * 2 + 400,
                 cueToTarget: cueDist,
                 targetToPocket: safetyDist,
-                spin: { x: 0, y: -0.05 },
+                spin: { x: 0, y: 0.05 },
                 quality: Math.max(
                   0,
                   1 - (cueDist + safetyDist * 2) / (PLAY_W + PLAY_H)
@@ -20942,7 +20942,7 @@ const powerRef = useRef(hud.power);
                 difficulty: cueDist + safetyDist * 1.2,
                 cueToTarget: cueDist,
                 targetToPocket: safetyDist,
-                spin: { x: 0, y: -0.2 },
+                spin: { x: 0, y: 0.2 },
                 quality: Math.max(
                   0,
                   1 - (cueDist + safetyDist * 1.2) / (PLAY_W + PLAY_H)
@@ -22712,7 +22712,7 @@ const powerRef = useRef(hud.power);
           if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
             cueFollowDirSpinAdjusted.normalize();
           }
-          const backSpinWeight = Math.max(0, appliedSpin.y || 0);
+          const backSpinWeight = Math.max(0, -(appliedSpin.y || 0));
           if (backSpinWeight > 1e-8) {
             const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
             const drawDir = dir.clone().negate();
@@ -22762,7 +22762,7 @@ const powerRef = useRef(hud.power);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
-          const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
+          const tiltAmount = hasSpin ? Math.max(0, -(appliedSpin.y || 0)) : 0;
           const liftTilt = resolveUserCueLift();
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftTilt;
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
@@ -24353,7 +24353,7 @@ const powerRef = useRef(hud.power);
       const cx = clientX ?? rect.left + rect.width / 2;
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
-      let ny = ((cy - rect.top) / rect.height) * 2 - 1;
+      let ny = -(((cy - rect.top) / rect.height) * 2 - 1);
       setSpin(nx, ny);
     };
 
