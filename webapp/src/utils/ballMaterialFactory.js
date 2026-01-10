@@ -123,16 +123,15 @@ function drawPoolNumberBadge(ctx, size, number) {
 
 function drawCueBallDots(ctx, size) {
   const dotRadius = size * 0.5 * CUE_TIP_RADIUS_RATIO;
-  const poleDotRadius = dotRadius * 0.75;
-  const poleLatitudeDeg = 78;
-  const poleV = 0.5 - poleLatitudeDeg / 180;
+  const poleInset = dotRadius * 2.2;
+  const angularRadius = (dotRadius / size) * Math.PI;
   const seamInset = 0;
   const dotPositions = [
-    { u: 0.5, v: 0.5, radius: dotRadius }, // front
-    { u: 0.25, v: 0.5, radius: dotRadius }, // left
-    { u: 0.75, v: 0.5, radius: dotRadius }, // right
-    { u: 0.5, v: poleV, radius: poleDotRadius }, // top
-    { u: 0.5, v: 1 - poleV, radius: poleDotRadius } // bottom
+    { u: 0.5, v: 0.5 }, // front
+    { u: 0.25, v: 0.5 }, // left
+    { u: 0.75, v: 0.5 }, // right
+    { u: 0.5, v: poleInset / size }, // top
+    { u: 0.5, v: 1 - poleInset / size } // bottom
   ];
 
   const uvToVec3 = (u, v) => {
@@ -146,8 +145,7 @@ function drawCueBallDots(ctx, size) {
     };
   };
 
-  const drawDot = ({ u, v, radius }) => {
-    const angularRadius = (radius / size) * Math.PI;
+  const drawDot = ({ u, v }) => {
     const du = angularRadius / (Math.PI * 2);
     const dv = angularRadius / Math.PI;
     const minU = Math.max(0, u - du);
@@ -189,8 +187,8 @@ function drawCueBallDots(ctx, size) {
   dotPositions.forEach(drawDot);
 
   // Back dot spans the seam to keep a full circle.
-  drawDot({ u: seamInset, v: 0.5, radius: dotRadius });
-  drawDot({ u: 1 - seamInset, v: 0.5, radius: dotRadius });
+  drawDot({ u: seamInset, v: 0.5 });
+  drawDot({ u: 1 - seamInset, v: 0.5 });
   ctx.restore();
 }
 
