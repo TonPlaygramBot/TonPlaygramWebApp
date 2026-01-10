@@ -11,6 +11,27 @@ public class BilliardsSolver
         public Vec2 Position;
         public Vec2 Velocity;
         public bool Pocketed;
+        public double SideSpin;
+        public double ForwardSpin;
+        public double Height;
+        public double VerticalVelocity;
+    }
+
+    public struct ShotSpin
+    {
+        public double Side;
+        public double Top;
+        public double Back;
+
+        public static ShotSpin None => new ShotSpin { Side = 0, Top = 0, Back = 0 };
+    }
+
+    public struct ShotParams
+    {
+        public Vec2 Direction;
+        public double Speed;
+        public ShotSpin Spin;
+        public double CueElevationDeg;
     }
 
     public struct Edge
@@ -211,6 +232,8 @@ public class BilliardsSolver
                         b.Velocity = new Vec2(0, 0);
                         break;
                     }
+                    bool airborne = b.Height > PhysicsConstants.AirborneHeightThreshold;
+                    ApplySpinForces(b, remaining, airborne);
                     double tHit = double.PositiveInfinity;
                     Vec2 normal = new Vec2();
                     double restitution = PhysicsConstants.Restitution;
@@ -218,58 +241,61 @@ public class BilliardsSolver
                     bool pocket = false;
                     Vec2 contactPoint = new Vec2();
 
-                    foreach (var e in CushionEdges)
+                    if (!airborne)
                     {
-                        if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double tEdge) && tEdge <= remaining && tEdge < tHit)
+                        foreach (var e in CushionEdges)
                         {
-                            tHit = tEdge;
-                            normal = e.Normal;
-                            restitution = PhysicsConstants.CushionRestitution;
-                            hit = true;
-                            contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
+                            if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double tEdge) && tEdge <= remaining && tEdge < tHit)
+                            {
+                                tHit = tEdge;
+                                normal = e.Normal;
+                                restitution = PhysicsConstants.CushionRestitution;
+                                hit = true;
+                                contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
+                            }
                         }
-                    }
 
-                    foreach (var e in ConnectorEdges)
-                    {
-                        if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double tEdge) && tEdge <= remaining && tEdge < tHit)
+                        foreach (var e in ConnectorEdges)
                         {
-                            tHit = tEdge;
-                            normal = e.Normal;
-                            restitution = PhysicsConstants.ConnectorRestitution;
-                            hit = true;
-                            contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
+                            if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double tEdge) && tEdge <= remaining && tEdge < tHit)
+                            {
+                                tHit = tEdge;
+                                normal = e.Normal;
+                                restitution = PhysicsConstants.ConnectorRestitution;
+                                hit = true;
+                                contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
+                            }
                         }
-                    }
 
-                    foreach (var e in PocketEdges)
-                    {
-                        if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double tEdge) && tEdge <= remaining && tEdge < tHit)
+                        foreach (var e in PocketEdges)
                         {
-                            tHit = tEdge;
-                            normal = e.Normal;
-                            restitution = PhysicsConstants.PocketRestitution;
-                            hit = true;
-                            pocket = true;
-                            contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
+                            if (Ccd.CircleSegment(b.Position, b.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double tEdge) && tEdge <= remaining && tEdge < tHit)
+                            {
+                                tHit = tEdge;
+                                normal = e.Normal;
+                                restitution = PhysicsConstants.PocketRestitution;
+                                hit = true;
+                                pocket = true;
+                                contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
+                            }
                         }
-                    }
 
-                    foreach (var pocketZone in Pockets)
-                    {
-                        double captureRadius = Math.Max(PhysicsConstants.Epsilon, pocketZone.Radius - PhysicsConstants.BallRadius);
-                        if (captureRadius <= PhysicsConstants.Epsilon)
-                            continue;
-                        if (Ccd.CircleCircle(b.Position, b.Velocity, 0, pocketZone.Center, captureRadius, out double tPocket) && tPocket <= remaining && tPocket < tHit)
+                        foreach (var pocketZone in Pockets)
                         {
-                            tHit = tPocket;
-                            Vec2 dir = (b.Position + b.Velocity * tPocket - pocketZone.Center).Normalized();
-                            if (dir.Length < PhysicsConstants.Epsilon)
-                                dir = new Vec2(0, 1);
-                            normal = dir;
-                            pocket = true;
-                            hit = true;
-                            contactPoint = pocketZone.Center + dir * captureRadius;
+                            double captureRadius = Math.Max(PhysicsConstants.Epsilon, pocketZone.Radius - PhysicsConstants.BallRadius);
+                            if (captureRadius <= PhysicsConstants.Epsilon)
+                                continue;
+                            if (Ccd.CircleCircle(b.Position, b.Velocity, 0, pocketZone.Center, captureRadius, out double tPocket) && tPocket <= remaining && tPocket < tHit)
+                            {
+                                tHit = tPocket;
+                                Vec2 dir = (b.Position + b.Velocity * tPocket - pocketZone.Center).Normalized();
+                                if (dir.Length < PhysicsConstants.Epsilon)
+                                    dir = new Vec2(0, 1);
+                                normal = dir;
+                                pocket = true;
+                                hit = true;
+                                contactPoint = pocketZone.Center + dir * captureRadius;
+                            }
                         }
                     }
 
@@ -278,7 +304,7 @@ public class BilliardsSolver
                         double travel = Math.Max(tHit, PhysicsConstants.MinCollisionTime);
                         b.Position += b.Velocity * tHit;
                         var speed = b.Velocity.Length;
-                        var newSpeed = Math.Max(0, speed - PhysicsConstants.Mu * travel);
+                        var newSpeed = Math.Max(0, speed - LinearDrag(airborne) * travel);
                         b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
                         if (pocket)
                         {
@@ -288,13 +314,15 @@ public class BilliardsSolver
                         b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
                         b.Position = contactPoint + normal * (PhysicsConstants.BallRadius + PhysicsConstants.ContactOffset);
                         remaining = Math.Max(0, remaining - travel);
+                        StepVertical(b, travel);
                     }
                     else
                     {
                         b.Position += b.Velocity * remaining;
                         var speed = b.Velocity.Length;
-                        var newSpeed = Math.Max(0, speed - PhysicsConstants.Mu * remaining);
+                        var newSpeed = Math.Max(0, speed - LinearDrag(airborne) * remaining);
                         b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
+                        StepVertical(b, remaining);
                         break;
                     }
                 }
@@ -306,58 +334,228 @@ public class BilliardsSolver
     /// <summary>Runs CCD to predict cue-ball path until first impact.</summary>
     public Preview PreviewShot(Vec2 cueStart, Vec2 dir, double speed, List<Ball> others)
     {
-        var nDir = dir.Normalized();
-        Vec2 velocity = nDir * speed;
-        double bestT = double.PositiveInfinity;
-        Ball hitBall = null;
-        Vec2 hitNormal = new Vec2();
-        bool ballHit = false;
-        bool pocketHit = false;
-        bool connectorHit = false;
+        return PreviewShot(new ShotParams
+        {
+            Direction = dir,
+            Speed = speed,
+            Spin = ShotSpin.None,
+            CueElevationDeg = 0
+        }, cueStart, others);
+    }
 
+    /// <summary>Deterministic stepper simulation to validate preview.</summary>
+    public Impact SimulateFirstImpact(Vec2 cueStart, Vec2 dir, double speed, List<Ball> others)
+    {
+        return SimulateFirstImpact(new ShotParams
+        {
+            Direction = dir,
+            Speed = speed,
+            Spin = ShotSpin.None,
+            CueElevationDeg = 0
+        }, cueStart, others);
+    }
+
+    public Preview PreviewShot(ShotParams shot, Vec2 cueStart, List<Ball> others)
+    {
+        var cue = CreateCueBall(cueStart, shot);
+        var path = new List<Vec2> { cue.Position };
+        Vec2? contact = null;
+        Vec2 cuePost = new Vec2();
+        Vec2? targetPost = null;
+        double time = 0;
+        Vec2 lastSample = cue.Position;
+
+        while (time < PhysicsConstants.MaxPreviewTime)
+        {
+            bool airborne = cue.Height > PhysicsConstants.AirborneHeightThreshold;
+            ApplySpinForces(cue, PhysicsConstants.FixedDt, airborne);
+            if (!airborne && TryFindImpact(cue, others, PhysicsConstants.FixedDt, out var impact))
+            {
+                contact = impact.Point;
+                cuePost = impact.CueVelocity;
+                targetPost = impact.TargetVelocity;
+                AppendPathPoint(path, impact.Point, ref lastSample, true);
+                break;
+            }
+
+            IntegrateCueBall(cue, PhysicsConstants.FixedDt, airborne);
+            AppendPathPoint(path, cue.Position, ref lastSample, false);
+            time += PhysicsConstants.FixedDt;
+        }
+
+        return new Preview
+        {
+            Path = path,
+            ContactPoint = contact ?? cue.Position,
+            CuePostVelocity = cuePost,
+            TargetPostVelocity = targetPost
+        };
+    }
+
+    public Impact SimulateFirstImpact(ShotParams shot, Vec2 cueStart, List<Ball> others)
+    {
+        var cue = CreateCueBall(cueStart, shot);
+        double time = 0;
+        while (time < PhysicsConstants.MaxPreviewTime)
+        {
+            bool airborne = cue.Height > PhysicsConstants.AirborneHeightThreshold;
+            ApplySpinForces(cue, PhysicsConstants.FixedDt, airborne);
+            if (!airborne && TryFindImpact(cue, others, PhysicsConstants.FixedDt, out var impact))
+            {
+                return impact;
+            }
+
+            IntegrateCueBall(cue, PhysicsConstants.FixedDt, airborne);
+            time += PhysicsConstants.FixedDt;
+        }
+
+        return new Impact { Point = cue.Position, CueVelocity = cue.Velocity };
+    }
+
+    private static Ball CreateCueBall(Vec2 cueStart, ShotParams shot)
+    {
+        var clamped = ClampSpin(shot.Spin);
+        var forwardSpin = clamped.Top - clamped.Back;
+        double cueElevation = Math.Clamp(shot.CueElevationDeg, 0, PhysicsConstants.MaxCueElevationDegrees);
+        double elevationRad = cueElevation * Math.PI / 180.0;
+        var dir = shot.Direction.Normalized();
+        var planarSpeed = shot.Speed * Math.Cos(elevationRad);
+        var verticalSpeed = shot.Speed * Math.Sin(elevationRad);
+        return new Ball
+        {
+            Position = cueStart,
+            Velocity = dir * planarSpeed,
+            Height = 0,
+            VerticalVelocity = verticalSpeed,
+            SideSpin = clamped.Side,
+            ForwardSpin = forwardSpin
+        };
+    }
+
+    private static ShotSpin ClampSpin(ShotSpin spin)
+    {
+        double side = Math.Clamp(spin.Side, -PhysicsConstants.MaxTipOffsetRatio, PhysicsConstants.MaxTipOffsetRatio);
+        double top = Math.Clamp(spin.Top, 0, PhysicsConstants.MaxTipOffsetRatio);
+        double back = Math.Clamp(spin.Back, 0, PhysicsConstants.MaxTipOffsetRatio);
+        double magnitude = Math.Max(Math.Abs(side), Math.Abs(top - back));
+        if (magnitude > PhysicsConstants.MaxTipOffsetRatio && magnitude > PhysicsConstants.Epsilon)
+        {
+            double scale = PhysicsConstants.MaxTipOffsetRatio / magnitude;
+            side *= scale;
+            top *= scale;
+            back *= scale;
+        }
+        return new ShotSpin { Side = side, Top = top, Back = back };
+    }
+
+    private static void ApplySpinForces(Ball b, double dt, bool airborne)
+    {
+        var speed = b.Velocity.Length;
+        if (speed < PhysicsConstants.Epsilon)
+            return;
+
+        if (!airborne)
+        {
+            Vec2 dir = b.Velocity.Normalized();
+            var forwardAccel = PhysicsConstants.RollAcceleration * b.ForwardSpin;
+            b.Velocity += dir * forwardAccel * dt;
+
+            var lateral = new Vec2(-dir.Y, dir.X);
+            var swerveAccel = PhysicsConstants.SwerveCoefficient * b.SideSpin * speed;
+            b.Velocity += lateral * swerveAccel * dt;
+
+            double decay = Math.Exp(-PhysicsConstants.SpinDecay * dt);
+            b.SideSpin *= decay;
+            b.ForwardSpin *= decay;
+        }
+        else
+        {
+            double decay = Math.Exp(-PhysicsConstants.AirSpinDecay * dt);
+            b.SideSpin *= decay;
+            b.ForwardSpin *= decay;
+        }
+    }
+
+    private static void IntegrateCueBall(Ball b, double dt, bool airborne)
+    {
+        b.Position += b.Velocity * dt;
+        var speed = b.Velocity.Length;
+        var newSpeed = Math.Max(0, speed - LinearDrag(airborne) * dt);
+        b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
+        StepVertical(b, dt);
+    }
+
+    private static void StepVertical(Ball b, double dt)
+    {
+        if (Math.Abs(b.VerticalVelocity) < PhysicsConstants.Epsilon && b.Height <= 0)
+            return;
+
+        b.VerticalVelocity -= PhysicsConstants.Gravity * dt;
+        b.Height += b.VerticalVelocity * dt;
+        if (b.Height <= 0)
+        {
+            b.Height = 0;
+            if (Math.Abs(b.VerticalVelocity) > PhysicsConstants.JumpStopVelocity)
+            {
+                b.VerticalVelocity = -b.VerticalVelocity * PhysicsConstants.JumpRestitution;
+            }
+            else
+            {
+                b.VerticalVelocity = 0;
+            }
+        }
+    }
+
+    private static double LinearDrag(bool airborne)
+    {
+        return airborne ? PhysicsConstants.AirDrag : PhysicsConstants.Mu;
+    }
+
+    private bool TryFindImpact(Ball cue, List<Ball> others, double dt, out Impact impact)
+    {
+        // check collisions using CCD for the next dt
         foreach (var b in others)
         {
-            if (Ccd.CircleCircle(cueStart, velocity, PhysicsConstants.BallRadius, b.Position, PhysicsConstants.BallRadius, out double t))
+            if (Ccd.CircleCircle(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, b.Position, PhysicsConstants.BallRadius, out double t))
             {
-                if (t < bestT)
+                if (t <= dt)
                 {
-                    bestT = t; hitBall = b; ballHit = true;
+                    cue.Position += cue.Velocity * t;
+                    Collision.ResolveBallBall(cue.Position, cue.Velocity, b.Position, new Vec2(0, 0), out var cuePost, out var targetPost);
+                    impact = new Impact { Point = cue.Position, CueVelocity = cuePost, TargetVelocity = targetPost };
+                    return true;
                 }
             }
         }
-
         foreach (var e in ConnectorEdges)
         {
-            if (Ccd.CircleSegment(cueStart, velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te))
+            if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= dt)
             {
-                if (te < bestT)
-                {
-                    bestT = te; hitNormal = e.Normal; ballHit = false; pocketHit = false; connectorHit = true;
-                }
+                cue.Position += cue.Velocity * te;
+                var post = Collision.Reflect(cue.Velocity, e.Normal, PhysicsConstants.ConnectorRestitution);
+                impact = new Impact { Point = cue.Position, CueVelocity = post };
+                return true;
             }
         }
 
-        bool cushionHit = false;
         foreach (var e in CushionEdges)
         {
-            if (Ccd.CircleSegment(cueStart, velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te))
+            if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= dt)
             {
-                if (te < bestT)
-                {
-                    bestT = te; hitNormal = e.Normal; ballHit = false; pocketHit = false; connectorHit = false; cushionHit = true;
-                }
+                cue.Position += cue.Velocity * te;
+                var post = Collision.Reflect(cue.Velocity, e.Normal, PhysicsConstants.CushionRestitution);
+                impact = new Impact { Point = cue.Position, CueVelocity = post };
+                return true;
             }
         }
 
         foreach (var e in PocketEdges)
         {
-            if (Ccd.CircleSegment(cueStart, velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te))
+            if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= dt)
             {
-                if (te < bestT)
-                {
-                    bestT = te; hitNormal = e.Normal; ballHit = false; pocketHit = true; connectorHit = false;
-                    cushionHit = false;
-                }
+                cue.Position += cue.Velocity * te;
+                impact = new Impact { Point = cue.Position, CueVelocity = new Vec2(0, 0) };
+                return true;
             }
         }
 
@@ -366,133 +564,24 @@ public class BilliardsSolver
             double captureRadius = Math.Max(PhysicsConstants.Epsilon, pocketZone.Radius - PhysicsConstants.BallRadius);
             if (captureRadius <= PhysicsConstants.Epsilon)
                 continue;
-            if (Ccd.CircleCircle(cueStart, velocity, 0, pocketZone.Center, captureRadius, out double tPocket))
+            if (Ccd.CircleCircle(cue.Position, cue.Velocity, 0, pocketZone.Center, captureRadius, out double tPocket) && tPocket <= dt)
             {
-                if (tPocket < bestT)
-                {
-                    bestT = tPocket;
-                    hitNormal = (cueStart + velocity * tPocket - pocketZone.Center).Normalized();
-                    if (hitNormal.Length < PhysicsConstants.Epsilon)
-                        hitNormal = new Vec2(0, 1);
-                    ballHit = false;
-                    pocketHit = true;
-                    connectorHit = false;
-                    cushionHit = false;
-                }
+                cue.Position += cue.Velocity * tPocket;
+                impact = new Impact { Point = cue.Position, CueVelocity = new Vec2(0, 0) };
+                return true;
             }
         }
 
-        if (double.IsPositiveInfinity(bestT))
-        {
-            // no collision within preview window
-            return new Preview { Path = new List<Vec2> { cueStart, cueStart + velocity }, ContactPoint = cueStart + velocity, CuePostVelocity = velocity };
-        }
-
-        Vec2 contact = cueStart + velocity * bestT;
-        List<Vec2> path = new List<Vec2> { cueStart, contact };
-        Vec2 cuePost;
-        Vec2? targetPost = null;
-
-        if (ballHit && hitBall != null)
-        {
-            Collision.ResolveBallBall(contact - nDir * PhysicsConstants.BallRadius, velocity, hitBall.Position, new Vec2(0, 0), out cuePost, out var target);
-            targetPost = target;
-            path.Add(contact + cuePost.Normalized() * PhysicsConstants.BallRadius);
-        }
-        else
-        {
-            if (pocketHit)
-            {
-                cuePost = new Vec2(0, 0);
-            }
-            else if (cushionHit)
-            {
-                cuePost = Collision.Reflect(velocity, hitNormal, PhysicsConstants.CushionRestitution);
-                if (cuePost.Length > PhysicsConstants.Epsilon)
-                {
-                    path.Add(contact + cuePost.Normalized() * PhysicsConstants.BallRadius);
-                }
-            }
-            else if (connectorHit)
-            {
-                cuePost = Collision.Reflect(velocity, hitNormal, PhysicsConstants.ConnectorRestitution);
-                path.Add(contact + cuePost.Normalized() * PhysicsConstants.BallRadius);
-            }
-            else
-            {
-                cuePost = Collision.Reflect(velocity, hitNormal, PhysicsConstants.Restitution);
-                path.Add(contact + cuePost.Normalized() * PhysicsConstants.BallRadius);
-            }
-        }
-
-        return new Preview { Path = path, ContactPoint = contact, CuePostVelocity = cuePost, TargetPostVelocity = targetPost };
+        impact = new Impact();
+        return false;
     }
 
-    /// <summary>Deterministic stepper simulation to validate preview.</summary>
-    public Impact SimulateFirstImpact(Vec2 cueStart, Vec2 dir, double speed, List<Ball> others)
+    private static void AppendPathPoint(List<Vec2> path, Vec2 point, ref Vec2 lastSample, bool force)
     {
-        var nDir = dir.Normalized();
-        var cue = new Ball { Position = cueStart, Velocity = nDir * speed };
-        var balls = new List<Ball>(others) { cue };
-        double time = 0;
-        while (time < PhysicsConstants.MaxPreviewTime)
+        if (force || (point - lastSample).Length >= PhysicsConstants.PreviewPointSpacing)
         {
-            // check collisions using CCD for the next dt
-            foreach (var b in others)
-            {
-                if (Ccd.CircleCircle(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, b.Position, PhysicsConstants.BallRadius, out double t))
-                {
-                    if (t <= PhysicsConstants.FixedDt)
-                    {
-                        cue.Position += cue.Velocity * t;
-                        Collision.ResolveBallBall(cue.Position, cue.Velocity, b.Position, new Vec2(0, 0), out var cuePost, out var targetPost);
-                        return new Impact { Point = cue.Position, CueVelocity = cuePost, TargetVelocity = targetPost };
-                    }
-                }
-            }
-            foreach (var e in ConnectorEdges)
-            {
-                if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= PhysicsConstants.FixedDt)
-                {
-                    cue.Position += cue.Velocity * te;
-                    var post = Collision.Reflect(cue.Velocity, e.Normal, PhysicsConstants.ConnectorRestitution);
-                    return new Impact { Point = cue.Position, CueVelocity = post };
-                }
-            }
-
-            foreach (var e in CushionEdges)
-            {
-                if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= PhysicsConstants.FixedDt)
-                {
-                    cue.Position += cue.Velocity * te;
-                    var post = Collision.Reflect(cue.Velocity, e.Normal, PhysicsConstants.CushionRestitution);
-                    return new Impact { Point = cue.Position, CueVelocity = post };
-                }
-            }
-
-            foreach (var e in PocketEdges)
-            {
-                if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= PhysicsConstants.FixedDt)
-                {
-                    cue.Position += cue.Velocity * te;
-                    return new Impact { Point = cue.Position, CueVelocity = new Vec2(0, 0) };
-                }
-            }
-
-            foreach (var pocketZone in Pockets)
-            {
-                double captureRadius = Math.Max(PhysicsConstants.Epsilon, pocketZone.Radius - PhysicsConstants.BallRadius);
-                if (captureRadius <= PhysicsConstants.Epsilon)
-                    continue;
-                if (Ccd.CircleCircle(cue.Position, cue.Velocity, 0, pocketZone.Center, captureRadius, out double tPocket) && tPocket <= PhysicsConstants.FixedDt)
-                {
-                    cue.Position += cue.Velocity * tPocket;
-                    return new Impact { Point = cue.Position, CueVelocity = new Vec2(0, 0) };
-                }
-            }
-            Step(balls, PhysicsConstants.FixedDt);
-            time += PhysicsConstants.FixedDt;
+            path.Add(point);
+            lastSample = point;
         }
-        return new Impact { Point = cue.Position, CueVelocity = cue.Velocity };
     }
 }

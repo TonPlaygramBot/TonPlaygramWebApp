@@ -11,6 +11,18 @@ public static class PhysicsConstants
     // pocket edges fully absorb balls (no bounce)
     public const double PocketRestitution = 0.0;
     public const double Mu = 0.2;                      // linear damping (m/s^2)
+    public const double Gravity = 9.81;                // m/s^2
+    public const double AirDrag = 0.05;                // linear damping in flight (m/s^2)
+    public const double SpinDecay = 2.0;               // per-second decay for on-table spin
+    public const double AirSpinDecay = 0.6;            // per-second decay while airborne
+    public const double SwerveCoefficient = 2.4;       // lateral accel per unit side spin * speed
+    public const double RollAcceleration = 1.2;        // forward accel per unit top/back spin
+    public const double JumpRestitution = 0.1;         // vertical energy retained on landing
+    public const double JumpStopVelocity = 0.2;        // m/s below which vertical motion stops
+    public const double AirborneHeightThreshold = BallRadius * 0.25; // height before ignoring cushions/balls
+    public const double MaxCueElevationDegrees = 70.0; // WPA jump cue elevations top out near this range
+    public const double MaxTipOffsetRatio = 0.9;       // max cue tip offset as a fraction of radius
+    public const double PreviewPointSpacing = BallRadius * 0.85; // spacing for curved aim preview
     public const double TableWidth = 2.627;            // 9ft table reduced by ~7.5%
     public const double TableHeight = 1.3135;
     public const double FixedDt = 1.0 / 120.0;         // simulation step
