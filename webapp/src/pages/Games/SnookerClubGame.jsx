@@ -6,9 +6,6 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
-import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
-import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import polygonClipping from 'polygon-clipping';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
@@ -24,11 +21,6 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { SnookerClubRules as PoolRoyaleRules } from '../../../../src/rules/SnookerClubRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/snookerClubTables.js';
-import {
-  POOL_ROYALE_DEFAULT_HDRI_ID,
-  POOL_ROYALE_HDRI_VARIANT_MAP,
-  POOL_ROYALE_HDRI_VARIANTS
-} from '../../config/poolRoyaleInventoryConfig.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
@@ -3773,141 +3765,6 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
   normal.needsUpdate = true;
   target.computeVertexNormals();
   return target;
-}
-
-const HDRI_STORAGE_KEY = 'snookerHdriEnvironment';
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
-const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
-const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
-const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
-const MIN_HDRI_RADIUS = 24;
-const HDRI_GROUNDED_RESOLUTION = 256;
-
-function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
-  const urls = [];
-  const walk = (value) => {
-    if (!value) return;
-    if (typeof value === 'string') {
-      if (value.startsWith('http') && value.toLowerCase().includes('.hdr')) {
-        urls.push(value);
-      }
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach(walk);
-      return;
-    }
-    if (typeof value === 'object') {
-      Object.values(value).forEach(walk);
-    }
-  };
-  walk(apiJson);
-  const lower = urls.map((u) => u.toLowerCase());
-  for (const res of preferredResolutions) {
-    const match = lower.find((u) => u.includes(`_${res}.`));
-    if (match) return urls[lower.indexOf(match)];
-  }
-  return urls[0] ?? null;
-}
-
-async function resolvePolyHavenHdriUrl(config = {}) {
-  const preferred =
-    Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
-      ? config.preferredResolutions
-      : DEFAULT_HDRI_RESOLUTIONS;
-  const fallbackRes = config?.fallbackResolution || preferred[0] || '4k';
-  const fallbackUrl =
-    config?.fallbackUrl ||
-    `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${
-      config?.assetId ?? 'neon_photostudio'
-    }_${fallbackRes}.hdr`;
-  if (config?.assetUrls && typeof config.assetUrls === 'object') {
-    for (const res of preferred) {
-      if (config.assetUrls[res]) return config.assetUrls[res];
-    }
-    const manual = Object.values(config.assetUrls).find(
-      (value) => typeof value === 'string' && value.length
-    );
-    if (manual) return manual;
-  }
-  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
-  if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
-  try {
-    const response = await fetch(
-      `https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`
-    );
-    if (!response?.ok) return fallbackUrl;
-    const json = await response.json();
-    const picked = pickPolyHavenHdriUrl(json, preferred);
-    return picked || fallbackUrl;
-  } catch (error) {
-    console.warn('Failed to resolve Poly Haven HDRI url', error);
-    return fallbackUrl;
-  }
-}
-
-async function createFallbackHdriEnvironment(renderer) {
-  if (!renderer) return null;
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  pmrem.compileEquirectangularShader();
-  const hemi = new THREE.HemisphereLight(0x94a3b8, 0x0f172a, 1.05);
-  const floor = new THREE.Mesh(
-    new THREE.CircleGeometry(6, 24),
-    new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.78, metalness: 0.05 })
-  );
-  floor.rotation.x = -Math.PI / 2;
-  const tempScene = new THREE.Scene();
-  tempScene.add(hemi);
-  tempScene.add(floor);
-  const { texture } = pmrem.fromScene(tempScene);
-  texture.name = 'snooker-club-fallback-env';
-  pmrem.dispose();
-  floor.geometry.dispose();
-  floor.material.dispose();
-  return { envMap: texture, skyboxMap: null, url: null };
-}
-
-async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
-  if (!renderer) return null;
-  const url = await resolvePolyHavenHdriUrl(config);
-  const resolveFallback = async () => {
-    try {
-      return await createFallbackHdriEnvironment(renderer);
-    } catch (error) {
-      console.warn('Failed to build fallback HDRI environment', error);
-      return null;
-    }
-  };
-  const lowerUrl = `${url ?? ''}`.toLowerCase();
-  const useExr = lowerUrl.endsWith('.exr');
-  const loader = useExr ? new EXRLoader() : new RGBELoader();
-  loader.setCrossOrigin?.('anonymous');
-  return new Promise((resolve) => {
-    if (!url) {
-      resolveFallback().then(resolve);
-      return;
-    }
-    loader.load(
-      url,
-      (texture) => {
-        const pmrem = new THREE.PMREMGenerator(renderer);
-        pmrem.compileEquirectangularShader();
-        const envMap = pmrem.fromEquirectangular(texture).texture;
-        envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
-        const skyboxMap = texture;
-        skyboxMap.name = `${config?.assetId ?? 'polyhaven'}-skybox`;
-        skyboxMap.mapping = THREE.EquirectangularReflectionMapping;
-        skyboxMap.needsUpdate = true;
-        pmrem.dispose();
-        resolve({ envMap, skyboxMap, url });
-      },
-      undefined,
-      (error) => {
-        console.warn('Failed to load Poly Haven HDRI', error);
-        resolveFallback().then(resolve);
-      }
-    );
-  });
 }
 
 function createBroadcastCameras({
@@ -8585,14 +8442,6 @@ export function PoolRoyaleGame({
       DEFAULT_RAIL_MARKER_COLOR_ID
     );
   });
-  const [environmentHdriId, setEnvironmentHdriId] = useState(() => {
-    return resolveStoredSelection(
-      'environmentHdri',
-      HDRI_STORAGE_KEY,
-      (id) => Boolean(POOL_ROYALE_HDRI_VARIANT_MAP[id]),
-      POOL_ROYALE_DEFAULT_HDRI_ID
-    );
-  });
   const [lightingId, setLightingId] = useState(() => DEFAULT_LIGHTING_ID);
   const [chromeColorId, setChromeColorId] = useState(() => {
     return resolveStoredSelection(
@@ -8681,13 +8530,6 @@ export function PoolRoyaleGame({
       ),
     [snookerInventory]
   );
-  const availableEnvironmentHdris = useMemo(
-    () =>
-      POOL_ROYALE_HDRI_VARIANTS.filter((variant) =>
-        isSnookerOptionUnlocked('environmentHdri', variant.id, snookerInventory)
-      ),
-    [snookerInventory]
-  );
   const availablePocketLiners = useMemo(
     () =>
       POCKET_LINER_OPTIONS.filter((option) =>
@@ -8716,13 +8558,6 @@ export function PoolRoyaleGame({
       CLOTH_COLOR_OPTIONS[0],
     [availableClothOptions, clothColorId]
   );
-  const activeEnvironmentHdri = useMemo(
-    () =>
-      POOL_ROYALE_HDRI_VARIANT_MAP[environmentHdriId] ??
-      POOL_ROYALE_HDRI_VARIANT_MAP[POOL_ROYALE_DEFAULT_HDRI_ID] ??
-      POOL_ROYALE_HDRI_VARIANTS[0],
-    [environmentHdriId]
-  );
   const activePocketLinerOption = useMemo(
     () =>
       availablePocketLiners.find((opt) => opt?.id === pocketLinerId) ??
@@ -8746,13 +8581,9 @@ export function PoolRoyaleGame({
     if (!isSnookerOptionUnlocked('pocketLiner', pocketLinerId, snookerInventory)) {
       setPocketLinerId(DEFAULT_POCKET_LINER_OPTION_ID);
     }
-    if (!isSnookerOptionUnlocked('environmentHdri', environmentHdriId, snookerInventory)) {
-      setEnvironmentHdriId(POOL_ROYALE_DEFAULT_HDRI_ID);
-    }
   }, [
     chromeColorId,
     clothColorId,
-    environmentHdriId,
     pocketLinerId,
     railMarkerColorId,
     snookerInventory,
@@ -9318,15 +9149,6 @@ export function PoolRoyaleGame({
   useEffect(() => {
     activeVariantRef.current = activeVariant;
   }, [activeVariant]);
-  const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
-  useEffect(() => {
-    activeEnvironmentVariantRef.current = activeEnvironmentHdri;
-  }, [activeEnvironmentHdri]);
-  const envSkyboxRef = useRef(null);
-  const envSkyboxTextureRef = useRef(null);
-  const envTextureRef = useRef(null);
-  const disposeEnvironmentRef = useRef(null);
-  const updateEnvironmentRef = useRef(() => {});
   useEffect(() => {
     if (typeof window !== 'undefined') {
       safeSetItem(TABLE_FINISH_STORAGE_KEY, tableFinishId);
@@ -9342,14 +9164,6 @@ export function PoolRoyaleGame({
       safeSetItem(POCKET_LINER_STORAGE_KEY, pocketLinerId);
     }
   }, [pocketLinerId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      safeSetItem(HDRI_STORAGE_KEY, environmentHdriId);
-    }
-    if (typeof updateEnvironmentRef.current === 'function') {
-      updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
-    }
-  }, [activeEnvironmentHdri, environmentHdriId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       safeSetItem('poolChromeColor', chromeColorId);
@@ -10351,115 +10165,6 @@ export function PoolRoyaleGame({
       scene.add(world);
       worldRef.current = world;
       let worldScaleFactor = WORLD_SCALE * (tableSizeRef.current?.scale ?? 1);
-      const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
-        const rendererInstance = rendererRef.current || renderer;
-        const sceneInstance = sceneRef.current || scene;
-        if (!rendererInstance || !sceneInstance) return;
-        const activeVariant =
-          variantConfig ||
-          activeEnvironmentVariantRef.current ||
-          POOL_ROYALE_HDRI_VARIANT_MAP[POOL_ROYALE_DEFAULT_HDRI_ID] ||
-          POOL_ROYALE_HDRI_VARIANTS[0];
-        const envResult = await loadPolyHavenHdriEnvironment(rendererInstance, activeVariant);
-        if (!envResult) return;
-        const { envMap, skyboxMap } = envResult;
-        if (!envMap) return;
-        if (disposed) {
-          envMap.dispose?.();
-          skyboxMap?.dispose?.();
-          return;
-        }
-        const prevDispose = disposeEnvironmentRef.current;
-        const prevTexture = envTextureRef.current;
-        const worldOffsetY = worldRef.current?.position?.y ?? 0;
-        const tableScale = tableSizeRef.current?.scale ?? 1;
-        const resolvedWorldScale =
-          Number.isFinite(worldScaleFactor) && worldScaleFactor > 0
-            ? worldScaleFactor
-            : WORLD_SCALE * tableScale;
-        const floorWorldY = FLOOR_Y * resolvedWorldScale + worldOffsetY;
-        const unitsPerMeter = MM_TO_UNITS * 1000 * resolvedWorldScale;
-        const cameraHeightMeters = Math.max(
-          activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M,
-          MIN_HDRI_CAMERA_HEIGHT_M
-        );
-        const skyboxHeight = cameraHeightMeters * unitsPerMeter;
-        const groundRadiusMultiplier =
-          typeof activeVariant?.groundRadiusMultiplier === 'number'
-            ? activeVariant.groundRadiusMultiplier
-            : DEFAULT_HDRI_RADIUS_MULTIPLIER;
-        const baseRadius =
-          Math.max(PLAY_W, PLAY_H) * resolvedWorldScale * groundRadiusMultiplier;
-        const skyboxRadius = Math.max(baseRadius, skyboxHeight * 2.5, MIN_HDRI_RADIUS);
-        const skyboxResolution = Math.max(
-          16,
-          Math.floor(activeVariant?.groundResolution ?? HDRI_GROUNDED_RESOLUTION)
-        );
-        let skybox = null;
-        if (skyboxMap && skyboxHeight > 0 && skyboxRadius > 0) {
-          try {
-            skybox = new GroundedSkybox(skyboxMap, skyboxHeight, skyboxRadius, skyboxResolution);
-            skybox.position.y = floorWorldY + skyboxHeight;
-            skybox.material.depthWrite = false;
-            sceneInstance.background = null;
-            sceneInstance.add(skybox);
-            envSkyboxRef.current = skybox;
-            envSkyboxTextureRef.current = skyboxMap;
-          } catch (error) {
-            console.warn('Failed to create grounded HDRI skybox', error);
-            skybox = null;
-          }
-        }
-        sceneInstance.environment = envMap;
-        if (!skybox) {
-          sceneInstance.background = envMap;
-          envSkyboxRef.current = null;
-          envSkyboxTextureRef.current = null;
-          if (
-            'backgroundIntensity' in sceneInstance &&
-            typeof activeVariant?.backgroundIntensity === 'number'
-          ) {
-            sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
-          }
-        }
-        if (
-          'environmentIntensity' in sceneInstance &&
-          typeof activeVariant?.environmentIntensity === 'number'
-        ) {
-          sceneInstance.environmentIntensity = activeVariant.environmentIntensity;
-        }
-        rendererInstance.toneMappingExposure =
-          activeVariant?.exposure ?? rendererInstance.toneMappingExposure;
-        envTextureRef.current = envMap;
-        disposeEnvironmentRef.current = () => {
-          if (sceneRef.current?.environment === envMap) {
-            sceneRef.current.environment = null;
-          }
-          if (!skybox && sceneRef.current?.background === envMap) {
-            sceneRef.current.background = null;
-          }
-          envMap.dispose?.();
-          if (skybox) {
-            skybox.parent?.remove(skybox);
-            skybox.geometry?.dispose?.();
-            skybox.material?.dispose?.();
-            if (envSkyboxRef.current === skybox) {
-              envSkyboxRef.current = null;
-            }
-          }
-          if (skyboxMap) {
-            skyboxMap.dispose?.();
-            if (envSkyboxTextureRef.current === skyboxMap) {
-              envSkyboxTextureRef.current = null;
-            }
-          }
-        };
-        if (prevDispose && prevTexture !== envMap) {
-          prevDispose();
-        }
-      };
-      updateEnvironmentRef.current = applyHdriEnvironment;
-      void applyHdriEnvironment(activeEnvironmentVariantRef.current);
       let cue;
       let clothMat;
       let cushionMat;
@@ -17337,11 +17042,6 @@ export function PoolRoyaleGame({
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
           disposed = true;
-          disposeEnvironmentRef.current?.();
-          disposeEnvironmentRef.current = null;
-          envSkyboxRef.current = null;
-          envSkyboxTextureRef.current = null;
-          envTextureRef.current = null;
           lightingRigRef.current = null;
           worldRef.current = null;
           sceneRef.current = null;
@@ -17717,40 +17417,6 @@ export function PoolRoyaleGame({
                         }`}
                       >
                         {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  HDR Environment
-                </h3>
-                <div className="mt-2 grid grid-cols-1 gap-2">
-                  {availableEnvironmentHdris.map((variant) => {
-                    const active = variant.id === environmentHdriId;
-                    const swatchA = variant.swatches?.[0] ?? '#0ea5e9';
-                    const swatchB = variant.swatches?.[1] ?? '#111827';
-                    return (
-                      <button
-                        key={variant.id}
-                        type="button"
-                        onClick={() => setEnvironmentHdriId(variant.id)}
-                        aria-pressed={active}
-                        className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span>{variant.name}</span>
-                        <span
-                          className="h-6 w-10 rounded-lg border border-white/30"
-                          aria-hidden="true"
-                          style={{
-                            background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
-                          }}
-                        />
                       </button>
                     );
                   })}
