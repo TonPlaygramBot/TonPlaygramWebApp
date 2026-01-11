@@ -21,7 +21,7 @@ import {
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { addTransaction, getAccountBalance } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { SnookerClubRules as PoolRoyaleRules } from '../../../../src/rules/SnookerClubRules.ts';
+import { SnookerClubRules } from '../../../../src/rules/SnookerClubRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/snookerClubTables.js';
 import {
@@ -8295,7 +8295,7 @@ export function PoolRoyaleGame({
   const rafRef = useRef(null);
   const worldRef = useRef(null);
   const sceneRef = useRef(null);
-  const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
+  const rules = useMemo(() => new SnookerClubRules(), []);
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey),
     [variantKey]
