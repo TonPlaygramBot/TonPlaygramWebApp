@@ -40,25 +40,7 @@ import {
 } from '../../config/murlanThemes.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 
-const DEFAULT_HDRI_RESOLUTION_ID = '4k';
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze([DEFAULT_HDRI_RESOLUTION_ID]);
-const HDRI_RESOLUTION_OPTIONS = Object.freeze([
-  {
-    id: '2k',
-    label: '2K HDRI',
-    description: 'Faster loads for mobile and battery saver setups.'
-  },
-  {
-    id: '4k',
-    label: '4K HDRI',
-    description: 'Balanced clarity recommended for most devices.'
-  },
-  {
-    id: '6k',
-    label: '6K HDRI',
-    description: 'Ultra-crisp reflections for high-end GPUs.'
-  }
-]);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
   label: `${variant.name} HDRI`
@@ -638,7 +620,6 @@ const DEFAULT_APPEARANCE = {
 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const FRAME_RATE_STORAGE_KEY = 'murlanFrameRate';
-const HDRI_RESOLUTION_STORAGE_KEY = 'murlanHdriResolution';
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tables', label: 'Table Model', options: TABLE_THEMES },
   { key: 'tableFinish', label: 'Table Finish', options: MURLAN_TABLE_FINISHES },
@@ -1264,22 +1245,9 @@ export default function MurlanRoyaleArena({ search }) {
     }
     return DEFAULT_FRAME_RATE_ID || DEFAULT_FRAME_RATE_OPTION.id;
   });
-  const [hdriResolutionId, setHdriResolutionId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage?.getItem(HDRI_RESOLUTION_STORAGE_KEY);
-      if (stored && HDRI_RESOLUTION_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_HDRI_RESOLUTION_ID;
-  });
   const activeFrameRateOption = useMemo(
     () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
-  );
-  const activeHdriResolution = useMemo(
-    () => HDRI_RESOLUTION_OPTIONS.find((opt) => opt.id === hdriResolutionId) ?? HDRI_RESOLUTION_OPTIONS[1],
-    [hdriResolutionId]
   );
   const frameQualityProfile = useMemo(() => {
     const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
@@ -1309,7 +1277,7 @@ export default function MurlanRoyaleArena({ search }) {
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
   }, [frameQualityProfile]);
-  const resolvedHdriResolution = activeHdriResolution?.id ?? DEFAULT_HDRI_RESOLUTION_ID;
+  const resolvedHdriResolution = DEFAULT_HDRI_RESOLUTIONS[0];
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
       Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) && DEFAULT_FRAME_RATE_OPTION.fps > 0
@@ -1387,14 +1355,6 @@ export default function MurlanRoyaleArena({ search }) {
       console.warn('Failed to persist frame rate option', error);
     }
   }, [frameRateId]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage?.setItem(HDRI_RESOLUTION_STORAGE_KEY, resolvedHdriResolution);
-    } catch (error) {
-      console.warn('Failed to persist HDRI resolution option', error);
-    }
-  }, [resolvedHdriResolution]);
 
   const gameStateRef = useRef(gameState);
   const selectedRef = useRef(selectedIds);
@@ -1853,7 +1813,7 @@ export default function MurlanRoyaleArena({ search }) {
       if (!three.renderer || !three.scene) return;
       const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
       if (!activeVariant) return;
-      const resolution = resolvedHdriResolution || DEFAULT_HDRI_RESOLUTION_ID;
+      const resolution = resolvedHdriResolution || DEFAULT_HDRI_RESOLUTIONS[0];
       const envResult = await loadPolyHavenHdriEnvironment(three.renderer, {
         ...activeVariant,
         forceResolution: resolution,
@@ -2880,46 +2840,6 @@ export default function MurlanRoyaleArena({ search }) {
                   <div className="space-y-2">
                     <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Graphics</p>
                     <div className="grid gap-2">
-                      <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-semibold uppercase tracking-[0.26em] text-white">
-                            HDRI Resolution
-                          </span>
-                          <span className="text-[10px] font-semibold tracking-wide text-sky-100">
-                            {activeHdriResolution?.label ?? '4K HDRI'}
-                          </span>
-                        </div>
-                        <div className="mt-2 grid gap-1.5">
-                          {HDRI_RESOLUTION_OPTIONS.map((option) => {
-                            const active = option.id === resolvedHdriResolution;
-                            return (
-                              <button
-                                key={option.id}
-                                type="button"
-                                onClick={() => setHdriResolutionId(option.id)}
-                                aria-pressed={active}
-                                className={`w-full rounded-xl border px-2.5 py-1.5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                                  active
-                                    ? 'border-sky-300 bg-sky-300/15 text-white shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                                    : 'border-white/10 bg-white/5 text-white/80 hover:border-white/20'
-                                }`}
-                              >
-                                <span className="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.24em]">
-                                  {option.label}
-                                  <span className="text-[9px] font-semibold tracking-wide text-sky-100">
-                                    {option.id.toUpperCase()}
-                                  </span>
-                                </span>
-                                {option.description ? (
-                                  <span className="mt-1 block text-[9px] uppercase tracking-[0.2em] text-white/60">
-                                    {option.description}
-                                  </span>
-                                ) : null}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
                       {FRAME_RATE_OPTIONS.map((option) => {
                         const active = option.id === frameRateId;
                         return (
