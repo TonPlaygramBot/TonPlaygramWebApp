@@ -131,8 +131,7 @@ const SNOOKER_TYPE_LABELS = {
   chromeColor: 'Chrome Fascias',
   railMarkerColor: 'Rail Markers',
   clothColor: 'Cloth Colors',
-  cueStyle: 'Cue Styles',
-  environmentHdri: 'HDR Environments'
+  cueStyle: 'Cue Styles'
 };
 
 const AIR_HOCKEY_TYPE_LABELS = {
