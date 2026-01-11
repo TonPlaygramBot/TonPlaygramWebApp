@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { getGameVolume } from '../utils/sound.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 import { AIR_HOCKEY_CUSTOMIZATION } from '../config/airHockeyInventoryConfig.js';
@@ -9,7 +11,16 @@ import {
   isAirHockeyOptionUnlocked
 } from '../utils/airHockeyInventory.js';
 
-const CUSTOMIZATION_KEYS = Object.freeze(['field', 'table', 'puck', 'mallet', 'rails', 'goals']);
+const CUSTOMIZATION_KEYS = Object.freeze([
+  'field',
+  'table',
+  'tableBase',
+  'environmentHdri',
+  'puck',
+  'mallet',
+  'rails',
+  'goals'
+]);
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -110,6 +121,87 @@ function selectPerformanceProfile(option = null) {
   };
 }
 
+const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
+
+const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
+  if (!json || typeof json !== 'object') return null;
+  const resolutions = Array.isArray(preferred) && preferred.length ? preferred : DEFAULT_HDRI_RESOLUTIONS;
+  for (const res of resolutions) {
+    const entry = json[res];
+    if (entry?.hdr) return entry.hdr;
+    if (entry?.exr) return entry.exr;
+  }
+  const fallback = Object.values(json).find((value) => value?.hdr || value?.exr);
+  if (!fallback) return null;
+  return fallback.hdr || fallback.exr || null;
+};
+
+async function resolvePolyHavenHdriUrl(config = {}) {
+  const forcedResolution =
+    typeof config?.forceResolution === 'string' && config.forceResolution.length
+      ? config.forceResolution
+      : null;
+  const preferred = forcedResolution
+    ? [forcedResolution]
+    : Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+      ? config.preferredResolutions
+      : DEFAULT_HDRI_RESOLUTIONS;
+  const fallbackRes = forcedResolution || config?.fallbackResolution || preferred[0] || '4k';
+  const fallbackUrl =
+    config?.fallbackUrl ||
+    `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
+  if (config?.assetUrls && typeof config.assetUrls === 'object') {
+    for (const res of preferred) {
+      if (config.assetUrls[res]) return config.assetUrls[res];
+    }
+    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
+    if (manual) return manual;
+  }
+  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
+  if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
+  try {
+    const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
+    if (!response?.ok) return fallbackUrl;
+    const json = await response.json();
+    const picked = pickPolyHavenHdriUrl(json, preferred);
+    return picked || fallbackUrl;
+  } catch (error) {
+    console.warn('Failed to resolve Poly Haven HDRI url', error);
+    return fallbackUrl;
+  }
+}
+
+async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
+  if (!renderer) return null;
+  const url = await resolvePolyHavenHdriUrl(config);
+  const lowerUrl = `${url ?? ''}`.toLowerCase();
+  const useExr = lowerUrl.endsWith('.exr');
+  const loader = useExr ? new EXRLoader() : null;
+  const rgbeLoader = new RGBELoader();
+  const activeLoader = useExr && loader ? loader : rgbeLoader;
+  if (!activeLoader) return null;
+  activeLoader.setCrossOrigin?.('anonymous');
+  return new Promise((resolve) => {
+    activeLoader.load(
+      url,
+      (texture) => {
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        pmrem.compileEquirectangularShader();
+        const envMap = pmrem.fromEquirectangular(texture).texture;
+        envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
+        texture.dispose();
+        pmrem.dispose();
+        resolve({ envMap, url });
+      },
+      undefined,
+      (error) => {
+        console.warn('Failed to load Poly Haven HDRI', error);
+        resolve(null);
+      }
+    );
+  });
+}
+
 const POOL_ENVIRONMENT = (() => {
   const TABLE_SCALE = 1.17;
   const TABLE_FIELD_EXPANSION = 1.2;
@@ -182,7 +274,7 @@ const POOL_ENVIRONMENT = (() => {
 /**
  * AIR HOCKEY 3D — Mobile Portrait
  * -------------------------------
- * • Full Pool Royale arena replica (walls, carpet, lighting, table footprint)
+ * • HDRI-lit Air Hockey arena with Murlan Royale environments (no walls or carpet)
  * • Player-edge camera for an at-table perspective suited to portrait play
  * • Controls: drag bottom half to move mallet
  * • AI opponent on top half with simple tracking logic
@@ -246,8 +338,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const redirectTimeoutRef = useRef(null);
   const materialsRef = useRef({
     tableSurface: null,
-    wood: null,
-    darkWood: null,
+    frame: null,
+    trim: null,
+    base: null,
+    baseAccent: null,
     rail: null,
     line: null,
     rings: [],
@@ -258,6 +352,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     aiKnob: null,
     puck: null
   });
+  const sceneRef = useRef(null);
+  const environmentRef = useRef({ envMap: null });
   const malletRefs = useRef({ player: null, ai: null });
   const malletDimensionsRef = useRef({
     radius: 0,
@@ -628,6 +724,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x050505);
+    sceneRef.current = scene;
 
     const TABLE_SCALE = 1.2;
     const BASE_TABLE_LENGTH = POOL_ENVIRONMENT.tableLength * TABLE_SCALE;
@@ -679,68 +776,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     world.add(tableGroup);
     tableGroupRef.current = tableGroup;
 
-    const carpet = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        POOL_ENVIRONMENT.carpetWidth,
-        POOL_ENVIRONMENT.carpetThickness,
-        POOL_ENVIRONMENT.carpetDepth
-      ),
-      new THREE.MeshStandardMaterial({
-        color: 0x8c2a2e,
-        roughness: 0.9,
-        metalness: 0.025
-      })
-    );
-    carpet.castShadow = false;
-    carpet.receiveShadow = true;
-    carpet.position.set(
-      0,
-      POOL_ENVIRONMENT.floorY - POOL_ENVIRONMENT.carpetThickness / 2,
-      0
-    );
-    world.add(carpet);
-
-    const wallMaterial = new THREE.MeshStandardMaterial({
-      color: 0xb9ddff,
-      roughness: 0.88,
-      metalness: 0.06
-    });
-    const makeArenaWall = (width, height, depth) => {
-      const wall = new THREE.Mesh(
-        new THREE.BoxGeometry(width, height, depth),
-        wallMaterial
-      );
-      wall.castShadow = false;
-      wall.receiveShadow = true;
-      wall.position.y = POOL_ENVIRONMENT.floorY + height / 2;
-      world.add(wall);
-      return wall;
-    };
-
-    const halfRoomDepth = POOL_ENVIRONMENT.roomDepth / 2;
-    const halfRoomWidth = POOL_ENVIRONMENT.roomWidth / 2;
-    const arenaWallThickness = POOL_ENVIRONMENT.wallThickness;
-    makeArenaWall(
-      POOL_ENVIRONMENT.roomWidth,
-      POOL_ENVIRONMENT.wallHeight,
-      arenaWallThickness
-    ).position.z = -halfRoomDepth;
-    makeArenaWall(
-      POOL_ENVIRONMENT.roomWidth,
-      POOL_ENVIRONMENT.wallHeight,
-      arenaWallThickness
-    ).position.z = halfRoomDepth;
-    makeArenaWall(
-      arenaWallThickness,
-      POOL_ENVIRONMENT.wallHeight,
-      POOL_ENVIRONMENT.roomDepth
-    ).position.x = -halfRoomWidth;
-    makeArenaWall(
-      arenaWallThickness,
-      POOL_ENVIRONMENT.wallHeight,
-      POOL_ENVIRONMENT.roomDepth
-    ).position.x = halfRoomWidth;
-
     const tableSurface = new THREE.Mesh(
       new THREE.BoxGeometry(TABLE.w, TABLE.thickness, TABLE.h),
       new THREE.MeshStandardMaterial({
@@ -754,18 +789,30 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     materialsRef.current.tableSurface = tableSurface.material;
 
     const floorLocalY = POOL_ENVIRONMENT.floorY - elevatedTableSurfaceY;
-    const woodMaterial = new THREE.MeshStandardMaterial({
+    const frameMaterial = new THREE.MeshStandardMaterial({
       color: 0x5d3725,
       roughness: 0.55,
       metalness: 0.18
     });
-    const darkWoodMaterial = new THREE.MeshStandardMaterial({
+    const trimMaterial = new THREE.MeshStandardMaterial({
       color: 0x2c1a11,
       roughness: 0.7,
       metalness: 0.12
     });
-    materialsRef.current.wood = woodMaterial;
-    materialsRef.current.darkWood = darkWoodMaterial;
+    const baseMaterial = new THREE.MeshStandardMaterial({
+      color: 0x4a2918,
+      roughness: 0.5,
+      metalness: 0.16
+    });
+    const baseAccentMaterial = new THREE.MeshStandardMaterial({
+      color: 0x2c1a11,
+      roughness: 0.62,
+      metalness: 0.12
+    });
+    materialsRef.current.frame = frameMaterial;
+    materialsRef.current.trim = trimMaterial;
+    materialsRef.current.base = baseMaterial;
+    materialsRef.current.baseAccent = baseAccentMaterial;
 
     const SKIRT_OVERHANG = Math.max(TABLE.w, TABLE.h) * 0.08;
     const SKIRT_TOP_GAP = TABLE.thickness * 0.05;
@@ -779,7 +826,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const createSkirtPanel = (width, depth) => {
       const panel = new THREE.Mesh(
         new THREE.BoxGeometry(width, panelHeight, depth),
-        woodMaterial
+        frameMaterial
       );
       panel.castShadow = true;
       panel.receiveShadow = true;
@@ -818,7 +865,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         cabinetHeight,
         outerHalfH * 2 - panelThickness * 0.35
       ),
-      darkWoodMaterial
+      baseMaterial
     );
     cabinet.castShadow = true;
     cabinet.receiveShadow = true;
@@ -827,11 +874,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     tableGroup.add(cabinet);
     const cabinetBottomLocal = cabinet.position.y - cabinetHeight / 2;
 
-    const legMaterial = new THREE.MeshStandardMaterial({
-      color: 0x4a2918,
-      roughness: 0.5,
-      metalness: 0.16
-    });
     const legRadius = Math.min(TABLE.w, TABLE.h) * 0.055;
     const legTopLocal = cabinetBottomLocal - TABLE.thickness * 0.08;
     const legHeightGap = legTopLocal - floorLocalY;
@@ -861,13 +903,13 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     );
     const footY = floorLocalY + footHeight / 2;
     legPositions.forEach(([lx, lz]) => {
-      const leg = new THREE.Mesh(legGeometry, legMaterial);
+      const leg = new THREE.Mesh(legGeometry, baseMaterial);
       leg.position.set(lx, legCenterY, lz);
       leg.castShadow = true;
       leg.receiveShadow = true;
       tableGroup.add(leg);
 
-      const foot = new THREE.Mesh(footGeometry, darkWoodMaterial);
+      const foot = new THREE.Mesh(footGeometry, baseAccentMaterial);
       foot.position.set(lx, footY, lz);
       foot.castShadow = true;
       foot.receiveShadow = true;
@@ -1061,25 +1103,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     puck.position.y = PUCK_HEIGHT / 2;
     tableGroup.add(puck);
     materialsRef.current.puck = puck.material;
-
-    const lightLift = TABLE.h * 0.32;
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.15);
-    keyLight.position.set(-TABLE.w * 0.25, elevatedTableSurfaceY + lightLift, TABLE.h * 0.2);
-    keyLight.target.position.set(0, elevatedTableSurfaceY, 0);
-    scene.add(keyLight);
-    scene.add(keyLight.target);
-
-    const fillLight = new THREE.DirectionalLight(0xcdd9ff, 0.58);
-    fillLight.position.set(TABLE.w * 0.36, elevatedTableSurfaceY + lightLift * 1.1, -TABLE.h * 0.12);
-    fillLight.target.position.set(0, elevatedTableSurfaceY, 0);
-    scene.add(fillLight);
-    scene.add(fillLight.target);
-
-    const rimLight = new THREE.DirectionalLight(0xaadfff, 0.9);
-    rimLight.position.set(0, elevatedTableSurfaceY + lightLift * 1.2, -TABLE.h * 0.48);
-    rimLight.target.position.set(0, elevatedTableSurfaceY, TABLE.h * 0.1);
-    scene.add(rimLight);
-    scene.add(rimLight.target);
 
     const playerRailZ = TABLE.h / 2 + railThickness / 2;
     const cameraFocus = new THREE.Vector3(
@@ -1348,9 +1371,54 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       try {
         host.removeChild(renderer.domElement);
       } catch {}
+      if (environmentRef.current.envMap) {
+        environmentRef.current.envMap.dispose?.();
+        environmentRef.current.envMap = null;
+      }
       renderer.dispose();
     };
   }, []);
+
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    const scene = sceneRef.current;
+    if (!renderer || !scene) return undefined;
+    const hdriOption = getOption('environmentHdri', selections.environmentHdri);
+    if (!hdriOption) return undefined;
+    let cancelled = false;
+    loadPolyHavenHdriEnvironment(renderer, hdriOption).then((result) => {
+      if (cancelled || !result?.envMap) {
+        result?.envMap?.dispose?.();
+        return;
+      }
+      const prevEnv = environmentRef.current.envMap;
+      if (prevEnv && prevEnv !== result.envMap) {
+        prevEnv.dispose?.();
+      }
+      environmentRef.current.envMap = result.envMap;
+      scene.environment = result.envMap;
+      scene.background = result.envMap;
+      const rotationY = Number.isFinite(hdriOption.rotationY) ? hdriOption.rotationY : 0;
+      if ('backgroundRotation' in scene) {
+        scene.backgroundRotation = new THREE.Euler(0, rotationY, 0);
+      }
+      if ('environmentRotation' in scene) {
+        scene.environmentRotation = new THREE.Euler(0, rotationY, 0);
+      }
+      if ('backgroundIntensity' in scene && typeof hdriOption.backgroundIntensity === 'number') {
+        scene.backgroundIntensity = hdriOption.backgroundIntensity;
+      }
+      if ('environmentIntensity' in scene && typeof hdriOption.environmentIntensity === 'number') {
+        scene.environmentIntensity = hdriOption.environmentIntensity;
+      }
+      if (typeof hdriOption.exposure === 'number') {
+        renderer.toneMappingExposure = hdriOption.exposure;
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selections.environmentHdri]);
 
   useEffect(() => {
     const playerMallet = malletRefs.current.player;
@@ -1482,6 +1550,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
 
     const fieldTheme = getOption('field', selections.field);
     const tableTheme = getOption('table', selections.table);
+    const baseTheme = getOption('tableBase', selections.tableBase);
     const puckTheme = getOption('puck', selections.puck);
     const malletTheme = getOption('mallet', selections.mallet);
     const railTheme = getOption('rails', selections.rails);
@@ -1490,8 +1559,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     mats.tableSurface.color.set(fieldTheme.surface);
     if (mats.line) mats.line.color.set(fieldTheme.lines);
     mats.rings.forEach((material) => material.color.set(fieldTheme.rings || fieldTheme.lines));
-    if (mats.wood) mats.wood.color.set(tableTheme.wood);
-    if (mats.darkWood) mats.darkWood.color.set(tableTheme.trim);
+    if (mats.frame) mats.frame.color.set(tableTheme.wood);
+    if (mats.trim) mats.trim.color.set(tableTheme.trim);
+    if (mats.base) mats.base.color.set(baseTheme.base);
+    if (mats.baseAccent) mats.baseAccent.color.set(baseTheme.accent);
     if (mats.rail) {
       mats.rail.color.set(railTheme.color);
       mats.rail.opacity = railTheme.opacity;
@@ -1521,7 +1592,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         <div className="text-[11px] uppercase tracking-wide text-white/70">{label}</div>
         <div className="grid grid-cols-2 gap-2">
           {options.map((option, idx) => {
-            const swatch = option.surface || option.wood || option.color;
+            const swatch =
+              option.surface ||
+              option.wood ||
+              option.color ||
+              option.base ||
+              option.swatches?.[0];
             const active = selections[key] === option.id;
             return (
               <button
@@ -1630,7 +1706,9 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
               </div>
             </div>
             {renderOptionRow('Field', 'field')}
-            {renderOptionRow('Table', 'table')}
+            {renderOptionRow('Table Finish', 'table')}
+            {renderOptionRow('Table Base', 'tableBase')}
+            {renderOptionRow('HDRI Environment', 'environmentHdri')}
             {renderOptionRow('Puck', 'puck')}
             {renderOptionRow('Mallets', 'mallet')}
             {renderOptionRow('Rails', 'rails')}
@@ -1687,4 +1765,3 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     </div>
   );
 }
-
