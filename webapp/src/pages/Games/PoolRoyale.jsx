@@ -4984,7 +4984,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
-const SPIN_INPUT_DEAD_ZONE = 0.06;
+const SPIN_INPUT_DEAD_ZONE = 0.02;
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
 
 const clampToUnitCircle = (x, y) => {
@@ -10220,6 +10220,54 @@ function PoolRoyaleGame({
     return params.get('token') || 'TPC';
   }, [location.search]);
   const [winnerOverlay, setWinnerOverlay] = useState(null);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingActive, setLoadingActive] = useState(true);
+  useEffect(() => {
+    const manager = THREE.DefaultLoadingManager;
+    let cancelled = false;
+    const prev = {
+      onStart: manager.onStart,
+      onLoad: manager.onLoad,
+      onProgress: manager.onProgress,
+      onError: manager.onError
+    };
+    const updateProgress = (loaded, total) => {
+      const safeTotal = Number.isFinite(total) && total > 0 ? total : Math.max(1, loaded || 1);
+      const ratio = Number.isFinite(loaded) ? loaded / safeTotal : 0;
+      setLoadingProgress(Math.max(0, Math.min(1, ratio)));
+    };
+    manager.onStart = (url, loaded, total) => {
+      prev.onStart?.(url, loaded, total);
+      if (cancelled) return;
+      setLoadingActive(true);
+      updateProgress(loaded, total);
+    };
+    manager.onProgress = (url, loaded, total) => {
+      prev.onProgress?.(url, loaded, total);
+      if (cancelled) return;
+      updateProgress(loaded, total);
+    };
+    manager.onLoad = () => {
+      prev.onLoad?.();
+      if (cancelled) return;
+      setLoadingProgress(1);
+      window.setTimeout(() => {
+        if (!cancelled) setLoadingActive(false);
+      }, 200);
+    };
+    manager.onError = (url) => {
+      prev.onError?.(url);
+      if (cancelled) return;
+      setLoadingProgress((prevValue) => Math.max(prevValue, 0.9));
+    };
+    return () => {
+      cancelled = true;
+      manager.onStart = prev.onStart;
+      manager.onLoad = prev.onLoad;
+      manager.onProgress = prev.onProgress;
+      manager.onError = prev.onError;
+    };
+  }, []);
   const coinStyleInjectedRef = useRef(false);
   const ensureCoinBurstStyles = useCallback(() => {
     if (coinStyleInjectedRef.current || typeof document === 'undefined') return;
@@ -19953,7 +20001,7 @@ const powerRef = useRef(hud.power);
           const liftStrength = normalizeCueLift(liftAngle);
           const physicsSpin = mapSpinForPhysics(appliedSpin);
           const ranges = spinRangeRef.current || {};
-          const powerSpinScale = 1;
+          const powerSpinScale = 0.55 + clampedPower * 0.45;
           const baseSide = physicsSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
           let spinTop = -physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
@@ -25608,6 +25656,47 @@ const powerRef = useRef(hud.power);
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {loadingActive && !err && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 px-6 text-white">
+          <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
+            <div className="w-full rounded-3xl border border-emerald-400/40 bg-emerald-950/60 p-5 shadow-[0_24px_48px_rgba(0,0,0,0.6)]">
+              <svg
+                viewBox="0 0 320 200"
+                className="h-36 w-full"
+                role="img"
+                aria-label="Pool Royale loading"
+              >
+                <rect x="8" y="24" width="304" height="152" rx="18" fill="#065f46" stroke="#34d399" strokeWidth="6" />
+                <rect x="34" y="50" width="252" height="100" rx="12" fill="#0f766e" />
+                <circle cx="34" cy="50" r="10" fill="#0f172a" />
+                <circle cx="286" cy="50" r="10" fill="#0f172a" />
+                <circle cx="34" cy="150" r="10" fill="#0f172a" />
+                <circle cx="286" cy="150" r="10" fill="#0f172a" />
+                <circle cx="160" cy="50" r="10" fill="#0f172a" />
+                <circle cx="160" cy="150" r="10" fill="#0f172a" />
+                <circle cx="120" cy="100" r="9" fill="#f8fafc" />
+                <circle cx="170" cy="100" r="9" fill="#ef4444" />
+                <circle cx="220" cy="100" r="9" fill="#fbbf24" />
+              </svg>
+            </div>
+            <div className="w-full">
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-emerald-200">
+                Loading Pool Royale
+              </p>
+              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-emerald-400 transition-[width] duration-200"
+                  style={{ width: `${Math.round(loadingProgress * 100)}%` }}
+                />
+              </div>
+              <p className="mt-2 text-sm text-white/80">
+                {Math.round(loadingProgress * 100)}%
+              </p>
             </div>
           </div>
         </div>
