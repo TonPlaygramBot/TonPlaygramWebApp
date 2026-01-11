@@ -23230,22 +23230,22 @@ const powerRef = useRef(hud.power);
                 b.liftVel = 0;
               }
             if (hasSpin && (b.lift ?? 0) > 0) {
-              const worldSpin = resolveSpinWorldVector(b, TMP_VEC2_LIMIT);
-              const spinMag = worldSpin?.length() ?? 0;
-              if (worldSpin && spinMag > 1e-6) {
-                const liftRatio = THREE.MathUtils.clamp(
-                  (b.lift ?? 0) / MAX_POWER_LIFT_HEIGHT,
-                  0,
-                  1.2
-                );
-                const driftScale = LIFT_SPIN_AIR_DRIFT * liftRatio * stepScale;
-                TMP_VEC2_AXIS.copy(worldSpin).normalize().multiplyScalar(driftScale);
-                b.vel.add(TMP_VEC2_AXIS);
+                const airborneSpin = resolveSpinWorldVector(b, TMP_VEC2_LIMIT);
+                const spinMag = airborneSpin?.length() ?? 0;
+                if (spinMag > 1e-6 && airborneSpin) {
+                  const liftRatio = THREE.MathUtils.clamp(
+                    (b.lift ?? 0) / MAX_POWER_LIFT_HEIGHT,
+                    0,
+                    1.2
+                  );
+                  const driftScale = LIFT_SPIN_AIR_DRIFT * liftRatio * stepScale;
+                  airborneSpin.normalize().multiplyScalar(driftScale);
+                  b.vel.add(airborneSpin);
+                }
               }
             }
-            }
             if (hasSpin) {
-              const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
+              const swerveTravel = isCue && b.spinMode === 'swerve';
               const swerveStrength = swerveTravel ? Math.max(0, b.swerveStrength ?? 0) : 0;
               const swervePower = swerveTravel
                 ? Math.max(0, b.swervePowerStrength ?? 0)
@@ -23253,72 +23253,36 @@ const powerRef = useRef(hud.power);
               const swervePowerScale = swerveStrength > 0 ? 0.85 + swervePower * 0.9 : 0;
               const swerveScale =
                 swerveStrength > 0 ? (0.6 + swerveStrength * 0.9) * swervePowerScale : 0;
-              const allowRoll = !isCue || b.impacted || swerveTravel;
-              const preImpact = isCue && !b.impacted;
-              if (allowRoll) {
-                const rollMultiplier = swerveTravel
-                  ? SWERVE_TRAVEL_MULTIPLIER * (0.9 + swerveStrength * 0.6)
-                  : 1;
-                const worldSpin = resolveSpinWorldVector(b, TMP_VEC2_SPIN);
-                if (!worldSpin) {
-                  TMP_VEC2_SPIN.set(0, 0);
-                } else {
-                  worldSpin.multiplyScalar(
-                    SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
-                  );
-                }
-                if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
-                  const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
-                  const forwardMag = TMP_VEC2_SPIN.dot(launchDir);
-                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
-                  b.vel.add(TMP_VEC2_AXIS);
-                  TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
-                  if (b.spinMode === 'swerve' && b.pendingSpin && swerveScale > 0) {
-                    b.pendingSpin.addScaledVector(TMP_VEC2_LATERAL, swerveScale);
-                  }
-                  const alignedSpeed = b.vel.dot(launchDir);
-                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
-                  b.vel.copy(TMP_VEC2_AXIS);
-                  if (b.spinMode === 'swerve' && swerveScale > 0) {
-                    b.vel.addScaledVector(
-                      TMP_VEC2_LATERAL,
-                      SWERVE_PRE_IMPACT_DRIFT * swerveScale
-                    );
-                  }
-                } else {
-                  b.vel.add(TMP_VEC2_SPIN);
-                  if (
-                    isCue &&
-                    b.spinMode === 'swerve' &&
-                    b.pendingSpin &&
-                    b.pendingSpin.lengthSq() > 0
-                  ) {
-                    const driftScale = swerveScale > 0 ? swerveScale : 1;
-                    b.vel.addScaledVector(
-                      b.pendingSpin,
-                      PRE_IMPACT_SPIN_DRIFT * driftScale
-                    );
-                    b.pendingSpin.multiplyScalar(0);
-                  }
-                }
-                const rollDecay = Math.pow(SPIN_ROLL_DECAY, stepScale);
-                b.spin.multiplyScalar(rollDecay);
-                if (isCue && b.swerveStrength > 0) {
-                  b.swerveStrength *= rollDecay;
-                  if (b.swerveStrength < 1e-3) {
-                    b.swerveStrength = 0;
-                    b.swervePowerStrength = 0;
-                  }
-                }
-              } else {
-                const airDecay = Math.pow(SPIN_AIR_DECAY, stepScale);
-                b.spin.multiplyScalar(airDecay);
-                if (isCue && b.swerveStrength > 0) {
-                  b.swerveStrength *= airDecay;
-                  if (b.swerveStrength < 1e-3) {
-                    b.swerveStrength = 0;
-                    b.swervePowerStrength = 0;
-                  }
+              const rollMultiplier = swerveTravel
+                ? SWERVE_TRAVEL_MULTIPLIER * (0.9 + swerveStrength * 0.6)
+                : 1;
+              const spinWorld = resolveSpinWorldVector(b, TMP_VEC2_SPIN);
+              if (spinWorld) {
+                spinWorld.multiplyScalar(
+                  SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
+                );
+                b.vel.add(spinWorld);
+              }
+              if (
+                isCue &&
+                b.spinMode === 'swerve' &&
+                b.pendingSpin &&
+                b.pendingSpin.lengthSq() > 0
+              ) {
+                const driftScale = swerveScale > 0 ? swerveScale : 1;
+                b.vel.addScaledVector(
+                  b.pendingSpin,
+                  PRE_IMPACT_SPIN_DRIFT * driftScale
+                );
+                b.pendingSpin.multiplyScalar(0);
+              }
+              const rollDecay = Math.pow(SPIN_ROLL_DECAY, stepScale);
+              b.spin.multiplyScalar(rollDecay);
+              if (isCue && b.swerveStrength > 0) {
+                b.swerveStrength *= rollDecay;
+                if (b.swerveStrength < 1e-3) {
+                  b.swerveStrength = 0;
+                  b.swervePowerStrength = 0;
                 }
               }
               if (b.spin.lengthSq() < 1e-6) {
