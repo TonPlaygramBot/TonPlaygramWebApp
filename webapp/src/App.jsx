@@ -127,6 +127,14 @@ export default function App() {
             />
             <Route path="/games/snookerroyal" element={<SnookerRoyal />} />
             <Route
+              path="/games/snookerroyale/lobby"
+              element={<Navigate to="/games/snookerroyal/lobby" replace />}
+            />
+            <Route
+              path="/games/snookerroyale"
+              element={<Navigate to="/games/snookerroyal" replace />}
+            />
+            <Route
               path="/games/pollroyale/lobby"
               element={<Navigate to="/games/poolroyale/lobby" replace />}
             />
