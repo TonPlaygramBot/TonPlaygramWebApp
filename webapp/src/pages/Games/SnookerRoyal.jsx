@@ -10717,7 +10717,7 @@ function SnookerRoyalGame({
       }
       const telegramId = tgIdRef.current || getTelegramId();
       await addTransaction(telegramId, -50, 'cue_fee', {
-        game: 'snookerroyal',
+        game: 'snookerroyale',
         reason: 'cue_switch',
         accountId: id
       });
@@ -11992,8 +11992,8 @@ const powerRef = useRef(hud.power);
       return;
     }
     const lobbyUrl = winnerParam
-      ? `/games/snookerroyal/lobby?winner=${winnerParam}`
-      : '/games/snookerroyal/lobby';
+      ? `/games/snookerroyale/lobby?winner=${winnerParam}`
+      : '/games/snookerroyale/lobby';
     window.location.assign(lobbyUrl);
   }, [frameState.winner, location.search, tournamentMode]);
   const simulateRoundAI = useCallback((st, round) => {
@@ -25725,7 +25725,7 @@ export default function SnookerRoyal() {
   useTelegramBackButton(() => {
     confirmExit().then((confirmed) => {
       if (confirmed) {
-        navigate('/games/snookerroyal/lobby');
+        navigate('/games/snookerroyale/lobby');
       }
     });
   });
@@ -25740,7 +25740,7 @@ export default function SnookerRoyal() {
         if (!confirmed) {
           window.history.pushState(null, '', window.location.href);
         } else {
-          navigate('/games/snookerroyal/lobby');
+          navigate('/games/snookerroyale/lobby');
         }
       });
     };
