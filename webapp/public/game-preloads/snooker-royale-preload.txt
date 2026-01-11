@@ -1,0 +1,8 @@
+Snooker Royal preload bundle (tekst)
+
+This bundle includes shader, HUD, and orbital control descriptors for the 3D version of Snooker Royal.
+Use it as a placeholder for optimized code that will be preloaded into the browser cache.
+
+- +Y orbit with yaw/pitch mapped to mobile gestures.
+- Portrait HUD with force meter and chalk aligned to TonPlaygram standards.
+- ACESFilmic tone mapping tuned for the table and three-point lights.
