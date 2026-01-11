@@ -1176,10 +1176,31 @@ const FRAME_RATE_OPTIONS = Object.freeze([
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((opt) => opt.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
-const MURLAN_HDRI_RESOLUTION_LOCK = Object.freeze({
-  preferred: ['4k'],
-  fallback: '4k'
+const HDRI_RESOLUTION_PROFILE = Object.freeze({
+  hd50: {
+    preferred: ['2k'],
+    fallback: '2k'
+  },
+  fhd60: {
+    preferred: ['2k'],
+    fallback: '2k'
+  },
+  qhd90: {
+    preferred: ['4k'],
+    fallback: '4k'
+  },
+  uhd120: {
+    preferred: ['6k'],
+    fallback: '6k'
+  }
 });
+
+const resolveHdriResolutionProfile = (frameRateId) => {
+  if (frameRateId && HDRI_RESOLUTION_PROFILE[frameRateId]) {
+    return HDRI_RESOLUTION_PROFILE[frameRateId];
+  }
+  return HDRI_RESOLUTION_PROFILE[DEFAULT_FRAME_RATE_ID] ?? HDRI_RESOLUTION_PROFILE.fhd60;
+};
 
 const GAME_CONFIG = { ...BASE_CONFIG };
 const START_CARD = { rank: '3', suit: '♠' };
@@ -1247,6 +1268,10 @@ export default function MurlanRoyaleArena({ search }) {
   const activeFrameRateOption = useMemo(
     () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
+  );
+  const hdriResolutionProfile = useMemo(
+    () => resolveHdriResolutionProfile(activeFrameRateOption?.id),
+    [activeFrameRateOption]
   );
   const frameQualityProfile = useMemo(() => {
     const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
@@ -1811,10 +1836,11 @@ export default function MurlanRoyaleArena({ search }) {
       if (!three.renderer || !three.scene) return;
       const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
       if (!activeVariant) return;
+      const resolutionProfile = hdriResolutionProfile ?? resolveHdriResolutionProfile(activeFrameRateOption?.id);
       const envResult = await loadPolyHavenHdriEnvironment(three.renderer, {
         ...activeVariant,
-        preferredResolutions: MURLAN_HDRI_RESOLUTION_LOCK.preferred ?? DEFAULT_HDRI_RESOLUTIONS,
-        fallbackResolution: MURLAN_HDRI_RESOLUTION_LOCK.fallback ?? DEFAULT_HDRI_RESOLUTIONS[0]
+        preferredResolutions: resolutionProfile?.preferred ?? DEFAULT_HDRI_RESOLUTIONS,
+        fallbackResolution: resolutionProfile?.fallback ?? DEFAULT_HDRI_RESOLUTIONS[0]
       });
       if (!envResult?.envMap || !three.scene) return;
       const prevDispose = disposeEnvironmentRef.current;
@@ -1844,13 +1870,13 @@ export default function MurlanRoyaleArena({ search }) {
         prevDispose();
       }
     },
-    []
+    [activeFrameRateOption, hdriResolutionProfile]
   );
 
   useEffect(() => {
     if (!threeReady) return;
     void applyHdriEnvironment(hdriVariantRef.current);
-  }, [applyHdriEnvironment, threeReady]);
+  }, [applyHdriEnvironment, hdriResolutionProfile, threeReady]);
 
   const updateSceneAppearance = useCallback(
     (nextAppearance, { refreshCards = false } = {}) => {
