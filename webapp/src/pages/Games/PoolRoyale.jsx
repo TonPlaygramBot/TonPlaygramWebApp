@@ -4995,15 +4995,6 @@ const clampToUnitCircle = (x, y) => {
   const scale = L > 1e-6 ? 1 / L : 0;
   return { x: x * scale, y: y * scale };
 };
-const normalizeSpinInput = (spin) => {
-  const x = spin?.x ?? 0;
-  const y = spin?.y ?? 0;
-  const magnitude = Math.hypot(x, y);
-  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
-    return { x: 0, y: 0 };
-  }
-  return clampToUnitCircle(x, y);
-};
 const mapSpinForPhysics = (spin) => ({
   x: spin?.x ?? 0,
   y: spin?.y ?? 0
@@ -11903,6 +11894,95 @@ const powerRef = useRef(hud.power);
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
   const [renderResetKey, setRenderResetKey] = useState(0);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingVisible, setLoadingVisible] = useState(true);
+  const [loadingSceneReady, setLoadingSceneReady] = useState(false);
+  const loadingStateRef = useRef({
+    started: false,
+    done: false,
+    total: 0
+  });
+  useEffect(() => {
+    loadingStateRef.current = {
+      started: false,
+      done: false,
+      total: 0
+    };
+    setLoadingProgress(0);
+    setLoadingVisible(true);
+    setLoadingSceneReady(false);
+  }, [renderResetKey]);
+  useEffect(() => {
+    const manager = THREE.DefaultLoadingManager;
+    const previousHandlers = {
+      onStart: manager.onStart,
+      onLoad: manager.onLoad,
+      onProgress: manager.onProgress,
+      onError: manager.onError
+    };
+
+    const updateProgress = (itemsLoaded, itemsTotal) => {
+      if (loadingStateRef.current.done) return;
+      if (Number.isFinite(itemsTotal) && itemsTotal > 0) {
+        loadingStateRef.current.total = itemsTotal;
+      }
+      const total = loadingStateRef.current.total || itemsTotal || 0;
+      const progress = total > 0 ? itemsLoaded / total : 0;
+      setLoadingProgress(Math.min(1, Math.max(0, progress)));
+    };
+
+    manager.onStart = (url, itemsLoaded, itemsTotal) => {
+      if (!loadingStateRef.current.done) {
+        loadingStateRef.current.started = true;
+        setLoadingVisible(true);
+        updateProgress(itemsLoaded, itemsTotal);
+      }
+      previousHandlers.onStart?.(url, itemsLoaded, itemsTotal);
+    };
+    manager.onProgress = (url, itemsLoaded, itemsTotal) => {
+      if (!loadingStateRef.current.done) {
+        loadingStateRef.current.started = true;
+        updateProgress(itemsLoaded, itemsTotal);
+      }
+      previousHandlers.onProgress?.(url, itemsLoaded, itemsTotal);
+    };
+    manager.onLoad = () => {
+      if (!loadingStateRef.current.done) {
+        setLoadingProgress(1);
+      }
+      previousHandlers.onLoad?.();
+    };
+    manager.onError = (url) => {
+      previousHandlers.onError?.(url);
+    };
+
+    return () => {
+      manager.onStart = previousHandlers.onStart;
+      manager.onLoad = previousHandlers.onLoad;
+      manager.onProgress = previousHandlers.onProgress;
+      manager.onError = previousHandlers.onError;
+    };
+  }, []);
+  useEffect(() => {
+    if (!loadingSceneReady) return undefined;
+    const fallback = window.setTimeout(() => {
+      if (!loadingStateRef.current.started) {
+        setLoadingProgress(1);
+      }
+    }, 400);
+    return () => window.clearTimeout(fallback);
+  }, [loadingSceneReady]);
+  useEffect(() => {
+    if (!loadingVisible) return undefined;
+    if (loadingSceneReady && loadingProgress >= 1) {
+      const finish = window.setTimeout(() => {
+        setLoadingVisible(false);
+        loadingStateRef.current.done = true;
+      }, 250);
+      return () => window.clearTimeout(finish);
+    }
+    return undefined;
+  }, [loadingProgress, loadingSceneReady, loadingVisible]);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const sceneRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
@@ -13112,6 +13192,7 @@ const powerRef = useRef(hud.power);
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
+      setLoadingSceneReady(true);
       const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
         const sceneInstance = sceneRef.current;
         if (!renderer || !sceneInstance) return;
@@ -17424,17 +17505,10 @@ const powerRef = useRef(hud.power);
             spinLegalityRef.current = legality;
           }
           const applied = clampSpinToLimits();
-          const normalized = normalizeSpinInput(applied);
-          if (
-            normalized.x !== applied.x ||
-            normalized.y !== applied.y
-          ) {
-            spinRef.current = normalized;
-          }
           if (updateUi) {
-            updateSpinDotPosition(normalized, legality.blocked);
+            updateSpinDotPosition(applied, legality.blocked);
           }
-          const result = legality.blocked ? { x: 0, y: 0 } : normalized;
+          const result = legality.blocked ? { x: 0, y: 0 } : applied;
           const magnitude = Math.hypot(result.x ?? 0, result.y ?? 0);
           const mode = magnitude >= SWERVE_THRESHOLD ? 'swerve' : 'standard';
           spinAppliedRef.current = { ...result, magnitude, mode };
@@ -24371,11 +24445,10 @@ const powerRef = useRef(hud.power);
     };
 
     const setSpin = (nx, ny) => {
-      const normalized = normalizeSpinInput({ x: nx, y: ny });
+      const normalized = clampToUnitCircle(nx, ny);
       spinRequestRef.current = normalized;
       const limited = clampToLimits(normalized.x, normalized.y);
-      const limitedNormalized = normalizeSpinInput(limited);
-      spinRef.current = limitedNormalized;
+      spinRef.current = limited;
       const cueBall = cueRef.current;
       const ballsList = ballsRef.current?.length
         ? ballsRef.current
@@ -24396,7 +24469,7 @@ const powerRef = useRef(hud.power);
         }
       );
       spinLegalityRef.current = legality;
-      updateSpinDotPosition(limitedNormalized, legality.blocked);
+      updateSpinDotPosition(limited, legality.blocked);
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
@@ -24686,6 +24759,7 @@ const powerRef = useRef(hud.power);
           ? '0 0 18px rgba(16,185,129,0.35), 14px 0 22px rgba(16,185,129,0.28)'
           : '0 6px 14px rgba(0,0,0,0.35)'
       };
+  const loadingPercent = Math.round(loadingProgress * 100);
   const renderFlagAvatar = useCallback(
     (flagEmoji, label, isActive) => (
       <span
@@ -24705,6 +24779,28 @@ const powerRef = useRef(hud.power);
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {loadingVisible && (
+        <div className="absolute inset-0 z-[130] flex items-center justify-center bg-slate-950/95">
+          <div className="flex w-[240px] flex-col items-center rounded-3xl border border-white/15 bg-slate-900/80 px-6 py-5 text-center shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+            <div className="text-lg font-semibold tracking-[0.24em] text-emerald-200">
+              Pool Royale
+            </div>
+            <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.32em] text-white/70">
+              Loading
+            </div>
+            <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-emerald-300 to-cyan-300 transition-[width] duration-200"
+                style={{ width: `${Math.min(100, Math.max(0, loadingPercent))}%` }}
+              />
+            </div>
+            <div className="mt-2 text-xs font-semibold text-white/80">
+              {Math.min(100, Math.max(0, loadingPercent))}%
+            </div>
+          </div>
+        </div>
+      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-4 right-4 z-50">
