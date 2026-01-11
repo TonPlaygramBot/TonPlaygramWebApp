@@ -268,6 +268,16 @@ export function setPoolRoyalInventoryRemote(accountId, inventory) {
   return put(`/api/pool-royale/inventory/${encodeURIComponent(accountId)}`, { inventory });
 }
 
+export function getSnookerRoyalInventoryRemote(accountId) {
+  if (!accountId) return Promise.resolve({ error: 'accountId required' });
+  return get(`/api/snooker-royale/inventory/${encodeURIComponent(accountId)}`);
+}
+
+export function setSnookerRoyalInventoryRemote(accountId, inventory) {
+  if (!accountId) return Promise.resolve({ error: 'accountId required' });
+  return put(`/api/snooker-royale/inventory/${encodeURIComponent(accountId)}`, { inventory });
+}
+
 export function listVideos(telegramId) {
   return post('/api/watch/list', { telegramId });
 }

@@ -41,6 +41,8 @@ const ChessBattleRoyal = React.lazy(() => import('./pages/Games/ChessBattleRoyal
 const ChessBattleRoyalLobby = React.lazy(() => import('./pages/Games/ChessBattleRoyalLobby.jsx'));
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
+import SnookerRoyal from './pages/Games/SnookerRoyal.jsx';
+import SnookerRoyalLobby from './pages/Games/SnookerRoyalLobby.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -119,6 +121,11 @@ export default function App() {
               element={<PoolRoyaleLobby />}
             />
             <Route path="/games/poolroyale" element={<PoolRoyale />} />
+            <Route
+              path="/games/snookerroyale/lobby"
+              element={<SnookerRoyalLobby />}
+            />
+            <Route path="/games/snookerroyale" element={<SnookerRoyal />} />
             <Route
               path="/games/pollroyale/lobby"
               element={<Navigate to="/games/poolroyale/lobby" replace />}

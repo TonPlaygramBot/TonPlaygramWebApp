@@ -53,6 +53,19 @@ export default function HomeGamesCard() {
           </h3>
         </Link>
         <Link
+          to="/games/snookerroyale/lobby"
+          className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
+        >
+          <img
+            src="/assets/icons/pool-royale.svg"
+            alt=""
+            className="h-20 w-20"
+          />
+          <h3 className="text-sm font-semibold text-center text-yellow-400">
+            Snooker Royal
+          </h3>
+        </Link>
+        <Link
           to="/games/goalrush/lobby"
           className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
         >

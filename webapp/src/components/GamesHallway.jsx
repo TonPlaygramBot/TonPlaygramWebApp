@@ -20,6 +20,7 @@ const fallbackGameNames = [
   'Snake & Ladder',
   'Horse Racing',
   'Pool Royale',
+  'Snooker Royal',
   'Free Kick',
   'Texas Holdem',
   'Domino Royal 3D',
