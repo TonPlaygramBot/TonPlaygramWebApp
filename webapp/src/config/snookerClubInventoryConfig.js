@@ -10,7 +10,7 @@ export const SNOOKER_CLUB_DEFAULT_UNLOCKS = Object.freeze({
   railMarkerColor: ['chrome'],
   clothColor: ['freshGreen'],
   cueStyle: [CUE_STYLE_PRESETS[0]?.id],
-  pocketLiner: ['blackPocket'],
+  pocketLiner: ['fabric_leather_02'],
   environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID]
 });
 
@@ -47,7 +47,15 @@ export const SNOOKER_CLUB_OPTION_LABELS = Object.freeze({
       acc[preset.id] = preset.label;
       return acc;
     }, {})
-  )
+  ),
+  pocketLiner: Object.freeze({
+    fabric_leather_02: 'Fabric Leather 02 Pocket Jaws',
+    fabric_leather_01: 'Fabric Leather 01 Pocket Jaws',
+    brown_leather: 'Brown Leather Pocket Jaws',
+    leather_red_02: 'Leather Red 02 Pocket Jaws',
+    leather_red_03: 'Leather Red 03 Pocket Jaws',
+    leather_white: 'Leather White Pocket Jaws'
+  })
 });
 
 export const SNOOKER_CLUB_STORE_ITEMS = [
@@ -123,6 +131,54 @@ export const SNOOKER_CLUB_STORE_ITEMS = [
     price: 590,
     description: 'Cool arctic blue cloth with crisp broadcast sheen.'
   },
+  {
+    id: 'snooker-pocket-fabric-leather-02',
+    type: 'pocketLiner',
+    optionId: 'fabric_leather_02',
+    name: 'Fabric Leather 02 Pocket Jaws',
+    price: 520,
+    description: 'Warm stitched leather weave liners for the classic club look.'
+  },
+  {
+    id: 'snooker-pocket-fabric-leather-01',
+    type: 'pocketLiner',
+    optionId: 'fabric_leather_01',
+    name: 'Fabric Leather 01 Pocket Jaws',
+    price: 530,
+    description: 'Soft-grain leather weave liners with a mellow brown finish.'
+  },
+  {
+    id: 'snooker-pocket-brown-leather',
+    type: 'pocketLiner',
+    optionId: 'brown_leather',
+    name: 'Brown Leather Pocket Jaws',
+    price: 540,
+    description: 'Deep brown leather pockets with natural creases and aged texture.'
+  },
+  {
+    id: 'snooker-pocket-leather-red-02',
+    type: 'pocketLiner',
+    optionId: 'leather_red_02',
+    name: 'Leather Red 02 Pocket Jaws',
+    price: 560,
+    description: 'Bold red leather liners with pronounced seams and worn highlights.'
+  },
+  {
+    id: 'snooker-pocket-leather-red-03',
+    type: 'pocketLiner',
+    optionId: 'leather_red_03',
+    name: 'Leather Red 03 Pocket Jaws',
+    price: 570,
+    description: 'Deep crimson leather pocket liners with subtle stitch detailing.'
+  },
+  {
+    id: 'snooker-pocket-leather-white',
+    type: 'pocketLiner',
+    optionId: 'leather_white',
+    name: 'Leather White Pocket Jaws',
+    price: 590,
+    description: 'Bright white leather pockets with crisp seam definition.'
+  },
   ...CUE_STYLE_PRESETS.slice(1).map((preset, idx) => ({
     id: `snooker-cue-${preset.id}`,
     type: 'cueStyle',
@@ -147,6 +203,11 @@ export const SNOOKER_CLUB_DEFAULT_LOADOUT = [
   { type: 'railMarkerColor', optionId: 'chrome', label: 'Chrome Rail Markers' },
   { type: 'clothColor', optionId: 'freshGreen', label: 'Tour Green Cloth' },
   { type: 'cueStyle', optionId: CUE_STYLE_PRESETS[0]?.id, label: CUE_STYLE_PRESETS[0]?.label },
+  {
+    type: 'pocketLiner',
+    optionId: 'fabric_leather_02',
+    label: 'Fabric Leather 02 Pocket Jaws'
+  },
   {
     type: 'environmentHdri',
     optionId: POOL_ROYALE_DEFAULT_HDRI_ID,

@@ -19,7 +19,7 @@ const resolveAccountId = (accountId) => {
       const stored = window.localStorage.getItem('accountId');
       if (stored) return stored;
     } catch (err) {
-      console.warn('Failed to read accountId from storage, falling back to guest', err);
+      console.warn('Failed to access local storage for account id', err);
     }
   }
   return 'guest';
@@ -41,7 +41,7 @@ const writeAllInventories = (payload) => {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch (err) {
-    console.warn('Failed to persist snooker inventory, skipping write', err);
+    console.warn('Failed to write snooker inventory, skipping persist', err);
   }
 };
 
