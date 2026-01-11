@@ -5226,8 +5226,8 @@ function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
   const axes = [
     { key: 'maxX', dir: lateral.clone(), positive: true },
     { key: 'minX', dir: lateral.clone().multiplyScalar(-1), positive: false },
-    { key: 'maxY', dir: forward.clone(), positive: true },
-    { key: 'minY', dir: forward.clone().multiplyScalar(-1), positive: false }
+    { key: 'minY', dir: forward.clone(), positive: false },
+    { key: 'maxY', dir: forward.clone().multiplyScalar(-1), positive: true }
   ];
   const limits = { ...DEFAULT_SPIN_LIMITS };
   const cueCenter = new THREE.Vector2(cueBall.pos.x, cueBall.pos.y);
@@ -12076,13 +12076,12 @@ const powerRef = useRef(hud.power);
     if (!dot) return;
     const x = clamp(value.x ?? 0, -1, 1);
     const y = clamp(value.y ?? 0, -1, 1);
-    const displayY = -y;
     const ranges = spinRangeRef.current || {};
     const maxSide = Math.max(ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET, 1e-6);
     const maxVertical = Math.max(ranges.offsetVertical ?? MAX_SPIN_VERTICAL, 1e-6);
     const largest = Math.max(maxSide, maxVertical);
     const scaledX = (x * maxSide) / largest;
-    const scaledY = (displayY * maxVertical) / largest;
+    const scaledY = (y * maxVertical) / largest;
     dot.style.left = `${50 + scaledX * 50}%`;
     dot.style.top = `${50 + scaledY * 50}%`;
     const magnitude = Math.hypot(x, y);
@@ -19708,7 +19707,7 @@ const powerRef = useRef(hud.power);
         const hasSpin = magnitude > 1e-4;
         const sideInput = spin?.x ?? 0;
         let side = hasSpin ? sideInput * offsetSide : 0;
-        let vert = hasSpin ? spin.y * offsetVertical : 0;
+        let vert = hasSpin ? -spin.y * offsetVertical : 0;
         if (hasSpin) {
           vert = THREE.MathUtils.clamp(vert, -MAX_SPIN_VISUAL_LIFT, MAX_SPIN_VISUAL_LIFT);
         }
@@ -19995,10 +19994,10 @@ const powerRef = useRef(hud.power);
           const powerSpinScale = 1;
           const baseSide = physicsSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (physicsSpin.y < 0) {
+          let spinTop = -physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+          if (physicsSpin.y > 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (physicsSpin.y > 0) {
+          } else if (physicsSpin.y < 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
           }
           cue.vel.copy(base);
@@ -20024,7 +20023,7 @@ const powerRef = useRef(hud.power);
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
-          const topSpinWeight = Math.max(0, appliedSpin.y || 0);
+          const topSpinWeight = Math.max(0, -(appliedSpin.y || 0));
           if (
             clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
             liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
@@ -20132,7 +20131,7 @@ const powerRef = useRef(hud.power);
             0,
             Math.min(visualPull - minVisibleGap, visualPull * warmupRatio)
           );
-          const tiltAmount = hasSpin ? Math.max(0, -(appliedSpin.y || 0)) : 0;
+          const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftAngle;
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           applyCueButtTilt(
@@ -20154,7 +20153,7 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(warmupPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
-          const backSpinWeight = Math.max(0, -(appliedSpin.y || 0));
+          const backSpinWeight = Math.max(0, appliedSpin.y || 0);
           const strokeDistance = Math.max(visualPull, CUE_PULL_MIN_VISUAL);
           const topSpinFollowThrough =
             BALL_R * (1 + 3 * clampedPower) * topSpinWeight;
@@ -20364,7 +20363,7 @@ const powerRef = useRef(hud.power);
           return THREE.MathUtils.lerp(0.35, 0.9, n);
         };
         const computePlanSpin = (plan, stateSnapshot) => {
-          const fallback = { x: 0, y: 0.1 };
+          const fallback = { x: 0, y: -0.1 };
           if (!plan || plan.type !== 'pot') return fallback;
           const colorId = plan.target;
           if (!colorId) return fallback;
@@ -20424,7 +20423,7 @@ const powerRef = useRef(hud.power);
             const forward = THREE.MathUtils.clamp(aimDir.dot(nextDir), -1, 1);
             const spinX = THREE.MathUtils.clamp(lateral * 0.45, -0.6, 0.6);
             const spinY = THREE.MathUtils.clamp(
-              forward * (MAX_SPIN_FORWARD / BALL_R),
+              -forward * (MAX_SPIN_FORWARD / BALL_R),
               -1,
               1
             );
@@ -20969,7 +20968,7 @@ const powerRef = useRef(hud.power);
                 difficulty: cueDist + safetyDist * 2 + 400,
                 cueToTarget: cueDist,
                 targetToPocket: safetyDist,
-                spin: { x: 0, y: 0.05 },
+                spin: { x: 0, y: -0.05 },
                 quality: Math.max(
                   0,
                   1 - (cueDist + safetyDist * 2) / (PLAY_W + PLAY_H)
@@ -20990,7 +20989,7 @@ const powerRef = useRef(hud.power);
                 difficulty: cueDist + safetyDist * 1.2,
                 cueToTarget: cueDist,
                 targetToPocket: safetyDist,
-                spin: { x: 0, y: 0.2 },
+                spin: { x: 0, y: -0.2 },
                 quality: Math.max(
                   0,
                   1 - (cueDist + safetyDist * 1.2) / (PLAY_W + PLAY_H)
@@ -21257,17 +21256,17 @@ const powerRef = useRef(hud.power);
         const mapSpinPreset = (preset) => {
           switch (preset) {
             case 'followS':
-              return { x: 0, y: 0.18 };
+              return { x: 0, y: -0.18 };
             case 'followL':
-              return { x: 0, y: 0.32 };
+              return { x: 0, y: -0.32 };
             case 'drawS':
-              return { x: 0, y: -0.22 };
+              return { x: 0, y: 0.22 };
             case 'drawL':
-              return { x: 0, y: -0.42 };
+              return { x: 0, y: 0.42 };
             case 'sideL':
-              return { x: -0.35, y: 0.06 };
+              return { x: -0.35, y: -0.06 };
             case 'sideR':
-              return { x: 0.35, y: 0.06 };
+              return { x: 0.35, y: -0.06 };
             default:
               return { x: 0, y: 0 };
           }
@@ -22752,7 +22751,7 @@ const powerRef = useRef(hud.power);
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
           const spinSideInfluence = (physicsSpin.x || 0) * (0.4 + 0.42 * powerStrength);
-          const spinVerticalInfluence = (physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
+          const spinVerticalInfluence = -(physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
             .add(perp.clone().multiplyScalar(spinSideInfluence))
@@ -22760,7 +22759,7 @@ const powerRef = useRef(hud.power);
           if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
             cueFollowDirSpinAdjusted.normalize();
           }
-          const backSpinWeight = Math.max(0, -(appliedSpin.y || 0));
+          const backSpinWeight = Math.max(0, appliedSpin.y || 0);
           if (backSpinWeight > 1e-8) {
             const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
             const drawDir = dir.clone().negate();
@@ -22810,7 +22809,7 @@ const powerRef = useRef(hud.power);
           const obstructionStrength = resolveCueObstruction(dir, pull);
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
-          const tiltAmount = hasSpin ? Math.max(0, -(appliedSpin.y || 0)) : 0;
+          const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
           const liftTilt = resolveUserCueLift();
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftTilt;
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
@@ -24444,7 +24443,7 @@ const powerRef = useRef(hud.power);
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
       let ny = ((cy - rect.top) / rect.height) * 2 - 1;
-      setSpin(nx, -ny);
+      setSpin(nx, ny);
     };
 
     const scaleBox = (value) => {
