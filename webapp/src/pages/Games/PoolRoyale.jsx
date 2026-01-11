@@ -10243,6 +10243,7 @@ function PoolRoyaleGame({
   const [winnerOverlay, setWinnerOverlay] = useState(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingActive, setLoadingActive] = useState(true);
+  const initialLoadCompleteRef = useRef(false);
   useEffect(() => {
     const manager = THREE.DefaultLoadingManager;
     let cancelled = false;
@@ -10258,6 +10259,10 @@ function PoolRoyaleGame({
       setLoadingProgress(Math.max(0, Math.min(1, ratio)));
     };
     const syncManagerState = () => {
+      if (initialLoadCompleteRef.current) {
+        setLoadingActive(false);
+        return;
+      }
       const loaded = Number(manager.itemsLoaded || 0);
       const total = Number(manager.itemsTotal || 0);
       if (total > 0) {
@@ -10265,6 +10270,7 @@ function PoolRoyaleGame({
         if (loaded >= total) {
           setLoadingProgress(1);
           setLoadingActive(false);
+          initialLoadCompleteRef.current = true;
         }
       } else {
         setLoadingProgress(0);
@@ -10274,18 +10280,22 @@ function PoolRoyaleGame({
     manager.onStart = (url, loaded, total) => {
       prev.onStart?.(url, loaded, total);
       if (cancelled) return;
+      if (initialLoadCompleteRef.current) return;
       setLoadingActive(true);
       updateProgress(loaded, total);
     };
     manager.onProgress = (url, loaded, total) => {
       prev.onProgress?.(url, loaded, total);
       if (cancelled) return;
+      if (initialLoadCompleteRef.current) return;
       updateProgress(loaded, total);
     };
     manager.onLoad = () => {
       prev.onLoad?.();
       if (cancelled) return;
+      if (initialLoadCompleteRef.current) return;
       setLoadingProgress(1);
+      initialLoadCompleteRef.current = true;
       window.setTimeout(() => {
         if (!cancelled) setLoadingActive(false);
       }, 200);
@@ -10293,6 +10303,7 @@ function PoolRoyaleGame({
     manager.onError = (url) => {
       prev.onError?.(url);
       if (cancelled) return;
+      if (initialLoadCompleteRef.current) return;
       setLoadingProgress((prevValue) => Math.max(prevValue, 0.9));
     };
     syncManagerState();
@@ -25742,41 +25753,19 @@ const powerRef = useRef(hud.power);
 
       {loadingActive && !err && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 px-6 text-white">
-          <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
-            <div className="w-full rounded-3xl border border-emerald-400/40 bg-emerald-950/60 p-5 shadow-[0_24px_48px_rgba(0,0,0,0.6)]">
-              <svg
-                viewBox="0 0 320 200"
-                className="h-36 w-full"
-                role="img"
-                aria-label="Pool Royale loading"
-              >
-                <rect x="8" y="24" width="304" height="152" rx="18" fill="#065f46" stroke="#34d399" strokeWidth="6" />
-                <rect x="34" y="50" width="252" height="100" rx="12" fill="#0f766e" />
-                <circle cx="34" cy="50" r="10" fill="#0f172a" />
-                <circle cx="286" cy="50" r="10" fill="#0f172a" />
-                <circle cx="34" cy="150" r="10" fill="#0f172a" />
-                <circle cx="286" cy="150" r="10" fill="#0f172a" />
-                <circle cx="160" cy="50" r="10" fill="#0f172a" />
-                <circle cx="160" cy="150" r="10" fill="#0f172a" />
-                <circle cx="120" cy="100" r="9" fill="#f8fafc" />
-                <circle cx="170" cy="100" r="9" fill="#ef4444" />
-                <circle cx="220" cy="100" r="9" fill="#fbbf24" />
-              </svg>
+          <div className="flex w-full max-w-sm flex-col items-center gap-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-emerald-200">
+              Loading Pool Royale
+            </p>
+            <div className="h-1 w-full overflow-hidden rounded-full bg-white/15">
+              <div
+                className="h-full rounded-full bg-emerald-400 transition-[width] duration-200"
+                style={{ width: `${Math.round(loadingProgress * 100)}%` }}
+              />
             </div>
-            <div className="w-full">
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-emerald-200">
-                Loading Pool Royale
-              </p>
-              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full bg-emerald-400 transition-[width] duration-200"
-                  style={{ width: `${Math.round(loadingProgress * 100)}%` }}
-                />
-              </div>
-              <p className="mt-2 text-sm text-white/80">
-                {Math.round(loadingProgress * 100)}%
-              </p>
-            </div>
+            <p className="text-sm text-white/80">
+              {Math.round(loadingProgress * 100)}%
+            </p>
           </div>
         </div>
       )}
