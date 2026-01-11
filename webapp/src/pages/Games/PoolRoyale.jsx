@@ -20011,7 +20011,14 @@ const powerRef = useRef(hud.power);
           }
           cue.vel.copy(base);
           if (cue.spin) {
-            cue.spin.set(spinSide, spinTop);
+            const spinAxis = new THREE.Vector2(aimDir.x, aimDir.y);
+            if (spinAxis.lengthSq() < 1e-6) spinAxis.set(0, 1);
+            else spinAxis.normalize();
+            const spinPerp = new THREE.Vector2(-spinAxis.y, spinAxis.x);
+            cue.spin.set(
+              spinPerp.x * spinSide + spinAxis.x * spinTop,
+              spinPerp.y * spinSide + spinAxis.y * spinTop
+            );
           }
           if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
           cue.spinMode =
