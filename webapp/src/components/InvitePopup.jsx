@@ -49,21 +49,26 @@ export default function InvitePopup({
               <div className="flex flex-wrap justify-center gap-2">
                 {[
                   {
-                id: 'snake',
-                src: '/assets/icons/snakes_and_ladders.webp',
-                alt: 'Snake & Ladders',
-              },
-              {
-                id: 'goalrush',
-                src: '/assets/icons/goal_rush_card_1200x675.webp',
-                alt: 'Goal Rush',
+                    id: 'snake',
+                    src: '/assets/icons/snakes_and_ladders.webp',
+                    alt: 'Snake & Ladders',
+                  },
+                  {
+                    id: 'goalrush',
+                    src: '/assets/icons/goal_rush_card_1200x675.webp',
+                    alt: 'Goal Rush',
                   },
                   {
                     id: 'poolroyale',
                     src: '/assets/icons/pool-royale.svg',
                     alt: 'Pool Royale',
                   },
-              ].map((g) => (
+                  {
+                    id: 'snookerroyale',
+                    src: '/assets/icons/snooker-royale.svg',
+                    alt: 'Snooker Royal',
+                  },
+                ].map((g) => (
                   <img
                     key={g.id}
                     src={g.src}
