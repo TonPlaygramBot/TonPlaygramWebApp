@@ -1443,6 +1443,8 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
 const SIDE_SPIN_MULTIPLIER = 1.5;
 const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.5;
+const SPIN_RESPONSE_EXPONENT = 1.18;
+const SPIN_POWER_SCALE_MIN = 0.68;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
@@ -5025,10 +5027,23 @@ const normalizeSpinInput = (spin) => {
   }
   return clampToUnitCircle(x, y);
 };
-const mapSpinForPhysics = (spin) => ({
-  x: spin?.x ?? 0,
-  y: spin?.y ?? 0
-});
+const applySpinResponseCurve = (value, exponent = SPIN_RESPONSE_EXPONENT) => {
+  const abs = Math.abs(value ?? 0);
+  if (!Number.isFinite(abs) || abs < 1e-6) return 0;
+  return Math.sign(value) * Math.pow(abs, exponent);
+};
+const mapSpinForPhysics = (spin, powerStrength = 1) => {
+  const clampedPower = clamp(powerStrength ?? 0, 0, 1);
+  const powerScale = THREE.MathUtils.lerp(
+    SPIN_POWER_SCALE_MIN,
+    1,
+    clampedPower
+  );
+  return {
+    x: applySpinResponseCurve(spin?.x ?? 0) * powerScale,
+    y: applySpinResponseCurve(spin?.y ?? 0) * powerScale
+  };
+};
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
   return THREE.MathUtils.clamp(liftAngle / CUE_LIFT_MAX_TILT, 0, 1);
@@ -19998,7 +20013,7 @@ const powerRef = useRef(hud.power);
           const appliedSpin = applySpinConstraints(aimDir, true);
           const liftAngle = resolveUserCueLift();
           const liftStrength = normalizeCueLift(liftAngle);
-          const physicsSpin = mapSpinForPhysics(appliedSpin);
+          const physicsSpin = mapSpinForPhysics(appliedSpin, clampedPower);
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 1;
           const baseSide = physicsSpin.x * (ranges.side ?? 0);
@@ -22540,7 +22555,12 @@ const powerRef = useRef(hud.power);
         }
         const appliedSpin = applySpinConstraints(aimDir, true);
         const liftStrength = normalizeCueLift(resolveUserCueLift());
-        const physicsSpin = mapSpinForPhysics(appliedSpin);
+        const powerStrength = THREE.MathUtils.clamp(
+          powerRef.current ?? 0,
+          0,
+          1
+        );
+        const physicsSpin = mapSpinForPhysics(appliedSpin, powerStrength);
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
         let shouldSlowAim = false;
@@ -22650,11 +22670,6 @@ const powerRef = useRef(hud.power);
           else baseAimDir.normalize();
           const basePerp = new THREE.Vector3(-baseAimDir.z, 0, baseAimDir.x);
           if (basePerp.lengthSq() > 1e-8) basePerp.normalize();
-          const powerStrength = THREE.MathUtils.clamp(
-            powerRef.current ?? 0,
-            0,
-            1
-          );
           const swerveActive = spinAppliedRef.current?.mode === 'swerve';
           const aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
           const guideAimDir2D = resolveSwerveAimDir(
@@ -22977,7 +22992,7 @@ const powerRef = useRef(hud.power);
           const remoteSpin = remoteAimState?.spin ?? { x: 0, y: 0 };
           const remoteSpinMagnitude = Math.hypot(remoteSpin.x ?? 0, remoteSpin.y ?? 0);
           const remoteSwerveActive = remoteSpinMagnitude >= SWERVE_THRESHOLD;
-          const remotePhysicsSpin = mapSpinForPhysics(remoteSpin);
+          const remotePhysicsSpin = mapSpinForPhysics(remoteSpin, powerStrength);
           const guideAimDir2D = resolveSwerveAimDir(
             remoteAimDir,
             remotePhysicsSpin,
