@@ -1178,19 +1178,19 @@ const DEFAULT_FRAME_RATE_OPTION =
 
 const HDRI_RESOLUTION_PROFILE = Object.freeze({
   hd50: {
-    preferred: ['1k'],
-    fallback: '1k'
+    preferred: ['2k'],
+    fallback: '2k'
   },
   fhd60: {
-    preferred: ['2k', '1k'],
+    preferred: ['2k'],
     fallback: '2k'
   },
   qhd90: {
-    preferred: ['4k', '2k'],
+    preferred: ['4k'],
     fallback: '4k'
   },
   uhd120: {
-    preferred: ['6k', '4k', '2k'],
+    preferred: ['6k'],
     fallback: '6k'
   }
 });
