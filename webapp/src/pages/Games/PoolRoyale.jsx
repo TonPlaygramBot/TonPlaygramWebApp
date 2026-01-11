@@ -4020,9 +4020,9 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 }
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['8k', '6k', '4k']);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const HDRI_RESOLUTION_STORAGE_KEY = 'poolHdriResolution';
-const DEFAULT_HDRI_RESOLUTION_MODE = 'auto';
+const DEFAULT_HDRI_RESOLUTION_MODE = '4k';
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
   { id: 'auto', label: 'Match Table' },
   { id: '8k', label: '8K' },
