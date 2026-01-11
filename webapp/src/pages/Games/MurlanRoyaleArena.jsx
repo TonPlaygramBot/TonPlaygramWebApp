@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
@@ -32,7 +33,11 @@ import {
 } from '../../../../lib/murlan.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
-import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
+import {
+  POOL_ROYALE_DEFAULT_HDRI_ID,
+  POOL_ROYALE_HDRI_VARIANT_MAP,
+  POOL_ROYALE_HDRI_VARIANTS
+} from '../../config/poolRoyaleInventoryConfig.js';
 import {
   MURLAN_OUTFIT_THEMES as OUTFIT_THEMES,
   MURLAN_STOOL_THEMES as STOOL_THEMES,
@@ -40,25 +45,7 @@ import {
 } from '../../config/murlanThemes.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 
-const DEFAULT_HDRI_RESOLUTION_ID = '4k';
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze([DEFAULT_HDRI_RESOLUTION_ID]);
-const HDRI_RESOLUTION_OPTIONS = Object.freeze([
-  {
-    id: '2k',
-    label: '2K HDRI',
-    description: 'Faster loads for mobile and battery saver setups.'
-  },
-  {
-    id: '4k',
-    label: '4K HDRI',
-    description: 'Balanced clarity recommended for most devices.'
-  },
-  {
-    id: '6k',
-    label: '6K HDRI',
-    description: 'Ultra-crisp reflections for high-end GPUs.'
-  }
-]);
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
   label: `${variant.name} HDRI`
@@ -68,9 +55,23 @@ const DEFAULT_HDRI_INDEX = Math.max(
   MURLAN_HDRI_OPTIONS.findIndex((variant) => variant.id === POOL_ROYALE_DEFAULT_HDRI_ID)
 );
 const DEFAULT_HDRI_VARIANT = MURLAN_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? MURLAN_HDRI_OPTIONS[0] ?? null;
-const resolveHdriVariant = (index) => {
+const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
+const MIN_HDRI_CAMERA_HEIGHT_M = 0.9;
+const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
+const MIN_HDRI_RADIUS = 24;
+const HDRI_GROUNDED_RESOLUTION = 256;
+const HDRI_UNITS_PER_METER = 1;
+const resolveHdriVariant = (value) => {
+  if (typeof value === 'string') {
+    return (
+      POOL_ROYALE_HDRI_VARIANT_MAP[value] ??
+      MURLAN_HDRI_OPTIONS.find((variant) => variant.id === value) ??
+      MURLAN_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ??
+      MURLAN_HDRI_OPTIONS[0]
+    );
+  }
   const max = MURLAN_HDRI_OPTIONS.length - 1;
-  const idx = Number.isFinite(index) ? Math.min(Math.max(Math.round(index), 0), max) : DEFAULT_HDRI_INDEX;
+  const idx = Number.isFinite(value) ? Math.min(Math.max(Math.round(value), 0), max) : DEFAULT_HDRI_INDEX;
   return MURLAN_HDRI_OPTIONS[idx] ?? MURLAN_HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ?? MURLAN_HDRI_OPTIONS[0];
 };
 
@@ -165,6 +166,18 @@ function detectHighRefreshDisplay() {
     }
   }
   return false;
+}
+
+function computeGroupFloorY(objects = []) {
+  const box = new THREE.Box3();
+  let hasObject = false;
+  objects.forEach((obj) => {
+    if (!obj) return;
+    box.expandByObject(obj);
+    hasObject = true;
+  });
+  if (!hasObject) return 0;
+  return box.min.y;
 }
 
 let cachedRendererString = null;
@@ -428,16 +441,10 @@ const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
 };
 
 async function resolvePolyHavenHdriUrl(config = {}) {
-  const forcedResolution =
-    typeof config?.forceResolution === 'string' && config.forceResolution.length
-      ? config.forceResolution
-      : null;
-  const preferred = forcedResolution
-    ? [forcedResolution]
-    : Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
-      ? config.preferredResolutions
-      : DEFAULT_HDRI_RESOLUTIONS;
-  const fallbackRes = forcedResolution || config?.fallbackResolution || preferred[0] || '8k';
+  const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+    ? config.preferredResolutions
+    : DEFAULT_HDRI_RESOLUTIONS;
+  const fallbackRes = config?.fallbackResolution || preferred[0] || '8k';
   const fallbackUrl =
     config?.fallbackUrl ||
     `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
@@ -467,22 +474,22 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   const url = await resolvePolyHavenHdriUrl(config);
   const lowerUrl = `${url ?? ''}`.toLowerCase();
   const useExr = lowerUrl.endsWith('.exr');
-  const loader = useExr ? new EXRLoader() : null;
-  const rgbeLoader = new RGBELoader();
-  const activeLoader = useExr && loader ? loader : rgbeLoader;
-  if (!activeLoader) return null;
-  activeLoader.setCrossOrigin?.('anonymous');
+  const loader = useExr ? new EXRLoader() : new RGBELoader();
+  loader.setCrossOrigin?.('anonymous');
   return new Promise((resolve) => {
-    activeLoader.load(
+    loader.load(
       url,
       (texture) => {
         const pmrem = new THREE.PMREMGenerator(renderer);
         pmrem.compileEquirectangularShader();
         const envMap = pmrem.fromEquirectangular(texture).texture;
         envMap.name = `${config?.assetId ?? 'polyhaven'}-env`;
-        texture.dispose();
+        const skyboxMap = texture;
+        skyboxMap.name = `${config?.assetId ?? 'polyhaven'}-skybox`;
+        skyboxMap.mapping = THREE.EquirectangularReflectionMapping;
+        skyboxMap.needsUpdate = true;
         pmrem.dispose();
-        resolve({ envMap, url });
+        resolve({ envMap, skyboxMap, url });
       },
       undefined,
       (error) => {
@@ -638,7 +645,6 @@ const DEFAULT_APPEARANCE = {
 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const FRAME_RATE_STORAGE_KEY = 'murlanFrameRate';
-const HDRI_RESOLUTION_STORAGE_KEY = 'murlanHdriResolution';
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tables', label: 'Table Model', options: TABLE_THEMES },
   { key: 'tableFinish', label: 'Table Finish', options: MURLAN_TABLE_FINISHES },
@@ -1264,22 +1270,9 @@ export default function MurlanRoyaleArena({ search }) {
     }
     return DEFAULT_FRAME_RATE_ID || DEFAULT_FRAME_RATE_OPTION.id;
   });
-  const [hdriResolutionId, setHdriResolutionId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage?.getItem(HDRI_RESOLUTION_STORAGE_KEY);
-      if (stored && HDRI_RESOLUTION_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_HDRI_RESOLUTION_ID;
-  });
   const activeFrameRateOption = useMemo(
     () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
-  );
-  const activeHdriResolution = useMemo(
-    () => HDRI_RESOLUTION_OPTIONS.find((opt) => opt.id === hdriResolutionId) ?? HDRI_RESOLUTION_OPTIONS[1],
-    [hdriResolutionId]
   );
   const frameQualityProfile = useMemo(() => {
     const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
@@ -1309,7 +1302,6 @@ export default function MurlanRoyaleArena({ search }) {
   useEffect(() => {
     frameQualityRef.current = frameQualityProfile;
   }, [frameQualityProfile]);
-  const resolvedHdriResolution = activeHdriResolution?.id ?? DEFAULT_HDRI_RESOLUTION_ID;
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
       Number.isFinite(DEFAULT_FRAME_RATE_OPTION?.fps) && DEFAULT_FRAME_RATE_OPTION.fps > 0
@@ -1334,6 +1326,13 @@ export default function MurlanRoyaleArena({ search }) {
   const hdriVariantRef = useRef(DEFAULT_HDRI_VARIANT);
   const disposeEnvironmentRef = useRef(() => {});
   const envTextureRef = useRef(null);
+  const envSkyboxRef = useRef(null);
+  const envSkyboxTextureRef = useRef(null);
+  const baseSkyboxScaleRef = useRef(1);
+  const baseCameraRadiusRef = useRef(0);
+  const lastCameraRadiusRef = useRef(0);
+  const environmentFloorRef = useRef(0);
+  const syncSkyboxToCameraRef = useRef(() => {});
 
   const ensureAppearanceUnlocked = useCallback(
     (value = DEFAULT_APPEARANCE) => {
@@ -1387,14 +1386,6 @@ export default function MurlanRoyaleArena({ search }) {
       console.warn('Failed to persist frame rate option', error);
     }
   }, [frameRateId]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage?.setItem(HDRI_RESOLUTION_STORAGE_KEY, resolvedHdriResolution);
-    } catch (error) {
-      console.warn('Failed to persist HDRI resolution option', error);
-    }
-  }, [resolvedHdriResolution]);
 
   const gameStateRef = useRef(gameState);
   const selectedRef = useRef(selectedIds);
@@ -1435,7 +1426,9 @@ export default function MurlanRoyaleArena({ search }) {
     appearance: { ...DEFAULT_APPEARANCE },
     environmentHdri: DEFAULT_HDRI_VARIANT,
     disposeEnvironment: null,
-    environmentTexture: null
+    environmentTexture: null,
+    roomHalfWidth: 0,
+    roomHalfDepth: 0
   });
   const soundsRef = useRef({ card: null, turn: null });
   const audioStateRef = useRef({ tableIds: [], activePlayer: null, status: null, initialized: false });
@@ -1853,42 +1846,91 @@ export default function MurlanRoyaleArena({ search }) {
       if (!three.renderer || !three.scene) return;
       const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
       if (!activeVariant) return;
-      const resolution = resolvedHdriResolution || DEFAULT_HDRI_RESOLUTION_ID;
-      const envResult = await loadPolyHavenHdriEnvironment(three.renderer, {
-        ...activeVariant,
-        forceResolution: resolution,
-        preferredResolutions: [resolution],
-        fallbackResolution: resolution
-      });
+      const envResult = await loadPolyHavenHdriEnvironment(three.renderer, activeVariant);
       if (!envResult?.envMap || !three.scene) return;
+      const floorY = computeGroupFloorY([three.tableInfo?.group, ...(three.chairInstances ?? [])]);
+      environmentFloorRef.current = floorY;
       const prevDispose = disposeEnvironmentRef.current;
       const prevTexture = envTextureRef.current;
-      three.scene.environment = envResult.envMap;
-      three.scene.background = envResult.envMap;
-      if ('backgroundIntensity' in three.scene && typeof activeVariant?.backgroundIntensity === 'number') {
-        three.scene.backgroundIntensity = activeVariant.backgroundIntensity;
+      const prevSkybox = envSkyboxRef.current;
+      const { envMap, skyboxMap } = envResult;
+      const cameraHeight =
+        Math.max(activeVariant?.cameraHeightM ?? DEFAULT_HDRI_CAMERA_HEIGHT_M, MIN_HDRI_CAMERA_HEIGHT_M) *
+        HDRI_UNITS_PER_METER;
+      const radiusMultiplier =
+        typeof activeVariant?.groundRadiusMultiplier === 'number'
+          ? activeVariant.groundRadiusMultiplier
+          : DEFAULT_HDRI_RADIUS_MULTIPLIER;
+      const roomHalfWidth = three.roomHalfWidth ?? TABLE_RADIUS * ARENA_GROWTH * 1.7;
+      const roomHalfDepth = three.roomHalfDepth ?? roomHalfWidth;
+      const sceneSpan = Math.max(roomHalfWidth, roomHalfDepth);
+      const groundRadius = Math.max(sceneSpan * radiusMultiplier, MIN_HDRI_RADIUS);
+      const skyboxResolution = Math.max(
+        16,
+        Math.floor(activeVariant?.groundResolution ?? HDRI_GROUNDED_RESOLUTION)
+      );
+      const skyboxRadius = Math.max(groundRadius, cameraHeight * 2.5, MIN_HDRI_RADIUS);
+      let skybox = null;
+      if (skyboxMap && skyboxRadius > 0 && cameraHeight > 0) {
+        try {
+          skybox = new GroundedSkybox(skyboxMap, cameraHeight, skyboxRadius, skyboxResolution);
+          skybox.position.y = floorY + cameraHeight;
+          skybox.material.depthWrite = false;
+          three.scene.background = null;
+          three.scene.add(skybox);
+          envSkyboxRef.current = skybox;
+          envSkyboxTextureRef.current = skyboxMap;
+          baseSkyboxScaleRef.current = skybox.scale?.x ?? 1;
+        } catch (error) {
+          console.warn('Failed to create grounded HDRI skybox', error);
+          skybox = null;
+        }
+      }
+      three.scene.environment = envMap;
+      if (!skybox) {
+        three.scene.background = envMap;
+        envSkyboxRef.current = null;
+        envSkyboxTextureRef.current = null;
+        if ('backgroundIntensity' in three.scene && typeof activeVariant?.backgroundIntensity === 'number') {
+          three.scene.backgroundIntensity = activeVariant.backgroundIntensity;
+        }
       }
       if (typeof activeVariant?.environmentIntensity === 'number') {
         three.scene.environmentIntensity = activeVariant.environmentIntensity;
       }
       three.renderer.toneMappingExposure = activeVariant?.exposure ?? three.renderer.toneMappingExposure;
-      envTextureRef.current = envResult.envMap;
+      envTextureRef.current = envMap;
+      syncSkyboxToCameraRef.current?.();
       disposeEnvironmentRef.current = () => {
         if (three.scene) {
-          if (three.scene.environment === envResult.envMap) {
+          if (three.scene.environment === envMap) {
             three.scene.environment = null;
           }
-          if (three.scene.background === envResult.envMap) {
+          if (!skybox && three.scene.background === envMap) {
             three.scene.background = null;
           }
         }
-        envResult.envMap.dispose?.();
+        envMap.dispose?.();
+        if (skybox) {
+          skybox.parent?.remove(skybox);
+          skybox.geometry?.dispose?.();
+          skybox.material?.dispose?.();
+          if (envSkyboxRef.current === skybox) {
+            envSkyboxRef.current = null;
+          }
+        }
+        if (skyboxMap) {
+          skyboxMap.dispose?.();
+          if (envSkyboxTextureRef.current === skyboxMap) {
+            envSkyboxTextureRef.current = null;
+          }
+        }
       };
-      if (prevDispose && prevTexture !== envResult.envMap) {
+      if (prevDispose && (prevTexture !== envMap || prevSkybox !== skybox)) {
         prevDispose();
       }
     },
-    [resolvedHdriResolution]
+    []
   );
 
   useEffect(() => {
@@ -1935,6 +1977,8 @@ export default function MurlanRoyaleArena({ search }) {
 
         const shouldRefreshCards = refreshCards || three.appearance?.cards !== safe.cards;
         applyCardThemeMaterials(three, cardTheme, shouldRefreshCards);
+        const floorY = computeGroupFloorY([three.tableInfo?.group, ...(three.chairInstances ?? [])]);
+        environmentFloorRef.current = floorY;
         void applyHdriEnvironment(environmentVariant);
 
         three.appearance = { ...safe };
@@ -2189,6 +2233,7 @@ export default function MurlanRoyaleArena({ search }) {
     let cardGeometry = null;
     let arenaGroup = null;
     let handlePointerDown = null;
+    let handleControlsChange = null;
     let disposed = false;
     let lastRenderTime = performance.now();
 
@@ -2266,11 +2311,12 @@ export default function MurlanRoyaleArena({ search }) {
       const interiorDepth = interiorWidth;
       const innerHalfWidth = interiorWidth / 2;
       const innerHalfDepth = interiorDepth / 2;
+      threeStateRef.current.roomHalfWidth = innerHalfWidth;
+      threeStateRef.current.roomHalfDepth = innerHalfDepth;
 
       const floorRadius = Math.max(innerHalfWidth, innerHalfDepth) * 1.35;
 
       const cameraBoundRadius = Math.hypot(innerHalfWidth, innerHalfDepth);
-      void applyHdriEnvironment(environmentVariant);
 
       const scoreboardCanvas = document.createElement('canvas');
       scoreboardCanvas.width = 1024;
@@ -2380,6 +2426,13 @@ export default function MurlanRoyaleArena({ search }) {
       const humanSeatIndex = players.findIndex((player) => player?.isHuman);
       const humanSeatConfig = humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
 
+      const environmentFloorY = computeGroupFloorY([
+        threeStateRef.current.tableInfo?.group,
+        ...threeStateRef.current.chairInstances
+      ]);
+      environmentFloorRef.current = environmentFloorY;
+      void applyHdriEnvironment(environmentVariant);
+
       threeStateRef.current.outfitParts = [];
       threeStateRef.current.appearance = { ...currentAppearance };
 
@@ -2451,7 +2504,24 @@ export default function MurlanRoyaleArena({ search }) {
       controls.rotateSpeed = 0.6;
       controls.target.copy(target);
       controls.update();
-      controls.addEventListener('change', updateSeatAnchors);
+      baseCameraRadiusRef.current = camera.position.distanceTo(target);
+      syncSkyboxToCameraRef.current = () => {
+        if (!camera) return;
+        const skybox = envSkyboxRef.current;
+        if (!skybox) return;
+        const radius = camera.position.distanceTo(target);
+        const baseRadius = baseCameraRadiusRef.current || radius || 1;
+        const baseScale = baseSkyboxScaleRef.current || 1;
+        const scale = clamp(radius / baseRadius, 0.35, 3.5);
+        skybox.scale.setScalar(baseScale * scale);
+        lastCameraRadiusRef.current = radius;
+      };
+      handleControlsChange = () => {
+        updateSeatAnchors();
+        syncSkyboxToCameraRef.current?.();
+      };
+      controls.addEventListener('change', handleControlsChange);
+      syncSkyboxToCameraRef.current?.();
 
       const resize = () => {
         applyRendererQuality();
@@ -2543,10 +2613,17 @@ export default function MurlanRoyaleArena({ search }) {
         cancelAnimationFrame(frameId);
       }
       observer?.disconnect?.();
-      controls?.removeEventListener('change', updateSeatAnchors);
+      if (handleControlsChange) {
+        controls?.removeEventListener('change', handleControlsChange);
+      }
       controls?.dispose?.();
       disposeEnvironmentRef.current?.();
       envTextureRef.current = null;
+      envSkyboxRef.current = null;
+      envSkyboxTextureRef.current = null;
+      baseSkyboxScaleRef.current = 1;
+      baseCameraRadiusRef.current = 0;
+      lastCameraRadiusRef.current = 0;
       if (dom && handlePointerDown) {
         dom.removeEventListener('pointerdown', handlePointerDown);
       }
@@ -2668,7 +2745,9 @@ export default function MurlanRoyaleArena({ search }) {
         decorGroup: null,
         outfitParts: [],
         cardThemeId: '',
-        appearance: { ...DEFAULT_APPEARANCE }
+        appearance: { ...DEFAULT_APPEARANCE },
+        roomHalfWidth: 0,
+        roomHalfDepth: 0
       };
       setThreeReady(false);
       setSeatAnchors([]);
@@ -2880,46 +2959,6 @@ export default function MurlanRoyaleArena({ search }) {
                   <div className="space-y-2">
                     <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Graphics</p>
                     <div className="grid gap-2">
-                      <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-semibold uppercase tracking-[0.26em] text-white">
-                            HDRI Resolution
-                          </span>
-                          <span className="text-[10px] font-semibold tracking-wide text-sky-100">
-                            {activeHdriResolution?.label ?? '4K HDRI'}
-                          </span>
-                        </div>
-                        <div className="mt-2 grid gap-1.5">
-                          {HDRI_RESOLUTION_OPTIONS.map((option) => {
-                            const active = option.id === resolvedHdriResolution;
-                            return (
-                              <button
-                                key={option.id}
-                                type="button"
-                                onClick={() => setHdriResolutionId(option.id)}
-                                aria-pressed={active}
-                                className={`w-full rounded-xl border px-2.5 py-1.5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                                  active
-                                    ? 'border-sky-300 bg-sky-300/15 text-white shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                                    : 'border-white/10 bg-white/5 text-white/80 hover:border-white/20'
-                                }`}
-                              >
-                                <span className="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.24em]">
-                                  {option.label}
-                                  <span className="text-[9px] font-semibold tracking-wide text-sky-100">
-                                    {option.id.toUpperCase()}
-                                  </span>
-                                </span>
-                                {option.description ? (
-                                  <span className="mt-1 block text-[9px] uppercase tracking-[0.2em] text-white/60">
-                                    {option.description}
-                                  </span>
-                                ) : null}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
                       {FRAME_RATE_OPTIONS.map((option) => {
                         const active = option.id === frameRateId;
                         return (
