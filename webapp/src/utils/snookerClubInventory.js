@@ -15,8 +15,12 @@ const copyDefaults = () =>
 const resolveAccountId = (accountId) => {
   if (accountId) return accountId;
   if (typeof window !== 'undefined') {
-    const stored = window.localStorage.getItem('accountId');
-    if (stored) return stored;
+    try {
+      const stored = window.localStorage.getItem('accountId');
+      if (stored) return stored;
+    } catch (err) {
+      console.warn('Failed to access local storage for account id', err);
+    }
   }
   return 'guest';
 };
@@ -34,7 +38,11 @@ const readAllInventories = () => {
 
 const writeAllInventories = (payload) => {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch (err) {
+    console.warn('Failed to write snooker inventory, skipping persist', err);
+  }
 };
 
 const normalizeInventory = (rawInventory) => {
