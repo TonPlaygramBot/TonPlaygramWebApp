@@ -396,11 +396,7 @@ function pickBestTextureUrls(apiJson, preferredSizes = PREFERRED_TEXTURE_SIZES) 
   };
 }
 
-const pickPolyHavenHdriUrl = (
-  json,
-  preferred = DEFAULT_HDRI_RESOLUTIONS,
-  { allowFallback = true } = {}
-) => {
+const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
   if (!json || typeof json !== 'object') return null;
   const resolutions = Array.isArray(preferred) && preferred.length ? preferred : DEFAULT_HDRI_RESOLUTIONS;
   for (const res of resolutions) {
@@ -408,23 +404,16 @@ const pickPolyHavenHdriUrl = (
     if (entry?.hdr) return entry.hdr;
     if (entry?.exr) return entry.exr;
   }
-  if (!allowFallback) return null;
   const fallback = Object.values(json).find((value) => value?.hdr || value?.exr);
   if (!fallback) return null;
   return fallback.hdr || fallback.exr || null;
 };
 
 async function resolvePolyHavenHdriUrl(config = {}) {
-  const lockedResolution =
-    typeof config?.lockedResolution === 'string' && config.lockedResolution.length
-      ? config.lockedResolution
-      : null;
-  const preferred = lockedResolution
-    ? [lockedResolution]
-    : Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
-      ? config.preferredResolutions
-      : DEFAULT_HDRI_RESOLUTIONS;
-  const fallbackRes = lockedResolution || config?.fallbackResolution || preferred[0] || '8k';
+  const preferred = Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
+    ? config.preferredResolutions
+    : DEFAULT_HDRI_RESOLUTIONS;
+  const fallbackRes = config?.fallbackResolution || preferred[0] || '8k';
   const fallbackUrl =
     config?.fallbackUrl ||
     `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
@@ -432,20 +421,16 @@ async function resolvePolyHavenHdriUrl(config = {}) {
     for (const res of preferred) {
       if (config.assetUrls[res]) return config.assetUrls[res];
     }
-    if (!lockedResolution) {
-      const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
-      if (manual) return manual;
-    }
+    const manual = Object.values(config.assetUrls).find((value) => typeof value === 'string' && value.length);
+    if (manual) return manual;
   }
-  if (!lockedResolution && typeof config?.assetUrl === 'string' && config.assetUrl.length) {
-    return config.assetUrl;
-  }
+  if (typeof config?.assetUrl === 'string' && config.assetUrl.length) return config.assetUrl;
   if (!config?.assetId || typeof fetch !== 'function') return fallbackUrl;
   try {
     const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(config.assetId)}`);
     if (!response?.ok) return fallbackUrl;
     const json = await response.json();
-    const picked = pickPolyHavenHdriUrl(json, preferred, { allowFallback: !lockedResolution });
+    const picked = pickPolyHavenHdriUrl(json, preferred);
     return picked || fallbackUrl;
   } catch (error) {
     console.warn('Failed to resolve Poly Haven HDRI url', error);
@@ -1191,10 +1176,31 @@ const FRAME_RATE_OPTIONS = Object.freeze([
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((opt) => opt.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
-const MURLAN_HDRI_RESOLUTION_LOCK = Object.freeze({
-  preferred: ['4k'],
-  fallback: '4k'
+const HDRI_RESOLUTION_PROFILE = Object.freeze({
+  hd50: {
+    preferred: ['2k'],
+    fallback: '2k'
+  },
+  fhd60: {
+    preferred: ['2k'],
+    fallback: '2k'
+  },
+  qhd90: {
+    preferred: ['4k'],
+    fallback: '4k'
+  },
+  uhd120: {
+    preferred: ['6k'],
+    fallback: '6k'
+  }
 });
+
+const resolveHdriResolutionProfile = (frameRateId) => {
+  if (frameRateId && HDRI_RESOLUTION_PROFILE[frameRateId]) {
+    return HDRI_RESOLUTION_PROFILE[frameRateId];
+  }
+  return HDRI_RESOLUTION_PROFILE[DEFAULT_FRAME_RATE_ID] ?? HDRI_RESOLUTION_PROFILE.fhd60;
+};
 
 const GAME_CONFIG = { ...BASE_CONFIG };
 const START_CARD = { rank: '3', suit: '♠' };
@@ -1262,6 +1268,10 @@ export default function MurlanRoyaleArena({ search }) {
   const activeFrameRateOption = useMemo(
     () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
+  );
+  const hdriResolutionProfile = useMemo(
+    () => resolveHdriResolutionProfile(activeFrameRateOption?.id),
+    [activeFrameRateOption]
   );
   const frameQualityProfile = useMemo(() => {
     const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
@@ -1826,11 +1836,11 @@ export default function MurlanRoyaleArena({ search }) {
       if (!three.renderer || !three.scene) return;
       const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
       if (!activeVariant) return;
+      const resolutionProfile = hdriResolutionProfile ?? resolveHdriResolutionProfile(activeFrameRateOption?.id);
       const envResult = await loadPolyHavenHdriEnvironment(three.renderer, {
         ...activeVariant,
-        preferredResolutions: MURLAN_HDRI_RESOLUTION_LOCK.preferred ?? DEFAULT_HDRI_RESOLUTIONS,
-        fallbackResolution: MURLAN_HDRI_RESOLUTION_LOCK.fallback ?? DEFAULT_HDRI_RESOLUTIONS[0],
-        lockedResolution: MURLAN_HDRI_RESOLUTION_LOCK.fallback ?? DEFAULT_HDRI_RESOLUTIONS[0]
+        preferredResolutions: resolutionProfile?.preferred ?? DEFAULT_HDRI_RESOLUTIONS,
+        fallbackResolution: resolutionProfile?.fallback ?? DEFAULT_HDRI_RESOLUTIONS[0]
       });
       if (!envResult?.envMap || !three.scene) return;
       const prevDispose = disposeEnvironmentRef.current;
@@ -1860,13 +1870,13 @@ export default function MurlanRoyaleArena({ search }) {
         prevDispose();
       }
     },
-    []
+    [activeFrameRateOption, hdriResolutionProfile]
   );
 
   useEffect(() => {
     if (!threeReady) return;
     void applyHdriEnvironment(hdriVariantRef.current);
-  }, [applyHdriEnvironment, threeReady]);
+  }, [applyHdriEnvironment, hdriResolutionProfile, threeReady]);
 
   const updateSceneAppearance = useCallback(
     (nextAppearance, { refreshCards = false } = {}) => {
