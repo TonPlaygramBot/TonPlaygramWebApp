@@ -1115,11 +1115,22 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable, then lift Snooker Club power by 25%.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
+// Pool Royale power pass: lift overall shot strength by another 25%.
 const SHOT_POWER_REDUCTION = 0.85;
 const SHOT_POWER_BOOST = 1.25;
 const SHOT_POWER_MULTIPLIER = 1.3 * 1.15; // raise overall cue strike strength by 30% and add a further 15% punch for max-power jumps
+const SHOT_POWER_POOL_ROYALE_BOOST = 1.25;
 const SHOT_FORCE_BOOST =
-  1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * SHOT_POWER_BOOST * SHOT_POWER_MULTIPLIER;
+  1.5 *
+  0.75 *
+  0.85 *
+  0.8 *
+  1.3 *
+  0.85 *
+  SHOT_POWER_REDUCTION *
+  SHOT_POWER_BOOST *
+  SHOT_POWER_MULTIPLIER *
+  SHOT_POWER_POOL_ROYALE_BOOST;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
