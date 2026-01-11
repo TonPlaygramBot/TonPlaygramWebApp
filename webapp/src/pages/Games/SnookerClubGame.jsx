@@ -3573,11 +3573,27 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 
 const HDRI_STORAGE_KEY = 'snookerHdriEnvironment';
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
+const HDRI_RESOLUTION_LOW = Object.freeze(['2k', '1k']);
+const HDRI_RESOLUTION_HIGH = Object.freeze(['4k', '2k']);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const MIN_HDRI_RADIUS = 24;
 const HDRI_GROUNDED_RESOLUTION = 96;
+
+function resolveHdriResolutions(qualityProfile) {
+  if (!qualityProfile) return DEFAULT_HDRI_RESOLUTIONS;
+  const pixelRatioCap = Number.isFinite(qualityProfile.pixelRatioCap)
+    ? qualityProfile.pixelRatioCap
+    : resolveDefaultPixelRatioCap();
+  const renderScale = Number.isFinite(qualityProfile.renderScale)
+    ? qualityProfile.renderScale
+    : 1;
+  if (pixelRatioCap >= 2 || renderScale >= 1.35) {
+    return HDRI_RESOLUTION_HIGH;
+  }
+  return HDRI_RESOLUTION_LOW;
+}
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const urls = [];
@@ -4208,6 +4224,9 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
+const USER_ZOOM_MIN_FACTOR = 0.72;
+const USER_ZOOM_MAX_FACTOR = 1.18;
+const USER_ZOOM_WHEEL_SPEED = 0.0016;
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
@@ -9094,6 +9113,9 @@ export function PoolRoyaleGame({
   const disposeEnvironmentRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
   useEffect(() => {
+    updateEnvironmentRef.current?.(activeEnvironmentVariantRef.current);
+  }, [frameQualityProfile]);
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(TABLE_FINISH_STORAGE_KEY, tableFinishId);
     }
@@ -10114,7 +10136,13 @@ export function PoolRoyaleGame({
           activeEnvironmentVariantRef.current ||
           POOL_ROYALE_HDRI_VARIANT_MAP[POOL_ROYALE_DEFAULT_HDRI_ID] ||
           POOL_ROYALE_HDRI_VARIANTS[0];
-        const envResult = await loadPolyHavenHdriEnvironment(rendererInstance, activeVariant);
+        const preferredResolutions = resolveHdriResolutions(frameQualityRef.current);
+        const envResult = await loadPolyHavenHdriEnvironment(rendererInstance, {
+          ...activeVariant,
+          preferredResolutions,
+          fallbackResolution:
+            activeVariant?.fallbackResolution ?? preferredResolutions[0] ?? '2k'
+        });
         if (!envResult) return;
         const { envMap, skyboxMap } = envResult;
         if (!envMap) return;
@@ -11148,6 +11176,14 @@ export function PoolRoyaleGame({
 
         const clampOrbitRadius = (value, minRadius = CAMERA.minR) => {
           const maxRadius = getMaxOrbitRadius();
+          const min = Math.min(minRadius, maxRadius);
+          return clamp(value, min, maxRadius);
+        };
+        const clampUserZoomRadius = (value) => {
+          const standingRadius =
+            cameraBoundsRef.current?.standing?.radius ?? sph.radius;
+          const minRadius = Math.max(CAMERA.minR, standingRadius * USER_ZOOM_MIN_FACTOR);
+          const maxRadius = Math.min(getMaxOrbitRadius(), standingRadius * USER_ZOOM_MAX_FACTOR);
           const min = Math.min(minRadius, maxRadius);
           return clamp(value, min, maxRadius);
         };
@@ -12987,6 +13023,7 @@ export function PoolRoyaleGame({
           return result;
         };
         const drag = { on: false, x: 0, y: 0, moved: false };
+        const pinch = { active: false, startDistance: 0, startRadius: 0 };
         const galleryDrag = {
           active: false,
           startX: 0,
@@ -12997,6 +13034,13 @@ export function PoolRoyaleGame({
         let lastInteraction = performance.now();
         const registerInteraction = () => {
           lastInteraction = performance.now();
+        };
+        const getTouchDistance = (touches) => {
+          if (!touches || touches.length < 2) return 0;
+          const [a, b] = touches;
+          const dx = (a?.clientX ?? 0) - (b?.clientX ?? 0);
+          const dy = (a?.clientY ?? 0) - (b?.clientY ?? 0);
+          return Math.hypot(dx, dy);
         };
         const attemptChalkPress = (ev) => {
           const meshes = chalkMeshesRef.current;
@@ -13046,7 +13090,14 @@ export function PoolRoyaleGame({
           if (attemptChalkPress(e)) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
-          if (e.touches?.length === 2) return;
+          if (e.touches?.length === 2) {
+            pinch.active = true;
+            pinch.startDistance = getTouchDistance(e.touches);
+            pinch.startRadius = sph.radius;
+            drag.on = false;
+            drag.moved = false;
+            return;
+          }
           if (topViewRef.current && !topViewLockedRef.current)
             exitTopView(true, { preserveLock: true });
           drag.on = true;
@@ -13107,6 +13158,19 @@ export function PoolRoyaleGame({
             registerInteraction();
             return;
           }
+          if (pinch.active && e.touches?.length >= 2) {
+            const distance = getTouchDistance(e.touches);
+            if (distance > 0 && pinch.startDistance > 0) {
+              const scale = pinch.startDistance / distance;
+              const targetRadius = clampUserZoomRadius(pinch.startRadius * scale);
+              if (Math.abs(targetRadius - sph.radius) > 1e-4) {
+                sph.radius = targetRadius;
+                updateCamera();
+              }
+            }
+            registerInteraction();
+            return;
+          }
           if (topViewRef.current && !topViewLockedRef.current) {
             exitTopView(true, { preserveLock: true });
             drag.on = false;
@@ -13153,6 +13217,13 @@ export function PoolRoyaleGame({
         };
         const up = (e) => {
           registerInteraction();
+          if (pinch.active) {
+            if ((e.touches?.length ?? 0) < 2) {
+              pinch.active = false;
+              pinch.startDistance = 0;
+            }
+            return;
+          }
           const galleryState = cueGalleryStateRef.current;
           if (galleryState?.active) {
             const wasMoved = galleryDrag.moved;
@@ -13184,6 +13255,24 @@ export function PoolRoyaleGame({
         dom.addEventListener('touchstart', down, { passive: true });
         dom.addEventListener('touchmove', move, { passive: true });
         window.addEventListener('touchend', up);
+        const onWheel = (e) => {
+          const currentHud = hudRef.current;
+          if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
+          if (topViewRef.current && !topViewLockedRef.current) {
+            exitTopView(true, { preserveLock: true });
+          }
+          const delta = e.deltaY ?? 0;
+          if (delta === 0) return;
+          e.preventDefault();
+          const scale = Math.max(0.2, 1 + delta * USER_ZOOM_WHEEL_SPEED);
+          const targetRadius = clampUserZoomRadius(sph.radius * scale);
+          if (Math.abs(targetRadius - sph.radius) > 1e-4) {
+            sph.radius = targetRadius;
+            updateCamera();
+          }
+          registerInteraction();
+        };
+        dom.addEventListener('wheel', onWheel, { passive: false });
         const keyRot = (e) => {
           if (topViewRef.current && !topViewLockedRef.current) {
             exitTopView(true, { preserveLock: true });
@@ -17113,6 +17202,7 @@ export function PoolRoyaleGame({
           dom.removeEventListener('touchstart', down);
           dom.removeEventListener('touchmove', move);
           window.removeEventListener('touchend', up);
+          dom.removeEventListener('wheel', onWheel);
           window.removeEventListener('keydown', keyRot);
           dom.removeEventListener('pointerdown', handleInHandDown);
           dom.removeEventListener('pointermove', handleInHandMove);
