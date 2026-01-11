@@ -291,6 +291,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const [goalPopup, setGoalPopup] = useState(null);
   const [postPopup, setPostPopup] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
+  const [isTopDownView, setIsTopDownView] = useState(false);
   const resolvedAccountId = useMemo(() => airHockeyAccountId(accountId), [accountId]);
   const [airInventory, setAirInventory] = useState(() => getAirHockeyInventory(resolvedAccountId));
   const defaultSelections = useMemo(
@@ -362,6 +363,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     knobHeight: 0
   });
   const rendererRef = useRef(null);
+  const cameraRef = useRef(null);
+  const cameraViewsRef = useRef({});
+  const applyCameraViewRef = useRef(null);
+  const currentCameraViewRef = useRef('default');
   const renderSettingsRef = useRef({
     targetFrameIntervalMs: 1000 / initialProfile.targetFps,
     renderResolutionScale: initialProfile.renderScale ?? 1,
@@ -759,6 +764,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       0.1,
       1200
     );
+    cameraRef.current = camera;
 
     const world = new THREE.Group();
     scene.add(world);
@@ -1118,6 +1124,19 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const cameraDirection = new THREE.Vector3()
       .subVectors(cameraAnchor, cameraFocus)
       .normalize();
+    const topViewFocus = new THREE.Vector3(
+      0,
+      elevatedTableSurfaceY + TABLE.thickness * 0.05,
+      tableCenterZ
+    );
+    const topViewAnchor = new THREE.Vector3(
+      0,
+      elevatedTableSurfaceY + Math.max(TABLE.h, TABLE.w) * 1.1,
+      tableCenterZ
+    );
+    const topViewDirection = new THREE.Vector3()
+      .subVectors(topViewAnchor, topViewFocus)
+      .normalize();
 
     const tableCorners = [
       new THREE.Vector3(-TABLE.w / 2, elevatedTableSurfaceY, -TABLE.h / 2 + tableCenterZ),
@@ -1143,6 +1162,35 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         camera.lookAt(cameraFocus);
         camera.updateProjectionMatrix();
       }
+    };
+    const fitCameraToView = ({ focus, anchor, direction }) => {
+      camera.aspect = host.clientWidth / host.clientHeight;
+      camera.position.copy(anchor);
+      camera.lookAt(focus);
+      camera.updateProjectionMatrix();
+      updateRendererSettings();
+      for (let i = 0; i < 20; i++) {
+        const needsRetreat = tableCorners.some((corner) => {
+          const sample = corner.clone();
+          const ndcSample = sample.project(camera);
+          return Math.abs(ndcSample.x) > 0.95 || ndcSample.y < -1.05 || ndcSample.y > 1.05;
+        });
+        if (!needsRetreat) break;
+        camera.position.addScaledVector(direction, 2.4);
+        camera.lookAt(focus);
+        camera.updateProjectionMatrix();
+      }
+    };
+
+    cameraViewsRef.current = {
+      default: { focus: cameraFocus, anchor: cameraAnchor, direction: cameraDirection },
+      top: { focus: topViewFocus, anchor: topViewAnchor, direction: topViewDirection }
+    };
+    applyCameraViewRef.current = (viewKey) => {
+      const view = cameraViewsRef.current[viewKey];
+      if (!view) return;
+      currentCameraViewRef.current = viewKey;
+      fitCameraToView(view);
     };
 
     const S = {
@@ -1342,7 +1390,13 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     tick();
 
     const onResize = () => {
-      fitCameraToTable();
+      const viewKey = currentCameraViewRef.current || 'default';
+      const view = cameraViewsRef.current[viewKey];
+      if (view) {
+        fitCameraToView(view);
+      } else {
+        fitCameraToTable();
+      }
     };
     window.addEventListener('resize', onResize);
 
@@ -1378,6 +1432,11 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       renderer.dispose();
     };
   }, []);
+
+  useEffect(() => {
+    if (!applyCameraViewRef.current) return;
+    applyCameraViewRef.current(isTopDownView ? 'top' : 'default');
+  }, [isTopDownView]);
 
   useEffect(() => {
     const renderer = rendererRef.current;
@@ -1656,6 +1715,15 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         />
       </div>
       <div className="absolute bottom-2 right-2 flex flex-col items-end space-y-2 z-20">
+        <button
+          onClick={() => setIsTopDownView((prev) => !prev)}
+          className="rounded px-3 py-2 text-xs font-semibold text-white bg-white/10 hover:bg-white/20 backdrop-blur"
+        >
+          <span className="inline-flex items-center gap-1">
+            <span aria-hidden>🧭</span>
+            {isTopDownView ? '3D view' : '2D view'}
+          </span>
+        </button>
         <button
           onClick={() => setShowCustomizer((v) => !v)}
           className="rounded px-3 py-2 text-xs font-semibold text-white bg-white/10 hover:bg-white/20 backdrop-blur"
