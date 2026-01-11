@@ -42,7 +42,6 @@ import {
   DEFAULT_WOOD_TEXTURE_SIZE,
   applyWoodTextures,
   disposeMaterialWithWood,
-  setWoodTextureAnisotropyCap,
 } from '../../utils/woodMaterials.js';
 import { SNOOKER_CLUB_DEFAULT_UNLOCKS } from '../../config/snookerClubInventoryConfig.js';
 import {
@@ -51,24 +50,6 @@ import {
   snookerClubAccountId
 } from '../../utils/snookerClubInventory.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
-
-const safePolygonClipping = (operation, fallback, label, ...args) => {
-  try {
-    const result = operation(...args);
-    if (Array.isArray(result) && result.length) {
-      return result;
-    }
-  } catch (err) {
-    console.warn(`Polygon clipping ${label} failed`, err);
-  }
-  return fallback;
-};
-
-const safePolygonDifference = (base, ...cuts) =>
-  safePolygonClipping(polygonClipping.difference, base, 'difference', base, ...cuts);
-
-const safePolygonUnion = (fallback, ...parts) =>
-  safePolygonClipping(polygonClipping.union, fallback, 'union', ...parts);
 
 function applyTablePhysicsSpec(meta) {
   const cushionAngle = Number.isFinite(meta?.cushionCutAngleDeg)
@@ -165,20 +146,6 @@ function isWebGLAvailable() {
     return false;
   }
 }
-
-let rendererAnisotropyCap = 16;
-setWoodTextureAnisotropyCap(rendererAnisotropyCap);
-const updateRendererAnisotropyCap = (renderer) => {
-  if (renderer?.capabilities?.getMaxAnisotropy) {
-    const max = renderer.capabilities.getMaxAnisotropy();
-    if (Number.isFinite(max)) {
-      rendererAnisotropyCap = Math.max(rendererAnisotropyCap, max);
-    }
-  }
-  setWoodTextureAnisotropyCap(rendererAnisotropyCap);
-};
-const resolveTextureAnisotropy = (fallback = 1) =>
-  Math.max(rendererAnisotropyCap, Number.isFinite(fallback) ? fallback : 1);
 
 let cachedRendererString = null;
 let rendererLookupAttempted = false;
@@ -667,7 +634,7 @@ function buildChromePlateGeometry({
           baseRing.push([baseRing[0][0], baseRing[0][1]]);
         }
         const baseMP = [[baseRing]];
-        const clipped = safePolygonDifference(baseMP, notchMP);
+        const clipped = polygonClipping.difference(baseMP, notchMP);
         const clippedShapes = multiPolygonToShapes(clipped);
         if (clippedShapes.length) {
           shapesToExtrude = clippedShapes;
@@ -1455,13 +1422,13 @@ function createCueMapleTextures() {
   const map = new THREE.CanvasTexture(canvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   map.repeat.set(6, 1);
-  map.anisotropy = resolveTextureAnisotropy(8);
+  map.anisotropy = 8;
   applySRGBColorSpace(map);
   map.needsUpdate = true;
   const bump = new THREE.CanvasTexture(canvas);
   bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
   bump.repeat.set(6, 1);
-  bump.anisotropy = resolveTextureAnisotropy(8);
+  bump.anisotropy = 8;
   bump.needsUpdate = true;
   return { map, bump };
 }
@@ -1495,13 +1462,13 @@ function createCueEbonyTextures() {
   const map = new THREE.CanvasTexture(canvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   map.repeat.set(8, 1);
-  map.anisotropy = resolveTextureAnisotropy(8);
+  map.anisotropy = 8;
   applySRGBColorSpace(map);
   map.needsUpdate = true;
   const bump = new THREE.CanvasTexture(canvas);
   bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
   bump.repeat.set(8, 1);
-  bump.anisotropy = resolveTextureAnisotropy(8);
+  bump.anisotropy = 8;
   bump.needsUpdate = true;
   return { map, bump };
 }
@@ -2448,6 +2415,15 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
   },
   {
+    id: 'uhd120',
+    label: 'Ultra HD (120 Hz)',
+    fps: 120,
+    renderScale: 1.35,
+    pixelRatioCap: 2,
+    resolution: 'Ultra HD render • DPR 2.0 cap',
+    description: '4K-oriented profile for 120 Hz flagships and desktops.'
+  },
+  {
     id: 'ultra144',
     label: 'Ultra HD+ (144 Hz)',
     fps: 144,
@@ -2457,7 +2433,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'ultra144';
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 function resolveDefaultPixelRatioCap() {
   if (typeof window === 'undefined') {
@@ -2776,13 +2752,13 @@ function createPocketLinerTextures(option) {
   applySRGBColorSpace(map);
   map.wrapS = THREE.RepeatWrapping;
   map.wrapT = THREE.RepeatWrapping;
-  map.anisotropy = resolveTextureAnisotropy(4);
+  map.anisotropy = 4;
   map.needsUpdate = true;
 
   const bump = new THREE.CanvasTexture(bumpCanvas);
   bump.wrapS = THREE.RepeatWrapping;
   bump.wrapT = THREE.RepeatWrapping;
-  bump.anisotropy = resolveTextureAnisotropy(2);
+  bump.anisotropy = 2;
   bump.needsUpdate = true;
 
   const textures = { map, bump, repeat };
@@ -3055,7 +3031,7 @@ const createClothTextures = (() => {
 
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.anisotropy = resolveTextureAnisotropy(CLOTH_QUALITY.anisotropy);
+    colorMap.anisotropy = CLOTH_QUALITY.anisotropy;
     colorMap.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
     colorMap.minFilter = CLOTH_QUALITY.generateMipmaps
       ? THREE.LinearMipmapLinearFilter
@@ -3112,7 +3088,7 @@ const createClothTextures = (() => {
     const bumpMap = new THREE.CanvasTexture(bumpCanvas);
     bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
     bumpMap.repeat.copy(colorMap.repeat);
-    bumpMap.anisotropy = resolveTextureAnisotropy(CLOTH_QUALITY.anisotropy);
+    bumpMap.anisotropy = CLOTH_QUALITY.anisotropy;
     bumpMap.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
     bumpMap.minFilter = CLOTH_QUALITY.generateMipmaps
       ? THREE.LinearMipmapLinearFilter
@@ -4467,15 +4443,6 @@ const clampToUnitCircle = (x, y) => {
   const scale = L > 1e-6 ? 1 / L : 0;
   return { x: x * scale, y: y * scale };
 };
-const normalizeSpinInput = (spin) => {
-  const x = spin?.x ?? 0;
-  const y = spin?.y ?? 0;
-  const magnitude = Math.hypot(x, y);
-  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
-    return { x: 0, y: 0 };
-  }
-  return clampToUnitCircle(x, y);
-};
 
 const prepareSpinAxes = (aimDir) => {
   if (!aimDir) {
@@ -4968,7 +4935,7 @@ function makeClothTexture(
   const repeatX = baseRepeat * (PLAY_W / TABLE.W);
   const repeatY = baseRepeat * (PLAY_H / TABLE.H);
   texture.repeat.set(repeatX, repeatY);
-  texture.anisotropy = resolveTextureAnisotropy(48);
+  texture.anisotropy = 48;
   applySRGBColorSpace(texture);
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
@@ -5059,7 +5026,7 @@ function makeWoodTexture({
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeatX, repeatY);
-  texture.anisotropy = resolveTextureAnisotropy(8);
+  texture.anisotropy = 8;
   applySRGBColorSpace(texture);
   texture.needsUpdate = true;
   return texture;
@@ -5965,7 +5932,7 @@ function Table3D(
 
     let shapeMP = baseMP;
     if (pocketSectors.length) {
-      shapeMP = safePolygonDifference(baseMP, ...pocketSectors);
+      shapeMP = polygonClipping.difference(baseMP, ...pocketSectors);
     }
     const shapes = multiPolygonToShapes(shapeMP);
     if (shapes.length === 1) {
@@ -6547,7 +6514,7 @@ function Table3D(
         ]
       ]);
     }
-    const union = safePolygonUnion(notchCircle, ...unionParts);
+    const union = polygonClipping.union(...unionParts);
     const adjusted = adjustCornerNotchDepth(union, cz, sz);
     if (CHROME_CORNER_NOTCH_EXPANSION_SCALE === 1) {
       return adjusted;
@@ -6581,7 +6548,7 @@ function Table3D(
       throatRadius,
       192
     );
-    const union = safePolygonUnion(circle, circle, throat);
+    const union = polygonClipping.union(circle, throat);
     return adjustSideNotchDepth(union);
   };
 
@@ -7231,15 +7198,12 @@ function Table3D(
   }
 
   // Rail openings simply reuse the chrome plate cuts; wood never dictates alternate pocket sizing.
-  const baseOpeningMP = rectPoly(innerHalfW * 2, innerHalfH * 2);
-  let openingMP = safePolygonUnion(
-    baseOpeningMP,
-    baseOpeningMP,
+  let openingMP = polygonClipping.union(
+    rectPoly(innerHalfW * 2, innerHalfH * 2),
     ...scaleWoodRailSidePocketCut(sideNotchMP(-1), -1),
     ...scaleWoodRailSidePocketCut(sideNotchMP(1), 1)
   );
-  openingMP = safePolygonUnion(
-    openingMP,
+  openingMP = polygonClipping.union(
     openingMP,
     ...translatePocketCutMP(
       scaleWoodRailCornerPocketCut(cornerNotchMP(1, 1)),
@@ -8848,7 +8812,7 @@ export function PoolRoyaleGame({
     applySRGBColorSpace(texture);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.anisotropy = resolveTextureAnisotropy(8);
+    texture.anisotropy = 8;
     texture.needsUpdate = true;
     return texture;
   }, []);
@@ -9441,8 +9405,6 @@ export function PoolRoyaleGame({
     applyLightingPreset(lightingId);
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
-  const [isBooted, setIsBooted] = useState(false);
-  const [renderResetKey, setRenderResetKey] = useState(0);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
@@ -9454,7 +9416,6 @@ export function PoolRoyaleGame({
   const broadcastCamerasRef = useRef(null);
   const lightingRigRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
-  const hasRenderedRef = useRef(false);
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
@@ -10097,28 +10058,12 @@ export function PoolRoyaleGame({
     const host = mountRef.current;
     if (!host) return;
     setErr(null);
-    setIsBooted(false);
-    hasRenderedRef.current = false;
     if (!isWebGLAvailable()) {
       setErr('WebGL is not available on this device. Enable hardware acceleration to play.');
       return;
     }
     const cueRackDisposers = [];
     let disposed = false;
-    let contextLost = false;
-    const triggerRendererReset = () => {
-      if (disposed || contextLost) return;
-      contextLost = true;
-      setErr('Graphics renderer reset; restoring the table…');
-      setRenderResetKey((value) => value + 1);
-    };
-    const markFrameRendered = () => {
-      if (hasRenderedRef.current) return;
-      hasRenderedRef.current = true;
-      if (!disposed) {
-        setIsBooted(true);
-      }
-    };
     try {
       const updatePocketCameraState = (active) => {
         if (pocketCameraStateRef.current === active) return;
@@ -10138,24 +10083,17 @@ export function PoolRoyaleGame({
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = false;
+      renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      rendererRef.current = renderer;
-      updateRendererAnisotropyCap(renderer);
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
       host.appendChild(renderer.domElement);
-      const handleContextLost = (e) => {
-        e.preventDefault();
-        triggerRendererReset();
-      };
-      const handleContextRestored = () => {
-        triggerRendererReset();
-      };
-      renderer.domElement.addEventListener('webglcontextlost', handleContextLost, false);
-      renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored, false);
+      renderer.domElement.addEventListener('webglcontextlost', (e) =>
+        e.preventDefault()
+      );
       applyRendererQuality();
       renderer.domElement.style.transformOrigin = 'top left';
+      rendererRef.current = renderer;
 
       // Scene & Camera
       const scene = new THREE.Scene();
@@ -10374,7 +10312,7 @@ export function PoolRoyaleGame({
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = resolveTextureAnisotropy(4);
+        texture.anisotropy = 4;
         applySRGBColorSpace(texture);
         let offset = 0;
         return {
@@ -10413,7 +10351,7 @@ export function PoolRoyaleGame({
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = resolveTextureAnisotropy(8);
+        texture.anisotropy = 8;
         applySRGBColorSpace(texture);
         let pulse = 0;
         const createAvatarStore = () => ({
@@ -13037,17 +12975,10 @@ export function PoolRoyaleGame({
             spinLegalityRef.current = legality;
           }
           const applied = clampSpinToLimits();
-          const normalized = normalizeSpinInput(applied);
-          if (
-            normalized.x !== applied.x ||
-            normalized.y !== applied.y
-          ) {
-            spinRef.current = normalized;
-          }
           if (updateUi) {
-            updateSpinDotPosition(normalized, legality.blocked);
+            updateSpinDotPosition(applied, legality.blocked);
           }
-          const result = legality.blocked ? { x: 0, y: 0 } : normalized;
+          const result = legality.blocked ? { x: 0, y: 0 } : applied;
           const magnitude = Math.hypot(result.x ?? 0, result.y ?? 0);
           const mode = magnitude >= SWERVE_THRESHOLD ? 'swerve' : 'standard';
           spinAppliedRef.current = { ...result, magnitude, mode };
@@ -16018,7 +15949,6 @@ export function PoolRoyaleGame({
           updateReplayTrail(playback.cuePath, targetTime);
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
-          markFrameRendered();
           if (elapsed >= playback.duration) {
             if (playback.postState) {
               applyBallSnapshot(playback.postState);
@@ -16275,10 +16205,13 @@ export function PoolRoyaleGame({
             vert,
             perp.z * side
           );
+          const cueTipGap = Math.sqrt(
+            Math.max(0, CUE_TIP_GAP * CUE_TIP_GAP - side * side - vert * vert)
+          );
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
+            cue.pos.x - dir.x * (cueLen / 2 + pull + cueTipGap) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.y - dir.z * (cueLen / 2 + pull + cueTipGap) + spinWorld.z
           );
           const tiltAmount = Math.abs(appliedSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
@@ -16288,9 +16221,9 @@ export function PoolRoyaleGame({
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           TMP_VEC3_BUTT.set(
-            cue.pos.x - dir.x * (cueLen + pull + CUE_TIP_GAP) + spinWorld.x,
+            cue.pos.x - dir.x * (cueLen + pull + cueTipGap) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen + pull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.y - dir.z * (cueLen + pull + cueTipGap) + spinWorld.z
           );
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
@@ -16471,10 +16404,13 @@ export function PoolRoyaleGame({
             }
           }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
+          const cueTipGap = Math.sqrt(
+            Math.max(0, CUE_TIP_GAP * CUE_TIP_GAP - side * side - vert * vert)
+          );
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
+            cue.pos.x - dir.x * (cueLen / 2 + pull + cueTipGap) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.y - dir.z * (cueLen / 2 + pull + cueTipGap) + spinWorld.z
           );
           const tiltAmount = Math.abs(spinY);
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
@@ -16618,7 +16554,7 @@ export function PoolRoyaleGame({
             }
             b.mesh.position.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
             if (scaledSpeed > 0) {
-              const axis = new THREE.Vector3(-b.vel.y, 0, b.vel.x).normalize();
+              const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
               const angle = scaledSpeed / BALL_R;
               b.mesh.rotateOnWorldAxis(axis, angle);
             }
@@ -17113,7 +17049,6 @@ export function PoolRoyaleGame({
           }
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
-          markFrameRendered();
           rafRef.current = requestAnimationFrame(step);
         };
         step(performance.now());
@@ -17174,8 +17109,6 @@ export function PoolRoyaleGame({
           dom.removeEventListener('touchstart', down);
           dom.removeEventListener('touchmove', move);
           window.removeEventListener('touchend', up);
-          dom.removeEventListener('webglcontextlost', handleContextLost, false);
-          dom.removeEventListener('webglcontextrestored', handleContextRestored, false);
           window.removeEventListener('keydown', keyRot);
           dom.removeEventListener('pointerdown', handleInHandDown);
           dom.removeEventListener('pointermove', handleInHandMove);
@@ -17228,7 +17161,7 @@ export function PoolRoyaleGame({
         console.error(e);
         setErr(e?.message || String(e));
       }
-  }, [renderResetKey]);
+  }, []);
 
   useEffect(() => {
     applyFinishRef.current?.(tableFinish);
@@ -17303,11 +17236,10 @@ export function PoolRoyaleGame({
     };
 
     const setSpin = (nx, ny) => {
-      const normalized = normalizeSpinInput({ x: nx, y: ny });
+      const normalized = clampToUnitCircle(nx, ny);
       spinRequestRef.current = normalized;
       const limited = clampToLimits(normalized.x, normalized.y);
-      const limitedNormalized = normalizeSpinInput(limited);
-      spinRef.current = limitedNormalized;
+      spinRef.current = limited;
       const cueBall = cueRef.current;
       const ballsList = ballsRef.current?.length
         ? ballsRef.current
@@ -17328,7 +17260,7 @@ export function PoolRoyaleGame({
         }
       );
       spinLegalityRef.current = legality;
-      updateSpinDotPosition(limitedNormalized, legality.blocked);
+      updateSpinDotPosition(limited, legality.blocked);
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
@@ -17430,19 +17362,6 @@ export function PoolRoyaleGame({
     >
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-      {!isBooted && !err && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-gradient-to-b from-slate-950 via-black to-emerald-950/40">
-          <div className="flex flex-col items-center gap-3 text-emerald-100">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-400/70 border-t-transparent" />
-            <div className="text-[11px] font-semibold uppercase tracking-[0.4em] text-emerald-200/80">
-              Loading Snooker Club
-            </div>
-            <div className="text-[10px] uppercase tracking-[0.3em] text-white/50">
-              Preparing table
-            </div>
-          </div>
-        </div>
-      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
