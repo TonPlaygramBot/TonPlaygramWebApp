@@ -40,6 +40,7 @@ import {
 } from '../../config/murlanThemes.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 
+const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
   label: `${variant.name} HDRI`
@@ -63,20 +64,6 @@ const resolveTableFinish = (index) => {
 };
 
 const DEFAULT_FRAME_RATE_ID = 'uhd120';
-const HDRI_RESOLUTION_PROFILES = Object.freeze({
-  hd50: Object.freeze(['1k']),
-  fhd60: Object.freeze(['2k', '1k']),
-  qhd90: Object.freeze(['4k', '2k']),
-  uhd120: Object.freeze(['6k', '4k', '2k']),
-  uhd144: Object.freeze(['8k', '6k', '4k'])
-});
-const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(
-  HDRI_RESOLUTION_PROFILES[DEFAULT_FRAME_RATE_ID] ?? ['4k']
-);
-const resolveHdriResolutionStack = (frameRateId) =>
-  HDRI_RESOLUTION_PROFILES[frameRateId] ??
-  HDRI_RESOLUTION_PROFILES[DEFAULT_FRAME_RATE_ID] ??
-  DEFAULT_HDRI_RESOLUTIONS;
 
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
@@ -150,23 +137,6 @@ function detectHighRefreshDisplay() {
     return false;
   }
   const queries = ['(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
-  for (const query of queries) {
-    try {
-      if (window.matchMedia(query).matches) {
-        return true;
-      }
-    } catch (err) {
-      // ignore unsupported query
-    }
-  }
-  return false;
-}
-
-function detectUltraRefreshDisplay() {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return false;
-  }
-  const queries = ['(min-refresh-rate: 144hz)', '(min-refresh-rate: 140hz)'];
   for (const query of queries) {
     try {
       if (window.matchMedia(query).matches) {
@@ -266,7 +236,6 @@ function detectPreferredFrameRateId() {
   const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
   const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
   const lowRefresh = detectLowRefreshDisplay();
-  const ultraRefresh = detectUltraRefreshDisplay();
   const highRefresh = detectHighRefreshDisplay();
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
@@ -277,9 +246,6 @@ function detectPreferredFrameRateId() {
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
       return 'hd50';
-    }
-    if (ultraRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
-      return 'uhd144';
     }
     if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
       return 'uhd120';
@@ -295,9 +261,6 @@ function detectPreferredFrameRateId() {
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
-    if (ultraRefresh) {
-      return 'uhd144';
-    }
     return 'uhd120';
   }
 
@@ -1208,15 +1171,6 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     pixelRatioCap: 2,
     resolution: 'Ultra HD render • DPR 2.0 cap',
     description: '4K-oriented profile for 120 Hz flagships and desktops.'
-  },
-  {
-    id: 'uhd144',
-    label: 'Ultra HD+ (144 Hz)',
-    fps: 144,
-    renderScale: 1.4,
-    pixelRatioCap: 2.1,
-    resolution: 'Ultra HD+ render • DPR 2.1 cap',
-    description: '8K HDRI profile tuned for 144 Hz high-refresh displays.'
   }
 ]);
 const DEFAULT_FRAME_RATE_OPTION =
@@ -1502,11 +1456,6 @@ export default function MurlanRoyaleArena({ search }) {
   useEffect(() => {
     applyRendererQuality();
   }, [applyRendererQuality, frameQualityProfile]);
-
-  useEffect(() => {
-    if (!threeReady) return;
-    void applyHdriEnvironment(hdriVariantRef.current || DEFAULT_HDRI_VARIANT);
-  }, [applyHdriEnvironment, frameRateId, threeReady]);
 
   const updateScoreboardDisplay = useCallback((entries = []) => {
     const store = threeStateRef.current;
@@ -1857,12 +1806,7 @@ export default function MurlanRoyaleArena({ search }) {
       if (!three.renderer || !three.scene) return;
       const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
       if (!activeVariant) return;
-      const preferredResolutions = resolveHdriResolutionStack(frameQualityRef.current?.id);
-      const envResult = await loadPolyHavenHdriEnvironment(three.renderer, {
-        ...activeVariant,
-        preferredResolutions,
-        fallbackResolution: preferredResolutions[0] ?? activeVariant.fallbackResolution
-      });
+      const envResult = await loadPolyHavenHdriEnvironment(three.renderer, activeVariant);
       if (!envResult?.envMap || !three.scene) return;
       const prevDispose = disposeEnvironmentRef.current;
       const prevTexture = envTextureRef.current;
