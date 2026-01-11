@@ -136,7 +136,9 @@ const SNOOKER_TYPE_LABELS = {
 
 const AIR_HOCKEY_TYPE_LABELS = {
   field: 'Rink Surface',
-  table: 'Table Frame',
+  table: 'Table Finish',
+  tableBase: 'Table Bases',
+  environmentHdri: 'HDR Environments',
   puck: 'Puck Finish',
   mallet: 'Mallets',
   rails: 'Rails',
