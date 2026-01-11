@@ -7,12 +7,6 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundResolution: 120,
     arenaScale: 1.1
   },
-  christmasPhotoStudio04: {
-    cameraHeightM: 1.52,
-    groundRadiusMultiplier: 3.9,
-    groundResolution: 120,
-    arenaScale: 1.15
-  },
   colorfulStudio: {
     cameraHeightM: 1.5,
     groundRadiusMultiplier: 4,
@@ -29,12 +23,6 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
   abandonedHall: {
     cameraHeightM: 1.6,
     groundRadiusMultiplier: 5.2,
-    groundResolution: 112,
-    arenaScale: 1.25
-  },
-  marryHall: {
-    cameraHeightM: 1.57,
-    groundRadiusMultiplier: 4.9,
     groundResolution: 112,
     arenaScale: 1.25
   },
@@ -56,26 +44,6 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundResolution: 112,
     arenaScale: 1.22
   },
-  loftPhotoStudioHall: {
-    cameraHeightM: 1.54,
-    groundRadiusMultiplier: 4.6,
-    groundResolution: 120,
-    arenaScale: 1.18,
-    rotationY: Math.PI
-  },
-  londonPhotoStudioHall: {
-    cameraHeightM: 1.56,
-    groundRadiusMultiplier: 4.8,
-    groundResolution: 120,
-    arenaScale: 1.18
-  },
-  countryStudioHall: {
-    cameraHeightM: 1.55,
-    groundRadiusMultiplier: 4.5,
-    groundResolution: 112,
-    arenaScale: 1.18,
-    rotationY: 0
-  },
   blockyPhotoStudio: {
     cameraHeightM: 1.5,
     groundRadiusMultiplier: 3.9,
@@ -83,31 +51,11 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     arenaScale: 1.14,
     rotationY: -Math.PI / 2
   },
-  bluePhotoStudio: {
-    cameraHeightM: 1.52,
-    groundRadiusMultiplier: 4,
-    groundResolution: 120,
-    arenaScale: 1.16
-  },
   cycloramaHardLight: {
     cameraHeightM: 1.5,
     groundRadiusMultiplier: 3.8,
     groundResolution: 120,
     arenaScale: 1.15
-  },
-  brownPhotostudio06: {
-    cameraHeightM: 1.51,
-    groundRadiusMultiplier: 4,
-    groundResolution: 120,
-    arenaScale: 1.15,
-    rotationY: Math.PI / 2
-  },
-  christmasPhotoStudio05: {
-    cameraHeightM: 1.52,
-    groundRadiusMultiplier: 3.9,
-    groundResolution: 120,
-    arenaScale: 1.15,
-    rotationY: Math.PI / 2
   },
   abandonedGarage: {
     cameraHeightM: 1.6,
@@ -129,13 +77,6 @@ const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
     groundResolution: 112,
     arenaScale: 1.24,
     rotationY: Math.PI
-  },
-  brownPhotostudio03: {
-    cameraHeightM: 1.5,
-    groundRadiusMultiplier: 3.9,
-    groundResolution: 120,
-    arenaScale: 1.14,
-    rotationY: Math.PI / 2
   },
   sepulchralChapelRotunda: {
     cameraHeightM: 1.62,
@@ -165,19 +106,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1.06,
     swatches: ['#0ea5e9', '#8b5cf6'],
     description: 'Vibrant cyber studio wrap with strong rim accents.'
-  },
-  {
-    id: 'christmasPhotoStudio04',
-    name: 'Christmas Photo Studio 04',
-    assetId: 'christmas_photo_studio_04',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 1780,
-    exposure: 1.12,
-    environmentIntensity: 1.08,
-    backgroundIntensity: 1.04,
-    swatches: ['#ef4444', '#f59e0b'],
-    description: 'Festive studio wraps with warm gift-light accents.'
   },
   {
     id: 'colorfulStudio',
@@ -219,19 +147,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     description: 'Moody derelict hall with soft overhead spill and cool shadows.'
   },
   {
-    id: 'marryHall',
-    name: 'Marry Hall',
-    assetId: 'marry_hall',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2000,
-    exposure: 1.12,
-    environmentIntensity: 1.08,
-    backgroundIntensity: 1.04,
-    swatches: ['#f8fafc', '#a3e635'],
-    description: 'Bright ceremony hall with clean neutral bounce and gentle highlights.'
-  },
-  {
     id: 'mirroredHall',
     name: 'Mirrored Hall',
     assetId: 'mirrored_hall',
@@ -271,45 +186,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     description: 'Vintage hall ambience with warm wood bounce and subtle window fill.'
   },
   {
-    id: 'loftPhotoStudioHall',
-    name: 'Loft Photo Studio Hall',
-    assetId: 'photo_studio_loft_hall',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2120,
-    exposure: 1.12,
-    environmentIntensity: 1.08,
-    backgroundIntensity: 1.03,
-    swatches: ['#22d3ee', '#f59e0b'],
-    description: 'Loft hall softbox mix with airy daylight wrap and warm practicals.'
-  },
-  {
-    id: 'londonPhotoStudioHall',
-    name: 'London Photo Studio Hall',
-    assetId: 'photo_studio_london_hall',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2140,
-    exposure: 1.14,
-    environmentIntensity: 1.1,
-    backgroundIntensity: 1.05,
-    swatches: ['#0ea5e9', '#fbbf24'],
-    description: 'London studio hall ambiance with cool skylight and warm edge kickers.'
-  },
-  {
-    id: 'countryStudioHall',
-    name: 'Country Studio Hall',
-    assetId: 'studio_country_hall',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2180,
-    exposure: 1.11,
-    environmentIntensity: 1.08,
-    backgroundIntensity: 1.02,
-    swatches: ['#f472b6', '#16a34a'],
-    description: 'Cozy country hall with warm wood bounce and soft window key light.'
-  },
-  {
     id: 'blockyPhotoStudio',
     name: 'Blocky Photo Studio',
     assetId: 'blocky_photo_studio',
@@ -323,19 +199,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     description: 'Graphic studio blocks with crisp edges and balanced bounce.'
   },
   {
-    id: 'bluePhotoStudio',
-    name: 'Blue Photo Studio',
-    assetId: 'blue_photo_studio',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2220,
-    exposure: 1.13,
-    environmentIntensity: 1.11,
-    backgroundIntensity: 1.06,
-    swatches: ['#38bdf8', '#1e40af'],
-    description: 'Cool blue studio lighting with bright fills and soft kickers.'
-  },
-  {
     id: 'cycloramaHardLight',
     name: 'Cyclorama Hard Light',
     assetId: 'cyclorama_hard_light',
@@ -347,32 +210,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1.08,
     swatches: ['#f8fafc', '#94a3b8'],
     description: 'Studio cyc with punchy hard light and sharp specular falloff.'
-  },
-  {
-    id: 'brownPhotostudio06',
-    name: 'Brown Photostudio 06',
-    assetId: 'brown_photostudio_06',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2280,
-    exposure: 1.11,
-    environmentIntensity: 1.07,
-    backgroundIntensity: 1.03,
-    swatches: ['#a16207', '#f59e0b'],
-    description: 'Warm brown studio wrap with soft amber highlights.'
-  },
-  {
-    id: 'christmasPhotoStudio05',
-    name: 'Christmas Photo Studio 05',
-    assetId: 'christmas_photo_studio_05',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2300,
-    exposure: 1.13,
-    environmentIntensity: 1.1,
-    backgroundIntensity: 1.05,
-    swatches: ['#ef4444', '#22c55e'],
-    description: 'Holiday studio glow with warm reds and festive green accents.'
   },
   {
     id: 'abandonedGarage',
@@ -412,19 +249,6 @@ const RAW_POOL_ROYALE_HDRI_VARIANTS = [
     backgroundIntensity: 1.03,
     swatches: ['#f8fafc', '#22c55e'],
     description: 'Upscale lounge ambience with bright daylight and warm interiors.'
-  },
-  {
-    id: 'brownPhotostudio03',
-    name: 'Brown Photostudio 03',
-    assetId: 'brown_photostudio_03',
-    preferredResolutions: ['4k', '2k'],
-    fallbackResolution: '4k',
-    price: 2400,
-    exposure: 1.1,
-    environmentIntensity: 1.06,
-    backgroundIntensity: 1.02,
-    swatches: ['#92400e', '#fbbf24'],
-    description: 'Rich brown studio tones with smooth amber reflections.'
   },
   {
     id: 'sepulchralChapelRotunda',
