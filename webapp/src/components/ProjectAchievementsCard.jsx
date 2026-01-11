@@ -7,6 +7,7 @@ export default function ProjectAchievementsCard() {
     '🕹️ Telegram bot and web app integration',
     '🥅 Goal Rush multiplayer',
     '🎱 Pool Royale',
+    '🎯 Snooker Royal',
     "🃏 Texas Hold'em",
     '🁣 Domino Royal 3D',
     '⚽ Free Kick',

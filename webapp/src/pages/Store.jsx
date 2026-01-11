@@ -9,6 +9,14 @@ import {
 } from '../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../config/poolRoyaleClothPresets.js';
 import {
+  SNOOKER_ROYALE_DEFAULT_LOADOUT,
+  SNOOKER_ROYALE_OPTION_LABELS,
+  SNOOKER_ROYALE_STORE_ITEMS,
+  SNOOKER_ROYALE_HDRI_VARIANTS,
+  SNOOKER_ROYALE_BASE_VARIANTS
+} from '../config/snookerRoyalInventoryConfig.js';
+import { SNOOKER_ROYALE_CLOTH_VARIANTS } from '../config/snookerRoyalClothPresets.js';
+import {
   AIR_HOCKEY_DEFAULT_LOADOUT,
   AIR_HOCKEY_OPTION_LABELS,
   AIR_HOCKEY_STORE_ITEMS
@@ -21,6 +29,14 @@ import {
   listOwnedPoolRoyalOptions,
   poolRoyalAccountId
 } from '../utils/poolRoyalInventory.js';
+import {
+  addSnookerRoyalUnlock,
+  getCachedSnookerRoyalInventory,
+  getSnookerRoyalInventory,
+  isSnookerOptionUnlocked,
+  listOwnedSnookerRoyalOptions,
+  snookerRoyalAccountId
+} from '../utils/snookerRoyalInventory.js';
 import {
   addAirHockeyUnlock,
   airHockeyAccountId,
@@ -197,6 +213,8 @@ const TEXAS_TYPE_LABELS = {
 
 const TPC_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
+const SNOOKER_STORE_ACCOUNT_ID =
+  import.meta.env.VITE_SNOOKER_ROYAL_STORE_ACCOUNT_ID || DEV_INFO.account;
 const AIR_HOCKEY_STORE_ACCOUNT_ID = import.meta.env.VITE_AIR_HOCKEY_STORE_ACCOUNT_ID || DEV_INFO.account;
 const CHESS_STORE_ACCOUNT_ID = import.meta.env.VITE_CHESS_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const BLACKJACK_STORE_ACCOUNT_ID = import.meta.env.VITE_BLACKJACK_STORE_ACCOUNT_ID || DEV_INFO.account;
@@ -277,8 +295,16 @@ const POOL_CLOTH_SWATCHES = POOL_ROYALE_CLOTH_VARIANTS.reduce((acc, cloth) => {
   return acc;
 }, {});
 
+const SNOOKER_CLOTH_SWATCHES = SNOOKER_ROYALE_CLOTH_VARIANTS.reduce((acc, cloth) => {
+  if (cloth?.swatches?.length) {
+    acc[cloth.id] = cloth.swatches;
+  }
+  return acc;
+}, {});
+
 const OPTION_SWATCH_OVERRIDES = {
   ...POOL_CLOTH_SWATCHES,
+  ...SNOOKER_CLOTH_SWATCHES,
   peelingPaintWeathered: ['#a89f95', '#b8b3aa'],
   oakVeneer01: ['#b9854e', '#c89a64'],
   woodTable001: ['#8f6243', '#a4724f'],
@@ -311,6 +337,18 @@ const OPTION_SWATCH_OVERRIDES = {
     return acc;
   }, {}),
   ...POOL_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => {
+    if (Array.isArray(variant.swatches) && variant.swatches.length) {
+      acc[variant.id] = variant.swatches;
+    }
+    return acc;
+  }, {}),
+  ...SNOOKER_ROYALE_BASE_VARIANTS.reduce((acc, variant) => {
+    if (Array.isArray(variant.swatches) && variant.swatches.length) {
+      acc[variant.id] = variant.swatches;
+    }
+    return acc;
+  }, {}),
+  ...SNOOKER_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => {
     if (Array.isArray(variant.swatches) && variant.swatches.length) {
       acc[variant.id] = variant.swatches;
     }
@@ -376,6 +414,14 @@ const storeMeta = {
     typeLabels: TYPE_LABELS,
     accountId: POOL_STORE_ACCOUNT_ID
   },
+  snookerroyal: {
+    name: 'Snooker Royal',
+    items: SNOOKER_ROYALE_STORE_ITEMS,
+    defaults: SNOOKER_ROYALE_DEFAULT_LOADOUT,
+    labels: SNOOKER_ROYALE_OPTION_LABELS,
+    typeLabels: TYPE_LABELS,
+    accountId: SNOOKER_STORE_ACCOUNT_ID
+  },
   airhockey: {
     name: 'Air Hockey',
     items: AIR_HOCKEY_STORE_ITEMS,
@@ -438,6 +484,9 @@ export default function Store() {
   useTelegramBackButton();
   const [accountId, setAccountId] = useState(() => poolRoyalAccountId());
   const [poolOwned, setPoolOwned] = useState(() => getCachedPoolRoyalInventory(accountId));
+  const [snookerOwned, setSnookerOwned] = useState(() =>
+    getCachedSnookerRoyalInventory(accountId)
+  );
   const [airOwned, setAirOwned] = useState(() => getAirHockeyInventory(airHockeyAccountId(accountId)));
   const [chessOwned, setChessOwned] = useState(() => getChessBattleInventory(chessBattleAccountId(accountId)));
   const [ludoOwned, setLudoOwned] = useState(() => getLudoBattleInventory(ludoBattleAccountId(accountId)));
@@ -468,6 +517,7 @@ export default function Store() {
 
   useEffect(() => {
     setPoolOwned(getCachedPoolRoyalInventory(accountId));
+    setSnookerOwned(getCachedSnookerRoyalInventory(accountId));
     setAirOwned(getAirHockeyInventory(airHockeyAccountId(accountId)));
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
     setLudoOwned(getLudoBattleInventory(ludoBattleAccountId(accountId)));
@@ -481,6 +531,11 @@ export default function Store() {
         if (!cancelled && inventory) setPoolOwned(inventory);
       })
       .catch((err) => console.warn('Failed to sync Pool Royale inventory', err));
+    getSnookerRoyalInventory(accountId)
+      .then((inventory) => {
+        if (!cancelled && inventory) setSnookerOwned(inventory);
+      })
+      .catch((err) => console.warn('Failed to sync Snooker Royal inventory', err));
     return () => {
       cancelled = true;
     };
@@ -503,6 +558,23 @@ export default function Store() {
   }, [accountId]);
 
   useEffect(() => {
+    const handleSnookerInventoryUpdate = (event) => {
+      if (event?.detail?.accountId && event.detail.accountId !== accountId) return;
+      if (event?.detail?.inventory) {
+        setSnookerOwned(event.detail.inventory);
+      } else {
+        setSnookerOwned(getCachedSnookerRoyalInventory(accountId));
+        getSnookerRoyalInventory(accountId)
+          .then((inventory) => setSnookerOwned(inventory))
+          .catch((err) => console.warn('Failed to reload Snooker Royal inventory', err));
+      }
+    };
+    window.addEventListener('snookerRoyalInventoryUpdate', handleSnookerInventoryUpdate);
+    return () =>
+      window.removeEventListener('snookerRoyalInventoryUpdate', handleSnookerInventoryUpdate);
+  }, [accountId]);
+
+  useEffect(() => {
     const loadBalance = async () => {
       if (!accountId || accountId === 'guest') return;
       try {
@@ -520,6 +592,7 @@ export default function Store() {
   const storeItemsBySlug = useMemo(
     () => ({
       poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'poolroyale' })),
+      snookerroyal: SNOOKER_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'snookerroyal' })),
       airhockey: AIR_HOCKEY_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'airhockey' })),
       chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'chessbattleroyal' })),
       ludobattleroyal: LUDO_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'ludobattleroyal' })),
@@ -534,6 +607,7 @@ export default function Store() {
   const ownedCheckers = useMemo(
     () => ({
       poolroyale: (type, optionId) => isPoolOptionUnlocked(type, optionId, poolOwned),
+      snookerroyal: (type, optionId) => isSnookerOptionUnlocked(type, optionId, snookerOwned),
       airhockey: (type, optionId) => isAirHockeyOptionUnlocked(type, optionId, airOwned),
       chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
       ludobattleroyal: (type, optionId) => isLudoOptionUnlocked(type, optionId, ludoOwned),
@@ -542,12 +616,23 @@ export default function Store() {
       snake: (type, optionId) => isSnakeOptionUnlocked(type, optionId, snakeOwned),
       texasholdem: (type, optionId) => isTexasOptionUnlocked(type, optionId, texasOwned)
     }),
-    [airOwned, poolOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned, texasOwned]
+    [
+      airOwned,
+      poolOwned,
+      snookerOwned,
+      chessOwned,
+      ludoOwned,
+      murlanOwned,
+      dominoOwned,
+      snakeOwned,
+      texasOwned
+    ]
   );
 
   const labelResolvers = useMemo(
     () => ({
       poolroyale: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      snookerroyal: (item) => SNOOKER_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       airhockey: (item) => AIR_HOCKEY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       ludobattleroyal: (item) => LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
@@ -562,6 +647,7 @@ export default function Store() {
   const typeLabelResolver = useMemo(
     () => ({
       poolroyale: TYPE_LABELS,
+      snookerroyal: TYPE_LABELS,
       airhockey: AIR_HOCKEY_TYPE_LABELS,
       chessbattleroyal: CHESS_TYPE_LABELS,
       ludobattleroyal: LUDO_TYPE_LABELS,
@@ -811,6 +897,7 @@ export default function Store() {
 
     const storeAccounts = {
       poolroyale: POOL_STORE_ACCOUNT_ID,
+      snookerroyal: SNOOKER_STORE_ACCOUNT_ID,
       airhockey: AIR_HOCKEY_STORE_ACCOUNT_ID,
       chessbattleroyal: CHESS_STORE_ACCOUNT_ID,
       ludobattleroyal: LUDO_STORE_ACCOUNT_ID,
@@ -858,6 +945,9 @@ export default function Store() {
           if (slug === 'poolroyale') {
             const updated = await addPoolRoyalUnlock(entry.type, entry.optionId, accountId);
             setPoolOwned(updated);
+          } else if (slug === 'snookerroyal') {
+            const updated = await addSnookerRoyalUnlock(entry.type, entry.optionId, accountId);
+            setSnookerOwned(updated);
           } else if (slug === 'airhockey') {
             setAirOwned(addAirHockeyUnlock(entry.type, entry.optionId, accountId));
           } else if (slug === 'chessbattleroyal') {
@@ -1800,7 +1890,7 @@ export default function Store() {
               </div>
               <div className="flex flex-wrap items-center gap-3 text-xs text-white/60">
                 <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">
-                  Green + Blue cloth bundles ready for Pool Royale
+                  Green + Blue cloth bundles ready for Pool Royale & Snooker Royal
                 </span>
                 <span>Pick multiple NFTs, confirm once, and unlock them together.</span>
               </div>
