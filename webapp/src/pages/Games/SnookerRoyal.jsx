@@ -2642,6 +2642,15 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Low-power 50 Hz profile for battery saver and thermal relief.'
   },
   {
+    id: 'fhd60',
+    label: 'Full HD (60 Hz)',
+    fps: 60,
+    renderScale: 1.06,
+    pixelRatioCap: 1.45,
+    resolution: 'Full HD render • DPR 1.45 cap',
+    description: 'Balanced 60 Hz profile for smooth play with steady thermals.'
+  },
+  {
     id: 'fhd90',
     label: 'Full HD (90 Hz)',
     fps: 90,
@@ -2669,7 +2678,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'fhd90';
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const BROADCAST_SYSTEM_STORAGE_KEY = 'snookerBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
