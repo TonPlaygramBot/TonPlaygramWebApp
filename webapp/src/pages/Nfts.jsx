@@ -9,10 +9,15 @@ import {
   listOwnedPoolRoyalOptions
 } from '../utils/poolRoyalInventory.js';
 import {
+  getSnookerRoyalInventory,
+  listOwnedSnookerRoyalOptions
+} from '../utils/snookerRoyalInventory.js';
+import {
   getDominoRoyalInventory,
   listOwnedDominoOptions
 } from '../utils/dominoRoyalInventory.js';
 import { POOL_ROYALE_DEFAULT_LOADOUT } from '../config/poolRoyaleInventoryConfig.js';
+import { SNOOKER_ROYALE_DEFAULT_LOADOUT } from '../config/snookerRoyalInventoryConfig.js';
 import {
   DOMINO_ROYAL_DEFAULT_LOADOUT,
   DOMINO_ROYAL_STORE_ITEMS,
@@ -21,6 +26,7 @@ import {
 import {
   POOL_ROYALE_STORE_ITEMS
 } from '../config/poolRoyaleInventoryConfig.js';
+import { SNOOKER_ROYALE_STORE_ITEMS } from '../config/snookerRoyalInventoryConfig.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
 import GiftIcon from '../components/GiftIcon.jsx';
 
@@ -40,6 +46,7 @@ export default function Nfts() {
   const [accountId, setAccountId] = useState('');
   const [loading, setLoading] = useState(true);
   const [poolNfts, setPoolNfts] = useState([]);
+  const [snookerNfts, setSnookerNfts] = useState([]);
   const [dominoNfts, setDominoNfts] = useState([]);
   const [giftNfts, setGiftNfts] = useState([]);
   const [error, setError] = useState('');
@@ -49,10 +56,18 @@ export default function Nfts() {
   const [sortKey, setSortKey] = useState('name-asc');
 
   const defaultPoolSet = useMemo(() => buildDefaultSet(POOL_ROYALE_DEFAULT_LOADOUT), []);
+  const defaultSnookerSet = useMemo(() => buildDefaultSet(SNOOKER_ROYALE_DEFAULT_LOADOUT), []);
   const defaultDominoSet = useMemo(() => buildDefaultSet(DOMINO_ROYAL_DEFAULT_LOADOUT), []);
   const poolPriceIndex = useMemo(() => {
     const map = new Map();
     POOL_ROYALE_STORE_ITEMS.forEach((item) => {
+      map.set(`${item.type}:${item.optionId}`, Number(item.price) || 0);
+    });
+    return map;
+  }, []);
+  const snookerPriceIndex = useMemo(() => {
+    const map = new Map();
+    SNOOKER_ROYALE_STORE_ITEMS.forEach((item) => {
       map.set(`${item.type}:${item.optionId}`, Number(item.price) || 0);
     });
     return map;
@@ -99,6 +114,18 @@ export default function Nfts() {
           };
         });
         setPoolNfts(ownedPool);
+
+        const snookerInventory = await getSnookerRoyalInventory(acc.accountId);
+        const ownedSnooker = listOwnedSnookerRoyalOptions(snookerInventory).map((item) => {
+          const priceKey = `${item.type}:${item.optionId}`;
+          return {
+            ...item,
+            isDefault: defaultSnookerSet.has(priceKey),
+            thumbnail: '/assets/icons/snooker-royal.svg',
+            price: snookerPriceIndex.get(priceKey) ?? 0
+          };
+        });
+        setSnookerNfts(ownedSnooker);
 
         const dominoInventory = getDominoRoyalInventory(acc.accountId);
         const ownedDomino = listOwnedDominoOptions(dominoInventory).map((item) => {
@@ -269,6 +296,7 @@ export default function Nfts() {
     );
 
   const filteredPool = applyFilters(poolNfts);
+  const filteredSnooker = applyFilters(snookerNfts);
   const filteredDomino = applyFilters(dominoNfts);
   const filteredGifts = applyFilters(giftNfts);
 
@@ -345,6 +373,14 @@ export default function Nfts() {
               <span className="text-xs text-subtext">Cosmetic NFTs</span>
             </div>
             {renderNftGrid(filteredPool, 'No Pool Royale NFTs yet.', '/assets/icons/pool-royale.svg')}
+          </div>
+
+          <div className="prism-box p-4 space-y-2 mx-auto wide-card">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Snooker Royal</h3>
+              <span className="text-xs text-subtext">Cosmetic NFTs</span>
+            </div>
+            {renderNftGrid(filteredSnooker, 'No Snooker Royal NFTs yet.', '/assets/icons/snooker-royal.svg')}
           </div>
 
           <div className="prism-box p-4 space-y-2 mx-auto wide-card">

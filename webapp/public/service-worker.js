@@ -46,6 +46,7 @@ const PREFETCH_RUNTIME_ASSETS = [
   '/roulette.html',
   '/chess-royale.html',
   '/pool-royale-api.js',
+  '/snooker-royal-api.js',
   '/power-slider.js',
   '/power-slider.css'
 ];

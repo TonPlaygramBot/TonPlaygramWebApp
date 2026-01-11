@@ -25,6 +25,7 @@ import adsRoutes from './routes/ads.js';
 import influencerRoutes from './routes/influencer.js';
 import onlineRoutes from './routes/online.js';
 import poolRoyaleRoutes from './routes/poolRoyale.js';
+import snookerRoyalRoutes from './routes/snookerRoyal.js';
 import pushRoutes from './routes/push.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
@@ -166,6 +167,7 @@ app.use('/api/broadcast', broadcastRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/online', onlineRoutes);
 app.use('/api/pool-royale', poolRoyaleRoutes);
+app.use('/api/snooker-royal', snookerRoyalRoutes);
 
 app.post('/api/goal-rush/calibration', (req, res) => {
   const { accountId, calibration } = req.body || {};
@@ -325,6 +327,7 @@ const tableWatchers = new Map();
 const lobbyTables = {};
 const tableMap = new Map();
 const poolStates = new Map();
+const snookerStates = new Map();
 const BUNDLE_TON_MAP = Object.fromEntries(
   Object.values(BUNDLES).map((b) => [b.label, b.ton])
 );
@@ -596,6 +599,9 @@ function maybeStartGame(table) {
       );
       if (table.gameType === 'poolroyale') {
         poolStates.set(table.id, { state: null, hud: null, layout: null, ts: Date.now() });
+      }
+      if (table.gameType === 'snookerroyal') {
+        snookerStates.set(table.id, { state: null, hud: null, layout: null, ts: Date.now() });
       }
       table.startTimeout = null;
     }, 1000);
@@ -1200,6 +1206,81 @@ io.on('connection', (socket) => {
       ts: payload.updatedAt
     });
     socket.to(tableId).emit('poolState', payload);
+  });
+
+  socket.on('joinSnookerTable', async ({ tableId, accountId }) => {
+    if (!tableId) return;
+    if (accountId && !ensureRegistered(socket, accountId)) return;
+    socket.join(tableId);
+    if (accountId) {
+      await registerConnection({
+        userId: String(accountId),
+        roomId: tableId,
+        socketId: socket.id
+      });
+    }
+    const cached = snookerStates.get(tableId);
+    if (cached?.state) {
+      socket.emit('snookerState', {
+        tableId,
+        state: cached.state,
+        hud: cached.hud,
+        layout: cached.layout,
+        updatedAt: cached.ts
+      });
+    }
+  });
+
+  socket.on('snookerSyncRequest', ({ tableId }) => {
+    if (!tableId) return;
+    const cached = snookerStates.get(tableId);
+    if (cached?.state) {
+      socket.emit('snookerState', {
+        tableId,
+        state: cached.state,
+        hud: cached.hud,
+        layout: cached.layout,
+        updatedAt: cached.ts
+      });
+    }
+  });
+
+  socket.on('snookerFrame', ({ tableId, layout, hud, playerId, frameTs }) => {
+    if (!tableId || !Array.isArray(layout)) return;
+    const ts = Number.isFinite(frameTs) ? frameTs : Date.now();
+    const cached = snookerStates.get(tableId) || {};
+    const payload = {
+      tableId,
+      layout,
+      hud: hud || cached.hud || null,
+      updatedAt: ts,
+      playerId: playerId || null
+    };
+    snookerStates.set(tableId, {
+      state: cached.state || null,
+      hud: payload.hud,
+      layout,
+      ts
+    });
+    socket.to(tableId).emit('snookerFrame', payload);
+  });
+
+  socket.on('snookerShot', ({ tableId, state, hud, layout }) => {
+    if (!tableId || !state) return;
+    const payload = {
+      tableId,
+      state,
+      hud: hud || null,
+      layout: layout || null,
+      updatedAt: Date.now()
+    };
+    snookerStates.set(tableId, {
+      state,
+      hud: hud || null,
+      layout: layout || null,
+      ts: payload.updatedAt
+    });
+    socket.to(tableId).emit('snookerState', payload);
   });
 
   socket.on('chessMove', ({ tableId, move }) => {
