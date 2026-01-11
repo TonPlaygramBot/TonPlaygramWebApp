@@ -41,12 +41,6 @@ import {
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
-const HDRI_RESOLUTIONS_BY_FRAME_RATE = Object.freeze({
-  hd50: ['1k'],
-  fhd60: ['2k'],
-  qhd90: ['4k'],
-  uhd120: ['6k']
-});
 const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
   ...variant,
   label: `${variant.name} HDRI`
@@ -1181,8 +1175,6 @@ const FRAME_RATE_OPTIONS = Object.freeze([
 ]);
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((opt) => opt.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
-const resolveHdriResolutionsForFrameRate = (frameRateId) =>
-  HDRI_RESOLUTIONS_BY_FRAME_RATE[frameRateId] ?? DEFAULT_HDRI_RESOLUTIONS;
 
 const GAME_CONFIG = { ...BASE_CONFIG };
 const START_CARD = { rank: '3', suit: '♠' };
@@ -1249,10 +1241,6 @@ export default function MurlanRoyaleArena({ search }) {
   });
   const activeFrameRateOption = useMemo(
     () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
-    [frameRateId]
-  );
-  const hdriResolutions = useMemo(
-    () => resolveHdriResolutionsForFrameRate(frameRateId),
     [frameRateId]
   );
   const frameQualityProfile = useMemo(() => {
@@ -1818,14 +1806,7 @@ export default function MurlanRoyaleArena({ search }) {
       if (!three.renderer || !three.scene) return;
       const activeVariant = variantConfig || hdriVariantRef.current || DEFAULT_HDRI_VARIANT;
       if (!activeVariant) return;
-      const preferredResolutions = Array.isArray(hdriResolutions) && hdriResolutions.length
-        ? hdriResolutions
-        : DEFAULT_HDRI_RESOLUTIONS;
-      const envResult = await loadPolyHavenHdriEnvironment(three.renderer, {
-        ...activeVariant,
-        preferredResolutions,
-        fallbackResolution: preferredResolutions[0] ?? activeVariant?.fallbackResolution
-      });
+      const envResult = await loadPolyHavenHdriEnvironment(three.renderer, activeVariant);
       if (!envResult?.envMap || !three.scene) return;
       const prevDispose = disposeEnvironmentRef.current;
       const prevTexture = envTextureRef.current;
@@ -1854,7 +1835,7 @@ export default function MurlanRoyaleArena({ search }) {
         prevDispose();
       }
     },
-    [hdriResolutions]
+    []
   );
 
   const updateSceneAppearance = useCallback(
