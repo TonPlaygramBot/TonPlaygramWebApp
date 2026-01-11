@@ -1059,7 +1059,7 @@ async function resolvePolyHavenHdriUrl(config = {}, preferred = PREFERRED_HDRI_R
       ? config.preferredResolutions
       : preferred;
   const fallbackResolution =
-    config?.fallbackResolution || preferredResolutions?.[0] || PREFERRED_HDRI_RESOLUTIONS[0] || '4k';
+    config?.fallbackResolution || preferredResolutions?.[0] || PREFERRED_HDRI_RESOLUTIONS[0] || '2k';
   const assetId = config?.assetId || 'neon_photostudio';
   const fallbackUrl =
     config?.fallbackUrl ||
