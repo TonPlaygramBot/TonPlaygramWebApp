@@ -749,7 +749,7 @@ export default function MyAccount() {
           <div className="space-y-1">
             <p className="font-medium text-sm">Open NFT library</p>
             <p className="text-xs text-subtext">
-              Browse Pool Royale, Snooker Royal, Domino Royal, and gift NFTs without the default freebies.
+              Browse Pool Royale, Domino Royal, and gift NFTs without the default freebies.
             </p>
           </div>
           <Link
