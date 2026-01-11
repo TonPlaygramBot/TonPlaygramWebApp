@@ -10257,6 +10257,20 @@ function PoolRoyaleGame({
       const ratio = Number.isFinite(loaded) ? loaded / safeTotal : 0;
       setLoadingProgress(Math.max(0, Math.min(1, ratio)));
     };
+    const syncManagerState = () => {
+      const loaded = Number(manager.itemsLoaded || 0);
+      const total = Number(manager.itemsTotal || 0);
+      if (total > 0) {
+        updateProgress(loaded, total);
+        if (loaded >= total) {
+          setLoadingProgress(1);
+          setLoadingActive(false);
+        }
+      } else {
+        setLoadingProgress(0);
+        setLoadingActive(false);
+      }
+    };
     manager.onStart = (url, loaded, total) => {
       prev.onStart?.(url, loaded, total);
       if (cancelled) return;
@@ -10281,6 +10295,7 @@ function PoolRoyaleGame({
       if (cancelled) return;
       setLoadingProgress((prevValue) => Math.max(prevValue, 0.9));
     };
+    syncManagerState();
     return () => {
       cancelled = true;
       manager.onStart = prev.onStart;
