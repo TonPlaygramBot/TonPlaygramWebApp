@@ -4021,8 +4021,21 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 
 const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
+const HDRI_RESOLUTION_STORAGE_KEY = 'poolHdriResolution';
 const DEFAULT_HDRI_RESOLUTION_MODE = '4k';
-const HDRI_RESOLUTION_OPTION = Object.freeze({ id: '4k', label: '4K (Locked)' });
+const HDRI_RESOLUTION_OPTIONS = Object.freeze([
+  { id: 'auto', label: 'Match Table' },
+  { id: '8k', label: '8K' },
+  { id: '6k', label: '6K' },
+  { id: '4k', label: '4K' },
+  { id: '2k', label: '2K' }
+]);
+const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
+  HDRI_RESOLUTION_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
@@ -4031,6 +4044,14 @@ const HDRI_GROUNDED_RESOLUTION = 256;
 const HDRI_CAMERA_SCALE_MIN = 0.78;
 const HDRI_CAMERA_SCALE_MAX = 1.32;
 const HDRI_CAMERA_SCALE_LERP = 0.18;
+
+function resolveHdriResolutionForTable(tableSizeMeta) {
+  const widthMm = tableSizeMeta?.playfield?.widthMm;
+  if (Number.isFinite(widthMm) && widthMm >= 2540) {
+    return '8k';
+  }
+  return '4k';
+}
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const urls = [];
@@ -10523,6 +10544,15 @@ function PoolRoyaleGame({
       POOL_ROYALE_DEFAULT_HDRI_ID
     );
   });
+  const [hdriResolutionId, setHdriResolutionId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(HDRI_RESOLUTION_STORAGE_KEY);
+      if (stored && HDRI_RESOLUTION_OPTION_MAP[stored]) {
+        return stored;
+      }
+    }
+    return DEFAULT_HDRI_RESOLUTION_MODE;
+  });
   const [lightingId, setLightingId] = useState(() => DEFAULT_LIGHTING_ID);
   const [chromeColorId, setChromeColorId] = useState(() => {
     return resolveStoredSelection(
@@ -10557,7 +10587,12 @@ function PoolRoyaleGame({
       FRAME_RATE_OPTIONS[0],
     [frameRateId]
   );
-  const activeHdriResolutionOption = HDRI_RESOLUTION_OPTION;
+  const activeHdriResolutionOption = useMemo(
+    () =>
+      HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId] ??
+      HDRI_RESOLUTION_OPTIONS[0],
+    [hdriResolutionId]
+  );
   const frameQualityProfile = useMemo(() => {
     const option = activeFrameRateOption ?? FRAME_RATE_OPTIONS[0];
     const fallback = FRAME_RATE_OPTIONS[0];
@@ -10666,7 +10701,15 @@ function PoolRoyaleGame({
       POOL_ROYALE_BASE_VARIANTS[0],
     [availableTableBases, tableBaseId]
   );
-  const resolvedHdriResolution = DEFAULT_HDRI_RESOLUTION_MODE;
+  const resolvedHdriResolution = useMemo(() => {
+    if (hdriResolutionId === 'auto') {
+      return resolveHdriResolutionForTable(responsiveTableSize);
+    }
+    if (HDRI_RESOLUTION_OPTION_MAP[hdriResolutionId]) {
+      return hdriResolutionId;
+    }
+    return resolveHdriResolutionForTable(responsiveTableSize);
+  }, [hdriResolutionId, responsiveTableSize]);
   const activeEnvironmentHdri = useMemo(
     () => {
       const variant =
@@ -11361,6 +11404,10 @@ function PoolRoyaleGame({
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(HDRI_STORAGE_KEY, environmentHdriId);
   }, [environmentHdriId]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(HDRI_RESOLUTION_STORAGE_KEY, hdriResolutionId);
+  }, [hdriResolutionId]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(LIGHTING_STORAGE_KEY, lightingId);
@@ -25327,8 +25374,25 @@ const powerRef = useRef(hud.power);
                   <p className="mt-1 text-[0.7rem] text-white/60">
                     Active: {resolvedHdriResolution?.toUpperCase() || activeHdriResolutionOption.label}
                   </p>
-                  <div className="mt-2 rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/70">
-                    {activeHdriResolutionOption.label}
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {HDRI_RESOLUTION_OPTIONS.map((option) => {
+                      const active = option.id === hdriResolutionId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setHdriResolutionId(option.id)}
+                          aria-pressed={active}
+                          className={`flex-1 min-w-[7.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="mt-2 grid gap-2">
