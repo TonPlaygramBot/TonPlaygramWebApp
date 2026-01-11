@@ -23230,17 +23230,17 @@ const powerRef = useRef(hud.power);
                 b.liftVel = 0;
               }
             if (hasSpin && (b.lift ?? 0) > 0) {
-              const airborneSpin = TMP_VEC2_LIMIT.copy(b.spin ?? TMP_VEC2_LIMIT.set(0, 0));
-              const spinMag = airborneSpin.length();
-              if (spinMag > 1e-6) {
+              const worldSpin = resolveSpinWorldVector(b, TMP_VEC2_LIMIT);
+              const spinMag = worldSpin?.length() ?? 0;
+              if (worldSpin && spinMag > 1e-6) {
                 const liftRatio = THREE.MathUtils.clamp(
                   (b.lift ?? 0) / MAX_POWER_LIFT_HEIGHT,
                   0,
                   1.2
                 );
                 const driftScale = LIFT_SPIN_AIR_DRIFT * liftRatio * stepScale;
-                airborneSpin.normalize().multiplyScalar(driftScale);
-                b.vel.add(airborneSpin);
+                TMP_VEC2_AXIS.copy(worldSpin).normalize().multiplyScalar(driftScale);
+                b.vel.add(TMP_VEC2_AXIS);
               }
             }
             }
@@ -23259,9 +23259,14 @@ const powerRef = useRef(hud.power);
                 const rollMultiplier = swerveTravel
                   ? SWERVE_TRAVEL_MULTIPLIER * (0.9 + swerveStrength * 0.6)
                   : 1;
-                TMP_VEC2_SPIN.copy(b.spin).multiplyScalar(
-                  SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
-                );
+                const worldSpin = resolveSpinWorldVector(b, TMP_VEC2_SPIN);
+                if (!worldSpin) {
+                  TMP_VEC2_SPIN.set(0, 0);
+                } else {
+                  worldSpin.multiplyScalar(
+                    SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
+                  );
+                }
                 if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
                   const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
                   const forwardMag = TMP_VEC2_SPIN.dot(launchDir);
