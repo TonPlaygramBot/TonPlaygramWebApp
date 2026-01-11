@@ -194,25 +194,18 @@ const wait = (ms = 0) =>
     window.setTimeout(resolve, ms);
   });
 
-function isWebGLAvailable(host = null) {
+function isWebGLAvailable() {
   if (typeof document === 'undefined') return false;
-  const canvas = document.createElement('canvas');
   try {
-    if (host?.appendChild) {
-      host.appendChild(canvas);
-    }
+    const canvas = document.createElement('canvas');
     const gl =
-      canvas.getContext('webgl2', { powerPreference: 'high-performance' }) ||
-      canvas.getContext('webgl', { powerPreference: 'high-performance' }) ||
+      canvas.getContext('webgl2') ||
+      canvas.getContext('webgl') ||
       canvas.getContext('experimental-webgl');
     return Boolean(gl);
   } catch (err) {
     console.warn('WebGL availability check failed', err);
     return false;
-  } finally {
-    if (canvas.parentNode) {
-      canvas.parentNode.removeChild(canvas);
-    }
   }
 }
 
@@ -2649,15 +2642,6 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Low-power 50 Hz profile for battery saver and thermal relief.'
   },
   {
-    id: 'fhd60',
-    label: 'Full HD (60 Hz)',
-    fps: 60,
-    renderScale: 1.1,
-    pixelRatioCap: 1.5,
-    resolution: 'Full HD render • DPR 1.5 cap',
-    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
-  },
-  {
     id: 'fhd90',
     label: 'Full HD (90 Hz)',
     fps: 90,
@@ -2685,7 +2669,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const DEFAULT_FRAME_RATE_ID = 'fhd90';
 
 const BROADCAST_SYSTEM_STORAGE_KEY = 'snookerBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
@@ -10266,20 +10250,6 @@ function SnookerRoyalGame({
       const ratio = Number.isFinite(loaded) ? loaded / safeTotal : 0;
       setLoadingProgress(Math.max(0, Math.min(1, ratio)));
     };
-    const syncManagerState = () => {
-      const loaded = Number(manager.itemsLoaded || 0);
-      const total = Number(manager.itemsTotal || 0);
-      if (total > 0) {
-        updateProgress(loaded, total);
-        if (loaded >= total) {
-          setLoadingProgress(1);
-          setLoadingActive(false);
-        }
-      } else {
-        setLoadingProgress(0);
-        setLoadingActive(false);
-      }
-    };
     manager.onStart = (url, loaded, total) => {
       prev.onStart?.(url, loaded, total);
       if (cancelled) return;
@@ -10304,7 +10274,6 @@ function SnookerRoyalGame({
       if (cancelled) return;
       setLoadingProgress((prevValue) => Math.max(prevValue, 0.9));
     };
-    syncManagerState();
     return () => {
       cancelled = true;
       manager.onStart = prev.onStart;
@@ -13149,7 +13118,7 @@ const powerRef = useRef(hud.power);
     const host = mountRef.current;
     if (!host) return;
     setErr(null);
-    if (!isWebGLAvailable(host)) {
+    if (!isWebGLAvailable()) {
       setErr('WebGL is not available on this device. Enable hardware acceleration to play.');
       return;
     }
@@ -13205,9 +13174,19 @@ const powerRef = useRef(hud.power);
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
-      const applyEnvironmentMaps = (envMap, skyboxMap, activeVariant) => {
+      const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
         const sceneInstance = sceneRef.current;
-        if (!envMap || !sceneInstance) return;
+        if (!renderer || !sceneInstance) return;
+        const activeVariant = variantConfig || activeEnvironmentVariantRef.current;
+        const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
+        if (!envResult) return;
+        const { envMap, skyboxMap } = envResult;
+        if (!envMap) return;
+        if (disposed) {
+          envMap.dispose?.();
+          skyboxMap?.dispose?.();
+          return;
+        }
         const prevDispose = disposeEnvironmentRef.current;
         const prevTexture = envTextureRef.current;
         const worldOffsetY = worldRef.current?.position?.y ?? 0;
@@ -13314,27 +13293,6 @@ const powerRef = useRef(hud.power);
         if (prevDispose && prevTexture !== envMap) {
           prevDispose();
         }
-      };
-      const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
-        const sceneInstance = sceneRef.current;
-        if (!renderer || !sceneInstance) return;
-        const activeVariant = variantConfig || activeEnvironmentVariantRef.current;
-        if (!envTextureRef.current && !disposed) {
-          const fallbackEnv = await createFallbackHdriEnvironment(renderer);
-          if (fallbackEnv?.envMap && !disposed) {
-            applyEnvironmentMaps(fallbackEnv.envMap, fallbackEnv.skyboxMap, activeVariant);
-          }
-        }
-        const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
-        if (!envResult) return;
-        const { envMap, skyboxMap } = envResult;
-        if (!envMap) return;
-        if (disposed) {
-          envMap.dispose?.();
-          skyboxMap?.dispose?.();
-          return;
-        }
-        applyEnvironmentMaps(envMap, skyboxMap, activeVariant);
       };
       updateEnvironmentRef.current = applyHdriEnvironment;
       void applyHdriEnvironment(activeEnvironmentVariantRef.current);
