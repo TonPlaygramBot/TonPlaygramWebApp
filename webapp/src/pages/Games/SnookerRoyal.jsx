@@ -10236,6 +10236,17 @@ function SnookerRoyalGame({
   const [winnerOverlay, setWinnerOverlay] = useState(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingActive, setLoadingActive] = useState(true);
+  const [environmentReady, setEnvironmentReady] = useState(false);
+  const environmentReadyRef = useRef(false);
+  const markEnvironmentReady = useCallback(() => {
+    if (environmentReadyRef.current) return;
+    environmentReadyRef.current = true;
+    setEnvironmentReady(true);
+  }, []);
+  useEffect(() => {
+    environmentReadyRef.current = false;
+    setEnvironmentReady(false);
+  }, [renderResetKey]);
   useEffect(() => {
     const manager = THREE.DefaultLoadingManager;
     let cancelled = false;
@@ -13176,17 +13187,26 @@ const powerRef = useRef(hud.power);
       worldRef.current = world;
       const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
         const sceneInstance = sceneRef.current;
-        if (!renderer || !sceneInstance) return;
-        const activeVariant = variantConfig || activeEnvironmentVariantRef.current;
-        const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
-        if (!envResult) return;
-        const { envMap, skyboxMap } = envResult;
-        if (!envMap) return;
-        if (disposed) {
-          envMap.dispose?.();
-          skyboxMap?.dispose?.();
-          return;
-        }
+      if (!renderer || !sceneInstance) {
+        markEnvironmentReady();
+        return;
+      }
+      const activeVariant = variantConfig || activeEnvironmentVariantRef.current;
+      const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
+      if (!envResult) {
+        markEnvironmentReady();
+        return;
+      }
+      const { envMap, skyboxMap } = envResult;
+      if (!envMap) {
+        markEnvironmentReady();
+        return;
+      }
+      if (disposed) {
+        envMap.dispose?.();
+        skyboxMap?.dispose?.();
+        return;
+      }
         const prevDispose = disposeEnvironmentRef.current;
         const prevTexture = envTextureRef.current;
         const worldOffsetY = worldRef.current?.position?.y ?? 0;
@@ -13290,12 +13310,13 @@ const powerRef = useRef(hud.power);
             }
           }
         };
-        if (prevDispose && prevTexture !== envMap) {
-          prevDispose();
-        }
-      };
-      updateEnvironmentRef.current = applyHdriEnvironment;
-      void applyHdriEnvironment(activeEnvironmentVariantRef.current);
+      if (prevDispose && prevTexture !== envMap) {
+        prevDispose();
+      }
+      markEnvironmentReady();
+    };
+    updateEnvironmentRef.current = applyHdriEnvironment;
+    void applyHdriEnvironment(activeEnvironmentVariantRef.current);
       let worldScaleFactor = WORLD_SCALE * (tableSizeRef.current?.scale ?? 1);
       let cue;
       let clothMat;
@@ -25675,7 +25696,7 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      {loadingActive && !err && (
+      {(loadingActive || !environmentReady) && !err && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 px-6 text-white">
           <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
             <div className="w-full rounded-3xl border border-emerald-400/40 bg-emerald-950/60 p-5 shadow-[0_24px_48px_rgba(0,0,0,0.6)]">
