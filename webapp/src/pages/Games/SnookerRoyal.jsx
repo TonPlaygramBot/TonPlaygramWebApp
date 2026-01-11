@@ -2642,6 +2642,15 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Low-power 50 Hz profile for battery saver and thermal relief.'
   },
   {
+    id: 'fhd60',
+    label: 'Full HD (60 Hz)',
+    fps: 60,
+    renderScale: 1.1,
+    pixelRatioCap: 1.5,
+    resolution: 'Full HD render • DPR 1.5 cap',
+    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
+  },
+  {
     id: 'fhd90',
     label: 'Full HD (90 Hz)',
     fps: 90,
@@ -2669,7 +2678,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'fhd90';
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const BROADCAST_SYSTEM_STORAGE_KEY = 'snookerBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
@@ -10250,6 +10259,20 @@ function SnookerRoyalGame({
       const ratio = Number.isFinite(loaded) ? loaded / safeTotal : 0;
       setLoadingProgress(Math.max(0, Math.min(1, ratio)));
     };
+    const syncManagerState = () => {
+      const loaded = Number(manager.itemsLoaded || 0);
+      const total = Number(manager.itemsTotal || 0);
+      if (total > 0) {
+        updateProgress(loaded, total);
+        if (loaded >= total) {
+          setLoadingProgress(1);
+          setLoadingActive(false);
+        }
+      } else {
+        setLoadingProgress(0);
+        setLoadingActive(false);
+      }
+    };
     manager.onStart = (url, loaded, total) => {
       prev.onStart?.(url, loaded, total);
       if (cancelled) return;
@@ -10274,6 +10297,7 @@ function SnookerRoyalGame({
       if (cancelled) return;
       setLoadingProgress((prevValue) => Math.max(prevValue, 0.9));
     };
+    syncManagerState();
     return () => {
       cancelled = true;
       manager.onStart = prev.onStart;
@@ -13118,10 +13142,7 @@ const powerRef = useRef(hud.power);
     const host = mountRef.current;
     if (!host) return;
     setErr(null);
-    if (!isWebGLAvailable()) {
-      setErr('WebGL is not available on this device. Enable hardware acceleration to play.');
-      return;
-    }
+    const webglSupported = isWebGLAvailable();
     const cueRackDisposers = [];
     let disposed = false;
     let contextLost = false;
@@ -13140,6 +13161,9 @@ const powerRef = useRef(hud.power);
       updatePocketCameraState(false);
       screen.orientation?.lock?.('portrait').catch(() => {});
       // Renderer
+      if (!webglSupported) {
+        console.warn('WebGL availability check failed; attempting to init renderer anyway.');
+      }
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: false,
@@ -13174,19 +13198,9 @@ const powerRef = useRef(hud.power);
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
-      const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
+      const applyEnvironmentMaps = (envMap, skyboxMap, activeVariant) => {
         const sceneInstance = sceneRef.current;
-        if (!renderer || !sceneInstance) return;
-        const activeVariant = variantConfig || activeEnvironmentVariantRef.current;
-        const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
-        if (!envResult) return;
-        const { envMap, skyboxMap } = envResult;
-        if (!envMap) return;
-        if (disposed) {
-          envMap.dispose?.();
-          skyboxMap?.dispose?.();
-          return;
-        }
+        if (!envMap || !sceneInstance) return;
         const prevDispose = disposeEnvironmentRef.current;
         const prevTexture = envTextureRef.current;
         const worldOffsetY = worldRef.current?.position?.y ?? 0;
@@ -13293,6 +13307,27 @@ const powerRef = useRef(hud.power);
         if (prevDispose && prevTexture !== envMap) {
           prevDispose();
         }
+      };
+      const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
+        const sceneInstance = sceneRef.current;
+        if (!renderer || !sceneInstance) return;
+        const activeVariant = variantConfig || activeEnvironmentVariantRef.current;
+        if (!envTextureRef.current && !disposed) {
+          const fallbackEnv = await createFallbackHdriEnvironment(renderer);
+          if (fallbackEnv?.envMap && !disposed) {
+            applyEnvironmentMaps(fallbackEnv.envMap, fallbackEnv.skyboxMap, activeVariant);
+          }
+        }
+        const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
+        if (!envResult) return;
+        const { envMap, skyboxMap } = envResult;
+        if (!envMap) return;
+        if (disposed) {
+          envMap.dispose?.();
+          skyboxMap?.dispose?.();
+          return;
+        }
+        applyEnvironmentMaps(envMap, skyboxMap, activeVariant);
       };
       updateEnvironmentRef.current = applyHdriEnvironment;
       void applyHdriEnvironment(activeEnvironmentVariantRef.current);
@@ -24278,10 +24313,14 @@ const powerRef = useRef(hud.power);
         cueGalleryStateRef.current.target?.set(0, 0, 0);
         sceneRef.current = null;
       };
-      } catch (e) {
+    } catch (e) {
       console.error(e);
-      setErr(e?.message || String(e));
-      }
+      const message = e?.message || String(e);
+      const normalized = message.includes('WebGL')
+        ? 'WebGL is not available on this device. Enable hardware acceleration to play.'
+        : message;
+      setErr(normalized);
+    }
   }, [renderResetKey]);
 
   useEffect(() => {
