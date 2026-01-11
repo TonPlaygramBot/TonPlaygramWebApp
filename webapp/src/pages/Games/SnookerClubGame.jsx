@@ -42,6 +42,7 @@ import {
   DEFAULT_WOOD_TEXTURE_SIZE,
   applyWoodTextures,
   disposeMaterialWithWood,
+  setWoodTextureAnisotropyCap,
 } from '../../utils/woodMaterials.js';
 import { SNOOKER_CLUB_DEFAULT_UNLOCKS } from '../../config/snookerClubInventoryConfig.js';
 import {
@@ -50,6 +51,24 @@ import {
   snookerClubAccountId
 } from '../../utils/snookerClubInventory.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+
+const safePolygonClipping = (operation, fallback, label, ...args) => {
+  try {
+    const result = operation(...args);
+    if (Array.isArray(result) && result.length) {
+      return result;
+    }
+  } catch (err) {
+    console.warn(`Polygon clipping ${label} failed`, err);
+  }
+  return fallback;
+};
+
+const safePolygonDifference = (base, ...cuts) =>
+  safePolygonClipping(polygonClipping.difference, base, 'difference', base, ...cuts);
+
+const safePolygonUnion = (fallback, ...parts) =>
+  safePolygonClipping(polygonClipping.union, fallback, 'union', ...parts);
 
 function applyTablePhysicsSpec(meta) {
   const cushionAngle = Number.isFinite(meta?.cushionCutAngleDeg)
@@ -146,6 +165,20 @@ function isWebGLAvailable() {
     return false;
   }
 }
+
+let rendererAnisotropyCap = 16;
+setWoodTextureAnisotropyCap(rendererAnisotropyCap);
+const updateRendererAnisotropyCap = (renderer) => {
+  if (renderer?.capabilities?.getMaxAnisotropy) {
+    const max = renderer.capabilities.getMaxAnisotropy();
+    if (Number.isFinite(max)) {
+      rendererAnisotropyCap = Math.max(rendererAnisotropyCap, max);
+    }
+  }
+  setWoodTextureAnisotropyCap(rendererAnisotropyCap);
+};
+const resolveTextureAnisotropy = (fallback = 1) =>
+  Math.max(rendererAnisotropyCap, Number.isFinite(fallback) ? fallback : 1);
 
 let cachedRendererString = null;
 let rendererLookupAttempted = false;
@@ -634,7 +667,7 @@ function buildChromePlateGeometry({
           baseRing.push([baseRing[0][0], baseRing[0][1]]);
         }
         const baseMP = [[baseRing]];
-        const clipped = polygonClipping.difference(baseMP, notchMP);
+        const clipped = safePolygonDifference(baseMP, notchMP);
         const clippedShapes = multiPolygonToShapes(clipped);
         if (clippedShapes.length) {
           shapesToExtrude = clippedShapes;
@@ -1115,22 +1148,11 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable, then lift Snooker Club power by 25%.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
-// Pool Royale power pass: lift overall shot strength by another 25%.
 const SHOT_POWER_REDUCTION = 0.85;
 const SHOT_POWER_BOOST = 1.25;
 const SHOT_POWER_MULTIPLIER = 1.3 * 1.15; // raise overall cue strike strength by 30% and add a further 15% punch for max-power jumps
-const SHOT_POWER_POOL_ROYALE_BOOST = 1.25;
 const SHOT_FORCE_BOOST =
-  1.5 *
-  0.75 *
-  0.85 *
-  0.8 *
-  1.3 *
-  0.85 *
-  SHOT_POWER_REDUCTION *
-  SHOT_POWER_BOOST *
-  SHOT_POWER_MULTIPLIER *
-  SHOT_POWER_POOL_ROYALE_BOOST;
+  1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * SHOT_POWER_BOOST * SHOT_POWER_MULTIPLIER;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -1433,13 +1455,13 @@ function createCueMapleTextures() {
   const map = new THREE.CanvasTexture(canvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   map.repeat.set(6, 1);
-  map.anisotropy = 8;
+  map.anisotropy = resolveTextureAnisotropy(8);
   applySRGBColorSpace(map);
   map.needsUpdate = true;
   const bump = new THREE.CanvasTexture(canvas);
   bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
   bump.repeat.set(6, 1);
-  bump.anisotropy = 8;
+  bump.anisotropy = resolveTextureAnisotropy(8);
   bump.needsUpdate = true;
   return { map, bump };
 }
@@ -1473,13 +1495,13 @@ function createCueEbonyTextures() {
   const map = new THREE.CanvasTexture(canvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   map.repeat.set(8, 1);
-  map.anisotropy = 8;
+  map.anisotropy = resolveTextureAnisotropy(8);
   applySRGBColorSpace(map);
   map.needsUpdate = true;
   const bump = new THREE.CanvasTexture(canvas);
   bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
   bump.repeat.set(8, 1);
-  bump.anisotropy = 8;
+  bump.anisotropy = resolveTextureAnisotropy(8);
   bump.needsUpdate = true;
   return { map, bump };
 }
@@ -2426,15 +2448,6 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
   },
   {
-    id: 'uhd120',
-    label: 'Ultra HD (120 Hz)',
-    fps: 120,
-    renderScale: 1.35,
-    pixelRatioCap: 2,
-    resolution: 'Ultra HD render • DPR 2.0 cap',
-    description: '4K-oriented profile for 120 Hz flagships and desktops.'
-  },
-  {
     id: 'ultra144',
     label: 'Ultra HD+ (144 Hz)',
     fps: 144,
@@ -2444,7 +2457,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const DEFAULT_FRAME_RATE_ID = 'ultra144';
 
 function resolveDefaultPixelRatioCap() {
   if (typeof window === 'undefined') {
@@ -2763,13 +2776,13 @@ function createPocketLinerTextures(option) {
   applySRGBColorSpace(map);
   map.wrapS = THREE.RepeatWrapping;
   map.wrapT = THREE.RepeatWrapping;
-  map.anisotropy = 4;
+  map.anisotropy = resolveTextureAnisotropy(4);
   map.needsUpdate = true;
 
   const bump = new THREE.CanvasTexture(bumpCanvas);
   bump.wrapS = THREE.RepeatWrapping;
   bump.wrapT = THREE.RepeatWrapping;
-  bump.anisotropy = 2;
+  bump.anisotropy = resolveTextureAnisotropy(2);
   bump.needsUpdate = true;
 
   const textures = { map, bump, repeat };
@@ -3042,7 +3055,7 @@ const createClothTextures = (() => {
 
     const colorMap = new THREE.CanvasTexture(canvas);
     colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
-    colorMap.anisotropy = CLOTH_QUALITY.anisotropy;
+    colorMap.anisotropy = resolveTextureAnisotropy(CLOTH_QUALITY.anisotropy);
     colorMap.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
     colorMap.minFilter = CLOTH_QUALITY.generateMipmaps
       ? THREE.LinearMipmapLinearFilter
@@ -3099,7 +3112,7 @@ const createClothTextures = (() => {
     const bumpMap = new THREE.CanvasTexture(bumpCanvas);
     bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
     bumpMap.repeat.copy(colorMap.repeat);
-    bumpMap.anisotropy = CLOTH_QUALITY.anisotropy;
+    bumpMap.anisotropy = resolveTextureAnisotropy(CLOTH_QUALITY.anisotropy);
     bumpMap.generateMipmaps = CLOTH_QUALITY.generateMipmaps;
     bumpMap.minFilter = CLOTH_QUALITY.generateMipmaps
       ? THREE.LinearMipmapLinearFilter
@@ -3584,27 +3597,11 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 
 const HDRI_STORAGE_KEY = 'snookerHdriEnvironment';
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
-const HDRI_RESOLUTION_LOW = Object.freeze(['2k', '1k']);
-const HDRI_RESOLUTION_HIGH = Object.freeze(['4k', '2k']);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const MIN_HDRI_RADIUS = 24;
 const HDRI_GROUNDED_RESOLUTION = 96;
-
-function resolveHdriResolutions(qualityProfile) {
-  if (!qualityProfile) return DEFAULT_HDRI_RESOLUTIONS;
-  const pixelRatioCap = Number.isFinite(qualityProfile.pixelRatioCap)
-    ? qualityProfile.pixelRatioCap
-    : resolveDefaultPixelRatioCap();
-  const renderScale = Number.isFinite(qualityProfile.renderScale)
-    ? qualityProfile.renderScale
-    : 1;
-  if (pixelRatioCap >= 2 || renderScale >= 1.35) {
-    return HDRI_RESOLUTION_HIGH;
-  }
-  return HDRI_RESOLUTION_LOW;
-}
 
 function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const urls = [];
@@ -4235,9 +4232,6 @@ const CAMERA = {
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
 };
-const USER_ZOOM_MIN_FACTOR = 0.72;
-const USER_ZOOM_MAX_FACTOR = 1.18;
-const USER_ZOOM_WHEEL_SPEED = 0.0016;
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
@@ -4965,7 +4959,7 @@ function makeClothTexture(
   const repeatX = baseRepeat * (PLAY_W / TABLE.W);
   const repeatY = baseRepeat * (PLAY_H / TABLE.H);
   texture.repeat.set(repeatX, repeatY);
-  texture.anisotropy = 48;
+  texture.anisotropy = resolveTextureAnisotropy(48);
   applySRGBColorSpace(texture);
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
@@ -5056,7 +5050,7 @@ function makeWoodTexture({
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeatX, repeatY);
-  texture.anisotropy = 8;
+  texture.anisotropy = resolveTextureAnisotropy(8);
   applySRGBColorSpace(texture);
   texture.needsUpdate = true;
   return texture;
@@ -5962,7 +5956,7 @@ function Table3D(
 
     let shapeMP = baseMP;
     if (pocketSectors.length) {
-      shapeMP = polygonClipping.difference(baseMP, ...pocketSectors);
+      shapeMP = safePolygonDifference(baseMP, ...pocketSectors);
     }
     const shapes = multiPolygonToShapes(shapeMP);
     if (shapes.length === 1) {
@@ -6544,7 +6538,7 @@ function Table3D(
         ]
       ]);
     }
-    const union = polygonClipping.union(...unionParts);
+    const union = safePolygonUnion(notchCircle, ...unionParts);
     const adjusted = adjustCornerNotchDepth(union, cz, sz);
     if (CHROME_CORNER_NOTCH_EXPANSION_SCALE === 1) {
       return adjusted;
@@ -6578,7 +6572,7 @@ function Table3D(
       throatRadius,
       192
     );
-    const union = polygonClipping.union(circle, throat);
+    const union = safePolygonUnion(circle, circle, throat);
     return adjustSideNotchDepth(union);
   };
 
@@ -7228,12 +7222,15 @@ function Table3D(
   }
 
   // Rail openings simply reuse the chrome plate cuts; wood never dictates alternate pocket sizing.
-  let openingMP = polygonClipping.union(
-    rectPoly(innerHalfW * 2, innerHalfH * 2),
+  const baseOpeningMP = rectPoly(innerHalfW * 2, innerHalfH * 2);
+  let openingMP = safePolygonUnion(
+    baseOpeningMP,
+    baseOpeningMP,
     ...scaleWoodRailSidePocketCut(sideNotchMP(-1), -1),
     ...scaleWoodRailSidePocketCut(sideNotchMP(1), 1)
   );
-  openingMP = polygonClipping.union(
+  openingMP = safePolygonUnion(
+    openingMP,
     openingMP,
     ...translatePocketCutMP(
       scaleWoodRailCornerPocketCut(cornerNotchMP(1, 1)),
@@ -8842,7 +8839,7 @@ export function PoolRoyaleGame({
     applySRGBColorSpace(texture);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.anisotropy = 8;
+    texture.anisotropy = resolveTextureAnisotropy(8);
     texture.needsUpdate = true;
     return texture;
   }, []);
@@ -9123,9 +9120,6 @@ export function PoolRoyaleGame({
   const envTextureRef = useRef(null);
   const disposeEnvironmentRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
-  useEffect(() => {
-    updateEnvironmentRef.current?.(activeEnvironmentVariantRef.current);
-  }, [frameQualityProfile]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(TABLE_FINISH_STORAGE_KEY, tableFinishId);
@@ -9438,7 +9432,8 @@ export function PoolRoyaleGame({
     applyLightingPreset(lightingId);
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
-  const [isReady, setIsReady] = useState(false);
+  const [isBooted, setIsBooted] = useState(false);
+  const [renderResetKey, setRenderResetKey] = useState(0);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
@@ -9450,6 +9445,7 @@ export function PoolRoyaleGame({
   const broadcastCamerasRef = useRef(null);
   const lightingRigRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
+  const hasRenderedRef = useRef(false);
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
@@ -10092,13 +10088,28 @@ export function PoolRoyaleGame({
     const host = mountRef.current;
     if (!host) return;
     setErr(null);
-    setIsReady(false);
+    setIsBooted(false);
+    hasRenderedRef.current = false;
     if (!isWebGLAvailable()) {
       setErr('WebGL is not available on this device. Enable hardware acceleration to play.');
       return;
     }
     const cueRackDisposers = [];
     let disposed = false;
+    let contextLost = false;
+    const triggerRendererReset = () => {
+      if (disposed || contextLost) return;
+      contextLost = true;
+      setErr('Graphics renderer reset; restoring the table…');
+      setRenderResetKey((value) => value + 1);
+    };
+    const markFrameRendered = () => {
+      if (hasRenderedRef.current) return;
+      hasRenderedRef.current = true;
+      if (!disposed) {
+        setIsBooted(true);
+      }
+    };
     try {
       const updatePocketCameraState = (active) => {
         if (pocketCameraStateRef.current === active) return;
@@ -10118,17 +10129,24 @@ export function PoolRoyaleGame({
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.enabled = false;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      rendererRef.current = renderer;
+      updateRendererAnisotropyCap(renderer);
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
       host.appendChild(renderer.domElement);
-      renderer.domElement.addEventListener('webglcontextlost', (e) =>
-        e.preventDefault()
-      );
+      const handleContextLost = (e) => {
+        e.preventDefault();
+        triggerRendererReset();
+      };
+      const handleContextRestored = () => {
+        triggerRendererReset();
+      };
+      renderer.domElement.addEventListener('webglcontextlost', handleContextLost, false);
+      renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored, false);
       applyRendererQuality();
       renderer.domElement.style.transformOrigin = 'top left';
-      rendererRef.current = renderer;
 
       // Scene & Camera
       const scene = new THREE.Scene();
@@ -10147,13 +10165,7 @@ export function PoolRoyaleGame({
           activeEnvironmentVariantRef.current ||
           POOL_ROYALE_HDRI_VARIANT_MAP[POOL_ROYALE_DEFAULT_HDRI_ID] ||
           POOL_ROYALE_HDRI_VARIANTS[0];
-        const preferredResolutions = resolveHdriResolutions(frameQualityRef.current);
-        const envResult = await loadPolyHavenHdriEnvironment(rendererInstance, {
-          ...activeVariant,
-          preferredResolutions,
-          fallbackResolution:
-            activeVariant?.fallbackResolution ?? preferredResolutions[0] ?? '2k'
-        });
+        const envResult = await loadPolyHavenHdriEnvironment(rendererInstance, activeVariant);
         if (!envResult) return;
         const { envMap, skyboxMap } = envResult;
         if (!envMap) return;
@@ -10353,7 +10365,7 @@ export function PoolRoyaleGame({
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = 4;
+        texture.anisotropy = resolveTextureAnisotropy(4);
         applySRGBColorSpace(texture);
         let offset = 0;
         return {
@@ -10392,7 +10404,7 @@ export function PoolRoyaleGame({
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = 8;
+        texture.anisotropy = resolveTextureAnisotropy(8);
         applySRGBColorSpace(texture);
         let pulse = 0;
         const createAvatarStore = () => ({
@@ -11187,14 +11199,6 @@ export function PoolRoyaleGame({
 
         const clampOrbitRadius = (value, minRadius = CAMERA.minR) => {
           const maxRadius = getMaxOrbitRadius();
-          const min = Math.min(minRadius, maxRadius);
-          return clamp(value, min, maxRadius);
-        };
-        const clampUserZoomRadius = (value) => {
-          const standingRadius =
-            cameraBoundsRef.current?.standing?.radius ?? sph.radius;
-          const minRadius = Math.max(CAMERA.minR, standingRadius * USER_ZOOM_MIN_FACTOR);
-          const maxRadius = Math.min(getMaxOrbitRadius(), standingRadius * USER_ZOOM_MAX_FACTOR);
           const min = Math.min(minRadius, maxRadius);
           return clamp(value, min, maxRadius);
         };
@@ -13034,7 +13038,6 @@ export function PoolRoyaleGame({
           return result;
         };
         const drag = { on: false, x: 0, y: 0, moved: false };
-        const pinch = { active: false, startDistance: 0, startRadius: 0 };
         const galleryDrag = {
           active: false,
           startX: 0,
@@ -13045,13 +13048,6 @@ export function PoolRoyaleGame({
         let lastInteraction = performance.now();
         const registerInteraction = () => {
           lastInteraction = performance.now();
-        };
-        const getTouchDistance = (touches) => {
-          if (!touches || touches.length < 2) return 0;
-          const [a, b] = touches;
-          const dx = (a?.clientX ?? 0) - (b?.clientX ?? 0);
-          const dy = (a?.clientY ?? 0) - (b?.clientY ?? 0);
-          return Math.hypot(dx, dy);
         };
         const attemptChalkPress = (ev) => {
           const meshes = chalkMeshesRef.current;
@@ -13101,14 +13097,7 @@ export function PoolRoyaleGame({
           if (attemptChalkPress(e)) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
-          if (e.touches?.length === 2) {
-            pinch.active = true;
-            pinch.startDistance = getTouchDistance(e.touches);
-            pinch.startRadius = sph.radius;
-            drag.on = false;
-            drag.moved = false;
-            return;
-          }
+          if (e.touches?.length === 2) return;
           if (topViewRef.current && !topViewLockedRef.current)
             exitTopView(true, { preserveLock: true });
           drag.on = true;
@@ -13169,19 +13158,6 @@ export function PoolRoyaleGame({
             registerInteraction();
             return;
           }
-          if (pinch.active && e.touches?.length >= 2) {
-            const distance = getTouchDistance(e.touches);
-            if (distance > 0 && pinch.startDistance > 0) {
-              const scale = pinch.startDistance / distance;
-              const targetRadius = clampUserZoomRadius(pinch.startRadius * scale);
-              if (Math.abs(targetRadius - sph.radius) > 1e-4) {
-                sph.radius = targetRadius;
-                updateCamera();
-              }
-            }
-            registerInteraction();
-            return;
-          }
           if (topViewRef.current && !topViewLockedRef.current) {
             exitTopView(true, { preserveLock: true });
             drag.on = false;
@@ -13228,13 +13204,6 @@ export function PoolRoyaleGame({
         };
         const up = (e) => {
           registerInteraction();
-          if (pinch.active) {
-            if ((e.touches?.length ?? 0) < 2) {
-              pinch.active = false;
-              pinch.startDistance = 0;
-            }
-            return;
-          }
           const galleryState = cueGalleryStateRef.current;
           if (galleryState?.active) {
             const wasMoved = galleryDrag.moved;
@@ -13266,24 +13235,6 @@ export function PoolRoyaleGame({
         dom.addEventListener('touchstart', down, { passive: true });
         dom.addEventListener('touchmove', move, { passive: true });
         window.addEventListener('touchend', up);
-        const onWheel = (e) => {
-          const currentHud = hudRef.current;
-          if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
-          if (topViewRef.current && !topViewLockedRef.current) {
-            exitTopView(true, { preserveLock: true });
-          }
-          const delta = e.deltaY ?? 0;
-          if (delta === 0) return;
-          e.preventDefault();
-          const scale = Math.max(0.2, 1 + delta * USER_ZOOM_WHEEL_SPEED);
-          const targetRadius = clampUserZoomRadius(sph.radius * scale);
-          if (Math.abs(targetRadius - sph.radius) > 1e-4) {
-            sph.radius = targetRadius;
-            updateCamera();
-          }
-          registerInteraction();
-        };
-        dom.addEventListener('wheel', onWheel, { passive: false });
         const keyRot = (e) => {
           if (topViewRef.current && !topViewLockedRef.current) {
             exitTopView(true, { preserveLock: true });
@@ -16051,6 +16002,7 @@ export function PoolRoyaleGame({
           updateReplayTrail(playback.cuePath, targetTime);
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
+          markFrameRendered();
           if (elapsed >= playback.duration) {
             if (playback.postState) {
               applyBallSnapshot(playback.postState);
@@ -16307,13 +16259,10 @@ export function PoolRoyaleGame({
             vert,
             perp.z * side
           );
-          const cueTipGap = Math.sqrt(
-            Math.max(0, CUE_TIP_GAP * CUE_TIP_GAP - side * side - vert * vert)
-          );
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + cueTipGap) + spinWorld.x,
+            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + cueTipGap) + spinWorld.z
+            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(appliedSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
@@ -16323,9 +16272,9 @@ export function PoolRoyaleGame({
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           TMP_VEC3_BUTT.set(
-            cue.pos.x - dir.x * (cueLen + pull + cueTipGap) + spinWorld.x,
+            cue.pos.x - dir.x * (cueLen + pull + CUE_TIP_GAP) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen + pull + cueTipGap) + spinWorld.z
+            cue.pos.y - dir.z * (cueLen + pull + CUE_TIP_GAP) + spinWorld.z
           );
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
@@ -16506,13 +16455,10 @@ export function PoolRoyaleGame({
             }
           }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
-          const cueTipGap = Math.sqrt(
-            Math.max(0, CUE_TIP_GAP * CUE_TIP_GAP - side * side - vert * vert)
-          );
           cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + cueTipGap) + spinWorld.x,
+            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + cueTipGap) + spinWorld.z
+            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
           const tiltAmount = Math.abs(spinY);
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
@@ -17151,6 +17097,7 @@ export function PoolRoyaleGame({
           }
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
+          markFrameRendered();
           rafRef.current = requestAnimationFrame(step);
         };
         step(performance.now());
@@ -17180,10 +17127,8 @@ export function PoolRoyaleGame({
           });
         };
       window.addEventListener('resize', onResize);
-      setIsReady(true);
 
         return () => {
-          setIsReady(false);
           applyWorldScaleRef.current = () => {};
           topViewControlsRef.current = { enter: () => {}, exit: () => {} };
           cameraUpdateRef.current = () => {};
@@ -17213,7 +17158,8 @@ export function PoolRoyaleGame({
           dom.removeEventListener('touchstart', down);
           dom.removeEventListener('touchmove', move);
           window.removeEventListener('touchend', up);
-          dom.removeEventListener('wheel', onWheel);
+          dom.removeEventListener('webglcontextlost', handleContextLost, false);
+          dom.removeEventListener('webglcontextrestored', handleContextRestored, false);
           window.removeEventListener('keydown', keyRot);
           dom.removeEventListener('pointerdown', handleInHandDown);
           dom.removeEventListener('pointermove', handleInHandMove);
@@ -17265,9 +17211,8 @@ export function PoolRoyaleGame({
       } catch (e) {
         console.error(e);
         setErr(e?.message || String(e));
-        setIsReady(false);
       }
-  }, []);
+  }, [renderResetKey]);
 
   useEffect(() => {
     applyFinishRef.current?.(tableFinish);
@@ -17468,16 +17413,15 @@ export function PoolRoyaleGame({
     >
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      {!isReady && !err && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/80 text-white">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-300 border-t-transparent" />
-            <div className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-100">
-              Loading Snooker Club…
+      {!isBooted && !err && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-gradient-to-b from-slate-950 via-black to-emerald-950/40">
+          <div className="flex flex-col items-center gap-3 text-emerald-100">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-400/70 border-t-transparent" />
+            <div className="text-[11px] font-semibold uppercase tracking-[0.4em] text-emerald-200/80">
+              Loading Snooker Club
             </div>
-            <div className="max-w-xs text-xs text-white/70">
-              Preparing the table and lighting. This can take a few seconds on mobile.
+            <div className="text-[10px] uppercase tracking-[0.3em] text-white/50">
+              Preparing table
             </div>
           </div>
         </div>
@@ -17979,35 +17923,8 @@ export function PoolRoyaleGame({
       )}
 
       {err && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 p-6 text-white">
-          <div className="flex max-w-md flex-col items-center gap-4 text-center">
-            <div className="text-lg font-semibold text-emerald-200">
-              Unable to start Snooker Club
-            </div>
-            <div className="text-xs text-white/70">
-              {String(err)}
-            </div>
-            <div className="flex flex-wrap justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="rounded-full border border-white/30 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/20"
-              >
-                Reload
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate(lobbyPath)}
-                className="rounded-full border border-emerald-300/60 bg-emerald-400/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100 transition hover:bg-emerald-400/30"
-              >
-                Back to Lobby
-              </button>
-            </div>
-            <div className="text-[11px] text-white/60">
-              If you&apos;re on a low-power device, try closing other apps or opening the game in a
-              full browser.
-            </div>
-          </div>
+        <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
+          Init error: {String(err)}
         </div>
       )}
       {hud?.inHand && (
