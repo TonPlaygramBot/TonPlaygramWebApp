@@ -1316,27 +1316,27 @@ const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
-const SPIN_STRENGTH = BALL_R * 0.0295 * 1.6;
-const SPIN_DECAY = 0.945;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * 1.55;
-const SPIN_ROLL_DECAY = 0.992;
-const SPIN_AIR_DECAY = 0.999; // hold spin energy while the cue ball travels straight pre-impact
-const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 2.6; // inject extra sideways carry while the cue ball is airborne
+const SPIN_STRENGTH = BALL_R * 0.0295;
+const SPIN_DECAY = 0.9;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
+const SPIN_ROLL_DECAY = 0.978;
+const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
+const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.4; // inject extra sideways carry while the cue ball is airborne
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.3; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
-const SWERVE_THRESHOLD = 0.52; // outer 48% of the spin control activates swerve behaviour
-const SWERVE_TRAVEL_MULTIPLIER = 1.28; // let swerve-driven roll carry more lateral energy while staying believable
-const SWERVE_PRE_IMPACT_DRIFT = 0.8; // allow a visible curve before the cue ball hits the object ball
-const PRE_IMPACT_SPIN_DRIFT = 0.24; // reapply stored sideways swerve once the cue ball is rolling after impact
+const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
+const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
+const SWERVE_PRE_IMPACT_DRIFT = 0.35; // allow a visible curve before the cue ball hits the object ball
+const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 const SHOT_POWER_REDUCTION = 0.85;
 const SHOT_FORCE_BOOST =
-  1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * 1.15;
+  1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
 const SHOT_BREAK_MULTIPLIER = 1.5;
-const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST * 1.15; // lift every stroke by 15% for a stronger launch
+const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
