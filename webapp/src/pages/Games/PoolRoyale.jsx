@@ -23253,7 +23253,8 @@ const powerRef = useRef(hud.power);
               const swervePowerScale = swerveStrength > 0 ? 0.85 + swervePower * 0.9 : 0;
               const swerveScale =
                 swerveStrength > 0 ? (0.6 + swerveStrength * 0.9) * swervePowerScale : 0;
-              const allowRoll = !isCue || b.impacted || swerveTravel;
+              const allowRoll =
+                !isCue || b.impacted || swerveTravel || (isCue && b.spin?.lengthSq() > 1e-8);
               const preImpact = isCue && !b.impacted;
               if (allowRoll) {
                 const rollMultiplier = swerveTravel
