@@ -3669,14 +3669,47 @@ async function resolvePolyHavenHdriUrl(config = {}) {
   }
 }
 
+async function createFallbackHdriEnvironment(renderer) {
+  if (!renderer) return null;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+  const hemi = new THREE.HemisphereLight(0x94a3b8, 0x0f172a, 1.05);
+  const floor = new THREE.Mesh(
+    new THREE.CircleGeometry(6, 24),
+    new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.78, metalness: 0.05 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  const tempScene = new THREE.Scene();
+  tempScene.add(hemi);
+  tempScene.add(floor);
+  const { texture } = pmrem.fromScene(tempScene);
+  texture.name = 'snooker-club-fallback-env';
+  pmrem.dispose();
+  floor.geometry.dispose();
+  floor.material.dispose();
+  return { envMap: texture, skyboxMap: null, url: null };
+}
+
 async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
   if (!renderer) return null;
   const url = await resolvePolyHavenHdriUrl(config);
+  const resolveFallback = async () => {
+    try {
+      return await createFallbackHdriEnvironment(renderer);
+    } catch (error) {
+      console.warn('Failed to build fallback HDRI environment', error);
+      return null;
+    }
+  };
   const lowerUrl = `${url ?? ''}`.toLowerCase();
   const useExr = lowerUrl.endsWith('.exr');
   const loader = useExr ? new EXRLoader() : new RGBELoader();
   loader.setCrossOrigin?.('anonymous');
   return new Promise((resolve) => {
+    if (!url) {
+      resolveFallback().then(resolve);
+      return;
+    }
     loader.load(
       url,
       (texture) => {
@@ -3692,9 +3725,10 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
         resolve({ envMap, skyboxMap, url });
       },
       undefined,
-      (error) => {
+      async (error) => {
         console.warn('Failed to load Poly Haven HDRI', error);
-        resolve(null);
+        const fallbackEnv = await resolveFallback();
+        resolve(fallbackEnv);
       }
     );
   });
