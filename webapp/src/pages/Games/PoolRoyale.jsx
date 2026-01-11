@@ -10246,43 +10246,67 @@ function PoolRoyaleGame({
   useEffect(() => {
     const manager = THREE.DefaultLoadingManager;
     let cancelled = false;
+    let loadCompleted = false;
+    let loadActivity = false;
+    let hideTimeout;
+    let fallbackTimeout;
     const prev = {
       onStart: manager.onStart,
       onLoad: manager.onLoad,
       onProgress: manager.onProgress,
       onError: manager.onError
     };
+    const markComplete = () => {
+      if (cancelled || loadCompleted) return;
+      loadCompleted = true;
+      setLoadingProgress(1);
+      if (hideTimeout) {
+        window.clearTimeout(hideTimeout);
+      }
+      hideTimeout = window.setTimeout(() => {
+        if (!cancelled) setLoadingActive(false);
+      }, 200);
+    };
     const updateProgress = (loaded, total) => {
       const safeTotal = Number.isFinite(total) && total > 0 ? total : Math.max(1, loaded || 1);
       const ratio = Number.isFinite(loaded) ? loaded / safeTotal : 0;
       setLoadingProgress(Math.max(0, Math.min(1, ratio)));
+      if (Number.isFinite(total) && total > 0 && Number.isFinite(loaded) && loaded >= total) {
+        markComplete();
+      }
     };
     manager.onStart = (url, loaded, total) => {
       prev.onStart?.(url, loaded, total);
-      if (cancelled) return;
+      if (cancelled || loadCompleted) return;
+      loadActivity = true;
       setLoadingActive(true);
       updateProgress(loaded, total);
     };
     manager.onProgress = (url, loaded, total) => {
       prev.onProgress?.(url, loaded, total);
-      if (cancelled) return;
+      if (cancelled || loadCompleted) return;
+      loadActivity = true;
       updateProgress(loaded, total);
     };
     manager.onLoad = () => {
       prev.onLoad?.();
       if (cancelled) return;
-      setLoadingProgress(1);
-      window.setTimeout(() => {
-        if (!cancelled) setLoadingActive(false);
-      }, 200);
+      markComplete();
     };
     manager.onError = (url) => {
       prev.onError?.(url);
-      if (cancelled) return;
+      if (cancelled || loadCompleted) return;
       setLoadingProgress((prevValue) => Math.max(prevValue, 0.9));
     };
+    fallbackTimeout = window.setTimeout(() => {
+      if (!cancelled && !loadCompleted && !loadActivity) {
+        markComplete();
+      }
+    }, 1200);
     return () => {
       cancelled = true;
+      if (hideTimeout) window.clearTimeout(hideTimeout);
+      if (fallbackTimeout) window.clearTimeout(fallbackTimeout);
       manager.onStart = prev.onStart;
       manager.onLoad = prev.onLoad;
       manager.onProgress = prev.onProgress;
