@@ -9,11 +9,6 @@ import {
 } from '../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../config/poolRoyaleClothPresets.js';
 import {
-  SNOOKER_CLUB_DEFAULT_LOADOUT,
-  SNOOKER_CLUB_OPTION_LABELS,
-  SNOOKER_CLUB_STORE_ITEMS
-} from '../config/snookerClubInventoryConfig.js';
-import {
   AIR_HOCKEY_DEFAULT_LOADOUT,
   AIR_HOCKEY_OPTION_LABELS,
   AIR_HOCKEY_STORE_ITEMS
@@ -26,13 +21,6 @@ import {
   listOwnedPoolRoyalOptions,
   poolRoyalAccountId
 } from '../utils/poolRoyalInventory.js';
-import {
-  addSnookerClubUnlock,
-  getSnookerClubInventory,
-  isSnookerOptionUnlocked,
-  listOwnedSnookerOptions,
-  snookerClubAccountId
-} from '../utils/snookerClubInventory.js';
 import {
   addAirHockeyUnlock,
   airHockeyAccountId,
@@ -126,14 +114,6 @@ const TYPE_LABELS = {
   environmentHdri: 'HDR Environments'
 };
 
-const SNOOKER_TYPE_LABELS = {
-  tableFinish: 'Table Finishes',
-  chromeColor: 'Chrome Fascias',
-  railMarkerColor: 'Rail Markers',
-  clothColor: 'Cloth Colors',
-  cueStyle: 'Cue Styles'
-};
-
 const AIR_HOCKEY_TYPE_LABELS = {
   field: 'Rink Surface',
   table: 'Table Frame',
@@ -215,7 +195,6 @@ const TEXAS_TYPE_LABELS = {
 
 const TPC_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
-const SNOOKER_STORE_ACCOUNT_ID = import.meta.env.VITE_SNOOKER_CLUB_STORE_ACCOUNT_ID || DEV_INFO.account;
 const AIR_HOCKEY_STORE_ACCOUNT_ID = import.meta.env.VITE_AIR_HOCKEY_STORE_ACCOUNT_ID || DEV_INFO.account;
 const CHESS_STORE_ACCOUNT_ID = import.meta.env.VITE_CHESS_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const BLACKJACK_STORE_ACCOUNT_ID = import.meta.env.VITE_BLACKJACK_STORE_ACCOUNT_ID || DEV_INFO.account;
@@ -395,14 +374,6 @@ const storeMeta = {
     typeLabels: TYPE_LABELS,
     accountId: POOL_STORE_ACCOUNT_ID
   },
-  snookerclub: {
-    name: 'Snooker Club',
-    items: SNOOKER_CLUB_STORE_ITEMS,
-    defaults: SNOOKER_CLUB_DEFAULT_LOADOUT,
-    labels: SNOOKER_CLUB_OPTION_LABELS,
-    typeLabels: SNOOKER_TYPE_LABELS,
-    accountId: SNOOKER_STORE_ACCOUNT_ID
-  },
   airhockey: {
     name: 'Air Hockey',
     items: AIR_HOCKEY_STORE_ITEMS,
@@ -465,7 +436,6 @@ export default function Store() {
   useTelegramBackButton();
   const [accountId, setAccountId] = useState(() => poolRoyalAccountId());
   const [poolOwned, setPoolOwned] = useState(() => getCachedPoolRoyalInventory(accountId));
-  const [snookerOwned, setSnookerOwned] = useState(() => getSnookerClubInventory(snookerClubAccountId(accountId)));
   const [airOwned, setAirOwned] = useState(() => getAirHockeyInventory(airHockeyAccountId(accountId)));
   const [chessOwned, setChessOwned] = useState(() => getChessBattleInventory(chessBattleAccountId(accountId)));
   const [ludoOwned, setLudoOwned] = useState(() => getLudoBattleInventory(ludoBattleAccountId(accountId)));
@@ -496,7 +466,6 @@ export default function Store() {
 
   useEffect(() => {
     setPoolOwned(getCachedPoolRoyalInventory(accountId));
-    setSnookerOwned(getSnookerClubInventory(snookerClubAccountId(accountId)));
     setAirOwned(getAirHockeyInventory(airHockeyAccountId(accountId)));
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
     setLudoOwned(getLudoBattleInventory(ludoBattleAccountId(accountId)));
@@ -549,7 +518,6 @@ export default function Store() {
   const storeItemsBySlug = useMemo(
     () => ({
       poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'poolroyale' })),
-      snookerclub: SNOOKER_CLUB_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'snookerclub' })),
       airhockey: AIR_HOCKEY_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'airhockey' })),
       chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'chessbattleroyal' })),
       ludobattleroyal: LUDO_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'ludobattleroyal' })),
@@ -564,7 +532,6 @@ export default function Store() {
   const ownedCheckers = useMemo(
     () => ({
       poolroyale: (type, optionId) => isPoolOptionUnlocked(type, optionId, poolOwned),
-      snookerclub: (type, optionId) => isSnookerOptionUnlocked(type, optionId, snookerOwned),
       airhockey: (type, optionId) => isAirHockeyOptionUnlocked(type, optionId, airOwned),
       chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
       ludobattleroyal: (type, optionId) => isLudoOptionUnlocked(type, optionId, ludoOwned),
@@ -573,13 +540,12 @@ export default function Store() {
       snake: (type, optionId) => isSnakeOptionUnlocked(type, optionId, snakeOwned),
       texasholdem: (type, optionId) => isTexasOptionUnlocked(type, optionId, texasOwned)
     }),
-    [airOwned, poolOwned, snookerOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned, texasOwned]
+    [airOwned, poolOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned, texasOwned]
   );
 
   const labelResolvers = useMemo(
     () => ({
       poolroyale: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      snookerclub: (item) => SNOOKER_CLUB_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       airhockey: (item) => AIR_HOCKEY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       ludobattleroyal: (item) => LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
@@ -594,7 +560,6 @@ export default function Store() {
   const typeLabelResolver = useMemo(
     () => ({
       poolroyale: TYPE_LABELS,
-      snookerclub: SNOOKER_TYPE_LABELS,
       airhockey: AIR_HOCKEY_TYPE_LABELS,
       chessbattleroyal: CHESS_TYPE_LABELS,
       ludobattleroyal: LUDO_TYPE_LABELS,
@@ -844,7 +809,6 @@ export default function Store() {
 
     const storeAccounts = {
       poolroyale: POOL_STORE_ACCOUNT_ID,
-      snookerclub: SNOOKER_STORE_ACCOUNT_ID,
       airhockey: AIR_HOCKEY_STORE_ACCOUNT_ID,
       chessbattleroyal: CHESS_STORE_ACCOUNT_ID,
       ludobattleroyal: LUDO_STORE_ACCOUNT_ID,
@@ -892,8 +856,6 @@ export default function Store() {
           if (slug === 'poolroyale') {
             const updated = await addPoolRoyalUnlock(entry.type, entry.optionId, accountId);
             setPoolOwned(updated);
-          } else if (slug === 'snookerclub') {
-            setSnookerOwned(addSnookerClubUnlock(entry.type, entry.optionId, accountId));
           } else if (slug === 'airhockey') {
             setAirOwned(addAirHockeyUnlock(entry.type, entry.optionId, accountId));
           } else if (slug === 'chessbattleroyal') {
