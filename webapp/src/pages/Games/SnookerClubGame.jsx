@@ -9405,6 +9405,7 @@ export function PoolRoyaleGame({
     applyLightingPreset(lightingId);
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
+  const [isReady, setIsReady] = useState(false);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
   const sphRef = useRef(null);
@@ -10058,6 +10059,7 @@ export function PoolRoyaleGame({
     const host = mountRef.current;
     if (!host) return;
     setErr(null);
+    setIsReady(false);
     if (!isWebGLAvailable()) {
       setErr('WebGL is not available on this device. Enable hardware acceleration to play.');
       return;
@@ -17078,8 +17080,10 @@ export function PoolRoyaleGame({
           });
         };
       window.addEventListener('resize', onResize);
+      setIsReady(true);
 
         return () => {
+          setIsReady(false);
           applyWorldScaleRef.current = () => {};
           topViewControlsRef.current = { enter: () => {}, exit: () => {} };
           cameraUpdateRef.current = () => {};
@@ -17160,6 +17164,7 @@ export function PoolRoyaleGame({
       } catch (e) {
         console.error(e);
         setErr(e?.message || String(e));
+        setIsReady(false);
       }
   }, []);
 
@@ -17362,6 +17367,20 @@ export function PoolRoyaleGame({
     >
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {!isReady && !err && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/80 text-white">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-300 border-t-transparent" />
+            <div className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-100">
+              Loading Snooker Club…
+            </div>
+            <div className="max-w-xs text-xs text-white/70">
+              Preparing the table and lighting. This can take a few seconds on mobile.
+            </div>
+          </div>
+        </div>
+      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
@@ -17859,8 +17878,35 @@ export function PoolRoyaleGame({
       )}
 
       {err && (
-        <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
-          Init error: {String(err)}
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 p-6 text-white">
+          <div className="flex max-w-md flex-col items-center gap-4 text-center">
+            <div className="text-lg font-semibold text-emerald-200">
+              Unable to start Snooker Club
+            </div>
+            <div className="text-xs text-white/70">
+              {String(err)}
+            </div>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="rounded-full border border-white/30 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/20"
+              >
+                Reload
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(lobbyPath)}
+                className="rounded-full border border-emerald-300/60 bg-emerald-400/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100 transition hover:bg-emerald-400/30"
+              >
+                Back to Lobby
+              </button>
+            </div>
+            <div className="text-[11px] text-white/60">
+              If you&apos;re on a low-power device, try closing other apps or opening the game in a
+              full browser.
+            </div>
+          </div>
         </div>
       )}
       {hud?.inHand && (
