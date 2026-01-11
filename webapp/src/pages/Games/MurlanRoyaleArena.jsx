@@ -422,7 +422,7 @@ async function resolvePolyHavenHdriUrl(config = {}) {
     : Array.isArray(config?.preferredResolutions) && config.preferredResolutions.length
       ? config.preferredResolutions
       : DEFAULT_HDRI_RESOLUTIONS;
-  const fallbackRes = forcedResolution || config?.fallbackResolution || preferred[0] || '8k';
+  const fallbackRes = forcedResolution || config?.fallbackResolution || preferred[0] || '4k';
   const fallbackUrl =
     config?.fallbackUrl ||
     `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${fallbackRes}/${config?.assetId ?? 'neon_photostudio'}_${fallbackRes}.hdr`;
