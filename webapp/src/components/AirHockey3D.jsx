@@ -305,6 +305,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     ...defaultSelections
   });
   const [showCustomizer, setShowCustomizer] = useState(false);
+  const [isTopDownView, setIsTopDownView] = useState(false);
   const [graphicsId, setGraphicsId] = useState(() => {
     const fallback = resolveDefaultGraphicsId();
     if (typeof window === 'undefined') return fallback;
@@ -362,6 +363,9 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     knobHeight: 0
   });
   const rendererRef = useRef(null);
+  const cameraRef = useRef(null);
+  const cameraViewRef = useRef({ applyCurrent: () => {} });
+  const isTopDownViewRef = useRef(false);
   const renderSettingsRef = useRef({
     targetFrameIntervalMs: 1000 / initialProfile.targetFps,
     renderResolutionScale: initialProfile.renderScale ?? 1,
@@ -473,6 +477,11 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     frameAccumulatorRef.current = 0;
     updateRendererSettings();
   }, [activeGraphicsOption, updateRendererSettings]);
+
+  useEffect(() => {
+    isTopDownViewRef.current = isTopDownView;
+    cameraViewRef.current.applyCurrent?.(isTopDownView);
+  }, [isTopDownView]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -759,6 +768,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       0.1,
       1200
     );
+    cameraRef.current = camera;
 
     const world = new THREE.Group();
     scene.add(world);
@@ -1118,6 +1128,25 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const cameraDirection = new THREE.Vector3()
       .subVectors(cameraAnchor, cameraFocus)
       .normalize();
+    const TOP_VIEW_MARGIN = 1.12;
+    const defaultCameraUp = new THREE.Vector3(0, 1, 0);
+    const topViewUp = new THREE.Vector3(0, 0, -1);
+    const topViewTarget = cameraFocus.clone();
+
+    const updateTopViewCamera = () => {
+      camera.aspect = host.clientWidth / host.clientHeight;
+      const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+      const verticalTan = Math.tan(Math.max(verticalFov / 2, 1e-3));
+      const horizontalTan = Math.max(verticalTan * camera.aspect, 1e-3);
+      const halfWidth = (TABLE.w * TOP_VIEW_MARGIN) / 2;
+      const halfLength = (TABLE.h * TOP_VIEW_MARGIN) / 2;
+      const distance = Math.max(halfLength / verticalTan, halfWidth / horizontalTan);
+      camera.up.copy(topViewUp);
+      camera.position.set(0, topViewTarget.y + distance, tableCenterZ);
+      camera.lookAt(topViewTarget);
+      camera.updateProjectionMatrix();
+      updateRendererSettings();
+    };
 
     const tableCorners = [
       new THREE.Vector3(-TABLE.w / 2, elevatedTableSurfaceY, -TABLE.h / 2 + tableCenterZ),
@@ -1127,7 +1156,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     ];
 
     const fitCameraToTable = () => {
+      if (isTopDownViewRef.current) {
+        updateTopViewCamera();
+        return;
+      }
       camera.aspect = host.clientWidth / host.clientHeight;
+      camera.up.copy(defaultCameraUp);
       camera.position.copy(cameraAnchor);
       camera.lookAt(cameraFocus);
       camera.updateProjectionMatrix();
@@ -1142,6 +1176,16 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         camera.position.addScaledVector(cameraDirection, 2.4);
         camera.lookAt(cameraFocus);
         camera.updateProjectionMatrix();
+      }
+    };
+
+    cameraViewRef.current = {
+      applyCurrent: (useTopView) => {
+        if (useTopView) {
+          updateTopViewCamera();
+        } else {
+          fitCameraToTable();
+        }
       }
     };
 
@@ -1654,6 +1698,23 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           alt=""
           className="w-5 h-5 rounded-full object-cover"
         />
+      </div>
+      <div className="absolute bottom-2 left-2 z-20">
+        <button
+          type="button"
+          aria-pressed={isTopDownView}
+          onClick={() => setIsTopDownView((prev) => !prev)}
+          className={`rounded px-3 py-2 text-xs font-semibold backdrop-blur border transition ${
+            isTopDownView
+              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+              : 'border-white/15 bg-white/10 text-white hover:bg-white/20'
+          }`}
+        >
+          <span className="inline-flex items-center gap-1">
+            <span aria-hidden>🧭</span>
+            <span>{isTopDownView ? '3D' : '2D'}</span>
+          </span>
+        </button>
       </div>
       <div className="absolute bottom-2 right-2 flex flex-col items-end space-y-2 z-20">
         <button
