@@ -129,10 +129,7 @@ const userSchema = new mongoose.Schema({
   currentTableId: { type: String, default: null },
 
   // Persist Pool Royale unlocks server-side for cross-device sync
-  poolRoyalInventory: { type: Object, default: undefined },
-
-  // Persist Snooker Royal unlocks server-side for cross-device sync
-  snookerRoyalInventory: { type: Object, default: undefined }
+  poolRoyalInventory: { type: Object, default: undefined }
 
 });
 
