@@ -20009,13 +20009,9 @@ const powerRef = useRef(hud.power);
           } else if (physicsSpin.y < 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
           }
-          const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
           cue.vel.copy(base);
           if (cue.spin) {
-            cue.spin.set(
-              perp.x * spinSide + aimDir.x * spinTop,
-              perp.y * spinSide + aimDir.y * spinTop
-            );
+            cue.spin.set(spinSide, spinTop);
           }
           if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
           cue.spinMode =
