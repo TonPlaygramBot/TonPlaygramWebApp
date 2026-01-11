@@ -63,11 +63,6 @@ export default function InvitePopup({
                     src: '/assets/icons/pool-royale.svg',
                     alt: 'Pool Royale',
                   },
-                  {
-                    id: 'snookerroyale',
-                    src: '/assets/icons/pool-royale.svg',
-                    alt: 'Snooker Royal',
-                  },
               ].map((g) => (
                   <img
                     key={g.id}

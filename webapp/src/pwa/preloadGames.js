@@ -12,7 +12,6 @@ const GAME_ENTRYPOINTS = [
   '/roulette.html',
   '/chess-royale.html',
   '/pool-royale-api.js',
-  '/snooker-royale-api.js',
   '/power-slider.js',
   '/power-slider.css'
 ];

@@ -7,7 +7,6 @@ const GAME_NAME_MAP = {
   snake: 'Snake & Ladder',
   goalrush: 'Goal Rush',
   pool: 'Pool Royale',
-  snooker: 'Snooker Royal',
   texas: "Texas Hold'em",
   domino: 'Domino Royal 3D',
   murlan: 'Murlan Royale',
