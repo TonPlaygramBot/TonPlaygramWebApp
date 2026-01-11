@@ -5018,7 +5018,7 @@ const normalizeSpinInput = (spin) => {
 };
 const mapSpinForPhysics = (spin) => ({
   x: spin?.x ?? 0,
-  y: spin?.y ?? 0
+  y: -(spin?.y ?? 0)
 });
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
