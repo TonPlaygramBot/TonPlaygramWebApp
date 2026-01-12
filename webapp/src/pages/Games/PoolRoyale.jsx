@@ -5033,10 +5033,21 @@ const normalizeSpinInput = (spin) => {
   }
   return clampToUnitCircle(x, y);
 };
-const mapSpinForPhysics = (spin) => ({
-  x: spin?.x ?? 0,
-  y: spin?.y ?? 0
-});
+const mapSpinForPhysics = (spin) => {
+  const x = spin?.x ?? 0;
+  const y = spin?.y ?? 0;
+  const clamped = clampToUnitCircle(x, y);
+  const magnitude = Math.hypot(clamped.x, clamped.y);
+  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
+    return { x: 0, y: 0 };
+  }
+  const easedMagnitude = Math.pow(magnitude, 1.35);
+  const scale = magnitude > 1e-6 ? easedMagnitude / magnitude : 0;
+  return {
+    x: clamped.x * scale,
+    y: -clamped.y * scale
+  };
+};
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
   return THREE.MathUtils.clamp(liftAngle / CUE_LIFT_MAX_TILT, 0, 1);
@@ -24739,8 +24750,8 @@ const powerRef = useRef(hud.power);
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
-  const bottomHudScale = isPortrait ? uiScale * 0.95 : uiScale * 1.02;
-  const avatarSizeClass = isPortrait ? 'h-8 w-8' : 'h-12 w-12';
+  const bottomHudScale = isPortrait ? uiScale * 1 : uiScale * 1.05;
+  const avatarSizeClass = isPortrait ? 'h-9 w-9' : 'h-[3.25rem] w-[3.25rem]';
   const nameWidthClass = isPortrait ? 'max-w-[6.5rem]' : 'max-w-[8.75rem]';
   const nameTextClass = isPortrait ? 'text-xs' : 'text-sm';
   const hudGapClass = isPortrait ? 'gap-3' : 'gap-5';
@@ -25582,10 +25593,10 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute left-4 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none absolute left-2 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
           bottom: `${16 + chromeUiLiftPx}px`,
-          transform: `scale(${uiScale})`,
+          transform: `scale(${uiScale * 1.06})`,
           transformOrigin: 'bottom left'
         }}
       >
@@ -25767,9 +25778,9 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute right-3 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          className={`absolute right-2 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${20 + chromeUiLiftPx}px`,
+            bottom: `${26 + chromeUiLiftPx}px`,
             transform: `scale(${uiScale})`,
             transformOrigin: 'bottom right'
           }}
