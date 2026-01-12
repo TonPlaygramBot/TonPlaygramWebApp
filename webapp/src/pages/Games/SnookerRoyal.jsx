@@ -1017,7 +1017,7 @@ const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; //
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-  // Match the Snooker Club 12ft reference so table proportions, pockets, and chrome align with the legacy layout.
+  // Match the Pool Royale pocket layout while keeping the current table footprint.
   const WIDTH_REF = 3556;
   const HEIGHT_REF = 1778;
   const BALL_D_REF = 52.5;
@@ -1025,8 +1025,8 @@ const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
   const D_RADIUS_REF = 292;
   const PINK_FROM_TOP_REF = 737;
   const BLACK_FROM_TOP_REF = 324; // Black spot distance from the top cushion (12.75")
-  const CORNER_MOUTH_REF = 86; // Official snooker corner pocket mouth (mm)
-  const SIDE_MOUTH_REF = 92; // Official snooker side pocket mouth (mm)
+  const CORNER_MOUTH_REF = 114.3; // Pool Royale corner pocket mouth (mm)
+  const SIDE_MOUTH_REF = 127; // Pool Royale side pocket mouth (mm)
   const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
   const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
   const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;

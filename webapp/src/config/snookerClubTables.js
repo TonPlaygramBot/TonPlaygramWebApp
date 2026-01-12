@@ -10,11 +10,12 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
     playfield: Object.freeze({ widthMm: 3556, heightMm: 1778 }), // 12' x 6'
     ballDiameterMm: 52.5,
     pocketMouthMm: Object.freeze({
-      corner: 86,
-      side: 92
+      corner: 114.3,
+      side: 127
     }),
-    cushionCutAngleDeg: 35,
-    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 105 }),
+    cushionCutAngleDeg: 27,
+    sideCushionCutAngleDeg: 27,
+    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
     scaleOverrides: Object.freeze({
       scale: 1.56,
       mobileScale: 1.68,
@@ -27,11 +28,12 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
     playfield: Object.freeze({ widthMm: 3048, heightMm: 1524 }), // 10' x 5'
     ballDiameterMm: 52.5,
     pocketMouthMm: Object.freeze({
-      corner: 86,
-      side: 92
+      corner: 114.3,
+      side: 127
     }),
-    cushionCutAngleDeg: 35,
-    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 105 })
+    cushionCutAngleDeg: 27,
+    sideCushionCutAngleDeg: 27,
+    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
   }
 });
 
