@@ -183,6 +183,51 @@ function detectHighRefreshDisplay() {
   return false;
 }
 
+function getSafeLocalStorage() {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage;
+  } catch (err) {
+    console.warn('Snooker Royal localStorage unavailable', err);
+    return null;
+  }
+}
+
+function safeLocalStorageGet(key) {
+  const storage = getSafeLocalStorage();
+  if (!storage) return null;
+  try {
+    return storage.getItem(key);
+  } catch (err) {
+    console.warn('Snooker Royal localStorage read failed', err);
+    return null;
+  }
+}
+
+function safeLocalStorageSet(key, value) {
+  const storage = getSafeLocalStorage();
+  if (!storage) return false;
+  try {
+    storage.setItem(key, value);
+    return true;
+  } catch (err) {
+    console.warn('Snooker Royal localStorage write failed', err);
+    return false;
+  }
+}
+
+function safeLocalStorageRemove(key) {
+  const storage = getSafeLocalStorage();
+  if (!storage) return false;
+  try {
+    storage.removeItem(key);
+    return true;
+  } catch (err) {
+    console.warn('Snooker Royal localStorage remove failed', err);
+    return false;
+  }
+}
+
 const randomPick = (list) => list[Math.floor(Math.random() * list.length)];
 
 const wait = (ms = 0) =>
@@ -10474,7 +10519,7 @@ function SnookerRoyalGame({
     (type, storageKey, isValid, fallbackId) => {
       const inventory = snookerInventory;
       if (typeof window !== 'undefined' && storageKey) {
-        const stored = window.localStorage.getItem(storageKey);
+        const stored = safeLocalStorageGet(storageKey);
         if (stored && isValid(stored) && isSnookerOptionUnlocked(type, stored, inventory)) {
           return stored;
         }
@@ -10514,7 +10559,7 @@ function SnookerRoyalGame({
   });
   const [clothTextureSourceId, setClothTextureSourceId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(CLOTH_TEXTURE_SOURCE_STORAGE_KEY);
+      const stored = safeLocalStorageGet(CLOTH_TEXTURE_SOURCE_STORAGE_KEY);
       if (stored && CLOTH_TEXTURE_SOURCE_OPTIONS.some((opt) => opt.id === stored)) {
         return stored;
       }
@@ -10523,7 +10568,7 @@ function SnookerRoyalGame({
   });
   const [skipAllReplays, setSkipAllReplays] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(SKIP_REPLAYS_STORAGE_KEY);
+      const stored = safeLocalStorageGet(SKIP_REPLAYS_STORAGE_KEY);
       if (stored === '1') return true;
       if (stored === '0') return false;
     }
@@ -10541,7 +10586,7 @@ function SnookerRoyalGame({
   }, [skipAllReplays]);
   const [pocketLinerId, setPocketLinerId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(POCKET_LINER_STORAGE_KEY);
+      const stored = safeLocalStorageGet(POCKET_LINER_STORAGE_KEY);
       if (stored && POCKET_LINER_OPTIONS.some((opt) => opt?.id === stored)) {
         return stored;
       }
@@ -10550,7 +10595,7 @@ function SnookerRoyalGame({
   });
   const [railMarkerShapeId, setRailMarkerShapeId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('snookerRailMarkerShape');
+      const stored = safeLocalStorageGet('snookerRailMarkerShape');
       if (stored && RAIL_MARKER_SHAPE_OPTIONS.some((opt) => opt.id === stored)) {
         return stored;
       }
@@ -10584,7 +10629,7 @@ function SnookerRoyalGame({
   });
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
+      const stored = safeLocalStorageGet(FRAME_RATE_STORAGE_KEY);
       if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
         return stored;
       }
@@ -11011,7 +11056,7 @@ function SnookerRoyalGame({
   const resolveCueIndex = useCallback(() => {
     const paletteLength = CUE_FINISH_PALETTE.length || CUE_FINISH_OPTIONS.length || 1;
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(CUE_STYLE_STORAGE_KEY);
+      const stored = safeLocalStorageGet(CUE_STYLE_STORAGE_KEY);
       if (stored != null) {
         const parsed = Number.parseInt(stored, 10);
         if (Number.isFinite(parsed)) {
@@ -11267,7 +11312,7 @@ function SnookerRoyalGame({
   useEffect(() => {
     cueStyleIndexRef.current = cueStyleIndex;
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(
+      safeLocalStorageSet(
         CUE_STYLE_STORAGE_KEY,
         String(cueStyleIndex)
       );
@@ -11401,19 +11446,19 @@ function SnookerRoyalGame({
   }, [railMarkerColorId, railMarkerShapeId]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem('snookerRailMarkerShape', railMarkerShapeId);
+    safeLocalStorageSet('snookerRailMarkerShape', railMarkerShapeId);
   }, [railMarkerShapeId]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem('snookerRailMarkerColor', railMarkerColorId);
+    safeLocalStorageSet('snookerRailMarkerColor', railMarkerColorId);
   }, [railMarkerColorId]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem(HDRI_STORAGE_KEY, environmentHdriId);
+    safeLocalStorageSet(HDRI_STORAGE_KEY, environmentHdriId);
   }, [environmentHdriId]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem(LIGHTING_STORAGE_KEY, lightingId);
+    safeLocalStorageSet(LIGHTING_STORAGE_KEY, lightingId);
   }, [lightingId]);
   useEffect(() => {
     applyRailMarkerStyleRef.current?.(railMarkerStyleRef.current);
@@ -11521,27 +11566,27 @@ function SnookerRoyalGame({
   }, [activeVariant]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(TABLE_FINISH_STORAGE_KEY, tableFinishId);
+      safeLocalStorageSet(TABLE_FINISH_STORAGE_KEY, tableFinishId);
     }
   }, [tableFinishId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(TABLE_BASE_STORAGE_KEY, tableBaseId);
+      safeLocalStorageSet(TABLE_BASE_STORAGE_KEY, tableBaseId);
     }
   }, [tableBaseId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(CLOTH_COLOR_STORAGE_KEY, clothColorId);
+      safeLocalStorageSet(CLOTH_COLOR_STORAGE_KEY, clothColorId);
     }
   }, [clothColorId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(CLOTH_TEXTURE_SOURCE_STORAGE_KEY, clothTextureSourceId);
+      safeLocalStorageSet(CLOTH_TEXTURE_SOURCE_STORAGE_KEY, clothTextureSourceId);
     }
   }, [clothTextureSourceId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(
+      safeLocalStorageSet(
         SKIP_REPLAYS_STORAGE_KEY,
         skipAllReplays ? '1' : '0'
       );
@@ -11549,22 +11594,22 @@ function SnookerRoyalGame({
   }, [skipAllReplays]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(POCKET_LINER_STORAGE_KEY, pocketLinerId);
+      safeLocalStorageSet(POCKET_LINER_STORAGE_KEY, pocketLinerId);
     }
   }, [pocketLinerId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem('snookerChromeColor', chromeColorId);
+      safeLocalStorageSet('snookerChromeColor', chromeColorId);
     }
   }, [chromeColorId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
+      safeLocalStorageSet(FRAME_RATE_STORAGE_KEY, frameRateId);
     }
   }, [frameRateId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(BROADCAST_SYSTEM_STORAGE_KEY, broadcastSystemId);
+      safeLocalStorageSet(BROADCAST_SYSTEM_STORAGE_KEY, broadcastSystemId);
     }
   }, [broadcastSystemId]);
   useEffect(() => {
@@ -12234,7 +12279,7 @@ const powerRef = useRef(hud.power);
     async ({ winnerSeat, scores }) => {
       if (!tournamentMode) return { unlocks: [] };
       try {
-        const raw = window.localStorage.getItem(tournamentStateKey);
+        const raw = safeLocalStorageGet(tournamentStateKey);
         if (!raw) {
           window.location.assign(`/snooker-royale-bracket.html${location.search}`);
           return { unlocks: [] };
@@ -12271,16 +12316,16 @@ const powerRef = useRef(hud.power);
           Math.round(stakeAmount * (tournamentPlayers || st.N || 2))
         );
         st.pot = prizePot;
-        window.localStorage.setItem(
+        safeLocalStorageSet(
           tournamentLastResultKey,
           JSON.stringify({ p1: scores?.A ?? 0, p2: scores?.B ?? 0 })
         );
         delete st.pendingMatch;
-        window.localStorage.setItem(tournamentStateKey, JSON.stringify(st));
-        window.localStorage.removeItem(tournamentOppKey);
+        safeLocalStorageSet(tournamentStateKey, JSON.stringify(st));
+        safeLocalStorageRemove(tournamentOppKey);
         if (st.complete) {
           try {
-            window.localStorage.removeItem(tournamentAiFlagStorageKey);
+            safeLocalStorageRemove(tournamentAiFlagStorageKey);
           } catch (err) {
             console.warn('Snooker Royal tournament AI flag reset failed', err);
           }
@@ -12948,7 +12993,7 @@ const powerRef = useRef(hud.power);
     const pickRandom = () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
     if (tournamentMode && typeof window !== 'undefined') {
       try {
-        const stored = window.localStorage.getItem(tournamentAiFlagStorageKey);
+        const stored = safeLocalStorageGet(tournamentAiFlagStorageKey);
         if (stored && FLAG_EMOJIS.includes(stored)) {
           return stored;
         }
@@ -12959,7 +13004,7 @@ const powerRef = useRef(hud.power);
     const selected = pickRandom();
     if (tournamentMode && typeof window !== 'undefined') {
       try {
-        window.localStorage.setItem(tournamentAiFlagStorageKey, selected);
+        safeLocalStorageSet(tournamentAiFlagStorageKey, selected);
       } catch (err) {
         console.warn('Snooker Royal tournament AI flag save failed', err);
       }
