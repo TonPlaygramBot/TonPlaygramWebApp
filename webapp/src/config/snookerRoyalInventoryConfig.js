@@ -278,7 +278,7 @@ const RAW_SNOOKER_ROYALE_HDRI_VARIANTS = [
   },
 ];
 
-const HDRI_RESOLUTION_STACK = Object.freeze(['4k']);
+const HDRI_RESOLUTION_STACK = Object.freeze(['4k', '2k']);
 
 export const SNOOKER_ROYALE_HDRI_VARIANTS = Object.freeze(
   RAW_SNOOKER_ROYALE_HDRI_VARIANTS.map((variant) => ({
