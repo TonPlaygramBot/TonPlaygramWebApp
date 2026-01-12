@@ -30,8 +30,7 @@ import { addTransaction, getAccountBalance } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { SnookerRoyalRules } from '../../../../src/rules/SnookerRoyalRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
-import { resolveTableSize } from '../../config/snookerRoyalTables.js';
-import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
+import { resolveTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import {
   createBallPreviewDataUrl,
@@ -1523,6 +1522,7 @@ const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
 const DEFAULT_POOL_VARIANT = 'snooker';
+const SNOOKER_BALL_MATERIAL_VARIANT = 'pool';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
 const UK_POOL_BLACK = 0x000000;
@@ -6209,7 +6209,7 @@ function Guret(parent, id, color, x, y, options = {}) {
     color,
     pattern,
     number,
-    variantKey: 'snooker'
+    variantKey: SNOOKER_BALL_MATERIAL_VARIANT
   });
   const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
   mesh.position.set(x, BALL_CENTER_Y, y);
@@ -18095,7 +18095,7 @@ const powerRef = useRef(hud.power);
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
       const resolveSnookerScale = () => {
         const poolWidth = tableSizeMeta?.playfield?.widthMm ?? 2540;
-        const snookerWidth = resolveSnookerTableSize()?.playfield?.widthMm ?? 3556;
+        const snookerWidth = resolveTableSize()?.playfield?.widthMm ?? 3556;
         if (!poolWidth || poolWidth <= 0) return 1.2;
         return Math.max(1.15, snookerWidth / poolWidth);
       };
@@ -18122,7 +18122,7 @@ const powerRef = useRef(hud.power);
             disposables.push(item);
           }
         };
-        const addDecorBall = (color, number, pattern, pos, variantKey = variant === 'snooker' ? 'snooker' : 'pool') => {
+        const addDecorBall = (color, number, pattern, pos, variantKey = variant === 'snooker' ? SNOOKER_BALL_MATERIAL_VARIANT : 'pool') => {
           const material = getBilliardBallMaterial({
             color,
             pattern,
@@ -18181,7 +18181,7 @@ const powerRef = useRef(hud.power);
           };
           rackPositions.forEach((pos, index) => {
             const placement = pos || rackPositions[rackPositions.length - 1] || { x: 0, z: rackStartZ + index * BALL_R * 1.6 };
-            addDecorBall(snookerPalette.red, null, 'solid', placement, 'snooker');
+            addDecorBall(snookerPalette.red, null, 'solid', placement, SNOOKER_BALL_MATERIAL_VARIANT);
           });
           [
             { color: snookerPalette.yellow, spot: SPOTS.yellow },
@@ -18191,9 +18191,9 @@ const powerRef = useRef(hud.power);
             { color: snookerPalette.pink, spot: SPOTS.pink },
             { color: snookerPalette.black, spot: SPOTS.black }
           ].forEach(({ color, spot }) => {
-            addDecorBall(color, null, 'solid', { x: spot[0], z: spot[1] }, 'snooker');
+            addDecorBall(color, null, 'solid', { x: spot[0], z: spot[1] }, SNOOKER_BALL_MATERIAL_VARIANT);
           });
-          addDecorBall(snookerPalette.cue, null, 'solid', { x: -BALL_R * 3, z: baulkZ - BALL_R * 5 }, 'snooker');
+          addDecorBall(snookerPalette.cue, null, 'solid', { x: -BALL_R * 3, z: baulkZ - BALL_R * 5 }, SNOOKER_BALL_MATERIAL_VARIANT);
           addCueStick(-PLAY_W * 0.2, rackStartZ + BALL_R * 4.2, -Math.PI * 0.04);
           addCueStick(PLAY_W * 0.22, baulkZ - BALL_R * 1.2, Math.PI * 0.06);
         } else {
@@ -24765,7 +24765,7 @@ const powerRef = useRef(hud.power);
         color: colorHex,
         pattern,
         number,
-        variantKey: 'snooker',
+        variantKey: SNOOKER_BALL_MATERIAL_VARIANT,
         size: 128
       });
       cache.set(cacheKey, preview || null);

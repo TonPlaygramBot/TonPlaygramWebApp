@@ -6,7 +6,7 @@ import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { ensureAccountId, getTelegramFirstName, getTelegramId, getTelegramPhotoUrl } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
-import { resolveTableSize } from '../../config/snookerRoyalTables.js';
+import { resolveTableSize } from '../../config/snookerClubTables.js';
 import { socket } from '../../utils/socket.js';
 import { getOnlineUsers } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
@@ -34,7 +34,6 @@ export default function SnookerRoyalLobby() {
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
   const [variant, setVariant] = useState('uk');
-  const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
@@ -86,11 +85,6 @@ export default function SnookerRoyalLobby() {
     matchPlayersRef.current = matchPlayers;
   }, [matchPlayers]);
 
-  useEffect(() => {
-    if (variant !== 'uk') {
-      setUkBallSet('uk');
-    }
-  }, [variant]);
 
   const navigateToSnookerRoyal = ({ tableId: startedId, roster = [], accountId, currentTurn }) => {
     const selfId = accountId || accountIdRef.current;
@@ -386,27 +380,6 @@ export default function SnookerRoyalLobby() {
           ))}
         </div>
       </div>
-      {variant === 'uk' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Ball Set</h3>
-          <p className="text-xs text-subtext">
-            Switch the snooker ball visuals for practice sessions while keeping official rules intact.
-          </p>
-          <div className="flex gap-2">
-            {[{ id: 'uk', label: 'Tournament Palette' }, { id: 'american', label: 'High Contrast' }].map(
-              ({ id, label }) => (
-                <button
-                  key={id}
-                  onClick={() => setUkBallSet(id)}
-                  className={`lobby-tile ${ukBallSet === id ? 'lobby-selected' : ''}`}
-                >
-                  {label}
-                </button>
-              )
-            )}
-          </div>
-        </div>
-      )}
       {playType === 'tournament' && (
         <div className="space-y-2">
           <h3 className="font-semibold">Players</h3>
