@@ -74,6 +74,11 @@ import {
   resolvePlayableTrainingLevel
 } from '../../utils/poolRoyaleTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import {
+  mapSpinForPhysics,
+  normalizeSpinInput,
+  SPIN_INPUT_DEAD_ZONE
+} from './poolRoyaleSpinUtils.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
@@ -5013,58 +5018,8 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
-const SPIN_INPUT_DEAD_ZONE = 0.02;
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
-const SPIN_RESPONSE_EXPONENT = 1.65;
 
-const clampToUnitCircle = (x, y) => {
-  const L = Math.hypot(x, y);
-  if (!Number.isFinite(L) || L <= 1) {
-    return { x, y };
-  }
-  const scale = L > 1e-6 ? 1 / L : 0;
-  return { x: x * scale, y: y * scale };
-};
-const normalizeSpinInput = (spin) => {
-  const x = spin?.x ?? 0;
-  const y = spin?.y ?? 0;
-  const magnitude = Math.hypot(x, y);
-  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
-    return { x: 0, y: 0 };
-  }
-  return clampToUnitCircle(x, y);
-};
-const applySpinResponseCurve = (spin) => {
-  const x = spin?.x ?? 0;
-  const y = spin?.y ?? 0;
-  const magnitude = Math.hypot(x, y);
-  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
-    return { x: 0, y: 0 };
-  }
-  const clamped = clampToUnitCircle(x, y);
-  const clampedMag = Math.hypot(clamped.x, clamped.y);
-  const curvedMag = Math.pow(clampedMag, SPIN_RESPONSE_EXPONENT);
-  const scale = clampedMag > 1e-6 ? curvedMag / clampedMag : 0;
-  return { x: clamped.x * scale, y: clamped.y * scale };
-};
-const invertSpinMagnitude = (value) => {
-  const clamped = clamp(value ?? 0, -1, 1);
-  const magnitude = Math.abs(clamped);
-  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) return 0;
-  return Math.sign(clamped) * (1 - magnitude);
-};
-const mapSpinForPhysics = (spin) => {
-  const adjusted = {
-    x: spin?.x ?? 0,
-    y: invertSpinMagnitude(spin?.y ?? 0)
-  };
-  const curved = applySpinResponseCurve(adjusted);
-  return {
-    x: curved.x,
-    // UI has +Y downward; physics expects +Y for topspin.
-    y: -curved.y
-  };
-};
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
   return THREE.MathUtils.clamp(liftAngle / CUE_LIFT_MAX_TILT, 0, 1);
