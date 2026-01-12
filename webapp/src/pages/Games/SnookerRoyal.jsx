@@ -1370,13 +1370,14 @@ const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
-const SPIN_STRENGTH = BALL_R * 0.0295;
+const SPIN_STRENGTH = BALL_R * 0.034;
 const SPIN_DECAY = 0.9;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
-const SPIN_ROLL_DECAY = 0.978;
-const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
-const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.4; // inject extra sideways carry while the cue ball is airborne
-const RAIL_SPIN_THROW_SCALE = BALL_R * 0.3; // let cushion contacts inherit noticeable throw from active side spin
+const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
+const BACKSPIN_ROLL_BOOST = 1.35;
+const SPIN_ROLL_DECAY = 0.983;
+const SPIN_AIR_DECAY = 0.995; // hold spin energy while the cue ball travels straight pre-impact
+const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
+const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
@@ -1498,7 +1499,7 @@ const SIDE_SPIN_MULTIPLIER = 1.5;
 const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
-const SPIN_CONTROL_DIAMETER_PX = 96;
+const SPIN_CONTROL_DIAMETER_PX = 138;
 const SPIN_DOT_DIAMETER_PX = 16;
 const SPIN_RING_THICKNESS_PX = 14;
 const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
@@ -5090,6 +5091,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_INPUT_DEAD_ZONE = 0.02;
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
+const SPIN_RESPONSE_EXPONENT = 1.65;
 
 const clampToUnitCircle = (x, y) => {
   const L = Math.hypot(x, y);
@@ -5108,10 +5110,27 @@ const normalizeSpinInput = (spin) => {
   }
   return clampToUnitCircle(x, y);
 };
-const mapSpinForPhysics = (spin) => ({
-  x: spin?.x ?? 0,
-  y: spin?.y ?? 0
-});
+const applySpinResponseCurve = (spin) => {
+  const x = spin?.x ?? 0;
+  const y = spin?.y ?? 0;
+  const magnitude = Math.hypot(x, y);
+  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
+    return { x: 0, y: 0 };
+  }
+  const clamped = clampToUnitCircle(x, y);
+  const clampedMag = Math.hypot(clamped.x, clamped.y);
+  if (clampedMag < 1e-6) return { x: 0, y: 0 };
+  const curvedMag = Math.pow(clampedMag, SPIN_RESPONSE_EXPONENT);
+  const scale = curvedMag / clampedMag;
+  return { x: clamped.x * scale, y: clamped.y * scale };
+};
+const mapSpinForPhysics = (spin) => {
+  const curved = applySpinResponseCurve(spin);
+  return {
+    x: curved?.x ?? 0,
+    y: curved?.y ?? 0
+  };
+};
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
   return THREE.MathUtils.clamp(liftAngle / CUE_LIFT_MAX_TILT, 0, 1);
@@ -6275,6 +6294,65 @@ const toBallColorId = (id) => {
   if (lower.startsWith('stripe')) return 'STRIPE';
   if (lower.startsWith('solid')) return 'SOLID';
   return lower.toUpperCase();
+};
+
+const SNOOKER_COLOR_SPOTS = {
+  YELLOW: 'yellow',
+  GREEN: 'green',
+  BROWN: 'brown',
+  BLUE: 'blue',
+  PINK: 'pink',
+  BLACK: 'black'
+};
+const SNOOKER_SPOT_PRIORITY = ['BLACK', 'PINK', 'BLUE', 'BROWN', 'GREEN', 'YELLOW'];
+const isSnookerColourId = (colorId) => Boolean(SNOOKER_COLOR_SPOTS[colorId]);
+const resolveSnookerSpotKey = (colorId) => SNOOKER_COLOR_SPOTS[colorId] ?? null;
+const isRespotPositionClear = (pos, balls, reserved = [], ignoreId = null) => {
+  if (!pos) return false;
+  const minDistance = BALL_R * 2.02;
+  const minDistanceSq = minDistance * minDistance;
+  for (const ball of balls) {
+    if (!ball?.active) continue;
+    if (ignoreId != null && String(ball.id) === String(ignoreId)) continue;
+    const dx = ball.pos.x - pos.x;
+    const dy = ball.pos.y - pos.z;
+    if (dx * dx + dy * dy < minDistanceSq) return false;
+  }
+  for (const entry of reserved) {
+    const dx = entry.x - pos.x;
+    const dy = entry.z - pos.z;
+    if (dx * dx + dy * dy < minDistanceSq) return false;
+  }
+  return true;
+};
+const resolveSnookerRespotPosition = (colorId, spots, balls, reserved = []) => {
+  if (!spots) return null;
+  const spotKey = resolveSnookerSpotKey(colorId);
+  const spotCoords = spotKey ? spots[spotKey] : null;
+  if (!spotCoords) return null;
+  const baseSpot = { x: spotCoords[0], z: spotCoords[1] };
+  if (isRespotPositionClear(baseSpot, balls, reserved)) {
+    return baseSpot;
+  }
+  for (const candidate of SNOOKER_SPOT_PRIORITY) {
+    const candidateKey = resolveSnookerSpotKey(candidate);
+    const coords = candidateKey ? spots[candidateKey] : null;
+    if (!coords) continue;
+    const candidatePos = { x: coords[0], z: coords[1] };
+    if (isRespotPositionClear(candidatePos, balls, reserved)) {
+      return candidatePos;
+    }
+  }
+  const maxZ = RAIL_LIMIT_Y - BALL_R * 0.25;
+  const maxDistance = Math.max(0, maxZ - baseSpot.z);
+  const step = BALL_R * 0.2;
+  for (let distance = step; distance <= maxDistance + 1e-6; distance += step) {
+    const candidatePos = { x: baseSpot.x, z: baseSpot.z + distance };
+    if (isRespotPositionClear(candidatePos, balls, reserved)) {
+      return candidatePos;
+    }
+  }
+  return baseSpot;
 };
 
 function alignRailsToCushions(table, frame, railMeshes = null) {
@@ -12265,6 +12343,7 @@ const powerRef = useRef(hud.power);
   const ballsRef = useRef([]);
   const pocketDropRef = useRef(new Map());
   const pocketRestIndexRef = useRef(new Map());
+  const snookerSpotsRef = useRef(null);
   const captureBallSnapshotRef = useRef(null);
   const applyBallSnapshotRef = useRef(null);
   const pendingLayoutRef = useRef(null);
@@ -18077,6 +18156,7 @@ const powerRef = useRef(hud.power);
         rendererRef.current
       );
       const SPOTS = spotPositions(baulkZ);
+      snookerSpotsRef.current = SPOTS;
       const longestSide = Math.max(PLAY_W, PLAY_H);
       const secondarySpacingBase =
         Math.max(longestSide * 2.4, Math.max(TABLE.W, TABLE.H) * 2.6) * TABLE_DISPLAY_SCALE;
@@ -20178,22 +20258,15 @@ const powerRef = useRef(hud.power);
           const powerSpinScale = 0.55 + clampedPower * 0.45;
           const baseSide = physicsSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = -physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (physicsSpin.y > 0) {
+          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+          if (physicsSpin.y < 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (physicsSpin.y < 0) {
+          } else if (physicsSpin.y > 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
           }
           cue.vel.copy(base);
           if (cue.spin) {
-            const spinAxis = new THREE.Vector2(aimDir.x, aimDir.y);
-            if (spinAxis.lengthSq() < 1e-6) spinAxis.set(0, 1);
-            else spinAxis.normalize();
-            const spinPerp = new THREE.Vector2(-spinAxis.y, spinAxis.x);
-            cue.spin.set(
-              spinPerp.x * spinSide + spinAxis.x * spinTop,
-              spinPerp.y * spinSide + spinAxis.y * spinTop
-            );
+            cue.spin.set(spinSide, spinTop);
           }
           if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
           cue.spinMode =
@@ -20214,7 +20287,7 @@ const powerRef = useRef(hud.power);
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
-          const topSpinWeight = Math.max(0, -(appliedSpin.y || 0));
+          const topSpinWeight = Math.max(0, physicsSpin.y || 0);
           if (
             clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
             liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
@@ -22289,6 +22362,45 @@ const powerRef = useRef(hud.power);
             [shooterSeat]: null
           };
         }
+        const shouldRespotColours =
+          (currentState?.phase ?? frameState?.phase) === 'REDS_AND_COLORS' &&
+          (!isTraining || trainingRulesRef.current);
+        if (shouldRespotColours && potted.length) {
+          const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
+          const spots = snookerSpotsRef.current;
+          const reserved = [];
+          potted.forEach((entry) => {
+            const colorId = entry?.color ? String(entry.color).toUpperCase() : null;
+            if (!colorId || !isSnookerColourId(colorId)) return;
+            const ball = ballsList.find((candidate) => toBallColorId(candidate.id) === colorId);
+            if (!ball) return;
+            const respot = resolveSnookerRespotPosition(colorId, spots, ballsList, reserved);
+            if (!respot) return;
+            ball.active = true;
+            ball.vel.set(0, 0);
+            if (ball.spin) ball.spin.set(0, 0);
+            if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
+            ball.spinMode = 'standard';
+            ball.swerveStrength = 0;
+            ball.swervePowerStrength = 0;
+            ball.impacted = false;
+            ball.launchDir = null;
+            ball.lift = 0;
+            ball.liftVel = 0;
+            ball.pos.set(respot.x, respot.z);
+            if (ball.mesh) {
+              ball.mesh.visible = true;
+              ball.mesh.scale.set(1, 1, 1);
+              ball.mesh.position.set(respot.x, BALL_CENTER_Y, respot.z);
+            }
+            if (ball.shadow) {
+              ball.shadow.visible = true;
+              ball.shadow.position.set(respot.x, BALL_SHADOW_Y, respot.z);
+            }
+            pocketDropRef.current.delete(ball.id);
+            reserved.push(respot);
+          });
+        }
         const metaState =
           safeState && typeof safeState.meta === 'object' ? safeState.meta.state : null;
         if (safeState?.foul) {
@@ -22945,7 +23057,7 @@ const powerRef = useRef(hud.power);
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
           const spinSideInfluence = (physicsSpin.x || 0) * (0.4 + 0.42 * powerStrength);
-          const spinVerticalInfluence = -(physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
+          const spinVerticalInfluence = (physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
             .add(perp.clone().multiplyScalar(spinSideInfluence))
@@ -22953,7 +23065,7 @@ const powerRef = useRef(hud.power);
           if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
             cueFollowDirSpinAdjusted.normalize();
           }
-          const backSpinWeight = Math.max(0, appliedSpin.y || 0);
+          const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
           if (backSpinWeight > 1e-8) {
             const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
             const drawDir = dir.clone().negate();
@@ -23000,7 +23112,12 @@ const powerRef = useRef(hud.power);
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
-          const obstructionStrength = resolveCueObstruction(dir, pull);
+          const obstructionStrength = resolveCueObstruction(
+            dir,
+            pull,
+            null,
+            spinWorld
+          );
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
@@ -23424,8 +23541,8 @@ const powerRef = useRef(hud.power);
                 b.liftVel = 0;
               }
             if (hasSpin && (b.lift ?? 0) > 0) {
-              const airborneSpin = TMP_VEC2_LIMIT.copy(b.spin ?? TMP_VEC2_LIMIT.set(0, 0));
-              const spinMag = airborneSpin.length();
+              const airborneSpin = resolveSpinWorldVector(b, TMP_VEC2_LIMIT);
+              const spinMag = airborneSpin?.length() ?? 0;
               if (spinMag > 1e-6) {
                 const liftRatio = THREE.MathUtils.clamp(
                   (b.lift ?? 0) / MAX_POWER_LIFT_HEIGHT,
@@ -23454,9 +23571,18 @@ const powerRef = useRef(hud.power);
                 const rollMultiplier = swerveTravel
                   ? SWERVE_TRAVEL_MULTIPLIER * (0.9 + swerveStrength * 0.6)
                   : 1;
-                TMP_VEC2_SPIN.copy(b.spin).multiplyScalar(
+                const worldSpin = resolveSpinWorldVector(b, TMP_VEC2_SPIN);
+                if (!worldSpin) {
+                  TMP_VEC2_SPIN.set(0, 0);
+                } else {
+                  TMP_VEC2_SPIN.copy(worldSpin);
+                }
+                TMP_VEC2_SPIN.multiplyScalar(
                   SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
                 );
+                if (b.vel && b.vel.dot(TMP_VEC2_SPIN) < 0) {
+                  TMP_VEC2_SPIN.multiplyScalar(BACKSPIN_ROLL_BOOST);
+                }
                 if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
                   const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
                   const forwardMag = TMP_VEC2_SPIN.dot(launchDir);
@@ -25737,7 +25863,7 @@ const powerRef = useRef(hud.power);
         ref={leftControlsRef}
         className={`pointer-events-none absolute left-3 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          bottom: `${22 + chromeUiLiftPx}px`,
+          bottom: `${16 + chromeUiLiftPx}px`,
           transform: `scale(${uiScale * 1.06})`,
           transformOrigin: 'bottom left'
         }}
@@ -26015,21 +26141,22 @@ const powerRef = useRef(hud.power);
             />
             {spinDecorationPoints.map((point, index) => (
               <span
-                key={`spin-mark-${index}`}
-                className="absolute rounded-full bg-red-500/35"
+                key={`spin-deco-${index}`}
+                className="absolute rounded-full border-2 border-black/75"
                 style={{
                   width: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
                   height: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
                   left: `${50 + point.x * SPIN_DECORATION_OFFSET_PERCENT}%`,
                   top: `${50 + point.y * SPIN_DECORATION_OFFSET_PERCENT}%`,
                   transform: 'translate(-50%, -50%)',
+                  background: 'rgba(255,255,255,0.4)',
                   pointerEvents: 'none'
                 }}
               />
             ))}
             <div
               id="spinDot"
-              className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2"
+              className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
               style={{
                 width: `${SPIN_DOT_DIAMETER_PX}px`,
                 height: `${SPIN_DOT_DIAMETER_PX}px`,
