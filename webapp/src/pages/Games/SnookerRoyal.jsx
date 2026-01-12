@@ -194,14 +194,29 @@ const wait = (ms = 0) =>
     window.setTimeout(resolve, ms);
   });
 
+const WEBGL_CONTEXT_IDS = ['webgl2', 'webgl', 'experimental-webgl'];
+
+const tryGetWebGLContext = (canvas, contextId) => {
+  try {
+    return canvas.getContext(contextId);
+  } catch (err) {
+    return null;
+  }
+};
+
+const resolveWebGLContext = (canvas) => {
+  for (const contextId of WEBGL_CONTEXT_IDS) {
+    const gl = tryGetWebGLContext(canvas, contextId);
+    if (gl) return gl;
+  }
+  return null;
+};
+
 function isWebGLAvailable() {
   if (typeof document === 'undefined') return false;
   try {
     const canvas = document.createElement('canvas');
-    const gl =
-      canvas.getContext('webgl2') ||
-      canvas.getContext('webgl') ||
-      canvas.getContext('experimental-webgl');
+    const gl = resolveWebGLContext(canvas);
     return Boolean(gl);
   } catch (err) {
     console.warn('WebGL availability check failed', err);
@@ -286,10 +301,7 @@ function readGraphicsRendererString() {
   }
   try {
     const canvas = document.createElement('canvas');
-    const gl =
-      canvas.getContext('webgl') ||
-      canvas.getContext('experimental-webgl') ||
-      canvas.getContext('webgl2');
+    const gl = resolveWebGLContext(canvas);
     if (!gl) {
       return null;
     }
