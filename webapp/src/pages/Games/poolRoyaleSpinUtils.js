@@ -43,7 +43,8 @@ export const mapSpinForPhysics = (spin) => {
   };
   const curved = applySpinResponseCurve(adjusted);
   return {
-    x: curved.x,
+    // UI has +X to the right, physics expects +X for left english.
+    x: -curved.x,
     // UI has +Y downward; physics expects +Y for topspin.
     y: -curved.y
   };
