@@ -12158,6 +12158,12 @@ const powerRef = useRef(hud.power);
     const renderer = rendererRef.current;
     const host = mountRef.current;
     if (!renderer || !host) return;
+    const fallbackWidth =
+      typeof window !== 'undefined' ? window.innerWidth || document.documentElement?.clientWidth || 0 : 0;
+    const fallbackHeight =
+      typeof window !== 'undefined' ? window.innerHeight || document.documentElement?.clientHeight || 0 : 0;
+    const hostWidth = host.clientWidth || fallbackWidth;
+    const hostHeight = host.clientHeight || fallbackHeight;
     const quality = frameQualityRef.current;
     const timing = frameTimingRef.current;
     const targetMs =
@@ -12186,7 +12192,7 @@ const powerRef = useRef(hud.power);
       highFpsBias < 1 ? cappedDpr * (0.92 + highFpsBias * 0.08) : cappedDpr;
     const resolvedPixelRatio = Math.max(1, performanceDpr);
     renderer.setPixelRatio(resolvedPixelRatio);
-    renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
+    renderer.setSize(hostWidth * renderScale, hostHeight * renderScale, false);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
   }, []);
@@ -24291,7 +24297,13 @@ const powerRef = useRef(hud.power);
       // Resize
       const onResize = () => {
         if (disposed || !host) return;
-        renderer.setSize(host.clientWidth, host.clientHeight);
+        const fallbackWidth =
+          typeof window !== 'undefined' ? window.innerWidth || document.documentElement?.clientWidth || 0 : 0;
+        const fallbackHeight =
+          typeof window !== 'undefined' ? window.innerHeight || document.documentElement?.clientHeight || 0 : 0;
+        const hostWidth = host.clientWidth || fallbackWidth;
+        const hostHeight = host.clientHeight || fallbackHeight;
+        renderer.setSize(hostWidth, hostHeight);
         // Update canvas dimensions when the window size changes so the table
         // remains fully visible.
         const scaleChanged = applyWorldScaleRef.current?.() ?? false;
