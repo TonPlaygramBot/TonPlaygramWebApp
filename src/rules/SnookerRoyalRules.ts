@@ -80,7 +80,7 @@ function buildHud(
 function calculateFoulPoints(ballOn: BallColor[], involved: BallColor[]): number {
   const ballOnValue = Math.max(0, ...ballOn.map((entry) => COLOR_VALUES[entry] || 0));
   const involvedValue = Math.max(0, ...involved.map((entry) => COLOR_VALUES[entry] || 0));
-  return Math.max(4, ballOnValue, involvedValue);
+  return Math.min(7, Math.max(4, ballOnValue, involvedValue));
 }
 
 export class SnookerRoyalRules {
@@ -145,6 +145,10 @@ export class SnookerRoyalRules {
       ? pottedColors.filter((color) => color !== nominatedFreeBall)
       : pottedColors;
 
+    const foulBallOn =
+      state.phase === 'REDS_AND_COLORS' && state.colorOnAfterRed && declaredBall
+        ? [declaredBall]
+        : ballOn;
     let foulReason: string | null = null;
     if (explicitFoul?.reason) {
       foulReason = explicitFoul.reason;
@@ -154,6 +158,11 @@ export class SnookerRoyalRules {
       foulReason = 'no contact';
     } else if (ballOn.length && firstContact) {
       const requiresNomination = state.phase === 'REDS_AND_COLORS' && state.colorOnAfterRed;
+      if (requiresNomination && !nominatedBall) {
+        foulReason = 'no nomination';
+      } else if (requiresNomination && declaredBall === 'RED') {
+        foulReason = 'invalid nomination';
+      }
       const targetBall = state.phase === 'COLORS_ORDER' ? ballOn[0] : null;
       const requiredFirstContact =
         (freeBallActive && nominatedFreeBall) ||
@@ -216,12 +225,25 @@ export class SnookerRoyalRules {
     };
 
     if (foulReason) {
-      const foulPoints = calculateFoulPoints(ballOn, [firstContact, ...pottedNonCue].filter(Boolean) as BallColor[]);
+      const foulPoints = calculateFoulPoints(
+        foulBallOn,
+        [firstContact, explicitFoul?.ball, ...pottedNonCue].filter(Boolean) as BallColor[]
+      );
       const opponent = state.activePlayer === 'A' ? 'B' : 'A';
       scores[opponent] += foulPoints;
       nextActivePlayer = opponent;
       nextBreak = 0;
       nextFreeBall = Boolean(context.snookered);
+      if (
+        state.phase === 'COLORS_ORDER' &&
+        colorsRemaining.length === 1 &&
+        colorsRemaining[0] === 'BLACK'
+      ) {
+        if (scores.A !== scores.B) {
+          frameOver = true;
+          winner = scores.A > scores.B ? 'A' : 'B';
+        }
+      }
     } else if (pottedNonCue.length === 0) {
       nextActivePlayer = state.activePlayer === 'A' ? 'B' : 'A';
       nextBreak = 0;
@@ -288,7 +310,10 @@ export class SnookerRoyalRules {
       winner,
       foul: foulReason
         ? {
-            points: calculateFoulPoints(ballOn, [firstContact, ...pottedNonCue].filter(Boolean) as BallColor[]),
+          points: calculateFoulPoints(
+              foulBallOn,
+              [firstContact, explicitFoul?.ball, ...pottedNonCue].filter(Boolean) as BallColor[]
+            ),
             reason: foulReason
           }
         : undefined,

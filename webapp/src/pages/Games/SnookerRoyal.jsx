@@ -22364,6 +22364,7 @@ const powerRef = useRef(hud.power);
         }
         const shouldRespotColours =
           (currentState?.phase ?? frameState?.phase) === 'REDS_AND_COLORS' &&
+          (currentState?.redsRemaining ?? frameState?.redsRemaining ?? 0) > 0 &&
           (!isTraining || trainingRulesRef.current);
         if (shouldRespotColours && potted.length) {
           const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
@@ -22460,7 +22461,7 @@ const powerRef = useRef(hud.power);
           contactMade: false,
           cushionAfterContact: false
         };
-        let nextInHand = cueBallPotted;
+        let nextInHand = cueBallPotted || Boolean(safeState.foul);
         try {
           if (shotResolved) {
             if (safeState.foul) {
