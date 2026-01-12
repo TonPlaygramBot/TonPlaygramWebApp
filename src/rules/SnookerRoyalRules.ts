@@ -60,7 +60,11 @@ function resolveBallOn(state: FrameState, colorsRemaining: BallColor[]): BallCol
   return ['RED'];
 }
 
-function buildHud(state: FrameState, scores: { A: number; B: number }, ballOn: BallColor[]): HudInfo {
+function buildHud(
+  state: FrameState,
+  scores: { A: number; B: number },
+  ballOn: Array<BallColor | string>
+): HudInfo {
   return {
     next: ballOn.length ? ballOn.map((entry) => entry.toLowerCase()).join(' / ') : 'frame over',
     phase: state.phase === 'COLORS_ORDER' ? 'colors' : 'reds',
