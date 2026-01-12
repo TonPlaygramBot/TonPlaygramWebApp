@@ -26,6 +26,19 @@ const COLOR_VALUES: Record<BallColor, number> = {
 
 const COLOR_ORDER: BallColor[] = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
 
+function buildSnookerBalls(phase: FrameState['phase'], colorsRemaining: BallColor[]) {
+  const onTableColors =
+    phase === 'COLORS_ORDER'
+      ? new Set(colorsRemaining)
+      : new Set(COLOR_ORDER);
+  return COLOR_ORDER.map((color) => ({
+    id: color.toLowerCase(),
+    color,
+    onTable: onTableColors.has(color),
+    potted: !onTableColors.has(color)
+  }));
+}
+
 function basePlayers(playerA: string, playerB: string): { A: Player; B: Player } {
   return {
     A: { id: 'A', name: playerA, score: 0 },
@@ -88,7 +101,7 @@ export class SnookerRoyalRules {
 
   getInitialFrame(playerA: string, playerB: string): FrameState {
     const base: FrameState = {
-      balls: [],
+      balls: buildSnookerBalls('REDS_AND_COLORS', COLOR_ORDER),
       activePlayer: 'A',
       players: basePlayers(playerA, playerB),
       currentBreak: 0,
@@ -212,6 +225,9 @@ export class SnookerRoyalRules {
       nextActivePlayer = opponent;
       nextBreak = 0;
       nextFreeBall = Boolean(context.snookered);
+      if (pottedReds.length) {
+        redsRemaining = Math.max(0, redsRemaining - pottedReds.length);
+      }
     } else if (pottedNonCue.length === 0) {
       nextActivePlayer = state.activePlayer === 'A' ? 'B' : 'A';
       nextBreak = 0;
@@ -261,6 +277,7 @@ export class SnookerRoyalRules {
     const nextState: FrameState = {
       ...state,
       activePlayer: nextActivePlayer,
+      balls: buildSnookerBalls(nextPhase, colorsRemaining),
       players: {
         A: { ...state.players.A, score: scores.A },
         B: { ...state.players.B, score: scores.B }
