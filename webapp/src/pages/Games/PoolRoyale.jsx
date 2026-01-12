@@ -1319,6 +1319,7 @@ const POCKET_VIEW_MAX_HOLD_MS = 3200;
 const SPIN_STRENGTH = BALL_R * 0.0295;
 const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
+const BACKSPIN_ROLL_BOOST = 1.25;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.4; // inject extra sideways carry while the cue ball is airborne
@@ -1445,20 +1446,10 @@ const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 132;
-const SPIN_DOT_DIAMETER_PX = 14;
+const SPIN_DOT_DIAMETER_PX = 16;
 const SPIN_RING_THICKNESS_PX = 14;
 const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
 const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
-const SPIN_LABELS = [
-  { text: 'HIGH', left: '50%', top: '6%' },
-  { text: 'LOW', left: '50%', top: '94%' },
-  { text: 'LEFT', left: '6%', top: '50%' },
-  { text: 'RIGHT', left: '94%', top: '50%' },
-  { text: 'HIGH LEFT', left: '18%', top: '18%' },
-  { text: 'HIGH RIGHT', left: '82%', top: '18%' },
-  { text: 'LOW LEFT', left: '18%', top: '82%' },
-  { text: 'LOW RIGHT', left: '82%', top: '82%' }
-];
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // middle pocket cushion cuts are sharpened to a 29° cut to align the side-rail cushions with the updated spec
@@ -23318,6 +23309,9 @@ const powerRef = useRef(hud.power);
                 TMP_VEC2_SPIN.copy(b.spin).multiplyScalar(
                   SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
                 );
+                if (b.vel && b.vel.dot(TMP_VEC2_SPIN) < 0) {
+                  TMP_VEC2_SPIN.multiplyScalar(BACKSPIN_ROLL_BOOST);
+                }
                 if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
                   const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
                   const forwardMag = TMP_VEC2_SPIN.dot(launchDir);
@@ -25815,8 +25809,8 @@ const powerRef = useRef(hud.power);
             <div
               className="absolute rounded-full border-2 border-red-500/70"
               style={{
-                width: `${SPIN_DOT_DIAMETER_PX * 1.65}px`,
-                height: `${SPIN_DOT_DIAMETER_PX * 1.65}px`,
+                width: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
+                height: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
                 left: '50%',
                 top: '50%',
                 transform: 'translate(-50%, -50%)',
@@ -25828,8 +25822,8 @@ const powerRef = useRef(hud.power);
                 key={`spin-deco-${index}`}
                 className="absolute rounded-full border-2 border-black/75"
                 style={{
-                  width: '12px',
-                  height: '12px',
+                  width: '14px',
+                  height: '14px',
                   left: `${50 + point.x * 48}%`,
                   top: `${50 + point.y * 48}%`,
                   transform: 'translate(-50%, -50%)',
@@ -25837,21 +25831,6 @@ const powerRef = useRef(hud.power);
                   pointerEvents: 'none'
                 }}
               />
-            ))}
-            {SPIN_LABELS.map((label) => (
-              <span
-                key={label.text}
-                className="absolute text-[9px] font-semibold uppercase tracking-[0.2em] text-[#3a0d0d]"
-                style={{
-                  left: label.left,
-                  top: label.top,
-                  transform: 'translate(-50%, -50%)',
-                  textShadow: '0 1px 2px rgba(255,255,255,0.35)',
-                  pointerEvents: 'none'
-                }}
-              >
-                {label.text}
-              </span>
             ))}
             <div
               id="spinDot"
