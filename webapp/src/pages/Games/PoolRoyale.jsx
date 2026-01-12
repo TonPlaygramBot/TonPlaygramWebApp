@@ -5025,17 +5025,27 @@ const clampToUnitCircle = (x, y) => {
   return { x: x * scale, y: y * scale };
 };
 const normalizeSpinInput = (spin) => {
-  const x = spin?.x ?? 0;
-  const y = spin?.y ?? 0;
-  const magnitude = Math.hypot(x, y);
-  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
+  const rawX = spin?.x ?? 0;
+  const rawY = spin?.y ?? 0;
+  const rawMagnitude = Math.hypot(rawX, rawY);
+  if (!Number.isFinite(rawMagnitude) || rawMagnitude < SPIN_INPUT_DEAD_ZONE) {
     return { x: 0, y: 0 };
   }
-  return clampToUnitCircle(x, y);
+  const clamped = clampToUnitCircle(rawX, rawY);
+  const magnitude = Math.hypot(clamped.x, clamped.y);
+  if (!Number.isFinite(magnitude) || magnitude < 1e-6) {
+    return { x: 0, y: 0 };
+  }
+  const curvedMagnitude = Math.pow(Math.min(1, magnitude), 1.35);
+  const scale = curvedMagnitude / magnitude;
+  return {
+    x: clamped.x * scale,
+    y: clamped.y * scale
+  };
 };
 const mapSpinForPhysics = (spin) => ({
   x: spin?.x ?? 0,
-  y: spin?.y ?? 0
+  y: -(spin?.y ?? 0)
 });
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
@@ -24636,8 +24646,8 @@ const powerRef = useRef(hud.power);
     },
     [ballPreviewCache]
   );
-  const pottedTokenSize = isPortrait ? 18 : 20;
-  const pottedGap = isPortrait ? 6 : 8;
+  const pottedTokenSize = isPortrait ? 20 : 20;
+  const pottedGap = isPortrait ? 7 : 8;
   const renderPottedRow = useCallback(
     (entries = []) => {
       if (!entries.length) {
@@ -24739,10 +24749,10 @@ const powerRef = useRef(hud.power);
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
-  const bottomHudScale = isPortrait ? uiScale * 0.95 : uiScale * 1.02;
-  const avatarSizeClass = isPortrait ? 'h-8 w-8' : 'h-12 w-12';
+  const bottomHudScale = isPortrait ? uiScale * 0.98 : uiScale * 1.02;
+  const avatarSizeClass = isPortrait ? 'h-9 w-9' : 'h-12 w-12';
   const nameWidthClass = isPortrait ? 'max-w-[6.5rem]' : 'max-w-[8.75rem]';
-  const nameTextClass = isPortrait ? 'text-xs' : 'text-sm';
+  const nameTextClass = isPortrait ? 'text-[0.8rem]' : 'text-sm';
   const hudGapClass = isPortrait ? 'gap-3' : 'gap-5';
   const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
   const playerPanelClass = isPortrait
@@ -25582,7 +25592,7 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute left-4 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none absolute left-2 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
           bottom: `${16 + chromeUiLiftPx}px`,
           transform: `scale(${uiScale})`,
@@ -25593,7 +25603,7 @@ const powerRef = useRef(hud.power);
           type="button"
           aria-pressed={isLookMode}
           onClick={() => setIsLookMode((prev) => !prev)}
-          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-5 py-2.5 text-base font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
             isLookMode
               ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
               : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
@@ -25606,7 +25616,7 @@ const powerRef = useRef(hud.power);
           type="button"
           aria-pressed={isTopDownView}
           onClick={() => setIsTopDownView((prev) => !prev)}
-          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-5 py-2.5 text-base font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
             isTopDownView
               ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
               : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
@@ -25669,14 +25679,14 @@ const powerRef = useRef(hud.power);
               </div>
             </div>
             <div
-              className={`flex items-center gap-2 ${isPortrait ? 'text-sm' : 'text-base'} font-semibold`}
+              className={`flex items-center gap-2 ${isPortrait ? 'text-base' : 'text-base'} font-semibold`}
             >
               <span className="text-amber-300">{hud.A}</span>
               <span className="text-white/50">-</span>
               <span>{hud.B}</span>
             </div>
             <div
-              className={`${opponentPanelClass} ${isPortrait ? 'text-xs' : 'text-sm'}`}
+              className={`${opponentPanelClass} ${isPortrait ? 'text-[0.8rem]' : 'text-sm'}`}
               style={opponentPanelStyle}
             >
               {isOnlineMatch ? (
@@ -25767,9 +25777,9 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute right-3 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          className={`absolute right-2 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${20 + chromeUiLiftPx}px`,
+            bottom: `${26 + chromeUiLiftPx}px`,
             transform: `scale(${uiScale})`,
             transformOrigin: 'bottom right'
           }}
