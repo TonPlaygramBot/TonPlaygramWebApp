@@ -5047,8 +5047,18 @@ const applySpinResponseCurve = (spin) => {
   const scale = clampedMag > 1e-6 ? curvedMag / clampedMag : 0;
   return { x: clamped.x * scale, y: clamped.y * scale };
 };
+const invertSpinMagnitude = (value) => {
+  const clamped = clamp(value ?? 0, -1, 1);
+  const magnitude = Math.abs(clamped);
+  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) return 0;
+  return Math.sign(clamped) * (1 - magnitude);
+};
 const mapSpinForPhysics = (spin) => {
-  const curved = applySpinResponseCurve(spin);
+  const adjusted = {
+    x: spin?.x ?? 0,
+    y: invertSpinMagnitude(spin?.y ?? 0)
+  };
+  const curved = applySpinResponseCurve(adjusted);
   return {
     x: curved.x,
     // UI has +Y downward; physics expects +Y for topspin.
