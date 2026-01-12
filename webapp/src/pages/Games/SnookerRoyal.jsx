@@ -1499,7 +1499,12 @@ const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
-const SPIN_DOT_DIAMETER_PX = 10;
+const SPIN_DOT_DIAMETER_PX = 16;
+const SPIN_RING_THICKNESS_PX = 14;
+const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
+const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
+const SPIN_DECORATION_DOT_SIZE_PX = 12;
+const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // middle pocket cushion cuts are sharpened to a 29° cut to align the side-rail cushions with the updated spec
@@ -24568,6 +24573,19 @@ const powerRef = useRef(hud.power);
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
   const showSpinController =
     !hud.over && !replayActive && (isPlayerTurn || aiTakingShot);
+  const spinDecorationPoints = useMemo(
+    () =>
+      SPIN_DECORATION_ANGLES.flatMap((angle) => {
+        const radians = (angle * Math.PI) / 180;
+        const x = Math.cos(radians);
+        const y = Math.sin(radians);
+        return SPIN_DECORATION_RADII.map((radius) => ({
+          x: x * radius,
+          y: y * radius
+        }));
+      }),
+    []
+  );
 
   // Spin controller interactions
   useEffect(() => {
@@ -24771,8 +24789,8 @@ const powerRef = useRef(hud.power);
     },
     [ballPreviewCache]
   );
-  const pottedTokenSize = isPortrait ? 18 : 20;
-  const pottedGap = isPortrait ? 6 : 8;
+  const pottedTokenSize = isPortrait ? 20 : 22;
+  const pottedGap = isPortrait ? 7 : 9;
   const renderPottedRow = useCallback(
     (entries = []) => {
       if (!entries.length) {
@@ -24874,9 +24892,9 @@ const powerRef = useRef(hud.power);
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
-  const bottomHudScale = isPortrait ? uiScale * 0.95 : uiScale * 1.02;
-  const avatarSizeClass = isPortrait ? 'h-8 w-8' : 'h-12 w-12';
-  const nameWidthClass = isPortrait ? 'max-w-[6.5rem]' : 'max-w-[8.75rem]';
+  const bottomHudScale = isPortrait ? uiScale * 0.99 : uiScale * 1.06;
+  const avatarSizeClass = isPortrait ? 'h-[2.25rem] w-[2.25rem]' : 'h-[3.25rem] w-[3.25rem]';
+  const nameWidthClass = isPortrait ? 'max-w-[7rem]' : 'max-w-[9.25rem]';
   const nameTextClass = isPortrait ? 'text-xs' : 'text-sm';
   const hudGapClass = isPortrait ? 'gap-3' : 'gap-5';
   const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
@@ -25717,10 +25735,10 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute left-4 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none absolute left-3 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          bottom: `${16 + chromeUiLiftPx}px`,
-          transform: `scale(${uiScale})`,
+          bottom: `${22 + chromeUiLiftPx}px`,
+          transform: `scale(${uiScale * 1.06})`,
           transformOrigin: 'bottom left'
         }}
       >
@@ -25943,9 +25961,9 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute right-4 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          className={`absolute right-2 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${16 + chromeUiLiftPx}px`,
+            bottom: `${28 + chromeUiLiftPx}px`,
             transform: `scale(${uiScale})`,
             transformOrigin: 'bottom right'
           }}
@@ -25956,9 +25974,59 @@ const powerRef = useRef(hud.power);
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
               height: `${SPIN_CONTROL_DIAMETER_PX}px`,
-              background: '#f9fafb'
+              background: `radial-gradient(circle at center, #fef6df 0 62%, #c81d25 62% 100%)`
             }}
           >
+            <div
+              className="absolute inset-0 rounded-full"
+              style={{
+                boxShadow:
+                  'inset 0 0 0 2px rgba(255,255,255,0.7), inset 0 6px 12px rgba(255,255,255,0.25)',
+                pointerEvents: 'none'
+              }}
+            />
+            <div
+              className="absolute rounded-full"
+              style={{
+                inset: `${SPIN_RING_THICKNESS_PX}px`,
+                background: '#fef6df',
+                boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.6)',
+                pointerEvents: 'none'
+              }}
+            />
+            <div
+              className="absolute left-1/2 top-0 h-full w-[2px] bg-red-500/60"
+              style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}
+            />
+            <div
+              className="absolute top-1/2 left-0 h-[2px] w-full bg-red-500/60"
+              style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
+            />
+            <div
+              className="absolute rounded-full border-2 border-red-500/70"
+              style={{
+                width: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
+                height: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
+                left: '50%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                pointerEvents: 'none'
+              }}
+            />
+            {spinDecorationPoints.map((point, index) => (
+              <span
+                key={`spin-mark-${index}`}
+                className="absolute rounded-full bg-red-500/35"
+                style={{
+                  width: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
+                  height: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
+                  left: `${50 + point.x * SPIN_DECORATION_OFFSET_PERCENT}%`,
+                  top: `${50 + point.y * SPIN_DECORATION_OFFSET_PERCENT}%`,
+                  transform: 'translate(-50%, -50%)',
+                  pointerEvents: 'none'
+                }}
+              />
+            ))}
             <div
               id="spinDot"
               className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2"
