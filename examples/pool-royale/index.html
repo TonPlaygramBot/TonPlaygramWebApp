@@ -330,12 +330,11 @@
       function updateSpinDots (sx, sy) {
         const max = 40; // percentage offset inside parent
         const pos = (val) => `${50 + val * max}%`;
-        const posY = (val) => `${50 - val * max}%`;
         spinControllerDot.style.left = pos(sx);
-        spinControllerDot.style.top = posY(sy);
+        spinControllerDot.style.top = pos(sy);
         cueSpinDot.style.left = pos(sx);
         // move the cue ball's spin indicator to mirror controller input
-        cueSpinDot.style.top = posY(sy);
+        cueSpinDot.style.top = pos(sy);
       }
 
       // update spin both on click and while dragging for better precision
