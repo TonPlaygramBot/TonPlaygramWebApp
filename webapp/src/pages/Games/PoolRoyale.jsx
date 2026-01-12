@@ -4749,9 +4749,9 @@ const BREAK_VIEW = Object.freeze({
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.15; // lift the top view slightly to keep both near pockets visible on portrait
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22); // reduce angle toward a flatter overhead
+const TOP_VIEW_PHI = 0; // true overhead view for the 2D toggle
 const TOP_VIEW_RADIUS_SCALE = 1.26; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
-const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
+const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: -PLAY_W * 0.015, // bias the top view so the table sits a touch higher on screen
   z: -PLAY_H * 0.012 // bias the top view so the table sits slightly more to the left
@@ -5051,7 +5051,7 @@ const mapSpinForPhysics = (spin) => {
   const curved = applySpinResponseCurve(spin);
   return {
     x: curved.x,
-    y: -curved.y
+    y: curved.y
   };
 };
 const normalizeCueLift = (liftAngle = 0) => {
