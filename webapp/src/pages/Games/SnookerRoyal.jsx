@@ -1017,23 +1017,21 @@ const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; //
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-  // Reuse the Pool Royale playfield and pocket metrics so pockets + balls line up exactly with that table
-  // (WPA 9ft reference: 100" × 50", 2.25" balls)
-  const WIDTH_REF = 2540;
-  const HEIGHT_REF = 1270;
-  const BALL_D_REF = 57.15;
+  // Match the Snooker Club 12ft reference so table proportions, pockets, and chrome align with the legacy layout.
+  const WIDTH_REF = 3556;
+  const HEIGHT_REF = 1778;
+  const BALL_D_REF = 52.5;
   const BAULK_FROM_BAULK_REF = 737; // Baulk line distance from the baulk cushion (29")
   const D_RADIUS_REF = 292;
   const PINK_FROM_TOP_REF = 737;
   const BLACK_FROM_TOP_REF = 324; // Black spot distance from the top cushion (12.75")
-  const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses (Pool Royale match)
-  const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses (Pool Royale match)
+  const CORNER_MOUTH_REF = 86; // Official snooker corner pocket mouth (mm)
+  const SIDE_MOUTH_REF = 92; // Official snooker side pocket mouth (mm)
   const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
   const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
   const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
-  // Relax the aspect ratio so the table reads wider on screen while keeping the playfield height untouched
-  // and preserving pocket proportions from the previous build.
-  const TARGET_RATIO = 1.83;
+  // Preserve the original 12ft snooker aspect ratio for the full playfield layout.
+  const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
 const END_RAIL_INNER_SCALE =
   (TABLE.H - TARGET_RATIO * (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS)) /
   (2 * TABLE.WALL);
@@ -1049,7 +1047,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (15.8% over the original baseline)
+const BALL_SIZE_SCALE = 1; // use official snooker ball diameter without extra scaling
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
