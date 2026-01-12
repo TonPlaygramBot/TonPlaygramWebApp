@@ -10241,6 +10241,80 @@ function PoolRoyaleGame({
     return params.get('token') || 'TPC';
   }, [location.search]);
   const [winnerOverlay, setWinnerOverlay] = useState(null);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingActive, setLoadingActive] = useState(true);
+  const initialLoadCompleteRef = useRef(false);
+  useEffect(() => {
+    const manager = THREE.DefaultLoadingManager;
+    let cancelled = false;
+    const prev = {
+      onStart: manager.onStart,
+      onLoad: manager.onLoad,
+      onProgress: manager.onProgress,
+      onError: manager.onError
+    };
+    const updateProgress = (loaded, total) => {
+      const safeTotal = Number.isFinite(total) && total > 0 ? total : Math.max(1, loaded || 1);
+      const ratio = Number.isFinite(loaded) ? loaded / safeTotal : 0;
+      setLoadingProgress(Math.max(0, Math.min(1, ratio)));
+    };
+    const syncManagerState = () => {
+      if (initialLoadCompleteRef.current) {
+        setLoadingActive(false);
+        return;
+      }
+      const loaded = Number(manager.itemsLoaded || 0);
+      const total = Number(manager.itemsTotal || 0);
+      if (total > 0) {
+        updateProgress(loaded, total);
+        if (loaded >= total) {
+          setLoadingProgress(1);
+          setLoadingActive(false);
+          initialLoadCompleteRef.current = true;
+        }
+      } else {
+        setLoadingProgress(0);
+        setLoadingActive(false);
+      }
+    };
+    manager.onStart = (url, loaded, total) => {
+      prev.onStart?.(url, loaded, total);
+      if (cancelled) return;
+      if (initialLoadCompleteRef.current) return;
+      setLoadingActive(true);
+      updateProgress(loaded, total);
+    };
+    manager.onProgress = (url, loaded, total) => {
+      prev.onProgress?.(url, loaded, total);
+      if (cancelled) return;
+      if (initialLoadCompleteRef.current) return;
+      updateProgress(loaded, total);
+    };
+    manager.onLoad = () => {
+      prev.onLoad?.();
+      if (cancelled) return;
+      if (initialLoadCompleteRef.current) return;
+      setLoadingProgress(1);
+      initialLoadCompleteRef.current = true;
+      window.setTimeout(() => {
+        if (!cancelled) setLoadingActive(false);
+      }, 200);
+    };
+    manager.onError = (url) => {
+      prev.onError?.(url);
+      if (cancelled) return;
+      if (initialLoadCompleteRef.current) return;
+      setLoadingProgress((prevValue) => Math.max(prevValue, 0.9));
+    };
+    syncManagerState();
+    return () => {
+      cancelled = true;
+      manager.onStart = prev.onStart;
+      manager.onLoad = prev.onLoad;
+      manager.onProgress = prev.onProgress;
+      manager.onError = prev.onError;
+    };
+  }, []);
   const coinStyleInjectedRef = useRef(false);
   const ensureCoinBurstStyles = useCallback(() => {
     if (coinStyleInjectedRef.current || typeof document === 'undefined') return;
@@ -18538,9 +18612,7 @@ const powerRef = useRef(hud.power);
         color: 0x7ce7ff,
         linewidth: AIM_LINE_WIDTH,
         transparent: true,
-        opacity: 0.9,
-        depthTest: false,
-        depthWrite: false
+        opacity: 0.9
       });
       const aimGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -18548,7 +18620,6 @@ const powerRef = useRef(hud.power);
       ]);
       const aim = new THREE.Line(aimGeom, aimMat);
       aim.visible = false;
-      aim.renderOrder = 4;
       table.add(aim);
       const cueAfterGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -18562,13 +18633,10 @@ const powerRef = useRef(hud.power);
           dashSize: AIM_DASH_SIZE * 0.9,
           gapSize: AIM_GAP_SIZE,
           transparent: true,
-          opacity: 0.45,
-          depthTest: false,
-          depthWrite: false
+          opacity: 0.45
         })
       );
       cueAfter.visible = false;
-      cueAfter.renderOrder = 4;
       table.add(cueAfter);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -18576,14 +18644,9 @@ const powerRef = useRef(hud.power);
       ]);
       const tick = new THREE.Line(
         tickGeom,
-        new THREE.LineBasicMaterial({
-          color: 0xffffff,
-          depthTest: false,
-          depthWrite: false
-        })
+        new THREE.LineBasicMaterial({ color: 0xffffff })
       );
       tick.visible = false;
-      tick.renderOrder = 4;
       table.add(tick);
 
       const targetGeom = new THREE.BufferGeometry().setFromPoints([
@@ -18598,13 +18661,10 @@ const powerRef = useRef(hud.power);
           dashSize: AIM_DASH_SIZE,
           gapSize: AIM_GAP_SIZE,
           transparent: true,
-          opacity: 0.65,
-          depthTest: false,
-          depthWrite: false
+          opacity: 0.65
         })
       );
       target.visible = false;
-      target.renderOrder = 4;
       table.add(target);
       const replayTrailGeom = new THREE.BufferGeometry();
       replayTrail = new THREE.Line(
@@ -18716,18 +18776,7 @@ const powerRef = useRef(hud.power);
         const info = cueStick.userData?.buttTilt;
         const len = info?.length ?? cueLen;
         if (!Number.isFinite(len) || len <= 1e-4) return;
-        let minButtHeight = cushionTop + CUE_BUTT_CUSHION_CLEARANCE;
-        const buttClearanceRadius = BALL_R * 2.2;
-        if (Array.isArray(balls) && Number.isFinite(TMP_VEC3_BUTT.x)) {
-          const butt2D = new THREE.Vector2(TMP_VEC3_BUTT.x, TMP_VEC3_BUTT.z);
-          balls.forEach((ball) => {
-            if (!ball?.active || ball === cue) return;
-            const distSq = butt2D.distanceToSquared(ball.pos);
-            if (distSq <= buttClearanceRadius * buttClearanceRadius) {
-              minButtHeight = Math.max(minButtHeight, BALL_CENTER_Y + BALL_R * 1.05);
-            }
-          });
-        }
+        const minButtHeight = cushionTop + CUE_BUTT_CUSHION_CLEARANCE;
         const requiredOffset = minButtHeight - tipTarget.y;
         if (requiredOffset <= 0) return;
         const requiredTilt = Math.asin(
@@ -20991,7 +21040,6 @@ const powerRef = useRef(hud.power);
                 0,
                 1
               );
-              plan.cutSeverity = cutSeverity;
               plan.spin = computePlanSpin(plan, state);
               potShots.push(plan);
             }
@@ -21104,7 +21152,6 @@ const powerRef = useRef(hud.power);
                   railNormal: null,
                   viaCushion: false,
                   quality,
-                  cutSeverity,
                   spin: computePlanSpin(
                     {
                       type: 'pot',
@@ -21165,8 +21212,6 @@ const powerRef = useRef(hud.power);
               0,
               1 - (cueToTarget + targetToPocket) / Math.max(PLAY_W, PLAY_H, BALL_R * 2)
             );
-            const cutSeverity = THREE.MathUtils.clamp(plan.cutSeverity ?? 0.5, 0, 1);
-            const straightEase = 1 - cutSeverity;
             const priorityIndex = targetOrder.findIndex((target) =>
               matchesTargetId(plan.targetBall, target)
             );
@@ -21182,8 +21227,6 @@ const powerRef = useRef(hud.power);
             const laneBonus = Math.max(0, Math.min((laneClearance - 0.6) / 0.8, 1));
             const leaveScore = scoreNextShotPosition(plan);
             const leaveWeight = shouldAnalyzeLeave ? 0.12 : 0;
-            const thinPenalty =
-              cutSeverity > 0.72 ? Math.min((cutSeverity - 0.72) / 0.28, 1) * 0.22 : 0;
             return (
               quality * 0.48 +
               difficultyEase * 0.18 +
@@ -21191,12 +21234,10 @@ const powerRef = useRef(hud.power);
               cueEase * 0.08 +
               priorityBonus * priorityWeight +
               routeEase * 0.06 +
-              straightEase * 0.12 +
               laneBonus * 0.08 +
               finishBonus +
               leaveScore * leaveWeight -
-              cushionPenalty -
-              thinPenalty
+              cushionPenalty
             );
           };
           const scoredPots = potShots
@@ -25706,6 +25747,25 @@ const powerRef = useRef(hud.power);
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {loadingActive && !err && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 px-6 text-white">
+          <div className="flex w-full max-w-sm flex-col items-center gap-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-emerald-200">
+              Loading Pool Royale
+            </p>
+            <div className="h-1 w-full overflow-hidden rounded-full bg-white/15">
+              <div
+                className="h-full rounded-full bg-emerald-400 transition-[width] duration-200"
+                style={{ width: `${Math.round(loadingProgress * 100)}%` }}
+              />
+            </div>
+            <p className="text-sm text-white/80">
+              {Math.round(loadingProgress * 100)}%
+            </p>
           </div>
         </div>
       )}
