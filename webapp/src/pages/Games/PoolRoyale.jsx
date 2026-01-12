@@ -1316,14 +1316,14 @@ const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
-const SPIN_STRENGTH = BALL_R * 0.0295;
+const SPIN_STRENGTH = BALL_R * 0.034;
 const SPIN_DECAY = 0.9;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
-const BACKSPIN_ROLL_BOOST = 1.25;
-const SPIN_ROLL_DECAY = 0.978;
-const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
-const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.4; // inject extra sideways carry while the cue ball is airborne
-const RAIL_SPIN_THROW_SCALE = BALL_R * 0.3; // let cushion contacts inherit noticeable throw from active side spin
+const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
+const BACKSPIN_ROLL_BOOST = 1.35;
+const SPIN_ROLL_DECAY = 0.983;
+const SPIN_AIR_DECAY = 0.995; // hold spin energy while the cue ball travels straight pre-impact
+const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
+const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
@@ -5015,7 +5015,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_INPUT_DEAD_ZONE = 0.02;
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
-const SPIN_RESPONSE_EXPONENT = 1.4;
+const SPIN_RESPONSE_EXPONENT = 1.65;
 
 const clampToUnitCircle = (x, y) => {
   const L = Math.hypot(x, y);
@@ -5849,7 +5849,7 @@ function applySpinImpulse(ball, scale = 1) {
   const swerveScale = 0.8 + Math.min(speed, 8) * 0.15;
   const liftScale = 0.35 + Math.min(speed, 6) * 0.08;
   const lateralKick = sideSpin * SPIN_STRENGTH * swerveScale * scale;
-  const forwardKick = forwardSpin * SPIN_STRENGTH * liftScale * scale * 0.5;
+  const forwardKick = forwardSpin * SPIN_STRENGTH * liftScale * scale * 0.75;
   if (Math.abs(lateralKick) > 1e-8) {
     ball.vel.addScaledVector(lateral, lateralKick);
   }
@@ -20036,14 +20036,7 @@ const powerRef = useRef(hud.power);
           }
           cue.vel.copy(base);
           if (cue.spin) {
-            const spinAxis = new THREE.Vector2(aimDir.x, aimDir.y);
-            if (spinAxis.lengthSq() < 1e-6) spinAxis.set(0, 1);
-            else spinAxis.normalize();
-            const spinPerp = new THREE.Vector2(-spinAxis.y, spinAxis.x);
-            cue.spin.set(
-              spinPerp.x * spinSide + spinAxis.x * spinTop,
-              spinPerp.y * spinSide + spinAxis.y * spinTop
-            );
+            cue.spin.set(spinSide, spinTop);
           }
           if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
           cue.spinMode =
@@ -23295,8 +23288,8 @@ const powerRef = useRef(hud.power);
                 b.liftVel = 0;
               }
             if (hasSpin && (b.lift ?? 0) > 0) {
-              const airborneSpin = TMP_VEC2_LIMIT.copy(b.spin ?? TMP_VEC2_LIMIT.set(0, 0));
-              const spinMag = airborneSpin.length();
+              const airborneSpin = resolveSpinWorldVector(b, TMP_VEC2_LIMIT);
+              const spinMag = airborneSpin?.length() ?? 0;
               if (spinMag > 1e-6) {
                 const liftRatio = THREE.MathUtils.clamp(
                   (b.lift ?? 0) / MAX_POWER_LIFT_HEIGHT,
@@ -23325,7 +23318,13 @@ const powerRef = useRef(hud.power);
                 const rollMultiplier = swerveTravel
                   ? SWERVE_TRAVEL_MULTIPLIER * (0.9 + swerveStrength * 0.6)
                   : 1;
-                TMP_VEC2_SPIN.copy(b.spin).multiplyScalar(
+                const worldSpin = resolveSpinWorldVector(b, TMP_VEC2_SPIN);
+                if (!worldSpin) {
+                  TMP_VEC2_SPIN.set(0, 0);
+                } else {
+                  TMP_VEC2_SPIN.copy(worldSpin);
+                }
+                TMP_VEC2_SPIN.multiplyScalar(
                   SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
                 );
                 if (b.vel && b.vel.dot(TMP_VEC2_SPIN) < 0) {
