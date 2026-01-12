@@ -1425,9 +1425,9 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 1.6;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 2.2;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.35;
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.4;
 const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(4);
 const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.6;
 const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.45;
@@ -10241,80 +10241,6 @@ function PoolRoyaleGame({
     return params.get('token') || 'TPC';
   }, [location.search]);
   const [winnerOverlay, setWinnerOverlay] = useState(null);
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [loadingActive, setLoadingActive] = useState(true);
-  const initialLoadCompleteRef = useRef(false);
-  useEffect(() => {
-    const manager = THREE.DefaultLoadingManager;
-    let cancelled = false;
-    const prev = {
-      onStart: manager.onStart,
-      onLoad: manager.onLoad,
-      onProgress: manager.onProgress,
-      onError: manager.onError
-    };
-    const updateProgress = (loaded, total) => {
-      const safeTotal = Number.isFinite(total) && total > 0 ? total : Math.max(1, loaded || 1);
-      const ratio = Number.isFinite(loaded) ? loaded / safeTotal : 0;
-      setLoadingProgress(Math.max(0, Math.min(1, ratio)));
-    };
-    const syncManagerState = () => {
-      if (initialLoadCompleteRef.current) {
-        setLoadingActive(false);
-        return;
-      }
-      const loaded = Number(manager.itemsLoaded || 0);
-      const total = Number(manager.itemsTotal || 0);
-      if (total > 0) {
-        updateProgress(loaded, total);
-        if (loaded >= total) {
-          setLoadingProgress(1);
-          setLoadingActive(false);
-          initialLoadCompleteRef.current = true;
-        }
-      } else {
-        setLoadingProgress(0);
-        setLoadingActive(false);
-      }
-    };
-    manager.onStart = (url, loaded, total) => {
-      prev.onStart?.(url, loaded, total);
-      if (cancelled) return;
-      if (initialLoadCompleteRef.current) return;
-      setLoadingActive(true);
-      updateProgress(loaded, total);
-    };
-    manager.onProgress = (url, loaded, total) => {
-      prev.onProgress?.(url, loaded, total);
-      if (cancelled) return;
-      if (initialLoadCompleteRef.current) return;
-      updateProgress(loaded, total);
-    };
-    manager.onLoad = () => {
-      prev.onLoad?.();
-      if (cancelled) return;
-      if (initialLoadCompleteRef.current) return;
-      setLoadingProgress(1);
-      initialLoadCompleteRef.current = true;
-      window.setTimeout(() => {
-        if (!cancelled) setLoadingActive(false);
-      }, 200);
-    };
-    manager.onError = (url) => {
-      prev.onError?.(url);
-      if (cancelled) return;
-      if (initialLoadCompleteRef.current) return;
-      setLoadingProgress((prevValue) => Math.max(prevValue, 0.9));
-    };
-    syncManagerState();
-    return () => {
-      cancelled = true;
-      manager.onStart = prev.onStart;
-      manager.onLoad = prev.onLoad;
-      manager.onProgress = prev.onProgress;
-      manager.onError = prev.onError;
-    };
-  }, []);
   const coinStyleInjectedRef = useRef(false);
   const ensureCoinBurstStyles = useCallback(() => {
     if (coinStyleInjectedRef.current || typeof document === 'undefined') return;
@@ -25747,25 +25673,6 @@ const powerRef = useRef(hud.power);
                 </>
               )}
             </div>
-          </div>
-        </div>
-      )}
-
-      {loadingActive && !err && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 px-6 text-white">
-          <div className="flex w-full max-w-sm flex-col items-center gap-3 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-emerald-200">
-              Loading Pool Royale
-            </p>
-            <div className="h-1 w-full overflow-hidden rounded-full bg-white/15">
-              <div
-                className="h-full rounded-full bg-emerald-400 transition-[width] duration-200"
-                style={{ width: `${Math.round(loadingProgress * 100)}%` }}
-              />
-            </div>
-            <p className="text-sm text-white/80">
-              {Math.round(loadingProgress * 100)}%
-            </p>
           </div>
         </div>
       )}
