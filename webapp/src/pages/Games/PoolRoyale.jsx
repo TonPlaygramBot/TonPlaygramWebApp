@@ -1445,11 +1445,13 @@ const SIDE_SPIN_MULTIPLIER = 1.5;
 const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
-const SPIN_CONTROL_DIAMETER_PX = 132;
+const SPIN_CONTROL_DIAMETER_PX = 138;
 const SPIN_DOT_DIAMETER_PX = 16;
 const SPIN_RING_THICKNESS_PX = 14;
 const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
 const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
+const SPIN_DECORATION_DOT_SIZE_PX = 12;
+const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // middle pocket cushion cuts are sharpened to a 29° cut to align the side-rail cushions with the updated spec
@@ -25765,9 +25767,9 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute right-4 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          className={`absolute right-3 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${16 + chromeUiLiftPx}px`,
+            bottom: `${20 + chromeUiLiftPx}px`,
             transform: `scale(${uiScale})`,
             transformOrigin: 'bottom right'
           }}
@@ -25822,10 +25824,10 @@ const powerRef = useRef(hud.power);
                 key={`spin-deco-${index}`}
                 className="absolute rounded-full border-2 border-black/75"
                 style={{
-                  width: '14px',
-                  height: '14px',
-                  left: `${50 + point.x * 48}%`,
-                  top: `${50 + point.y * 48}%`,
+                  width: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
+                  height: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
+                  left: `${50 + point.x * SPIN_DECORATION_OFFSET_PERCENT}%`,
+                  top: `${50 + point.y * SPIN_DECORATION_OFFSET_PERCENT}%`,
                   transform: 'translate(-50%, -50%)',
                   background: 'rgba(255,255,255,0.4)',
                   pointerEvents: 'none'
