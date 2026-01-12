@@ -5015,6 +5015,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_INPUT_DEAD_ZONE = 0.02;
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
+const SPIN_RESPONSE_EXPONENT = 1.4;
 
 const clampToUnitCircle = (x, y) => {
   const L = Math.hypot(x, y);
@@ -5033,10 +5034,26 @@ const normalizeSpinInput = (spin) => {
   }
   return clampToUnitCircle(x, y);
 };
-const mapSpinForPhysics = (spin) => ({
-  x: spin?.x ?? 0,
-  y: spin?.y ?? 0
-});
+const applySpinResponseCurve = (spin) => {
+  const x = spin?.x ?? 0;
+  const y = spin?.y ?? 0;
+  const magnitude = Math.hypot(x, y);
+  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
+    return { x: 0, y: 0 };
+  }
+  const clamped = clampToUnitCircle(x, y);
+  const clampedMag = Math.hypot(clamped.x, clamped.y);
+  const curvedMag = Math.pow(clampedMag, SPIN_RESPONSE_EXPONENT);
+  const scale = clampedMag > 1e-6 ? curvedMag / clampedMag : 0;
+  return { x: clamped.x * scale, y: clamped.y * scale };
+};
+const mapSpinForPhysics = (spin) => {
+  const curved = applySpinResponseCurve(spin);
+  return {
+    x: curved.x,
+    y: -curved.y
+  };
+};
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
   return THREE.MathUtils.clamp(liftAngle / CUE_LIFT_MAX_TILT, 0, 1);
@@ -20011,10 +20028,10 @@ const powerRef = useRef(hud.power);
           const powerSpinScale = 0.55 + clampedPower * 0.45;
           const baseSide = physicsSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = -physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (physicsSpin.y > 0) {
+          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+          if (physicsSpin.y < 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (physicsSpin.y < 0) {
+          } else if (physicsSpin.y > 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
           }
           cue.vel.copy(base);
@@ -20047,7 +20064,7 @@ const powerRef = useRef(hud.power);
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
-          const topSpinWeight = Math.max(0, -(appliedSpin.y || 0));
+          const topSpinWeight = Math.max(0, physicsSpin.y || 0);
           if (
             clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
             liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
@@ -20178,7 +20195,7 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(warmupPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
-          const backSpinWeight = Math.max(0, appliedSpin.y || 0);
+          const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
           const strokeDistance = Math.max(visualPull, CUE_PULL_MIN_VISUAL);
           const topSpinFollowThrough =
             BALL_R * (1 + 3 * clampedPower) * topSpinWeight;
@@ -22792,7 +22809,7 @@ const powerRef = useRef(hud.power);
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
           const spinSideInfluence = (physicsSpin.x || 0) * (0.4 + 0.42 * powerStrength);
-          const spinVerticalInfluence = -(physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
+          const spinVerticalInfluence = (physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
             .add(perp.clone().multiplyScalar(spinSideInfluence))
@@ -22800,7 +22817,7 @@ const powerRef = useRef(hud.power);
           if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
             cueFollowDirSpinAdjusted.normalize();
           }
-          const backSpinWeight = Math.max(0, appliedSpin.y || 0);
+          const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
           if (backSpinWeight > 1e-8) {
             const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
             const drawDir = dir.clone().negate();
@@ -24636,8 +24653,8 @@ const powerRef = useRef(hud.power);
     },
     [ballPreviewCache]
   );
-  const pottedTokenSize = isPortrait ? 18 : 20;
-  const pottedGap = isPortrait ? 6 : 8;
+  const pottedTokenSize = isPortrait ? 20 : 22;
+  const pottedGap = isPortrait ? 7 : 9;
   const renderPottedRow = useCallback(
     (entries = []) => {
       if (!entries.length) {
@@ -24739,9 +24756,9 @@ const powerRef = useRef(hud.power);
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
-  const bottomHudScale = isPortrait ? uiScale * 0.95 : uiScale * 1.02;
-  const avatarSizeClass = isPortrait ? 'h-8 w-8' : 'h-12 w-12';
-  const nameWidthClass = isPortrait ? 'max-w-[6.5rem]' : 'max-w-[8.75rem]';
+  const bottomHudScale = isPortrait ? uiScale * 0.99 : uiScale * 1.06;
+  const avatarSizeClass = isPortrait ? 'h-[2.25rem] w-[2.25rem]' : 'h-[3.25rem] w-[3.25rem]';
+  const nameWidthClass = isPortrait ? 'max-w-[7rem]' : 'max-w-[9.25rem]';
   const nameTextClass = isPortrait ? 'text-xs' : 'text-sm';
   const hudGapClass = isPortrait ? 'gap-3' : 'gap-5';
   const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
@@ -25582,10 +25599,10 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute left-4 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none absolute left-3 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
           bottom: `${16 + chromeUiLiftPx}px`,
-          transform: `scale(${uiScale})`,
+          transform: `scale(${uiScale * 1.06})`,
           transformOrigin: 'bottom left'
         }}
       >
@@ -25767,9 +25784,9 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute right-3 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          className={`absolute right-2 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${20 + chromeUiLiftPx}px`,
+            bottom: `${28 + chromeUiLiftPx}px`,
             transform: `scale(${uiScale})`,
             transformOrigin: 'bottom right'
           }}
