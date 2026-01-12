@@ -4960,6 +4960,8 @@ const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
+const TMP_VEC2_OBSTRUCTION_OFFSET = new THREE.Vector2();
+const TMP_VEC2_OBSTRUCTION_DELTA = new THREE.Vector2();
 const TMP_EULER_A = new THREE.Euler();
 const TMP_VEC3_A = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
@@ -20137,7 +20139,8 @@ const powerRef = useRef(hud.power);
           const obstructionStrength = resolveCueObstruction(
             dir,
             pull,
-            activeRenderCameraRef.current ?? cameraRef.current ?? camera
+            activeRenderCameraRef.current ?? cameraRef.current ?? camera,
+            spinWorld
           );
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
@@ -22527,7 +22530,14 @@ const powerRef = useRef(hud.power);
           tmpAim.copy(fallbackAim.normalize());
         } else {
           camera.getWorldDirection(camFwd);
-          tmpAim.set(camFwd.x, camFwd.z).normalize();
+          tmpAim.set(camFwd.x, camFwd.z);
+          if (tmpAim.lengthSq() < 1e-6) {
+            const fallbackAim = aimDirRef.current.clone();
+            if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
+            tmpAim.copy(fallbackAim.normalize());
+          } else {
+            tmpAim.normalize();
+          }
         }
         const cameraBlend = THREE.MathUtils.clamp(
           cameraBlendRef.current ?? 1,
@@ -22585,7 +22595,8 @@ const powerRef = useRef(hud.power);
         function resolveCueObstruction(
           dirVec3,
           pullDistance = cuePullTargetRef.current ?? 0,
-          viewCamera = null
+          viewCamera = null,
+          cueOffset = null
         ) {
           if (!cue?.pos || !dirVec3) return 0;
           if (viewCamera?.getWorldDirection) {
@@ -22601,7 +22612,15 @@ const powerRef = useRef(hud.power);
           const backward = new THREE.Vector2(-dirVec3.x, -dirVec3.z);
           if (backward.lengthSq() < 1e-8) return 0;
           backward.normalize();
-          const origin = new THREE.Vector2(cue.pos.x, cue.pos.y);
+          const origin = TMP_VEC2_OBSTRUCTION_OFFSET.set(cue.pos.x, cue.pos.y);
+          if (cueOffset) {
+            const offsetX = cueOffset.x ?? 0;
+            const offsetY = cueOffset.z ?? cueOffset.y ?? 0;
+            const offsetMagSq = offsetX * offsetX + offsetY * offsetY;
+            if (offsetMagSq > 1e-8) {
+              origin.add(TMP_VEC2_OBSTRUCTION_DELTA.set(offsetX, offsetY));
+            }
+          }
           const reach = cueLen + pullDistance + CUE_TIP_GAP;
           const clearanceSq = CUE_OBSTRUCTION_CLEARANCE * CUE_OBSTRUCTION_CLEARANCE;
           let strength = 0;
@@ -22822,7 +22841,12 @@ const powerRef = useRef(hud.power);
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
-          const obstructionStrength = resolveCueObstruction(dir, pull);
+          const obstructionStrength = resolveCueObstruction(
+            dir,
+            pull,
+            null,
+            spinWorld
+          );
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
@@ -23053,7 +23077,8 @@ const powerRef = useRef(hud.power);
           const obstructionStrength = resolveCueObstruction(
             baseDir,
             pull,
-            activeRenderCameraRef.current ?? cameraRef.current ?? camera
+            activeRenderCameraRef.current ?? cameraRef.current ?? camera,
+            spinWorld
           );
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
@@ -23153,7 +23178,8 @@ const powerRef = useRef(hud.power);
           const obstructionStrength = resolveCueObstruction(
             dir,
             pull,
-            activeRenderCameraRef.current ?? cameraRef.current ?? camera
+            activeRenderCameraRef.current ?? cameraRef.current ?? camera,
+            spinWorld
           );
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
