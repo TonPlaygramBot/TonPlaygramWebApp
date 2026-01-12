@@ -12081,7 +12081,7 @@ const powerRef = useRef(hud.power);
     const maxVertical = Math.max(ranges.offsetVertical ?? MAX_SPIN_VERTICAL, 1e-6);
     const largest = Math.max(maxSide, maxVertical);
     const scaledX = (x * maxSide) / largest;
-    const scaledY = (y * maxVertical) / largest;
+    const scaledY = (-y * maxVertical) / largest;
     dot.style.left = `${50 + scaledX * 50}%`;
     dot.style.top = `${50 + scaledY * 50}%`;
     const magnitude = Math.hypot(x, y);
@@ -19707,7 +19707,7 @@ const powerRef = useRef(hud.power);
         const hasSpin = magnitude > 1e-4;
         const sideInput = spin?.x ?? 0;
         let side = hasSpin ? sideInput * offsetSide : 0;
-        let vert = hasSpin ? -spin.y * offsetVertical : 0;
+        let vert = hasSpin ? spin.y * offsetVertical : 0;
         if (hasSpin) {
           vert = THREE.MathUtils.clamp(vert, -MAX_SPIN_VISUAL_LIFT, MAX_SPIN_VISUAL_LIFT);
         }
@@ -20132,7 +20132,7 @@ const powerRef = useRef(hud.power);
             0,
             Math.min(visualPull - minVisibleGap, visualPull * warmupRatio)
           );
-          const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
+          const tiltAmount = hasSpin ? Math.max(0, -(appliedSpin.y || 0)) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftAngle;
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           applyCueButtTilt(
@@ -22831,7 +22831,7 @@ const powerRef = useRef(hud.power);
           );
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
-          const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
+          const tiltAmount = hasSpin ? Math.max(0, -(appliedSpin.y || 0)) : 0;
           const liftTilt = resolveUserCueLift();
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftTilt;
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
@@ -24479,14 +24479,14 @@ const powerRef = useRef(hud.power);
     resetSpin();
     resetSpinRef.current = resetSpin;
 
-    const updateSpin = (clientX, clientY) => {
-      const rect = box.getBoundingClientRect();
-      const cx = clientX ?? rect.left + rect.width / 2;
-      const cy = clientY ?? rect.top + rect.height / 2;
-      let nx = ((cx - rect.left) / rect.width) * 2 - 1;
-      let ny = ((cy - rect.top) / rect.height) * 2 - 1;
-      setSpin(nx, ny);
-    };
+      const updateSpin = (clientX, clientY) => {
+        const rect = box.getBoundingClientRect();
+        const cx = clientX ?? rect.left + rect.width / 2;
+        const cy = clientY ?? rect.top + rect.height / 2;
+        let nx = ((cx - rect.left) / rect.width) * 2 - 1;
+        let ny = ((cy - rect.top) / rect.height) * 2 - 1;
+        setSpin(nx, -ny);
+      };
 
     const scaleBox = (value) => {
       box.style.transform = `scale(${value})`;
