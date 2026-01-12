@@ -5043,7 +5043,7 @@ const applySpinResponseCurve = (spin) => {
   }
   const clamped = clampToUnitCircle(x, y);
   const clampedMag = Math.hypot(clamped.x, clamped.y);
-  const curvedMag = 1 - Math.pow(1 - clampedMag, SPIN_RESPONSE_EXPONENT);
+  const curvedMag = Math.pow(clampedMag, SPIN_RESPONSE_EXPONENT);
   const scale = clampedMag > 1e-6 ? curvedMag / clampedMag : 0;
   return { x: clamped.x * scale, y: clamped.y * scale };
 };
