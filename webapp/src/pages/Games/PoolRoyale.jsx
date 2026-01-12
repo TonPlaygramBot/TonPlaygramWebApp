@@ -1445,9 +1445,10 @@ const SIDE_SPIN_MULTIPLIER = 1.5;
 const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
-const SPIN_CONTROL_DIAMETER_PX = 132;
+const SPIN_CONTROL_DIAMETER_PX = 138;
 const SPIN_DOT_DIAMETER_PX = 16;
 const SPIN_RING_THICKNESS_PX = 14;
+const SPIN_RING_GAP_PX = 3;
 const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
 const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
@@ -25765,9 +25766,9 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute right-4 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          className={`absolute right-3 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${16 + chromeUiLiftPx}px`,
+            bottom: `${22 + chromeUiLiftPx}px`,
             transform: `scale(${uiScale})`,
             transformOrigin: 'bottom right'
           }}
@@ -25792,7 +25793,7 @@ const powerRef = useRef(hud.power);
             <div
               className="absolute rounded-full"
               style={{
-                inset: `${SPIN_RING_THICKNESS_PX}px`,
+                inset: `${SPIN_RING_THICKNESS_PX + SPIN_RING_GAP_PX}px`,
                 background: '#fef6df',
                 boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.6)',
                 pointerEvents: 'none'
