@@ -410,13 +410,15 @@ router.post('/withdraw', authenticate, async (req, res) => {
   ensureTransactionArray(user);
 
   user.balance -= amount;
+  user.tpcAccountAddress = address;
 
   const tx = {
     amount: -amount,
     type: 'withdraw',
     token: 'TPC',
     status: 'pending',
-    date: new Date()
+    date: new Date(),
+    address
   };
 
   user.transactions.push(tx);
@@ -471,6 +473,7 @@ router.post('/claim-external', authenticate, async (req, res) => {
   ensureTransactionArray(user);
 
   user.balance -= amount;
+  user.tpcAccountAddress = address;
 
   const tx = {
     amount: -amount,
