@@ -5051,7 +5051,8 @@ const mapSpinForPhysics = (spin) => {
   const curved = applySpinResponseCurve(spin);
   return {
     x: curved.x,
-    y: curved.y
+    // UI has +Y downward; physics expects +Y for topspin.
+    y: -curved.y
   };
 };
 const normalizeCueLift = (liftAngle = 0) => {
