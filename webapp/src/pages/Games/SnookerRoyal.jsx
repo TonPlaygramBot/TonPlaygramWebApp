@@ -9550,7 +9550,8 @@ function Table3D(
 
   const ensurePolyhavenBaseTemplate = (assetId, renderer = null) => {
     if (!assetId) {
-      return Promise.reject(new Error('Missing Poly Haven asset id'));
+      console.warn('Snooker Royal base asset missing; falling back to default base.');
+      return Promise.resolve(null);
     }
     if (polyhavenBaseTemplates.has(assetId)) {
       return Promise.resolve(polyhavenBaseTemplates.get(assetId));
@@ -9574,10 +9575,12 @@ function Table3D(
           lastError = error;
         }
       }
-      throw lastError || new Error(`Failed to load Poly Haven model: ${assetId}`);
+      console.warn('Failed to load Poly Haven base; using fallback.', lastError);
+      polyhavenBaseTemplates.set(assetId, null);
+      return null;
     })();
     polyhavenBasePromises.set(assetId, promise);
-    promise.catch(() => polyhavenBasePromises.delete(assetId));
+    promise.finally(() => polyhavenBasePromises.delete(assetId));
     return promise;
   };
 
@@ -9610,7 +9613,7 @@ function Table3D(
       matchTableFootprint = false
     } = {}
   ) => {
-    return (ctx) => {
+    const builder = (ctx) => {
       const meshes = [];
       const legMeshes = [];
       const normalizeOptions = {
@@ -9670,6 +9673,8 @@ function Table3D(
       }
       return { meshes, legMeshes, normalizeOptions, asyncReady };
     };
+    builder.isPolyhaven = true;
+    return builder;
   };
 
   const baseBuilders = {
@@ -9837,14 +9842,23 @@ function Table3D(
     addBaseMeshesToFinish(built);
     if (built?.asyncReady?.then) {
       built.asyncReady
-        .then(() => {
+        .then((result) => {
+          if (!result && builder?.isPolyhaven && variantId !== DEFAULT_TABLE_BASE_ID) {
+            if (table.userData.baseVariantId === variantId) {
+              applyBaseVariant(DEFAULT_TABLE_BASE_ID);
+            }
+            return;
+          }
           if (table.userData.baseVariantId === variantId) {
             applyBaseVariant(variantId);
           }
         })
-        .catch((err) =>
-          console.warn('Snooker Royal chess leg templates failed to load', err)
-        );
+        .catch((err) => {
+          console.warn('Snooker Royal chess leg templates failed to load', err);
+          if (builder?.isPolyhaven && variantId !== DEFAULT_TABLE_BASE_ID) {
+            applyBaseVariant(DEFAULT_TABLE_BASE_ID);
+          }
+        });
     }
     finishParts.baseVariantId = variantId;
     table.userData.baseVariantId = variantId;
@@ -13406,25 +13420,29 @@ const powerRef = useRef(hud.power);
         }
       };
       const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
-        const sceneInstance = sceneRef.current;
-        if (!renderer || !sceneInstance) return;
-        const activeVariant = variantConfig || activeEnvironmentVariantRef.current;
-        if (!envTextureRef.current && !disposed) {
-          const fallbackEnv = await createFallbackHdriEnvironment(renderer);
-          if (fallbackEnv?.envMap && !disposed) {
-            applyEnvironmentMaps(fallbackEnv.envMap, fallbackEnv.skyboxMap, activeVariant);
+        try {
+          const sceneInstance = sceneRef.current;
+          if (!renderer || !sceneInstance) return;
+          const activeVariant = variantConfig || activeEnvironmentVariantRef.current;
+          if (!envTextureRef.current && !disposed) {
+            const fallbackEnv = await createFallbackHdriEnvironment(renderer);
+            if (fallbackEnv?.envMap && !disposed) {
+              applyEnvironmentMaps(fallbackEnv.envMap, fallbackEnv.skyboxMap, activeVariant);
+            }
           }
+          const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
+          if (!envResult) return;
+          const { envMap, skyboxMap } = envResult;
+          if (!envMap) return;
+          if (disposed) {
+            envMap.dispose?.();
+            skyboxMap?.dispose?.();
+            return;
+          }
+          applyEnvironmentMaps(envMap, skyboxMap, activeVariant);
+        } catch (error) {
+          console.warn('Snooker Royal HDRI environment load failed; keeping fallback.', error);
         }
-        const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
-        if (!envResult) return;
-        const { envMap, skyboxMap } = envResult;
-        if (!envMap) return;
-        if (disposed) {
-          envMap.dispose?.();
-          skyboxMap?.dispose?.();
-          return;
-        }
-        applyEnvironmentMaps(envMap, skyboxMap, activeVariant);
       };
       updateEnvironmentRef.current = applyHdriEnvironment;
       void applyHdriEnvironment(activeEnvironmentVariantRef.current);
@@ -14577,7 +14595,8 @@ const powerRef = useRef(hud.power);
             lastError = error;
           }
         }
-        throw lastError || new Error('Failed to load GLTF asset');
+        console.warn('Failed to load GLTF asset; using fallback.', lastError);
+        return null;
       };
       const markHospitalityMaterials = (root) => {
         if (!root) return;
