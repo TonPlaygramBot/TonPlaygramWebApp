@@ -20750,7 +20750,26 @@ const powerRef = useRef(hud.power);
           const cueEase = Math.max(0, 1 - cueDist / Math.max(PLAY_W, PLAY_H));
           return pocketEase * 0.65 + cueEase * 0.35;
         };
-        const pickPreferredBall = (targets, candidateBalls, cuePos) => {
+        const isDirectLaneOpen = (target, cuePos, candidateBalls, clearance) => {
+          if (!target || !cuePos) return false;
+          const dir = target.pos.clone().sub(cuePos);
+          const lenSq = dir.lengthSq();
+          if (lenSq < 1e-6) return false;
+          const len = Math.sqrt(lenSq);
+          const unit = dir.clone().divideScalar(len);
+          for (const ball of candidateBalls) {
+            if (!ball.active) continue;
+            if (ball.id === target.id || String(ball.id) === 'cue') continue;
+            const rel = ball.pos.clone().sub(cuePos);
+            const proj = THREE.MathUtils.clamp(rel.dot(unit), 0, len);
+            const closest = cuePos.clone().add(unit.clone().multiplyScalar(proj));
+            if (ball.pos.distanceToSquared(closest) < clearance * clearance) {
+              return false;
+            }
+          }
+          return true;
+        };
+        const pickPreferredBall = (targets, candidateBalls, cuePos, clearance) => {
           for (const targetId of targets) {
             const matches = candidateBalls.filter((ball) => matchesTargetId(ball, targetId));
             if (matches.length > 0) {
@@ -20758,10 +20777,10 @@ const powerRef = useRef(hud.power);
                 if (!best) return ball;
                 const bestScore =
                   scoreBallForAim(best, cuePos) *
-                  (isDirectLaneOpen(best) ? 1 : 0.35);
+                  (isDirectLaneOpen(best, cuePos, candidateBalls, clearance) ? 1 : 0.35);
                 const score =
                   scoreBallForAim(ball, cuePos) *
-                  (isDirectLaneOpen(ball) ? 1 : 0.35);
+                  (isDirectLaneOpen(ball, cuePos, candidateBalls, clearance) ? 1 : 0.35);
                 return score > bestScore ? ball : best;
               }, null);
             }
@@ -21765,25 +21784,6 @@ const powerRef = useRef(hud.power);
           );
           if (activeBalls.length === 0) return null;
           const clearance = BALL_R * 1.5;
-          const isDirectLaneOpen = (target) => {
-            if (!target) return false;
-            const dir = target.pos.clone().sub(cuePos);
-            const lenSq = dir.lengthSq();
-            if (lenSq < 1e-6) return false;
-            const len = Math.sqrt(lenSq);
-            const unit = dir.clone().divideScalar(len);
-            for (const ball of activeBalls) {
-              if (!ball.active) continue;
-              if (ball.id === target.id || String(ball.id) === 'cue') continue;
-              const rel = ball.pos.clone().sub(cuePos);
-              const proj = THREE.MathUtils.clamp(rel.dot(unit), 0, len);
-              const closest = cuePos.clone().add(unit.clone().multiplyScalar(proj));
-              if (ball.pos.distanceToSquared(closest) < clearance * clearance) {
-                return false;
-              }
-            }
-            return true;
-          };
 
           const activeVariantId =
             frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
@@ -21807,16 +21807,18 @@ const powerRef = useRef(hud.power);
               if (!best) return ball;
               const bestScore =
                 scoreBallForAim(best, cuePos) *
-                (isDirectLaneOpen(best) ? 1 : 0.35);
+                (isDirectLaneOpen(best, cuePos, activeBalls, clearance) ? 1 : 0.35);
               const score =
                 scoreBallForAim(ball, cuePos) *
-                (isDirectLaneOpen(ball) ? 1 : 0.35);
+                (isDirectLaneOpen(ball, cuePos, activeBalls, clearance) ? 1 : 0.35);
               return score > bestScore ? ball : best;
             }, null);
           const pickDirectPreferredBall = (targets) => {
             for (const targetId of targets) {
               const matches = activeBalls.filter(
-                (ball) => matchesTargetId(ball, targetId) && isDirectLaneOpen(ball)
+                (ball) =>
+                  matchesTargetId(ball, targetId) &&
+                  isDirectLaneOpen(ball, cuePos, activeBalls, clearance)
               );
               if (matches.length > 0) {
                 return matches.reduce((best, ball) => {
@@ -21850,7 +21852,7 @@ const powerRef = useRef(hud.power);
           if (!targetBall && combinedTargets.length > 0) {
             targetBall =
               pickDirectPreferredBall(combinedTargets) ||
-              pickPreferredBall(combinedTargets, activeBalls, cuePos);
+              pickPreferredBall(combinedTargets, activeBalls, cuePos, clearance);
           }
 
           if (!targetBall && activeVariantId === 'uk') {
@@ -21866,12 +21868,12 @@ const powerRef = useRef(hud.power);
             if (preferredColours.length > 0) {
               targetBall =
                 pickDirectPreferredBall(preferredColours) ||
-                pickPreferredBall(preferredColours, activeBalls, cuePos);
+                pickPreferredBall(preferredColours, activeBalls, cuePos, clearance);
             }
           }
 
           if (!targetBall) {
-            targetBall = pickPreferredBall(['BLACK'], activeBalls, cuePos);
+            targetBall = pickPreferredBall(['BLACK'], activeBalls, cuePos, clearance);
           }
 
           if (!targetBall) {
@@ -21880,7 +21882,8 @@ const powerRef = useRef(hud.power);
                 .map((ball) => toBallColorId(ball.id))
                 .filter((entry) => entry && isBallTargetId(entry)),
               activeBalls,
-              cuePos
+              cuePos,
+              clearance
             );
           }
 
@@ -21888,10 +21891,10 @@ const powerRef = useRef(hud.power);
             targetBall = pickFallbackBall();
           }
 
-          if (targetBall && !isDirectLaneOpen(targetBall)) {
+          if (targetBall && !isDirectLaneOpen(targetBall, cuePos, activeBalls, clearance)) {
             const rerouted =
               pickDirectPreferredBall(combinedTargets) ||
-              pickPreferredBall(combinedTargets, activeBalls, cuePos) ||
+              pickPreferredBall(combinedTargets, activeBalls, cuePos, clearance) ||
               pickFallbackBall();
             if (rerouted) targetBall = rerouted;
           }
