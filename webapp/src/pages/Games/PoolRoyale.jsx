@@ -4758,8 +4758,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: -PLAY_W * 0.03, // bias the top view so the table sits higher on screen (match legacy portrait framing)
-  z: -PLAY_H * 0.026 // bias the top view so the table sits further to the left (match legacy portrait framing)
+  x: -PLAY_W * 0.055, // bias the top view so the table sits higher on screen (match legacy portrait framing)
+  z: -PLAY_H * 0.05 // bias the top view so the table sits further to the left (match legacy portrait framing)
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -11689,7 +11689,8 @@ const ruleToastTimeoutRef = useRef(null);
 const [replayActive, setReplayActive] = useState(false);
 const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
 const [bottomHudOffset, setBottomHudOffset] = useState(0);
-const leftControlsRef = useRef(null);
+const rightControlsRef = useRef(null);
+const [rightControlsTop, setRightControlsTop] = useState(null);
 const spinBoxRef = useRef(null);
 const showRuleToast = useCallback((message) => {
   if (!message) return;
@@ -24314,44 +24315,41 @@ const powerRef = useRef(hud.power);
   useLayoutEffect(() => {
     const computeInsets = () => {
       if (!isPortrait) {
-      const left = uiScale * 150;
-      const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 150);
-      setHudInsets({
-        left: `${left}px`,
-        right: `${right}px`
-      });
-      setBottomHudOffset(0);
-      return;
+        const left = uiScale * 150;
+        const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 150);
+        setHudInsets({
+          left: `${left}px`,
+          right: `${right}px`
+        });
+        setBottomHudOffset(0);
+        return;
       }
-      const leftBox = leftControlsRef.current?.getBoundingClientRect();
       const spinBox = spinBoxRef.current?.getBoundingClientRect();
+      const controlsBox = rightControlsRef.current?.getBoundingClientRect();
       const viewportWidth =
-      typeof window !== 'undefined'
-        ? window.innerWidth || document.documentElement?.clientWidth || 0
-        : 0;
-      const fallbackLeftWidth = uiScale * 120;
+        typeof window !== 'undefined'
+          ? window.innerWidth || document.documentElement?.clientWidth || 0
+          : 0;
       const fallbackSpinWidth = uiScale * (SPIN_CONTROL_DIAMETER_PX + 64);
-      const leftInset = (leftBox?.width ?? fallbackLeftWidth) + 12;
+      const leftInset = uiScale * 16 + 12;
+      const spinWidth = spinBox?.width ?? fallbackSpinWidth;
+      const controlsWidth = controlsBox?.width ?? 0;
       const rightInset =
-      (spinBox?.width ?? fallbackSpinWidth) +
-      uiScale * 32 +
-      12;
+        Math.max(spinWidth, controlsWidth, uiScale * 108) + uiScale * 32 + 12;
       setHudInsets({
-      left: `${leftInset}px`,
-      right: `${rightInset}px`
+        left: `${leftInset}px`,
+        right: `${rightInset}px`
       });
       if (viewportWidth > 0) {
-      const sideMargin = 16;
-      const leftCenter =
-        (leftBox ? leftBox.left + leftBox.width / 2 : leftInset / 2 + sideMargin);
-      const spinWidth = spinBox?.width ?? fallbackSpinWidth;
-      const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
-      const spinCenter = spinLeft + spinWidth / 2;
-      const desiredCenter = (leftCenter + spinCenter) / 2;
-      const screenCenter = viewportWidth / 2;
-      setBottomHudOffset(desiredCenter - screenCenter - PORTRAIT_HUD_HORIZONTAL_NUDGE_PX);
+        const sideMargin = 16;
+        const leftCenter = leftInset / 2 + sideMargin;
+        const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
+        const spinCenter = spinLeft + spinWidth / 2;
+        const desiredCenter = (leftCenter + spinCenter) / 2;
+        const screenCenter = viewportWidth / 2;
+        setBottomHudOffset(desiredCenter - screenCenter - PORTRAIT_HUD_HORIZONTAL_NUDGE_PX);
       } else {
-      setBottomHudOffset(0);
+        setBottomHudOffset(0);
       }
     };
     computeInsets();
@@ -24377,11 +24375,11 @@ const powerRef = useRef(hud.power);
       labels: true,
       onChange: (v) => applyPower(v / 100),
       onCommit: () => {
-      fireRef.current?.();
-      requestAnimationFrame(() => {
-        slider.set(slider.min, { animate: true });
-        applyPower(0);
-      });
+        fireRef.current?.();
+        requestAnimationFrame(() => {
+          slider.set(slider.min, { animate: true });
+          applyPower(0);
+        });
       }
     });
     sliderInstanceRef.current = slider;
@@ -24407,6 +24405,27 @@ const powerRef = useRef(hud.power);
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
   const showSpinController =
     !hud.over && !replayActive && (isPlayerTurn || aiTakingShot);
+  useLayoutEffect(() => {
+    const updateRightControlsPosition = () => {
+      if (!showPowerSlider || !showSpinController) {
+        setRightControlsTop(null);
+        return;
+      }
+      const sliderBox = sliderRef.current?.getBoundingClientRect();
+      const spinBox = spinBoxRef.current?.getBoundingClientRect();
+      const controlsBox = rightControlsRef.current?.getBoundingClientRect();
+      if (!sliderBox || !spinBox || !controlsBox) {
+        setRightControlsTop(null);
+        return;
+      }
+      const available = spinBox.top - sliderBox.bottom - controlsBox.height;
+      const gap = available > 0 ? available / 2 : 12;
+      setRightControlsTop(sliderBox.bottom + gap);
+    };
+    updateRightControlsPosition();
+    window.addEventListener('resize', updateRightControlsPosition);
+    return () => window.removeEventListener('resize', updateRightControlsPosition);
+  }, [showPowerSlider, showSpinController, uiScale]);
   const spinDecorationPoints = useMemo(
     () =>
       SPIN_DECORATION_ANGLES.flatMap((angle) => {
@@ -24731,7 +24750,10 @@ const powerRef = useRef(hud.power);
   const nameWidthClass = isPortrait ? 'max-w-[7rem]' : 'max-w-[9.25rem]';
   const nameTextClass = isPortrait ? 'text-xs' : 'text-sm';
   const hudGapClass = isPortrait ? 'gap-3' : 'gap-5';
-  const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
+  const bottomHudLayoutClass = isPortrait ? 'justify-center px-2 w-full' : 'justify-center';
+  const bottomHudMinHeight = isPortrait
+    ? SPIN_CONTROL_DIAMETER_PX * (0.88 / 0.99)
+    : null;
   const playerPanelClass = isPortrait
     ? `flex min-w-0 items-center gap-2.5 rounded-full ${isPlayerTurn ? 'text-white' : 'text-white/80'}`
     : `flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
@@ -25567,43 +25589,6 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      <div
-        ref={leftControlsRef}
-        className={`pointer-events-none absolute left-0 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
-        style={{
-          bottom: `${28 + chromeUiLiftPx}px`,
-          transform: `scale(${uiScale * 1.06})`,
-          transformOrigin: 'bottom left'
-        }}
-      >
-        <button
-          type="button"
-          aria-pressed={isLookMode}
-          onClick={() => setIsLookMode((prev) => !prev)}
-          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-            isLookMode
-              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-          }`}
-        >
-          <span className="text-base">👁️</span>
-          <span>Look</span>
-        </button>
-        <button
-          type="button"
-          aria-pressed={isTopDownView}
-          onClick={() => setIsTopDownView((prev) => !prev)}
-          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-            isTopDownView
-              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-          }`}
-        >
-          <span className="text-base">🧭</span>
-          <span>{isTopDownView ? '3D' : '2D'}</span>
-        </button>
-      </div>
-
       {bottomHudVisible && (
         <div
           className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
@@ -25620,7 +25605,8 @@ const powerRef = useRef(hud.power);
             style={{
               transform: `scale(${bottomHudScale})`,
               transformOrigin: 'bottom center',
-              maxWidth: isPortrait ? 'min(28rem, 100%)' : 'min(34rem, 100%)'
+              maxWidth: isPortrait ? 'min(32rem, 100%)' : 'min(34rem, 100%)',
+              minHeight: bottomHudMinHeight ? `${bottomHudMinHeight}px` : undefined
             }}
           >
             <div
@@ -25749,6 +25735,43 @@ const powerRef = useRef(hud.power);
           />
         </div>
       )}
+
+      <div
+        ref={rightControlsRef}
+        className={`pointer-events-none absolute right-3 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        style={{
+          top: rightControlsTop ? `${rightControlsTop}px` : '50%',
+          transform: rightControlsTop ? `scale(${uiScale * 1.06})` : `translateY(-50%) scale(${uiScale * 1.06})`,
+          transformOrigin: 'top right'
+        }}
+      >
+        <button
+          type="button"
+          aria-pressed={isLookMode}
+          onClick={() => setIsLookMode((prev) => !prev)}
+          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+            isLookMode
+              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+          }`}
+        >
+          <span className="text-base">👁️</span>
+          <span>Look</span>
+        </button>
+        <button
+          type="button"
+          aria-pressed={isTopDownView}
+          onClick={() => setIsTopDownView((prev) => !prev)}
+          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+            isTopDownView
+              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+          }`}
+        >
+          <span className="text-base">🧭</span>
+          <span>{isTopDownView ? '3D' : '2D'}</span>
+        </button>
+      </div>
 
       {/* Spin controller */}
       {showSpinController && !replayActive && (
