@@ -4755,13 +4755,13 @@ const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.14; // let the cue view drop to the s
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0158; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0165; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0008;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.0006;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0013;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.0011;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -4831,8 +4831,8 @@ const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22); 
 const TOP_VIEW_RADIUS_SCALE = 1.26; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: -PLAY_W * 0.005, // bias the top view so the table sits a touch lower on screen
-  z: -PLAY_H * 0.004 // bias the top view so the table sits slightly more to the right
+  x: -PLAY_W * 0.015, // bias the top view so the table sits a touch higher on screen
+  z: -PLAY_H * 0.012 // bias the top view so the table sits slightly more to the left
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4853,7 +4853,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 0.9; // pull the broadcast overhead camera c
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.022; // tighten cue camera distance so the cue ball and object ball appear larger
+const CUE_VIEW_RADIUS_RATIO = 0.024; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -6050,7 +6050,7 @@ function resolveSwerveAimDir(
     (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
   const powerScale = 4 + powerStrength * 6;
   const swerveScale = 0.6 + swerve.intensity * 0.9;
-  const sideSpin = swerve.sideSpin;
+  const sideSpin = -swerve.sideSpin;
   const adjust =
     sideSpin *
     swerve.intensity *
@@ -6082,7 +6082,7 @@ function buildSwerveAimLinePoints(
     swerveActive,
     liftStrength
   );
-  const sideSpin = swerve.sideSpin;
+  const sideSpin = -swerve.sideSpin;
   const travel = start.distanceTo(end);
   if (swerve.intensity <= 0 || Math.abs(sideSpin) < 1e-3 || travel < 1e-4) {
     points.length = 2;
