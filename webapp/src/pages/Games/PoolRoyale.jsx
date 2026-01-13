@@ -24429,16 +24429,28 @@ const powerRef = useRef(hud.power);
     []
   );
   const spinRingLabels = useMemo(
-    () => [
-      { text: 'HIGH', left: 50, top: 6 },
-      { text: 'HIGH RIGHT', left: 78, top: 18 },
-      { text: 'RIGHT', left: 93, top: 50 },
-      { text: 'LOW RIGHT', left: 78, top: 82 },
-      { text: 'LOW', left: 50, top: 94 },
-      { text: 'LOW LEFT', left: 22, top: 82 },
-      { text: 'LEFT', left: 7, top: 50 },
-      { text: 'HIGH LEFT', left: 22, top: 18 }
-    ],
+    () => {
+      const radius = 72;
+      const labels = [
+        { text: 'HIGH', angle: -90 },
+        { text: 'HIGH RIGHT', angle: -45 },
+        { text: 'RIGHT', angle: 0 },
+        { text: 'LOW RIGHT', angle: 45 },
+        { text: 'LOW', angle: 90 },
+        { text: 'LOW LEFT', angle: 135 },
+        { text: 'LEFT', angle: 180 },
+        { text: 'HIGH LEFT', angle: 225 }
+      ];
+      return labels.map((label) => {
+        const radians = (label.angle * Math.PI) / 180;
+        return {
+          text: label.text,
+          left: 50 + Math.cos(radians) * radius,
+          top: 50 + Math.sin(radians) * radius,
+          rotation: label.angle + 90
+        };
+      });
+    },
     []
   );
 
@@ -24511,7 +24523,7 @@ const powerRef = useRef(hud.power);
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
       let ny = ((cy - rect.top) / rect.height) * 2 - 1;
-      setSpin(-nx, -ny);
+      setSpin(nx, -ny);
     };
 
     const scaleBox = (value) => {
@@ -25784,96 +25796,99 @@ const powerRef = useRef(hud.power);
         >
           <div
             id="spinBox"
-            className={`relative rounded-full shadow-lg border border-white/70 overflow-hidden ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
+            className={`relative rounded-full shadow-lg border border-white/70 ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
               height: `${SPIN_CONTROL_DIAMETER_PX}px`,
               background: `radial-gradient(circle at center, #fef6df 0 60%, #fef6df 60% 61%, #c81d25 61% 100%)`
             }}
           >
-            <div
-              className="absolute inset-0 rounded-full"
-              style={{
-                boxShadow:
-                  'inset 0 0 0 2px rgba(139,0,0,0.45), inset 0 10px 18px rgba(255,255,255,0.25)',
-                pointerEvents: 'none'
-              }}
-            />
-            <div
-              className="absolute inset-0 rounded-full"
-              style={{
-                boxShadow:
-                  'inset 0 0 0 2px rgba(255,255,255,0.7), inset 0 6px 12px rgba(255,255,255,0.25)',
-                pointerEvents: 'none'
-              }}
-            />
-            <div
-              className="absolute rounded-full"
-              style={{
-                inset: `${SPIN_RING_THICKNESS_PX}px`,
-                background: '#fef6df',
-                boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.6)',
-                pointerEvents: 'none'
-              }}
-            />
             {spinRingLabels.map((label) => (
               <span
                 key={`spin-label-${label.text}`}
-                className="absolute text-[9px] font-semibold uppercase tracking-[0.22em] text-red-900/90 drop-shadow-[0_1px_1px_rgba(255,255,255,0.65)]"
+                className="absolute z-10 text-[9px] font-semibold uppercase tracking-[0.22em] text-red-900/90 drop-shadow-[0_1px_1px_rgba(255,255,255,0.65)]"
                 style={{
                   left: `${label.left}%`,
                   top: `${label.top}%`,
-                  transform: 'translate(-50%, -50%)',
+                  transform: `translate(-50%, -50%) rotate(${label.rotation}deg)`,
+                  transformOrigin: 'center',
                   pointerEvents: 'none'
                 }}
               >
                 {label.text}
               </span>
             ))}
-            <div
-              className="absolute left-1/2 top-0 h-full w-[2px] bg-red-500/60"
-              style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}
-            />
-            <div
-              className="absolute top-1/2 left-0 h-[2px] w-full bg-red-500/60"
-              style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
-            />
-            <div
-              className="absolute rounded-full border-2 border-red-500/70"
-              style={{
-                width: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
-                height: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                pointerEvents: 'none'
-              }}
-            />
-            {spinDecorationPoints.map((point, index) => (
-              <span
-                key={`spin-deco-${index}`}
-                className="absolute rounded-full border-2 border-black/75"
+            <div className="absolute inset-0 rounded-full overflow-hidden">
+              <div
+                className="absolute inset-0 rounded-full"
                 style={{
-                  width: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
-                  height: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
-                  left: `${50 + point.x * SPIN_DECORATION_OFFSET_PERCENT}%`,
-                  top: `${50 + point.y * SPIN_DECORATION_OFFSET_PERCENT}%`,
-                  transform: 'translate(-50%, -50%)',
-                  background: 'rgba(255,255,255,0.4)',
+                  boxShadow:
+                    'inset 0 0 0 2px rgba(139,0,0,0.45), inset 0 10px 18px rgba(255,255,255,0.25)',
                   pointerEvents: 'none'
                 }}
               />
-            ))}
-            <div
-              id="spinDot"
-              className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-              style={{
-                width: `${SPIN_DOT_DIAMETER_PX}px`,
-                height: `${SPIN_DOT_DIAMETER_PX}px`,
-                left: '50%',
-                top: '50%'
-              }}
-            ></div>
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  boxShadow:
+                    'inset 0 0 0 2px rgba(255,255,255,0.7), inset 0 6px 12px rgba(255,255,255,0.25)',
+                  pointerEvents: 'none'
+                }}
+              />
+              <div
+                className="absolute rounded-full"
+                style={{
+                  inset: `${SPIN_RING_THICKNESS_PX}px`,
+                  background: '#fef6df',
+                  boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.6)',
+                  pointerEvents: 'none'
+                }}
+              />
+              <div
+                className="absolute left-1/2 top-0 h-full w-[2px] bg-red-500/60"
+                style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}
+              />
+              <div
+                className="absolute top-1/2 left-0 h-[2px] w-full bg-red-500/60"
+                style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
+              />
+              <div
+                className="absolute rounded-full border-2 border-red-500/70"
+                style={{
+                  width: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
+                  height: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  pointerEvents: 'none'
+                }}
+              />
+              {spinDecorationPoints.map((point, index) => (
+                <span
+                  key={`spin-deco-${index}`}
+                  className="absolute rounded-full border-2 border-black/75"
+                  style={{
+                    width: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
+                    height: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
+                    left: `${50 + point.x * SPIN_DECORATION_OFFSET_PERCENT}%`,
+                    top: `${50 + point.y * SPIN_DECORATION_OFFSET_PERCENT}%`,
+                    transform: 'translate(-50%, -50%)',
+                    background: 'rgba(255,255,255,0.4)',
+                    pointerEvents: 'none'
+                  }}
+                />
+              ))}
+              <div
+                id="spinDot"
+                className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                style={{
+                  width: `${SPIN_DOT_DIAMETER_PX}px`,
+                  height: `${SPIN_DOT_DIAMETER_PX}px`,
+                  left: '50%',
+                  top: '50%'
+                }}
+              ></div>
+            </div>
           </div>
         </div>
       )}
