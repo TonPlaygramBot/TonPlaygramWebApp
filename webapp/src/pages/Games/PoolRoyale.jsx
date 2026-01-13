@@ -1450,7 +1450,7 @@ const SIDE_SPIN_MULTIPLIER = 1.5;
 const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
-const SPIN_CONTROL_DIAMETER_PX = 138;
+const SPIN_CONTROL_DIAMETER_PX = 130;
 const SPIN_DOT_DIAMETER_PX = 16;
 const SPIN_RING_THICKNESS_PX = 14;
 const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
@@ -23299,7 +23299,7 @@ const powerRef = useRef(hud.power);
                 }
                 if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
                   const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
-                  const forwardMag = TMP_VEC2_SPIN.dot(launchDir);
+                  const forwardMag = Math.max(0, TMP_VEC2_SPIN.dot(launchDir));
                   TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
                   b.vel.add(TMP_VEC2_AXIS);
                   TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
@@ -24957,7 +24957,7 @@ const powerRef = useRef(hud.power);
       )}
 
       <div
-        className={`absolute top-4 left-4 z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute top-3 left-3 z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
       >
         <button
           ref={configButtonRef}
@@ -25565,7 +25565,7 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute left-3 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none absolute left-2 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
           bottom: `${16 + chromeUiLiftPx}px`,
           transform: `scale(${uiScale * 1.06})`,
@@ -25750,9 +25750,9 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute right-2 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          className={`absolute right-1 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${28 + chromeUiLiftPx}px`,
+            bottom: `${20 + chromeUiLiftPx}px`,
             transform: `scale(${uiScale})`,
             transformOrigin: 'bottom right'
           }}
