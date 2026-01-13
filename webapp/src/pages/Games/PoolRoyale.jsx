@@ -4759,8 +4759,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.016, // bias the top view so the table sits a touch lower on screen (portrait tuning)
-  z: PLAY_H * -0.012 // bias the top view so the table sits a touch to the right (portrait tuning)
+  x: PLAY_W * 0.022, // bias the top view so the table sits a touch lower on screen (portrait tuning)
+  z: PLAY_H * -0.018 // bias the top view so the table sits a touch to the right (portrait tuning)
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -18542,7 +18542,9 @@ const powerRef = useRef(hud.power);
         color: 0x7ce7ff,
         linewidth: AIM_LINE_WIDTH,
         transparent: true,
-        opacity: 0.9
+        opacity: 0.9,
+        depthTest: false,
+        depthWrite: false
       });
       const aimGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -18563,7 +18565,9 @@ const powerRef = useRef(hud.power);
           dashSize: AIM_DASH_SIZE * 0.9,
           gapSize: AIM_GAP_SIZE,
           transparent: true,
-          opacity: 0.45
+          opacity: 0.45,
+          depthTest: false,
+          depthWrite: false
         })
       );
       cueAfter.visible = false;
@@ -18574,7 +18578,11 @@ const powerRef = useRef(hud.power);
       ]);
       const tick = new THREE.Line(
         tickGeom,
-        new THREE.LineBasicMaterial({ color: 0xffffff })
+        new THREE.LineBasicMaterial({
+          color: 0xffffff,
+          depthTest: false,
+          depthWrite: false
+        })
       );
       tick.visible = false;
       table.add(tick);
@@ -18591,7 +18599,9 @@ const powerRef = useRef(hud.power);
           dashSize: AIM_DASH_SIZE,
           gapSize: AIM_GAP_SIZE,
           transparent: true,
-          opacity: 0.65
+          opacity: 0.65,
+          depthTest: false,
+          depthWrite: false
         })
       );
       target.visible = false;
@@ -24768,7 +24778,7 @@ const powerRef = useRef(hud.power);
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
   const bottomHudScale = isPortrait ? uiScale * 1.08 : uiScale * 1.12;
   const avatarSizeClass = isPortrait ? 'h-[2.6rem] w-[2.6rem]' : 'h-[3.5rem] w-[3.5rem]';
-  const nameWidthClass = isPortrait ? 'max-w-[8rem]' : 'max-w-[10rem]';
+  const nameWidthClass = isPortrait ? 'max-w-[9rem]' : 'max-w-[12rem]';
   const nameTextClass = isPortrait ? 'text-sm' : 'text-base';
   const hudGapClass = isPortrait ? 'gap-4' : 'gap-6';
   const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
@@ -25658,11 +25668,11 @@ const powerRef = useRef(hud.power);
           }}
         >
             <div
-              className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'pl-5 pr-7 py-2' : 'pl-6 pr-8 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
+              className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'pl-6 pr-8 py-2' : 'pl-7 pr-9 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
               style={{
                 transform: `scale(${bottomHudScale})`,
                 transformOrigin: 'bottom center',
-                maxWidth: isPortrait ? 'min(31rem, 100%)' : 'min(36rem, 100%)'
+                maxWidth: isPortrait ? 'min(34rem, 100%)' : 'min(40rem, 100%)'
               }}
             >
             <div
