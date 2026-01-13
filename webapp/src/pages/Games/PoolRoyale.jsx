@@ -1324,7 +1324,7 @@ const POCKET_VIEW_MAX_HOLD_MS = 3200;
 const SPIN_STRENGTH = BALL_R * 0.034;
 const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
-const BACKSPIN_ROLL_BOOST = 1.35;
+const BACKSPIN_ROLL_BOOST = 1.6;
 const SPIN_ROLL_DECAY = 0.983;
 const SPIN_AIR_DECAY = 0.995; // hold spin energy while the cue ball travels straight pre-impact
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
@@ -4752,14 +4752,14 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.15; // lift the top view slightly to keep both near pockets visible on portrait
+const TOP_VIEW_MARGIN = 1.12; // lift the top view slightly to keep both near pockets visible on portrait
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.26; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
+const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: -PLAY_W * 0.022, // bias the top view so the table sits higher on screen (match legacy portrait framing)
-  z: -PLAY_H * 0.018 // bias the top view so the table sits further to the left (match legacy portrait framing)
+  x: -PLAY_W * 0.026, // bias the top view so the table sits higher on screen (match legacy portrait framing)
+  z: -PLAY_H * 0.022 // bias the top view so the table sits further to the left (match legacy portrait framing)
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -5812,10 +5812,12 @@ function applySpinImpulse(ball, scale = 1) {
   const { forward, lateral, speed } = resolveSpinFrame(ball);
   const sideSpin = ball.spin.x || 0;
   const forwardSpin = ball.spin.y || 0;
+  const backspinBoost = forwardSpin < -1e-4 ? 1.55 : 1;
   const swerveScale = 0.8 + Math.min(speed, 8) * 0.15;
   const liftScale = 0.35 + Math.min(speed, 6) * 0.08;
   const lateralKick = sideSpin * SPIN_STRENGTH * swerveScale * scale;
-  const forwardKick = forwardSpin * SPIN_STRENGTH * liftScale * scale * 0.75;
+  const forwardKick =
+    forwardSpin * SPIN_STRENGTH * liftScale * scale * 0.75 * backspinBoost;
   if (Math.abs(lateralKick) > 1e-8) {
     ball.vel.addScaledVector(lateral, lateralKick);
   }
@@ -5855,7 +5857,8 @@ function applyRailSpinResponse(ball, impact) {
     ball.vel.addScaledVector(tangent, throwStrength);
   }
   ball.spin.copy(preImpactSpin);
-  applySpinImpulse(ball, 0.6);
+  const backspinBoost = ball.spin.y < -1e-4 ? 0.95 : 0.6;
+  applySpinImpulse(ball, backspinBoost);
 }
 
 function resolveSwerveSettings(
@@ -23550,7 +23553,8 @@ const powerRef = useRef(hud.power);
                 }
                 if (cueBall && cueBall.spin?.lengthSq() > 0) {
                   cueBall.impacted = true;
-                  applySpinImpulse(cueBall, 1.1);
+                  const backspinBoost = cueBall.spin.y < -1e-4 ? 1.55 : 1.1;
+                  applySpinImpulse(cueBall, backspinBoost);
                 }
               }
             }
@@ -24957,7 +24961,7 @@ const powerRef = useRef(hud.power);
       )}
 
       <div
-        className={`absolute top-3 left-3 z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute top-2 left-2 z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
       >
         <button
           ref={configButtonRef}
@@ -25565,9 +25569,9 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute left-2 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none absolute left-1 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          bottom: `${16 + chromeUiLiftPx}px`,
+          bottom: `${10 + chromeUiLiftPx}px`,
           transform: `scale(${uiScale * 1.06})`,
           transformOrigin: 'bottom left'
         }}
@@ -25605,7 +25609,7 @@ const powerRef = useRef(hud.power);
           className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive || replayActive}
           style={{
-            bottom: `${16 + chromeUiLiftPx}px`,
+            bottom: `${10 + chromeUiLiftPx}px`,
             left: hudInsets.left,
             right: hudInsets.right,
             transform: isPortrait ? `translateX(${bottomHudOffset}px)` : undefined
@@ -25750,10 +25754,10 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute right-1 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          className={`absolute right-0 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${20 + chromeUiLiftPx}px`,
-            transform: `scale(${uiScale})`,
+            bottom: `${12 + chromeUiLiftPx}px`,
+            transform: `scale(${uiScale * 0.92})`,
             transformOrigin: 'bottom right'
           }}
         >
