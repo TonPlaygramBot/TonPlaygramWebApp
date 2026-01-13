@@ -4758,8 +4758,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: -PLAY_W * 0.062, // bias the top view so the table sits higher on screen (match legacy portrait framing)
-  z: -PLAY_H * 0.06 // bias the top view so the table sits further to the left (match legacy portrait framing)
+  x: -PLAY_W * 0.052, // bias the top view so the table sits higher on screen (match legacy portrait framing)
+  z: -PLAY_H * 0.048 // bias the top view so the table sits further to the left (match legacy portrait framing)
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -25577,7 +25577,7 @@ const powerRef = useRef(hud.power);
         ref={leftControlsRef}
         className={`pointer-events-none absolute right-1 z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          bottom: `${SPIN_CONTROL_DIAMETER_PX - 12 + 8 + chromeUiLiftPx}px`,
+          bottom: `${SPIN_CONTROL_DIAMETER_PX + 8 + chromeUiLiftPx}px`,
           transform: `scale(${uiScale * 1.08})`,
           transformOrigin: 'bottom right'
         }}
