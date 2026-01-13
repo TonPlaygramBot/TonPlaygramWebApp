@@ -24490,7 +24490,7 @@ const powerRef = useRef(hud.power);
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
       let ny = ((cy - rect.top) / rect.height) * 2 - 1;
-      setSpin(-nx, -ny);
+      setSpin(nx, -ny);
     };
 
     const scaleBox = (value) => {
@@ -24961,7 +24961,7 @@ const powerRef = useRef(hud.power);
       )}
 
       <div
-        className={`absolute top-2 right-2 z-50 flex flex-col items-end gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute top-2 left-2 z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
       >
         <button
           ref={configButtonRef}
@@ -25569,9 +25569,9 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute left-0 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none absolute left-1 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          bottom: `${28 + chromeUiLiftPx}px`,
+          bottom: `${10 + chromeUiLiftPx}px`,
           transform: `scale(${uiScale * 1.06})`,
           transformOrigin: 'bottom left'
         }}
