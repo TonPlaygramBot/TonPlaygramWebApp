@@ -4759,8 +4759,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.012, // bias the top view so the table sits a touch lower on screen (portrait tuning)
-  z: PLAY_H * -0.006 // bias the top view so the table sits a touch to the right (portrait tuning)
+  x: PLAY_W * 0.016, // bias the top view so the table sits a touch lower on screen (portrait tuning)
+  z: PLAY_H * -0.012 // bias the top view so the table sits a touch to the right (portrait tuning)
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4879,7 +4879,7 @@ const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
 const PLAYER_PULLBACK_MIN_SCALE = 1.1;
 const MIN_PULLBACK_GAP = BALL_R * 0.5;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 60;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 40;
 const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
@@ -24975,27 +24975,31 @@ const powerRef = useRef(hud.power);
         </div>
       )}
       {replayActive && (
-        <div className="pointer-events-auto absolute right-4 top-1/2 z-50 flex -translate-y-1/2 items-center gap-2">
-          <div className="rounded-full border border-white/25 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
-            Replay
+        <>
+          <div className="pointer-events-none absolute right-4 top-4 z-50">
+            <div className="rounded-full border border-white/25 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
+              Replay
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={handleSkipReplayClick}
-            className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="h-4 w-4"
-              aria-hidden="true"
+          <div className="pointer-events-auto absolute right-4 top-1/2 z-50 flex -translate-y-1/2 items-center">
+            <button
+              type="button"
+              onClick={handleSkipReplayClick}
+              className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
             >
-              <path d="M4 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75A1 1 0 0 1 4 16.75zM12.5 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75a1 1 0 0 1-1.6-.8z" />
-            </svg>
-            <span className="sr-only">Skip replay</span>
-          </button>
-        </div>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="h-4 w-4"
+                aria-hidden="true"
+              >
+                <path d="M4 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75A1 1 0 0 1 4 16.75zM12.5 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75a1 1 0 0 1-1.6-.8z" />
+              </svg>
+              <span className="sr-only">Skip replay</span>
+            </button>
+          </div>
+        </>
       )}
 
       <div
@@ -25653,14 +25657,14 @@ const powerRef = useRef(hud.power);
             transform: isPortrait ? `translateX(${bottomHudOffset}px)` : undefined
           }}
         >
-          <div
-            className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'pl-5 pr-7 py-2' : 'pl-6 pr-8 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
-            style={{
-              transform: `scale(${bottomHudScale})`,
-              transformOrigin: 'bottom center',
-              maxWidth: isPortrait ? 'min(28rem, 100%)' : 'min(34rem, 100%)'
-            }}
-          >
+            <div
+              className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'pl-5 pr-7 py-2' : 'pl-6 pr-8 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
+              style={{
+                transform: `scale(${bottomHudScale})`,
+                transformOrigin: 'bottom center',
+                maxWidth: isPortrait ? 'min(31rem, 100%)' : 'min(36rem, 100%)'
+              }}
+            >
             <div
               className={playerPanelClass}
               style={playerPanelStyle}
