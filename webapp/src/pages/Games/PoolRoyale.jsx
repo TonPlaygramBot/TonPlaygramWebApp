@@ -4759,8 +4759,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.022, // bias the top view so the table sits higher on screen (match legacy portrait framing)
-  z: PLAY_H * 0.02 // bias the top view so the table sits further to the left (match legacy portrait framing)
+  x: PLAY_W * 0.012, // bias the top view so the table sits a touch lower on screen (portrait tuning)
+  z: PLAY_H * -0.006 // bias the top view so the table sits a touch to the right (portrait tuning)
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -11689,6 +11689,13 @@ const lastShotReminderRef = useRef({ A: 0, B: 0 });
 const [ruleToast, setRuleToast] = useState(null);
 const ruleToastTimeoutRef = useRef(null);
 const [replayActive, setReplayActive] = useState(false);
+const handleSkipReplayClick = useCallback(() => {
+  if (skipReplayRef.current) {
+    skipReplayRef.current();
+  } else {
+    setReplayActive(false);
+  }
+}, []);
 const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
 const [bottomHudOffset, setBottomHudOffset] = useState(0);
 const leftControlsRef = useRef(null);
@@ -24656,7 +24663,7 @@ const powerRef = useRef(hud.power);
     },
     [ballPreviewCache]
   );
-  const pottedTokenSize = isPortrait ? 24 : 26;
+  const pottedTokenSize = isPortrait ? 22 : 24;
   const pottedGap = isPortrait ? 8 : 10;
   const renderPottedRow = useCallback(
     (entries = []) => {
@@ -24855,8 +24862,6 @@ const powerRef = useRef(hud.power);
                   <span className="flex h-full w-full items-center justify-center text-4xl">🏆</span>
                 )}
               </div>
-              <div className="absolute inset-0 rounded-full border-4 border-amber-300/40 blur-sm" />
-              <div className="absolute inset-0 animate-ping rounded-full border-4 border-amber-200/60" />
             </div>
             <div className="text-3xl font-black uppercase tracking-[0.3em] text-amber-200 drop-shadow-[0_6px_18px_rgba(0,0,0,0.7)]">
               Winner
@@ -24970,13 +24975,13 @@ const powerRef = useRef(hud.power);
         </div>
       )}
       {replayActive && (
-        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+        <div className="pointer-events-auto absolute right-4 top-1/2 z-50 flex -translate-y-1/2 items-center gap-2">
           <div className="rounded-full border border-white/25 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
             Replay
           </div>
           <button
             type="button"
-            onClick={() => skipReplayRef.current?.()}
+            onClick={handleSkipReplayClick}
             className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
           >
             <svg
@@ -25803,21 +25808,6 @@ const powerRef = useRef(hud.power);
               background: `radial-gradient(circle at center, #fef6df 0 60%, #fef6df 60% 61%, #c81d25 61% 100%)`
             }}
           >
-            {spinRingLabels.map((label) => (
-              <span
-                key={`spin-label-${label.text}`}
-                className="absolute z-10 text-[9px] font-semibold uppercase tracking-[0.22em] text-red-900/90 drop-shadow-[0_1px_1px_rgba(255,255,255,0.65)]"
-                style={{
-                  left: `${label.left}%`,
-                  top: `${label.top}%`,
-                  transform: `translate(-50%, -50%) rotate(${label.rotation}deg)`,
-                  transformOrigin: 'center',
-                  pointerEvents: 'none'
-                }}
-              >
-                {label.text}
-              </span>
-            ))}
             <div className="absolute inset-0 rounded-full overflow-hidden">
               <div
                 className="absolute inset-0 rounded-full"
