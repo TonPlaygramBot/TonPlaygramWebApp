@@ -136,7 +136,7 @@ export class SnookerRoyalRules {
     const pottedColors = pottedNonCue.filter((color) => color !== 'RED');
 
     const freeBallActive = Boolean(state.freeBall || context.freeBall);
-    const nominatedFreeBall = freeBallActive ? nominatedBall ?? firstContact : null;
+    const nominatedFreeBall = freeBallActive ? nominatedBall ?? null : null;
     const freeBallPotted =
       freeBallActive &&
       nominatedFreeBall &&
@@ -145,8 +145,9 @@ export class SnookerRoyalRules {
       ? pottedColors.filter((color) => color !== nominatedFreeBall)
       : pottedColors;
 
-    const foulBallOn =
-      state.phase === 'REDS_AND_COLORS' && state.colorOnAfterRed && declaredBall
+    const foulBallOn = freeBallActive && nominatedFreeBall
+      ? [nominatedFreeBall]
+      : state.phase === 'REDS_AND_COLORS' && state.colorOnAfterRed && declaredBall
         ? [declaredBall]
         : ballOn;
     let foulReason: string | null = null;
@@ -157,10 +158,16 @@ export class SnookerRoyalRules {
     } else if (context.contactMade === false || !firstContact) {
       foulReason = 'no contact';
     } else if (ballOn.length && firstContact) {
-      const requiresNomination = state.phase === 'REDS_AND_COLORS' && state.colorOnAfterRed;
+      const requiresNomination =
+        freeBallActive ||
+        (state.phase === 'REDS_AND_COLORS' && state.colorOnAfterRed);
       if (requiresNomination && !nominatedBall) {
         foulReason = 'no nomination';
-      } else if (requiresNomination && declaredBall === 'RED') {
+      } else if (
+        state.phase === 'REDS_AND_COLORS' &&
+        state.colorOnAfterRed &&
+        declaredBall === 'RED'
+      ) {
         foulReason = 'invalid nomination';
       }
       const targetBall = state.phase === 'COLORS_ORDER' ? ballOn[0] : null;
