@@ -1405,15 +1405,15 @@ const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned wi
 const CUE_TIP_CLEARANCE = BALL_R * 0.22; // widen the visible air gap so the blue tip never kisses the cue ball
 const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
-const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
+const CUE_PULL_MIN_VISUAL = BALL_R * 2.1; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_MULTIPLIER = 1.7;
+const CUE_PULL_VISUAL_MULTIPLIER = 1.85;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.18; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_STROKE_MIN_MS = 95;
 const CUE_STROKE_MAX_MS = 420;
 const CUE_STROKE_SPEED_MIN = BALL_R * 18;
@@ -4688,8 +4688,8 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0013;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.0011;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.995;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.993;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -4759,8 +4759,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.022, // bias the top view so the table sits a touch lower on screen (portrait tuning)
-  z: PLAY_H * -0.018 // bias the top view so the table sits a touch to the right (portrait tuning)
+  x: PLAY_W * 0.03, // bias the top view so the table sits a touch lower on screen (portrait tuning)
+  z: PLAY_H * -0.026 // bias the top view so the table sits a touch to the right (portrait tuning)
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4781,7 +4781,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 0.9; // pull the broadcast overhead camera c
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.024; // tighten cue camera distance so the cue ball and object ball appear larger
+const CUE_VIEW_RADIUS_RATIO = 0.0225; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -4870,14 +4870,14 @@ const AI_CAMERA_DROP_BLEND = 0.65;
 const AI_STROKE_TIME_SCALE = 1.35;
 const AI_STROKE_PULLBACK_FACTOR = 1.05;
 const AI_CUE_PULL_VISIBILITY_BOOST = 1.34;
-const AI_WARMUP_PULL_RATIO = 0.62;
+const AI_WARMUP_PULL_RATIO = 0.55;
 const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.32;
-const PLAYER_WARMUP_PULL_RATIO = 0.72;
+const PLAYER_WARMUP_PULL_RATIO = 0.62;
 const PLAYER_STROKE_TIME_SCALE = 1.28;
 const PLAYER_FORWARD_SLOWDOWN = 1.2;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
 const PLAYER_PULLBACK_MIN_SCALE = 1.1;
-const MIN_PULLBACK_GAP = BALL_R * 0.5;
+const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 40;
 const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
@@ -21747,11 +21747,38 @@ const powerRef = useRef(hud.power);
           userSuggestionPlanRef.current = plan;
           const summary = summarizePlan(plan);
           userSuggestionRef.current = summary;
+          const resolvePlayerAimTarget = (dir) => {
+            if (!dir || !cue?.pos) return dir;
+            const normalized = dir.clone().normalize();
+            const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
+            const activeBalls = Array.isArray(ballsList)
+              ? ballsList.filter((ball) => ball?.active && String(ball.id) !== 'cue')
+              : [];
+            if (activeBalls.length === 0) return normalized;
+            const contact = calcTarget(cue, normalized, activeBalls);
+            if (contact?.targetBall) return normalized;
+            const autoDir = resolveAutoAimDirection();
+            if (autoDir && autoDir.lengthSq() > 1e-6) return autoDir.clone().normalize();
+            const cuePos = new THREE.Vector2(cue.pos.x, cue.pos.y);
+            const nearestBall = activeBalls.reduce((best, ball) => {
+              if (!ball?.pos) return best;
+              if (!best) return ball;
+              const bestDist = cuePos.distanceToSquared(best.pos);
+              const dist = cuePos.distanceToSquared(ball.pos);
+              return dist < bestDist ? ball : best;
+            }, null);
+            if (!nearestBall) return normalized;
+            const fallbackDir = new THREE.Vector2(
+              nearestBall.pos.x - cuePos.x,
+              nearestBall.pos.y - cuePos.y
+            );
+            return fallbackDir.lengthSq() > 1e-6 ? fallbackDir.normalize() : normalized;
+          };
           const applyAimDirection = (dir, key = null) => {
             if (!dir || typeof dir.lengthSq !== 'function' || dir.lengthSq() <= 1e-6) {
               return false;
             }
-            const normalized = dir.clone().normalize();
+            const normalized = resolvePlayerAimTarget(dir);
             aimDirRef.current.copy(normalized);
             alignStandingCameraToAim(cue, normalized);
             autoAimRequestRef.current = false;
