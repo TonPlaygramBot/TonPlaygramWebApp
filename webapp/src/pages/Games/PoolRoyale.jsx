@@ -4759,8 +4759,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.015, // bias the top view upward slightly on portrait displays
-  z: PLAY_H * -0.04 // bias the top view a touch further right on portrait displays
+  x: PLAY_W * 0.03, // bias the top view so the table sits a touch lower on screen (portrait tuning)
+  z: PLAY_H * -0.026 // bias the top view so the table sits a touch to the right (portrait tuning)
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -10523,7 +10523,7 @@ function PoolRoyaleGame({
     return DEFAULT_FRAME_RATE_ID;
   });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
-  const initialTableSlot = 0;
+  const initialTableSlot = environmentHdriId === 'musicHall02' ? 1 : 0;
   const [activeTableSlot, setActiveTableSlot] = useState(initialTableSlot);
   const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
   const [secondaryTableReady, setSecondaryTableReady] = useState(false);
@@ -10682,7 +10682,10 @@ function PoolRoyaleGame({
     },
     [environmentHdriId, resolvedHdriResolution]
   );
-  const dualTablesEnabled = useMemo(() => false, []);
+  const dualTablesEnabled = useMemo(
+    () => environmentHdriId === 'musicHall02',
+    [environmentHdriId]
+  );
   const activePocketLinerOption = useMemo(
     () =>
       availablePocketLiners.find((opt) => opt?.id === pocketLinerId) ??
@@ -17500,7 +17503,11 @@ const powerRef = useRef(hud.power);
         const registerInteraction = () => {
           lastInteraction = performance.now();
         };
-        const resolveUserCueLift = () => 0;
+        const resolveUserCueLift = () => {
+          const lift = cueLiftRef.current?.lift ?? 0;
+          if (!Number.isFinite(lift)) return 0;
+          return THREE.MathUtils.clamp(lift, 0, CUE_LIFT_MAX_TILT);
+        };
         const attemptChalkPress = (ev) => {
           const meshes = chalkMeshesRef.current;
           if (!meshes || meshes.length === 0) return false;
@@ -17533,7 +17540,37 @@ const powerRef = useRef(hud.power);
           toggleChalkAssist(hit.userData?.chalkIndex ?? null);
           return true;
         };
-        const attemptCueLiftPress = () => false;
+        const attemptCueLiftPress = (ev) => {
+          if (!cueStick?.visible) return false;
+          if (shooting || (hudRef.current?.inHand ?? false)) return false;
+          if (ev.touches?.length && ev.touches.length > 1) return false;
+          if (ev?.button !== undefined && ev.button !== 0) return false;
+          const rect = dom.getBoundingClientRect();
+          const clientX = ev.clientX ?? ev.touches?.[0]?.clientX;
+          const clientY = ev.clientY ?? ev.touches?.[0]?.clientY;
+          if (clientX == null || clientY == null) return false;
+          if (
+            clientX < rect.left ||
+            clientX > rect.right ||
+            clientY < rect.top ||
+            clientY > rect.bottom
+          ) {
+            return false;
+          }
+          const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
+          const ny = -(((clientY - rect.top) / rect.height) * 2 - 1);
+          pointer.set(nx, ny);
+          const currentCamera = activeRenderCameraRef.current ?? camera;
+          ray.setFromCamera(pointer, currentCamera);
+          const intersects = ray.intersectObject(cueStick, true);
+          if (intersects.length === 0) return false;
+          const liftState = cueLiftRef.current;
+          liftState.active = true;
+          liftState.moved = false;
+          liftState.startY = clientY;
+          liftState.startLift = resolveUserCueLift();
+          return true;
+        };
         const down = (e) => {
           if (replayPlaybackRef.current) return;
           registerInteraction();
@@ -18028,6 +18065,14 @@ const powerRef = useRef(hud.power);
       const buildSecondaryDecor = () => buildDecorGroup({ table: secondaryTableRef.current, variant: 'pool' });
       const refreshSecondaryDecor = () => {
         disposeSecondaryDecor();
+        if (environmentHdriRef.current !== 'musicHall02') return;
+        const decor = buildSecondaryDecor();
+        if (decor?.group) {
+          secondaryTableDecorRef.current = {
+            group: decor.group,
+            dispose: decor.dispose
+          };
+        }
       };
       refreshSecondaryTableDecorRef.current = refreshSecondaryDecor;
       clearSecondaryTableDecorRef.current = disposeSecondaryDecor;
@@ -18040,7 +18085,7 @@ const powerRef = useRef(hud.power);
         secondary.position.set(0, secondary.position.y, targetZ);
       };
       applyTableSlotRef.current = applySecondarySlot;
-      applySecondarySlot(activeTableSlotRef.current, dualTablesEnabled);
+      applySecondarySlot(activeTableSlotRef.current, environmentHdriRef.current === 'musicHall02');
       refreshSecondaryDecor();
       const disposeDecorativeTables = () => {
         decorativeTablesRef.current.forEach((entry) => {
@@ -18109,14 +18154,6 @@ const powerRef = useRef(hud.power);
       };
       const layoutDecorativeTables = (environmentId = environmentHdriRef.current) => {
         disposeDecorativeTables();
-        if (
-          environmentId === 'dancingHall' ||
-          environmentId === 'abandonedHall' ||
-          environmentId === 'oldHall' ||
-          environmentId === 'musicHall02'
-        ) {
-          return;
-        }
         const spacing = resolveSecondarySpacing(environmentId);
         const tableFootprint = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE;
         const placementMargin = Math.max(tableFootprint * 0.6, arenaMargin);
@@ -19733,9 +19770,6 @@ const powerRef = useRef(hud.power);
         if (aiOpponentEnabled && currentHud?.turn === 1) {
           aiTurnShotCountRef.current += 1;
         }
-        if (chalkAssistEnabledRef.current || activeChalkIndexRef.current !== null) {
-          toggleChalkAssist(null);
-        }
         const shotStartTime = performance.now();
         const forcedCueView = aiShotCueViewRef.current;
         setAiShotCueViewActive(false);
@@ -19917,6 +19951,63 @@ const powerRef = useRef(hud.power);
             actionView.smoothedPos = cameraRef.current.position.clone();
             const storedTarget = lastCameraTargetRef.current?.clone();
             if (storedTarget) actionView.smoothedTarget = storedTarget;
+          }
+          let pocketViewActivated = false;
+          if (earlyPocketView && !isMaxPowerShot) {
+            const now = performance.now();
+            earlyPocketView.lastUpdate = now;
+            if (cameraRef.current) {
+              const cam = cameraRef.current;
+              earlyPocketView.smoothedPos = cam.position.clone();
+              const storedTarget = lastCameraTargetRef.current?.clone();
+              if (storedTarget) {
+                earlyPocketView.smoothedTarget = storedTarget;
+              }
+            }
+            if (actionView) {
+              earlyPocketView.resumeAction = actionView;
+              suspendedActionView = actionView;
+            } else {
+              suspendedActionView = null;
+            }
+            const holdUntil = powerImpactHoldRef.current || 0;
+            const holdActive = holdUntil > performance.now();
+            if (holdUntil > 0) {
+              const baseDelay = earlyPocketView.activationDelay ?? 0;
+              earlyPocketView.activationDelay = Math.max(baseDelay, holdUntil);
+            }
+            earlyPocketView.pendingActivation = holdActive;
+            if (holdActive) {
+              queuedPocketView = earlyPocketView;
+              pocketViewActivated = true;
+            } else {
+              queuedPocketView = null;
+              updatePocketCameraState(true);
+              activeShotView = earlyPocketView;
+              pocketViewActivated = true;
+            }
+          }
+          if (!pocketViewActivated && actionView) {
+            const shouldActivateActionView =
+              (!isLongShot || forceActionActivation) && !isMaxPowerShot;
+            const holdUntil = powerImpactHoldRef.current || 0;
+            const holdActive = holdUntil > performance.now();
+            if (shouldActivateActionView && !holdActive) {
+              suspendedActionView = null;
+              activeShotView = actionView;
+              updateCamera();
+            } else {
+              actionView.pendingActivation = true;
+              const baseDelay = actionView.activationDelay ?? null;
+              const delayed = Math.max(baseDelay ?? 0, holdUntil ?? 0);
+              actionView.activationDelay = delayed > 0 ? delayed : null;
+              const baseTravel = actionView.activationTravel ?? 0;
+              actionView.activationTravel = Math.max(
+                baseTravel,
+                isMaxPowerShot ? BALL_R * 6 : 0
+              );
+              suspendedActionView = actionView;
+            }
           }
           const appliedSpin = applySpinConstraints(aimDir, true);
           const liftAngle = resolveUserCueLift();
@@ -20158,57 +20249,31 @@ const powerRef = useRef(hud.power);
           );
           const holdUntil = powerImpactHoldRef.current || 0;
           const holdActive = holdUntil > performance.now();
-          let pocketViewActivated = false;
-          if (earlyPocketView && !isMaxPowerShot) {
-            const now = performance.now();
-            earlyPocketView.lastUpdate = now;
-            if (cameraRef.current) {
-              const cam = cameraRef.current;
-              earlyPocketView.smoothedPos = cam.position.clone();
-              const storedTarget = lastCameraTargetRef.current?.clone();
-              if (storedTarget) {
-                earlyPocketView.smoothedTarget = storedTarget;
-              }
-            }
-            if (actionView) {
-              earlyPocketView.resumeAction = actionView;
-              suspendedActionView = actionView;
-            } else {
-              suspendedActionView = null;
-            }
-            if (holdUntil > 0) {
-              const baseDelay = earlyPocketView.activationDelay ?? 0;
-              earlyPocketView.activationDelay = Math.max(baseDelay, holdUntil);
-            }
-            earlyPocketView.pendingActivation = holdActive;
-            if (holdActive) {
-              queuedPocketView = earlyPocketView;
-              pocketViewActivated = true;
-            } else {
-              queuedPocketView = null;
-              updatePocketCameraState(true);
-              activeShotView = earlyPocketView;
-              pocketViewActivated = true;
-            }
-          }
-          if (!pocketViewActivated && actionView) {
-            const shouldActivateActionView =
-              (!isLongShot || forceActionActivation) && !isMaxPowerShot;
-            if (shouldActivateActionView && !holdActive) {
-              suspendedActionView = null;
-              activeShotView = actionView;
-              updateCamera();
-            } else {
-              actionView.pendingActivation = true;
-              const baseDelay = actionView.activationDelay ?? null;
-              const delayed = Math.max(baseDelay ?? 0, holdUntil ?? 0);
-              actionView.activationDelay = delayed > 0 ? delayed : null;
-              const baseTravel = actionView.activationTravel ?? 0;
-              actionView.activationTravel = Math.max(
-                baseTravel,
-                isMaxPowerShot ? BALL_R * 6 : 0
+          if (holdActive) {
+            if (activeShotView?.mode === 'pocket') {
+              queuedPocketView = activeShotView;
+              queuedPocketView.pendingActivation = true;
+              queuedPocketView.activationDelay = Math.max(
+                queuedPocketView.activationDelay ?? 0,
+                holdUntil
               );
-              suspendedActionView = actionView;
+              activeShotView = null;
+              updatePocketCameraState(false);
+            } else if (queuedPocketView) {
+              queuedPocketView.pendingActivation = true;
+              queuedPocketView.activationDelay = Math.max(
+                queuedPocketView.activationDelay ?? 0,
+                holdUntil
+              );
+            }
+            if (activeShotView?.mode === 'action') {
+              suspendedActionView = activeShotView;
+              activeShotView = null;
+            }
+            if (suspendedActionView?.mode === 'action') {
+              suspendedActionView.pendingActivation = true;
+              const baseDelay = suspendedActionView.activationDelay ?? 0;
+              suspendedActionView.activationDelay = Math.max(baseDelay, holdUntil);
             }
           }
           if (shotRecording) {
@@ -21762,7 +21827,7 @@ const powerRef = useRef(hud.power);
               return;
             }
           }
-          if (plan?.targetBall && cue?.pos) {
+          if (plan?.targetBall && plan?.viaCushion && cue?.pos) {
             const directDir = new THREE.Vector2(
               plan.targetBall.pos.x - cue.pos.x,
               plan.targetBall.pos.y - cue.pos.y
