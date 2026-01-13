@@ -4758,8 +4758,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: -PLAY_W * 0.05, // bias the top view so the table sits higher on screen (match legacy portrait framing)
-  z: -PLAY_H * 0.045 // bias the top view so the table sits further to the left (match legacy portrait framing)
+  x: -PLAY_W * 0.04, // bias the top view so the table sits higher on screen (match legacy portrait framing)
+  z: -PLAY_H * 0.035 // bias the top view so the table sits further to the left (match legacy portrait framing)
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4878,7 +4878,7 @@ const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
 const PLAYER_PULLBACK_MIN_SCALE = 1.1;
 const MIN_PULLBACK_GAP = BALL_R * 0.5;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 48;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 60;
 const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
@@ -24338,8 +24338,8 @@ const powerRef = useRef(hud.power);
       : uiScale * 24;
       const rightInset =
       (spinBox?.width ?? fallbackSpinWidth) +
-      uiScale * 26 +
-      8;
+      uiScale * 32 +
+      12;
       setHudInsets({
       left: `${leftInset}px`,
       right: `${rightInset}px`
@@ -25575,9 +25575,9 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute right-1 z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none absolute right-2 z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          bottom: `${SPIN_CONTROL_DIAMETER_PX + 8 + chromeUiLiftPx}px`,
+          bottom: `${SPIN_CONTROL_DIAMETER_PX + 16 + chromeUiLiftPx}px`,
           transform: `scale(${uiScale * 1.08})`,
           transformOrigin: 'bottom right'
         }}
@@ -25762,7 +25762,7 @@ const powerRef = useRef(hud.power);
           ref={spinBoxRef}
           className={`absolute right-2 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${8 + chromeUiLiftPx}px`,
+            bottom: `${12 + chromeUiLiftPx}px`,
             transform: `scale(${uiScale * 0.88})`,
             transformOrigin: 'bottom right'
           }}
