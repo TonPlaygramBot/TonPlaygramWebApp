@@ -4759,9 +4759,15 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.03, // bias the top view so the table sits a touch lower on screen (portrait tuning)
-  z: PLAY_H * -0.026 // bias the top view so the table sits a touch to the right (portrait tuning)
+  x: PLAY_W * 0.012, // bias the top view so the table sits a touch lower on screen (portrait tuning)
+  z: PLAY_H * -0.04 // bias the top view so the table sits a touch to the right (portrait tuning)
 });
+const HDRI_DECOR_TABLE_BLACKLIST = new Set([
+  'dancingHall',
+  'abandonedHall',
+  'oldHall',
+  'musicHall02'
+]);
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
 const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI; // align broadcast overhead with the 2D top-view angle
@@ -10523,7 +10529,10 @@ function PoolRoyaleGame({
     return DEFAULT_FRAME_RATE_ID;
   });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
-  const initialTableSlot = environmentHdriId === 'musicHall02' ? 1 : 0;
+  const initialTableSlot =
+    environmentHdriId === 'musicHall02' && !HDRI_DECOR_TABLE_BLACKLIST.has(environmentHdriId)
+      ? 1
+      : 0;
   const [activeTableSlot, setActiveTableSlot] = useState(initialTableSlot);
   const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
   const [secondaryTableReady, setSecondaryTableReady] = useState(false);
@@ -10682,9 +10691,13 @@ function PoolRoyaleGame({
     },
     [environmentHdriId, resolvedHdriResolution]
   );
-  const dualTablesEnabled = useMemo(
-    () => environmentHdriId === 'musicHall02',
+  const decorTablesDisabled = useMemo(
+    () => HDRI_DECOR_TABLE_BLACKLIST.has(environmentHdriId),
     [environmentHdriId]
+  );
+  const dualTablesEnabled = useMemo(
+    () => environmentHdriId === 'musicHall02' && !decorTablesDisabled,
+    [environmentHdriId, decorTablesDisabled]
   );
   const activePocketLinerOption = useMemo(
     () =>
@@ -11326,6 +11339,18 @@ function PoolRoyaleGame({
     },
     [highlightChalks]
   );
+  const clearChalkAssist = useCallback(() => {
+    if (activeChalkIndexRef.current === null && !chalkAssistEnabledRef.current) {
+      return;
+    }
+    activeChalkIndexRef.current = null;
+    setActiveChalkIndex(null);
+    chalkAssistEnabledRef.current = false;
+    chalkAssistTargetRef.current = false;
+    const area = chalkAreaRef.current;
+    if (area) area.visible = false;
+    highlightChalks(null, visibleChalkIndexRef.current);
+  }, [highlightChalks]);
   const tableSizeRef = useRef(responsiveTableSize);
   useEffect(() => {
     tableSizeRef.current = responsiveTableSize;
@@ -17503,11 +17528,7 @@ const powerRef = useRef(hud.power);
         const registerInteraction = () => {
           lastInteraction = performance.now();
         };
-        const resolveUserCueLift = () => {
-          const lift = cueLiftRef.current?.lift ?? 0;
-          if (!Number.isFinite(lift)) return 0;
-          return THREE.MathUtils.clamp(lift, 0, CUE_LIFT_MAX_TILT);
-        };
+        const resolveUserCueLift = () => 0;
         const attemptChalkPress = (ev) => {
           const meshes = chalkMeshesRef.current;
           if (!meshes || meshes.length === 0) return false;
@@ -17540,37 +17561,7 @@ const powerRef = useRef(hud.power);
           toggleChalkAssist(hit.userData?.chalkIndex ?? null);
           return true;
         };
-        const attemptCueLiftPress = (ev) => {
-          if (!cueStick?.visible) return false;
-          if (shooting || (hudRef.current?.inHand ?? false)) return false;
-          if (ev.touches?.length && ev.touches.length > 1) return false;
-          if (ev?.button !== undefined && ev.button !== 0) return false;
-          const rect = dom.getBoundingClientRect();
-          const clientX = ev.clientX ?? ev.touches?.[0]?.clientX;
-          const clientY = ev.clientY ?? ev.touches?.[0]?.clientY;
-          if (clientX == null || clientY == null) return false;
-          if (
-            clientX < rect.left ||
-            clientX > rect.right ||
-            clientY < rect.top ||
-            clientY > rect.bottom
-          ) {
-            return false;
-          }
-          const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
-          const ny = -(((clientY - rect.top) / rect.height) * 2 - 1);
-          pointer.set(nx, ny);
-          const currentCamera = activeRenderCameraRef.current ?? camera;
-          ray.setFromCamera(pointer, currentCamera);
-          const intersects = ray.intersectObject(cueStick, true);
-          if (intersects.length === 0) return false;
-          const liftState = cueLiftRef.current;
-          liftState.active = true;
-          liftState.moved = false;
-          liftState.startY = clientY;
-          liftState.startLift = resolveUserCueLift();
-          return true;
-        };
+        const attemptCueLiftPress = () => false;
         const down = (e) => {
           if (replayPlaybackRef.current) return;
           registerInteraction();
@@ -18065,7 +18056,12 @@ const powerRef = useRef(hud.power);
       const buildSecondaryDecor = () => buildDecorGroup({ table: secondaryTableRef.current, variant: 'pool' });
       const refreshSecondaryDecor = () => {
         disposeSecondaryDecor();
-        if (environmentHdriRef.current !== 'musicHall02') return;
+        if (
+          environmentHdriRef.current !== 'musicHall02' ||
+          HDRI_DECOR_TABLE_BLACKLIST.has(environmentHdriRef.current)
+        ) {
+          return;
+        }
         const decor = buildSecondaryDecor();
         if (decor?.group) {
           secondaryTableDecorRef.current = {
@@ -18079,13 +18075,18 @@ const powerRef = useRef(hud.power);
       const applySecondarySlot = (slotIndex = 0, enabled = false) => {
         const secondary = secondaryTableRef.current;
         if (!secondary) return;
-        secondary.visible = enabled;
+        const allowSecondary =
+          enabled && !HDRI_DECOR_TABLE_BLACKLIST.has(environmentHdriRef.current);
+        secondary.visible = allowSecondary;
         const spacing = resolveSecondarySpacing(environmentHdriRef.current);
-        const targetZ = enabled ? (slotIndex === 0 ? -spacing : spacing) : 0;
+        const targetZ = allowSecondary ? (slotIndex === 0 ? -spacing : spacing) : 0;
         secondary.position.set(0, secondary.position.y, targetZ);
       };
       applyTableSlotRef.current = applySecondarySlot;
-      applySecondarySlot(activeTableSlotRef.current, environmentHdriRef.current === 'musicHall02');
+      applySecondarySlot(
+        activeTableSlotRef.current,
+        environmentHdriRef.current === 'musicHall02'
+      );
       refreshSecondaryDecor();
       const disposeDecorativeTables = () => {
         decorativeTablesRef.current.forEach((entry) => {
@@ -18154,6 +18155,7 @@ const powerRef = useRef(hud.power);
       };
       const layoutDecorativeTables = (environmentId = environmentHdriRef.current) => {
         disposeDecorativeTables();
+        if (HDRI_DECOR_TABLE_BLACKLIST.has(environmentId)) return;
         const spacing = resolveSecondarySpacing(environmentId);
         const tableFootprint = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE;
         const placementMargin = Math.max(tableFootprint * 0.6, arenaMargin);
@@ -18184,10 +18186,7 @@ const powerRef = useRef(hud.power);
             scale: { x: snookerDecorScale, y: 1, z: snookerDecorScale }
           });
         };
-        if (
-          environmentId === 'oldHall' ||
-          environmentId === 'emptyPlayRoom'
-        ) {
+        if (environmentId === 'emptyPlayRoom') {
           placeSideLayout();
         } else if (environmentId === 'mirroredHall') {
           const lateralSpacing = clampX(spacing * 0.6);
@@ -19796,6 +19795,7 @@ const powerRef = useRef(hud.power);
           cushionAfterContact: false
         };
         setShootingState(true);
+        clearChalkAssist();
         powerImpactHoldRef.current = Math.max(
           powerImpactHoldRef.current || 0,
           shotStartTime + CAMERA_SWITCH_MIN_HOLD_MS
@@ -19852,11 +19852,65 @@ const powerRef = useRef(hud.power);
           lastPocketBallRef.current = null;
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           lastShotPower = clampedPower;
+          const isAiStroke = aiOpponentEnabled && hudRef.current?.turn === 1;
+          const appliedSpin = applySpinConstraints(aimDir, true);
+          const liftAngle = resolveUserCueLift();
+          const ranges = spinRangeRef.current || {};
+          const aimDirVec3 = new THREE.Vector3(aimDir.x, 0, aimDir.y);
+          if (aimDirVec3.lengthSq() < 1e-8) aimDirVec3.set(0, 0, 1);
+          aimDirVec3.normalize();
+          const backInfo = calcTarget(
+            cue,
+            aimDir.clone().multiplyScalar(-1),
+            balls
+          );
+          const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
+          const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
+          const pullVisibilityBoost = isAiStroke
+            ? AI_CUE_PULL_VISIBILITY_BOOST
+            : PLAYER_CUE_PULL_VISIBILITY_BOOST;
+          const pullTarget =
+            computePullTargetFromPower(clampedPower, maxPull) * pullVisibilityBoost;
+          const pull = computeCuePull(pullTarget, maxPull, {
+            instant: true,
+            preserveLarger: true
+          });
+          const visualPull = applyVisualPullCompensation(pull, aimDirVec3);
+          const strokeDistance = Math.max(visualPull, CUE_PULL_MIN_VISUAL);
+          const forwardSpeed = THREE.MathUtils.lerp(
+            CUE_STROKE_SPEED_MIN,
+            CUE_STROKE_SPEED_MAX,
+            clampedPower
+          );
+          const forwardDurationBase = THREE.MathUtils.clamp(
+            (strokeDistance / Math.max(forwardSpeed, 1e-4)) * 1000,
+            CUE_STROKE_MIN_MS,
+            CUE_STROKE_MAX_MS
+          );
+          const aiStrokeScale = isAiStroke ? AI_STROKE_TIME_SCALE : 1;
+          const playerStrokeScale = isAiStroke ? 1 : PLAYER_STROKE_TIME_SCALE;
+          const playerForwardScale = isAiStroke ? 1 : PLAYER_FORWARD_SLOWDOWN;
+          const forwardDuration = isAiStroke
+            ? AI_CUE_FORWARD_DURATION_MS
+            : forwardDurationBase * aiStrokeScale * playerStrokeScale * playerForwardScale;
+          const pullbackDuration = isAiStroke
+            ? AI_CUE_PULLBACK_DURATION_MS
+            : Math.max(
+                CUE_STROKE_MIN_MS * PLAYER_PULLBACK_MIN_SCALE,
+                forwardDuration * PLAYER_STROKE_PULLBACK_FACTOR
+              );
+          powerImpactHoldRef.current = Math.max(
+            powerImpactHoldRef.current || 0,
+            shotStartTime + pullbackDuration + forwardDuration
+          );
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
-          powerImpactHoldRef.current = isMaxPowerShot
-            ? performance.now() + MAX_POWER_CAMERA_HOLD_MS
-            : 0;
-          if (aiOpponentEnabled && hudRef.current?.turn === 1) {
+          if (isMaxPowerShot) {
+            powerImpactHoldRef.current = Math.max(
+              powerImpactHoldRef.current || 0,
+              performance.now() + MAX_POWER_CAMERA_HOLD_MS
+            );
+          }
+          if (isAiStroke) {
             powerImpactHoldRef.current = Math.max(
               powerImpactHoldRef.current || 0,
               performance.now() + AI_POST_SHOT_CAMERA_HOLD_MS
@@ -20009,11 +20063,8 @@ const powerRef = useRef(hud.power);
               suspendedActionView = actionView;
             }
           }
-          const appliedSpin = applySpinConstraints(aimDir, true);
-          const liftAngle = resolveUserCueLift();
           const liftStrength = normalizeCueLift(liftAngle);
           const physicsSpin = mapSpinForPhysics(appliedSpin);
-          const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
           const baseSide = physicsSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
@@ -20117,7 +20168,6 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          const isAiStroke = aiOpponentEnabled && hudRef.current?.turn === 1;
           const pullVisibilityBoost = isAiStroke
             ? AI_CUE_PULL_VISIBILITY_BOOST
             : PLAYER_CUE_PULL_VISIBILITY_BOOST;
@@ -21810,8 +21860,20 @@ const powerRef = useRef(hud.power);
             );
             return applyAimDirection(dir, null);
           };
+          const applyDirectTargetAim = () => {
+            if (!plan?.targetBall || !cue?.pos) return false;
+            const directDir = new THREE.Vector2(
+              plan.targetBall.pos.x - cue.pos.x,
+              plan.targetBall.pos.y - cue.pos.y
+            );
+            if (directDir.lengthSq() < 1e-6) return false;
+            return applyAimDirection(directDir, summary?.key ?? null);
+          };
           const preferAutoAim = autoAimRequestRef.current;
           if (preferAutoAim) {
+            if (applyDirectTargetAim()) {
+              return;
+            }
             let autoDir = resolveAutoAimDirection();
             if (!autoDir && plan?.targetBall && cue?.pos) {
               const manualDir = new THREE.Vector2(
@@ -21843,7 +21905,9 @@ const powerRef = useRef(hud.power);
           } else {
             suggestionAimKeyRef.current = null;
           }
-          applyAutoAimFallback();
+          if (!applyDirectTargetAim()) {
+            applyAutoAimFallback();
+          }
         };
         stopAiThinkingRef.current = stopAiThinking;
         startAiThinkingRef.current = startAiThinking;
@@ -22374,13 +22438,16 @@ const powerRef = useRef(hud.power);
           }
           aiPlanRef.current = null;
           setAiPlanning(null);
+          const localSeatId = localSeatRef.current === 'B' ? 'B' : 'A';
+          const shouldAutoAim =
+            !safeState?.frameOver && safeState?.activePlayer === localSeatId;
           window.setTimeout(() => {
+            if (!shouldAutoAim) return;
             const hudState = hudRef.current;
-            if (hudState?.turn === 0 && !hudState.over) {
-              autoAimRequestRef.current = true;
-              suggestionAimKeyRef.current = null;
-              startUserSuggestionRef.current?.();
-            }
+            if (hudState?.over) return;
+            autoAimRequestRef.current = true;
+            suggestionAimKeyRef.current = null;
+            startUserSuggestionRef.current?.();
           }, 0);
           if (cameraRef.current && sphRef.current) {
             const cuePos = cue?.pos
@@ -24346,7 +24413,10 @@ const powerRef = useRef(hud.power);
   }, [activeTableBase]);
   useEffect(() => {
     if (!secondaryTableReady) return;
-    if (environmentHdriId === 'musicHall02') {
+    if (
+      environmentHdriId === 'musicHall02' &&
+      !HDRI_DECOR_TABLE_BLACKLIST.has(environmentHdriId)
+    ) {
       refreshSecondaryTableDecorRef.current?.();
     } else {
       clearSecondaryTableDecorRef.current?.();
