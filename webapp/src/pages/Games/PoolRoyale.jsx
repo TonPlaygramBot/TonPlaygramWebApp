@@ -1447,10 +1447,10 @@ const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
 const SIDE_SPIN_MULTIPLIER = 1.5;
-const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.5;
+const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.65;
 const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
-const SPIN_CONTROL_DIAMETER_PX = 130;
+const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
 const SPIN_RING_THICKNESS_PX = 14;
 const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
@@ -4758,8 +4758,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: -PLAY_W * 0.026, // bias the top view so the table sits higher on screen (match legacy portrait framing)
-  z: -PLAY_H * 0.022 // bias the top view so the table sits further to the left (match legacy portrait framing)
+  x: -PLAY_W * 0.03, // bias the top view so the table sits higher on screen (match legacy portrait framing)
+  z: -PLAY_H * 0.026 // bias the top view so the table sits further to the left (match legacy portrait framing)
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4878,7 +4878,7 @@ const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
 const PLAYER_PULLBACK_MIN_SCALE = 1.1;
 const MIN_PULLBACK_GAP = BALL_R * 0.5;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 76;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 84;
 const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
@@ -5812,7 +5812,7 @@ function applySpinImpulse(ball, scale = 1) {
   const { forward, lateral, speed } = resolveSpinFrame(ball);
   const sideSpin = ball.spin.x || 0;
   const forwardSpin = ball.spin.y || 0;
-  const backspinBoost = forwardSpin < -1e-4 ? 1.55 : 1;
+  const backspinBoost = forwardSpin < -1e-4 ? 1.75 : 1;
   const swerveScale = 0.8 + Math.min(speed, 8) * 0.15;
   const liftScale = 0.35 + Math.min(speed, 6) * 0.08;
   const lateralKick = sideSpin * SPIN_STRENGTH * swerveScale * scale;
@@ -25757,7 +25757,7 @@ const powerRef = useRef(hud.power);
           className={`absolute right-0 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
             bottom: `${12 + chromeUiLiftPx}px`,
-            transform: `scale(${uiScale * 0.92})`,
+            transform: `scale(${uiScale * 0.88})`,
             transformOrigin: 'bottom right'
           }}
         >
