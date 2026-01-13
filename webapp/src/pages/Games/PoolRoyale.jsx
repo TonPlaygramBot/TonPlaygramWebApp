@@ -4758,8 +4758,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: -PLAY_W * 0.04, // bias the top view so the table sits higher on screen (match legacy portrait framing)
-  z: -PLAY_H * 0.035 // bias the top view so the table sits further to the left (match legacy portrait framing)
+  x: -PLAY_W * 0.048, // bias the top view so the table sits higher on screen (match legacy portrait framing)
+  z: -PLAY_H * 0.045 // bias the top view so the table sits further to the left (match legacy portrait framing)
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -25575,9 +25575,9 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute right-2 z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none absolute right-1 z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          bottom: `${SPIN_CONTROL_DIAMETER_PX + 16 + chromeUiLiftPx}px`,
+          bottom: `${SPIN_CONTROL_DIAMETER_PX + 8 + chromeUiLiftPx}px`,
           transform: `scale(${uiScale * 1.08})`,
           transformOrigin: 'bottom right'
         }}
@@ -25622,11 +25622,11 @@ const powerRef = useRef(hud.power);
           }}
         >
           <div
-            className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'px-5 py-2' : 'px-6 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
-            style={{
-              transform: `scale(${bottomHudScale})`,
-              transformOrigin: 'bottom center',
-              maxWidth: isPortrait ? 'min(28rem, 100%)' : 'min(34rem, 100%)'
+          className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'pl-5 pr-6 py-2' : 'px-6 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
+          style={{
+            transform: `scale(${bottomHudScale})`,
+            transformOrigin: 'bottom center',
+            maxWidth: isPortrait ? 'min(28rem, 100%)' : 'min(34rem, 100%)'
             }}
           >
             <div
@@ -25762,7 +25762,7 @@ const powerRef = useRef(hud.power);
           ref={spinBoxRef}
           className={`absolute right-2 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${12 + chromeUiLiftPx}px`,
+            bottom: `${8 + chromeUiLiftPx}px`,
             transform: `scale(${uiScale * 0.88})`,
             transformOrigin: 'bottom right'
           }}
