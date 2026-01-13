@@ -4758,8 +4758,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: -PLAY_W * 0.03, // bias the top view so the table sits higher on screen (match legacy portrait framing)
-  z: -PLAY_H * 0.026 // bias the top view so the table sits further to the left (match legacy portrait framing)
+  x: -PLAY_W * 0.05, // push the 2D camera framing higher on screen for portrait spacing
+  z: -PLAY_H * 0.05 // push the 2D table further left away from the power slider
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -11689,7 +11689,7 @@ const ruleToastTimeoutRef = useRef(null);
 const [replayActive, setReplayActive] = useState(false);
 const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
 const [bottomHudOffset, setBottomHudOffset] = useState(0);
-const leftControlsRef = useRef(null);
+  const viewControlsRef = useRef(null);
 const spinBoxRef = useRef(null);
 const showRuleToast = useCallback((message) => {
   if (!message) return;
@@ -24323,17 +24323,20 @@ const powerRef = useRef(hud.power);
       setBottomHudOffset(0);
       return;
       }
-      const leftBox = leftControlsRef.current?.getBoundingClientRect();
+      const viewBox = viewControlsRef.current?.getBoundingClientRect();
       const spinBox = spinBoxRef.current?.getBoundingClientRect();
       const viewportWidth =
       typeof window !== 'undefined'
         ? window.innerWidth || document.documentElement?.clientWidth || 0
         : 0;
-      const fallbackLeftWidth = uiScale * 120;
+      const fallbackViewWidth = uiScale * 120;
       const fallbackSpinWidth = uiScale * (SPIN_CONTROL_DIAMETER_PX + 64);
-      const leftInset = (leftBox?.width ?? fallbackLeftWidth) + 12;
+      const leftInset = uiScale * 24;
       const rightInset =
-      (spinBox?.width ?? fallbackSpinWidth) +
+      Math.max(
+        spinBox?.width ?? fallbackSpinWidth,
+        viewBox?.width ?? fallbackViewWidth
+      ) +
       uiScale * 32 +
       12;
       setHudInsets({
@@ -24342,12 +24345,12 @@ const powerRef = useRef(hud.power);
       });
       if (viewportWidth > 0) {
       const sideMargin = 16;
-      const leftCenter =
-        (leftBox ? leftBox.left + leftBox.width / 2 : leftInset / 2 + sideMargin);
+      const leftCenter = leftInset / 2 + sideMargin;
       const spinWidth = spinBox?.width ?? fallbackSpinWidth;
       const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
       const spinCenter = spinLeft + spinWidth / 2;
-      const desiredCenter = (leftCenter + spinCenter) / 2;
+      const rightCenter = viewBox ? viewBox.left + viewBox.width / 2 : spinCenter;
+      const desiredCenter = (leftCenter + rightCenter) / 2;
       const screenCenter = viewportWidth / 2;
       setBottomHudOffset(desiredCenter - screenCenter - PORTRAIT_HUD_HORIZONTAL_NUDGE_PX);
       } else {
@@ -24726,12 +24729,15 @@ const powerRef = useRef(hud.power);
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
-  const bottomHudScale = isPortrait ? uiScale * 0.99 : uiScale * 1.06;
+  const spinControlScale = 0.88;
+  const powerSliderHeight = 702 * uiScale;
+  const bottomHudScale = isPortrait ? uiScale * spinControlScale : uiScale * 1.06;
+  const bottomHudMinHeight = SPIN_CONTROL_DIAMETER_PX * spinControlScale;
   const avatarSizeClass = isPortrait ? 'h-[2.25rem] w-[2.25rem]' : 'h-[3.25rem] w-[3.25rem]';
   const nameWidthClass = isPortrait ? 'max-w-[7rem]' : 'max-w-[9.25rem]';
   const nameTextClass = isPortrait ? 'text-xs' : 'text-sm';
   const hudGapClass = isPortrait ? 'gap-3' : 'gap-5';
-  const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
+  const bottomHudLayoutClass = isPortrait ? 'justify-start px-4 w-full' : 'justify-center';
   const playerPanelClass = isPortrait
     ? `flex min-w-0 items-center gap-2.5 rounded-full ${isPlayerTurn ? 'text-white' : 'text-white/80'}`
     : `flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
@@ -25567,42 +25573,148 @@ const powerRef = useRef(hud.power);
         </div>
       )}
 
-      <div
-        ref={leftControlsRef}
-        className={`pointer-events-none absolute left-0 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
-        style={{
-          bottom: `${28 + chromeUiLiftPx}px`,
-          transform: `scale(${uiScale * 1.06})`,
-          transformOrigin: 'bottom left'
-        }}
-      >
-        <button
-          type="button"
-          aria-pressed={isLookMode}
-          onClick={() => setIsLookMode((prev) => !prev)}
-          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-            isLookMode
-              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-          }`}
+      {(showPowerSlider || showSpinController) && !replayActive && (
+        <div
+          className="pointer-events-none absolute right-3 z-50 flex flex-col items-end justify-between gap-3"
+          style={{
+            top: `calc(56% - ${powerSliderHeight / 2}px)`,
+            bottom: `${12 + chromeUiLiftPx}px`
+          }}
         >
-          <span className="text-base">👁️</span>
-          <span>Look</span>
-        </button>
-        <button
-          type="button"
-          aria-pressed={isTopDownView}
-          onClick={() => setIsTopDownView((prev) => !prev)}
-          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-            isTopDownView
-              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-          }`}
-        >
-          <span className="text-base">🧭</span>
-          <span>{isTopDownView ? '3D' : '2D'}</span>
-        </button>
-      </div>
+          {showPowerSlider && (
+            <div
+              className="pointer-events-auto"
+              data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
+              data-player-turn={isPlayerTurn ? 'true' : 'false'}
+            >
+              <div
+                ref={sliderRef}
+                style={{
+                  transform: `scale(${uiScale})`,
+                  transformOrigin: 'top right'
+                }}
+              />
+            </div>
+          )}
+          <div
+            ref={viewControlsRef}
+            className="pointer-events-none flex flex-col gap-2"
+            style={{
+              transform: `scale(${uiScale * 1.02})`,
+              transformOrigin: 'center right'
+            }}
+          >
+            <button
+              type="button"
+              aria-pressed={isLookMode}
+              onClick={() => setIsLookMode((prev) => !prev)}
+              className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+                isLookMode
+                  ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                  : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+              }`}
+            >
+              <span className="text-base">👁️</span>
+              <span>Look</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={isTopDownView}
+              onClick={() => setIsTopDownView((prev) => !prev)}
+              className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+                isTopDownView
+                  ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                  : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+              }`}
+            >
+              <span className="text-base">🧭</span>
+              <span>{isTopDownView ? '3D' : '2D'}</span>
+            </button>
+          </div>
+          {showSpinController && (
+            <div
+              ref={spinBoxRef}
+              className={`relative ${showPlayerControls ? '' : 'pointer-events-none'}`}
+              style={{
+                transform: `scale(${uiScale * spinControlScale})`,
+                transformOrigin: 'bottom right'
+              }}
+            >
+              <div
+                id="spinBox"
+                className={`relative rounded-full shadow-lg border border-white/70 overflow-hidden ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
+                style={{
+                  width: `${SPIN_CONTROL_DIAMETER_PX}px`,
+                  height: `${SPIN_CONTROL_DIAMETER_PX}px`,
+                  background: `radial-gradient(circle at center, #fef6df 0 62%, #c81d25 62% 100%)`
+                }}
+              >
+                <div
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    boxShadow:
+                      'inset 0 0 0 2px rgba(255,255,255,0.7), inset 0 6px 12px rgba(255,255,255,0.25)',
+                    pointerEvents: 'none'
+                  }}
+                />
+                <div
+                  className="absolute rounded-full"
+                  style={{
+                    inset: `${SPIN_RING_THICKNESS_PX}px`,
+                    background: '#fef6df',
+                    boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.6)',
+                    pointerEvents: 'none'
+                  }}
+                />
+                <div
+                  className="absolute left-1/2 top-0 h-full w-[2px] bg-red-500/60"
+                  style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}
+                />
+                <div
+                  className="absolute top-1/2 left-0 h-[2px] w-full bg-red-500/60"
+                  style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
+                />
+                <div
+                  className="absolute rounded-full border-2 border-red-500/70"
+                  style={{
+                    width: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
+                    height: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
+                    left: '50%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    pointerEvents: 'none'
+                  }}
+                />
+                {spinDecorationPoints.map((point, index) => (
+                  <span
+                    key={`spin-deco-${index}`}
+                    className="absolute rounded-full border-2 border-black/75"
+                    style={{
+                      width: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
+                      height: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
+                      left: `${50 + point.x * SPIN_DECORATION_OFFSET_PERCENT}%`,
+                      top: `${50 + point.y * SPIN_DECORATION_OFFSET_PERCENT}%`,
+                      transform: 'translate(-50%, -50%)',
+                      background: 'rgba(255,255,255,0.4)',
+                      pointerEvents: 'none'
+                    }}
+                  />
+                ))}
+                <div
+                  id="spinDot"
+                  className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                  style={{
+                    width: `${SPIN_DOT_DIAMETER_PX}px`,
+                    height: `${SPIN_DOT_DIAMETER_PX}px`,
+                    left: '50%',
+                    top: '50%'
+                  }}
+                ></div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {bottomHudVisible && (
         <div
@@ -25620,7 +25732,8 @@ const powerRef = useRef(hud.power);
             style={{
               transform: `scale(${bottomHudScale})`,
               transformOrigin: 'bottom center',
-              maxWidth: isPortrait ? 'min(28rem, 100%)' : 'min(34rem, 100%)'
+              maxWidth: isPortrait ? 'min(32rem, 100%)' : 'min(34rem, 100%)',
+              minHeight: `${bottomHudMinHeight}px`
             }}
           >
             <div
@@ -25731,107 +25844,6 @@ const powerRef = useRef(hud.power);
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
             Tap and hold, then slide to place
           </span>
-        </div>
-      )}
-      {/* Power Slider */}
-      {showPowerSlider && !replayActive && (
-        <div
-          className="absolute right-3 top-[56%] -translate-y-1/2"
-          data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
-          data-player-turn={isPlayerTurn ? 'true' : 'false'}
-        >
-          <div
-            ref={sliderRef}
-            style={{
-              transform: `scale(${uiScale})`,
-              transformOrigin: 'top right'
-            }}
-          />
-        </div>
-      )}
-
-      {/* Spin controller */}
-      {showSpinController && !replayActive && (
-        <div
-          ref={spinBoxRef}
-          className={`absolute right-0 ${showPlayerControls ? '' : 'pointer-events-none'}`}
-          style={{
-            bottom: `${12 + chromeUiLiftPx}px`,
-            transform: `scale(${uiScale * 0.88})`,
-            transformOrigin: 'bottom right'
-          }}
-        >
-          <div
-            id="spinBox"
-            className={`relative rounded-full shadow-lg border border-white/70 overflow-hidden ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
-            style={{
-              width: `${SPIN_CONTROL_DIAMETER_PX}px`,
-              height: `${SPIN_CONTROL_DIAMETER_PX}px`,
-              background: `radial-gradient(circle at center, #fef6df 0 62%, #c81d25 62% 100%)`
-            }}
-          >
-            <div
-              className="absolute inset-0 rounded-full"
-              style={{
-                boxShadow:
-                  'inset 0 0 0 2px rgba(255,255,255,0.7), inset 0 6px 12px rgba(255,255,255,0.25)',
-                pointerEvents: 'none'
-              }}
-            />
-            <div
-              className="absolute rounded-full"
-              style={{
-                inset: `${SPIN_RING_THICKNESS_PX}px`,
-                background: '#fef6df',
-                boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.6)',
-                pointerEvents: 'none'
-              }}
-            />
-            <div
-              className="absolute left-1/2 top-0 h-full w-[2px] bg-red-500/60"
-              style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}
-            />
-            <div
-              className="absolute top-1/2 left-0 h-[2px] w-full bg-red-500/60"
-              style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
-            />
-            <div
-              className="absolute rounded-full border-2 border-red-500/70"
-              style={{
-                width: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
-                height: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                pointerEvents: 'none'
-              }}
-            />
-            {spinDecorationPoints.map((point, index) => (
-              <span
-                key={`spin-deco-${index}`}
-                className="absolute rounded-full border-2 border-black/75"
-                style={{
-                  width: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
-                  height: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
-                  left: `${50 + point.x * SPIN_DECORATION_OFFSET_PERCENT}%`,
-                  top: `${50 + point.y * SPIN_DECORATION_OFFSET_PERCENT}%`,
-                  transform: 'translate(-50%, -50%)',
-                  background: 'rgba(255,255,255,0.4)',
-                  pointerEvents: 'none'
-                }}
-              />
-            ))}
-            <div
-              id="spinDot"
-              className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-              style={{
-                width: `${SPIN_DOT_DIAMETER_PX}px`,
-                height: `${SPIN_DOT_DIAMETER_PX}px`,
-                left: '50%',
-                top: '50%'
-              }}
-            ></div>
-          </div>
         </div>
       )}
     </div>
