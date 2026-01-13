@@ -1422,7 +1422,6 @@ const CUE_FOLLOW_MIN_MS = 180;
 const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
-const CUE_IMPACT_CAMERA_HOLD_MS = 120; // hold the cue view briefly after impact so the hit is visible before camera switches
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
@@ -4036,12 +4035,6 @@ const HDRI_STORAGE_KEY = 'poolHdriEnvironment';
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const HDRI_RESOLUTION_STORAGE_KEY = 'poolHdriResolution';
 const DEFAULT_HDRI_RESOLUTION_MODE = '4k';
-const DECOR_TABLES_DISABLED_HDRIS = new Set([
-  'dancingHall',
-  'abandonedHall',
-  'oldHall',
-  'musicHall02'
-]);
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
   { id: 'auto', label: 'Match Table' },
   { id: '8k', label: '8K' },
@@ -4766,8 +4759,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.018, // bias the top view so the table sits a touch lower on screen (portrait tuning)
-  z: PLAY_H * -0.038 // bias the top view so the table sits a touch to the right (portrait tuning)
+  x: PLAY_W * 0.03, // bias the top view so the table sits a touch lower on screen (portrait tuning)
+  z: PLAY_H * -0.026 // bias the top view so the table sits a touch to the right (portrait tuning)
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -10690,7 +10683,7 @@ function PoolRoyaleGame({
     [environmentHdriId, resolvedHdriResolution]
   );
   const dualTablesEnabled = useMemo(
-    () => environmentHdriId === 'musicHall02' && !DECOR_TABLES_DISABLED_HDRIS.has(environmentHdriId),
+    () => environmentHdriId === 'musicHall02',
     [environmentHdriId]
   );
   const activePocketLinerOption = useMemo(
@@ -17511,7 +17504,9 @@ const powerRef = useRef(hud.power);
           lastInteraction = performance.now();
         };
         const resolveUserCueLift = () => {
-          return 0;
+          const lift = cueLiftRef.current?.lift ?? 0;
+          if (!Number.isFinite(lift)) return 0;
+          return THREE.MathUtils.clamp(lift, 0, CUE_LIFT_MAX_TILT);
         };
         const attemptChalkPress = (ev) => {
           const meshes = chalkMeshesRef.current;
@@ -17545,6 +17540,37 @@ const powerRef = useRef(hud.power);
           toggleChalkAssist(hit.userData?.chalkIndex ?? null);
           return true;
         };
+        const attemptCueLiftPress = (ev) => {
+          if (!cueStick?.visible) return false;
+          if (shooting || (hudRef.current?.inHand ?? false)) return false;
+          if (ev.touches?.length && ev.touches.length > 1) return false;
+          if (ev?.button !== undefined && ev.button !== 0) return false;
+          const rect = dom.getBoundingClientRect();
+          const clientX = ev.clientX ?? ev.touches?.[0]?.clientX;
+          const clientY = ev.clientY ?? ev.touches?.[0]?.clientY;
+          if (clientX == null || clientY == null) return false;
+          if (
+            clientX < rect.left ||
+            clientX > rect.right ||
+            clientY < rect.top ||
+            clientY > rect.bottom
+          ) {
+            return false;
+          }
+          const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
+          const ny = -(((clientY - rect.top) / rect.height) * 2 - 1);
+          pointer.set(nx, ny);
+          const currentCamera = activeRenderCameraRef.current ?? camera;
+          ray.setFromCamera(pointer, currentCamera);
+          const intersects = ray.intersectObject(cueStick, true);
+          if (intersects.length === 0) return false;
+          const liftState = cueLiftRef.current;
+          liftState.active = true;
+          liftState.moved = false;
+          liftState.startY = clientY;
+          liftState.startLift = resolveUserCueLift();
+          return true;
+        };
         const down = (e) => {
           if (replayPlaybackRef.current) return;
           registerInteraction();
@@ -17564,6 +17590,7 @@ const powerRef = useRef(hud.power);
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
           if (e.touches?.length === 2) return;
+          if (attemptCueLiftPress(e)) return;
           if (topViewRef.current && !topViewLockedRef.current)
             exitTopView(true, { preserveLock: true });
           drag.on = true;
@@ -17621,6 +17648,23 @@ const powerRef = useRef(hud.power);
                 galleryState.lateralOffset = nextOffset;
                 updateCamera();
               }
+            }
+            registerInteraction();
+            return;
+          }
+          if (cueLiftRef.current.active) {
+            const clientY = e.clientY ?? e.touches?.[0]?.clientY;
+            if (clientY == null) return;
+            const liftState = cueLiftRef.current;
+            const delta = liftState.startY - clientY;
+            if (!liftState.moved && Math.abs(delta) > 2) liftState.moved = true;
+            const nextLift = THREE.MathUtils.clamp(
+              liftState.startLift + delta * CUE_LIFT_DRAG_SCALE,
+              0,
+              CUE_LIFT_MAX_TILT
+            );
+            if (Math.abs(nextLift - liftState.lift) > 1e-5) {
+              liftState.lift = nextLift;
             }
             registerInteraction();
             return;
@@ -17693,6 +17737,11 @@ const powerRef = useRef(hud.power);
             if (!wasMoved) {
               attemptCueSelection(e);
             }
+            return;
+          }
+          if (cueLiftRef.current.active) {
+            cueLiftRef.current.active = false;
+            cueLiftRef.current.moved = false;
             return;
           }
           const moved = drag.moved;
@@ -18016,12 +18065,7 @@ const powerRef = useRef(hud.power);
       const buildSecondaryDecor = () => buildDecorGroup({ table: secondaryTableRef.current, variant: 'pool' });
       const refreshSecondaryDecor = () => {
         disposeSecondaryDecor();
-        if (
-          environmentHdriRef.current !== 'musicHall02' ||
-          DECOR_TABLES_DISABLED_HDRIS.has(environmentHdriRef.current)
-        ) {
-          return;
-        }
+        if (environmentHdriRef.current !== 'musicHall02') return;
         const decor = buildSecondaryDecor();
         if (decor?.group) {
           secondaryTableDecorRef.current = {
@@ -18110,7 +18154,6 @@ const powerRef = useRef(hud.power);
       };
       const layoutDecorativeTables = (environmentId = environmentHdriRef.current) => {
         disposeDecorativeTables();
-        if (DECOR_TABLES_DISABLED_HDRIS.has(environmentId)) return;
         const spacing = resolveSecondarySpacing(environmentId);
         const tableFootprint = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE;
         const placementMargin = Math.max(tableFootprint * 0.6, arenaMargin);
@@ -19753,9 +19796,6 @@ const powerRef = useRef(hud.power);
           cushionAfterContact: false
         };
         setShootingState(true);
-        if (chalkAssistEnabledRef.current) {
-          toggleChalkAssist(null);
-        }
         powerImpactHoldRef.current = Math.max(
           powerImpactHoldRef.current || 0,
           shotStartTime + CAMERA_SWITCH_MIN_HOLD_MS
@@ -19811,33 +19851,12 @@ const powerRef = useRef(hud.power);
           }
           lastPocketBallRef.current = null;
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
-          const isAiStroke = aiOpponentEnabled && hudRef.current?.turn === 1;
           lastShotPower = clampedPower;
-          if (!isAiStroke) {
-            const baseForward =
-              CUE_STROKE_MAX_MS * PLAYER_STROKE_TIME_SCALE * PLAYER_FORWARD_SLOWDOWN;
-            const basePullback = Math.max(
-              CUE_STROKE_MIN_MS * PLAYER_PULLBACK_MIN_SCALE,
-              baseForward * PLAYER_STROKE_PULLBACK_FACTOR
-            );
-            powerImpactHoldRef.current = Math.max(
-              powerImpactHoldRef.current || 0,
-              shotStartTime + baseForward + basePullback
-            );
-          } else {
-            powerImpactHoldRef.current = Math.max(
-              powerImpactHoldRef.current || 0,
-              shotStartTime + AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS
-            );
-          }
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
           powerImpactHoldRef.current = isMaxPowerShot
-            ? Math.max(
-                powerImpactHoldRef.current || 0,
-                performance.now() + MAX_POWER_CAMERA_HOLD_MS
-              )
-            : powerImpactHoldRef.current || 0;
-          if (isAiStroke) {
+            ? performance.now() + MAX_POWER_CAMERA_HOLD_MS
+            : 0;
+          if (aiOpponentEnabled && hudRef.current?.turn === 1) {
             powerImpactHoldRef.current = Math.max(
               powerImpactHoldRef.current || 0,
               performance.now() + AI_POST_SHOT_CAMERA_HOLD_MS
@@ -20098,6 +20117,7 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
+          const isAiStroke = aiOpponentEnabled && hudRef.current?.turn === 1;
           const pullVisibilityBoost = isAiStroke
             ? AI_CUE_PULL_VISIBILITY_BOOST
             : PLAYER_CUE_PULL_VISIBILITY_BOOST;
@@ -20226,10 +20246,6 @@ const powerRef = useRef(hud.power);
           powerImpactHoldRef.current = Math.max(
             powerImpactHoldRef.current || 0,
             forwardPreviewHold
-          );
-          powerImpactHoldRef.current = Math.max(
-            powerImpactHoldRef.current || 0,
-            impactTime + CUE_IMPACT_CAMERA_HOLD_MS
           );
           const holdUntil = powerImpactHoldRef.current || 0;
           const holdActive = holdUntil > performance.now();
@@ -22687,10 +22703,10 @@ const powerRef = useRef(hud.power);
 
         sidePocketAimRef.current = false;
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
-          let baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
+          const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
           else baseAimDir.normalize();
-          let basePerp = new THREE.Vector3(-baseAimDir.z, 0, baseAimDir.x);
+          const basePerp = new THREE.Vector3(-baseAimDir.z, 0, baseAimDir.x);
           if (basePerp.lengthSq() > 1e-8) basePerp.normalize();
           const powerStrength = THREE.MathUtils.clamp(
             powerRef.current ?? 0,
@@ -22698,41 +22714,19 @@ const powerRef = useRef(hud.power);
             1
           );
           const swerveActive = spinAppliedRef.current?.mode === 'swerve';
-          let aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
-          let guideAimDir2D = resolveSwerveAimDir(
+          const aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
+          const guideAimDir2D = resolveSwerveAimDir(
             aimDir2D,
             physicsSpin,
             powerStrength,
             swerveActive,
             liftStrength
           );
-          let aimResult = calcTarget(cue, guideAimDir2D, balls);
-          if (
-            isPlayerTurn &&
-            autoAimRequestRef.current &&
-            (!aimResult?.targetBall || aimResult?.railNormal)
-          ) {
-            const autoDir = resolveAutoAimDirection();
-            if (autoDir && autoDir.lengthSq() > 1e-6) {
-              aimDirRef.current.copy(autoDir);
-              aimDir.copy(autoDir);
-              alignStandingCameraToAim(cue, autoDir);
-              autoAimRequestRef.current = false;
-              suggestionAimKeyRef.current = null;
-              baseAimDir.set(autoDir.x, 0, autoDir.y).normalize();
-              basePerp.set(-baseAimDir.z, 0, baseAimDir.x).normalize();
-              aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
-              guideAimDir2D = resolveSwerveAimDir(
-                aimDir2D,
-                physicsSpin,
-                powerStrength,
-                swerveActive,
-                liftStrength
-              );
-              aimResult = calcTarget(cue, guideAimDir2D, balls);
-            }
-          }
-          const { impact, targetDir, cueDir, targetBall, railNormal } = aimResult;
+          const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
+            cue,
+            guideAimDir2D,
+            balls
+          );
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           const dir = baseAimDir.clone();
