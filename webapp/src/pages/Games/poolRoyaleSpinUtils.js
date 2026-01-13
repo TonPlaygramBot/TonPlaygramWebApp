@@ -45,7 +45,7 @@ export const mapSpinForPhysics = (spin) => {
   return {
     // UI has +X to the right; physics should match left/right as shown.
     x: curved.x,
-    // UI has +Y downward; physics expects +Y for topspin.
-    y: -curved.y
+    // UI uses +Y for topspin; physics expects +Y for topspin.
+    y: curved.y
   };
 };
