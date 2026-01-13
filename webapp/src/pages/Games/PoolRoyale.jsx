@@ -24961,7 +24961,7 @@ const powerRef = useRef(hud.power);
       )}
 
       <div
-        className={`absolute top-2 left-2 z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute top-2 right-2 z-50 flex flex-col items-end gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
       >
         <button
           ref={configButtonRef}
@@ -24999,7 +24999,7 @@ const powerRef = useRef(hud.power);
           <div
             id="snooker-config-panel"
             ref={configPanelRef}
-            className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur"
+            className="pointer-events-auto mt-2 w-72 max-w-[80vw] self-end rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur"
           >
             <div className="flex items-center justify-between gap-4">
               <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">
@@ -25569,9 +25569,9 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute left-1 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none absolute left-0 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          bottom: `${10 + chromeUiLiftPx}px`,
+          bottom: `${28 + chromeUiLiftPx}px`,
           transform: `scale(${uiScale * 1.06})`,
           transformOrigin: 'bottom left'
         }}
