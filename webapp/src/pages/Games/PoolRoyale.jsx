@@ -4758,8 +4758,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: -PLAY_W * 0.03, // bias the top view so the table sits higher on screen (match legacy portrait framing)
-  z: -PLAY_H * 0.026 // bias the top view so the table sits further to the left (match legacy portrait framing)
+  x: -PLAY_W * 0.06, // bias the top view so the table sits higher on screen (match legacy portrait framing)
+  z: -PLAY_H * 0.05 // bias the top view so the table sits further to the left (match legacy portrait framing)
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -11689,7 +11689,10 @@ const ruleToastTimeoutRef = useRef(null);
 const [replayActive, setReplayActive] = useState(false);
 const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
 const [bottomHudOffset, setBottomHudOffset] = useState(0);
-const leftControlsRef = useRef(null);
+const [viewControlsTop, setViewControlsTop] = useState(null);
+const viewControlsRef = useRef(null);
+const sliderWrapRef = useRef(null);
+const spinWrapRef = useRef(null);
 const spinBoxRef = useRef(null);
 const showRuleToast = useCallback((message) => {
   if (!message) return;
@@ -24314,44 +24317,41 @@ const powerRef = useRef(hud.power);
   useLayoutEffect(() => {
     const computeInsets = () => {
       if (!isPortrait) {
-      const left = uiScale * 150;
-      const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 150);
-      setHudInsets({
-        left: `${left}px`,
-        right: `${right}px`
-      });
-      setBottomHudOffset(0);
-      return;
+        const left = uiScale * 150;
+        const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 150);
+        setHudInsets({
+          left: `${left}px`,
+          right: `${right}px`
+        });
+        setBottomHudOffset(0);
+        return;
       }
-      const leftBox = leftControlsRef.current?.getBoundingClientRect();
       const spinBox = spinBoxRef.current?.getBoundingClientRect();
       const viewportWidth =
-      typeof window !== 'undefined'
-        ? window.innerWidth || document.documentElement?.clientWidth || 0
-        : 0;
-      const fallbackLeftWidth = uiScale * 120;
+        typeof window !== 'undefined'
+          ? window.innerWidth || document.documentElement?.clientWidth || 0
+          : 0;
       const fallbackSpinWidth = uiScale * (SPIN_CONTROL_DIAMETER_PX + 64);
-      const leftInset = (leftBox?.width ?? fallbackLeftWidth) + 12;
+      const leftInset = uiScale * 24 + 12;
       const rightInset =
-      (spinBox?.width ?? fallbackSpinWidth) +
-      uiScale * 32 +
-      12;
+        (spinBox?.width ?? fallbackSpinWidth) +
+        uiScale * 32 +
+        12;
       setHudInsets({
-      left: `${leftInset}px`,
-      right: `${rightInset}px`
+        left: `${leftInset}px`,
+        right: `${rightInset}px`
       });
       if (viewportWidth > 0) {
-      const sideMargin = 16;
-      const leftCenter =
-        (leftBox ? leftBox.left + leftBox.width / 2 : leftInset / 2 + sideMargin);
-      const spinWidth = spinBox?.width ?? fallbackSpinWidth;
-      const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
-      const spinCenter = spinLeft + spinWidth / 2;
-      const desiredCenter = (leftCenter + spinCenter) / 2;
-      const screenCenter = viewportWidth / 2;
-      setBottomHudOffset(desiredCenter - screenCenter - PORTRAIT_HUD_HORIZONTAL_NUDGE_PX);
+        const sideMargin = 16;
+        const leftCenter = leftInset / 2 + sideMargin;
+        const spinWidth = spinBox?.width ?? fallbackSpinWidth;
+        const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
+        const spinCenter = spinLeft + spinWidth / 2;
+        const desiredCenter = (leftCenter + spinCenter) / 2;
+        const screenCenter = viewportWidth / 2;
+        setBottomHudOffset(desiredCenter - screenCenter - PORTRAIT_HUD_HORIZONTAL_NUDGE_PX);
       } else {
-      setBottomHudOffset(0);
+        setBottomHudOffset(0);
       }
     };
     computeInsets();
@@ -24420,6 +24420,42 @@ const powerRef = useRef(hud.power);
       }),
     []
   );
+
+  useLayoutEffect(() => {
+    const computeViewControlsPosition = () => {
+      if (!showPowerSlider || !showSpinController) {
+        setViewControlsTop(null);
+        return;
+      }
+      const sliderBox = sliderWrapRef.current?.getBoundingClientRect();
+      const spinBox = spinWrapRef.current?.getBoundingClientRect();
+      const controlsBox = viewControlsRef.current?.getBoundingClientRect();
+      const viewportHeight =
+        typeof window !== 'undefined'
+          ? window.innerHeight || document.documentElement?.clientHeight || 0
+          : 0;
+      if (!viewportHeight) {
+        setViewControlsTop(null);
+        return;
+      }
+      const fallbackSliderBottom = viewportHeight * 0.56;
+      const fallbackSpinTop =
+        viewportHeight - uiScale * (SPIN_CONTROL_DIAMETER_PX + 28);
+      const sliderBottom = sliderBox?.bottom ?? fallbackSliderBottom;
+      const spinTop = spinBox?.top ?? fallbackSpinTop;
+      const controlsHeight = controlsBox?.height ?? uiScale * 96;
+      const gap = Math.max(8, uiScale * 8);
+      const idealTop = (sliderBottom + spinTop - controlsHeight) / 2;
+      const clampedTop = Math.min(
+        Math.max(idealTop, sliderBottom + gap),
+        spinTop - controlsHeight - gap
+      );
+      setViewControlsTop(clampedTop);
+    };
+    computeViewControlsPosition();
+    window.addEventListener('resize', computeViewControlsPosition);
+    return () => window.removeEventListener('resize', computeViewControlsPosition);
+  }, [showPowerSlider, showSpinController, uiScale]);
 
   // Spin controller interactions
   useEffect(() => {
@@ -24727,11 +24763,12 @@ const powerRef = useRef(hud.power);
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
   const bottomHudScale = isPortrait ? uiScale * 0.99 : uiScale * 1.06;
+  const bottomHudHeight = SPIN_CONTROL_DIAMETER_PX;
   const avatarSizeClass = isPortrait ? 'h-[2.25rem] w-[2.25rem]' : 'h-[3.25rem] w-[3.25rem]';
   const nameWidthClass = isPortrait ? 'max-w-[7rem]' : 'max-w-[9.25rem]';
   const nameTextClass = isPortrait ? 'text-xs' : 'text-sm';
   const hudGapClass = isPortrait ? 'gap-3' : 'gap-5';
-  const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
+  const bottomHudLayoutClass = isPortrait ? 'justify-start px-4 w-full' : 'justify-center';
   const playerPanelClass = isPortrait
     ? `flex min-w-0 items-center gap-2.5 rounded-full ${isPlayerTurn ? 'text-white' : 'text-white/80'}`
     : `flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
@@ -25568,12 +25605,12 @@ const powerRef = useRef(hud.power);
       )}
 
       <div
-        ref={leftControlsRef}
-        className={`pointer-events-none absolute left-0 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        ref={viewControlsRef}
+        className={`pointer-events-none absolute right-3 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          bottom: `${28 + chromeUiLiftPx}px`,
-          transform: `scale(${uiScale * 1.06})`,
-          transformOrigin: 'bottom left'
+          top: viewControlsTop ?? '50%',
+          transform: viewControlsTop == null ? `translateY(-50%) scale(${uiScale * 1.06})` : `scale(${uiScale * 1.06})`,
+          transformOrigin: 'top right'
         }}
       >
         <button
@@ -25620,7 +25657,9 @@ const powerRef = useRef(hud.power);
             style={{
               transform: `scale(${bottomHudScale})`,
               transformOrigin: 'bottom center',
-              maxWidth: isPortrait ? 'min(28rem, 100%)' : 'min(34rem, 100%)'
+              maxWidth: isPortrait ? 'min(34rem, 100%)' : 'min(36rem, 100%)',
+              minHeight: `${bottomHudHeight}px`,
+              height: `${bottomHudHeight}px`
             }}
           >
             <div
@@ -25736,6 +25775,7 @@ const powerRef = useRef(hud.power);
       {/* Power Slider */}
       {showPowerSlider && !replayActive && (
         <div
+          ref={sliderWrapRef}
           className="absolute right-3 top-[56%] -translate-y-1/2"
           data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
           data-player-turn={isPlayerTurn ? 'true' : 'false'}
@@ -25753,7 +25793,7 @@ const powerRef = useRef(hud.power);
       {/* Spin controller */}
       {showSpinController && !replayActive && (
         <div
-          ref={spinBoxRef}
+          ref={spinWrapRef}
           className={`absolute right-0 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
             bottom: `${12 + chromeUiLiftPx}px`,
@@ -25763,6 +25803,7 @@ const powerRef = useRef(hud.power);
         >
           <div
             id="spinBox"
+            ref={spinBoxRef}
             className={`relative rounded-full shadow-lg border border-white/70 overflow-hidden ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
