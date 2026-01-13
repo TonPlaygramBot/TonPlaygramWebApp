@@ -2,6 +2,7 @@ import { RUNTIME_CACHE_NAME } from './preloadGames.js';
 
 const OFFLINE_MANIFEST_PATH = 'pwa/offline-assets.json';
 const OFFLINE_CACHE_VERSION_KEY = 'tonplaygram-offline-cache-version';
+const OFFLINE_CACHE_ENABLED_KEY = 'tonplaygram-offline-cache-enabled';
 
 const normalizeBaseUrl = base => {
   if (!base) return '/';
@@ -11,8 +12,19 @@ const normalizeBaseUrl = base => {
 export const isTelegramEnvironment = () => Boolean(window.Telegram?.WebApp);
 
 export const shouldAutoWarmOfflineCache = () => {
-  const stored = localStorage.getItem(OFFLINE_CACHE_VERSION_KEY);
-  return stored !== RUNTIME_CACHE_NAME;
+  const storedVersion = localStorage.getItem(OFFLINE_CACHE_VERSION_KEY);
+  const enabled = localStorage.getItem(OFFLINE_CACHE_ENABLED_KEY) === '1';
+
+  if (!enabled && !storedVersion) {
+    return { shouldWarm: true, isUpdate: false };
+  }
+
+  if (!enabled) {
+    return { shouldWarm: false, isUpdate: false };
+  }
+
+  const isUpdate = storedVersion !== RUNTIME_CACHE_NAME;
+  return { shouldWarm: isUpdate, isUpdate };
 };
 
 export async function cacheOfflineAssets({ baseUrl = '/', onUpdate } = {}) {
@@ -68,6 +80,7 @@ export async function cacheOfflineAssets({ baseUrl = '/', onUpdate } = {}) {
   }
 
   localStorage.setItem(OFFLINE_CACHE_VERSION_KEY, RUNTIME_CACHE_NAME);
+  localStorage.setItem(OFFLINE_CACHE_ENABLED_KEY, '1');
 
   return { successes, total: assets.length, failures };
 }

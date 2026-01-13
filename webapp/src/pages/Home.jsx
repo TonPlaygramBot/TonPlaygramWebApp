@@ -52,10 +52,14 @@ export default function Home() {
   const walletAddress = useTonAddress();
   const [tonConnectUI] = useTonConnectUI();
 
-  const handlePwaDownload = useCallback(async (autoTriggered = false) => {
+  const handlePwaDownload = useCallback(async ({ autoTriggered = false, isUpdate = false } = {}) => {
     setPwaDownloadStatus({
       state: 'working',
-      message: autoTriggered ? 'Preparing Telegram offline package…' : 'Preparing offline download…'
+      message: autoTriggered
+        ? isUpdate
+          ? 'Updating cached assets…'
+          : 'Preparing Telegram offline package…'
+        : 'Preparing offline download…'
     });
 
     try {
@@ -85,8 +89,11 @@ export default function Home() {
 
 
   useEffect(() => {
-    if (isTelegramEnvironment() && shouldAutoWarmOfflineCache()) {
-      handlePwaDownload(true);
+    if (isTelegramEnvironment()) {
+      const { shouldWarm, isUpdate } = shouldAutoWarmOfflineCache();
+      if (shouldWarm) {
+        handlePwaDownload({ autoTriggered: true, isUpdate });
+      }
     }
   }, [handlePwaDownload]);
 
@@ -283,7 +290,7 @@ export default function Home() {
         <div className="space-y-3">
           <button
             type="button"
-            onClick={handlePwaDownload}
+            onClick={() => handlePwaDownload()}
             className="w-full inline-flex items-center justify-center px-3 py-2 text-sm font-semibold bg-primary text-surface rounded-full shadow-primary/40 hover:shadow-primary/60 shadow disabled:opacity-60 disabled:cursor-not-allowed"
             disabled={pwaDownloadStatus.state === 'working'}
           >
