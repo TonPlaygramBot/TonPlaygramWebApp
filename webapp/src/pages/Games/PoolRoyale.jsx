@@ -11982,7 +11982,7 @@ const powerRef = useRef(hud.power);
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
   const topViewLockedRef = useRef(false);
-  const overheadBroadcastVariantRef = useRef('replay');
+  const overheadBroadcastVariantRef = useRef('top');
   const preShotTopViewRef = useRef(false);
   const preShotTopViewLockRef = useRef(false);
   const sidePocketAimRef = useRef(false);
@@ -12076,12 +12076,13 @@ const powerRef = useRef(hud.power);
     if (!dot) return;
     const x = clamp(value.x ?? 0, -1, 1);
     const y = clamp(value.y ?? 0, -1, 1);
+    const displayY = -y;
     const ranges = spinRangeRef.current || {};
     const maxSide = Math.max(ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET, 1e-6);
     const maxVertical = Math.max(ranges.offsetVertical ?? MAX_SPIN_VERTICAL, 1e-6);
     const largest = Math.max(maxSide, maxVertical);
     const scaledX = (x * maxSide) / largest;
-    const scaledY = (y * maxVertical) / largest;
+    const scaledY = (displayY * maxVertical) / largest;
     dot.style.left = `${50 + scaledX * 50}%`;
     dot.style.top = `${50 + scaledY * 50}%`;
     const magnitude = Math.hypot(x, y);
@@ -17372,7 +17373,7 @@ const powerRef = useRef(hud.power);
         const enterTopView = (immediate = false) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
-          overheadBroadcastVariantRef.current = 'replay';
+          overheadBroadcastVariantRef.current = 'top';
           const margin = TOP_VIEW_MARGIN;
           fit(margin);
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
@@ -24485,7 +24486,7 @@ const powerRef = useRef(hud.power);
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
       let ny = ((cy - rect.top) / rect.height) * 2 - 1;
-      setSpin(nx, ny);
+      setSpin(nx, -ny);
     };
 
     const scaleBox = (value) => {
