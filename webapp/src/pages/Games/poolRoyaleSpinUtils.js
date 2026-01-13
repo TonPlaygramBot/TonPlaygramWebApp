@@ -43,8 +43,8 @@ export const mapSpinForPhysics = (spin) => {
   };
   const curved = applySpinResponseCurve(adjusted);
   return {
-    // UI has +X to the right; physics uses the opposite sign for side spin.
-    x: -curved.x,
+    // UI has +X to the right; physics should match left/right as shown.
+    x: curved.x,
     // UI uses +Y for topspin; physics expects +Y for topspin.
     y: curved.y
   };
