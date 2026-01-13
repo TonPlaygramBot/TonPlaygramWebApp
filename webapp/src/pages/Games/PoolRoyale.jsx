@@ -4048,6 +4048,12 @@ const HDRI_RESOLUTION_OPTION_MAP = Object.freeze(
     return acc;
   }, {})
 );
+const HDRI_DECOR_TABLE_EXCLUSIONS = new Set([
+  'dancingHall',
+  'abandonedHall',
+  'oldHall',
+  'musicHall02'
+]);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const MIN_HDRI_CAMERA_HEIGHT_M = 0.8;
 const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
@@ -4759,8 +4765,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.03, // bias the top view so the table sits a touch lower on screen (portrait tuning)
-  z: PLAY_H * -0.026 // bias the top view so the table sits a touch to the right (portrait tuning)
+  x: PLAY_W * 0.015, // bias the top view so the table sits a touch higher on screen (portrait tuning)
+  z: PLAY_H * -0.04 // bias the top view so the table sits a touch further right (portrait tuning)
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4879,6 +4885,18 @@ const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
 const PLAYER_PULLBACK_MIN_SCALE = 1.1;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
+const PLAYER_CUE_MAX_FORWARD_MS =
+  CUE_STROKE_MAX_MS * PLAYER_STROKE_TIME_SCALE * PLAYER_FORWARD_SLOWDOWN;
+const PLAYER_CUE_MAX_PULLBACK_MS = Math.max(
+  CUE_STROKE_MIN_MS * PLAYER_PULLBACK_MIN_SCALE,
+  PLAYER_CUE_MAX_FORWARD_MS * PLAYER_STROKE_PULLBACK_FACTOR
+);
+const PLAYER_CUE_IMPACT_HOLD_MS =
+  PLAYER_CUE_MAX_FORWARD_MS + PLAYER_CUE_MAX_PULLBACK_MS + 60;
+const AI_CUE_IMPACT_HOLD_MS =
+  AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS + 80;
+const resolveCueImpactHoldMs = (isAiStroke = false) =>
+  isAiStroke ? AI_CUE_IMPACT_HOLD_MS : PLAYER_CUE_IMPACT_HOLD_MS;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 40;
 const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -10523,7 +10541,7 @@ function PoolRoyaleGame({
     return DEFAULT_FRAME_RATE_ID;
   });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
-  const initialTableSlot = environmentHdriId === 'musicHall02' ? 1 : 0;
+  const initialTableSlot = 0;
   const [activeTableSlot, setActiveTableSlot] = useState(initialTableSlot);
   const [tableSelectionOpen, setTableSelectionOpen] = useState(false);
   const [secondaryTableReady, setSecondaryTableReady] = useState(false);
@@ -10683,7 +10701,9 @@ function PoolRoyaleGame({
     [environmentHdriId, resolvedHdriResolution]
   );
   const dualTablesEnabled = useMemo(
-    () => environmentHdriId === 'musicHall02',
+    () =>
+      environmentHdriId === 'musicHall02' &&
+      !HDRI_DECOR_TABLE_EXCLUSIONS.has(environmentHdriId),
     [environmentHdriId]
   );
   const activePocketLinerOption = useMemo(
@@ -17503,11 +17523,7 @@ const powerRef = useRef(hud.power);
         const registerInteraction = () => {
           lastInteraction = performance.now();
         };
-        const resolveUserCueLift = () => {
-          const lift = cueLiftRef.current?.lift ?? 0;
-          if (!Number.isFinite(lift)) return 0;
-          return THREE.MathUtils.clamp(lift, 0, CUE_LIFT_MAX_TILT);
-        };
+        const resolveUserCueLift = () => 0;
         const attemptChalkPress = (ev) => {
           const meshes = chalkMeshesRef.current;
           if (!meshes || meshes.length === 0) return false;
@@ -17540,37 +17556,7 @@ const powerRef = useRef(hud.power);
           toggleChalkAssist(hit.userData?.chalkIndex ?? null);
           return true;
         };
-        const attemptCueLiftPress = (ev) => {
-          if (!cueStick?.visible) return false;
-          if (shooting || (hudRef.current?.inHand ?? false)) return false;
-          if (ev.touches?.length && ev.touches.length > 1) return false;
-          if (ev?.button !== undefined && ev.button !== 0) return false;
-          const rect = dom.getBoundingClientRect();
-          const clientX = ev.clientX ?? ev.touches?.[0]?.clientX;
-          const clientY = ev.clientY ?? ev.touches?.[0]?.clientY;
-          if (clientX == null || clientY == null) return false;
-          if (
-            clientX < rect.left ||
-            clientX > rect.right ||
-            clientY < rect.top ||
-            clientY > rect.bottom
-          ) {
-            return false;
-          }
-          const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
-          const ny = -(((clientY - rect.top) / rect.height) * 2 - 1);
-          pointer.set(nx, ny);
-          const currentCamera = activeRenderCameraRef.current ?? camera;
-          ray.setFromCamera(pointer, currentCamera);
-          const intersects = ray.intersectObject(cueStick, true);
-          if (intersects.length === 0) return false;
-          const liftState = cueLiftRef.current;
-          liftState.active = true;
-          liftState.moved = false;
-          liftState.startY = clientY;
-          liftState.startLift = resolveUserCueLift();
-          return true;
-        };
+        const attemptCueLiftPress = () => false;
         const down = (e) => {
           if (replayPlaybackRef.current) return;
           registerInteraction();
@@ -17915,6 +17901,9 @@ const powerRef = useRef(hud.power);
         }
         return secondarySpacingBase;
       };
+      const shouldEnableSecondaryTables = (environmentId = environmentHdriRef.current) =>
+        environmentId === 'musicHall02' &&
+        !HDRI_DECOR_TABLE_EXCLUSIONS.has(environmentId);
       const secondaryTableEntry = Table3D(
         world,
         finishForScene,
@@ -18065,7 +18054,7 @@ const powerRef = useRef(hud.power);
       const buildSecondaryDecor = () => buildDecorGroup({ table: secondaryTableRef.current, variant: 'pool' });
       const refreshSecondaryDecor = () => {
         disposeSecondaryDecor();
-        if (environmentHdriRef.current !== 'musicHall02') return;
+        if (!shouldEnableSecondaryTables(environmentHdriRef.current)) return;
         const decor = buildSecondaryDecor();
         if (decor?.group) {
           secondaryTableDecorRef.current = {
@@ -18085,7 +18074,10 @@ const powerRef = useRef(hud.power);
         secondary.position.set(0, secondary.position.y, targetZ);
       };
       applyTableSlotRef.current = applySecondarySlot;
-      applySecondarySlot(activeTableSlotRef.current, environmentHdriRef.current === 'musicHall02');
+      applySecondarySlot(
+        activeTableSlotRef.current,
+        shouldEnableSecondaryTables(environmentHdriRef.current)
+      );
       refreshSecondaryDecor();
       const disposeDecorativeTables = () => {
         decorativeTablesRef.current.forEach((entry) => {
@@ -18154,6 +18146,7 @@ const powerRef = useRef(hud.power);
       };
       const layoutDecorativeTables = (environmentId = environmentHdriRef.current) => {
         disposeDecorativeTables();
+        if (HDRI_DECOR_TABLE_EXCLUSIONS.has(environmentId)) return;
         const spacing = resolveSecondarySpacing(environmentId);
         const tableFootprint = Math.max(TABLE.W, TABLE.H) * TABLE_DISPLAY_SCALE;
         const placementMargin = Math.max(tableFootprint * 0.6, arenaMargin);
@@ -19749,6 +19742,7 @@ const powerRef = useRef(hud.power);
       // Fire (slider triggers on release)
       const fire = () => {
         const currentHud = hudRef.current;
+        const isAiStroke = aiOpponentEnabled && currentHud?.turn === 1;
         const frameSnapshot = frameRef.current ?? frameState;
         const fullTableHandPlacement =
           allowFullTableInHand() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
@@ -19767,7 +19761,7 @@ const powerRef = useRef(hud.power);
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
         }
-        if (aiOpponentEnabled && currentHud?.turn === 1) {
+        if (isAiStroke) {
           aiTurnShotCountRef.current += 1;
         }
         const shotStartTime = performance.now();
@@ -19796,9 +19790,13 @@ const powerRef = useRef(hud.power);
           cushionAfterContact: false
         };
         setShootingState(true);
+        if (chalkAssistEnabledRef.current) {
+          toggleChalkAssist(null);
+        }
+        const cueImpactHoldUntil = shotStartTime + resolveCueImpactHoldMs(isAiStroke);
         powerImpactHoldRef.current = Math.max(
           powerImpactHoldRef.current || 0,
-          shotStartTime + CAMERA_SWITCH_MIN_HOLD_MS
+          Math.max(shotStartTime + CAMERA_SWITCH_MIN_HOLD_MS, cueImpactHoldUntil)
         );
         activeShotView = null;
         queuedPocketView = null;
@@ -20117,7 +20115,6 @@ const powerRef = useRef(hud.power);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          const isAiStroke = aiOpponentEnabled && hudRef.current?.turn === 1;
           const pullVisibilityBoost = isAiStroke
             ? AI_CUE_PULL_VISIBILITY_BOOST
             : PLAYER_CUE_PULL_VISIBILITY_BOOST;
@@ -21827,22 +21824,20 @@ const powerRef = useRef(hud.power);
               return;
             }
           }
-          if (plan?.targetBall && plan?.viaCushion && cue?.pos) {
+          if (plan?.targetBall && cue?.pos) {
             const directDir = new THREE.Vector2(
               plan.targetBall.pos.x - cue.pos.x,
               plan.targetBall.pos.y - cue.pos.y
             );
-            if (applyAimDirection(directDir, null)) {
+            if (applyAimDirection(directDir, summary?.key ?? null)) {
               return;
             }
           }
-          if (plan?.aimDir && !plan.viaCushion) {
+          if (plan?.aimDir) {
             const dir = plan.aimDir.clone();
             if (applyAimDirection(dir, summary?.key ?? null)) return;
-            suggestionAimKeyRef.current = null;
-          } else {
-            suggestionAimKeyRef.current = null;
           }
+          suggestionAimKeyRef.current = null;
           applyAutoAimFallback();
         };
         stopAiThinkingRef.current = stopAiThinking;
@@ -24346,7 +24341,10 @@ const powerRef = useRef(hud.power);
   }, [activeTableBase]);
   useEffect(() => {
     if (!secondaryTableReady) return;
-    if (environmentHdriId === 'musicHall02') {
+    if (
+      environmentHdriId === 'musicHall02' &&
+      !HDRI_DECOR_TABLE_EXCLUSIONS.has(environmentHdriId)
+    ) {
       refreshSecondaryTableDecorRef.current?.();
     } else {
       clearSecondaryTableDecorRef.current?.();
