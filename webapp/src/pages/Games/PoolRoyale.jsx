@@ -19712,7 +19712,7 @@ const powerRef = useRef(hud.power);
         const hasSpin = magnitude > 1e-4;
         const sideInput = spin?.x ?? 0;
         let side = hasSpin ? sideInput * offsetSide : 0;
-        let vert = hasSpin ? -spin.y * offsetVertical : 0;
+        let vert = hasSpin ? spin.y * offsetVertical : 0;
         if (hasSpin) {
           vert = THREE.MathUtils.clamp(vert, -MAX_SPIN_VISUAL_LIFT, MAX_SPIN_VISUAL_LIFT);
         }
@@ -24427,6 +24427,19 @@ const powerRef = useRef(hud.power);
       }),
     []
   );
+  const spinLabelPoints = useMemo(
+    () => [
+      { label: 'HIGH', x: 0, y: -0.78, rotate: 0 },
+      { label: 'HIGH RIGHT', x: 0.56, y: -0.56, rotate: 35 },
+      { label: 'RIGHT', x: 0.78, y: 0, rotate: 90 },
+      { label: 'LOW RIGHT', x: 0.56, y: 0.56, rotate: 145 },
+      { label: 'LOW', x: 0, y: 0.78, rotate: 180 },
+      { label: 'LOW LEFT', x: -0.56, y: 0.56, rotate: -145 },
+      { label: 'LEFT', x: -0.78, y: 0, rotate: -90 },
+      { label: 'HIGH LEFT', x: -0.56, y: -0.56, rotate: -35 }
+    ],
+    []
+  );
 
   // Spin controller interactions
   useEffect(() => {
@@ -25813,6 +25826,22 @@ const powerRef = useRef(hud.power);
                 pointerEvents: 'none'
               }}
             />
+            {spinLabelPoints.map((point) => (
+              <span
+                key={point.label}
+                className="absolute text-[9px] font-bold uppercase tracking-[0.18em] text-[#5b1515]"
+                style={{
+                  left: `${50 + point.x * 42}%`,
+                  top: `${50 + point.y * 42}%`,
+                  transform: `translate(-50%, -50%) rotate(${point.rotate}deg)`,
+                  textShadow: '0 1px 2px rgba(255,255,255,0.5)',
+                  pointerEvents: 'none',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {point.label}
+              </span>
+            ))}
             {spinDecorationPoints.map((point, index) => (
               <span
                 key={`spin-deco-${index}`}
