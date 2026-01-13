@@ -19712,7 +19712,7 @@ const powerRef = useRef(hud.power);
         const hasSpin = magnitude > 1e-4;
         const sideInput = spin?.x ?? 0;
         let side = hasSpin ? sideInput * offsetSide : 0;
-        let vert = hasSpin ? -spin.y * offsetVertical : 0;
+        let vert = hasSpin ? spin.y * offsetVertical : 0;
         if (hasSpin) {
           vert = THREE.MathUtils.clamp(vert, -MAX_SPIN_VISUAL_LIFT, MAX_SPIN_VISUAL_LIFT);
         }
@@ -24427,6 +24427,19 @@ const powerRef = useRef(hud.power);
       }),
     []
   );
+  const spinRingLabels = useMemo(
+    () => [
+      { text: 'HIGH', left: 50, top: 6 },
+      { text: 'HIGH RIGHT', left: 78, top: 18 },
+      { text: 'RIGHT', left: 93, top: 50 },
+      { text: 'LOW RIGHT', left: 78, top: 82 },
+      { text: 'LOW', left: 50, top: 94 },
+      { text: 'LOW LEFT', left: 22, top: 82 },
+      { text: 'LEFT', left: 7, top: 50 },
+      { text: 'HIGH LEFT', left: 22, top: 18 }
+    ],
+    []
+  );
 
   // Spin controller interactions
   useEffect(() => {
@@ -25774,9 +25787,17 @@ const powerRef = useRef(hud.power);
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
               height: `${SPIN_CONTROL_DIAMETER_PX}px`,
-              background: `radial-gradient(circle at center, #fef6df 0 62%, #c81d25 62% 100%)`
+              background: `radial-gradient(circle at center, #fef6df 0 60%, #fef6df 60% 61%, #c81d25 61% 100%)`
             }}
           >
+            <div
+              className="absolute inset-0 rounded-full"
+              style={{
+                boxShadow:
+                  'inset 0 0 0 2px rgba(139,0,0,0.45), inset 0 10px 18px rgba(255,255,255,0.25)',
+                pointerEvents: 'none'
+              }}
+            />
             <div
               className="absolute inset-0 rounded-full"
               style={{
@@ -25794,6 +25815,20 @@ const powerRef = useRef(hud.power);
                 pointerEvents: 'none'
               }}
             />
+            {spinRingLabels.map((label) => (
+              <span
+                key={`spin-label-${label.text}`}
+                className="absolute text-[9px] font-semibold uppercase tracking-[0.22em] text-red-900/90 drop-shadow-[0_1px_1px_rgba(255,255,255,0.65)]"
+                style={{
+                  left: `${label.left}%`,
+                  top: `${label.top}%`,
+                  transform: 'translate(-50%, -50%)',
+                  pointerEvents: 'none'
+                }}
+              >
+                {label.text}
+              </span>
+            ))}
             <div
               className="absolute left-1/2 top-0 h-full w-[2px] bg-red-500/60"
               style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}
