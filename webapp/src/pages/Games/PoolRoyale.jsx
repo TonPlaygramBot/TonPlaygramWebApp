@@ -4878,7 +4878,7 @@ const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
 const PLAYER_PULLBACK_MIN_SCALE = 1.1;
 const MIN_PULLBACK_GAP = BALL_R * 0.5;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 84;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 100;
 const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
@@ -24331,7 +24331,11 @@ const powerRef = useRef(hud.power);
         : 0;
       const fallbackLeftWidth = uiScale * 120;
       const fallbackSpinWidth = uiScale * (SPIN_CONTROL_DIAMETER_PX + 64);
-      const leftInset = (leftBox?.width ?? fallbackLeftWidth) + 12;
+      const leftBoxIsLeft =
+        viewportWidth > 0 ? (leftBox?.left ?? 0) < viewportWidth * 0.5 : true;
+      const leftInset = leftBoxIsLeft
+      ? (leftBox?.width ?? fallbackLeftWidth) + 12
+      : uiScale * 24;
       const rightInset =
       (spinBox?.width ?? fallbackSpinWidth) +
       uiScale * 32 +
@@ -24343,7 +24347,9 @@ const powerRef = useRef(hud.power);
       if (viewportWidth > 0) {
       const sideMargin = 16;
       const leftCenter =
-        (leftBox ? leftBox.left + leftBox.width / 2 : leftInset / 2 + sideMargin);
+        leftBox && leftBoxIsLeft
+          ? leftBox.left + leftBox.width / 2
+          : leftInset / 2 + sideMargin;
       const spinWidth = spinBox?.width ?? fallbackSpinWidth;
       const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
       const spinCenter = spinLeft + spinWidth / 2;
@@ -24490,7 +24496,7 @@ const powerRef = useRef(hud.power);
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
       let ny = ((cy - rect.top) / rect.height) * 2 - 1;
-      setSpin(nx, -ny);
+      setSpin(-nx, -ny);
     };
 
     const scaleBox = (value) => {
@@ -24961,7 +24967,7 @@ const powerRef = useRef(hud.power);
       )}
 
       <div
-        className={`absolute top-2 left-2 z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute top-2 right-2 z-50 flex flex-col items-end gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
       >
         <button
           ref={configButtonRef}
@@ -25569,38 +25575,38 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute left-1 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none absolute right-3 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          bottom: `${10 + chromeUiLiftPx}px`,
-          transform: `scale(${uiScale * 1.06})`,
-          transformOrigin: 'bottom left'
+          bottom: `${SPIN_CONTROL_DIAMETER_PX + 36 + chromeUiLiftPx}px`,
+          transform: `scale(${uiScale * 1.02})`,
+          transformOrigin: 'bottom right'
         }}
       >
         <button
           type="button"
           aria-pressed={isLookMode}
           onClick={() => setIsLookMode((prev) => !prev)}
-          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+          className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border text-lg font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
             isLookMode
               ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
               : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
           }`}
+          aria-label="Toggle look mode"
         >
-          <span className="text-base">👁️</span>
-          <span>Look</span>
+          <span aria-hidden="true">👁️</span>
         </button>
         <button
           type="button"
           aria-pressed={isTopDownView}
           onClick={() => setIsTopDownView((prev) => !prev)}
-          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+          className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border text-[11px] font-semibold uppercase tracking-[0.28em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
             isTopDownView
               ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
               : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
           }`}
+          aria-label={isTopDownView ? 'Switch to 3D view' : 'Switch to 2D view'}
         >
-          <span className="text-base">🧭</span>
-          <span>{isTopDownView ? '3D' : '2D'}</span>
+          <span aria-hidden="true">{isTopDownView ? '3D' : '2D'}</span>
         </button>
       </div>
 
