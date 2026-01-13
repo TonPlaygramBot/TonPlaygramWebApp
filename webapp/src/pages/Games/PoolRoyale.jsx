@@ -1453,6 +1453,17 @@ const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
 const SPIN_RING_THICKNESS_PX = 14;
+const SPIN_RING_LABEL_OFFSET_PERCENT = 44;
+const SPIN_RING_LABELS = [
+  { text: 'HIGH', angle: -90 },
+  { text: 'HIGH RIGHT', angle: -45 },
+  { text: 'RIGHT', angle: 0 },
+  { text: 'LOW RIGHT', angle: 45 },
+  { text: 'LOW', angle: 90 },
+  { text: 'LOW LEFT', angle: 135 },
+  { text: 'LEFT', angle: 180 },
+  { text: 'HIGH LEFT', angle: 225 }
+];
 const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
 const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 const SPIN_DECORATION_DOT_SIZE_PX = 12;
@@ -19712,7 +19723,7 @@ const powerRef = useRef(hud.power);
         const hasSpin = magnitude > 1e-4;
         const sideInput = spin?.x ?? 0;
         let side = hasSpin ? sideInput * offsetSide : 0;
-        let vert = hasSpin ? -spin.y * offsetVertical : 0;
+        let vert = hasSpin ? spin.y * offsetVertical : 0;
         if (hasSpin) {
           vert = THREE.MathUtils.clamp(vert, -MAX_SPIN_VISUAL_LIFT, MAX_SPIN_VISUAL_LIFT);
         }
@@ -24427,6 +24438,25 @@ const powerRef = useRef(hud.power);
       }),
     []
   );
+  const spinRingLabelPoints = useMemo(
+    () =>
+      SPIN_RING_LABELS.map((label) => {
+        const radians = (label.angle * Math.PI) / 180;
+        const x = Math.cos(radians);
+        const y = Math.sin(radians);
+        let rotation = label.angle + 90;
+        if (rotation > 90 && rotation < 270) {
+          rotation += 180;
+        }
+        return {
+          ...label,
+          x,
+          y,
+          rotation
+        };
+      }),
+    []
+  );
 
   // Spin controller interactions
   useEffect(() => {
@@ -25794,6 +25824,21 @@ const powerRef = useRef(hud.power);
                 pointerEvents: 'none'
               }}
             />
+            {spinRingLabelPoints.map((label) => (
+              <span
+                key={`spin-label-${label.text}`}
+                className="absolute select-none whitespace-nowrap text-[8px] font-semibold uppercase tracking-[0.14em] text-[#2b0b0b]"
+                style={{
+                  left: `${50 + label.x * SPIN_RING_LABEL_OFFSET_PERCENT}%`,
+                  top: `${50 + label.y * SPIN_RING_LABEL_OFFSET_PERCENT}%`,
+                  transform: `translate(-50%, -50%) rotate(${label.rotation}deg)`,
+                  textShadow: '0 1px 1px rgba(0,0,0,0.35)',
+                  pointerEvents: 'none'
+                }}
+              >
+                {label.text}
+              </span>
+            ))}
             <div
               className="absolute left-1/2 top-0 h-full w-[2px] bg-red-500/60"
               style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}
