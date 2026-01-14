@@ -901,7 +901,7 @@ const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylind
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
-const LOCK_REPLAY_CAMERA = false;
+const LOCK_REPLAY_CAMERA = true;
 const REPLAY_CUE_STICK_HOLD_MS = 240;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
@@ -1004,9 +1004,8 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const ENABLE_BALL_FLOOR_SHADOWS = true;
-const ENABLE_CUE_CLOTH_SHADOW = false;
-const ENABLE_TABLE_FLOOR_SHADOW = false;
-const ENABLE_TABLE_FLOOR_SHADOW_RECEIVER = true;
+const ENABLE_CUE_CLOTH_SHADOW = true;
+const ENABLE_TABLE_FLOOR_SHADOW = true;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
@@ -1082,8 +1081,6 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
   clearcoatRoughnessMin: 0.48,
   envMapIntensityMax: 0
 });
-const CLOTH_TONE_LOCK = true;
-const CLOTH_TONE_EMISSIVE_INTENSITY = 1;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
 const BALL_CENTER_Y =
@@ -1271,9 +1268,9 @@ const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.95;
 const POCKET_INTENT_TIMEOUT_MS = 4200;
 const ACTION_CAM = Object.freeze({
-  pairMinDistance: BALL_R * 32,
-  pairMaxDistance: BALL_R * 80,
-  pairDistanceScale: 1.2,
+  pairMinDistance: BALL_R * 28,
+  pairMaxDistance: BALL_R * 72,
+  pairDistanceScale: 1.05,
   sideBias: 1.24,
   forwardBias: 0.1,
   shortRailBias: 0.52,
@@ -2501,7 +2498,7 @@ const DEFAULT_CLOTH_TEXTURE_KEY =
 const DEFAULT_CLOTH_COLOR_ID = DEFAULT_CLOTH_TEXTURE_KEY;
 const CLOTH_TEXTURE_SOURCE_STORAGE_KEY = 'poolRoyaleClothSource';
 const CLOTH_TEXTURE_SOURCE_OPTIONS = Object.freeze([
-  { id: 'polyhaven', label: 'Poly Haven Cloth (8K)' },
+  { id: 'polyhaven', label: 'Poly Haven Cloth (4K)' },
   { id: 'procedural', label: 'Procedural Cloth' }
 ]);
 const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'polyhaven';
@@ -2826,9 +2823,10 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 1.4;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 3.6;
-const POLYHAVEN_TEXTURE_RESOLUTION = '8k';
+const POLYHAVEN_TEXTURE_RESOLUTION =
+  CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
 const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1, 1);
 const CLOTH_ROUGHNESS_BASE = 0.82;
@@ -3365,7 +3363,6 @@ const createClothTextures = (() => {
           loadTextureWithFallbacks(loader, roughnessCandidates, false)
         ]);
 
-        map = neutralizePolyHavenColorMap(map);
         [map, normal, roughness].forEach((tex) =>
           applyTextureDefaults(tex, { isPolyHaven: true })
         );
@@ -3478,66 +3475,6 @@ function replaceMaterialTexture (
   material.needsUpdate = true;
 }
 
-function applyClothToneLock(material, toneColor, mapTexture) {
-  if (!CLOTH_TONE_LOCK || !material) return;
-  const resolvedTone =
-    toneColor?.clone?.() ??
-    (toneColor?.isColor ? toneColor : null) ??
-    material.userData?.toneColor ??
-    material.emissive?.clone?.() ??
-    new THREE.Color(0xffffff);
-  material.color.set(0x000000);
-  if (material.emissive) {
-    material.emissive.copy(resolvedTone);
-  } else {
-    material.emissive = resolvedTone.clone();
-  }
-  material.emissiveIntensity = CLOTH_TONE_EMISSIVE_INTENSITY;
-  if (mapTexture) {
-    const existing = material.emissiveMap;
-    if (!existing || existing.image !== mapTexture.image) {
-      if (existing?.dispose) existing.dispose();
-      const clone = mapTexture.clone();
-      clone.image = mapTexture.image;
-      clone.userData = { ...(mapTexture.userData || {}) };
-      if (mapTexture.repeat?.isVector2) {
-        clone.repeat.copy(mapTexture.repeat);
-      }
-      if (mapTexture.center?.isVector2) {
-        clone.center.copy(mapTexture.center);
-      }
-      clone.rotation = typeof mapTexture.rotation === 'number' ? mapTexture.rotation : 0;
-      clone.needsUpdate = true;
-      material.emissiveMap = clone;
-    }
-  } else if (material.emissiveMap) {
-    if (material.emissiveMap.dispose) material.emissiveMap.dispose();
-    material.emissiveMap = null;
-  }
-  if (material.map) {
-    if (material.map.dispose) material.map.dispose();
-    material.map = null;
-  }
-  material.envMapIntensity = 0;
-  material.clearcoat = 0;
-  material.clearcoatRoughness = 1;
-  material.metalness = 0;
-  material.sheen = 0;
-  material.reflectivity = 0;
-  material.roughness = 1;
-  material.toneMapped = false;
-  material.userData = material.userData || {};
-  material.userData.toneColor = resolvedTone.clone();
-  material.needsUpdate = true;
-}
-
-const resolveClothToneColor = (mapSource, fallbackColor) => {
-  if (mapSource === 'procedural') {
-    return new THREE.Color(0xffffff);
-  }
-  return fallbackColor?.clone?.() ?? new THREE.Color(0xffffff);
-};
-
 function updateClothTexturesForFinish (
   finishInfo,
   textureKey = DEFAULT_CLOTH_TEXTURE_KEY,
@@ -3547,7 +3484,6 @@ function updateClothTexturesForFinish (
   registerClothTextureConsumer(textureKey, finishInfo);
   const textures = createClothTextures(textureKey, textureSource);
   const textureScale = textures.mapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
-  const mapTarget = CLOTH_TONE_LOCK ? 'emissiveMap' : 'map';
   const targetNormalScale =
     finishInfo.clothBase?.isPolyHavenCloth && textures.normal
       ? POLYHAVEN_NORMAL_SCALE
@@ -3566,12 +3502,9 @@ function updateClothTexturesForFinish (
     finishInfo.clothMat.userData?.repeatRatio ?? finishInfo.clothBase?.repeatRatio ?? 1;
   const baseRepeatValue = baseRepeatRaw * textureScale;
   const fallbackRepeat = new THREE.Vector2(baseRepeatValue, baseRepeatValue * repeatRatioValue);
-  replaceMaterialTexture(finishInfo.clothMat, mapTarget, textures.map, fallbackRepeat, {
+  replaceMaterialTexture(finishInfo.clothMat, 'map', textures.map, fallbackRepeat, {
     preserveExisting: true
   });
-  if (CLOTH_TONE_LOCK) {
-    replaceMaterialTexture(finishInfo.clothMat, 'map', null, fallbackRepeat);
-  }
   replaceMaterialTexture(
     finishInfo.clothMat,
     'normalMap',
@@ -3603,16 +3536,6 @@ function updateClothTexturesForFinish (
   } else {
     finishInfo.clothMat.roughness = roughnessBase;
   }
-  if (CLOTH_TONE_LOCK) {
-    const toneColor = resolveClothToneColor(
-      textures.mapSource,
-      finishInfo.clothToneColor ??
-        finishInfo.clothMat.userData?.toneColor ??
-        finishInfo.clothMat.emissive?.clone?.() ??
-        finishInfo.clothMat.color
-    );
-    applyClothToneLock(finishInfo.clothMat, toneColor, textures.map);
-  }
   if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
     finishInfo.clothMat.bumpScale = finishInfo.clothBase.baseBumpScale;
   }
@@ -3624,12 +3547,9 @@ function updateClothTexturesForFinish (
     finishInfo.clothMat.userData.farRepeat = baseRepeatValue * 0.44;
   }
   if (finishInfo.cushionMat) {
-    replaceMaterialTexture(finishInfo.cushionMat, mapTarget, textures.map, fallbackRepeat, {
+    replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat, {
       preserveExisting: true
     });
-    if (CLOTH_TONE_LOCK) {
-      replaceMaterialTexture(finishInfo.cushionMat, 'map', null, fallbackRepeat);
-    }
     replaceMaterialTexture(
       finishInfo.cushionMat,
       'normalMap',
@@ -3661,24 +3581,13 @@ function updateClothTexturesForFinish (
     } else {
       finishInfo.cushionMat.roughness = roughnessBase;
     }
-    if (CLOTH_TONE_LOCK) {
-      const toneColor = resolveClothToneColor(
-        textures.mapSource,
-        finishInfo.cushionToneColor ??
-          finishInfo.cushionMat.userData?.toneColor ??
-          finishInfo.cushionMat.emissive?.clone?.() ??
-          finishInfo.cushionMat.color
-      );
-      applyClothToneLock(finishInfo.cushionMat, toneColor, textures.map);
-    }
     if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
       finishInfo.cushionMat.bumpScale = finishInfo.clothBase.baseBumpScale;
     }
   }
   if (finishInfo.clothEdgeMat) {
-    const edgeSource = finishInfo.clothToneColor ?? finishInfo.clothMat?.color ?? null;
-    const edgeColor = edgeSource
-      ? edgeSource.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT)
+    const edgeColor = finishInfo.clothMat?.color
+      ? finishInfo.clothMat.color.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT)
       : null;
     if (edgeColor) {
       finishInfo.clothEdgeMat.color.copy(edgeColor);
@@ -3687,7 +3596,6 @@ function updateClothTexturesForFinish (
       );
     }
     finishInfo.clothEdgeMat.map = null;
-    finishInfo.clothEdgeMat.emissiveMap = null;
     finishInfo.clothEdgeMat.bumpMap = null;
     finishInfo.clothEdgeMat.normalMap = null;
     finishInfo.clothEdgeMat.roughnessMap = null;
@@ -3706,9 +3614,8 @@ function updateClothTexturesForFinish (
     if (!mesh?.material) return;
     mesh.material.map = null;
     mesh.material.bumpMap = null;
-    const toneColor = finishInfo.clothToneColor ?? finishInfo.clothMat?.color ?? null;
-    if (mesh.material.color && toneColor) {
-      mesh.material.color.copy(toneColor);
+    if (mesh.material.color && finishInfo.clothMat?.color) {
+      mesh.material.color.copy(finishInfo.clothMat.color);
     }
     mesh.material.needsUpdate = true;
   });
@@ -4813,7 +4720,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.99;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.988;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
-const BROADCAST_PAIR_MARGIN = BALL_R * 8; // keep the cue/target pair safely framed within the broadcast crop
+const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
 const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.97 }),
@@ -6592,8 +6499,6 @@ function Table3D(
   const brightnessLift = CLOTH_BRIGHTNESS_LERP;
   const clothColor = clothPrimary.clone();
   const cushionColor = cushionPrimary.clone();
-  const clothToneColor = clothColor.clone();
-  const cushionToneColor = cushionColor.clone();
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.14 + brightnessLift * 0.35);
   const clothSheen = CLOTH_QUALITY.sheen * 0.5;
   const clothSheenRoughness = Math.min(
@@ -6689,17 +6594,10 @@ function Table3D(
   cushionMat.color.copy(cushionColor);
   cushionMat.emissive.copy(cushionColor.clone().multiplyScalar(0.045));
   cushionMat.side = THREE.DoubleSide;
-  if (CLOTH_TONE_LOCK) {
-    const resolvedTone = resolveClothToneColor(clothMapSource, clothToneColor);
-    const resolvedCushionTone = resolveClothToneColor(clothMapSource, cushionToneColor);
-    applyClothToneLock(clothMat, resolvedTone, clothMap);
-    applyClothToneLock(cushionMat, resolvedCushionTone, clothMap);
-  }
   const clothEdgeMat = clothMat.clone();
   clothEdgeMat.color.copy(clothColor);
   clothEdgeMat.emissive.set(0x000000);
   clothEdgeMat.map = null;
-  clothEdgeMat.emissiveMap = null;
   clothEdgeMat.bumpMap = null;
   clothEdgeMat.normalMap = null;
   clothEdgeMat.roughnessMap = null;
@@ -6713,7 +6611,6 @@ function Table3D(
   clothEdgeMat.clearcoatRoughness = 1;
   clothEdgeMat.sheen = 0;
   clothEdgeMat.reflectivity = 0;
-  clothEdgeMat.userData = { ...(clothEdgeMat.userData || {}), isClothEdge: true };
   clothEdgeMat.needsUpdate = true;
   const clothBaseSettings = {
     roughnessTarget: clothRoughnessTarget,
@@ -6791,17 +6688,6 @@ function Table3D(
       }
       mat.needsUpdate = true;
     });
-    if (CLOTH_TONE_LOCK) {
-      clothMaterials.forEach((mat) => {
-        if (!mat || mat.userData?.isClothEdge) return;
-        const mapSource = mat.emissiveMap?.userData?.clothSource ?? mat.map?.userData?.clothSource;
-        const toneColor = resolveClothToneColor(
-          mapSource,
-          mat.userData?.toneColor ?? mat.emissive?.clone?.() ?? clothToneColor
-        );
-        applyClothToneLock(mat, toneColor, mat.emissiveMap ?? mat.map);
-      });
-    }
     const primary = clothMaterials[0];
     if (primary?.userData) {
       primary.userData.bumpScale = primary.bumpScale;
@@ -6836,8 +6722,6 @@ function Table3D(
     clothMat,
     cushionMat,
     clothEdgeMat,
-    clothToneColor,
-    cushionToneColor,
     parts: finishParts,
     clothDetail: resolvedFinish?.clothDetail ?? null,
     clothBase: clothBaseSettings,
@@ -7350,23 +7234,6 @@ function Table3D(
     floorShadow.receiveShadow = false;
     floorShadow.castShadow = false;
     floorShadow.name = 'tableFloorShadow';
-    table.add(floorShadow);
-  }
-  if (ENABLE_TABLE_FLOOR_SHADOW_RECEIVER) {
-    const shadowWidth = outerHalfW * 2 + TABLE_FLOOR_SHADOW_MARGIN * 2;
-    const shadowHeight = outerHalfH * 2 + TABLE_FLOOR_SHADOW_MARGIN * 2;
-    const shadowGeo = new THREE.PlaneGeometry(shadowWidth, shadowHeight);
-    shadowGeo.rotateX(-Math.PI / 2);
-    const shadowMat = new THREE.ShadowMaterial({
-      color: 0x000000,
-      opacity: TABLE_FLOOR_SHADOW_OPACITY
-    });
-    const floorShadow = new THREE.Mesh(shadowGeo, shadowMat);
-    floorShadow.position.y = FLOOR_Y - TABLE_Y + MICRO_EPS;
-    floorShadow.renderOrder = -5;
-    floorShadow.receiveShadow = true;
-    floorShadow.castShadow = false;
-    floorShadow.name = 'tableFloorShadowReceiver';
     table.add(floorShadow);
   }
   // Force the table rails to reuse the exact cue butt wood scale so the grain
@@ -13328,7 +13195,7 @@ const powerRef = useRef(hud.power);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.enabled = false;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       updateRendererAnisotropyCap(renderer);
@@ -17127,22 +16994,25 @@ const powerRef = useRef(hud.power);
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
-          const resolvedPosition = fallbackCamera?.position?.clone?.() ?? null;
-          const resolvedTarget = targetSnapshot?.clone?.() ?? null;
-          const resolvedFov = fovSnapshot;
-          if (resolvedPosition && resolvedPosition.y < minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale) {
-            resolvedPosition.y = minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale;
-          }
-          if (resolvedTarget) {
-            resolvedTarget.y = Math.max(resolvedTarget.y ?? 0, minTargetY);
-          }
+          const overheadCamera = resolveRailOverheadReplayCamera({
+            focusOverride: targetSnapshot,
+            minTargetY
+          });
+          const resolvedPosition = overheadCamera?.position?.clone?.() ??
+            fallbackCamera?.position?.clone?.() ?? null;
+          const resolvedTarget = overheadCamera?.target?.clone?.() ?? targetSnapshot;
+          const resolvedFov = Number.isFinite(overheadCamera?.fov)
+            ? overheadCamera.fov
+            : fovSnapshot;
           if (!resolvedPosition && !resolvedTarget) return null;
           const snapshot = {
             position: resolvedPosition,
             target: resolvedTarget,
             fov: resolvedFov
           };
-          snapshot.minTargetY = minTargetY;
+          if (Number.isFinite(overheadCamera?.minTargetY)) {
+            snapshot.minTargetY = overheadCamera.minTargetY;
+          }
           return snapshot;
         };
         captureReplayCameraSnapshotRef.current = captureReplayCameraSnapshot;
@@ -18018,7 +17888,7 @@ const powerRef = useRef(hud.power);
 
       // Lights
       const addMobileLighting = () => {
-        const useHdriOnly = false;
+        const useHdriOnly = true;
         if (useHdriOnly) {
           lightingRigRef.current = null;
           return;
@@ -19166,12 +19036,6 @@ const powerRef = useRef(hud.power);
       applyCueButtTilt(cueStick, 0);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
-      cueStick.traverse((child) => {
-        if (child?.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      });
       table.add(cueStick);
       const cueShadow = ENABLE_CUE_CLOTH_SHADOW
         ? (() => {
