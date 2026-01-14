@@ -1005,7 +1005,7 @@ const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
-const ENABLE_TABLE_FLOOR_SHADOW = true;
+const ENABLE_TABLE_FLOOR_SHADOW = false;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
@@ -1252,18 +1252,19 @@ const POCKET_CAM = Object.freeze({
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 1.9,
-  heightOffsetShortMultiplier: 0.96,
+  heightOffset: BALL_R * 0.9,
+  heightOffsetShortMultiplier: 0.92,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.04,
-  heightDrop: BALL_R * 0.45,
+  heightDrop: BALL_R * 0.18,
   distanceScale: 0.96,
-  heightScale: 1.06,
-  focusBlend: 0.22,
-  lateralFocusShift: POCKET_VIS_R * 0.32,
-  railFocusLong: BALL_R * 8,
-  railFocusShort: BALL_R * 5.4
+  heightScale: 0.82,
+  focusBlend: 0,
+  lateralFocusShift: 0,
+  railFocusLong: 0,
+  railFocusShort: 0
 });
+const POCKET_CAM_FOCUS_LEAD = BALL_R * 0.65;
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.95;
 const POCKET_INTENT_TIMEOUT_MS = 4200;
@@ -2823,7 +2824,9 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
+const CLOTH_TONE_LOCKED = true; // keep cloth tone consistent regardless of lighting/HDRI
+const CLOTH_EMISSIVE_INTENSITY = 1;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 1.4; // enlarge Poly Haven cloth pattern by 40%
 const POLYHAVEN_ANISOTROPY_BOOST = 3.6;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
@@ -3067,7 +3070,7 @@ const createClothTextures = (() => {
     texture.needsUpdate = true;
   };
 
-  const neutralizePolyHavenColorMap = (texture) => {
+  const neutralizeClothColorMap = (texture) => {
     if (!texture || !texture.image || typeof document === 'undefined') return texture;
     const image = texture.image;
     const width = image.naturalWidth || image.videoWidth || image.width;
@@ -3285,8 +3288,9 @@ const createClothTextures = (() => {
       }
     }
 
-    const colorMap = new THREE.CanvasTexture(image);
+    let colorMap = new THREE.CanvasTexture(image);
     applySRGBColorSpace(colorMap);
+    colorMap = neutralizeClothColorMap(colorMap);
     applyTextureDefaults(colorMap);
 
     const bumpMap = new THREE.DataTexture(image.data, SIZE, SIZE, THREE.RGBAFormat);
@@ -3363,6 +3367,7 @@ const createClothTextures = (() => {
           loadTextureWithFallbacks(loader, roughnessCandidates, false)
         ]);
 
+        map = neutralizeClothColorMap(map);
         [map, normal, roughness].forEach((tex) =>
           applyTextureDefaults(tex, { isPolyHaven: true })
         );
@@ -3502,39 +3507,52 @@ function updateClothTexturesForFinish (
     finishInfo.clothMat.userData?.repeatRatio ?? finishInfo.clothBase?.repeatRatio ?? 1;
   const baseRepeatValue = baseRepeatRaw * textureScale;
   const fallbackRepeat = new THREE.Vector2(baseRepeatValue, baseRepeatValue * repeatRatioValue);
-  replaceMaterialTexture(finishInfo.clothMat, 'map', textures.map, fallbackRepeat, {
-    preserveExisting: true
-  });
   replaceMaterialTexture(
     finishInfo.clothMat,
-    'normalMap',
-    textures.normal,
+    'emissiveMap',
+    textures.map,
     fallbackRepeat,
     { preserveExisting: true }
   );
-  replaceMaterialTexture(
-    finishInfo.clothMat,
-    'roughnessMap',
-    textures.roughness,
-    fallbackRepeat,
-    { preserveExisting: true }
-  );
-  if (textures.normal) {
-    finishInfo.clothMat.normalScale = targetNormalScale.clone();
+  finishInfo.clothMat.map = null;
+  if (CLOTH_TONE_LOCKED) {
+    replaceMaterialTexture(finishInfo.clothMat, 'normalMap', null, fallbackRepeat);
+    replaceMaterialTexture(finishInfo.clothMat, 'roughnessMap', null, fallbackRepeat);
     replaceMaterialTexture(finishInfo.clothMat, 'bumpMap', null, fallbackRepeat);
+    finishInfo.clothMat.roughness = 1;
+    finishInfo.clothMat.bumpScale = 0;
   } else {
     replaceMaterialTexture(
       finishInfo.clothMat,
-      'bumpMap',
-      textures.bump,
+      'normalMap',
+      textures.normal,
       fallbackRepeat,
       { preserveExisting: true }
     );
-  }
-  if (textures.roughness) {
-    finishInfo.clothMat.roughness = roughnessTarget;
-  } else {
-    finishInfo.clothMat.roughness = roughnessBase;
+    replaceMaterialTexture(
+      finishInfo.clothMat,
+      'roughnessMap',
+      textures.roughness,
+      fallbackRepeat,
+      { preserveExisting: true }
+    );
+    if (textures.normal) {
+      finishInfo.clothMat.normalScale = targetNormalScale.clone();
+      replaceMaterialTexture(finishInfo.clothMat, 'bumpMap', null, fallbackRepeat);
+    } else {
+      replaceMaterialTexture(
+        finishInfo.clothMat,
+        'bumpMap',
+        textures.bump,
+        fallbackRepeat,
+        { preserveExisting: true }
+      );
+    }
+    if (textures.roughness) {
+      finishInfo.clothMat.roughness = roughnessTarget;
+    } else {
+      finishInfo.clothMat.roughness = roughnessBase;
+    }
   }
   if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
     finishInfo.clothMat.bumpScale = finishInfo.clothBase.baseBumpScale;
@@ -3547,47 +3565,63 @@ function updateClothTexturesForFinish (
     finishInfo.clothMat.userData.farRepeat = baseRepeatValue * 0.44;
   }
   if (finishInfo.cushionMat) {
-    replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat, {
-      preserveExisting: true
-    });
     replaceMaterialTexture(
       finishInfo.cushionMat,
-      'normalMap',
-      textures.normal,
+      'emissiveMap',
+      textures.map,
       fallbackRepeat,
       { preserveExisting: true }
     );
-    replaceMaterialTexture(
-      finishInfo.cushionMat,
-      'roughnessMap',
-      textures.roughness,
-      fallbackRepeat,
-      { preserveExisting: true }
-    );
-    if (textures.normal) {
-      finishInfo.cushionMat.normalScale = targetNormalScale.clone();
+    finishInfo.cushionMat.map = null;
+    if (CLOTH_TONE_LOCKED) {
+      replaceMaterialTexture(finishInfo.cushionMat, 'normalMap', null, fallbackRepeat);
+      replaceMaterialTexture(finishInfo.cushionMat, 'roughnessMap', null, fallbackRepeat);
       replaceMaterialTexture(finishInfo.cushionMat, 'bumpMap', null, fallbackRepeat);
+      finishInfo.cushionMat.roughness = 1;
+      finishInfo.cushionMat.bumpScale = 0;
     } else {
       replaceMaterialTexture(
         finishInfo.cushionMat,
-        'bumpMap',
-        textures.bump,
+        'normalMap',
+        textures.normal,
         fallbackRepeat,
         { preserveExisting: true }
       );
-    }
-    if (textures.roughness) {
-      finishInfo.cushionMat.roughness = roughnessTarget;
-    } else {
-      finishInfo.cushionMat.roughness = roughnessBase;
-    }
-    if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
-      finishInfo.cushionMat.bumpScale = finishInfo.clothBase.baseBumpScale;
+      replaceMaterialTexture(
+        finishInfo.cushionMat,
+        'roughnessMap',
+        textures.roughness,
+        fallbackRepeat,
+        { preserveExisting: true }
+      );
+      if (textures.normal) {
+        finishInfo.cushionMat.normalScale = targetNormalScale.clone();
+        replaceMaterialTexture(finishInfo.cushionMat, 'bumpMap', null, fallbackRepeat);
+      } else {
+        replaceMaterialTexture(
+          finishInfo.cushionMat,
+          'bumpMap',
+          textures.bump,
+          fallbackRepeat,
+          { preserveExisting: true }
+        );
+      }
+      if (textures.roughness) {
+        finishInfo.cushionMat.roughness = roughnessTarget;
+      } else {
+        finishInfo.cushionMat.roughness = roughnessBase;
+      }
+      if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
+        finishInfo.cushionMat.bumpScale = finishInfo.clothBase.baseBumpScale;
+      }
     }
   }
   if (finishInfo.clothEdgeMat) {
-    const edgeColor = finishInfo.clothMat?.color
-      ? finishInfo.clothMat.color.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT)
+    const edgeBaseColor = CLOTH_TONE_LOCKED
+      ? finishInfo.clothMat?.emissive
+      : finishInfo.clothMat?.color;
+    const edgeColor = edgeBaseColor
+      ? edgeBaseColor.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT)
       : null;
     if (edgeColor) {
       finishInfo.clothEdgeMat.color.copy(edgeColor);
@@ -6500,25 +6534,28 @@ function Table3D(
   const clothColor = clothPrimary.clone();
   const cushionColor = cushionPrimary.clone();
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.14 + brightnessLift * 0.35);
-  const clothSheen = CLOTH_QUALITY.sheen * 0.5;
-  const clothSheenRoughness = Math.min(
-    1,
-    CLOTH_QUALITY.sheenRoughness * 1.12
-  );
+  const clothSheen = CLOTH_TONE_LOCKED ? 0 : CLOTH_QUALITY.sheen * 0.5;
+  const clothSheenRoughness = CLOTH_TONE_LOCKED
+    ? 1
+    : Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.12);
   const clothRoughnessBase = CLOTH_ROUGHNESS_BASE + 0.06;
   const clothRoughnessTarget = CLOTH_ROUGHNESS_TARGET + 0.06;
-  const clothEmissiveIntensity = 0.18;
+  const clothEmissiveIntensity = CLOTH_TONE_LOCKED ? CLOTH_EMISSIVE_INTENSITY : 0.18;
   const clothNormalScale = isPolyHavenCloth ? POLYHAVEN_NORMAL_SCALE : CLOTH_NORMAL_SCALE;
+  const clothBaseColor = CLOTH_TONE_LOCKED ? new THREE.Color(0x000000) : clothColor;
+  const clothEmissive = CLOTH_TONE_LOCKED
+    ? clothColor.clone()
+    : clothColor.clone().multiplyScalar(0.045);
   const clothMat = new THREE.MeshPhysicalMaterial({
-    color: clothColor,
-    roughness: clothRoughnessBase,
+    color: clothBaseColor,
+    roughness: CLOTH_TONE_LOCKED ? 1 : clothRoughnessBase,
     sheen: clothSheen,
     sheenColor,
     sheenRoughness: clothSheenRoughness,
     clearcoat: 0,
-    clearcoatRoughness: 0.9,
+    clearcoatRoughness: CLOTH_TONE_LOCKED ? 1 : 0.9,
     envMapIntensity: 0,
-    emissive: clothColor.clone().multiplyScalar(0.045),
+    emissive: clothEmissive,
     emissiveIntensity: clothEmissiveIntensity,
     metalness: 0
   });
@@ -6551,31 +6588,44 @@ function Table3D(
     CLOTH_QUALITY.bumpScaleMultiplier *
     (isPolyHavenCloth ? 1.2 : 1);
   const flattenedBumpScale = baseBumpScale * 0.48;
-  if (clothMap) {
-    clothMat.map = clothMap;
-    clothMat.map.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
-    clothMat.map.needsUpdate = true;
-  }
-  if (clothNormal) {
-    clothMat.normalMap = clothNormal;
-    clothMat.normalMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
-    clothMat.normalScale = clothNormalScale.clone();
-    clothMat.normalMap.needsUpdate = true;
-    clothMat.bumpScale = flattenedBumpScale;
+  if (CLOTH_TONE_LOCKED) {
+    if (clothMap) {
+      clothMat.emissiveMap = clothMap;
+      clothMat.emissiveMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+      clothMat.emissiveMap.needsUpdate = true;
+    }
+    clothMat.map = null;
+    clothMat.normalMap = null;
     clothMat.bumpMap = null;
-  } else if (clothBump) {
-    clothMat.bumpMap = clothBump;
-    clothMat.bumpMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
-    clothMat.bumpScale = flattenedBumpScale;
-    clothMat.bumpMap.needsUpdate = true;
+    clothMat.roughnessMap = null;
+    clothMat.bumpScale = 0;
   } else {
-    clothMat.bumpScale = flattenedBumpScale;
-  }
-  if (clothRoughness) {
-    clothMat.roughnessMap = clothRoughness;
-    clothMat.roughnessMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
-    clothMat.roughness = CLOTH_ROUGHNESS_TARGET;
-    clothMat.roughnessMap.needsUpdate = true;
+    if (clothMap) {
+      clothMat.map = clothMap;
+      clothMat.map.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+      clothMat.map.needsUpdate = true;
+    }
+    if (clothNormal) {
+      clothMat.normalMap = clothNormal;
+      clothMat.normalMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+      clothMat.normalScale = clothNormalScale.clone();
+      clothMat.normalMap.needsUpdate = true;
+      clothMat.bumpScale = flattenedBumpScale;
+      clothMat.bumpMap = null;
+    } else if (clothBump) {
+      clothMat.bumpMap = clothBump;
+      clothMat.bumpMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+      clothMat.bumpScale = flattenedBumpScale;
+      clothMat.bumpMap.needsUpdate = true;
+    } else {
+      clothMat.bumpScale = flattenedBumpScale;
+    }
+    if (clothRoughness) {
+      clothMat.roughnessMap = clothRoughness;
+      clothMat.roughnessMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+      clothMat.roughness = CLOTH_ROUGHNESS_TARGET;
+      clothMat.roughnessMap.needsUpdate = true;
+    }
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
@@ -6592,7 +6642,9 @@ function Table3D(
 
   const cushionMat = clothMat.clone();
   cushionMat.color.copy(cushionColor);
-  cushionMat.emissive.copy(cushionColor.clone().multiplyScalar(0.045));
+  cushionMat.emissive.copy(
+    CLOTH_TONE_LOCKED ? cushionColor.clone() : cushionColor.clone().multiplyScalar(0.045)
+  );
   cushionMat.side = THREE.DoubleSide;
   const clothEdgeMat = clothMat.clone();
   clothEdgeMat.color.copy(clothColor);
@@ -6631,6 +6683,31 @@ function Table3D(
   };
   const clothMaterials = [clothMat, cushionMat, clothEdgeMat];
   const applyClothDetail = (detail) => {
+    if (CLOTH_TONE_LOCKED) {
+      clothMaterials.forEach((mat) => {
+        if (!mat) return;
+        mat.roughness = 1;
+        mat.sheen = 0;
+        mat.sheenRoughness = 1;
+        mat.clearcoat = 0;
+        mat.clearcoatRoughness = 1;
+        if ('envMapIntensity' in mat) {
+          mat.envMapIntensity = 0;
+        }
+        if (typeof mat.emissiveIntensity === 'number') {
+          mat.emissiveIntensity = CLOTH_EMISSIVE_INTENSITY;
+        }
+        mat.bumpScale = 0;
+        mat.needsUpdate = true;
+      });
+      const primary = clothMaterials[0];
+      if (primary?.userData) {
+        primary.userData.bumpScale = 0;
+        primary.userData.baseBumpScale = 0;
+        primary.userData.detailBumpMultiplier = 0;
+      }
+      return;
+    }
     const overrides = detail && typeof detail === 'object' ? detail : {};
     const bumpMultiplier = Number.isFinite(overrides.bumpMultiplier)
       ? overrides.bumpMultiplier
@@ -10153,22 +10230,40 @@ function applyTableFinishToTable(table, finish) {
   );
   const clothSheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
   const cushionSheenColor = cushionColor.clone().lerp(clothHighlight, 0.18);
-  const emissiveColor = clothColor.clone().multiplyScalar(0.06);
-  const cushionEmissive = cushionColor.clone().multiplyScalar(0.06);
+  const emissiveColor = CLOTH_TONE_LOCKED
+    ? clothColor.clone()
+    : clothColor.clone().multiplyScalar(0.06);
+  const cushionEmissive = CLOTH_TONE_LOCKED
+    ? cushionColor.clone()
+    : cushionColor.clone().multiplyScalar(0.06);
   if (finishInfo.clothMat) {
-    finishInfo.clothMat.color.copy(clothColor);
+    if (CLOTH_TONE_LOCKED) {
+      finishInfo.clothMat.color.set(0x000000);
+    } else {
+      finishInfo.clothMat.color.copy(clothColor);
+    }
     if (finishInfo.clothMat.sheenColor) {
       finishInfo.clothMat.sheenColor.copy(clothSheenColor);
     }
     finishInfo.clothMat.emissive.copy(emissiveColor);
+    if (CLOTH_TONE_LOCKED && typeof finishInfo.clothMat.emissiveIntensity === 'number') {
+      finishInfo.clothMat.emissiveIntensity = CLOTH_EMISSIVE_INTENSITY;
+    }
     finishInfo.clothMat.needsUpdate = true;
   }
   if (finishInfo.cushionMat) {
-    finishInfo.cushionMat.color.copy(cushionColor);
+    if (CLOTH_TONE_LOCKED) {
+      finishInfo.cushionMat.color.set(0x000000);
+    } else {
+      finishInfo.cushionMat.color.copy(cushionColor);
+    }
     if (finishInfo.cushionMat.sheenColor) {
       finishInfo.cushionMat.sheenColor.copy(cushionSheenColor);
     }
     finishInfo.cushionMat.emissive.copy(cushionEmissive);
+    if (CLOTH_TONE_LOCKED && typeof finishInfo.cushionMat.emissiveIntensity === 'number') {
+      finishInfo.cushionMat.emissiveIntensity = CLOTH_EMISSIVE_INTENSITY;
+    }
     finishInfo.cushionMat.needsUpdate = true;
   }
   if (finishInfo.clothEdgeMat) {
@@ -15369,7 +15464,8 @@ const powerRef = useRef(hud.power);
           return (
             positionShift > REPLAY_CAMERA_SWITCH_THRESHOLD ||
             targetShift > REPLAY_CAMERA_SWITCH_THRESHOLD ||
-            fovShift > 1e-3
+            fovShift > 1e-3 ||
+            previous.mode !== next.mode
           );
         };
 
@@ -15403,7 +15499,24 @@ const powerRef = useRef(hud.power);
           const resolvedFov = Number.isFinite(fovA) || Number.isFinite(fovB)
             ? THREE.MathUtils.lerp(fovA ?? fovB, fovB ?? fovA, alpha)
             : fallbackFov;
-          return { position, target, fov: resolvedFov, minTargetY };
+          const mode = cameraA?.mode ?? cameraB?.mode ?? replayFrameCamera?.mode ?? null;
+          return { position, target, fov: resolvedFov, minTargetY, mode };
+        };
+
+        const resolveReplayBallFocus = (ballsList, targetId) => {
+          if (!Array.isArray(ballsList)) return null;
+          const cueBall = ballsList.find((ball) => ball?.id === 'cue' && ball.active);
+          if (!cueBall) return null;
+          let targetBall = null;
+          if (targetId != null) {
+            targetBall = ballsList.find((ball) => ball?.id === targetId && ball.active) ?? null;
+          }
+          if (!targetBall) {
+            targetBall =
+              ballsList.find((ball) => ball?.id !== 'cue' && ball.active) ?? null;
+          }
+          if (!targetBall) return null;
+          return { cueBall, targetBall };
         };
 
         const updateHdriScale = (renderCamera, target = null) => {
@@ -15462,13 +15575,13 @@ const powerRef = useRef(hud.power);
                 ? resolvedReplayCamera.minTargetY
                 : BALL_CENTER_Y * scale
             );
-            const focusTarget =
+            let focusTarget =
               resolvedReplayCamera?.target?.clone?.() ??
               storedReplayCamera?.target?.clone?.() ??
               lastCameraTargetRef.current?.clone?.() ??
               new THREE.Vector3(playerOffsetRef.current * scale, minTargetY, 0);
             focusTarget.y = Math.max(focusTarget.y ?? 0, minTargetY);
-            const safePosition =
+            let safePosition =
               resolvedReplayCamera?.position?.clone?.() ??
               storedReplayCamera?.position?.clone?.() ??
               camera.position.clone();
@@ -15480,6 +15593,44 @@ const powerRef = useRef(hud.power);
               : Number.isFinite(storedReplayCamera?.fov)
                 ? storedReplayCamera.fov
                 : camera.fov;
+            const replayMode =
+              resolvedReplayCamera?.mode ?? storedReplayCamera?.mode ?? null;
+            const ballsList = ballsRef.current ?? [];
+            const replayFocus = resolveReplayBallFocus(
+              ballsList,
+              shotReplayRef.current?.targetId ?? null
+            );
+            if (replayFocus && replayMode !== 'pocket') {
+              const cuePos = new THREE.Vector3(
+                replayFocus.cueBall.pos.x,
+                minTargetY,
+                replayFocus.cueBall.pos.y
+              );
+              const targetPos = new THREE.Vector3(
+                replayFocus.targetBall.pos.x,
+                minTargetY,
+                replayFocus.targetBall.pos.y
+              );
+              const mid = cuePos.clone().add(targetPos).multiplyScalar(0.5);
+              const separation = cuePos.distanceTo(targetPos);
+              const radius = Math.max(separation * 0.5, BALL_R * 2);
+              const fovRad = THREE.MathUtils.degToRad(replayFov);
+              const hFov = 2 * Math.atan(Math.tan(fovRad / 2) * camera.aspect);
+              const minDistance = Math.max(
+                radius / Math.sin(fovRad / 2),
+                radius / Math.sin(hFov / 2)
+              );
+              const direction = safePosition.clone().sub(mid);
+              if (direction.lengthSq() < 1e-6) {
+                direction.set(0, 1, 1);
+              }
+              direction.normalize();
+              const currentDistance = safePosition.distanceTo(mid);
+              const nextDistance = Math.max(currentDistance, minDistance);
+              safePosition = mid.clone().add(direction.multiplyScalar(nextDistance));
+              focusTarget = mid.clone();
+              focusTarget.y = Math.max(focusTarget.y ?? 0, minTargetY);
+            }
             if (Number.isFinite(replayFov) && camera.fov !== replayFov) {
               camera.fov = replayFov;
               camera.updateProjectionMatrix();
@@ -15993,17 +16144,16 @@ const powerRef = useRef(hud.power);
             } else {
               activeShotView.approach = approachDir.clone();
             }
-            const resolvedAnchorId = resolvePocketCameraAnchor(
-              activeShotView.pocketId ?? pocketIdFromCenter(pocketCenter),
-              pocketCenter,
-              approachDir,
-              activeShotView.lastBallPos ?? pocketCenter
-            );
-            const anchorId =
-              resolvedAnchorId ??
+            const resolvedAnchorId =
               activeShotView.anchorId ??
-              pocketIdFromCenter(pocketCenter);
-            if (anchorId !== activeShotView.anchorId) {
+              resolvePocketCameraAnchor(
+                activeShotView.pocketId ?? pocketIdFromCenter(pocketCenter),
+                pocketCenter,
+                approachDir,
+                activeShotView.lastBallPos ?? pocketCenter
+              );
+            const anchorId = resolvedAnchorId ?? pocketIdFromCenter(pocketCenter);
+            if (!activeShotView.anchorId) {
               activeShotView.anchorId = anchorId;
               const latestOutward = getPocketCameraOutward(anchorId);
               if (latestOutward) {
@@ -16035,68 +16185,19 @@ const powerRef = useRef(hud.power);
             const cameraBounds = cameraBoundsRef.current ?? null;
             const cueBounds = cameraBounds?.cueShot ?? null;
             const standingBounds = cameraBounds?.standing ?? null;
-            const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.12;
-            const focusTarget = new THREE.Vector3(0, focusHeightLocal, 0);
-            const cueBallForPocket = ballsList.find((b) => b.id === 'cue');
-            if (cueBallForPocket && focusBall?.active) {
-              focusTarget.set(
-                (cueBallForPocket.pos.x + focusBall.pos.x) * 0.5,
-                focusHeightLocal,
-                (cueBallForPocket.pos.y + focusBall.pos.y) * 0.5
+            const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.18;
+            const focusTarget = new THREE.Vector3(
+              pocketCenter2D.x,
+              focusHeightLocal,
+              pocketCenter2D.y
+            );
+            if (approachDir.lengthSq() > 1e-6) {
+              focusTarget.add(
+                new THREE.Vector3(approachDir.x, 0, approachDir.y)
+                  .multiplyScalar(POCKET_CAM_FOCUS_LEAD)
               );
             }
             focusTarget.multiplyScalar(worldScaleFactor);
-            if (POCKET_CAM.focusBlend > 0 && pocketCenter2D) {
-              const focusBlend = THREE.MathUtils.clamp(
-                POCKET_CAM.focusBlend,
-                0,
-                1
-              );
-              if (focusBlend > 0) {
-                const pocketFocus = new THREE.Vector3(
-                  pocketCenter2D.x * worldScaleFactor,
-                  focusHeightLocal,
-                  pocketCenter2D.y * worldScaleFactor
-                );
-                focusTarget.lerp(pocketFocus, focusBlend);
-              }
-            }
-            if (POCKET_CAM.lateralFocusShift) {
-              const lateral2D = new THREE.Vector2(-outward.y, outward.x);
-              if (lateral2D.lengthSq() > 1e-6) {
-                lateral2D.normalize().multiplyScalar(
-                  POCKET_CAM.lateralFocusShift * worldScaleFactor
-                );
-                focusTarget.add(
-                  new THREE.Vector3(lateral2D.x, 0, lateral2D.y)
-                );
-              }
-            }
-            if (
-              anchorType === 'short' &&
-              (POCKET_CAM.railFocusLong || POCKET_CAM.railFocusShort)
-            ) {
-              const signX =
-                pocketCenter2D.x !== 0
-                  ? Math.sign(pocketCenter2D.x)
-                  : Math.sign(outward.x);
-              const signZ =
-                pocketCenter2D.y !== 0
-                  ? Math.sign(pocketCenter2D.y)
-                  : Math.sign(outward.y);
-              const offsetX =
-                (POCKET_CAM.railFocusLong ?? 0) * (signX ? -signX : 0);
-              const offsetZ =
-                (POCKET_CAM.railFocusShort ?? 0) * (signZ ? -signZ : 0);
-              if (offsetX || offsetZ) {
-                TMP_VEC3_A.set(
-                  offsetX * worldScaleFactor,
-                  0,
-                  offsetZ * worldScaleFactor
-                );
-                focusTarget.add(TMP_VEC3_A);
-              }
-            }
             const pocketDirection2D = pocketCenter2D.clone();
             if (pocketDirection2D.lengthSq() < 1e-6) {
               pocketDirection2D.copy(outward.lengthSq() > 1e-6 ? outward : new THREE.Vector2(0, -1));
@@ -16418,25 +16519,24 @@ const powerRef = useRef(hud.power);
             broadcastArgs.orbitWorld = lookTarget.clone();
           }
           if (clothMat) {
+            const mapRef = clothMat.emissiveMap ?? clothMat.map;
             const repeat =
               clothMat.userData?.baseRepeat ??
               clothMat.userData?.nearRepeat ??
-              clothMat.map?.repeat?.x ??
+              mapRef?.repeat?.x ??
               1;
             const ratio =
               clothMat.userData?.repeatRatio ??
-              (clothMat.map?.repeat?.x
-                ? clothMat.map.repeat.y / clothMat.map.repeat.x
-                : 1);
+              (mapRef?.repeat?.x ? mapRef.repeat.y / mapRef.repeat.x : 1);
             const targetRepeat = repeat;
             const targetRepeatY = targetRepeat * ratio;
             if (
-              clothMat.map &&
-              (clothMat.map.repeat.x !== targetRepeat ||
-                clothMat.map.repeat.y !== targetRepeatY)
+              mapRef &&
+              (mapRef.repeat.x !== targetRepeat ||
+                mapRef.repeat.y !== targetRepeatY)
             ) {
-              clothMat.map.repeat.set(targetRepeat, targetRepeatY);
-              clothMat.map.needsUpdate = true;
+              mapRef.repeat.set(targetRepeat, targetRepeatY);
+              mapRef.needsUpdate = true;
             }
             if (
               clothMat.normalMap &&
@@ -16987,32 +17087,23 @@ const powerRef = useRef(hud.power);
         const captureReplayCameraSnapshot = () => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-          const fallbackCamera = activeRenderCameraRef.current ?? camera;
-          const fovSnapshot = Number.isFinite(fallbackCamera?.fov)
-            ? fallbackCamera.fov
+          const renderCamera = activeRenderCameraRef.current ?? camera;
+          const fovSnapshot = Number.isFinite(renderCamera?.fov)
+            ? renderCamera.fov
             : camera.fov;
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
-          const overheadCamera = resolveRailOverheadReplayCamera({
-            focusOverride: targetSnapshot,
-            minTargetY
-          });
-          const resolvedPosition = overheadCamera?.position?.clone?.() ??
-            fallbackCamera?.position?.clone?.() ?? null;
-          const resolvedTarget = overheadCamera?.target?.clone?.() ?? targetSnapshot;
-          const resolvedFov = Number.isFinite(overheadCamera?.fov)
-            ? overheadCamera.fov
-            : fovSnapshot;
+          const resolvedPosition = renderCamera?.position?.clone?.() ?? null;
+          const resolvedTarget = targetSnapshot ?? null;
           if (!resolvedPosition && !resolvedTarget) return null;
           const snapshot = {
             position: resolvedPosition,
             target: resolvedTarget,
-            fov: resolvedFov
+            fov: fovSnapshot,
+            minTargetY,
+            mode: activeShotView?.mode ?? null
           };
-          if (Number.isFinite(overheadCamera?.minTargetY)) {
-            snapshot.minTargetY = overheadCamera.minTargetY;
-          }
           return snapshot;
         };
         captureReplayCameraSnapshotRef.current = captureReplayCameraSnapshot;
@@ -20028,7 +20119,8 @@ const powerRef = useRef(hud.power);
               frames: [],
               cuePath: [],
               replayTags: Array.from(replayTags),
-              zoomOnly: preferZoomReplay
+              zoomOnly: preferZoomReplay,
+              targetId: shotPrediction.ballId ?? null
             };
             shotReplayRef.current = shotRecording;
             recordReplayFrame(shotRecording.startTime);
