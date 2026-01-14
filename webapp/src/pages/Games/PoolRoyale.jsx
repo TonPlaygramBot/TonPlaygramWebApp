@@ -2893,12 +2893,12 @@ function broadcastClothTextureReady(sourceId) {
 const buildPolyHavenTextureUrls = (sourceId, resolution) => {
   if (!sourceId) return null;
   const normalized = String(sourceId).replace(/\s+/g, '_');
-  const res = resolution.toUpperCase();
-  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${resolution}/${normalized}/${normalized}_${res}`;
+  const res = String(resolution).toLowerCase();
+  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${res}/${normalized}/${normalized}`;
   return {
-    diffuse: `${base}_Color.jpg`,
-    normal: `${base}_NormalGL.jpg`,
-    roughness: `${base}_Roughness.jpg`
+    diffuse: `${base}_diff_${res}.jpg`,
+    normal: `${base}_nor_dx_${res}.jpg`,
+    roughness: `${base}_rough_${res}.jpg`
   };
 };
 
@@ -4750,14 +4750,14 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.12; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
+const TOP_VIEW_MARGIN = 1.1; // lift the top view slightly to keep both near pockets visible on portrait
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.04; // raise the camera a touch to ensure full end-rail coverage
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.12; // lower the 2D top view slightly to keep framing consistent after the table shrink
+const TOP_VIEW_RADIUS_SCALE = 1.06; // lower the 2D top view slightly to keep framing consistent after the table shrink
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.005, // bias the top view higher on portrait displays
-  z: PLAY_H * -0.052 // bias the top view a touch further right on portrait displays
+  x: PLAY_W * 0.018, // bias the top view higher on portrait displays
+  z: PLAY_H * -0.032 // bias the top view a touch further right on portrait displays
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
