@@ -1004,8 +1004,9 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const ENABLE_BALL_FLOOR_SHADOWS = true;
-const ENABLE_CUE_CLOTH_SHADOW = true;
-const ENABLE_TABLE_FLOOR_SHADOW = true;
+const ENABLE_CUE_CLOTH_SHADOW = false;
+const ENABLE_TABLE_FLOOR_SHADOW = false;
+const ENABLE_TABLE_SHADOW_CATCHER = true;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
@@ -2821,12 +2822,12 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
+const CLOTH_PATTERN_SCALE = 0.468; // 40% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 1.4;
 const POLYHAVEN_ANISOTROPY_BOOST = 3.6;
-const POLYHAVEN_TEXTURE_RESOLUTION =
-  CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
+const POLYHAVEN_TEXTURE_RESOLUTION = '8k';
+const CLOTH_UNLIT = true;
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
 const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1, 1);
 const CLOTH_ROUGHNESS_BASE = 0.82;
@@ -2898,9 +2899,15 @@ function broadcastClothTextureReady(sourceId) {
   });
 }
 
+const normalizePolyHavenId = (sourceId) =>
+  String(sourceId ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+
 const buildPolyHavenTextureUrls = (sourceId, resolution) => {
   if (!sourceId) return null;
-  const normalized = String(sourceId).replace(/\s+/g, '_');
+  const normalized = normalizePolyHavenId(sourceId);
   const res = String(resolution).toLowerCase();
   const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${res}/${normalized}/${normalized}`;
   return {
@@ -2912,7 +2919,7 @@ const buildPolyHavenTextureUrls = (sourceId, resolution) => {
 
 const buildPolyHavenLegacyTextureUrls = (sourceId, resolution) => {
   if (!sourceId) return null;
-  const normalized = String(sourceId).replace(/\s+/g, '_');
+  const normalized = normalizePolyHavenId(sourceId);
   const res = String(resolution).toUpperCase();
   const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${resolution}/${normalized}/${normalized}_${res}`;
   return {
@@ -2955,6 +2962,7 @@ const pickPolyHavenTextureUrlsFromList = (urls) => {
       .map((u) => {
         const lower = u.toLowerCase();
         let score = 0;
+        if (lower.includes('8k')) score += 10;
         if (lower.includes('4k')) score += 8;
         if (lower.includes('2k')) score += 6;
         if (lower.includes('1k')) score += 4;
@@ -2988,6 +2996,18 @@ const pickPolyHavenTextureUrlsAtResolution = (apiJson, resolution) => {
     return lower.includes(`/${target}/`) || lower.includes(`_${target}`);
   });
   return pickPolyHavenTextureUrlsFromList(urls);
+};
+
+const upgradePolyHavenTextureUrlTo8k = (url) => {
+  if (typeof url !== 'string' || url.length === 0) return url;
+  if (!url.includes('/4k/') && !url.includes('/2k/') && !url.includes('_4k') && !url.includes('_2k')) {
+    return url;
+  }
+  return url
+    .replace('/2k/', '/8k/')
+    .replace('/4k/', '/8k/')
+    .replace(/_2k(\.\w+)$/, '_8k$1')
+    .replace(/_4k(\.\w+)$/, '_8k$1');
 };
 
 const upgradePolyHavenTextureUrlTo4k = (url) => {
@@ -3067,7 +3087,7 @@ const createClothTextures = (() => {
     texture.needsUpdate = true;
   };
 
-  const neutralizePolyHavenColorMap = (texture) => {
+const normalizeClothColorMap = (texture) => {
     if (!texture || !texture.image || typeof document === 'undefined') return texture;
     const image = texture.image;
     const width = image.naturalWidth || image.videoWidth || image.width;
@@ -3285,8 +3305,12 @@ const createClothTextures = (() => {
       }
     }
 
-    const colorMap = new THREE.CanvasTexture(image);
+    let colorMap = new THREE.CanvasTexture(image);
     applySRGBColorSpace(colorMap);
+    if (CLOTH_UNLIT) {
+      colorMap = normalizeClothColorMap(colorMap);
+      applySRGBColorSpace(colorMap);
+    }
     applyTextureDefaults(colorMap);
 
     const bumpMap = new THREE.DataTexture(image.data, SIZE, SIZE, THREE.RGBAFormat);
@@ -3306,7 +3330,9 @@ const createClothTextures = (() => {
       try {
         let urls = {};
         try {
-          const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(preset.sourceId)}`);
+          const response = await fetch(
+            `https://api.polyhaven.com/files/${encodeURIComponent(normalizePolyHavenId(preset.sourceId))}`
+          );
           if (response?.ok) {
             const json = await response.json();
             urls =
@@ -3317,9 +3343,11 @@ const createClothTextures = (() => {
           urls = {};
         }
 
+        const fallback8k = buildPolyHavenTextureUrls(preset.sourceId, '8k');
         const fallback4k = buildPolyHavenTextureUrls(preset.sourceId, '4k');
         const fallback2k = buildPolyHavenTextureUrls(preset.sourceId, '2k');
         const fallback1k = buildPolyHavenTextureUrls(preset.sourceId, '1k');
+        const legacy8k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '8k');
         const legacy4k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '4k');
         const legacy2k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '2k');
         const legacy1k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '1k');
@@ -3327,7 +3355,10 @@ const createClothTextures = (() => {
         loader.setCrossOrigin('anonymous');
 
         const diffuseCandidates = [
+          upgradePolyHavenTextureUrlTo8k(urls.diffuse),
           upgradePolyHavenTextureUrlTo4k(urls.diffuse),
+          fallback8k?.diffuse,
+          legacy8k?.diffuse,
           fallback4k?.diffuse,
           legacy4k?.diffuse,
           fallback2k?.diffuse,
@@ -3336,7 +3367,10 @@ const createClothTextures = (() => {
           legacy1k?.diffuse
         ].filter(Boolean);
         const normalCandidates = [
+          upgradePolyHavenTextureUrlTo8k(urls.normal),
           upgradePolyHavenTextureUrlTo4k(urls.normal),
+          fallback8k?.normal,
+          legacy8k?.normal,
           fallback4k?.normal,
           legacy4k?.normal,
           fallback2k?.normal,
@@ -3345,7 +3379,10 @@ const createClothTextures = (() => {
           legacy1k?.normal
         ].filter(Boolean);
         const roughnessCandidates = [
+          upgradePolyHavenTextureUrlTo8k(urls.roughness),
           upgradePolyHavenTextureUrlTo4k(urls.roughness),
+          fallback8k?.roughness,
+          legacy8k?.roughness,
           fallback4k?.roughness,
           legacy4k?.roughness,
           fallback2k?.roughness,
@@ -3363,6 +3400,9 @@ const createClothTextures = (() => {
           loadTextureWithFallbacks(loader, roughnessCandidates, false)
         ]);
 
+        if (CLOTH_UNLIT && map) {
+          map = normalizeClothColorMap(map);
+        }
         [map, normal, roughness].forEach((tex) =>
           applyTextureDefaults(tex, { isPolyHaven: true })
         );
@@ -3393,7 +3433,7 @@ const createClothTextures = (() => {
     const preset =
       CLOTH_TEXTURE_PRESETS[textureKey] ??
       CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY];
-    const cacheKey = preset.sourceId || preset.id;
+    const cacheKey = preset.sourceId ? normalizePolyHavenId(preset.sourceId) : preset.id;
     let entry = cache.get(cacheKey);
     if (!entry) {
       const procedural = generateProceduralClothTextures(preset);
@@ -3502,39 +3542,56 @@ function updateClothTexturesForFinish (
     finishInfo.clothMat.userData?.repeatRatio ?? finishInfo.clothBase?.repeatRatio ?? 1;
   const baseRepeatValue = baseRepeatRaw * textureScale;
   const fallbackRepeat = new THREE.Vector2(baseRepeatValue, baseRepeatValue * repeatRatioValue);
-  replaceMaterialTexture(finishInfo.clothMat, 'map', textures.map, fallbackRepeat, {
-    preserveExisting: true
-  });
-  replaceMaterialTexture(
-    finishInfo.clothMat,
-    'normalMap',
-    textures.normal,
-    fallbackRepeat,
-    { preserveExisting: true }
-  );
-  replaceMaterialTexture(
-    finishInfo.clothMat,
-    'roughnessMap',
-    textures.roughness,
-    fallbackRepeat,
-    { preserveExisting: true }
-  );
-  if (textures.normal) {
-    finishInfo.clothMat.normalScale = targetNormalScale.clone();
-    replaceMaterialTexture(finishInfo.clothMat, 'bumpMap', null, fallbackRepeat);
-  } else {
+  if (CLOTH_UNLIT) {
     replaceMaterialTexture(
       finishInfo.clothMat,
-      'bumpMap',
-      textures.bump,
+      'emissiveMap',
+      textures.map,
       fallbackRepeat,
       { preserveExisting: true }
     );
-  }
-  if (textures.roughness) {
-    finishInfo.clothMat.roughness = roughnessTarget;
+    replaceMaterialTexture(finishInfo.clothMat, 'map', null, fallbackRepeat);
+    replaceMaterialTexture(finishInfo.clothMat, 'normalMap', null, fallbackRepeat);
+    replaceMaterialTexture(finishInfo.clothMat, 'bumpMap', null, fallbackRepeat);
+    replaceMaterialTexture(finishInfo.clothMat, 'roughnessMap', null, fallbackRepeat);
+    finishInfo.clothMat.roughness = 1;
+    finishInfo.clothMat.bumpScale = 0;
+    finishInfo.clothMat.emissiveIntensity = 1;
   } else {
-    finishInfo.clothMat.roughness = roughnessBase;
+    replaceMaterialTexture(finishInfo.clothMat, 'map', textures.map, fallbackRepeat, {
+      preserveExisting: true
+    });
+    replaceMaterialTexture(
+      finishInfo.clothMat,
+      'normalMap',
+      textures.normal,
+      fallbackRepeat,
+      { preserveExisting: true }
+    );
+    replaceMaterialTexture(
+      finishInfo.clothMat,
+      'roughnessMap',
+      textures.roughness,
+      fallbackRepeat,
+      { preserveExisting: true }
+    );
+    if (textures.normal) {
+      finishInfo.clothMat.normalScale = targetNormalScale.clone();
+      replaceMaterialTexture(finishInfo.clothMat, 'bumpMap', null, fallbackRepeat);
+    } else {
+      replaceMaterialTexture(
+        finishInfo.clothMat,
+        'bumpMap',
+        textures.bump,
+        fallbackRepeat,
+        { preserveExisting: true }
+      );
+    }
+    if (textures.roughness) {
+      finishInfo.clothMat.roughness = roughnessTarget;
+    } else {
+      finishInfo.clothMat.roughness = roughnessBase;
+    }
   }
   if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
     finishInfo.clothMat.bumpScale = finishInfo.clothBase.baseBumpScale;
@@ -3547,39 +3604,56 @@ function updateClothTexturesForFinish (
     finishInfo.clothMat.userData.farRepeat = baseRepeatValue * 0.44;
   }
   if (finishInfo.cushionMat) {
-    replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat, {
-      preserveExisting: true
-    });
-    replaceMaterialTexture(
-      finishInfo.cushionMat,
-      'normalMap',
-      textures.normal,
-      fallbackRepeat,
-      { preserveExisting: true }
-    );
-    replaceMaterialTexture(
-      finishInfo.cushionMat,
-      'roughnessMap',
-      textures.roughness,
-      fallbackRepeat,
-      { preserveExisting: true }
-    );
-    if (textures.normal) {
-      finishInfo.cushionMat.normalScale = targetNormalScale.clone();
-      replaceMaterialTexture(finishInfo.cushionMat, 'bumpMap', null, fallbackRepeat);
-    } else {
+    if (CLOTH_UNLIT) {
       replaceMaterialTexture(
         finishInfo.cushionMat,
-        'bumpMap',
-        textures.bump,
+        'emissiveMap',
+        textures.map,
         fallbackRepeat,
         { preserveExisting: true }
       );
-    }
-    if (textures.roughness) {
-      finishInfo.cushionMat.roughness = roughnessTarget;
+      replaceMaterialTexture(finishInfo.cushionMat, 'map', null, fallbackRepeat);
+      replaceMaterialTexture(finishInfo.cushionMat, 'normalMap', null, fallbackRepeat);
+      replaceMaterialTexture(finishInfo.cushionMat, 'bumpMap', null, fallbackRepeat);
+      replaceMaterialTexture(finishInfo.cushionMat, 'roughnessMap', null, fallbackRepeat);
+      finishInfo.cushionMat.roughness = 1;
+      finishInfo.cushionMat.bumpScale = 0;
+      finishInfo.cushionMat.emissiveIntensity = 1;
     } else {
-      finishInfo.cushionMat.roughness = roughnessBase;
+      replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat, {
+        preserveExisting: true
+      });
+      replaceMaterialTexture(
+        finishInfo.cushionMat,
+        'normalMap',
+        textures.normal,
+        fallbackRepeat,
+        { preserveExisting: true }
+      );
+      replaceMaterialTexture(
+        finishInfo.cushionMat,
+        'roughnessMap',
+        textures.roughness,
+        fallbackRepeat,
+        { preserveExisting: true }
+      );
+      if (textures.normal) {
+        finishInfo.cushionMat.normalScale = targetNormalScale.clone();
+        replaceMaterialTexture(finishInfo.cushionMat, 'bumpMap', null, fallbackRepeat);
+      } else {
+        replaceMaterialTexture(
+          finishInfo.cushionMat,
+          'bumpMap',
+          textures.bump,
+          fallbackRepeat,
+          { preserveExisting: true }
+        );
+      }
+      if (textures.roughness) {
+        finishInfo.cushionMat.roughness = roughnessTarget;
+      } else {
+        finishInfo.cushionMat.roughness = roughnessBase;
+      }
     }
     if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
       finishInfo.cushionMat.bumpScale = finishInfo.clothBase.baseBumpScale;
@@ -3590,9 +3664,11 @@ function updateClothTexturesForFinish (
       ? finishInfo.clothMat.color.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT)
       : null;
     if (edgeColor) {
-      finishInfo.clothEdgeMat.color.copy(edgeColor);
+      finishInfo.clothEdgeMat.color.copy(CLOTH_UNLIT ? new THREE.Color(0x000000) : edgeColor);
       finishInfo.clothEdgeMat.emissive.copy(
-        edgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
+        CLOTH_UNLIT
+          ? edgeColor.clone()
+          : edgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
       );
     }
     finishInfo.clothEdgeMat.map = null;
@@ -3605,7 +3681,7 @@ function updateClothTexturesForFinish (
     finishInfo.clothEdgeMat.clearcoatRoughness = 1;
     finishInfo.clothEdgeMat.envMapIntensity = 0;
     finishInfo.clothEdgeMat.sheen = 0;
-    finishInfo.clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
+    finishInfo.clothEdgeMat.emissiveIntensity = CLOTH_UNLIT ? 1 : CLOTH_EDGE_EMISSIVE_INTENSITY;
     finishInfo.clothEdgeMat.metalness = 0;
     finishInfo.clothEdgeMat.reflectivity = 0;
     finishInfo.clothEdgeMat.needsUpdate = true;
@@ -6500,17 +6576,16 @@ function Table3D(
   const clothColor = clothPrimary.clone();
   const cushionColor = cushionPrimary.clone();
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.14 + brightnessLift * 0.35);
-  const clothSheen = CLOTH_QUALITY.sheen * 0.5;
-  const clothSheenRoughness = Math.min(
-    1,
-    CLOTH_QUALITY.sheenRoughness * 1.12
-  );
-  const clothRoughnessBase = CLOTH_ROUGHNESS_BASE + 0.06;
-  const clothRoughnessTarget = CLOTH_ROUGHNESS_TARGET + 0.06;
-  const clothEmissiveIntensity = 0.18;
+  const clothSheen = CLOTH_UNLIT ? 0 : CLOTH_QUALITY.sheen * 0.5;
+  const clothSheenRoughness = CLOTH_UNLIT
+    ? 1
+    : Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.12);
+  const clothRoughnessBase = CLOTH_UNLIT ? 1 : CLOTH_ROUGHNESS_BASE + 0.06;
+  const clothRoughnessTarget = CLOTH_UNLIT ? 1 : CLOTH_ROUGHNESS_TARGET + 0.06;
+  const clothEmissiveIntensity = CLOTH_UNLIT ? 1 : 0.18;
   const clothNormalScale = isPolyHavenCloth ? POLYHAVEN_NORMAL_SCALE : CLOTH_NORMAL_SCALE;
   const clothMat = new THREE.MeshPhysicalMaterial({
-    color: clothColor,
+    color: CLOTH_UNLIT ? 0x000000 : clothColor,
     roughness: clothRoughnessBase,
     sheen: clothSheen,
     sheenColor,
@@ -6518,7 +6593,7 @@ function Table3D(
     clearcoat: 0,
     clearcoatRoughness: 0.9,
     envMapIntensity: 0,
-    emissive: clothColor.clone().multiplyScalar(0.045),
+    emissive: CLOTH_UNLIT ? clothColor.clone() : clothColor.clone().multiplyScalar(0.045),
     emissiveIntensity: clothEmissiveIntensity,
     metalness: 0
   });
@@ -6552,30 +6627,45 @@ function Table3D(
     (isPolyHavenCloth ? 1.2 : 1);
   const flattenedBumpScale = baseBumpScale * 0.48;
   if (clothMap) {
-    clothMat.map = clothMap;
-    clothMat.map.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
-    clothMat.map.needsUpdate = true;
+    if (CLOTH_UNLIT) {
+      clothMat.emissiveMap = clothMap;
+      clothMat.emissiveMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+      clothMat.emissiveMap.needsUpdate = true;
+      clothMat.map = null;
+    } else {
+      clothMat.map = clothMap;
+      clothMat.map.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+      clothMat.map.needsUpdate = true;
+    }
   }
-  if (clothNormal) {
-    clothMat.normalMap = clothNormal;
-    clothMat.normalMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
-    clothMat.normalScale = clothNormalScale.clone();
-    clothMat.normalMap.needsUpdate = true;
-    clothMat.bumpScale = flattenedBumpScale;
-    clothMat.bumpMap = null;
-  } else if (clothBump) {
-    clothMat.bumpMap = clothBump;
-    clothMat.bumpMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
-    clothMat.bumpScale = flattenedBumpScale;
-    clothMat.bumpMap.needsUpdate = true;
+  if (!CLOTH_UNLIT) {
+    if (clothNormal) {
+      clothMat.normalMap = clothNormal;
+      clothMat.normalMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+      clothMat.normalScale = clothNormalScale.clone();
+      clothMat.normalMap.needsUpdate = true;
+      clothMat.bumpScale = flattenedBumpScale;
+      clothMat.bumpMap = null;
+    } else if (clothBump) {
+      clothMat.bumpMap = clothBump;
+      clothMat.bumpMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+      clothMat.bumpScale = flattenedBumpScale;
+      clothMat.bumpMap.needsUpdate = true;
+    } else {
+      clothMat.bumpScale = flattenedBumpScale;
+    }
+    if (clothRoughness) {
+      clothMat.roughnessMap = clothRoughness;
+      clothMat.roughnessMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
+      clothMat.roughness = CLOTH_ROUGHNESS_TARGET;
+      clothMat.roughnessMap.needsUpdate = true;
+    }
   } else {
-    clothMat.bumpScale = flattenedBumpScale;
-  }
-  if (clothRoughness) {
-    clothMat.roughnessMap = clothRoughness;
-    clothMat.roughnessMap.repeat.set(baseRepeatApplied, baseRepeatApplied * repeatRatio);
-    clothMat.roughness = CLOTH_ROUGHNESS_TARGET;
-    clothMat.roughnessMap.needsUpdate = true;
+    clothMat.normalMap = null;
+    clothMat.bumpMap = null;
+    clothMat.roughnessMap = null;
+    clothMat.bumpScale = 0;
+    clothMat.roughness = 1;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
@@ -6591,12 +6681,14 @@ function Table3D(
   };
 
   const cushionMat = clothMat.clone();
-  cushionMat.color.copy(cushionColor);
-  cushionMat.emissive.copy(cushionColor.clone().multiplyScalar(0.045));
+  cushionMat.color.set(CLOTH_UNLIT ? 0x000000 : cushionColor);
+  cushionMat.emissive.copy(CLOTH_UNLIT ? cushionColor : cushionColor.clone().multiplyScalar(0.045));
+  cushionMat.emissiveIntensity = clothEmissiveIntensity;
   cushionMat.side = THREE.DoubleSide;
   const clothEdgeMat = clothMat.clone();
-  clothEdgeMat.color.copy(clothColor);
-  clothEdgeMat.emissive.set(0x000000);
+  clothEdgeMat.color.set(CLOTH_UNLIT ? 0x000000 : clothColor);
+  clothEdgeMat.emissive.copy(CLOTH_UNLIT ? clothColor : new THREE.Color(0x000000));
+  clothEdgeMat.emissiveIntensity = CLOTH_UNLIT ? 1 : CLOTH_EDGE_EMISSIVE_INTENSITY;
   clothEdgeMat.map = null;
   clothEdgeMat.bumpMap = null;
   clothEdgeMat.normalMap = null;
@@ -6604,7 +6696,7 @@ function Table3D(
   clothEdgeMat.bumpScale = 0;
   clothEdgeMat.side = THREE.DoubleSide;
   clothEdgeMat.envMapIntensity = 0;
-  clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
+  clothEdgeMat.emissiveIntensity = CLOTH_UNLIT ? 1 : CLOTH_EDGE_EMISSIVE_INTENSITY;
   clothEdgeMat.metalness = 0;
   clothEdgeMat.roughness = 1;
   clothEdgeMat.clearcoat = 0;
@@ -6631,6 +6723,20 @@ function Table3D(
   };
   const clothMaterials = [clothMat, cushionMat, clothEdgeMat];
   const applyClothDetail = (detail) => {
+    if (CLOTH_UNLIT) {
+      clothMaterials.forEach((mat) => {
+        if (!mat) return;
+        mat.roughness = 1;
+        mat.sheen = 0;
+        mat.sheenRoughness = 1;
+        mat.clearcoat = 0;
+        mat.clearcoatRoughness = 1;
+        mat.envMapIntensity = 0;
+        mat.emissiveIntensity = 1;
+        mat.needsUpdate = true;
+      });
+      return;
+    }
     const overrides = detail && typeof detail === 'object' ? detail : {};
     const bumpMultiplier = Number.isFinite(overrides.bumpMultiplier)
       ? overrides.bumpMultiplier
@@ -7235,6 +7341,23 @@ function Table3D(
     floorShadow.castShadow = false;
     floorShadow.name = 'tableFloorShadow';
     table.add(floorShadow);
+  }
+  if (ENABLE_TABLE_SHADOW_CATCHER) {
+    const shadowWidth = outerHalfW * 2 + TABLE_FLOOR_SHADOW_MARGIN * 2;
+    const shadowHeight = outerHalfH * 2 + TABLE_FLOOR_SHADOW_MARGIN * 2;
+    const catcherGeo = new THREE.PlaneGeometry(shadowWidth, shadowHeight);
+    catcherGeo.rotateX(-Math.PI / 2);
+    const catcherMat = new THREE.ShadowMaterial({
+      opacity: 0.6
+    });
+    catcherMat.depthWrite = false;
+    const catcher = new THREE.Mesh(catcherGeo, catcherMat);
+    catcher.position.y = FLOOR_Y - TABLE_Y + MICRO_EPS;
+    catcher.renderOrder = -4;
+    catcher.receiveShadow = true;
+    catcher.castShadow = false;
+    catcher.name = 'tableShadowCatcher';
+    table.add(catcher);
   }
   // Force the table rails to reuse the exact cue butt wood scale so the grain
   // is just as visible as it is on the stick finish in cue view.
@@ -10156,24 +10279,31 @@ function applyTableFinishToTable(table, finish) {
   const emissiveColor = clothColor.clone().multiplyScalar(0.06);
   const cushionEmissive = cushionColor.clone().multiplyScalar(0.06);
   if (finishInfo.clothMat) {
-    finishInfo.clothMat.color.copy(clothColor);
+    finishInfo.clothMat.color.copy(CLOTH_UNLIT ? new THREE.Color(0x000000) : clothColor);
     if (finishInfo.clothMat.sheenColor) {
       finishInfo.clothMat.sheenColor.copy(clothSheenColor);
     }
-    finishInfo.clothMat.emissive.copy(emissiveColor);
+    finishInfo.clothMat.emissive.copy(CLOTH_UNLIT ? clothColor : emissiveColor);
+    finishInfo.clothMat.emissiveIntensity = CLOTH_UNLIT ? 1 : finishInfo.clothMat.emissiveIntensity;
     finishInfo.clothMat.needsUpdate = true;
   }
   if (finishInfo.cushionMat) {
-    finishInfo.cushionMat.color.copy(cushionColor);
+    finishInfo.cushionMat.color.copy(CLOTH_UNLIT ? new THREE.Color(0x000000) : cushionColor);
     if (finishInfo.cushionMat.sheenColor) {
       finishInfo.cushionMat.sheenColor.copy(cushionSheenColor);
     }
-    finishInfo.cushionMat.emissive.copy(cushionEmissive);
+    finishInfo.cushionMat.emissive.copy(CLOTH_UNLIT ? cushionColor : cushionEmissive);
+    finishInfo.cushionMat.emissiveIntensity = CLOTH_UNLIT ? 1 : finishInfo.cushionMat.emissiveIntensity;
     finishInfo.cushionMat.needsUpdate = true;
   }
   if (finishInfo.clothEdgeMat) {
     const clothEdgeColor = clothColor.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT);
-    finishInfo.clothEdgeMat.color.copy(clothEdgeColor);
+    finishInfo.clothEdgeMat.color.copy(CLOTH_UNLIT ? new THREE.Color(0x000000) : clothEdgeColor);
+    finishInfo.clothEdgeMat.emissive.copy(
+      CLOTH_UNLIT
+        ? clothEdgeColor.clone()
+        : clothEdgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
+    );
     finishInfo.clothEdgeMat.map = null;
     finishInfo.clothEdgeMat.bumpMap = null;
     finishInfo.clothEdgeMat.bumpScale = 0;
@@ -10186,9 +10316,11 @@ function applyTableFinishToTable(table, finish) {
       finishInfo.clothEdgeMat.sheenColor.copy(clothEdgeColor);
     }
     finishInfo.clothEdgeMat.emissive.copy(
-      clothEdgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
+      CLOTH_UNLIT
+        ? clothEdgeColor.clone()
+        : clothEdgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
     );
-    finishInfo.clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
+    finishInfo.clothEdgeMat.emissiveIntensity = CLOTH_UNLIT ? 1 : CLOTH_EDGE_EMISSIVE_INTENSITY;
     finishInfo.clothEdgeMat.metalness = 0;
     finishInfo.clothEdgeMat.reflectivity = 0;
     finishInfo.clothEdgeMat.needsUpdate = true;
@@ -10197,10 +10329,13 @@ function applyTableFinishToTable(table, finish) {
     if (!mesh?.material) return;
     const mat = mesh.material;
     if (mat.color) {
-      mat.color.copy(clothColor);
+      mat.color.copy(CLOTH_UNLIT ? new THREE.Color(0x000000) : clothColor);
     }
     if (mat.emissive) {
-      mat.emissive.copy(emissiveColor);
+      mat.emissive.copy(CLOTH_UNLIT ? clothColor : emissiveColor);
+    }
+    if (CLOTH_UNLIT) {
+      mat.emissiveIntensity = 1;
     }
     mat.needsUpdate = true;
   });
@@ -13195,7 +13330,7 @@ const powerRef = useRef(hud.power);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = false;
+      renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       updateRendererAnisotropyCap(renderer);
@@ -16985,12 +17120,70 @@ const powerRef = useRef(hud.power);
           }));
 
         const captureReplayCameraSnapshot = () => {
+          const ballsList = ballsRef.current || [];
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
           const fallbackCamera = activeRenderCameraRef.current ?? camera;
           const fovSnapshot = Number.isFinite(fallbackCamera?.fov)
             ? fallbackCamera.fov
             : camera.fov;
+          const cueBall = ballsList.find((b) => b.id === 'cue' && b.active);
+          const targetBall =
+            activeShotView?.targetId != null
+              ? ballsList.find((b) => String(b.id) === String(activeShotView.targetId))
+              : null;
+          const usePocketReplay = activeShotView?.mode === 'pocket';
+          if (fallbackCamera && usePocketReplay) {
+            const pocketTarget =
+              activeShotView?.smoothedTarget?.clone?.() ??
+              lastCameraTargetRef.current?.clone?.() ??
+              new THREE.Vector3(playerOffsetRef.current * scale, minTargetY, 0);
+            pocketTarget.y = Math.max(pocketTarget.y ?? 0, minTargetY);
+            const pocketPosition = fallbackCamera.position.clone();
+            if (pocketPosition.y < minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale) {
+              pocketPosition.y = minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale;
+            }
+            return {
+              position: pocketPosition,
+              target: pocketTarget,
+              fov: fovSnapshot,
+              minTargetY
+            };
+          }
+          if (cueBall?.pos && targetBall?.pos && fallbackCamera) {
+            const framing = computeShortRailPairFraming(
+              fallbackCamera,
+              cueBall.pos,
+              targetBall.pos,
+              BROADCAST_PAIR_MARGIN
+            );
+            if (framing) {
+              const focusTarget = new THREE.Vector3(
+                framing.centerX,
+                minTargetY,
+                framing.centerZ
+              );
+              const cameraVector = fallbackCamera.position.clone().sub(focusTarget);
+              if (cameraVector.lengthSq() < 1e-6) {
+                cameraVector.set(0, 0, 1);
+              }
+              const requiredDistance = Math.max(
+                framing.requiredDistance,
+                cameraVector.length()
+              );
+              cameraVector.normalize();
+              const position = focusTarget.clone().add(cameraVector.multiplyScalar(requiredDistance));
+              if (position.y < minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale) {
+                position.y = minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale;
+              }
+              return {
+                position,
+                target: focusTarget,
+                fov: fovSnapshot,
+                minTargetY
+              };
+            }
+          }
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
@@ -17888,7 +18081,7 @@ const powerRef = useRef(hud.power);
 
       // Lights
       const addMobileLighting = () => {
-        const useHdriOnly = true;
+        const useHdriOnly = false;
         if (useHdriOnly) {
           lightingRigRef.current = null;
           return;
@@ -19036,6 +19229,8 @@ const powerRef = useRef(hud.power);
       applyCueButtTilt(cueStick, 0);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
+      cueStick.castShadow = true;
+      cueStick.receiveShadow = false;
       table.add(cueStick);
       const cueShadow = ENABLE_CUE_CLOTH_SHADOW
         ? (() => {
