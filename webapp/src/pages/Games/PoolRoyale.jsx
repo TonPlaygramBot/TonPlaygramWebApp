@@ -901,7 +901,7 @@ const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylind
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
-const LOCK_REPLAY_CAMERA = true;
+const LOCK_REPLAY_CAMERA = false;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
@@ -998,7 +998,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 1.152; // 20% larger balls for stronger on-cloth presence
+const BALL_SIZE_SCALE = 0.96; // slight bump so balls read a touch larger on the cloth
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1836,7 +1836,7 @@ const CLOTH_SOFT_BLEND = 0.5;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 6144,
+    textureSize: 5120,
     anisotropy: 72,
     generateMipmaps: true,
     bumpScaleMultiplier: 1.16,
@@ -1879,7 +1879,7 @@ const CLOTH_QUALITY = (() => {
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 5120,
+      textureSize: 4096,
       anisotropy: 48,
       generateMipmaps: true,
       bumpScaleMultiplier: 1.12,
@@ -2820,11 +2820,11 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.6833333333; // enlarge weave patterns by 20% for a looser, bigger cloth texture
+const CLOTH_PATTERN_SCALE = 0.82; // tighten the pattern footprint so the scan resolves more clearly
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 3.6;
-const POLYHAVEN_TEXTURE_RESOLUTION = '8k';
+const POLYHAVEN_TEXTURE_RESOLUTION = '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
 const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1, 1);
 const CLOTH_ROUGHNESS_BASE = 0.82;
@@ -2953,7 +2953,6 @@ const pickPolyHavenTextureUrlsFromList = (urls) => {
       .map((u) => {
         const lower = u.toLowerCase();
         let score = 0;
-        if (lower.includes('8k')) score += 10;
         if (lower.includes('4k')) score += 8;
         if (lower.includes('2k')) score += 6;
         if (lower.includes('1k')) score += 4;
@@ -2987,18 +2986,6 @@ const pickPolyHavenTextureUrlsAtResolution = (apiJson, resolution) => {
     return lower.includes(`/${target}/`) || lower.includes(`_${target}`);
   });
   return pickPolyHavenTextureUrlsFromList(urls);
-};
-
-const upgradePolyHavenTextureUrlTo8k = (url) => {
-  if (typeof url !== 'string' || url.length === 0) return url;
-  if (!url.includes('/4k/') && !url.includes('_4k') && !url.includes('/2k/') && !url.includes('_2k')) {
-    return url;
-  }
-  return url
-    .replace('/2k/', '/8k/')
-    .replace('/4k/', '/8k/')
-    .replace(/_2k(\.\w+)$/, '_8k$1')
-    .replace(/_4k(\.\w+)$/, '_8k$1');
 };
 
 const upgradePolyHavenTextureUrlTo4k = (url) => {
@@ -3328,11 +3315,9 @@ const createClothTextures = (() => {
           urls = {};
         }
 
-        const fallback8k = buildPolyHavenTextureUrls(preset.sourceId, '8k');
         const fallback4k = buildPolyHavenTextureUrls(preset.sourceId, '4k');
         const fallback2k = buildPolyHavenTextureUrls(preset.sourceId, '2k');
         const fallback1k = buildPolyHavenTextureUrls(preset.sourceId, '1k');
-        const legacy8k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '8k');
         const legacy4k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '4k');
         const legacy2k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '2k');
         const legacy1k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '1k');
@@ -3340,9 +3325,7 @@ const createClothTextures = (() => {
         loader.setCrossOrigin('anonymous');
 
         const diffuseCandidates = [
-          upgradePolyHavenTextureUrlTo8k(urls.diffuse),
-          fallback8k?.diffuse,
-          legacy8k?.diffuse,
+          upgradePolyHavenTextureUrlTo4k(urls.diffuse),
           fallback4k?.diffuse,
           legacy4k?.diffuse,
           fallback2k?.diffuse,
@@ -3351,9 +3334,7 @@ const createClothTextures = (() => {
           legacy1k?.diffuse
         ].filter(Boolean);
         const normalCandidates = [
-          upgradePolyHavenTextureUrlTo8k(urls.normal),
-          fallback8k?.normal,
-          legacy8k?.normal,
+          upgradePolyHavenTextureUrlTo4k(urls.normal),
           fallback4k?.normal,
           legacy4k?.normal,
           fallback2k?.normal,
@@ -3362,9 +3343,7 @@ const createClothTextures = (() => {
           legacy1k?.normal
         ].filter(Boolean);
         const roughnessCandidates = [
-          upgradePolyHavenTextureUrlTo8k(urls.roughness),
-          fallback8k?.roughness,
-          legacy8k?.roughness,
+          upgradePolyHavenTextureUrlTo4k(urls.roughness),
           fallback4k?.roughness,
           legacy4k?.roughness,
           fallback2k?.roughness,
@@ -6388,10 +6367,8 @@ function Table3D(
       : (typeof finish === 'string' && TABLE_FINISHES[finish]) ||
         (finish?.id && TABLE_FINISHES[finish.id]) ||
         TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
-  const cueAlignedRepeatScale =
-    resolvedFinish?.id === 'peelingPaintWeathered' ? 1 : CUE_WOOD_REPEAT_SCALE;
   const woodRepeatScale = clampWoodRepeatScaleValue(
-    (resolvedFinish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE) * cueAlignedRepeatScale
+    resolvedFinish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
   );
   const clothTextureKey =
     resolvedFinish?.clothTextureKey ?? DEFAULT_CLOTH_TEXTURE_KEY;
@@ -6459,20 +6436,16 @@ function Table3D(
     resolvedWoodOption?.frame,
     resolvedWoodOption?.rail ?? defaultWoodOption.frame ?? defaultWoodOption.rail
   );
-  const tableWoodTextureSize = Math.max(
-    initialFrameSurface.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
-    CUE_WOOD_TEXTURE_SIZE
-  );
   const synchronizedRailSurface = {
     repeat: new THREE.Vector2(
       initialFrameSurface.repeat.x,
       initialFrameSurface.repeat.y
     ),
     rotation: initialFrameSurface.rotation,
-    textureSize: tableWoodTextureSize,
-    mapUrl: upgradePolyHavenTextureUrlTo4k(initialFrameSurface.mapUrl),
-    roughnessMapUrl: upgradePolyHavenTextureUrlTo4k(initialFrameSurface.roughnessMapUrl),
-    normalMapUrl: upgradePolyHavenTextureUrlTo4k(initialFrameSurface.normalMapUrl),
+    textureSize: initialFrameSurface.textureSize,
+    mapUrl: initialFrameSurface.mapUrl,
+    roughnessMapUrl: initialFrameSurface.roughnessMapUrl,
+    normalMapUrl: initialFrameSurface.normalMapUrl,
     woodRepeatScale
   };
   const synchronizedFrameSurface = {
@@ -6481,10 +6454,10 @@ function Table3D(
       initialFrameSurface.repeat.y
     ),
     rotation: initialFrameSurface.rotation,
-    textureSize: tableWoodTextureSize,
-    mapUrl: upgradePolyHavenTextureUrlTo4k(initialFrameSurface.mapUrl),
-    roughnessMapUrl: upgradePolyHavenTextureUrlTo4k(initialFrameSurface.roughnessMapUrl),
-    normalMapUrl: upgradePolyHavenTextureUrlTo4k(initialFrameSurface.normalMapUrl),
+    textureSize: initialFrameSurface.textureSize,
+    mapUrl: initialFrameSurface.mapUrl,
+    roughnessMapUrl: initialFrameSurface.roughnessMapUrl,
+    normalMapUrl: initialFrameSurface.normalMapUrl,
     woodRepeatScale
   };
 
@@ -7262,20 +7235,16 @@ function Table3D(
     resolvedWoodOption?.frame,
     initialFrameSurface
   );
-  const alignedRailTextureSize = Math.max(
-    alignedRailSurface.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
-    CUE_WOOD_TEXTURE_SIZE
-  );
   applyWoodTextureToMaterial(railMat, {
     repeat: new THREE.Vector2(
       alignedRailSurface.repeat.x,
       alignedRailSurface.repeat.y
     ),
     rotation: alignedRailSurface.rotation,
-    textureSize: alignedRailTextureSize,
-    mapUrl: upgradePolyHavenTextureUrlTo4k(alignedRailSurface.mapUrl),
-    roughnessMapUrl: upgradePolyHavenTextureUrlTo4k(alignedRailSurface.roughnessMapUrl),
-    normalMapUrl: upgradePolyHavenTextureUrlTo4k(alignedRailSurface.normalMapUrl),
+    textureSize: alignedRailSurface.textureSize,
+    mapUrl: alignedRailSurface.mapUrl,
+    roughnessMapUrl: alignedRailSurface.roughnessMapUrl,
+    normalMapUrl: alignedRailSurface.normalMapUrl,
     woodRepeatScale
   });
   finishParts.underlayMeshes.forEach((mesh) => {
@@ -7287,18 +7256,15 @@ function Table3D(
         underlaySurface.repeat.y
       ),
       rotation: underlaySurface.rotation,
-      textureSize: tableWoodTextureSize,
-      mapUrl: upgradePolyHavenTextureUrlTo4k(underlaySurface.mapUrl),
-      roughnessMapUrl: upgradePolyHavenTextureUrlTo4k(underlaySurface.roughnessMapUrl),
-      normalMapUrl: upgradePolyHavenTextureUrlTo4k(underlaySurface.normalMapUrl),
+      textureSize: underlaySurface.textureSize,
+      mapUrl: underlaySurface.mapUrl,
+      roughnessMapUrl: underlaySurface.roughnessMapUrl,
+      normalMapUrl: underlaySurface.normalMapUrl,
       woodRepeatScale
     });
     mesh.material.needsUpdate = true;
   });
-  finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig({
-    ...alignedRailSurface,
-    textureSize: alignedRailTextureSize
-  });
+  finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(alignedRailSurface);
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.07; // push the cushions further outward so they meet the wooden rails without a gap
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
@@ -17400,7 +17366,6 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = shotRecording;
           applyBallSnapshot(shotRecording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
-          applyReplayCueStroke(replayPlayback, 0);
           const path = replayPlayback.cuePath ?? [];
           if (!LOCK_REPLAY_CAMERA && path.length > 0) {
             const start = path[0]?.pos ?? null;
@@ -25170,10 +25135,6 @@ const powerRef = useRef(hud.power);
           className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
             configOpen ? 'bg-black/60' : 'hover:bg-black/60'
           }`}
-          style={{
-            transform: `scale(${uiScale * 1.08})`,
-            transformOrigin: 'top right'
-          }}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
