@@ -4679,17 +4679,17 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.1;
-const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.14; // let the cue view drop to the same rail-hugging height used by AI shots while staying above the cue
+const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.12; // let the cue view drop to the same rail-hugging height used by AI shots while staying above the cue
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0165; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0158; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.995;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.993;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.99;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.988;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -4760,7 +4760,7 @@ const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so th
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * 0.005, // bias the top view higher on portrait displays
-  z: PLAY_H * -0.04 // bias the top view a touch further right on portrait displays
+  z: PLAY_H * -0.052 // bias the top view a touch further right on portrait displays
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4781,7 +4781,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 0.9; // pull the broadcast overhead camera c
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0225; // tighten cue camera distance so the cue ball and object ball appear larger
+const CUE_VIEW_RADIUS_RATIO = 0.0215; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -4803,7 +4803,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
-const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.22; // nudge forward slightly at the floor of the cue view, then stop
+const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.26; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
@@ -17218,7 +17218,17 @@ const powerRef = useRef(hud.power);
               }
             : null;
           if (frames.length === 0) return { frames, cuePath, duration: 0, cueStroke };
-          const duration = frames[frames.length - 1]?.t ?? 0;
+          const frameDuration = frames[frames.length - 1]?.t ?? 0;
+          const strokeDuration = cueStroke
+            ? Math.max(
+                0,
+                (cueStroke.startOffset ?? 0) +
+                  (cueStroke.pullback ?? 0) +
+                  (cueStroke.forward ?? 0) +
+                  (cueStroke.settleTime ?? 0)
+              )
+            : 0;
+          const duration = Math.max(frameDuration, strokeDuration);
           return { frames, cuePath, duration, cueStroke };
         };
 
@@ -19819,9 +19829,12 @@ const powerRef = useRef(hud.power);
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
-          powerImpactHoldRef.current = isMaxPowerShot
-            ? performance.now() + MAX_POWER_CAMERA_HOLD_MS
-            : 0;
+          if (isMaxPowerShot) {
+            powerImpactHoldRef.current = Math.max(
+              powerImpactHoldRef.current || 0,
+              performance.now() + MAX_POWER_CAMERA_HOLD_MS
+            );
+          }
           if (aiOpponentEnabled && hudRef.current?.turn === 1) {
             powerImpactHoldRef.current = Math.max(
               powerImpactHoldRef.current || 0,
@@ -21682,21 +21695,46 @@ const powerRef = useRef(hud.power);
           userSuggestionPlanRef.current = plan;
           const summary = summarizePlan(plan);
           userSuggestionRef.current = summary;
+          const frameSnapshot = frameRef.current ?? frameState;
+          const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
+          const activeBalls = Array.isArray(ballsList)
+            ? ballsList.filter((ball) => ball?.active && String(ball.id) !== 'cue')
+            : [];
+          const activeVariantId = activeVariantRef.current?.id ?? variantKey;
+          const targetOrder = resolveTargetPriorities(
+            frameSnapshot,
+            activeVariantId,
+            activeBalls
+          );
+          const legalTargetsRaw =
+            Array.isArray(frameSnapshot?.ballOn) && frameSnapshot.ballOn.length > 0
+              ? frameSnapshot.ballOn
+              : targetOrder;
+          const legalTargets = new Set(
+            legalTargetsRaw
+              .map((entry) => normalizeTargetId(entry))
+              .filter((entry) => entry && isBallTargetId(entry))
+          );
+          const isLegalTargetBall = (ball) => {
+            if (!ball || legalTargets.size === 0) return true;
+            return Array.from(legalTargets).some((target) =>
+              matchesTargetId(ball, target)
+            );
+          };
           const resolvePlayerAimTarget = (dir) => {
             if (!dir || !cue?.pos) return dir;
             const normalized = dir.clone().normalize();
-            const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
-            const activeBalls = Array.isArray(ballsList)
-              ? ballsList.filter((ball) => ball?.active && String(ball.id) !== 'cue')
-              : [];
             if (activeBalls.length === 0) return normalized;
             const contact = calcTarget(cue, normalized, activeBalls);
-            if (contact?.targetBall) return normalized;
+            if (contact?.targetBall && isLegalTargetBall(contact.targetBall)) {
+              return normalized;
+            }
             const autoDir = resolveAutoAimDirection();
             if (autoDir && autoDir.lengthSq() > 1e-6) return autoDir.clone().normalize();
             const cuePos = new THREE.Vector2(cue.pos.x, cue.pos.y);
             const nearestBall = activeBalls.reduce((best, ball) => {
               if (!ball?.pos) return best;
+              if (!isLegalTargetBall(ball)) return best;
               if (!best) return ball;
               const bestDist = cuePos.distanceToSquared(best.pos);
               const dist = cuePos.distanceToSquared(ball.pos);
@@ -21724,20 +21762,18 @@ const powerRef = useRef(hud.power);
             suggestionAimKeyRef.current = null;
             const autoDir = resolveAutoAimDirection();
             if (applyAimDirection(autoDir, null)) return true;
-            const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
             const cuePos = cue?.pos
               ? new THREE.Vector2(cue.pos.x, cue.pos.y)
               : null;
-            if (!cuePos || !Array.isArray(ballsList)) return false;
-            const nearestBall = ballsList
-              .filter((b) => b?.active && String(b.id) !== 'cue')
-              .reduce((best, ball) => {
-                if (!ball?.pos) return best;
-                if (!best) return ball;
-                const bestDist = cuePos.distanceToSquared(best.pos);
-                const dist = cuePos.distanceToSquared(ball.pos);
-                return dist < bestDist ? ball : best;
-              }, null);
+            if (!cuePos || !Array.isArray(activeBalls)) return false;
+            const nearestBall = activeBalls.reduce((best, ball) => {
+              if (!ball?.pos) return best;
+              if (!isLegalTargetBall(ball)) return best;
+              if (!best) return ball;
+              const bestDist = cuePos.distanceToSquared(best.pos);
+              const dist = cuePos.distanceToSquared(ball.pos);
+              return dist < bestDist ? ball : best;
+            }, null);
             if (!nearestBall) return false;
             const dir = new THREE.Vector2(
               nearestBall.pos.x - cuePos.x,
@@ -24948,22 +24984,22 @@ const powerRef = useRef(hud.power);
       )}
       {replayActive && (
         <>
-          <div className="pointer-events-none absolute right-4 top-4 z-50">
+          <div className="pointer-events-none absolute left-4 top-4 z-50">
             <div className="rounded-full border border-white/25 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
               Replay
             </div>
           </div>
-          <div className="pointer-events-auto absolute right-4 top-1/2 z-50 flex -translate-y-1/2 items-center">
+          <div className="pointer-events-auto absolute right-8 top-1/2 z-50 flex -translate-y-1/2 items-center">
             <button
               type="button"
               onClick={handleSkipReplayClick}
-              className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+              className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 fill="currentColor"
-                className="h-4 w-4"
+                className="h-5 w-5"
                 aria-hidden="true"
               >
                 <path d="M4 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75A1 1 0 0 1 4 16.75zM12.5 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75a1 1 0 0 1-1.6-.8z" />
@@ -24975,7 +25011,7 @@ const powerRef = useRef(hud.power);
       )}
 
       <div
-        className={`absolute top-2 right-2 z-50 flex flex-col items-end gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute top-2 right-1 z-50 flex flex-col items-end gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
       >
         <button
           ref={configButtonRef}
@@ -24983,7 +25019,7 @@ const powerRef = useRef(hud.power);
           onClick={() => setConfigOpen((prev) => !prev)}
           aria-expanded={configOpen}
           aria-controls="snooker-config-panel"
-          className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
             configOpen ? 'bg-black/60' : 'hover:bg-black/60'
           }`}
         >
