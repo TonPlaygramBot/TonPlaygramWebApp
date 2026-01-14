@@ -998,14 +998,20 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (15.8% over the original baseline)
+const BALL_SIZE_SCALE = 0.96; // slight bump so balls read a touch larger on the cloth
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const ENABLE_BALL_FLOOR_SHADOWS = true;
+const ENABLE_CUE_CLOTH_SHADOW = true;
+const ENABLE_TABLE_FLOOR_SHADOW = true;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
+const CUE_SHADOW_OPACITY = 0.18;
+const CUE_SHADOW_WIDTH_RATIO = 0.62;
+const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
+const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 0.35;
 const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the reference layout
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.02; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
 const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.026; // gently bias the middle pocket centres and cuts back toward the playfield
@@ -2902,6 +2908,18 @@ const buildPolyHavenTextureUrls = (sourceId, resolution) => {
   };
 };
 
+const buildPolyHavenLegacyTextureUrls = (sourceId, resolution) => {
+  if (!sourceId) return null;
+  const normalized = String(sourceId).replace(/\s+/g, '_');
+  const res = String(resolution).toUpperCase();
+  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${resolution}/${normalized}/${normalized}_${res}`;
+  return {
+    diffuse: `${base}_Color.jpg`,
+    normal: `${base}_NormalGL.jpg`,
+    roughness: `${base}_Roughness.jpg`
+  };
+};
+
 const collectPolyHavenUrls = (apiJson) => {
   const urls = [];
   const walk = (v) => {
@@ -3300,26 +3318,38 @@ const createClothTextures = (() => {
         const fallback4k = buildPolyHavenTextureUrls(preset.sourceId, '4k');
         const fallback2k = buildPolyHavenTextureUrls(preset.sourceId, '2k');
         const fallback1k = buildPolyHavenTextureUrls(preset.sourceId, '1k');
+        const legacy4k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '4k');
+        const legacy2k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '2k');
+        const legacy1k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '1k');
         const loader = new THREE.TextureLoader();
         loader.setCrossOrigin('anonymous');
 
         const diffuseCandidates = [
           upgradePolyHavenTextureUrlTo4k(urls.diffuse),
           fallback4k?.diffuse,
+          legacy4k?.diffuse,
           fallback2k?.diffuse,
-          fallback1k?.diffuse
+          legacy2k?.diffuse,
+          fallback1k?.diffuse,
+          legacy1k?.diffuse
         ].filter(Boolean);
         const normalCandidates = [
           upgradePolyHavenTextureUrlTo4k(urls.normal),
           fallback4k?.normal,
+          legacy4k?.normal,
           fallback2k?.normal,
-          fallback1k?.normal
+          legacy2k?.normal,
+          fallback1k?.normal,
+          legacy1k?.normal
         ].filter(Boolean);
         const roughnessCandidates = [
           upgradePolyHavenTextureUrlTo4k(urls.roughness),
           fallback4k?.roughness,
+          legacy4k?.roughness,
           fallback2k?.roughness,
-          fallback1k?.roughness
+          legacy2k?.roughness,
+          fallback1k?.roughness,
+          legacy1k?.roughness
         ].filter(Boolean);
 
         let map = null;
@@ -7175,6 +7205,30 @@ function Table3D(
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
+
+  if (ENABLE_TABLE_FLOOR_SHADOW) {
+    const shadowWidth = outerHalfW * 2 + TABLE_FLOOR_SHADOW_MARGIN * 2;
+    const shadowHeight = outerHalfH * 2 + TABLE_FLOOR_SHADOW_MARGIN * 2;
+    const shadowGeo = new THREE.PlaneGeometry(shadowWidth, shadowHeight);
+    shadowGeo.rotateX(-Math.PI / 2);
+    const shadowMat = new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: TABLE_FLOOR_SHADOW_OPACITY,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+    shadowMat.polygonOffset = true;
+    shadowMat.polygonOffsetFactor = -0.6;
+    shadowMat.polygonOffsetUnits = -0.6;
+    const floorShadow = new THREE.Mesh(shadowGeo, shadowMat);
+    floorShadow.position.y = FLOOR_Y - TABLE_Y + MICRO_EPS;
+    floorShadow.renderOrder = -5;
+    floorShadow.receiveShadow = false;
+    floorShadow.castShadow = false;
+    floorShadow.name = 'tableFloorShadow';
+    table.add(floorShadow);
+  }
   // Force the table rails to reuse the exact cue butt wood scale so the grain
   // is just as visible as it is on the stick finish in cue view.
   const alignedRailSurface = resolveWoodSurfaceConfig(
@@ -17108,6 +17162,7 @@ const powerRef = useRef(hud.power);
           if (!stroke || !cueStick) {
             if (cueStick) cueStick.visible = false;
             cueAnimating = false;
+            syncCueShadow();
             return;
           }
           const warmupSnap =
@@ -17119,6 +17174,7 @@ const powerRef = useRef(hud.power);
           if (!warmupSnap || !startSnap || !impactSnap || !settleSnap) {
             cueStick.visible = false;
             cueAnimating = false;
+            syncCueShadow();
             return;
           }
           const pullback = Math.max(0, stroke.pullback ?? stroke.pullbackDuration ?? 0);
@@ -17141,11 +17197,13 @@ const powerRef = useRef(hud.power);
           cueAnimating = true;
           if (localTime <= 0) {
             cueStick.position.copy(tmpReplayCueA);
+            syncCueShadow();
             return;
           }
           if (localTime <= pullEnd && pullback > 0) {
             const t = THREE.MathUtils.clamp(localTime / Math.max(pullback, 1e-6), 0, 1);
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
+            syncCueShadow();
             return;
           }
           if (localTime <= impactEnd) {
@@ -17157,6 +17215,7 @@ const powerRef = useRef(hud.power);
             tmpReplayCueA.copy(tmpReplayCueB);
             tmpReplayCueB.set(impactSnap.x, impactSnap.y, impactSnap.z);
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
+            syncCueShadow();
             return;
           }
           if (localTime <= settleEnd && settleTime > 0) {
@@ -17169,10 +17228,12 @@ const powerRef = useRef(hud.power);
             tmpReplayCueB.set(settleSnap.x, settleSnap.y, settleSnap.z);
             cueStick.visible = true;
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
+            syncCueShadow();
             return;
           }
           cueStick.visible = false;
           cueAnimating = false;
+          syncCueShadow();
         };
 
         const updateReplayTrail = (cuePath, targetTime) => {
@@ -18929,7 +18990,46 @@ const powerRef = useRef(hud.power);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
+      const cueShadow = ENABLE_CUE_CLOTH_SHADOW
+        ? (() => {
+            const shadowWidth = Math.max(BALL_R * CUE_SHADOW_WIDTH_RATIO, BALL_R * 0.4);
+            const shadowGeo = new THREE.PlaneGeometry(cueLen * 1.05, shadowWidth);
+            shadowGeo.rotateX(-Math.PI / 2);
+            const shadowMat = new THREE.MeshBasicMaterial({
+              color: 0x000000,
+              transparent: true,
+              opacity: CUE_SHADOW_OPACITY,
+              depthWrite: false,
+              side: THREE.DoubleSide
+            });
+            shadowMat.polygonOffset = true;
+            shadowMat.polygonOffsetFactor = -0.4;
+            shadowMat.polygonOffsetUnits = -0.4;
+            const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+            shadow.visible = false;
+            shadow.renderOrder = cueStick.renderOrder - 0.5;
+            shadow.name = 'cueStickShadow';
+            table.add(shadow);
+            return shadow;
+          })()
+        : null;
+      cueStick.userData.shadow = cueShadow;
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
+      const syncCueShadow = () => {
+        if (!cueStick || !cueShadow) return;
+        cueShadow.visible = cueStick.visible;
+        if (cueShadow.visible) {
+          cueShadow.position.set(
+            cueStick.position.x,
+            BALL_SHADOW_Y,
+            cueStick.position.z
+          );
+          cueShadow.rotation.y = cueStick.rotation.y;
+          if (cueShadow.material) {
+            cueShadow.material.opacity = CUE_SHADOW_OPACITY;
+          }
+        }
+      };
 
       const closeCueGallery = () => {
         if (!ENABLE_CUE_GALLERY) return;
@@ -24113,6 +24213,7 @@ const powerRef = useRef(hud.power);
             const edge = Math.min(1, Math.max(edgeX, edgeY) / 5);
             fit(1 + edge * 0.08);
           }
+          syncCueShadow();
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
           const shouldStreamAim =
