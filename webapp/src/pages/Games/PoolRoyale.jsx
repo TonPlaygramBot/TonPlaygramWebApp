@@ -1401,7 +1401,7 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
-const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
+const CAMERA_CUE_SURFACE_MARGIN = 0; // keep orbit height aligned exactly with the cue top surface
 const CUE_TIP_CLEARANCE = BALL_R * 0.22; // widen the visible air gap so the blue tip never kisses the cue ball
 const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
@@ -4688,8 +4688,8 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.99;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.988;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.98;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.975;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -4730,7 +4730,7 @@ const CAMERA = {
 };
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
-const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
+const CAMERA_AIM_LINE_MARGIN = 0; // keep camera clearance aligned exactly to the aim line height
 const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // compensate for the 20% smaller cue ball when rendering the guide
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
@@ -4781,8 +4781,8 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 0.9; // pull the broadcast overhead camera c
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0215; // tighten cue camera distance so the cue ball and object ball appear larger
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
+const CUE_VIEW_RADIUS_RATIO = 0.0195; // tighten cue camera distance so the cue ball and object ball appear larger
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.075;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
@@ -4800,7 +4800,7 @@ const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
-const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
+const CAMERA_SURFACE_STOP_MARGIN = 0;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.26; // nudge forward slightly at the floor of the cue view, then stop
