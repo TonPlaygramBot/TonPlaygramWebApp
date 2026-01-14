@@ -70,7 +70,7 @@ const MATERIAL_SERIES = [
   {
     prefix: 'polarFleece',
     label: 'Polar Fleece',
-    sourceId: 'polar_fleece',
+    sourceId: 'caban',
     basePrice: 640,
     priceStep: 10,
     bluePremium: 20,
@@ -89,7 +89,7 @@ const MATERIAL_SERIES = [
   {
     prefix: 'polarFleecePlush',
     label: 'Polar Fleece Plush',
-    sourceId: 'polar_fleece',
+    sourceId: 'caban',
     basePrice: 700,
     priceStep: 10,
     bluePremium: 20,
@@ -108,7 +108,7 @@ const MATERIAL_SERIES = [
   {
     prefix: 'polarFleeceNatureOcean',
     label: 'Polar Fleece Nature & Ocean',
-    sourceId: 'polar_fleece',
+    sourceId: 'caban',
     basePrice: 660,
     priceStep: 10,
     bluePremium: 20,
