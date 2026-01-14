@@ -901,7 +901,8 @@ const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylind
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
-const LOCK_REPLAY_CAMERA = false;
+const LOCK_REPLAY_CAMERA = true;
+const REPLAY_CUE_STICK_HOLD_MS = 240;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
@@ -998,7 +999,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.96; // slight bump so balls read a touch larger on the cloth
+const BALL_SIZE_SCALE = 1.152; // 20% larger balls for clearer visibility on the cloth
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1836,7 +1837,7 @@ const CLOTH_SOFT_BLEND = 0.5;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 5120,
+    textureSize: 6144,
     anisotropy: 72,
     generateMipmaps: true,
     bumpScaleMultiplier: 1.16,
@@ -1847,7 +1848,7 @@ const CLOTH_QUALITY = (() => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
       ...defaults,
-      textureSize: 2048,
+      textureSize: 2560,
       anisotropy: 20,
       bumpScaleMultiplier: 1,
       sheen: 0.9,
@@ -1868,7 +1869,7 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 2048 : 1024,
+      textureSize: highDensity ? 2560 : 1280,
       anisotropy: highDensity ? 22 : 18,
       generateMipmaps: true,
       bumpScaleMultiplier: highDensity ? 1.02 : 0.94,
@@ -1879,7 +1880,7 @@ const CLOTH_QUALITY = (() => {
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 4096,
+      textureSize: 5120,
       anisotropy: 48,
       generateMipmaps: true,
       bumpScaleMultiplier: 1.12,
@@ -2820,11 +2821,12 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.82; // tighten the pattern footprint so the scan resolves more clearly
+const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 3.6;
-const POLYHAVEN_TEXTURE_RESOLUTION = '4k';
+const POLYHAVEN_TEXTURE_RESOLUTION =
+  CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
 const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1, 1);
 const CLOTH_ROUGHNESS_BASE = 0.82;
@@ -6367,8 +6369,9 @@ function Table3D(
       : (typeof finish === 'string' && TABLE_FINISHES[finish]) ||
         (finish?.id && TABLE_FINISHES[finish.id]) ||
         TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+  const cueRepeatScale = resolvedFinish?.id === 'peelingPaintWeathered' ? 1 : CUE_WOOD_REPEAT_SCALE;
   const woodRepeatScale = clampWoodRepeatScaleValue(
-    resolvedFinish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
+    (resolvedFinish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE) * cueRepeatScale
   );
   const clothTextureKey =
     resolvedFinish?.clothTextureKey ?? DEFAULT_CLOTH_TEXTURE_KEY;
@@ -6436,13 +6439,17 @@ function Table3D(
     resolvedWoodOption?.frame,
     resolvedWoodOption?.rail ?? defaultWoodOption.frame ?? defaultWoodOption.rail
   );
+  const synchronizedTextureSize = Math.max(
+    initialFrameSurface.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
+    CUE_WOOD_TEXTURE_SIZE
+  );
   const synchronizedRailSurface = {
     repeat: new THREE.Vector2(
       initialFrameSurface.repeat.x,
       initialFrameSurface.repeat.y
     ),
     rotation: initialFrameSurface.rotation,
-    textureSize: initialFrameSurface.textureSize,
+    textureSize: synchronizedTextureSize,
     mapUrl: initialFrameSurface.mapUrl,
     roughnessMapUrl: initialFrameSurface.roughnessMapUrl,
     normalMapUrl: initialFrameSurface.normalMapUrl,
@@ -6454,7 +6461,7 @@ function Table3D(
       initialFrameSurface.repeat.y
     ),
     rotation: initialFrameSurface.rotation,
-    textureSize: initialFrameSurface.textureSize,
+    textureSize: synchronizedTextureSize,
     mapUrl: initialFrameSurface.mapUrl,
     roughnessMapUrl: initialFrameSurface.roughnessMapUrl,
     normalMapUrl: initialFrameSurface.normalMapUrl,
@@ -17159,9 +17166,49 @@ const powerRef = useRef(hud.power);
 
         const applyReplayCueStroke = (playback, targetTime) => {
           const stroke = playback?.cueStroke;
-          if (!stroke || !cueStick) {
-            if (cueStick) cueStick.visible = false;
+          if (!cueStick) {
             cueAnimating = false;
+            return;
+          }
+          if (!stroke) {
+            const cuePath = playback?.cuePath ?? [];
+            const cueBall = cueRef.current || cue;
+            const cueBallPos = cueBall?.mesh?.position ?? null;
+            const cuePos = cueBallPos ? TMP_VEC3_A.copy(cueBallPos) : cuePath[0]?.pos?.clone?.() ?? null;
+            if (!cuePos) {
+              cueStick.visible = false;
+              cueAnimating = false;
+              syncCueShadow();
+              return;
+            }
+            const first = cuePath[0]?.pos ?? null;
+            const second = cuePath[1]?.pos ?? null;
+            if (first && second) {
+              TMP_VEC3_CUE_DIR.copy(second).sub(first);
+            } else if (cueBall?.vel) {
+              TMP_VEC3_CUE_DIR.set(cueBall.vel.x, 0, cueBall.vel.y);
+            } else {
+              TMP_VEC3_CUE_DIR.set(0, 0, 1);
+            }
+            TMP_VEC3_CUE_DIR.y = 0;
+            if (TMP_VEC3_CUE_DIR.lengthSq() > 1e-8) {
+              TMP_VEC3_CUE_DIR.normalize();
+            } else {
+              TMP_VEC3_CUE_DIR.set(0, 0, 1);
+            }
+            cuePos.y = CUE_Y;
+            cueStick.rotation.y = Math.atan2(TMP_VEC3_CUE_DIR.x, TMP_VEC3_CUE_DIR.z) + Math.PI;
+            cueStick.rotation.x = 0;
+            const showCue = targetTime <= REPLAY_CUE_STICK_HOLD_MS;
+            cueStick.visible = showCue;
+            cueAnimating = showCue;
+            if (showCue) {
+              cueStick.position.set(
+                cuePos.x - TMP_VEC3_CUE_DIR.x * CUE_TIP_GAP,
+                cuePos.y,
+                cuePos.z - TMP_VEC3_CUE_DIR.z * CUE_TIP_GAP
+              );
+            }
             syncCueShadow();
             return;
           }
@@ -25132,6 +25179,10 @@ const powerRef = useRef(hud.power);
           onClick={() => setConfigOpen((prev) => !prev)}
           aria-expanded={configOpen}
           aria-controls="snooker-config-panel"
+          style={{
+            transform: `scale(${uiScale * 1.08})`,
+            transformOrigin: 'top right'
+          }}
           className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
             configOpen ? 'bg-black/60' : 'hover:bg-black/60'
           }`}
