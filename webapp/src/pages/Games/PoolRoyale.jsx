@@ -999,7 +999,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 1.04; // 4% larger than regulation to match requested sizing
+const BALL_SIZE_SCALE = 0.96; // 4% smaller than regulation to match requested sizing
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -2499,7 +2499,8 @@ const DEFAULT_CLOTH_TEXTURE_KEY =
 const DEFAULT_CLOTH_COLOR_ID = DEFAULT_CLOTH_TEXTURE_KEY;
 const CLOTH_TEXTURE_SOURCE_STORAGE_KEY = 'poolRoyaleClothSource';
 const CLOTH_TEXTURE_SOURCE_OPTIONS = Object.freeze([
-  { id: 'polyhaven', label: 'Poly Haven Cloth (8K Patterns)' }
+  { id: 'polyhaven', label: 'Poly Haven Cloth (4K)' },
+  { id: 'procedural', label: 'Procedural Cloth' }
 ]);
 const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'polyhaven';
 const CLOTH_COLOR_OPTIONS = Object.freeze(
@@ -2825,7 +2826,8 @@ const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser 
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 1.25; // enlarge Poly Haven cloth patterns by 25%
 const POLYHAVEN_ANISOTROPY_BOOST = 4.6;
-const POLYHAVEN_TEXTURE_RESOLUTION = '8k';
+const POLYHAVEN_TEXTURE_RESOLUTION =
+  CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
 const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.25, 1.25);
 const CLOTH_ROUGHNESS_BASE = 0.82;
@@ -2990,14 +2992,8 @@ const pickPolyHavenTextureUrlsAtResolution = (apiJson, resolution) => {
 
 const upgradePolyHavenTextureUrlTo4k = (url) => {
   if (typeof url !== 'string' || url.length === 0) return url;
-  if (!url.includes('/2k/') && !url.includes('_2k') && !url.includes('/4k/') && !url.includes('_4k')) {
-    return url;
-  }
-  return url
-    .replace('/2k/', '/8k/')
-    .replace('/4k/', '/8k/')
-    .replace(/_2k(\.\w+)$/, '_8k$1')
-    .replace(/_4k(\.\w+)$/, '_8k$1');
+  if (!url.includes('/2k/') && !url.includes('_2k')) return url;
+  return url.replace('/2k/', '/4k/').replace(/_2k(\.\w+)$/, '_4k$1');
 };
 
 const createClothTextures = (() => {
@@ -3321,11 +3317,9 @@ const createClothTextures = (() => {
           urls = {};
         }
 
-        const fallback8k = buildPolyHavenTextureUrls(preset.sourceId, '8k');
         const fallback4k = buildPolyHavenTextureUrls(preset.sourceId, '4k');
         const fallback2k = buildPolyHavenTextureUrls(preset.sourceId, '2k');
         const fallback1k = buildPolyHavenTextureUrls(preset.sourceId, '1k');
-        const legacy8k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '8k');
         const legacy4k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '4k');
         const legacy2k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '2k');
         const legacy1k = buildPolyHavenLegacyTextureUrls(preset.sourceId, '1k');
@@ -3334,8 +3328,6 @@ const createClothTextures = (() => {
 
         const diffuseCandidates = [
           upgradePolyHavenTextureUrlTo4k(urls.diffuse),
-          fallback8k?.diffuse,
-          legacy8k?.diffuse,
           fallback4k?.diffuse,
           legacy4k?.diffuse,
           fallback2k?.diffuse,
@@ -3345,8 +3337,6 @@ const createClothTextures = (() => {
         ].filter(Boolean);
         const normalCandidates = [
           upgradePolyHavenTextureUrlTo4k(urls.normal),
-          fallback8k?.normal,
-          legacy8k?.normal,
           fallback4k?.normal,
           legacy4k?.normal,
           fallback2k?.normal,
@@ -3356,8 +3346,6 @@ const createClothTextures = (() => {
         ].filter(Boolean);
         const roughnessCandidates = [
           upgradePolyHavenTextureUrlTo4k(urls.roughness),
-          fallback8k?.roughness,
-          legacy8k?.roughness,
           fallback4k?.roughness,
           legacy4k?.roughness,
           fallback2k?.roughness,
@@ -3375,9 +3363,6 @@ const createClothTextures = (() => {
           loadTextureWithFallbacks(loader, roughnessCandidates, false)
         ]);
 
-        if (map) {
-          map = neutralizePolyHavenColorMap(map);
-        }
         [map, normal, roughness].forEach((tex) =>
           applyTextureDefaults(tex, { isPolyHaven: true })
         );
@@ -3391,7 +3376,7 @@ const createClothTextures = (() => {
           roughness: roughness ?? existing.roughness ?? null,
           presetId: preset.id,
           sourceId: preset.sourceId,
-          mapSource: 'polyhaven',
+          mapSource: map ? 'polyhaven' : existing.mapSource ?? 'procedural',
           ready: Boolean(map || normal || roughness)
         });
         broadcastClothTextureReady(preset.sourceId);
@@ -3413,15 +3398,14 @@ const createClothTextures = (() => {
     if (!entry) {
       const procedural = generateProceduralClothTextures(preset);
       entry = {
-        map: null,
-        bump: null,
-        normal: null,
-        roughness: null,
+        ...procedural,
         proceduralMap: procedural.map ?? null,
         proceduralBump: procedural.bump ?? null,
+        normal: null,
+        roughness: null,
         presetId: preset.id,
         sourceId: preset.sourceId,
-        mapSource: 'polyhaven',
+        mapSource: 'procedural',
         ready: false
       };
       cache.set(cacheKey, entry);
@@ -3430,19 +3414,16 @@ const createClothTextures = (() => {
     const useProcedural = textureSource === 'procedural';
     if (!useProcedural) {
       ensurePolyHavenTextures(preset, cacheKey);
-      if (entry.mapSource !== 'polyhaven') {
-        entry.mapSource = 'polyhaven';
-      }
     }
 
     return {
-      map: cloneTexture(useProcedural ? entry.proceduralMap : entry.map),
-      bump: cloneTexture(useProcedural ? entry.proceduralBump : entry.bump),
+      map: cloneTexture(useProcedural ? entry.proceduralMap ?? entry.map : entry.map),
+      bump: cloneTexture(useProcedural ? entry.proceduralBump ?? entry.bump : entry.bump),
       normal: cloneTexture(useProcedural ? null : entry.normal),
       roughness: cloneTexture(useProcedural ? null : entry.roughness),
       presetId: preset.id,
       sourceId: entry.sourceId,
-      mapSource: useProcedural ? 'procedural' : entry.mapSource ?? 'polyhaven',
+      mapSource: useProcedural ? 'procedural' : entry.mapSource ?? 'procedural',
       ready: useProcedural ? true : Boolean(entry.ready)
     };
   };
@@ -4727,7 +4708,7 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.1;
-const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.22; // keep the cue view from dropping too low while staying above the cue
+const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.14; // let the cue view drop to the same rail-hugging height used by AI shots while staying above the cue
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
@@ -4736,8 +4717,8 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.965;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.955;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.99;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.988;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
