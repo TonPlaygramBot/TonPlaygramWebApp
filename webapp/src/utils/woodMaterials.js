@@ -486,8 +486,8 @@ export const WOOD_GRAIN_OPTIONS_BY_ID = Object.freeze(
   }, {})
 );
 
-export const DEFAULT_WOOD_TEXTURE_SIZE = 1024;
-export const DEFAULT_WOOD_ROUGHNESS_SIZE = 512;
+export const DEFAULT_WOOD_TEXTURE_SIZE = 2048;
+export const DEFAULT_WOOD_ROUGHNESS_SIZE = 1024;
 
 export const shiftLightness = (light, delta) => clamp01(light + delta);
 export const shiftSaturation = (sat, delta) => clamp01(sat + delta);

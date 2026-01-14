@@ -887,7 +887,7 @@ const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add bre
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.88; // pull the entire table set ~12% closer so the arena feels more intimate without distorting proportions
+const TABLE_DISPLAY_SCALE = 0.78; // shrink the table footprint ~22% while keeping proportions intact
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -1414,14 +1414,14 @@ const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while 
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.18; // ensure every stroke pulls slightly farther back for readability at all angles
-const CUE_STROKE_MIN_MS = 95;
-const CUE_STROKE_MAX_MS = 420;
-const CUE_STROKE_SPEED_MIN = BALL_R * 18;
-const CUE_STROKE_SPEED_MAX = BALL_R * 32;
-const CUE_FOLLOW_MIN_MS = 180;
-const CUE_FOLLOW_MAX_MS = 420;
-const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
-const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
+const CUE_STROKE_MIN_MS = 125;
+const CUE_STROKE_MAX_MS = 520;
+const CUE_STROKE_SPEED_MIN = BALL_R * 15;
+const CUE_STROKE_SPEED_MAX = BALL_R * 28;
+const CUE_FOLLOW_MIN_MS = 220;
+const CUE_FOLLOW_MAX_MS = 520;
+const CUE_FOLLOW_SPEED_MIN = BALL_R * 10;
+const CUE_FOLLOW_SPEED_MAX = BALL_R * 22;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
@@ -1472,7 +1472,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 const CUE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // Match cue grain scale to the table finish
 const CUE_WOOD_REPEAT_SCALE = 1 / 9; // enlarge cue wood grain 3× so the pattern reads more clearly at table scale
 const CUE_WOOD_TEXTURE_SIZE = 4096; // 4k cue textures for sharper cue wood finish
-const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7 * 2, 0.44 / 3 * 0.7 * 2); // shrink finish grain 50% so the pattern reads tighter on the table surface
+const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7 * 4, 0.44 / 3 * 0.7 * 4); // shrink finish grain 2x more so the pattern reads tighter on the table surface
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
 const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
@@ -2491,9 +2491,10 @@ const DEFAULT_CLOTH_TEXTURE_KEY =
 const DEFAULT_CLOTH_COLOR_ID = DEFAULT_CLOTH_TEXTURE_KEY;
 const CLOTH_TEXTURE_SOURCE_STORAGE_KEY = 'poolRoyaleClothSource';
 const CLOTH_TEXTURE_SOURCE_OPTIONS = Object.freeze([
+  { id: 'polyhaven', label: 'Poly Haven Cloth (4K)' },
   { id: 'procedural', label: 'Procedural Cloth' }
 ]);
-const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'procedural';
+const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'polyhaven';
 const CLOTH_COLOR_OPTIONS = Object.freeze(
   CLOTH_LIBRARY.map((cloth) => ({
     id: cloth.id,
@@ -2815,11 +2816,11 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.76; // tighten the pattern footprint so the scan resolves more clearly
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 3;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 3.6;
 const POLYHAVEN_TEXTURE_RESOLUTION = '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
-const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(2.6, 1.4);
+const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1, 1);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
@@ -3329,10 +3330,6 @@ const createClothTextures = (() => {
           loadTextureWithFallbacks(loader, normalCandidates, false),
           loadTextureWithFallbacks(loader, roughnessCandidates, false)
         ]);
-
-        if (map) {
-          map = neutralizePolyHavenColorMap(map);
-        }
 
         [map, normal, roughness].forEach((tex) =>
           applyTextureDefaults(tex, { isPolyHaven: true })
@@ -4756,7 +4753,7 @@ const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.12; // lift the top view slightly to keep both near pockets visible on portrait
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
+const TOP_VIEW_RADIUS_SCALE = 1.12; // lower the 2D top view slightly to keep framing consistent after the table shrink
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * 0.005, // bias the top view higher on portrait displays
@@ -4787,7 +4784,7 @@ const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
 );
-const CUE_VIEW_PHI_LIFT = 0.075; // nudge the cue camera lower so the stroke and cue pull stay in frame
+const CUE_VIEW_PHI_LIFT = 0.06; // keep the cue camera slightly higher before it bottoms out
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -4809,6 +4806,7 @@ const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
+const CUE_VIEW_SPIN_ZOOM = BALL_R * 6.5; // bring the cue camera closer when spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
 const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-ball follow line toward a draw path
@@ -4863,20 +4861,20 @@ const AI_CAMERA_DROP_DURATION_MS = 480;
 const AI_CAMERA_SETTLE_MS = 320; // allow time for the cue view to settle before firing
 const AI_CAMERA_DROP_LEAD_MS =
   AI_CAMERA_DROP_DURATION_MS + AI_CAMERA_SETTLE_MS; // start lowering into cue view early enough to finish before the stroke begins
-const AI_CUE_VIEW_HOLD_MS = 0;
+const AI_CUE_VIEW_HOLD_MS = 180;
 // Ease the AI camera just partway toward cue view (still above the stick) so the shot preview
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
-const AI_STROKE_TIME_SCALE = 1.35;
+const AI_STROKE_TIME_SCALE = 1.6;
 const AI_STROKE_PULLBACK_FACTOR = 1.05;
 const AI_CUE_PULL_VISIBILITY_BOOST = 1.34;
 const AI_WARMUP_PULL_RATIO = 0.55;
 const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.32;
 const PLAYER_WARMUP_PULL_RATIO = 0.62;
-const PLAYER_STROKE_TIME_SCALE = 1.28;
+const PLAYER_STROKE_TIME_SCALE = 1.45;
 const PLAYER_FORWARD_SLOWDOWN = 1.2;
-const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
-const PLAYER_PULLBACK_MIN_SCALE = 1.1;
+const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
+const PLAYER_PULLBACK_MIN_SCALE = 1.2;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 40;
@@ -16254,6 +16252,21 @@ const powerRef = useRef(hud.power);
               );
             }
           }
+          if (!replayActive && !shooting && cue?.active) {
+            const spinInput = spinRef.current ?? { x: 0, y: 0 };
+            const spinMagnitude = Math.hypot(spinInput.x ?? 0, spinInput.y ?? 0);
+            if (spinMagnitude > 1e-4) {
+              const blend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
+              const cueBias = 1 - blend;
+              if (cueBias > 1e-3) {
+                const zoom = spinMagnitude * CUE_VIEW_SPIN_ZOOM * cueBias;
+                TMP_SPH.radius = clampOrbitRadius(
+                  TMP_SPH.radius - zoom,
+                  CUE_VIEW_MIN_RADIUS
+                );
+              }
+            }
+          }
           const aimLineWorldY =
             (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
           const scaleFactor = Number.isFinite(worldScaleFactor)
@@ -20159,12 +20172,11 @@ const powerRef = useRef(hud.power);
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
           const settleTime = impactTime + settleDuration;
-          const forwardPreviewHold =
-            impactTime +
-            Math.min(
-              settleDuration,
-              Math.max(180, forwardDuration * 0.9)
-            );
+          const impactHoldBuffer = Math.max(
+            220,
+            Math.min(settleDuration, Math.max(180, forwardDuration * 0.9))
+          );
+          const forwardPreviewHold = impactTime + impactHoldBuffer;
           powerImpactHoldRef.current = Math.max(
             powerImpactHoldRef.current || 0,
             forwardPreviewHold
