@@ -1010,8 +1010,8 @@ const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const CUE_SHADOW_OPACITY = 0.18;
 const CUE_SHADOW_WIDTH_RATIO = 0.62;
-const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
-const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 0.35;
+const TABLE_FLOOR_SHADOW_OPACITY = 0.26;
+const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 0.75;
 const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the reference layout
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.02; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
 const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.026; // gently bias the middle pocket centres and cuts back toward the playfield
@@ -1177,7 +1177,7 @@ const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.226; // trim the cushion tops furthe
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior wooden rails straight with no rounding
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.14; // round the top/outside rail edge so the outer junction blends without touching the playfield
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_GRAVITY = 42; // steeper gravity for a natural fall into the leather cradle
@@ -1829,7 +1829,7 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 1.6;
+const CLOTH_TEXTURE_INTENSITY = 1.85;
 const CLOTH_HAIR_INTENSITY = 1.2;
 const CLOTH_BUMP_INTENSITY = 1.8;
 const CLOTH_SOFT_BLEND = 0.5;
@@ -1868,7 +1868,7 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 2048 : 1024,
+      textureSize: 2048,
       anisotropy: highDensity ? 22 : 18,
       generateMipmaps: true,
       bumpScaleMultiplier: highDensity ? 1.02 : 0.94,
@@ -2820,7 +2820,7 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.76; // tighten the pattern footprint so the scan resolves more clearly
+const CLOTH_PATTERN_SCALE = 0.38; // double the visible weave size so the cloth pattern reads larger
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 3.6;
@@ -4706,11 +4706,11 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.1;
-const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.12; // let the cue view drop to the same rail-hugging height used by AI shots while staying above the cue
+const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.14; // let the cue view drop to the same rail-hugging height used by AI shots while staying above the cue
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0158; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0154; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
@@ -4814,7 +4814,7 @@ const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
 );
-const CUE_VIEW_PHI_LIFT = 0.06; // keep the cue camera slightly higher before it bottoms out
+const CUE_VIEW_PHI_LIFT = 0.075; // nudge the cue camera lower so the stroke and cue pull stay in frame
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -4830,7 +4830,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
-const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.26; // nudge forward slightly at the floor of the cue view, then stop
+const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.22; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
@@ -6493,14 +6493,14 @@ function Table3D(
   const clothColor = clothPrimary.clone();
   const cushionColor = cushionPrimary.clone();
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.14 + brightnessLift * 0.35);
-  const clothSheen = CLOTH_QUALITY.sheen * 0.68;
+  const clothSheen = CLOTH_QUALITY.sheen * 0.52;
   const clothSheenRoughness = Math.min(
     1,
-    CLOTH_QUALITY.sheenRoughness * 1.04
+    CLOTH_QUALITY.sheenRoughness * 1.18
   );
-  const clothRoughnessBase = CLOTH_ROUGHNESS_BASE + 0.02;
-  const clothRoughnessTarget = CLOTH_ROUGHNESS_TARGET + 0.02;
-  const clothEmissiveIntensity = 0.32;
+  const clothRoughnessBase = CLOTH_ROUGHNESS_BASE + 0.07;
+  const clothRoughnessTarget = CLOTH_ROUGHNESS_TARGET + 0.07;
+  const clothEmissiveIntensity = 0.2;
   const clothNormalScale = isPolyHavenCloth ? POLYHAVEN_NORMAL_SCALE : CLOTH_NORMAL_SCALE;
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
@@ -6511,7 +6511,7 @@ function Table3D(
     clearcoat: 0,
     clearcoatRoughness: 0.9,
     envMapIntensity: 0,
-    emissive: clothColor.clone().multiplyScalar(0.045),
+    emissive: clothColor.clone().multiplyScalar(0.03),
     emissiveIntensity: clothEmissiveIntensity,
     metalness: 0
   });
@@ -19014,17 +19014,27 @@ const powerRef = useRef(hud.power);
           })()
         : null;
       cueStick.userData.shadow = cueShadow;
+      const cueShadowForward = new THREE.Vector3();
+      const cueShadowQuat = new THREE.Quaternion();
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
       const syncCueShadow = () => {
         if (!cueStick || !cueShadow) return;
         cueShadow.visible = cueStick.visible;
         if (cueShadow.visible) {
+          cueStick.getWorldQuaternion(cueShadowQuat);
+          cueShadowForward.set(0, 0, 1).applyQuaternion(cueShadowQuat);
+          cueShadowForward.y = 0;
+          if (cueShadowForward.lengthSq() > MICRO_EPS) {
+            cueShadowForward.normalize();
+            cueShadow.rotation.y = Math.atan2(cueShadowForward.x, cueShadowForward.z);
+          } else {
+            cueShadow.rotation.y = cueStick.rotation.y;
+          }
           cueShadow.position.set(
             cueStick.position.x,
             BALL_SHADOW_Y,
             cueStick.position.z
           );
-          cueShadow.rotation.y = cueStick.rotation.y;
           if (cueShadow.material) {
             cueShadow.material.opacity = CUE_SHADOW_OPACITY;
           }
