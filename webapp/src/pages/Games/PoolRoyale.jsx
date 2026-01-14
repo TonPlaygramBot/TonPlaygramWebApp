@@ -1005,7 +1005,7 @@ const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
-const ENABLE_TABLE_FLOOR_SHADOW = true;
+const ENABLE_TABLE_FLOOR_SHADOW = false;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
@@ -1077,10 +1077,11 @@ const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
-  clearcoatMax: 0.028,
+  clearcoatMax: 0,
   clearcoatRoughnessMin: 0.48,
   envMapIntensityMax: 0
 });
+const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
 const BALL_CENTER_Y =
@@ -1252,15 +1253,15 @@ const POCKET_CAM = Object.freeze({
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 1.9,
-  heightOffsetShortMultiplier: 0.96,
+  heightOffset: BALL_R * 1.15,
+  heightOffsetShortMultiplier: 0.9,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.04,
-  heightDrop: BALL_R * 0.45,
+  heightDrop: BALL_R * 0.2,
   distanceScale: 0.96,
-  heightScale: 1.06,
-  focusBlend: 0.22,
-  lateralFocusShift: POCKET_VIS_R * 0.32,
+  heightScale: 1.02,
+  focusBlend: 0,
+  lateralFocusShift: 0,
   railFocusLong: BALL_R * 8,
   railFocusShort: BALL_R * 5.4
 });
@@ -2823,7 +2824,7 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 1.4; // enlarge Poly Haven cloth patterns by 40%
 const POLYHAVEN_ANISOTROPY_BOOST = 3.6;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
@@ -2833,8 +2834,7 @@ const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
 const CLOTH_PATTERN_OVERRIDES = Object.freeze({
-  polar_fleece: { repeatScale: 0.94 }, // 10% larger pattern to emphasize the fleece nap
-  terry_cloth: { repeatScale: 3 } // counter Polyhaven repeat scale so terry cloth matches the standard thread density
+  polar_fleece: { repeatScale: 0.94 } // 10% larger pattern to emphasize the fleece nap
 });
 
 const CLOTH_TEXTURE_KEYS_BY_SOURCE = CLOTH_LIBRARY.reduce((acc, cloth) => {
@@ -6500,11 +6500,10 @@ function Table3D(
   const clothColor = clothPrimary.clone();
   const cushionColor = cushionPrimary.clone();
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.14 + brightnessLift * 0.35);
-  const clothSheen = CLOTH_QUALITY.sheen * 0.5;
-  const clothSheenRoughness = Math.min(
-    1,
-    CLOTH_QUALITY.sheenRoughness * 1.12
-  );
+  const clothSheen = CLOTH_REFLECTIONS_DISABLED ? 0 : CLOTH_QUALITY.sheen * 0.5;
+  const clothSheenRoughness = CLOTH_REFLECTIONS_DISABLED
+    ? 1
+    : Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.12);
   const clothRoughnessBase = CLOTH_ROUGHNESS_BASE + 0.06;
   const clothRoughnessTarget = CLOTH_ROUGHNESS_TARGET + 0.06;
   const clothEmissiveIntensity = 0.18;
@@ -6527,7 +6526,10 @@ function Table3D(
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 12; // base density before global scaling adjustments
   const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25 * 1.5 * CLOTH_PATTERN_SCALE; // double the thread pattern size for a looser, woollier weave
-  const patternOverride = resolveClothPatternOverride(clothTextureKey);
+  const patternOverride =
+    clothMapSource === 'polyhaven'
+      ? null
+      : resolveClothPatternOverride(clothTextureKey);
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping the cloth visibly taut
   let baseRepeat =
@@ -6644,15 +6646,19 @@ function Table3D(
       mat.roughness = Number.isFinite(overrides.roughness)
         ? THREE.MathUtils.clamp(overrides.roughness, 0, 1)
         : clothBaseSettings.roughness;
-      mat.sheen = Number.isFinite(overrides.sheen)
+      const desiredSheen = Number.isFinite(overrides.sheen)
         ? THREE.MathUtils.clamp(overrides.sheen, 0, 1)
         : clothBaseSettings.sheen;
-      mat.sheenRoughness = Number.isFinite(overrides.sheenRoughness)
+      mat.sheen = CLOTH_REFLECTIONS_DISABLED ? 0 : desiredSheen;
+      const desiredSheenRoughness = Number.isFinite(overrides.sheenRoughness)
         ? THREE.MathUtils.clamp(overrides.sheenRoughness, 0, 1)
         : clothBaseSettings.sheenRoughness;
-      const targetClearcoat = Number.isFinite(overrides.clearcoat)
-        ? overrides.clearcoat
-        : clothBaseSettings.clearcoat;
+      mat.sheenRoughness = CLOTH_REFLECTIONS_DISABLED ? 1 : desiredSheenRoughness;
+      const targetClearcoat = CLOTH_REFLECTIONS_DISABLED
+        ? 0
+        : Number.isFinite(overrides.clearcoat)
+          ? overrides.clearcoat
+          : clothBaseSettings.clearcoat;
       mat.clearcoat = THREE.MathUtils.clamp(
         targetClearcoat,
         0,
@@ -16036,42 +16042,11 @@ const powerRef = useRef(hud.power);
             const cueBounds = cameraBounds?.cueShot ?? null;
             const standingBounds = cameraBounds?.standing ?? null;
             const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.12;
-            const focusTarget = new THREE.Vector3(0, focusHeightLocal, 0);
-            const cueBallForPocket = ballsList.find((b) => b.id === 'cue');
-            if (cueBallForPocket && focusBall?.active) {
-              focusTarget.set(
-                (cueBallForPocket.pos.x + focusBall.pos.x) * 0.5,
-                focusHeightLocal,
-                (cueBallForPocket.pos.y + focusBall.pos.y) * 0.5
-              );
-            }
-            focusTarget.multiplyScalar(worldScaleFactor);
-            if (POCKET_CAM.focusBlend > 0 && pocketCenter2D) {
-              const focusBlend = THREE.MathUtils.clamp(
-                POCKET_CAM.focusBlend,
-                0,
-                1
-              );
-              if (focusBlend > 0) {
-                const pocketFocus = new THREE.Vector3(
-                  pocketCenter2D.x * worldScaleFactor,
-                  focusHeightLocal,
-                  pocketCenter2D.y * worldScaleFactor
-                );
-                focusTarget.lerp(pocketFocus, focusBlend);
-              }
-            }
-            if (POCKET_CAM.lateralFocusShift) {
-              const lateral2D = new THREE.Vector2(-outward.y, outward.x);
-              if (lateral2D.lengthSq() > 1e-6) {
-                lateral2D.normalize().multiplyScalar(
-                  POCKET_CAM.lateralFocusShift * worldScaleFactor
-                );
-                focusTarget.add(
-                  new THREE.Vector3(lateral2D.x, 0, lateral2D.y)
-                );
-              }
-            }
+            const focusTarget = new THREE.Vector3(
+              pocketCenter2D.x * worldScaleFactor,
+              focusHeightLocal,
+              pocketCenter2D.y * worldScaleFactor
+            );
             if (
               anchorType === 'short' &&
               (POCKET_CAM.railFocusLong || POCKET_CAM.railFocusShort)
@@ -16994,6 +16969,79 @@ const powerRef = useRef(hud.power);
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
+          const pocketView =
+            activeShotView?.mode === 'pocket' ? activeShotView : null;
+          if (pocketView) {
+            const pocketEntry = getPocketCameraEntry(
+              pocketView.anchorId ?? pocketView.pocketId
+            );
+            if (pocketEntry?.camera) {
+              const pocketTarget = new THREE.Vector3(
+                pocketView.pocketCenter.x * scale,
+                BALL_CENTER_Y * scale,
+                pocketView.pocketCenter.y * scale
+              );
+              pocketTarget.y = Math.max(pocketTarget.y ?? 0, minTargetY);
+              const snapshot = {
+                position: pocketEntry.camera.position.clone(),
+                target: pocketTarget,
+                fov: pocketEntry.camera.fov,
+                minTargetY
+              };
+              return snapshot;
+            }
+          }
+          const cueBall = balls.find((b) => b.id === 'cue');
+          const targetBallId = shotRecording?.targetBallId ?? null;
+          const targetBall =
+            targetBallId != null
+              ? balls.find((b) => b.id === targetBallId)
+              : null;
+          if (cueBall && targetBall) {
+            const pairFrame = computeShortRailPairFraming(
+              camera,
+              new THREE.Vector2(cueBall.pos.x, cueBall.pos.y),
+              new THREE.Vector2(targetBall.pos.x, targetBall.pos.y),
+              BROADCAST_PAIR_MARGIN
+            );
+            if (pairFrame) {
+              const focusTarget = new THREE.Vector3(
+                pairFrame.centerX * scale,
+                BALL_CENTER_Y * scale,
+                pairFrame.centerZ * scale
+              );
+              focusTarget.y = Math.max(focusTarget.y ?? 0, minTargetY);
+              const railCamera = resolveRailOverheadReplayCamera({
+                focusOverride: focusTarget,
+                minTargetY
+              });
+              const basePosition = railCamera?.position?.clone?.() ?? null;
+              if (basePosition) {
+                const direction = basePosition.clone().sub(focusTarget);
+                if (direction.lengthSq() > 1e-6) {
+                  direction.normalize();
+                }
+                const requiredDistance = pairFrame.requiredDistance * scale;
+                const position = focusTarget
+                  .clone()
+                  .add(direction.multiplyScalar(requiredDistance));
+                if (
+                  position.y <
+                  minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale
+                ) {
+                  position.y = minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale;
+                }
+                return {
+                  position,
+                  target: focusTarget,
+                  fov: Number.isFinite(railCamera?.fov)
+                    ? railCamera.fov
+                    : fovSnapshot,
+                  minTargetY
+                };
+              }
+            }
+          }
           const overheadCamera = resolveRailOverheadReplayCamera({
             focusOverride: targetSnapshot,
             minTargetY
@@ -20023,6 +20071,7 @@ const powerRef = useRef(hud.power);
           if (shouldRecordReplay) {
             shotRecording = {
               longShot: replayTags.has('long'),
+              targetBallId: shotPrediction.ballId ?? null,
               startTime: performance.now(),
               startState: captureBallSnapshot(),
               frames: [],
