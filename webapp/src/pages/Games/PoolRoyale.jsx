@@ -4683,7 +4683,7 @@ const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.14; // let the cue view drop to the s
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0165; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0156; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
@@ -4759,8 +4759,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.005, // bias the top view higher on portrait displays
-  z: PLAY_H * -0.04 // bias the top view a touch further right on portrait displays
+  x: PLAY_W * 0.012, // bias the top view higher on portrait displays
+  z: PLAY_H * -0.055 // bias the top view a touch further right on portrait displays
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4781,7 +4781,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 0.9; // pull the broadcast overhead camera c
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0225; // tighten cue camera distance so the cue ball and object ball appear larger
+const CUE_VIEW_RADIUS_RATIO = 0.0205; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -20095,7 +20095,11 @@ const powerRef = useRef(hud.power);
           const forwardDistance = strokeDistance + topSpinFollowThrough;
           const impactPos = startPos
             .clone()
-            .add(dir.clone().multiplyScalar(Math.max(forwardDistance, 0)));
+            .add(
+              dir
+                .clone()
+                .multiplyScalar(Math.max(forwardDistance + CUE_TIP_GAP, 0))
+            );
           const retreatDistance = Math.max(
             BALL_R * 1.5,
             Math.min(strokeDistance, BALL_R * 8)
@@ -21520,7 +21524,7 @@ const powerRef = useRef(hud.power);
           };
           think();
         };
-        const resolveAutoAimDirection = () => {
+        const resolveAutoAimDirection = (preferPlayerTargets = false) => {
           if (!cue?.active) return null;
           const ballsList =
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
@@ -21558,11 +21562,37 @@ const powerRef = useRef(hud.power);
 
           const activeVariantId =
             frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
-          const targetOrder = resolveTargetPriorities(
+          const isPlayerTurn = preferPlayerTargets || hudRef.current?.turn === 0;
+          let targetOrder = resolveTargetPriorities(
             frameSnapshot,
             activeVariantId,
             activeBalls
           );
+          if (isPlayerTurn) {
+            const opponentTargets = resolveTargetPriorities(
+              {
+                ...frameSnapshot,
+                meta: {
+                  ...(frameSnapshot?.meta ?? {}),
+                  state: {
+                    ...(frameSnapshot?.meta?.state ?? {}),
+                    currentPlayer:
+                      frameSnapshot?.meta?.state?.currentPlayer === 'A' ? 'B' : 'A'
+                  }
+                }
+              },
+              activeVariantId,
+              activeBalls
+            );
+            targetOrder = targetOrder.filter((id) => !opponentTargets.includes(id));
+            if (targetOrder.length === 0) {
+              targetOrder = resolveTargetPriorities(
+                frameSnapshot,
+                activeVariantId,
+                activeBalls
+              );
+            }
+          }
           const legalTargetsRaw = Array.isArray(frameSnapshot?.ballOn)
             ? frameSnapshot.ballOn
             : [];
@@ -21692,7 +21722,7 @@ const powerRef = useRef(hud.power);
             if (activeBalls.length === 0) return normalized;
             const contact = calcTarget(cue, normalized, activeBalls);
             if (contact?.targetBall) return normalized;
-            const autoDir = resolveAutoAimDirection();
+            const autoDir = resolveAutoAimDirection(true);
             if (autoDir && autoDir.lengthSq() > 1e-6) return autoDir.clone().normalize();
             const cuePos = new THREE.Vector2(cue.pos.x, cue.pos.y);
             const nearestBall = activeBalls.reduce((best, ball) => {
@@ -21722,7 +21752,7 @@ const powerRef = useRef(hud.power);
           };
           const applyAutoAimFallback = () => {
             suggestionAimKeyRef.current = null;
-            const autoDir = resolveAutoAimDirection();
+            const autoDir = resolveAutoAimDirection(true);
             if (applyAimDirection(autoDir, null)) return true;
             const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
             const cuePos = cue?.pos
@@ -21747,7 +21777,7 @@ const powerRef = useRef(hud.power);
           };
           const preferAutoAim = autoAimRequestRef.current;
           if (preferAutoAim) {
-            let autoDir = resolveAutoAimDirection();
+            let autoDir = resolveAutoAimDirection(true);
             if (!autoDir && plan?.targetBall && cue?.pos) {
               const manualDir = new THREE.Vector2(
                 plan.targetBall.pos.x - cue.pos.x,
