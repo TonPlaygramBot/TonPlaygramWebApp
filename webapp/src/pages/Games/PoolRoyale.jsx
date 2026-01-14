@@ -2490,7 +2490,6 @@ const DEFAULT_CLOTH_TEXTURE_KEY =
   POOL_ROYALE_DEFAULT_UNLOCKS.clothColor?.[0] ?? CLOTH_LIBRARY[0].id;
 const DEFAULT_CLOTH_COLOR_ID = DEFAULT_CLOTH_TEXTURE_KEY;
 const CLOTH_TEXTURE_SOURCE_STORAGE_KEY = 'poolRoyaleClothSource';
-const CLOTH_TEXTURE_SOURCE_MIGRATION_KEY = 'poolRoyaleClothSourceMigrated';
 const CLOTH_TEXTURE_SOURCE_OPTIONS = Object.freeze([
   { id: 'polyhaven', label: 'Poly Haven Cloth (4K)' },
   { id: 'procedural', label: 'Procedural Cloth' }
@@ -4751,14 +4750,14 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.1; // tighten the top view slightly so the table feels closer without clipping on portrait
+const TOP_VIEW_MARGIN = 1.12; // lift the top view slightly to keep both near pockets visible on portrait
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.06; // lower the 2D top view a touch more so the table reads larger
+const TOP_VIEW_RADIUS_SCALE = 1.12; // lower the 2D top view slightly to keep framing consistent after the table shrink
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.02, // lift the table upward on portrait so UI controls clear the bottom avatars
-  z: PLAY_H * -0.032 // pull the table slightly left so the right-side slider stays unobstructed
+  x: PLAY_W * 0.005, // bias the top view higher on portrait displays
+  z: PLAY_H * -0.052 // bias the top view a touch further right on portrait displays
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -10438,16 +10437,6 @@ function PoolRoyaleGame({
     }
     return DEFAULT_CLOTH_TEXTURE_SOURCE_ID;
   });
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const migrated = window.localStorage.getItem(CLOTH_TEXTURE_SOURCE_MIGRATION_KEY);
-    if (migrated === '1') return;
-    const stored = window.localStorage.getItem(CLOTH_TEXTURE_SOURCE_STORAGE_KEY);
-    if (stored === 'procedural') {
-      setClothTextureSourceId(DEFAULT_CLOTH_TEXTURE_SOURCE_ID);
-    }
-    window.localStorage.setItem(CLOTH_TEXTURE_SOURCE_MIGRATION_KEY, '1');
-  }, []);
   const [skipAllReplays, setSkipAllReplays] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(SKIP_REPLAYS_STORAGE_KEY);
