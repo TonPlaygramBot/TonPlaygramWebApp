@@ -1017,9 +1017,10 @@ const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; //
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-  // Match the Pool Royale pocket layout while keeping the current table footprint.
-  const WIDTH_REF = 3556;
-  const HEIGHT_REF = 1778;
+  // Match the Pool Royale table footprint so snooker tables share the same shape and height.
+  // (WPA 9ft reference: 100" × 50")
+  const WIDTH_REF = 2540;
+  const HEIGHT_REF = 1270;
   const BALL_D_REF = 52.5;
   const BAULK_FROM_BAULK_REF = 737; // Baulk line distance from the baulk cushion (29")
   const D_RADIUS_REF = 292;
@@ -1030,8 +1031,8 @@ const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
   const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
   const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
   const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
-  // Preserve the original 12ft snooker aspect ratio for the full playfield layout.
-  const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
+  // Reuse the Pool Royale playfield aspect ratio so the table footprint matches exactly.
+  const TARGET_RATIO = 1.83;
 const END_RAIL_INNER_SCALE =
   (TABLE.H - TARGET_RATIO * (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS)) /
   (2 * TABLE.WALL);
