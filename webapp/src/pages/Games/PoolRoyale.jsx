@@ -4708,7 +4708,7 @@ const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.1;
-const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.14; // let the cue view drop to the same rail-hugging height used by AI shots while staying above the cue
+const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.18; // keep the cue view a touch higher while staying above the cue
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
@@ -4717,8 +4717,9 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.99;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.988;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.97;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
+const STANDING_VIEW_DISTANCE_SCALE = 0.58; // bring the standing camera nearer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -14945,7 +14946,11 @@ const powerRef = useRef(hud.power);
         CAMERA.maxPhi
       );
       const standingRadius = clamp(
-        fitRadius(camera, STANDING_VIEW.margin * zoomProfile.margin),
+        fitRadius(
+          camera,
+          STANDING_VIEW.margin * zoomProfile.margin,
+          STANDING_VIEW_DISTANCE_SCALE
+        ),
         CAMERA.minR,
         CAMERA.maxR
       );
@@ -15418,7 +15423,10 @@ const powerRef = useRef(hud.power);
           if (!skybox || !settings || !renderCamera) return;
           const focusTarget = target ?? lastCameraTargetRef.current ?? null;
           if (!focusTarget) return;
-          const baseDistance = Math.max(fitRadius(renderCamera, STANDING_VIEW.margin), 1e-3);
+          const baseDistance = Math.max(
+            fitRadius(renderCamera, STANDING_VIEW.margin, STANDING_VIEW_DISTANCE_SCALE),
+            1e-3
+          );
           const currentDistance = renderCamera.position.distanceTo(focusTarget);
           if (!Number.isFinite(currentDistance) || currentDistance <= 0) return;
           const rawScale = THREE.MathUtils.clamp(
@@ -16084,7 +16092,7 @@ const powerRef = useRef(hud.power);
                 : null;
             const baseRadius = (() => {
               const fallback = clamp(
-                fitRadius(camera, STANDING_VIEW.margin),
+                fitRadius(camera, STANDING_VIEW.margin, STANDING_VIEW_DISTANCE_SCALE),
                 CAMERA.minR,
                 CAMERA.maxR
               );
@@ -16820,7 +16828,8 @@ const powerRef = useRef(hud.power);
           const zoomProfile = resolveCameraZoomProfile(aspect);
           const standingRadiusRaw = fitRadius(
             camera,
-            Math.max(m * zoomProfile.margin, 1e-4)
+            Math.max(m * zoomProfile.margin, 1e-4),
+            STANDING_VIEW_DISTANCE_SCALE
           );
           const cueBase = clampOrbitRadius(BREAK_VIEW.radius);
           const playerRadiusBase = Math.max(standingRadiusRaw, cueBase);
