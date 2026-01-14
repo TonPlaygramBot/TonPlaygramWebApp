@@ -59,11 +59,10 @@ const MATERIAL_SERIES = [
     stray: 1.06,
     detail: {
       bumpMultiplier: 1.22,
-      sheen: 0,
-      sheenRoughness: 1,
-      clearcoat: 0,
+      sheen: 0.58,
+      sheenRoughness: 0.46,
       emissiveIntensity: 0.24,
-      envMapIntensity: 0
+      envMapIntensity: 0.18
     },
     greens: CABAN_GREEN_SWATCHES,
     blues: CABAN_OCEAN_BLUE_SWATCHES
@@ -71,7 +70,7 @@ const MATERIAL_SERIES = [
   {
     prefix: 'polarFleece',
     label: 'Polar Fleece',
-    sourceId: 'polar_fleece',
+    sourceId: 'caban',
     basePrice: 640,
     priceStep: 10,
     bluePremium: 20,
@@ -79,11 +78,10 @@ const MATERIAL_SERIES = [
     stray: 1.1,
     detail: {
       bumpMultiplier: 1.12,
-      sheen: 0,
-      sheenRoughness: 1,
-      clearcoat: 0,
+      sheen: 0.7,
+      sheenRoughness: 0.52,
       emissiveIntensity: 0.34,
-      envMapIntensity: 0
+      envMapIntensity: 0.14
     },
     greens: CABAN_GREEN_SWATCHES,
     blues: CABAN_OCEAN_BLUE_SWATCHES
@@ -91,7 +89,7 @@ const MATERIAL_SERIES = [
   {
     prefix: 'polarFleecePlush',
     label: 'Polar Fleece Plush',
-    sourceId: 'knitted_fleece',
+    sourceId: 'caban',
     basePrice: 700,
     priceStep: 10,
     bluePremium: 20,
@@ -99,11 +97,10 @@ const MATERIAL_SERIES = [
     stray: 1.12,
     detail: {
       bumpMultiplier: 1.14,
-      sheen: 0,
-      sheenRoughness: 1,
-      clearcoat: 0,
+      sheen: 0.72,
+      sheenRoughness: 0.5,
       emissiveIntensity: 0.36,
-      envMapIntensity: 0
+      envMapIntensity: 0.16
     },
     greens: CABAN_GREEN_SWATCHES,
     blues: CABAN_OCEAN_BLUE_SWATCHES
@@ -111,7 +108,7 @@ const MATERIAL_SERIES = [
   {
     prefix: 'polarFleeceNatureOcean',
     label: 'Polar Fleece Nature & Ocean',
-    sourceId: 'polar_fleece',
+    sourceId: 'caban',
     basePrice: 660,
     priceStep: 10,
     bluePremium: 20,
@@ -119,11 +116,10 @@ const MATERIAL_SERIES = [
     stray: 1.08,
     detail: {
       bumpMultiplier: 1.16,
-      sheen: 0,
-      sheenRoughness: 1,
-      clearcoat: 0,
+      sheen: 0.68,
+      sheenRoughness: 0.5,
       emissiveIntensity: 0.34,
-      envMapIntensity: 0
+      envMapIntensity: 0.15
     },
     greens: CABAN_GREEN_SWATCHES,
     blues: CABAN_OCEAN_BLUE_SWATCHES,
@@ -141,11 +137,10 @@ const MATERIAL_SERIES = [
     stray: 1.08,
     detail: {
       bumpMultiplier: 1.24,
-      sheen: 0,
-      sheenRoughness: 1,
-      clearcoat: 0,
+      sheen: 0.54,
+      sheenRoughness: 0.58,
       emissiveIntensity: 0.26,
-      envMapIntensity: 0
+      envMapIntensity: 0.17
     },
     greens: CABAN_GREEN_SWATCHES,
     blues: CABAN_OCEAN_BLUE_SWATCHES
