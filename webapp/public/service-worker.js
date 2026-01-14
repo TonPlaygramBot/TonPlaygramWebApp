@@ -32,8 +32,15 @@ const APP_SHELL = [
   '/tonconnect-manifest.json',
   '/power-slider.css',
   ...VERSION_ASSETS,
+  '/assets/icons/generated/app-icon-192.png',
+  '/assets/icons/generated/app-icon-512.png',
   '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp',
-  '/assets/icons/file_000000003f7861f481d50537fb031e13.png'
+  '/assets/icons/file_000000003f7861f481d50537fb031e13.png',
+  '/assets/splash/splash-828x1792.png',
+  '/assets/splash/splash-1125x2436.png',
+  '/assets/splash/splash-1170x2532.png',
+  '/assets/splash/splash-1242x2688.png',
+  '/assets/splash/splash-1284x2778.png'
 ];
 
 const PREFETCH_RUNTIME_ASSETS = [
