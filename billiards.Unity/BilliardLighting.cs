@@ -1,8 +1,19 @@
 #if UNITY_5_3_OR_NEWER
 using UnityEngine;
+using UnityEngine.Rendering;
 
 public class BilliardLighting : MonoBehaviour
 {
+    [Header("Cue shadow alignment")]
+    public Transform cueStick;
+    public Light cueShadowLight;
+    public float cueShadowLightHeight = 2.1f;
+    public float cueShadowLightDistance = 1.3f;
+
+    [Header("Table shadows")]
+    public Transform tableRoot;
+    public Renderer floorRenderer;
+
     void Start()
     {
         // Create three spot lights to highlight the D, blue and black spots on the table
@@ -66,6 +77,13 @@ public class BilliardLighting : MonoBehaviour
 
         // Enhance felt detail so the green cloth stands out
         EnhanceClothTexture();
+        ConfigureTableShadows();
+        ConfigureCueShadowLight();
+    }
+
+    private void Update()
+    {
+        UpdateCueShadowLight();
     }
 
     void CreateHighlightLight(Transform parent, Vector3 localPosition)
@@ -133,13 +151,18 @@ public class BilliardLighting : MonoBehaviour
                 Material mat = renderer.material;
                 mat.color = new Color(0f, 0.3f, 0f, 1f); // deep green cloth
                 mat.SetFloat("_Metallic", 0f);
-                mat.SetFloat("_Glossiness", 0.2f);
+                mat.SetFloat("_Glossiness", 0.08f);
 
                 Texture clothTex = Resources.Load<Texture>("Textures/green_cloth");
                 if (clothTex != null)
                 {
+                    if (clothTex is Texture2D clothTexture2D)
+                    {
+                        clothTexture2D.filterMode = FilterMode.Trilinear;
+                        clothTexture2D.anisoLevel = 8;
+                    }
                     mat.mainTexture = clothTex;
-                    mat.mainTextureScale *= 1.2f;
+                    mat.mainTextureScale *= 1.5f;
                 }
 
                 Texture bump = Resources.Load<Texture>("Textures/green_cloth_normal");
@@ -147,10 +170,116 @@ public class BilliardLighting : MonoBehaviour
                 {
                     mat.SetTexture("_BumpMap", bump);
                     float scale = mat.HasProperty("_BumpScale") ? mat.GetFloat("_BumpScale") : 1f;
-                    mat.SetFloat("_BumpScale", scale * 1.2f);
+                    mat.SetFloat("_BumpScale", scale * 1.35f);
                 }
             }
         }
+    }
+
+    private void ConfigureTableShadows()
+    {
+        Transform root = tableRoot;
+        if (root == null)
+        {
+            root = FindRootByName("Table", "TableRoot", "PoolTable", "SnookerTable");
+        }
+
+        if (root != null)
+        {
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer renderer = renderers[i];
+                if (renderer == null)
+                {
+                    continue;
+                }
+                renderer.shadowCastingMode = ShadowCastingMode.On;
+                renderer.receiveShadows = true;
+            }
+        }
+
+        if (floorRenderer == null)
+        {
+            floorRenderer = FindRendererByName("Floor", "Ground", "ArenaFloor");
+        }
+
+        if (floorRenderer != null)
+        {
+            floorRenderer.receiveShadows = true;
+        }
+    }
+
+    private void ConfigureCueShadowLight()
+    {
+        if (cueShadowLight == null)
+        {
+            GameObject lightObj = new GameObject("CueShadowLight");
+            cueShadowLight = lightObj.AddComponent<Light>();
+            cueShadowLight.type = LightType.Directional;
+            cueShadowLight.color = Color.white;
+            cueShadowLight.intensity = 0.8f;
+            cueShadowLight.shadows = LightShadows.Soft;
+        }
+    }
+
+    private void UpdateCueShadowLight()
+    {
+        if (cueStick == null || cueShadowLight == null)
+        {
+            return;
+        }
+
+        Vector3 cueForward = cueStick.forward;
+        cueForward.y = 0f;
+        if (cueForward.sqrMagnitude < 0.0001f)
+        {
+            cueForward = cueStick.right;
+            cueForward.y = 0f;
+        }
+        if (cueForward.sqrMagnitude < 0.0001f)
+        {
+            cueForward = Vector3.forward;
+        }
+
+        cueForward = cueForward.normalized;
+        Vector3 anchor = cueStick.position + Vector3.up * cueShadowLightHeight;
+        cueShadowLight.transform.position = anchor - cueForward * cueShadowLightDistance;
+        cueShadowLight.transform.rotation = Quaternion.LookRotation(cueForward, Vector3.up);
+    }
+
+    private static Transform FindRootByName(params string[] names)
+    {
+        foreach (string name in names)
+        {
+            GameObject obj = GameObject.Find(name);
+            if (obj != null)
+            {
+                return obj.transform;
+            }
+        }
+
+        return null;
+    }
+
+    private static Renderer FindRendererByName(params string[] names)
+    {
+        foreach (string name in names)
+        {
+            GameObject obj = GameObject.Find(name);
+            if (obj == null)
+            {
+                continue;
+            }
+
+            Renderer renderer = obj.GetComponent<Renderer>();
+            if (renderer != null)
+            {
+                return renderer;
+            }
+        }
+
+        return null;
     }
 }
 #endif
