@@ -1404,7 +1404,6 @@ const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.22; // widen the visible air gap so the blue tip never kisses the cue ball
 const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
-const CUE_STRIKE_CONTACT_ADVANCE = Math.max(0, CUE_TIP_GAP - BALL_R); // drive the tip forward enough to visibly contact the cue ball
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 2.1; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -4689,8 +4688,8 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.99;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.985;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.995;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.993;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -4761,7 +4760,7 @@ const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so th
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * 0.005, // bias the top view higher on portrait displays
-  z: PLAY_H * -0.055 // bias the top view a touch further right on portrait displays
+  z: PLAY_H * -0.04 // bias the top view a touch further right on portrait displays
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4782,7 +4781,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 0.9; // pull the broadcast overhead camera c
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0215; // tighten cue camera distance so the cue ball and object ball appear larger
+const CUE_VIEW_RADIUS_RATIO = 0.0225; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -4804,7 +4803,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
-const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.26; // nudge forward slightly at the floor of the cue view, then stop
+const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.22; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
@@ -20096,11 +20095,7 @@ const powerRef = useRef(hud.power);
           const forwardDistance = strokeDistance + topSpinFollowThrough;
           const impactPos = startPos
             .clone()
-            .add(
-              dir
-                .clone()
-                .multiplyScalar(Math.max(forwardDistance + CUE_STRIKE_CONTACT_ADVANCE, 0))
-            );
+            .add(dir.clone().multiplyScalar(Math.max(forwardDistance, 0)));
           const retreatDistance = Math.max(
             BALL_R * 1.5,
             Math.min(strokeDistance, BALL_R * 8)
@@ -20160,10 +20155,6 @@ const powerRef = useRef(hud.power);
           powerImpactHoldRef.current = Math.max(
             powerImpactHoldRef.current || 0,
             forwardPreviewHold
-          );
-          powerImpactHoldRef.current = Math.max(
-            powerImpactHoldRef.current || 0,
-            impactTime
           );
           const holdUntil = powerImpactHoldRef.current || 0;
           const holdActive = holdUntil > performance.now();
@@ -21754,8 +21745,7 @@ const powerRef = useRef(hud.power);
             );
             return applyAimDirection(dir, null);
           };
-          const forceAutoAim = hudRef.current?.turn === 0;
-          const preferAutoAim = autoAimRequestRef.current || forceAutoAim;
+          const preferAutoAim = autoAimRequestRef.current;
           if (preferAutoAim) {
             let autoDir = resolveAutoAimDirection();
             if (!autoDir && plan?.targetBall && cue?.pos) {
@@ -24811,7 +24801,7 @@ const powerRef = useRef(hud.power);
       <div ref={mountRef} className="absolute inset-0" />
 
       {replayBanner && (
-        <div className="pointer-events-none absolute top-4 left-4 z-50">
+        <div className="pointer-events-none absolute top-4 right-4 z-50">
           <div
             className="flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300 px-5 py-2 text-xs font-bold uppercase tracking-[0.28em] text-slate-900 shadow-[0_12px_32px_rgba(0,0,0,0.45)] ring-2 ring-white/30"
             aria-live="polite"
@@ -24958,22 +24948,22 @@ const powerRef = useRef(hud.power);
       )}
       {replayActive && (
         <>
-          <div className="pointer-events-none absolute left-4 top-4 z-50">
+          <div className="pointer-events-none absolute right-4 top-4 z-50">
             <div className="rounded-full border border-white/25 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
               Replay
             </div>
           </div>
-          <div className="pointer-events-auto absolute right-10 top-1/2 z-50 flex -translate-y-1/2 items-center">
+          <div className="pointer-events-auto absolute right-4 top-1/2 z-50 flex -translate-y-1/2 items-center">
             <button
               type="button"
               onClick={handleSkipReplayClick}
-              className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+              className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 fill="currentColor"
-                className="h-5 w-5"
+                className="h-4 w-4"
                 aria-hidden="true"
               >
                 <path d="M4 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75A1 1 0 0 1 4 16.75zM12.5 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75a1 1 0 0 1-1.6-.8z" />
@@ -24985,7 +24975,7 @@ const powerRef = useRef(hud.power);
       )}
 
       <div
-        className={`absolute top-2 right-1 z-50 flex flex-col items-end gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute top-2 right-2 z-50 flex flex-col items-end gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
       >
         <button
           ref={configButtonRef}
@@ -24993,7 +24983,7 @@ const powerRef = useRef(hud.power);
           onClick={() => setConfigOpen((prev) => !prev)}
           aria-expanded={configOpen}
           aria-controls="snooker-config-panel"
-          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+          className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
             configOpen ? 'bg-black/60' : 'hover:bg-black/60'
           }`}
         >
