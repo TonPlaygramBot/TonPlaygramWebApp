@@ -1401,7 +1401,7 @@ const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
-const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
+const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.22; // widen the visible air gap so the blue tip never kisses the cue ball
 const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
@@ -4683,7 +4683,7 @@ const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.12; // let the cue view drop to the s
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0158; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0148; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
@@ -4781,13 +4781,13 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 0.9; // pull the broadcast overhead camera c
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0215; // tighten cue camera distance so the cue ball and object ball appear larger
+const CUE_VIEW_RADIUS_RATIO = 0.02; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
 );
-const CUE_VIEW_PHI_LIFT = 0.075; // nudge the cue camera lower so the stroke and cue pull stay in frame
+const CUE_VIEW_PHI_LIFT = 0.09; // nudge the cue camera lower so the stroke and cue pull stay in frame
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
