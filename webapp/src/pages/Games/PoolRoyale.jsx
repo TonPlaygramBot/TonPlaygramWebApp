@@ -1005,7 +1005,7 @@ const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
-const ENABLE_TABLE_FLOOR_SHADOW = true;
+const ENABLE_TABLE_FLOOR_SHADOW = false;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
@@ -1252,17 +1252,18 @@ const POCKET_CAM = Object.freeze({
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 1.9,
+  heightOffset: BALL_R * 1.1,
   heightOffsetShortMultiplier: 0.96,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.04,
   heightDrop: BALL_R * 0.45,
   distanceScale: 0.96,
   heightScale: 1.06,
-  focusBlend: 0.22,
-  lateralFocusShift: POCKET_VIS_R * 0.32,
-  railFocusLong: BALL_R * 8,
-  railFocusShort: BALL_R * 5.4
+  focusBlend: 0,
+  lateralFocusShift: 0,
+  railFocusLong: 0,
+  railFocusShort: 0,
+  incomingFocusOffset: BALL_R * 2.2
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.95;
@@ -2823,7 +2824,7 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 1.4;
 const POLYHAVEN_ANISOTROPY_BOOST = 3.6;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
@@ -16036,14 +16037,15 @@ const powerRef = useRef(hud.power);
             const cueBounds = cameraBounds?.cueShot ?? null;
             const standingBounds = cameraBounds?.standing ?? null;
             const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.12;
-            const focusTarget = new THREE.Vector3(0, focusHeightLocal, 0);
-            const cueBallForPocket = ballsList.find((b) => b.id === 'cue');
-            if (cueBallForPocket && focusBall?.active) {
-              focusTarget.set(
-                (cueBallForPocket.pos.x + focusBall.pos.x) * 0.5,
-                focusHeightLocal,
-                (cueBallForPocket.pos.y + focusBall.pos.y) * 0.5
-              );
+            const focusTarget = new THREE.Vector3(
+              pocketCenter2D.x,
+              focusHeightLocal,
+              pocketCenter2D.y
+            );
+            const focusOffset = POCKET_CAM.incomingFocusOffset ?? 0;
+            if (focusOffset) {
+              focusTarget.x -= approachDir.x * focusOffset;
+              focusTarget.z -= approachDir.y * focusOffset;
             }
             focusTarget.multiplyScalar(worldScaleFactor);
             if (POCKET_CAM.focusBlend > 0 && pocketCenter2D) {
@@ -16097,9 +16099,13 @@ const powerRef = useRef(hud.power);
                 focusTarget.add(TMP_VEC3_A);
               }
             }
-            const pocketDirection2D = pocketCenter2D.clone();
+            const pocketDirection2D = outward.clone();
             if (pocketDirection2D.lengthSq() < 1e-6) {
-              pocketDirection2D.copy(outward.lengthSq() > 1e-6 ? outward : new THREE.Vector2(0, -1));
+              pocketDirection2D.copy(
+                pocketCenter2D.lengthSq() > 1e-6
+                  ? pocketCenter2D
+                  : new THREE.Vector2(0, -1)
+              );
             }
             const azimuth = Math.atan2(pocketDirection2D.x, pocketDirection2D.y);
             const preferredRadius =
@@ -16816,6 +16822,7 @@ const powerRef = useRef(hud.power);
             pocketId: anchorPocketId,
             pocketCenter: best.center.clone(),
             approach: approachDir,
+            followBall: false,
             heightOffset,
             heightScale: POCKET_CAM.heightScale,
             lastBallPos: pos.clone(),
@@ -16991,28 +16998,36 @@ const powerRef = useRef(hud.power);
           const fovSnapshot = Number.isFinite(fallbackCamera?.fov)
             ? fallbackCamera.fov
             : camera.fov;
-          const targetSnapshot = lastCameraTargetRef.current
-            ? lastCameraTargetRef.current.clone()
-            : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
-          const overheadCamera = resolveRailOverheadReplayCamera({
-            focusOverride: targetSnapshot,
-            minTargetY
-          });
-          const resolvedPosition = overheadCamera?.position?.clone?.() ??
-            fallbackCamera?.position?.clone?.() ?? null;
-          const resolvedTarget = overheadCamera?.target?.clone?.() ?? targetSnapshot;
-          const resolvedFov = Number.isFinite(overheadCamera?.fov)
-            ? overheadCamera.fov
-            : fovSnapshot;
-          if (!resolvedPosition && !resolvedTarget) return null;
+          let targetSnapshot =
+            lastCameraTargetRef.current?.clone() ??
+            broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ??
+            null;
+          const cueBall = balls.find((ball) => ball.id === 'cue');
+          const targetBallId =
+            shotRecording?.targetBallId ?? shotReplayRef.current?.targetBallId ?? null;
+          const targetBall = targetBallId
+            ? balls.find((ball) => ball.id === targetBallId)
+            : null;
+          if (cueBall?.active && targetBall?.active) {
+            targetSnapshot = new THREE.Vector3(
+              (cueBall.pos.x + targetBall.pos.x) * 0.5,
+              BALL_CENTER_Y,
+              (cueBall.pos.y + targetBall.pos.y) * 0.5
+            ).multiplyScalar(scale);
+          }
+          if (targetSnapshot && Number.isFinite(minTargetY)) {
+            targetSnapshot.y = Math.max(targetSnapshot.y ?? 0, minTargetY);
+          }
+          const resolvedPosition = fallbackCamera?.position?.clone?.() ?? null;
+          const resolvedTarget = targetSnapshot;
+          const resolvedFov = fovSnapshot;
+          if (!resolvedPosition || !resolvedTarget) return null;
           const snapshot = {
             position: resolvedPosition,
             target: resolvedTarget,
             fov: resolvedFov
           };
-          if (Number.isFinite(overheadCamera?.minTargetY)) {
-            snapshot.minTargetY = overheadCamera.minTargetY;
-          }
+          snapshot.minTargetY = minTargetY;
           return snapshot;
         };
         captureReplayCameraSnapshotRef.current = captureReplayCameraSnapshot;
@@ -20027,6 +20042,7 @@ const powerRef = useRef(hud.power);
               startState: captureBallSnapshot(),
               frames: [],
               cuePath: [],
+              targetBallId: shotPrediction.ballId ?? null,
               replayTags: Array.from(replayTags),
               zoomOnly: preferZoomReplay
             };
@@ -24146,11 +24162,13 @@ const powerRef = useRef(hud.power);
                   ? Math.max(pocketView.holdUntil, extendTo)
                   : extendTo;
             } else {
-              const toPocket = pocketView.pocketCenter.clone().sub(focusBall.pos);
-              const dist = toPocket.length();
-              if (dist > 1e-4) {
-                const approachDir = toPocket.clone().normalize();
-                pocketView.approach.copy(approachDir);
+              if (pocketView.followBall) {
+                const toPocket = pocketView.pocketCenter.clone().sub(focusBall.pos);
+                const dist = toPocket.length();
+                if (dist > 1e-4) {
+                  const approachDir = toPocket.clone().normalize();
+                  pocketView.approach.copy(approachDir);
+                }
               }
               const speed = focusBall.vel.length() * frameScale;
               if (speed > STOP_EPS) {
