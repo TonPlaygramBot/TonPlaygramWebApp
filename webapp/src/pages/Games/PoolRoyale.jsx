@@ -5003,6 +5003,7 @@ const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
+const TMP_VEC3_RIGHT = new THREE.Vector3();
 const TMP_VEC2_OBSTRUCTION_OFFSET = new THREE.Vector2();
 const TMP_VEC2_OBSTRUCTION_DELTA = new THREE.Vector2();
 const TMP_EULER_A = new THREE.Euler();
@@ -5080,6 +5081,40 @@ const computeCueViewVector = (cueBall, camera) => {
   TMP_VEC2_VIEW.set(cx, cz);
   if (TMP_VEC2_VIEW.lengthSq() < 1e-8) return null;
   return TMP_VEC2_VIEW.clone().normalize();
+};
+
+const resolveScreenSpinAxes = (cueBall, camera, aimDir) => {
+  if (!cueBall?.pos || !camera?.position) {
+    return aimDir ? prepareSpinAxes(aimDir) : null;
+  }
+  TMP_VEC2_VIEW.set(
+    cueBall.pos.x - camera.position.x,
+    cueBall.pos.y - camera.position.z
+  );
+  if (TMP_VEC2_VIEW.lengthSq() < 1e-8) {
+    if (aimDir) {
+      TMP_VEC2_VIEW.set(aimDir.x ?? 0, aimDir.y ?? 0);
+    } else {
+      TMP_VEC2_VIEW.set(0, 1);
+    }
+  } else {
+    TMP_VEC2_VIEW.normalize();
+  }
+  TMP_VEC3_RIGHT.set(1, 0, 0).applyQuaternion(camera.quaternion);
+  TMP_VEC2_AXIS.set(TMP_VEC3_RIGHT.x, TMP_VEC3_RIGHT.z);
+  if (TMP_VEC2_AXIS.lengthSq() < 1e-8) {
+    TMP_VEC2_AXIS.set(TMP_VEC2_VIEW.y, -TMP_VEC2_VIEW.x);
+  } else {
+    TMP_VEC2_AXIS.normalize();
+  }
+  TMP_VEC2_LIMIT.set(-TMP_VEC2_AXIS.y, TMP_VEC2_AXIS.x);
+  if (TMP_VEC2_LIMIT.dot(TMP_VEC2_VIEW) < 0) {
+    TMP_VEC2_LIMIT.multiplyScalar(-1);
+  }
+  return {
+    axis: TMP_VEC2_LIMIT.clone(),
+    perp: TMP_VEC2_AXIS.clone()
+  };
 };
 
 const computeShortRailBroadcastDistance = (camera) => {
@@ -17643,9 +17678,9 @@ const powerRef = useRef(hud.power);
           let legality = spinLegalityRef.current || { blocked: false, reason: '' };
           const ballsList = ballsRef.current?.length ? ballsRef.current : balls;
           if (cueBall && aimVec) {
-            const axes = prepareSpinAxes(aimVec);
             const activeCamera = activeRenderCameraRef.current ?? camera;
             const viewVec = computeCueViewVector(cueBall, activeCamera);
+            const axes = resolveScreenSpinAxes(cueBall, activeCamera, aimVec);
             spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls, axes);
             const requested = spinRequestRef.current || spinRef.current || {
               x: 0,
@@ -20152,7 +20187,12 @@ const powerRef = useRef(hud.power);
           const appliedSpin = applySpinConstraints(aimDir, true);
           const liftAngle = resolveUserCueLift();
           const liftStrength = normalizeCueLift(liftAngle);
-          const physicsSpin = mapSpinForPhysics(appliedSpin);
+          const activeCamera = activeRenderCameraRef.current ?? cameraRef.current;
+          const spinAxes = resolveScreenSpinAxes(cue, activeCamera, aimDir);
+          const physicsSpin = mapSpinForPhysics(appliedSpin, {
+            aimDir,
+            axes: spinAxes
+          });
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
           const baseSide = physicsSpin.x * (ranges.side ?? 0);
@@ -22777,7 +22817,11 @@ const powerRef = useRef(hud.power);
         }
         const appliedSpin = applySpinConstraints(aimDir, true);
         const liftStrength = normalizeCueLift(resolveUserCueLift());
-        const physicsSpin = mapSpinForPhysics(appliedSpin);
+        const spinAxes = resolveScreenSpinAxes(cue, camera, aimDir);
+        const physicsSpin = mapSpinForPhysics(appliedSpin, {
+          aimDir,
+          axes: spinAxes
+        });
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
         let shouldSlowAim = false;
@@ -23228,7 +23272,11 @@ const powerRef = useRef(hud.power);
           const remoteSpin = remoteAimState?.spin ?? { x: 0, y: 0 };
           const remoteSpinMagnitude = Math.hypot(remoteSpin.x ?? 0, remoteSpin.y ?? 0);
           const remoteSwerveActive = remoteSpinMagnitude >= SWERVE_THRESHOLD;
-          const remotePhysicsSpin = mapSpinForPhysics(remoteSpin);
+          const remoteSpinAxes = resolveScreenSpinAxes(cue, camera, remoteAimDir);
+          const remotePhysicsSpin = mapSpinForPhysics(remoteSpin, {
+            aimDir: remoteAimDir,
+            axes: remoteSpinAxes
+          });
           const guideAimDir2D = resolveSwerveAimDir(
             remoteAimDir,
             remotePhysicsSpin,
@@ -24729,8 +24777,8 @@ const powerRef = useRef(hud.power);
         ? ballsRef.current
         : undefined;
       const aimVec = aimDirRef.current;
-      const axes = aimVec ? prepareSpinAxes(aimVec) : null;
       const activeCamera = activeRenderCameraRef.current ?? cameraRef.current;
+      const axes = resolveScreenSpinAxes(cueBall, activeCamera, aimVec);
       const viewVec = cueBall && activeCamera
         ? computeCueViewVector(cueBall, activeCamera)
         : null;

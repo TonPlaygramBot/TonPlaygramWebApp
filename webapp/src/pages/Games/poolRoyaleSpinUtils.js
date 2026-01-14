@@ -36,16 +36,39 @@ export const applySpinResponseCurve = (spin) => {
   return { x: clamped.x * scale, y: clamped.y * scale };
 };
 
-export const mapSpinForPhysics = (spin) => {
+export const mapSpinForPhysics = (spin, options = {}) => {
   const adjusted = {
     x: clamp(spin?.x ?? 0, -1, 1),
     y: clamp(spin?.y ?? 0, -1, 1)
   };
   const curved = applySpinResponseCurve(adjusted);
+  const aimDir = options?.aimDir;
+  const axes = options?.axes;
+  if (!aimDir || !axes?.axis || !axes?.perp) {
+    return {
+      x: curved.x,
+      y: curved.y
+    };
+  }
+  const aimX = aimDir.x ?? 0;
+  const aimY = aimDir.y ?? 0;
+  const aimLen = Math.hypot(aimX, aimY);
+  if (aimLen < 1e-6) {
+    return {
+      x: curved.x,
+      y: curved.y
+    };
+  }
+  const normAimX = aimX / aimLen;
+  const normAimY = aimY / aimLen;
+  const lateralX = -normAimY;
+  const lateralY = normAimX;
+  const worldX =
+    (axes.perp.x ?? 0) * curved.x + (axes.axis.x ?? 0) * curved.y;
+  const worldY =
+    (axes.perp.y ?? 0) * curved.x + (axes.axis.y ?? 0) * curved.y;
   return {
-    // UI has +X to the right; physics should match left/right as shown.
-    x: -curved.x,
-    // UI uses +Y for topspin; physics uses the opposite sign.
-    y: -curved.y
+    x: worldX * lateralX + worldY * lateralY,
+    y: worldX * normAimX + worldY * normAimY
   };
 };
