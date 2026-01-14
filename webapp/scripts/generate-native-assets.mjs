@@ -8,6 +8,7 @@ const iconSource = join(rootDir, 'public/assets/icons/TON.webp');
 const splashSource = join(rootDir, 'public/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp');
 
 const generatedIconDir = join(rootDir, 'public/assets/icons/generated');
+const pwaSplashDir = join(rootDir, 'public/assets/splash');
 const iosAppIconDir = join(rootDir, 'ios/App/App/Assets.xcassets/AppIcon.appiconset');
 const iosSplashDir = join(rootDir, 'ios/App/App/Assets.xcassets/Splash.imageset');
 
@@ -173,6 +174,52 @@ async function generateSplashLogo() {
   await ensureDir(generatedIconDir);
   const maskable = await buildBaseIcon(1024);
   await writeFile(join(generatedIconDir, 'app-icon-1024-maskable.png'), maskable);
+  await Promise.all(
+    [192, 512].map(async size => {
+      const buffer = await sharp(maskable).resize(size, size).png().toBuffer();
+      await writeFile(join(generatedIconDir, `app-icon-${size}.png`), buffer);
+    })
+  );
+}
+
+async function generatePwaSplash() {
+  await ensureDir(pwaSplashDir);
+  const sizes = [
+    { filename: 'splash-828x1792.png', width: 828, height: 1792 },
+    { filename: 'splash-1125x2436.png', width: 1125, height: 2436 },
+    { filename: 'splash-1170x2532.png', width: 1170, height: 2532 },
+    { filename: 'splash-1242x2688.png', width: 1242, height: 2688 },
+    { filename: 'splash-1284x2778.png', width: 1284, height: 2778 }
+  ];
+
+  await Promise.all(
+    sizes.map(async ({ filename, width, height }) => {
+      const base = await sharp({
+        create: {
+          width,
+          height,
+          channels: 4,
+          background: brandColor
+        }
+      })
+        .png()
+        .toBuffer();
+
+      const splashOverlay = await sharp(splashSource)
+        .resize(Math.floor(width * 0.6), Math.floor(height * 0.6), {
+          fit: 'contain',
+          background: brandColor
+        })
+        .png()
+        .toBuffer();
+
+      const buffer = await sharp(base)
+        .composite([{ input: splashOverlay, gravity: 'center' }])
+        .png()
+        .toBuffer();
+      await writeFile(join(pwaSplashDir, filename), buffer);
+    })
+  );
 }
 
 async function run() {
@@ -182,6 +229,7 @@ async function run() {
   await generateIosSplash();
   await generateAndroidIcons();
   await generateSplashLogo();
+  await generatePwaSplash();
   console.info('Native icon and splash assets generated.');
 }
 
