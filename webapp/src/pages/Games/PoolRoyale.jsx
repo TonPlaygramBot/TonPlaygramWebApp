@@ -4683,13 +4683,13 @@ const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.14; // let the cue view drop to the s
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0158; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0165; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.99;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.988;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.995;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.993;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -4759,8 +4759,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.011, // bias the top view higher on portrait displays
-  z: PLAY_H * -0.052 // bias the top view a touch further right on portrait displays
+  x: PLAY_W * 0.005, // bias the top view higher on portrait displays
+  z: PLAY_H * -0.04 // bias the top view a touch further right on portrait displays
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4781,7 +4781,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 0.9; // pull the broadcast overhead camera c
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0212; // tighten cue camera distance so the cue ball and object ball appear larger
+const CUE_VIEW_RADIUS_RATIO = 0.0225; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -20093,13 +20093,9 @@ const powerRef = useRef(hud.power);
           const backSpinRetreat =
             BALL_R * (1 + 2.25 * clampedPower) * backSpinWeight;
           const forwardDistance = strokeDistance + topSpinFollowThrough;
-          const impactDistance = Math.max(
-            0,
-            forwardDistance + CUE_TIP_GAP - BALL_R * 0.08
-          );
           const impactPos = startPos
             .clone()
-            .add(dir.clone().multiplyScalar(impactDistance));
+            .add(dir.clone().multiplyScalar(Math.max(forwardDistance, 0)));
           const retreatDistance = Math.max(
             BALL_R * 1.5,
             Math.min(strokeDistance, BALL_R * 8)
@@ -21570,23 +21566,15 @@ const powerRef = useRef(hud.power);
           const legalTargetsRaw = Array.isArray(frameSnapshot?.ballOn)
             ? frameSnapshot.ballOn
             : [];
-          const legalTargets = legalTargetsRaw
-            .map((entry) => normalizeTargetId(entry))
-            .filter((entry) => entry && isBallTargetId(entry));
           const combinedTargets = [...targetOrder];
-          legalTargets.forEach((entry) => {
-            if (!combinedTargets.includes(entry)) combinedTargets.push(entry);
-          });
-          const legalBallPool =
-            legalTargets.length > 0
-              ? activeBalls.filter((ball) =>
-                  legalTargets.some((targetId) => matchesTargetId(ball, targetId))
-                )
-              : activeBalls;
-          const aimCandidates =
-            legalBallPool.length > 0 ? legalBallPool : activeBalls;
+          legalTargetsRaw
+            .map((entry) => normalizeTargetId(entry))
+            .filter((entry) => entry && isBallTargetId(entry))
+            .forEach((entry) => {
+              if (!combinedTargets.includes(entry)) combinedTargets.push(entry);
+            });
           const pickFallbackBall = () =>
-            aimCandidates.reduce((best, ball) => {
+            activeBalls.reduce((best, ball) => {
               if (!best) return ball;
               const bestScore =
                 scoreBallForAim(best, cuePos) *
@@ -21598,7 +21586,7 @@ const powerRef = useRef(hud.power);
             }, null);
           const pickDirectPreferredBall = (targets) => {
             for (const targetId of targets) {
-              const matches = aimCandidates.filter(
+              const matches = activeBalls.filter(
                 (ball) => matchesTargetId(ball, targetId) && isDirectLaneOpen(ball)
               );
               if (matches.length > 0) {
@@ -21633,7 +21621,7 @@ const powerRef = useRef(hud.power);
           if (!targetBall && combinedTargets.length > 0) {
             targetBall =
               pickDirectPreferredBall(combinedTargets) ||
-              pickPreferredBall(combinedTargets, aimCandidates, cuePos);
+              pickPreferredBall(combinedTargets, activeBalls, cuePos);
           }
 
           if (!targetBall && activeVariantId === 'uk') {
@@ -21649,32 +21637,32 @@ const powerRef = useRef(hud.power);
             if (preferredColours.length > 0) {
               targetBall =
                 pickDirectPreferredBall(preferredColours) ||
-                pickPreferredBall(preferredColours, aimCandidates, cuePos);
+                pickPreferredBall(preferredColours, activeBalls, cuePos);
             }
           }
 
           if (!targetBall) {
-            targetBall = pickPreferredBall(['BLACK'], aimCandidates, cuePos);
+            targetBall = pickPreferredBall(['BLACK'], activeBalls, cuePos);
           }
 
           if (!targetBall) {
             targetBall = pickPreferredBall(
-              aimCandidates
+              activeBalls
                 .map((ball) => toBallColorId(ball.id))
                 .filter((entry) => entry && isBallTargetId(entry)),
-              aimCandidates,
+              activeBalls,
               cuePos
             );
           }
 
-          if (!targetBall && aimCandidates.length > 0) {
+          if (!targetBall && activeBalls.length > 0) {
             targetBall = pickFallbackBall();
           }
 
           if (targetBall && !isDirectLaneOpen(targetBall)) {
             const rerouted =
               pickDirectPreferredBall(combinedTargets) ||
-              pickPreferredBall(combinedTargets, aimCandidates, cuePos) ||
+              pickPreferredBall(combinedTargets, activeBalls, cuePos) ||
               pickFallbackBall();
             if (rerouted) targetBall = rerouted;
           }
@@ -22516,16 +22504,6 @@ const powerRef = useRef(hud.power);
             tmpAim.copy(fallbackAim.normalize());
           } else {
             tmpAim.normalize();
-          }
-        }
-        if (
-          hudRef.current?.turn === 0 &&
-          autoAimRequestRef.current &&
-          !lookModeRef.current
-        ) {
-          const autoAim = resolveAutoAimDirection();
-          if (autoAim && autoAim.lengthSq() > 1e-6) {
-            tmpAim.copy(autoAim.normalize());
           }
         }
         const cameraBlend = THREE.MathUtils.clamp(
