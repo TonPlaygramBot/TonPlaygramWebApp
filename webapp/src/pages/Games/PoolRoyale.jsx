@@ -901,7 +901,7 @@ const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylind
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
-const LOCK_REPLAY_CAMERA = true;
+const LOCK_REPLAY_CAMERA = false;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
@@ -998,7 +998,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 1.152; // 20% larger balls for stronger readability on the cloth
+const BALL_SIZE_SCALE = 0.96; // slight bump so balls read a touch larger on the cloth
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1478,7 +1478,7 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playabl
 const CUE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7, 0.44 / 3 * 0.7); // Match cue grain scale to the table finish
 const CUE_WOOD_REPEAT_SCALE = 1 / 9; // enlarge cue wood grain 3× so the pattern reads more clearly at table scale
 const CUE_WOOD_TEXTURE_SIZE = 4096; // 4k cue textures for sharper cue wood finish
-const TABLE_WOOD_REPEAT = CUE_WOOD_REPEAT; // keep the table finish grain aligned with the cue stick scale
+const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3 * 0.7 * 4, 0.44 / 3 * 0.7 * 4); // shrink finish grain 2x more so the pattern reads tighter on the table surface
 const FIXED_WOOD_REPEAT_SCALE = 1; // restore the original per-texture scale without inflating the grain
 const WOOD_REPEAT_SCALE_MIN = 0.5;
 const WOOD_REPEAT_SCALE_MAX = 2;
@@ -1961,18 +1961,6 @@ const clampWoodRepeatScaleValue = (value = DEFAULT_WOOD_REPEAT_SCALE) => {
   const resolved = Number.isFinite(numeric) ? numeric : DEFAULT_WOOD_REPEAT_SCALE;
   return THREE.MathUtils.clamp(resolved, WOOD_REPEAT_SCALE_MIN, WOOD_REPEAT_SCALE_MAX);
 };
-
-const alignWoodSurfaceToCue = (surface = {}) => ({
-  ...surface,
-  repeat: CUE_WOOD_REPEAT.clone(),
-  textureSize: Math.max(
-    surface.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE,
-    CUE_WOOD_TEXTURE_SIZE
-  ),
-  mapUrl: upgradePolyHavenTextureUrlTo4k(surface.mapUrl),
-  roughnessMapUrl: upgradePolyHavenTextureUrlTo4k(surface.roughnessMapUrl),
-  normalMapUrl: upgradePolyHavenTextureUrlTo4k(surface.normalMapUrl)
-});
 
 function scaleWoodRepeatVector (repeatVec, scale) {
   const vec = repeatVec?.isVector2
@@ -2829,11 +2817,10 @@ const ORIGINAL_HALF_H = ORIGINAL_PLAY_H / 2;
 const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
-const CLOTH_TEXTURE_RESOLUTION_SCALE = 1.2;
-const CLOTH_TEXTURE_SIZE = Math.round(CLOTH_QUALITY.textureSize * CLOTH_TEXTURE_RESOLUTION_SCALE);
+const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.82 / 1.2; // enlarge the cloth pattern footprint by ~20%
+const CLOTH_PATTERN_SCALE = 0.82; // tighten the pattern footprint so the scan resolves more clearly
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const POLYHAVEN_ANISOTROPY_BOOST = 3.6;
@@ -6381,7 +6368,7 @@ function Table3D(
         (finish?.id && TABLE_FINISHES[finish.id]) ||
         TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
   const woodRepeatScale = clampWoodRepeatScaleValue(
-    (resolvedFinish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE) * CUE_WOOD_REPEAT_SCALE
+    resolvedFinish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
   );
   const clothTextureKey =
     resolvedFinish?.clothTextureKey ?? DEFAULT_CLOTH_TEXTURE_KEY;
@@ -6445,10 +6432,10 @@ function Table3D(
     accentConfig.material.needsUpdate = true;
   }
 
-  const initialFrameSurface = alignWoodSurfaceToCue(resolveWoodSurfaceConfig(
+  const initialFrameSurface = resolveWoodSurfaceConfig(
     resolvedWoodOption?.frame,
     resolvedWoodOption?.rail ?? defaultWoodOption.frame ?? defaultWoodOption.rail
-  ));
+  );
   const synchronizedRailSurface = {
     repeat: new THREE.Vector2(
       initialFrameSurface.repeat.x,
@@ -7244,10 +7231,10 @@ function Table3D(
   }
   // Force the table rails to reuse the exact cue butt wood scale so the grain
   // is just as visible as it is on the stick finish in cue view.
-  const alignedRailSurface = alignWoodSurfaceToCue(resolveWoodSurfaceConfig(
+  const alignedRailSurface = resolveWoodSurfaceConfig(
     resolvedWoodOption?.frame,
     initialFrameSurface
-  ));
+  );
   applyWoodTextureToMaterial(railMat, {
     repeat: new THREE.Vector2(
       alignedRailSurface.repeat.x,
@@ -9331,25 +9318,19 @@ function Table3D(
   const baseFrameFallback = {
     repeat: TABLE_WOOD_REPEAT,
     rotation: 0,
-    textureSize: Math.max(
+    textureSize:
       resolvedWoodOption?.frame?.textureSize ?? resolvedWoodOption?.rail?.textureSize,
-      CUE_WOOD_TEXTURE_SIZE
-    ),
-    mapUrl: upgradePolyHavenTextureUrlTo4k(
-      resolvedWoodOption?.frame?.mapUrl ?? resolvedWoodOption?.rail?.mapUrl
-    ),
-    roughnessMapUrl: upgradePolyHavenTextureUrlTo4k(
+    mapUrl: resolvedWoodOption?.frame?.mapUrl ?? resolvedWoodOption?.rail?.mapUrl,
+    roughnessMapUrl:
       resolvedWoodOption?.frame?.roughnessMapUrl ??
-        resolvedWoodOption?.rail?.roughnessMapUrl
-    ),
-    normalMapUrl: upgradePolyHavenTextureUrlTo4k(
+      resolvedWoodOption?.rail?.roughnessMapUrl,
+    normalMapUrl:
       resolvedWoodOption?.frame?.normalMapUrl ?? resolvedWoodOption?.rail?.normalMapUrl
-    )
   };
-  const woodFrameSurface = alignWoodSurfaceToCue(resolveWoodSurfaceConfig(
+  const woodFrameSurface = resolveWoodSurfaceConfig(
     resolvedWoodOption?.frame,
     resolvedWoodOption?.rail ?? baseFrameFallback
-  ));
+  );
   const synchronizedWoodSurface = {
     repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
     rotation: woodFrameSurface.rotation,
@@ -10027,16 +10008,15 @@ function applyTableFinishToTable(table, finish) {
       (finishInfo.woodTextureId &&
         WOOD_GRAIN_OPTIONS_BY_ID[finishInfo.woodTextureId]) ||
       defaultWoodOption;
-    const nextFrameSurface = alignWoodSurfaceToCue(resolveWoodSurfaceConfig(
+    const nextFrameSurface = resolveWoodSurfaceConfig(
       resolvedWoodOption?.frame,
       woodSurfaces.frame ?? woodSurfaces.rail ?? resolvedWoodOption?.rail ?? {
         repeat: { x: 1, y: 1 },
         rotation: 0
       }
-    ));
+    );
     const woodRepeatScale = clampWoodRepeatScaleValue(
-      (resolvedFinish?.woodRepeatScale ?? finishInfo.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE) *
-        CUE_WOOD_REPEAT_SCALE
+      resolvedFinish?.woodRepeatScale ?? finishInfo.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
     );
     const synchronizedRailSurface = {
       repeat: new THREE.Vector2(
@@ -17179,46 +17159,8 @@ const powerRef = useRef(hud.power);
 
         const applyReplayCueStroke = (playback, targetTime) => {
           const stroke = playback?.cueStroke;
-          if (!cueStick) {
-            cueAnimating = false;
-            syncCueShadow();
-            return;
-          }
-          if (!stroke) {
-            if (targetTime <= REPLAY_CUE_RETURN_WINDOW_MS) {
-              const frames = playback?.frames ?? [];
-              const frameA = frames[0] ?? null;
-              const frameB = frames[1] ?? frameA;
-              const cueA = frameA?.balls?.find((entry) => entry.id === 'cue');
-              const cueB = frameB?.balls?.find((entry) => entry.id === 'cue');
-              if (cueA && cueB) {
-                const dir2D = new THREE.Vector2(
-                  cueB.pos.x - cueA.pos.x,
-                  cueB.pos.y - cueA.pos.y
-                );
-                if (dir2D.lengthSq() > 1e-8) {
-                  dir2D.normalize();
-                  const dir3 = new THREE.Vector3(dir2D.x, 0, dir2D.y);
-                  cueStick.rotation.y = Math.atan2(dir3.x, dir3.z) + Math.PI;
-                  applyCueButtTilt(cueStick, 0);
-                  if (tipGroupRef.current) {
-                    tipGroupRef.current.position.set(0, 0, -cueLen / 2);
-                  }
-                  const tipTarget = resolveCueTipTarget(
-                    dir3,
-                    0,
-                    new THREE.Vector3(0, 0, 0)
-                  );
-                  applyCueStickTransform(tipTarget);
-                  clampCueButtAboveCushion(tipTarget);
-                  cueStick.visible = true;
-                  cueAnimating = true;
-                  syncCueShadow();
-                  return;
-                }
-              }
-            }
-            cueStick.visible = false;
+          if (!stroke || !cueStick) {
+            if (cueStick) cueStick.visible = false;
             cueAnimating = false;
             syncCueShadow();
             return;
@@ -25190,10 +25132,6 @@ const powerRef = useRef(hud.power);
           onClick={() => setConfigOpen((prev) => !prev)}
           aria-expanded={configOpen}
           aria-controls="snooker-config-panel"
-          style={{
-            transform: `scale(${uiScale * 1.08})`,
-            transformOrigin: 'top right'
-          }}
           className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
             configOpen ? 'bg-black/60' : 'hover:bg-black/60'
           }`}
