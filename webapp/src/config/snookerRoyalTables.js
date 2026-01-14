@@ -1,13 +1,13 @@
-const BASE_TABLE_SCALE = 1.44;
-const BASE_TABLE_MOBILE_SCALE = 1.44;
-const BASE_TABLE_COMPACT_SCALE = 1.44;
-const BASE_PLAYFIELD_WIDTH_MM = 2540; // match pool royale 9 ft playing surface width
+const BASE_TABLE_SCALE = 1.46;
+const BASE_TABLE_MOBILE_SCALE = 1.52;
+const BASE_TABLE_COMPACT_SCALE = 1.36;
+const BASE_PLAYFIELD_WIDTH_MM = 3556; // reference 12 ft match table width
 
 const TABLE_PHYSICAL_SPECS = Object.freeze({
-  '9ft': {
-    id: '9ft',
-    label: '9 ft (Tournament)',
-    playfield: Object.freeze({ widthMm: 2540, heightMm: 1270 }), // 100" × 50"
+  '12ft': {
+    id: '12ft',
+    label: '12 ft (Championship)',
+    playfield: Object.freeze({ widthMm: 3556, heightMm: 1778 }), // 12' x 6'
     ballDiameterMm: 52.5,
     pocketMouthMm: Object.freeze({
       corner: 114.3,
@@ -18,18 +18,18 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
     scaleOverrides: Object.freeze({
       scale: 1.56,
-      mobileScale: 1.72,
+      mobileScale: 1.68,
       compactScale: 1.48
     })
   },
-  '8ft': {
-    id: '8ft',
-    label: '8 ft',
-    playfield: Object.freeze({ widthMm: 2235, heightMm: 1118 }), // 88" × 44"
+  '10ft': {
+    id: '10ft',
+    label: '10 ft (Club)',
+    playfield: Object.freeze({ widthMm: 3048, heightMm: 1524 }), // 10' x 5'
     ballDiameterMm: 52.5,
     pocketMouthMm: Object.freeze({
-      corner: 171.45,
-      side: 152.4
+      corner: 114.3,
+      side: 127
     }),
     cushionCutAngleDeg: 27,
     sideCushionCutAngleDeg: 27,
@@ -72,7 +72,7 @@ export const TABLE_SIZE_OPTIONS = Object.freeze(
   }, {})
 );
 
-export const DEFAULT_TABLE_SIZE_ID = '9ft';
+export const DEFAULT_TABLE_SIZE_ID = '12ft';
 
 export function resolveTableSize(sizeId) {
   const key = typeof sizeId === 'string' ? sizeId.toLowerCase() : '';
