@@ -999,7 +999,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 1.152; // 20% larger balls for clearer visibility on the cloth
+const BALL_SIZE_SCALE = 0.97; // shrink balls ~3% for a tighter match to the real table size
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1831,10 +1831,10 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 1.85;
-const CLOTH_HAIR_INTENSITY = 1.2;
-const CLOTH_BUMP_INTENSITY = 1.8;
-const CLOTH_SOFT_BLEND = 0.5;
+const CLOTH_TEXTURE_INTENSITY = 2.1;
+const CLOTH_HAIR_INTENSITY = 1.35;
+const CLOTH_BUMP_INTENSITY = 2.1;
+const CLOTH_SOFT_BLEND = 0.4;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
@@ -2825,7 +2825,7 @@ const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
 const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 1.4; // enlarge Poly Haven cloth patterns by 40%
-const POLYHAVEN_ANISOTROPY_BOOST = 3.6;
+const POLYHAVEN_ANISOTROPY_BOOST = 4.2;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
@@ -4789,7 +4789,7 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.18; // lower the 2D top view slightly to keep framing consistent after the table shrink
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.03, // bias the top view higher on portrait displays
+  x: PLAY_W * 0.02, // bias the top view slightly lower on portrait displays
   z: PLAY_H * -0.015 // bias the top view a touch further right on portrait displays
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
@@ -4839,7 +4839,7 @@ const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
-const CUE_VIEW_SPIN_ZOOM = BALL_R * 6.5; // bring the cue camera closer when spin control is active
+const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
 const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-ball follow line toward a draw path
