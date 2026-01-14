@@ -84,7 +84,7 @@ public class CueCamera : MonoBehaviour
     // Keeps the framing just above the cue stick instead of letting the
     // view slide down into the shaft.
     [Range(0f, 1f)]
-    public float maxCueAimLowering = 0.82f;
+    public float maxCueAimLowering = 0.7f;
 
     [Header("Cue aim framing")]
     // Scale applied to the cue distance when the camera is raised. Values below
