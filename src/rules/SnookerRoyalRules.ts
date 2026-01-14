@@ -115,13 +115,15 @@ export class SnookerRoyalRules {
       ? [...meta.colorsRemaining]
       : [...COLOR_ORDER];
     const ballOn = resolveBallOn(state, colorsRemaining);
+    const isColorsOrder = state.phase === 'COLORS_ORDER';
+    const isColorAfterRed = state.phase === 'REDS_AND_COLORS' && Boolean(state.colorOnAfterRed);
+    const isRedOn = state.phase === 'REDS_AND_COLORS' && !state.colorOnAfterRed;
 
     const hitEvent = events.find((event) => event.type === 'HIT') as
       | { type: 'HIT'; firstContact?: unknown; ballId?: unknown }
       | undefined;
     const firstContact = normalizeColor(hitEvent?.firstContact ?? hitEvent?.ballId);
     const nominatedBall = normalizeColor(context.declaredBall ?? context.nominatedBall);
-    const declaredBall = nominatedBall ?? firstContact;
     const potted = events
       .filter((event) => event.type === 'POTTED')
       .map((event) => normalizeColor((event as { ball?: unknown; ballId?: unknown }).ball ?? (event as { ballId?: unknown }).ballId))
@@ -136,20 +138,19 @@ export class SnookerRoyalRules {
     const pottedColors = pottedNonCue.filter((color) => color !== 'RED');
 
     const freeBallActive = Boolean(state.freeBall || context.freeBall);
-    const nominatedFreeBall = freeBallActive ? nominatedBall ?? null : null;
+    const freeBallTarget = freeBallActive ? nominatedBall ?? null : null;
     const freeBallPotted =
-      freeBallActive &&
-      nominatedFreeBall &&
-      pottedNonCue.some((color) => color === nominatedFreeBall);
-    const pottedColorsExcludingFreeBall = freeBallPotted && nominatedFreeBall
-      ? pottedColors.filter((color) => color !== nominatedFreeBall)
-      : pottedColors;
+      freeBallActive && freeBallTarget ? pottedNonCue.includes(freeBallTarget) : false;
 
-    const foulBallOn = freeBallActive && nominatedFreeBall
-      ? [nominatedFreeBall]
-      : state.phase === 'REDS_AND_COLORS' && state.colorOnAfterRed && declaredBall
-        ? [declaredBall]
-        : ballOn;
+    const requiresNomination = freeBallActive || isColorAfterRed;
+    const requiredFirstContact = freeBallActive
+      ? freeBallTarget
+      : isColorsOrder
+        ? ballOn[0]
+        : isColorAfterRed
+          ? nominatedBall
+          : 'RED';
+    const foulBallOn = requiredFirstContact ? [requiredFirstContact] : ballOn;
     let foulReason: string | null = null;
     if (explicitFoul?.reason) {
       foulReason = explicitFoul.reason;
@@ -158,53 +159,37 @@ export class SnookerRoyalRules {
     } else if (context.contactMade === false || !firstContact) {
       foulReason = 'no contact';
     } else if (ballOn.length && firstContact) {
-      const requiresNomination =
-        freeBallActive ||
-        (state.phase === 'REDS_AND_COLORS' && state.colorOnAfterRed);
       if (requiresNomination && !nominatedBall) {
         foulReason = 'no nomination';
-      } else if (
-        state.phase === 'REDS_AND_COLORS' &&
-        state.colorOnAfterRed &&
-        declaredBall === 'RED'
-      ) {
+      } else if (isColorAfterRed && nominatedBall === 'RED') {
         foulReason = 'invalid nomination';
-      }
-      const targetBall = state.phase === 'COLORS_ORDER' ? ballOn[0] : null;
-      const requiredFirstContact =
-        (freeBallActive && nominatedFreeBall) ||
-        targetBall ||
-        (requiresNomination ? declaredBall : ballOn[0]);
-      if (requiredFirstContact && firstContact !== requiredFirstContact) {
+      } else if (requiredFirstContact && firstContact !== requiredFirstContact) {
         foulReason = 'wrong ball';
       }
     }
 
-    if (!foulReason && state.phase === 'REDS_AND_COLORS' && !state.colorOnAfterRed) {
-      if (pottedColorsExcludingFreeBall.length) foulReason = 'potted color on red';
+    if (!foulReason && isRedOn) {
+      const illegalColors = freeBallTarget
+        ? pottedColors.filter((color) => color !== freeBallTarget)
+        : pottedColors;
+      if (illegalColors.length) foulReason = 'potted color on red';
     }
 
-    if (!foulReason && state.phase === 'REDS_AND_COLORS' && state.colorOnAfterRed) {
+    if (!foulReason && (isColorAfterRed || isColorsOrder)) {
       if (pottedReds.length) foulReason = 'potted red on color';
-      const colorPotCount = pottedColorsExcludingFreeBall.length + (freeBallPotted ? 1 : 0);
-      if (colorPotCount > 1) foulReason = 'multiple colors potted';
-      if (
-        !foulReason &&
-        pottedColorsExcludingFreeBall.length &&
-        declaredBall &&
-        !pottedColorsExcludingFreeBall.includes(declaredBall)
-      ) {
+      const nonCueCount = pottedNonCue.length;
+      if (nonCueCount > 1) foulReason = 'multiple balls potted';
+    }
+
+    if (!foulReason && isColorAfterRed) {
+      if (pottedColors.length && nominatedBall && !pottedNonCue.includes(nominatedBall)) {
         foulReason = 'wrong color';
       }
     }
 
-    if (!foulReason && state.phase === 'COLORS_ORDER') {
+    if (!foulReason && isColorsOrder) {
       const target = ballOn[0];
-      const colorPotCount = pottedColorsExcludingFreeBall.length + (freeBallPotted ? 1 : 0);
       const targetPotted = Boolean(target && pottedNonCue.includes(target));
-      if (colorPotCount > 1) {
-        foulReason = 'multiple colors potted';
-      }
       if (!foulReason && pottedNonCue.length && (!target || (!targetPotted && !freeBallPotted))) {
         foulReason = 'wrong color order';
       }
@@ -255,30 +240,25 @@ export class SnookerRoyalRules {
       nextActivePlayer = state.activePlayer === 'A' ? 'B' : 'A';
       nextBreak = 0;
       if (state.phase === 'REDS_AND_COLORS') {
-        if (redsRemaining === 0) {
+        if (redsRemaining === 0 && !colorOnAfterRed) {
           nextPhase = 'COLORS_ORDER';
-          colorOnAfterRed = false;
-        } else {
-          colorOnAfterRed = false;
         }
+        colorOnAfterRed = false;
       }
     } else {
-      if (state.phase === 'REDS_AND_COLORS' && !state.colorOnAfterRed) {
+      if (isRedOn) {
         const freeBallScore = freeBallPotted ? COLOR_VALUES.RED : 0;
         const scored = pottedReds.length * COLOR_VALUES.RED + freeBallScore;
         redsRemaining = Math.max(0, redsRemaining - pottedReds.length);
-        scores[state.activePlayer] += scored;
-        nextBreak = (state.currentBreak ?? 0) + scored;
-        if (pottedReds.length > 0 || freeBallPotted) {
-          if (redsRemaining === 0) {
-            nextPhase = 'COLORS_ORDER';
-            colorOnAfterRed = false;
-          } else {
-            colorOnAfterRed = true;
-          }
+        if (scored) {
+          scores[state.activePlayer] += scored;
+          nextBreak = (state.currentBreak ?? 0) + scored;
+          colorOnAfterRed = true;
+        } else {
+          colorOnAfterRed = false;
         }
-      } else if (state.phase === 'REDS_AND_COLORS' && state.colorOnAfterRed) {
-        const color = declaredBall ?? pottedColors[0] ?? nominatedFreeBall;
+      } else if (isColorAfterRed) {
+        const color = nominatedBall ?? pottedColors[0];
         if (color) {
           const scored = COLOR_VALUES[color] || 0;
           scores[state.activePlayer] += scored;
@@ -288,14 +268,13 @@ export class SnookerRoyalRules {
         if (redsRemaining === 0) {
           nextPhase = 'COLORS_ORDER';
         }
-      } else if (state.phase === 'COLORS_ORDER') {
+      } else if (isColorsOrder) {
         const target = ballOn[0];
         const targetPotted = Boolean(target && pottedNonCue.includes(target));
-        const scored = target && targetPotted ? COLOR_VALUES[target] || 0 : 0;
-        const freeBallScore = freeBallPotted && target && !targetPotted ? COLOR_VALUES[target] || 0 : 0;
-        if (scored || freeBallScore) {
-          scores[state.activePlayer] += scored + freeBallScore;
-          nextBreak = (state.currentBreak ?? 0) + scored + freeBallScore;
+        const scored = target && (targetPotted || freeBallPotted) ? COLOR_VALUES[target] || 0 : 0;
+        if (scored) {
+          scores[state.activePlayer] += scored;
+          nextBreak = (state.currentBreak ?? 0) + scored;
         }
         if (target && targetPotted) {
           colorsRemaining.shift();
