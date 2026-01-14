@@ -1402,8 +1402,9 @@ const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.22; // widen the visible air gap so the blue tip never kisses the cue ball
+const CUE_TIP_CLEARANCE = BALL_R * 0.12; // tighten the visible air gap so the tip reads as striking the cue ball
 const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
+const CUE_STRIKE_OVERTRAVEL = BALL_R * 0.42; // push the cue slightly beyond contact so the strike reads clearly
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 2.1; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -4694,11 +4695,11 @@ const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
 const CAMERA_ZOOM_PROFILES = Object.freeze({
-  default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.97 }),
-  nearLandscape: Object.freeze({ cue: 0.84, broadcast: 0.88, margin: 0.97 }),
-  landscape: Object.freeze({ cue: 0.82, broadcast: 0.86, margin: 0.965 }),
-  portrait: Object.freeze({ cue: 0.82, broadcast: 0.88, margin: 0.96 }),
-  ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 0.87, margin: 0.955 })
+  default: Object.freeze({ cue: 0.85, broadcast: 0.89, margin: 0.97 }),
+  nearLandscape: Object.freeze({ cue: 0.83, broadcast: 0.87, margin: 0.97 }),
+  landscape: Object.freeze({ cue: 0.81, broadcast: 0.85, margin: 0.965 }),
+  portrait: Object.freeze({ cue: 0.81, broadcast: 0.87, margin: 0.96 }),
+  ultraPortrait: Object.freeze({ cue: 0.79, broadcast: 0.86, margin: 0.955 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -4759,8 +4760,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.2; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.005, // bias the top view higher on portrait displays
-  z: PLAY_H * -0.04 // bias the top view a touch further right on portrait displays
+  x: PLAY_W * 0.012, // bias the top view higher on portrait displays
+  z: PLAY_H * -0.055 // bias the top view a touch further right on portrait displays
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4781,7 +4782,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 0.9; // pull the broadcast overhead camera c
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0225; // tighten cue camera distance so the cue ball and object ball appear larger
+const CUE_VIEW_RADIUS_RATIO = 0.0218; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -20092,7 +20093,7 @@ const powerRef = useRef(hud.power);
             BALL_R * (1 + 3 * clampedPower) * topSpinWeight;
           const backSpinRetreat =
             BALL_R * (1 + 2.25 * clampedPower) * backSpinWeight;
-          const forwardDistance = strokeDistance + topSpinFollowThrough;
+          const forwardDistance = strokeDistance + topSpinFollowThrough + CUE_STRIKE_OVERTRAVEL;
           const impactPos = startPos
             .clone()
             .add(dir.clone().multiplyScalar(Math.max(forwardDistance, 0)));
@@ -22491,7 +22492,28 @@ const powerRef = useRef(hud.power);
         );
         const subStepScale = frameScale / physicsSubsteps;
         lastStepTime = now;
-        if (topViewRef.current && topViewLockedRef.current) {
+        const currentHud = hudRef.current;
+        const isPlayerTurn = currentHud?.turn === 0;
+        const isAiTurn = aiOpponentEnabled && currentHud?.turn === 1;
+        const suggestionTarget = userSuggestionPlanRef.current?.targetBall;
+        const shouldSnapToSuggestion =
+          isPlayerTurn &&
+          !lookModeRef.current &&
+          suggestionTarget?.active &&
+          suggestionTarget?.pos &&
+          cue?.active &&
+          cue?.pos;
+        if (shouldSnapToSuggestion) {
+          tmpAim.set(
+            suggestionTarget.pos.x - cue.pos.x,
+            suggestionTarget.pos.y - cue.pos.y
+          );
+          if (tmpAim.lengthSq() < 1e-6) {
+            tmpAim.set(0, 1);
+          } else {
+            tmpAim.normalize();
+          }
+        } else if (topViewRef.current && topViewLockedRef.current) {
           const fallbackAim = aimDirRef.current.clone();
           if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
           tmpAim.copy(fallbackAim.normalize());
@@ -22529,15 +22551,13 @@ const powerRef = useRef(hud.power);
         const newCollisions = new Set();
         let shouldSlowAim = false;
         // Aiming vizual
-        const currentHud = hudRef.current;
-        const isPlayerTurn = currentHud?.turn === 0;
-        const isAiTurn = aiOpponentEnabled && currentHud?.turn === 1;
+        const isAiTurnPreview = isAiTurn;
         const previewingAiShot = aiShotPreviewRef.current;
         const aiCueViewActive = aiShotCueViewRef.current;
         const remoteShotActive =
           currentHud?.turn === 1 && remoteShotActiveRef.current;
         const remoteAimState = remoteAimRef.current;
-        if (isAiTurn) {
+        if (isAiTurnPreview) {
           autoPlaceAiCueBall();
         }
         const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
