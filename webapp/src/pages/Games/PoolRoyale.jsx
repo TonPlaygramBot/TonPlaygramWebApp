@@ -999,7 +999,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 1.152; // 20% larger balls for clearer visibility on the cloth
+const BALL_SIZE_SCALE = 0.96; // 4% smaller than regulation to match requested sizing
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -2824,12 +2824,12 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 1.4; // enlarge Poly Haven cloth patterns by 40%
-const POLYHAVEN_ANISOTROPY_BOOST = 3.6;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 1.25; // enlarge Poly Haven cloth patterns by 25%
+const POLYHAVEN_ANISOTROPY_BOOST = 4.6;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
-const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1, 1);
+const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.25, 1.25);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
@@ -6551,7 +6551,7 @@ function Table3D(
   const baseBumpScale =
     (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) *
     CLOTH_QUALITY.bumpScaleMultiplier *
-    (isPolyHavenCloth ? 1.2 : 1);
+    (isPolyHavenCloth ? 1.35 : 1);
   const flattenedBumpScale = baseBumpScale * 0.48;
   if (clothMap) {
     clothMat.map = clothMap;
