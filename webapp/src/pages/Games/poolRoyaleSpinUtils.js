@@ -44,8 +44,8 @@ export const mapSpinForPhysics = (spin) => {
   const curved = applySpinResponseCurve(adjusted);
   return {
     // UI uses screen-space: +X is right, +Y is up (topspin).
-    // Physics expects the same orientation so the diagram matches 1:1.
-    x: curved.x,
+    // Swap left/right so the spin control matches the in-game response.
+    x: -curved.x,
     y: curved.y
   };
 };

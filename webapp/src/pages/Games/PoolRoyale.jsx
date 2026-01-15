@@ -591,6 +591,7 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.42; // extend fascia reach so the middl
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.75; // trim fascia span further so the middle plates finish before intruding into the pocket zone while keeping the rounded edge intact
 const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.52; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
+const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome plates slightly toward the corner pockets without widening outward
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
@@ -2824,12 +2825,12 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1 / 1.4; // enlarge Poly Haven cloth patterns by 40%
-const POLYHAVEN_ANISOTROPY_BOOST = 4.2;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = (1 / 1.4) * 0.8; // enlarge Poly Haven cloth patterns ~20% more
+const POLYHAVEN_ANISOTROPY_BOOST = 5;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
-const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1, 1);
+const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.25, 1.25);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
@@ -4703,7 +4704,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.9; // tilt the standing orbit a touch more toward the table without changing height
+const STANDING_VIEW_PHI = 0.88; // lift the standing orbit slightly higher for a clearer top surface view
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -4789,8 +4790,8 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.04; // lower the 2D top view slightly to keep framing consistent after the table shrink
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.04, // bias the top view slightly lower on portrait displays
-  z: PLAY_H * -0.055 // bias the top view a touch further right on portrait displays
+  x: PLAY_W * -0.012, // bias the top view slightly higher on portrait displays
+  z: PLAY_H * -0.078 // bias the top view further right on portrait displays
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4833,7 +4834,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
-const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.29; // nudge forward slightly at the floor of the cue view, then stop
+const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
@@ -7428,7 +7429,9 @@ function Table3D(
   );
   const sidePlateHeightByCushion = Math.max(
     MICRO_EPS,
-    Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
+    Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) *
+      2 *
+      CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE
   );
   const sideChromePlateHeight = Math.min(
     Math.max(MICRO_EPS, chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeOuterFlushTrim * 2),
@@ -16216,7 +16219,7 @@ const powerRef = useRef(hud.power);
             });
             if (overheadCamera?.position) {
               const resolvedTarget = overheadCamera.target ?? topFocusTarget;
-              camera.up.set(0, 1, 0);
+              camera.up.set(0, 0, 1);
               camera.position.copy(overheadCamera.position);
               if (Number.isFinite(overheadCamera.fov) && camera.fov !== overheadCamera.fov) {
                 camera.fov = overheadCamera.fov;
@@ -16244,7 +16247,7 @@ const powerRef = useRef(hud.power);
             const topTheta = Math.PI;
             const topPhi = TOP_VIEW_RESOLVED_PHI;
             TMP_SPH.set(topRadius, topPhi, topTheta);
-            camera.up.set(0, 1, 0);
+            camera.up.set(0, 0, 1);
             camera.position.setFromSpherical(TMP_SPH);
             camera.position.add(topFocusTarget);
             const resolvedTarget = topFocusTarget.clone();
@@ -16962,9 +16965,6 @@ const powerRef = useRef(hud.power);
           const fovSnapshot = Number.isFinite(fallbackCamera?.fov)
             ? fallbackCamera.fov
             : camera.fov;
-          const targetSnapshot = lastCameraTargetRef.current
-            ? lastCameraTargetRef.current.clone()
-            : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
           const pocketView =
             activeShotView?.mode === 'pocket' ? activeShotView : null;
           if (pocketView) {
@@ -16987,77 +16987,24 @@ const powerRef = useRef(hud.power);
               return snapshot;
             }
           }
-          const cueBall = balls.find((b) => b.id === 'cue');
-          const targetBallId = shotRecording?.targetBallId ?? null;
-          const targetBall =
-            targetBallId != null
-              ? balls.find((b) => b.id === targetBallId)
-              : null;
-          if (cueBall && targetBall) {
-            const pairFrame = computeShortRailPairFraming(
-              camera,
-              new THREE.Vector2(cueBall.pos.x, cueBall.pos.y),
-              new THREE.Vector2(targetBall.pos.x, targetBall.pos.y),
-              BROADCAST_PAIR_MARGIN
-            );
-            if (pairFrame) {
-              const focusTarget = new THREE.Vector3(
-                pairFrame.centerX * scale,
-                BALL_CENTER_Y * scale,
-                pairFrame.centerZ * scale
-              );
-              focusTarget.y = Math.max(focusTarget.y ?? 0, minTargetY);
-              const railCamera = resolveRailOverheadReplayCamera({
-                focusOverride: focusTarget,
-                minTargetY
-              });
-              const basePosition = railCamera?.position?.clone?.() ?? null;
-              if (basePosition) {
-                const direction = basePosition.clone().sub(focusTarget);
-                if (direction.lengthSq() > 1e-6) {
-                  direction.normalize();
-                }
-                const requiredDistance = pairFrame.requiredDistance * scale;
-                const position = focusTarget
-                  .clone()
-                  .add(direction.multiplyScalar(requiredDistance));
-                if (
-                  position.y <
-                  minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale
-                ) {
-                  position.y = minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale;
-                }
-                return {
-                  position,
-                  target: focusTarget,
-                  fov: Number.isFinite(railCamera?.fov)
-                    ? railCamera.fov
-                    : fovSnapshot,
-                  minTargetY
-                };
-              }
-            }
-          }
-          const overheadCamera = resolveRailOverheadReplayCamera({
-            focusOverride: targetSnapshot,
+          const tableFocus = new THREE.Vector3(
+            playerOffsetRef.current,
+            ORBIT_FOCUS_BASE_Y,
+            0
+          ).multiplyScalar(scale);
+          tableFocus.y = Math.max(tableFocus.y ?? 0, minTargetY);
+          const topRadiusBase =
+            fitRadius(fallbackCamera ?? camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
+          const topRadius = clampOrbitRadius(
+            Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
+          );
+          const position = tableFocus.clone().add(new THREE.Vector3(0, topRadius, 0));
+          return {
+            position,
+            target: tableFocus,
+            fov: fovSnapshot,
             minTargetY
-          });
-          const resolvedPosition = overheadCamera?.position?.clone?.() ??
-            fallbackCamera?.position?.clone?.() ?? null;
-          const resolvedTarget = overheadCamera?.target?.clone?.() ?? targetSnapshot;
-          const resolvedFov = Number.isFinite(overheadCamera?.fov)
-            ? overheadCamera.fov
-            : fovSnapshot;
-          if (!resolvedPosition && !resolvedTarget) return null;
-          const snapshot = {
-            position: resolvedPosition,
-            target: resolvedTarget,
-            fov: resolvedFov
           };
-          if (Number.isFinite(overheadCamera?.minTargetY)) {
-            snapshot.minTargetY = overheadCamera.minTargetY;
-          }
-          return snapshot;
         };
         captureReplayCameraSnapshotRef.current = captureReplayCameraSnapshot;
 
@@ -20065,6 +20012,11 @@ const powerRef = useRef(hud.power);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
+            const frameTiming = frameTimingRef.current;
+            const frameTimeMs =
+              frameTiming && Number.isFinite(frameTiming.targetMs) && frameTiming.targetMs > 0
+                ? frameTiming.targetMs
+                : 1000 / 60;
             shotRecording = {
               longShot: replayTags.has('long'),
               targetBallId: shotPrediction.ballId ?? null,
@@ -20072,6 +20024,7 @@ const powerRef = useRef(hud.power);
               startState: captureBallSnapshot(),
               frames: [],
               cuePath: [],
+              frameTimeMs,
               replayTags: Array.from(replayTags),
               zoomOnly: preferZoomReplay
             };
@@ -22600,9 +22553,11 @@ const powerRef = useRef(hud.power);
         if (playback) {
           const frameTiming = frameTimingRef.current;
           const targetReplayFrameTime =
-            frameTiming && Number.isFinite(frameTiming.targetMs)
-              ? frameTiming.targetMs
-              : 1000 / 60;
+            Number.isFinite(playback?.frameTimeMs) && playback.frameTimeMs > 0
+              ? playback.frameTimeMs
+              : frameTiming && Number.isFinite(frameTiming.targetMs)
+                ? frameTiming.targetMs
+                : 1000 / 60;
           if (lastReplayFrameAt && now - lastReplayFrameAt < targetReplayFrameTime) {
             rafRef.current = requestAnimationFrame(step);
             return;
@@ -22684,11 +22639,19 @@ const powerRef = useRef(hud.power);
           const pending = pendingRemoteReplayRef.current;
           pendingRemoteReplayRef.current = null;
           if (!skipAllReplaysRef.current && pending?.frames?.length > 1) {
+            const frameTiming = frameTimingRef.current;
+            const frameTimeMs =
+              Number.isFinite(pending?.frameTimeMs) && pending.frameTimeMs > 0
+                ? pending.frameTimeMs
+                : frameTiming && Number.isFinite(frameTiming.targetMs) && frameTiming.targetMs > 0
+                  ? frameTiming.targetMs
+                  : 1000 / 60;
             shotRecording = {
               ...pending,
               startTime: pending.startTime ?? nowMs,
               startState: pending.startState ?? captureBallSnapshot(),
               zoomOnly: pending.zoomOnly ?? false,
+              frameTimeMs,
               replayTags: pending.replayTags ?? ['remote']
             };
             shotReplayRef.current = shotRecording;
