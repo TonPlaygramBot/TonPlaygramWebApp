@@ -595,7 +595,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.12; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.16; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = CHROME_CORNER_POCKET_CUT_SCALE * 1.012; // open the rounded chrome cut slightly wider on the middle pockets only
@@ -1211,7 +1211,7 @@ const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.74; // stop the fall sligh
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
-const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // raise the net so the weave sits higher on screen
+const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.2; // raise the net so the weave sits higher on screen
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
@@ -1222,12 +1222,12 @@ const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails jus
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.035; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
-const POCKET_HOLDER_REST_DROP = BALL_R * 2.18; // drop the resting spot so potted balls settle onto the chrome rails
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.48; // keep the ball rest point unchanged while the chrome guides extend
+const POCKET_HOLDER_REST_DROP = BALL_R * 2.02; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -1334,6 +1334,7 @@ const SPIN_STRENGTH = BALL_R * 0.034;
 const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
 const BACKSPIN_ROLL_BOOST = 1.6;
+const BACKSPIN_IMPACT_ROLL_BOOST = 2.4;
 const SPIN_ROLL_DECAY = 0.983;
 const SPIN_AIR_DECAY = 0.995; // hold spin energy while the cue ball travels straight pre-impact
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
@@ -2825,12 +2826,12 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = (1 / 1.4) * 0.8; // enlarge Poly Haven cloth patterns ~20% more
-const POLYHAVEN_ANISOTROPY_BOOST = 5;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 0.52; // enlarge Poly Haven cloth patterns so the weave reads larger
+const POLYHAVEN_ANISOTROPY_BOOST = 6;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
-const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.25, 1.25);
+const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.45, 1.45);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
@@ -4791,7 +4792,16 @@ const TOP_VIEW_RADIUS_SCALE = 1.04; // lower the 2D top view slightly to keep fr
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.012, // bias the top view slightly higher on portrait displays
-  z: PLAY_H * -0.078 // bias the top view further right on portrait displays
+  z: PLAY_H * -0.055 // bias the top view further right on portrait displays
+});
+const REPLAY_TOP_VIEW_MARGIN = 1.15;
+const REPLAY_TOP_VIEW_MIN_RADIUS_SCALE = 1.08;
+const REPLAY_TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22);
+const REPLAY_TOP_VIEW_RADIUS_SCALE = 1.26;
+const REPLAY_TOP_VIEW_RESOLVED_PHI = Math.max(REPLAY_TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
+const REPLAY_TOP_VIEW_SCREEN_OFFSET = Object.freeze({
+  x: PLAY_W * 0.006,
+  z: PLAY_H * 0.006
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -16987,21 +16997,41 @@ const powerRef = useRef(hud.power);
               return snapshot;
             }
           }
-          const tableFocus = new THREE.Vector3(
-            playerOffsetRef.current,
+          const topFocusTarget = new THREE.Vector3(
+            playerOffsetRef.current + REPLAY_TOP_VIEW_SCREEN_OFFSET.x,
             ORBIT_FOCUS_BASE_Y,
-            0
+            REPLAY_TOP_VIEW_SCREEN_OFFSET.z
           ).multiplyScalar(scale);
-          tableFocus.y = Math.max(tableFocus.y ?? 0, minTargetY);
+          topFocusTarget.y = Math.max(topFocusTarget.y ?? 0, minTargetY);
+          const overheadCamera = resolveRailOverheadReplayCamera({
+            focusOverride: topFocusTarget,
+            minTargetY
+          });
+          if (overheadCamera?.position) {
+            return {
+              position: overheadCamera.position,
+              target: overheadCamera.target ?? topFocusTarget,
+              fov: overheadCamera.fov ?? fovSnapshot,
+              minTargetY: overheadCamera.minTargetY ?? minTargetY
+            };
+          }
           const topRadiusBase =
-            fitRadius(fallbackCamera ?? camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
+            fitRadius(fallbackCamera ?? camera, REPLAY_TOP_VIEW_MARGIN) *
+            REPLAY_TOP_VIEW_RADIUS_SCALE;
           const topRadius = clampOrbitRadius(
-            Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
+            Math.max(topRadiusBase, CAMERA.minR * REPLAY_TOP_VIEW_MIN_RADIUS_SCALE)
           );
-          const position = tableFocus.clone().add(new THREE.Vector3(0, topRadius, 0));
+          const spherical = new THREE.Spherical(
+            topRadius,
+            REPLAY_TOP_VIEW_RESOLVED_PHI,
+            Math.PI
+          );
+          const position = topFocusTarget
+            .clone()
+            .add(new THREE.Vector3().setFromSpherical(spherical));
           return {
             position,
-            target: tableFocus,
+            target: topFocusTarget,
             fov: fovSnapshot,
             minTargetY
           };
@@ -23481,8 +23511,14 @@ const powerRef = useRef(hud.power);
                 TMP_VEC2_SPIN.multiplyScalar(
                   SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
                 );
-                if (b.vel && b.vel.dot(TMP_VEC2_SPIN) < 0) {
-                  TMP_VEC2_SPIN.multiplyScalar(BACKSPIN_ROLL_BOOST);
+                const backspinBoost =
+                  b.vel && b.vel.dot(TMP_VEC2_SPIN) < 0
+                    ? isCue && b.impacted
+                      ? BACKSPIN_IMPACT_ROLL_BOOST
+                      : BACKSPIN_ROLL_BOOST
+                    : 1;
+                if (backspinBoost !== 1) {
+                  TMP_VEC2_SPIN.multiplyScalar(backspinBoost);
                 }
                 if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
                   const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
