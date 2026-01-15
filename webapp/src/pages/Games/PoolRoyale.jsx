@@ -2825,12 +2825,12 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = (1 / 1.4) * 0.7; // enlarge Poly Haven cloth patterns slightly more
-const POLYHAVEN_ANISOTROPY_BOOST = 7;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = (1 / 1.4) * 0.8; // enlarge Poly Haven cloth patterns ~20% more
+const POLYHAVEN_ANISOTROPY_BOOST = 5;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
-const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.4, 1.4);
+const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.25, 1.25);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
@@ -4784,14 +4784,14 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.15; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22); // reduce angle toward a flatter overhead
-const TOP_VIEW_RADIUS_SCALE = 1.26; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
-const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
+const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.04; // raise the camera a touch to ensure full end-rail coverage
+const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
+const TOP_VIEW_RADIUS_SCALE = 1.04; // lower the 2D top view slightly to keep framing consistent after the table shrink
+const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.006, // bias the top view so the table sits slightly lower on screen
-  z: PLAY_H * 0.006 // bias the top view so the table sits slightly more to the right
+  x: PLAY_W * -0.012, // bias the top view slightly higher on portrait displays
+  z: PLAY_H * -0.078 // bias the top view further right on portrait displays
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -5835,8 +5835,7 @@ function applySpinImpulse(ball, scale = 1) {
   const { forward, lateral, speed } = resolveSpinFrame(ball);
   const sideSpin = ball.spin.x || 0;
   const forwardSpin = ball.spin.y || 0;
-  const backspinBoost =
-    forwardSpin < -1e-4 ? 1 + Math.min(Math.abs(forwardSpin), 1) * 1.2 : 1;
+  const backspinBoost = forwardSpin < -1e-4 ? 1.75 : 1;
   const swerveScale = 0.8 + Math.min(speed, 8) * 0.15;
   const liftScale = 0.35 + Math.min(speed, 6) * 0.08;
   const lateralKick = sideSpin * SPIN_STRENGTH * swerveScale * scale;
@@ -5881,8 +5880,7 @@ function applyRailSpinResponse(ball, impact) {
     ball.vel.addScaledVector(tangent, throwStrength);
   }
   ball.spin.copy(preImpactSpin);
-  const backspinBoost =
-    ball.spin.y < -1e-4 ? 0.9 + Math.min(Math.abs(ball.spin.y), 1) * 0.75 : 0.6;
+  const backspinBoost = ball.spin.y < -1e-4 ? 0.95 : 0.6;
   applySpinImpulse(ball, backspinBoost);
 }
 
@@ -16990,9 +16988,9 @@ const powerRef = useRef(hud.power);
             }
           }
           const tableFocus = new THREE.Vector3(
-            playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
+            playerOffsetRef.current,
             ORBIT_FOCUS_BASE_Y,
-            TOP_VIEW_SCREEN_OFFSET.z
+            0
           ).multiplyScalar(scale);
           tableFocus.y = Math.max(tableFocus.y ?? 0, minTargetY);
           const topRadiusBase =
@@ -17000,12 +16998,7 @@ const powerRef = useRef(hud.power);
           const topRadius = clampOrbitRadius(
             Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
           );
-          const topPhi = TOP_VIEW_RESOLVED_PHI;
-          const height = Math.cos(topPhi) * topRadius;
-          const horizontal = Math.sin(topPhi) * topRadius;
-          const position = tableFocus
-            .clone()
-            .add(new THREE.Vector3(0, height, -horizontal));
+          const position = tableFocus.clone().add(new THREE.Vector3(0, topRadius, 0));
           return {
             position,
             target: tableFocus,
@@ -23744,10 +23737,7 @@ const powerRef = useRef(hud.power);
                 }
                 if (cueBall && cueBall.spin?.lengthSq() > 0) {
                   cueBall.impacted = true;
-                  const backspinBoost =
-                    cueBall.spin.y < -1e-4
-                      ? 1.35 + Math.min(Math.abs(cueBall.spin.y), 1) * 0.9
-                      : 1.1;
+                  const backspinBoost = cueBall.spin.y < -1e-4 ? 1.55 : 1.1;
                   applySpinImpulse(cueBall, backspinBoost);
                 }
               }
