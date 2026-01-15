@@ -43,8 +43,9 @@ export const mapSpinForPhysics = (spin) => {
   };
   const curved = applySpinResponseCurve(adjusted);
   return {
-    // Keep screen-space directions: +X = right english, +Y = topspin.
-    x: curved.x,
-    y: curved.y
+    // UI has +X to the right; physics should match left/right as shown.
+    x: -curved.x,
+    // UI uses +Y for topspin; physics uses the opposite sign.
+    y: -curved.y
   };
 };
