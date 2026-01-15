@@ -589,10 +589,10 @@ const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually ab
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // push the side fascia farther along the arch so it blankets the larger chrome reveal
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.62; // trim fascia span further so the middle plates finish before intruding into the pocket zone while keeping the rounded edge intact
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.75; // trim fascia span further so the middle plates finish before intruding into the pocket zone while keeping the rounded edge intact
 const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.68; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
-const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.986; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
-const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
+const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
+const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.16; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
@@ -4786,11 +4786,11 @@ const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.16; // lift the top view slightly to keep both near pockets visible on portrait
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.1; // raise the camera a touch to ensure full end-rail coverage
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.18; // lower the 2D top view slightly to keep framing consistent after the table shrink
+const TOP_VIEW_RADIUS_SCALE = 1.16; // lower the 2D top view slightly to keep framing consistent after the table shrink
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.02, // bias the top view slightly lower on portrait displays
-  z: PLAY_H * -0.015 // bias the top view a touch further right on portrait displays
+  x: PLAY_W * 0.028, // bias the top view slightly lower on portrait displays
+  z: PLAY_H * -0.022 // bias the top view a touch further right on portrait displays
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -24756,7 +24756,7 @@ const powerRef = useRef(hud.power);
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
       let ny = ((cy - rect.top) / rect.height) * 2 - 1;
-      setSpin(nx, -ny);
+      setSpin(nx, ny);
     };
 
     const scaleBox = (value) => {
