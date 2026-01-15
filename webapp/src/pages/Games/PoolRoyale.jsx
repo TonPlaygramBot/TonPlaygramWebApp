@@ -24707,14 +24707,14 @@ const powerRef = useRef(hud.power);
     () => {
       const radius = 72;
       const labels = [
-        { text: 'HIGH', angle: -90 },
-        { text: 'HIGH RIGHT', angle: -45 },
-        { text: 'RIGHT', angle: 0 },
-        { text: 'LOW RIGHT', angle: 45 },
-        { text: 'LOW', angle: 90 },
-        { text: 'LOW LEFT', angle: 135 },
-        { text: 'LEFT', angle: 180 },
-        { text: 'HIGH LEFT', angle: 225 }
+        { text: 'HIGH', angle: 90 },
+        { text: 'HIGH RIGHT', angle: 135 },
+        { text: 'RIGHT', angle: 180 },
+        { text: 'LOW RIGHT', angle: 225 },
+        { text: 'LOW', angle: 270 },
+        { text: 'LOW LEFT', angle: 315 },
+        { text: 'LEFT', angle: 360 },
+        { text: 'HIGH LEFT', angle: 405 }
       ];
       return labels.map((label) => {
         const radians = (label.angle * Math.PI) / 180;
@@ -24798,6 +24798,8 @@ const powerRef = useRef(hud.power);
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
       let ny = -(((cy - rect.top) / rect.height) * 2 - 1);
+      nx = -nx;
+      ny = -ny;
       setSpin(nx, ny);
     };
 
