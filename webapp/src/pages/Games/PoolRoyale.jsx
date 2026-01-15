@@ -24707,14 +24707,14 @@ const powerRef = useRef(hud.power);
     () => {
       const radius = 72;
       const labels = [
-        { text: 'HIGH', angle: -90 },
-        { text: 'HIGH RIGHT', angle: -45 },
-        { text: 'RIGHT', angle: 0 },
-        { text: 'LOW RIGHT', angle: 45 },
-        { text: 'LOW', angle: 90 },
-        { text: 'LOW LEFT', angle: 135 },
-        { text: 'LEFT', angle: 180 },
-        { text: 'HIGH LEFT', angle: 225 }
+        { text: 'LOW', angle: -90 },
+        { text: 'LOW LEFT', angle: -45 },
+        { text: 'LEFT', angle: 0 },
+        { text: 'HIGH LEFT', angle: 45 },
+        { text: 'HIGH', angle: 90 },
+        { text: 'HIGH RIGHT', angle: 135 },
+        { text: 'RIGHT', angle: 180 },
+        { text: 'LOW RIGHT', angle: 225 }
       ];
       return labels.map((label) => {
         const radians = (label.angle * Math.PI) / 180;
