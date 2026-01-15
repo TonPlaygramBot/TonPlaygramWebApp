@@ -587,7 +587,7 @@ const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical t
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // push the side fascia farther along the arch so it blankets the larger chrome reveal
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.24; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.75; // trim fascia span further so the middle plates finish before intruding into the pocket zone while keeping the rounded edge intact
 const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.68; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
@@ -4703,7 +4703,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.86; // raise the standing orbit a touch for a clearer overview
+const STANDING_VIEW_PHI = 0.9; // tilt the standing orbit a touch more toward the table without changing height
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -4786,11 +4786,11 @@ const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.16; // lift the top view slightly to keep both near pockets visible on portrait
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.1; // raise the camera a touch to ensure full end-rail coverage
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.16; // lower the 2D top view slightly to keep framing consistent after the table shrink
+const TOP_VIEW_RADIUS_SCALE = 1.12; // lower the 2D top view slightly to keep framing consistent after the table shrink
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * 0.028, // bias the top view slightly lower on portrait displays
-  z: PLAY_H * -0.022 // bias the top view a touch further right on portrait displays
+  z: PLAY_H * -0.028 // bias the top view a touch further right on portrait displays
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -12151,7 +12151,7 @@ const powerRef = useRef(hud.power);
     if (!dot) return;
     const x = clamp(value.x ?? 0, -1, 1);
     const y = clamp(value.y ?? 0, -1, 1);
-    const displayY = -y;
+    const displayY = y;
     const ranges = spinRangeRef.current || {};
     const maxSide = Math.max(ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET, 1e-6);
     const maxVertical = Math.max(ranges.offsetVertical ?? MAX_SPIN_VERTICAL, 1e-6);
