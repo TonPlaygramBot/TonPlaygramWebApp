@@ -2,6 +2,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 export const SPIN_INPUT_DEAD_ZONE = 0.015;
 export const SPIN_RESPONSE_EXPONENT = 1.9;
+export const SPIN_RESPONSE_EXPONENT_BACKSPIN = 1.65;
 
 export const clampToUnitCircle = (x, y) => {
   const length = Math.hypot(x, y);
@@ -31,7 +32,8 @@ export const applySpinResponseCurve = (spin) => {
   }
   const clamped = clampToUnitCircle(x, y);
   const clampedMag = Math.hypot(clamped.x, clamped.y);
-  const curvedMag = Math.pow(clampedMag, SPIN_RESPONSE_EXPONENT);
+  const exponent = clamped.y < 0 ? SPIN_RESPONSE_EXPONENT_BACKSPIN : SPIN_RESPONSE_EXPONENT;
+  const curvedMag = Math.pow(clampedMag, exponent);
   const scale = clampedMag > 1e-6 ? curvedMag / clampedMag : 0;
   return { x: clamped.x * scale, y: clamped.y * scale };
 };
