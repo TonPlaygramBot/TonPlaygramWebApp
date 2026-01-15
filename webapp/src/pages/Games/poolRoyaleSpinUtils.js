@@ -1,7 +1,7 @@
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 export const SPIN_INPUT_DEAD_ZONE = 0.015;
-export const SPIN_RESPONSE_EXPONENT = 1.75;
+export const SPIN_RESPONSE_EXPONENT = 1.9;
 
 export const clampToUnitCircle = (x, y) => {
   const length = Math.hypot(x, y);
