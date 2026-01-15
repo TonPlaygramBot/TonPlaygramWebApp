@@ -595,11 +595,11 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.22; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.28; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = CHROME_CORNER_POCKET_CUT_SCALE * 1.012; // open the rounded chrome cut slightly wider on the middle pockets only
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.052; // keep the rounded chrome cutouts centred while nudging the plates outward
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.112; // keep the rounded chrome cutouts centred while nudging the plates outward
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -1241,23 +1241,23 @@ const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // rais
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.08 +
-  POCKET_VIS_R * 2.1 +
-  BALL_R * 1.45;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
+  POCKET_VIS_R * 1.95 +
+  BALL_R * 1.1;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.2 +
-  POCKET_VIS_R * 2.1 +
-  BALL_R * 1.4;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.05 +
+  POCKET_VIS_R * 1.95 +
+  BALL_R * 1.05;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 12,
   dotThreshold: 0.22,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
-  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
+  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.02,
   maxOutside: BALL_R * 30,
   heightOffset: BALL_R * 1.15,
   heightOffsetShortMultiplier: 0.9,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
-  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.04,
+  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1,
   heightDrop: BALL_R * 0.2,
   distanceScale: 0.96,
   heightScale: 1.02,
@@ -1333,8 +1333,8 @@ const POCKET_VIEW_MAX_HOLD_MS = 3200;
 const SPIN_STRENGTH = BALL_R * 0.034;
 const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
-const BACKSPIN_ROLL_BOOST = 1.6;
-const CUE_BACKSPIN_ROLL_BOOST = 2.2;
+const BACKSPIN_ROLL_BOOST = 1.9;
+const CUE_BACKSPIN_ROLL_BOOST = 2.8;
 const SPIN_ROLL_DECAY = 0.983;
 const SPIN_AIR_DECAY = 0.995; // hold spin energy while the cue ball travels straight pre-impact
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
@@ -1412,9 +1412,9 @@ const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.12; // tighten the visible air gap so the tip reads as contacting the cue ball
-const CUE_TIP_GAP = BALL_R * 1.02 + CUE_TIP_CLEARANCE; // keep the tip aligned while allowing visible contact on impact
-const CUE_IMPACT_OVERTRAVEL = BALL_R * 0.22; // push the cue slightly past the contact point so the strike is clearly visible
+const CUE_TIP_CLEARANCE = BALL_R * 0.06; // tighten the visible air gap so the tip reads as contacting the cue ball
+const CUE_TIP_GAP = BALL_R * 0.95 + CUE_TIP_CLEARANCE; // keep the tip aligned while allowing visible contact on impact
+const CUE_IMPACT_OVERTRAVEL = BALL_R * 0.38; // push the cue slightly past the contact point so the strike is clearly visible
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 2.1; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -1425,14 +1425,14 @@ const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while 
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.18; // ensure every stroke pulls slightly farther back for readability at all angles
-const CUE_STROKE_MIN_MS = 125;
-const CUE_STROKE_MAX_MS = 520;
-const CUE_STROKE_SPEED_MIN = BALL_R * 13.2;
-const CUE_STROKE_SPEED_MAX = BALL_R * 24;
-const CUE_FOLLOW_MIN_MS = 220;
-const CUE_FOLLOW_MAX_MS = 520;
-const CUE_FOLLOW_SPEED_MIN = BALL_R * 10;
-const CUE_FOLLOW_SPEED_MAX = BALL_R * 22;
+const CUE_STROKE_MIN_MS = 150;
+const CUE_STROKE_MAX_MS = 560;
+const CUE_STROKE_SPEED_MIN = BALL_R * 11.8;
+const CUE_STROKE_SPEED_MAX = BALL_R * 21.5;
+const CUE_FOLLOW_MIN_MS = 250;
+const CUE_FOLLOW_MAX_MS = 560;
+const CUE_FOLLOW_SPEED_MIN = BALL_R * 9.5;
+const CUE_FOLLOW_SPEED_MAX = BALL_R * 20.5;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
@@ -5673,6 +5673,7 @@ function reflectRails(ball) {
   const pocketGuard = POCKET_GUARD_RADIUS;
   const guardClearance = POCKET_GUARD_CLEARANCE;
   const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
+  let preImpactVel = null;
   for (const { sx, sy } of CORNER_SIGNS) {
     TMP_VEC2_C.set(sx * limX, sy * limY);
     TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
@@ -5685,6 +5686,7 @@ function reflectRails(ball) {
     if (distNormal < -cornerDepthLimit) continue;
     const push = BALL_R - distNormal;
     ball.pos.addScaledVector(TMP_VEC2_B, push);
+    preImpactVel = ball.vel.clone();
     const vn = ball.vel.dot(TMP_VEC2_B);
     if (vn < 0) {
       const restitution = CUSHION_RESTITUTION;
@@ -5709,7 +5711,8 @@ function reflectRails(ball) {
     return {
       type: 'corner',
       normal: TMP_VEC2_B.clone(),
-      tangent: TMP_VEC2_D.clone()
+      tangent: TMP_VEC2_D.clone(),
+      preImpactVel
     };
   }
 
@@ -5735,6 +5738,7 @@ function reflectRails(ball) {
     if (distNormal < -sideDepthLimit) continue;
     const push = BALL_R - distNormal;
     ball.pos.addScaledVector(normal, push);
+    preImpactVel = ball.vel.clone();
     const vn = ball.vel.dot(normal);
     if (vn < 0) {
       const restitution = CUSHION_RESTITUTION;
@@ -5760,7 +5764,8 @@ function reflectRails(ball) {
     return {
       type: 'rail',
       normal: normal.clone(),
-      tangent: tangent.clone()
+      tangent: tangent.clone(),
+      preImpactVel
     };
   }
 
@@ -5774,6 +5779,7 @@ function reflectRails(ball) {
   let collided = null;
   let collisionNormal = null;
   if (ball.pos.x < -limX && ball.vel.x < 0) {
+    preImpactVel = ball.vel.clone();
     const overshoot = -limX - ball.pos.x;
     ball.pos.x = -limX + overshoot;
     ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
@@ -5781,6 +5787,7 @@ function reflectRails(ball) {
     collisionNormal = new THREE.Vector2(1, 0);
   }
   if (ball.pos.x > limX && ball.vel.x > 0) {
+    preImpactVel = ball.vel.clone();
     const overshoot = ball.pos.x - limX;
     ball.pos.x = limX - overshoot;
     ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
@@ -5788,6 +5795,7 @@ function reflectRails(ball) {
     collisionNormal = new THREE.Vector2(-1, 0);
   }
   if (ball.pos.y < -limY && ball.vel.y < 0) {
+    preImpactVel = ball.vel.clone();
     const overshoot = -limY - ball.pos.y;
     ball.pos.y = -limY + overshoot;
     ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
@@ -5795,6 +5803,7 @@ function reflectRails(ball) {
     collisionNormal = new THREE.Vector2(0, 1);
   }
   if (ball.pos.y > limY && ball.vel.y > 0) {
+    preImpactVel = ball.vel.clone();
     const overshoot = ball.pos.y - limY;
     ball.pos.y = limY - overshoot;
     ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
@@ -5812,7 +5821,7 @@ function reflectRails(ball) {
   if (collided) {
     const normal = collisionNormal ?? new THREE.Vector2(0, 1);
     const tangent = new THREE.Vector2(-normal.y, normal.x);
-    return { type: collided, normal, tangent };
+    return { type: collided, normal, tangent, preImpactVel };
   }
   return null;
 }
@@ -5840,22 +5849,35 @@ function resolveSpinWorldVector(ball, output) {
   return target;
 }
 
-function applySpinImpulse(ball, scale = 1) {
+function applySpinImpulse(ball, scale = 1, forwardOverride = null) {
   if (!ball?.spin) return false;
   if (ball.spin.lengthSq() < 1e-6) return false;
   const { forward: resolvedForward, lateral: resolvedLateral, speed } = resolveSpinFrame(ball);
   const sideSpin = ball.spin.x || 0;
   const forwardSpin = ball.spin.y || 0;
+  const overrideForward =
+    forwardSpin < -1e-4 &&
+    forwardOverride &&
+    typeof forwardOverride.lengthSq === 'function' &&
+    forwardOverride.lengthSq() > 1e-6
+      ? TMP_VEC2_FORWARD.copy(forwardOverride).normalize()
+      : null;
   const useLaunchDir =
     ball.id === 'cue' &&
     forwardSpin < -1e-4 &&
     ball.impacted &&
     ball.launchDir &&
     ball.launchDir.lengthSq() > 1e-6;
-  const forward = useLaunchDir
+  const forward = overrideForward
+    ? overrideForward
+    : useLaunchDir
     ? TMP_VEC2_FORWARD.copy(ball.launchDir).normalize()
     : resolvedForward;
-  const lateral = useLaunchDir ? TMP_VEC2_LATERAL.set(-forward.y, forward.x) : resolvedLateral;
+  const lateral = overrideForward
+    ? TMP_VEC2_LATERAL.set(-forward.y, forward.x)
+    : useLaunchDir
+      ? TMP_VEC2_LATERAL.set(-forward.y, forward.x)
+      : resolvedLateral;
   const backspinBoost = forwardSpin < -1e-4 ? 2.05 : 1;
   const swerveScale = 0.8 + Math.min(speed, 8) * 0.15;
   const liftScale = 0.35 + Math.min(speed, 6) * 0.08;
@@ -5902,8 +5924,8 @@ function applyRailSpinResponse(ball, impact) {
   }
   ball.spin.copy(preImpactSpin);
   const backspinBoost =
-    ball.spin.y < -1e-4 ? (ball.id === 'cue' ? 1.25 : 0.95) : 0.6;
-  applySpinImpulse(ball, backspinBoost);
+    ball.spin.y < -1e-4 ? (ball.id === 'cue' ? 1.6 : 1.1) : 0.8;
+  applySpinImpulse(ball, backspinBoost, impact.preImpactVel ?? null);
 }
 
 function resolveSwerveSettings(
@@ -17041,6 +17063,13 @@ const powerRef = useRef(hud.power);
             0
           ).multiplyScalar(scale);
           tableFocus.y = Math.max(tableFocus.y ?? 0, minTargetY);
+          const overheadCamera = resolveRailOverheadReplayCamera({
+            focusOverride: tableFocus,
+            minTargetY
+          });
+          if (overheadCamera?.position) {
+            return overheadCamera;
+          }
           const topRadiusBase =
             fitRadius(fallbackCamera ?? camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
           const topRadius = clampOrbitRadius(
@@ -23726,6 +23755,7 @@ const powerRef = useRef(hud.power);
                   if (volume > 0) playBallHit(volume);
                 }
                 const cueBall = a.id === 'cue' ? a : b.id === 'cue' ? b : null;
+                const cuePreImpactVel = cueBall?.vel?.clone?.() ?? null;
                 if (!firstHit) {
                   if (a.id === 'cue' && b.id !== 'cue') firstHit = b.id;
                   else if (b.id === 'cue' && a.id !== 'cue') firstHit = a.id;
@@ -23799,8 +23829,8 @@ const powerRef = useRef(hud.power);
                 }
                 if (cueBall && cueBall.spin?.lengthSq() > 0) {
                   cueBall.impacted = true;
-                  const backspinBoost = cueBall.spin.y < -1e-4 ? 2.1 : 1.1;
-                  applySpinImpulse(cueBall, backspinBoost);
+                  const backspinBoost = cueBall.spin.y < -1e-4 ? 2.6 : 1.2;
+                  applySpinImpulse(cueBall, backspinBoost, cuePreImpactVel);
                 }
               }
             }
