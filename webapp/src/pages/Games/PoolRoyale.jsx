@@ -2825,14 +2825,16 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = (1 / 1.4) * 0.8; // enlarge Poly Haven cloth patterns ~20% more
-const POLYHAVEN_ANISOTROPY_BOOST = 5;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = (1 / 1.55) * 0.8; // enlarge Poly Haven cloth patterns a bit more for visible weave
+const POLYHAVEN_ANISOTROPY_BOOST = 6;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
-const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.25, 1.25);
+const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.65, 1.45);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
+const POLYHAVEN_ROUGHNESS_BASE = 0.78;
+const POLYHAVEN_ROUGHNESS_TARGET = 0.74;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
 const CLOTH_PATTERN_OVERRIDES = Object.freeze({
   polar_fleece: { repeatScale: 0.94 } // 10% larger pattern to emphasize the fleece nap
@@ -3484,15 +3486,21 @@ function updateClothTexturesForFinish (
   if (!finishInfo?.clothMat) return;
   registerClothTextureConsumer(textureKey, finishInfo);
   const textures = createClothTextures(textureKey, textureSource);
-  const textureScale = textures.mapSource === 'polyhaven' ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
+  const isPolyHaven =
+    textures.mapSource === 'polyhaven' || Boolean(finishInfo.clothBase?.isPolyHavenCloth);
+  const textureScale = isPolyHaven ? POLYHAVEN_PATTERN_REPEAT_SCALE : 1;
   const targetNormalScale =
     finishInfo.clothBase?.isPolyHavenCloth && textures.normal
       ? POLYHAVEN_NORMAL_SCALE
       : CLOTH_NORMAL_SCALE;
   const roughnessBase =
-    finishInfo.clothBase?.roughness ?? finishInfo.clothMat.roughness ?? CLOTH_ROUGHNESS_BASE;
+    finishInfo.clothBase?.roughness ??
+    (isPolyHaven
+      ? POLYHAVEN_ROUGHNESS_BASE
+      : finishInfo.clothMat.roughness ?? CLOTH_ROUGHNESS_BASE);
   const roughnessTarget =
-    finishInfo.clothBase?.roughnessTarget ?? CLOTH_ROUGHNESS_TARGET;
+    finishInfo.clothBase?.roughnessTarget ??
+    (isPolyHaven ? POLYHAVEN_ROUGHNESS_TARGET : CLOTH_ROUGHNESS_TARGET);
   const baseRepeatRaw =
     finishInfo.clothMat.userData?.baseRepeatRaw ??
     finishInfo.clothBase?.baseRepeatRaw ??
@@ -4791,7 +4799,16 @@ const TOP_VIEW_RADIUS_SCALE = 1.04; // lower the 2D top view slightly to keep fr
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.012, // bias the top view slightly higher on portrait displays
-  z: PLAY_H * -0.078 // bias the top view further right on portrait displays
+  z: PLAY_H * -0.086 // bias the top view further right on portrait displays
+});
+const REPLAY_TOP_VIEW_MARGIN = 1.15; // align replay overhead framing with Snooker Royale's 2D top view
+const REPLAY_TOP_VIEW_MIN_RADIUS_SCALE = 1.08;
+const REPLAY_TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22);
+const REPLAY_TOP_VIEW_RADIUS_SCALE = 1.26;
+const REPLAY_TOP_VIEW_RESOLVED_PHI = Math.max(REPLAY_TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
+const REPLAY_TOP_VIEW_SCREEN_OFFSET = Object.freeze({
+  x: PLAY_W * 0.006, // mirror Snooker Royale's 2D top-view framing offset
+  z: PLAY_H * 0.006
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -5653,7 +5670,7 @@ function makeWoodTexture({
   texture.needsUpdate = true;
   return texture;
 }
-function reflectRails(ball) {
+function reflectRails(ball, powerStrength = 0) {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
   const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
@@ -5687,7 +5704,8 @@ function reflectRails(ball) {
         .add(vt.multiplyScalar(tangentDamping));
     }
     if (ball.spin?.lengthSq() > 0) {
-      applySpinImpulse(ball, 0.6);
+      const spinScale = resolveBackspinContactScale(ball, powerStrength, 0.6);
+      applySpinImpulse(ball, spinScale);
     }
     const stamp =
       typeof performance !== 'undefined' && performance.now
@@ -5738,7 +5756,8 @@ function reflectRails(ball) {
         .add(vt.multiplyScalar(tangentDamping));
     }
     if (ball.spin?.lengthSq() > 0) {
-      applySpinImpulse(ball, 0.6);
+      const spinScale = resolveBackspinContactScale(ball, powerStrength, 0.6);
+      applySpinImpulse(ball, spinScale);
     }
     const stamp =
       typeof performance !== 'undefined' && performance.now
@@ -5829,6 +5848,20 @@ function resolveSpinWorldVector(ball, output) {
   return target;
 }
 
+function resolveBackspinContactScale(ball, powerStrength = 0, baseScale = 1) {
+  const backspin = Math.max(0, -(ball?.spin?.y ?? 0));
+  if (backspin <= 1e-4) return baseScale;
+  const powerScale = 0.85 + clamp(powerStrength, 0, 1) * 1.1;
+  const speed =
+    ball?.vel?.length?.() && Number.isFinite(ball.vel.length())
+      ? Math.max(ball.vel.length(), 0)
+      : 0;
+  const speedScale =
+    0.8 + Math.min(speed / Math.max(SHOT_BASE_SPEED * 1.6, 1e-6), 1) * 0.9;
+  const spinScale = 1 + backspin * 1.4;
+  return baseScale * powerScale * speedScale * spinScale;
+}
+
 function applySpinImpulse(ball, scale = 1) {
   if (!ball?.spin) return false;
   if (ball.spin.lengthSq() < 1e-6) return false;
@@ -5862,7 +5895,7 @@ function applySpinImpulse(ball, scale = 1) {
   return true;
 }
 
-function applyRailSpinResponse(ball, impact) {
+function applyRailSpinResponse(ball, impact, powerStrength = 0) {
   if (!ball?.spin || ball.spin.lengthSq() < 1e-6 || !impact?.normal) return;
   const normal = impact.normal.clone().normalize();
   const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
@@ -5880,8 +5913,9 @@ function applyRailSpinResponse(ball, impact) {
     ball.vel.addScaledVector(tangent, throwStrength);
   }
   ball.spin.copy(preImpactSpin);
-  const backspinBoost = ball.spin.y < -1e-4 ? 0.95 : 0.6;
-  applySpinImpulse(ball, backspinBoost);
+  const baseBoost = ball.spin.y < -1e-4 ? 0.95 : 0.6;
+  const spinScale = resolveBackspinContactScale(ball, powerStrength, baseBoost);
+  applySpinImpulse(ball, spinScale);
 }
 
 function resolveSwerveSettings(
@@ -15345,6 +15379,30 @@ const powerRef = useRef(hud.power);
           return { position, target, fov: STANDING_VIEW_FOV, minTargetY };
         };
 
+        const resolveReplayTopViewCamera = ({
+          focusOverride = null,
+          minTargetY = null
+        } = {}) => {
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const baseTarget = new THREE.Vector3(
+            playerOffsetRef.current + REPLAY_TOP_VIEW_SCREEN_OFFSET.x,
+            ORBIT_FOCUS_BASE_Y,
+            REPLAY_TOP_VIEW_SCREEN_OFFSET.z
+          ).multiplyScalar(scale);
+          const target = focusOverride?.clone?.() ?? baseTarget;
+          if (target && Number.isFinite(minTargetY)) {
+            target.y = Math.max(target.y ?? minTargetY, minTargetY);
+          }
+          const topRadiusBase =
+            fitRadius(camera, REPLAY_TOP_VIEW_MARGIN) * REPLAY_TOP_VIEW_RADIUS_SCALE;
+          const topRadius = clampOrbitRadius(
+            Math.max(topRadiusBase, CAMERA.minR * REPLAY_TOP_VIEW_MIN_RADIUS_SCALE)
+          );
+          TMP_SPH.set(topRadius, REPLAY_TOP_VIEW_RESOLVED_PHI, Math.PI);
+          const position = new THREE.Vector3().setFromSpherical(TMP_SPH).add(target);
+          return { position, target, fov: STANDING_VIEW_FOV, minTargetY };
+        };
+
         const hasReplayCameraChanged = (previous, next) => {
           if (!next) return false;
           if (!previous) return true;
@@ -17409,13 +17467,13 @@ const powerRef = useRef(hud.power);
             const start = path[0]?.pos ?? null;
             const end = path[path.length - 1]?.pos ?? start;
             if (start && end) {
+              const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
               const focus = new THREE.Vector3(
                 (start.x + end.x) * 0.5,
-                Math.max(baseSurfaceWorldY, BALL_CENTER_Y * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE)),
+                Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale),
                 (start.z + end.z) * 0.5
               );
-              const cinematicReplayCamera = resolveRailOverheadReplayCamera({
-                focusOverride: focus,
+              const cinematicReplayCamera = resolveReplayTopViewCamera({
                 minTargetY: focus.y
               });
               if (cinematicReplayCamera) {
@@ -23570,13 +23628,20 @@ const powerRef = useRef(hud.power);
               }
               b.launchDir = null;
             }
-            const railImpact = reflectRails(b);
+            const railImpact = reflectRails(
+              b,
+              b.id === 'cue' ? lastShotPower : 0
+            );
             if (railImpact && b.id === 'cue') b.impacted = true;
             if (railImpact && shotContextRef.current.contactMade) {
               shotContextRef.current.cushionAfterContact = true;
             }
             if (railImpact && b.spin?.lengthSq() > 0) {
-              applyRailSpinResponse(b, railImpact);
+              applyRailSpinResponse(
+                b,
+                railImpact,
+                b.id === 'cue' ? lastShotPower : 0
+              );
             }
             if (railImpact) {
               const nowRail = performance.now();
@@ -23737,8 +23802,11 @@ const powerRef = useRef(hud.power);
                 }
                 if (cueBall && cueBall.spin?.lengthSq() > 0) {
                   cueBall.impacted = true;
-                  const backspinBoost = cueBall.spin.y < -1e-4 ? 1.55 : 1.1;
-                  applySpinImpulse(cueBall, backspinBoost);
+                  const impactScale =
+                    cueBall.spin.y < -1e-4
+                      ? resolveBackspinContactScale(cueBall, lastShotPower, 1.1)
+                      : 1.1;
+                  applySpinImpulse(cueBall, impactScale);
                 }
               }
             }
