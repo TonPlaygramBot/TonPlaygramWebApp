@@ -587,7 +587,7 @@ const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical t
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // push the side fascia farther along the arch so it blankets the larger chrome reveal
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.32; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.42; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.75; // trim fascia span further so the middle plates finish before intruding into the pocket zone while keeping the rounded edge intact
 const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.52; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
@@ -4703,7 +4703,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.93; // tilt the standing orbit a touch more toward the table without changing height
+const STANDING_VIEW_PHI = 0.9; // tilt the standing orbit a touch more toward the table without changing height
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -4784,13 +4784,13 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.04; // raise the camera a touch to ensure full end-rail coverage
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.08; // lower the 2D top view slightly to keep framing consistent after the table shrink
+const TOP_VIEW_RADIUS_SCALE = 1.04; // lower the 2D top view slightly to keep framing consistent after the table shrink
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * 0.04, // bias the top view slightly lower on portrait displays
-  z: PLAY_H * -0.04 // bias the top view a touch further right on portrait displays
+  z: PLAY_H * -0.055 // bias the top view a touch further right on portrait displays
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4833,7 +4833,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
-const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.26; // nudge forward slightly at the floor of the cue view, then stop
+const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.29; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
@@ -5152,16 +5152,6 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
     Math.abs(contact.y) > cushionClearY
   ) {
     return { blocked: true, reason: 'Cushion blocks that strike point' };
-  }
-  const view = options.view;
-  if (view) {
-    TMP_VEC2_LIMIT.set(view.x ?? 0, view.y ?? 0);
-    if (TMP_VEC2_LIMIT.lengthSq() > 1e-8) {
-      TMP_VEC2_LIMIT.normalize();
-      if (TMP_VEC2_SPIN.dot(TMP_VEC2_LIMIT) <= 0) {
-        return { blocked: true, reason: 'Contact point not visible' };
-      }
-    }
   }
   const blockingRadius = BALL_R + CUE_TIP_RADIUS * 1.05;
   const blockingRadiusSq = blockingRadius * blockingRadius;
@@ -12162,11 +12152,8 @@ const powerRef = useRef(hud.power);
     dot.style.top = `${50 + scaledY * 50}%`;
     const magnitude = Math.hypot(x, y);
     const showBlocked = blocked ?? spinLegalityRef.current?.blocked;
-    dot.style.backgroundColor = showBlocked
-      ? '#9ca3af'
-      : magnitude >= SWERVE_THRESHOLD
-        ? '#facc15'
-        : '#dc2626';
+    dot.style.backgroundColor =
+      magnitude >= SWERVE_THRESHOLD ? '#facc15' : '#dc2626';
     dot.dataset.blocked = showBlocked ? '1' : '0';
   }, []);
   const cueRef = useRef(null);
@@ -26039,7 +26026,7 @@ const powerRef = useRef(hud.power);
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
               height: `${SPIN_CONTROL_DIAMETER_PX}px`,
-              background: `radial-gradient(circle at center, #fef6df 0 60%, #fef6df 60% 61%, #c81d25 61% 100%)`
+              background: `radial-gradient(circle at center, #d1d5db 0 22%, #fef6df 22% 60%, #fef6df 60% 61%, #c81d25 61% 100%)`
             }}
           >
             <div className="absolute inset-0 rounded-full overflow-hidden">
@@ -26063,8 +26050,20 @@ const powerRef = useRef(hud.power);
                 className="absolute rounded-full"
                 style={{
                   inset: `${SPIN_RING_THICKNESS_PX}px`,
-                  background: '#fef6df',
+                  background: 'radial-gradient(circle at center, #d1d5db 0 32%, #fef6df 32% 100%)',
                   boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.6)',
+                  pointerEvents: 'none'
+                }}
+              />
+              <div
+                className="absolute rounded-full"
+                style={{
+                  width: `${SPIN_DOT_DIAMETER_PX * 2.2}px`,
+                  height: `${SPIN_DOT_DIAMETER_PX * 2.2}px`,
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  background: 'rgba(156,163,175,0.85)',
                   pointerEvents: 'none'
                 }}
               />
@@ -26097,7 +26096,7 @@ const powerRef = useRef(hud.power);
                     left: `${50 + point.x * SPIN_DECORATION_OFFSET_PERCENT}%`,
                     top: `${50 + point.y * SPIN_DECORATION_OFFSET_PERCENT}%`,
                     transform: 'translate(-50%, -50%)',
-                    background: 'rgba(255,255,255,0.4)',
+                    background: 'rgba(156,163,175,0.65)',
                     pointerEvents: 'none'
                   }}
                 />
