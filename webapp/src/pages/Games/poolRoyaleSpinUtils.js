@@ -46,7 +46,8 @@ export const mapSpinForPhysics = (spin) => {
   const curved = applySpinResponseCurve(adjusted);
   return {
     // UI uses screen-space: +X is right, +Y is up (topspin).
-    x: curved.x,
-    y: curved.y
+    // Pool Royale expects the spin controller to be inverted: left/right and high/low swapped.
+    x: -curved.x,
+    y: -curved.y
   };
 };
