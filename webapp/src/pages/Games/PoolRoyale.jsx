@@ -595,11 +595,11 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.18; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.22; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = CHROME_CORNER_POCKET_CUT_SCALE * 1.012; // open the rounded chrome cut slightly wider on the middle pockets only
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.032; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.052; // keep the rounded chrome cutouts centred while nudging the plates outward
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -1211,7 +1211,7 @@ const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.74; // stop the fall sligh
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
-const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.22; // raise the net so the weave meets the pocket mouth
+const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.26; // raise the net so the weave meets the pocket mouth
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
@@ -1222,18 +1222,18 @@ const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails jus
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.03; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_VERTICAL_DROP = -BALL_R * 0.02; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
-const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.45; // let potted balls roll a touch farther before stopping
+const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER; // tighter spacing so potted balls touch on the holder rails
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.15; // let potted balls roll a touch farther before stopping
 const POCKET_HOLDER_REST_DROP = BALL_R * 2.02; // lift the resting spot so balls ride higher on the chrome holder
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
 const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
 const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
-const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
+const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.98; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
 const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so it meets the raised holder rails
@@ -1241,13 +1241,13 @@ const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // rais
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.18 +
-  POCKET_VIS_R * 2.25 +
-  BALL_R * 1.6;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.08 +
+  POCKET_VIS_R * 2.1 +
+  BALL_R * 1.45;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.34 +
-  POCKET_VIS_R * 2.28 +
-  BALL_R * 1.54;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.2 +
+  POCKET_VIS_R * 2.1 +
+  BALL_R * 1.4;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 12,
   dotThreshold: 0.22,
@@ -1412,8 +1412,9 @@ const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.22; // widen the visible air gap so the blue tip never kisses the cue ball
-const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
+const CUE_TIP_CLEARANCE = BALL_R * 0.12; // tighten the visible air gap so the tip reads as contacting the cue ball
+const CUE_TIP_GAP = BALL_R * 1.02 + CUE_TIP_CLEARANCE; // keep the tip aligned while allowing visible contact on impact
+const CUE_IMPACT_OVERTRAVEL = BALL_R * 0.22; // push the cue slightly past the contact point so the strike is clearly visible
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 2.1; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -1426,8 +1427,8 @@ const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.18; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_STROKE_MIN_MS = 125;
 const CUE_STROKE_MAX_MS = 520;
-const CUE_STROKE_SPEED_MIN = BALL_R * 15;
-const CUE_STROKE_SPEED_MAX = BALL_R * 28;
+const CUE_STROKE_SPEED_MIN = BALL_R * 13.2;
+const CUE_STROKE_SPEED_MAX = BALL_R * 24;
 const CUE_FOLLOW_MIN_MS = 220;
 const CUE_FOLLOW_MAX_MS = 520;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 10;
@@ -2826,12 +2827,12 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = (1 / 1.4) * 0.72; // enlarge Poly Haven cloth patterns ~28% more
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 0.62; // emphasize Poly Haven cloth patterns for clearer weave detail
 const POLYHAVEN_ANISOTROPY_BOOST = 7;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
-const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.45, 1.45);
+const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.7, 1.7);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
@@ -4791,7 +4792,7 @@ const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
 const TOP_VIEW_RADIUS_SCALE = 1.04; // lower the 2D top view slightly to keep framing consistent after the table shrink
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.02, // shift the top view slightly left away from the power slider
+  x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
   z: PLAY_H * -0.078 // keep the existing vertical alignment
 });
 const REPLAY_TOP_VIEW_MARGIN = 1.15;
@@ -5842,10 +5843,20 @@ function resolveSpinWorldVector(ball, output) {
 function applySpinImpulse(ball, scale = 1) {
   if (!ball?.spin) return false;
   if (ball.spin.lengthSq() < 1e-6) return false;
-  const { forward, lateral, speed } = resolveSpinFrame(ball);
+  const { forward: resolvedForward, lateral: resolvedLateral, speed } = resolveSpinFrame(ball);
   const sideSpin = ball.spin.x || 0;
   const forwardSpin = ball.spin.y || 0;
-  const backspinBoost = forwardSpin < -1e-4 ? 1.75 : 1;
+  const useLaunchDir =
+    ball.id === 'cue' &&
+    forwardSpin < -1e-4 &&
+    ball.impacted &&
+    ball.launchDir &&
+    ball.launchDir.lengthSq() > 1e-6;
+  const forward = useLaunchDir
+    ? TMP_VEC2_FORWARD.copy(ball.launchDir).normalize()
+    : resolvedForward;
+  const lateral = useLaunchDir ? TMP_VEC2_LATERAL.set(-forward.y, forward.x) : resolvedLateral;
+  const backspinBoost = forwardSpin < -1e-4 ? 2.05 : 1;
   const swerveScale = 0.8 + Math.min(speed, 8) * 0.15;
   const liftScale = 0.35 + Math.min(speed, 6) * 0.08;
   const lateralKick = sideSpin * SPIN_STRENGTH * swerveScale * scale;
@@ -6554,7 +6565,7 @@ function Table3D(
   const baseBumpScale =
     (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) *
     CLOTH_QUALITY.bumpScaleMultiplier *
-    (isPolyHavenCloth ? 1.2 : 1);
+    (isPolyHavenCloth ? 1.35 : 1);
   const flattenedBumpScale = baseBumpScale * 0.48;
   if (clothMap) {
     clothMat.map = clothMap;
@@ -17422,6 +17433,7 @@ const powerRef = useRef(hud.power);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
           setReplayActive(true);
+          overheadBroadcastVariantRef.current = 'replay';
           storeReplayCameraFrame();
           resetCameraForReplay();
           replayPlayback = {
@@ -17451,14 +17463,19 @@ const powerRef = useRef(hud.power);
                 Math.max(baseSurfaceWorldY, BALL_CENTER_Y * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE)),
                 (start.z + end.z) * 0.5
               );
+              const railOverheadCamera = resolveRailOverheadReplayCamera({
+                focusOverride: focus,
+                minTargetY: focus.y
+              });
               const cinematicReplayCamera = resolveReplayTopViewCamera({
                 focusOverride: focus,
                 minTargetY: focus.y
               });
-              if (cinematicReplayCamera) {
+              const primaryReplayCamera = railOverheadCamera ?? cinematicReplayCamera;
+              if (primaryReplayCamera) {
                 replayFrameCameraRef.current = {
-                  frameA: cinematicReplayCamera,
-                  frameB: cinematicReplayCamera,
+                  frameA: primaryReplayCamera,
+                  frameB: cinematicReplayCamera ?? primaryReplayCamera,
                   alpha: 0
                 };
               }
@@ -17519,6 +17536,7 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = null;
           replayCameraRef.current = null;
           replayFrameCameraRef.current = null;
+          overheadBroadcastVariantRef.current = 'top';
           setReplayActive(false);
         };
         const skipReplay = () => {
@@ -20303,7 +20321,11 @@ const powerRef = useRef(hud.power);
           const forwardDistance = strokeDistance + topSpinFollowThrough;
           const impactPos = startPos
             .clone()
-            .add(dir.clone().multiplyScalar(Math.max(forwardDistance, 0)));
+            .add(
+              dir
+                .clone()
+                .multiplyScalar(Math.max(forwardDistance + CUE_IMPACT_OVERTRAVEL, 0))
+            );
           const retreatDistance = Math.max(
             BALL_R * 1.5,
             Math.min(strokeDistance, BALL_R * 8)
