@@ -1334,7 +1334,6 @@ const SPIN_STRENGTH = BALL_R * 0.034;
 const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
 const BACKSPIN_ROLL_BOOST = 1.6;
-const BACKSPIN_CONTACT_ROLL_BOOST = 1.25;
 const SPIN_ROLL_DECAY = 0.983;
 const SPIN_AIR_DECAY = 0.995; // hold spin energy while the cue ball travels straight pre-impact
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
@@ -2826,12 +2825,12 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = (1 / 1.4) * 0.72; // enlarge Poly Haven cloth patterns slightly more
+const POLYHAVEN_PATTERN_REPEAT_SCALE = (1 / 1.4) * 0.8; // enlarge Poly Haven cloth patterns ~20% more
 const POLYHAVEN_ANISOTROPY_BOOST = 5;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
-const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.4, 1.4);
+const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.25, 1.25);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
@@ -4785,14 +4784,14 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.15; // align 2D framing with Snooker Royal replay/top view camera
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // match the overhead clearance distance used in Snooker Royal
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22); // keep the same overhead angle as Snooker Royal
-const TOP_VIEW_RADIUS_SCALE = 1.26; // match the Snooker Royal overhead camera distance
-const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
+const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.04; // raise the camera a touch to ensure full end-rail coverage
+const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
+const TOP_VIEW_RADIUS_SCALE = 1.04; // lower the 2D top view slightly to keep framing consistent after the table shrink
+const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.006, // bias the top view so the table sits slightly lower on screen
-  z: PLAY_H * 0.006 // bias the top view so the table sits slightly more to the right
+  x: PLAY_W * -0.012, // bias the top view slightly higher on portrait displays
+  z: PLAY_H * -0.078 // bias the top view further right on portrait displays
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -5881,7 +5880,7 @@ function applyRailSpinResponse(ball, impact) {
     ball.vel.addScaledVector(tangent, throwStrength);
   }
   ball.spin.copy(preImpactSpin);
-  const backspinBoost = ball.spin.y < -1e-4 ? 1.2 : 0.6;
+  const backspinBoost = ball.spin.y < -1e-4 ? 0.95 : 0.6;
   applySpinImpulse(ball, backspinBoost);
 }
 
@@ -23485,9 +23484,6 @@ const powerRef = useRef(hud.power);
                 if (b.vel && b.vel.dot(TMP_VEC2_SPIN) < 0) {
                   TMP_VEC2_SPIN.multiplyScalar(BACKSPIN_ROLL_BOOST);
                 }
-                if (!preImpact && isCue && b.impacted && b.spin.y < -1e-4) {
-                  TMP_VEC2_SPIN.multiplyScalar(BACKSPIN_CONTACT_ROLL_BOOST);
-                }
                 if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
                   const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
                   const forwardMag = Math.max(0, TMP_VEC2_SPIN.dot(launchDir));
@@ -23741,7 +23737,7 @@ const powerRef = useRef(hud.power);
                 }
                 if (cueBall && cueBall.spin?.lengthSq() > 0) {
                   cueBall.impacted = true;
-                  const backspinBoost = cueBall.spin.y < -1e-4 ? 1.85 : 1.1;
+                  const backspinBoost = cueBall.spin.y < -1e-4 ? 1.55 : 1.1;
                   applySpinImpulse(cueBall, backspinBoost);
                 }
               }
