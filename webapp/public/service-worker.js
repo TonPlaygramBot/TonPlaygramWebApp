@@ -213,20 +213,38 @@ const navigationPreloadResponse = async event => {
   }
 };
 
-const networkFirst = async (event, request) => {
+const networkFirst = async (event, request, { timeoutMs = 2500 } = {}) => {
   const preloadResponse = await navigationPreloadResponse(event);
-  if (preloadResponse) return preloadResponse;
+  if (preloadResponse) {
+    await cacheResponse(RUNTIME_CACHE, request, preloadResponse);
+    return preloadResponse;
+  }
+
+  const cache = await caches.open(RUNTIME_CACHE);
+  const cached = await cache.match(request);
+
+  let timeoutId;
+  const timeoutPromise = new Promise(resolve => {
+    timeoutId = setTimeout(resolve, timeoutMs);
+  });
 
   try {
-    const freshResponse = await fetch(request, { cache: 'no-store' });
-    await cacheResponse(RUNTIME_CACHE, request, freshResponse);
-    return freshResponse.clone();
+    const fetchPromise = fetch(request, { cache: 'no-cache' })
+      .then(async freshResponse => {
+        await cacheResponse(RUNTIME_CACHE, request, freshResponse);
+        return freshResponse.clone();
+      })
+      .catch(() => cached);
+    const response = await Promise.race([fetchPromise, timeoutPromise]);
+    clearTimeout(timeoutId);
+    if (response) return response;
+    const fallback = await fetchPromise;
+    if (fallback) return fallback;
+    throw new Error('Network response unavailable.');
   } catch (err) {
-    const cached =
-      (await caches.match(request)) ||
-      (await caches.match('/index.html')) ||
-      (await caches.match(OFFLINE_FALLBACK));
-    if (cached) return cached;
+    const fallback =
+      cached || (await caches.match('/index.html')) || (await caches.match(OFFLINE_FALLBACK));
+    if (fallback) return fallback;
     throw err;
   }
 };
@@ -247,10 +265,17 @@ const staleWhileRevalidate = async request => {
 
 const handleNavigationRequest = event => {
   event.respondWith(
-    networkFirst(event, event.request).catch(async () => {
-      const cached = (await caches.match('/index.html')) || (await caches.match(OFFLINE_FALLBACK));
-      return cached || Response.error();
-    })
+    (async () => {
+      const cachedShell = await caches.match('/index.html');
+      if (cachedShell) {
+        event.waitUntil(networkFirst(event, event.request).catch(() => {}));
+        return cachedShell;
+      }
+      return networkFirst(event, event.request).catch(async () => {
+        const cached = (await caches.match('/index.html')) || (await caches.match(OFFLINE_FALLBACK));
+        return cached || Response.error();
+      });
+    })()
   );
 };
 
