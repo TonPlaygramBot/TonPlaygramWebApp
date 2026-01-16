@@ -23563,9 +23563,7 @@ const powerRef = useRef(hud.power);
                 }
                 if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
                   const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
-                  const rawForwardMag = TMP_VEC2_SPIN.dot(launchDir);
-                  const maxSlowdown = Math.max(0, b.vel.length() * 0.35);
-                  const forwardMag = Math.max(rawForwardMag, -maxSlowdown);
+                  const forwardMag = Math.max(0, TMP_VEC2_SPIN.dot(launchDir));
                   TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
                   b.vel.add(TMP_VEC2_AXIS);
                   TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
@@ -23710,8 +23708,6 @@ const powerRef = useRef(hud.power);
                 const nx = dx / d,
                   ny = dy / d;
                 const overlap = (BALL_R * 2 - d) / 2;
-                const preVelA = a.vel.clone();
-                const preVelB = b.vel.clone();
                 const pairKey =
                   (a.id ?? i) < (b.id ?? j)
                     ? `${a.id ?? i}:${b.id ?? j}`
@@ -23745,12 +23741,7 @@ const powerRef = useRef(hud.power);
                   if (volume > 0) playBallHit(volume);
                 }
                 const cueBall = a.id === 'cue' ? a : b.id === 'cue' ? b : null;
-                const cuePreImpactVel =
-                  a.id === 'cue'
-                    ? preVelA
-                    : b.id === 'cue'
-                      ? preVelB
-                      : null;
+                const cuePreImpactVel = cueBall?.vel?.clone?.() ?? null;
                 if (!firstHit) {
                   if (a.id === 'cue' && b.id !== 'cue') firstHit = b.id;
                   else if (b.id === 'cue' && a.id !== 'cue') firstHit = a.id;
