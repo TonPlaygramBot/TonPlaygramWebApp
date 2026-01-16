@@ -643,10 +643,7 @@ const DEFAULT_HDRI_INDEX = Math.max(
 const SNAKE_CUSTOMIZATION_SECTIONS = [
   { key: 'arenaTheme', label: 'Arena Atmosphere', options: ARENA_THEME_OPTIONS },
   { key: 'boardPalette', label: 'Board Palette', options: BOARD_PALETTE_OPTIONS },
-  { key: 'snakeSkin', label: 'Snake Skins', options: SNAKE_SKIN_OPTIONS },
   { key: 'diceTheme', label: 'Dice Finish', options: DICE_THEME_OPTIONS },
-  { key: 'railTheme', label: 'Rails & Nets', options: RAIL_THEME_OPTIONS },
-  { key: 'tokenFinish', label: 'Token Finish', options: TOKEN_FINISH_OPTIONS },
   { key: 'tokenShape', label: 'Token Shape', options: TOKEN_SHAPE_OPTIONS },
   { key: 'tableFinish', label: 'Table Finish', options: TABLE_FINISH_OPTIONS },
   { key: 'tables', label: 'Table Models', options: TABLE_THEME_OPTIONS },
@@ -737,10 +734,7 @@ function normalizeAppearance(value = {}) {
   const entries = [
     ['arenaTheme', ARENA_THEME_OPTIONS.length],
     ['boardPalette', BOARD_PALETTE_OPTIONS.length],
-    ['snakeSkin', SNAKE_SKIN_OPTIONS.length],
     ['diceTheme', DICE_THEME_OPTIONS.length],
-    ['railTheme', RAIL_THEME_OPTIONS.length],
-    ['tokenFinish', TOKEN_FINISH_OPTIONS.length],
     ['tokenShape', TOKEN_SHAPE_OPTIONS.length],
     ['tableFinish', TABLE_FINISH_OPTIONS.length],
     ['tables', TABLE_THEME_OPTIONS.length],
