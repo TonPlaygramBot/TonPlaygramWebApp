@@ -46,8 +46,8 @@ export const mapSpinForPhysics = (spin) => {
   const curved = applySpinResponseCurve(adjusted);
   return {
     // UI uses screen-space: +X is right, +Y is up (topspin).
-    // Pool Royale side spin expects the opposite X orientation.
+    // Pool Royale spin physics expects the opposite orientation.
     x: -curved.x,
-    y: curved.y
+    y: -curved.y
   };
 };
