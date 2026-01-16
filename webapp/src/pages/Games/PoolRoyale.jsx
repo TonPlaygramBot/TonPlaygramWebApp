@@ -33,6 +33,12 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
+import { chatBeep } from '../../assets/soundData.js';
+import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
+import InfoPopup from '../../components/InfoPopup.jsx';
+import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
+import GiftPopup from '../../components/GiftPopup.jsx';
+import { giftSounds } from '../../utils/giftSounds.js';
 import {
   createBallPreviewDataUrl,
   getBallMaterial as getBilliardBallMaterial
@@ -10934,6 +10940,10 @@ function PoolRoyaleGame({
     broadcastSystemRef.current = activeBroadcastSystem;
   }, [activeBroadcastSystem]);
   const [configOpen, setConfigOpen] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showGift, setShowGift] = useState(false);
+  const [chatBubbles, setChatBubbles] = useState([]);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
   const accountIdRef = useRef(accountId || '');
@@ -12568,6 +12578,44 @@ const powerRef = useRef(hud.power);
   }, [playerAvatar, playerName]);
   const resolvedPlayerAvatar = player.avatar || getTelegramPhotoUrl();
   const resolvedOpponentAvatar = isOnlineMatch ? opponentAvatar || '' : '';
+  const giftPlayers = useMemo(
+    () => {
+      const opponentId =
+        opponentProfile?.id ||
+        opponentProfile?.accountId ||
+        opponentProfile?.playerId ||
+        opponentProfile?.userId ||
+        '';
+      return [
+        {
+          id: resolvedAccountId || accountId || '',
+          index: 0,
+          name: player.name || playerLabel,
+          photoUrl: resolvedPlayerAvatar || '/assets/icons/profile.svg'
+        },
+        {
+          id: opponentId,
+          index: 1,
+          name: opponentDisplayName || opponentLabel,
+          photoUrl: opponentDisplayAvatar || '/assets/icons/profile.svg'
+        }
+      ];
+    },
+    [
+      accountId,
+      opponentDisplayAvatar,
+      opponentDisplayName,
+      opponentLabel,
+      opponentProfile?.accountId,
+      opponentProfile?.id,
+      opponentProfile?.playerId,
+      opponentProfile?.userId,
+      player.name,
+      playerLabel,
+      resolvedAccountId,
+      resolvedPlayerAvatar
+    ]
+  );
   const framePlayersProfile = useMemo(
     () => ({
       A:
@@ -25927,6 +25975,14 @@ const powerRef = useRef(hud.power);
         </button>
       </div>
 
+      <div className="pointer-events-auto">
+        <BottomLeftIcons
+          onInfo={() => setShowInfo(true)}
+          onChat={() => setShowChat(true)}
+          onGift={() => setShowGift(true)}
+        />
+      </div>
+
       {bottomHudVisible && (
         <div
           className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
@@ -25949,6 +26005,7 @@ const powerRef = useRef(hud.power);
             <div
               className={playerPanelClass}
               style={playerPanelStyle}
+              data-player-index="0"
             >
               {isOnlineMatch ? (
                 <img
@@ -25988,6 +26045,7 @@ const powerRef = useRef(hud.power);
             <div
               className={`${opponentPanelClass} ${isPortrait ? 'text-xs' : 'text-sm'}`}
               style={opponentPanelStyle}
+              data-player-index="1"
             >
               {isOnlineMatch ? (
                 <>
@@ -26034,6 +26092,134 @@ const powerRef = useRef(hud.power);
           </div>
         </div>
       )}
+
+      {chatBubbles.map((bubble) => (
+        <div key={bubble.id} className="chat-bubble">
+          <span>{bubble.text}</span>
+          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
+        </div>
+      ))}
+      <div className="pointer-events-auto">
+        <InfoPopup
+          open={showInfo}
+          onClose={() => setShowInfo(false)}
+          title="Pool Royale"
+          info="Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent ball in hand."
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <QuickMessagePopup
+          open={showChat}
+          onClose={() => setShowChat(false)}
+          onSend={(text) => {
+            const id = Date.now();
+            setChatBubbles((bubbles) => [
+              ...bubbles,
+              { id, text, photoUrl: resolvedPlayerAvatar || '/assets/icons/profile.svg' }
+            ]);
+            if (!muteRef.current) {
+              const audio = new Audio(chatBeep);
+              audio.volume = getGameVolume();
+              audio.play().catch(() => {});
+            }
+            setTimeout(
+              () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
+              3000
+            );
+          }}
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <GiftPopup
+          open={showGift}
+          onClose={() => setShowGift(false)}
+          players={giftPlayers}
+          senderIndex={0}
+          onGiftSent={({ from, to, gift }) => {
+            const start = document.querySelector(`[data-player-index="${from}"]`);
+            const end = document.querySelector(`[data-player-index="${to}"]`);
+            if (start && end) {
+              const s = start.getBoundingClientRect();
+              const e = end.getBoundingClientRect();
+              const cx = window.innerWidth / 2;
+              const cy = window.innerHeight / 2;
+              let icon;
+              if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
+                icon = document.createElement('img');
+                icon.src = gift.icon;
+                icon.className = 'w-5 h-5';
+              } else {
+                icon = document.createElement('div');
+                icon.textContent = gift.icon;
+                icon.style.fontSize = '24px';
+              }
+              icon.style.position = 'fixed';
+              icon.style.left = '0px';
+              icon.style.top = '0px';
+              icon.style.pointerEvents = 'none';
+              icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`;
+              icon.style.zIndex = '9999';
+              document.body.appendChild(icon);
+              const giftSound = giftSounds[gift.id];
+              if (!muteRef.current && giftSound) {
+                if (gift.id === 'coffee_boost') {
+                  const audio = new Audio(giftSound);
+                  audio.volume = getGameVolume();
+                  audio.currentTime = 4;
+                  audio.play().catch(() => {});
+                  setTimeout(() => {
+                    audio.pause();
+                  }, 4000);
+                } else if (gift.id === 'baby_chick') {
+                  const audio = new Audio(giftSound);
+                  audio.volume = getGameVolume();
+                  audio.play().catch(() => {});
+                } else if (gift.id === 'magic_trick') {
+                  const audio = new Audio(giftSound);
+                  audio.volume = getGameVolume();
+                  audio.play().catch(() => {});
+                  setTimeout(() => {
+                    audio.pause();
+                  }, 4000);
+                } else if (gift.id === 'fireworks') {
+                  const audio = new Audio(giftSound);
+                  audio.volume = getGameVolume();
+                  audio.play().catch(() => {});
+                  setTimeout(() => {
+                    audio.pause();
+                  }, 6000);
+                } else if (gift.id === 'surprise_box') {
+                  const audio = new Audio(giftSound);
+                  audio.volume = getGameVolume();
+                  audio.play().catch(() => {});
+                  setTimeout(() => {
+                    audio.pause();
+                  }, 5000);
+                } else if (gift.id === 'bullseye') {
+                  const audio = new Audio(giftSound);
+                  audio.volume = getGameVolume();
+                  setTimeout(() => {
+                    audio.play().catch(() => {});
+                  }, 2500);
+                } else {
+                  const audio = new Audio(giftSound);
+                  audio.volume = getGameVolume();
+                  audio.play().catch(() => {});
+                }
+              }
+              const animation = icon.animate(
+                [
+                  { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
+                  { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+                  { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` }
+                ],
+                { duration: 3500, easing: 'linear' }
+              );
+              animation.onfinish = () => icon.remove();
+            }
+          }}
+        />
+      </div>
 
       {err && (
         <div className="pointer-events-none absolute left-1/2 top-4 z-50 -translate-x-1/2 px-4">
