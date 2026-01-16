@@ -601,7 +601,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.34; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.28; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = CHROME_CORNER_POCKET_CUT_SCALE * 1.012; // open the rounded chrome cut slightly wider on the middle pockets only
@@ -1348,8 +1348,8 @@ const POCKET_VIEW_MAX_HOLD_MS = 3200;
 const SPIN_STRENGTH = BALL_R * 0.034;
 const SPIN_DECAY = Math.exp(-PHYSICS_PROFILE.spinDecay * PHYSICS_BASE_STEP);
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
-const BACKSPIN_ROLL_BOOST = 2.2;
-const CUE_BACKSPIN_ROLL_BOOST = 3.4;
+const BACKSPIN_ROLL_BOOST = 1.9;
+const CUE_BACKSPIN_ROLL_BOOST = 2.8;
 const SPIN_ROLL_DECAY = Math.exp(-PHYSICS_PROFILE.spinDecay * PHYSICS_BASE_STEP);
 const SPIN_AIR_DECAY = Math.exp(-PHYSICS_PROFILE.airSpinDecay * PHYSICS_BASE_STEP); // hold spin energy while the cue ball travels straight pre-impact
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
@@ -4938,7 +4938,7 @@ const PLAYER_PULLBACK_MIN_SCALE = 1.2;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.85;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 44;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 36;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -20398,22 +20398,18 @@ const powerRef = useRef(hud.power);
             aiOpponentEnabled && hudRef.current?.turn === 1 ? AI_STROKE_TIME_SCALE : 1;
           const playerStrokeScale = isAiStroke ? 1 : PLAYER_STROKE_TIME_SCALE;
           const playerForwardScale = isAiStroke ? 1 : PLAYER_FORWARD_SLOWDOWN;
-          const liveStrokeScale = REPLAY_CUE_STROKE_SLOWDOWN;
-          const baseForwardDuration = isAiStroke
+          const forwardDuration = isAiStroke
             ? AI_CUE_FORWARD_DURATION_MS
             : forwardDurationBase * aiStrokeScale * playerStrokeScale * playerForwardScale;
-          const baseSettleDuration = isAiStroke
+          const settleDuration = isAiStroke
             ? 0
             : settleDurationBase * aiStrokeScale * playerStrokeScale;
-          const basePullbackDuration = isAiStroke
+          const pullbackDuration = isAiStroke
             ? AI_CUE_PULLBACK_DURATION_MS
             : Math.max(
                 CUE_STROKE_MIN_MS * PLAYER_PULLBACK_MIN_SCALE,
-                baseForwardDuration * PLAYER_STROKE_PULLBACK_FACTOR
+                forwardDuration * PLAYER_STROKE_PULLBACK_FACTOR
               );
-          const forwardDuration = baseForwardDuration * liveStrokeScale;
-          const settleDuration = baseSettleDuration * liveStrokeScale;
-          const pullbackDuration = basePullbackDuration * liveStrokeScale;
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
