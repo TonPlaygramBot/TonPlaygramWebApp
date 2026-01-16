@@ -8,7 +8,7 @@ export const SPIN_RING3_RADIUS = MAX_SPIN_OFFSET;
 export const SPIN_LEVEL0_MAG = 0;
 export const SPIN_LEVEL1_MAG = 0.25 * MAX_SPIN_OFFSET;
 export const SPIN_LEVEL2_MAG = 0.5 * MAX_SPIN_OFFSET;
-export const SPIN_LEVEL3_MAG = 0.8 * MAX_SPIN_OFFSET;
+export const SPIN_LEVEL3_MAG = 1.0 * MAX_SPIN_OFFSET;
 
 export const SPIN_DIRECTIONS = [
   {
