@@ -5,7 +5,7 @@ export default function BottomLeftIcons({
   onInfo,
   onChat,
   onGift,
-  className = 'fixed left-1 bottom-4 flex flex-col items-center space-y-2 z-20',
+  className = 'fixed z-20 flex flex-col gap-[0.6rem] pointer-events-auto',
   showInfo = true,
   showChat = true,
   showGift = true,
@@ -25,29 +25,49 @@ export default function BottomLeftIcons({
   };
 
   return (
-    <div className={className}>
+    <div
+      className={className}
+      style={{
+        left: 'calc(0.75rem + env(safe-area-inset-left, 0px))',
+        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)'
+      }}
+    >
       {showChat && onChat && (
-        <button onClick={onChat} className="p-1 flex flex-col items-center">
-          <AiOutlineMessage className="text-xl" />
-          <span className="text-xs">Chat</span>
+        <button
+          onClick={onChat}
+          className="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 p-0 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur-md"
+        >
+          <AiOutlineMessage className="text-[1.1rem] leading-none" />
+          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">Chat</span>
         </button>
       )}
       {showGift && onGift && (
-        <button onClick={onGift} className="p-1 flex flex-col items-center">
-          <span className="text-xl">🎁</span>
-          <span className="text-xs">Gift</span>
+        <button
+          onClick={onGift}
+          className="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 p-0 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur-md"
+        >
+          <span className="text-[1.1rem] leading-none">🎁</span>
+          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">Gift</span>
         </button>
       )}
       {showInfo && (
-        <button onClick={onInfo} className="p-1 flex flex-col items-center">
-          <AiOutlineInfoCircle className="text-xl" />
-          <span className="text-xs">Info</span>
+        <button
+          onClick={onInfo}
+          className="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 p-0 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur-md"
+        >
+          <AiOutlineInfoCircle className="text-[1.1rem] leading-none" />
+          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">Info</span>
         </button>
       )}
       {showMute && (
-        <button onClick={toggle} className="p-1 flex flex-col items-center">
-          <span className="text-lg">{muted ? '🔇' : '🔊'}</span>
-          <span className="text-xs">{muted ? 'Unmute' : 'Mute'}</span>
+        <button
+          onClick={toggle}
+          className="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 p-0 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur-md"
+        >
+          <span className="text-[1.1rem] leading-none">{muted ? '🔇' : '🔊'}</span>
+          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">
+            {muted ? 'Unmute' : 'Mute'}
+          </span>
         </button>
       )}
     </div>
