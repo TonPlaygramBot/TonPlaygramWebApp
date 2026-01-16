@@ -11,6 +11,10 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
+import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
+import GiftPopup from '../../components/GiftPopup.jsx';
+import InfoPopup from '../../components/InfoPopup.jsx';
+import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import {
   createMurlanStyleTable,
   applyTableMaterials
@@ -25,12 +29,13 @@ import {
 } from '../../utils/telegram.js';
 import coinConfetti from '../../utils/coinConfetti';
 import {
+  chatBeep,
   dropSound,
   diceSound,
   bombSound,
   cheerSound
 } from '../../assets/soundData.js';
-import { getGameVolume } from '../../utils/sound.js';
+import { getGameVolume, isGameMuted, setGameMuted } from '../../utils/sound.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { avatarToName } from '../../utils/avatarUtils.js';
 import {
@@ -52,6 +57,7 @@ import {
   isLudoOptionUnlocked,
   ludoBattleAccountId
 } from '../../utils/ludoBattleInventory.js';
+import { giftSounds } from '../../utils/giftSounds.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
@@ -2574,6 +2580,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const captureSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
   const diceSoundRef = useRef(null);
+  const hahaSoundRef = useRef(null);
+  const giftBombSoundRef = useRef(null);
   const aiTimeoutRef = useRef(null);
   const diceClearTimeoutRef = useRef(null);
   const humanRollTimeoutRef = useRef(null);
@@ -2602,8 +2610,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return () => window.removeEventListener('ludoBattleInventoryUpdate', handler);
   }, [resolvedAccountId]);
   const [configOpen, setConfigOpen] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(() => !isGameMuted());
+  const [showInfo, setShowInfo] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showGift, setShowGift] = useState(false);
+  const [chatBubbles, setChatBubbles] = useState([]);
   const settingsRef = useRef({ soundEnabled: true });
+  useEffect(() => {
+    const handler = () => setSoundEnabled(!isGameMuted());
+    window.addEventListener('gameMuteChanged', handler);
+    return () => window.removeEventListener('gameMuteChanged', handler);
+  }, []);
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
@@ -2769,6 +2786,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     return pool.slice(0, aiOpponentCount);
   }, [aiFlagOverrides, aiOpponentCount]);
+
+  const userPhotoUrl = avatar || '/assets/icons/profile.svg';
 
   const players = useMemo(() => {
     return Array.from({ length: activePlayerCount }, (_, index) => {
@@ -3686,7 +3705,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   useEffect(() => {
     const applyVolume = (baseVolume) => {
       const level = settingsRef.current.soundEnabled ? baseVolume : 0;
-      [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef].forEach((ref) => {
+      [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
         if (ref.current) {
           ref.current.volume = level;
           if (!settingsRef.current.soundEnabled) {
@@ -3703,6 +3722,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     captureSoundRef.current = new Audio(bombSound);
     cheerSoundRef.current = new Audio(cheerSound);
     diceSoundRef.current = new Audio(diceSound);
+    hahaSoundRef.current = new Audio('/assets/sounds/Haha.mp3');
+    giftBombSoundRef.current = new Audio(bombSound);
     applyVolume(vol);
     const onVolChange = () => {
       applyVolume(getGameVolume());
@@ -3875,7 +3896,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     settingsRef.current.soundEnabled = soundEnabled;
     const baseVolume = getGameVolume();
     const level = soundEnabled ? baseVolume : 0;
-    [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef].forEach((ref) => {
+    [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef, hahaSoundRef, giftBombSoundRef].forEach((ref) => {
       if (ref.current) {
         ref.current.volume = level;
         if (!soundEnabled) {
@@ -5159,7 +5180,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                         type="checkbox"
                         className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
                         checked={soundEnabled}
-                        onChange={(event) => setSoundEnabled(event.target.checked)}
+                        onChange={(event) => {
+                          const next = event.target.checked;
+                          setSoundEnabled(next);
+                          setGameMuted(!next);
+                        }}
                       />
                     </label>
                     <button
@@ -5238,6 +5263,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             <span>{username || 'Guest'}</span>
           </div>
         </div>
+        <div className="pointer-events-auto">
+          <BottomLeftIcons
+            onInfo={() => setShowInfo(true)}
+            onChat={() => setShowChat(true)}
+            onGift={() => setShowGift(true)}
+          />
+        </div>
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
             {ui.winner
@@ -5247,6 +5279,140 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               : ui.status}
           </div>
         </div>
+      </div>
+      {chatBubbles.map((bubble) => (
+        <div key={bubble.id} className="chat-bubble">
+          <span>{bubble.text}</span>
+          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
+        </div>
+      ))}
+      <div className="pointer-events-auto">
+        <InfoPopup
+          open={showInfo}
+          onClose={() => setShowInfo(false)}
+          title="Ludo Battle Royal"
+          info="Roll the dice to move your tokens around the track. Bring all four tokens home to win. Landing on an opponent sends them back to start."
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <QuickMessagePopup
+          open={showChat}
+          onClose={() => setShowChat(false)}
+          onSend={(text) => {
+            const id = Date.now();
+            setChatBubbles((bubbles) => [...bubbles, { id, text, photoUrl: userPhotoUrl }]);
+            if (soundEnabled) {
+              const audio = new Audio(chatBeep);
+              audio.volume = getGameVolume();
+              audio.play().catch(() => {});
+            }
+            setTimeout(
+              () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
+              3000,
+            );
+          }}
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <GiftPopup
+          open={showGift}
+          onClose={() => setShowGift(false)}
+          players={players.map((player) => ({
+            ...player,
+            id: player.id ?? (player.isAI ? `ludo-ai-${player.index}` : resolvedAccountId),
+            name: player.name
+          }))}
+          senderIndex={0}
+          onGiftSent={({ from, to, gift }) => {
+            const start = document.querySelector(`[data-player-index="${from}"]`);
+            const end = document.querySelector(`[data-player-index="${to}"]`);
+            if (start && end) {
+              const s = start.getBoundingClientRect();
+              const e = end.getBoundingClientRect();
+              const cx = window.innerWidth / 2;
+              const cy = window.innerHeight / 2;
+              let icon;
+              if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
+                icon = document.createElement('img');
+                icon.src = gift.icon;
+                icon.className = 'w-5 h-5';
+              } else {
+                icon = document.createElement('div');
+                icon.textContent = gift.icon;
+                icon.style.fontSize = '24px';
+              }
+              icon.style.position = 'fixed';
+              icon.style.left = '0px';
+              icon.style.top = '0px';
+              icon.style.pointerEvents = 'none';
+              icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`;
+              icon.style.zIndex = '9999';
+              document.body.appendChild(icon);
+              const giftSound = giftSounds[gift.id];
+              if (gift.id === 'laugh_bomb' && soundEnabled) {
+                giftBombSoundRef.current.currentTime = 0;
+                giftBombSoundRef.current.play().catch(() => {});
+                hahaSoundRef.current.currentTime = 0;
+                hahaSoundRef.current.play().catch(() => {});
+                setTimeout(() => {
+                  hahaSoundRef.current.pause();
+                }, 5000);
+              } else if (gift.id === 'coffee_boost' && soundEnabled) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.currentTime = 4;
+                audio.play().catch(() => {});
+                setTimeout(() => {
+                  audio.pause();
+                }, 4000);
+              } else if (gift.id === 'baby_chick' && soundEnabled) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+              } else if (gift.id === 'magic_trick' && soundEnabled) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+                setTimeout(() => {
+                  audio.pause();
+                }, 4000);
+              } else if (gift.id === 'fireworks' && soundEnabled) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+                setTimeout(() => {
+                  audio.pause();
+                }, 6000);
+              } else if (gift.id === 'surprise_box' && soundEnabled) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+                setTimeout(() => {
+                  audio.pause();
+                }, 5000);
+              } else if (gift.id === 'bullseye' && soundEnabled) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                setTimeout(() => {
+                  audio.play().catch(() => {});
+                }, 2500);
+              } else if (giftSound && soundEnabled) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+              }
+              const animation = icon.animate(
+                [
+                  { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
+                  { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+                  { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
+                ],
+                { duration: 3500, easing: 'linear' },
+              );
+              animation.onfinish = () => icon.remove();
+            }
+          }}
+        />
       </div>
     </div>
   );
