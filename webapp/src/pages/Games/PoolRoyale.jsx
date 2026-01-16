@@ -1113,8 +1113,17 @@ if (BALL_SHADOW_MATERIAL) {
   BALL_SHADOW_MATERIAL.polygonOffsetUnits = -0.5;
 }
 // Match the snooker build so pace and rebound energy stay consistent between modes.
-const FRICTION = 0.993;
-const DEFAULT_CUSHION_RESTITUTION = 0.985;
+// Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
+const PHYSICS_PROFILE = Object.freeze({
+  restitution: 0.9,
+  mu: 0.2,
+  spinDecay: 2.0,
+  airSpinDecay: 0.6,
+  maxTipOffsetRatio: 0.9
+});
+const PHYSICS_BASE_STEP = 1 / 60;
+const FRICTION = Math.exp(-PHYSICS_PROFILE.mu * PHYSICS_BASE_STEP);
+const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
 const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
@@ -1331,12 +1340,12 @@ const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
 const SPIN_STRENGTH = BALL_R * 0.034;
-const SPIN_DECAY = 0.9;
+const SPIN_DECAY = Math.exp(-PHYSICS_PROFILE.spinDecay * PHYSICS_BASE_STEP);
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
 const BACKSPIN_ROLL_BOOST = 1.9;
 const CUE_BACKSPIN_ROLL_BOOST = 2.8;
-const SPIN_ROLL_DECAY = 0.983;
-const SPIN_AIR_DECAY = 0.995; // hold spin energy while the cue ball travels straight pre-impact
+const SPIN_ROLL_DECAY = Math.exp(-PHYSICS_PROFILE.spinDecay * PHYSICS_BASE_STEP);
+const SPIN_AIR_DECAY = Math.exp(-PHYSICS_PROFILE.airSpinDecay * PHYSICS_BASE_STEP); // hold spin energy while the cue ball travels straight pre-impact
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
@@ -1450,10 +1459,10 @@ const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(4);
 const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.6;
 const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.45;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
-const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.92;
+const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
-const MAX_SPIN_SIDE = BALL_R * 0.45;
-const MAX_SPIN_VERTICAL = BALL_R * 0.92;
+const MAX_SPIN_SIDE = MAX_SPIN_CONTACT_OFFSET * 0.5;
+const MAX_SPIN_VERTICAL = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so the cue stays just above the ball surface
 const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
