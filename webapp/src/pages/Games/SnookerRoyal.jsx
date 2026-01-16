@@ -1377,9 +1377,7 @@ const POCKET_VIEW_MAX_HOLD_MS = 3200;
 const SPIN_STRENGTH = BALL_R * 0.034;
 const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
-const BACKSPIN_ROLL_BOOST = 1.5;
-const BACKSPIN_IMPULSE_BOOST = 1.4;
-const BACKSPIN_IMPULSE_DECAY = 0.94;
+const BACKSPIN_ROLL_BOOST = 1.35;
 const SPIN_ROLL_DECAY = 0.983;
 const SPIN_AIR_DECAY = 0.995; // hold spin energy while the cue ball travels straight pre-impact
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
@@ -5932,10 +5930,7 @@ function applySpinImpulse(ball, scale = 1) {
   const swerveScale = 0.8 + Math.min(speed, 8) * 0.15;
   const liftScale = 0.35 + Math.min(speed, 6) * 0.08;
   const lateralKick = sideSpin * SPIN_STRENGTH * swerveScale * scale;
-  const isBackspin = forwardSpin < -1e-4;
-  const forwardKickScale = isBackspin ? BACKSPIN_IMPULSE_BOOST : 0.5;
-  const forwardKick =
-    forwardSpin * SPIN_STRENGTH * liftScale * scale * forwardKickScale;
+  const forwardKick = forwardSpin * SPIN_STRENGTH * liftScale * scale * 0.5;
   if (Math.abs(lateralKick) > 1e-8) {
     ball.vel.addScaledVector(lateral, lateralKick);
   }
@@ -5947,8 +5942,7 @@ function applySpinImpulse(ball, scale = 1) {
     ball.swerveStrength = 0;
     ball.swervePowerStrength = 0;
   }
-  const decayBase = isBackspin ? BACKSPIN_IMPULSE_DECAY : SPIN_DECAY;
-  const decayFactor = Math.pow(decayBase, Math.max(scale, 0.5));
+  const decayFactor = Math.pow(SPIN_DECAY, Math.max(scale, 0.5));
   ball.spin.multiplyScalar(decayFactor);
   if (ball.spin.lengthSq() < 1e-6) {
     ball.spin.set(0, 0);
