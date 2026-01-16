@@ -2560,6 +2560,7 @@ function buildSnakeBoard(
   const levelGap = PYRAMID_LEVEL_GAP;
   const platformMeshes = [];
   const wallMaterials = [];
+  const topMaterials = [];
   const railingInfos = [];
   const levelPlacements = [];
   const topTileLift = (platformThickness + tileHeight + levelGap) * TOP_TILE_EXTRA_LEVELS;
@@ -2593,6 +2594,7 @@ function buildSnakeBoard(
       emissive: rimTone.clone().multiplyScalar(0.12),
       emissiveIntensity: 0.12
     });
+    topMaterials.push(topMaterial);
     const bottomMaterial = new THREE.MeshStandardMaterial({
       color: PYRAMID_CONCRETE_BASE,
       roughness: 0.84,
@@ -2670,6 +2672,9 @@ function buildSnakeBoard(
         if (!textureSet) return;
         const repeat = (floorTexture.repeat ?? 2) * TEXTURE_REPEAT_SCALE;
         applyTextureSetToMaterial(pavementMaterial, textureSet, repeat);
+        topMaterials.forEach((material) => {
+          applyTextureSetToMaterial(material, textureSet, repeat);
+        });
       })
       .catch(() => {});
   }
@@ -2679,7 +2684,7 @@ function buildSnakeBoard(
       .then((textureSet) => {
         if (!textureSet) return;
         wallMaterials.forEach((material) => {
-          const repeat = (wallTexture.repeat ?? 1.6) * TEXTURE_REPEAT_SCALE;
+          const repeat = (wallTexture.repeat ?? 1.6) * TEXTURE_REPEAT_SCALE * 0.5;
           applyTextureSetToMaterial(material, textureSet, repeat);
         });
       })
@@ -3049,12 +3054,18 @@ function updateTokens(
 
   const desiredShapeId = tokenShape?.id || 'default';
   const desiredPieceType = tokenShape?.pieceType || null;
+  const basePiecePrototype = desiredPieceType ? tokenPrototypes?.[desiredPieceType] : null;
 
   players.forEach((player, index) => {
     keep.add(index);
     let token = existing.get(index);
     const seatIndex = Number.isFinite(player?.seatIndex) ? player.seatIndex : index;
-    if (token && token.userData?.shapeId !== desiredShapeId) {
+    if (
+      token &&
+      (token.userData?.shapeId !== desiredShapeId ||
+        token.userData?.pieceType !== desiredPieceType ||
+        token.userData?.usesPrototype !== Boolean(basePiecePrototype))
+    ) {
       tokensGroup.remove(token);
       token.traverse((obj) => {
         if (obj.isMesh) {
@@ -3068,7 +3079,7 @@ function updateTokens(
     if (!token) {
       token = new THREE.Group();
       const baseColor = new THREE.Color(player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]);
-      const piecePrototype = desiredPieceType ? tokenPrototypes?.[desiredPieceType] : null;
+      const piecePrototype = basePiecePrototype;
       let coreMaterial = null;
       let accentMaterial = null;
       if (piecePrototype) {
@@ -3163,7 +3174,9 @@ function updateTokens(
         coreMaterial: piecePrototype ? null : coreMaterial,
         accentMaterial: piecePrototype ? null : accentMaterial,
         isSliding: false,
-        shapeId: desiredShapeId
+        shapeId: desiredShapeId,
+        pieceType: desiredPieceType,
+        usesPrototype: Boolean(piecePrototype)
       };
       tokensGroup.add(token);
     }
