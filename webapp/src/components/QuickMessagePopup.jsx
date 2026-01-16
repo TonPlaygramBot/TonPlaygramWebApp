@@ -18,16 +18,25 @@ const MESSAGES = [
   'Great comeback 🏆',
 ];
 
-export default function QuickMessagePopup({ open, onClose, onSend }) {
+export default function QuickMessagePopup({
+  open,
+  onClose,
+  onSend,
+  overlayClassName = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70',
+  panelClassName = 'bg-surface border border-border rounded p-4 space-y-2 w-64',
+  messageButtonClassName = 'text-sm border border-border rounded px-1 py-0.5',
+  messageButtonActiveClassName = 'bg-accent',
+  sendButtonClassName = 'w-full px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black',
+}) {
   const [message, setMessage] = useState(MESSAGES[0]);
   if (!open) return null;
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70"
+      className={overlayClassName}
       onClick={onClose}
     >
       <div
-        className="bg-surface border border-border rounded p-4 space-y-2 w-64"
+        className={panelClassName}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">
@@ -35,8 +44,8 @@ export default function QuickMessagePopup({ open, onClose, onSend }) {
             <button
               key={m}
               onClick={() => setMessage(m)}
-              className={`text-sm border border-border rounded px-1 py-0.5 ${
-                message === m ? 'bg-accent' : ''
+              className={`${messageButtonClassName} ${
+                message === m ? messageButtonActiveClassName : ''
               }`}
             >
               {m}
@@ -44,7 +53,7 @@ export default function QuickMessagePopup({ open, onClose, onSend }) {
           ))}
         </div>
         <button
-          className="w-full px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
+          className={sendButtonClassName}
           onClick={() => {
             onSend && onSend(message);
             onClose();

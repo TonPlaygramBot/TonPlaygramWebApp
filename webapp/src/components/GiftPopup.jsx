@@ -10,7 +10,24 @@ import ConfirmPopup from './ConfirmPopup.jsx';
 import InfoPopup from './InfoPopup.jsx';
 
 
-export default function GiftPopup({ open, onClose, players = [], senderIndex = 0, onGiftSent }) {
+export default function GiftPopup({
+  open,
+  onClose,
+  players = [],
+  senderIndex = 0,
+  onGiftSent,
+  overlayClassName = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70',
+  panelClassName = 'bg-surface border border-border rounded p-4 space-y-2 w-72',
+  titleClassName = 'text-center font-semibold mb-2',
+  playerButtonClassName = 'w-full flex items-center space-x-2 border border-border rounded px-1 py-0.5 text-sm',
+  playerButtonActiveClassName = 'bg-accent',
+  tierTitleClassName = 'text-sm font-bold',
+  giftButtonClassName = 'border border-border rounded px-1 py-0.5 text-sm flex items-center justify-center space-x-1',
+  giftButtonActiveClassName = 'bg-accent',
+  costClassName = 'text-xs text-center mt-2 flex items-center justify-center space-x-1',
+  sendButtonClassName = 'w-full px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black',
+  noteClassName = 'text-xs text-center mt-1'
+}) {
   const validPlayers = players.filter((p) => p.id);
   const [selected, setSelected] = useState(NFT_GIFTS[0]);
   const [target, setTarget] = useState(validPlayers[0]?.index || 0);
@@ -81,21 +98,21 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
   return createPortal(
     <>
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70"
+        className={overlayClassName}
         onClick={onClose}
       >
         <div
-          className="bg-surface border border-border rounded p-4 space-y-2 w-72"
+          className={panelClassName}
           onClick={(e) => e.stopPropagation()}
         >
-          <p className="text-center font-semibold mb-2">Send Gift</p>
+          <p className={titleClassName}>Send Gift</p>
           <div className="space-y-1 max-h-32 overflow-y-auto">
             {validPlayers.map((p) => (
               <button
                 key={p.index}
                 onClick={() => setTarget(p.index)}
-                className={`w-full flex items-center space-x-2 border border-border rounded px-1 py-0.5 text-sm ${
-                  target === p.index ? 'bg-accent' : ''
+                className={`${playerButtonClassName} ${
+                  target === p.index ? playerButtonActiveClassName : ''
                 }`}
               >
                 <img src={p.photoUrl} alt={`${p.name}'s avatar`} className="w-5 h-5 rounded-full" />
@@ -105,14 +122,14 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
           </div>
           {tiers.map((tier) => (
             <div key={tier} className="space-y-1">
-              <p className="text-sm font-bold">Tier {tier}</p>
+              <p className={tierTitleClassName}>Tier {tier}</p>
               <div className="grid grid-cols-2 gap-1">
                 {NFT_GIFTS.filter((g) => g.tier === tier).map((g) => (
                   <button
                     key={g.id}
                     onClick={() => setSelected(g)}
-                    className={`border border-border rounded px-1 py-0.5 text-sm flex items-center justify-center space-x-1 ${
-                      selected.id === g.id ? 'bg-accent' : ''
+                    className={`${giftButtonClassName} ${
+                      selected.id === g.id ? giftButtonActiveClassName : ''
                     }`}
                   >
                   <GiftIcon icon={g.icon} className="w-4 h-4" />
@@ -125,18 +142,18 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
               </div>
             </div>
           ))}
-          <div className="text-xs text-center mt-2 flex items-center justify-center space-x-1">
+          <div className={costClassName}>
             <span>Cost:</span>
             <span>{selected.price}</span>
             <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-3 h-3" />
           </div>
           <button
-            className="w-full px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
+            className={sendButtonClassName}
             onClick={() => setConfirmOpen(true)}
           >
             Send <GiftIcon icon={selected.icon} className="w-4 h-4 inline" /> {selected.name}
           </button>
-          <p className="text-xs text-center mt-1">
+          <p className={noteClassName}>
             10% charge and the amount of the gift will be deducted from your balance.
           </p>
         </div>
