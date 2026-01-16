@@ -3072,6 +3072,14 @@ export default function SnakeAndLadder() {
             onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
+            style={{
+              left: 'calc(0.75rem + env(safe-area-inset-left, 0px))',
+              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)'
+            }}
+            className="fixed z-20 flex flex-col items-center gap-2"
+            buttonClassName="w-[3.15rem] h-[3.15rem] rounded-[14px] bg-black/60 border border-white/20 text-white flex flex-col items-center justify-center gap-1 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur-md"
+            iconClassName="text-[1.1rem] leading-none"
+            labelClassName="text-[0.6rem] font-extrabold tracking-[0.08em] uppercase"
           />
         </div>
         {/* Player photos stacked vertically */}
