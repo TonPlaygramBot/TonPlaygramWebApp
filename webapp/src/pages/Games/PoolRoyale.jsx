@@ -23563,15 +23563,16 @@ const powerRef = useRef(hud.power);
                 }
                 if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
                   const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
-                  const forwardMag = Math.max(0, TMP_VEC2_SPIN.dot(launchDir));
-                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
+                  const signedSpinMag = TMP_VEC2_SPIN.dot(launchDir);
+                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(signedSpinMag);
                   b.vel.add(TMP_VEC2_AXIS);
                   TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
                   if (b.spinMode === 'swerve' && b.pendingSpin && swerveScale > 0) {
                     b.pendingSpin.addScaledVector(TMP_VEC2_LATERAL, swerveScale);
                   }
                   const alignedSpeed = b.vel.dot(launchDir);
-                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
+                  const clampedSpeed = Math.max(0, alignedSpeed);
+                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(clampedSpeed);
                   b.vel.copy(TMP_VEC2_AXIS);
                   if (b.spinMode === 'swerve' && swerveScale > 0) {
                     b.vel.addScaledVector(
