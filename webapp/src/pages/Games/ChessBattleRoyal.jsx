@@ -22,8 +22,8 @@ import {
   getTelegramUsername,
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
-import { bombSound, timerBeep } from '../../assets/soundData.js';
-import { getGameVolume } from '../../utils/sound.js';
+import { bombSound, chatBeep, timerBeep } from '../../assets/soundData.js';
+import { getGameVolume, isGameMuted } from '../../utils/sound.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { TABLE_WOOD_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_BASE_OPTIONS } from '../../utils/tableCustomizationOptions.js';
 import {
@@ -45,7 +45,12 @@ import { avatarToName } from '../../utils/avatarUtils.js';
 import { getAIOpponentFlag } from '../../utils/aiOpponentFlag.js';
 import { ipToFlag } from '../../utils/conflictMatchmaking.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
+import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
+import InfoPopup from '../../components/InfoPopup.jsx';
+import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
+import GiftPopup from '../../components/GiftPopup.jsx';
 import { socket } from '../../utils/socket.js';
+import { giftSounds } from '../../utils/giftSounds.js';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -5870,6 +5875,7 @@ function Chess3D({
   const initialBlackTimeRef = useRef(5);
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [muted, setMuted] = useState(isGameMuted());
   const [showHighlights, setShowHighlights] = useState(true);
   const [graphicsId, setGraphicsId] = useState(() => {
     const fallback = resolveDefaultGraphicsId();
@@ -5884,6 +5890,10 @@ function Chess3D({
   const [seatAnchors, setSeatAnchors] = useState([]);
   const [viewMode, setViewMode] = useState('2d');
   const [canReplay, setCanReplay] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showGift, setShowGift] = useState(false);
+  const [chatBubbles, setChatBubbles] = useState([]);
   const [ui, setUi] = useState({
     turnWhite: true,
     status: 'White to move',
@@ -5894,6 +5904,7 @@ function Chess3D({
   const lastMoveRef = useRef(null);
   const replayLastMoveRef = useRef(() => {});
   const isReplayingRef = useRef(false);
+  const userPhotoUrl = avatar || '/assets/icons/profile.svg';
   const activeGraphicsOption = useMemo(
     () =>
       GRAPHICS_OPTIONS.find((opt) => opt.id === graphicsId) ||
@@ -6339,11 +6350,12 @@ function Chess3D({
   }, [moveMode]);
 
   useEffect(() => {
-    settingsRef.current.soundEnabled = soundEnabled;
+    const soundActive = soundEnabled && !muted;
+    settingsRef.current.soundEnabled = soundActive;
     const volume = getGameVolume();
     if (bombSoundRef.current) {
-      bombSoundRef.current.volume = soundEnabled ? volume : 0;
-      if (!soundEnabled) {
+      bombSoundRef.current.volume = soundActive ? volume : 0;
+      if (!soundActive) {
         try {
           bombSoundRef.current.pause();
           bombSoundRef.current.currentTime = 0;
@@ -6351,8 +6363,8 @@ function Chess3D({
       }
     }
     if (timerSoundRef.current) {
-      timerSoundRef.current.volume = soundEnabled ? volume : 0;
-      if (!soundEnabled) {
+      timerSoundRef.current.volume = soundActive ? volume : 0;
+      if (!soundActive) {
         try {
           timerSoundRef.current.pause();
           timerSoundRef.current.currentTime = 0;
@@ -6360,8 +6372,8 @@ function Chess3D({
       }
     }
     if (moveSoundRef.current) {
-      moveSoundRef.current.volume = soundEnabled ? volume : 0;
-      if (!soundEnabled) {
+      moveSoundRef.current.volume = soundActive ? volume : 0;
+      if (!soundActive) {
         try {
           moveSoundRef.current.pause();
           moveSoundRef.current.currentTime = 0;
@@ -6369,8 +6381,8 @@ function Chess3D({
       }
     }
     if (checkSoundRef.current) {
-      checkSoundRef.current.volume = soundEnabled ? volume : 0;
-      if (!soundEnabled) {
+      checkSoundRef.current.volume = soundActive ? volume : 0;
+      if (!soundActive) {
         try {
           checkSoundRef.current.pause();
           checkSoundRef.current.currentTime = 0;
@@ -6378,8 +6390,8 @@ function Chess3D({
       }
     }
     if (mateSoundRef.current) {
-      mateSoundRef.current.volume = soundEnabled ? volume : 0;
-      if (!soundEnabled) {
+      mateSoundRef.current.volume = soundActive ? volume : 0;
+      if (!soundActive) {
         try {
           mateSoundRef.current.pause();
           mateSoundRef.current.currentTime = 0;
@@ -6387,19 +6399,25 @@ function Chess3D({
       }
     }
     if (laughSoundRef.current) {
-      laughSoundRef.current.volume = soundEnabled ? volume : 0;
-      if (!soundEnabled) {
+      laughSoundRef.current.volume = soundActive ? volume : 0;
+      if (!soundActive) {
         try {
           laughSoundRef.current.pause();
           laughSoundRef.current.currentTime = 0;
         } catch {}
       }
     }
-    if (!soundEnabled && laughTimeoutRef.current) {
+    if (!soundActive && laughTimeoutRef.current) {
       clearTimeout(laughTimeoutRef.current);
       laughTimeoutRef.current = null;
     }
-  }, [soundEnabled]);
+  }, [muted, soundEnabled]);
+
+  useEffect(() => {
+    const handler = () => setMuted(isGameMuted());
+    window.addEventListener('gameMuteChanged', handler);
+    return () => window.removeEventListener('gameMuteChanged', handler);
+  }, []);
 
   useEffect(() => {
     const handleVolumeChange = () => {
@@ -9137,11 +9155,156 @@ function Chess3D({
             );
           })}
         </div>
+        <div className="pointer-events-auto">
+          <BottomLeftIcons
+            onInfo={() => setShowInfo(true)}
+            onChat={() => setShowChat(true)}
+            onGift={() => setShowGift(true)}
+          />
+        </div>
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
             {ui.winner ? `${ui.winner} Wins` : ui.status}
           </div>
         </div>
+      </div>
+      {chatBubbles.map((bubble) => (
+        <div key={bubble.id} className="chat-bubble">
+          <span>{bubble.text}</span>
+          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
+        </div>
+      ))}
+      <div className="pointer-events-auto">
+        <InfoPopup
+          open={showInfo}
+          onClose={() => setShowInfo(false)}
+          title="Chess Battle Royal"
+          info="Checkmate the opponent by putting their king under unavoidable capture. Tap a piece to see legal moves, then tap a highlighted square to move. Captures trigger a blast effect, so stay alert!"
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <QuickMessagePopup
+          open={showChat}
+          onClose={() => setShowChat(false)}
+          onSend={(text) => {
+            const id = Date.now();
+            setChatBubbles((bubbles) => [...bubbles, { id, text, photoUrl: userPhotoUrl }]);
+            if (soundEnabled && !muted) {
+              const audio = new Audio(chatBeep);
+              audio.volume = getGameVolume();
+              audio.play().catch(() => {});
+            }
+            setTimeout(
+              () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
+              3000,
+            );
+          }}
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <GiftPopup
+          open={showGift}
+          onClose={() => setShowGift(false)}
+          players={players.map((player) => ({
+            ...player,
+            id: player.index === 0 ? resolvedAccountId : opponent?.id ?? `chess-ai-${player.index}`,
+            name: player.name
+          }))}
+          senderIndex={0}
+          onGiftSent={({ from, to, gift }) => {
+            const start = document.querySelector(`[data-player-index="${from}"]`);
+            const end = document.querySelector(`[data-player-index="${to}"]`);
+            if (start && end) {
+              const s = start.getBoundingClientRect();
+              const e = end.getBoundingClientRect();
+              const cx = window.innerWidth / 2;
+              const cy = window.innerHeight / 2;
+              let icon;
+              if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
+                icon = document.createElement('img');
+                icon.src = gift.icon;
+                icon.className = 'w-5 h-5';
+              } else {
+                icon = document.createElement('div');
+                icon.textContent = gift.icon;
+                icon.style.fontSize = '24px';
+              }
+              icon.style.position = 'fixed';
+              icon.style.left = '0px';
+              icon.style.top = '0px';
+              icon.style.pointerEvents = 'none';
+              icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`;
+              icon.style.zIndex = '9999';
+              document.body.appendChild(icon);
+              const giftSound = giftSounds[gift.id];
+              if (gift.id === 'laugh_bomb' && soundEnabled && !muted) {
+                if (bombSoundRef.current) {
+                  bombSoundRef.current.currentTime = 0;
+                  bombSoundRef.current.play().catch(() => {});
+                }
+                if (laughSoundRef.current) {
+                  laughSoundRef.current.currentTime = 0;
+                  laughSoundRef.current.play().catch(() => {});
+                  setTimeout(() => {
+                    laughSoundRef.current?.pause();
+                  }, 5000);
+                }
+              } else if (gift.id === 'coffee_boost' && soundEnabled && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.currentTime = 4;
+                audio.play().catch(() => {});
+                setTimeout(() => {
+                  audio.pause();
+                }, 4000);
+              } else if (gift.id === 'baby_chick' && soundEnabled && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+              } else if (gift.id === 'magic_trick' && soundEnabled && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+                setTimeout(() => {
+                  audio.pause();
+                }, 4000);
+              } else if (gift.id === 'fireworks' && soundEnabled && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+                setTimeout(() => {
+                  audio.pause();
+                }, 6000);
+              } else if (gift.id === 'surprise_box' && soundEnabled && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+                setTimeout(() => {
+                  audio.pause();
+                }, 5000);
+              } else if (gift.id === 'bullseye' && soundEnabled && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                setTimeout(() => {
+                  audio.play().catch(() => {});
+                }, 2500);
+              } else if (giftSound && soundEnabled && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+              }
+              const animation = icon.animate(
+                [
+                  { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
+                  { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+                  { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
+                ],
+                { duration: 3500, easing: 'linear' },
+              );
+              animation.onfinish = () => icon.remove();
+            }
+          }}
+        />
       </div>
     </div>
   );
