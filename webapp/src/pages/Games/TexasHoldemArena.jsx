@@ -23,6 +23,7 @@ import { createChipFactory } from '../../utils/chips3d.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { AVATARS } from '../../components/AvatarPickerModal.jsx';
 import { getAvatarUrl } from '../../utils/avatarUtils.js';
+import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import {
   TABLE_WOOD_OPTIONS,
   TABLE_CLOTH_OPTIONS,
@@ -36,6 +37,10 @@ import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.j
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
 import { TEXAS_HDRI_OPTIONS, TEXAS_TABLE_FINISH_OPTIONS } from '../../config/texasHoldemInventoryConfig.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID } from '../../config/poolRoyaleInventoryConfig.js';
+import { chatBeep } from '../../assets/soundData.js';
+import GiftPopup from '../../components/GiftPopup.jsx';
+import InfoPopup from '../../components/InfoPopup.jsx';
+import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 
 import {
   createDeck,
@@ -765,6 +770,23 @@ function normalizeAppearance(value = {}) {
     }
   });
   return normalized;
+}
+
+function buildSeatAnchors(count) {
+  const safeCount = Math.max(1, Math.min(count, MAX_PLAYER_COUNT));
+  const centerX = 50;
+  const centerY = 52;
+  const radiusX = 38;
+  const radiusY = 32;
+  const anchors = [];
+  for (let i = 0; i < safeCount; i += 1) {
+    const angle = -Math.PI / 2 + (i / safeCount) * Math.PI * 2;
+    anchors.push({
+      left: `${centerX + Math.cos(angle) * radiusX}%`,
+      top: `${centerY + Math.sin(angle) * radiusY}%`
+    });
+  }
+  return anchors;
 }
 
 function createConfiguredGLTFLoader(renderer = null, manager = undefined) {
@@ -2502,6 +2524,11 @@ function TexasHoldemArena({ search }) {
     maxRaise: 0,
     minRaise: 0
   });
+  const [showInfo, setShowInfo] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showGift, setShowGift] = useState(false);
+  const [chatBubbles, setChatBubbles] = useState([]);
+  const [muted, setMuted] = useState(isGameMuted());
   const [chipSelection, setChipSelection] = useState([]);
   const [sliderValue, setSliderValue] = useState(0);
   const overheadView = false;
@@ -2687,6 +2714,12 @@ function TexasHoldemArena({ search }) {
     window.addEventListener('texasHoldemInventoryUpdate', handler);
     return () => window.removeEventListener('texasHoldemInventoryUpdate', handler);
   }, [resolvedAccountId]);
+
+  useEffect(() => {
+    const handleMute = () => setMuted(isGameMuted());
+    window.addEventListener('gameMuteChanged', handleMute);
+    return () => window.removeEventListener('gameMuteChanged', handleMute);
+  }, []);
 
   const playSound = useCallback((name) => {
     const audio = soundsRef.current?.[name];
@@ -4477,6 +4510,10 @@ function TexasHoldemArena({ search }) {
 
   const actor = gameState.players[gameState.actionIndex];
   const humanPlayer = useMemo(() => gameState.players.find((p) => p.isHuman), [gameState.players]);
+  const humanPlayerIndex = useMemo(
+    () => gameState.players.findIndex((p) => p.isHuman),
+    [gameState.players]
+  );
   const isHumanTurn = actor?.id === humanPlayer?.id;
   const countdownProgress = Math.min(1, Math.max(0, turnCountdown / TURN_DURATION));
   const toCall = humanPlayer ? Math.max(0, gameState.currentBet - humanPlayer.bet) : 0;
@@ -4498,6 +4535,8 @@ function TexasHoldemArena({ search }) {
   const sliderLabel = toCall > 0 ? 'Raise' : 'Bet';
   const sliderDisplayValue = sliderVisible ? Math.round(Math.min(sliderMax, sliderValue)) : 0;
   const overlayConfirmDisabled = !sliderEnabled || (sliderMax > 0 && finalRaise <= 0);
+  const chatAvatar = humanPlayer?.avatar || '/assets/icons/profile.svg';
+  const seatAnchors = useMemo(() => buildSeatAnchors(gameState.players.length), [gameState.players.length]);
 
   useEffect(() => {
     const three = threeRef.current;
@@ -4735,8 +4774,8 @@ function TexasHoldemArena({ search }) {
             <span className="sr-only">Open table customization</span>
           </button>
         </div>
-        {configOpen && (
-          <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
+      {configOpen && (
+        <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</span>
               <button
@@ -4821,6 +4860,16 @@ function TexasHoldemArena({ search }) {
           </div>
         )}
       </div>
+      <div className="absolute inset-0 pointer-events-none">
+        {seatAnchors.map((anchor, index) => (
+          <div
+            key={`texas-seat-anchor-${index}`}
+            data-player-index={index}
+            className="absolute h-6 w-6 -translate-x-1/2 -translate-y-1/2 opacity-0"
+            style={{ left: anchor.left, top: anchor.top }}
+          />
+        ))}
+      </div>
       <div className="absolute bottom-14 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto">
         <div className="flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur">
           {humanPlayer?.avatar &&
@@ -4880,6 +4929,13 @@ function TexasHoldemArena({ search }) {
           </div>
         </div>
       )}
+      <div className="pointer-events-auto">
+        <BottomLeftIcons
+          onInfo={() => setShowInfo(true)}
+          onChat={() => setShowChat(true)}
+          onGift={() => setShowGift(true)}
+        />
+      </div>
       {actor?.isHuman && gameState.stage !== 'showdown' && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center justify-center gap-3">
           <button
@@ -4917,6 +4973,88 @@ function TexasHoldemArena({ search }) {
           </button>
         </div>
       )}
+      {chatBubbles.map((bubble) => (
+        <div key={bubble.id} className="chat-bubble">
+          <span>{bubble.text}</span>
+          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
+        </div>
+      ))}
+      <div className="pointer-events-auto">
+        <InfoPopup
+          open={showInfo}
+          onClose={() => setShowInfo(false)}
+          title="Texas Hold'em"
+          info="Receive two hole cards, then bet through the flop, turn, and river. Build the best five-card hand from the community cards to win the pot."
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <QuickMessagePopup
+          open={showChat}
+          onClose={() => setShowChat(false)}
+          onSend={(text) => {
+            const id = Date.now();
+            setChatBubbles((bubbles) => [...bubbles, { id, text, photoUrl: chatAvatar }]);
+            if (!muted) {
+              const audio = new Audio(chatBeep);
+              audio.volume = getGameVolume();
+              audio.play().catch(() => {});
+            }
+            setTimeout(
+              () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
+              3000
+            );
+          }}
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <GiftPopup
+          open={showGift}
+          onClose={() => setShowGift(false)}
+          players={gameState.players.map((player, index) => ({
+            ...player,
+            index,
+            photoUrl: player.avatar,
+            name: player.name ?? `Player ${index + 1}`
+          }))}
+          senderIndex={humanPlayerIndex >= 0 ? humanPlayerIndex : 0}
+          onGiftSent={({ from, to, gift }) => {
+            const start = document.querySelector(`[data-player-index="${from}"]`);
+            const end = document.querySelector(`[data-player-index="${to}"]`);
+            if (start && end) {
+              const s = start.getBoundingClientRect();
+              const e = end.getBoundingClientRect();
+              const cx = window.innerWidth / 2;
+              const cy = window.innerHeight / 2;
+              let icon;
+              if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
+                icon = document.createElement('img');
+                icon.src = gift.icon;
+                icon.className = 'w-5 h-5';
+              } else {
+                icon = document.createElement('div');
+                icon.textContent = gift.icon;
+                icon.style.fontSize = '24px';
+              }
+              icon.style.position = 'fixed';
+              icon.style.left = '0px';
+              icon.style.top = '0px';
+              icon.style.pointerEvents = 'none';
+              icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`;
+              icon.style.zIndex = '9999';
+              document.body.appendChild(icon);
+              const animation = icon.animate(
+                [
+                  { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
+                  { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+                  { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` }
+                ],
+                { duration: 3500, easing: 'linear' }
+              );
+              animation.onfinish = () => icon.remove();
+            }
+          }}
+        />
+      </div>
     </div>
   );
 }
