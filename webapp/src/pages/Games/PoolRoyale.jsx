@@ -1125,7 +1125,7 @@ const PHYSICS_PROFILE = Object.freeze({
   mu: 0.2,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
-  maxTipOffsetRatio: 0.9
+  maxTipOffsetRatio: 0.7
 });
 const PHYSICS_BASE_STEP = 1 / 60;
 const FRICTION = Math.exp(-PHYSICS_PROFILE.mu * PHYSICS_BASE_STEP);
@@ -1352,14 +1352,14 @@ const BACKSPIN_ROLL_BOOST = 1.9;
 const CUE_BACKSPIN_ROLL_BOOST = 2.8;
 const SPIN_ROLL_DECAY = Math.exp(-PHYSICS_PROFILE.spinDecay * PHYSICS_BASE_STEP);
 const SPIN_AIR_DECAY = Math.exp(-PHYSICS_PROFILE.airSpinDecay * PHYSICS_BASE_STEP); // hold spin energy while the cue ball travels straight pre-impact
-const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
+const LIFT_SPIN_AIR_DRIFT = 0; // avoid artificial sideways curve while airborne
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
-const SWERVE_PRE_IMPACT_DRIFT = 0.35; // allow a visible curve before the cue ball hits the object ball
-const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
+const SWERVE_PRE_IMPACT_DRIFT = 0; // keep pre-impact travel straight (no artificial curve)
+const PRE_IMPACT_SPIN_DRIFT = 0; // avoid reapplying sideways drift after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.

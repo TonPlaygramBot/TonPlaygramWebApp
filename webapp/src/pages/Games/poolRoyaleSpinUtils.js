@@ -3,6 +3,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export const SPIN_INPUT_DEAD_ZONE = 0.015;
 export const SPIN_RESPONSE_EXPONENT = 1.9;
 export const SPIN_RESPONSE_EXPONENT_BACKSPIN = 1.65;
+export const SPIN_MAX_OFFSET = 0.7;
 
 export const clampToUnitCircle = (x, y) => {
   const length = Math.hypot(x, y);
@@ -35,14 +36,18 @@ export const applySpinResponseCurve = (spin) => {
   const exponent = clamped.y < 0 ? SPIN_RESPONSE_EXPONENT_BACKSPIN : SPIN_RESPONSE_EXPONENT;
   const curvedMag = Math.pow(clampedMag, exponent);
   const scale = clampedMag > 1e-6 ? curvedMag / clampedMag : 0;
-  return { x: clamped.x * scale, y: clamped.y * scale };
+  const normalized = { x: clamped.x * scale, y: clamped.y * scale };
+  return {
+    x: normalized.x * SPIN_MAX_OFFSET,
+    y: normalized.y * SPIN_MAX_OFFSET
+  };
 };
 
 export const mapSpinForPhysics = (spin) => {
-  const adjusted = {
-    x: clamp(spin?.x ?? 0, -1, 1),
-    y: clamp(spin?.y ?? 0, -1, 1)
-  };
+  const adjusted = clampToUnitCircle(
+    clamp(spin?.x ?? 0, -1, 1),
+    clamp(spin?.y ?? 0, -1, 1)
+  );
   const curved = applySpinResponseCurve(adjusted);
   return {
     // UI uses screen-space: +X is right, +Y is up. Flip X to align side spin to
