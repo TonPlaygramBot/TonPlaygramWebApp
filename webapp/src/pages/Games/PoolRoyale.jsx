@@ -1335,6 +1335,8 @@ const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
 const BACKSPIN_ROLL_BOOST = 1.9;
 const CUE_BACKSPIN_ROLL_BOOST = 2.8;
+const TOPSPIN_IMPULSE_BOOST = 1.35; // reinforce forward kick so high top spin keeps rolling
+const TOPSPIN_ROLL_BOOST = 1.25; // extra forward roll so topspin follows through after impact
 const SPIN_ROLL_DECAY = 0.983;
 const SPIN_AIR_DECAY = 0.995; // hold spin energy while the cue ball travels straight pre-impact
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
@@ -1460,7 +1462,7 @@ const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
 const SIDE_SPIN_MULTIPLIER = 1.5;
 const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.65;
-const TOPSPIN_MULTIPLIER = 1.5;
+const TOPSPIN_MULTIPLIER = 1.75;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -5879,11 +5881,21 @@ function applySpinImpulse(ball, scale = 1, forwardOverride = null) {
       ? TMP_VEC2_LATERAL.set(-forward.y, forward.x)
       : resolvedLateral;
   const backspinBoost = forwardSpin < -1e-4 ? 2.05 : 1;
+  const topspinBoost =
+    forwardSpin > 1e-4
+      ? 1 + Math.min(Math.abs(forwardSpin), 1) * (TOPSPIN_IMPULSE_BOOST - 1)
+      : 1;
   const swerveScale = 0.8 + Math.min(speed, 8) * 0.15;
   const liftScale = 0.35 + Math.min(speed, 6) * 0.08;
   const lateralKick = sideSpin * SPIN_STRENGTH * swerveScale * scale;
   const forwardKick =
-    forwardSpin * SPIN_STRENGTH * liftScale * scale * 0.75 * backspinBoost;
+    forwardSpin *
+    SPIN_STRENGTH *
+    liftScale *
+    scale *
+    0.75 *
+    backspinBoost *
+    topspinBoost;
   if (Math.abs(lateralKick) > 1e-8) {
     ball.vel.addScaledVector(lateral, lateralKick);
   }
@@ -23569,6 +23581,19 @@ const powerRef = useRef(hud.power);
                 TMP_VEC2_SPIN.multiplyScalar(
                   SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
                 );
+                const forwardSpin = b.spin?.y ?? 0;
+                if (forwardSpin > 1e-4) {
+                  const { forward } = resolveSpinFrame(b);
+                  const forwardBoost =
+                    1 + Math.min(Math.abs(forwardSpin), 1) * (TOPSPIN_ROLL_BOOST - 1);
+                  const forwardComponent = TMP_VEC2_SPIN.dot(forward);
+                  if (Math.abs(forwardComponent) > 1e-8) {
+                    TMP_VEC2_AXIS.copy(forward).multiplyScalar(
+                      forwardComponent * (forwardBoost - 1)
+                    );
+                    TMP_VEC2_SPIN.add(TMP_VEC2_AXIS);
+                  }
+                }
                 const isBackspin = (b.spin?.y ?? 0) < -1e-4;
                 if (isBackspin && isCue && b.impacted) {
                   TMP_VEC2_SPIN.multiplyScalar(CUE_BACKSPIN_ROLL_BOOST);
