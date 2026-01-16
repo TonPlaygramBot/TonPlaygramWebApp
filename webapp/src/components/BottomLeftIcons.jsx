@@ -10,6 +10,9 @@ export default function BottomLeftIcons({
   showChat = true,
   showGift = true,
   showMute = true,
+  buttonClassName = 'p-1 flex flex-col items-center',
+  iconClassName = 'text-xl',
+  labelClassName = 'text-xs',
 }) {
   const [muted, setMuted] = useState(isGameMuted());
 
@@ -27,27 +30,27 @@ export default function BottomLeftIcons({
   return (
     <div className={className}>
       {showChat && onChat && (
-        <button onClick={onChat} className="p-1 flex flex-col items-center">
-          <AiOutlineMessage className="text-xl" />
-          <span className="text-xs">Chat</span>
+        <button type="button" onClick={onChat} className={buttonClassName}>
+          <AiOutlineMessage className={iconClassName} />
+          <span className={labelClassName}>Chat</span>
         </button>
       )}
       {showGift && onGift && (
-        <button onClick={onGift} className="p-1 flex flex-col items-center">
-          <span className="text-xl">🎁</span>
-          <span className="text-xs">Gift</span>
+        <button type="button" onClick={onGift} className={buttonClassName}>
+          <span className={iconClassName}>🎁</span>
+          <span className={labelClassName}>Gift</span>
         </button>
       )}
       {showInfo && (
-        <button onClick={onInfo} className="p-1 flex flex-col items-center">
-          <AiOutlineInfoCircle className="text-xl" />
-          <span className="text-xs">Info</span>
+        <button type="button" onClick={onInfo} className={buttonClassName}>
+          <AiOutlineInfoCircle className={iconClassName} />
+          <span className={labelClassName}>Info</span>
         </button>
       )}
       {showMute && (
-        <button onClick={toggle} className="p-1 flex flex-col items-center">
-          <span className="text-lg">{muted ? '🔇' : '🔊'}</span>
-          <span className="text-xs">{muted ? 'Unmute' : 'Mute'}</span>
+        <button type="button" onClick={toggle} className={buttonClassName}>
+          <span className={iconClassName}>{muted ? '🔇' : '🔊'}</span>
+          <span className={labelClassName}>{muted ? 'Unmute' : 'Mute'}</span>
         </button>
       )}
     </div>
