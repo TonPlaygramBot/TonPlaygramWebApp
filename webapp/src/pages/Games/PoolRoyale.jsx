@@ -601,7 +601,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.28; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.32; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = CHROME_CORNER_POCKET_CUT_SCALE * 1.012; // open the rounded chrome cut slightly wider on the middle pockets only
@@ -1348,8 +1348,8 @@ const POCKET_VIEW_MAX_HOLD_MS = 3200;
 const SPIN_STRENGTH = BALL_R * 0.034;
 const SPIN_DECAY = Math.exp(-PHYSICS_PROFILE.spinDecay * PHYSICS_BASE_STEP);
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
-const BACKSPIN_ROLL_BOOST = 1.9;
-const CUE_BACKSPIN_ROLL_BOOST = 2.8;
+const BACKSPIN_ROLL_BOOST = 2.2;
+const CUE_BACKSPIN_ROLL_BOOST = 3.4;
 const SPIN_ROLL_DECAY = Math.exp(-PHYSICS_PROFILE.spinDecay * PHYSICS_BASE_STEP);
 const SPIN_AIR_DECAY = Math.exp(-PHYSICS_PROFILE.airSpinDecay * PHYSICS_BASE_STEP); // hold spin energy while the cue ball travels straight pre-impact
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
@@ -4886,10 +4886,11 @@ const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
+const CUE_STROKE_VISUAL_SLOWDOWN = 1.85;
 const AI_CUE_PULLBACK_DURATION_MS = 3400;
 const AI_CUE_FORWARD_DURATION_MS = 3400;
 const AI_STROKE_VISIBLE_DURATION_MS =
-  AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS;
+  (AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS) * CUE_STROKE_VISUAL_SLOWDOWN;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
 const AI_POST_SHOT_CAMERA_HOLD_MS = AI_STROKE_VISIBLE_DURATION_MS + AI_CAMERA_POST_STROKE_HOLD_MS;
 const SHOT_CAMERA_HOLD_MS = 2000;
@@ -4936,9 +4937,9 @@ const PLAYER_FORWARD_SLOWDOWN = 1.55;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.2;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1.85;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 36;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 44;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -17488,35 +17489,6 @@ const powerRef = useRef(hud.power);
                 frameB: initialCamera,
                 alpha: 0
               };
-            } else if (path.length > 0) {
-              const start = path[0]?.pos ?? null;
-              const end = path[path.length - 1]?.pos ?? start;
-              if (start && end) {
-                const focus = new THREE.Vector3(
-                  (start.x + end.x) * 0.5,
-                  Math.max(
-                    baseSurfaceWorldY,
-                    BALL_CENTER_Y * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE)
-                  ),
-                  (start.z + end.z) * 0.5
-                );
-                const railOverheadCamera = resolveRailOverheadReplayCamera({
-                  focusOverride: focus,
-                  minTargetY: focus.y
-                });
-                const cinematicReplayCamera = resolveReplayTopViewCamera({
-                  focusOverride: focus,
-                  minTargetY: focus.y
-                });
-                const primaryReplayCamera = railOverheadCamera ?? cinematicReplayCamera;
-                if (primaryReplayCamera) {
-                  replayFrameCameraRef.current = {
-                    frameA: primaryReplayCamera,
-                    frameB: cinematicReplayCamera ?? primaryReplayCamera,
-                    alpha: 0
-                  };
-                }
-              }
             }
           }
         };
@@ -20399,13 +20371,17 @@ const powerRef = useRef(hud.power);
           const playerStrokeScale = isAiStroke ? 1 : PLAYER_STROKE_TIME_SCALE;
           const playerForwardScale = isAiStroke ? 1 : PLAYER_FORWARD_SLOWDOWN;
           const forwardDuration = isAiStroke
-            ? AI_CUE_FORWARD_DURATION_MS
-            : forwardDurationBase * aiStrokeScale * playerStrokeScale * playerForwardScale;
+            ? AI_CUE_FORWARD_DURATION_MS * CUE_STROKE_VISUAL_SLOWDOWN
+            : forwardDurationBase *
+              aiStrokeScale *
+              playerStrokeScale *
+              playerForwardScale *
+              CUE_STROKE_VISUAL_SLOWDOWN;
           const settleDuration = isAiStroke
             ? 0
-            : settleDurationBase * aiStrokeScale * playerStrokeScale;
+            : settleDurationBase * aiStrokeScale * playerStrokeScale * CUE_STROKE_VISUAL_SLOWDOWN;
           const pullbackDuration = isAiStroke
-            ? AI_CUE_PULLBACK_DURATION_MS
+            ? AI_CUE_PULLBACK_DURATION_MS * CUE_STROKE_VISUAL_SLOWDOWN
             : Math.max(
                 CUE_STROKE_MIN_MS * PLAYER_PULLBACK_MIN_SCALE,
                 forwardDuration * PLAYER_STROKE_PULLBACK_FACTOR
