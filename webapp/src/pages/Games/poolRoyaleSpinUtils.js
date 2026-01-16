@@ -47,8 +47,9 @@ export const mapSpinForPhysics = (spin) => {
   return {
     // UI uses screen-space: +X is right, +Y is up. Keep Y aligned so topspin
     // drives the cue ball forward; invert X to keep left/right aligned to the
-    // table axes for side spin.
+    // table axes for side spin. Flip Y so top/back spin aligns with the
+    // expected cue ball roll direction.
     x: -curved.x,
-    y: curved.y
+    y: -curved.y
   };
 };
