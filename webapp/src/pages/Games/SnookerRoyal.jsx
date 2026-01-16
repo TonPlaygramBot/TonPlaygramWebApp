@@ -31,7 +31,7 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { SnookerRoyalRules } from '../../../../src/rules/SnookerRoyalRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/snookerClubTables.js';
-import { isGameMuted, getGameVolume } from '../../utils/sound.js';
+import { isGameMuted, getGameVolume, toggleGameMuted } from '../../utils/sound.js';
 import {
   createBallPreviewDataUrl,
   getBallMaterial as getBilliardBallMaterial
@@ -73,6 +73,10 @@ import {
   resolvePlayableTrainingLevel
 } from '../../utils/snookerRoyalTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
+import GiftPopup from '../../components/GiftPopup.jsx';
+import InfoPopup from '../../components/InfoPopup.jsx';
+import { chatBeep } from '../../assets/soundData.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
@@ -12366,6 +12370,12 @@ const powerRef = useRef(hud.power);
   const liftLandingTimeRef = useRef(new Map());
   const powerImpactHoldRef = useRef(0);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
+  const [showInfo, setShowInfo] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showGift, setShowGift] = useState(false);
+  const [chatBubbles, setChatBubbles] = useState([]);
+  const [muted, setMuted] = useState(isGameMuted());
+  const [opponentAccountId, setOpponentAccountId] = useState('');
   const playerInfoRef = useRef(player);
   useEffect(() => {
     playerInfoRef.current = player;
@@ -12696,6 +12706,31 @@ const powerRef = useRef(hud.power);
   }, [playerAvatar, playerName]);
   const resolvedPlayerAvatar = player.avatar || getTelegramPhotoUrl();
   const resolvedOpponentAvatar = isOnlineMatch ? opponentAvatar || '' : '';
+  const giftPlayers = useMemo(
+    () => [
+      {
+        index: 0,
+        name: player.name || 'Player',
+        photoUrl: resolvedPlayerAvatar || '/assets/icons/profile.svg',
+        id: accountId || ''
+      },
+      {
+        index: 1,
+        name: opponentDisplayName || opponentLabel,
+        photoUrl: opponentDisplayAvatar || '/assets/icons/profile.svg',
+        id: opponentAccountId || ''
+      }
+    ],
+    [
+      accountId,
+      opponentAccountId,
+      opponentDisplayAvatar,
+      opponentDisplayName,
+      opponentLabel,
+      player.name,
+      resolvedPlayerAvatar
+    ]
+  );
   const framePlayersProfile = useMemo(
     () => ({
       A:
@@ -12746,6 +12781,11 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('gameVolumeChanged', handleVolume);
     };
   }, [stopActiveCrowdSound]);
+  useEffect(() => {
+    const handleMuteUi = () => setMuted(isGameMuted());
+    window.addEventListener('gameMuteChanged', handleMuteUi);
+    return () => window.removeEventListener('gameMuteChanged', handleMuteUi);
+  }, []);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -12966,6 +13006,10 @@ const powerRef = useRef(hud.power);
       const hasLayout = Array.isArray(payload.layout);
       const aimPayload = payload.aim;
       const now = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+
+      if (isRemotePlayer && senderId) {
+        setOpponentAccountId((prev) => (prev === String(senderId) ? prev : String(senderId)));
+      }
 
       if (
         isRemotePlayer &&
@@ -25075,6 +25119,43 @@ const powerRef = useRef(hud.power);
     ),
     [avatarSizeClass]
   );
+  const animateGift = useCallback((fromIndex, toIndex, gift) => {
+    if (!gift) return;
+    const icon =
+      typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)
+        ? Object.assign(document.createElement('img'), { src: gift.icon })
+        : Object.assign(document.createElement('div'), { textContent: gift.icon });
+    icon.style.position = 'fixed';
+    icon.style.left = '0';
+    icon.style.top = '0';
+    icon.style.pointerEvents = 'none';
+    icon.style.width = '24px';
+    icon.style.height = '24px';
+    icon.style.fontSize = '24px';
+    icon.style.zIndex = '9999';
+    document.body.appendChild(icon);
+    const start = document
+      .querySelector(`[data-snooker-player="${fromIndex}"]`)
+      ?.getBoundingClientRect();
+    const end = document
+      .querySelector(`[data-snooker-player="${toIndex}"]`)
+      ?.getBoundingClientRect();
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    const startX = start ? start.left + start.width / 2 : 24;
+    const startY = start ? start.top + start.height / 2 : window.innerHeight - 80;
+    const endX = end ? end.left + end.width / 2 : window.innerWidth - 24;
+    const endY = end ? end.top + end.height / 2 : window.innerHeight / 2;
+    const animation = icon.animate(
+      [
+        { transform: `translate(${startX}px, ${startY}px) scale(1)` },
+        { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+        { transform: `translate(${endX}px, ${endY}px) scale(1)` }
+      ],
+      { duration: 1200, easing: 'ease-in-out', fill: 'forwards' }
+    );
+    animation.onfinish = () => icon.remove();
+  }, []);
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
@@ -25897,6 +25978,51 @@ const powerRef = useRef(hud.power);
         </button>
       </div>
 
+      <div
+        className={`absolute z-50 flex flex-col gap-[0.6rem] transition-opacity duration-200 ${replayActive ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+        style={{
+          left: 'calc(0.75rem + env(safe-area-inset-left, 0px))',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)'
+        }}
+        aria-label="Quick actions"
+      >
+        <button
+          type="button"
+          onClick={() => setShowChat(true)}
+          className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+        >
+          <span className="text-[1.1rem] leading-none" aria-hidden="true">💬</span>
+          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">Chat</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowGift(true)}
+          className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+        >
+          <span className="text-[1.1rem] leading-none" aria-hidden="true">🎁</span>
+          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">Gift</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowInfo(true)}
+          className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+        >
+          <span className="text-[1.1rem] leading-none" aria-hidden="true">ℹ️</span>
+          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">Info</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            toggleGameMuted();
+            setMuted(isGameMuted());
+          }}
+          className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+        >
+          <span className="text-[1.1rem] leading-none" aria-hidden="true">{muted ? '🔇' : '🔊'}</span>
+          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">{muted ? 'Unmute' : 'Mute'}</span>
+        </button>
+      </div>
+
       {bottomHudVisible && (
         <div
           className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
@@ -25919,6 +26045,7 @@ const powerRef = useRef(hud.power);
             <div
               className={playerPanelClass}
               style={playerPanelStyle}
+              data-snooker-player="0"
             >
               {isOnlineMatch ? (
                 <img
@@ -25958,6 +26085,7 @@ const powerRef = useRef(hud.power);
             <div
               className={`${opponentPanelClass} ${isPortrait ? 'text-xs' : 'text-sm'}`}
               style={opponentPanelStyle}
+              data-snooker-player="1"
             >
               {isOnlineMatch ? (
                 <>
@@ -26168,6 +26296,49 @@ const powerRef = useRef(hud.power);
           </div>
         </div>
       )}
+
+      {chatBubbles.map((bubble) => (
+        <div key={bubble.id} className="chat-bubble">
+          <span>{bubble.text}</span>
+          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
+        </div>
+      ))}
+
+      <QuickMessagePopup
+        open={showChat}
+        onClose={() => setShowChat(false)}
+        onSend={(text) => {
+          const id = Date.now();
+          setChatBubbles((bubbles) => [
+            ...bubbles,
+            { id, text, photoUrl: resolvedPlayerAvatar || '/assets/icons/profile.svg' }
+          ]);
+          if (!muted) {
+            const audio = new Audio(chatBeep);
+            audio.volume = getGameVolume();
+            audio.play().catch(() => {});
+          }
+          setTimeout(
+            () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
+            3000
+          );
+        }}
+      />
+      <GiftPopup
+        open={showGift}
+        onClose={() => setShowGift(false)}
+        players={giftPlayers}
+        senderIndex={0}
+        onGiftSent={({ from, to, gift }) => animateGift(from, to, gift)}
+      />
+      <InfoPopup open={showInfo} onClose={() => setShowInfo(false)} title="Snooker Royal Rules">
+        <ul className="text-sm text-subtext list-disc list-inside space-y-1">
+          <li>Pot a red (1 point), then a colour (2–7 points) while reds remain.</li>
+          <li>After all reds are gone, pot colours in order: yellow, green, brown, blue, pink, black.</li>
+          <li>Fouls award points to your opponent and may allow a ball-in-hand.</li>
+          <li>The player with the higher score wins the frame.</li>
+        </ul>
+      </InfoPopup>
     </div>
   );
 }
