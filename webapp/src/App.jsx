@@ -36,6 +36,7 @@ import TexasHoldem from './pages/Games/TexasHoldem.jsx';
 import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
 import DominoRoyal from './pages/Games/DominoRoyal.jsx';
 import DominoRoyalLobby from './pages/Games/DominoRoyalLobby.jsx';
+import PoolRoyalePhysicsDemo from './pages/Games/PoolRoyalePhysicsDemo.tsx';
 
 const ChessBattleRoyal = React.lazy(() => import('./pages/Games/ChessBattleRoyal.jsx'));
 const ChessBattleRoyalLobby = React.lazy(() => import('./pages/Games/ChessBattleRoyalLobby.jsx'));
@@ -121,6 +122,10 @@ export default function App() {
               element={<PoolRoyaleLobby />}
             />
             <Route path="/games/poolroyale" element={<PoolRoyale />} />
+            <Route
+              path="/games/poolroyale-physics"
+              element={<PoolRoyalePhysicsDemo />}
+            />
             <Route
               path="/games/snookerroyale/lobby"
               element={<SnookerRoyalLobby />}
