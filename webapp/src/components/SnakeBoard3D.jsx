@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -74,10 +74,19 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
+const CHESS_PIECE_URLS = [
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
+];
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
 );
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
+
+const POLYHAVEN_TEXTURE_CACHE = new Map();
+const CHESS_PIECE_CACHE = { promise: null, pieces: null };
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
 const PYRAMID_LEVELS = [11, 9, 6, 3];
@@ -355,19 +364,158 @@ function buildPerimeterSequence(size) {
   return sequence;
 }
 
-function addPavementLayer(parent, size, thickness, bottomY, meshes) {
-  const pavementMaterial = new THREE.MeshStandardMaterial({
-    color: new THREE.Color('#6b7280'),
-    roughness: 0.88,
-    metalness: 0.35,
-    envMapIntensity: 0.6
-  });
+function addPavementLayer(parent, size, thickness, bottomY, meshes, material = null) {
+  const pavementMaterial =
+    material ||
+    new THREE.MeshStandardMaterial({
+      color: new THREE.Color('#6b7280'),
+      roughness: 0.88,
+      metalness: 0.35,
+      envMapIntensity: 0.6
+    });
   const pavement = new THREE.Mesh(new THREE.BoxGeometry(size, thickness, size), pavementMaterial);
   pavement.position.y = bottomY - thickness / 2;
   pavement.receiveShadow = true;
   parent.add(pavement);
   if (meshes) meshes.push(pavement);
   return pavement;
+}
+
+function buildPolyhavenTextureUrls(assetId) {
+  const safe = String(assetId || '').trim();
+  if (!safe) return null;
+  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${safe}/${safe}`;
+  return {
+    map: `${base}_diff_2k.jpg`,
+    roughnessMap: `${base}_rough_2k.jpg`,
+    normalMap: `${base}_nor_gl_2k.jpg`
+  };
+}
+
+async function loadPolyhavenTextureSet(assetId, renderer) {
+  if (!assetId) return null;
+  if (POLYHAVEN_TEXTURE_CACHE.has(assetId)) {
+    return POLYHAVEN_TEXTURE_CACHE.get(assetId);
+  }
+  const urls = buildPolyhavenTextureUrls(assetId);
+  if (!urls) return null;
+  const loader = new THREE.TextureLoader();
+  const [map, roughnessMap, normalMap] = await Promise.all([
+    loader.loadAsync(urls.map),
+    loader.loadAsync(urls.roughnessMap),
+    loader.loadAsync(urls.normalMap)
+  ]);
+  if (map) {
+    map.colorSpace = THREE.SRGBColorSpace;
+  }
+  const textureSet = {
+    map,
+    roughnessMap,
+    normalMap,
+    anisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 6
+  };
+  POLYHAVEN_TEXTURE_CACHE.set(assetId, textureSet);
+  return textureSet;
+}
+
+function applyTextureSetToMaterial(material, textureSet, repeat = 1) {
+  if (!material || !textureSet) return;
+  const { map, roughnessMap, normalMap, anisotropy } = textureSet;
+  if (map) {
+    map.wrapS = map.wrapT = THREE.RepeatWrapping;
+    map.repeat.set(repeat, repeat);
+    map.anisotropy = anisotropy ?? 6;
+  }
+  if (roughnessMap) {
+    roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
+    roughnessMap.repeat.set(repeat, repeat);
+    roughnessMap.anisotropy = anisotropy ?? 6;
+  }
+  if (normalMap) {
+    normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
+    normalMap.repeat.set(repeat, repeat);
+    normalMap.anisotropy = anisotropy ?? 6;
+  }
+  material.map = map || null;
+  material.roughnessMap = roughnessMap || null;
+  material.normalMap = normalMap || null;
+  material.needsUpdate = true;
+}
+
+function pickChessPieceTargets(scene) {
+  const targets = {
+    pawn: null,
+    knight: null,
+    bishop: null,
+    rook: null,
+    queen: null
+  };
+  if (!scene) return targets;
+  scene.traverse((node) => {
+    if (!node.name) return;
+    const name = node.name.toLowerCase();
+    const maybeAssign = (key, regex) => {
+      if (!targets[key] && regex.test(name)) {
+        targets[key] = node;
+      }
+    };
+    maybeAssign('pawn', /pawn/);
+    maybeAssign('knight', /knight|horse/);
+    maybeAssign('bishop', /bishop/);
+    maybeAssign('rook', /rook|castle/);
+    maybeAssign('queen', /queen/);
+  });
+  return targets;
+}
+
+function buildChessPiecePrototypes(scene) {
+  const candidates = pickChessPieceTargets(scene);
+  const prototypes = {};
+  Object.entries(candidates).forEach(([key, node]) => {
+    if (!node) return;
+    const root = node.isMesh ? node.parent || node : node;
+    const clone = root.clone(true);
+    prepareLoadedModel(clone);
+    prototypes[key] = clone;
+  });
+  return prototypes;
+}
+
+async function loadChessPiecePrototypes(renderer = null) {
+  if (CHESS_PIECE_CACHE.pieces) return CHESS_PIECE_CACHE.pieces;
+  if (!CHESS_PIECE_CACHE.promise) {
+    const loader = createConfiguredGLTFLoader(renderer);
+    CHESS_PIECE_CACHE.promise = (async () => {
+      let gltf = null;
+      for (const url of CHESS_PIECE_URLS) {
+        try {
+          gltf = await loader.loadAsync(url);
+          break;
+        } catch (error) {
+          // try next
+        }
+      }
+      const scene = gltf?.scene || gltf?.scenes?.[0] || null;
+      if (!scene) return null;
+      const prototypes = buildChessPiecePrototypes(scene);
+      return prototypes;
+    })();
+  }
+  CHESS_PIECE_CACHE.pieces = await CHESS_PIECE_CACHE.promise;
+  return CHESS_PIECE_CACHE.pieces;
+}
+
+function scaleChessPieceToToken(piece, targetHeight) {
+  if (!piece) return;
+  const box = new THREE.Box3().setFromObject(piece);
+  const size = box.getSize(new THREE.Vector3());
+  if (!size.y) return;
+  const scale = targetHeight / size.y;
+  piece.scale.setScalar(scale);
+  piece.updateMatrixWorld(true);
+  const scaledBox = new THREE.Box3().setFromObject(piece);
+  const yOffset = -scaledBox.min.y;
+  piece.position.y += yOffset;
 }
 
 function addChromeRailings(
@@ -954,9 +1102,11 @@ async function loadPolyHavenHdriEnvironment(renderer, variant = {}) {
       const pmrem = new THREE.PMREMGenerator(renderer);
       pmrem.compileEquirectangularShader();
       const envMap = pmrem.fromEquirectangular(texture).texture;
-      texture.dispose();
+      texture.mapping = THREE.EquirectangularReflectionMapping;
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(1, 1);
       pmrem.dispose();
-      return { envMap, url };
+      return { envMap, url, backgroundTexture: texture };
     } catch (error) {
       // try next
     }
@@ -2114,21 +2264,41 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   const arenaTheme = appearanceOptions.arena ?? {};
   const tableTheme = appearanceOptions.tableTheme || {};
   const stoolTheme = appearanceOptions.stoolTheme || DEFAULT_STOOL_THEME;
+  const tableFinish = appearanceOptions.tableFinish || null;
   const environmentHdri = appearanceOptions.environmentHdri;
   let disposed = false;
 
   scene.background = toThreeColor(arenaTheme.background, '#030712');
 
   let environmentCleanup = null;
+  const hdriZoomState = { texture: null, baseDistance: null };
+  const updateHdriZoom = (camera, target) => {
+    if (!hdriZoomState.texture || !camera || !target) return;
+    const distance = camera.position.distanceTo(target);
+    if (!hdriZoomState.baseDistance) {
+      hdriZoomState.baseDistance = distance;
+    }
+    const base = hdriZoomState.baseDistance || distance;
+    const ratio = clamp(distance / base, 0.7, 1.4);
+    const zoom = 1 / ratio;
+    hdriZoomState.texture.repeat.set(zoom, zoom);
+    hdriZoomState.texture.offset.set((1 - zoom) / 2, (1 - zoom) / 2);
+    hdriZoomState.texture.needsUpdate = true;
+  };
   if (environmentHdri) {
     loadPolyHavenHdriEnvironment(renderer, environmentHdri).then((result) => {
       if (!result || disposed) return;
       scene.environment = result.envMap;
-      scene.background = result.envMap;
+      scene.background = result.backgroundTexture || result.envMap;
+      hdriZoomState.texture = result.backgroundTexture || null;
+      hdriZoomState.baseDistance = null;
       environmentCleanup = () => {
         scene.environment = null;
         scene.background = toThreeColor(arenaTheme.background, '#030712');
         result.envMap?.dispose?.();
+        result.backgroundTexture?.dispose?.();
+        hdriZoomState.texture = null;
+        hdriZoomState.baseDistance = null;
       };
     });
   }
@@ -2140,6 +2310,14 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   const clothOption = TABLE_CLOTH_OPTIONS[DEFAULT_TABLE_CUSTOMIZATION.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
   const baseOption = TABLE_BASE_OPTIONS[DEFAULT_TABLE_CUSTOMIZATION.tableBase] ?? TABLE_BASE_OPTIONS[0];
   const shapeOption = TABLE_SHAPE_OPTIONS[0];
+  const resolvedWoodOption = tableFinish?.grainId
+    ? {
+        id: tableFinish.id,
+        label: tableFinish.label,
+        presetId: tableFinish.presetId,
+        grainId: tableFinish.grainId
+      }
+    : woodOption;
   const chairOption = DEFAULT_CHAIR_OPTION;
 
   const tableRoot = new THREE.Group();
@@ -2150,14 +2328,15 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     renderer,
     tableRadius: TABLE_RADIUS,
     tableHeight: TABLE_HEIGHT,
-    woodOption,
+    woodOption: resolvedWoodOption,
     clothOption,
     baseOption,
+    includeBase: false,
     shapeOption,
     rotationY: 0
   });
   tableInfo = { ...tableInfo, radius: tableInfo.radius ?? TABLE_RADIUS, themeId: tableTheme?.id };
-  applyTableMaterials(tableInfo.materials, { woodOption, clothOption, baseOption }, renderer);
+  applyTableMaterials(tableInfo.materials, { woodOption: resolvedWoodOption, clothOption, baseOption }, renderer);
 
   let activeTableGroup = tableInfo.group;
   tableRoot.add(activeTableGroup);
@@ -2326,12 +2505,21 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
     arenaGroup.parent?.remove(arenaGroup);
   });
 
-  return { boardGroup, boardLookTarget, fit, updateCameraTarget, controls, seatAnchors: chairs.map(({ anchor }) => anchor) };
+  return {
+    boardGroup,
+    boardLookTarget,
+    fit,
+    updateCameraTarget,
+    updateHdriZoom,
+    controls,
+    seatAnchors: chairs.map(({ anchor }) => anchor)
+  };
 }
 
 function buildSnakeBoard(
   boardGroup,
   boardLookTarget,
+  renderer,
   disposeHandlers = [],
   onTargetChange = null,
   appearanceOptions = {}
@@ -2349,6 +2537,8 @@ function buildSnakeBoard(
   const railTheme = appearanceOptions.rail ?? {};
   const snakeTheme = appearanceOptions.snakeSkin ?? {};
   const diceTheme = appearanceOptions.dice ?? {};
+  const floorTexture = appearanceOptions.floorTexture ?? null;
+  const wallTexture = appearanceOptions.wallTexture ?? null;
   const highlightColors = createHighlightColors(boardTheme);
   const tileLightBase = toThreeColor(boardTheme.light, TILE_COLOR_A);
   const tileDarkBase = toThreeColor(boardTheme.dark, TILE_COLOR_B);
@@ -2368,9 +2558,16 @@ function buildSnakeBoard(
   const platformThickness = PYRAMID_PLATFORM_THICKNESS;
   const levelGap = PYRAMID_LEVEL_GAP;
   const platformMeshes = [];
+  const wallMaterials = [];
   const railingInfos = [];
   const levelPlacements = [];
   const topTileLift = (platformThickness + tileHeight + levelGap) * TOP_TILE_EXTRA_LEVELS;
+  const pavementMaterial = new THREE.MeshStandardMaterial({
+    color: new THREE.Color('#6b7280'),
+    roughness: 0.88,
+    metalness: 0.35,
+    envMapIntensity: 0.6
+  });
 
   let currentLevelBottom = 0;
   PYRAMID_LEVELS.forEach((size, levelIndex) => {
@@ -2387,6 +2584,7 @@ function buildSnakeBoard(
       emissive: wallGlowBase.clone().multiplyScalar(0.18),
       emissiveIntensity: 0.14
     });
+    wallMaterials.push(wallMaterial);
     const topMaterial = new THREE.MeshStandardMaterial({
       color: topTone,
       roughness: 0.68,
@@ -2443,7 +2641,14 @@ function buildSnakeBoard(
 
     if (levelIndex === 0) {
       const pavementSize = platformSize * PAVEMENT_EXTRA_SCALE;
-      addPavementLayer(platformGroup, pavementSize, PAVEMENT_THICKNESS, currentLevelBottom, platformMeshes);
+      addPavementLayer(
+        platformGroup,
+        pavementSize,
+        PAVEMENT_THICKNESS,
+        currentLevelBottom,
+        platformMeshes,
+        pavementMaterial
+      );
     }
 
     const tileCenterY = currentLevelBottom + platformThickness + tileHeight / 2;
@@ -2457,6 +2662,26 @@ function buildSnakeBoard(
 
     currentLevelBottom += platformThickness + tileHeight + levelGap;
   });
+
+  if (floorTexture?.assetId && renderer) {
+    loadPolyhavenTextureSet(floorTexture.assetId, renderer)
+      .then((textureSet) => {
+        if (!textureSet) return;
+        applyTextureSetToMaterial(pavementMaterial, textureSet, floorTexture.repeat ?? 2);
+      })
+      .catch(() => {});
+  }
+
+  if (wallTexture?.assetId && renderer) {
+    loadPolyhavenTextureSet(wallTexture.assetId, renderer)
+      .then((textureSet) => {
+        if (!textureSet) return;
+        wallMaterials.forEach((material) => {
+          applyTextureSetToMaterial(material, textureSet, wallTexture.repeat ?? 1.6);
+        });
+      })
+      .catch(() => {});
+  }
 
   const levelOffsets = [];
   let accumulated = 0;
@@ -2705,7 +2930,8 @@ function buildSnakeBoard(
     diceBaseY,
     diceAnchorZ,
     baseLevelTop,
-    highlightColors
+    highlightColors,
+    tokenPrototypes: null
   };
 }
 
@@ -2744,7 +2970,9 @@ function updateTokens(
     boardRoot = null,
     seatAnchors = [],
     baseLevelTop = 0,
-    tokenTheme = {}
+    tokenTheme = {},
+    tokenShape = null,
+    tokenPrototypes = null
   } = {}
 ) {
   if (!tokensGroup) return;
@@ -2816,10 +3044,24 @@ function updateTokens(
     ? tokenTheme.accentClearcoatRoughness
     : 0.25;
 
+  const desiredShapeId = tokenShape?.id || 'default';
+  const desiredPieceType = tokenShape?.pieceType || null;
+
   players.forEach((player, index) => {
     keep.add(index);
     let token = existing.get(index);
     const seatIndex = Number.isFinite(player?.seatIndex) ? player.seatIndex : index;
+    if (token && token.userData?.shapeId !== desiredShapeId) {
+      tokensGroup.remove(token);
+      token.traverse((obj) => {
+        if (obj.isMesh) {
+          obj.geometry.dispose();
+          obj.material.dispose();
+        }
+      });
+      token = null;
+      existing.delete(index);
+    }
     if (!token) {
       token = new THREE.Group();
       const baseColor = new THREE.Color(player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]);
@@ -2832,72 +3074,88 @@ function updateTokens(
         sheen: coreSheen,
         sheenColor: baseColor.clone().lerp(accentTarget, sheenBlend)
       });
-      const accentMaterial = new THREE.MeshPhysicalMaterial({
-        color: baseColor.clone().lerp(accentTarget, accentBlend),
-        roughness: accentRoughness,
-        metalness: accentMetalness,
-        clearcoat: accentClearcoat,
-        clearcoatRoughness: accentClearcoatRoughness
-      });
+      const piecePrototype = desiredPieceType ? tokenPrototypes?.[desiredPieceType] : null;
+      let accentMaterial = null;
+      if (piecePrototype) {
+        const piece = piecePrototype.clone(true);
+        scaleChessPieceToToken(piece, TOKEN_HEIGHT * 0.95);
+        piece.traverse((child) => {
+          if (child.isMesh) {
+            child.material = coreMaterial;
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        token.add(piece);
+      } else {
+        accentMaterial = new THREE.MeshPhysicalMaterial({
+          color: baseColor.clone().lerp(accentTarget, accentBlend),
+          roughness: accentRoughness,
+          metalness: accentMetalness,
+          clearcoat: accentClearcoat,
+          clearcoatRoughness: accentClearcoatRoughness
+        });
 
-      const baseHeight = TOKEN_HEIGHT * 0.24;
-      const bodyHeight = TOKEN_HEIGHT * 0.46;
-      const leftoverHeight = Math.max(TOKEN_HEIGHT - (baseHeight + bodyHeight), TOKEN_HEIGHT * 0.18);
-      const headHeight = leftoverHeight * 0.65;
-      const crestHeight = Math.max(leftoverHeight - headHeight, TOKEN_HEIGHT * 0.08);
+        const baseHeight = TOKEN_HEIGHT * 0.24;
+        const bodyHeight = TOKEN_HEIGHT * 0.46;
+        const leftoverHeight = Math.max(TOKEN_HEIGHT - (baseHeight + bodyHeight), TOKEN_HEIGHT * 0.18);
+        const headHeight = leftoverHeight * 0.65;
+        const crestHeight = Math.max(leftoverHeight - headHeight, TOKEN_HEIGHT * 0.08);
 
-      const base = new THREE.Mesh(
-        new THREE.CylinderGeometry(TOKEN_RADIUS * 1.45, TOKEN_RADIUS * 1.65, baseHeight, 48),
-        accentMaterial
-      );
-      base.position.y = baseHeight / 2;
-      base.castShadow = true;
-      base.receiveShadow = true;
-      token.add(base);
+        const base = new THREE.Mesh(
+          new THREE.CylinderGeometry(TOKEN_RADIUS * 1.45, TOKEN_RADIUS * 1.65, baseHeight, 48),
+          accentMaterial
+        );
+        base.position.y = baseHeight / 2;
+        base.castShadow = true;
+        base.receiveShadow = true;
+        token.add(base);
 
-      const body = new THREE.Mesh(
-        new THREE.CylinderGeometry(TOKEN_RADIUS * 1.05, TOKEN_RADIUS * 0.82, bodyHeight, 48),
-        coreMaterial
-      );
-      body.position.y = baseHeight + bodyHeight / 2;
-      body.castShadow = true;
-      body.receiveShadow = true;
-      token.add(body);
+        const body = new THREE.Mesh(
+          new THREE.CylinderGeometry(TOKEN_RADIUS * 1.05, TOKEN_RADIUS * 0.82, bodyHeight, 48),
+          coreMaterial
+        );
+        body.position.y = baseHeight + bodyHeight / 2;
+        body.castShadow = true;
+        body.receiveShadow = true;
+        token.add(body);
 
-      const collar = new THREE.Mesh(
-        new THREE.TorusGeometry(TOKEN_RADIUS * 0.95, TOKEN_HEIGHT * 0.06, 24, 48),
-        accentMaterial
-      );
-      collar.rotation.x = Math.PI / 2;
-      collar.position.y = baseHeight + bodyHeight * 0.78;
-      collar.castShadow = true;
-      collar.receiveShadow = true;
-      token.add(collar);
+        const collar = new THREE.Mesh(
+          new THREE.TorusGeometry(TOKEN_RADIUS * 0.95, TOKEN_HEIGHT * 0.06, 24, 48),
+          accentMaterial
+        );
+        collar.rotation.x = Math.PI / 2;
+        collar.position.y = baseHeight + bodyHeight * 0.78;
+        collar.castShadow = true;
+        collar.receiveShadow = true;
+        token.add(collar);
 
-      const head = new THREE.Mesh(
-        new RoundedBoxGeometry(TOKEN_RADIUS * 1.3, headHeight, TOKEN_RADIUS * 1.3, 6, TOKEN_RADIUS * 0.45),
-        coreMaterial
-      );
-      head.position.y = baseHeight + bodyHeight + headHeight / 2;
-      head.castShadow = true;
-      head.receiveShadow = true;
-      token.add(head);
+        const head = new THREE.Mesh(
+          new RoundedBoxGeometry(TOKEN_RADIUS * 1.3, headHeight, TOKEN_RADIUS * 1.3, 6, TOKEN_RADIUS * 0.45),
+          coreMaterial
+        );
+        head.position.y = baseHeight + bodyHeight + headHeight / 2;
+        head.castShadow = true;
+        head.receiveShadow = true;
+        token.add(head);
 
-      const crest = new THREE.Mesh(
-        new THREE.CylinderGeometry(TOKEN_RADIUS * 0.55, TOKEN_RADIUS * 0.7, crestHeight, 32),
-        accentMaterial
-      );
-      crest.position.y = baseHeight + bodyHeight + headHeight + crestHeight / 2;
-      crest.castShadow = true;
-      crest.receiveShadow = true;
-      token.add(crest);
+        const crest = new THREE.Mesh(
+          new THREE.CylinderGeometry(TOKEN_RADIUS * 0.55, TOKEN_RADIUS * 0.7, crestHeight, 32),
+          accentMaterial
+        );
+        crest.position.y = baseHeight + bodyHeight + headHeight + crestHeight / 2;
+        crest.castShadow = true;
+        crest.receiveShadow = true;
+        token.add(crest);
+      }
 
       token.userData = {
         playerIndex: index,
         material: coreMaterial,
         coreMaterial,
         accentMaterial,
-        isSliding: false
+        isSliding: false,
+        shapeId: desiredShapeId
       };
       tokensGroup.add(token);
     }
@@ -3325,6 +3583,7 @@ export default function SnakeBoard3D({
   const cameraRef = useRef(null);
   const boardRef = useRef(null);
   const fitRef = useRef(() => {});
+  const rendererRef = useRef(null);
   const disposeHandlers = useRef([]);
   const railTextureRef = useRef(null);
   const snakeTextureRef = useRef(null);
@@ -3339,10 +3598,12 @@ export default function SnakeBoard3D({
   const lastFrameTimeRef = useRef(0);
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
   const frameAccumulatorRef = useRef(0);
+  const [tokenPrototypeVersion, setTokenPrototypeVersion] = useState(0);
   const fallbackAppearanceKey = useMemo(() => JSON.stringify(appearance ?? {}), [appearance]);
   const keyForEffect = appearanceKey ?? fallbackAppearanceKey;
   const appearanceMemo = useMemo(() => appearance || {}, [keyForEffect, appearance]);
   const tokenTheme = appearanceMemo?.token;
+  const tokenShape = appearanceMemo?.tokenShape;
   const railTheme = appearanceMemo?.rail;
   const snakeTheme = appearanceMemo?.snakeSkin;
 
@@ -3369,6 +3630,31 @@ export default function SnakeBoard3D({
   }, [onDiceAnchorChange]);
 
   useEffect(() => {
+    let active = true;
+    if (!tokenShape || tokenShape.source !== 'chessBattleRoyal') {
+      if (boardRef.current) {
+        boardRef.current.tokenPrototypes = null;
+      }
+      setTokenPrototypeVersion((prev) => prev + 1);
+      return () => {
+        active = false;
+      };
+    }
+    loadChessPiecePrototypes(rendererRef.current)
+      .then((pieces) => {
+        if (!active) return;
+        if (boardRef.current) {
+          boardRef.current.tokenPrototypes = pieces;
+        }
+        setTokenPrototypeVersion((prev) => prev + 1);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [tokenShape?.id, tokenShape?.source, keyForEffect]);
+
+  useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
 
@@ -3385,6 +3671,7 @@ export default function SnakeBoard3D({
     renderer.domElement.style.zIndex = '0';
     renderer.domElement.style.touchAction = 'none';
     mount.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#030712');
 
@@ -3395,6 +3682,7 @@ export default function SnakeBoard3D({
     const board = buildSnakeBoard(
       arena.boardGroup,
       arena.boardLookTarget,
+      renderer,
       handlers,
       arena.updateCameraTarget,
       appearanceMemo
@@ -3476,6 +3764,10 @@ export default function SnakeBoard3D({
       arena.controls?.update?.();
       const camera = cameraRef.current;
       if (camera) {
+        if (arena.updateHdriZoom) {
+          const target = board?.boardLookTarget ?? arena.boardLookTarget;
+          arena.updateHdriZoom(camera, target);
+        }
         if (board?.potGroup) {
           board.potGroup.rotation.y += deltaSeconds * COIN_SPIN_SPEED;
         }
@@ -3557,6 +3849,7 @@ export default function SnakeBoard3D({
       snakeTextureRef.current?.dispose?.();
       snakeTextureRef.current = null;
       renderer.dispose();
+      rendererRef.current = null;
       scene.traverse((obj) => {
         if (obj.isMesh) {
           obj.geometry?.dispose?.();
@@ -3593,7 +3886,9 @@ export default function SnakeBoard3D({
       boardRoot: board.root,
       seatAnchors: board.seatAnchors,
       baseLevelTop: board.baseLevelTop,
-      tokenTheme
+      tokenTheme,
+      tokenShape,
+      tokenPrototypes: board.tokenPrototypes
     });
 
     const sanitizedPositions = players.map((player) => {
@@ -3643,7 +3938,17 @@ export default function SnakeBoard3D({
         if (followAnimation) animationsRef.current.push(followAnimation);
       }
     }
-  }, [players, burning, rollingIndex, currentTurn, tokenType, keyForEffect, tokenTheme]);
+  }, [
+    players,
+    burning,
+    rollingIndex,
+    currentTurn,
+    tokenType,
+    keyForEffect,
+    tokenTheme,
+    tokenShape,
+    tokenPrototypeVersion
+  ]);
 
   useEffect(() => {
     if (!boardRef.current || !railTextureRef.current) return;

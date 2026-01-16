@@ -416,6 +416,198 @@ const TOKEN_FINISH_OPTIONS = Object.freeze([
   }
 ]);
 
+const TABLE_FINISH_OPTIONS = Object.freeze([
+  {
+    id: 'peelingPaintWeathered',
+    label: 'Wood Peeling Paint Weathered',
+    grainId: 'wood_peeling_paint_weathered',
+    presetId: 'birch',
+    swatches: ['#d6d0c7', '#a89f95']
+  },
+  {
+    id: 'oakVeneer01',
+    label: 'Oak Veneer 01',
+    grainId: 'oak_veneer_01',
+    presetId: 'oak',
+    swatches: ['#e0bb7a', '#b9854e']
+  },
+  {
+    id: 'woodTable001',
+    label: 'Wood Table 001',
+    grainId: 'wood_table_001',
+    presetId: 'walnut',
+    swatches: ['#c89a64', '#8f6243']
+  },
+  {
+    id: 'darkWood',
+    label: 'Dark Wood',
+    grainId: 'dark_wood',
+    presetId: 'wenge',
+    swatches: ['#6a5a52', '#2f241f']
+  },
+  {
+    id: 'rosewoodVeneer01',
+    label: 'Rosewood Veneer 01',
+    grainId: 'rosewood_veneer_01',
+    presetId: 'cherry',
+    swatches: ['#9b5a44', '#6f3a2f']
+  }
+]);
+
+const FLOOR_TEXTURE_OPTIONS = Object.freeze([
+  {
+    id: 'paving_stones_02',
+    label: 'Paving Stones 02',
+    assetId: 'paving_stones_02',
+    repeat: 2.2,
+    swatches: ['#9ca3af', '#4b5563']
+  },
+  {
+    id: 'paving_stones_07',
+    label: 'Paving Stones 07',
+    assetId: 'paving_stones_07',
+    repeat: 2.4,
+    swatches: ['#a3a3a3', '#52525b']
+  },
+  {
+    id: 'paving_stones_08',
+    label: 'Paving Stones 08',
+    assetId: 'paving_stones_08',
+    repeat: 2.6,
+    swatches: ['#b0b0b0', '#6b7280']
+  },
+  {
+    id: 'paving_stones_12',
+    label: 'Paving Stones 12',
+    assetId: 'paving_stones_12',
+    repeat: 2.4,
+    swatches: ['#94a3b8', '#475569']
+  },
+  {
+    id: 'cobblestone_floor_03',
+    label: 'Cobblestone Floor 03',
+    assetId: 'cobblestone_floor_03',
+    repeat: 2.1,
+    swatches: ['#9ca3af', '#374151']
+  },
+  {
+    id: 'cobblestone_floor_05',
+    label: 'Cobblestone Floor 05',
+    assetId: 'cobblestone_floor_05',
+    repeat: 2.1,
+    swatches: ['#9aa3af', '#4b5563']
+  },
+  {
+    id: 'concrete_pavers_01',
+    label: 'Concrete Pavers 01',
+    assetId: 'concrete_pavers_01',
+    repeat: 2.8,
+    swatches: ['#cbd5e1', '#64748b']
+  },
+  {
+    id: 'concrete_pavers_02',
+    label: 'Concrete Pavers 02',
+    assetId: 'concrete_pavers_02',
+    repeat: 2.6,
+    swatches: ['#cbd5e1', '#6b7280']
+  },
+  {
+    id: 'stone_floor_05',
+    label: 'Stone Floor 05',
+    assetId: 'stone_floor_05',
+    repeat: 2.3,
+    swatches: ['#94a3b8', '#475569']
+  },
+  {
+    id: 'stone_floor_06',
+    label: 'Stone Floor 06',
+    assetId: 'stone_floor_06',
+    repeat: 2.2,
+    swatches: ['#8b95a1', '#475569']
+  }
+]);
+
+const WALL_TEXTURE_OPTIONS = Object.freeze([
+  {
+    id: 'brick_wall_02',
+    label: 'Brick Wall 02',
+    assetId: 'brick_wall_02',
+    repeat: 1.6,
+    swatches: ['#b45309', '#7c2d12']
+  },
+  {
+    id: 'brick_wall_03',
+    label: 'Brick Wall 03',
+    assetId: 'brick_wall_03',
+    repeat: 1.6,
+    swatches: ['#c2410c', '#7c2d12']
+  },
+  {
+    id: 'castle_wall_01',
+    label: 'Castle Wall 01',
+    assetId: 'castle_wall_01',
+    repeat: 1.4,
+    swatches: ['#9ca3af', '#4b5563']
+  },
+  {
+    id: 'concrete_wall_002',
+    label: 'Concrete Wall 002',
+    assetId: 'concrete_wall_002',
+    repeat: 1.5,
+    swatches: ['#a1a1aa', '#52525b']
+  },
+  {
+    id: 'concrete_wall_004',
+    label: 'Concrete Wall 004',
+    assetId: 'concrete_wall_004',
+    repeat: 1.5,
+    swatches: ['#9ca3af', '#4b5563']
+  },
+  {
+    id: 'painted_wall_01',
+    label: 'Painted Wall 01',
+    assetId: 'painted_wall_01',
+    repeat: 1.8,
+    swatches: ['#e2e8f0', '#94a3b8']
+  },
+  {
+    id: 'plaster_wall_01',
+    label: 'Plaster Wall 01',
+    assetId: 'plaster_wall_01',
+    repeat: 1.7,
+    swatches: ['#e2e8f0', '#94a3b8']
+  },
+  {
+    id: 'stone_wall_02',
+    label: 'Stone Wall 02',
+    assetId: 'stone_wall_02',
+    repeat: 1.5,
+    swatches: ['#9ca3af', '#475569']
+  },
+  {
+    id: 'stone_wall_03',
+    label: 'Stone Wall 03',
+    assetId: 'stone_wall_03',
+    repeat: 1.5,
+    swatches: ['#94a3b8', '#64748b']
+  },
+  {
+    id: 'tiles_wall_01',
+    label: 'Tiles Wall 01',
+    assetId: 'tiles_wall_01',
+    repeat: 1.7,
+    swatches: ['#e2e8f0', '#64748b']
+  }
+]);
+
+const TOKEN_SHAPE_OPTIONS = Object.freeze([
+  { id: 'pawn', label: 'Pawn', pieceType: 'pawn', source: 'chessBattleRoyal' },
+  { id: 'knight', label: 'Knight', pieceType: 'knight', source: 'chessBattleRoyal' },
+  { id: 'bishop', label: 'Bishop', pieceType: 'bishop', source: 'chessBattleRoyal' },
+  { id: 'rook', label: 'Rook', pieceType: 'rook', source: 'chessBattleRoyal' },
+  { id: 'queen', label: 'Queen', pieceType: 'queen', source: 'chessBattleRoyal' }
+]);
+
 const SNAKE_SKIN_OPTIONS = Object.freeze([
   {
     id: 'emeraldScales',
@@ -455,8 +647,12 @@ const SNAKE_CUSTOMIZATION_SECTIONS = [
   { key: 'diceTheme', label: 'Dice Finish', options: DICE_THEME_OPTIONS },
   { key: 'railTheme', label: 'Rails & Nets', options: RAIL_THEME_OPTIONS },
   { key: 'tokenFinish', label: 'Token Finish', options: TOKEN_FINISH_OPTIONS },
+  { key: 'tokenShape', label: 'Token Shape', options: TOKEN_SHAPE_OPTIONS },
+  { key: 'tableFinish', label: 'Table Finish', options: TABLE_FINISH_OPTIONS },
   { key: 'tables', label: 'Table Models', options: TABLE_THEME_OPTIONS },
   { key: 'stools', label: 'Chairs', options: STOOL_THEME_OPTIONS },
+  { key: 'floorTexture', label: 'Floor Texture', options: FLOOR_TEXTURE_OPTIONS },
+  { key: 'wallTexture', label: 'Wall Texture', options: WALL_TEXTURE_OPTIONS },
   { key: 'environmentHdri', label: 'HDR Environments', options: HDRI_OPTIONS }
 ];
 
@@ -523,8 +719,12 @@ const DEFAULT_APPEARANCE = Object.freeze({
   diceTheme: 0,
   railTheme: 0,
   tokenFinish: 0,
+  tokenShape: 0,
+  tableFinish: 0,
   tables: 0,
   stools: 0,
+  floorTexture: 0,
+  wallTexture: 0,
   environmentHdri: DEFAULT_HDRI_INDEX
 });
 
@@ -541,8 +741,12 @@ function normalizeAppearance(value = {}) {
     ['diceTheme', DICE_THEME_OPTIONS.length],
     ['railTheme', RAIL_THEME_OPTIONS.length],
     ['tokenFinish', TOKEN_FINISH_OPTIONS.length],
+    ['tokenShape', TOKEN_SHAPE_OPTIONS.length],
+    ['tableFinish', TABLE_FINISH_OPTIONS.length],
     ['tables', TABLE_THEME_OPTIONS.length],
     ['stools', STOOL_THEME_OPTIONS.length],
+    ['floorTexture', FLOOR_TEXTURE_OPTIONS.length],
+    ['wallTexture', WALL_TEXTURE_OPTIONS.length],
     ['environmentHdri', HDRI_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
@@ -561,9 +765,13 @@ function resolveAppearance(appearance) {
   const dice = DICE_THEME_OPTIONS[normalized.diceTheme] ?? DICE_THEME_OPTIONS[0];
   const rail = RAIL_THEME_OPTIONS[normalized.railTheme] ?? RAIL_THEME_OPTIONS[0];
   const token = TOKEN_FINISH_OPTIONS[normalized.tokenFinish] ?? TOKEN_FINISH_OPTIONS[0];
+  const tokenShape = TOKEN_SHAPE_OPTIONS[normalized.tokenShape] ?? TOKEN_SHAPE_OPTIONS[0];
+  const tableFinish = TABLE_FINISH_OPTIONS[normalized.tableFinish] ?? TABLE_FINISH_OPTIONS[0];
   const snakeSkin = SNAKE_SKIN_OPTIONS[normalized.snakeSkin] ?? SNAKE_SKIN_OPTIONS[0];
   const tableTheme = TABLE_THEME_OPTIONS[normalized.tables] ?? TABLE_THEME_OPTIONS[0];
   const stoolTheme = STOOL_THEME_OPTIONS[normalized.stools] ?? STOOL_THEME_OPTIONS[0];
+  const floorTexture = FLOOR_TEXTURE_OPTIONS[normalized.floorTexture] ?? FLOOR_TEXTURE_OPTIONS[0];
+  const wallTexture = WALL_TEXTURE_OPTIONS[normalized.wallTexture] ?? WALL_TEXTURE_OPTIONS[0];
   const environmentHdri =
     HDRI_OPTIONS[normalized.environmentHdri] ??
     HDRI_OPTIONS[DEFAULT_HDRI_INDEX] ??
@@ -579,9 +787,13 @@ function resolveAppearance(appearance) {
     dice: { ...dice },
     rail: { ...rail },
     token: { ...token },
+    tokenShape,
+    tableFinish,
     snakeSkin: { ...snakeSkin },
     tableTheme,
     stoolTheme,
+    floorTexture,
+    wallTexture,
     environmentHdri
   };
 }
@@ -2582,6 +2794,24 @@ export default function SnakeAndLadder() {
           </div>
         );
       }
+      case 'tokenShape': {
+        return (
+          <div className="flex h-16 w-full items-center justify-center rounded-xl border border-white/10 bg-slate-900/70 text-lg text-white/80">
+            ♟️
+          </div>
+        );
+      }
+      case 'tableFinish': {
+        const swatches = option.swatches || ['#cbd5f5', '#475569'];
+        return (
+          <div
+            className="w-full h-16 rounded-xl border border-white/10"
+            style={{
+              background: `linear-gradient(135deg, ${swatches[0]}, ${swatches[1]})`
+            }}
+          />
+        );
+      }
       case 'tables': {
         const thumb = option.thumbnail;
         const accent = option.accentColor || '#94a3b8';
@@ -2623,6 +2853,19 @@ export default function SnakeAndLadder() {
               />
             </div>
           </div>
+        );
+      }
+      case 'floorTexture':
+      case 'wallTexture': {
+        const swatches = option.swatches || ['#94a3b8', '#1f2937'];
+        return (
+          <div
+            className="w-full h-16 rounded-xl border border-white/10"
+            style={{
+              background: `linear-gradient(120deg, ${swatches[0]}, ${swatches[1]})`,
+              boxShadow: `0 8px 18px ${swatches[1]}44`
+            }}
+          />
         );
       }
       case 'environmentHdri': {
