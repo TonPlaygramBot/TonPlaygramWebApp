@@ -1440,12 +1440,12 @@ const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while 
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.18; // ensure every stroke pulls slightly farther back for readability at all angles
-const CUE_STROKE_MIN_MS = 190;
-const CUE_STROKE_MAX_MS = 720;
+const CUE_STROKE_MIN_MS = 150;
+const CUE_STROKE_MAX_MS = 560;
 const CUE_STROKE_SPEED_MIN = BALL_R * 11.8;
 const CUE_STROKE_SPEED_MAX = BALL_R * 21.5;
-const CUE_FOLLOW_MIN_MS = 320;
-const CUE_FOLLOW_MAX_MS = 720;
+const CUE_FOLLOW_MIN_MS = 250;
+const CUE_FOLLOW_MAX_MS = 560;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 9.5;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 20.5;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
@@ -4886,8 +4886,8 @@ const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
-const AI_CUE_PULLBACK_DURATION_MS = 3600;
-const AI_CUE_FORWARD_DURATION_MS = 3600;
+const AI_CUE_PULLBACK_DURATION_MS = 3000;
+const AI_CUE_FORWARD_DURATION_MS = 3000;
 const AI_STROKE_VISIBLE_DURATION_MS =
   AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
@@ -4936,9 +4936,9 @@ const PLAYER_FORWARD_SLOWDOWN = 1.35;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.2;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1.75;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1.45;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 36;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 30;
 const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
@@ -22719,16 +22719,21 @@ const powerRef = useRef(hud.power);
             applyReplayCueStroke(playback, targetTime);
             updateReplayTrail(playback.cuePath, targetTime);
             if (!LOCK_REPLAY_CAMERA) {
-              const cameraA = frameA?.camera ?? frameB?.camera ?? null;
-              const cameraB = frameB?.camera ?? frameA?.camera ?? null;
-              if (cameraA || cameraB) {
+              const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
+              const previousFrameCamera =
+                replayFrameCameraRef.current?.frameB ??
+                replayFrameCameraRef.current?.frameA ??
+                null;
+              if (
+                nextFrameCamera &&
+                (!replayFrameCameraRef.current ||
+                  hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
+              ) {
                 replayFrameCameraRef.current = {
-                  frameA: cameraA,
-                  frameB: cameraB,
-                  alpha
+                  frameA: nextFrameCamera,
+                  frameB: nextFrameCamera,
+                  alpha: 0
                 };
-              } else {
-                replayFrameCameraRef.current = null;
               }
             } else {
               replayFrameCameraRef.current = null;
@@ -22850,7 +22855,6 @@ const powerRef = useRef(hud.power);
         const appliedSpin = applySpinConstraints(aimDir, true);
         const liftStrength = normalizeCueLift(resolveUserCueLift());
         const physicsSpin = mapSpinForPhysics(appliedSpin);
-        const previewSpin = { x: -physicsSpin.x, y: physicsSpin.y };
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
         let shouldSlowAim = false;
@@ -22978,7 +22982,7 @@ const powerRef = useRef(hud.power);
           const aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
           const guideAimDir2D = resolveSwerveAimDir(
             aimDir2D,
-            previewSpin,
+            physicsSpin,
             powerStrength,
             swerveActive,
             liftStrength
@@ -23003,7 +23007,7 @@ const powerRef = useRef(hud.power);
             end,
             dir,
             perp,
-            previewSpin,
+            physicsSpin,
             powerStrength,
             swerveActive,
             liftStrength
@@ -23078,8 +23082,8 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const spinSideInfluence = (previewSpin.x || 0) * (0.4 + 0.42 * powerStrength);
-          const spinVerticalInfluence = (previewSpin.y || 0) * (0.68 + 0.45 * powerStrength);
+          const spinSideInfluence = (physicsSpin.x || 0) * (0.4 + 0.42 * powerStrength);
+          const spinVerticalInfluence = (physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
             .add(perp.clone().multiplyScalar(spinSideInfluence))
@@ -23302,10 +23306,9 @@ const powerRef = useRef(hud.power);
           const remoteSpinMagnitude = Math.hypot(remoteSpin.x ?? 0, remoteSpin.y ?? 0);
           const remoteSwerveActive = remoteSpinMagnitude >= SWERVE_THRESHOLD;
           const remotePhysicsSpin = mapSpinForPhysics(remoteSpin);
-          const remotePreviewSpin = { x: -remotePhysicsSpin.x, y: remotePhysicsSpin.y };
           const guideAimDir2D = resolveSwerveAimDir(
             remoteAimDir,
-            remotePreviewSpin,
+            remotePhysicsSpin,
             powerStrength,
             remoteSwerveActive
           );
@@ -23326,7 +23329,7 @@ const powerRef = useRef(hud.power);
             end,
             baseDir,
             perp,
-            remotePreviewSpin,
+            remotePhysicsSpin,
             powerStrength,
             remoteSwerveActive
           );
@@ -25968,14 +25971,6 @@ const powerRef = useRef(hud.power);
           onInfo={() => setShowInfo(true)}
           onChat={() => setShowChat(true)}
           onGift={() => setShowGift(true)}
-          className="fixed z-50 flex flex-col gap-[0.6rem]"
-          style={{
-            left: 'calc(0.75rem + env(safe-area-inset-left, 0px))',
-            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)'
-          }}
-          buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
-          iconClassName="text-[1.1rem] leading-none"
-          labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
           showInfo={false}
           showMute={false}
         />
