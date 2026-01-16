@@ -4898,7 +4898,7 @@ const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
-const CUE_STROKE_VISUAL_SLOWDOWN = 2.05;
+const CUE_STROKE_VISUAL_SLOWDOWN = 2.4;
 const AI_CUE_PULLBACK_DURATION_MS = 3400;
 const AI_CUE_FORWARD_DURATION_MS = 3400;
 const AI_STROKE_VISIBLE_DURATION_MS =
@@ -4942,7 +4942,7 @@ const AI_STROKE_TIME_SCALE = 2.15;
 const AI_STROKE_PULLBACK_FACTOR = 1.05;
 const AI_CUE_PULL_VISIBILITY_BOOST = 1.34;
 const AI_WARMUP_PULL_RATIO = 0.55;
-const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.32;
+const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.55;
 const PLAYER_WARMUP_PULL_RATIO = 0.62;
 const PLAYER_STROKE_TIME_SCALE = 2.05;
 const PLAYER_FORWARD_SLOWDOWN = 1.7;
@@ -10887,6 +10887,8 @@ function PoolRoyaleGame({
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
+  const chatButtonRef = useRef(null);
+  const [chatBubblePosition, setChatBubblePosition] = useState(null);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
   const accountIdRef = useRef(accountId || '');
@@ -11763,6 +11765,28 @@ const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
 const [bottomHudOffset, setBottomHudOffset] = useState(0);
 const leftControlsRef = useRef(null);
 const spinBoxRef = useRef(null);
+useEffect(() => {
+  if (!chatButtonRef.current) return undefined;
+  let frameId = null;
+  const updatePosition = () => {
+    if (!chatButtonRef.current) return;
+    const rect = chatButtonRef.current.getBoundingClientRect();
+    setChatBubblePosition({
+      left: rect.right + 12,
+      top: rect.top + rect.height / 2
+    });
+  };
+  const scheduleUpdate = () => {
+    if (frameId) cancelAnimationFrame(frameId);
+    frameId = requestAnimationFrame(updatePosition);
+  };
+  scheduleUpdate();
+  window.addEventListener('resize', scheduleUpdate);
+  return () => {
+    if (frameId) cancelAnimationFrame(frameId);
+    window.removeEventListener('resize', scheduleUpdate);
+  };
+}, [chatButtonRef, isPortrait, replayActive, uiScale, chromeUiLiftPx, viewButtonsOffsetPx]);
 const showRuleToast = useCallback((message) => {
   if (!message) return;
   if (ruleToastTimeoutRef.current) {
@@ -12743,7 +12767,6 @@ const powerRef = useRef(hud.power);
     };
     let cancelled = false;
     const runMatchWrapUp = async () => {
-      await waitForActiveReplay();
       const tournamentOutcome = await handleTournamentResult({
         winnerSeat,
         scores: finalScores
@@ -12766,10 +12789,12 @@ const powerRef = useRef(hud.power);
         userWon
       };
       setWinnerOverlay(overlayData);
-      const burstCount = overlayData.prizeText || (overlayData.rewards && overlayData.rewards.length > 0)
-        ? 28
-        : 18;
+      const burstCount =
+        overlayData.prizeText || (overlayData.rewards && overlayData.rewards.length > 0)
+          ? 28
+          : 18;
       triggerCoinBurst(burstCount);
+      await waitForActiveReplay();
       await wait(2200);
       if (!cancelled) {
         goToLobby();
@@ -22237,7 +22262,7 @@ const powerRef = useRef(hud.power);
             shotRecording.replayTags = replayDecision.tags;
             shotRecording.zoomOnly = replayDecision.zoomOnly;
           }
-          const shouldStartReplay =
+          let shouldStartReplay =
             !skipAllReplaysRef.current &&
             Boolean(replayDecision?.shouldReplay) &&
             (shotRecording?.frames?.length ?? 0) > 1;
@@ -22298,6 +22323,13 @@ const powerRef = useRef(hud.power);
           if (trainingModeRef.current === 'solo') {
             safeState = { ...safeState, activePlayer: 'A' };
           }
+        }
+        const shouldForceFinalReplay =
+          safeState?.frameOver &&
+          !isTraining &&
+          (shotRecording?.frames?.length ?? 0) > 1;
+        if (shouldForceFinalReplay && !skipAllReplaysRef.current) {
+          shouldStartReplay = true;
         }
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
@@ -25879,7 +25911,8 @@ const powerRef = useRef(hud.power);
             onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
-            className="fixed left-2 bottom-4 z-50 flex flex-col gap-2.5"
+            chatButtonRef={chatButtonRef}
+            className="fixed left-1 bottom-3 z-50 flex flex-col gap-2.5"
             buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
             iconClassName="text-[1.1rem] leading-none"
             labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
@@ -26005,7 +26038,20 @@ const powerRef = useRef(hud.power);
       )}
 
       {chatBubbles.map((bubble) => (
-        <div key={bubble.id} className="chat-bubble">
+        <div
+          key={bubble.id}
+          className={`chat-bubble${chatBubblePosition ? ' chat-bubble--pool-royale' : ''}`}
+          style={
+            chatBubblePosition
+              ? {
+                  left: `${chatBubblePosition.left}px`,
+                  top: `${chatBubblePosition.top}px`,
+                  bottom: 'auto',
+                  transform: 'translateY(-50%)'
+                }
+              : undefined
+          }
+        >
           <span>{bubble.text}</span>
           <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
         </div>
@@ -26046,7 +26092,7 @@ const powerRef = useRef(hud.power);
             }
             setTimeout(
               () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
-              3000
+              4500
             );
           }}
         />

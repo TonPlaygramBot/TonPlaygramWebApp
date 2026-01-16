@@ -6,6 +6,7 @@ export default function BottomLeftIcons({
   onChat,
   onGift,
   style,
+  chatButtonRef,
   className = 'fixed left-1 bottom-4 flex flex-col items-center space-y-2 z-20',
   showInfo = true,
   showChat = true,
@@ -36,7 +37,12 @@ export default function BottomLeftIcons({
   return (
     <div className={className} style={style}>
       {showChat && onChat && (
-        <button type="button" onClick={onChat} className={buttonClassName}>
+        <button
+          type="button"
+          onClick={onChat}
+          className={buttonClassName}
+          ref={chatButtonRef}
+        >
           {chatIcon ? (
             <span className={iconClassName}>{chatIcon}</span>
           ) : (
