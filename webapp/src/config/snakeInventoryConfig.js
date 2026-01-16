@@ -9,6 +9,48 @@ const mapLabels = (options) =>
     }, {})
   );
 
+const SNAKE_TABLE_FINISH_OPTIONS = Object.freeze([
+  { id: 'peelingPaintWeathered', label: 'Wood Peeling Paint Weathered' },
+  { id: 'oakVeneer01', label: 'Oak Veneer 01' },
+  { id: 'woodTable001', label: 'Wood Table 001' },
+  { id: 'darkWood', label: 'Dark Wood' },
+  { id: 'rosewoodVeneer01', label: 'Rosewood Veneer 01' }
+]);
+
+const SNAKE_FLOOR_TEXTURE_OPTIONS = Object.freeze([
+  { id: 'paving_stones_02', label: 'Paving Stones 02' },
+  { id: 'paving_stones_07', label: 'Paving Stones 07' },
+  { id: 'paving_stones_08', label: 'Paving Stones 08' },
+  { id: 'paving_stones_12', label: 'Paving Stones 12' },
+  { id: 'cobblestone_floor_03', label: 'Cobblestone Floor 03' },
+  { id: 'cobblestone_floor_05', label: 'Cobblestone Floor 05' },
+  { id: 'concrete_pavers_01', label: 'Concrete Pavers 01' },
+  { id: 'concrete_pavers_02', label: 'Concrete Pavers 02' },
+  { id: 'stone_floor_05', label: 'Stone Floor 05' },
+  { id: 'stone_floor_06', label: 'Stone Floor 06' }
+]);
+
+const SNAKE_WALL_TEXTURE_OPTIONS = Object.freeze([
+  { id: 'brick_wall_02', label: 'Brick Wall 02' },
+  { id: 'brick_wall_03', label: 'Brick Wall 03' },
+  { id: 'castle_wall_01', label: 'Castle Wall 01' },
+  { id: 'concrete_wall_002', label: 'Concrete Wall 002' },
+  { id: 'concrete_wall_004', label: 'Concrete Wall 004' },
+  { id: 'painted_wall_01', label: 'Painted Wall 01' },
+  { id: 'plaster_wall_01', label: 'Plaster Wall 01' },
+  { id: 'stone_wall_02', label: 'Stone Wall 02' },
+  { id: 'stone_wall_03', label: 'Stone Wall 03' },
+  { id: 'tiles_wall_01', label: 'Tiles Wall 01' }
+]);
+
+const SNAKE_TOKEN_SHAPE_OPTIONS = Object.freeze([
+  { id: 'pawn', label: 'Pawn Token' },
+  { id: 'knight', label: 'Knight Token' },
+  { id: 'bishop', label: 'Bishop Token' },
+  { id: 'rook', label: 'Rook Token' },
+  { id: 'queen', label: 'Queen Token' }
+]);
+
 export const SNAKE_DEFAULT_UNLOCKS = Object.freeze({
   arenaTheme: ['nebulaAtrium'],
   boardPalette: ['desertMarble'],
@@ -16,6 +58,10 @@ export const SNAKE_DEFAULT_UNLOCKS = Object.freeze({
   diceTheme: ['imperialIvory'],
   railTheme: ['platinumOak'],
   tokenFinish: ['ceramicSheen'],
+  tableFinish: [SNAKE_TABLE_FINISH_OPTIONS[0].id],
+  floorTexture: [SNAKE_FLOOR_TEXTURE_OPTIONS[0].id],
+  wallTexture: [SNAKE_WALL_TEXTURE_OPTIONS[0].id],
+  tokenShape: [SNAKE_TOKEN_SHAPE_OPTIONS[0].id],
   tables: [MURLAN_TABLE_THEMES[0].id],
   stools: [MURLAN_STOOL_THEMES[0].id],
   environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID]
@@ -52,6 +98,10 @@ export const SNAKE_OPTION_LABELS = Object.freeze({
     matteVelvet: 'Matte Velvet',
     holographicPulse: 'Holographic Pulse'
   }),
+  tableFinish: mapLabels(SNAKE_TABLE_FINISH_OPTIONS),
+  floorTexture: mapLabels(SNAKE_FLOOR_TEXTURE_OPTIONS),
+  wallTexture: mapLabels(SNAKE_WALL_TEXTURE_OPTIONS),
+  tokenShape: mapLabels(SNAKE_TOKEN_SHAPE_OPTIONS),
   tables: mapLabels(MURLAN_TABLE_THEMES),
   stools: mapLabels(MURLAN_STOOL_THEMES),
   environmentHdri: Object.freeze(
@@ -158,7 +208,39 @@ export const SNAKE_STORE_ITEMS = [
     name: 'Holographic Pulse Tokens',
     price: 520,
     description: 'Holographic core with shimmering pulse highlights for each token.'
-  }
+  },
+  ...SNAKE_TABLE_FINISH_OPTIONS.map((finish, idx) => ({
+    id: `finish-${finish.id}`,
+    type: 'tableFinish',
+    optionId: finish.id,
+    name: `${finish.label} Finish`,
+    price: 980 + idx * 15,
+    description: `${finish.label} finish imported from Pool Royale.`
+  })),
+  ...SNAKE_FLOOR_TEXTURE_OPTIONS.map((option, idx) => ({
+    id: `snake-floor-${option.id}`,
+    type: 'floorTexture',
+    optionId: option.id,
+    name: option.label,
+    price: 640 + idx * 18,
+    description: `Poly Haven pavement texture: ${option.label}.`
+  })),
+  ...SNAKE_WALL_TEXTURE_OPTIONS.map((option, idx) => ({
+    id: `snake-wall-${option.id}`,
+    type: 'wallTexture',
+    optionId: option.id,
+    name: option.label,
+    price: 620 + idx * 16,
+    description: `Poly Haven wall texture: ${option.label}.`
+  })),
+  ...SNAKE_TOKEN_SHAPE_OPTIONS.map((option, idx) => ({
+    id: `snake-token-${option.id}`,
+    type: 'tokenShape',
+    optionId: option.id,
+    name: option.label,
+    price: 480 + idx * 35,
+    description: `Chess Battle Royal ${option.label.toLowerCase()} piece token.`
+  }))
 ].concat(
   MURLAN_TABLE_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
     id: `snake-table-${theme.id}`,
@@ -197,6 +279,26 @@ export const SNAKE_DEFAULT_LOADOUT = [
   { type: 'diceTheme', optionId: 'imperialIvory', label: 'Imperial Ivory Dice' },
   { type: 'railTheme', optionId: 'platinumOak', label: 'Platinum & Oak Rails' },
   { type: 'tokenFinish', optionId: 'ceramicSheen', label: 'Ceramic Sheen Tokens' },
+  {
+    type: 'tableFinish',
+    optionId: SNAKE_TABLE_FINISH_OPTIONS[0].id,
+    label: SNAKE_TABLE_FINISH_OPTIONS[0].label
+  },
+  {
+    type: 'floorTexture',
+    optionId: SNAKE_FLOOR_TEXTURE_OPTIONS[0].id,
+    label: SNAKE_FLOOR_TEXTURE_OPTIONS[0].label
+  },
+  {
+    type: 'wallTexture',
+    optionId: SNAKE_WALL_TEXTURE_OPTIONS[0].id,
+    label: SNAKE_WALL_TEXTURE_OPTIONS[0].label
+  },
+  {
+    type: 'tokenShape',
+    optionId: SNAKE_TOKEN_SHAPE_OPTIONS[0].id,
+    label: SNAKE_TOKEN_SHAPE_OPTIONS[0].label
+  },
   { type: 'tables', optionId: MURLAN_TABLE_THEMES[0].id, label: MURLAN_TABLE_THEMES[0].label },
   { type: 'stools', optionId: MURLAN_STOOL_THEMES[0].id, label: MURLAN_STOOL_THEMES[0].label },
   {

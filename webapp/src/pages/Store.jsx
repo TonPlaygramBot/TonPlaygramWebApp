@@ -194,8 +194,12 @@ const SNAKE_TYPE_LABELS = {
   diceTheme: 'Dice Finish',
   railTheme: 'Rails & Nets',
   tokenFinish: 'Token Finish',
+  tokenShape: 'Token Shape',
+  tableFinish: 'Table Finish',
   tables: 'Table Models',
   stools: 'Chairs',
+  floorTexture: 'Floor Textures',
+  wallTexture: 'Wall Textures',
   environmentHdri: 'HDR Environments'
 };
 
