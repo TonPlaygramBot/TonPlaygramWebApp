@@ -2,7 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
-import { getGameVolume } from '../utils/sound.js';
+import { bombSound, chatBeep } from '../assets/soundData.js';
+import BottomLeftIcons from './BottomLeftIcons.jsx';
+import GiftPopup from './GiftPopup.jsx';
+import InfoPopup from './InfoPopup.jsx';
+import QuickMessagePopup from './QuickMessagePopup.jsx';
+import { giftSounds } from '../utils/giftSounds.js';
+import { getGameVolume, isGameMuted } from '../utils/sound.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 import { AIR_HOCKEY_CUSTOMIZATION } from '../config/airHockeyInventoryConfig.js';
 import {
@@ -306,6 +312,11 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   });
   const [showCustomizer, setShowCustomizer] = useState(false);
   const [isTopDownView, setIsTopDownView] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showGift, setShowGift] = useState(false);
+  const [chatBubbles, setChatBubbles] = useState([]);
+  const [muted, setMuted] = useState(isGameMuted());
   const [graphicsId, setGraphicsId] = useState(() => {
     const fallback = resolveDefaultGraphicsId();
     if (typeof window === 'undefined') return fallback;
@@ -332,6 +343,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     post: null
   });
   const audioStartedRef = useRef(false);
+  const hahaSoundRef = useRef(null);
+  const bombSoundRef = useRef(null);
   const scoreRef = useRef({ left: 0, right: 0 });
   const goalTimeoutRef = useRef(null);
   const postTimeoutRef = useRef(null);
@@ -374,6 +387,28 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   });
   const lastFrameTimeRef = useRef(0);
   const frameAccumulatorRef = useRef(0);
+  const chatAvatar = useMemo(() => getAvatarUrl(player.avatar), [player.avatar]);
+  const giftPlayers = useMemo(() => {
+    const playerAvatar = getAvatarUrl(player.avatar);
+    const aiAvatar = getAvatarUrl(ai.avatar);
+    const safeId = resolvedAccountId || accountId || 'guest';
+    return [
+      {
+        ...player,
+        id: safeId,
+        index: 0,
+        photoUrl: playerAvatar,
+        name: player.name || 'Player'
+      },
+      {
+        ...ai,
+        id: safeId,
+        index: 1,
+        photoUrl: aiAvatar,
+        name: ai.name || 'Opponent'
+      }
+    ];
+  }, [ai, accountId, player, resolvedAccountId]);
   const updateRendererSettings = useCallback(() => {
     const renderer = rendererRef.current;
     const host = hostRef.current;
@@ -484,6 +519,24 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   }, [isTopDownView]);
 
   useEffect(() => {
+    const handler = () => setMuted(isGameMuted());
+    window.addEventListener('gameMuteChanged', handler);
+    return () => window.removeEventListener('gameMuteChanged', handler);
+  }, []);
+
+  useEffect(() => {
+    const vol = getGameVolume();
+    hahaSoundRef.current = new Audio('/assets/sounds/Haha.mp3');
+    hahaSoundRef.current.volume = vol;
+    bombSoundRef.current = new Audio(bombSound);
+    bombSoundRef.current.volume = vol;
+    return () => {
+      hahaSoundRef.current?.pause();
+      bombSoundRef.current?.pause();
+    };
+  }, []);
+
+  useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
 
@@ -531,6 +584,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     };
 
     const playWhistle = () => {
+      if (isGameMuted()) return;
       const whistle = audioRef.current.whistle;
       if (!whistle || !audioStartedRef.current) return;
       whistle.volume = getGameVolume();
@@ -543,6 +597,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     };
 
     const playHit = () => {
+      if (isGameMuted()) return;
       const hit = audioRef.current.hit;
       if (!hit || !audioStartedRef.current) return;
       hit.volume = getGameVolume();
@@ -554,6 +609,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     };
 
     const playPost = () => {
+      if (isGameMuted()) return;
       const post = audioRef.current.post;
       if (!post || !audioStartedRef.current) return;
       post.volume = Math.min(1, getGameVolume() * 0.7);
@@ -569,6 +625,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     };
 
     const playGoal = () => {
+      if (isGameMuted()) return;
       const goal = audioRef.current.goal;
       if (!goal || !audioStartedRef.current) return;
       goal.volume = getGameVolume();
@@ -1679,7 +1736,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         <span className="mx-2">•</span>
         <span>Target: {targetValue}</span>
       </div>
-      <div className="absolute top-1 left-2 flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1">
+      <div
+        className="absolute top-1 left-2 flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1"
+        data-player-index="0"
+      >
         <img
           src={getAvatarUrl(player.avatar)}
           alt=""
@@ -1689,7 +1749,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           {player.name}: {ui.left}
         </span>
       </div>
-      <div className="absolute top-1 right-2 flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1">
+      <div
+        className="absolute top-1 right-2 flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1"
+        data-player-index="1"
+      >
         <span>
           {ui.right}: {ai.name}
         </span>
@@ -1699,7 +1762,13 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           className="w-5 h-5 rounded-full object-cover"
         />
       </div>
-      <div className="absolute bottom-2 left-2 z-20">
+      <div className="absolute bottom-2 left-2 z-20 flex flex-col items-start gap-3 pointer-events-auto">
+        <BottomLeftIcons
+          onInfo={() => setShowInfo(true)}
+          onChat={() => setShowChat(true)}
+          onGift={() => setShowGift(true)}
+          className="flex flex-col items-center space-y-2"
+        />
         <button
           type="button"
           aria-pressed={isTopDownView}
@@ -1715,6 +1784,14 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
             <span>{isTopDownView ? '3D' : '2D'}</span>
           </span>
         </button>
+        {!gameOver && (
+          <button
+            onClick={() => (window.location.href = '/games/airhockey/lobby')}
+            className="text-white text-xs bg-white/10 hover:bg-white/20 rounded px-2 py-1"
+          >
+            Exit to Lobby
+          </button>
+        )}
       </div>
       <div className="absolute bottom-2 right-2 flex flex-col items-end space-y-2 z-20">
         <button
@@ -1795,6 +1872,136 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           </div>
         </div>
       )}
+      {chatBubbles.map((bubble) => (
+        <div key={bubble.id} className="chat-bubble">
+          <span>{bubble.text}</span>
+          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
+        </div>
+      ))}
+      <div className="pointer-events-auto">
+        <InfoPopup
+          open={showInfo}
+          onClose={() => setShowInfo(false)}
+          title="Air Hockey"
+          info="Defend your goal and score on your opponent. First to the target score wins. Drag on the lower half of the table to move your mallet."
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <QuickMessagePopup
+          open={showChat}
+          onClose={() => setShowChat(false)}
+          onSend={(text) => {
+            const id = Date.now();
+            setChatBubbles((bubbles) => [...bubbles, { id, text, photoUrl: chatAvatar }]);
+            if (!muted) {
+              const audio = new Audio(chatBeep);
+              audio.volume = getGameVolume();
+              audio.play().catch(() => {});
+            }
+            setTimeout(
+              () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
+              3000
+            );
+          }}
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <GiftPopup
+          open={showGift}
+          onClose={() => setShowGift(false)}
+          players={giftPlayers}
+          senderIndex={0}
+          onGiftSent={({ from, to, gift }) => {
+            const start = document.querySelector(`[data-player-index="${from}"]`);
+            const end = document.querySelector(`[data-player-index="${to}"]`);
+            if (start && end) {
+              const s = start.getBoundingClientRect();
+              const e = end.getBoundingClientRect();
+              const cx = window.innerWidth / 2;
+              const cy = window.innerHeight / 2;
+              let icon;
+              if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
+                icon = document.createElement('img');
+                icon.src = gift.icon;
+                icon.className = 'w-5 h-5';
+              } else {
+                icon = document.createElement('div');
+                icon.textContent = gift.icon;
+                icon.style.fontSize = '24px';
+              }
+              icon.style.position = 'fixed';
+              icon.style.left = '0px';
+              icon.style.top = '0px';
+              icon.style.pointerEvents = 'none';
+              icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`;
+              icon.style.zIndex = '9999';
+              document.body.appendChild(icon);
+              const giftSound = giftSounds[gift.id];
+              if (gift.id === 'laugh_bomb' && !muted) {
+                bombSoundRef.current.currentTime = 0;
+                bombSoundRef.current.play().catch(() => {});
+                hahaSoundRef.current.currentTime = 0;
+                hahaSoundRef.current.play().catch(() => {});
+                setTimeout(() => {
+                  hahaSoundRef.current.pause();
+                }, 5000);
+              } else if (gift.id === 'coffee_boost' && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.currentTime = 4;
+                audio.play().catch(() => {});
+                setTimeout(() => {
+                  audio.pause();
+                }, 4000);
+              } else if (gift.id === 'baby_chick' && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+              } else if (gift.id === 'magic_trick' && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+                setTimeout(() => {
+                  audio.pause();
+                }, 4000);
+              } else if (gift.id === 'fireworks' && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+                setTimeout(() => {
+                  audio.pause();
+                }, 6000);
+              } else if (gift.id === 'surprise_box' && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+                setTimeout(() => {
+                  audio.pause();
+                }, 5000);
+              } else if (gift.id === 'bullseye' && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                setTimeout(() => {
+                  audio.play().catch(() => {});
+                }, 2500);
+              } else if (giftSound && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+              }
+              const animation = icon.animate(
+                [
+                  { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
+                  { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+                  { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` }
+                ],
+                { duration: 3500, easing: 'linear' }
+              );
+              animation.onfinish = () => icon.remove();
+            }
+          }}
+        />
+      </div>
       {gameOver && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-white text-center px-4">
           <div className="rounded-lg border border-white/10 bg-white/5 px-5 py-4 space-y-2 max-w-sm w-full">
@@ -1814,14 +2021,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
             </div>
           </div>
         </div>
-      )}
-      {!gameOver && (
-        <button
-          onClick={() => (window.location.href = '/games/airhockey/lobby')}
-          className="absolute left-2 bottom-2 text-white text-xs bg-white/10 hover:bg-white/20 rounded px-2 py-1"
-        >
-          Exit to Lobby
-        </button>
       )}
     </div>
   );
