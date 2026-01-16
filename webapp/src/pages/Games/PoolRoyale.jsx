@@ -908,7 +908,7 @@ const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylind
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
-const LOCK_REPLAY_CAMERA = true;
+const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 240;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
@@ -4886,8 +4886,8 @@ const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
-const AI_CUE_PULLBACK_DURATION_MS = 2500;
-const AI_CUE_FORWARD_DURATION_MS = 2500;
+const AI_CUE_PULLBACK_DURATION_MS = 3000;
+const AI_CUE_FORWARD_DURATION_MS = 3000;
 const AI_STROKE_VISIBLE_DURATION_MS =
   AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
@@ -4925,19 +4925,20 @@ const AI_CUE_VIEW_HOLD_MS = 180;
 // Ease the AI camera just partway toward cue view (still above the stick) so the shot preview
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
-const AI_STROKE_TIME_SCALE = 1.6;
+const AI_STROKE_TIME_SCALE = 1.85;
 const AI_STROKE_PULLBACK_FACTOR = 1.05;
 const AI_CUE_PULL_VISIBILITY_BOOST = 1.34;
 const AI_WARMUP_PULL_RATIO = 0.55;
 const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.32;
 const PLAYER_WARMUP_PULL_RATIO = 0.62;
-const PLAYER_STROKE_TIME_SCALE = 1.45;
-const PLAYER_FORWARD_SLOWDOWN = 1.2;
+const PLAYER_STROKE_TIME_SCALE = 1.7;
+const PLAYER_FORWARD_SLOWDOWN = 1.35;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.2;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1.45;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 24;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 30;
 const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
@@ -17088,54 +17089,19 @@ const powerRef = useRef(hud.power);
         const captureReplayCameraSnapshot = () => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-          const fallbackCamera = activeRenderCameraRef.current ?? camera;
-          const fovSnapshot = Number.isFinite(fallbackCamera?.fov)
-            ? fallbackCamera.fov
-            : camera.fov;
-          const pocketView =
-            activeShotView?.mode === 'pocket' ? activeShotView : null;
-          if (pocketView) {
-            const pocketEntry = getPocketCameraEntry(
-              pocketView.anchorId ?? pocketView.pocketId
-            );
-            if (pocketEntry?.camera) {
-              const pocketTarget = new THREE.Vector3(
-                pocketView.pocketCenter.x * scale,
-                BALL_CENTER_Y * scale,
-                pocketView.pocketCenter.y * scale
-              );
-              pocketTarget.y = Math.max(pocketTarget.y ?? 0, minTargetY);
-              const snapshot = {
-                position: pocketEntry.camera.position.clone(),
-                target: pocketTarget,
-                fov: pocketEntry.camera.fov,
-                minTargetY
-              };
-              return snapshot;
-            }
+          const activeCamera = activeRenderCameraRef.current ?? camera;
+          const fovSnapshot = Number.isFinite(activeCamera?.fov) ? activeCamera.fov : camera.fov;
+          const targetSnapshot =
+            lastCameraTargetRef.current?.clone?.() ??
+            new THREE.Vector3(playerOffsetRef.current * scale, ORBIT_FOCUS_BASE_Y * scale, 0);
+          targetSnapshot.y = Math.max(targetSnapshot.y ?? 0, minTargetY);
+          const positionSnapshot = activeCamera?.position?.clone?.() ?? camera.position.clone();
+          if (positionSnapshot.y < minTargetY) {
+            positionSnapshot.y = minTargetY;
           }
-          const tableFocus = new THREE.Vector3(
-            playerOffsetRef.current,
-            ORBIT_FOCUS_BASE_Y,
-            0
-          ).multiplyScalar(scale);
-          tableFocus.y = Math.max(tableFocus.y ?? 0, minTargetY);
-          const overheadCamera = resolveRailOverheadReplayCamera({
-            focusOverride: tableFocus,
-            minTargetY
-          });
-          if (overheadCamera?.position) {
-            return overheadCamera;
-          }
-          const topRadiusBase =
-            fitRadius(fallbackCamera ?? camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
-          const topRadius = clampOrbitRadius(
-            Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
-          );
-          const position = tableFocus.clone().add(new THREE.Vector3(0, topRadius, 0));
           return {
-            position,
-            target: tableFocus,
+            position: positionSnapshot,
+            target: targetSnapshot,
             fov: fovSnapshot,
             minTargetY
           };
@@ -17349,9 +17315,13 @@ const powerRef = useRef(hud.power);
             syncCueShadow();
             return;
           }
-          const pullback = Math.max(0, stroke.pullback ?? stroke.pullbackDuration ?? 0);
-          const forward = Math.max(1e-6, stroke.forward ?? stroke.forwardDuration ?? 0);
-          const settleTime = Math.max(0, stroke.settleTime ?? stroke.settleDuration ?? 0);
+          const replayScale = REPLAY_CUE_STROKE_SLOWDOWN;
+          const pullback =
+            Math.max(0, stroke.pullback ?? stroke.pullbackDuration ?? 0) * replayScale;
+          const forward =
+            Math.max(1e-6, stroke.forward ?? stroke.forwardDuration ?? 0) * replayScale;
+          const settleTime =
+            Math.max(0, stroke.settleTime ?? stroke.settleDuration ?? 0) * replayScale;
           const startOffset = Math.max(0, stroke.startOffset ?? 0);
           const localTime = targetTime - startOffset;
           const pullEnd = pullback;
@@ -17540,30 +17510,42 @@ const powerRef = useRef(hud.power);
           applyBallSnapshot(shotRecording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
           const path = replayPlayback.cuePath ?? [];
-          if (!LOCK_REPLAY_CAMERA && path.length > 0) {
-            const start = path[0]?.pos ?? null;
-            const end = path[path.length - 1]?.pos ?? start;
-            if (start && end) {
-              const focus = new THREE.Vector3(
-                (start.x + end.x) * 0.5,
-                Math.max(baseSurfaceWorldY, BALL_CENTER_Y * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE)),
-                (start.z + end.z) * 0.5
-              );
-              const railOverheadCamera = resolveRailOverheadReplayCamera({
-                focusOverride: focus,
-                minTargetY: focus.y
-              });
-              const cinematicReplayCamera = resolveReplayTopViewCamera({
-                focusOverride: focus,
-                minTargetY: focus.y
-              });
-              const primaryReplayCamera = railOverheadCamera ?? cinematicReplayCamera;
-              if (primaryReplayCamera) {
-                replayFrameCameraRef.current = {
-                  frameA: primaryReplayCamera,
-                  frameB: cinematicReplayCamera ?? primaryReplayCamera,
-                  alpha: 0
-                };
+          if (!LOCK_REPLAY_CAMERA) {
+            const initialCamera = trimmed.frames?.[0]?.camera ?? null;
+            if (initialCamera) {
+              replayFrameCameraRef.current = {
+                frameA: initialCamera,
+                frameB: initialCamera,
+                alpha: 0
+              };
+            } else if (path.length > 0) {
+              const start = path[0]?.pos ?? null;
+              const end = path[path.length - 1]?.pos ?? start;
+              if (start && end) {
+                const focus = new THREE.Vector3(
+                  (start.x + end.x) * 0.5,
+                  Math.max(
+                    baseSurfaceWorldY,
+                    BALL_CENTER_Y * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE)
+                  ),
+                  (start.z + end.z) * 0.5
+                );
+                const railOverheadCamera = resolveRailOverheadReplayCamera({
+                  focusOverride: focus,
+                  minTargetY: focus.y
+                });
+                const cinematicReplayCamera = resolveReplayTopViewCamera({
+                  focusOverride: focus,
+                  minTargetY: focus.y
+                });
+                const primaryReplayCamera = railOverheadCamera ?? cinematicReplayCamera;
+                if (primaryReplayCamera) {
+                  replayFrameCameraRef.current = {
+                    frameA: primaryReplayCamera,
+                    frameB: cinematicReplayCamera ?? primaryReplayCamera,
+                    alpha: 0
+                  };
+                }
               }
             }
           }
@@ -24764,14 +24746,14 @@ const powerRef = useRef(hud.power);
     () => {
       const radius = 72;
       const labels = [
-        { text: 'LOW', angle: -90 },
-        { text: 'LOW LEFT', angle: -45 },
-        { text: 'LEFT', angle: 0 },
-        { text: 'HIGH LEFT', angle: 45 },
-        { text: 'HIGH', angle: 90 },
-        { text: 'HIGH RIGHT', angle: 135 },
-        { text: 'RIGHT', angle: 180 },
-        { text: 'LOW RIGHT', angle: 225 }
+        { text: 'HIGH', angle: -90 },
+        { text: 'HIGH RIGHT', angle: -45 },
+        { text: 'RIGHT', angle: 0 },
+        { text: 'LOW RIGHT', angle: 45 },
+        { text: 'LOW', angle: 90 },
+        { text: 'LOW LEFT', angle: 135 },
+        { text: 'LEFT', angle: 180 },
+        { text: 'HIGH LEFT', angle: -135 }
       ];
       return labels.map((label) => {
         const radians = (label.angle * Math.PI) / 180;
@@ -25097,6 +25079,15 @@ const powerRef = useRef(hud.power);
   const nameTextClass = isPortrait ? 'text-sm' : 'text-base';
   const hudGapClass = isPortrait ? 'gap-4' : 'gap-6';
   const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
+  const chatGiftOverlayClass =
+    'fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm';
+  const chatGiftPanelClass =
+    'w-72 rounded-2xl border border-emerald-400/40 bg-black/80 p-4 text-white shadow-[0_18px_40px_rgba(0,0,0,0.55)]';
+  const chatGiftOptionClass =
+    'text-[11px] uppercase tracking-[0.2em] text-white/80 border border-white/15 rounded-lg px-2 py-1 bg-white/5 hover:bg-white/10';
+  const chatGiftOptionActiveClass = 'border-emerald-300 bg-emerald-300/20 text-white';
+  const chatGiftActionButtonClass =
+    'w-full rounded-full border border-emerald-300 bg-emerald-300/90 px-3 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-900 shadow-[0_12px_24px_rgba(16,185,129,0.35)] hover:bg-emerald-300';
   const playerPanelClass = isPortrait
     ? `flex min-w-0 items-center gap-2.5 rounded-full ${isPlayerTurn ? 'text-white' : 'text-white/80'}`
     : `flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
@@ -26113,6 +26104,11 @@ const powerRef = useRef(hud.power);
         <QuickMessagePopup
           open={showChat}
           onClose={() => setShowChat(false)}
+          overlayClassName={chatGiftOverlayClass}
+          panelClassName={chatGiftPanelClass}
+          messageButtonClassName={chatGiftOptionClass}
+          messageButtonActiveClassName={chatGiftOptionActiveClass}
+          sendButtonClassName={chatGiftActionButtonClass}
           onSend={(text) => {
             const id = Date.now();
             setChatBubbles((bubbles) => [
@@ -26137,6 +26133,17 @@ const powerRef = useRef(hud.power);
           onClose={() => setShowGift(false)}
           players={giftPlayers}
           senderIndex={0}
+          overlayClassName={chatGiftOverlayClass}
+          panelClassName={chatGiftPanelClass}
+          titleClassName="text-center text-xs font-semibold uppercase tracking-[0.3em] text-emerald-100"
+          playerButtonClassName={`${chatGiftOptionClass} flex items-center gap-2 text-left`}
+          playerButtonActiveClassName={chatGiftOptionActiveClass}
+          tierTitleClassName="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/70"
+          giftButtonClassName={`${chatGiftOptionClass} flex items-center justify-center gap-2`}
+          giftButtonActiveClassName={chatGiftOptionActiveClass}
+          costClassName="text-[11px] uppercase tracking-[0.28em] text-white/70 mt-2 flex items-center justify-center gap-2"
+          sendButtonClassName={chatGiftActionButtonClass}
+          noteClassName="text-[10px] uppercase tracking-[0.22em] text-white/60 text-center"
           onGiftSent={({ from, to, gift }) => {
             const start = document.querySelector(`[data-player-index="${from}"]`);
             const end = document.querySelector(`[data-player-index="${to}"]`);
