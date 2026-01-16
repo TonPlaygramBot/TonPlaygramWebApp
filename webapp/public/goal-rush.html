@@ -58,8 +58,41 @@
 
     .hint{position:fixed;inset:0;display:none;align-items:center;justify-content:center;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
 
-    .mute-btn{position:absolute;top:6px;right:6px;z-index:5;background:#0b1220;border:1px solid #233050;color:#e5e7eb;border-radius:8px;padding:4px 8px;font-size:14px}
-    .mute-btn.muted::after{content:'';position:absolute;top:50%;left:20%;width:60%;height:2px;background:#ff3b3b;transform:rotate(-45deg)}
+    #quickActions{position:fixed;left:calc(0.75rem + env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 1rem);display:flex;flex-direction:column;gap:.6rem;z-index:6;pointer-events:auto;}
+    #quickActions .quick-action{width:3.15rem;height:3.15rem;border-radius:14px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.18);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;box-shadow:0 8px 18px rgba(0,0,0,.35);backdrop-filter:blur(8px);padding:0;}
+    #quickActions .quick-action span{font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;}
+    #quickActions .quick-action .icon{font-size:1.1rem;line-height:1;}
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:7;}
+    .modal-overlay.active{display:flex;}
+    .modal-card{width:min(340px, 88vw);background:#0b1220;border:1px solid #233050;border-radius:16px;padding:1rem;color:#e5e7eb;box-shadow:0 18px 40px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:.75rem;}
+    .modal-header{display:flex;align-items:center;justify-content:space-between;gap:.5rem;}
+    .modal-header h3{margin:0;font-size:1rem;letter-spacing:.04em;}
+    .modal-close{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:999px;width:2rem;height:2rem;display:grid;place-items:center;color:#fff;padding:0;}
+    .quick-messages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem;max-height:12rem;overflow:auto;}
+    .quick-messages button{font-size:.7rem;padding:.4rem;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);color:#e2e8f0;font-weight:700;}
+    .quick-messages button.active{border-color:rgba(34,197,94,.8);background:rgba(34,197,94,.2);color:#eafff0;}
+    .modal-primary{width:100%;padding:.6rem 1rem;border-radius:12px;background:linear-gradient(135deg, rgba(34,197,94,.95), rgba(16,185,129,.85));color:#04210f;font-weight:800;border:1px solid rgba(34,197,94,.6);}
+    .gift-players{display:flex;flex-direction:column;gap:.4rem;max-height:8.5rem;overflow:auto;}
+    .gift-players button{display:flex;align-items:center;gap:.5rem;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);color:#e2e8f0;padding:.35rem .5rem;font-size:.72rem;font-weight:700;}
+    .gift-players button.active{border-color:rgba(34,197,94,.8);background:rgba(34,197,94,.2);}
+    .gift-players img{width:1.25rem;height:1.25rem;border-radius:999px;object-fit:cover;}
+    .gift-tier{display:flex;flex-direction:column;gap:.35rem;}
+    .gift-tier h4{margin:0;font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:rgba(226,232,240,.7);}
+    .gift-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.4rem;}
+    .gift-button{display:flex;align-items:center;justify-content:space-between;gap:.3rem;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);color:#e2e8f0;padding:.35rem .5rem;font-size:.7rem;font-weight:700;}
+    .gift-button.active{border-color:rgba(245,158,11,.75);background:rgba(245,158,11,.15);}
+    .gift-button img{width:1rem;height:1rem;}
+    .gift-cost{display:flex;align-items:center;justify-content:center;gap:.35rem;font-size:.7rem;color:rgba(226,232,240,.9);}
+    .gift-cost img{width:.9rem;height:.9rem;}
+    .gift-note{font-size:.6rem;line-height:1.4;text-align:center;color:rgba(226,232,240,.7);}
+    .chat-bubble{position:fixed;display:flex;align-items:center;gap:.35rem;padding:.35rem .6rem;border-radius:999px;background:rgba(8,13,26,.88);border:1px solid rgba(255,255,255,.12);color:#f8fafc;font-size:.7rem;font-weight:700;box-shadow:0 10px 24px rgba(0,0,0,.45);z-index:7;pointer-events:none;white-space:nowrap;}
+    .chat-bubble img,.chat-bubble .avatar{width:1.2rem;height:1.2rem;border-radius:999px;display:grid;place-items:center;background:rgba(255,255,255,.2);font-size:.75rem;}
+    .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 4.5rem);transform:translateX(-50%);padding:.4rem .75rem;border-radius:999px;background:rgba(15,23,42,.8);border:1px solid rgba(255,255,255,.18);color:#f8fafc;font-size:.72rem;font-weight:700;z-index:7;box-shadow:0 10px 24px rgba(0,0,0,.45);pointer-events:none;}
+    #rules{position:fixed;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(5,8,18,.75);z-index:6;backdrop-filter:blur(2px);}
+    #rules .card{max-width:720px;background:#0b1220;color:#e5e7eb;border-radius:16px;box-shadow:0 18px 38px rgba(0,0,0,.45);padding:16px 18px;border:1px solid #233050;}
+    #rules h2{margin:0 0 6px 0;font-size:18px;letter-spacing:0.35px;}
+    #rules ol{margin:6px 0 0 18px;color:#94a3b8;}
+    #rules .row{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
 
     .coin-confetti{position:fixed;top:-40px;width:32px;height:32px;pointer-events:none;animation:coin-fall var(--duration,3s) linear forwards}
     @keyframes coin-fall{from{transform:translateY(-10vh) rotate(0deg);opacity:1}to{transform:translateY(100vh) rotate(360deg);opacity:0}}
@@ -93,12 +126,70 @@
         </div>
       </div>
     </div>
-    <button id="muteBtn" class="mute-btn" aria-label="Toggle sound">🔊</button>
+    <div id="quickActions" aria-label="Quick actions">
+      <button class="quick-action" type="button" data-action="chat">
+        <span class="icon" aria-hidden="true">💬</span>
+        <span>Chat</span>
+      </button>
+      <button class="quick-action" type="button" data-action="gift">
+        <span class="icon" aria-hidden="true">🎁</span>
+        <span>Gift</span>
+      </button>
+      <button class="quick-action" type="button" data-action="info">
+        <span class="icon" aria-hidden="true">ℹ️</span>
+        <span>Info</span>
+      </button>
+      <button class="quick-action" type="button" data-action="mute">
+        <span class="icon" id="muteIcon" aria-hidden="true">🔊</span>
+        <span id="muteLabel">Mute</span>
+      </button>
+    </div>
     <div class="canvasWrap">
       <canvas id="game" width="720" height="1280" aria-label="Goal Rush Field"></canvas>
     </div>
       <div id="goalText" class="goal-text"></div>
       <div id="postText" class="post-text"></div>
+  </div>
+  <div id="rules">
+    <div class="card">
+      <h2>Goal Rush — How to Play</h2>
+      <ol>
+        <li><b>Objective:</b> Score by hitting the puck into the opponent goal first.</li>
+        <li><b>Control:</b> Drag your paddle in your half; aim shots by building momentum.</li>
+        <li><b>Kickoff:</b> The puck drops center after every goal.</li>
+        <li><b>Defend:</b> Keep your paddle between the puck and your goal to block.</li>
+      </ol>
+      <div class="row">
+        <button id="closeRules" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+  <div id="chatModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="chatTitle">
+      <div class="modal-header">
+        <h3 id="chatTitle">Quick Chat</h3>
+        <button class="modal-close" id="chatClose" type="button" aria-label="Close chat">✕</button>
+      </div>
+      <div class="quick-messages" id="chatMessages"></div>
+      <button class="modal-primary" id="chatSend" type="button">Send</button>
+    </div>
+  </div>
+  <div id="giftModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="giftTitle">
+      <div class="modal-header">
+        <h3 id="giftTitle">Send Gift</h3>
+        <button class="modal-close" id="giftClose" type="button" aria-label="Close gifts">✕</button>
+      </div>
+      <div class="gift-players" id="giftPlayers"></div>
+      <div id="giftTiers"></div>
+      <div class="gift-cost">
+        <span>Cost:</span>
+        <span id="giftCost">0</span>
+        <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" />
+      </div>
+      <button class="modal-primary" id="giftSend" type="button">Send Gift</button>
+      <p class="gift-note">10% charge and the amount of the gift will be deducted from your balance.</p>
+    </div>
   </div>
   <div class="hint" id="startHint"></div>
   <div class="landscape-block" style="display:none">Please hold your phone in <b>portrait</b> for the best experience.</div>
@@ -118,9 +209,22 @@
   const p2AvatarTop = document.getElementById('p2AvatarTop');
   const startHint = document.getElementById('startHint');
   const landscapeBlock = document.querySelector('.landscape-block');
-  const muteBtn = document.getElementById('muteBtn');
   const goalText = document.getElementById('goalText');
   const postText = document.getElementById('postText');
+  const quickActions = document.getElementById('quickActions');
+  const chatModal = document.getElementById('chatModal');
+  const chatMessagesEl = document.getElementById('chatMessages');
+  const chatSend = document.getElementById('chatSend');
+  const chatClose = document.getElementById('chatClose');
+  const giftModal = document.getElementById('giftModal');
+  const giftPlayersEl = document.getElementById('giftPlayers');
+  const giftTiersEl = document.getElementById('giftTiers');
+  const giftSend = document.getElementById('giftSend');
+  const giftClose = document.getElementById('giftClose');
+  const muteIcon = document.getElementById('muteIcon');
+  const muteLabel = document.getElementById('muteLabel');
+  const panelRules = document.getElementById('rules');
+  const closeRules = document.getElementById('closeRules');
   const TOP_BAR = 40; // height of scoreboard bar
   const BOTTOM_GAP = 0; // gap below rink
   const GOAL_PAUSE = 1500; // pause after a goal
@@ -437,10 +541,9 @@
     if(pendingWhistle) playWhistle();
   }
 
-  muteBtn.classList.toggle('muted', !audioEnabled);
-  muteBtn.addEventListener('click', () => {
-    audioEnabled = !audioEnabled;
-    muteBtn.classList.toggle('muted', !audioEnabled);
+  function setAudioEnabled(nextEnabled) {
+    audioEnabled = nextEnabled;
+    updateQuickActionMute();
     if(audioEnabled){
       if(!audioStarted) initAudio();
       else crowdSound.play().catch(()=>{});
@@ -448,7 +551,7 @@
       crowdSound.pause();
       whistleSound.pause();
     }
-  });
+  }
 
 
   const sfx = {
@@ -480,6 +583,332 @@
       playWhistle();
     }
   };
+
+  /* ---------- Quick actions: chat, gift, info, mute ---------- */
+  const QUICK_MESSAGES = [
+    'Nice goal ⚽',
+    'Well played 👏',
+    "You're fast ⚡",
+    'No way 😲',
+    'Oops 😬',
+    'Close one 🥅',
+    'Good save 🧤',
+    'Great shot 🎯',
+    'Amazing! 🤩',
+    'So close 😖',
+    'Lucky bounce 🍀',
+    'This is fun 🤩',
+    "I'm ready 💪",
+    'GG! 🏆',
+  ];
+  const NFT_GIFTS = [
+    { id: 'fireworks',    name: 'Fireworks',    icon: '🎆', price: 200,  tier: 1 },
+    { id: 'laugh_bomb',   name: 'Laugh Bomb',   icon: '😂', price: 300,  tier: 1 },
+    { id: 'pizza_slice',  name: 'Pizza Slice',  icon: '🍕', price: 500,  tier: 1 },
+    { id: 'coffee_boost', name: 'Coffee Boost', icon: '☕', price: 750,  tier: 1 },
+    { id: 'baby_chick',   name: 'Baby Chick',   icon: '🐣', price: 1000, tier: 1 },
+    { id: 'poop',         name: 'Poop',         icon: '💩', price: 1200, tier: 2 },
+    { id: 'speed_racer',  name: 'Speed Racer',  icon: '/assets/icons/futuristic_racing_car.webp', price: 1800,  tier: 2 },
+    { id: 'bullseye',     name: 'Bullseye',     icon: '🎯', price: 3000,  tier: 2 },
+    { id: 'magic_trick',  name: 'Magic Trick',  icon: '🎩', price: 5000,  tier: 2 },
+    { id: 'surprise_box', name: 'Surprise Box', icon: '🎁', price: 8000,  tier: 2 },
+    { id: 'dragon_burst', name: 'Dragon Burst', icon: '🐉', price: 20000,  tier: 3 },
+    { id: 'rocket_blast', name: 'Rocket Blast', icon: '🚀', price: 35000,  tier: 3 },
+    { id: 'royal_crown',  name: 'Royal Crown',  icon: '👑', price: 90000,  tier: 3 },
+    { id: 'alien_visit',  name: 'Alien Visit',  icon: '🛸', price: 150000, tier: 3 },
+  ];
+  const GIFT_SOUNDS = {
+    fireworks: "/assets/sounds/fireworks-29629.mp3",
+    laugh_bomb: "/assets/sounds/080998_bullet-hit-39870.mp3",
+    pizza_slice: "/assets/sounds/life_is_beautiful_italiano-108264.mp3",
+    coffee_boost: "/assets/sounds/drinking-coffee-214463.mp3",
+    baby_chick: "/assets/sounds/bebek-220068.mp3",
+    speed_racer: "/assets/sounds/race-care-151963.mp3",
+    bullseye: "/assets/sounds/080998_bullet-hit-39870.mp3",
+    magic_trick: "/assets/sounds/ah-good-morning-sir-would-you-like-a-cup-of-tea-26151.mp3",
+    surprise_box: "/assets/sounds/082229_pinkie-pie-39surprise39wav-86428.mp3",
+    poop: "/assets/sounds/fart-5-228245.mp3",
+    dragon_burst: "/assets/sounds/snake-hissing-high-quality-240154.mp3",
+    rocket_blast: "/assets/sounds/launch-85216.mp3",
+    royal_crown: "/assets/sounds/king-conversation-48272.mp3",
+    alien_visit: "/assets/sounds/ufo-sound-effect-240256.mp3",
+  };
+  const CHAT_BEEP_URL = "/assets/sounds/080998_bullet-hit-39870.mp3";
+  let activeChatMessage = QUICK_MESSAGES[0];
+  let selectedGift = NFT_GIFTS[0];
+  let selectedGiftTarget = 1;
+
+  function toggleModal(modal, open = true) {
+    if (!modal) return;
+    modal.classList.toggle('active', open);
+    modal.setAttribute('aria-hidden', String(!open));
+  }
+
+  function updateQuickActionMute() {
+    if (!muteLabel || !muteIcon) return;
+    const muted = !audioEnabled;
+    muteIcon.textContent = muted ? '🔇' : '🔊';
+    muteLabel.textContent = muted ? 'Unmute' : 'Mute';
+  }
+
+  function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2800);
+  }
+
+  function playEffectSound(url, { delay = 0, maxDuration } = {}) {
+    if (!audioEnabled || !url) return;
+    const audio = new Audio(url);
+    audio.volume = 0.7;
+    const play = () => audio.play().catch(() => {});
+    if (delay) {
+      setTimeout(play, delay);
+    } else {
+      play();
+    }
+    if (maxDuration) {
+      setTimeout(() => audio.pause(), maxDuration);
+    }
+  }
+
+  function createAvatarNode(source) {
+    if (typeof source === 'string' && (source.startsWith('/') || source.startsWith('http') || source.startsWith('data:'))) {
+      const img = document.createElement('img');
+      img.src = source;
+      img.alt = '';
+      img.className = 'avatar';
+      return img;
+    }
+    const span = document.createElement('span');
+    span.className = 'avatar';
+    span.textContent = source || '⚽';
+    return span;
+  }
+
+  function getAvatarSources() {
+    return [
+      p1AvatarImg?.src || p1AvatarEmoji || '⚽',
+      p2AvatarImg?.src || p2AvatarEmoji || '🤖',
+    ];
+  }
+
+  function getPlayerNames() {
+    return [p1Name, p2Name];
+  }
+
+  function showChatBubble(text, playerIndex = 0) {
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    const avatars = getAvatarSources();
+    bubble.appendChild(createAvatarNode(avatars[playerIndex]));
+    const label = document.createElement('span');
+    label.textContent = text;
+    bubble.appendChild(label);
+    document.body.appendChild(bubble);
+    const targets = [p1AvatarTop, p2AvatarTop];
+    const badge = targets[playerIndex];
+    if (badge) {
+      const rect = badge.getBoundingClientRect();
+      bubble.style.left = `${rect.left + rect.width / 2}px`;
+      bubble.style.top = `${rect.top - 12}px`;
+      bubble.style.transform = 'translate(-50%, -100%)';
+    } else {
+      bubble.style.left = '1rem';
+      bubble.style.bottom = '5.5rem';
+    }
+    setTimeout(() => bubble.remove(), 3000);
+  }
+
+  function animateGift(fromIndex, toIndex, gift) {
+    const icon = typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)
+      ? Object.assign(document.createElement('img'), { src: gift.icon })
+      : Object.assign(document.createElement('div'), { textContent: gift.icon });
+    icon.style.position = 'fixed';
+    icon.style.left = '0';
+    icon.style.top = '0';
+    icon.style.pointerEvents = 'none';
+    icon.style.width = '24px';
+    icon.style.height = '24px';
+    icon.style.fontSize = '24px';
+    icon.style.zIndex = '9999';
+    document.body.appendChild(icon);
+    const targets = [p1AvatarTop, p2AvatarTop];
+    const start = targets[fromIndex]?.getBoundingClientRect();
+    const end = targets[toIndex]?.getBoundingClientRect();
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    const startX = start ? start.left + start.width / 2 : 24;
+    const startY = start ? start.top + start.height / 2 : window.innerHeight - 80;
+    const endX = end ? end.left + end.width / 2 : window.innerWidth - 24;
+    const endY = end ? end.top + end.height / 2 : window.innerHeight / 2;
+    const animation = icon.animate(
+      [
+        { transform: `translate(${startX}px, ${startY}px) scale(1)` },
+        { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+        { transform: `translate(${endX}px, ${endY}px) scale(1)` },
+      ],
+      { duration: 3500, easing: 'linear' },
+    );
+    animation.onfinish = () => icon.remove();
+  }
+
+  function populateChatMessages() {
+    if (!chatMessagesEl) return;
+    chatMessagesEl.replaceChildren();
+    QUICK_MESSAGES.forEach((message) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = message;
+      if (message === activeChatMessage) {
+        button.classList.add('active');
+      }
+      button.addEventListener('click', () => {
+        activeChatMessage = message;
+        populateChatMessages();
+      });
+      chatMessagesEl.appendChild(button);
+    });
+  }
+
+  function populateGiftPlayers() {
+    if (!giftPlayersEl) return;
+    giftPlayersEl.replaceChildren();
+    const avatars = getAvatarSources();
+    const names = getPlayerNames();
+    avatars.forEach((avatar, idx) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      if (idx === selectedGiftTarget) {
+        button.classList.add('active');
+      }
+      button.appendChild(createAvatarNode(avatar));
+      const label = document.createElement('span');
+      label.textContent = names[idx] || `Player ${idx + 1}`;
+      button.appendChild(label);
+      button.addEventListener('click', () => {
+        selectedGiftTarget = idx;
+        populateGiftPlayers();
+      });
+      giftPlayersEl.appendChild(button);
+    });
+  }
+
+  function populateGiftTiers() {
+    if (!giftTiersEl) return;
+    giftTiersEl.replaceChildren();
+    [1, 2, 3].forEach((tier) => {
+      const tierWrap = document.createElement('div');
+      tierWrap.className = 'gift-tier';
+      const heading = document.createElement('h4');
+      heading.textContent = `Tier ${tier}`;
+      tierWrap.appendChild(heading);
+      const grid = document.createElement('div');
+      grid.className = 'gift-grid';
+      NFT_GIFTS.filter((gift) => gift.tier === tier).forEach((gift) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'gift-button';
+        if (gift.id === selectedGift.id) {
+          button.classList.add('active');
+        }
+        const icon = createAvatarNode(gift.icon);
+        icon.classList.add('gift-icon');
+        icon.style.width = '1rem';
+        icon.style.height = '1rem';
+        button.appendChild(icon);
+        const label = document.createElement('span');
+        label.textContent = gift.price;
+        button.appendChild(label);
+        button.addEventListener('click', () => {
+          selectedGift = gift;
+          updateGiftCost();
+          populateGiftTiers();
+        });
+        grid.appendChild(button);
+      });
+      tierWrap.appendChild(grid);
+      giftTiersEl.appendChild(tierWrap);
+    });
+  }
+
+  function updateGiftCost() {
+    const costEl = document.getElementById('giftCost');
+    if (costEl) {
+      costEl.textContent = selectedGift?.price ?? 0;
+    }
+  }
+
+  function openChatModal() {
+    populateChatMessages();
+    toggleModal(chatModal, true);
+  }
+
+  function openGiftModal() {
+    populateGiftPlayers();
+    populateGiftTiers();
+    updateGiftCost();
+    toggleModal(giftModal, true);
+  }
+
+  updateQuickActionMute();
+
+  if (panelRules && closeRules) {
+    closeRules.addEventListener('click', () => { panelRules.style.display = 'none'; });
+    panelRules.addEventListener('click', (event) => {
+      if (event.target === panelRules) panelRules.style.display = 'none';
+    });
+  }
+  if (quickActions) {
+    quickActions.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-action]');
+      if (!button) return;
+      const action = button.dataset.action;
+      if (action === 'chat') {
+        openChatModal();
+      } else if (action === 'gift') {
+        openGiftModal();
+      } else if (action === 'info' && panelRules) {
+        panelRules.style.display = 'flex';
+      } else if (action === 'mute') {
+        setAudioEnabled(!audioEnabled);
+      }
+    });
+  }
+  if (chatModal) {
+    chatModal.addEventListener('click', (event) => {
+      if (event.target === chatModal) toggleModal(chatModal, false);
+    });
+  }
+  if (chatClose) {
+    chatClose.addEventListener('click', () => toggleModal(chatModal, false));
+  }
+  if (chatSend) {
+    chatSend.addEventListener('click', () => {
+      toggleModal(chatModal, false);
+      showChatBubble(activeChatMessage, 0);
+      playEffectSound(CHAT_BEEP_URL, { maxDuration: 1200 });
+    });
+  }
+  if (giftModal) {
+    giftModal.addEventListener('click', (event) => {
+      if (event.target === giftModal) toggleModal(giftModal, false);
+    });
+  }
+  if (giftClose) {
+    giftClose.addEventListener('click', () => toggleModal(giftModal, false));
+  }
+  if (giftSend) {
+    giftSend.addEventListener('click', () => {
+      const recipient = selectedGiftTarget;
+      toggleModal(giftModal, false);
+      animateGift(0, recipient, selectedGift);
+      playEffectSound(GIFT_SOUNDS[selectedGift.id], { delay: selectedGift.id === 'bullseye' ? 2500 : 0 });
+      showToast(`Sent ${selectedGift.name} to ${getPlayerNames()[recipient] || `Player ${recipient + 1}`}`);
+    });
+  }
 
   const keys = new Set();
   const touches = new Map();
