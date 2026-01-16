@@ -1,14 +1,9 @@
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
+export const SPIN_INPUT_DEAD_ZONE = 0.015;
+export const SPIN_RESPONSE_EXPONENT = 1.9;
+export const SPIN_RESPONSE_EXPONENT_BACKSPIN = 1.65;
 export const MAX_SPIN_OFFSET = 0.7;
-export const SPIN_STUN_RADIUS = 0.12;
-export const SPIN_RING1_RADIUS = 0.32;
-export const SPIN_RING2_RADIUS = 0.52;
-export const SPIN_RING3_RADIUS = MAX_SPIN_OFFSET;
-export const SPIN_LEVEL0_MAG = 0;
-export const SPIN_LEVEL1_MAG = 0.25 * MAX_SPIN_OFFSET;
-export const SPIN_LEVEL2_MAG = 0.5 * MAX_SPIN_OFFSET;
-export const SPIN_LEVEL3_MAG = 0.8 * MAX_SPIN_OFFSET;
 
 export const SPIN_DIRECTIONS = [
   {
@@ -94,89 +89,41 @@ export const clampToMaxOffset = (x, y, maxOffset = MAX_SPIN_OFFSET) => {
   return { x: x * scale, y: y * scale };
 };
 
-export const computeQuantizedOffsetScaled = (
-  rawX,
-  rawY,
-  options = {}
-) => {
-  const maxOffset = options.maxOffset ?? MAX_SPIN_OFFSET;
-  const stunRadius = options.stunRadius ?? SPIN_STUN_RADIUS;
-  const ring1Radius = options.ring1Radius ?? SPIN_RING1_RADIUS;
-  const ring2Radius = options.ring2Radius ?? SPIN_RING2_RADIUS;
-  const ring3Radius = options.ring3Radius ?? SPIN_RING3_RADIUS;
-  const level0Mag = options.level0Mag ?? SPIN_LEVEL0_MAG;
-  const level1Mag = options.level1Mag ?? SPIN_LEVEL1_MAG;
-  const level2Mag = options.level2Mag ?? SPIN_LEVEL2_MAG;
-  const level3Mag = options.level3Mag ?? SPIN_LEVEL3_MAG;
-
-  const raw = clampToMaxOffset(rawX, rawY, maxOffset);
-  const distance = Math.hypot(raw.x, raw.y);
-  let mag = level3Mag;
-  if (distance <= stunRadius) {
-    mag = level0Mag;
-  } else if (distance <= ring1Radius) {
-    mag = level1Mag;
-  } else if (distance <= ring2Radius) {
-    mag = level2Mag;
-  } else if (distance <= ring3Radius) {
-    mag = level3Mag;
-  }
-  if (mag === 0 || distance <= 1e-6) {
+export const normalizeSpinInput = (spin) => {
+  const x = spin?.x ?? 0;
+  const y = spin?.y ?? 0;
+  const magnitude = Math.hypot(x, y);
+  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
     return { x: 0, y: 0 };
   }
-  const scale = mag / distance;
-  return { x: raw.x * scale, y: raw.y * scale };
+  return clampToMaxOffset(x, y);
 };
 
-export const normalizeSpinInput = (spin) => {
-  const x = clamp(spin?.x ?? 0, -1, 1);
-  const y = clamp(spin?.y ?? 0, -1, 1);
-  return computeQuantizedOffsetScaled(x, y);
-};
-
-export const mapUiOffsetToCueFrame = (
-  uiX,
-  uiY,
-  cameraRight,
-  cameraUp,
-  cueForward
-) => {
-  if (!cameraRight || !cameraUp || !cueForward) {
-    return { x: uiX, y: uiY };
+export const applySpinResponseCurve = (spin) => {
+  const x = spin?.x ?? 0;
+  const y = spin?.y ?? 0;
+  const magnitude = Math.hypot(x, y);
+  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
+    return { x: 0, y: 0 };
   }
-  const right = cameraRight;
-  const up = cameraUp;
-  const forward = cueForward;
-  const offsetWorld = {
-    x: right.x * uiX + up.x * uiY,
-    y: right.y * uiX + up.y * uiY,
-    z: right.z * uiX + up.z * uiY
-  };
-  offsetWorld.y = 0;
-  const forwardPlanarLength = Math.hypot(forward.x, forward.z);
-  const forwardPlanar =
-    forwardPlanarLength > 1e-6
-      ? { x: forward.x / forwardPlanarLength, z: forward.z / forwardPlanarLength }
-      : { x: 0, z: 1 };
-  const side = { x: -forwardPlanar.z, z: forwardPlanar.x };
-  return {
-    x: offsetWorld.x * side.x + offsetWorld.z * side.z,
-    y: offsetWorld.x * forwardPlanar.x + offsetWorld.z * forwardPlanar.z
-  };
+  const clamped = clampToUnitCircle(x, y);
+  const clampedMag = Math.hypot(clamped.x, clamped.y);
+  const exponent = clamped.y < 0 ? SPIN_RESPONSE_EXPONENT_BACKSPIN : SPIN_RESPONSE_EXPONENT;
+  const curvedMag = Math.pow(clampedMag, exponent);
+  const scale = clampedMag > 1e-6 ? curvedMag / clampedMag : 0;
+  return { x: clamped.x * scale, y: clamped.y * scale };
 };
 
-export const mapSpinForPhysics = (spin, options = {}) => {
+export const mapSpinForPhysics = (spin) => {
   const adjusted = {
     x: clamp(spin?.x ?? 0, -1, 1),
     y: clamp(spin?.y ?? 0, -1, 1)
   };
-  const quantized = computeQuantizedOffsetScaled(adjusted.x, adjusted.y);
-  const { cameraRight, cameraUp, cueForward } = options;
-  return mapUiOffsetToCueFrame(
-    quantized.x,
-    quantized.y,
-    cameraRight,
-    cameraUp,
-    cueForward
-  );
+  const limited = clampToMaxOffset(adjusted.x, adjusted.y);
+  return {
+    // UI uses screen-space: +X is right, +Y is up. Flip X to align side spin to
+    // the table axes, and flip Y so high/low spin matches the cue-ball roll.
+    x: -limited.x,
+    y: -limited.y
+  };
 };
