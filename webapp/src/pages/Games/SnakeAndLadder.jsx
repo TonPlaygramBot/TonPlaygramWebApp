@@ -2939,7 +2939,7 @@ export default function SnakeAndLadder() {
             ⚙️
           </button>
           {showConfig && (
-            <div className="absolute right-0 mt-2 w-[min(22rem,80vw)] rounded-2xl border border-white/10 bg-black/85 p-4 text-xs text-gray-100 shadow-[0_20px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl">
+            <div className="absolute right-0 mt-2 w-[min(22rem,80vw)] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-black/85 p-4 text-xs text-gray-100 shadow-[0_20px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl">
               <div className="flex items-center justify-between">
                 <span className="text-[0.6rem] font-semibold uppercase tracking-[0.4em] text-sky-200/80">
                   Table Setup
@@ -2953,7 +2953,7 @@ export default function SnakeAndLadder() {
                   ✕
                 </button>
               </div>
-              <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+              <div className="mt-4 space-y-4 pr-1">
                 {SNAKE_CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
                   <div key={key} className="space-y-2">
                     <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
