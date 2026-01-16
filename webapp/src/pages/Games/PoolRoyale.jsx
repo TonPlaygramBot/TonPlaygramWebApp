@@ -4937,7 +4937,7 @@ const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.2;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 40;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 24;
 const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
@@ -25980,6 +25980,8 @@ const powerRef = useRef(hud.power);
           onInfo={() => setShowInfo(true)}
           onChat={() => setShowChat(true)}
           onGift={() => setShowGift(true)}
+          showInfo={false}
+          showMute={false}
         />
       </div>
 
@@ -26272,11 +26274,11 @@ const powerRef = useRef(hud.power);
         >
           <div
             id="spinBox"
-            className={`relative rounded-full shadow-lg border border-white/70 ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
+            className={`relative rounded-full border border-white/40 shadow-[0_18px_34px_rgba(0,0,0,0.45)] ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
               height: `${SPIN_CONTROL_DIAMETER_PX}px`,
-              background: `radial-gradient(circle at center, #d1d5db 0 22%, #fef6df 22% 60%, #fef6df 60% 61%, #c81d25 61% 100%)`
+              background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.65), rgba(255,255,255,0) 45%), radial-gradient(circle at center, #4b5563 0 45%, #1f2937 46% 100%)`
             }}
           >
             <div className="absolute inset-0 rounded-full overflow-hidden">
@@ -26284,49 +26286,55 @@ const powerRef = useRef(hud.power);
                 className="absolute inset-0 rounded-full"
                 style={{
                   boxShadow:
-                    'inset 0 0 0 2px rgba(139,0,0,0.45), inset 0 10px 18px rgba(255,255,255,0.25)',
+                    'inset 0 0 0 2px rgba(255,255,255,0.2), inset 0 14px 24px rgba(255,255,255,0.18), inset 0 -14px 24px rgba(0,0,0,0.55)',
                   pointerEvents: 'none'
                 }}
               />
               <div
-                className="absolute inset-0 rounded-full"
+                className="absolute rounded-full"
                 style={{
+                  inset: `${SPIN_RING_THICKNESS_PX * 0.6}px`,
+                  background:
+                    'radial-gradient(circle at 35% 30%, #f8fafc 0 18%, #f1f5f9 18% 42%, #e5e7eb 42% 70%, #cbd5f5 70% 100%)',
                   boxShadow:
-                    'inset 0 0 0 2px rgba(255,255,255,0.7), inset 0 6px 12px rgba(255,255,255,0.25)',
+                    'inset 0 0 0 2px rgba(255,255,255,0.6), inset 0 8px 12px rgba(0,0,0,0.12)',
                   pointerEvents: 'none'
                 }}
               />
               <div
                 className="absolute rounded-full"
                 style={{
-                  inset: `${SPIN_RING_THICKNESS_PX}px`,
-                  background: 'radial-gradient(circle at center, #d1d5db 0 32%, #fef6df 32% 100%)',
-                  boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.6)',
+                  inset: `${SPIN_RING_THICKNESS_PX * 1.5}px`,
+                  background:
+                    'radial-gradient(circle at 50% 45%, rgba(255,255,255,0.9), rgba(255,255,255,0.1) 42%), radial-gradient(circle at center, #f8fafc 0 52%, #e2e8f0 52% 100%)',
+                  boxShadow:
+                    'inset 0 0 0 2px rgba(255,255,255,0.5), inset 0 10px 20px rgba(0,0,0,0.08)',
                   pointerEvents: 'none'
                 }}
               />
               <div
                 className="absolute rounded-full"
                 style={{
-                  width: `${SPIN_DOT_DIAMETER_PX * 2.2}px`,
-                  height: `${SPIN_DOT_DIAMETER_PX * 2.2}px`,
+                  width: `${SPIN_DOT_DIAMETER_PX * 2.4}px`,
+                  height: `${SPIN_DOT_DIAMETER_PX * 2.4}px`,
                   left: '50%',
                   top: '50%',
                   transform: 'translate(-50%, -50%)',
-                  background: 'rgba(156,163,175,0.85)',
+                  background: 'radial-gradient(circle at 35% 30%, #ffffff 0 35%, #e5e7eb 35% 70%, #cbd5f5 70% 100%)',
+                  boxShadow: 'inset 0 6px 10px rgba(0,0,0,0.12), 0 6px 16px rgba(0,0,0,0.18)',
                   pointerEvents: 'none'
                 }}
               />
               <div
-                className="absolute left-1/2 top-0 h-full w-[2px] bg-red-500/60"
+                className="absolute left-1/2 top-0 h-full w-[2px] bg-rose-500/60"
                 style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}
               />
               <div
-                className="absolute top-1/2 left-0 h-[2px] w-full bg-red-500/60"
+                className="absolute top-1/2 left-0 h-[2px] w-full bg-rose-500/60"
                 style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
               />
               <div
-                className="absolute rounded-full border-2 border-red-500/70"
+                className="absolute rounded-full border-2 border-rose-500/70"
                 style={{
                   width: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
                   height: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
