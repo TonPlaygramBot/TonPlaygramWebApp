@@ -22,7 +22,6 @@
     "@capacitor/push-notifications": "6.0.5",
     "@aparajita/capacitor-biometric-auth": "^6.0.0",
     "@github/webauthn-json": "^2.0.2",
-    "@react-three/fiber": "^8.17.10",
     "@tonconnect/sdk": "^3.2.0",
     "@tonconnect/ui-react": "^2.2.0",
     "@vitejs/plugin-react": "^4.0.0",
