@@ -909,7 +909,7 @@ const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
-const REPLAY_CUE_STICK_HOLD_MS = 240;
+const REPLAY_CUE_STICK_HOLD_MS = 320;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
@@ -1263,14 +1263,17 @@ const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so i
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
+const POCKET_CAM_EDGE_SCALE = 0.92;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
-  POCKET_VIS_R * 1.95 +
-  BALL_R * 1.1;
+  (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
+    POCKET_VIS_R * 1.95 +
+    BALL_R * 1.1) *
+  POCKET_CAM_EDGE_SCALE;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.05 +
-  POCKET_VIS_R * 1.95 +
-  BALL_R * 1.05;
+  (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.05 +
+    POCKET_VIS_R * 1.95 +
+    BALL_R * 1.05) *
+  POCKET_CAM_EDGE_SCALE;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 12,
   dotThreshold: 0.22,
@@ -1290,7 +1293,8 @@ const POCKET_CAM = Object.freeze({
   railFocusShort: BALL_R * 5.4
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
-const POCKET_GUARANTEED_ALIGNMENT = 0.95;
+const POCKET_GUARANTEED_ALIGNMENT = 0.92;
+const POCKET_EARLY_ALIGNMENT = 0.82;
 const POCKET_INTENT_TIMEOUT_MS = 4200;
 const ACTION_CAM = Object.freeze({
   pairMinDistance: BALL_R * 28,
@@ -1466,10 +1470,10 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 2.2;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 2.45;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.4;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(4);
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.56;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(5.2);
 const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.6;
 const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.45;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
@@ -4745,7 +4749,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.97;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
-const STANDING_VIEW_DISTANCE_SCALE = 0.5; // bring the standing camera nearer while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.52; // bring the standing camera nearer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -4894,7 +4898,7 @@ const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
-const CUE_STROKE_VISUAL_SLOWDOWN = 1.85;
+const CUE_STROKE_VISUAL_SLOWDOWN = 2.05;
 const AI_CUE_PULLBACK_DURATION_MS = 3400;
 const AI_CUE_FORWARD_DURATION_MS = 3400;
 const AI_STROKE_VISIBLE_DURATION_MS =
@@ -4941,13 +4945,13 @@ const AI_WARMUP_PULL_RATIO = 0.55;
 const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.32;
 const PLAYER_WARMUP_PULL_RATIO = 0.62;
 const PLAYER_STROKE_TIME_SCALE = 2.05;
-const PLAYER_FORWARD_SLOWDOWN = 1.55;
+const PLAYER_FORWARD_SLOWDOWN = 1.7;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.2;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1.2;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 44;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 28;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -5094,6 +5098,7 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
+const SPIN_VIEW_BLOCK_THRESHOLD = -0.18;
 
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
@@ -5195,6 +5200,16 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
     return { blocked: false, reason: '' };
   }
   TMP_VEC2_SPIN.normalize();
+  if (options.view) {
+    TMP_VEC2_VIEW.set(options.view.x ?? 0, options.view.y ?? 0);
+    if (TMP_VEC2_VIEW.lengthSq() > 1e-8) {
+      TMP_VEC2_VIEW.normalize();
+      const viewDot = TMP_VEC2_VIEW.dot(TMP_VEC2_SPIN);
+      if (viewDot < SPIN_VIEW_BLOCK_THRESHOLD) {
+        return { blocked: true, reason: 'Strike point not visible' };
+      }
+    }
+  }
   const contact = cueBall.pos
     .clone()
     .add(TMP_VEC2_SPIN.clone().multiplyScalar(BALL_R));
@@ -16742,7 +16757,10 @@ const powerRef = useRef(hud.power);
             shotPrediction?.ballId === ballId &&
             predictedAlignment != null &&
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
-          if (!isGuaranteedPocket) return null;
+          const allowEarly =
+            forceEarly &&
+            bestScore >= POCKET_EARLY_ALIGNMENT;
+          if (!isGuaranteedPocket && !allowEarly) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
@@ -22849,6 +22867,15 @@ const powerRef = useRef(hud.power);
             const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
             strength = Math.max(strength, influence);
           });
+          const topspinLift = Math.max(0, cueOffset?.y ?? 0);
+          if (strength > 0 && topspinLift > 0) {
+            const topspinRatio = THREE.MathUtils.clamp(
+              topspinLift / Math.max(MAX_SPIN_VERTICAL, 1e-6),
+              0,
+              1
+            );
+            strength = Math.min(1, strength + topspinRatio * 0.25);
+          }
           return strength;
         }
 
@@ -25808,24 +25835,26 @@ const powerRef = useRef(hud.power);
         </button>
       </div>
 
-      <div className="pointer-events-auto">
-        <BottomLeftIcons
-          onInfo={() => setShowInfo(true)}
-          onChat={() => setShowChat(true)}
-          onGift={() => setShowGift(true)}
-          className="fixed left-3 bottom-4 z-50 flex flex-col gap-2.5"
-          buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
-          iconClassName="text-[1.1rem] leading-none"
-          labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
-          chatIcon="💬"
-          giftIcon="🎁"
-          infoIcon="ℹ️"
-          muteIconOn="🔇"
-          muteIconOff="🔊"
-          showInfo={false}
-          showMute={false}
-        />
-      </div>
+      {!replayActive && (
+        <div className="pointer-events-auto">
+          <BottomLeftIcons
+            onInfo={() => setShowInfo(true)}
+            onChat={() => setShowChat(true)}
+            onGift={() => setShowGift(true)}
+            className="fixed left-2 bottom-4 z-50 flex flex-col gap-2.5"
+            buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+            iconClassName="text-[1.1rem] leading-none"
+            labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
+            chatIcon="💬"
+            giftIcon="🎁"
+            infoIcon="ℹ️"
+            muteIconOn="🔇"
+            muteIconOff="🔊"
+            showInfo={false}
+            showMute={false}
+          />
+        </div>
+      )}
 
       {bottomHudVisible && (
         <div
