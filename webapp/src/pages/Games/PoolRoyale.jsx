@@ -34,7 +34,6 @@ import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { chatBeep } from '../../assets/soundData.js';
-import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
@@ -1442,6 +1441,7 @@ const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.18; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_STROKE_MIN_MS = 150;
 const CUE_STROKE_MAX_MS = 560;
+const CUE_STROKE_VISIBILITY_SCALE = 1.22;
 const CUE_STROKE_SPEED_MIN = BALL_R * 11.8;
 const CUE_STROKE_SPEED_MAX = BALL_R * 21.5;
 const CUE_FOLLOW_MIN_MS = 250;
@@ -4937,7 +4937,7 @@ const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.2;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 24;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 30;
 const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
@@ -12207,13 +12207,12 @@ const powerRef = useRef(hud.power);
     if (!dot) return;
     const x = clamp(value.x ?? 0, -1, 1);
     const y = clamp(value.y ?? 0, -1, 1);
-    const displayY = -y;
     const ranges = spinRangeRef.current || {};
     const maxSide = Math.max(ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET, 1e-6);
     const maxVertical = Math.max(ranges.offsetVertical ?? MAX_SPIN_VERTICAL, 1e-6);
     const largest = Math.max(maxSide, maxVertical);
     const scaledX = (x * maxSide) / largest;
-    const scaledY = (displayY * maxVertical) / largest;
+    const scaledY = (y * maxVertical) / largest;
     dot.style.left = `${50 + scaledX * 50}%`;
     dot.style.top = `${50 + scaledY * 50}%`;
     const magnitude = Math.hypot(x, y);
@@ -17088,54 +17087,21 @@ const powerRef = useRef(hud.power);
         const captureReplayCameraSnapshot = () => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-          const fallbackCamera = activeRenderCameraRef.current ?? camera;
-          const fovSnapshot = Number.isFinite(fallbackCamera?.fov)
-            ? fallbackCamera.fov
+          const activeCamera = activeRenderCameraRef.current ?? camera;
+          const storedTarget =
+            lastCameraTargetRef.current?.clone() ??
+            new THREE.Vector3(playerOffsetRef.current, ORBIT_FOCUS_BASE_Y, 0).multiplyScalar(scale);
+          storedTarget.y = Math.max(storedTarget.y ?? 0, minTargetY);
+          const position = activeCamera?.position?.clone?.() ?? camera.position.clone();
+          if (position.y < minTargetY) {
+            position.y = minTargetY;
+          }
+          const fovSnapshot = Number.isFinite(activeCamera?.fov)
+            ? activeCamera.fov
             : camera.fov;
-          const pocketView =
-            activeShotView?.mode === 'pocket' ? activeShotView : null;
-          if (pocketView) {
-            const pocketEntry = getPocketCameraEntry(
-              pocketView.anchorId ?? pocketView.pocketId
-            );
-            if (pocketEntry?.camera) {
-              const pocketTarget = new THREE.Vector3(
-                pocketView.pocketCenter.x * scale,
-                BALL_CENTER_Y * scale,
-                pocketView.pocketCenter.y * scale
-              );
-              pocketTarget.y = Math.max(pocketTarget.y ?? 0, minTargetY);
-              const snapshot = {
-                position: pocketEntry.camera.position.clone(),
-                target: pocketTarget,
-                fov: pocketEntry.camera.fov,
-                minTargetY
-              };
-              return snapshot;
-            }
-          }
-          const tableFocus = new THREE.Vector3(
-            playerOffsetRef.current,
-            ORBIT_FOCUS_BASE_Y,
-            0
-          ).multiplyScalar(scale);
-          tableFocus.y = Math.max(tableFocus.y ?? 0, minTargetY);
-          const overheadCamera = resolveRailOverheadReplayCamera({
-            focusOverride: tableFocus,
-            minTargetY
-          });
-          if (overheadCamera?.position) {
-            return overheadCamera;
-          }
-          const topRadiusBase =
-            fitRadius(fallbackCamera ?? camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
-          const topRadius = clampOrbitRadius(
-            Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
-          );
-          const position = tableFocus.clone().add(new THREE.Vector3(0, topRadius, 0));
           return {
             position,
-            target: tableFocus,
+            target: storedTarget,
             fov: fovSnapshot,
             minTargetY
           };
@@ -17509,7 +17475,6 @@ const powerRef = useRef(hud.power);
           setOrbitFocusToDefault();
           applyCameraBlend(1);
           syncBlendToSpherical();
-          updateCamera();
         };
 
         const startShotReplay = (postShotSnapshot) => {
@@ -17539,32 +17504,14 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = shotRecording;
           applyBallSnapshot(shotRecording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
-          const path = replayPlayback.cuePath ?? [];
-          if (!LOCK_REPLAY_CAMERA && path.length > 0) {
-            const start = path[0]?.pos ?? null;
-            const end = path[path.length - 1]?.pos ?? start;
-            if (start && end) {
-              const focus = new THREE.Vector3(
-                (start.x + end.x) * 0.5,
-                Math.max(baseSurfaceWorldY, BALL_CENTER_Y * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE)),
-                (start.z + end.z) * 0.5
-              );
-              const railOverheadCamera = resolveRailOverheadReplayCamera({
-                focusOverride: focus,
-                minTargetY: focus.y
-              });
-              const cinematicReplayCamera = resolveReplayTopViewCamera({
-                focusOverride: focus,
-                minTargetY: focus.y
-              });
-              const primaryReplayCamera = railOverheadCamera ?? cinematicReplayCamera;
-              if (primaryReplayCamera) {
-                replayFrameCameraRef.current = {
-                  frameA: primaryReplayCamera,
-                  frameB: cinematicReplayCamera ?? primaryReplayCamera,
-                  alpha: 0
-                };
-              }
+          if (!LOCK_REPLAY_CAMERA) {
+            const firstFrameCamera = trimmed.frames?.[0]?.camera ?? null;
+            if (firstFrameCamera) {
+              replayFrameCameraRef.current = {
+                frameA: firstFrameCamera,
+                frameB: firstFrameCamera,
+                alpha: 0
+              };
             }
           }
         };
@@ -20446,18 +20393,19 @@ const powerRef = useRef(hud.power);
             aiOpponentEnabled && hudRef.current?.turn === 1 ? AI_STROKE_TIME_SCALE : 1;
           const playerStrokeScale = isAiStroke ? 1 : PLAYER_STROKE_TIME_SCALE;
           const playerForwardScale = isAiStroke ? 1 : PLAYER_FORWARD_SLOWDOWN;
-          const forwardDuration = isAiStroke
+          const forwardDuration = (isAiStroke
             ? AI_CUE_FORWARD_DURATION_MS
-            : forwardDurationBase * aiStrokeScale * playerStrokeScale * playerForwardScale;
-          const settleDuration = isAiStroke
+            : forwardDurationBase * aiStrokeScale * playerStrokeScale * playerForwardScale) *
+            CUE_STROKE_VISIBILITY_SCALE;
+          const settleDuration = (isAiStroke
             ? 0
-            : settleDurationBase * aiStrokeScale * playerStrokeScale;
-          const pullbackDuration = isAiStroke
+            : settleDurationBase * aiStrokeScale * playerStrokeScale) * CUE_STROKE_VISIBILITY_SCALE;
+          const pullbackDuration = (isAiStroke
             ? AI_CUE_PULLBACK_DURATION_MS
             : Math.max(
                 CUE_STROKE_MIN_MS * PLAYER_PULLBACK_MIN_SCALE,
                 forwardDuration * PLAYER_STROKE_PULLBACK_FACTOR
-              );
+              )) * CUE_STROKE_VISIBILITY_SCALE;
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
@@ -25975,14 +25923,28 @@ const powerRef = useRef(hud.power);
         </button>
       </div>
 
-      <div className="pointer-events-auto">
-        <BottomLeftIcons
-          onInfo={() => setShowInfo(true)}
-          onChat={() => setShowChat(true)}
-          onGift={() => setShowGift(true)}
-          showInfo={false}
-          showMute={false}
-        />
+      <div
+        className={`fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] z-20 flex flex-col gap-2.5 transition-opacity duration-200 ${replayActive ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+        aria-label="Quick actions"
+      >
+        <button
+          type="button"
+          onClick={() => setShowChat(true)}
+          className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+          aria-label="Chat"
+        >
+          <span className="text-[1.1rem] leading-none" aria-hidden="true">💬</span>
+          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">Chat</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowGift(true)}
+          className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+          aria-label="Gift"
+        >
+          <span className="text-[1.1rem] leading-none" aria-hidden="true">🎁</span>
+          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">Gift</span>
+        </button>
       </div>
 
       {bottomHudVisible && (
