@@ -100,7 +100,7 @@ const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
 const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
-const PYRAMID_HEIGHT_MULTIPLIER = 1.2; // Raise pyramid tiers ~20% taller
+const PYRAMID_HEIGHT_MULTIPLIER = 1.2 * 1.2; // Raise pyramid tiers ~20% taller
 const MAX_DICE = 2;
 const DICE_SIZE = TILE_SIZE * 0.675 * 1.3;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
@@ -220,7 +220,6 @@ const STAIR_OUTWARD_OFFSET = TILE_SIZE * 0.35;
 const COIN_SPIN_SPEED = Math.PI / 7;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
-const TEXTURE_REPEAT_SCALE = 0.8;
 
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 
@@ -2668,8 +2667,7 @@ function buildSnakeBoard(
     loadPolyhavenTextureSet(floorTexture.assetId, renderer)
       .then((textureSet) => {
         if (!textureSet) return;
-        const repeat = (floorTexture.repeat ?? 2) * TEXTURE_REPEAT_SCALE;
-        applyTextureSetToMaterial(pavementMaterial, textureSet, repeat);
+        applyTextureSetToMaterial(pavementMaterial, textureSet, floorTexture.repeat ?? 2);
       })
       .catch(() => {});
   }
@@ -2678,9 +2676,8 @@ function buildSnakeBoard(
     loadPolyhavenTextureSet(wallTexture.assetId, renderer)
       .then((textureSet) => {
         if (!textureSet) return;
-        const repeat = (wallTexture.repeat ?? 1.6) * TEXTURE_REPEAT_SCALE;
         wallMaterials.forEach((material) => {
-          applyTextureSetToMaterial(material, textureSet, repeat);
+          applyTextureSetToMaterial(material, textureSet, wallTexture.repeat ?? 1.6);
         });
       })
       .catch(() => {});
@@ -3068,38 +3065,29 @@ function updateTokens(
     if (!token) {
       token = new THREE.Group();
       const baseColor = new THREE.Color(player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]);
+      const coreMaterial = new THREE.MeshPhysicalMaterial({
+        color: baseColor.clone(),
+        roughness: coreRoughness,
+        metalness: coreMetalness,
+        clearcoat: coreClearcoat,
+        clearcoatRoughness: coreClearcoatRoughness,
+        sheen: coreSheen,
+        sheenColor: baseColor.clone().lerp(accentTarget, sheenBlend)
+      });
       const piecePrototype = desiredPieceType ? tokenPrototypes?.[desiredPieceType] : null;
       let accentMaterial = null;
-      let coreMaterial = null;
-      let pieceMaterials = null;
-      let useOriginalMaterials = false;
       if (piecePrototype) {
         const piece = piecePrototype.clone(true);
         scaleChessPieceToToken(piece, TOKEN_HEIGHT * 0.95);
         piece.traverse((child) => {
           if (child.isMesh) {
-            if (!pieceMaterials) pieceMaterials = [];
-            if (Array.isArray(child.material)) {
-              pieceMaterials.push(...child.material);
-            } else if (child.material) {
-              pieceMaterials.push(child.material);
-            }
+            child.material = coreMaterial;
             child.castShadow = true;
             child.receiveShadow = true;
           }
         });
         token.add(piece);
-        useOriginalMaterials = true;
       } else {
-        coreMaterial = new THREE.MeshPhysicalMaterial({
-          color: baseColor.clone(),
-          roughness: coreRoughness,
-          metalness: coreMetalness,
-          clearcoat: coreClearcoat,
-          clearcoatRoughness: coreClearcoatRoughness,
-          sheen: coreSheen,
-          sheenColor: baseColor.clone().lerp(accentTarget, sheenBlend)
-        });
         accentMaterial = new THREE.MeshPhysicalMaterial({
           color: baseColor.clone().lerp(accentTarget, accentBlend),
           roughness: accentRoughness,
@@ -3166,8 +3154,6 @@ function updateTokens(
         material: coreMaterial,
         coreMaterial,
         accentMaterial,
-        pieceMaterials,
-        useOriginalMaterials,
         isSliding: false,
         shapeId: desiredShapeId
       };
@@ -3178,26 +3164,24 @@ function updateTokens(
     const accentMat = token.userData.accentMaterial || null;
     const targetColor = new THREE.Color(player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]);
 
-    if (!token.userData.useOriginalMaterials) {
-      if (mat) {
-        mat.color.copy(targetColor);
-        if (mat.sheenColor) {
-          mat.sheenColor.copy(targetColor.clone().lerp(accentTarget, sheenBlend));
-        }
-        mat.roughness = coreRoughness;
-        mat.metalness = coreMetalness;
-        mat.clearcoat = coreClearcoat;
-        mat.clearcoatRoughness = coreClearcoatRoughness;
-        mat.sheen = coreSheen;
+    if (mat) {
+      mat.color.copy(targetColor);
+      if (mat.sheenColor) {
+        mat.sheenColor.copy(targetColor.clone().lerp(accentTarget, sheenBlend));
       }
-      if (accentMat) {
-        const accentColor = targetColor.clone().lerp(accentTarget, accentBlend);
-        accentMat.color.copy(accentColor);
-        accentMat.roughness = accentRoughness;
-        accentMat.metalness = accentMetalness;
-        accentMat.clearcoat = accentClearcoat;
-        accentMat.clearcoatRoughness = accentClearcoatRoughness;
-      }
+      mat.roughness = coreRoughness;
+      mat.metalness = coreMetalness;
+      mat.clearcoat = coreClearcoat;
+      mat.clearcoatRoughness = coreClearcoatRoughness;
+      mat.sheen = coreSheen;
+    }
+    if (accentMat) {
+      const accentColor = targetColor.clone().lerp(accentTarget, accentBlend);
+      accentMat.color.copy(accentColor);
+      accentMat.roughness = accentRoughness;
+      accentMat.metalness = accentMetalness;
+      accentMat.clearcoat = accentClearcoat;
+      accentMat.clearcoatRoughness = accentClearcoatRoughness;
     }
 
     let emissiveHex = 0x000000;
@@ -3213,38 +3197,23 @@ function updateTokens(
       emissiveIntensity = 0.4;
     }
 
-    if (token.userData.useOriginalMaterials) {
-      const materials = token.userData.pieceMaterials || [];
-      materials.forEach((material) => {
-        if (!material) return;
-        if (material.emissive) {
-          if (emissiveHex === 0x000000) {
-            material.emissive.setRGB(0, 0, 0);
-          } else {
-            material.emissive.setHex(emissiveHex);
-          }
-          material.emissiveIntensity = emissiveIntensity;
-        }
-      });
-    } else {
-      if (mat) {
-        if (emissiveHex === 0x000000) {
-          mat.emissive.setRGB(0, 0, 0);
-        } else {
-          mat.emissive.setHex(emissiveHex);
-        }
-        mat.emissiveIntensity = emissiveIntensity;
+    if (mat) {
+      if (emissiveHex === 0x000000) {
+        mat.emissive.setRGB(0, 0, 0);
+      } else {
+        mat.emissive.setHex(emissiveHex);
       }
+      mat.emissiveIntensity = emissiveIntensity;
+    }
 
-      if (accentMat) {
-        if (emissiveHex === 0x000000) {
-          const glow = targetColor.clone().lerp(accentTarget, 0.6).multiplyScalar(0.15);
-          accentMat.emissive.copy(glow);
-          accentMat.emissiveIntensity = 1;
-        } else {
-          accentMat.emissive.setHex(emissiveHex);
-          accentMat.emissiveIntensity = emissiveIntensity;
-        }
+    if (accentMat) {
+      if (emissiveHex === 0x000000) {
+        const glow = targetColor.clone().lerp(accentTarget, 0.6).multiplyScalar(0.15);
+        accentMat.emissive.copy(glow);
+        accentMat.emissiveIntensity = 1;
+      } else {
+        accentMat.emissive.setHex(emissiveHex);
+        accentMat.emissiveIntensity = emissiveIntensity;
       }
     }
 
