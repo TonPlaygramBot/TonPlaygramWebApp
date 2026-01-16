@@ -100,7 +100,7 @@ const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
 const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
-const PYRAMID_HEIGHT_MULTIPLIER = 1.2 * 1.2; // Raise pyramid tiers ~20% taller
+const PYRAMID_HEIGHT_MULTIPLIER = 1.2; // Raise pyramid tiers 20% taller
 const MAX_DICE = 2;
 const DICE_SIZE = TILE_SIZE * 0.675 * 1.3;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
@@ -218,6 +218,7 @@ const STAIR_WIDTH = TILE_SIZE * 0.72;
 const STAIR_DEPTH_MIN = TILE_SIZE * 0.22;
 const STAIR_OUTWARD_OFFSET = TILE_SIZE * 0.35;
 const COIN_SPIN_SPEED = Math.PI / 7;
+const TEXTURE_REPEAT_SCALE = 0.85;
 const COIN_RAISE = TILE_SIZE * 0.24;
 const COIN_LOCAL_LIFT = TILE_SIZE * 0.05;
 
@@ -2667,7 +2668,8 @@ function buildSnakeBoard(
     loadPolyhavenTextureSet(floorTexture.assetId, renderer)
       .then((textureSet) => {
         if (!textureSet) return;
-        applyTextureSetToMaterial(pavementMaterial, textureSet, floorTexture.repeat ?? 2);
+        const repeat = (floorTexture.repeat ?? 2) * TEXTURE_REPEAT_SCALE;
+        applyTextureSetToMaterial(pavementMaterial, textureSet, repeat);
       })
       .catch(() => {});
   }
@@ -2677,7 +2679,8 @@ function buildSnakeBoard(
       .then((textureSet) => {
         if (!textureSet) return;
         wallMaterials.forEach((material) => {
-          applyTextureSetToMaterial(material, textureSet, wallTexture.repeat ?? 1.6);
+          const repeat = (wallTexture.repeat ?? 1.6) * TEXTURE_REPEAT_SCALE;
+          applyTextureSetToMaterial(material, textureSet, repeat);
         });
       })
       .catch(() => {});
@@ -3065,29 +3068,34 @@ function updateTokens(
     if (!token) {
       token = new THREE.Group();
       const baseColor = new THREE.Color(player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]);
-      const coreMaterial = new THREE.MeshPhysicalMaterial({
-        color: baseColor.clone(),
-        roughness: coreRoughness,
-        metalness: coreMetalness,
-        clearcoat: coreClearcoat,
-        clearcoatRoughness: coreClearcoatRoughness,
-        sheen: coreSheen,
-        sheenColor: baseColor.clone().lerp(accentTarget, sheenBlend)
-      });
       const piecePrototype = desiredPieceType ? tokenPrototypes?.[desiredPieceType] : null;
+      let coreMaterial = null;
       let accentMaterial = null;
       if (piecePrototype) {
         const piece = piecePrototype.clone(true);
-        scaleChessPieceToToken(piece, TOKEN_HEIGHT * 0.95);
+        scaleChessPieceToToken(piece, TOKEN_HEIGHT);
         piece.traverse((child) => {
           if (child.isMesh) {
-            child.material = coreMaterial;
+            if (Array.isArray(child.material)) {
+              child.material = child.material.map((material) => material?.clone?.() ?? material);
+            } else if (child.material?.clone) {
+              child.material = child.material.clone();
+            }
             child.castShadow = true;
             child.receiveShadow = true;
           }
         });
         token.add(piece);
       } else {
+        coreMaterial = new THREE.MeshPhysicalMaterial({
+          color: baseColor.clone(),
+          roughness: coreRoughness,
+          metalness: coreMetalness,
+          clearcoat: coreClearcoat,
+          clearcoatRoughness: coreClearcoatRoughness,
+          sheen: coreSheen,
+          sheenColor: baseColor.clone().lerp(accentTarget, sheenBlend)
+        });
         accentMaterial = new THREE.MeshPhysicalMaterial({
           color: baseColor.clone().lerp(accentTarget, accentBlend),
           roughness: accentRoughness,
@@ -3151,9 +3159,9 @@ function updateTokens(
 
       token.userData = {
         playerIndex: index,
-        material: coreMaterial,
-        coreMaterial,
-        accentMaterial,
+        material: piecePrototype ? null : coreMaterial,
+        coreMaterial: piecePrototype ? null : coreMaterial,
+        accentMaterial: piecePrototype ? null : accentMaterial,
         isSliding: false,
         shapeId: desiredShapeId
       };

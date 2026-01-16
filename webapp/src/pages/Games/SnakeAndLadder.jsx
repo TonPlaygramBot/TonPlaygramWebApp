@@ -643,10 +643,7 @@ const DEFAULT_HDRI_INDEX = Math.max(
 const SNAKE_CUSTOMIZATION_SECTIONS = [
   { key: 'arenaTheme', label: 'Arena Atmosphere', options: ARENA_THEME_OPTIONS },
   { key: 'boardPalette', label: 'Board Palette', options: BOARD_PALETTE_OPTIONS },
-  { key: 'snakeSkin', label: 'Snake Skins', options: SNAKE_SKIN_OPTIONS },
   { key: 'diceTheme', label: 'Dice Finish', options: DICE_THEME_OPTIONS },
-  { key: 'railTheme', label: 'Rails & Nets', options: RAIL_THEME_OPTIONS },
-  { key: 'tokenFinish', label: 'Token Finish', options: TOKEN_FINISH_OPTIONS },
   { key: 'tokenShape', label: 'Token Shape', options: TOKEN_SHAPE_OPTIONS },
   { key: 'tableFinish', label: 'Table Finish', options: TABLE_FINISH_OPTIONS },
   { key: 'tables', label: 'Table Models', options: TABLE_THEME_OPTIONS },
@@ -715,10 +712,7 @@ const FRAME_RATE_STORAGE_KEY = 'snakeFrameRateId';
 const DEFAULT_APPEARANCE = Object.freeze({
   arenaTheme: 0,
   boardPalette: 0,
-  snakeSkin: 0,
   diceTheme: 0,
-  railTheme: 0,
-  tokenFinish: 0,
   tokenShape: 0,
   tableFinish: 0,
   tables: 0,
@@ -737,10 +731,7 @@ function normalizeAppearance(value = {}) {
   const entries = [
     ['arenaTheme', ARENA_THEME_OPTIONS.length],
     ['boardPalette', BOARD_PALETTE_OPTIONS.length],
-    ['snakeSkin', SNAKE_SKIN_OPTIONS.length],
     ['diceTheme', DICE_THEME_OPTIONS.length],
-    ['railTheme', RAIL_THEME_OPTIONS.length],
-    ['tokenFinish', TOKEN_FINISH_OPTIONS.length],
     ['tokenShape', TOKEN_SHAPE_OPTIONS.length],
     ['tableFinish', TABLE_FINISH_OPTIONS.length],
     ['tables', TABLE_THEME_OPTIONS.length],
@@ -755,6 +746,9 @@ function normalizeAppearance(value = {}) {
       normalized[key] = Math.min(Math.max(0, Math.round(raw)), Math.max(0, max - 1));
     }
   });
+  normalized.snakeSkin = 0;
+  normalized.railTheme = 0;
+  normalized.tokenFinish = 0;
   return normalized;
 }
 
@@ -763,11 +757,11 @@ function resolveAppearance(appearance) {
   const arena = ARENA_THEME_OPTIONS[normalized.arenaTheme] ?? ARENA_THEME_OPTIONS[0];
   const board = BOARD_PALETTE_OPTIONS[normalized.boardPalette] ?? BOARD_PALETTE_OPTIONS[0];
   const dice = DICE_THEME_OPTIONS[normalized.diceTheme] ?? DICE_THEME_OPTIONS[0];
-  const rail = RAIL_THEME_OPTIONS[normalized.railTheme] ?? RAIL_THEME_OPTIONS[0];
-  const token = TOKEN_FINISH_OPTIONS[normalized.tokenFinish] ?? TOKEN_FINISH_OPTIONS[0];
+  const rail = RAIL_THEME_OPTIONS[0];
+  const token = TOKEN_FINISH_OPTIONS[0];
   const tokenShape = TOKEN_SHAPE_OPTIONS[normalized.tokenShape] ?? TOKEN_SHAPE_OPTIONS[0];
   const tableFinish = TABLE_FINISH_OPTIONS[normalized.tableFinish] ?? TABLE_FINISH_OPTIONS[0];
-  const snakeSkin = SNAKE_SKIN_OPTIONS[normalized.snakeSkin] ?? SNAKE_SKIN_OPTIONS[0];
+  const snakeSkin = SNAKE_SKIN_OPTIONS[0];
   const tableTheme = TABLE_THEME_OPTIONS[normalized.tables] ?? TABLE_THEME_OPTIONS[0];
   const stoolTheme = STOOL_THEME_OPTIONS[normalized.stools] ?? STOOL_THEME_OPTIONS[0];
   const floorTexture = FLOOR_TEXTURE_OPTIONS[normalized.floorTexture] ?? FLOOR_TEXTURE_OPTIONS[0];
