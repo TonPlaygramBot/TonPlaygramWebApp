@@ -4934,6 +4934,10 @@ function TexasHoldemArena({ search }) {
           onInfo={() => setShowInfo(true)}
           onChat={() => setShowChat(true)}
           onGift={() => setShowGift(true)}
+          className="fixed left-[0.75rem] bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] flex flex-col gap-2.5 z-20"
+          buttonClassName="flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 p-0 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur-md"
+          iconClassName="text-lg leading-none"
+          labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
         />
       </div>
       {actor?.isHuman && gameState.stage !== 'showdown' && (
