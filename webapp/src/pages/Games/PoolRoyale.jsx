@@ -79,6 +79,12 @@ import {
   normalizeSpinInput,
   SPIN_INPUT_DEAD_ZONE
 } from './poolRoyaleSpinUtils.js';
+import {
+  DEFAULT_PARAMS as DEFAULT_POOL_ROYALE_PHYSICS,
+  ensureBallPhysicsState,
+  stepPhysics as stepPoolRoyalePhysics,
+  strikeCueBall as strikeCueBallWithSpin
+} from './poolRoyalePhysicsEngine.ts';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
@@ -1366,6 +1372,12 @@ const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
 const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
+const POOL_ROYALE_PHYSICS_PARAMS = {
+  ...DEFAULT_POOL_ROYALE_PHYSICS,
+  ballRadius: BALL_R,
+  ballMass: 0.17,
+  maxCueImpulse: SHOT_BASE_SPEED * (SHOT_MIN_FACTOR + SHOT_POWER_RANGE) * 0.17
+};
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
 const CUE_STRIKE_VOLUME_MULTIPLIER = 1; // normalize cue strikes to 100% loudness for clearer but balanced feedback
@@ -20174,34 +20186,22 @@ const powerRef = useRef(hud.power);
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
           const appliedSpin = applySpinConstraints(aimDir, true);
-          const liftAngle = resolveUserCueLift();
-          const liftStrength = normalizeCueLift(liftAngle);
           const physicsSpin = mapSpinForPhysics(appliedSpin);
-          const ranges = spinRangeRef.current || {};
-          const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const baseSide = physicsSpin.x * (ranges.side ?? 0);
-          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (physicsSpin.y < 0) {
-            spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (physicsSpin.y > 0) {
-            spinTop *= TOPSPIN_MULTIPLIER;
-          }
-          cue.vel.copy(base);
-          if (cue.spin) {
-            cue.spin.set(spinSide, spinTop);
-          }
+          const strikeParams = {
+            ...POOL_ROYALE_PHYSICS_PARAMS,
+            maxCueImpulse:
+              POOL_ROYALE_PHYSICS_PARAMS.maxCueImpulse *
+              (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1)
+          };
+          ensureBallPhysicsState(cue, strikeParams);
+          cue.vel.set(0, 0);
+          cue.omega?.set(0, 0, 0);
+          strikeCueBallWithSpin(cue, aimDir, clampedPower, physicsSpin, strikeParams);
+          if (cue.spin) cue.spin.set(0, 0);
           if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-          cue.spinMode =
-            spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
-          const swerveSettings = resolveSwerveSettings(
-            physicsSpin,
-            clampedPower,
-            cue.spinMode === 'swerve',
-            liftStrength
-          );
-          cue.swerveStrength = cue.spinMode === 'swerve' ? swerveSettings.intensity : 0;
-          cue.swervePowerStrength = cue.spinMode === 'swerve' ? clampedPower : 0;
+          cue.spinMode = 'standard';
+          cue.swerveStrength = 0;
+          cue.swervePowerStrength = 0;
           resetSpinRef.current?.();
           cueLiftRef.current.lift = 0;
           cueLiftRef.current.startLift = 0;
@@ -20210,45 +20210,6 @@ const powerRef = useRef(hud.power);
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
-          const topSpinWeight = Math.max(0, physicsSpin.y || 0);
-          if (
-            clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
-            liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
-            topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
-          ) {
-            const powerRatio = THREE.MathUtils.clamp(
-              (clampedPower - JUMP_SHOT_POWER_THRESHOLD) /
-                Math.max(1 - JUMP_SHOT_POWER_THRESHOLD, 1e-4),
-              0,
-              1
-            );
-            const liftRatio = THREE.MathUtils.clamp(
-              (liftStrength - JUMP_SHOT_LIFT_THRESHOLD) /
-                Math.max(1 - JUMP_SHOT_LIFT_THRESHOLD, 1e-4),
-              0,
-              1
-            );
-            const spinRatio = THREE.MathUtils.clamp(
-              (topSpinWeight - JUMP_SHOT_TOPSPIN_THRESHOLD) /
-                Math.max(1 - JUMP_SHOT_TOPSPIN_THRESHOLD, 1e-4),
-              0,
-              1
-            );
-            const jumpStrength =
-              (0.25 + 0.75 * powerRatio) *
-              (0.4 + 0.6 * liftRatio) *
-              (0.55 + 0.45 * spinRatio);
-            const jumpVelocity = MAX_POWER_BOUNCE_IMPULSE * JUMP_SHOT_LAUNCH_SCALE * jumpStrength;
-            const physicsHeight =
-              (jumpVelocity * jumpVelocity) /
-              (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
-            const jumpHeight = Math.min(
-              MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE,
-              physicsHeight
-            );
-            cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
-            cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
-          }
           playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
@@ -23496,193 +23457,37 @@ const powerRef = useRef(hud.power);
             }
           }
         });
-          for (let stepIndex = 0; stepIndex < physicsSubsteps; stepIndex++) {
+        for (let stepIndex = 0; stepIndex < physicsSubsteps; stepIndex++) {
           const stepScale = subStepScale;
+          const { collisions, railContacts } = stepPoolRoyalePhysics(
+            balls,
+            POOL_ROYALE_PHYSICS_PARAMS,
+            stepScale,
+            {
+              minX: -RAIL_LIMIT_X,
+              maxX: RAIL_LIMIT_X,
+              minZ: -RAIL_LIMIT_Y,
+              maxZ: RAIL_LIMIT_Y
+            }
+          );
+          if (railContacts.length > 0) {
+            railContacts.forEach((ball) => {
+              if (ball?.id === 'cue') ball.impacted = true;
+              if (shotContextRef.current.contactMade) {
+                shotContextRef.current.cushionAfterContact = true;
+              }
+            });
+          }
+
           balls.forEach((b) => {
             if (!b.active) return;
-            const isCue = b.id === 'cue';
-            const hasSpin = b.spin?.lengthSq() > 1e-6;
-            const hasLift = (b.lift ?? 0) > 1e-6 || Math.abs(b.liftVel ?? 0) > 1e-6;
-            if (hasLift) {
-              const dampedVel = (b.liftVel ?? 0) * Math.pow(MAX_POWER_BOUNCE_DAMPING, stepScale);
-              const nextLift = Math.max(0, (b.lift ?? 0) + dampedVel * stepScale);
-              const nextVel = dampedVel - MAX_POWER_BOUNCE_GRAVITY * stepScale;
-              const landingNow =
-                isCue && (b.lift ?? 0) > 1e-6 && nextLift <= 1e-4 && dampedVel < 0;
-              if (landingNow) {
-                const lastLanding = liftLandingTimeRef.current.get(b.id) ?? 0;
-                const nowLanding = performance.now();
-                if (nowLanding - lastLanding > MAX_POWER_LANDING_SOUND_COOLDOWN_MS) {
-                  const landingVol = clamp(
-                  Math.abs(dampedVel) / MAX_POWER_BOUNCE_IMPULSE,
-                  0,
-                  1
-                );
-                  const landingHitVol = Math.max(0.45, landingVol * 0.95);
-                  playBallHit(landingHitVol);
-                  liftLandingTimeRef.current.set(b.id, nowLanding);
-                }
-              }
-            b.lift = nextLift;
-            b.liftVel = Math.abs(nextLift) > 1e-6 ? nextVel : 0;
-              if (nextLift <= 1e-4 && Math.abs(nextVel) <= 1e-4) {
-                b.lift = 0;
-                b.liftVel = 0;
-              }
-            if (hasSpin && (b.lift ?? 0) > 0) {
-              const airborneSpin = resolveSpinWorldVector(b, TMP_VEC2_LIMIT);
-              const spinMag = airborneSpin?.length() ?? 0;
-              if (spinMag > 1e-6) {
-                const liftRatio = THREE.MathUtils.clamp(
-                  (b.lift ?? 0) / MAX_POWER_LIFT_HEIGHT,
-                  0,
-                  1.2
-                );
-                const driftScale = LIFT_SPIN_AIR_DRIFT * liftRatio * stepScale;
-                airborneSpin.normalize().multiplyScalar(driftScale);
-                b.vel.add(airborneSpin);
-              }
-            }
-            }
-            if (hasSpin) {
-              const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
-              const swerveStrength = swerveTravel ? Math.max(0, b.swerveStrength ?? 0) : 0;
-              const swervePower = swerveTravel
-                ? Math.max(0, b.swervePowerStrength ?? 0)
-                : 0;
-              const swervePowerScale = swerveStrength > 0 ? 0.85 + swervePower * 0.9 : 0;
-              const swerveScale =
-                swerveStrength > 0 ? (0.6 + swerveStrength * 0.9) * swervePowerScale : 0;
-              const allowRoll =
-                !isCue || b.impacted || swerveTravel || (isCue && b.spin?.lengthSq() > 1e-8);
-              const preImpact = isCue && !b.impacted;
-              if (allowRoll) {
-                const rollMultiplier = swerveTravel
-                  ? SWERVE_TRAVEL_MULTIPLIER * (0.9 + swerveStrength * 0.6)
-                  : 1;
-                const worldSpin = resolveSpinWorldVector(b, TMP_VEC2_SPIN);
-                if (!worldSpin) {
-                  TMP_VEC2_SPIN.set(0, 0);
-                } else {
-                  TMP_VEC2_SPIN.copy(worldSpin);
-                }
-                TMP_VEC2_SPIN.multiplyScalar(
-                  SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
-                );
-                const isBackspin = (b.spin?.y ?? 0) < -1e-4;
-                if (isBackspin && isCue && b.impacted) {
-                  TMP_VEC2_SPIN.multiplyScalar(CUE_BACKSPIN_ROLL_BOOST);
-                } else if (b.vel && b.vel.dot(TMP_VEC2_SPIN) < 0) {
-                  TMP_VEC2_SPIN.multiplyScalar(BACKSPIN_ROLL_BOOST);
-                }
-                if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
-                  const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
-                  const forwardMag = Math.max(0, TMP_VEC2_SPIN.dot(launchDir));
-                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
-                  b.vel.add(TMP_VEC2_AXIS);
-                  TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
-                  if (b.spinMode === 'swerve' && b.pendingSpin && swerveScale > 0) {
-                    b.pendingSpin.addScaledVector(TMP_VEC2_LATERAL, swerveScale);
-                  }
-                  const alignedSpeed = b.vel.dot(launchDir);
-                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
-                  b.vel.copy(TMP_VEC2_AXIS);
-                  if (b.spinMode === 'swerve' && swerveScale > 0) {
-                    b.vel.addScaledVector(
-                      TMP_VEC2_LATERAL,
-                      SWERVE_PRE_IMPACT_DRIFT * swerveScale
-                    );
-                  }
-                } else {
-                  b.vel.add(TMP_VEC2_SPIN);
-                  if (
-                    isCue &&
-                    b.spinMode === 'swerve' &&
-                    b.pendingSpin &&
-                    b.pendingSpin.lengthSq() > 0
-                  ) {
-                    const driftScale = swerveScale > 0 ? swerveScale : 1;
-                    b.vel.addScaledVector(
-                      b.pendingSpin,
-                      PRE_IMPACT_SPIN_DRIFT * driftScale
-                    );
-                    b.pendingSpin.multiplyScalar(0);
-                  }
-                }
-                const rollDecay = Math.pow(SPIN_ROLL_DECAY, stepScale);
-                b.spin.multiplyScalar(rollDecay);
-                if (isCue && b.swerveStrength > 0) {
-                  b.swerveStrength *= rollDecay;
-                  if (b.swerveStrength < 1e-3) {
-                    b.swerveStrength = 0;
-                    b.swervePowerStrength = 0;
-                  }
-                }
-              } else {
-                const airDecay = Math.pow(SPIN_AIR_DECAY, stepScale);
-                b.spin.multiplyScalar(airDecay);
-                if (isCue && b.swerveStrength > 0) {
-                  b.swerveStrength *= airDecay;
-                  if (b.swerveStrength < 1e-3) {
-                    b.swerveStrength = 0;
-                    b.swervePowerStrength = 0;
-                  }
-                }
-              }
-              if (b.spin.lengthSq() < 1e-6) {
-                b.spin.set(0, 0);
-                if (b.pendingSpin) b.pendingSpin.set(0, 0);
-                if (isCue) {
-                  b.spinMode = 'standard';
-                  b.swerveStrength = 0;
-                  b.swervePowerStrength = 0;
-                }
-              }
-            }
-            b.pos.addScaledVector(b.vel, stepScale);
-            b.vel.multiplyScalar(Math.pow(FRICTION, stepScale));
-            let speed = b.vel.length();
-            let scaledSpeed = speed * stepScale;
-            if (scaledSpeed < STOP_EPS) {
-              b.vel.multiplyScalar(Math.pow(STOP_SOFTENING, stepScale));
-              speed = b.vel.length();
-              scaledSpeed = speed * stepScale;
-            }
-            const hasSpinAfter = b.spin?.lengthSq() > 1e-6;
-            if (scaledSpeed < STOP_FINAL_EPS) {
-              b.vel.set(0, 0);
-              if (!hasSpinAfter && b.spin) b.spin.set(0, 0);
-              if (!hasSpinAfter && b.pendingSpin) b.pendingSpin.set(0, 0);
-              if (isCue && !hasSpinAfter) {
-                b.impacted = false;
-                b.spinMode = 'standard';
-                b.swerveStrength = 0;
-                b.swervePowerStrength = 0;
-              }
-              b.launchDir = null;
-            }
-            const railImpact = reflectRails(b);
-            if (railImpact && b.id === 'cue') b.impacted = true;
-            if (railImpact && shotContextRef.current.contactMade) {
-              shotContextRef.current.cushionAfterContact = true;
-            }
-            if (railImpact && b.spin?.lengthSq() > 0) {
-              applyRailSpinResponse(b, railImpact);
-            }
-            if (railImpact) {
-              const nowRail = performance.now();
-              const lastPlayed = railSoundTimeRef.current.get(b.id) ?? 0;
-              if (nowRail - lastPlayed > RAIL_HIT_SOUND_COOLDOWN_MS) {
-                // Cushion contacts stay silent so only ball collisions trigger audio.
-                railSoundTimeRef.current.set(b.id, nowRail);
-              }
-            }
-            const liftAmount = b.lift ?? 0;
-            b.mesh.position.set(b.pos.x, BALL_CENTER_Y + liftAmount, b.pos.y);
-            if (scaledSpeed > 0) {
-              const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
-              const angle = scaledSpeed / BALL_R;
-              b.mesh.rotateOnWorldAxis(axis, angle);
+            ensureBallPhysicsState(b, POOL_ROYALE_PHYSICS_PARAMS);
+            b.mesh.position.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
+            const omegaAxis = b.omega?.clone() ?? new THREE.Vector3(0, 0, 0);
+            const omegaAngle = omegaAxis.length() * stepScale;
+            if (omegaAngle > 0.0001) {
+              omegaAxis.normalize();
+              b.mesh.rotateOnWorldAxis(omegaAxis, omegaAngle);
             }
             if (b.shadow) {
               const droppingShadow = pocketDropRef.current.has(b.id);
@@ -23690,150 +23495,71 @@ const powerRef = useRef(hud.power);
               b.shadow.visible = shadowVisible;
               if (shadowVisible) {
                 b.shadow.position.set(b.pos.x, BALL_SHADOW_Y, b.pos.y);
-                const liftInfluence = THREE.MathUtils.clamp(
-                  liftAmount / (BALL_R * 1.4),
-                  0,
-                  1
-                );
-                const spread = 1 +
-                  THREE.MathUtils.clamp(speed * 0.08, 0, 0.35) +
-                  liftInfluence * 0.25;
+                const speed = b.vel.length();
+                const spread = 1 + THREE.MathUtils.clamp(speed * 0.08, 0, 0.35);
                 b.shadow.scale.setScalar(spread);
-                b.shadow.material.opacity = THREE.MathUtils.clamp(
-                  BALL_SHADOW_OPACITY + 0.12 - liftInfluence * 0.4,
-                  0,
-                  1
-                );
+                b.shadow.material.opacity = BALL_SHADOW_OPACITY;
               }
             }
           });
-          // Kolizione + regjistro firstHit
-          for (let i = 0; i < balls.length; i++)
-            for (let j = i + 1; j < balls.length; j++) {
-              const a = balls[i],
-                b = balls[j];
-              if (!a.active || !b.active) continue;
-              const dx = b.pos.x - a.pos.x,
-                dy = b.pos.y - a.pos.y;
-              const d2 = dx * dx + dy * dy;
-              const min = (BALL_R * 2) ** 2;
-              if (d2 > 0 && d2 < min) {
-                const d = Math.sqrt(d2) || 1e-4;
-                const nx = dx / d,
-                  ny = dy / d;
-                const overlap = (BALL_R * 2 - d) / 2;
-                const pairKey =
-                  (a.id ?? i) < (b.id ?? j)
-                    ? `${a.id ?? i}:${b.id ?? j}`
-                    : `${b.id ?? j}:${a.id ?? i}`;
-                const firstPairCollision = !newCollisions.has(pairKey);
-                newCollisions.add(pairKey);
-                const wasColliding = prevCollisions.has(pairKey);
-                const isNewImpact = firstPairCollision && !wasColliding;
-                a.pos.x -= nx * overlap;
-                a.pos.y -= ny * overlap;
-                b.pos.x += nx * overlap;
-                b.pos.y += ny * overlap;
-                const avn = a.vel.x * nx + a.vel.y * ny;
-                const bvn = b.vel.x * nx + b.vel.y * ny;
-                const impulse = Math.abs(bvn - avn);
-                const at = a.vel
-                  .clone()
-                  .sub(new THREE.Vector2(nx, ny).multiplyScalar(avn));
-                const bt = b.vel
-                  .clone()
-                  .sub(new THREE.Vector2(nx, ny).multiplyScalar(bvn));
-                a.vel.copy(at.add(new THREE.Vector2(nx, ny).multiplyScalar(bvn)));
-                b.vel.copy(bt.add(new THREE.Vector2(nx, ny).multiplyScalar(avn)));
-                if (isNewImpact) {
-                  const shotScale = 0.4 + 0.6 * lastShotPower;
-                  const volume = clamp(
-                    (impulse / BALL_COLLISION_SOUND_REFERENCE_SPEED) * shotScale,
-                    0,
-                    1
-                  );
-                  if (volume > 0) playBallHit(volume);
-                }
-                const cueBall = a.id === 'cue' ? a : b.id === 'cue' ? b : null;
-                const cuePreImpactVel = cueBall?.vel?.clone?.() ?? null;
-                if (!firstHit) {
-                  if (a.id === 'cue' && b.id !== 'cue') firstHit = b.id;
-                  else if (b.id === 'cue' && a.id !== 'cue') firstHit = a.id;
-                }
-                if (
-                  !shotContextRef.current.contactMade &&
-                  (a.id === 'cue' || b.id === 'cue')
-                ) {
-                  shotContextRef.current.contactMade = true;
-                }
-                const hitBallId =
-                  a.id === 'cue' && b.id !== 'cue'
-                    ? b.id
-                    : b.id === 'cue' && a.id !== 'cue'
-                      ? a.id
-                      : null;
-                const targetImpactId = shotPrediction?.ballId ?? null;
-                const isTargetImpact =
-                  !targetImpactId || (hitBallId && String(hitBallId) === String(targetImpactId));
-                if (
-                  cueBall &&
-                  hitBallId &&
-                  isTargetImpact &&
-                  isNewImpact &&
-                  lastShotPower >= MAX_POWER_BOUNCE_THRESHOLD &&
-                  !maxPowerLiftTriggered
-                ) {
-                  const bounceStrength = THREE.MathUtils.clamp(lastShotPower, 0, 1);
-                  const liftBoost = 1.2;
-                  maxPowerLiftTriggered = true;
-                  const liftSoundVol = Math.max(0.7, bounceStrength * 0.95);
-                  playCueHit(liftSoundVol);
-                  const spinEnergy = cueBall.spin?.length() ?? 0;
-                  const spinHeightBonus = spinEnergy * MAX_POWER_SPIN_LIFT_BONUS;
-                  const liftCeiling = Math.min(
-                    MAX_POWER_LIFT_HEIGHT * liftBoost + spinHeightBonus,
-                    MAX_POWER_BOUNCE_IMPULSE * 0.9
-                  );
-                  cueBall.lift = Math.max(
-                    cueBall.lift ?? 0,
-                    liftCeiling
-                  );
-                  const launchCeiling = Math.min(
-                    MAX_POWER_BOUNCE_IMPULSE * bounceStrength * liftBoost + spinHeightBonus,
-                    MAX_POWER_BOUNCE_IMPULSE * 0.95
-                  );
-                  cueBall.liftVel = Math.max(
-                    cueBall.liftVel ?? 0,
-                    launchCeiling
-                  );
-                  if (spinEnergy > 1e-6) {
-                    const spinThrow = Math.min(
-                      spinEnergy * MAX_POWER_SPIN_LATERAL_THROW,
-                      MAX_POWER_BOUNCE_IMPULSE * 0.4
-                    );
-                    if (spinThrow > 0 && cueBall.spin) {
-                      const spinDir = resolveSpinWorldVector(cueBall, TMP_VEC2_SPIN);
-                      if (spinDir && spinDir.lengthSq() > 1e-6) {
-                        spinDir.normalize();
-                        cueBall.vel.add(spinDir.multiplyScalar(spinThrow));
-                      }
-                    }
-                  }
-                }
-                if (
-                  hitBallId &&
-                  activeShotView?.mode === 'action' &&
-                  activeShotView.targetId === hitBallId
-                ) {
-                  activeShotView.hitConfirmed = true;
-                }
-                if (cueBall && cueBall.spin?.lengthSq() > 0) {
-                  cueBall.impacted = true;
-                  const backspinBoost = cueBall.spin.y < -1e-4 ? 2.6 : 1.2;
-                  applySpinImpulse(cueBall, backspinBoost, cuePreImpactVel);
-                }
-              }
+
+          collisions.forEach((collision) => {
+            const a = collision.a;
+            const b = collision.b;
+            if (!a?.active || !b?.active) return;
+            const pairKey =
+              (a.id ?? '') < (b.id ?? '')
+                ? `${a.id}:${b.id}`
+                : `${b.id}:${a.id}`;
+            const firstPairCollision = !newCollisions.has(pairKey);
+            newCollisions.add(pairKey);
+            const wasColliding = prevCollisions.has(pairKey);
+            const isNewImpact = firstPairCollision && !wasColliding;
+            if (isNewImpact) {
+              const shotScale = 0.4 + 0.6 * lastShotPower;
+              const volume = clamp(
+                (collision.impulse / BALL_COLLISION_SOUND_REFERENCE_SPEED) * shotScale,
+                0,
+                1
+              );
+              if (volume > 0) playBallHit(volume);
             }
+            if (!firstHit) {
+              if (a.id === 'cue' && b.id !== 'cue') firstHit = b.id;
+              else if (b.id === 'cue' && a.id !== 'cue') firstHit = a.id;
+            }
+            if (
+              !shotContextRef.current.contactMade &&
+              (a.id === 'cue' || b.id === 'cue')
+            ) {
+              shotContextRef.current.contactMade = true;
+            }
+            const hitBallId =
+              a.id === 'cue' && b.id !== 'cue'
+                ? b.id
+                : b.id === 'cue' && a.id !== 'cue'
+                  ? a.id
+                  : null;
+            const targetImpactId = shotPrediction?.ballId ?? null;
+            const isTargetImpact =
+              !targetImpactId || (hitBallId && String(hitBallId) === String(targetImpactId));
+            if (
+              hitBallId &&
+              activeShotView?.mode === 'action' &&
+              activeShotView.targetId === hitBallId
+            ) {
+              activeShotView.hitConfirmed = true;
+            }
+            if (
+              hitBallId &&
+              isTargetImpact &&
+              isNewImpact &&
+              lastShotPower >= MAX_POWER_BOUNCE_THRESHOLD &&
+              !maxPowerLiftTriggered
+            ) {
+              maxPowerLiftTriggered = true;
+            }
+          });
         }
         if (
           !activeShotView &&
