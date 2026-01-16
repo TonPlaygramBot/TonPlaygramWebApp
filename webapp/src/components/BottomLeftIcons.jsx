@@ -14,6 +14,11 @@ export default function BottomLeftIcons({
   buttonClassName = 'p-1 flex flex-col items-center',
   iconClassName = 'text-xl',
   labelClassName = 'text-xs',
+  chatIcon,
+  giftIcon,
+  infoIcon,
+  muteIconOn,
+  muteIconOff
 }) {
   const [muted, setMuted] = useState(isGameMuted());
 
@@ -32,25 +37,35 @@ export default function BottomLeftIcons({
     <div className={className} style={style}>
       {showChat && onChat && (
         <button type="button" onClick={onChat} className={buttonClassName}>
-          <AiOutlineMessage className={iconClassName} />
+          {chatIcon ? (
+            <span className={iconClassName}>{chatIcon}</span>
+          ) : (
+            <AiOutlineMessage className={iconClassName} />
+          )}
           <span className={labelClassName}>Chat</span>
         </button>
       )}
       {showGift && onGift && (
         <button type="button" onClick={onGift} className={buttonClassName}>
-          <span className={iconClassName}>🎁</span>
+          <span className={iconClassName}>{giftIcon ?? '🎁'}</span>
           <span className={labelClassName}>Gift</span>
         </button>
       )}
       {showInfo && (
         <button type="button" onClick={onInfo} className={buttonClassName}>
-          <AiOutlineInfoCircle className={iconClassName} />
+          {infoIcon ? (
+            <span className={iconClassName}>{infoIcon}</span>
+          ) : (
+            <AiOutlineInfoCircle className={iconClassName} />
+          )}
           <span className={labelClassName}>Info</span>
         </button>
       )}
       {showMute && (
         <button type="button" onClick={toggle} className={buttonClassName}>
-          <span className={iconClassName}>{muted ? '🔇' : '🔊'}</span>
+          <span className={iconClassName}>
+            {muted ? muteIconOn ?? '🔇' : muteIconOff ?? '🔊'}
+          </span>
           <span className={labelClassName}>{muted ? 'Unmute' : 'Mute'}</span>
         </button>
       )}

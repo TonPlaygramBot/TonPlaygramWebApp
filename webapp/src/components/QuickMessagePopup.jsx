@@ -22,11 +22,17 @@ export default function QuickMessagePopup({
   open,
   onClose,
   onSend,
+  title,
   overlayClassName = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70',
   panelClassName = 'bg-surface border border-border rounded p-4 space-y-2 w-64',
+  messageGridClassName = 'grid grid-cols-2 gap-1 max-h-40 overflow-y-auto',
   messageButtonClassName = 'text-sm border border-border rounded px-1 py-0.5',
   messageButtonActiveClassName = 'bg-accent',
   sendButtonClassName = 'w-full px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black',
+  headerClassName = 'flex items-center justify-between gap-2',
+  titleClassName = 'text-sm font-semibold',
+  closeButtonClassName = 'rounded-full border border-white/15 bg-white/10 px-2 py-1 text-xs text-white/80',
+  showCloseButton = false,
 }) {
   const [message, setMessage] = useState(MESSAGES[0]);
   if (!open) return null;
@@ -39,7 +45,17 @@ export default function QuickMessagePopup({
         className={panelClassName}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">
+        {(title || showCloseButton) && (
+          <div className={headerClassName}>
+            {title ? <h3 className={titleClassName}>{title}</h3> : <span />}
+            {showCloseButton && (
+              <button type="button" onClick={onClose} className={closeButtonClassName}>
+                ✕
+              </button>
+            )}
+          </div>
+        )}
+        <div className={messageGridClassName}>
           {MESSAGES.map((m) => (
             <button
               key={m}

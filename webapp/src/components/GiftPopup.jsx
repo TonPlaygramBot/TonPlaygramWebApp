@@ -16,9 +16,16 @@ export default function GiftPopup({
   players = [],
   senderIndex = 0,
   onGiftSent,
+  title,
   overlayClassName = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70',
   panelClassName = 'bg-surface border border-border rounded p-4 space-y-2 w-72',
   titleClassName = 'text-center font-semibold mb-2',
+  headerClassName = 'flex items-center justify-between gap-2',
+  closeButtonClassName = 'rounded-full border border-white/15 bg-white/10 px-2 py-1 text-xs text-white/80',
+  showCloseButton = false,
+  playerListClassName = 'space-y-1 max-h-32 overflow-y-auto',
+  tierGroupClassName = 'space-y-1',
+  giftGridClassName = 'grid grid-cols-2 gap-1',
   playerButtonClassName = 'w-full flex items-center space-x-2 border border-border rounded px-1 py-0.5 text-sm',
   playerButtonActiveClassName = 'bg-accent',
   tierTitleClassName = 'text-sm font-bold',
@@ -34,6 +41,7 @@ export default function GiftPopup({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [infoMsg, setInfoMsg] = useState('');
   const [pendingGift, setPendingGift] = useState(null);
+  const resolvedTitle = title ?? 'Send Gift';
 
   const handleInfoClose = () => {
     setInfoMsg('');
@@ -105,8 +113,19 @@ export default function GiftPopup({
           className={panelClassName}
           onClick={(e) => e.stopPropagation()}
         >
-          <p className={titleClassName}>Send Gift</p>
-          <div className="space-y-1 max-h-32 overflow-y-auto">
+          {showCloseButton || title ? (
+            <div className={headerClassName}>
+              <p className={titleClassName}>{resolvedTitle}</p>
+              {showCloseButton && (
+                <button type="button" onClick={onClose} className={closeButtonClassName}>
+                  ✕
+                </button>
+              )}
+            </div>
+          ) : (
+            <p className={titleClassName}>{resolvedTitle}</p>
+          )}
+          <div className={playerListClassName}>
             {validPlayers.map((p) => (
               <button
                 key={p.index}
@@ -121,9 +140,9 @@ export default function GiftPopup({
             ))}
           </div>
           {tiers.map((tier) => (
-            <div key={tier} className="space-y-1">
+            <div key={tier} className={tierGroupClassName}>
               <p className={tierTitleClassName}>Tier {tier}</p>
-              <div className="grid grid-cols-2 gap-1">
+              <div className={giftGridClassName}>
                 {NFT_GIFTS.filter((g) => g.tier === tier).map((g) => (
                   <button
                     key={g.id}

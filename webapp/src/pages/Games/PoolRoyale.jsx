@@ -4886,8 +4886,8 @@ const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
-const AI_CUE_PULLBACK_DURATION_MS = 3000;
-const AI_CUE_FORWARD_DURATION_MS = 3000;
+const AI_CUE_PULLBACK_DURATION_MS = 3400;
+const AI_CUE_FORWARD_DURATION_MS = 3400;
 const AI_STROKE_VISIBLE_DURATION_MS =
   AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
@@ -4925,21 +4925,20 @@ const AI_CUE_VIEW_HOLD_MS = 180;
 // Ease the AI camera just partway toward cue view (still above the stick) so the shot preview
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
-const AI_STROKE_TIME_SCALE = 1.85;
+const AI_STROKE_TIME_SCALE = 2.15;
 const AI_STROKE_PULLBACK_FACTOR = 1.05;
 const AI_CUE_PULL_VISIBILITY_BOOST = 1.34;
 const AI_WARMUP_PULL_RATIO = 0.55;
 const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.32;
 const PLAYER_WARMUP_PULL_RATIO = 0.62;
-const PLAYER_STROKE_TIME_SCALE = 1.7;
-const PLAYER_FORWARD_SLOWDOWN = 1.35;
+const PLAYER_STROKE_TIME_SCALE = 2.05;
+const PLAYER_FORWARD_SLOWDOWN = 1.55;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.2;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1.45;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1.85;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 30;
-const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 36;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -15473,35 +15472,6 @@ const powerRef = useRef(hud.power);
           return { position, target, fov: STANDING_VIEW_FOV, minTargetY };
         };
 
-        const hasReplayCameraChanged = (previous, next) => {
-          if (!next) return false;
-          if (!previous) return true;
-          const dist = (a, b) => {
-            if (a && b && typeof a.distanceTo === 'function') return a.distanceTo(b);
-            if (a && b) {
-              const ax = Number.isFinite(a.x) ? a.x : 0;
-              const ay = Number.isFinite(a.y) ? a.y : 0;
-              const az = Number.isFinite(a.z) ? a.z : 0;
-              const bx = Number.isFinite(b.x) ? b.x : 0;
-              const by = Number.isFinite(b.y) ? b.y : 0;
-              const bz = Number.isFinite(b.z) ? b.z : 0;
-              return Math.hypot(ax - bx, ay - by, az - bz);
-            }
-            return Infinity;
-          };
-          const positionShift = dist(previous.position, next.position);
-          const targetShift = dist(previous.target, next.target);
-          const fovShift =
-            Number.isFinite(previous.fov) && Number.isFinite(next.fov)
-              ? Math.abs(previous.fov - next.fov)
-              : 0;
-          return (
-            positionShift > REPLAY_CAMERA_SWITCH_THRESHOLD ||
-            targetShift > REPLAY_CAMERA_SWITCH_THRESHOLD ||
-            fovShift > 1e-3
-          );
-        };
-
         const resolveReplayCameraView = (replayFrameCamera, storedReplayCamera) => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
@@ -22719,20 +22689,13 @@ const powerRef = useRef(hud.power);
             applyReplayCueStroke(playback, targetTime);
             updateReplayTrail(playback.cuePath, targetTime);
             if (!LOCK_REPLAY_CAMERA) {
-              const nextFrameCamera = frameB?.camera ?? frameA?.camera ?? null;
-              const previousFrameCamera =
-                replayFrameCameraRef.current?.frameB ??
-                replayFrameCameraRef.current?.frameA ??
-                null;
-              if (
-                nextFrameCamera &&
-                (!replayFrameCameraRef.current ||
-                  hasReplayCameraChanged(previousFrameCamera, nextFrameCamera))
-              ) {
+              const frameCameraA = frameA?.camera ?? null;
+              const frameCameraB = frameB?.camera ?? frameCameraA;
+              if (frameCameraA || frameCameraB) {
                 replayFrameCameraRef.current = {
-                  frameA: nextFrameCamera,
-                  frameB: nextFrameCamera,
-                  alpha: 0
+                  frameA: frameCameraA ?? frameCameraB,
+                  frameB: frameCameraB ?? frameCameraA,
+                  alpha
                 };
               }
             } else {
@@ -22855,6 +22818,10 @@ const powerRef = useRef(hud.power);
         const appliedSpin = applySpinConstraints(aimDir, true);
         const liftStrength = normalizeCueLift(resolveUserCueLift());
         const physicsSpin = mapSpinForPhysics(appliedSpin);
+        const aimLineSpin = {
+          x: -(physicsSpin.x || 0),
+          y: physicsSpin.y || 0
+        };
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
         let shouldSlowAim = false;
@@ -22982,7 +22949,7 @@ const powerRef = useRef(hud.power);
           const aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
           const guideAimDir2D = resolveSwerveAimDir(
             aimDir2D,
-            physicsSpin,
+            aimLineSpin,
             powerStrength,
             swerveActive,
             liftStrength
@@ -23007,7 +22974,7 @@ const powerRef = useRef(hud.power);
             end,
             dir,
             perp,
-            physicsSpin,
+            aimLineSpin,
             powerStrength,
             swerveActive,
             liftStrength
@@ -23082,8 +23049,8 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const spinSideInfluence = (physicsSpin.x || 0) * (0.4 + 0.42 * powerStrength);
-          const spinVerticalInfluence = (physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
+          const spinSideInfluence = (aimLineSpin.x || 0) * (0.4 + 0.42 * powerStrength);
+          const spinVerticalInfluence = (aimLineSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
             .add(perp.clone().multiplyScalar(spinSideInfluence))
@@ -23091,7 +23058,7 @@ const powerRef = useRef(hud.power);
           if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
             cueFollowDirSpinAdjusted.normalize();
           }
-          const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
+          const backSpinWeight = Math.max(0, -(aimLineSpin.y || 0));
           if (backSpinWeight > 1e-8) {
             const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
             const drawDir = dir.clone().negate();
@@ -23306,9 +23273,13 @@ const powerRef = useRef(hud.power);
           const remoteSpinMagnitude = Math.hypot(remoteSpin.x ?? 0, remoteSpin.y ?? 0);
           const remoteSwerveActive = remoteSpinMagnitude >= SWERVE_THRESHOLD;
           const remotePhysicsSpin = mapSpinForPhysics(remoteSpin);
+          const remoteAimSpin = {
+            x: -(remotePhysicsSpin.x || 0),
+            y: remotePhysicsSpin.y || 0
+          };
           const guideAimDir2D = resolveSwerveAimDir(
             remoteAimDir,
-            remotePhysicsSpin,
+            remoteAimSpin,
             powerStrength,
             remoteSwerveActive
           );
@@ -23329,7 +23300,7 @@ const powerRef = useRef(hud.power);
             end,
             baseDir,
             perp,
-            remotePhysicsSpin,
+            remoteAimSpin,
             powerStrength,
             remoteSwerveActive
           );
@@ -25080,14 +25051,18 @@ const powerRef = useRef(hud.power);
   const hudGapClass = isPortrait ? 'gap-4' : 'gap-6';
   const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
   const chatGiftOverlayClass =
-    'fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm';
+    'fixed inset-0 z-50 flex items-center justify-center bg-black/70';
   const chatGiftPanelClass =
-    'w-72 rounded-2xl border border-emerald-400/40 bg-black/80 p-4 text-white shadow-[0_18px_40px_rgba(0,0,0,0.55)]';
+    'w-[min(340px,88vw)] rounded-2xl border border-[#233050] bg-[#0b1220] p-4 text-white shadow-[0_18px_40px_rgba(0,0,0,0.5)]';
+  const chatGiftHeaderClass = 'flex items-center justify-between gap-2';
+  const chatGiftTitleClass = 'text-sm font-semibold tracking-[0.04em] text-white';
+  const chatGiftCloseButtonClass =
+    'flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/80 hover:bg-white/20';
   const chatGiftOptionClass =
-    'text-[11px] uppercase tracking-[0.2em] text-white/80 border border-white/15 rounded-lg px-2 py-1 bg-white/5 hover:bg-white/10';
-  const chatGiftOptionActiveClass = 'border-emerald-300 bg-emerald-300/20 text-white';
+    'text-[11px] font-semibold border border-white/15 rounded-[10px] px-2 py-1 bg-[#0f172a]/60 text-white/85';
+  const chatGiftOptionActiveClass = 'border-emerald-400/80 bg-emerald-400/20 text-emerald-50';
   const chatGiftActionButtonClass =
-    'w-full rounded-full border border-emerald-300 bg-emerald-300/90 px-3 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-900 shadow-[0_12px_24px_rgba(16,185,129,0.35)] hover:bg-emerald-300';
+    'w-full rounded-[12px] border border-emerald-400/70 bg-gradient-to-br from-emerald-400/95 to-emerald-500/85 px-3 py-2 text-sm font-extrabold uppercase tracking-[0.18em] text-[#04210f] shadow-[0_12px_24px_rgba(16,185,129,0.3)]';
   const playerPanelClass = isPortrait
     ? `flex min-w-0 items-center gap-2.5 rounded-full ${isPlayerTurn ? 'text-white' : 'text-white/80'}`
     : `flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
@@ -25971,6 +25946,15 @@ const powerRef = useRef(hud.power);
           onInfo={() => setShowInfo(true)}
           onChat={() => setShowChat(true)}
           onGift={() => setShowGift(true)}
+          className="fixed left-3 bottom-4 z-50 flex flex-col gap-2.5"
+          buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+          iconClassName="text-[1.1rem] leading-none"
+          labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
+          chatIcon="💬"
+          giftIcon="🎁"
+          infoIcon="ℹ️"
+          muteIconOn="🔇"
+          muteIconOff="🔊"
           showInfo={false}
           showMute={false}
         />
@@ -26104,8 +26088,14 @@ const powerRef = useRef(hud.power);
         <QuickMessagePopup
           open={showChat}
           onClose={() => setShowChat(false)}
+          title="Quick Chat"
+          headerClassName={chatGiftHeaderClass}
+          titleClassName={chatGiftTitleClass}
+          closeButtonClassName={chatGiftCloseButtonClass}
+          showCloseButton
           overlayClassName={chatGiftOverlayClass}
           panelClassName={chatGiftPanelClass}
+          messageGridClassName="grid grid-cols-2 gap-[0.45rem] max-h-48 overflow-y-auto"
           messageButtonClassName={chatGiftOptionClass}
           messageButtonActiveClassName={chatGiftOptionActiveClass}
           sendButtonClassName={chatGiftActionButtonClass}
@@ -26135,15 +26125,22 @@ const powerRef = useRef(hud.power);
           senderIndex={0}
           overlayClassName={chatGiftOverlayClass}
           panelClassName={chatGiftPanelClass}
-          titleClassName="text-center text-xs font-semibold uppercase tracking-[0.3em] text-emerald-100"
+          title="Send Gift"
+          headerClassName={chatGiftHeaderClass}
+          titleClassName={chatGiftTitleClass}
+          closeButtonClassName={chatGiftCloseButtonClass}
+          showCloseButton
+          playerListClassName="flex flex-col gap-[0.4rem] max-h-[8.5rem] overflow-y-auto"
+          tierGroupClassName="flex flex-col gap-[0.35rem]"
+          giftGridClassName="grid grid-cols-2 gap-[0.4rem]"
           playerButtonClassName={`${chatGiftOptionClass} flex items-center gap-2 text-left`}
           playerButtonActiveClassName={chatGiftOptionActiveClass}
-          tierTitleClassName="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/70"
+          tierTitleClassName="text-[11px] uppercase tracking-[0.18em] text-white/70"
           giftButtonClassName={`${chatGiftOptionClass} flex items-center justify-center gap-2`}
           giftButtonActiveClassName={chatGiftOptionActiveClass}
-          costClassName="text-[11px] uppercase tracking-[0.28em] text-white/70 mt-2 flex items-center justify-center gap-2"
+          costClassName="text-[11px] uppercase tracking-[0.18em] text-white/70 mt-2 flex items-center justify-center gap-2"
           sendButtonClassName={chatGiftActionButtonClass}
-          noteClassName="text-[10px] uppercase tracking-[0.22em] text-white/60 text-center"
+          noteClassName="text-[10px] uppercase tracking-[0.18em] text-white/60 text-center"
           onGiftSent={({ from, to, gift }) => {
             const start = document.querySelector(`[data-player-index="${from}"]`);
             const end = document.querySelector(`[data-player-index="${to}"]`);
