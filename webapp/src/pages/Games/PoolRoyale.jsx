@@ -909,7 +909,7 @@ const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
-const REPLAY_CUE_STICK_HOLD_MS = 320;
+const REPLAY_CUE_STICK_HOLD_MS = 240;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
@@ -1264,20 +1264,20 @@ const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // rais
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.78 +
-  POCKET_VIS_R * 1.7 +
-  BALL_R * 0.9;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
+  POCKET_VIS_R * 1.95 +
+  BALL_R * 1.1;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.9 +
-  POCKET_VIS_R * 1.75 +
-  BALL_R * 0.95;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.05 +
+  POCKET_VIS_R * 1.95 +
+  BALL_R * 1.05;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 12,
   dotThreshold: 0.22,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.02,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 1.05,
+  heightOffset: BALL_R * 1.15,
   heightOffsetShortMultiplier: 0.9,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1,
@@ -1291,7 +1291,6 @@ const POCKET_CAM = Object.freeze({
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.95;
-const POCKET_AUTO_SWITCH_ALIGNMENT = 0.78;
 const POCKET_INTENT_TIMEOUT_MS = 4200;
 const ACTION_CAM = Object.freeze({
   pairMinDistance: BALL_R * 28,
@@ -1438,7 +1437,7 @@ const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.06; // tighten the visible air gap so the tip reads as contacting the cue ball
 const CUE_TIP_GAP = BALL_R * 0.95 + CUE_TIP_CLEARANCE; // keep the tip aligned while allowing visible contact on impact
-const CUE_IMPACT_OVERTRAVEL = BALL_R * 0.45; // push the cue slightly past the contact point so the strike is clearly visible
+const CUE_IMPACT_OVERTRAVEL = BALL_R * 0.38; // push the cue slightly past the contact point so the strike is clearly visible
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 2.1; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -1467,13 +1466,12 @@ const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
-const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 2.5;
+const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 2.2;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.62;
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(6);
+const CUE_OBSTRUCTION_LIFT = BALL_R * 0.4;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(4);
 const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.6;
 const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.45;
-const CUE_OBSTRUCTION_TOPSPIN_BOOST = THREE.MathUtils.degToRad(3.5);
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -4731,7 +4729,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.84; // lift the standing orbit slightly higher for a clearer top surface view
+const STANDING_VIEW_PHI = 0.88; // lift the standing orbit slightly higher for a clearer top surface view
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -4896,7 +4894,7 @@ const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
-const CUE_STROKE_VISUAL_SLOWDOWN = 2.1;
+const CUE_STROKE_VISUAL_SLOWDOWN = 1.85;
 const AI_CUE_PULLBACK_DURATION_MS = 3400;
 const AI_CUE_FORWARD_DURATION_MS = 3400;
 const AI_STROKE_VISIBLE_DURATION_MS =
@@ -4947,9 +4945,9 @@ const PLAYER_FORWARD_SLOWDOWN = 1.55;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.2;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1.25;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 28;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 44;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -5189,11 +5187,6 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
     return { blocked: false, reason: '' };
   }
   const axes = options.axes;
-  const view = options.view;
-  const viewDir =
-    view && Number.isFinite(view.x) && Number.isFinite(view.y)
-      ? new THREE.Vector2(view.x, view.y)
-      : null;
   TMP_VEC2_SPIN.set(0, 0);
   if (axes?.perp) TMP_VEC2_SPIN.addScaledVector(axes.perp, sx);
   if (axes?.axis) TMP_VEC2_SPIN.addScaledVector(axes.axis, sy);
@@ -5202,11 +5195,6 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
     return { blocked: false, reason: '' };
   }
   TMP_VEC2_SPIN.normalize();
-  if (viewDir && viewDir.lengthSq() > 1e-6) viewDir.normalize();
-  const facingCamera =
-    viewDir && viewDir.lengthSq() > 1e-6
-      ? viewDir.dot(TMP_VEC2_SPIN) > 0.1
-      : false;
   const contact = cueBall.pos
     .clone()
     .add(TMP_VEC2_SPIN.clone().multiplyScalar(BALL_R));
@@ -5216,9 +5204,7 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
     Math.abs(contact.x) > cushionClearX ||
     Math.abs(contact.y) > cushionClearY
   ) {
-    if (!facingCamera) {
-      return { blocked: true, reason: 'Cushion blocks that strike point' };
-    }
+    return { blocked: true, reason: 'Cushion blocks that strike point' };
   }
   const blockingRadius = BALL_R + CUE_TIP_RADIUS * 1.05;
   const blockingRadiusSq = blockingRadius * blockingRadius;
@@ -5232,9 +5218,7 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
     if (!(proj > 0)) continue;
     const lateralSq = Math.max(offset.lengthSq() - proj * proj, 0);
     if (lateralSq < blockingRadiusSq) {
-      if (!facingCamera) {
-        return { blocked: true, reason: 'Another ball blocks that side' };
-      }
+      return { blocked: true, reason: 'Another ball blocks that side' };
     }
   }
   return { blocked: false, reason: '' };
@@ -5309,17 +5293,11 @@ function applyAxisClearance(
   }
 }
 
-function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null, options = {}) {
+function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
   if (!cueBall || !aimDir) return { ...DEFAULT_SPIN_LIMITS };
   const spinAxes = axesInput || prepareSpinAxes(aimDir);
   const forward = spinAxes.axis;
   const lateral = spinAxes.perp;
-  const view = options.view;
-  const viewDir =
-    view && Number.isFinite(view.x) && Number.isFinite(view.y)
-      ? new THREE.Vector2(view.x, view.y)
-      : null;
-  if (viewDir && viewDir.lengthSq() > 1e-6) viewDir.normalize();
   const axes = [
     { key: 'maxX', dir: lateral.clone(), positive: true },
     { key: 'minX', dir: lateral.clone().multiplyScalar(-1), positive: false },
@@ -5332,11 +5310,6 @@ function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null, option
   const combinedRadiusSq = combinedRadius * combinedRadius;
 
   for (const axis of axes) {
-    const axisFacingCamera =
-      viewDir && viewDir.lengthSq() > 1e-6
-        ? viewDir.dot(axis.dir) > 0.15
-        : false;
-    if (axisFacingCamera) continue;
     const centerToEdge = distanceToTableEdge(cueBall.pos, axis.dir);
     if (centerToEdge !== Infinity) {
       const clearance = centerToEdge - BALL_R;
@@ -16769,10 +16742,7 @@ const powerRef = useRef(hud.power);
             shotPrediction?.ballId === ballId &&
             predictedAlignment != null &&
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
-          const shouldAutoSwitch =
-            predictedAlignment != null &&
-            (predictedAlignment >= POCKET_AUTO_SWITCH_ALIGNMENT || isGuaranteedPocket);
-          if (!shouldAutoSwitch) return null;
+          if (!isGuaranteedPocket) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
@@ -17604,11 +17574,7 @@ const powerRef = useRef(hud.power);
             const axes = prepareSpinAxes(aimVec);
             const activeCamera = activeRenderCameraRef.current ?? camera;
             const viewVec = computeCueViewVector(cueBall, activeCamera);
-            spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls, axes, {
-              view: viewVec
-                ? { x: viewVec.x, y: viewVec.y }
-                : null
-            });
+            spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls, axes);
             const requested = spinRequestRef.current || spinRef.current || {
               x: 0,
               y: 0
@@ -20273,9 +20239,7 @@ const powerRef = useRef(hud.power);
             Math.min(visualPull - minVisibleGap, visualPull * warmupRatio)
           );
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
-          const obstructionTopspinBoost =
-            obstructionStrength > 0 ? tiltAmount * CUE_OBSTRUCTION_TOPSPIN_BOOST : 0;
-          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftAngle + obstructionTopspinBoost;
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftAngle;
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           applyCueButtTilt(
             cueStick,
@@ -23070,9 +23034,7 @@ const powerRef = useRef(hud.power);
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
           const liftTilt = resolveUserCueLift();
-          const obstructionTopspinBoost =
-            obstructionStrength > 0 ? tiltAmount * CUE_OBSTRUCTION_TOPSPIN_BOOST : 0;
-          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftTilt + obstructionTopspinBoost;
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftTilt;
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           applyCueButtTilt(
             cueStick,
@@ -23313,10 +23275,7 @@ const powerRef = useRef(hud.power);
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
-          const obstructionTopspinBoost =
-            obstructionStrength > 0 ? Math.min(tiltAmount, 1) * CUE_OBSTRUCTION_TOPSPIN_BOOST : 0;
-          const extraTilt =
-            MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1) + obstructionTopspinBoost;
+          const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           cueStick.rotation.y = Math.atan2(baseDir.x, baseDir.z) + Math.PI;
           applyCueButtTilt(
             cueStick,
@@ -23417,10 +23376,7 @@ const powerRef = useRef(hud.power);
           const { obstructionTilt, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
-          const obstructionTopspinBoost =
-            obstructionStrength > 0 ? Math.min(tiltAmount, 1) * CUE_OBSTRUCTION_TOPSPIN_BOOST : 0;
-          const extraTilt =
-            MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1) + obstructionTopspinBoost;
+          const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           applyCueButtTilt(
             cueStick,
@@ -25857,7 +25813,7 @@ const powerRef = useRef(hud.power);
           onInfo={() => setShowInfo(true)}
           onChat={() => setShowChat(true)}
           onGift={() => setShowGift(true)}
-          className="fixed left-2 bottom-4 z-50 flex flex-col gap-2.5"
+          className="fixed left-3 bottom-4 z-50 flex flex-col gap-2.5"
           buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
           iconClassName="text-[1.1rem] leading-none"
           labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
@@ -25868,8 +25824,6 @@ const powerRef = useRef(hud.power);
           muteIconOff="🔊"
           showInfo={false}
           showMute={false}
-          showChat={!replayActive}
-          showGift={!replayActive}
         />
       </div>
 
