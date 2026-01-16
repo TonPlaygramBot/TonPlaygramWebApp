@@ -11,23 +11,26 @@ public class BilliardsSolver
         public Vec2 Position;
         public Vec2 Velocity;
         public bool Pocketed;
-        public Vec3 AngularVelocity;
+        public double SideSpin;
+        public double ForwardSpin;
         public double Height;
         public double VerticalVelocity;
+        public double MasseFactor = 1.0;
     }
 
     public struct ShotSpin
     {
-        public double OffsetX;
-        public double OffsetY;
+        public double Side;
+        public double Top;
+        public double Back;
 
-        public static ShotSpin None => new ShotSpin { OffsetX = 0, OffsetY = 0 };
+        public static ShotSpin None => new ShotSpin { Side = 0, Top = 0, Back = 0 };
     }
 
     public struct ShotParams
     {
         public Vec2 Direction;
-        public double Power;
+        public double Speed;
         public ShotSpin Spin;
         public double CueElevationDeg;
     }
@@ -231,6 +234,7 @@ public class BilliardsSolver
                         break;
                     }
                     bool airborne = b.Height > PhysicsConstants.AirborneHeightThreshold;
+                    ApplySpinForces(b, remaining, airborne);
                     double tHit = double.PositiveInfinity;
                     Vec2 normal = new Vec2();
                     double restitution = PhysicsConstants.Restitution;
@@ -296,31 +300,30 @@ public class BilliardsSolver
                         }
                     }
 
-                    double travel = hit ? Math.Max(tHit, PhysicsConstants.MinCollisionTime) : remaining;
-                    b.Position += b.Velocity * travel;
-                    if (airborne)
-                    {
-                        ApplyAirDrag(b, travel);
-                    }
-                    else
-                    {
-                        ApplyTableFriction(b, travel);
-                    }
-                    StepVertical(b, travel);
-
                     if (hit)
                     {
+                        double travel = Math.Max(tHit, PhysicsConstants.MinCollisionTime);
+                        b.Position += b.Velocity * tHit;
+                        var speed = b.Velocity.Length;
+                        var newSpeed = Math.Max(0, speed - LinearDrag(airborne) * travel);
+                        b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
                         if (pocket)
                         {
                             b.Pocketed = true;
                             break;
                         }
-                        ResolveCushionCollision(b, normal, restitution);
+                        b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
                         b.Position = contactPoint + normal * (PhysicsConstants.BallRadius + PhysicsConstants.ContactOffset);
                         remaining = Math.Max(0, remaining - travel);
+                        StepVertical(b, travel);
                     }
                     else
                     {
+                        b.Position += b.Velocity * remaining;
+                        var speed = b.Velocity.Length;
+                        var newSpeed = Math.Max(0, speed - LinearDrag(airborne) * remaining);
+                        b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
+                        StepVertical(b, remaining);
                         break;
                     }
                 }
@@ -335,7 +338,7 @@ public class BilliardsSolver
         return PreviewShot(new ShotParams
         {
             Direction = dir,
-            Power = speed,
+            Speed = speed,
             Spin = ShotSpin.None,
             CueElevationDeg = 0
         }, cueStart, others);
@@ -347,7 +350,7 @@ public class BilliardsSolver
         return SimulateFirstImpact(new ShotParams
         {
             Direction = dir,
-            Power = speed,
+            Speed = speed,
             Spin = ShotSpin.None,
             CueElevationDeg = 0
         }, cueStart, others);
@@ -366,6 +369,7 @@ public class BilliardsSolver
         while (time < PhysicsConstants.MaxPreviewTime)
         {
             bool airborne = cue.Height > PhysicsConstants.AirborneHeightThreshold;
+            ApplySpinForces(cue, PhysicsConstants.FixedDt, airborne);
             if (!airborne && TryFindImpact(cue, others, PhysicsConstants.FixedDt, out var impact))
             {
                 contact = impact.Point;
@@ -375,7 +379,7 @@ public class BilliardsSolver
                 break;
             }
 
-            StepBall(cue, PhysicsConstants.FixedDt, airborne);
+            IntegrateCueBall(cue, PhysicsConstants.FixedDt, airborne);
             AppendPathPoint(path, cue.Position, ref lastSample, false);
             time += PhysicsConstants.FixedDt;
         }
@@ -396,12 +400,13 @@ public class BilliardsSolver
         while (time < PhysicsConstants.MaxPreviewTime)
         {
             bool airborne = cue.Height > PhysicsConstants.AirborneHeightThreshold;
+            ApplySpinForces(cue, PhysicsConstants.FixedDt, airborne);
             if (!airborne && TryFindImpact(cue, others, PhysicsConstants.FixedDt, out var impact))
             {
                 return impact;
             }
 
-            StepBall(cue, PhysicsConstants.FixedDt, airborne);
+            IntegrateCueBall(cue, PhysicsConstants.FixedDt, airborne);
             time += PhysicsConstants.FixedDt;
         }
 
@@ -410,196 +415,89 @@ public class BilliardsSolver
 
     private static Ball CreateCueBall(Vec2 cueStart, ShotParams shot)
     {
+        var clamped = ClampSpin(shot.Spin);
+        var forwardSpin = clamped.Top - clamped.Back;
         double cueElevation = Math.Clamp(shot.CueElevationDeg, 0, PhysicsConstants.MaxCueElevationDegrees);
         double elevationRad = cueElevation * Math.PI / 180.0;
         var dir = shot.Direction.Normalized();
-        var cueDir = new Vec3(dir.X, 0, dir.Y).Normalized();
-        var cueUp = new Vec3(0, 1, 0);
-        var cueRight = Vec3.Cross(cueUp, cueDir).Normalized();
-        double impulse = MapPowerToImpulse(shot.Power);
-        var cueDirElevated = (cueDir * Math.Cos(elevationRad) + cueUp * Math.Sin(elevationRad)).Normalized();
-        var linearImpulse = cueDirElevated * impulse;
-        var planarVelocity = new Vec2(linearImpulse.X, linearImpulse.Z) / PhysicsConstants.BallMass;
-        var verticalVelocity = linearImpulse.Y / PhysicsConstants.BallMass;
-
-        var clampedOffset = ClampOffset(shot.Spin);
-        double spinMagnitude = Math.Sqrt(clampedOffset.OffsetX * clampedOffset.OffsetX + clampedOffset.OffsetY * clampedOffset.OffsetY);
-        double normalizedSpin = Math.Min(1.0, spinMagnitude / SpinController.MaxOffset);
+        var planarSpeed = shot.Speed * Math.Cos(elevationRad);
+        var verticalSpeed = shot.Speed * Math.Sin(elevationRad);
+        double spinMagnitude = Math.Sqrt(clamped.Side * clamped.Side + forwardSpin * forwardSpin);
+        double normalizedSpin = Math.Min(1.0, spinMagnitude / PhysicsConstants.MaxTipOffsetRatio);
         double jumpThreshold = Math.Max(0.0, PhysicsConstants.JumpVelocityThreshold - PhysicsConstants.JumpTipOffsetBoost * normalizedSpin);
-        if (Math.Abs(verticalVelocity) < jumpThreshold)
-            verticalVelocity = 0;
-        var rOffset = cueRight * (clampedOffset.OffsetX * PhysicsConstants.BallRadius)
-            + cueUp * (clampedOffset.OffsetY * PhysicsConstants.BallRadius);
-        var torqueImpulse = Vec3.Cross(rOffset, linearImpulse);
-        var inertia = MomentOfInertia();
-        var angularVelocity = torqueImpulse / inertia;
+        if (verticalSpeed < jumpThreshold)
+            verticalSpeed = 0;
+        double masseBlend = Smoothstep(PhysicsConstants.MasseAngleMin, PhysicsConstants.MasseAngleMax, cueElevation);
+        double masseFactor = 1.0 + (PhysicsConstants.MasseSwerveBoost - 1.0) * masseBlend;
         return new Ball
         {
             Position = cueStart,
-            Velocity = planarVelocity,
+            Velocity = dir * planarSpeed,
             Height = 0,
-            VerticalVelocity = verticalVelocity,
-            AngularVelocity = angularVelocity
+            VerticalVelocity = verticalSpeed,
+            SideSpin = clamped.Side,
+            ForwardSpin = forwardSpin,
+            MasseFactor = masseFactor
         };
     }
 
-    private static ShotSpin ClampOffset(ShotSpin spin)
+    private static ShotSpin ClampSpin(ShotSpin spin)
     {
-        double x = Math.Clamp(spin.OffsetX, -SpinController.MaxOffset, SpinController.MaxOffset);
-        double y = Math.Clamp(spin.OffsetY, -SpinController.MaxOffset, SpinController.MaxOffset);
-        double magnitude = Math.Max(Math.Abs(x), Math.Abs(y));
-        if (magnitude > SpinController.MaxOffset && magnitude > PhysicsConstants.Epsilon)
+        double side = Math.Clamp(spin.Side, -PhysicsConstants.MaxTipOffsetRatio, PhysicsConstants.MaxTipOffsetRatio);
+        double top = Math.Clamp(spin.Top, 0, PhysicsConstants.MaxTipOffsetRatio);
+        double back = Math.Clamp(spin.Back, 0, PhysicsConstants.MaxTipOffsetRatio);
+        double magnitude = Math.Max(Math.Abs(side), Math.Abs(top - back));
+        if (magnitude > PhysicsConstants.MaxTipOffsetRatio && magnitude > PhysicsConstants.Epsilon)
         {
-            double scale = SpinController.MaxOffset / magnitude;
-            x *= scale;
-            y *= scale;
+            double scale = PhysicsConstants.MaxTipOffsetRatio / magnitude;
+            side *= scale;
+            top *= scale;
+            back *= scale;
         }
-        return new ShotSpin { OffsetX = x, OffsetY = y };
+        return new ShotSpin { Side = side, Top = top, Back = back };
     }
 
-    private static double MapPowerToImpulse(double power)
-    {
-        return power * PhysicsConstants.PowerToImpulseScale;
-    }
-
-    private static double MomentOfInertia()
-    {
-        return 0.4 * PhysicsConstants.BallMass * PhysicsConstants.BallRadius * PhysicsConstants.BallRadius;
-    }
-
-    private static Vec3 ToVec3(Vec2 v) => new Vec3(v.X, 0, v.Y);
-
-    private static Vec2 ToVec2(Vec3 v) => new Vec2(v.X, v.Z);
-
-    private static void StepBall(Ball b, double dt, bool airborne)
-    {
-        b.Position += b.Velocity * dt;
-        if (airborne)
-        {
-            ApplyAirDrag(b, dt);
-        }
-        else
-        {
-            ApplyTableFriction(b, dt);
-        }
-        StepVertical(b, dt);
-    }
-
-    private static void ApplyAirDrag(Ball b, double dt)
+    private static void ApplySpinForces(Ball b, double dt, bool airborne)
     {
         var speed = b.Velocity.Length;
         if (speed < PhysicsConstants.Epsilon)
             return;
-        var newSpeed = Math.Max(0, speed - PhysicsConstants.AirDrag * dt);
-        b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
-    }
 
-    private static void ApplyTableFriction(Ball b, double dt)
-    {
-        var contactOffset = new Vec3(0, -PhysicsConstants.BallRadius, 0);
-        var vRel3 = ToVec3(b.Velocity) + Vec3.Cross(b.AngularVelocity, contactOffset);
-        var vRel2 = new Vec2(vRel3.X, vRel3.Z);
-        var relSpeed = vRel2.Length;
-        if (relSpeed > PhysicsConstants.RollingEpsilon)
+        if (!airborne)
         {
-            var relDir = vRel2.Normalized();
-            var frictionForce2 = relDir * (-PhysicsConstants.KineticFriction * PhysicsConstants.BallMass * PhysicsConstants.Gravity);
-            b.Velocity += frictionForce2 / PhysicsConstants.BallMass * dt;
-            var torque = Vec3.Cross(contactOffset, ToVec3(frictionForce2));
-            b.AngularVelocity += torque / MomentOfInertia() * dt;
+            Vec2 dir = b.Velocity.Normalized();
+            var forwardAccel = PhysicsConstants.RollAcceleration * b.ForwardSpin;
+            b.Velocity += dir * forwardAccel * dt;
+
+            var lateral = new Vec2(-dir.Y, dir.X);
+            double speedFactor = 1.0;
+            if (speed > PhysicsConstants.SwerveSpeedCutoff)
+            {
+                double excess = speed - PhysicsConstants.SwerveSpeedCutoff;
+                speedFactor = Math.Max(0.0, 1.0 - excess / PhysicsConstants.SwerveSpeedFadeRange);
+            }
+            var swerveAccel = PhysicsConstants.SwerveCoefficient * b.SideSpin * speed * b.MasseFactor * speedFactor;
+            b.Velocity += lateral * swerveAccel * dt;
+
+            double decay = Math.Exp(-PhysicsConstants.SpinDecay * dt);
+            b.SideSpin *= decay;
+            b.ForwardSpin *= decay;
         }
         else
         {
-            double roll = Math.Max(0.0, 1.0 - PhysicsConstants.RollDamping * dt);
-            double spin = Math.Max(0.0, 1.0 - PhysicsConstants.SpinDamping * dt);
-            b.Velocity *= roll;
-            b.AngularVelocity *= spin;
+            double decay = Math.Exp(-PhysicsConstants.AirSpinDecay * dt);
+            b.SideSpin *= decay;
+            b.ForwardSpin *= decay;
         }
     }
 
-    private static void ResolveCushionCollision(Ball b, Vec2 normal, double restitution)
+    private static void IntegrateCueBall(Ball b, double dt, bool airborne)
     {
-        var n2 = normal.Normalized();
-        var n3 = new Vec3(n2.X, 0, n2.Y);
-        var rContact = new Vec3(-n2.X * PhysicsConstants.BallRadius, 0, -n2.Y * PhysicsConstants.BallRadius);
-        var v3 = ToVec3(b.Velocity);
-        var vRel = v3 + Vec3.Cross(b.AngularVelocity, rContact);
-        double relNormal = Vec3.Dot(vRel, n3);
-        if (relNormal >= 0)
-            return;
-
-        double invMass = 1.0 / PhysicsConstants.BallMass;
-        double inertia = MomentOfInertia();
-        double jn = -(1.0 + restitution) * relNormal / invMass;
-        var impulseN = n3 * jn;
-        v3 += impulseN * invMass;
-        b.AngularVelocity += Vec3.Cross(rContact, impulseN) / inertia;
-
-        var t2 = new Vec2(-n2.Y, n2.X);
-        var t3 = new Vec3(t2.X, 0, t2.Y);
-        var vRelAfter = v3 + Vec3.Cross(b.AngularVelocity, rContact);
-        double relTangent = Vec3.Dot(vRelAfter, t3);
-        if (Math.Abs(relTangent) > PhysicsConstants.Epsilon)
-        {
-            var rCrossT = Vec3.Cross(rContact, t3);
-            double kT = invMass + rCrossT.LengthSquared / inertia;
-            double jt = -relTangent / kT;
-            double maxJt = PhysicsConstants.RailFriction * Math.Abs(jn);
-            if (Math.Abs(jt) > maxJt)
-                jt = Math.Sign(jt) * maxJt;
-            var impulseT = t3 * jt;
-            v3 += impulseT * invMass;
-            b.AngularVelocity += Vec3.Cross(rContact, impulseT) / inertia;
-        }
-
-        b.Velocity = ToVec2(v3);
-    }
-
-    private static void ResolveBallBallCollision(Ball a, Ball b, out Vec2 vAOut, out Vec3 wAOut, out Vec2 vBOut, out Vec3 wBOut)
-    {
-        var n2 = (b.Position - a.Position).Normalized();
-        var n3 = new Vec3(n2.X, 0, n2.Y);
-        var rA = n3 * PhysicsConstants.BallRadius;
-        var rB = n3 * -PhysicsConstants.BallRadius;
-        var vA3 = ToVec3(a.Velocity);
-        var vB3 = ToVec3(b.Velocity);
-        var wA = a.AngularVelocity;
-        var wB = b.AngularVelocity;
-        var vRel = (vA3 + Vec3.Cross(wA, rA)) - (vB3 + Vec3.Cross(wB, rB));
-        double relNormal = Vec3.Dot(vRel, n3);
-
-        double invMass = 1.0 / PhysicsConstants.BallMass;
-        double inertia = MomentOfInertia();
-        double invMassSum = invMass + invMass;
-        double jn = -(1.0 + PhysicsConstants.Restitution) * relNormal / invMassSum;
-        var impulseN = n3 * jn;
-
-        vA3 += impulseN * invMass;
-        vB3 -= impulseN * invMass;
-
-        var t2 = new Vec2(-n2.Y, n2.X);
-        var t3 = new Vec3(t2.X, 0, t2.Y);
-        var vRelAfter = (vA3 + Vec3.Cross(wA, rA)) - (vB3 + Vec3.Cross(wB, rB));
-        double relTangent = Vec3.Dot(vRelAfter, t3);
-        if (Math.Abs(relTangent) > PhysicsConstants.Epsilon)
-        {
-            var rCrossT = Vec3.Cross(rA, t3);
-            double kT = invMassSum + 2.0 * rCrossT.LengthSquared / inertia;
-            double jt = -relTangent / kT;
-            double maxJt = PhysicsConstants.BallBallFriction * Math.Abs(jn);
-            if (Math.Abs(jt) > maxJt)
-                jt = Math.Sign(jt) * maxJt;
-            var impulseT = t3 * jt;
-            vA3 += impulseT * invMass;
-            vB3 -= impulseT * invMass;
-            wA += Vec3.Cross(rA, impulseT) / inertia;
-            wB += Vec3.Cross(rB, impulseT * -1.0) / inertia;
-        }
-
-        vAOut = ToVec2(vA3);
-        vBOut = ToVec2(vB3);
-        wAOut = wA;
-        wBOut = wB;
+        b.Position += b.Velocity * dt;
+        var speed = b.Velocity.Length;
+        var newSpeed = Math.Max(0, speed - LinearDrag(airborne) * dt);
+        b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
+        StepVertical(b, dt);
     }
 
     private static void StepVertical(Ball b, double dt)
@@ -624,9 +522,15 @@ public class BilliardsSolver
             if (wasAbove)
             {
                 b.Velocity *= PhysicsConstants.LandingHorizontalDamping;
-                b.AngularVelocity *= PhysicsConstants.LandingSpinDamping;
+                b.SideSpin *= PhysicsConstants.LandingSpinDamping;
+                b.ForwardSpin *= PhysicsConstants.LandingSpinDamping;
             }
         }
+    }
+
+    private static double LinearDrag(bool airborne)
+    {
+        return airborne ? PhysicsConstants.AirDrag : PhysicsConstants.Mu;
     }
 
     private bool TryFindImpact(Ball cue, List<Ball> others, double dt, out Impact impact)
@@ -639,15 +543,7 @@ public class BilliardsSolver
                 if (t <= dt)
                 {
                     cue.Position += cue.Velocity * t;
-                    ResolveBallBallCollision(
-                        cue,
-                        b,
-                        out var cuePost,
-                        out var cueSpin,
-                        out var targetPost,
-                        out var targetSpin);
-                    cue.AngularVelocity = cueSpin;
-                    b.AngularVelocity = targetSpin;
+                    Collision.ResolveBallBall(cue.Position, cue.Velocity, b.Position, new Vec2(0, 0), out var cuePost, out var targetPost);
                     impact = new Impact { Point = cue.Position, CueVelocity = cuePost, TargetVelocity = targetPost };
                     return true;
                 }
@@ -658,8 +554,8 @@ public class BilliardsSolver
             if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= dt)
             {
                 cue.Position += cue.Velocity * te;
-                ResolveCushionCollision(cue, e.Normal, PhysicsConstants.ConnectorRestitution);
-                impact = new Impact { Point = cue.Position, CueVelocity = cue.Velocity };
+                var post = Collision.Reflect(cue.Velocity, e.Normal, PhysicsConstants.ConnectorRestitution);
+                impact = new Impact { Point = cue.Position, CueVelocity = post };
                 return true;
             }
         }
@@ -669,8 +565,8 @@ public class BilliardsSolver
             if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= dt)
             {
                 cue.Position += cue.Velocity * te;
-                ResolveCushionCollision(cue, e.Normal, PhysicsConstants.CushionRestitution);
-                impact = new Impact { Point = cue.Position, CueVelocity = cue.Velocity };
+                var post = Collision.Reflect(cue.Velocity, e.Normal, PhysicsConstants.CushionRestitution);
+                impact = new Impact { Point = cue.Position, CueVelocity = post };
                 return true;
             }
         }
@@ -680,8 +576,7 @@ public class BilliardsSolver
             if (Ccd.CircleSegment(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, e.A, e.B, e.Normal, out double te) && te <= dt)
             {
                 cue.Position += cue.Velocity * te;
-                ResolveCushionCollision(cue, e.Normal, PhysicsConstants.PocketRestitution);
-                impact = new Impact { Point = cue.Position, CueVelocity = cue.Velocity };
+                impact = new Impact { Point = cue.Position, CueVelocity = new Vec2(0, 0) };
                 return true;
             }
         }
