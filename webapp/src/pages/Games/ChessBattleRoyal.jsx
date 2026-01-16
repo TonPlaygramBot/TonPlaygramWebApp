@@ -22,8 +22,8 @@ import {
   getTelegramUsername,
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
-import { bombSound, timerBeep } from '../../assets/soundData.js';
-import { getGameVolume } from '../../utils/sound.js';
+import { bombSound, chatBeep, timerBeep } from '../../assets/soundData.js';
+import { getGameVolume, isGameMuted, setGameMuted } from '../../utils/sound.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { TABLE_WOOD_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_BASE_OPTIONS } from '../../utils/tableCustomizationOptions.js';
 import {
@@ -45,6 +45,11 @@ import { avatarToName } from '../../utils/avatarUtils.js';
 import { getAIOpponentFlag } from '../../utils/aiOpponentFlag.js';
 import { ipToFlag } from '../../utils/conflictMatchmaking.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
+import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
+import GiftPopup from '../../components/GiftPopup.jsx';
+import InfoPopup from '../../components/InfoPopup.jsx';
+import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
+import { giftSounds } from '../../utils/giftSounds.js';
 import { socket } from '../../utils/socket.js';
 
 /**
@@ -5869,7 +5874,16 @@ function Chess3D({
   const initialWhiteTimeRef = useRef(60);
   const initialBlackTimeRef = useRef(5);
   const [configOpen, setConfigOpen] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(() => !isGameMuted());
+  const [showInfo, setShowInfo] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showGift, setShowGift] = useState(false);
+  const [chatBubbles, setChatBubbles] = useState([]);
+  useEffect(() => {
+    const handler = () => setSoundEnabled(!isGameMuted());
+    window.addEventListener('gameMuteChanged', handler);
+    return () => window.removeEventListener('gameMuteChanged', handler);
+  }, []);
   const [showHighlights, setShowHighlights] = useState(true);
   const [graphicsId, setGraphicsId] = useState(() => {
     const fallback = resolveDefaultGraphicsId();
@@ -6231,6 +6245,16 @@ function Chess3D({
       }
     ];
   }, [aiFlag, appearance, avatar, opponent, playerFlag, resolvedInitialFlag, ui.turnWhite, username]);
+  const giftPlayers = useMemo(
+    () =>
+      players.map((player, index) => ({
+        ...player,
+        id: player.id ?? (index === 0 ? resolvedAccountId : `chess-opponent-${index}`),
+        name: player.name
+      })),
+    [players, resolvedAccountId]
+  );
+  const playerPhotoUrl = players[0]?.photoUrl || avatar || '/assets/icons/profile.svg';
 
   useEffect(() => {
     updateSandTimerPlacement(ui.turnWhite);
@@ -8870,7 +8894,11 @@ function Chess3D({
                     type="checkbox"
                     className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
                     checked={soundEnabled}
-                    onChange={(event) => setSoundEnabled(event.target.checked)}
+                    onChange={(event) => {
+                      const next = event.target.checked;
+                      setSoundEnabled(next);
+                      setGameMuted(!next);
+                    }}
                   />
                 </label>
                 <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
@@ -9119,6 +9147,7 @@ function Chess3D({
                 key={`chess-seat-${player.index}`}
                 className="absolute pointer-events-auto flex flex-col items-center"
                 style={positionStyle}
+                data-player-index={player.index}
               >
                 <AvatarTimer
                   index={player.index}
@@ -9137,11 +9166,151 @@ function Chess3D({
             );
           })}
         </div>
+        <div className="pointer-events-auto">
+          <BottomLeftIcons
+            onInfo={() => setShowInfo(true)}
+            onChat={() => setShowChat(true)}
+            onGift={() => setShowGift(true)}
+            className="fixed left-3 bottom-4 z-50 flex flex-col gap-2.5"
+            buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+            iconClassName="text-[1.1rem] leading-none"
+            labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
+            chatIcon="💬"
+            giftIcon="🎁"
+            infoIcon="ℹ️"
+            muteIconOn="🔇"
+            muteIconOff="🔊"
+          />
+        </div>
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
             {ui.winner ? `${ui.winner} Wins` : ui.status}
           </div>
         </div>
+      </div>
+      {chatBubbles.map((bubble) => (
+        <div key={bubble.id} className="chat-bubble">
+          <span>{bubble.text}</span>
+          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
+        </div>
+      ))}
+      <div className="pointer-events-auto">
+        <InfoPopup
+          open={showInfo}
+          onClose={() => setShowInfo(false)}
+          title="Chess Battle Royal"
+          info="Capture the opposing king by delivering checkmate. Tap a piece to preview legal moves, then tap a highlighted square to move."
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <QuickMessagePopup
+          open={showChat}
+          onClose={() => setShowChat(false)}
+          onSend={(text) => {
+            const id = Date.now();
+            setChatBubbles((bubbles) => [...bubbles, { id, text, photoUrl: playerPhotoUrl }]);
+            if (settingsRef.current.soundEnabled) {
+              const audio = new Audio(chatBeep);
+              audio.volume = getGameVolume();
+              audio.play().catch(() => {});
+            }
+            setTimeout(
+              () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
+              3000
+            );
+          }}
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <GiftPopup
+          open={showGift}
+          onClose={() => setShowGift(false)}
+          players={giftPlayers}
+          senderIndex={0}
+          onGiftSent={({ from, to, gift }) => {
+            const start = document.querySelector(`[data-player-index="${from}"]`);
+            const end = document.querySelector(`[data-player-index="${to}"]`);
+            if (start && end) {
+              const s = start.getBoundingClientRect();
+              const e = end.getBoundingClientRect();
+              const cx = window.innerWidth / 2;
+              const cy = window.innerHeight / 2;
+              let icon;
+              if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
+                icon = document.createElement('img');
+                icon.src = gift.icon;
+                icon.className = 'w-5 h-5';
+              } else {
+                icon = document.createElement('div');
+                icon.textContent = gift.icon;
+                icon.style.fontSize = '24px';
+              }
+              icon.style.position = 'fixed';
+              icon.style.left = '0px';
+              icon.style.top = '0px';
+              icon.style.pointerEvents = 'none';
+              icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`;
+              icon.style.zIndex = '9999';
+              document.body.appendChild(icon);
+              const giftSound = giftSounds[gift.id];
+              if (settingsRef.current.soundEnabled && giftSound) {
+                if (gift.id === 'coffee_boost') {
+                  const audio = new Audio(giftSound);
+                  audio.volume = getGameVolume();
+                  audio.currentTime = 4;
+                  audio.play().catch(() => {});
+                  setTimeout(() => {
+                    audio.pause();
+                  }, 4000);
+                } else if (gift.id === 'baby_chick') {
+                  const audio = new Audio(giftSound);
+                  audio.volume = getGameVolume();
+                  audio.play().catch(() => {});
+                } else if (gift.id === 'magic_trick') {
+                  const audio = new Audio(giftSound);
+                  audio.volume = getGameVolume();
+                  audio.play().catch(() => {});
+                  setTimeout(() => {
+                    audio.pause();
+                  }, 4000);
+                } else if (gift.id === 'fireworks') {
+                  const audio = new Audio(giftSound);
+                  audio.volume = getGameVolume();
+                  audio.play().catch(() => {});
+                  setTimeout(() => {
+                    audio.pause();
+                  }, 6000);
+                } else if (gift.id === 'surprise_box') {
+                  const audio = new Audio(giftSound);
+                  audio.volume = getGameVolume();
+                  audio.play().catch(() => {});
+                  setTimeout(() => {
+                    audio.pause();
+                  }, 5000);
+                } else if (gift.id === 'bullseye') {
+                  const audio = new Audio(giftSound);
+                  audio.volume = getGameVolume();
+                  setTimeout(() => {
+                    audio.play().catch(() => {});
+                  }, 2500);
+                } else {
+                  const audio = new Audio(giftSound);
+                  audio.volume = getGameVolume();
+                  audio.play().catch(() => {});
+                }
+              }
+              const animation = icon.animate(
+                [
+                  { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
+                  { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+                  { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` }
+                ],
+                { duration: 3500, easing: 'linear' }
+              );
+              animation.onfinish = () => icon.remove();
+            }
+          }}
+        />
       </div>
     </div>
   );
