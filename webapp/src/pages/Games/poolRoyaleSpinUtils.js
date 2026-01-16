@@ -43,10 +43,15 @@ export const mapSpinForPhysics = (spin) => {
     x: clamp(spin?.x ?? 0, -1, 1),
     y: clamp(spin?.y ?? 0, -1, 1)
   };
-  const curved = applySpinResponseCurve(adjusted);
+  const flipped = {
+    x: adjusted.x,
+    y: -adjusted.y
+  };
+  const curved = applySpinResponseCurve(flipped);
   return {
-    // UI uses screen-space: +X is right, +Y is up (topspin).
-    // Pool Royale spin physics expects opposite orientation for side spin only.
+    // UI uses screen-space: +X is right, +Y is up. The Pool Royale controller
+    // labels place HIGH at the bottom, so flip Y to map controller positions
+    // to forward/backspin. Side spin still needs the opposite orientation.
     x: -curved.x,
     y: curved.y
   };
