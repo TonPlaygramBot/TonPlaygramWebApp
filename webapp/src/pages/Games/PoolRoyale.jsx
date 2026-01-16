@@ -4949,7 +4949,7 @@ const PLAYER_FORWARD_SLOWDOWN = 1.7;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.2;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1.2;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1.5;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 28;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -11658,6 +11658,7 @@ function PoolRoyaleGame({
   const opponentDisplayAvatar = opponentProfile?.avatar || opponentAvatar || '/assets/icons/profile.svg';
   const [aiPlanning, setAiPlanning] = useState(null);
   const aiPlanRef = useRef(null);
+  const aiPlanCacheRef = useRef({ key: null, plan: null });
   const aiPlanningRef = useRef(null);
   const aiTurnShotCountRef = useRef(0);
   const lastTurnRef = useRef(0);
@@ -21429,6 +21430,36 @@ const powerRef = useRef(hud.power);
               return { x: 0, y: 0 };
           }
         };
+        const cloneAiPlan = (plan) => {
+          if (!plan) return null;
+          return {
+            ...plan,
+            aimDir: plan.aimDir?.clone ? plan.aimDir.clone() : plan.aimDir,
+            pocketCenter: plan.pocketCenter?.clone ? plan.pocketCenter.clone() : plan.pocketCenter,
+            spin: plan.spin ? { ...plan.spin } : { x: 0, y: 0 },
+            aiMeta: plan.aiMeta ? { ...plan.aiMeta } : null
+          };
+        };
+        const buildAiStateKey = (aiState) => {
+          if (!aiState?.balls) return 'none';
+          const ballsKey = aiState.balls
+            .slice()
+            .sort((a, b) => a.id - b.id)
+            .map((ball) => {
+              const x = Math.round(ball.x * 10);
+              const y = Math.round(ball.y * 10);
+              return `${ball.id}:${ball.colour}:${ball.pocketed ? 1 : 0}:${x}:${y}`;
+            })
+            .join('|');
+          return [
+            ballsKey,
+            aiState.ballOn ?? 'open',
+            aiState.isOpenTable ? '1' : '0',
+            aiState.shotsRemaining ?? '0',
+            aiState.mustPlayFromBaulk ? '1' : '0',
+            Math.round((aiState.baulkLineX ?? 0) * 10)
+          ].join('::');
+        };
 
         const computeUkAdvancedPlan = (allBalls, cueBall, frameSnapshot) => {
           if (!cueBall?.active) return null;
@@ -21479,6 +21510,11 @@ const powerRef = useRef(hud.power);
             baulkLineX: baulkLineLocal + height / 2
           };
           try {
+            const cacheKey = buildAiStateKey(aiState);
+            const cached = aiPlanCacheRef.current;
+            if (cached?.key === cacheKey) {
+              return cloneAiPlan(cached.plan);
+            }
             const plan = selectUkAiShot(aiState, {});
             if (!plan) return null;
             const aimPointRaw = plan.aimPoint;
@@ -21524,7 +21560,7 @@ const powerRef = useRef(hud.power);
               0.95
             );
             const spin = mapSpinPreset(plan.cueParams?.spin);
-            return {
+            const mappedPlan = {
               type: plan.actionType === 'pot' ? 'pot' : 'safety',
               aimDir,
               power,
@@ -21545,6 +21581,8 @@ const powerRef = useRef(hud.power);
                 source: 'advanced'
               }
             };
+            aiPlanCacheRef.current = { key: cacheKey, plan: mappedPlan };
+            return cloneAiPlan(mappedPlan);
           } catch (err) {
             console.warn('advanced UK AI planning failed', err);
             return null;
