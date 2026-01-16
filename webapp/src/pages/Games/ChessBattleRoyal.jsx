@@ -22,8 +22,8 @@ import {
   getTelegramUsername,
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
-import { bombSound, chatBeep, timerBeep } from '../../assets/soundData.js';
-import { getGameVolume, isGameMuted } from '../../utils/sound.js';
+import { bombSound, timerBeep } from '../../assets/soundData.js';
+import { getGameVolume } from '../../utils/sound.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { TABLE_WOOD_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_BASE_OPTIONS } from '../../utils/tableCustomizationOptions.js';
 import {
@@ -45,11 +45,6 @@ import { avatarToName } from '../../utils/avatarUtils.js';
 import { getAIOpponentFlag } from '../../utils/aiOpponentFlag.js';
 import { ipToFlag } from '../../utils/conflictMatchmaking.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
-import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
-import InfoPopup from '../../components/InfoPopup.jsx';
-import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
-import GiftPopup from '../../components/GiftPopup.jsx';
-import { giftSounds } from '../../utils/giftSounds.js';
 import { socket } from '../../utils/socket.js';
 
 /**
@@ -5886,11 +5881,6 @@ function Chess3D({
     return fallback;
   });
   const [moveMode, setMoveMode] = useState('click');
-  const [muted, setMuted] = useState(isGameMuted());
-  const [showInfo, setShowInfo] = useState(false);
-  const [showChat, setShowChat] = useState(false);
-  const [showGift, setShowGift] = useState(false);
-  const [chatBubbles, setChatBubbles] = useState([]);
   const [seatAnchors, setSeatAnchors] = useState([]);
   const [viewMode, setViewMode] = useState('2d');
   const [canReplay, setCanReplay] = useState(false);
@@ -5914,12 +5904,6 @@ function Chess3D({
   useEffect(() => {
     uiRef.current = ui;
   }, [ui]);
-
-  useEffect(() => {
-    const handler = () => setMuted(isGameMuted());
-    window.addEventListener('gameMuteChanged', handler);
-    return () => window.removeEventListener('gameMuteChanged', handler);
-  }, []);
 
   useEffect(() => {
     if (!onlineRef.current.enabled || !accountId) {
@@ -6233,7 +6217,6 @@ function Chess3D({
     return [
       {
         index: 0,
-        id: resolvedAccountId,
         photoUrl: playerPhoto,
         name: playerName,
         color: accentColor,
@@ -6241,24 +6224,13 @@ function Chess3D({
       },
       {
         index: 1,
-        id: opponent?.id || `chess-ai-1`,
         photoUrl: isOnlineGame ? onlineRivalPhoto : effectiveAiFlag || '🏁',
         name: isOnlineGame ? onlineRivalName : aiName,
         color: accentColor,
         isTurn: !ui.turnWhite
       }
     ];
-  }, [
-    aiFlag,
-    appearance,
-    avatar,
-    opponent,
-    playerFlag,
-    resolvedAccountId,
-    resolvedInitialFlag,
-    ui.turnWhite,
-    username
-  ]);
+  }, [aiFlag, appearance, avatar, opponent, playerFlag, resolvedInitialFlag, ui.turnWhite, username]);
 
   useEffect(() => {
     updateSandTimerPlacement(ui.turnWhite);
@@ -8787,7 +8759,7 @@ function Chess3D({
     };
   }, []);
 
-    return (
+  return (
     <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
@@ -9170,148 +9142,6 @@ function Chess3D({
             {ui.winner ? `${ui.winner} Wins` : ui.status}
           </div>
         </div>
-      </div>
-      <div className="pointer-events-auto">
-        <BottomLeftIcons
-          onInfo={() => setShowInfo(true)}
-          onChat={() => setShowChat(true)}
-          onGift={() => setShowGift(true)}
-        />
-      </div>
-      {chatBubbles.map((bubble) => (
-        <div key={bubble.id} className="chat-bubble">
-          <span>{bubble.text}</span>
-          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
-        </div>
-      ))}
-      <div className="pointer-events-auto">
-        <InfoPopup
-          open={showInfo}
-          onClose={() => setShowInfo(false)}
-          title="Chess Battle Royal"
-          info="Match wits in a fast-paced chess duel. Tap a piece to see legal moves, capture the opponent, and deliver checkmate to win."
-        />
-      </div>
-      <div className="pointer-events-auto">
-        <QuickMessagePopup
-          open={showChat}
-          onClose={() => setShowChat(false)}
-          onSend={(text) => {
-            const id = Date.now();
-            const photoUrl = players[0]?.photoUrl || avatar || '🙂';
-            setChatBubbles((bubbles) => [...bubbles, { id, text, photoUrl }]);
-            if (soundEnabled && !muted) {
-              const audio = new Audio(chatBeep);
-              audio.volume = getGameVolume();
-              audio.play().catch(() => {});
-            }
-            setTimeout(
-              () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
-              3000,
-            );
-          }}
-        />
-      </div>
-      <div className="pointer-events-auto">
-        <GiftPopup
-          open={showGift}
-          onClose={() => setShowGift(false)}
-          players={players.map((player) => ({
-            ...player,
-            id: player.id ?? (player.index === 0 ? resolvedAccountId : `chess-ai-${player.index}`),
-            name: player.name
-          }))}
-          senderIndex={0}
-          onGiftSent={({ from, to, gift }) => {
-            const start = document.querySelector(`[data-player-index="${from}"]`);
-            const end = document.querySelector(`[data-player-index="${to}"]`);
-            if (start && end) {
-              const s = start.getBoundingClientRect();
-              const e = end.getBoundingClientRect();
-              const cx = window.innerWidth / 2;
-              const cy = window.innerHeight / 2;
-              let icon;
-              if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
-                icon = document.createElement('img');
-                icon.src = gift.icon;
-                icon.className = 'w-5 h-5';
-              } else {
-                icon = document.createElement('div');
-                icon.textContent = gift.icon;
-                icon.style.fontSize = '24px';
-              }
-              icon.style.position = 'fixed';
-              icon.style.left = '0px';
-              icon.style.top = '0px';
-              icon.style.pointerEvents = 'none';
-              icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`;
-              icon.style.zIndex = '9999';
-              document.body.appendChild(icon);
-              const giftSound = giftSounds[gift.id];
-              if (gift.id === 'laugh_bomb' && soundEnabled && !muted) {
-                bombSoundRef.current.currentTime = 0;
-                bombSoundRef.current.play().catch(() => {});
-                laughSoundRef.current.currentTime = 0;
-                laughSoundRef.current.play().catch(() => {});
-                setTimeout(() => {
-                  laughSoundRef.current.pause();
-                }, 5000);
-              } else if (gift.id === 'coffee_boost' && soundEnabled && !muted) {
-                const audio = new Audio(giftSound);
-                audio.volume = getGameVolume();
-                audio.currentTime = 4;
-                audio.play().catch(() => {});
-                setTimeout(() => {
-                  audio.pause();
-                }, 4000);
-              } else if (gift.id === 'baby_chick' && soundEnabled && !muted) {
-                const audio = new Audio(giftSound);
-                audio.volume = getGameVolume();
-                audio.play().catch(() => {});
-              } else if (gift.id === 'magic_trick' && soundEnabled && !muted) {
-                const audio = new Audio(giftSound);
-                audio.volume = getGameVolume();
-                audio.play().catch(() => {});
-                setTimeout(() => {
-                  audio.pause();
-                }, 4000);
-              } else if (gift.id === 'fireworks' && soundEnabled && !muted) {
-                const audio = new Audio(giftSound);
-                audio.volume = getGameVolume();
-                audio.play().catch(() => {});
-                setTimeout(() => {
-                  audio.pause();
-                }, 6000);
-              } else if (gift.id === 'surprise_box' && soundEnabled && !muted) {
-                const audio = new Audio(giftSound);
-                audio.volume = getGameVolume();
-                audio.play().catch(() => {});
-                setTimeout(() => {
-                  audio.pause();
-                }, 5000);
-              } else if (gift.id === 'bullseye' && soundEnabled && !muted) {
-                const audio = new Audio(giftSound);
-                audio.volume = getGameVolume();
-                setTimeout(() => {
-                  audio.play().catch(() => {});
-                }, 2500);
-              } else if (giftSound && soundEnabled && !muted) {
-                const audio = new Audio(giftSound);
-                audio.volume = getGameVolume();
-                audio.play().catch(() => {});
-              }
-              const animation = icon.animate(
-                [
-                  { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
-                  { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
-                  { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
-                ],
-                { duration: 3500, easing: 'linear' },
-              );
-              animation.onfinish = () => icon.remove();
-            }
-          }}
-        />
       </div>
     </div>
   );
