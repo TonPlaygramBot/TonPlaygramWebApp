@@ -17,6 +17,7 @@ import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.j
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 import { CARD_THEMES } from '../../utils/cardThemes.js';
+import { chatBeep, bombSound } from '../../assets/soundData.js';
 import {
   getMurlanInventory,
   isMurlanOptionUnlocked,
@@ -32,6 +33,10 @@ import {
 } from '../../../../lib/murlan.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
+import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
+import InfoPopup from '../../components/InfoPopup.jsx';
+import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
+import GiftPopup from '../../components/GiftPopup.jsx';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
 import {
   MURLAN_OUTFIT_THEMES as OUTFIT_THEMES,
@@ -39,6 +44,9 @@ import {
   MURLAN_TABLE_THEMES as TABLE_THEMES
 } from '../../config/murlanThemes.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
+import { giftSounds } from '../../utils/giftSounds.js';
+import { getAvatarUrl } from '../../utils/avatarUtils.js';
+import { getGameVolume, isGameMuted } from '../../utils/sound.js';
 
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const MURLAN_HDRI_OPTIONS = POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
@@ -1212,6 +1220,30 @@ export default function MurlanRoyaleArena({ search }) {
   const [actionError, setActionError] = useState('');
   const [threeReady, setThreeReady] = useState(false);
   const [seatAnchors, setSeatAnchors] = useState([]);
+  const [showInfo, setShowInfo] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showGift, setShowGift] = useState(false);
+  const [chatBubbles, setChatBubbles] = useState([]);
+  const [muted, setMuted] = useState(isGameMuted());
+  const resolvedAccountId = useMemo(() => murlanAccountId(), []);
+  const humanPlayerIndex = useMemo(() => {
+    const idx = players.findIndex((player) => player.isHuman);
+    return idx >= 0 ? idx : 0;
+  }, [players]);
+  const humanAvatarUrl = useMemo(
+    () => getAvatarUrl(players[humanPlayerIndex]?.avatar || players[0]?.avatar || ''),
+    [players, humanPlayerIndex],
+  );
+  const giftPlayers = useMemo(
+    () =>
+      players.map((player, index) => ({
+        ...player,
+        index,
+        id: player.id ?? (player.isHuman ? resolvedAccountId : `murlan-ai-${index}`),
+        photoUrl: getAvatarUrl(player.avatar)
+      })),
+    [players, resolvedAccountId],
+  );
   const seatAnchorMap = useMemo(() => {
     const map = new Map();
     seatAnchors.forEach((anchor) => {
@@ -1347,6 +1379,40 @@ export default function MurlanRoyaleArena({ search }) {
     setAppearance((prev) => ensureAppearanceUnlocked(prev));
   }, [ensureAppearanceUnlocked]);
 
+  const syncAudioVolume = useCallback(() => {
+    const baseVolume = muted ? 0 : getGameVolume();
+    const cardSound = soundsRef.current.card;
+    const turnSound = soundsRef.current.turn;
+    if (cardSound) {
+      cardSound.volume = baseVolume * 0.55;
+    }
+    if (turnSound) {
+      turnSound.volume = baseVolume * 0.55;
+    }
+    if (bombSoundRef.current) {
+      bombSoundRef.current.volume = baseVolume;
+    }
+    if (hahaSoundRef.current) {
+      hahaSoundRef.current.volume = baseVolume;
+    }
+  }, [muted]);
+
+  useEffect(() => {
+    const handler = () => setMuted(isGameMuted());
+    window.addEventListener('gameMuteChanged', handler);
+    return () => window.removeEventListener('gameMuteChanged', handler);
+  }, []);
+
+  useEffect(() => {
+    syncAudioVolume();
+  }, [syncAudioVolume]);
+
+  useEffect(() => {
+    const handler = () => syncAudioVolume();
+    window.addEventListener('gameVolumeChanged', handler);
+    return () => window.removeEventListener('gameVolumeChanged', handler);
+  }, [syncAudioVolume]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
@@ -1398,6 +1464,8 @@ export default function MurlanRoyaleArena({ search }) {
     environmentTexture: null
   });
   const soundsRef = useRef({ card: null, turn: null });
+  const bombSoundRef = useRef(null);
+  const hahaSoundRef = useRef(null);
   const audioStateRef = useRef({ tableIds: [], activePlayer: null, status: null, initialized: false });
   const prevStateRef = useRef(null);
   const tableBuildTokenRef = useRef(0);
@@ -2048,8 +2116,9 @@ export default function MurlanRoyaleArena({ search }) {
     const turn = new Audio('/assets/sounds/wooden-door-knock-102902.mp3');
     card.preload = 'auto';
     turn.preload = 'auto';
-    card.volume = 0.55;
-    turn.volume = 0.55;
+    const baseVolume = getGameVolume();
+    card.volume = baseVolume * 0.55;
+    turn.volume = baseVolume * 0.55;
     soundsRef.current = { card, turn };
     return () => {
       [card, turn].forEach((audio) => {
@@ -2062,6 +2131,28 @@ export default function MurlanRoyaleArena({ search }) {
   }, []);
 
   useEffect(() => {
+    if (typeof window === 'undefined' || typeof Audio === 'undefined') return undefined;
+    const bomb = new Audio(bombSound);
+    const haha = new Audio('/assets/sounds/Haha.mp3');
+    bomb.preload = 'auto';
+    haha.preload = 'auto';
+    const baseVolume = getGameVolume();
+    bomb.volume = baseVolume;
+    haha.volume = baseVolume;
+    bombSoundRef.current = bomb;
+    hahaSoundRef.current = haha;
+    return () => {
+      [bomb, haha].forEach((audio) => {
+        if (!audio) return;
+        audio.pause();
+        audio.src = '';
+      });
+      bombSoundRef.current = null;
+      hahaSoundRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     const prev = audioStateRef.current;
     const tableIds = gameState.tableCards.map((card) => card.id);
     const hasNewTableCards =
@@ -2069,6 +2160,15 @@ export default function MurlanRoyaleArena({ search }) {
       (tableIds.length > prev.tableIds.length ||
         tableIds.some((id, index) => id !== prev.tableIds[index]));
     if (hasNewTableCards && tableIds.length) {
+      if (muted) {
+        audioStateRef.current = {
+          tableIds,
+          activePlayer: gameState.activePlayer,
+          status: gameState.status,
+          initialized: true
+        };
+        return;
+      }
       const cardSound = soundsRef.current.card;
       if (cardSound) {
         try {
@@ -2081,6 +2181,15 @@ export default function MurlanRoyaleArena({ search }) {
     }
     const activeChanged = prev.initialized && prev.activePlayer !== gameState.activePlayer;
     if (activeChanged && gameState.status === 'PLAYING') {
+      if (muted) {
+        audioStateRef.current = {
+          tableIds,
+          activePlayer: gameState.activePlayer,
+          status: gameState.status,
+          initialized: true
+        };
+        return;
+      }
       const turnSound = soundsRef.current.turn;
       if (turnSound) {
         try {
@@ -2097,7 +2206,7 @@ export default function MurlanRoyaleArena({ search }) {
       status: gameState.status,
       initialized: true
     };
-  }, [gameState]);
+  }, [gameState, muted]);
 
   useEffect(() => {
     appearanceRef.current = appearance;
@@ -2875,6 +2984,13 @@ export default function MurlanRoyaleArena({ search }) {
             )}
           </div>
         </div>
+        <div className="pointer-events-auto">
+          <BottomLeftIcons
+            onInfo={() => setShowInfo(true)}
+            onChat={() => setShowChat(true)}
+            onGift={() => setShowGift(true)}
+          />
+        </div>
         <div className="mt-auto px-4 pb-6 pointer-events-none">
           <div className="mx-auto max-w-2xl rounded-2xl bg-black/70 p-4 text-sm text-gray-100 backdrop-blur-md shadow-2xl pointer-events-auto">
             <p className="text-sm text-gray-100">{uiState.message}</p>
@@ -2910,6 +3026,138 @@ export default function MurlanRoyaleArena({ search }) {
             </div>
           </div>
         </div>
+      </div>
+      {chatBubbles.map((bubble) => (
+        <div key={bubble.id} className="chat-bubble">
+          <span>{bubble.text}</span>
+          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
+        </div>
+      ))}
+      <div className="pointer-events-auto">
+        <QuickMessagePopup
+          open={showChat}
+          onClose={() => setShowChat(false)}
+          onSend={(text) => {
+            const id = Date.now();
+            setChatBubbles((bubbles) => [...bubbles, { id, text, photoUrl: humanAvatarUrl }]);
+            if (!muted) {
+              const audio = new Audio(chatBeep);
+              audio.volume = getGameVolume();
+              audio.play().catch(() => {});
+            }
+            setTimeout(
+              () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
+              3000,
+            );
+          }}
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <GiftPopup
+          open={showGift}
+          onClose={() => setShowGift(false)}
+          players={giftPlayers}
+          senderIndex={humanPlayerIndex}
+          onGiftSent={({ from, to, gift }) => {
+            const start = document.querySelector(`[data-player-index="${from}"]`);
+            const end = document.querySelector(`[data-player-index="${to}"]`);
+            if (start && end) {
+              const s = start.getBoundingClientRect();
+              const e = end.getBoundingClientRect();
+              const cx = window.innerWidth / 2;
+              const cy = window.innerHeight / 2;
+              let icon;
+              if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
+                icon = document.createElement('img');
+                icon.src = gift.icon;
+                icon.className = 'w-5 h-5';
+              } else {
+                icon = document.createElement('div');
+                icon.textContent = gift.icon;
+                icon.style.fontSize = '24px';
+              }
+              icon.style.position = 'fixed';
+              icon.style.left = '0px';
+              icon.style.top = '0px';
+              icon.style.pointerEvents = 'none';
+              icon.style.transform = `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)`;
+              icon.style.zIndex = '9999';
+              document.body.appendChild(icon);
+              const giftSound = giftSounds[gift.id];
+              if (gift.id === 'laugh_bomb' && !muted) {
+                if (bombSoundRef.current && hahaSoundRef.current) {
+                  bombSoundRef.current.currentTime = 0;
+                  bombSoundRef.current.play().catch(() => {});
+                  hahaSoundRef.current.currentTime = 0;
+                  hahaSoundRef.current.play().catch(() => {});
+                  setTimeout(() => {
+                    hahaSoundRef.current?.pause();
+                  }, 5000);
+                }
+              } else if (gift.id === 'coffee_boost' && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.currentTime = 4;
+                audio.play().catch(() => {});
+                setTimeout(() => {
+                  audio.pause();
+                }, 4000);
+              } else if (gift.id === 'baby_chick' && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+              } else if (gift.id === 'magic_trick' && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+                setTimeout(() => {
+                  audio.pause();
+                }, 4000);
+              } else if (gift.id === 'fireworks' && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+                setTimeout(() => {
+                  audio.pause();
+                }, 6000);
+              } else if (gift.id === 'surprise_box' && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+                setTimeout(() => {
+                  audio.pause();
+                }, 5000);
+              } else if (gift.id === 'bullseye' && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                setTimeout(() => {
+                  audio.play().catch(() => {});
+                }, 2500);
+              } else if (giftSound && !muted) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+              }
+              const animation = icon.animate(
+                [
+                  { transform: `translate(${s.left + s.width / 2}px, ${s.top + s.height / 2}px) scale(1)` },
+                  { transform: `translate(${cx}px, ${cy}px) scale(3)`, offset: 0.5 },
+                  { transform: `translate(${e.left + e.width / 2}px, ${e.top + e.height / 2}px) scale(1)` },
+                ],
+                { duration: 3500, easing: 'linear' },
+              );
+              animation.onfinish = () => icon.remove();
+            }
+          }}
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <InfoPopup
+          open={showInfo}
+          onClose={() => setShowInfo(false)}
+          title="Murlan Royale"
+          info="Play valid combos (singles, pairs, trips, straights, flushes, full house, bombs) to beat the current table. The first move must include 3♠. Pass if you cannot beat the combo."
+        />
       </div>
     </div>
   );
