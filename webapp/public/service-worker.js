@@ -17,6 +17,7 @@ const APP_BUILD =
 
 const STATIC_CACHE = `tonplaygram-static-${APP_BUILD}`;
 const RUNTIME_CACHE = `tonplaygram-runtime-${APP_BUILD}`;
+const NETWORK_TIMEOUT_MS = 2500;
 const OFFLINE_FALLBACK = '/offline.html';
 const GLTF_MANIFEST_PATH = '/pwa/gltf-assets.json';
 const HALLWAY_MANIFEST_PATH = '/pwa/hallway-assets.json';
@@ -157,9 +158,10 @@ const warmHallwayAssets = async ({ forceReload = false } = {}) => {
 };
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    Promise.all([precache(), prewarmRuntimeCache(), warmGltfAssets(), warmHallwayAssets(), enableNavigationPreload()]).catch(() => {})
-  );
+  event.waitUntil(Promise.all([precache(), enableNavigationPreload()]).catch(() => {}));
+  void prewarmRuntimeCache();
+  void warmGltfAssets();
+  void warmHallwayAssets();
   self.skipWaiting();
 });
 
@@ -173,14 +175,10 @@ const cleanupCaches = async () => {
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    Promise.all([
-      cleanupCaches(),
-      self.clients.claim(),
-      warmGltfAssets({ forceReload: true }),
-      warmHallwayAssets({ forceReload: true }),
-      enableNavigationPreload()
-    ]).catch(() => {})
+    Promise.all([cleanupCaches(), self.clients.claim(), enableNavigationPreload()]).catch(() => {})
   );
+  void warmGltfAssets({ forceReload: true });
+  void warmHallwayAssets({ forceReload: true });
 });
 
 self.addEventListener('message', event => {
@@ -213,12 +211,22 @@ const navigationPreloadResponse = async event => {
   }
 };
 
-const networkFirst = async (event, request) => {
+const networkFirst = async (event, request, { timeoutMs = 0 } = {}) => {
   const preloadResponse = await navigationPreloadResponse(event);
   if (preloadResponse) return preloadResponse;
 
+  let timeoutId;
   try {
-    const freshResponse = await fetch(request, { cache: 'no-store' });
+    const fetchPromise = fetch(request, { cache: 'no-store' });
+    const timedPromise = timeoutMs
+      ? Promise.race([
+          fetchPromise,
+          new Promise((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error('Network timeout')), timeoutMs);
+          })
+        ])
+      : fetchPromise;
+    const freshResponse = await timedPromise;
     await cacheResponse(RUNTIME_CACHE, request, freshResponse);
     return freshResponse.clone();
   } catch (err) {
@@ -228,6 +236,10 @@ const networkFirst = async (event, request) => {
       (await caches.match(OFFLINE_FALLBACK));
     if (cached) return cached;
     throw err;
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
 };
 
@@ -247,7 +259,7 @@ const staleWhileRevalidate = async request => {
 
 const handleNavigationRequest = event => {
   event.respondWith(
-    networkFirst(event, event.request).catch(async () => {
+    networkFirst(event, event.request, { timeoutMs: NETWORK_TIMEOUT_MS }).catch(async () => {
       const cached = (await caches.match('/index.html')) || (await caches.match(OFFLINE_FALLBACK));
       return cached || Response.error();
     })
@@ -261,7 +273,7 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(request.url);
   if (VERSION_ASSETS.includes(url.pathname)) {
-    event.respondWith(networkFirst(event, request));
+    event.respondWith(networkFirst(event, request, { timeoutMs: NETWORK_TIMEOUT_MS }));
     return;
   }
 
