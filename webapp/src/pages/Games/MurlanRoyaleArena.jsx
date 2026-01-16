@@ -2989,6 +2989,10 @@ export default function MurlanRoyaleArena({ search }) {
             onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
+            className="fixed left-3 bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] z-20 flex flex-col gap-2"
+            buttonClassName="w-[3.15rem] h-[3.15rem] rounded-[14px] bg-black/60 border border-white/20 text-white flex flex-col items-center justify-center gap-1 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur-md"
+            labelClassName="text-[0.6rem] font-extrabold tracking-[0.08em] uppercase"
+            iconClassName="text-[1.1rem] leading-none"
           />
         </div>
         <div className="mt-auto px-4 pb-6 pointer-events-none">
