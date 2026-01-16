@@ -22,8 +22,8 @@ import {
   getTelegramUsername,
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
-import { bombSound, timerBeep } from '../../assets/soundData.js';
-import { getGameVolume } from '../../utils/sound.js';
+import { bombSound, chatBeep, timerBeep } from '../../assets/soundData.js';
+import { getGameVolume, isGameMuted } from '../../utils/sound.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { TABLE_WOOD_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_BASE_OPTIONS } from '../../utils/tableCustomizationOptions.js';
 import {
@@ -44,7 +44,12 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { avatarToName } from '../../utils/avatarUtils.js';
 import { getAIOpponentFlag } from '../../utils/aiOpponentFlag.js';
 import { ipToFlag } from '../../utils/conflictMatchmaking.js';
+import { giftSounds } from '../../utils/giftSounds.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
+import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
+import GiftPopup from '../../components/GiftPopup.jsx';
+import InfoPopup from '../../components/InfoPopup.jsx';
+import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import { socket } from '../../utils/socket.js';
 
 /**
@@ -5871,6 +5876,11 @@ function Chess3D({
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHighlights, setShowHighlights] = useState(true);
+  const [showInfo, setShowInfo] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showGift, setShowGift] = useState(false);
+  const [chatBubbles, setChatBubbles] = useState([]);
+  const [muted, setMuted] = useState(isGameMuted());
   const [graphicsId, setGraphicsId] = useState(() => {
     const fallback = resolveDefaultGraphicsId();
     if (typeof window === 'undefined') return fallback;
@@ -6231,6 +6241,7 @@ function Chess3D({
       }
     ];
   }, [aiFlag, appearance, avatar, opponent, playerFlag, resolvedInitialFlag, ui.turnWhite, username]);
+  const userPhotoUrl = avatar || playerFlag || '🙂';
 
   useEffect(() => {
     updateSandTimerPlacement(ui.turnWhite);
@@ -6307,6 +6318,12 @@ function Chess3D({
       clearHighlightsRef.current();
     }
   }, [showHighlights]);
+
+  useEffect(() => {
+    const handler = () => setMuted(isGameMuted());
+    window.addEventListener('gameMuteChanged', handler);
+    return () => window.removeEventListener('gameMuteChanged', handler);
+  }, []);
 
   useEffect(() => {
     try {
@@ -9137,11 +9154,137 @@ function Chess3D({
             );
           })}
         </div>
+        <div className="pointer-events-auto">
+          <BottomLeftIcons
+            onInfo={() => setShowInfo(true)}
+            onChat={() => setShowChat(true)}
+            onGift={() => setShowGift(true)}
+          />
+        </div>
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
             {ui.winner ? `${ui.winner} Wins` : ui.status}
           </div>
         </div>
+      </div>
+      {chatBubbles.map((bubble) => (
+        <div key={bubble.id} className="chat-bubble">
+          <span>{bubble.text}</span>
+          <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
+        </div>
+      ))}
+      <div className="pointer-events-auto">
+        <InfoPopup
+          open={showInfo}
+          onClose={() => setShowInfo(false)}
+          title="Chess Battle Royal"
+          info="Capture the opponent king to win. Tap a piece to see its legal moves, then tap a highlighted square to move."
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <QuickMessagePopup
+          open={showChat}
+          onClose={() => setShowChat(false)}
+          onSend={(text) => {
+            const id = Date.now();
+            setChatBubbles((bubbles) => [...bubbles, { id, text, photoUrl: userPhotoUrl }]);
+            if (soundEnabled && !muted) {
+              const audio = new Audio(chatBeep);
+              audio.volume = getGameVolume();
+              audio.play().catch(() => {});
+            }
+            setTimeout(
+              () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
+              3000,
+            );
+          }}
+        />
+      </div>
+      <div className="pointer-events-auto">
+        <GiftPopup
+          open={showGift}
+          onClose={() => setShowGift(false)}
+          players={players.map((player) => ({
+            ...player,
+            id: player.index === 0 ? resolvedAccountId : opponent?.id,
+            name: player.name
+          }))}
+          senderIndex={0}
+          onGiftSent={({ from, to, gift }) => {
+            const start = document.querySelector(`[data-player-index="${from}"]`);
+            const end = document.querySelector(`[data-player-index="${to}"]`);
+            if (start && end) {
+              const s = start.getBoundingClientRect();
+              const e = end.getBoundingClientRect();
+              const cx = window.innerWidth / 2;
+              const cy = window.innerHeight / 2;
+              let icon;
+              if (typeof gift.icon === 'string' && gift.icon.match(/\.(png|jpg|jpeg|webp|svg)$/)) {
+                icon = document.createElement('img');
+                icon.src = gift.icon;
+                icon.className = 'w-5 h-5';
+              } else {
+                icon = document.createElement('div');
+                icon.textContent = gift.icon;
+                icon.style.fontSize = '24px';
+              }
+              icon.style.position = 'fixed';
+              icon.style.left = '0px';
+              icon.style.top = '0px';
+              icon.style.zIndex = 9999;
+              icon.style.pointerEvents = 'none';
+              document.body.appendChild(icon);
+              icon.animate(
+                [
+                  { transform: `translate(${s.x + s.width / 2}px, ${s.y + s.height / 2}px) scale(1)` },
+                  { transform: `translate(${cx}px, ${cy}px) scale(4)` },
+                  { transform: `translate(${e.x + e.width / 2}px, ${e.y + e.height / 2}px) scale(1)` }
+                ],
+                {
+                  duration: 3500,
+                  easing: 'ease-in-out'
+                }
+              ).onfinish = () => {
+                document.body.removeChild(icon);
+              };
+            }
+            const giftSound = giftSounds[gift.id];
+            if (soundEnabled && !muted) {
+              if (gift.id === 'laugh_bomb') {
+                laughSoundRef.current.currentTime = 0;
+                laughSoundRef.current.play().catch(() => {});
+              } else if (gift.id === 'coffee_boost') {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+              } else if (gift.id === 'baby_chick') {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+              } else if (gift.id === 'magic_trick') {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+              } else if (gift.id === 'fireworks') {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+              } else if (gift.id === 'surprise_box') {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+              } else if (gift.id === 'bullseye') {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+              } else if (giftSound) {
+                const audio = new Audio(giftSound);
+                audio.volume = getGameVolume();
+                audio.play().catch(() => {});
+              }
+            }
+          }}
+        />
       </div>
     </div>
   );
