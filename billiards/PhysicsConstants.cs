@@ -10,13 +10,16 @@ public static class PhysicsConstants
     public const double ConnectorRestitution = CushionRestitution * 0.25;
     // pocket edges fully absorb balls (no bounce)
     public const double PocketRestitution = 0.0;
-    public const double Mu = 0.2;                      // linear damping (m/s^2)
     public const double Gravity = 9.81;                // m/s^2
     public const double AirDrag = 0.05;                // linear damping in flight (m/s^2)
-    public const double SpinDecay = 2.0;               // per-second decay for on-table spin
-    public const double AirSpinDecay = 0.6;            // per-second decay while airborne
-    public const double SwerveCoefficient = 2.4;       // lateral accel per unit side spin * speed
-    public const double RollAcceleration = 1.2;        // forward accel per unit top/back spin
+    public const double BallMass = 0.17;               // kg (typical pool ball)
+    public const double RollingEpsilon = 0.02;         // m/s
+    public const double KineticFriction = 0.22;        // sliding friction coefficient
+    public const double RollDamping = 0.10;            // per-second rolling drag
+    public const double SpinDamping = 0.04;            // per-second spin drag in rolling
+    public const double BallBallFriction = 0.20;       // tangential impulse cap for ball-ball
+    public const double RailFriction = 0.25;           // tangential impulse cap for cushions
+    public const double PowerToImpulseScale = 1.0;     // maps UI power to impulse (N·s)
     public const double JumpRestitution = 0.1;         // vertical energy retained on landing
     public const double JumpStopVelocity = 0.2;        // m/s below which vertical motion stops
     public const double AirborneHeightThreshold = BallRadius * 0.25; // height before ignoring cushions/balls
@@ -24,13 +27,7 @@ public static class PhysicsConstants
     public const double JumpTipOffsetBoost = 0.35;     // reduces jump threshold as tip offset increases
     public const double LandingHorizontalDamping = 0.85; // horizontal speed retained on landing
     public const double LandingSpinDamping = 0.8;      // spin retained on landing
-    public const double MasseAngleMin = 25.0;          // degrees where masse starts to show
-    public const double MasseAngleMax = 75.0;          // degrees where masse reaches full strength
-    public const double MasseSwerveBoost = 2.0;        // multiplier for swerve at max masse
-    public const double SwerveSpeedCutoff = 2.5;       // m/s after which swerve fades out
-    public const double SwerveSpeedFadeRange = 4.0;    // fade distance for swerve cutoff
     public const double MaxCueElevationDegrees = 85.0; // clamp to UI upper bound
-    public const double MaxTipOffsetRatio = 0.9;       // max cue tip offset as a fraction of radius
     public const double PreviewPointSpacing = BallRadius * 0.85; // spacing for curved aim preview
     public const double TableWidth = 2.627;            // 9ft table reduced by ~7.5%
     public const double TableHeight = 1.3135;
