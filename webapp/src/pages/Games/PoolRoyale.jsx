@@ -1122,7 +1122,7 @@ if (BALL_SHADOW_MATERIAL) {
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
   restitution: 0.9,
-  mu: 0.2,
+  mu: 0.17,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
   maxTipOffsetRatio: 0.9
@@ -1377,7 +1377,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Pool Royale power pass: lift overall shot strength by another 25%.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 1.25;
+const SHOT_POWER_MULTIPLIER = 1.35;
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1439,9 +1439,9 @@ const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.06; // tighten the visible air gap so the tip reads as contacting the cue ball
-const CUE_TIP_GAP = BALL_R * 0.95 + CUE_TIP_CLEARANCE; // keep the tip aligned while allowing visible contact on impact
-const CUE_IMPACT_OVERTRAVEL = BALL_R * 0.38; // push the cue slightly past the contact point so the strike is clearly visible
+const CUE_TIP_CLEARANCE = BALL_R * 0.12; // tighten the visible air gap so the tip reads as contacting the cue ball
+const CUE_TIP_GAP = BALL_R * 1.05 + CUE_TIP_CLEARANCE; // keep the tip aligned while allowing visible contact on impact
+const CUE_IMPACT_OVERTRAVEL = BALL_R * 0.24; // push the cue slightly past the contact point so the strike is clearly visible
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 2.1; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -1499,8 +1499,8 @@ const SPIN_DECORATION_DOT_SIZE_PX = 12;
 const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
-// middle pocket cushion cuts are sharpened to a 29° cut to align the side-rail cushions with the updated spec
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 34;
+// middle pocket cushion cuts are sharpened to a 28° cut to align the side-rail cushions with the updated spec
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 28;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -4750,7 +4750,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.97;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
-const STANDING_VIEW_DISTANCE_SCALE = 0.52; // bring the standing camera nearer while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.6; // push the standing camera farther while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -4951,9 +4951,10 @@ const PLAYER_FORWARD_SLOWDOWN = 2.1;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1.5;
+const PLAYER_CUE_STROKE_SLOWDOWN = 1.5;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 28;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 12;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -7278,7 +7279,7 @@ function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.26; // shorten the corner cushions more so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.14; // trim the cushion tips near middle pockets slightly further while keeping their cut angle intact
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.2; // trim the cushion tips near middle pockets slightly further while keeping their cut angle intact
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
@@ -20401,16 +20402,22 @@ const powerRef = useRef(hud.power);
             aiOpponentEnabled && hudRef.current?.turn === 1 ? AI_STROKE_TIME_SCALE : 1;
           const playerStrokeScale = isAiStroke ? 1 : PLAYER_STROKE_TIME_SCALE;
           const playerForwardScale = isAiStroke ? 1 : PLAYER_FORWARD_SLOWDOWN;
+          const playerReplayScale = isAiStroke ? 1 : PLAYER_CUE_STROKE_SLOWDOWN;
           const forwardDuration = isAiStroke
             ? AI_CUE_FORWARD_DURATION_MS * CUE_STROKE_VISUAL_SLOWDOWN
             : forwardDurationBase *
               aiStrokeScale *
               playerStrokeScale *
               playerForwardScale *
+              playerReplayScale *
               CUE_STROKE_VISUAL_SLOWDOWN;
           const settleDuration = isAiStroke
             ? 0
-            : settleDurationBase * aiStrokeScale * playerStrokeScale * CUE_STROKE_VISUAL_SLOWDOWN;
+            : settleDurationBase *
+              aiStrokeScale *
+              playerStrokeScale *
+              playerReplayScale *
+              CUE_STROKE_VISUAL_SLOWDOWN;
           const pullbackDuration = isAiStroke
             ? AI_CUE_PULLBACK_DURATION_MS * CUE_STROKE_VISUAL_SLOWDOWN
             : Math.max(
@@ -20422,8 +20429,11 @@ const powerRef = useRef(hud.power);
           const impactTime = pullEndTime + forwardDuration;
           const settleTime = impactTime + settleDuration;
           const impactHoldBuffer = Math.max(
-            220,
-            Math.min(settleDuration, Math.max(180, forwardDuration * 0.9))
+            320,
+            Math.max(
+              forwardDuration,
+              Math.min(settleDuration, Math.max(220, forwardDuration * 0.9))
+            )
           );
           const forwardPreviewHold = impactTime + impactHoldBuffer;
           powerImpactHoldRef.current = Math.max(
@@ -25067,6 +25077,7 @@ const powerRef = useRef(hud.power);
   const nameTextClass = isPortrait ? 'text-sm' : 'text-base';
   const hudGapClass = isPortrait ? 'gap-4' : 'gap-6';
   const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
+  const chatGiftLeftOffset = isPortrait ? '0.1rem' : '0.25rem';
   const chatGiftOverlayClass =
     'fixed inset-0 z-50 flex items-center justify-center bg-black/70';
   const chatGiftPanelClass =
@@ -25964,7 +25975,8 @@ const powerRef = useRef(hud.power);
             onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
-            className="fixed left-1 bottom-3 z-50 flex flex-col gap-2.5"
+            className="fixed bottom-3 z-50 flex flex-col gap-2.5"
+            style={{ left: chatGiftLeftOffset }}
             buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
             iconClassName="text-[1.1rem] leading-none"
             labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
