@@ -909,7 +909,7 @@ const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
-const REPLAY_CUE_STICK_HOLD_MS = 320;
+const REPLAY_CUE_STICK_HOLD_MS = 620;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
@@ -4912,6 +4912,7 @@ const REPLAY_BANNER_VARIANTS = {
   multi: ['Double pot!', 'Two for one!', 'What a combo!'],
   power: ['Power drive!', 'Thunder break!', 'Crushed it!'],
   spin: ['Swerve magic!', 'Spin control!', 'Curved in!'],
+  final: ['Final ball!', 'Closing shot!', 'Match winner!'],
   default: ['Good shot!', 'Nice pot!', 'Great touch!']
 };
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
@@ -4944,10 +4945,10 @@ const AI_CUE_PULL_VISIBILITY_BOOST = 1.34;
 const AI_WARMUP_PULL_RATIO = 0.55;
 const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.32;
 const PLAYER_WARMUP_PULL_RATIO = 0.62;
-const PLAYER_STROKE_TIME_SCALE = 2.05;
-const PLAYER_FORWARD_SLOWDOWN = 1.7;
+const PLAYER_STROKE_TIME_SCALE = 2.4;
+const PLAYER_FORWARD_SLOWDOWN = 2.1;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
-const PLAYER_PULLBACK_MIN_SCALE = 1.2;
+const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1.5;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
@@ -12770,7 +12771,7 @@ const powerRef = useRef(hud.power);
         ? 28
         : 18;
       triggerCoinBurst(burstCount);
-      await wait(2200);
+      await wait(3200);
       if (!cancelled) {
         goToLobby();
       }
@@ -22227,22 +22228,18 @@ const powerRef = useRef(hud.power);
           const shotEvents = [];
           const firstContactColor = toBallColorId(firstHit);
           const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
-          const replayDecision = resolveReplayDecision({
+          let replayDecision = resolveReplayDecision({
             recording: shotRecording,
             hadObjectPot,
             pottedBalls: potted,
             shotContext: shotContextRef.current
           });
-          if (replayDecision && shotRecording) {
-            shotRecording.replayTags = replayDecision.tags;
-            shotRecording.zoomOnly = replayDecision.zoomOnly;
-          }
-          const shouldStartReplay =
+          let shouldStartReplay =
             !skipAllReplaysRef.current &&
             Boolean(replayDecision?.shouldReplay) &&
             (shotRecording?.frames?.length ?? 0) > 1;
-          const replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
-          const replayAccent = replayDecision?.primaryTag ?? 'default';
+          let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
+          let replayAccent = replayDecision?.primaryTag ?? 'default';
           let postShotSnapshot = null;
         if (firstContactColor || firstHit) {
           shotEvents.push({
@@ -22298,6 +22295,35 @@ const powerRef = useRef(hud.power);
           if (trainingModeRef.current === 'solo') {
             safeState = { ...safeState, activePlayer: 'A' };
           }
+        }
+        const isFinalShot =
+          Boolean(safeState?.frameOver) && (shotRecording?.frames?.length ?? 0) > 1;
+        if (isFinalShot) {
+          if (replayDecision) {
+            const replayTags = new Set(replayDecision.tags ?? []);
+            replayTags.add('final');
+            replayDecision = {
+              ...replayDecision,
+              tags: Array.from(replayTags),
+              shouldReplay: true,
+              primaryTag: replayDecision.primaryTag ?? 'final'
+            };
+          } else {
+            replayDecision = {
+              shouldReplay: true,
+              banner: selectReplayBanner('final'),
+              zoomOnly: false,
+              tags: ['final'],
+              primaryTag: 'final'
+            };
+          }
+          replayBannerText = replayDecision.banner ?? selectReplayBanner('final');
+          replayAccent = replayDecision.primaryTag ?? 'final';
+          shouldStartReplay = !skipAllReplaysRef.current;
+        }
+        if (replayDecision && shotRecording) {
+          shotRecording.replayTags = replayDecision.tags;
+          shotRecording.zoomOnly = replayDecision.zoomOnly;
         }
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
@@ -25879,7 +25905,7 @@ const powerRef = useRef(hud.power);
             onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
-            className="fixed left-2 bottom-4 z-50 flex flex-col gap-2.5"
+            className="fixed left-1 bottom-3 z-50 flex flex-col gap-2.5"
             buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
             iconClassName="text-[1.1rem] leading-none"
             labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
@@ -26005,7 +26031,7 @@ const powerRef = useRef(hud.power);
       )}
 
       {chatBubbles.map((bubble) => (
-        <div key={bubble.id} className="chat-bubble">
+        <div key={bubble.id} className="chat-bubble pool-royale-chat-bubble">
           <span>{bubble.text}</span>
           <img src={bubble.photoUrl} alt="avatar" className="w-5 h-5 rounded-full" />
         </div>
@@ -26046,7 +26072,7 @@ const powerRef = useRef(hud.power);
             }
             setTimeout(
               () => setChatBubbles((bubbles) => bubbles.filter((bubble) => bubble.id !== id)),
-              3000
+              4500
             );
           }}
         />

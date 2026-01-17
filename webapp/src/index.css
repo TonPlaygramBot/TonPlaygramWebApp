@@ -1519,6 +1519,12 @@ input:focus {
   font-size: 1.2rem;
 }
 
+.pool-royale-chat-bubble {
+  left: calc(0.75rem + 3.15rem + 0.5rem);
+  bottom: calc(0.75rem + 5.35rem);
+  transform: none;
+}
+
 
 /* Rolling dice animation */
 .dice-screen-animation {
