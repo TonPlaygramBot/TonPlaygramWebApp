@@ -197,8 +197,6 @@ function detectHighRefreshDisplay() {
 const randomPick = (list) => list[Math.floor(Math.random() * list.length)];
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-const easeInOutQuad = (t) =>
-  t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
 const wait = (ms = 0) =>
   new Promise((resolve) => {
@@ -1467,9 +1465,6 @@ const CUE_STRIKE_DURATION_MS = 120;
 const CUE_STRIKE_HOLD_MS = 50;
 const CUE_STRIKE_DIP = BALL_R * 0.06; // subtle downward dip during the forward push
 const CUE_STRIKE_WOBBLE = 0.0018; // match the slight cue wobble from the reference animation
-const CUE_IDLE_BREATHE_SPEED = 0.0015; // idle micro movement (ms-based) from the reference cue animation
-const CUE_IDLE_BREATHE = BALL_R * 0.0218; // 0.0012m at 55mm cue ball scale
-const CUE_PULL_DIP = BALL_R * 0.0455; // 0.0025m dip at 55mm cue ball scale
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 0.3; // small follow-through for topspin shots
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
@@ -12153,7 +12148,6 @@ const powerRef = useRef(hud.power);
   const aimCurveControlRef = useRef(new THREE.Vector3());
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
-  const cueAnchorRef = useRef(null);
   const cueLiftRef = useRef({
     active: false,
     startY: 0,
@@ -18937,16 +18931,11 @@ const powerRef = useRef(hud.power);
           info.buttHeightOffset = Math.sin(signedTilt) * len;
         }
       };
-      const resolveCueTipTarget = (
-        dir,
-        pullAmount,
-        spinWorld,
-        anchorPos = cue?.pos
-      ) =>
+      const resolveCueTipTarget = (dir, pullAmount, spinWorld) =>
         TMP_VEC3_CUE_TIP_TARGET.set(
-          anchorPos.x - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
+          cue.pos.x - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
           CUE_Y + spinWorld.y,
-          anchorPos.y - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
+          cue.pos.y - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
         );
       const applyCueStickTransform = (tipTarget) => {
         TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
@@ -20047,7 +20036,6 @@ const powerRef = useRef(hud.power);
           replayPlaybackRef.current
         )
           return;
-        cueAnchorRef.current = cue?.pos?.clone?.() ?? cueAnchorRef.current;
         if (currentHud?.inHand && (fullTableHandPlacement || inHandPlacementActive)) {
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
@@ -20412,14 +20400,8 @@ const powerRef = useRef(hud.power);
           }
           TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
           TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
-          const cueAnchor = cueAnchorRef.current ?? cue.pos;
           const buildCuePosition = (pullAmount = visualPull) => {
-            const tipTarget = resolveCueTipTarget(
-              dir,
-              pullAmount,
-              spinWorld,
-              cueAnchor
-            );
+            const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld);
             return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
@@ -23193,22 +23175,9 @@ const powerRef = useRef(hud.power);
           const pull = computeCuePull(desiredPull, maxPull, {
             instant: Boolean(sliderInstanceRef.current?.dragging)
           });
-          const isDragging = Boolean(sliderInstanceRef.current?.dragging);
-          const cueAnchor =
-            isDragging && cueAnchorRef.current ? cueAnchorRef.current : cue.pos;
-          const breathe = isDragging
-            ? 0
-            : Math.sin(now * CUE_IDLE_BREATHE_SPEED) * CUE_IDLE_BREATHE;
-          const visualPull = applyVisualPullCompensation(pull, dir) + breathe;
+          const visualPull = applyVisualPullCompensation(pull, dir);
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
-          const pullDip = isDragging
-            ? -CUE_PULL_DIP * easeInOutQuad(powerStrength)
-            : 0;
-          const spinWorld = new THREE.Vector3(
-            perp.x * side,
-            vert + pullDip,
-            perp.z * side
-          );
+          const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
           const obstructionStrength = resolveCueObstruction(
             dir,
@@ -23229,12 +23198,7 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(
-            dir,
-            visualPull,
-            spinWorld,
-            cueAnchor
-          );
+          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           let visibleChalkIndex = null;
@@ -24726,12 +24690,6 @@ const powerRef = useRef(hud.power);
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onStart: () => {
-        const cue = cueRef.current;
-        if (cue?.pos?.clone) {
-          cueAnchorRef.current = cue.pos.clone();
-        }
-      },
       onChange: (v) => applyPower(v / 100),
       onCommit: () => {
       fireRef.current?.();
