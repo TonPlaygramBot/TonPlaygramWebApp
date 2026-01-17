@@ -1122,7 +1122,7 @@ if (BALL_SHADOW_MATERIAL) {
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
   restitution: 0.9,
-  mu: 0.16,
+  mu: 0.18,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
   maxTipOffsetRatio: 0.9
@@ -1376,10 +1376,9 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Pool Royale power pass: lift overall shot strength by another 25%.
-// Extra power pass: increase overall force another 25% and nudge travel speed to match.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 1.6875;
-const SHOT_SPEED_MULTIPLIER = 1.65; // boost overall shot speed by 65% for snappier ball travel
+const SHOT_POWER_MULTIPLIER = 1.35;
+const SHOT_SPEED_MULTIPLIER = 1.5; // boost overall shot speed by 50% for snappier ball travel
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -4736,7 +4735,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.85; // lift the standing orbit slightly higher for a clearer top surface view
+const STANDING_VIEW_PHI = 0.88; // lift the standing orbit slightly higher for a clearer top surface view
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -19704,14 +19703,11 @@ const powerRef = useRef(hud.power);
         if (fallback && isSpotFree(fallback, 2.0)) {
           return fallback;
         }
-        if (fallback && isSpotFree(fallback, 1.65)) {
-          return fallback;
-        }
         const baulkCenter = defaultInHandPosition();
         if (baulkCenter && isSpotFree(baulkCenter, 2.0)) {
           return baulkCenter;
         }
-        return fallback ?? baulkCenter ?? null;
+        return null;
       };
       const autoPlaceAiCueBall = () => {
         const currentHud = hudRef.current;
@@ -20359,23 +20355,36 @@ const powerRef = useRef(hud.power);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
-          const impactPos = buildCuePosition(0);
-          const forwardDistance = startPos.distanceTo(impactPos);
-          const totalRetreat = 0;
-          const settlePos = impactPos.clone();
+          const strokeDistance = Math.max(visualPull, CUE_PULL_MIN_VISUAL);
+          const topSpinFollowThrough =
+            BALL_R * (1 + 3 * clampedPower) * topSpinWeight;
+          const backSpinRetreat =
+            BALL_R * (1 + 2.25 * clampedPower) * backSpinWeight;
+          const forwardDistance = strokeDistance + topSpinFollowThrough;
+          const impactPos = startPos
+            .clone()
+            .add(
+              dir
+                .clone()
+                .multiplyScalar(Math.max(forwardDistance + CUE_IMPACT_OVERTRAVEL, 0))
+            );
+          const retreatDistance = Math.max(
+            BALL_R * 1.5,
+            Math.min(strokeDistance, BALL_R * 8)
+          );
+          const totalRetreat = retreatDistance + backSpinRetreat;
+          const settlePos = impactPos
+            .clone()
+            .sub(dir.clone().multiplyScalar(totalRetreat));
           cueStick.visible = true;
           cueStick.position.copy(warmupPos);
-          const forwardSpeedFallback = THREE.MathUtils.lerp(
+          const forwardSpeed = THREE.MathUtils.lerp(
             CUE_STROKE_SPEED_MIN,
             CUE_STROKE_SPEED_MAX,
             curvedPower
           );
-          const cueSpeed =
-            Number.isFinite(predictedCueSpeed) && predictedCueSpeed > 1e-4
-              ? predictedCueSpeed
-              : forwardSpeedFallback;
           const forwardDurationBase = THREE.MathUtils.clamp(
-            (forwardDistance / Math.max(cueSpeed, 1e-4)) * 1000,
+            (forwardDistance / Math.max(forwardSpeed, 1e-4)) * 1000,
             CUE_STROKE_MIN_MS,
             CUE_STROKE_MAX_MS
           );
@@ -20384,16 +20393,11 @@ const powerRef = useRef(hud.power);
             CUE_FOLLOW_SPEED_MAX,
             curvedPower
           );
-          const settleDurationBase =
-            totalRetreat > 1e-4
-              ? THREE.MathUtils.clamp(
-                  (totalRetreat / Math.max(settleSpeed, 1e-4)) *
-                    1000 *
-                    (backSpinWeight > 0 ? 0.82 : 1),
-                  CUE_FOLLOW_MIN_MS,
-                  CUE_FOLLOW_MAX_MS
-                )
-              : 0;
+          const settleDurationBase = THREE.MathUtils.clamp(
+            (totalRetreat / Math.max(settleSpeed, 1e-4)) * 1000 * (backSpinWeight > 0 ? 0.82 : 1),
+            CUE_FOLLOW_MIN_MS,
+            CUE_FOLLOW_MAX_MS
+          );
           const aiStrokeScale =
             aiOpponentEnabled && hudRef.current?.turn === 1 ? AI_STROKE_TIME_SCALE : 1;
           const playerStrokeScale = isAiStroke ? 1 : PLAYER_STROKE_TIME_SCALE;
@@ -26288,7 +26292,7 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute right-1 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          className={`absolute right-2 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
             bottom: `${6 + chromeUiLiftPx}px`,
             transform: `scale(${uiScale * 0.88})`,
