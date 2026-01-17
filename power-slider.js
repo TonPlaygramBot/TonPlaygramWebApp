@@ -9,6 +9,8 @@ export class PowerSlider {
       cueSrc = '',
       onChange,
       onCommit,
+      onStart,
+      onEnd,
       theme = 'default',
       labels = false
     } = opts;
@@ -21,6 +23,8 @@ export class PowerSlider {
     this.step = step;
     this.onChange = onChange;
     this.onCommit = onCommit;
+    this.onStart = onStart;
+    this.onEnd = onEnd;
     this.locked = false;
 
     this.el = document.createElement('div');
@@ -206,6 +210,7 @@ export class PowerSlider {
     this.dragging = true;
     this.dragMoved = false;
     this.dragStartValue = this.value;
+    if (typeof this.onStart === 'function') this.onStart(this.value);
     this.el.classList.add('ps-no-animate');
     this.el.setPointerCapture(e.pointerId);
     this.pointerStartY = e.clientY;
@@ -231,9 +236,11 @@ export class PowerSlider {
     const moved = this.dragMoved || Math.abs(this.value - this.dragStartValue) > 0;
     if (!moved) {
       this.set(this.dragStartValue, { animate: true });
+      if (typeof this.onEnd === 'function') this.onEnd(this.value);
       return;
     }
     if (typeof this.onCommit === 'function') this.onCommit(this.value);
+    if (typeof this.onEnd === 'function') this.onEnd(this.value);
   }
 
   _wheel(e) {
