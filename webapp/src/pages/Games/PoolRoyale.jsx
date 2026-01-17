@@ -2853,7 +2853,7 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 0.62; // emphasize Poly Haven cloth patterns for clearer weave detail
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1; // preserve original Poly Haven pattern mapping
 const POLYHAVEN_ANISOTROPY_BOOST = 7;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
@@ -6505,7 +6505,7 @@ function Table3D(
     : Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.12);
   const clothRoughnessBase = CLOTH_ROUGHNESS_BASE + 0.06;
   const clothRoughnessTarget = CLOTH_ROUGHNESS_TARGET + 0.06;
-  const clothEmissiveIntensity = 0.18;
+  const clothEmissiveIntensity = isPolyHavenCloth ? 0.12 : 0.18;
   const clothNormalScale = isPolyHavenCloth ? POLYHAVEN_NORMAL_SCALE : CLOTH_NORMAL_SCALE;
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
@@ -6524,13 +6524,16 @@ function Table3D(
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 12; // base density before global scaling adjustments
-  const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25 * 1.5 * CLOTH_PATTERN_SCALE; // double the thread pattern size for a looser, woollier weave
+  const clothPatternUpscale = clothMapSource === 'polyhaven'
+    ? 1
+    : (1 / 1.3) * 0.5 * 1.25 * 1.5 * CLOTH_PATTERN_SCALE; // double the thread pattern size for a looser, woollier weave
   const patternOverride =
     clothMapSource === 'polyhaven'
       ? null
       : resolveClothPatternOverride(clothTextureKey);
-  const clothTextureScale =
-    0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping the cloth visibly taut
+  const clothTextureScale = clothMapSource === 'polyhaven'
+    ? 0.032
+    : 0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping the cloth visibly taut
   let baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
@@ -20419,20 +20422,15 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(warmupPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
-          const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
-          const backSpinRetreat =
-            BALL_R * (1 + 2.25 * clampedPower) * backSpinWeight;
+          const topspinWeight = Math.max(0, physicsSpin.y || 0);
+          const followThrough = BALL_R * (0.18 + 0.22 * clampedPower) * topspinWeight;
+          const maxFollowPull = CUE_TIP_GAP * 0.6;
+          const followPull = -Math.min(maxFollowPull, followThrough);
           const impactPos = buildCuePosition(0);
           const forwardDistance = Math.max(0, startPos.distanceTo(impactPos));
-          const strokeDistance = Math.max(forwardDistance, CUE_PULL_MIN_VISUAL);
-          const retreatDistance = Math.max(
-            BALL_R * 1.5,
-            Math.min(strokeDistance, BALL_R * 8)
-          );
-          const totalRetreat = retreatDistance + backSpinRetreat;
-          const settlePos = impactPos
-            .clone()
-            .sub(dir.clone().multiplyScalar(totalRetreat));
+          const settlePos =
+            followPull < 0 ? buildCuePosition(followPull) : impactPos.clone();
+          const followDistance = Math.max(0, impactPos.distanceTo(settlePos));
           cueStick.visible = true;
           cueStick.position.copy(warmupPos);
           const cueBallSpeed = Math.max(predictedCueSpeed, 1e-4);
@@ -20445,11 +20443,14 @@ const powerRef = useRef(hud.power);
             CUE_FOLLOW_SPEED_MAX,
             curvedPower
           );
-          const settleDurationBase = THREE.MathUtils.clamp(
-            (totalRetreat / Math.max(settleSpeed, 1e-4)) * 1000 * (backSpinWeight > 0 ? 0.82 : 1),
-            CUE_FOLLOW_MIN_MS,
-            CUE_FOLLOW_MAX_MS
-          );
+          const settleDurationBase =
+            followDistance > 1e-4
+              ? THREE.MathUtils.clamp(
+                  (followDistance / Math.max(settleSpeed, 1e-4)) * 1000,
+                  CUE_FOLLOW_MIN_MS * 0.35,
+                  CUE_FOLLOW_MAX_MS * 0.4
+                )
+              : 0;
           const aiStrokeScale =
             aiOpponentEnabled && hudRef.current?.turn === 1 ? AI_STROKE_TIME_SCALE : 1;
           const playerStrokeScale = isAiStroke ? 1 : PLAYER_STROKE_TIME_SCALE;
