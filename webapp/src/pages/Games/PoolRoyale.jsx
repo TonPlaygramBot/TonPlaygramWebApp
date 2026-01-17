@@ -1263,7 +1263,7 @@ const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so i
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
-const POCKET_CAM_EDGE_SCALE = 0.62;
+const POCKET_CAM_EDGE_SCALE = 0.72;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1280,14 +1280,14 @@ const POCKET_CAM = Object.freeze({
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.02,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 0.85,
+  heightOffset: BALL_R * 1.15,
   heightOffsetShortMultiplier: 0.9,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1,
-  heightDrop: BALL_R * 0.45,
+  heightDrop: BALL_R * 0.2,
   distanceScale: 0.96,
   heightScale: 1.02,
-  focusBlend: 0.65,
+  focusBlend: 0,
   lateralFocusShift: 0,
   railFocusLong: BALL_R * 5.6,
   railFocusShort: BALL_R * 6.6
@@ -16090,28 +16090,10 @@ const powerRef = useRef(hud.power);
             const cueBounds = cameraBounds?.cueShot ?? null;
             const standingBounds = cameraBounds?.standing ?? null;
             const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.12;
-            const focusTarget2D = pocketCenter2D.clone();
-            const incomingBallPos = focusBall?.active
-              ? focusBall.pos
-              : activeShotView.lastBallPos;
-            const focusBlend = THREE.MathUtils.clamp(
-              POCKET_CAM.focusBlend ?? 0,
-              0,
-              1
-            );
-            if (
-              focusBlend > 0 &&
-              incomingBallPos &&
-              Number.isFinite(incomingBallPos.x) &&
-              Number.isFinite(incomingBallPos.y)
-            ) {
-              TMP_VEC2_VIEW.set(incomingBallPos.x, incomingBallPos.y);
-              focusTarget2D.lerp(TMP_VEC2_VIEW, focusBlend);
-            }
             const focusTarget = new THREE.Vector3(
-              focusTarget2D.x * worldScaleFactor,
+              pocketCenter2D.x * worldScaleFactor,
               focusHeightLocal,
-              focusTarget2D.y * worldScaleFactor
+              pocketCenter2D.y * worldScaleFactor
             );
             if (
               anchorType === 'short' &&
