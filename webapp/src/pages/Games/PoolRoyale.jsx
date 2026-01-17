@@ -20411,15 +20411,11 @@ const powerRef = useRef(hud.power);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           const topspinStrength = Math.max(0, appliedSpin?.y ?? 0) * clampedPower;
-          const followExtra = THREE.MathUtils.clamp(
-            topspinStrength * (BALL_R * 0.29),
-            0,
-            BALL_R * 0.33
+          const followThrough = Math.min(
+            CUE_FOLLOW_THROUGH_MAX,
+            topspinStrength * CUE_FOLLOW_THROUGH_MAX
           );
-          const strikeGapMin = BALL_R * 0.55;
-          const impactGap = Math.max(strikeGapMin, CUE_TIP_GAP - followExtra);
-          const impactPull = impactGap - CUE_TIP_GAP;
-          const impactPos = buildCuePosition(impactPull);
+          const impactPos = buildCuePosition(-followThrough);
           impactPos.y -= CUE_STRIKE_DIP;
           cueStick.visible = true;
           cueStick.position.copy(startPos);
