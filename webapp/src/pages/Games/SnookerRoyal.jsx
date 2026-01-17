@@ -31,7 +31,7 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { SnookerRoyalRules } from '../../../../src/rules/SnookerRoyalRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/snookerClubTables.js';
-import { isGameMuted, getGameVolume } from '../../utils/sound.js';
+import { isGameMuted, getGameVolume, toggleGameMuted } from '../../utils/sound.js';
 import {
   createBallPreviewDataUrl,
   getBallMaterial as getBilliardBallMaterial
@@ -39,7 +39,6 @@ import {
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
 import { socket } from '../../utils/socket.js';
-import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import {
   WOOD_FINISH_PRESETS,
   WOOD_GRAIN_OPTIONS,
@@ -76,12 +75,8 @@ import {
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
+import InfoPopup from '../../components/InfoPopup.jsx';
 import { chatBeep } from '../../assets/soundData.js';
-import {
-  mapSpinForPhysics,
-  normalizeSpinInput,
-  SPIN_STUN_RADIUS
-} from './poolRoyaleSpinUtils.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
@@ -1508,7 +1503,7 @@ const SIDE_SPIN_MULTIPLIER = 1.5;
 const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
-const SPIN_CONTROL_DIAMETER_PX = 124;
+const SPIN_CONTROL_DIAMETER_PX = 138;
 const SPIN_DOT_DIAMETER_PX = 16;
 const SPIN_RING_THICKNESS_PX = 14;
 const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
@@ -5055,7 +5050,6 @@ const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
 const TMP_EULER_A = new THREE.Euler();
 const TMP_VEC3_A = new THREE.Vector3();
-const TMP_VEC3_B = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CUE_TIP_OFFSET = new THREE.Vector3();
 const TMP_VEC3_CUE_BUTT_OFFSET = new THREE.Vector3();
@@ -5099,7 +5093,48 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
+const SPIN_INPUT_DEAD_ZONE = 0.02;
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
+const SPIN_RESPONSE_EXPONENT = 1.65;
+
+const clampToUnitCircle = (x, y) => {
+  const L = Math.hypot(x, y);
+  if (!Number.isFinite(L) || L <= 1) {
+    return { x, y };
+  }
+  const scale = L > 1e-6 ? 1 / L : 0;
+  return { x: x * scale, y: y * scale };
+};
+const normalizeSpinInput = (spin) => {
+  const x = spin?.x ?? 0;
+  const y = spin?.y ?? 0;
+  const magnitude = Math.hypot(x, y);
+  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
+    return { x: 0, y: 0 };
+  }
+  return clampToUnitCircle(x, y);
+};
+const applySpinResponseCurve = (spin) => {
+  const x = spin?.x ?? 0;
+  const y = spin?.y ?? 0;
+  const magnitude = Math.hypot(x, y);
+  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
+    return { x: 0, y: 0 };
+  }
+  const clamped = clampToUnitCircle(x, y);
+  const clampedMag = Math.hypot(clamped.x, clamped.y);
+  if (clampedMag < 1e-6) return { x: 0, y: 0 };
+  const curvedMag = Math.pow(clampedMag, SPIN_RESPONSE_EXPONENT);
+  const scale = curvedMag / clampedMag;
+  return { x: clamped.x * scale, y: clamped.y * scale };
+};
+const mapSpinForPhysics = (spin) => {
+  const curved = applySpinResponseCurve(spin);
+  return {
+    x: curved?.x ?? 0,
+    y: -(curved?.y ?? 0)
+  };
+};
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
   return THREE.MathUtils.clamp(liftAngle / CUE_LIFT_MAX_TILT, 0, 1);
@@ -5128,16 +5163,6 @@ const computeCueViewVector = (cueBall, camera) => {
   TMP_VEC2_VIEW.set(cx, cz);
   if (TMP_VEC2_VIEW.lengthSq() < 1e-8) return null;
   return TMP_VEC2_VIEW.clone().normalize();
-};
-
-const resolveCameraBasis = (camera) => {
-  if (!camera) return null;
-  TMP_VEC3_A.set(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
-  TMP_VEC3_B.set(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
-  return {
-    right: TMP_VEC3_A.clone(),
-    up: TMP_VEC3_B.clone()
-  };
 };
 
 const computeShortRailBroadcastDistance = (camera) => {
@@ -5188,7 +5213,7 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
   const sx = spinVec?.x ?? 0;
   const sy = spinVec?.y ?? 0;
   const magnitude = Math.hypot(sx, sy);
-  if (magnitude < SPIN_STUN_RADIUS) {
+  if (magnitude < SPIN_INPUT_DEAD_ZONE) {
     return { blocked: false, reason: '' };
   }
   const axes = options.axes;
@@ -11099,7 +11124,6 @@ function SnookerRoyalGame({
     const isTelegram = isTelegramWebView();
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
-  const viewButtonsOffsetPx = 32;
   const [isPortrait, setIsPortrait] = useState(
     () => (typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth)
   );
@@ -12346,9 +12370,11 @@ const powerRef = useRef(hud.power);
   const liftLandingTimeRef = useRef(new Map());
   const powerImpactHoldRef = useRef(0);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
+  const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
+  const [muted, setMuted] = useState(isGameMuted());
   const [opponentAccountId, setOpponentAccountId] = useState('');
   const playerInfoRef = useRef(player);
   useEffect(() => {
@@ -12755,6 +12781,11 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('gameVolumeChanged', handleVolume);
     };
   }, [stopActiveCrowdSound]);
+  useEffect(() => {
+    const handleMuteUi = () => setMuted(isGameMuted());
+    window.addEventListener('gameMuteChanged', handleMuteUi);
+    return () => window.removeEventListener('gameMuteChanged', handleMuteUi);
+  }, []);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -20266,12 +20297,7 @@ const powerRef = useRef(hud.power);
           const appliedSpin = applySpinConstraints(aimDir, true);
           const liftAngle = resolveUserCueLift();
           const liftStrength = normalizeCueLift(liftAngle);
-          const cameraBasis = resolveCameraBasis(activeRenderCameraRef.current ?? cameraRef.current);
-          const physicsSpin = mapSpinForPhysics(appliedSpin, {
-            cameraRight: cameraBasis?.right ?? null,
-            cameraUp: cameraBasis?.up ?? null,
-            cueForward: { x: aimDir.x, z: aimDir.y }
-          });
+          const physicsSpin = mapSpinForPhysics(appliedSpin);
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
           const baseSide = physicsSpin.x * (ranges.side ?? 0);
@@ -22382,8 +22408,7 @@ const powerRef = useRef(hud.power);
         }
         const shouldRespotColours =
           (currentState?.phase ?? frameState?.phase) === 'REDS_AND_COLORS' &&
-          ((currentState?.redsRemaining ?? frameState?.redsRemaining ?? 0) > 0 ||
-            (currentState?.colorOnAfterRed ?? frameState?.colorOnAfterRed ?? false)) &&
+          (currentState?.redsRemaining ?? frameState?.redsRemaining ?? 0) > 0 &&
           (!isTraining || trainingRulesRef.current);
         if (shouldRespotColours && potted.length) {
           const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
@@ -22857,12 +22882,7 @@ const powerRef = useRef(hud.power);
         }
         const appliedSpin = applySpinConstraints(aimDir, true);
         const liftStrength = normalizeCueLift(resolveUserCueLift());
-        const cameraBasis = resolveCameraBasis(activeRenderCameraRef.current ?? cameraRef.current);
-        const physicsSpin = mapSpinForPhysics(appliedSpin, {
-          cameraRight: cameraBasis?.right ?? null,
-          cameraUp: cameraBasis?.up ?? null,
-          cueForward: { x: aimDir.x, z: aimDir.y }
-        });
+        const physicsSpin = mapSpinForPhysics(appliedSpin);
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
         let shouldSlowAim = false;
@@ -23304,12 +23324,7 @@ const powerRef = useRef(hud.power);
           const remoteSpin = remoteAimState?.spin ?? { x: 0, y: 0 };
           const remoteSpinMagnitude = Math.hypot(remoteSpin.x ?? 0, remoteSpin.y ?? 0);
           const remoteSwerveActive = remoteSpinMagnitude >= SWERVE_THRESHOLD;
-          const remoteCameraBasis = resolveCameraBasis(activeRenderCameraRef.current ?? cameraRef.current);
-          const remotePhysicsSpin = mapSpinForPhysics(remoteSpin, {
-            cameraRight: remoteCameraBasis?.right ?? null,
-            cameraUp: remoteCameraBasis?.up ?? null,
-            cueForward: { x: remoteAimDir.x, z: remoteAimDir.y }
-          });
+          const remotePhysicsSpin = mapSpinForPhysics(remoteSpin);
           const guideAimDir2D = resolveSwerveAimDir(
             remoteAimDir,
             remotePhysicsSpin,
@@ -25928,75 +25943,103 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute right-1 z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none absolute left-3 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          bottom: `${SPIN_CONTROL_DIAMETER_PX + 8 + chromeUiLiftPx - viewButtonsOffsetPx}px`,
-          transform: `scale(${uiScale * 1.08})`,
-          transformOrigin: 'bottom right'
+          bottom: `${16 + chromeUiLiftPx}px`,
+          transform: `scale(${uiScale * 1.06})`,
+          transformOrigin: 'bottom left'
         }}
       >
         <button
           type="button"
           aria-pressed={isLookMode}
           onClick={() => setIsLookMode((prev) => !prev)}
-          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-xl font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
             isLookMode
               ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
               : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
           }`}
-          aria-label="Toggle look mode"
         >
-          <span aria-hidden="true">👁️</span>
+          <span className="text-base">👁️</span>
+          <span>Look</span>
         </button>
         <button
           type="button"
           aria-pressed={isTopDownView}
           onClick={() => setIsTopDownView((prev) => !prev)}
-          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-[12px] font-semibold uppercase tracking-[0.28em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
             isTopDownView
               ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
               : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
           }`}
-          aria-label={isTopDownView ? 'Switch to 3D view' : 'Switch to 2D view'}
         >
-          <span aria-hidden="true">{isTopDownView ? '3D' : '2D'}</span>
+          <span className="text-base">🧭</span>
+          <span>{isTopDownView ? '3D' : '2D'}</span>
         </button>
       </div>
 
-      {!replayActive && (
-        <div className="pointer-events-auto">
-          <BottomLeftIcons
-            onChat={() => setShowChat(true)}
-            onGift={() => setShowGift(true)}
-            className="fixed left-1 bottom-3 z-50 flex flex-col gap-2.5"
-            buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
-            iconClassName="text-[1.1rem] leading-none"
-            labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
-            chatIcon="💬"
-            giftIcon="🎁"
-            showInfo={false}
-            showMute={false}
-          />
-        </div>
-      )}
+      <div
+        className={`absolute z-50 flex flex-col gap-[0.6rem] transition-opacity duration-200 ${replayActive ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+        style={{
+          left: 'calc(0.75rem + env(safe-area-inset-left, 0px))',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)'
+        }}
+        aria-label="Quick actions"
+      >
+        <button
+          type="button"
+          onClick={() => setShowChat(true)}
+          className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+        >
+          <span className="text-[1.1rem] leading-none" aria-hidden="true">💬</span>
+          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">Chat</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowGift(true)}
+          className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+        >
+          <span className="text-[1.1rem] leading-none" aria-hidden="true">🎁</span>
+          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">Gift</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowInfo(true)}
+          className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+        >
+          <span className="text-[1.1rem] leading-none" aria-hidden="true">ℹ️</span>
+          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">Info</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            toggleGameMuted();
+            setMuted(isGameMuted());
+          }}
+          className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+        >
+          <span className="text-[1.1rem] leading-none" aria-hidden="true">{muted ? '🔇' : '🔊'}</span>
+          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">{muted ? 'Unmute' : 'Mute'}</span>
+        </button>
+      </div>
 
       {bottomHudVisible && (
         <div
           className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive || replayActive}
           style={{
-            bottom: `${10 + chromeUiLiftPx}px`,
+            bottom: `${16 + chromeUiLiftPx}px`,
             left: hudInsets.left,
             right: hudInsets.right,
             transform: isPortrait ? `translateX(${bottomHudOffset}px)` : undefined
           }}
         >
           <div
-            className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'pl-6 pr-8 py-2' : 'pl-7 pr-9 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
+            className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'px-5 py-2' : 'px-6 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
             style={{
               transform: `scale(${bottomHudScale})`,
               transformOrigin: 'bottom center',
-              maxWidth: isPortrait ? 'min(34rem, 100%)' : 'min(40rem, 100%)'
+              maxWidth: isPortrait ? 'min(28rem, 100%)' : 'min(34rem, 100%)'
             }}
           >
             <div
@@ -26175,109 +26218,81 @@ const powerRef = useRef(hud.power);
           ref={spinBoxRef}
           className={`absolute right-2 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${6 + chromeUiLiftPx}px`,
-            transform: `scale(${uiScale * 0.88})`,
+            bottom: `${28 + chromeUiLiftPx}px`,
+            transform: `scale(${uiScale})`,
             transformOrigin: 'bottom right'
           }}
         >
           <div
             id="spinBox"
-            className={`relative rounded-full border border-white/40 shadow-[0_18px_34px_rgba(0,0,0,0.45)] ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
+            className={`relative rounded-full shadow-lg border border-white/70 overflow-hidden ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
               height: `${SPIN_CONTROL_DIAMETER_PX}px`,
-              background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.65), rgba(255,255,255,0) 45%), radial-gradient(circle at center, #4b5563 0 45%, #1f2937 46% 100%)`
+              background: `radial-gradient(circle at center, #fef6df 0 62%, #c81d25 62% 100%)`
             }}
           >
-            <div className="absolute inset-0 rounded-full overflow-hidden">
-              <div
-                className="absolute inset-0 rounded-full"
+            <div
+              className="absolute inset-0 rounded-full"
+              style={{
+                boxShadow:
+                  'inset 0 0 0 2px rgba(255,255,255,0.7), inset 0 6px 12px rgba(255,255,255,0.25)',
+                pointerEvents: 'none'
+              }}
+            />
+            <div
+              className="absolute rounded-full"
+              style={{
+                inset: `${SPIN_RING_THICKNESS_PX}px`,
+                background: '#fef6df',
+                boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.6)',
+                pointerEvents: 'none'
+              }}
+            />
+            <div
+              className="absolute left-1/2 top-0 h-full w-[2px] bg-red-500/60"
+              style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}
+            />
+            <div
+              className="absolute top-1/2 left-0 h-[2px] w-full bg-red-500/60"
+              style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
+            />
+            <div
+              className="absolute rounded-full border-2 border-red-500/70"
+              style={{
+                width: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
+                height: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
+                left: '50%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                pointerEvents: 'none'
+              }}
+            />
+            {spinDecorationPoints.map((point, index) => (
+              <span
+                key={`spin-deco-${index}`}
+                className="absolute rounded-full border-2 border-black/75"
                 style={{
-                  boxShadow:
-                    'inset 0 0 0 2px rgba(255,255,255,0.2), inset 0 14px 24px rgba(255,255,255,0.18), inset 0 -14px 24px rgba(0,0,0,0.55)',
-                  pointerEvents: 'none'
-                }}
-              />
-              <div
-                className="absolute rounded-full"
-                style={{
-                  inset: `${SPIN_RING_THICKNESS_PX * 0.6}px`,
-                  background:
-                    'radial-gradient(circle at 35% 30%, #f8fafc 0 18%, #f1f5f9 18% 42%, #e5e7eb 42% 70%, #cbd5f5 70% 100%)',
-                  boxShadow:
-                    'inset 0 0 0 2px rgba(255,255,255,0.6), inset 0 8px 12px rgba(0,0,0,0.12)',
-                  pointerEvents: 'none'
-                }}
-              />
-              <div
-                className="absolute rounded-full"
-                style={{
-                  inset: `${SPIN_RING_THICKNESS_PX * 1.5}px`,
-                  background:
-                    'radial-gradient(circle at 50% 45%, rgba(255,255,255,0.9), rgba(255,255,255,0.1) 42%), radial-gradient(circle at center, #f8fafc 0 52%, #e2e8f0 52% 100%)',
-                  boxShadow:
-                    'inset 0 0 0 2px rgba(255,255,255,0.5), inset 0 10px 20px rgba(0,0,0,0.08)',
-                  pointerEvents: 'none'
-                }}
-              />
-              <div
-                className="absolute rounded-full"
-                style={{
-                  width: `${SPIN_DOT_DIAMETER_PX * 2.4}px`,
-                  height: `${SPIN_DOT_DIAMETER_PX * 2.4}px`,
-                  left: '50%',
-                  top: '50%',
+                  width: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
+                  height: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
+                  left: `${50 + point.x * SPIN_DECORATION_OFFSET_PERCENT}%`,
+                  top: `${50 + point.y * SPIN_DECORATION_OFFSET_PERCENT}%`,
                   transform: 'translate(-50%, -50%)',
-                  background: 'radial-gradient(circle at 35% 30%, #ffffff 0 35%, #e5e7eb 35% 70%, #cbd5f5 70% 100%)',
-                  boxShadow: 'inset 0 6px 10px rgba(0,0,0,0.12), 0 6px 16px rgba(0,0,0,0.18)',
+                  background: 'rgba(255,255,255,0.4)',
                   pointerEvents: 'none'
                 }}
               />
-              <div
-                className="absolute left-1/2 top-0 h-full w-[2px] bg-rose-500/60"
-                style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}
-              />
-              <div
-                className="absolute top-1/2 left-0 h-[2px] w-full bg-rose-500/60"
-                style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
-              />
-              <div
-                className="absolute rounded-full border-2 border-rose-500/70"
-                style={{
-                  width: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
-                  height: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
-                  left: '50%',
-                  top: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  pointerEvents: 'none'
-                }}
-              />
-              {spinDecorationPoints.map((point, index) => (
-                <span
-                  key={`spin-deco-${index}`}
-                  className="absolute rounded-full border-2 border-black/75"
-                  style={{
-                    width: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
-                    height: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
-                    left: `${50 + point.x * SPIN_DECORATION_OFFSET_PERCENT}%`,
-                    top: `${50 + point.y * SPIN_DECORATION_OFFSET_PERCENT}%`,
-                    transform: 'translate(-50%, -50%)',
-                    background: 'rgba(156,163,175,0.65)',
-                    pointerEvents: 'none'
-                  }}
-                />
-              ))}
-              <div
-                id="spinDot"
-                className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-                style={{
-                  width: `${SPIN_DOT_DIAMETER_PX}px`,
-                  height: `${SPIN_DOT_DIAMETER_PX}px`,
-                  left: '50%',
-                  top: '50%'
-                }}
-              ></div>
-            </div>
+            ))}
+            <div
+              id="spinDot"
+              className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+              style={{
+                width: `${SPIN_DOT_DIAMETER_PX}px`,
+                height: `${SPIN_DOT_DIAMETER_PX}px`,
+                left: '50%',
+                top: '50%'
+              }}
+            ></div>
           </div>
         </div>
       )}
@@ -26298,7 +26313,7 @@ const powerRef = useRef(hud.power);
             ...bubbles,
             { id, text, photoUrl: resolvedPlayerAvatar || '/assets/icons/profile.svg' }
           ]);
-          if (!muteRef.current) {
+          if (!muted) {
             const audio = new Audio(chatBeep);
             audio.volume = getGameVolume();
             audio.play().catch(() => {});
@@ -26316,6 +26331,14 @@ const powerRef = useRef(hud.power);
         senderIndex={0}
         onGiftSent={({ from, to, gift }) => animateGift(from, to, gift)}
       />
+      <InfoPopup open={showInfo} onClose={() => setShowInfo(false)} title="Snooker Royal Rules">
+        <ul className="text-sm text-subtext list-disc list-inside space-y-1">
+          <li>Pot a red (1 point), then a colour (2–7 points) while reds remain.</li>
+          <li>After all reds are gone, pot colours in order: yellow, green, brown, blue, pink, black.</li>
+          <li>Fouls award points to your opponent and may allow a ball-in-hand.</li>
+          <li>The player with the higher score wins the frame.</li>
+        </ul>
+      </InfoPopup>
     </div>
   );
 }
