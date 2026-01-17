@@ -20415,7 +20415,10 @@ const powerRef = useRef(hud.power);
             CUE_FOLLOW_THROUGH_MAX,
             topspinStrength * CUE_FOLLOW_THROUGH_MAX
           );
-          const impactPos = buildCuePosition(-followThrough);
+          const contactBack = BALL_R + CUE_TIP_CLEARANCE;
+          const endBack = Math.max(BALL_R * 0.55, contactBack - followThrough);
+          const impactPull = endBack - CUE_TIP_GAP;
+          const impactPos = buildCuePosition(impactPull);
           impactPos.y -= CUE_STRIKE_DIP;
           cueStick.visible = true;
           cueStick.position.copy(startPos);
