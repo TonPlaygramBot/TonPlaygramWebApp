@@ -197,6 +197,8 @@ function detectHighRefreshDisplay() {
 const randomPick = (list) => list[Math.floor(Math.random() * list.length)];
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+const easeInOutQuad = (t) =>
+  t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
 const wait = (ms = 0) =>
   new Promise((resolve) => {
@@ -1463,9 +1465,12 @@ const CUE_FOLLOW_SPEED_MIN = BALL_R * 9.5;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 20.5;
 const CUE_STRIKE_DURATION_MS = 120;
 const CUE_STRIKE_HOLD_MS = 50;
-const CUE_STRIKE_DIP = BALL_R * 0.06; // subtle downward dip during the forward push
+const CUE_STRIKE_DIP = BALL_R * 0.055; // subtle downward dip during the forward push
 const CUE_STRIKE_WOBBLE = 0.0018; // match the slight cue wobble from the reference animation
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 0.3; // small follow-through for topspin shots
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 0.33; // small follow-through for topspin shots
+const CUE_DRAG_DIP = BALL_R * 0.045; // match the pullback dip in the reference animation
+const CUE_IDLE_BREATHE = BALL_R * 0.022; // gentle idle breathing offset
+const CUE_IDLE_BREATHE_SPEED = 0.0015;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
@@ -5065,6 +5070,7 @@ const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CUE_TIP_OFFSET = new THREE.Vector3();
 const TMP_VEC3_CUE_BUTT_OFFSET = new THREE.Vector3();
 const TMP_VEC3_CUE_TIP_TARGET = new THREE.Vector3();
+const TMP_VEC3_CUE_BASE = new THREE.Vector3();
 const TMP_VEC3_CHALK = new THREE.Vector3();
 const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
 const TMP_VEC3_TOP_VIEW = new THREE.Vector3();
@@ -12180,6 +12186,8 @@ const powerRef = useRef(hud.power);
     dot.dataset.blocked = showBlocked ? '1' : '0';
   }, []);
   const cueRef = useRef(null);
+  const cueAnchorRef = useRef(new THREE.Vector3());
+  const cueAnchorLockedRef = useRef(false);
   const ballsRef = useRef([]);
   const pocketDropRef = useRef(new Map());
   const pocketRestIndexRef = useRef(new Map());
@@ -18769,6 +18777,7 @@ const powerRef = useRef(hud.power);
       });
 
       cueRef.current = cue;
+      cueAnchorRef.current.set(cue.pos.x, CUE_Y, cue.pos.y);
       ballsRef.current = balls;
 
       // Aiming visuals
@@ -18931,11 +18940,17 @@ const powerRef = useRef(hud.power);
           info.buttHeightOffset = Math.sin(signedTilt) * len;
         }
       };
-      const resolveCueTipTarget = (dir, pullAmount, spinWorld) =>
+      const resolveCueTipTarget = (
+        basePos,
+        dir,
+        pullAmount,
+        spinWorld,
+        extraYOffset = 0
+      ) =>
         TMP_VEC3_CUE_TIP_TARGET.set(
-          cue.pos.x - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
-          CUE_Y + spinWorld.y,
-          cue.pos.y - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
+          basePos.x - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
+          basePos.y + spinWorld.y + extraYOffset,
+          basePos.z - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
         );
       const applyCueStickTransform = (tipTarget) => {
         TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
@@ -20400,8 +20415,12 @@ const powerRef = useRef(hud.power);
           }
           TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
           TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
+          const cueBase = cueAnchorRef.current;
+          if (!cueAnchorLockedRef.current) {
+            cueBase.set(cue.pos.x, CUE_Y, cue.pos.y);
+          }
           const buildCuePosition = (pullAmount = visualPull) => {
-            const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld);
+            const tipTarget = resolveCueTipTarget(cueBase, dir, pullAmount, spinWorld);
             return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
@@ -22921,6 +22940,18 @@ const powerRef = useRef(hud.power);
           isOnlineMatch &&
           currentHud?.turn === 1 &&
           remoteAimFresh;
+        const sliderDragging = Boolean(sliderInstanceRef.current?.dragging);
+        if (cue?.active) {
+          if (sliderDragging && !cueAnchorLockedRef.current) {
+            cueAnchorLockedRef.current = true;
+            cueAnchorRef.current.set(cue.pos.x, CUE_Y, cue.pos.y);
+          } else if (!sliderDragging && cueAnchorLockedRef.current) {
+            cueAnchorLockedRef.current = false;
+          }
+          if (!sliderDragging && !shooting) {
+            cueAnchorRef.current.set(cue.pos.x, CUE_Y, cue.pos.y);
+          }
+        }
         function resolveCueObstruction(
           dirVec3,
           pullDistance = cuePullTargetRef.current ?? 0,
@@ -23198,7 +23229,22 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
+          const cueBase = sliderDragging
+            ? cueAnchorRef.current
+            : TMP_VEC3_CUE_BASE.set(cue.pos.x, CUE_Y, cue.pos.y);
+          const idleBreathe = sliderDragging
+            ? 0
+            : Math.sin(now * CUE_IDLE_BREATHE_SPEED) * CUE_IDLE_BREATHE;
+          const dragDip = sliderDragging
+            ? -CUE_DRAG_DIP * easeInOutQuad(powerStrength)
+            : 0;
+          const tipTarget = resolveCueTipTarget(
+            cueBase,
+            dir,
+            visualPull + idleBreathe,
+            spinWorld,
+            dragDip
+          );
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           let visibleChalkIndex = null;
@@ -23439,7 +23485,14 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(baseDir, visualPull, spinWorld);
+          const cueBase = TMP_VEC3_CUE_BASE.set(cue.pos.x, CUE_Y, cue.pos.y);
+          const idleBreathe = Math.sin(now * CUE_IDLE_BREATHE_SPEED) * CUE_IDLE_BREATHE;
+          const tipTarget = resolveCueTipTarget(
+            cueBase,
+            baseDir,
+            visualPull + idleBreathe,
+            spinWorld
+          );
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
@@ -23540,7 +23593,14 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
+          const cueBase = TMP_VEC3_CUE_BASE.set(cue.pos.x, CUE_Y, cue.pos.y);
+          const idleBreathe = Math.sin(now * CUE_IDLE_BREATHE_SPEED) * CUE_IDLE_BREATHE;
+          const tipTarget = resolveCueTipTarget(
+            cueBase,
+            dir,
+            visualPull + idleBreathe,
+            spinWorld
+          );
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
