@@ -9,6 +9,7 @@ export const SPIN_LEVEL0_MAG = 0;
 export const SPIN_LEVEL1_MAG = 0.25 * MAX_SPIN_OFFSET;
 export const SPIN_LEVEL2_MAG = 0.5 * MAX_SPIN_OFFSET;
 export const SPIN_LEVEL3_MAG = 1.0 * MAX_SPIN_OFFSET;
+export const STRAIGHT_SPIN_DEADZONE = 0.08;
 
 export const SPIN_DIRECTIONS = [
   {
@@ -129,8 +130,10 @@ export const computeQuantizedOffsetScaled = (
 };
 
 export const normalizeSpinInput = (spin) => {
-  const x = clamp(spin?.x ?? 0, -1, 1);
-  const y = clamp(spin?.y ?? 0, -1, 1);
+  let x = clamp(spin?.x ?? 0, -1, 1);
+  let y = clamp(spin?.y ?? 0, -1, 1);
+  if (Math.abs(x) < STRAIGHT_SPIN_DEADZONE) x = 0;
+  if (Math.abs(y) < STRAIGHT_SPIN_DEADZONE) y = 0;
   return computeQuantizedOffsetScaled(x, y);
 };
 
@@ -170,7 +173,7 @@ export const mapSpinForPhysics = (spin, options = {}) => {
     x: clamp(spin?.x ?? 0, -1, 1),
     y: clamp(spin?.y ?? 0, -1, 1)
   };
-  const quantized = computeQuantizedOffsetScaled(adjusted.x, adjusted.y);
+  const quantized = normalizeSpinInput(adjusted);
   const { cameraRight, cameraUp, cueForward } = options;
   return mapUiOffsetToCueFrame(
     quantized.x,
