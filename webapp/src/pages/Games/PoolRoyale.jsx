@@ -1122,7 +1122,7 @@ if (BALL_SHADOW_MATERIAL) {
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
   restitution: 0.9,
-  mu: 0.18,
+  mu: 0.17,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
   maxTipOffsetRatio: 0.9
@@ -1263,7 +1263,7 @@ const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so i
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
-const POCKET_CAM_EDGE_SCALE = 0.92;
+const POCKET_CAM_EDGE_SCALE = 0.88;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1289,8 +1289,8 @@ const POCKET_CAM = Object.freeze({
   heightScale: 1.02,
   focusBlend: 0,
   lateralFocusShift: 0,
-  railFocusLong: BALL_R * 8,
-  railFocusShort: BALL_R * 5.4
+  railFocusLong: BALL_R * 5.6,
+  railFocusShort: BALL_R * 6.6
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.92;
@@ -4732,7 +4732,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.84; // lift the standing orbit slightly higher for a clearer top surface view
+const STANDING_VIEW_PHI = 0.88; // lift the standing orbit slightly higher for a clearer top surface view
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -4748,7 +4748,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.97;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
-const STANDING_VIEW_DISTANCE_SCALE = 0.58; // move the standing camera slightly farther and higher while keeping the angle unchanged
+const STANDING_VIEW_DISTANCE_SCALE = 0.54; // pull the standing camera slightly closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -4951,7 +4951,7 @@ const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 20;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 26;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -13406,6 +13406,8 @@ const powerRef = useRef(hud.power);
       let pausedPocketDrops = null;
       const tmpReplayQuat = new THREE.Quaternion();
       const tmpReplayQuatB = new THREE.Quaternion();
+      const tmpReplayCueQuat = new THREE.Quaternion();
+      const tmpReplayCueQuatB = new THREE.Quaternion();
       const tmpReplayScale = new THREE.Vector3();
       const tmpReplayPos = new THREE.Vector3();
       const tmpReplayCueA = new THREE.Vector3();
@@ -17087,10 +17089,18 @@ const powerRef = useRef(hud.power);
           const relative = Math.max(0, timestamp - start);
           const snapshot = captureBallSnapshot();
           const cameraSnapshot = captureReplayCameraSnapshot();
+          const cueSnapshot = cueStick
+            ? {
+                position: serializeVector3Snapshot(cueStick.position),
+                rotation: serializeQuaternionSnapshot(cueStick.quaternion),
+                visible: cueStick.visible
+              }
+            : null;
           shotRecording.frames.push({
             t: relative,
             balls: snapshot,
-            camera: cameraSnapshot
+            camera: cameraSnapshot,
+            cue: cueSnapshot
           });
           const cueBall = balls.find((b) => b.id === 'cue');
           if (cueBall?.mesh) {
@@ -17104,7 +17114,7 @@ const powerRef = useRef(hud.power);
         };
 
         const applyReplayFrame = (frameA, frameB, alpha) => {
-          if (!frameA) return;
+          if (!frameA) return false;
           const aMap = new Map(frameA.balls.map((entry) => [entry.id, entry]));
           const bMap = frameB ? new Map(frameB.balls.map((entry) => [entry.id, entry])) : null;
           balls.forEach((ball) => {
@@ -17178,6 +17188,41 @@ const powerRef = useRef(hud.power);
               }
             }
           });
+          const cueStateA = frameA.cue ?? null;
+          const cueStateB = frameB?.cue ?? cueStateA;
+          if (cueStick && (cueStateA || cueStateB)) {
+            const posA = normalizeVector3Snapshot(cueStateA?.position);
+            const posB = normalizeVector3Snapshot(cueStateB?.position, posA);
+            if (posA && posB) {
+              tmpReplayPos.set(
+                THREE.MathUtils.lerp(posA.x, posB.x, alpha),
+                THREE.MathUtils.lerp(posA.y, posB.y, alpha),
+                THREE.MathUtils.lerp(posA.z, posB.z, alpha)
+              );
+              cueStick.position.copy(tmpReplayPos);
+            }
+            const quatA = normalizeQuaternionSnapshot(cueStateA?.rotation);
+            const quatB = normalizeQuaternionSnapshot(
+              cueStateB?.rotation ?? cueStateA?.rotation,
+              quatA
+            );
+            if (quatA && quatB) {
+              tmpReplayCueQuat.set(quatA.x, quatA.y, quatA.z, quatA.w);
+              tmpReplayCueQuatB.set(quatB.x, quatB.y, quatB.z, quatB.w);
+              tmpReplayCueQuat.slerp(tmpReplayCueQuatB, alpha);
+              cueStick.quaternion.copy(tmpReplayCueQuat);
+            } else if (quatA) {
+              cueStick.quaternion.set(quatA.x, quatA.y, quatA.z, quatA.w);
+            }
+            const visible = cueStateB?.visible ?? cueStateA?.visible;
+            if (visible != null) {
+              cueStick.visible = Boolean(visible);
+            }
+            cueAnimating = cueStick.visible;
+            syncCueShadow();
+            return true;
+          }
+          return false;
         };
 
         const applyReplayCueStroke = (playback, targetTime) => {
@@ -22726,8 +22771,10 @@ const powerRef = useRef(hud.power);
             const alpha = frameB
               ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
               : 0;
-            applyReplayFrame(frameA, frameB, alpha);
-            applyReplayCueStroke(playback, targetTime);
+            const hasCueSnapshot = applyReplayFrame(frameA, frameB, alpha);
+            if (!hasCueSnapshot) {
+              applyReplayCueStroke(playback, targetTime);
+            }
             updateReplayTrail(playback.cuePath, targetTime);
             if (!LOCK_REPLAY_CAMERA) {
               const frameCameraA = frameA?.camera ?? null;
