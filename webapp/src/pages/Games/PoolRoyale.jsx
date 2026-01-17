@@ -2853,12 +2853,12 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 0.62; // emphasize Poly Haven cloth patterns for clearer weave detail
-const POLYHAVEN_ANISOTROPY_BOOST = 7;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1; // preserve Poly Haven's original cloth mapping
+const POLYHAVEN_ANISOTROPY_BOOST = 5;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
-const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.7, 1.7);
+const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.25, 1.25);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
@@ -9462,16 +9462,22 @@ function Table3D(
     tagBasePart(object, baseMaterialKey);
   };
 
-  const sharpenGltfTexture = (texture, { isColor = false } = {}) => {
+  const sharpenGltfTexture = (
+    texture,
+    { isColor = false, preserveWrap = false, anisotropyScale = 1 } = {}
+  ) => {
     if (!texture) return;
     if (isColor) {
       applySRGBColorSpace(texture);
     }
-    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    if (!preserveWrap) {
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    }
     texture.generateMipmaps = true;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
-    const boostedAniso = resolveTextureAnisotropy((texture.anisotropy ?? 1) * 1.18);
+    const baseAniso = (texture.anisotropy ?? 1) * 1.12;
+    const boostedAniso = resolveTextureAnisotropy(baseAniso * anisotropyScale);
     texture.anisotropy = boostedAniso;
     texture.needsUpdate = true;
   };
@@ -9479,12 +9485,32 @@ function Table3D(
   const sharpenGltfMaterial = (material) => {
     if (!material) return material;
     const mat = material.clone ? material.clone() : material;
+    const matName = mat?.name ?? '';
+    const isClothMaterial = /cloth|felt|fabric|wool|linen|canvas|upholstery/i.test(matName);
     const colorMaps = new Set(['map', 'emissiveMap']);
     ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap'].forEach((key) => {
       if (mat[key]) {
-        sharpenGltfTexture(mat[key], { isColor: colorMaps.has(key) });
+        sharpenGltfTexture(mat[key], {
+          isColor: colorMaps.has(key),
+          preserveWrap: isClothMaterial,
+          anisotropyScale: isClothMaterial ? 0.85 : 1
+        });
       }
     });
+    if (isClothMaterial) {
+      if (mat.normalScale?.isVector2) {
+        mat.normalScale.multiplyScalar(0.75);
+      }
+      if (typeof mat.roughness === 'number') {
+        mat.roughness = THREE.MathUtils.clamp(mat.roughness + 0.08, 0, 1);
+      }
+      if (mat.color) {
+        mat.color.lerp(new THREE.Color(0xffffff), 0.05);
+      }
+      if (typeof mat.envMapIntensity === 'number') {
+        mat.envMapIntensity *= 0.7;
+      }
+    }
     mat.needsUpdate = true;
     return mat;
   };
@@ -11707,6 +11733,7 @@ function PoolRoyaleGame({
   );
   const shotCameraHoldTimeoutRef = useRef(null);
   const cueStrokeStateRef = useRef(null);
+  const cueAnchorRef = useRef(new THREE.Vector2());
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
@@ -18933,12 +18960,15 @@ const powerRef = useRef(hud.power);
           info.buttHeightOffset = Math.sin(signedTilt) * len;
         }
       };
-      const resolveCueTipTarget = (dir, pullAmount, spinWorld) =>
-        TMP_VEC3_CUE_TIP_TARGET.set(
-          cue.pos.x - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
+      const resolveCueTipTarget = (dir, pullAmount, spinWorld, anchor = cue?.pos) => {
+        const anchorX = anchor?.x ?? cue?.pos?.x ?? 0;
+        const anchorY = anchor?.y ?? cue?.pos?.y ?? 0;
+        return TMP_VEC3_CUE_TIP_TARGET.set(
+          anchorX - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
           CUE_Y + spinWorld.y,
-          cue.pos.y - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
+          anchorY - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
         );
+      };
       const applyCueStickTransform = (tipTarget) => {
         TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
         TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
@@ -20352,6 +20382,8 @@ const powerRef = useRef(hud.power);
           const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
           dir.normalize();
+          cueAnchorRef.current.set(cue.pos.x, cue.pos.y);
+          const cueAnchor = cueAnchorRef.current;
           const backInfo = calcTarget(
             cue,
             aimDir.clone().multiplyScalar(-1),
@@ -20410,7 +20442,7 @@ const powerRef = useRef(hud.power);
           TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
           TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
           const buildCuePosition = (pullAmount = visualPull) => {
-            const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld);
+            const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld, cueAnchor);
             return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
@@ -20419,20 +20451,15 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(warmupPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
-          const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
-          const backSpinRetreat =
-            BALL_R * (1 + 2.25 * clampedPower) * backSpinWeight;
-          const impactPos = buildCuePosition(0);
+          const topSpinFollowWeight = Math.max(0, physicsSpin.y || 0);
+          const followThrough = Math.min(
+            BALL_R * 0.35,
+            BALL_R * (0.08 + clampedPower * 0.22) * topSpinFollowWeight
+          );
+          const impactPos = buildCuePosition(-followThrough);
           const forwardDistance = Math.max(0, startPos.distanceTo(impactPos));
           const strokeDistance = Math.max(forwardDistance, CUE_PULL_MIN_VISUAL);
-          const retreatDistance = Math.max(
-            BALL_R * 1.5,
-            Math.min(strokeDistance, BALL_R * 8)
-          );
-          const totalRetreat = retreatDistance + backSpinRetreat;
-          const settlePos = impactPos
-            .clone()
-            .sub(dir.clone().multiplyScalar(totalRetreat));
+          const settlePos = impactPos.clone();
           cueStick.visible = true;
           cueStick.position.copy(warmupPos);
           const cueBallSpeed = Math.max(predictedCueSpeed, 1e-4);
@@ -20440,24 +20467,9 @@ const powerRef = useRef(hud.power);
             1,
             (forwardDistance / cueBallSpeed) * 1000
           );
-          const settleSpeed = THREE.MathUtils.lerp(
-            CUE_FOLLOW_SPEED_MIN,
-            CUE_FOLLOW_SPEED_MAX,
-            curvedPower
-          );
-          const settleDurationBase = THREE.MathUtils.clamp(
-            (totalRetreat / Math.max(settleSpeed, 1e-4)) * 1000 * (backSpinWeight > 0 ? 0.82 : 1),
-            CUE_FOLLOW_MIN_MS,
-            CUE_FOLLOW_MAX_MS
-          );
-          const aiStrokeScale =
-            aiOpponentEnabled && hudRef.current?.turn === 1 ? AI_STROKE_TIME_SCALE : 1;
-          const playerStrokeScale = isAiStroke ? 1 : PLAYER_STROKE_TIME_SCALE;
           const forwardDuration =
             forwardDurationBase * CUE_STROKE_VISUAL_SLOWDOWN;
-          const settleDuration = isAiStroke
-            ? 0
-            : settleDurationBase * aiStrokeScale * playerStrokeScale * CUE_STROKE_VISUAL_SLOWDOWN;
+          const settleDuration = 0;
           const pullbackDuration = isAiStroke
             ? AI_CUE_PULLBACK_DURATION_MS * CUE_STROKE_VISUAL_SLOWDOWN
             : Math.max(
