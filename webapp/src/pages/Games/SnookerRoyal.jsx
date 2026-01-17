@@ -20299,78 +20299,89 @@ const powerRef = useRef(hud.power);
           const liftStrength = normalizeCueLift(liftAngle);
           const physicsSpin = mapSpinForPhysics(appliedSpin);
           const ranges = spinRangeRef.current || {};
-          const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const baseSide = physicsSpin.x * (ranges.side ?? 0);
-          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (physicsSpin.y < 0) {
-            spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (physicsSpin.y > 0) {
-            spinTop *= TOPSPIN_MULTIPLIER;
-          }
-          cue.vel.copy(base);
-          if (cue.spin) {
-            cue.spin.set(spinSide, spinTop);
-          }
-          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-          cue.spinMode =
-            spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
-          const swerveSettings = resolveSwerveSettings(
-            physicsSpin,
-            clampedPower,
-            cue.spinMode === 'swerve',
-            liftStrength
-          );
-          cue.swerveStrength = cue.spinMode === 'swerve' ? swerveSettings.intensity : 0;
-          cue.swervePowerStrength = cue.spinMode === 'swerve' ? clampedPower : 0;
-          resetSpinRef.current?.();
-          cueLiftRef.current.lift = 0;
-          cueLiftRef.current.startLift = 0;
-          cue.impacted = false;
-          cue.launchDir = aimDir.clone().normalize();
-          maxPowerLiftTriggered = false;
-          cue.lift = 0;
-          cue.liftVel = 0;
-          const topSpinWeight = Math.max(0, physicsSpin.y || 0);
-          if (
-            clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
-            liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
-            topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
-          ) {
-            const powerRatio = THREE.MathUtils.clamp(
-              (clampedPower - JUMP_SHOT_POWER_THRESHOLD) /
-                Math.max(1 - JUMP_SHOT_POWER_THRESHOLD, 1e-4),
-              0,
-              1
+          let strikeApplied = false;
+          let strikeTimeout = null;
+          const applyStrikeImpulse = () => {
+            if (strikeApplied) return;
+            strikeApplied = true;
+            if (strikeTimeout) {
+              clearTimeout(strikeTimeout);
+              strikeTimeout = null;
+            }
+            const powerSpinScale = 0.55 + clampedPower * 0.45;
+            const baseSide = physicsSpin.x * (ranges.side ?? 0);
+            let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
+            let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+            if (physicsSpin.y < 0) {
+              spinTop *= BACKSPIN_MULTIPLIER;
+            } else if (physicsSpin.y > 0) {
+              spinTop *= TOPSPIN_MULTIPLIER;
+            }
+            cue.vel.copy(base);
+            if (cue.spin) {
+              cue.spin.set(spinSide, spinTop);
+            }
+            if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+            cue.spinMode =
+              spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
+            const swerveSettings = resolveSwerveSettings(
+              physicsSpin,
+              clampedPower,
+              cue.spinMode === 'swerve',
+              liftStrength
             );
-            const liftRatio = THREE.MathUtils.clamp(
-              (liftStrength - JUMP_SHOT_LIFT_THRESHOLD) /
-                Math.max(1 - JUMP_SHOT_LIFT_THRESHOLD, 1e-4),
-              0,
-              1
-            );
-            const spinRatio = THREE.MathUtils.clamp(
-              (topSpinWeight - JUMP_SHOT_TOPSPIN_THRESHOLD) /
-                Math.max(1 - JUMP_SHOT_TOPSPIN_THRESHOLD, 1e-4),
-              0,
-              1
-            );
-            const jumpStrength =
-              (0.25 + 0.75 * powerRatio) *
-              (0.4 + 0.6 * liftRatio) *
-              (0.55 + 0.45 * spinRatio);
-            const jumpVelocity = MAX_POWER_BOUNCE_IMPULSE * JUMP_SHOT_LAUNCH_SCALE * jumpStrength;
-            const physicsHeight =
-              (jumpVelocity * jumpVelocity) /
-              (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
-            const jumpHeight = Math.min(
-              MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE,
-              physicsHeight
-            );
-            cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
-            cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
-          }
-          playCueHit(clampedPower * 0.6);
+            cue.swerveStrength = cue.spinMode === 'swerve' ? swerveSettings.intensity : 0;
+            cue.swervePowerStrength = cue.spinMode === 'swerve' ? clampedPower : 0;
+            resetSpinRef.current?.();
+            cueLiftRef.current.lift = 0;
+            cueLiftRef.current.startLift = 0;
+            cue.impacted = false;
+            cue.launchDir = aimDir.clone().normalize();
+            maxPowerLiftTriggered = false;
+            cue.lift = 0;
+            cue.liftVel = 0;
+            const topSpinWeight = Math.max(0, physicsSpin.y || 0);
+            if (
+              clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
+              liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
+              topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
+            ) {
+              const powerRatio = THREE.MathUtils.clamp(
+                (clampedPower - JUMP_SHOT_POWER_THRESHOLD) /
+                  Math.max(1 - JUMP_SHOT_POWER_THRESHOLD, 1e-4),
+                0,
+                1
+              );
+              const liftRatio = THREE.MathUtils.clamp(
+                (liftStrength - JUMP_SHOT_LIFT_THRESHOLD) /
+                  Math.max(1 - JUMP_SHOT_LIFT_THRESHOLD, 1e-4),
+                0,
+                1
+              );
+              const spinRatio = THREE.MathUtils.clamp(
+                (topSpinWeight - JUMP_SHOT_TOPSPIN_THRESHOLD) /
+                  Math.max(1 - JUMP_SHOT_TOPSPIN_THRESHOLD, 1e-4),
+                0,
+                1
+              );
+              const jumpStrength =
+                (0.25 + 0.75 * powerRatio) *
+                (0.4 + 0.6 * liftRatio) *
+                (0.55 + 0.45 * spinRatio);
+              const jumpVelocity =
+                MAX_POWER_BOUNCE_IMPULSE * JUMP_SHOT_LAUNCH_SCALE * jumpStrength;
+              const physicsHeight =
+                (jumpVelocity * jumpVelocity) /
+                (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
+              const jumpHeight = Math.min(
+                MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE,
+                physicsHeight
+              );
+              cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
+              cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
+            }
+            playCueHit(clampedPower * 0.6);
+          };
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -20521,6 +20532,8 @@ const powerRef = useRef(hud.power);
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
           const settleTime = impactTime + settleDuration;
+          const strikeDelay = Math.max(0, impactTime - startTime);
+          strikeTimeout = window.setTimeout(applyStrikeImpulse, strikeDelay);
           const forwardPreviewHold =
             impactTime +
             Math.min(
@@ -20576,6 +20589,9 @@ const powerRef = useRef(hud.power);
             };
           }
           const animateStroke = (now) => {
+            if (!strikeApplied && now >= impactTime) {
+              applyStrikeImpulse();
+            }
             if (now <= pullEndTime && pullbackDuration > 0) {
               const t = pullbackDuration > 0 ? THREE.MathUtils.clamp((now - startTime) / pullbackDuration, 0, 1) : 1;
               cueStick.position.lerpVectors(warmupPos, startPos, t);
@@ -20586,6 +20602,9 @@ const powerRef = useRef(hud.power);
               const t = settleDuration > 0 ? THREE.MathUtils.clamp((now - impactTime) / settleDuration, 0, 1) : 1;
               cueStick.position.lerpVectors(impactPos, settlePos, t);
             } else {
+              if (!strikeApplied) {
+                applyStrikeImpulse();
+              }
               cueStick.visible = false;
               cueAnimating = false;
               cuePullCurrentRef.current = 0;
