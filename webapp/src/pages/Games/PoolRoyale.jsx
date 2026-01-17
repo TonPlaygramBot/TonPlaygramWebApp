@@ -1447,6 +1447,7 @@ const CUE_PULL_MIN_VISUAL = BALL_R * 2.1; // guarantee a clear visible pull even
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
 const CUE_PULL_VISUAL_MULTIPLIER = 1.85;
 const CUE_PULL_SMOOTHING = 0.55;
+const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
@@ -11702,6 +11703,7 @@ function PoolRoyaleGame({
     []
   );
   const shotCameraHoldTimeoutRef = useRef(null);
+  const cueStrokeStateRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
@@ -17298,6 +17300,74 @@ const powerRef = useRef(hud.power);
           syncCueShadow();
         };
 
+        const updateCueStroke = (now) => {
+          const stroke = cueStrokeStateRef.current;
+          if (!stroke || !cueStick) {
+            cueAnimating = false;
+            return false;
+          }
+          const {
+            startTime,
+            pullEndTime,
+            impactTime,
+            settleTime,
+            warmupPos,
+            startPos,
+            impactPos,
+            settlePos,
+            pullbackDuration,
+            forwardDuration,
+            settleDuration
+          } = stroke;
+          cueStick.visible = true;
+          cueAnimating = true;
+          if (now <= pullEndTime && pullbackDuration > 0) {
+            const t = THREE.MathUtils.clamp(
+              (now - startTime) / Math.max(pullbackDuration, 1e-6),
+              0,
+              1
+            );
+            cueStick.position.lerpVectors(warmupPos, startPos, t);
+            syncCueShadow();
+            return true;
+          }
+          if (now <= impactTime) {
+            const t = THREE.MathUtils.clamp(
+              (now - pullEndTime) / Math.max(forwardDuration, 1e-6),
+              0,
+              1
+            );
+            cueStick.position.lerpVectors(startPos, impactPos, t);
+            syncCueShadow();
+            return true;
+          }
+          if (now <= settleTime && settleDuration > 0) {
+            const t = THREE.MathUtils.clamp(
+              (now - impactTime) / Math.max(settleDuration, 1e-6),
+              0,
+              1
+            );
+            cueStick.position.lerpVectors(impactPos, settlePos, t);
+            syncCueShadow();
+            return true;
+          }
+          cueStick.visible = false;
+          cueAnimating = false;
+          cuePullCurrentRef.current = 0;
+          cuePullTargetRef.current = 0;
+          cueStrokeStateRef.current = null;
+          syncCueShadow();
+          if (cameraRef.current && sphRef.current) {
+            topViewRef.current = false;
+            topViewLockedRef.current = false;
+            setIsTopDownView(false);
+            const sph = sphRef.current;
+            sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+            updateCamera();
+          }
+          return false;
+        };
+
         const updateReplayTrail = (cuePath, targetTime) => {
           if (!cuePath || cuePath.length === 0) {
             replayTrail.visible = false;
@@ -17408,6 +17478,7 @@ const powerRef = useRef(hud.power);
           const trimmed = trimReplayRecording(shotRecording);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
+          cueStrokeStateRef.current = null;
           setReplayActive(true);
           overheadBroadcastVariantRef.current = 'replay';
           storeReplayCameraFrame();
@@ -19846,10 +19917,11 @@ const powerRef = useRef(hud.power);
       };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
+        const curved = Math.pow(ratio, CUE_POWER_GAMMA);
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
         const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
         const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
-        const target = amplifiedMax * ratio * CUE_PULL_VISUAL_MULTIPLIER;
+        const target = amplifiedMax * curved * CUE_PULL_VISUAL_MULTIPLIER;
         return Math.min(target, visualMax);
       };
       const clampCueTipOffset = (vec, limit = BALL_R) => {
@@ -19992,6 +20064,7 @@ const powerRef = useRef(hud.power);
           }
           lastPocketBallRef.current = null;
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
+          const curvedPower = Math.pow(clampedPower, CUE_POWER_GAMMA);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
           if (isMaxPowerShot) {
@@ -20018,7 +20091,7 @@ const powerRef = useRef(hud.power);
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
-          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
+          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = aimDir
             .clone()
@@ -20307,7 +20380,7 @@ const powerRef = useRef(hud.power);
           const forwardSpeed = THREE.MathUtils.lerp(
             CUE_STROKE_SPEED_MIN,
             CUE_STROKE_SPEED_MAX,
-            clampedPower
+            curvedPower
           );
           const forwardDurationBase = THREE.MathUtils.clamp(
             (forwardDistance / Math.max(forwardSpeed, 1e-4)) * 1000,
@@ -20317,7 +20390,7 @@ const powerRef = useRef(hud.power);
           const settleSpeed = THREE.MathUtils.lerp(
             CUE_FOLLOW_SPEED_MIN,
             CUE_FOLLOW_SPEED_MAX,
-            clampedPower
+            curvedPower
           );
           const settleDurationBase = THREE.MathUtils.clamp(
             (totalRetreat / Math.max(settleSpeed, 1e-4)) * 1000 * (backSpinWeight > 0 ? 0.82 : 1),
@@ -20427,34 +20500,19 @@ const powerRef = useRef(hud.power);
               startOffset: strokeStartOffset
             };
           }
-          const animateStroke = (now) => {
-            if (now <= pullEndTime && pullbackDuration > 0) {
-              const t = pullbackDuration > 0 ? THREE.MathUtils.clamp((now - startTime) / pullbackDuration, 0, 1) : 1;
-              cueStick.position.lerpVectors(warmupPos, startPos, t);
-            } else if (now <= impactTime) {
-              const t = forwardDuration > 0 ? THREE.MathUtils.clamp((now - pullEndTime) / forwardDuration, 0, 1) : 1;
-              cueStick.position.lerpVectors(startPos, impactPos, t);
-            } else if (now <= settleTime) {
-              const t = settleDuration > 0 ? THREE.MathUtils.clamp((now - impactTime) / settleDuration, 0, 1) : 1;
-              cueStick.position.lerpVectors(impactPos, settlePos, t);
-            } else {
-              cueStick.visible = false;
-              cueAnimating = false;
-              cuePullCurrentRef.current = 0;
-              cuePullTargetRef.current = 0;
-              if (cameraRef.current && sphRef.current) {
-                topViewRef.current = false;
-                topViewLockedRef.current = false;
-                setIsTopDownView(false);
-                const sph = sphRef.current;
-                sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-                updateCamera();
-              }
-              return;
-            }
-            requestAnimationFrame(animateStroke);
+          cueStrokeStateRef.current = {
+            startTime,
+            pullEndTime,
+            impactTime,
+            settleTime,
+            warmupPos: warmupPos.clone(),
+            startPos: startPos.clone(),
+            impactPos: impactPos.clone(),
+            settlePos: settlePos.clone(),
+            pullbackDuration,
+            forwardDuration,
+            settleDuration
           };
-          requestAnimationFrame(animateStroke);
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -22711,6 +22769,7 @@ const powerRef = useRef(hud.power);
           return;
         }
         const nowMs = now;
+        updateCueStroke(nowMs);
         if (remoteShotActiveRef.current && remoteShotUntilRef.current > 0 && nowMs > remoteShotUntilRef.current) {
           remoteShotActiveRef.current = false;
         }
