@@ -2853,18 +2853,15 @@ const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sh
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 const CLOTH_PATTERN_SCALE = 0.656; // 20% larger pattern footprint for a looser weave
 const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1; // keep original Poly Haven pattern mapping
-const POLYHAVEN_ANISOTROPY_BOOST = 9;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 0.62; // emphasize Poly Haven cloth patterns for clearer weave detail
+const POLYHAVEN_ANISOTROPY_BOOST = 7;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
-const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(2.05, 2.05);
+const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.7, 1.7);
 const CLOTH_ROUGHNESS_BASE = 0.82;
 const CLOTH_ROUGHNESS_TARGET = 0.78;
 const CLOTH_BRIGHTNESS_LERP = 0.05;
-const POLYHAVEN_MAP_CONTRAST = 1.12;
-const POLYHAVEN_MAP_BRIGHTNESS = 1.03;
-const POLYHAVEN_MAP_DESATURATION = 0.28;
 const CLOTH_PATTERN_OVERRIDES = Object.freeze({
   polar_fleece: { repeatScale: 0.94 } // 10% larger pattern to emphasize the fleece nap
 });
@@ -3151,54 +3148,6 @@ const createClothTextures = (() => {
     }
   };
 
-  const enhancePolyHavenColorMap = (texture) => {
-    if (!texture || !texture.image || typeof document === 'undefined') return texture;
-    const image = texture.image;
-    const width = image.naturalWidth || image.videoWidth || image.width;
-    const height = image.naturalHeight || image.videoHeight || image.height;
-    if (!width || !height) return texture;
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return texture;
-    try {
-      ctx.drawImage(image, 0, 0, width, height);
-      const imageData = ctx.getImageData(0, 0, width, height);
-      const data = imageData.data;
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const luminance = r * 0.2126 + g * 0.7152 + b * 0.0722;
-        const desat = POLYHAVEN_MAP_DESATURATION;
-        let nr = r + (luminance - r) * desat;
-        let ng = g + (luminance - g) * desat;
-        let nb = b + (luminance - b) * desat;
-        nr = (nr - 128) * POLYHAVEN_MAP_CONTRAST + 128;
-        ng = (ng - 128) * POLYHAVEN_MAP_CONTRAST + 128;
-        nb = (nb - 128) * POLYHAVEN_MAP_CONTRAST + 128;
-        nr = Math.max(0, Math.min(255, nr * POLYHAVEN_MAP_BRIGHTNESS));
-        ng = Math.max(0, Math.min(255, ng * POLYHAVEN_MAP_BRIGHTNESS));
-        nb = Math.max(0, Math.min(255, nb * POLYHAVEN_MAP_BRIGHTNESS));
-        data[i] = nr;
-        data[i + 1] = ng;
-        data[i + 2] = nb;
-      }
-      ctx.putImageData(imageData, 0, 0);
-      texture.dispose();
-      const enhanced = new THREE.CanvasTexture(canvas);
-      applySRGBColorSpace(enhanced);
-      enhanced.userData = {
-        ...(enhanced.userData || {}),
-        polyhavenEnhanced: true
-      };
-      return enhanced;
-    } catch (err) {
-      return texture;
-    }
-  };
-
   const generateProceduralClothTextures = (preset) => {
     if (typeof document === 'undefined') {
       return { map: null, bump: null };
@@ -3443,9 +3392,6 @@ const createClothTextures = (() => {
           loadTextureWithFallbacks(loader, roughnessCandidates, false)
         ]);
 
-        if (map) {
-          map = enhancePolyHavenColorMap(neutralizePolyHavenColorMap(map));
-        }
         [map, normal, roughness].forEach((tex) =>
           applyTextureDefaults(tex, { isPolyHaven: true })
         );
@@ -11761,8 +11707,6 @@ function PoolRoyaleGame({
   );
   const shotCameraHoldTimeoutRef = useRef(null);
   const cueStrokeStateRef = useRef(null);
-  const cueAnchorRef = useRef(new THREE.Vector2());
-  const cueAnchorActiveRef = useRef(false);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
@@ -11839,17 +11783,7 @@ const showRuleToast = useCallback((message) => {
 }, []);
 const powerRef = useRef(hud.power);
   const applyPower = useCallback((nextPower) => {
-    const previousPower = powerRef.current ?? 0;
     const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
-    if (clampedPower > 0 && previousPower === 0) {
-      const cueBall = cueRef.current;
-      if (cueBall?.pos) {
-        cueAnchorRef.current.copy(cueBall.pos);
-        cueAnchorActiveRef.current = true;
-      }
-    } else if (clampedPower === 0 && previousPower > 0) {
-      cueAnchorActiveRef.current = false;
-    }
     powerRef.current = clampedPower;
     setHud((prev) => ({ ...prev, power: clampedPower }));
   }, []);
@@ -17488,11 +17422,6 @@ const powerRef = useRef(hud.power);
           cuePullCurrentRef.current = 0;
           cuePullTargetRef.current = 0;
           cueStrokeStateRef.current = null;
-          cueAnchorActiveRef.current = false;
-          const cueBall = cueRef.current || cue;
-          if (cueBall?.pos) {
-            cueAnchorRef.current.copy(cueBall.pos);
-          }
           syncCueShadow();
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -19004,16 +18933,12 @@ const powerRef = useRef(hud.power);
           info.buttHeightOffset = Math.sin(signedTilt) * len;
         }
       };
-      const resolveCueTipTarget = (dir, pullAmount, spinWorld, anchorOverride = null) => {
-        const anchor =
-          anchorOverride ??
-          (cueAnchorActiveRef.current ? cueAnchorRef.current : cue.pos);
-        return TMP_VEC3_CUE_TIP_TARGET.set(
-          anchor.x - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
+      const resolveCueTipTarget = (dir, pullAmount, spinWorld) =>
+        TMP_VEC3_CUE_TIP_TARGET.set(
+          cue.pos.x - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
           CUE_Y + spinWorld.y,
-          anchor.y - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
+          cue.pos.y - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
         );
-      };
       const applyCueStickTransform = (tipTarget) => {
         TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
         TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
@@ -20484,11 +20409,8 @@ const powerRef = useRef(hud.power);
           }
           TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
           TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
-          const cueAnchor = cue?.pos ? cue.pos.clone() : cueAnchorRef.current.clone();
-          cueAnchorRef.current.copy(cueAnchor);
-          cueAnchorActiveRef.current = true;
           const buildCuePosition = (pullAmount = visualPull) => {
-            const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld, cueAnchor);
+            const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld);
             return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
@@ -20500,13 +20422,7 @@ const powerRef = useRef(hud.power);
           const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
           const backSpinRetreat =
             BALL_R * (1 + 2.25 * clampedPower) * backSpinWeight;
-          const topspinWeight = Math.max(0, physicsSpin.y || 0);
-          const followThrough =
-            Math.min(
-              BALL_R * 0.45,
-              (BALL_R * 0.18 + BALL_R * 0.32 * clampedPower) * topspinWeight
-            );
-          const impactPos = buildCuePosition(-followThrough);
+          const impactPos = buildCuePosition(0);
           const forwardDistance = Math.max(0, startPos.distanceTo(impactPos));
           const strokeDistance = Math.max(forwardDistance, CUE_PULL_MIN_VISUAL);
           const retreatDistance = Math.max(
