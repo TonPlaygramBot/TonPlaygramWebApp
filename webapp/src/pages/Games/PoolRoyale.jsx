@@ -1377,8 +1377,8 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Pool Royale power pass: lift overall shot strength by another 25%.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 1.35;
-const SHOT_SPEED_MULTIPLIER = 1.5; // boost overall shot speed by 50% for snappier ball travel
+const SHOT_POWER_MULTIPLIER = 1.6875; // increase shot strength by 25%
+const SHOT_SPEED_MULTIPLIER = 1.875; // boost overall shot speed by 25% to match the added power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1442,7 +1442,7 @@ const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.02; // keep the tip aligned without overreaching the cue ball
 const CUE_TIP_GAP = BALL_R * 0.95 + CUE_TIP_CLEARANCE; // keep the tip aligned while allowing visible contact on impact
-const CUE_IMPACT_OVERTRAVEL = BALL_R * 0.08; // keep the cue closer to the contact point for precise tip alignment
+const CUE_IMPACT_OVERTRAVEL = 0; // stop the cue exactly at contact for cleaner impact timing
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 2.1; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -4735,7 +4735,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.88; // lift the standing orbit slightly higher for a clearer top surface view
+const STANDING_VIEW_PHI = 0.84; // lift the standing orbit slightly higher for a clearer top surface view
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -5509,7 +5509,13 @@ const pocketIdFromCenter = (center) => {
   }
   return center.x < 0 ? 'BL' : 'BR';
 };
-const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
+const allStopped = (balls) =>
+  balls.every((ball) => {
+    if (!ball?.active) return true;
+    const speedSq = ball.vel?.lengthSq?.();
+    if (!Number.isFinite(speedSq)) return true;
+    return speedSq < STOP_EPS * STOP_EPS;
+  });
 
 function makeClothTexture(
   palette = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID]?.colors
@@ -20378,10 +20384,10 @@ const powerRef = useRef(hud.power);
             .sub(dir.clone().multiplyScalar(totalRetreat));
           cueStick.visible = true;
           cueStick.position.copy(warmupPos);
-          const forwardSpeed = THREE.MathUtils.lerp(
+          const forwardSpeed = THREE.MathUtils.clamp(
+            base.length(),
             CUE_STROKE_SPEED_MIN,
-            CUE_STROKE_SPEED_MAX,
-            curvedPower
+            CUE_STROKE_SPEED_MAX
           );
           const forwardDurationBase = THREE.MathUtils.clamp(
             (forwardDistance / Math.max(forwardSpeed, 1e-4)) * 1000,
@@ -26292,7 +26298,7 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute right-2 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          className={`absolute right-3 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
             bottom: `${6 + chromeUiLiftPx}px`,
             transform: `scale(${uiScale * 0.88})`,
