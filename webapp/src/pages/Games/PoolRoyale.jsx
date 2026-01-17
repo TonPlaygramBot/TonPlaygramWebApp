@@ -17376,13 +17376,7 @@ const powerRef = useRef(hud.power);
             forwardDuration,
             settleDuration,
             rotationX,
-            rotationY,
-            anchor,
-            dir,
-            spinWorld,
-            startPull,
-            followThrough,
-            strikeDip
+            rotationY
           } = stroke;
           const baseRotationY = Number.isFinite(rotationY)
             ? rotationY
@@ -17410,24 +17404,7 @@ const powerRef = useRef(hud.power);
             const wobble = Math.sin(t * Math.PI) * CUE_STRIKE_WOBBLE;
             cueStick.rotation.y = baseRotationY + wobble;
             cueStick.rotation.x = baseRotationX;
-            if (anchor && dir && spinWorld && Number.isFinite(startPull)) {
-              const pullAmount = THREE.MathUtils.lerp(
-                startPull,
-                -(followThrough ?? 0),
-                eased
-              );
-              const tipTarget = resolveCueTipTargetFromAnchor(
-                anchor,
-                dir,
-                pullAmount,
-                spinWorld,
-                (strikeDip ?? CUE_STRIKE_DIP) * eased
-              );
-              applyCueStickTransform(tipTarget);
-              clampCueButtAboveCushion(tipTarget);
-            } else {
-              cueStick.position.lerpVectors(startPos, impactPos, eased);
-            }
+            cueStick.position.lerpVectors(startPos, impactPos, eased);
             syncCueShadow();
             return true;
           }
@@ -18960,16 +18937,6 @@ const powerRef = useRef(hud.power);
           CUE_Y + spinWorld.y,
           cue.pos.y - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
         );
-      const resolveCueTipTargetFromAnchor = (anchor, dir, pullAmount, spinWorld, dip = 0) => {
-        const baseX = Number.isFinite(anchor?.x) ? anchor.x : cue.pos.x;
-        const baseZ = Number.isFinite(anchor?.z) ? anchor.z : cue.pos.y;
-        const baseY = Number.isFinite(anchor?.y) ? anchor.y : CUE_Y;
-        return TMP_VEC3_CUE_TIP_TARGET.set(
-          baseX - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
-          baseY + spinWorld.y - dip,
-          baseZ - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
-        );
-      };
       const applyCueStickTransform = (tipTarget) => {
         TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
         TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
@@ -20438,7 +20405,6 @@ const powerRef = useRef(hud.power);
             return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
-          const cueAnchor = new THREE.Vector3(cue.pos.x, CUE_Y, cue.pos.y);
           const startPos = buildCuePosition(visualPull);
           const warmupPos = startPos.clone();
           cueStick.position.copy(startPos);
@@ -20548,13 +20514,7 @@ const powerRef = useRef(hud.power);
             forwardDuration,
             settleDuration,
             rotationX: cueStick.rotation.x,
-            rotationY: cueStick.rotation.y,
-            anchor: cueAnchor.clone(),
-            dir: dir.clone(),
-            spinWorld: spinWorld.clone(),
-            startPull: visualPull,
-            followThrough,
-            strikeDip: CUE_STRIKE_DIP
+            rotationY: cueStick.rotation.y
           };
         };
         let aiThinkingHandle = null;
