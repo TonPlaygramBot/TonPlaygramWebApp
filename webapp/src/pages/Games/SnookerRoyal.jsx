@@ -1475,6 +1475,11 @@ const CUE_STROKE_MIN_MS = 95;
 const CUE_STROKE_MAX_MS = 420;
 const CUE_STROKE_SPEED_MIN = BALL_R * 18;
 const CUE_STROKE_SPEED_MAX = BALL_R * 32;
+const CUE_STRIKE_WINDOW_MS = 45;
+const CUE_FOLLOW_THROUGH_RATIO = 0.18;
+const CUE_FOLLOW_THROUGH_MIN_MS = 60;
+const CUE_FOLLOW_THROUGH_MAX_MS = 180;
+const CUE_CAMERA_STRIKE_LOCK_BUFFER_MS = 240;
 const CUE_FOLLOW_MIN_MS = 180;
 const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
@@ -12287,6 +12292,23 @@ const powerRef = useRef(hud.power);
   const aimCurveControlRef = useRef(new THREE.Vector3());
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
+  const cueShotStateRef = useRef({
+    state: 'IDLE',
+    startTime: 0,
+    pullbackDuration: 0,
+    releaseDuration: 0,
+    strikeDuration: 0,
+    followThroughDuration: 0,
+    recoverDuration: 0,
+    warmupPos: null,
+    startPos: null,
+    strikePos: null,
+    followPos: null,
+    recoverPos: null,
+    rotationX: 0,
+    rotationY: 0
+  });
+  const cueShotLockRef = useRef(null);
   const cueLiftRef = useRef({
     active: false,
     startY: 0,
@@ -15737,6 +15759,35 @@ const powerRef = useRef(hud.power);
             broadcastArgs.focusWorld = resolvedTarget.clone();
             broadcastArgs.targetWorld = resolvedTarget.clone();
             broadcastArgs.lerp = 0.08;
+          } else if (
+            cueShotLockRef.current &&
+            performance.now() < cueShotLockRef.current.until
+          ) {
+            const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+            const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+            const lockTarget =
+              cueShotLockRef.current.target?.clone?.() ??
+              new THREE.Vector3(playerOffsetRef.current * scale, minTargetY, 0);
+            lockTarget.y = Math.max(lockTarget.y ?? 0, minTargetY);
+            const lockPosition =
+              cueShotLockRef.current.position?.clone?.() ?? camera.position.clone();
+            if (lockPosition.y < minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale) {
+              lockPosition.y = minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale;
+            }
+            const lockFov = Number.isFinite(cueShotLockRef.current.fov)
+              ? cueShotLockRef.current.fov
+              : camera.fov;
+            if (Number.isFinite(lockFov) && camera.fov !== lockFov) {
+              camera.fov = lockFov;
+              camera.updateProjectionMatrix();
+            }
+            camera.position.copy(lockPosition);
+            camera.lookAt(lockTarget);
+            renderCamera = camera;
+            lookTarget = lockTarget;
+            broadcastArgs.focusWorld = lockTarget.clone();
+            broadcastArgs.targetWorld = lockTarget.clone();
+            broadcastArgs.lerp = 0;
           } else if (!cameraHoldActive && activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
@@ -17368,21 +17419,41 @@ const powerRef = useRef(hud.power);
             normalizeVector3Snapshot(stroke.warmup, stroke.start) ??
             normalizeVector3Snapshot(stroke.start);
           const startSnap = normalizeVector3Snapshot(stroke.start, warmupSnap);
-          const impactSnap = normalizeVector3Snapshot(stroke.impact, startSnap);
-          const settleSnap = normalizeVector3Snapshot(stroke.settle, impactSnap);
-          if (!warmupSnap || !startSnap || !impactSnap || !settleSnap) {
+          const strikeSnap = normalizeVector3Snapshot(
+            stroke.strike ?? stroke.impact,
+            startSnap
+          );
+          const followSnap = normalizeVector3Snapshot(
+            stroke.follow ?? stroke.impact ?? stroke.strike,
+            strikeSnap
+          );
+          const recoverSnap = normalizeVector3Snapshot(
+            stroke.recover ?? stroke.settle,
+            followSnap
+          );
+          if (!warmupSnap || !startSnap || !strikeSnap || !followSnap || !recoverSnap) {
             cueStick.visible = false;
             cueAnimating = false;
             return;
           }
           const pullback = Math.max(0, stroke.pullback ?? stroke.pullbackDuration ?? 0);
-          const forward = Math.max(1e-6, stroke.forward ?? stroke.forwardDuration ?? 0);
-          const settleTime = Math.max(0, stroke.settleTime ?? stroke.settleDuration ?? 0);
+          const release = Math.max(
+            1e-6,
+            stroke.releaseDuration ?? stroke.forward ?? stroke.forwardDuration ?? 0
+          );
+          const strikeWindow = Math.max(0, stroke.strikeDuration ?? 0);
+          const followThrough = Math.max(0, stroke.followThroughDuration ?? 0);
+          const recover = Math.max(
+            0,
+            stroke.recoverDuration ?? stroke.settleTime ?? stroke.settleDuration ?? 0
+          );
           const startOffset = Math.max(0, stroke.startOffset ?? 0);
           const localTime = targetTime - startOffset;
           const pullEnd = pullback;
-          const impactEnd = pullEnd + forward;
-          const settleEnd = impactEnd + settleTime;
+          const releaseEnd = pullEnd + release;
+          const strikeEnd = releaseEnd + strikeWindow;
+          const followEnd = strikeEnd + followThrough;
+          const recoverEnd = followEnd + recover;
           tmpReplayCueA.set(warmupSnap.x, warmupSnap.y, warmupSnap.z);
           tmpReplayCueB.set(startSnap.x, startSnap.y, startSnap.z);
           cueStick.rotation.y = Number.isFinite(stroke.rotationY)
@@ -17402,31 +17473,123 @@ const powerRef = useRef(hud.power);
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
             return;
           }
-          if (localTime <= impactEnd) {
+          if (localTime <= releaseEnd) {
             const t = THREE.MathUtils.clamp(
-              (localTime - pullEnd) / Math.max(forward, 1e-6),
+              (localTime - pullEnd) / Math.max(release, 1e-6),
               0,
               1
             );
             tmpReplayCueA.copy(tmpReplayCueB);
-            tmpReplayCueB.set(impactSnap.x, impactSnap.y, impactSnap.z);
+            tmpReplayCueB.set(strikeSnap.x, strikeSnap.y, strikeSnap.z);
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
             return;
           }
-          if (localTime <= settleEnd && settleTime > 0) {
+          if (localTime <= strikeEnd && strikeWindow > 0) {
+            cueStick.position.set(strikeSnap.x, strikeSnap.y, strikeSnap.z);
+            return;
+          }
+          if (localTime <= followEnd && followThrough > 0) {
             const t = THREE.MathUtils.clamp(
-              (localTime - impactEnd) / Math.max(settleTime, 1e-6),
+              (localTime - strikeEnd) / Math.max(followThrough, 1e-6),
               0,
               1
             );
-            tmpReplayCueA.set(impactSnap.x, impactSnap.y, impactSnap.z);
-            tmpReplayCueB.set(settleSnap.x, settleSnap.y, settleSnap.z);
+            tmpReplayCueA.set(strikeSnap.x, strikeSnap.y, strikeSnap.z);
+            tmpReplayCueB.set(followSnap.x, followSnap.y, followSnap.z);
+            cueStick.visible = true;
+            cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
+            return;
+          }
+          if (localTime <= recoverEnd && recover > 0) {
+            const t = THREE.MathUtils.clamp(
+              (localTime - followEnd) / Math.max(recover, 1e-6),
+              0,
+              1
+            );
+            tmpReplayCueA.set(followSnap.x, followSnap.y, followSnap.z);
+            tmpReplayCueB.set(recoverSnap.x, recoverSnap.y, recoverSnap.z);
             cueStick.visible = true;
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
             return;
           }
           cueStick.visible = false;
           cueAnimating = false;
+        };
+
+        const updateCueShotPlayback = (now) => {
+          const shot = cueShotStateRef.current;
+          if (!shot || shot.state === 'IDLE' || !cueStick) return;
+          const warmupPos = shot.warmupPos;
+          const startPos = shot.startPos;
+          const strikePos = shot.strikePos;
+          const followPos = shot.followPos;
+          const recoverPos = shot.recoverPos;
+          if (!warmupPos || !startPos || !strikePos || !followPos || !recoverPos) {
+            shot.state = 'IDLE';
+            cueAnimating = false;
+            cueStick.visible = false;
+            return;
+          }
+          const elapsed = Math.max(0, now - shot.startTime);
+          const pullEnd = shot.pullbackDuration;
+          const releaseEnd = pullEnd + shot.releaseDuration;
+          const strikeEnd = releaseEnd + shot.strikeDuration;
+          const followEnd = strikeEnd + shot.followThroughDuration;
+          const recoverEnd = followEnd + shot.recoverDuration;
+          cueStick.rotation.x = shot.rotationX ?? cueStick.rotation.x;
+          cueStick.rotation.y = shot.rotationY ?? cueStick.rotation.y;
+          cueStick.visible = true;
+          cueAnimating = true;
+          if (elapsed <= pullEnd && shot.pullbackDuration > 0) {
+            shot.state = 'CHARGING';
+            const t = THREE.MathUtils.clamp(
+              elapsed / Math.max(shot.pullbackDuration, 1e-6),
+              0,
+              1
+            );
+            cueStick.position.lerpVectors(warmupPos, startPos, t);
+            return;
+          }
+          if (elapsed <= releaseEnd) {
+            shot.state = 'RELEASE';
+            const t = THREE.MathUtils.clamp(
+              (elapsed - pullEnd) / Math.max(shot.releaseDuration, 1e-6),
+              0,
+              1
+            );
+            cueStick.position.lerpVectors(startPos, strikePos, t);
+            return;
+          }
+          if (elapsed <= strikeEnd) {
+            shot.state = 'STRIKE';
+            cueStick.position.copy(strikePos);
+            return;
+          }
+          if (elapsed <= followEnd && shot.followThroughDuration > 0) {
+            shot.state = 'FOLLOW_THROUGH';
+            const t = THREE.MathUtils.clamp(
+              (elapsed - strikeEnd) / Math.max(shot.followThroughDuration, 1e-6),
+              0,
+              1
+            );
+            cueStick.position.lerpVectors(strikePos, followPos, t);
+            return;
+          }
+          if (elapsed <= recoverEnd && shot.recoverDuration > 0) {
+            shot.state = 'RECOVER';
+            const t = THREE.MathUtils.clamp(
+              (elapsed - followEnd) / Math.max(shot.recoverDuration, 1e-6),
+              0,
+              1
+            );
+            cueStick.position.lerpVectors(followPos, recoverPos, t);
+            return;
+          }
+          shot.state = 'IDLE';
+          cueAnimating = false;
+          cueStick.visible = false;
+          cuePullCurrentRef.current = 0;
+          cuePullTargetRef.current = 0;
         };
 
         const updateReplayTrail = (cuePath, targetTime) => {
@@ -17471,21 +17634,57 @@ const powerRef = useRef(hud.power);
             ? {
                 warmup: normalizeStrokeVec(cueStrokeRaw.warmup),
                 start: normalizeStrokeVec(cueStrokeRaw.start ?? cueStrokeRaw.warmup),
-                impact: normalizeStrokeVec(cueStrokeRaw.impact ?? cueStrokeRaw.start),
-                settle: normalizeStrokeVec(cueStrokeRaw.settle ?? cueStrokeRaw.impact),
+                strike: normalizeStrokeVec(
+                  cueStrokeRaw.strike ?? cueStrokeRaw.impact ?? cueStrokeRaw.start
+                ),
+                follow: normalizeStrokeVec(
+                  cueStrokeRaw.follow ??
+                    cueStrokeRaw.impact ??
+                    cueStrokeRaw.strike ??
+                    cueStrokeRaw.start
+                ),
+                recover: normalizeStrokeVec(
+                  cueStrokeRaw.recover ?? cueStrokeRaw.settle ?? cueStrokeRaw.impact
+                ),
                 rotationX: Number.isFinite(cueStrokeRaw.rotationX) ? cueStrokeRaw.rotationX : 0,
                 rotationY: Number.isFinite(cueStrokeRaw.rotationY) ? cueStrokeRaw.rotationY : 0,
                 pullback: Math.max(0, cueStrokeRaw.pullbackDuration ?? cueStrokeRaw.pullback ?? 0),
-                forward: Math.max(0, cueStrokeRaw.forwardDuration ?? cueStrokeRaw.forward ?? 0),
-                settleTime: Math.max(
+                releaseDuration: Math.max(
                   0,
-                  cueStrokeRaw.settleDuration ?? cueStrokeRaw.settleTime ?? 0
+                  cueStrokeRaw.releaseDuration ??
+                    cueStrokeRaw.forwardDuration ??
+                    cueStrokeRaw.forward ??
+                    0
+                ),
+                strikeDuration: Math.max(0, cueStrokeRaw.strikeDuration ?? 0),
+                followThroughDuration: Math.max(
+                  0,
+                  cueStrokeRaw.followThroughDuration ?? 0
+                ),
+                recoverDuration: Math.max(
+                  0,
+                  cueStrokeRaw.recoverDuration ??
+                    cueStrokeRaw.settleDuration ??
+                    cueStrokeRaw.settleTime ??
+                    0
                 ),
                 startOffset: Math.max(0, cueStrokeRaw.startOffset ?? 0)
               }
             : null;
           if (frames.length === 0) return { frames, cuePath, duration: 0, cueStroke };
-          const duration = frames[frames.length - 1]?.t ?? 0;
+          const frameDuration = frames[frames.length - 1]?.t ?? 0;
+          const strokeDuration = cueStroke
+            ? Math.max(
+                0,
+                (cueStroke.startOffset ?? 0) +
+                  (cueStroke.pullback ?? 0) +
+                  (cueStroke.releaseDuration ?? 0) +
+                  (cueStroke.strikeDuration ?? 0) +
+                  (cueStroke.followThroughDuration ?? 0) +
+                  (cueStroke.recoverDuration ?? 0)
+              )
+            : 0;
+          const duration = Math.max(frameDuration, strokeDuration);
           return { frames, cuePath, duration, cueStroke };
         };
 
@@ -20442,20 +20641,17 @@ const powerRef = useRef(hud.power);
           const strokeDistance = Math.max(visualPull, CUE_PULL_MIN_VISUAL);
           const topSpinFollowThrough =
             BALL_R * (1 + 3 * clampedPower) * topSpinWeight;
+          const followThroughDistance = Math.max(
+            strokeDistance * CUE_FOLLOW_THROUGH_RATIO,
+            BALL_R * 0.6
+          );
           const backSpinRetreat =
             BALL_R * (1 + 2.25 * clampedPower) * backSpinWeight;
-          const forwardDistance = strokeDistance + topSpinFollowThrough;
-          const impactPos = startPos
-            .clone()
-            .add(dir.clone().multiplyScalar(Math.max(forwardDistance, 0)));
           const retreatDistance = Math.max(
             BALL_R * 1.5,
             Math.min(strokeDistance, BALL_R * 8)
           );
           const totalRetreat = retreatDistance + backSpinRetreat;
-          const settlePos = impactPos
-            .clone()
-            .sub(dir.clone().multiplyScalar(totalRetreat));
           cueStick.visible = true;
           cueStick.position.copy(warmupPos);
           const forwardSpeed = THREE.MathUtils.lerp(
@@ -20463,10 +20659,16 @@ const powerRef = useRef(hud.power);
             CUE_STROKE_SPEED_MAX,
             clampedPower
           );
+          const forwardDistance = Math.max(strokeDistance, 0);
           const forwardDurationBase = THREE.MathUtils.clamp(
             (forwardDistance / Math.max(forwardSpeed, 1e-4)) * 1000,
             CUE_STROKE_MIN_MS,
             CUE_STROKE_MAX_MS
+          );
+          const followThroughDurationBase = THREE.MathUtils.clamp(
+            ((followThroughDistance + topSpinFollowThrough) / Math.max(forwardSpeed, 1e-4)) * 1000,
+            CUE_FOLLOW_THROUGH_MIN_MS,
+            CUE_FOLLOW_THROUGH_MAX_MS
           );
           const settleSpeed = THREE.MathUtils.lerp(
             CUE_FOLLOW_SPEED_MIN,
@@ -20485,6 +20687,9 @@ const powerRef = useRef(hud.power);
           const forwardDuration = isAiStroke
             ? AI_CUE_FORWARD_DURATION_MS
             : forwardDurationBase * aiStrokeScale * playerStrokeScale * playerForwardScale;
+          const followThroughDuration = isAiStroke
+            ? Math.max(AI_CUE_FORWARD_DURATION_MS * 0.2, followThroughDurationBase)
+            : followThroughDurationBase * playerStrokeScale;
           const settleDuration = isAiStroke
             ? 0
             : settleDurationBase * aiStrokeScale * playerStrokeScale;
@@ -20494,15 +20699,26 @@ const powerRef = useRef(hud.power);
                 CUE_STROKE_MIN_MS * PLAYER_PULLBACK_MIN_SCALE,
                 forwardDuration * PLAYER_STROKE_PULLBACK_FACTOR
               );
+          const strikeDistance = Math.max(strokeDistance, 0);
+          const followDistance =
+            strikeDistance + followThroughDistance + topSpinFollowThrough;
+          const strikePos = startPos
+            .clone()
+            .add(dir.clone().multiplyScalar(strikeDistance));
+          const followPos = startPos
+            .clone()
+            .add(dir.clone().multiplyScalar(Math.max(followDistance, strikeDistance)));
+          const recoverPos = followPos
+            .clone()
+            .sub(dir.clone().multiplyScalar(totalRetreat));
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
-          const impactTime = pullEndTime + forwardDuration;
-          const settleTime = impactTime + settleDuration;
+          const strikeTime = pullEndTime + forwardDuration;
           const forwardPreviewHold =
-            impactTime +
+            strikeTime +
             Math.min(
               settleDuration,
-              Math.max(180, forwardDuration * 0.9)
+              Math.max(CUE_CAMERA_STRIKE_LOCK_BUFFER_MS, forwardDuration * 0.9)
             );
           powerImpactHoldRef.current = Math.max(
             powerImpactHoldRef.current || 0,
@@ -20542,44 +20758,50 @@ const powerRef = useRef(hud.power);
             shotRecording.cueStroke = {
               warmup: serializeVector3Snapshot(warmupPos),
               start: serializeVector3Snapshot(startPos),
-              impact: serializeVector3Snapshot(impactPos),
-              settle: serializeVector3Snapshot(settlePos),
+              strike: serializeVector3Snapshot(strikePos),
+              follow: serializeVector3Snapshot(followPos),
+              recover: serializeVector3Snapshot(recoverPos),
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
               pullbackDuration,
-              forwardDuration,
-              settleDuration,
+              releaseDuration: forwardDuration,
+              strikeDuration: CUE_STRIKE_WINDOW_MS,
+              followThroughDuration,
+              recoverDuration: settleDuration,
               startOffset: strokeStartOffset
             };
           }
-          const animateStroke = (now) => {
-            if (now <= pullEndTime && pullbackDuration > 0) {
-              const t = pullbackDuration > 0 ? THREE.MathUtils.clamp((now - startTime) / pullbackDuration, 0, 1) : 1;
-              cueStick.position.lerpVectors(warmupPos, startPos, t);
-            } else if (now <= impactTime) {
-              const t = forwardDuration > 0 ? THREE.MathUtils.clamp((now - pullEndTime) / forwardDuration, 0, 1) : 1;
-              cueStick.position.lerpVectors(startPos, impactPos, t);
-            } else if (now <= settleTime) {
-              const t = settleDuration > 0 ? THREE.MathUtils.clamp((now - impactTime) / settleDuration, 0, 1) : 1;
-              cueStick.position.lerpVectors(impactPos, settlePos, t);
-            } else {
-              cueStick.visible = false;
-              cueAnimating = false;
-              cuePullCurrentRef.current = 0;
-              cuePullTargetRef.current = 0;
-              if (cameraRef.current && sphRef.current) {
-                topViewRef.current = false;
-                topViewLockedRef.current = false;
-                setIsTopDownView(false);
-                const sph = sphRef.current;
-                sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-                updateCamera();
-              }
-              return;
-            }
-            requestAnimationFrame(animateStroke);
+          cueShotStateRef.current = {
+            state: 'CHARGING',
+            startTime,
+            pullbackDuration,
+            releaseDuration: forwardDuration,
+            strikeDuration: CUE_STRIKE_WINDOW_MS,
+            followThroughDuration,
+            recoverDuration: settleDuration,
+            warmupPos,
+            startPos,
+            strikePos,
+            followPos,
+            recoverPos,
+            rotationX: cueStick.rotation.x,
+            rotationY: cueStick.rotation.y
           };
-          requestAnimationFrame(animateStroke);
+          cueStick.position.copy(warmupPos);
+          cueStick.visible = true;
+          cueAnimating = true;
+          const activeCamera = activeRenderCameraRef.current ?? cameraRef.current ?? camera;
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+          const lockTarget =
+            lastCameraTargetRef.current?.clone() ??
+            new THREE.Vector3(playerOffsetRef.current * scale, minTargetY, 0);
+          cueShotLockRef.current = {
+            position: activeCamera?.position?.clone?.() ?? null,
+            target: lockTarget,
+            fov: activeCamera?.fov ?? camera.fov,
+            until: strikeTime + CUE_CAMERA_STRIKE_LOCK_BUFFER_MS
+          };
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -22771,6 +22993,10 @@ const powerRef = useRef(hud.power);
           return;
         }
         const nowMs = now;
+        if (cueShotLockRef.current && nowMs >= cueShotLockRef.current.until) {
+          cueShotLockRef.current = null;
+        }
+        updateCueShotPlayback(nowMs);
         if (remoteShotActiveRef.current && remoteShotUntilRef.current > 0 && nowMs > remoteShotUntilRef.current) {
           remoteShotActiveRef.current = false;
         }
