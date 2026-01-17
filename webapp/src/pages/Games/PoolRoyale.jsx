@@ -4897,12 +4897,9 @@ const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
-const CUE_STROKE_PULLBACK_MS = 120;
-const CUE_STROKE_FORWARD_MS = 120;
-const CUE_STROKE_HOLD_MS = 50;
-const CUE_STROKE_VISUAL_SLOWDOWN = 1;
-const AI_CUE_PULLBACK_DURATION_MS = CUE_STROKE_PULLBACK_MS;
-const AI_CUE_FORWARD_DURATION_MS = CUE_STROKE_FORWARD_MS;
+const CUE_STROKE_VISUAL_SLOWDOWN = 1.5;
+const AI_CUE_PULLBACK_DURATION_MS = 3400;
+const AI_CUE_FORWARD_DURATION_MS = 3400;
 const AI_STROKE_VISIBLE_DURATION_MS =
   (AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS) * CUE_STROKE_VISUAL_SLOWDOWN;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
@@ -20190,9 +20187,13 @@ const powerRef = useRef(hud.power);
             shotRecording = null;
             shotReplayRef.current = null;
           }
+          const allowLongShotCameraSwitch =
+            !isShortShot &&
+            (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD);
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
           const suppressPocketCameras = broadcastSystem?.avoidPocketCameras;
+          const forceActionActivation = broadcastSystem?.forceActionActivation;
           const orbitSnapshot = sphRef.current
             ? {
                 radius: sphRef.current.radius,
@@ -20218,13 +20219,29 @@ const powerRef = useRef(hud.power);
             : orbitSnapshot
               ? { orbitSnapshot }
               : null;
+          const actionView = allowLongShotCameraSwitch
+            ? makeActionCameraView(
+                cue,
+                shotPrediction.ballId,
+                followView,
+                shotPrediction.railNormal,
+                {
+                  longShot: isLongShot,
+                  travelDistance: predictedTravel
+                }
+              )
+            : null;
           const earlyPocketView =
             !suppressPocketCameras && shotPrediction.ballId && followView
               ? makePocketCameraView(shotPrediction.ballId, followView, {
                   forceEarly: true
                 })
               : null;
-          suspendedActionView = null;
+          if (actionView && cameraRef.current) {
+            actionView.smoothedPos = cameraRef.current.position.clone();
+            const storedTarget = lastCameraTargetRef.current?.clone();
+            if (storedTarget) actionView.smoothedTarget = storedTarget;
+          }
           const appliedSpin = applySpinConstraints(aimDir, true);
           const liftAngle = resolveUserCueLift();
           const liftStrength = normalizeCueLift(liftAngle);
@@ -20402,14 +20419,51 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(warmupPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
+          const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
+          const backSpinRetreat =
+            BALL_R * (1 + 2.25 * clampedPower) * backSpinWeight;
           const impactPos = buildCuePosition(0);
           const forwardDistance = Math.max(0, startPos.distanceTo(impactPos));
-          const settlePos = impactPos.clone();
+          const strokeDistance = Math.max(forwardDistance, CUE_PULL_MIN_VISUAL);
+          const retreatDistance = Math.max(
+            BALL_R * 1.5,
+            Math.min(strokeDistance, BALL_R * 8)
+          );
+          const totalRetreat = retreatDistance + backSpinRetreat;
+          const settlePos = impactPos
+            .clone()
+            .sub(dir.clone().multiplyScalar(totalRetreat));
           cueStick.visible = true;
           cueStick.position.copy(warmupPos);
-          const forwardDuration = CUE_STROKE_FORWARD_MS * CUE_STROKE_VISUAL_SLOWDOWN;
-          const settleDuration = CUE_STROKE_HOLD_MS * CUE_STROKE_VISUAL_SLOWDOWN;
-          const pullbackDuration = CUE_STROKE_PULLBACK_MS * CUE_STROKE_VISUAL_SLOWDOWN;
+          const cueBallSpeed = Math.max(predictedCueSpeed, 1e-4);
+          const forwardDurationBase = Math.max(
+            1,
+            (forwardDistance / cueBallSpeed) * 1000
+          );
+          const settleSpeed = THREE.MathUtils.lerp(
+            CUE_FOLLOW_SPEED_MIN,
+            CUE_FOLLOW_SPEED_MAX,
+            curvedPower
+          );
+          const settleDurationBase = THREE.MathUtils.clamp(
+            (totalRetreat / Math.max(settleSpeed, 1e-4)) * 1000 * (backSpinWeight > 0 ? 0.82 : 1),
+            CUE_FOLLOW_MIN_MS,
+            CUE_FOLLOW_MAX_MS
+          );
+          const aiStrokeScale =
+            aiOpponentEnabled && hudRef.current?.turn === 1 ? AI_STROKE_TIME_SCALE : 1;
+          const playerStrokeScale = isAiStroke ? 1 : PLAYER_STROKE_TIME_SCALE;
+          const forwardDuration =
+            forwardDurationBase * CUE_STROKE_VISUAL_SLOWDOWN;
+          const settleDuration = isAiStroke
+            ? 0
+            : settleDurationBase * aiStrokeScale * playerStrokeScale * CUE_STROKE_VISUAL_SLOWDOWN;
+          const pullbackDuration = isAiStroke
+            ? AI_CUE_PULLBACK_DURATION_MS * CUE_STROKE_VISUAL_SLOWDOWN
+            : Math.max(
+                CUE_STROKE_MIN_MS * PLAYER_PULLBACK_MIN_SCALE,
+                forwardDuration * PLAYER_STROKE_PULLBACK_FACTOR
+              );
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
@@ -20426,6 +20480,8 @@ const powerRef = useRef(hud.power);
             powerImpactHoldRef.current || 0,
             forwardPreviewHold
           );
+          const holdUntil = powerImpactHoldRef.current || 0;
+          const holdActive = holdUntil > performance.now();
           let pocketViewActivated = false;
           if (earlyPocketView && !isMaxPowerShot) {
             const now = performance.now();
@@ -20438,10 +20494,46 @@ const powerRef = useRef(hud.power);
                 earlyPocketView.smoothedTarget = storedTarget;
               }
             }
-            queuedPocketView = null;
-            updatePocketCameraState(true);
-            activeShotView = earlyPocketView;
-            pocketViewActivated = true;
+            if (actionView) {
+              earlyPocketView.resumeAction = actionView;
+              suspendedActionView = actionView;
+            } else {
+              suspendedActionView = null;
+            }
+            if (holdUntil > 0) {
+              const baseDelay = earlyPocketView.activationDelay ?? 0;
+              earlyPocketView.activationDelay = Math.max(baseDelay, holdUntil);
+            }
+            earlyPocketView.pendingActivation = holdActive;
+            if (holdActive) {
+              queuedPocketView = earlyPocketView;
+              pocketViewActivated = true;
+            } else {
+              queuedPocketView = null;
+              updatePocketCameraState(true);
+              activeShotView = earlyPocketView;
+              pocketViewActivated = true;
+            }
+          }
+          if (!pocketViewActivated && actionView) {
+            const shouldActivateActionView =
+              (!isLongShot || forceActionActivation) && !isMaxPowerShot;
+            if (shouldActivateActionView && !holdActive) {
+              suspendedActionView = null;
+              activeShotView = actionView;
+              updateCamera();
+            } else {
+              actionView.pendingActivation = true;
+              const baseDelay = actionView.activationDelay ?? null;
+              const delayed = Math.max(baseDelay ?? 0, holdUntil ?? 0);
+              actionView.activationDelay = delayed > 0 ? delayed : null;
+              const baseTravel = actionView.activationTravel ?? 0;
+              actionView.activationTravel = Math.max(
+                baseTravel,
+                isMaxPowerShot ? BALL_R * 6 : 0
+              );
+              suspendedActionView = actionView;
+            }
           }
           if (shotRecording) {
             const strokeStartOffset = Math.max(0, startTime - (shotRecording.startTime ?? startTime));
@@ -24226,7 +24318,11 @@ const powerRef = useRef(hud.power);
               pocketView.lastRailHitAt = focusBall.lastRailHitAt;
               pocketView.lastRailHitType =
                 focusBall.lastRailHitType ?? pocketView.lastRailHitType ?? 'rail';
-              resumeAfterPocket(pocketView, now);
+              const extendTo = now + POCKET_VIEW_ACTIVE_EXTENSION_MS;
+              pocketView.holdUntil =
+                pocketView.holdUntil != null
+                  ? Math.max(pocketView.holdUntil, extendTo)
+                  : extendTo;
             } else {
               const toPocket = pocketView.pocketCenter.clone().sub(focusBall.pos);
               const dist = toPocket.length();
