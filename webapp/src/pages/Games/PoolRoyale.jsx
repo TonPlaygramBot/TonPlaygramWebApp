@@ -1378,6 +1378,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Pool Royale power pass: lift overall shot strength by another 25%.
 const SHOT_POWER_REDUCTION = 0.85;
 const SHOT_POWER_MULTIPLIER = 1.35;
+const SHOT_SPEED_MULTIPLIER = 1.5; // boost overall shot speed by 50% for snappier ball travel
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1388,7 +1389,7 @@ const SHOT_FORCE_BOOST =
   SHOT_POWER_REDUCTION *
   SHOT_POWER_MULTIPLIER;
 const SHOT_BREAK_MULTIPLIER = 1.5;
-const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
+const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST * SHOT_SPEED_MULTIPLIER;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
@@ -1439,9 +1440,9 @@ const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.085; // keep the tip aligned without overreaching the cue ball
+const CUE_TIP_CLEARANCE = BALL_R * 0.02; // keep the tip aligned without overreaching the cue ball
 const CUE_TIP_GAP = BALL_R * 0.95 + CUE_TIP_CLEARANCE; // keep the tip aligned while allowing visible contact on impact
-const CUE_IMPACT_OVERTRAVEL = BALL_R * 0.22; // keep the cue closer to the contact point for precise tip alignment
+const CUE_IMPACT_OVERTRAVEL = BALL_R * 0.08; // keep the cue closer to the contact point for precise tip alignment
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 2.1; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -4953,7 +4954,7 @@ const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 12;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 20;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
