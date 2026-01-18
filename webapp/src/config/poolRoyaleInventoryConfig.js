@@ -360,8 +360,7 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     oakVeneer01: 'Oak Veneer 01',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
-    rosewoodVeneer01: 'Rosewood Veneer 01',
-    blenderkitOriginal: 'BlenderKit Original'
+    rosewoodVeneer01: 'Rosewood Veneer 01'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -444,14 +443,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     name: 'Rosewood Veneer 01 Finish',
     price: 1020,
     description: 'Rosewood veneer rails with rich, reddish undertones.'
-  },
-  {
-    id: 'finish-blenderkitOriginal',
-    type: 'tableFinish',
-    optionId: 'blenderkitOriginal',
-    name: 'BlenderKit Original Finish',
-    price: 1030,
-    description: 'Original BlenderKit wood finish with authentic GLTF textures.'
   },
   {
     id: 'chrome-chrome',
