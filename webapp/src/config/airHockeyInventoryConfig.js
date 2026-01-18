@@ -288,89 +288,53 @@ const AIR_HOCKEY_HDRI_VARIANTS = Object.freeze(
 
 const AIR_HOCKEY_TABLE_FINISHES = Object.freeze([
   Object.freeze({
-    id: 'peelingPaintWeathered',
-    name: 'Wood Peeling Paint Weathered',
-    wood: '#a89f95',
-    trim: '#b8b3aa',
-    swatches: ['#a89f95', '#b8b3aa'],
-    price: 980,
-    description: 'Weathered peeling paint wood rails with a reclaimed finish.'
-  }),
-  Object.freeze({
-    id: 'oakVeneer01',
-    name: 'Oak Veneer 01',
-    wood: '#b9854e',
-    trim: '#c89a64',
-    swatches: ['#b9854e', '#c89a64'],
-    price: 990,
-    description: 'Warm oak veneer rails with smooth satin polish.'
-  }),
-  Object.freeze({
-    id: 'woodTable001',
-    name: 'Wood Table 001',
+    id: 'poolRoyaleClassic',
+    name: 'Pool Royale Classic',
     wood: '#8f6243',
     trim: '#a4724f',
     swatches: ['#8f6243', '#a4724f'],
-    price: 1000,
-    description: 'Balanced walnut-brown rails inspired by classic table slabs.'
-  }),
-  Object.freeze({
-    id: 'darkWood',
-    name: 'Dark Wood',
-    wood: '#2f241f',
-    trim: '#3d2f2a',
-    swatches: ['#2f241f', '#3d2f2a'],
-    price: 1010,
-    description: 'Deep espresso rails with strong grain contrast.'
-  }),
-  Object.freeze({
-    id: 'rosewoodVeneer01',
-    name: 'Rosewood Veneer 01',
-    wood: '#5b2f26',
-    trim: '#6f3a2f',
-    swatches: ['#5b2f26', '#6f3a2f'],
-    price: 1020,
-    description: 'Rosewood veneer rails with rich, reddish undertones.'
+    price: 0,
+    description: 'Pool Royale-style wood rails sized to frame the air hockey field.'
   })
 ]);
 
 const AIR_HOCKEY_TABLE_BASES = Object.freeze([
   Object.freeze({
-    id: 'classicCylinders',
-    name: 'Classic Cylinders',
-    description: 'Rounded skirt with six cylinder legs and subtle foot pads.',
+    id: 'poolRoyaleClassicCylinders',
+    name: 'Pool Royale Classic Cylinders',
+    description: 'Pool Royale pedestal skirt with six cylinder legs and subtle foot pads.',
     base: '#8f6243',
     accent: '#6f3a2f',
     swatches: ['#8f6243', '#6f3a2f']
   }),
   Object.freeze({
-    id: 'openPortal',
-    name: 'Open Portal',
-    description: 'Twin portal legs with angled sides and negative space.',
+    id: 'poolRoyaleOpenPortal',
+    name: 'Pool Royale Open Portal',
+    description: 'Pool Royale twin portal legs with angled sides and negative space.',
     base: '#f8fafc',
     accent: '#e5e7eb',
     swatches: ['#f8fafc', '#e5e7eb']
   }),
   Object.freeze({
-    id: 'coffeeTableRound01',
-    name: 'Coffee Table Round 01 Base',
-    description: 'Rounded Poly Haven coffee table legs tucked beneath the pool table.',
+    id: 'poolRoyaleCoffeeTableRound01',
+    name: 'Pool Royale Coffee Table Round 01',
+    description: 'Rounded Poly Haven coffee table legs adapted to the Pool Royale base.',
     base: '#c5a47e',
     accent: '#7a5534',
     swatches: ['#c5a47e', '#7a5534']
   }),
   Object.freeze({
-    id: 'gothicCoffeeTable',
-    name: 'Gothic Coffee Table Base',
-    description: 'Gothic coffee table from Murlan Royale re-used as a sculpted support base.',
+    id: 'poolRoyaleGothicCoffeeTable',
+    name: 'Pool Royale Gothic Coffee Table',
+    description: 'Gothic coffee table from Murlan Royale re-used as a sculpted Pool Royale base.',
     base: '#8f4a2b',
     accent: '#3b2a1f',
     swatches: ['#8f4a2b', '#3b2a1f']
   }),
   Object.freeze({
-    id: 'woodenTable02Alt',
-    name: 'Wooden Table 02 Alt Base',
-    description: 'Alternate Wooden Table 02 variant resized to cradle the pool playfield.',
+    id: 'poolRoyaleWoodenTable02Alt',
+    name: 'Pool Royale Wooden Table 02 Alt',
+    description: 'Alternate Wooden Table 02 variant resized to cradle the Pool Royale base.',
     base: '#6f5140',
     accent: '#caa07a',
     swatches: ['#6f5140', '#caa07a']
@@ -433,11 +397,7 @@ export const AIR_HOCKEY_CUSTOMIZATION = Object.freeze({
     Object.freeze({ id: 'lime', name: 'Lime', color: '#84cc16', knob: '#1a2e05' })
   ]),
   rails: Object.freeze([
-    Object.freeze({ id: 'glass', name: 'Glass', color: '#dbe9ff', opacity: 0.32 }),
-    Object.freeze({ id: 'shadow', name: 'Shadow', color: '#0b1224', opacity: 0.6 }),
-    Object.freeze({ id: 'coral', name: 'Coral', color: '#f97316', opacity: 0.4 }),
-    Object.freeze({ id: 'mint', name: 'Mint', color: '#10b981', opacity: 0.35 }),
-    Object.freeze({ id: 'frosted', name: 'Frosted', color: '#e5e7eb', opacity: 0.28 })
+    Object.freeze({ id: 'woodenRails', name: 'Wooden Rails', color: '#8f6243', opacity: 1 })
   ]),
   goals: Object.freeze([
     Object.freeze({ id: 'mintNet', name: 'Mint Net', color: '#99ffd6', emissive: '#1aaf80' }),
@@ -492,10 +452,7 @@ export const AIR_HOCKEY_STORE_ITEMS = [
   { id: 'mallet-amber', type: 'mallet', optionId: 'amber', name: 'Amber Mallets', price: 280, description: 'Amber mallets with dark wood knobs.' },
   { id: 'mallet-violet', type: 'mallet', optionId: 'violet', name: 'Violet Mallets', price: 300, description: 'Violet mallets with indigo knobs.' },
   { id: 'mallet-lime', type: 'mallet', optionId: 'lime', name: 'Lime Mallets', price: 320, description: 'Lime mallets with forest knobs.' },
-  { id: 'rails-shadow', type: 'rails', optionId: 'shadow', name: 'Shadow Rails', price: 300, description: 'Smoked rails with higher opacity.' },
-  { id: 'rails-coral', type: 'rails', optionId: 'coral', name: 'Coral Rails', price: 320, description: 'Coral rails with warm glow.' },
-  { id: 'rails-mint', type: 'rails', optionId: 'mint', name: 'Mint Rails', price: 340, description: 'Mint rails with soft translucency.' },
-  { id: 'rails-frosted', type: 'rails', optionId: 'frosted', name: 'Frosted Rails', price: 360, description: 'Frosted rails with light opacity.' },
+  { id: 'rails-wooden', type: 'rails', optionId: 'woodenRails', name: 'Wooden Rails', price: 0, description: 'Solid wood rails fitted inside the Pool Royale frame.' },
   { id: 'goal-crimson', type: 'goals', optionId: 'crimsonNet', name: 'Crimson Net Goals', price: 330, description: 'Crimson goal nets with deep ember glow.' },
   { id: 'goal-cobalt', type: 'goals', optionId: 'cobaltNet', name: 'Cobalt Net Goals', price: 360, description: 'Cobalt nets with electric blue emissive.' },
   { id: 'goal-amber', type: 'goals', optionId: 'amberNet', name: 'Amber Net Goals', price: 390, description: 'Amber nets with warm metallic shine.' },
