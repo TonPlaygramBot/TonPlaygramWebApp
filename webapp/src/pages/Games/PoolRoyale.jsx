@@ -20412,7 +20412,7 @@ const powerRef = useRef(hud.power);
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
           const startPos = buildCuePosition(visualPull);
-          const warmupPos = isAiStroke ? buildCuePosition(warmupPull) : startPos.clone();
+          const warmupPos = buildCuePosition(warmupPull);
           cueStick.position.copy(warmupPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
@@ -20429,9 +20429,17 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(warmupPos);
           const forwardDuration = CUE_STRIKE_DURATION_MS;
           const settleDuration = CUE_STRIKE_HOLD_MS;
+          const forwardDistance = startPos.distanceTo(impactPos);
+          const pullbackDistance = warmupPos.distanceTo(startPos);
+          const matchedSpeed =
+            forwardDistance > 1e-6 ? forwardDistance / forwardDuration : 0;
+          const playerPullbackDuration =
+            matchedSpeed > 0
+              ? (pullbackDistance / matchedSpeed)
+              : 0;
           const pullbackDuration = isAiStroke
             ? AI_CUE_PULLBACK_DURATION_MS * CUE_STROKE_VISUAL_SLOWDOWN
-            : 0;
+            : playerPullbackDuration;
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
