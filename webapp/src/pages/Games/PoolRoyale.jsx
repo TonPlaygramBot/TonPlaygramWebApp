@@ -22993,6 +22993,8 @@ const powerRef = useRef(hud.power);
           !(inHandPlacementModeRef.current) &&
           (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current) &&
           !remoteShotActive &&
+          !shooting &&
+          !cueAnimating &&
           (isPlayerTurn || previewingAiShot || aiCueViewActive);
         const remoteAimFresh =
           remoteAimState &&
