@@ -11,7 +11,6 @@ import { giftSounds } from '../utils/giftSounds.js';
 import { getGameVolume, isGameMuted } from '../utils/sound.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 import { AIR_HOCKEY_CUSTOMIZATION } from '../config/airHockeyInventoryConfig.js';
-import { applyWoodTextures, setWoodTextureAnisotropyCap, WOOD_GRAIN_OPTIONS_BY_ID } from '../utils/woodMaterials.js';
 import {
   airHockeyAccountId,
   getAirHockeyInventory,
@@ -210,36 +209,30 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
 }
 
 const POOL_ENVIRONMENT = (() => {
-  const TABLE_SIZE_SHRINK = 0.85;
-  const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK;
+  const TABLE_SCALE = 1.17;
+  const TABLE_FIELD_EXPANSION = 1.2;
   const SIZE_REDUCTION = 0.7;
   const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-  const TABLE_DISPLAY_SCALE = 0.78;
-  const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
+  const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
 
-  const TABLE_BASE_SCALE = 1.2;
-  const TABLE_WIDTH_SCALE = 1.25;
-  const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
-  const TABLE_LENGTH_SCALE = 0.8;
-  const TABLE_WIDTH_RAW = 72 * TABLE_SCALE;
-  const TABLE_LENGTH_RAW = 132 * TABLE_SCALE * TABLE_LENGTH_SCALE;
+  const TABLE_WIDTH_RAW = 66 * TABLE_SCALE * TABLE_FIELD_EXPANSION;
+  const TABLE_LENGTH_RAW = 132 * TABLE_SCALE * TABLE_FIELD_EXPANSION;
   const TABLE_THICKNESS_RAW = 1.8 * TABLE_SCALE;
-  const FRAME_TOP_Y = -TABLE_THICKNESS_RAW + 0.01;
+  const FRAME_TOP_Y = -TABLE_THICKNESS_RAW + 0.01 - TABLE_THICKNESS_RAW * 0.012;
 
   const LEG_SCALE = 6.2;
   const LEG_HEIGHT_FACTOR = 4;
   const LEG_HEIGHT_MULTIPLIER = 4.5;
-  const BASE_TABLE_LIFT = 3.6;
+  const TABLE_HEIGHT_REDUCTION = 0.8;
   const TABLE_DROP = 0.4;
-  const TABLE_HEIGHT_REDUCTION = 1;
-  const TABLE_HEIGHT_SCALE = 1.56 * 1.3;
-  const TABLE_H_RAW = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION * TABLE_HEIGHT_SCALE;
+  const BASE_TABLE_LIFT = 3.6;
+  const TABLE_H_RAW = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION;
   const TABLE_LIFT_RAW = BASE_TABLE_LIFT + TABLE_H_RAW * (LEG_HEIGHT_FACTOR - 1);
-  const BASE_LEG_HEIGHT_RAW = TABLE_THICKNESS_RAW * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
+  const BASE_LEG_HEIGHT_RAW =
+    TABLE_THICKNESS_RAW * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
   const BASE_LEG_LENGTH_SCALE = 0.72;
   const LEG_ELEVATION_SCALE = 0.96;
-  const LEG_LENGTH_SHRINK = 0.867;
-  const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK;
+  const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE;
   const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3;
   const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT_RAW + TABLE_LIFT_RAW;
   const BASE_LEG_ROOM_HEIGHT_RAW =
@@ -254,8 +247,7 @@ const POOL_ENVIRONMENT = (() => {
     -2 + (TABLE_H_RAW - 0.75) + TABLE_H_RAW + TABLE_LIFT_RAW - TABLE_DROP;
   const TABLE_Y_RAW = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
   const TABLE_SURFACE_RAW = TABLE_Y_RAW - TABLE_THICKNESS_RAW + 0.01;
-  const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
-  const FLOOR_Y_RAW = TABLE_Y_RAW - TABLE_THICKNESS_RAW - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
+  const FLOOR_Y_RAW = TABLE_Y_RAW - TABLE_THICKNESS_RAW - LEG_ROOM_HEIGHT + 0.3;
 
   const ROOM_DEPTH_RAW = TABLE_LENGTH_RAW * 3.6;
   const SIDE_CLEARANCE_RAW = ROOM_DEPTH_RAW / 2 - TABLE_LENGTH_RAW / 2;
@@ -289,7 +281,7 @@ const POOL_ENVIRONMENT = (() => {
  * AIR HOCKEY 3D — Mobile Portrait
  * -------------------------------
  * • HDRI-lit Air Hockey arena with Murlan Royale environments (no walls or carpet)
- * • Pool Royale table footprint + placement with standing/cue camera toggle
+ * • Player-edge camera for an at-table perspective suited to portrait play
  * • Controls: drag bottom half to move mallet
  * • AI opponent on top half with simple tracking logic
  * • Scoreboard with avatars
@@ -319,7 +311,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     ...defaultSelections
   });
   const [showCustomizer, setShowCustomizer] = useState(false);
-  const [isCueView, setIsCueView] = useState(false);
+  const [isTopDownView, setIsTopDownView] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
@@ -386,7 +378,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const rendererRef = useRef(null);
   const cameraRef = useRef(null);
   const cameraViewRef = useRef({ applyCurrent: () => {} });
-  const isCueViewRef = useRef(false);
+  const isTopDownViewRef = useRef(false);
   const renderSettingsRef = useRef({
     targetFrameIntervalMs: 1000 / initialProfile.targetFps,
     renderResolutionScale: initialProfile.renderScale ?? 1,
@@ -522,9 +514,9 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   }, [activeGraphicsOption, updateRendererSettings]);
 
   useEffect(() => {
-    isCueViewRef.current = isCueView;
-    cameraViewRef.current.applyCurrent?.(isCueView);
-  }, [isCueView]);
+    isTopDownViewRef.current = isTopDownView;
+    cameraViewRef.current.applyCurrent?.(isTopDownView);
+  }, [isTopDownView]);
 
   useEffect(() => {
     const handler = () => setMuted(isGameMuted());
@@ -680,7 +672,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     host.appendChild(renderer.domElement);
     rendererRef.current = renderer;
-    setWoodTextureAnisotropyCap(renderer.capabilities.getMaxAnisotropy());
     updateRendererSettings();
 
     const createPuckTexture = () => {
@@ -811,11 +802,11 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       thickness: POOL_ENVIRONMENT.tableThickness,
       topExtension: (BASE_TABLE_LENGTH / 2) * TOP_EXTENSION_FACTOR
     };
-    const FIELD_INSET = 0;
+    const FIELD_INSET = TABLE.w * 0.08;
     const PLAYFIELD = {
-      w: TABLE.w,
-      h: TABLE.h,
-      goalW: TABLE.w * 0.45454545454545453,
+      w: TABLE.w - FIELD_INSET * 2,
+      h: TABLE.h - FIELD_INSET * 2,
+      goalW: (TABLE.w - FIELD_INSET * 2) * 0.45454545454545453,
       inset: FIELD_INSET
     };
     const SCALE_WIDTH = PLAYFIELD.w / 2.2;
@@ -835,7 +826,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const PUCK_HEIGHT = PUCK_RADIUS * 1.05;
 
     const camera = new THREE.PerspectiveCamera(
-      66,
+      56,
       host.clientWidth / host.clientHeight,
       0.1,
       1200
@@ -845,7 +836,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const world = new THREE.Group();
     scene.add(world);
 
-    const TABLE_ELEVATION_FACTOR = 1;
+    const TABLE_ELEVATION_FACTOR = 2;
     const tableFloorGap =
       POOL_ENVIRONMENT.tableSurfaceY - POOL_ENVIRONMENT.floorY;
     const tableLift = tableFloorGap * (TABLE_ELEVATION_FACTOR - 1);
@@ -871,40 +862,25 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     materialsRef.current.tableSurface = tableSurface.material;
 
     const floorLocalY = POOL_ENVIRONMENT.floorY - elevatedTableSurfaceY;
-    const frameMaterial = new THREE.MeshPhysicalMaterial({
+    const frameMaterial = new THREE.MeshStandardMaterial({
       color: 0x5d3725,
-      roughness: 0.52,
-      metalness: 0.1,
-      clearcoat: 0.28,
-      clearcoatRoughness: 0.34,
-      sheen: 0.16,
-      sheenRoughness: 0.52,
-      reflectivity: 0.26,
-      envMapIntensity: 0.52
+      roughness: 0.55,
+      metalness: 0.18
     });
-    const trimMaterial = new THREE.MeshPhysicalMaterial({
+    const trimMaterial = new THREE.MeshStandardMaterial({
       color: 0x2c1a11,
-      roughness: 0.44,
-      metalness: 0.18,
-      clearcoat: 0.34,
-      clearcoatRoughness: 0.3,
-      envMapIntensity: 0.6
+      roughness: 0.7,
+      metalness: 0.12
     });
-    const baseMaterial = new THREE.MeshPhysicalMaterial({
+    const baseMaterial = new THREE.MeshStandardMaterial({
       color: 0x4a2918,
       roughness: 0.5,
-      metalness: 0.16,
-      clearcoat: 0.22,
-      clearcoatRoughness: 0.32,
-      envMapIntensity: 0.68
+      metalness: 0.16
     });
-    const baseAccentMaterial = new THREE.MeshPhysicalMaterial({
+    const baseAccentMaterial = new THREE.MeshStandardMaterial({
       color: 0x2c1a11,
       roughness: 0.62,
-      metalness: 0.12,
-      clearcoat: 0.2,
-      clearcoatRoughness: 0.32,
-      envMapIntensity: 0.6
+      metalness: 0.12
     });
     materialsRef.current.frame = frameMaterial;
     materialsRef.current.trim = trimMaterial;
@@ -1193,36 +1169,38 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     tableGroup.add(puck);
     materialsRef.current.puck = puck.material;
 
+    const playerRailZ = PLAYFIELD.h / 2 + railThickness / 2;
     const cameraFocus = new THREE.Vector3(
       0,
       elevatedTableSurfaceY + TABLE.thickness * 0.06,
       tableCenterZ
     );
-    const STANDING_VIEW_PHI = 0.88;
-    const CUE_VIEW_PHI = Math.PI / 2 - 0.26;
-    const STANDING_VIEW_DISTANCE_SCALE = 1.02;
-    const CUE_VIEW_DISTANCE_SCALE = 0.78;
-    const VIEW_DISTANCE_PADDING = 1.04;
+    const cameraAnchor = new THREE.Vector3(
+      0,
+      elevatedTableSurfaceY + TABLE.h * 0.32,
+      tableCenterZ + playerRailZ + railThickness * 0.35
+    );
+    const cameraDirection = new THREE.Vector3()
+      .subVectors(cameraAnchor, cameraFocus)
+      .normalize();
+    const TOP_VIEW_MARGIN = 1.12;
     const defaultCameraUp = new THREE.Vector3(0, 1, 0);
-    const computeBaseDistance = () => {
+    const topViewUp = new THREE.Vector3(0, 0, -1);
+    const topViewTarget = cameraFocus.clone();
+
+    const updateTopViewCamera = () => {
       camera.aspect = host.clientWidth / host.clientHeight;
       const verticalFov = THREE.MathUtils.degToRad(camera.fov);
-      const halfVertical = Math.max(verticalFov / 2, 1e-3);
-      const halfHorizontal = Math.max(Math.atan(Math.tan(halfVertical) * camera.aspect), 1e-3);
-      const halfWidth = TABLE.w / 2;
-      const halfLength = TABLE.h / 2;
-      const widthDistance = halfWidth / Math.tan(halfHorizontal);
-      const lengthDistance = halfLength / Math.tan(halfVertical);
-      return Math.max(widthDistance, lengthDistance) * VIEW_DISTANCE_PADDING;
-    };
-
-    const getCameraAnchor = (useCueView) => {
-      const baseDistance = computeBaseDistance();
-      const distanceScale = useCueView ? CUE_VIEW_DISTANCE_SCALE : STANDING_VIEW_DISTANCE_SCALE;
-      const phi = useCueView ? CUE_VIEW_PHI : STANDING_VIEW_PHI;
-      const radius = baseDistance * distanceScale;
-      const spherical = new THREE.Spherical(radius, phi, 0);
-      return new THREE.Vector3().setFromSpherical(spherical).add(cameraFocus);
+      const verticalTan = Math.tan(Math.max(verticalFov / 2, 1e-3));
+      const horizontalTan = Math.max(verticalTan * camera.aspect, 1e-3);
+      const halfWidth = (TABLE.w * TOP_VIEW_MARGIN) / 2;
+      const halfLength = (TABLE.h * TOP_VIEW_MARGIN) / 2;
+      const distance = Math.max(halfLength / verticalTan, halfWidth / horizontalTan);
+      camera.up.copy(topViewUp);
+      camera.position.set(0, topViewTarget.y + distance, tableCenterZ);
+      camera.lookAt(topViewTarget);
+      camera.updateProjectionMatrix();
+      updateRendererSettings();
     };
 
     const tableCorners = [
@@ -1232,16 +1210,17 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       new THREE.Vector3(TABLE.w / 2, elevatedTableSurfaceY, TABLE.h / 2 + tableCenterZ)
     ];
 
-    const fitCameraToTable = (useCueView = false) => {
+    const fitCameraToTable = () => {
+      if (isTopDownViewRef.current) {
+        updateTopViewCamera();
+        return;
+      }
       camera.aspect = host.clientWidth / host.clientHeight;
       camera.up.copy(defaultCameraUp);
-      camera.position.copy(getCameraAnchor(useCueView));
+      camera.position.copy(cameraAnchor);
       camera.lookAt(cameraFocus);
       camera.updateProjectionMatrix();
       updateRendererSettings();
-      const cameraDirection = new THREE.Vector3()
-        .subVectors(camera.position, cameraFocus)
-        .normalize();
       for (let i = 0; i < 20; i++) {
         const needsRetreat = tableCorners.some((corner) => {
           const sample = corner.clone();
@@ -1256,8 +1235,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     };
 
     cameraViewRef.current = {
-      applyCurrent: (useCueView) => {
-        fitCameraToTable(useCueView);
+      applyCurrent: (useTopView) => {
+        if (useTopView) {
+          updateTopViewCamera();
+        } else {
+          fitCameraToTable();
+        }
       }
     };
 
@@ -1383,7 +1366,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
 
     // loop
     reset();
-    fitCameraToTable(isCueViewRef.current);
+    fitCameraToTable();
 
     const tick = (timestamp = performance.now()) => {
       if (lastFrameTimeRef.current === 0) {
@@ -1458,7 +1441,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     tick();
 
     const onResize = () => {
-      fitCameraToTable(isCueViewRef.current);
+      fitCameraToTable();
     };
     window.addEventListener('resize', onResize);
 
@@ -1675,30 +1658,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     mats.tableSurface.color.set(fieldTheme.surface);
     if (mats.line) mats.line.color.set(fieldTheme.lines);
     mats.rings.forEach((material) => material.color.set(fieldTheme.rings || fieldTheme.lines));
-    const woodFinish = tableTheme?.woodTextureId
-      ? WOOD_GRAIN_OPTIONS_BY_ID[tableTheme.woodTextureId]
-      : null;
-    if (woodFinish) {
-      if (mats.frame) {
-        applyWoodTextures(mats.frame, {
-          ...woodFinish.frame,
-          roughnessBase: 0.16,
-          roughnessVariance: 0.22,
-          sharedKey: `air-hockey-frame-${woodFinish.id}`
-        });
-      }
-      if (mats.trim) {
-        applyWoodTextures(mats.trim, {
-          ...woodFinish.rail,
-          roughnessBase: 0.16,
-          roughnessVariance: 0.22,
-          sharedKey: `air-hockey-rail-${woodFinish.id}`
-        });
-      }
-    } else {
-      if (mats.frame) mats.frame.color.set(tableTheme.wood);
-      if (mats.trim) mats.trim.color.set(tableTheme.trim);
-    }
+    if (mats.frame) mats.frame.color.set(tableTheme.wood);
+    if (mats.trim) mats.trim.color.set(tableTheme.trim);
     if (mats.base) mats.base.color.set(baseTheme.base);
     if (mats.baseAccent) mats.baseAccent.color.set(baseTheme.accent);
     if (mats.rail) {
@@ -1808,17 +1769,17 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         />
         <button
           type="button"
-          aria-pressed={isCueView}
-          onClick={() => setIsCueView((prev) => !prev)}
+          aria-pressed={isTopDownView}
+          onClick={() => setIsTopDownView((prev) => !prev)}
           className={`rounded px-3 py-2 text-xs font-semibold backdrop-blur border transition ${
-            isCueView
+            isTopDownView
               ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
               : 'border-white/15 bg-white/10 text-white hover:bg-white/20'
           }`}
         >
           <span className="inline-flex items-center gap-1">
-            <span aria-hidden>🎥</span>
-            <span>{isCueView ? 'Standing view' : 'Cue view'}</span>
+            <span aria-hidden>🧭</span>
+            <span>{isTopDownView ? '3D' : '2D'}</span>
           </span>
         </button>
         {!gameOver && (
