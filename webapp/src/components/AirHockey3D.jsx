@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { bombSound, chatBeep } from '../assets/soundData.js';
 import BottomLeftIcons from './BottomLeftIcons.jsx';
@@ -282,6 +283,63 @@ const POOL_ENVIRONMENT = (() => {
   });
 })();
 
+const POLYHAVEN_BASE_TEMPLATES = new Map();
+const POLYHAVEN_BASE_PROMISES = new Map();
+
+const buildPolyhavenModelUrls = (assetId = '') => {
+  const normalizedId = `${assetId}`.trim().toLowerCase();
+  if (!normalizedId) return [];
+  return [
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${normalizedId}/${normalizedId}_2k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${normalizedId}/${normalizedId}_1k.gltf`,
+    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${normalizedId}.glb`
+  ];
+};
+
+const ensurePolyhavenBaseTemplate = (assetId) => {
+  if (!assetId) return Promise.resolve(null);
+  if (POLYHAVEN_BASE_TEMPLATES.has(assetId)) {
+    return Promise.resolve(POLYHAVEN_BASE_TEMPLATES.get(assetId));
+  }
+  if (POLYHAVEN_BASE_PROMISES.has(assetId)) {
+    return POLYHAVEN_BASE_PROMISES.get(assetId);
+  }
+  const loader = new GLTFLoader();
+  loader.setCrossOrigin('anonymous');
+  const promise = (async () => {
+    const urls = buildPolyhavenModelUrls(assetId);
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const gltf = await loader.loadAsync(url);
+        const scene = gltf?.scene || gltf?.scenes?.[0];
+        if (scene) {
+          POLYHAVEN_BASE_TEMPLATES.set(assetId, scene);
+          return scene;
+        }
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error('Failed to load Poly Haven base model');
+  })()
+    .catch((error) => {
+      console.warn('Failed to load Poly Haven table base', error);
+      return null;
+    })
+    .finally(() => {
+      POLYHAVEN_BASE_PROMISES.delete(assetId);
+    });
+  POLYHAVEN_BASE_PROMISES.set(assetId, promise);
+  return promise;
+};
+
+const clonePolyhavenBaseTemplate = (assetId) => {
+  const template = POLYHAVEN_BASE_TEMPLATES.get(assetId);
+  return template?.clone?.(true) ?? null;
+};
+
 /**
  * AIR HOCKEY 3D — Mobile Portrait
  * -------------------------------
@@ -374,6 +432,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   });
   const sceneRef = useRef(null);
   const environmentRef = useRef({ envMap: null });
+  const tableBaseRef = useRef({ rebuild: () => {}, clear: () => {} });
   const malletRefs = useRef({ player: null, ai: null });
   const malletDimensionsRef = useRef({
     radius: 0,
@@ -385,8 +444,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const cameraRef = useRef(null);
   const cameraViewRef = useRef({ applyCurrent: () => {} });
   const cameraLiftRef = useRef(1);
-  const cameraSliderRef = useRef(null);
-  const cameraSliderDragRef = useRef({ active: false, pointerId: null });
+  const cameraDragRef = useRef({
+    active: false,
+    pointerId: null,
+    startY: 0,
+    startLift: 1
+  });
   const isTopDownViewRef = useRef(false);
   const renderSettingsRef = useRef({
     targetFrameIntervalMs: 1000 / initialProfile.targetFps,
@@ -396,8 +459,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   });
   const lastFrameTimeRef = useRef(0);
   const frameAccumulatorRef = useRef(0);
-  const isCueView = cameraLift < 0.5;
-  const cameraHandleOffset = `${(1 - cameraLift) * 100}%`;
+  const selectionsRef = useRef(selections);
   const chatAvatar = useMemo(() => getAvatarUrl(player.avatar), [player.avatar]);
   const giftPlayers = useMemo(() => {
     const playerAvatar = getAvatarUrl(player.avatar);
@@ -440,38 +502,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     renderer.domElement.style.width = `${host.clientWidth}px`;
     renderer.domElement.style.height = `${host.clientHeight}px`;
   }, []);
-  const setCameraLiftFromClientY = useCallback((clientY) => {
-    const slider = cameraSliderRef.current;
-    if (!slider) return;
-    const rect = slider.getBoundingClientRect();
-    if (!rect.height) return;
-    const percent = clamp((clientY - rect.top) / rect.height, 0, 1);
-    const nextLift = 1 - percent;
-    if (nextLift === cameraLiftRef.current) return;
-    cameraLiftRef.current = nextLift;
-    setCameraLift(nextLift);
-    cameraViewRef.current.applyCurrent?.(isTopDownViewRef.current, nextLift);
-  }, []);
-  const onCameraSliderPointerDown = useCallback(
-    (event) => {
-      if (event.pointerType === 'mouse' && event.button !== 0) return;
-      cameraSliderDragRef.current = { active: true, pointerId: event.pointerId };
-      event.currentTarget.setPointerCapture?.(event.pointerId);
-      setCameraLiftFromClientY(event.clientY);
-    },
-    [setCameraLiftFromClientY]
-  );
-  const onCameraSliderPointerMove = useCallback(
-    (event) => {
-      if (!cameraSliderDragRef.current.active) return;
-      if (cameraSliderDragRef.current.pointerId !== event.pointerId) return;
-      setCameraLiftFromClientY(event.clientY);
-    },
-    [setCameraLiftFromClientY]
-  );
-  const onCameraSliderPointerUp = useCallback((event) => {
-    if (cameraSliderDragRef.current.pointerId !== event.pointerId) return;
-    cameraSliderDragRef.current = { active: false, pointerId: null };
+  const updateCameraLift = useCallback((nextLift) => {
+    const clamped = clamp(nextLift, 0, 1);
+    if (clamped === cameraLiftRef.current) return;
+    cameraLiftRef.current = clamped;
+    setCameraLift(clamped);
+    cameraViewRef.current.applyCurrent?.(isTopDownViewRef.current, clamped);
   }, []);
   const tableGroupRef = useRef(null);
   const avatarSpritesRef = useRef({ player: null, ai: null });
@@ -483,6 +519,14 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   useEffect(() => {
     setAirInventory(getAirHockeyInventory(resolvedAccountId));
   }, [resolvedAccountId]);
+
+  useEffect(() => {
+    selectionsRef.current = selections;
+  }, [selections]);
+
+  useEffect(() => {
+    tableBaseRef.current?.rebuild?.(selections.tableBase);
+  }, [selections.tableBase]);
 
   useEffect(() => {
     const handler = (event) => {
@@ -937,125 +981,194 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     materialsRef.current.base = baseMaterial;
     materialsRef.current.baseAccent = baseAccentMaterial;
 
-    const SKIRT_OVERHANG = Math.max(TABLE.w, TABLE.h) * 0.08;
-    const SKIRT_TOP_GAP = TABLE.thickness * 0.05;
-    const SKIRT_HEIGHT = TABLE.thickness * 3.6;
-    const skirtTopLocal = -TABLE.thickness - SKIRT_TOP_GAP;
-    const outerHalfW = TABLE.w / 2 + SKIRT_OVERHANG / 2;
-    const outerHalfH = TABLE.h / 2 + SKIRT_OVERHANG / 2;
-    const panelThickness = TABLE.thickness * 0.7;
-    const panelHeight = SKIRT_HEIGHT;
-    const panelY = skirtTopLocal - panelHeight / 2;
-    const createSkirtPanel = (width, depth) => {
-      const panel = new THREE.Mesh(
-        new THREE.BoxGeometry(width, panelHeight, depth),
-        frameMaterial
-      );
-      panel.castShadow = true;
-      panel.receiveShadow = true;
-      panel.position.y = panelY;
-      return panel;
+    const frameOuterW = TABLE.w + TABLE_WALL * 2;
+    const frameOuterH = TABLE.h + TABLE_WALL * 2;
+    const frameHeight = TABLE.thickness * 1.15;
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(frameOuterW, frameHeight, frameOuterH),
+      frameMaterial
+    );
+    frame.position.y = -frameHeight / 2 - TABLE.thickness * 0.05;
+    frame.castShadow = true;
+    frame.receiveShadow = true;
+    tableGroup.add(frame);
+
+    const trimHeight = TABLE.thickness * 0.32;
+    const trim = new THREE.Mesh(
+      new THREE.BoxGeometry(frameOuterW * 0.98, trimHeight, frameOuterH * 0.98),
+      trimMaterial
+    );
+    trim.position.y = -trimHeight / 2 - TABLE.thickness * 0.01;
+    trim.castShadow = true;
+    trim.receiveShadow = true;
+    tableGroup.add(trim);
+
+    const railThickness = TABLE_WALL * 0.6;
+    const baseGroup = new THREE.Group();
+    tableGroup.add(baseGroup);
+
+    const clearBaseGroup = () => {
+      baseGroup.children.forEach((child) => {
+        child.traverse?.((node) => {
+          if (node?.isMesh) {
+            if (node.userData?.__polyhavenBase) return;
+            node.geometry?.dispose?.();
+            if (Array.isArray(node.material)) {
+              node.material.forEach((mat) => mat?.dispose?.());
+            } else {
+              node.material?.dispose?.();
+            }
+          }
+        });
+      });
+      baseGroup.clear();
     };
-    const skirtGroup = new THREE.Group();
-    const frontPanel = createSkirtPanel(
-      outerHalfW * 2,
-      panelThickness
-    );
-    frontPanel.position.z = -outerHalfH + panelThickness / 2;
-    const backPanel = createSkirtPanel(
-      outerHalfW * 2,
-      panelThickness
-    );
-    backPanel.position.z = outerHalfH - panelThickness / 2;
-    const leftPanel = createSkirtPanel(
-      panelThickness,
-      outerHalfH * 2
-    );
-    leftPanel.position.x = -outerHalfW + panelThickness / 2;
-    const rightPanel = createSkirtPanel(
-      panelThickness,
-      outerHalfH * 2
-    );
-    rightPanel.position.x = outerHalfW - panelThickness / 2;
-    skirtGroup.add(frontPanel, backPanel, leftPanel, rightPanel);
-    tableGroup.add(skirtGroup);
 
-    const baseClearance = TABLE.thickness * 0.18;
-    const cabinetHeight = TABLE.thickness * 1.8;
-    const cabinet = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        outerHalfW * 2 - panelThickness * 0.6,
-        cabinetHeight,
-        outerHalfH * 2 - panelThickness * 0.35
-      ),
-      baseMaterial
-    );
-    cabinet.castShadow = true;
-    cabinet.receiveShadow = true;
-    const cabinetTopLocal = -TABLE.thickness - baseClearance;
-    cabinet.position.y = cabinetTopLocal - cabinetHeight / 2;
-    tableGroup.add(cabinet);
-    const cabinetBottomLocal = cabinet.position.y - cabinetHeight / 2;
+    const tagBaseMesh = (mesh) => {
+      if (!mesh) return;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+    };
 
-    const legRadius = Math.min(TABLE.w, TABLE.h) * 0.055;
-    const legTopLocal = cabinetBottomLocal - TABLE.thickness * 0.08;
-    const legHeightGap = legTopLocal - floorLocalY;
-    const legHeight = Math.max(0.1, legHeightGap);
-    const legGeometry = new THREE.CylinderGeometry(
-      legRadius * 0.92,
-      legRadius,
-      legHeight,
-      32
-    );
-    const legCenterY = (legTopLocal + floorLocalY) / 2;
-    const legInset = Math.max(SKIRT_OVERHANG * 0.3, legRadius * 1.6);
-    const legPositions = [
-      [-outerHalfW + legInset, -outerHalfH + legInset],
-      [outerHalfW - legInset, -outerHalfH + legInset],
-      [-outerHalfW + legInset, 0],
-      [outerHalfW - legInset, 0],
-      [-outerHalfW + legInset, outerHalfH - legInset],
-      [outerHalfW - legInset, outerHalfH - legInset]
-    ];
-    const footHeight = legRadius * 0.4;
-    const footGeometry = new THREE.CylinderGeometry(
-      legRadius * 1.08,
-      legRadius * 1.2,
-      footHeight,
-      32
-    );
-    const footY = floorLocalY + footHeight / 2;
-    legPositions.forEach(([lx, lz]) => {
-      const leg = new THREE.Mesh(legGeometry, baseMaterial);
-      leg.position.set(lx, legCenterY, lz);
-      leg.castShadow = true;
-      leg.receiveShadow = true;
-      tableGroup.add(leg);
+    const buildClassicCylinders = () => {
+      const legRadius = Math.min(TABLE.w, TABLE.h) * 0.055;
+      const legHeight = Math.max(0.1, -floorLocalY + TABLE.thickness * 0.25);
+      const legGeometry = new THREE.CylinderGeometry(
+        legRadius * 0.92,
+        legRadius,
+        legHeight,
+        32
+      );
+      const legCenterY = floorLocalY + legHeight / 2;
+      const legInset = Math.max(TABLE_WALL * 1.2, legRadius * 1.6);
+      const halfW = frameOuterW / 2;
+      const halfH = frameOuterH / 2;
+      const legPositions = [
+        [-halfW + legInset, -halfH + legInset],
+        [halfW - legInset, -halfH + legInset],
+        [-halfW + legInset, 0],
+        [halfW - legInset, 0],
+        [-halfW + legInset, halfH - legInset],
+        [halfW - legInset, halfH - legInset]
+      ];
+      const footHeight = legRadius * 0.4;
+      const footGeometry = new THREE.CylinderGeometry(
+        legRadius * 1.08,
+        legRadius * 1.2,
+        footHeight,
+        32
+      );
+      const footY = floorLocalY + footHeight / 2;
+      legPositions.forEach(([lx, lz]) => {
+        const leg = new THREE.Mesh(legGeometry, baseMaterial);
+        leg.position.set(lx, legCenterY, lz);
+        tagBaseMesh(leg);
+        baseGroup.add(leg);
 
-      const foot = new THREE.Mesh(footGeometry, baseAccentMaterial);
-      foot.position.set(lx, footY, lz);
-      foot.castShadow = true;
-      foot.receiveShadow = true;
-      tableGroup.add(foot);
-    });
+        const foot = new THREE.Mesh(footGeometry, baseAccentMaterial);
+        foot.position.set(lx, footY, lz);
+        tagBaseMesh(foot);
+        baseGroup.add(foot);
+      });
+    };
 
-    const railHeight = 0.2 * SCALE_WIDTH;
-    const railThickness = PLAYFIELD.inset * 0.55;
-    const buildRail = (w, h, d) =>
-      new THREE.Mesh(new THREE.BoxGeometry(w, h, d), frameMaterial);
+    const buildOpenPortal = () => {
+      const legRadius = Math.min(TABLE.w, TABLE.h) * 0.055;
+      const legHeight = Math.max(0.1, -floorLocalY + TABLE.thickness * 0.2);
+      const legWidth = legRadius * 1.4;
+      const portalDepth = frameOuterH * 0.22;
+      const portalHeight = legHeight * 0.92;
+      const legGeometry = new THREE.BoxGeometry(legWidth, portalHeight, portalDepth);
+      const legCenterY = floorLocalY + portalHeight / 2;
+      const halfW = frameOuterW / 2;
+      const halfH = frameOuterH / 2;
+      const offsetX = Math.max(legWidth * 0.6, halfW - legWidth * 0.8);
+      const portalZ = Math.max(0, halfH - portalDepth * 0.7);
+      [-1, 1].forEach((sign) => {
+        const portal = new THREE.Group();
+        [-1, 1].forEach((side) => {
+          const leg = new THREE.Mesh(legGeometry, baseMaterial);
+          leg.position.set(side * offsetX, legCenterY, 0);
+          tagBaseMesh(leg);
+          portal.add(leg);
+        });
+        portal.position.z = sign * portalZ;
+        baseGroup.add(portal);
+      });
+    };
 
-    const northRail = buildRail(PLAYFIELD.w + railThickness * 2, railHeight, railThickness);
-    northRail.position.set(0, railHeight / 2, -PLAYFIELD.h / 2 - railThickness / 2);
-    tableGroup.add(northRail);
-    const southRail = buildRail(PLAYFIELD.w + railThickness * 2, railHeight, railThickness);
-    southRail.position.set(0, railHeight / 2, PLAYFIELD.h / 2 + railThickness / 2);
-    tableGroup.add(southRail);
-    const westRail = buildRail(railThickness, railHeight, PLAYFIELD.h);
-    westRail.position.set(-PLAYFIELD.w / 2 - railThickness / 2, railHeight / 2, 0);
-    tableGroup.add(westRail);
-    const eastRail = buildRail(railThickness, railHeight, PLAYFIELD.h);
-    eastRail.position.set(PLAYFIELD.w / 2 + railThickness / 2, railHeight / 2, 0);
-    tableGroup.add(eastRail);
+    const buildPolyhavenBase = (assetId, { widthScale = 0.98, depthScale = 0.96 } = {}) => {
+      const base = clonePolyhavenBaseTemplate(assetId);
+      if (!base) return false;
+      base.traverse((child) => {
+        if (child?.isMesh) {
+          child.userData = { ...(child.userData || {}), __polyhavenBase: true };
+          tagBaseMesh(child);
+        }
+      });
+      const bounds = new THREE.Box3().setFromObject(base);
+      const size = bounds.getSize(new THREE.Vector3());
+      const targetWidth = frameOuterW * widthScale;
+      const targetDepth = frameOuterH * depthScale;
+      const scale = Math.min(
+        size.x > 0 ? targetWidth / size.x : 1,
+        size.z > 0 ? targetDepth / size.z : 1
+      );
+      if (Number.isFinite(scale) && scale > 0) {
+        base.scale.setScalar(scale);
+      }
+      base.updateMatrixWorld(true);
+      const scaledBounds = new THREE.Box3().setFromObject(base);
+      const offsetY = floorLocalY - scaledBounds.min.y;
+      base.position.y += offsetY;
+      baseGroup.add(base);
+      return true;
+    };
+
+    const rebuildTableBase = (variantId) => {
+      clearBaseGroup();
+      if (variantId === 'openPortal') {
+        buildOpenPortal();
+        return;
+      }
+      if (variantId === 'coffeeTableRound01') {
+        if (!buildPolyhavenBase('coffee_table_round_01', { widthScale: 0.96, depthScale: 1.02 })) {
+          ensurePolyhavenBaseTemplate('coffee_table_round_01').then(() => {
+            if (selectionsRef.current.tableBase === 'coffeeTableRound01') {
+              rebuildTableBase('coffeeTableRound01');
+            }
+          });
+        }
+        return;
+      }
+      if (variantId === 'gothicCoffeeTable') {
+        if (!buildPolyhavenBase('gothic_coffee_table', { widthScale: 1.02, depthScale: 1.02 })) {
+          ensurePolyhavenBaseTemplate('gothic_coffee_table').then(() => {
+            if (selectionsRef.current.tableBase === 'gothicCoffeeTable') {
+              rebuildTableBase('gothicCoffeeTable');
+            }
+          });
+        }
+        return;
+      }
+      if (variantId === 'woodenTable02Alt') {
+        if (!buildPolyhavenBase('wooden_table_02', { widthScale: 0.95, depthScale: 0.98 })) {
+          ensurePolyhavenBaseTemplate('wooden_table_02').then(() => {
+            if (selectionsRef.current.tableBase === 'woodenTable02Alt') {
+              rebuildTableBase('woodenTable02Alt');
+            }
+          });
+        }
+        return;
+      }
+      buildClassicCylinders();
+    };
+
+    tableBaseRef.current = {
+      rebuild: rebuildTableBase,
+      clear: clearBaseGroup
+    };
+    rebuildTableBase(selectionsRef.current.tableBase);
 
     const lineMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
@@ -1320,6 +1433,33 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       return clientY >= r.top + r.height * 0.5;
     };
 
+    const beginCameraDrag = (clientY, identifier = null) => {
+      if (isTopDownViewRef.current) return;
+      if (isLowerHalfTouch(clientY)) return;
+      cameraDragRef.current = {
+        active: true,
+        pointerId: identifier,
+        startY: clientY,
+        startLift: cameraLiftRef.current
+      };
+    };
+
+    const updateCameraDrag = (clientY) => {
+      if (!cameraDragRef.current.active) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      const delta = (cameraDragRef.current.startY - clientY) / (rect.height || 1);
+      updateCameraLift(cameraDragRef.current.startLift + delta * 1.6);
+    };
+
+    const endCameraDrag = () => {
+      cameraDragRef.current = {
+        active: false,
+        pointerId: null,
+        startY: 0,
+        startLift: cameraLiftRef.current
+      };
+    };
+
     const touchToXZ = (clientX, clientY) => {
       const r = renderer.domElement.getBoundingClientRect();
       ndc.x = ((clientX - r.left) / r.width) * 2 - 1;
@@ -1342,12 +1482,45 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       you.position.set(x, 0, z);
     };
 
+    const findTouchById = (touches, identifier) => {
+      if (identifier == null) return touches?.[0] ?? null;
+      return Array.from(touches).find((touch) => touch.identifier === identifier) || null;
+    };
+
+    const onCameraTouchStart = (event) => {
+      const touch = event.touches?.[0];
+      if (!touch) return;
+      beginCameraDrag(touch.clientY, touch.identifier);
+    };
+
+    const onCameraTouchMove = (event) => {
+      const touch = findTouchById(event.touches, cameraDragRef.current.pointerId);
+      if (!touch) return;
+      updateCameraDrag(touch.clientY);
+    };
+
+    const onCameraTouchEnd = (event) => {
+      if (!cameraDragRef.current.active) return;
+      const touch = findTouchById(event.touches, cameraDragRef.current.pointerId);
+      if (!touch) {
+        endCameraDrag();
+      }
+    };
+
     renderer.domElement.addEventListener('touchstart', onMove, {
       passive: true
     });
     renderer.domElement.addEventListener('touchmove', onMove, {
       passive: true
     });
+    renderer.domElement.addEventListener('touchstart', onCameraTouchStart, {
+      passive: true
+    });
+    renderer.domElement.addEventListener('touchmove', onCameraTouchMove, {
+      passive: true
+    });
+    renderer.domElement.addEventListener('touchend', onCameraTouchEnd);
+    renderer.domElement.addEventListener('touchcancel', onCameraTouchEnd);
     renderer.domElement.addEventListener('mousemove', onMove);
 
     const SPEED_BOOST = 1.25;
@@ -1511,6 +1684,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('touchstart', onMove);
       renderer.domElement.removeEventListener('touchmove', onMove);
+      renderer.domElement.removeEventListener('touchstart', onCameraTouchStart);
+      renderer.domElement.removeEventListener('touchmove', onCameraTouchMove);
+      renderer.domElement.removeEventListener('touchend', onCameraTouchEnd);
+      renderer.domElement.removeEventListener('touchcancel', onCameraTouchEnd);
       renderer.domElement.removeEventListener('mousemove', onMove);
       rendererRef.current = null;
       lastFrameTimeRef.current = 0;
@@ -1902,28 +2079,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           </button>
         )}
       </div>
-      <div
-        className={`absolute right-2 top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-2 ${
-          isTopDownView ? 'opacity-40 pointer-events-none' : 'pointer-events-auto'
-        }`}
-      >
-        <span className="text-[10px] uppercase tracking-[0.25em] text-white/70">Camera</span>
-        <div
-          ref={cameraSliderRef}
-          onPointerDown={onCameraSliderPointerDown}
-          onPointerMove={onCameraSliderPointerMove}
-          onPointerUp={onCameraSliderPointerUp}
-          onPointerCancel={onCameraSliderPointerUp}
-          className="relative h-48 w-7 rounded-full border border-white/20 bg-gradient-to-b from-white/10 via-white/5 to-white/10 backdrop-blur"
-        >
-          <div className="absolute left-1/2 top-2 bottom-2 w-[2px] -translate-x-1/2 bg-white/30 rounded-full" />
-          <div
-            className="absolute left-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-300 shadow-[0_0_12px_rgba(125,211,252,0.8)] border border-white/70"
-            style={{ top: `calc(${cameraHandleOffset} - 10px)` }}
-          />
-        </div>
-        <span className="text-[10px] text-white/60">{isCueView ? 'Low' : 'Stand'}</span>
-      </div>
       <div className="absolute bottom-2 right-2 flex flex-col items-end space-y-2 z-20">
         <button
           onClick={() => setShowCustomizer((v) => !v)}
@@ -2014,7 +2169,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           open={showInfo}
           onClose={() => setShowInfo(false)}
           title="Air Hockey"
-          info="Defend your goal and score on your opponent. First to the target score wins. Drag on the lower half of the table to move your mallet."
+          info="Defend your goal and score on your opponent. First to the target score wins. Drag on the lower half of the table to move your mallet. Pull up or down on the top half to adjust the camera height."
         />
       </div>
       <div className="pointer-events-auto">
