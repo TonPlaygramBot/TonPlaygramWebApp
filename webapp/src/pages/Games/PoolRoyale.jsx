@@ -65,7 +65,6 @@ import {
   POOL_ROYALE_OPTION_LABELS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
-import { POOL_ROYALE_BLENDERKIT_TABLE_FINISHES } from '../../config/poolRoyaleTableFinishBlenderkit.js';
 import { resolvePoolRoyaleTableModel } from '../../config/poolRoyaleTableModels.js';
 import {
   getCachedPoolRoyalInventory,
@@ -2423,19 +2422,7 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
-  }),
-  ...POOL_ROYALE_BLENDERKIT_TABLE_FINISHES.reduce((acc, finish) => {
-    acc[finish.id] = createStandardWoodFinish({
-      id: finish.id,
-      label: finish.label,
-      rail: 0x9a7658,
-      base: 0x845e44,
-      trim: 0xb98d6c,
-      woodTextureId: finish.id,
-      woodRepeatScale: 1
-    });
-    return acc;
-  }, {})
+  })
 });
 
 const TABLE_FINISH_OPTIONS = Object.freeze(
@@ -2444,8 +2431,7 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.oakVeneer01,
     TABLE_FINISHES.woodTable001,
     TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01,
-    ...POOL_ROYALE_BLENDERKIT_TABLE_FINISHES.map((finish) => TABLE_FINISHES[finish.id])
+    TABLE_FINISHES.rosewoodVeneer01
   ].filter(Boolean)
 );
 
@@ -3906,10 +3892,6 @@ function ensureMaterialWoodOptions(material, targetSettings) {
     typeof targetSettings?.mapUrl === 'string' && targetSettings.mapUrl.trim().length > 0
       ? targetSettings.mapUrl.trim()
       : undefined;
-  const assetBaseId =
-    typeof targetSettings?.assetBaseId === 'string' && targetSettings.assetBaseId.trim().length > 0
-      ? targetSettings.assetBaseId.trim()
-      : undefined;
   const roughnessMapUrl =
     typeof targetSettings?.roughnessMapUrl === 'string' &&
     targetSettings.roughnessMapUrl.trim().length > 0
@@ -3929,7 +3911,6 @@ function ensureMaterialWoodOptions(material, targetSettings) {
     rotation,
     textureSize,
     mapUrl,
-    assetBaseId,
     roughnessMapUrl,
     normalMapUrl,
     sharedKey: `pool-wood-${preset.id}`,
@@ -3948,10 +3929,6 @@ function applyWoodTextureToMaterial(material, repeat) {
     typeof repeat?.mapUrl === 'string' && repeat.mapUrl.trim().length > 0
       ? repeat.mapUrl.trim()
       : undefined;
-  const assetBaseId =
-    typeof repeat?.assetBaseId === 'string' && repeat.assetBaseId.trim().length > 0
-      ? repeat.assetBaseId.trim()
-      : undefined;
   const roughnessMapUrl =
     typeof repeat?.roughnessMapUrl === 'string' && repeat.roughnessMapUrl.trim().length > 0
       ? repeat.roughnessMapUrl.trim()
@@ -3968,7 +3945,6 @@ function applyWoodTextureToMaterial(material, repeat) {
     rotation,
     textureSize,
     mapUrl,
-    assetBaseId,
     roughnessMapUrl,
     normalMapUrl
   });
@@ -3983,7 +3959,6 @@ function applyWoodTextureToMaterial(material, repeat) {
       Math.abs((options.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE) - textureSize) > 1e-6;
     const mapChanged =
       options.mapUrl !== mapUrl ||
-      options.assetBaseId !== assetBaseId ||
       options.roughnessMapUrl !== roughnessMapUrl ||
       options.normalMapUrl !== normalMapUrl;
     if (hadOptions && (repeatChanged || rotationChanged || textureSizeChanged || mapChanged)) {
@@ -3993,7 +3968,6 @@ function applyWoodTextureToMaterial(material, repeat) {
         rotation,
         textureSize: textureSize ?? options.textureSize,
         mapUrl: mapUrl ?? options.mapUrl,
-        assetBaseId: assetBaseId ?? options.assetBaseId,
         roughnessMapUrl: roughnessMapUrl ?? options.roughnessMapUrl,
         normalMapUrl: normalMapUrl ?? options.normalMapUrl
       });
@@ -4037,7 +4011,6 @@ function toPlainWoodSurfaceConfig(settings) {
   let repeatX = null;
   let repeatY = null;
   let mapUrl = null;
-  let assetBaseId = null;
   let roughnessMapUrl = null;
   let normalMapUrl = null;
   if (repeatSource?.isVector2) {
@@ -4058,12 +4031,6 @@ function toPlainWoodSurfaceConfig(settings) {
     mapUrl = settings.mapUrl.trim();
   }
   if (
-    typeof settings.assetBaseId === 'string' &&
-    settings.assetBaseId.trim().length > 0
-  ) {
-    assetBaseId = settings.assetBaseId.trim();
-  }
-  if (
     typeof settings.roughnessMapUrl === 'string' &&
     settings.roughnessMapUrl.trim().length > 0
   ) {
@@ -4080,7 +4047,6 @@ function toPlainWoodSurfaceConfig(settings) {
     rotation,
     textureSize,
     mapUrl,
-    assetBaseId,
     roughnessMapUrl,
     normalMapUrl
   };
@@ -4099,7 +4065,6 @@ function resolveWoodSurfaceConfig(option, fallback) {
     rotation: resolvedOption?.rotation ?? base.rotation,
     textureSize: resolvedOption?.textureSize ?? base.textureSize,
     mapUrl: resolvedOption?.mapUrl ?? base.mapUrl,
-    assetBaseId: resolvedOption?.assetBaseId ?? base.assetBaseId,
     roughnessMapUrl: resolvedOption?.roughnessMapUrl ?? base.roughnessMapUrl,
     normalMapUrl: resolvedOption?.normalMapUrl ?? base.normalMapUrl
   };
@@ -4116,8 +4081,6 @@ function cloneWoodSurfaceConfig(config) {
     textureSize:
       typeof config.textureSize === 'number' ? config.textureSize : undefined,
     mapUrl: typeof config.mapUrl === 'string' ? config.mapUrl : undefined,
-    assetBaseId:
-      typeof config.assetBaseId === 'string' ? config.assetBaseId : undefined,
     roughnessMapUrl:
       typeof config.roughnessMapUrl === 'string' ? config.roughnessMapUrl : undefined,
     normalMapUrl: typeof config.normalMapUrl === 'string' ? config.normalMapUrl : undefined,
@@ -4141,8 +4104,6 @@ function orientRailWoodSurface(surface) {
     textureSize:
       typeof surface.textureSize === 'number' ? surface.textureSize : undefined,
     mapUrl: typeof surface.mapUrl === 'string' ? surface.mapUrl : undefined,
-    assetBaseId:
-      typeof surface.assetBaseId === 'string' ? surface.assetBaseId : undefined,
     roughnessMapUrl:
       typeof surface.roughnessMapUrl === 'string' ? surface.roughnessMapUrl : undefined,
     normalMapUrl:
@@ -6654,7 +6615,6 @@ function Table3D(
     rotation: initialFrameSurface.rotation,
     textureSize: synchronizedTextureSize,
     mapUrl: initialFrameSurface.mapUrl,
-    assetBaseId: initialFrameSurface.assetBaseId,
     roughnessMapUrl: initialFrameSurface.roughnessMapUrl,
     normalMapUrl: initialFrameSurface.normalMapUrl,
     woodRepeatScale
@@ -6667,7 +6627,6 @@ function Table3D(
     rotation: initialFrameSurface.rotation,
     textureSize: synchronizedTextureSize,
     mapUrl: initialFrameSurface.mapUrl,
-    assetBaseId: initialFrameSurface.assetBaseId,
     roughnessMapUrl: initialFrameSurface.roughnessMapUrl,
     normalMapUrl: initialFrameSurface.normalMapUrl,
     woodRepeatScale
@@ -9541,8 +9500,6 @@ function Table3D(
     textureSize:
       resolvedWoodOption?.frame?.textureSize ?? resolvedWoodOption?.rail?.textureSize,
     mapUrl: resolvedWoodOption?.frame?.mapUrl ?? resolvedWoodOption?.rail?.mapUrl,
-    assetBaseId:
-      resolvedWoodOption?.frame?.assetBaseId ?? resolvedWoodOption?.rail?.assetBaseId,
     roughnessMapUrl:
       resolvedWoodOption?.frame?.roughnessMapUrl ??
       resolvedWoodOption?.rail?.roughnessMapUrl,
@@ -9558,7 +9515,6 @@ function Table3D(
     rotation: woodFrameSurface.rotation,
     textureSize: woodFrameSurface.textureSize,
     mapUrl: woodFrameSurface.mapUrl,
-    assetBaseId: woodFrameSurface.assetBaseId,
     roughnessMapUrl: woodFrameSurface.roughnessMapUrl,
     normalMapUrl: woodFrameSurface.normalMapUrl,
     woodRepeatScale
