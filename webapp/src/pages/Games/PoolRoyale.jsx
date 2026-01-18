@@ -19965,22 +19965,18 @@ const powerRef = useRef(hud.power);
       const computeCuePull = (
         pullTarget = 0,
         maxPull = CUE_PULL_BASE,
-        { instant = false, preserveLarger = false, syncPull = false } = {}
+        { instant = false, preserveLarger = false } = {}
       ) => {
         const slider = sliderInstanceRef.current;
         const dragging = Boolean(slider?.dragging);
         const cappedMax = Number.isFinite(maxPull) ? Math.max(0, maxPull) : CUE_PULL_BASE;
-        const effectiveMax = syncPull
-          ? cappedMax
-          : Math.max(cappedMax + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL);
+        const effectiveMax = Math.max(cappedMax + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL);
         const desiredTarget = preserveLarger
           ? Math.max(cuePullCurrentRef.current ?? 0, pullTarget ?? 0)
           : pullTarget ?? 0;
-        const boostedTarget = syncPull
-          ? desiredTarget
-          : desiredTarget * CUE_PULL_GLOBAL_VISIBILITY_BOOST;
+        const boostedTarget = desiredTarget * CUE_PULL_GLOBAL_VISIBILITY_BOOST;
         const clampedTarget = THREE.MathUtils.clamp(boostedTarget, 0, effectiveMax);
-        const smoothing = syncPull || instant || dragging ? 1 : CUE_PULL_SMOOTHING;
+        const smoothing = instant || dragging ? 1 : CUE_PULL_SMOOTHING;
         const nextPull =
           smoothing >= 1
             ? clampedTarget
@@ -20025,9 +20021,12 @@ const powerRef = useRef(hud.power);
       };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
-        const curved = 1 - Math.pow(1 - ratio, 3);
+        const curved = Math.pow(ratio, CUE_POWER_GAMMA);
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
-        return effectiveMax * curved;
+        const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
+        const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
+        const target = amplifiedMax * curved * CUE_PULL_VISUAL_MULTIPLIER;
+        return Math.min(target, visualMax);
       };
       const clampCueTipOffset = (vec, limit = BALL_R) => {
         if (!vec) return vec;
@@ -20403,13 +20402,11 @@ const powerRef = useRef(hud.power);
             ? AI_CUE_PULL_VISIBILITY_BOOST
             : PLAYER_CUE_PULL_VISIBILITY_BOOST;
           const pullTarget = computePullTargetFromPower(clampedPower, maxPull) * pullVisibilityBoost;
-          const syncPull = !isAiStroke;
           const pull = computeCuePull(pullTarget, maxPull, {
             instant: true,
-            preserveLarger: true,
-            syncPull
+            preserveLarger: true
           });
-          const visualPull = syncPull ? pull : applyVisualPullCompensation(pull, dir);
+          const visualPull = applyVisualPullCompensation(pull, dir);
           cuePullCurrentRef.current = pull;
           cuePullTargetRef.current = pull;
           const cuePerp = new THREE.Vector3(-dir.z, 0, dir.x);
@@ -20462,7 +20459,7 @@ const powerRef = useRef(hud.power);
           cueAnimating = true;
           const followTopSpinWeight = THREE.MathUtils.clamp(physicsSpin.y || 0, 0, 1);
           const followExtra = THREE.MathUtils.clamp(
-            followTopSpinWeight * clampedPower * BALL_R * 0.3,
+            followTopSpinWeight * BALL_R * 0.33,
             0,
             BALL_R * 0.33
           );
@@ -20478,9 +20475,7 @@ const powerRef = useRef(hud.power);
             : 0;
           const baseReturnDuration =
             pullbackDuration > 0 ? pullbackDuration : forwardDuration;
-          const returnDuration = isAiStroke
-            ? Math.max(0, baseReturnDuration * CUE_RETURN_SPEEDUP)
-            : 0;
+          const returnDuration = Math.max(0, baseReturnDuration * CUE_RETURN_SPEEDUP);
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
@@ -23241,12 +23236,10 @@ const powerRef = useRef(hud.power);
             powerRef.current,
             maxPull
           );
-          const syncPull = isPlayerTurn && !previewingAiShot;
           const pull = computeCuePull(desiredPull, maxPull, {
-            instant: Boolean(sliderInstanceRef.current?.dragging),
-            syncPull
+            instant: Boolean(sliderInstanceRef.current?.dragging)
           });
-          const visualPull = syncPull ? pull : applyVisualPullCompensation(pull, dir);
+          const visualPull = applyVisualPullCompensation(pull, dir);
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
