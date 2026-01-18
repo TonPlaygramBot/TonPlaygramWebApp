@@ -1454,7 +1454,6 @@ const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit a
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.18; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_STRIKE_DURATION_MS = 120;
-const CUE_STROKE_RETURN_SPEED_RATIO = 0.96;
 const CUE_STRIKE_HOLD_MS = 50;
 const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
@@ -20417,19 +20416,22 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(warmupPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
+          const followTopSpinWeight = THREE.MathUtils.clamp(physicsSpin.y || 0, 0, 1);
+          const followExtra = THREE.MathUtils.clamp(
+            followTopSpinWeight * BALL_R * 0.33,
+            0,
+            BALL_R * 0.33
+          );
+          const impactPos = buildCuePosition(-followExtra);
           const idlePos = buildCuePosition(0);
-          const impactPos = idlePos.clone();
           const settlePos = impactPos.clone();
           cueStick.visible = true;
           cueStick.position.copy(warmupPos);
+          const forwardDuration = CUE_STRIKE_DURATION_MS;
+          const settleDuration = CUE_STRIKE_HOLD_MS;
           const pullbackDuration = isAiStroke
             ? AI_CUE_PULLBACK_DURATION_MS * CUE_STROKE_VISUAL_SLOWDOWN
             : 0;
-          const forwardDuration =
-            pullbackDuration > 0
-              ? pullbackDuration * CUE_STROKE_RETURN_SPEED_RATIO
-              : CUE_STRIKE_DURATION_MS;
-          const settleDuration = CUE_STRIKE_HOLD_MS;
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
