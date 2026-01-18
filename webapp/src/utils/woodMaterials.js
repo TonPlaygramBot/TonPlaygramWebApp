@@ -314,52 +314,6 @@ const FRAME_SLAB_REPEAT_X = LARGE_SLAB_REPEAT_X * 1.18;
 const POLYHAVEN_ASSET_ALIASES = {
   rosewood_veneer_01: 'rosewood_veneer1'
 };
-const BLENDERKIT_POOL_ROYALE_MATERIAL_IDS = Object.freeze([
-  '35421bc9-a49d-4979-8d93-0c13e9eba371',
-  '2c52be7f-8e46-4c6c-adc2-888449da931e',
-  '3ecfdd76-6e15-4c3c-89c9-4a1cafdc3155',
-  'f1036f94-c4a7-4c70-8694-3234f062d46d',
-  '1fddce2a-4d76-45e4-b09e-e4605e10b873',
-  'fb650615-ef11-4e19-bc68-abfbeddee561',
-  '852ee40c-e967-4028-bb26-428e84933cab',
-  '199ebe44-46ef-490d-99f6-93aa33b903b8',
-  'e25066a1-aaba-4ff1-ab68-a67b413c5eaa',
-  'a283a837-0e33-4182-b55d-2a8c742fda08',
-  '46de7336-6072-4b85-8b99-ac2438829a08',
-  '3c4de2d5-540e-4e1c-95dd-9b6721bba08f',
-  '22585ff5-5c37-42c1-8fbe-be9429c2722b',
-  'e4cdf7af-7789-4ef1-85a8-378956ceb79d',
-  'fa7dacb7-3621-4c57-ad5b-b4178afc329b',
-  '42682664-0da2-4d09-9d18-e0c7fbc61740',
-  '784156cf-8f7a-4559-b388-4cdc66a237c7',
-  '87170683-fda0-4121-b8fd-6a7874a1f060',
-  '8f9b1321-c008-4e8b-bee2-bd71c3d96eca',
-  '2a5a3947-6788-479a-930c-d8e0c46f5444',
-  '7bb8b5ff-9414-41f6-912e-c7f7c7c199cd',
-  '646e4223-0a0e-402c-83cb-771f80cb3b40',
-  '739b5e5b-95a8-43b5-a87f-393e4bf07afa',
-  '4abe5330-da7c-4297-9769-6e7e0acc8bc3',
-  '43baa4e4-d20b-47c5-949b-a38fa6c15b51',
-  '179f3e02-a17a-4b7f-8316-3504864282be',
-  '42c90503-731b-46b6-a23e-019d06749d3a',
-  'a167dd9e-f0a4-4384-8b81-2fbb87dd1728',
-  '7c47beed-802f-449e-8db6-1e1a4af162cc',
-  '42f8ed87-4d8b-4e2d-82b3-ec91c4b27231',
-  'ec1358d7-5ea1-47f6-9171-6c57de898739',
-  '36a2d185-faf0-4949-b473-c9bec980867f',
-  '16bcdeeb-ae61-42fa-9f17-ee96ca77a6e5',
-  '8e44c701-27cd-4d52-be1c-a9a7140354a4',
-  'ade0f2da-ceed-431b-a372-ade7f969a230',
-  '17a9260c-0355-4e50-b73e-9406e9f642b6',
-  'c13bea13-d852-4e32-8971-57a7c5c93879',
-  '511f0b04-dee5-47e2-b789-d518a735ab49',
-  'bd1d17c7-ce71-4c9a-89e3-cbadf6fbb67f',
-  '77777f54-71c1-4910-b534-3f00e3f9a574',
-  '9a4f0337-b06e-4886-9460-455bf108be8d',
-  'f4b039e7-d4d4-48c2-8799-23b6d8f09716',
-  'a8a0525a-80d4-4e71-9249-4b3114b003bc',
-  '1d275ed8-6c1e-4850-82ad-72e65749ab0b'
-]);
 
 const polyHavenTextureSet = (assetId) => {
   const resolvedId = POLYHAVEN_ASSET_ALIASES[assetId] ?? assetId;
@@ -485,23 +439,6 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       rotation: 0,
       textureSize: 2048,
       ...polyHavenTextureSet('rosewood_veneer_01')
-    }
-  }),
-  Object.freeze({
-    id: 'blenderkit_pool_royale_original',
-    label: 'BlenderKit Pool Royale Original',
-    source: 'BlenderKit materials (original GLTF mapping)',
-    rail: {
-      repeat: { x: 1, y: 1 },
-      rotation: 0,
-      textureSize: 2048,
-      blenderkitMaterialIds: BLENDERKIT_POOL_ROYALE_MATERIAL_IDS
-    },
-    frame: {
-      repeat: { x: 1, y: 1 },
-      rotation: 0,
-      textureSize: 2048,
-      blenderkitMaterialIds: BLENDERKIT_POOL_ROYALE_MATERIAL_IDS
     }
   }),
   Object.freeze({
