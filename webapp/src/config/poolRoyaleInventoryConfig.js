@@ -1,4 +1,5 @@
 import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
+import { POOL_ROYALE_BLENDERKIT_TABLE_FINISHES } from './poolRoyaleTableFinishBlenderkit.js';
 
 const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
   neonPhotostudio: {
@@ -360,7 +361,11 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     oakVeneer01: 'Oak Veneer 01',
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
-    rosewoodVeneer01: 'Rosewood Veneer 01'
+    rosewoodVeneer01: 'Rosewood Veneer 01',
+    ...POOL_ROYALE_BLENDERKIT_TABLE_FINISHES.reduce((acc, finish) => {
+      acc[finish.id] = finish.label;
+      return acc;
+    }, {})
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -444,6 +449,15 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 1020,
     description: 'Rosewood veneer rails with rich, reddish undertones.'
   },
+  ...POOL_ROYALE_BLENDERKIT_TABLE_FINISHES.map((finish) => ({
+    id: `finish-${finish.id}`,
+    type: 'tableFinish',
+    optionId: finish.id,
+    name: `${finish.label} Finish`,
+    price: finish.price ?? 1200,
+    description:
+      finish.description ?? 'BlenderKit wood finish with layered grain depth.'
+  })),
   {
     id: 'chrome-chrome',
     type: 'chromeColor',

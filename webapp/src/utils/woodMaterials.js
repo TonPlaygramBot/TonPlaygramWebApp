@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { applySRGBColorSpace } from './colorSpace.js';
+import { POOL_ROYALE_BLENDERKIT_TABLE_FINISHES } from '../config/poolRoyaleTableFinishBlenderkit.js';
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 const normalizeHue = (h) => {
@@ -32,6 +33,11 @@ const tileableNoise = (x, y, width, height, scale, seed = 1) => {
 
 const WOOD_TEXTURE_ANISOTROPY = 12;
 let WOOD_ANISOTROPY_CAP = WOOD_TEXTURE_ANISOTROPY;
+const BLENDERKIT_SEARCH_BASE_URL = 'https://www.blenderkit.com/api/v1/search/?query=asset_base_id:';
+const blenderkitAssetCache = new Map();
+const blenderkitTextureUrlCache = new Map();
+const blenderkitPendingAssets = new Map();
+const blenderkitWoodConsumers = new Map();
 
 export const setWoodTextureAnisotropyCap = (value) => {
   if (!Number.isFinite(value) || value <= 0) return;
@@ -41,6 +47,117 @@ export const setWoodTextureAnisotropyCap = (value) => {
 const woodTextureLoader = new THREE.TextureLoader();
 woodTextureLoader.setCrossOrigin?.('anonymous');
 const WOOD_EXTERNAL_TEXTURE_CACHE = new Map();
+
+const pickBlenderkitThumbnailUrl = (asset) => {
+  if (!asset) return null;
+  return (
+    asset.thumbnailLargeUrl ||
+    asset.thumbnailXlargeUrl ||
+    asset.thumbnailLargeUrlNonsquared ||
+    asset.thumbnailXlargeUrlNonsquared ||
+    asset.thumbnailMiddleUrl ||
+    asset.thumbnailSmallUrl ||
+    asset.thumbnailLargeUrlWebp ||
+    asset.thumbnailXlargeUrlWebp ||
+    asset.thumbnailMiddleUrlWebp ||
+    asset.thumbnailSmallUrlWebp ||
+    null
+  );
+};
+
+const collectBlenderkitImageUrls = (asset) => {
+  const files = Array.isArray(asset?.files) ? asset.files : [];
+  return files
+    .map((file) => ({
+      url: file?.downloadUrl,
+      filename: file?.filename || '',
+      fileType: file?.fileType || ''
+    }))
+    .filter((file) => file.url && /\.(png|jpe?g|webp)$/i.test(file.filename));
+};
+
+const fetchBlenderkitAsset = async (assetBaseId) => {
+  if (!assetBaseId || typeof fetch !== 'function') return null;
+  if (blenderkitAssetCache.has(assetBaseId)) return blenderkitAssetCache.get(assetBaseId);
+  if (blenderkitPendingAssets.has(assetBaseId)) {
+    return blenderkitPendingAssets.get(assetBaseId);
+  }
+  const promise = (async () => {
+    try {
+      const response = await fetch(
+        `${BLENDERKIT_SEARCH_BASE_URL}${encodeURIComponent(assetBaseId)}`,
+        { mode: 'cors' }
+      );
+      if (!response?.ok) return null;
+      const data = await response.json();
+      const asset = data?.results?.[0] || null;
+      if (asset) {
+        blenderkitAssetCache.set(assetBaseId, asset);
+      }
+      return asset;
+    } catch (error) {
+      return null;
+    } finally {
+      blenderkitPendingAssets.delete(assetBaseId);
+    }
+  })();
+  blenderkitPendingAssets.set(assetBaseId, promise);
+  return promise;
+};
+
+const registerBlenderkitWoodConsumer = (assetBaseId, material) => {
+  if (!assetBaseId || !material) return;
+  let set = blenderkitWoodConsumers.get(assetBaseId);
+  if (!set) {
+    set = new Set();
+    blenderkitWoodConsumers.set(assetBaseId, set);
+  }
+  set.add(material);
+};
+
+const resolveBlenderkitTextureUrls = (assetBaseId) => {
+  if (!assetBaseId) return null;
+  if (blenderkitTextureUrlCache.has(assetBaseId)) {
+    return blenderkitTextureUrlCache.get(assetBaseId);
+  }
+  if (blenderkitPendingAssets.has(assetBaseId)) return null;
+  if (typeof fetch !== 'function') return null;
+  const promise = (async () => {
+    const asset = await fetchBlenderkitAsset(assetBaseId);
+    if (!asset) return null;
+    const imageFiles = collectBlenderkitImageUrls(asset);
+    const thumb = pickBlenderkitThumbnailUrl(asset);
+    const normalCandidates = imageFiles
+      .filter((file) =>
+        /normal|nor|nrm/i.test(file.filename) || /normal/i.test(file.fileType)
+      )
+      .map((file) => file.url);
+    const roughnessCandidates = imageFiles
+      .filter((file) =>
+        /rough|roughness/i.test(file.filename) || /rough/i.test(file.fileType)
+      )
+      .map((file) => file.url);
+    const diffuseCandidates = imageFiles
+      .filter(
+        (file) =>
+          !/normal|nor|nrm/i.test(file.filename) &&
+          !/rough|roughness/i.test(file.filename)
+      )
+      .map((file) => file.url);
+    if (thumb) diffuseCandidates.unshift(thumb);
+    const urls = {
+      mapUrl: diffuseCandidates[0] || null,
+      roughnessMapUrl: roughnessCandidates[0] || null,
+      normalMapUrl: normalCandidates[0] || null
+    };
+    blenderkitTextureUrlCache.set(assetBaseId, urls);
+    broadcastBlenderkitWoodTextures(assetBaseId);
+    return urls;
+  })();
+  blenderkitPendingAssets.set(assetBaseId, promise);
+  promise.finally(() => blenderkitPendingAssets.delete(assetBaseId));
+  return null;
+};
 
 const normalizeExternalTexture = (texture, isColor = false, anisotropy = WOOD_TEXTURE_ANISOTROPY) => {
   if (!texture) return;
@@ -474,7 +591,27 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       textureSize: 2048,
       ...polyHavenTextureSet('japanese_sycamore')
     }
-  })
+  }),
+  ...POOL_ROYALE_BLENDERKIT_TABLE_FINISHES.map((finish) =>
+    Object.freeze({
+      id: finish.id,
+      label: finish.label,
+      source: `BlenderKit — ${finish.label}`,
+      sourceType: 'blenderkit',
+      rail: {
+        repeat: { x: 1, y: 1 },
+        rotation: 0,
+        textureSize: 2048,
+        assetBaseId: finish.assetBaseId
+      },
+      frame: {
+        repeat: { x: 1, y: 1 },
+        rotation: 0,
+        textureSize: 2048,
+        assetBaseId: finish.assetBaseId
+      }
+    })
+  )
 ]);
 
 export const DEFAULT_WOOD_GRAIN_ID = WOOD_GRAIN_OPTIONS[0].id;
@@ -606,6 +743,7 @@ export const applyWoodTextures = (
     mapUrl,
     roughnessMapUrl,
     normalMapUrl,
+    assetBaseId,
     repeat = { x: 1, y: 1 },
     rotation = 0,
     textureSize = DEFAULT_WOOD_TEXTURE_SIZE,
@@ -617,6 +755,24 @@ export const applyWoodTextures = (
 ) => {
   if (!material) return null;
   disposeWoodTextures(material);
+  let resolvedMapUrl = mapUrl;
+  let resolvedRoughnessMapUrl = roughnessMapUrl;
+  let resolvedNormalMapUrl = normalMapUrl;
+  if (
+    assetBaseId &&
+    !resolvedMapUrl &&
+    !resolvedRoughnessMapUrl &&
+    !resolvedNormalMapUrl
+  ) {
+    const blenderkitUrls = resolveBlenderkitTextureUrls(assetBaseId);
+    if (blenderkitUrls) {
+      resolvedMapUrl = blenderkitUrls.mapUrl ?? resolvedMapUrl;
+      resolvedRoughnessMapUrl = blenderkitUrls.roughnessMapUrl ?? resolvedRoughnessMapUrl;
+      resolvedNormalMapUrl = blenderkitUrls.normalMapUrl ?? resolvedNormalMapUrl;
+    } else {
+      registerBlenderkitWoodConsumer(assetBaseId, material);
+    }
+  }
   const fallbackTextures = {
     map: makeSlabTexture(textureSize, textureSize, hue, sat, light, contrast),
     roughnessMap: makeRoughnessMap(
@@ -628,9 +784,13 @@ export const applyWoodTextures = (
     normalMap: null
   };
   let baseTextures = null;
-  if (mapUrl) {
+  if (resolvedMapUrl) {
     const external = getExternalWoodTextures(
-      { mapUrl, roughnessMapUrl, normalMapUrl },
+      {
+        mapUrl: resolvedMapUrl,
+        roughnessMapUrl: resolvedRoughnessMapUrl,
+        normalMapUrl: resolvedNormalMapUrl
+      },
       16,
       fallbackTextures
     );
@@ -685,9 +845,10 @@ export const applyWoodTextures = (
     sat,
     light,
     contrast,
-    mapUrl,
-    roughnessMapUrl,
-    normalMapUrl,
+    mapUrl: resolvedMapUrl ?? mapUrl,
+    roughnessMapUrl: resolvedRoughnessMapUrl ?? roughnessMapUrl,
+    normalMapUrl: resolvedNormalMapUrl ?? normalMapUrl,
+    assetBaseId,
     repeat: { x: repeatVec.x, y: repeatVec.y },
     rotation,
     textureSize,
@@ -699,6 +860,26 @@ export const applyWoodTextures = (
   material.userData.woodRepeat = new THREE.Vector2(repeatVec.x, repeatVec.y);
   return { map, roughnessMap };
 };
+
+function broadcastBlenderkitWoodTextures(assetBaseId) {
+  if (!assetBaseId) return;
+  const urls = blenderkitTextureUrlCache.get(assetBaseId);
+  if (!urls) return;
+  const consumers = blenderkitWoodConsumers.get(assetBaseId);
+  if (!consumers?.size) return;
+  consumers.forEach((material) => {
+    if (!material) return;
+    const options = material.userData?.__woodOptions;
+    if (!options) return;
+    applyWoodTextures(material, {
+      ...options,
+      mapUrl: urls.mapUrl ?? options.mapUrl,
+      roughnessMapUrl: urls.roughnessMapUrl ?? options.roughnessMapUrl,
+      normalMapUrl: urls.normalMapUrl ?? options.normalMapUrl,
+      assetBaseId
+    });
+  });
+}
 
 export const createWoodMaterial = ({
   hue,
@@ -712,6 +893,7 @@ export const createWoodMaterial = ({
   roughnessBase = 0.18,
   roughnessVariance = 0.25,
   sharedKey = null,
+  assetBaseId = null,
   ...materialProps
 } = {}) => {
   const material = new THREE.MeshPhysicalMaterial({
@@ -729,7 +911,8 @@ export const createWoodMaterial = ({
     roughnessSize,
     roughnessBase,
     roughnessVariance,
-    sharedKey
+    sharedKey,
+    assetBaseId
   });
   return material;
 };
