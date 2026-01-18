@@ -173,6 +173,12 @@
   margin-top: 4px;
   width: 100%;
   height: auto;
+  --ps-cue-drop: 0px;
+  --ps-cue-forward: 0px;
+  --ps-cue-tilt: 0deg;
+  transform: translateY(calc(var(--ps-cue-drop) + var(--ps-cue-forward)))
+    rotate(var(--ps-cue-tilt));
+  transition: transform 0.12s ease-out;
 }
 
 .ps .ps-tooltip {
@@ -200,7 +206,8 @@
 }
 
 .ps.ps-no-animate .ps-handle,
-.ps.ps-no-animate .ps-tooltip {
+.ps.ps-no-animate .ps-tooltip,
+.ps.ps-no-animate .ps-cue-img {
   transition: none !important;
 }
 
@@ -245,7 +252,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ps .ps-handle,
-  .ps .ps-tooltip {
+  .ps .ps-tooltip,
+  .ps .ps-cue-img {
     transition: none !important;
   }
 }
