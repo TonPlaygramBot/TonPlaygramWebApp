@@ -65,6 +65,7 @@ import {
   POOL_ROYALE_OPTION_LABELS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
+import { resolvePoolRoyaleTableModel } from '../../config/poolRoyaleTableModels.js';
 import {
   getCachedPoolRoyalInventory,
   getPoolRoyalInventory,
@@ -89,6 +90,7 @@ import {
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const BLENDERKIT_SEARCH_BASE_URL = 'https://www.blenderkit.com/api/v1/search/?query=asset_base_id:';
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -2502,6 +2504,8 @@ const CLOTH_LIBRARY = Object.freeze(
       id: variant.id,
       label: variant.name,
       sourceId: variant.sourceId,
+      sourceType: variant.sourceType,
+      assetBaseId: variant.assetBaseId,
       palette: variant.palette,
       color: variant.baseColor,
       sparkle: variant.sparkle,
@@ -2518,7 +2522,9 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze(
       palette: cloth.palette,
       sparkle: cloth.sparkle,
       stray: cloth.stray,
-      sourceId: cloth.sourceId
+      sourceId: cloth.sourceId,
+      sourceType: cloth.sourceType,
+      assetBaseId: cloth.assetBaseId
     });
     return acc;
   }, {})
@@ -2529,10 +2535,11 @@ const DEFAULT_CLOTH_TEXTURE_KEY =
 const DEFAULT_CLOTH_COLOR_ID = DEFAULT_CLOTH_TEXTURE_KEY;
 const CLOTH_TEXTURE_SOURCE_STORAGE_KEY = 'poolRoyaleClothSource';
 const CLOTH_TEXTURE_SOURCE_OPTIONS = Object.freeze([
+  { id: 'blenderkit', label: 'BlenderKit Cloth' },
   { id: 'polyhaven', label: 'Poly Haven Cloth (4K)' },
   { id: 'procedural', label: 'Procedural Cloth' }
 ]);
-const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'polyhaven';
+const DEFAULT_CLOTH_TEXTURE_SOURCE_ID = 'blenderkit';
 const CLOTH_COLOR_OPTIONS = Object.freeze(
   CLOTH_LIBRARY.map((cloth) => ({
     id: cloth.id,
@@ -3029,6 +3036,9 @@ const upgradePolyHavenTextureUrlTo4k = (url) => {
 const createClothTextures = (() => {
   const cache = new Map();
   const pendingLoads = new Map();
+  const blenderkitAssetCache = new Map();
+  const pendingBlenderkitAssets = new Map();
+  const pendingBlenderkitLoads = new Map();
   const clamp255 = (value) => Math.max(0, Math.min(255, value));
   const cloneTexture = (texture) => {
     if (!texture) return null;
@@ -3077,7 +3087,7 @@ const createClothTextures = (() => {
     return null;
   };
 
-  const applyTextureDefaults = (texture, { isPolyHaven = false } = {}) => {
+  const applyTextureDefaults = (texture, { isPolyHaven = false, source = 'procedural' } = {}) => {
     if (!texture) return;
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
@@ -3092,7 +3102,7 @@ const createClothTextures = (() => {
     texture.magFilter = THREE.LinearFilter;
     texture.userData = {
       ...(texture.userData || {}),
-      clothSource: isPolyHaven ? 'polyhaven' : 'procedural'
+      clothSource: isPolyHaven ? 'polyhaven' : source
     };
     texture.needsUpdate = true;
   };
@@ -3147,6 +3157,63 @@ const createClothTextures = (() => {
     } catch (err) {
       return texture;
     }
+  };
+
+  const pickBlenderkitThumbnailUrl = (asset) => {
+    if (!asset) return null;
+    return (
+      asset.thumbnailLargeUrl ||
+      asset.thumbnailXlargeUrl ||
+      asset.thumbnailLargeUrlNonsquared ||
+      asset.thumbnailXlargeUrlNonsquared ||
+      asset.thumbnailMiddleUrl ||
+      asset.thumbnailSmallUrl ||
+      asset.thumbnailLargeUrlWebp ||
+      asset.thumbnailXlargeUrlWebp ||
+      asset.thumbnailMiddleUrlWebp ||
+      asset.thumbnailSmallUrlWebp ||
+      null
+    );
+  };
+
+  const collectBlenderkitImageUrls = (asset) => {
+    const files = Array.isArray(asset?.files) ? asset.files : [];
+    return files
+      .map((file) => ({
+        url: file?.downloadUrl,
+        filename: file?.filename || '',
+        fileType: file?.fileType || ''
+      }))
+      .filter((file) => file.url && /\.(png|jpe?g|webp)$/i.test(file.filename));
+  };
+
+  const fetchBlenderkitAsset = async (assetBaseId) => {
+    if (!assetBaseId || typeof fetch !== 'function') return null;
+    if (blenderkitAssetCache.has(assetBaseId)) return blenderkitAssetCache.get(assetBaseId);
+    if (pendingBlenderkitAssets.has(assetBaseId)) {
+      return pendingBlenderkitAssets.get(assetBaseId);
+    }
+    const promise = (async () => {
+      try {
+        const response = await fetch(
+          `${BLENDERKIT_SEARCH_BASE_URL}${encodeURIComponent(assetBaseId)}`,
+          { mode: 'cors' }
+        );
+        if (!response?.ok) return null;
+        const data = await response.json();
+        const asset = data?.results?.[0] || null;
+        if (asset) {
+          blenderkitAssetCache.set(assetBaseId, asset);
+        }
+        return asset;
+      } catch (error) {
+        return null;
+      } finally {
+        pendingBlenderkitAssets.delete(assetBaseId);
+      }
+    })();
+    pendingBlenderkitAssets.set(assetBaseId, promise);
+    return promise;
   };
 
   const generateProceduralClothTextures = (preset) => {
@@ -3419,6 +3486,69 @@ const createClothTextures = (() => {
     pendingLoads.set(cacheKey, promise);
   };
 
+  const ensureBlenderkitTextures = (preset, cacheKey) => {
+    if (!preset?.assetBaseId) return;
+    const cached = cache.get(cacheKey);
+    if (cached?.blenderkitReady) return;
+    if (pendingBlenderkitLoads.has(cacheKey)) return;
+    if (typeof window === 'undefined' || typeof fetch !== 'function') return;
+
+    const promise = (async () => {
+      try {
+        const asset = await fetchBlenderkitAsset(preset.assetBaseId);
+        if (!asset) return;
+        const imageFiles = collectBlenderkitImageUrls(asset);
+        const thumb = pickBlenderkitThumbnailUrl(asset);
+        const diffuseCandidates = [
+          thumb,
+          ...imageFiles.map((file) => file.url)
+        ].filter(Boolean);
+
+        const normalCandidates = imageFiles
+          .filter((file) =>
+            /normal|nor|nrm/i.test(file.filename) || /normal/i.test(file.fileType)
+          )
+          .map((file) => file.url);
+        const roughnessCandidates = imageFiles
+          .filter((file) =>
+            /rough|roughness/i.test(file.filename) || /rough/i.test(file.fileType)
+          )
+          .map((file) => file.url);
+
+        const loader = new THREE.TextureLoader();
+        loader.setCrossOrigin('anonymous');
+
+        const [map, normal, roughness] = await Promise.all([
+          loadTextureWithFallbacks(loader, diffuseCandidates, true),
+          loadTextureWithFallbacks(loader, normalCandidates, false),
+          loadTextureWithFallbacks(loader, roughnessCandidates, false)
+        ]);
+
+        [map, normal, roughness].forEach((tex) =>
+          applyTextureDefaults(tex, { source: 'blenderkit' })
+        );
+
+        const existing = cache.get(cacheKey) || {};
+        cache.set(cacheKey, {
+          ...existing,
+          blenderkitMap: map ?? existing.blenderkitMap ?? null,
+          blenderkitNormal: normal ?? existing.blenderkitNormal ?? null,
+          blenderkitRoughness: roughness ?? existing.blenderkitRoughness ?? null,
+          presetId: preset.id,
+          sourceId: preset.sourceId,
+          mapSource: map ? 'blenderkit' : existing.mapSource ?? 'procedural',
+          blenderkitReady: Boolean(map || normal || roughness)
+        });
+        broadcastClothTextureReady(preset.sourceId || preset.assetBaseId);
+      } catch (err) {
+        console.warn('Failed to load BlenderKit cloth textures', preset?.assetBaseId, err);
+      } finally {
+        pendingBlenderkitLoads.delete(cacheKey);
+      }
+    })();
+    pendingBlenderkitLoads.set(cacheKey, promise);
+  };
+
   return (textureKey = DEFAULT_CLOTH_TEXTURE_KEY, textureSource = DEFAULT_CLOTH_TEXTURE_SOURCE_ID) => {
     const preset =
       CLOTH_TEXTURE_PRESETS[textureKey] ??
@@ -3433,28 +3563,62 @@ const createClothTextures = (() => {
         proceduralBump: procedural.bump ?? null,
         normal: null,
         roughness: null,
+        blenderkitMap: null,
+        blenderkitNormal: null,
+        blenderkitRoughness: null,
         presetId: preset.id,
         sourceId: preset.sourceId,
         mapSource: 'procedural',
-        ready: false
+        ready: false,
+        blenderkitReady: false
       };
       cache.set(cacheKey, entry);
     }
 
     const useProcedural = textureSource === 'procedural';
-    if (!useProcedural) {
+    const useBlenderkit =
+      textureSource === 'blenderkit' &&
+      preset?.sourceType === 'blenderkit' &&
+      preset?.assetBaseId;
+    if (useBlenderkit) {
+      ensureBlenderkitTextures(preset, cacheKey);
+    } else if (!useProcedural) {
       ensurePolyHavenTextures(preset, cacheKey);
     }
 
     return {
-      map: cloneTexture(useProcedural ? entry.proceduralMap ?? entry.map : entry.map),
+      map: cloneTexture(
+        useProcedural
+          ? entry.proceduralMap ?? entry.map
+          : useBlenderkit
+            ? entry.blenderkitMap ?? entry.proceduralMap ?? entry.map
+            : entry.map
+      ),
       bump: cloneTexture(useProcedural ? entry.proceduralBump ?? entry.bump : entry.bump),
-      normal: cloneTexture(useProcedural ? null : entry.normal),
-      roughness: cloneTexture(useProcedural ? null : entry.roughness),
+      normal: cloneTexture(
+        useProcedural
+          ? null
+          : useBlenderkit
+            ? entry.blenderkitNormal ?? entry.normal
+            : entry.normal
+      ),
+      roughness: cloneTexture(
+        useProcedural
+          ? null
+          : useBlenderkit
+            ? entry.blenderkitRoughness ?? entry.roughness
+            : entry.roughness
+      ),
       presetId: preset.id,
       sourceId: entry.sourceId,
-      mapSource: useProcedural ? 'procedural' : entry.mapSource ?? 'procedural',
-      ready: useProcedural ? true : Boolean(entry.ready)
+      mapSource: useProcedural
+        ? 'procedural'
+        : useBlenderkit
+          ? entry.blenderkitMap
+            ? 'blenderkit'
+            : entry.mapSource ?? 'procedural'
+          : entry.mapSource ?? 'procedural',
+      ready: useProcedural ? true : Boolean(useBlenderkit ? entry.blenderkitReady : entry.ready)
     };
   };
 })();
@@ -9493,6 +9657,9 @@ function Table3D(
   let polyhavenKtx2Loader = null;
   const polyhavenBaseTemplates = new Map();
   const polyhavenBasePromises = new Map();
+  const blenderkitBaseTemplates = new Map();
+  const blenderkitBasePromises = new Map();
+  const BLENDERKIT_POOL_TABLE_ASSET_BASE_ID = '84a78996-6ed0-4833-a110-b00c36c348a8';
 
   const ensurePolyhavenKtx2Loader = (renderer = null) => {
     if (!polyhavenKtx2Loader) {
@@ -9581,6 +9748,152 @@ function Table3D(
     return clone;
   };
 
+  const pickBlenderkitModelUrl = (asset) => {
+    const files = Array.isArray(asset?.files) ? asset.files : [];
+    const modelFiles = files.filter((file) => {
+      const fileType = String(file?.fileType || '').toLowerCase();
+      const filename = String(file?.filename || '').toLowerCase();
+      return (
+        fileType.includes('gltf') ||
+        fileType.includes('glb') ||
+        filename.endsWith('.gltf') ||
+        filename.endsWith('.glb')
+      );
+    });
+    return modelFiles[0]?.downloadUrl || null;
+  };
+
+  const ensureBlenderkitBaseTemplate = (assetBaseId, renderer = null) => {
+    if (!assetBaseId) {
+      return Promise.reject(new Error('Missing BlenderKit asset id'));
+    }
+    if (blenderkitBaseTemplates.has(assetBaseId)) {
+      return Promise.resolve(blenderkitBaseTemplates.get(assetBaseId));
+    }
+    if (blenderkitBasePromises.has(assetBaseId)) {
+      return blenderkitBasePromises.get(assetBaseId);
+    }
+    const promise = (async () => {
+      const loader = createConfiguredGLTFLoader(renderer);
+      const response = await fetch(
+        `${BLENDERKIT_SEARCH_BASE_URL}${encodeURIComponent(assetBaseId)}`,
+        { mode: 'cors' }
+      );
+      if (!response?.ok) {
+        throw new Error(`Failed BlenderKit lookup for ${assetBaseId}`);
+      }
+      const data = await response.json();
+      const asset = data?.results?.[0];
+      const url = pickBlenderkitModelUrl(asset);
+      if (!url) {
+        throw new Error(`No GLTF payload found for BlenderKit asset ${assetBaseId}`);
+      }
+      const gltf = await loader.loadAsync(url);
+      const scene = gltf?.scene || gltf?.scenes?.[0];
+      if (!scene) throw new Error('Missing scene for BlenderKit base');
+      blenderkitBaseTemplates.set(assetBaseId, scene);
+      return scene;
+    })();
+    blenderkitBasePromises.set(assetBaseId, promise);
+    promise.catch(() => blenderkitBasePromises.delete(assetBaseId));
+    return promise;
+  };
+
+  const cloneBlenderkitBaseTemplate = (assetBaseId) => {
+    if (!assetBaseId) return null;
+    const template = blenderkitBaseTemplates.get(assetBaseId);
+    if (!template) return null;
+    const clone = template.clone(true);
+    clone.traverse((child) => {
+      if (!child?.isMesh) return;
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      const refreshed = materials.map((mat) => sharpenGltfMaterial(mat));
+      child.material = Array.isArray(child.material) ? refreshed : refreshed[0] ?? child.material;
+      child.castShadow = true;
+      child.receiveShadow = true;
+      tagBasePart(child);
+    });
+    tagBasePart(clone);
+    return clone;
+  };
+
+  const createBlenderkitTableBaseBuilder = (
+    assetBaseId,
+    {
+      footprintScale = 1,
+      footprintDepthScale = null,
+      heightFill = 0.84,
+      topInsetScale = 0.95,
+      materialKey = null,
+      matchTableFootprint = false,
+      fallbackBuilder = null
+    } = {}
+  ) => {
+    return (ctx) => {
+      const meshes = [];
+      const legMeshes = [];
+      const normalizeOptions = {
+        topInset: ctx.skirtH * topInsetScale,
+        fill: heightFill
+      };
+      const template = cloneBlenderkitBaseTemplate(assetBaseId);
+      const asyncReady = template ? null : ensureBlenderkitBaseTemplate(assetBaseId, ctx.renderer);
+      const buildInstance = () => {
+        const base = cloneBlenderkitBaseTemplate(assetBaseId);
+        if (!base) return;
+        const bounds = new THREE.Box3().setFromObject(base);
+        const size = bounds.getSize(new THREE.Vector3());
+        const targetWidth = ctx.frameOuterX * 2 * footprintScale;
+        const targetDepth =
+          ctx.frameOuterZ * 2 * (footprintDepthScale ?? footprintScale * 0.96);
+        const widthScale = size.x > MICRO_EPS ? targetWidth / size.x : 1;
+        const depthScale = size.z > MICRO_EPS ? targetDepth / size.z : 1;
+        const uniformScale = Math.min(widthScale, depthScale);
+        const scaleX = matchTableFootprint ? widthScale : uniformScale;
+        const scaleZ = matchTableFootprint ? depthScale : uniformScale;
+        if (
+          Number.isFinite(scaleX) &&
+          scaleX > 0 &&
+          Number.isFinite(scaleZ) &&
+          scaleZ > 0 &&
+          Number.isFinite(uniformScale) &&
+          uniformScale > 0
+        ) {
+          base.scale.set(scaleX, uniformScale, scaleZ);
+        }
+        base.updateMatrixWorld(true);
+        const scaledBounds = new THREE.Box3().setFromObject(base);
+        const offsetY = ctx.floorY - scaledBounds.min.y;
+        base.position.set(0, offsetY, 0);
+        base.updateMatrixWorld(true);
+        const material =
+          materialKey === 'rail'
+            ? ctx.railMat
+            : materialKey === 'trim'
+              ? ctx.trimMat
+              : null;
+        if (material) {
+          applyBaseMaterialToObject(base, material, materialKey);
+        } else if (materialKey) {
+          tagBasePart(base, materialKey);
+        }
+        meshes.push(base);
+        base.traverse((child) => {
+          if (child?.isMesh) {
+            legMeshes.push(child);
+          }
+        });
+      };
+      if (template) {
+        buildInstance();
+      } else if (typeof fallbackBuilder === 'function') {
+        const fallback = fallbackBuilder(ctx);
+        return { ...fallback, asyncReady, normalizeOptions };
+      }
+      return { meshes, legMeshes, normalizeOptions, asyncReady };
+    };
+  };
+
   const createPolyhavenTableBaseBuilder = (
     assetId,
     {
@@ -9654,33 +9967,44 @@ function Table3D(
     };
   };
 
+  const buildClassicCylindersBase = (ctx) => {
+    const pocketSafeInsetX = Math.min(ctx.frameOuterX, ctx.legInset + LEG_POCKET_CLEARANCE);
+    const pocketSafeInsetZ = Math.min(
+      ctx.frameOuterZ,
+      ctx.legInset + LEG_POCKET_CLEARANCE * 0.72
+    );
+    const legZOffset = Math.max(
+      0,
+      ctx.frameOuterZ - pocketSafeInsetZ - CLASSIC_SHORT_RAIL_CENTER_PULL
+    );
+    const positions = [
+      [-ctx.frameOuterX + pocketSafeInsetX, -legZOffset],
+      [ctx.frameOuterX - pocketSafeInsetX, -legZOffset],
+      [-ctx.frameOuterX + pocketSafeInsetX, legZOffset],
+      [ctx.frameOuterX - pocketSafeInsetX, legZOffset]
+    ];
+    const legs = positions.map(([lx, lz]) => {
+      const leg = new THREE.Mesh(ctx.legGeo, ctx.legMat);
+      leg.position.set(lx, ctx.legY, lz);
+      leg.castShadow = true;
+      leg.receiveShadow = true;
+      leg.userData = { ...(leg.userData || {}), __basePart: true };
+      return leg;
+    });
+    return { meshes: legs, legMeshes: legs };
+  };
+
   const baseBuilders = {
-    classicCylinders: (ctx) => {
-      const pocketSafeInsetX = Math.min(ctx.frameOuterX, ctx.legInset + LEG_POCKET_CLEARANCE);
-      const pocketSafeInsetZ = Math.min(
-        ctx.frameOuterZ,
-        ctx.legInset + LEG_POCKET_CLEARANCE * 0.72
-      );
-      const legZOffset = Math.max(
-        0,
-        ctx.frameOuterZ - pocketSafeInsetZ - CLASSIC_SHORT_RAIL_CENTER_PULL
-      );
-      const positions = [
-        [-ctx.frameOuterX + pocketSafeInsetX, -legZOffset],
-        [ctx.frameOuterX - pocketSafeInsetX, -legZOffset],
-        [-ctx.frameOuterX + pocketSafeInsetX, legZOffset],
-        [ctx.frameOuterX - pocketSafeInsetX, legZOffset]
-      ];
-      const legs = positions.map(([lx, lz]) => {
-        const leg = new THREE.Mesh(ctx.legGeo, ctx.legMat);
-        leg.position.set(lx, ctx.legY, lz);
-        leg.castShadow = true;
-        leg.receiveShadow = true;
-        leg.userData = { ...(leg.userData || {}), __basePart: true };
-        return leg;
-      });
-      return { meshes: legs, legMeshes: legs };
-    },
+    classicCylinders: buildClassicCylindersBase,
+    blenderkitPoolTable: createBlenderkitTableBaseBuilder(BLENDERKIT_POOL_TABLE_ASSET_BASE_ID, {
+      footprintScale: 0.98,
+      footprintDepthScale: 1,
+      heightFill: 0.86,
+      topInsetScale: 0.96,
+      materialKey: 'trim',
+      matchTableFootprint: true,
+      fallbackBuilder: buildClassicCylindersBase
+    }),
     openPortal: (ctx) => {
       const meshes = [];
       const legMeshes = [];
@@ -10237,6 +10561,7 @@ function PoolRoyaleGame({
   variantKey,
   ballSetKey,
   tableSizeKey,
+  tableModelId,
   playType = 'regular',
   mode = 'ai',
   trainingMode = 'solo',
@@ -10280,6 +10605,10 @@ function PoolRoyaleGame({
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey, ballSetKey),
     [variantKey, ballSetKey]
+  );
+  const activeTableModel = useMemo(
+    () => (tableModelId ? resolvePoolRoyaleTableModel(tableModelId) : null),
+    [tableModelId]
   );
   const isUkAmericanSet = useMemo(
     () => activeVariant?.id === 'uk' && activeVariant?.ballSet === 'american',
@@ -10489,6 +10818,15 @@ function PoolRoyaleGame({
       DEFAULT_TABLE_BASE_ID
     );
   });
+  const appliedTableModelRef = useRef(null);
+  useEffect(() => {
+    if (!activeTableModel?.baseVariantId) return;
+    if (appliedTableModelRef.current === activeTableModel.id) return;
+    if (isPoolOptionUnlocked('tableBase', activeTableModel.baseVariantId, poolInventory)) {
+      setTableBaseId(activeTableModel.baseVariantId);
+      appliedTableModelRef.current = activeTableModel.id;
+    }
+  }, [activeTableModel, poolInventory, setTableBaseId]);
   const [clothColorId, setClothColorId] = useState(() => {
     return resolveStoredSelection(
       'clothColor',
@@ -26488,6 +26826,10 @@ export default function PoolRoyale() {
     const requested = params.get('tableSize');
     return resolveTableSize(requested).id;
   }, [location.search]);
+  const tableModelId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('tableModel') || '';
+  }, [location.search]);
   const playType = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('type');
@@ -26611,6 +26953,7 @@ export default function PoolRoyale() {
       variantKey={variantKey}
       ballSetKey={ballSetKey}
       tableSizeKey={tableSizeKey}
+      tableModelId={tableModelId}
       playType={playType}
       mode={mode}
       trainingMode={trainingMode}
