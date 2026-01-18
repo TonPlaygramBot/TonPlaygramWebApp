@@ -9,6 +9,8 @@ export class PowerSlider {
       cueSrc = '',
       onChange,
       onCommit,
+      onStart,
+      onEnd,
       theme = 'default',
       labels = false
     } = opts;
@@ -21,6 +23,8 @@ export class PowerSlider {
     this.step = step;
     this.onChange = onChange;
     this.onCommit = onCommit;
+    this.onStart = onStart;
+    this.onEnd = onEnd;
     this.locked = false;
 
     this.el = document.createElement('div');
@@ -209,6 +213,7 @@ export class PowerSlider {
     this.el.classList.add('ps-no-animate');
     this.el.setPointerCapture(e.pointerId);
     this.pointerStartY = e.clientY;
+    if (typeof this.onStart === 'function') this.onStart();
     this.el.addEventListener('pointermove', this._onPointerMove);
     this.el.addEventListener('pointerup', this._onPointerUp);
   }
@@ -229,6 +234,10 @@ export class PowerSlider {
     this.el.removeEventListener('pointerup', this._onPointerUp);
     this.el.classList.remove('ps-no-animate');
     const moved = this.dragMoved || Math.abs(this.value - this.dragStartValue) > 0;
+    const committed = moved && typeof this.onCommit === 'function';
+    if (typeof this.onEnd === 'function') {
+      this.onEnd({ committed, value: this.value, moved });
+    }
     if (!moved) {
       this.set(this.dragStartValue, { animate: true });
       return;
