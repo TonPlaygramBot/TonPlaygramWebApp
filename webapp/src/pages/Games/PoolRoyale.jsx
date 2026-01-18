@@ -24736,13 +24736,12 @@ const powerRef = useRef(hud.power);
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
       onChange: (v) => applyPower(v / 100),
-      onCommit: (v) => {
-        applyPower(v / 100);
-        fireRef.current?.();
-        requestAnimationFrame(() => {
-          slider.set(slider.min, { animate: true });
-          applyPower(0);
-        });
+      onCommit: () => {
+      fireRef.current?.();
+      requestAnimationFrame(() => {
+        slider.set(slider.min, { animate: true });
+        applyPower(0);
+      });
       }
     });
     sliderInstanceRef.current = slider;
