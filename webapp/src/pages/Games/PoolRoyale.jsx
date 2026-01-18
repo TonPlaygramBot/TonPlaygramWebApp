@@ -3063,55 +3063,6 @@ const upgradePolyHavenTextureUrlTo4k = (url) => {
   return url.replace('/2k/', '/4k/').replace(/_2k(\.\w+)$/, '_4k$1');
 };
 
-const BLENDERKIT_DOWNLOAD_PATH = '/api/v1/downloads/';
-const blenderkitDownloadUrlCache = new Map();
-const pendingBlenderkitDownloadUrlRequests = new Map();
-
-const resolveBlenderkitDownloadUrl = async (url) => {
-  if (!url || typeof url !== 'string') return null;
-  if (!url.includes(BLENDERKIT_DOWNLOAD_PATH)) return url;
-  if (blenderkitDownloadUrlCache.has(url)) {
-    return blenderkitDownloadUrlCache.get(url);
-  }
-  if (pendingBlenderkitDownloadUrlRequests.has(url)) {
-    return pendingBlenderkitDownloadUrlRequests.get(url);
-  }
-  if (typeof fetch !== 'function') return url;
-  const promise = (async () => {
-    try {
-      const response = await fetch(url, { mode: 'cors' });
-      if (!response?.ok) return url;
-      const contentType = response.headers.get('content-type') || '';
-      if (contentType.includes('application/json')) {
-        const json = await response.json();
-        const filePath = json?.filePath || json?.url || json?.downloadUrl || null;
-        if (filePath) {
-          blenderkitDownloadUrlCache.set(url, filePath);
-          return filePath;
-        }
-      }
-      blenderkitDownloadUrlCache.set(url, response.url || url);
-      return response.url || url;
-    } catch (error) {
-      return url;
-    } finally {
-      pendingBlenderkitDownloadUrlRequests.delete(url);
-    }
-  })();
-  pendingBlenderkitDownloadUrlRequests.set(url, promise);
-  return promise;
-};
-
-const resolveBlenderkitTextureUrls = async (urls) => {
-  if (!urls) return null;
-  const [mapUrl, normalMapUrl, roughnessMapUrl] = await Promise.all([
-    resolveBlenderkitDownloadUrl(urls.mapUrl),
-    resolveBlenderkitDownloadUrl(urls.normalMapUrl),
-    resolveBlenderkitDownloadUrl(urls.roughnessMapUrl)
-  ]);
-  return { mapUrl, normalMapUrl, roughnessMapUrl };
-};
-
 const blenderkitFinishTextureCache = new Map();
 const pendingBlenderkitFinishTextureRequests = new Map();
 const blenderkitFinishTextureConsumers = new Map();
@@ -3223,17 +3174,14 @@ const ensureBlenderkitFinishTextureUrls = (assetBaseId) => {
       const asset = await fetchBlenderkitFinishAsset(assetBaseId);
       if (!asset) return;
       const urls = pickBlenderkitFinishTextureUrls(asset);
-      const resolvedUrls = await resolveBlenderkitTextureUrls(urls);
-      if (!resolvedUrls?.mapUrl && !resolvedUrls?.normalMapUrl && !resolvedUrls?.roughnessMapUrl) {
-        return;
-      }
+      if (!urls?.mapUrl && !urls?.normalMapUrl && !urls?.roughnessMapUrl) return;
       blenderkitFinishTextureCache.set(assetBaseId, {
-        urls: resolvedUrls,
+        urls,
         ready: true
       });
       const consumers = blenderkitFinishTextureConsumers.get(assetBaseId);
       if (consumers?.size) {
-        consumers.forEach((consumer) => consumer?.(resolvedUrls));
+        consumers.forEach((consumer) => consumer?.(urls));
         consumers.clear();
       }
     } catch (error) {
@@ -3743,26 +3691,18 @@ const createClothTextures = (() => {
         const asset = await fetchBlenderkitAsset(preset.assetBaseId);
         if (!asset) return;
         const imageFiles = collectBlenderkitImageUrls(asset);
-        const resolvedImageFiles = (
-          await Promise.all(
-            imageFiles.map(async (file) => ({
-              ...file,
-              url: await resolveBlenderkitDownloadUrl(file.url)
-            }))
-          )
-        ).filter((file) => file.url);
         const thumb = pickBlenderkitThumbnailUrl(asset);
         const diffuseCandidates = [
           thumb,
-          ...resolvedImageFiles.map((file) => file.url)
+          ...imageFiles.map((file) => file.url)
         ].filter(Boolean);
 
-        const normalCandidates = resolvedImageFiles
+        const normalCandidates = imageFiles
           .filter((file) =>
             /normal|nor|nrm/i.test(file.filename) || /normal/i.test(file.fileType)
           )
           .map((file) => file.url);
-        const roughnessCandidates = resolvedImageFiles
+        const roughnessCandidates = imageFiles
           .filter((file) =>
             /rough|roughness/i.test(file.filename) || /rough/i.test(file.fileType)
           )
@@ -9926,7 +9866,7 @@ function Table3D(
   const polyhavenBasePromises = new Map();
   const blenderkitBaseTemplates = new Map();
   const blenderkitBasePromises = new Map();
-  const BLENDERKIT_POOL_TABLE_ASSET_BASE_ID = '30785e01-959c-47a0-8491-9471dd926581';
+  const BLENDERKIT_POOL_TABLE_ASSET_BASE_ID = '84a78996-6ed0-4833-a110-b00c36c348a8';
 
   const ensurePolyhavenKtx2Loader = (renderer = null) => {
     if (!polyhavenKtx2Loader) {
@@ -10052,11 +9992,10 @@ function Table3D(
       const data = await response.json();
       const asset = data?.results?.[0];
       const url = pickBlenderkitModelUrl(asset);
-      const resolvedUrl = await resolveBlenderkitDownloadUrl(url);
-      if (!resolvedUrl) {
+      if (!url) {
         throw new Error(`No GLTF payload found for BlenderKit asset ${assetBaseId}`);
       }
-      const gltf = await loader.loadAsync(resolvedUrl);
+      const gltf = await loader.loadAsync(url);
       const scene = gltf?.scene || gltf?.scenes?.[0];
       if (!scene) throw new Error('Missing scene for BlenderKit base');
       blenderkitBaseTemplates.set(assetBaseId, scene);
@@ -10269,6 +10208,7 @@ function Table3D(
       footprintDepthScale: 1,
       heightFill: 0.86,
       topInsetScale: 0.96,
+      materialKey: 'trim',
       matchTableFootprint: true,
       fallbackBuilder: buildClassicCylindersBase
     }),
