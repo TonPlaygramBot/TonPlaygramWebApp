@@ -331,7 +331,7 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     name: 'BlenderKit Pool Table Base',
     description: 'BlenderKit pool table model base, fitted to the Pool Royale playfield.',
     swatches: ['#2f7d4d', '#0f3d24'],
-    assetBaseId: '84a78996-6ed0-4833-a110-b00c36c348a8'
+    assetBaseId: '30785e01-959c-47a0-8491-9471dd926581'
   }
 ]);
 
