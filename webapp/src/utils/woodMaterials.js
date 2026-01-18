@@ -41,10 +41,6 @@ export const setWoodTextureAnisotropyCap = (value) => {
 const woodTextureLoader = new THREE.TextureLoader();
 woodTextureLoader.setCrossOrigin?.('anonymous');
 const WOOD_EXTERNAL_TEXTURE_CACHE = new Map();
-const BLENDERKIT_SEARCH_BASE_URL = 'https://www.blenderkit.com/api/v1/search/?query=asset_base_id:';
-const BLENDERKIT_TEXTURE_CACHE = new Map();
-const BLENDERKIT_TEXTURE_PENDING = new Map();
-const BLENDERKIT_TEXTURE_SUBSCRIBERS = new Map();
 
 const normalizeExternalTexture = (texture, isColor = false, anisotropy = WOOD_TEXTURE_ANISOTROPY) => {
   if (!texture) return;
@@ -92,161 +88,6 @@ const resolveExternalWoodTextureUrls = ({ mapUrl, roughnessMapUrl, normalMapUrl 
     }
   }
   return { color: mapUrl };
-};
-
-const pickBlenderkitThumbnailUrl = (asset) => {
-  if (!asset) return null;
-  return (
-    asset.thumbnailLargeUrl ||
-    asset.thumbnailXlargeUrl ||
-    asset.thumbnailLargeUrlNonsquared ||
-    asset.thumbnailXlargeUrlNonsquared ||
-    asset.thumbnailMiddleUrl ||
-    asset.thumbnailSmallUrl ||
-    asset.thumbnailLargeUrlWebp ||
-    asset.thumbnailXlargeUrlWebp ||
-    asset.thumbnailMiddleUrlWebp ||
-    asset.thumbnailSmallUrlWebp ||
-    null
-  );
-};
-
-const collectBlenderkitImageUrls = (asset) => {
-  const files = Array.isArray(asset?.files) ? asset.files : [];
-  return files
-    .map((file) => ({
-      url: file?.downloadUrl,
-      filename: file?.filename || '',
-      fileType: file?.fileType || ''
-    }))
-    .filter((file) => file.url && /\.(png|jpe?g|webp)$/i.test(file.filename));
-};
-
-const loadTextureFromUrl = (url, isColor = false) =>
-  new Promise((resolve) => {
-    if (!url) {
-      resolve(null);
-      return;
-    }
-    woodTextureLoader.load(
-      url,
-      (texture) => {
-        normalizeExternalTexture(texture, isColor);
-        resolve(texture);
-      },
-      undefined,
-      () => resolve(null)
-    );
-  });
-
-const loadTextureWithFallbacks = async (urls, isColor = false) => {
-  for (const url of urls) {
-    // eslint-disable-next-line no-await-in-loop
-    const texture = await loadTextureFromUrl(url, isColor);
-    if (texture) return texture;
-  }
-  return null;
-};
-
-const applyWoodTextureOverrides = (material, textures, repeat, rotation) => {
-  if (!material || !textures) return;
-  disposeWoodTextures(material);
-  const repeatVec = new THREE.Vector2(repeat?.x ?? 1, repeat?.y ?? 1);
-  const map = cloneWoodTexture(textures.map, repeatVec, rotation);
-  const roughnessMap = cloneWoodTexture(textures.roughnessMap, repeatVec, rotation);
-  const normalMap = cloneWoodTexture(textures.normalMap, repeatVec, rotation);
-  if (map) {
-    map.wrapS = map.wrapT = THREE.RepeatWrapping;
-    boostWoodTextureSampling(map, { isColor: true });
-  }
-  if (roughnessMap) {
-    roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
-    boostWoodTextureSampling(roughnessMap);
-  }
-  if (normalMap) {
-    normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
-    boostWoodTextureSampling(normalMap);
-  }
-  material.map = map;
-  material.roughnessMap = roughnessMap;
-  material.normalMap = normalMap;
-  material.color.setHex(0xffffff);
-  material.needsUpdate = true;
-  material.userData = material.userData || {};
-  material.userData.__woodTextures = { map, roughnessMap, normalMap };
-};
-
-const registerBlenderkitSubscriber = (assetBaseId, material, options = {}) => {
-  if (!assetBaseId || !material) return;
-  let subscribers = BLENDERKIT_TEXTURE_SUBSCRIBERS.get(assetBaseId);
-  if (!subscribers) {
-    subscribers = new Map();
-    BLENDERKIT_TEXTURE_SUBSCRIBERS.set(assetBaseId, subscribers);
-  }
-  subscribers.set(material, {
-    repeat: options.repeat,
-    rotation: options.rotation
-  });
-};
-
-const broadcastBlenderkitTextures = (assetBaseId) => {
-  const entry = BLENDERKIT_TEXTURE_CACHE.get(assetBaseId);
-  if (!entry?.ready) return;
-  const subscribers = BLENDERKIT_TEXTURE_SUBSCRIBERS.get(assetBaseId);
-  if (!subscribers) return;
-  subscribers.forEach((options, material) => {
-    if (!material) return;
-    applyWoodTextureOverrides(material, entry, options?.repeat, options?.rotation);
-  });
-};
-
-const ensureBlenderkitTextures = (assetBaseId) => {
-  if (!assetBaseId || typeof fetch !== 'function') return;
-  const cached = BLENDERKIT_TEXTURE_CACHE.get(assetBaseId);
-  if (cached?.ready) return;
-  if (BLENDERKIT_TEXTURE_PENDING.has(assetBaseId)) return;
-  const promise = (async () => {
-    try {
-      const response = await fetch(
-        `${BLENDERKIT_SEARCH_BASE_URL}${encodeURIComponent(assetBaseId)}`,
-        { mode: 'cors' }
-      );
-      if (!response?.ok) return;
-      const data = await response.json();
-      const asset = data?.results?.[0];
-      if (!asset) return;
-      const imageFiles = collectBlenderkitImageUrls(asset);
-      const thumb = pickBlenderkitThumbnailUrl(asset);
-      const diffuseCandidates = [thumb, ...imageFiles.map((file) => file.url)].filter(Boolean);
-      const normalCandidates = imageFiles
-        .filter((file) =>
-          /normal|nor|nrm/i.test(file.filename) || /normal/i.test(file.fileType)
-        )
-        .map((file) => file.url);
-      const roughnessCandidates = imageFiles
-        .filter((file) =>
-          /rough|roughness/i.test(file.filename) || /rough/i.test(file.fileType)
-        )
-        .map((file) => file.url);
-
-      const [map, normalMap, roughnessMap] = await Promise.all([
-        loadTextureWithFallbacks(diffuseCandidates, true),
-        loadTextureWithFallbacks(normalCandidates, false),
-        loadTextureWithFallbacks(roughnessCandidates, false)
-      ]);
-
-      BLENDERKIT_TEXTURE_CACHE.set(assetBaseId, {
-        map,
-        normalMap,
-        roughnessMap,
-        ready: Boolean(map || normalMap || roughnessMap)
-      });
-      broadcastBlenderkitTextures(assetBaseId);
-    } finally {
-      BLENDERKIT_TEXTURE_PENDING.delete(assetBaseId);
-    }
-  })();
-  BLENDERKIT_TEXTURE_PENDING.set(assetBaseId, promise);
 };
 
 const loadExternalTexture = (url, isColor, anisotropy, onError) => {
@@ -765,7 +606,6 @@ export const applyWoodTextures = (
     mapUrl,
     roughnessMapUrl,
     normalMapUrl,
-    blenderkitAssetBaseId,
     repeat = { x: 1, y: 1 },
     rotation = 0,
     textureSize = DEFAULT_WOOD_TEXTURE_SIZE,
@@ -799,21 +639,6 @@ export const applyWoodTextures = (
       roughnessMap: external?.roughnessMap ?? fallbackTextures.roughnessMap,
       normalMap: external?.normalMap ?? fallbackTextures.normalMap
     };
-  } else if (blenderkitAssetBaseId) {
-    const cached = BLENDERKIT_TEXTURE_CACHE.get(blenderkitAssetBaseId);
-    if (cached?.ready) {
-      baseTextures = {
-        map: cached.map ?? fallbackTextures.map,
-        roughnessMap: cached.roughnessMap ?? fallbackTextures.roughnessMap,
-        normalMap: cached.normalMap ?? fallbackTextures.normalMap
-      };
-    } else {
-      registerBlenderkitSubscriber(blenderkitAssetBaseId, material, {
-        repeat,
-        rotation
-      });
-      ensureBlenderkitTextures(blenderkitAssetBaseId);
-    }
   } else if (sharedKey) {
     baseTextures = ensureSharedWoodTextures({
       hue,
@@ -827,9 +652,6 @@ export const applyWoodTextures = (
       sharedKey
     });
   } else {
-    baseTextures = fallbackTextures;
-  }
-  if (!baseTextures) {
     baseTextures = fallbackTextures;
   }
   const repeatVec = new THREE.Vector2(repeat?.x ?? 1, repeat?.y ?? 1);
@@ -866,7 +688,6 @@ export const applyWoodTextures = (
     mapUrl,
     roughnessMapUrl,
     normalMapUrl,
-    blenderkitAssetBaseId,
     repeat: { x: repeatVec.x, y: repeatVec.y },
     rotation,
     textureSize,
