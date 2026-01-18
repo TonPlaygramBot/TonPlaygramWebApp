@@ -24,8 +24,6 @@ export class PowerSlider {
     this.onStart = onStart;
     this.onCommit = onCommit;
     this.locked = false;
-    this.ratio = 0;
-    this.cueShootTimeout = null;
 
     this.el = document.createElement('div');
     this.el.className = `ps ps-theme-${theme}`;
@@ -55,9 +53,6 @@ export class PowerSlider {
     this.cueImg.className = 'ps-cue-img';
     this.cueImg.alt = '';
     if (cueSrc) this.cueImg.src = cueSrc;
-    this.cueImg.style.setProperty('--ps-cue-drop', '0px');
-    this.cueImg.style.setProperty('--ps-cue-forward', '0px');
-    this.cueImg.style.setProperty('--ps-cue-tilt', '0deg');
 
     this.handle.append(this.cueImg, this.handleText, this.powerBar);
     this.el.appendChild(this.handle);
@@ -138,7 +133,6 @@ export class PowerSlider {
     this.el.removeEventListener('pointerdown', this._onPointerDown);
     this.el.removeEventListener('wheel', this._onWheel);
     this.el.removeEventListener('keydown', this._onKeyDown);
-    this._clearCueShoot();
     this.el.remove();
   }
 
@@ -155,7 +149,6 @@ export class PowerSlider {
   _update(animate = true) {
     const range = this.max - this.min || 1;
     const ratio = (this.value - this.min) / range;
-    this.ratio = ratio;
     this.el.style.setProperty('--ps-ratio', String(ratio));
     const trackH = this.el.clientHeight;
     const handleH = this.handle.offsetHeight;
@@ -178,31 +171,8 @@ export class PowerSlider {
     if (this.theme === 'pool-royale' || this.theme === 'snooker-royale') {
       const drop = ratio * 28;
       const tilt = -8 - ratio * 10;
-      this.cueImg.style.setProperty('--ps-cue-drop', `${drop}px`);
-      this.cueImg.style.setProperty('--ps-cue-tilt', `${tilt}deg`);
+      this.cueImg.style.transform = `translateY(${drop}px) rotate(${tilt}deg)`;
     }
-  }
-
-  _setCueForward(px) {
-    this.cueImg.style.setProperty('--ps-cue-forward', `${px}px`);
-  }
-
-  _clearCueShoot() {
-    if (this.cueShootTimeout) {
-      window.clearTimeout(this.cueShootTimeout);
-      this.cueShootTimeout = null;
-    }
-  }
-
-  _triggerCueShoot() {
-    if (this.theme !== 'pool-royale' && this.theme !== 'snooker-royale') return;
-    this._clearCueShoot();
-    const distance = 8 + this.ratio * 18;
-    this._setCueForward(-distance);
-    this.cueShootTimeout = window.setTimeout(() => {
-      this._setCueForward(0);
-      this.cueShootTimeout = null;
-    }, 140);
   }
 
   _updateHandleColor(ratio) {
@@ -241,8 +211,6 @@ export class PowerSlider {
     this.el.classList.add('ps-no-animate');
     this.el.setPointerCapture(e.pointerId);
     this.pointerStartY = e.clientY;
-    this._clearCueShoot();
-    this._setCueForward(0);
     if (typeof this.onStart === 'function') this.onStart(this.value);
     this.el.addEventListener('pointermove', this._onPointerMove);
     this.el.addEventListener('pointerup', this._onPointerUp);
@@ -268,7 +236,6 @@ export class PowerSlider {
       this.set(this.dragStartValue, { animate: true });
       return;
     }
-    this._triggerCueShoot();
     if (typeof this.onCommit === 'function') this.onCommit(this.value);
   }
 
@@ -277,7 +244,6 @@ export class PowerSlider {
     e.preventDefault();
     const dir = e.deltaY > 0 ? 1 : -1;
     this.set(this.value + dir * this.step, { animate: true });
-    this._triggerCueShoot();
     if (typeof this.onCommit === 'function') this.onCommit(this.value);
   }
 
@@ -292,7 +258,6 @@ export class PowerSlider {
       this.set(this.value - inc);
       handled = true;
     } else if (e.key === 'Enter') {
-      this._triggerCueShoot();
       if (typeof this.onCommit === 'function') this.onCommit(this.value);
       handled = true;
     }
