@@ -8,6 +8,7 @@ export class PowerSlider {
       step = 1,
       cueSrc = '',
       onChange,
+      onStart,
       onCommit,
       theme = 'default',
       labels = false
@@ -20,6 +21,7 @@ export class PowerSlider {
     this.max = max;
     this.step = step;
     this.onChange = onChange;
+    this.onStart = onStart;
     this.onCommit = onCommit;
     this.locked = false;
 
@@ -209,6 +211,7 @@ export class PowerSlider {
     this.el.classList.add('ps-no-animate');
     this.el.setPointerCapture(e.pointerId);
     this.pointerStartY = e.clientY;
+    if (typeof this.onStart === 'function') this.onStart(this.value);
     this.el.addEventListener('pointermove', this._onPointerMove);
     this.el.addEventListener('pointerup', this._onPointerUp);
   }
