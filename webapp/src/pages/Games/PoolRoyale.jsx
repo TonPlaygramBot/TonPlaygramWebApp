@@ -1443,6 +1443,7 @@ const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned wi
 const CUE_TIP_CLEARANCE = BALL_R * 0.02; // keep the tip aligned without overreaching the cue ball
 const CUE_TIP_GAP = BALL_R * 0.95 + CUE_TIP_CLEARANCE; // keep the tip aligned while allowing visible contact on impact
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
+const CUE_PULL_RANGE = BALL_R * 6.2; // match pull distance feel to the reference cue stroke
 const CUE_PULL_MIN_VISUAL = BALL_R * 2.1; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
 const CUE_PULL_VISUAL_MULTIPLIER = 1.85;
@@ -19962,6 +19963,8 @@ const powerRef = useRef(hud.power);
         );
       };
 
+      const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
       const computeCuePull = (
         pullTarget = 0,
         maxPull = CUE_PULL_BASE,
@@ -19969,13 +19972,11 @@ const powerRef = useRef(hud.power);
       ) => {
         const slider = sliderInstanceRef.current;
         const dragging = Boolean(slider?.dragging);
-        const cappedMax = Number.isFinite(maxPull) ? Math.max(0, maxPull) : CUE_PULL_BASE;
-        const effectiveMax = Math.max(cappedMax + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL);
+        const cappedMax = Number.isFinite(maxPull) ? Math.max(0, maxPull) : CUE_PULL_RANGE;
         const desiredTarget = preserveLarger
           ? Math.max(cuePullCurrentRef.current ?? 0, pullTarget ?? 0)
           : pullTarget ?? 0;
-        const boostedTarget = desiredTarget * CUE_PULL_GLOBAL_VISIBILITY_BOOST;
-        const clampedTarget = THREE.MathUtils.clamp(boostedTarget, 0, effectiveMax);
+        const clampedTarget = THREE.MathUtils.clamp(desiredTarget, 0, cappedMax);
         const smoothing = instant || dragging ? 1 : CUE_PULL_SMOOTHING;
         const nextPull =
           smoothing >= 1
@@ -19986,47 +19987,14 @@ const powerRef = useRef(hud.power);
         return nextPull;
       };
       const applyVisualPullCompensation = (pullValue, dirVec3) => {
-        const basePull = Math.max(pullValue ?? 0, 0);
-        if (basePull <= 1e-6 || !dirVec3) return basePull;
-        const cam =
-          activeRenderCameraRef.current ??
-          cameraRef.current ??
-          camera;
-        TMP_VEC3_CUE_DIR.set(dirVec3.x, 0, dirVec3.z);
-        if (TMP_VEC3_CUE_DIR.lengthSq() > 1e-8) {
-          TMP_VEC3_CUE_DIR.normalize();
-        } else {
-          TMP_VEC3_CUE_DIR.set(0, 0, 1);
-        }
-        let alignment = 0;
-        if (cam?.getWorldDirection) {
-          cam.getWorldDirection(TMP_VEC3_CAM_DIR);
-          TMP_VEC3_CAM_DIR.y = 0;
-          if (TMP_VEC3_CAM_DIR.lengthSq() > 1e-8) {
-            TMP_VEC3_CAM_DIR.normalize();
-            alignment = Math.abs(TMP_VEC3_CAM_DIR.dot(TMP_VEC3_CUE_DIR));
-          }
-        }
-        const blend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
-        const cameraPullScale = THREE.MathUtils.lerp(
-          1 - CUE_PULL_CUE_CAMERA_DAMPING,
-          1 + CUE_PULL_STANDING_CAMERA_BONUS,
-          blend
-        );
-        const alignmentBoost = 1 + alignment * CUE_PULL_ALIGNMENT_BOOST;
-        const compensated =
-          basePull * alignmentBoost * cameraPullScale;
-        const maxScale = 1 + CUE_PULL_MAX_VISUAL_BONUS;
-        return Math.min(compensated, basePull * maxScale);
+        return Math.max(pullValue ?? 0, 0);
       };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
-        const curved = Math.pow(ratio, CUE_POWER_GAMMA);
-        const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
-        const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
-        const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
-        const target = amplifiedMax * curved * CUE_PULL_VISUAL_MULTIPLIER;
-        return Math.min(target, visualMax);
+        const eased = easeOutCubic(ratio);
+        const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_RANGE;
+        const pullRange = Math.min(CUE_PULL_RANGE, effectiveMax);
+        return pullRange * eased;
       };
       const clampCueTipOffset = (vec, limit = BALL_R) => {
         if (!vec) return vec;
