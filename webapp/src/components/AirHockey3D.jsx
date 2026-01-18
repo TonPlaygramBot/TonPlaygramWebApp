@@ -10,6 +10,7 @@ import QuickMessagePopup from './QuickMessagePopup.jsx';
 import { giftSounds } from '../utils/giftSounds.js';
 import { getGameVolume, isGameMuted } from '../utils/sound.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
+import { applyWoodTextures, WOOD_GRAIN_OPTIONS_BY_ID } from '../utils/woodMaterials.js';
 import { AIR_HOCKEY_CUSTOMIZATION } from '../config/airHockeyInventoryConfig.js';
 import {
   airHockeyAccountId,
@@ -209,45 +210,49 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
 }
 
 const POOL_ENVIRONMENT = (() => {
-  const TABLE_SCALE = 1.17;
-  const TABLE_FIELD_EXPANSION = 1.2;
+  const TABLE_SIZE_SHRINK = 0.85;
+  const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK;
   const SIZE_REDUCTION = 0.7;
   const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-  const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
+  const TABLE_DISPLAY_SCALE = 0.78;
+  const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 
-  const TABLE_WIDTH_RAW = 66 * TABLE_SCALE * TABLE_FIELD_EXPANSION;
-  const TABLE_LENGTH_RAW = 132 * TABLE_SCALE * TABLE_FIELD_EXPANSION;
+  const TABLE_BASE_SCALE = 1.2;
+  const TABLE_WIDTH_SCALE = 1.25;
+  const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
+  const TABLE_LENGTH_SCALE = 0.8;
+  const TABLE_WIDTH_RAW = 72 * TABLE_SCALE;
+  const TABLE_LENGTH_RAW = 132 * TABLE_SCALE * TABLE_LENGTH_SCALE;
   const TABLE_THICKNESS_RAW = 1.8 * TABLE_SCALE;
-  const FRAME_TOP_Y = -TABLE_THICKNESS_RAW + 0.01 - TABLE_THICKNESS_RAW * 0.012;
+  const FRAME_TOP_Y = -TABLE_THICKNESS_RAW + 0.01;
 
   const LEG_SCALE = 6.2;
   const LEG_HEIGHT_FACTOR = 4;
   const LEG_HEIGHT_MULTIPLIER = 4.5;
-  const TABLE_HEIGHT_REDUCTION = 0.8;
-  const TABLE_DROP = 0.4;
   const BASE_TABLE_LIFT = 3.6;
-  const TABLE_H_RAW = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION;
+  const TABLE_DROP = 0.4;
+  const TABLE_HEIGHT_REDUCTION = 1;
+  const TABLE_HEIGHT_SCALE = 1.56 * 1.3;
+  const TABLE_H_RAW = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION * TABLE_HEIGHT_SCALE;
   const TABLE_LIFT_RAW = BASE_TABLE_LIFT + TABLE_H_RAW * (LEG_HEIGHT_FACTOR - 1);
-  const BASE_LEG_HEIGHT_RAW =
-    TABLE_THICKNESS_RAW * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
+  const BASE_LEG_HEIGHT_RAW = TABLE_THICKNESS_RAW * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
   const BASE_LEG_LENGTH_SCALE = 0.72;
   const LEG_ELEVATION_SCALE = 0.96;
-  const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE;
+  const LEG_LENGTH_SHRINK = 0.867;
+  const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK;
   const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3;
   const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT_RAW + TABLE_LIFT_RAW;
   const BASE_LEG_ROOM_HEIGHT_RAW =
-    (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * BASE_LEG_LENGTH_SCALE -
-    LEG_HEIGHT_OFFSET;
+    (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * BASE_LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
   const LEG_ROOM_HEIGHT =
-    (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE -
-    LEG_HEIGHT_OFFSET;
+    (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
   const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT_RAW;
 
-  const BASE_TABLE_Y =
-    -2 + (TABLE_H_RAW - 0.75) + TABLE_H_RAW + TABLE_LIFT_RAW - TABLE_DROP;
+  const BASE_TABLE_Y = -2 + (TABLE_H_RAW - 0.75) + TABLE_H_RAW + TABLE_LIFT_RAW - TABLE_DROP;
   const TABLE_Y_RAW = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
+  const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
   const TABLE_SURFACE_RAW = TABLE_Y_RAW - TABLE_THICKNESS_RAW + 0.01;
-  const FLOOR_Y_RAW = TABLE_Y_RAW - TABLE_THICKNESS_RAW - LEG_ROOM_HEIGHT + 0.3;
+  const FLOOR_Y_RAW = TABLE_Y_RAW - TABLE_THICKNESS_RAW - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 
   const ROOM_DEPTH_RAW = TABLE_LENGTH_RAW * 3.6;
   const SIDE_CLEARANCE_RAW = ROOM_DEPTH_RAW / 2 - TABLE_LENGTH_RAW / 2;
@@ -312,6 +317,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   });
   const [showCustomizer, setShowCustomizer] = useState(false);
   const [isTopDownView, setIsTopDownView] = useState(false);
+  const [isCueView, setIsCueView] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
@@ -379,6 +385,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const cameraRef = useRef(null);
   const cameraViewRef = useRef({ applyCurrent: () => {} });
   const isTopDownViewRef = useRef(false);
+  const isCueViewRef = useRef(false);
   const renderSettingsRef = useRef({
     targetFrameIntervalMs: 1000 / initialProfile.targetFps,
     renderResolutionScale: initialProfile.renderScale ?? 1,
@@ -515,8 +522,9 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
 
   useEffect(() => {
     isTopDownViewRef.current = isTopDownView;
-    cameraViewRef.current.applyCurrent?.(isTopDownView);
-  }, [isTopDownView]);
+    isCueViewRef.current = isCueView;
+    cameraViewRef.current.applyCurrent?.(isTopDownView, isCueView);
+  }, [isCueView, isTopDownView]);
 
   useEffect(() => {
     const handler = () => setMuted(isGameMuted());
@@ -802,7 +810,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       thickness: POOL_ENVIRONMENT.tableThickness,
       topExtension: (BASE_TABLE_LENGTH / 2) * TOP_EXTENSION_FACTOR
     };
-    const FIELD_INSET = TABLE.w * 0.08;
+    const FIELD_INSET = 0;
     const PLAYFIELD = {
       w: TABLE.w - FIELD_INSET * 2,
       h: TABLE.h - FIELD_INSET * 2,
@@ -836,11 +844,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const world = new THREE.Group();
     scene.add(world);
 
-    const TABLE_ELEVATION_FACTOR = 2;
-    const tableFloorGap =
-      POOL_ENVIRONMENT.tableSurfaceY - POOL_ENVIRONMENT.floorY;
-    const tableLift = tableFloorGap * (TABLE_ELEVATION_FACTOR - 1);
-    const elevatedTableSurfaceY = POOL_ENVIRONMENT.tableSurfaceY + tableLift;
+    const elevatedTableSurfaceY = POOL_ENVIRONMENT.tableSurfaceY;
 
     const tableGroup = new THREE.Group();
     tableGroup.position.y = elevatedTableSurfaceY;
@@ -1175,14 +1179,18 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       elevatedTableSurfaceY + TABLE.thickness * 0.06,
       tableCenterZ
     );
-    const cameraAnchor = new THREE.Vector3(
+    const standingCameraAnchor = new THREE.Vector3(
       0,
-      elevatedTableSurfaceY + TABLE.h * 0.32,
-      tableCenterZ + playerRailZ + railThickness * 0.35
+      elevatedTableSurfaceY + TABLE.h * 0.34,
+      tableCenterZ + playerRailZ + TABLE.w * 0.16
     );
-    const cameraDirection = new THREE.Vector3()
-      .subVectors(cameraAnchor, cameraFocus)
-      .normalize();
+    const cueCameraAnchor = new THREE.Vector3(
+      0,
+      elevatedTableSurfaceY + TABLE.thickness * 0.7,
+      tableCenterZ + playerRailZ + TABLE.w * 0.06
+    );
+    const getCameraDirection = (anchor) =>
+      new THREE.Vector3().subVectors(anchor, cameraFocus).normalize();
     const TOP_VIEW_MARGIN = 1.12;
     const defaultCameraUp = new THREE.Vector3(0, 1, 0);
     const topViewUp = new THREE.Vector3(0, 0, -1);
@@ -1210,14 +1218,16 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       new THREE.Vector3(TABLE.w / 2, elevatedTableSurfaceY, TABLE.h / 2 + tableCenterZ)
     ];
 
-    const fitCameraToTable = () => {
+    const fitCameraToTable = (useCueView = false) => {
       if (isTopDownViewRef.current) {
         updateTopViewCamera();
         return;
       }
+      const anchor = useCueView ? cueCameraAnchor : standingCameraAnchor;
+      const direction = getCameraDirection(anchor);
       camera.aspect = host.clientWidth / host.clientHeight;
       camera.up.copy(defaultCameraUp);
-      camera.position.copy(cameraAnchor);
+      camera.position.copy(anchor);
       camera.lookAt(cameraFocus);
       camera.updateProjectionMatrix();
       updateRendererSettings();
@@ -1228,18 +1238,18 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           return Math.abs(ndc.x) > 0.95 || ndc.y < -1.05 || ndc.y > 1.05;
         });
         if (!needsRetreat) break;
-        camera.position.addScaledVector(cameraDirection, 2.4);
+        camera.position.addScaledVector(direction, 2.4);
         camera.lookAt(cameraFocus);
         camera.updateProjectionMatrix();
       }
     };
 
     cameraViewRef.current = {
-      applyCurrent: (useTopView) => {
+      applyCurrent: (useTopView, useCueView = false) => {
         if (useTopView) {
           updateTopViewCamera();
         } else {
-          fitCameraToTable();
+          fitCameraToTable(useCueView);
         }
       }
     };
@@ -1441,7 +1451,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     tick();
 
     const onResize = () => {
-      fitCameraToTable();
+      fitCameraToTable(isCueViewRef.current);
     };
     window.addEventListener('resize', onResize);
 
@@ -1654,12 +1664,42 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const malletTheme = getOption('mallet', selections.mallet);
     const railTheme = getOption('rails', selections.rails);
     const goalTheme = getOption('goals', selections.goals);
+    const tableGrain =
+      tableTheme?.woodTextureId && WOOD_GRAIN_OPTIONS_BY_ID[tableTheme.woodTextureId]
+        ? WOOD_GRAIN_OPTIONS_BY_ID[tableTheme.woodTextureId]
+        : null;
+    const fallbackHsl = tableTheme?.wood
+      ? new THREE.Color(tableTheme.wood).getHSL({})
+      : { h: 0.08, s: 0.35, l: 0.5 };
+
+    const applyTableTexture = (material, surfaceKey) => {
+      if (!material || !tableGrain) return;
+      const surface = tableGrain[surfaceKey] || tableGrain.frame || tableGrain.rail;
+      if (!surface) return;
+      applyWoodTextures(material, {
+        mapUrl: surface.mapUrl,
+        roughnessMapUrl: surface.roughnessMapUrl,
+        normalMapUrl: surface.normalMapUrl,
+        repeat: surface.repeat,
+        rotation: surface.rotation,
+        textureSize: surface.textureSize,
+        hue: fallbackHsl.h * 360,
+        sat: fallbackHsl.s,
+        light: fallbackHsl.l,
+        contrast: 0.55
+      });
+    };
 
     mats.tableSurface.color.set(fieldTheme.surface);
     if (mats.line) mats.line.color.set(fieldTheme.lines);
     mats.rings.forEach((material) => material.color.set(fieldTheme.rings || fieldTheme.lines));
-    if (mats.frame) mats.frame.color.set(tableTheme.wood);
-    if (mats.trim) mats.trim.color.set(tableTheme.trim);
+    if (tableGrain) {
+      applyTableTexture(mats.frame, 'frame');
+      applyTableTexture(mats.trim, 'rail');
+    } else {
+      if (mats.frame) mats.frame.color.set(tableTheme.wood);
+      if (mats.trim) mats.trim.color.set(tableTheme.trim);
+    }
     if (mats.base) mats.base.color.set(baseTheme.base);
     if (mats.baseAccent) mats.baseAccent.color.set(baseTheme.accent);
     if (mats.rail) {
@@ -1782,6 +1822,23 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
             <span>{isTopDownView ? '3D' : '2D'}</span>
           </span>
         </button>
+        {!isTopDownView && (
+          <button
+            type="button"
+            aria-pressed={isCueView}
+            onClick={() => setIsCueView((prev) => !prev)}
+            className={`rounded px-3 py-2 text-xs font-semibold backdrop-blur border transition ${
+              isCueView
+                ? 'border-sky-300 bg-sky-300/20 text-sky-100'
+                : 'border-white/15 bg-white/10 text-white hover:bg-white/20'
+            }`}
+          >
+            <span className="inline-flex items-center gap-1">
+              <span aria-hidden>🎯</span>
+              <span>{isCueView ? 'Standing' : 'Cue View'}</span>
+            </span>
+          </button>
+        )}
         {!gameOver && (
           <button
             onClick={() => (window.location.href = '/games/airhockey/lobby')}
