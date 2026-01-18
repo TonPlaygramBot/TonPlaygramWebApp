@@ -11788,11 +11788,6 @@ const powerRef = useRef(hud.power);
     powerRef.current = clampedPower;
     setHud((prev) => ({ ...prev, power: clampedPower }));
   }, []);
-  const captureCueStickAnchor = useCallback(() => {
-    const cueBall = cueRef.current;
-    if (!cueBall?.pos) return;
-    cueStickAnchorRef.current.set(cueBall.pos.x, CUE_Y, cueBall.pos.y);
-  }, []);
   useEffect(() => {
     inHandPlacementModeRef.current = inHandPlacementMode;
   }, [inHandPlacementMode]);
@@ -12147,7 +12142,6 @@ const powerRef = useRef(hud.power);
   const aimCurveControlRef = useRef(new THREE.Vector3());
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
-  const cueStickAnchorRef = useRef(new THREE.Vector3(0, BALL_CENTER_Y, 0));
   const cueLiftRef = useRef({
     active: false,
     startY: 0,
@@ -18977,21 +18971,12 @@ const powerRef = useRef(hud.power);
           info.buttHeightOffset = Math.sin(signedTilt) * len;
         }
       };
-      const resolveCueTipTarget = (dir, pullAmount, spinWorld, options = {}) => {
-        const anchor = cueStickAnchorRef.current;
-        const useAnchor =
-          Boolean(options.forceAnchor) ||
-          Boolean(sliderInstanceRef.current?.dragging) ||
-          shooting ||
-          cueAnimating;
-        const baseX = useAnchor && Number.isFinite(anchor?.x) ? anchor.x : cue.pos.x;
-        const baseZ = useAnchor && Number.isFinite(anchor?.z) ? anchor.z : cue.pos.y;
-        return TMP_VEC3_CUE_TIP_TARGET.set(
-          baseX - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
+      const resolveCueTipTarget = (dir, pullAmount, spinWorld) =>
+        TMP_VEC3_CUE_TIP_TARGET.set(
+          cue.pos.x - dir.x * (CUE_TIP_GAP + pullAmount) + spinWorld.x,
           CUE_Y + spinWorld.y,
-          baseZ - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
+          cue.pos.y - dir.z * (CUE_TIP_GAP + pullAmount) + spinWorld.z
         );
-      };
       const applyCueStickTransform = (tipTarget) => {
         TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
         TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
@@ -20405,9 +20390,6 @@ const powerRef = useRef(hud.power);
           const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
           dir.normalize();
-          if (cue?.pos) {
-            cueStickAnchorRef.current.set(cue.pos.x, CUE_Y, cue.pos.y);
-          }
           const backInfo = calcTarget(
             cue,
             aimDir.clone().multiplyScalar(-1),
@@ -22993,14 +22975,6 @@ const powerRef = useRef(hud.power);
           (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current) &&
           !remoteShotActive &&
           (isPlayerTurn || previewingAiShot || aiCueViewActive);
-        if (
-          cue?.pos &&
-          !sliderInstanceRef.current?.dragging &&
-          !shooting &&
-          !cueAnimating
-        ) {
-          cueStickAnchorRef.current.set(cue.pos.x, CUE_Y, cue.pos.y);
-        }
         const remoteAimFresh =
           remoteAimState &&
           Number.isFinite(remoteAimState.updatedAt) &&
@@ -24781,9 +24755,6 @@ const powerRef = useRef(hud.power);
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
       onChange: (v) => applyPower(v / 100),
-      onStart: () => {
-        captureCueStickAnchor();
-      },
       onCommit: () => {
       fireRef.current?.();
       requestAnimationFrame(() => {
@@ -24798,7 +24769,7 @@ const powerRef = useRef(hud.power);
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock, captureCueStickAnchor, showPowerSlider]);
+  }, [applySliderLock, showPowerSlider]);
   useEffect(() => {
     if (shotActive || hud.over || hud.turn !== 0) return;
     const slider = sliderInstanceRef.current;
