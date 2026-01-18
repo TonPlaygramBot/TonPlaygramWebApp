@@ -3085,38 +3085,12 @@ const pickBlenderkitFinishThumbnailUrl = (asset) =>
 const collectBlenderkitFinishImageUrls = (asset) => {
   const files = Array.isArray(asset?.files) ? asset.files : [];
   return files
-    .flatMap((file) => {
-      const entries = [
-        file?.filePath,
-        file?.downloadUrl,
-        file?.thumbnailXlargeUrl,
-        file?.thumbnailLargeUrl,
-        file?.thumbnailUrl
-      ].filter(Boolean);
-      return entries.map((url) => ({
-        url,
-        filename: file?.filename || String(url || ''),
-        fileType: file?.fileType || ''
-      }));
-    })
+    .map((file) => ({
+      url: file?.downloadUrl,
+      filename: file?.filename || '',
+      fileType: file?.fileType || ''
+    }))
     .filter((file) => file.url && /\.(png|jpe?g|webp)$/i.test(file.filename));
-};
-
-const isBlenderkitDownloadUrl = (url) =>
-  typeof url === 'string' && url.includes('/api/v1/downloads/');
-
-const resolveBlenderkitDownloadUrl = async (url) => {
-  if (!url || typeof fetch !== 'function' || !isBlenderkitDownloadUrl(url)) {
-    return url;
-  }
-  try {
-    const response = await fetch(url, { mode: 'cors' });
-    if (!response?.ok) return url;
-    const data = await response.json();
-    return data?.filePath || url;
-  } catch (error) {
-    return url;
-  }
 };
 
 const scoreBlenderkitFinishCandidate = (file, includes, excludes) => {
@@ -3201,23 +3175,13 @@ const ensureBlenderkitFinishTextureUrls = (assetBaseId) => {
       if (!asset) return;
       const urls = pickBlenderkitFinishTextureUrls(asset);
       if (!urls?.mapUrl && !urls?.normalMapUrl && !urls?.roughnessMapUrl) return;
-      const [mapUrl, normalMapUrl, roughnessMapUrl] = await Promise.all([
-        resolveBlenderkitDownloadUrl(urls.mapUrl),
-        resolveBlenderkitDownloadUrl(urls.normalMapUrl),
-        resolveBlenderkitDownloadUrl(urls.roughnessMapUrl)
-      ]);
-      const resolvedUrls = {
-        mapUrl,
-        normalMapUrl,
-        roughnessMapUrl
-      };
       blenderkitFinishTextureCache.set(assetBaseId, {
-        urls: resolvedUrls,
+        urls,
         ready: true
       });
       const consumers = blenderkitFinishTextureConsumers.get(assetBaseId);
       if (consumers?.size) {
-        consumers.forEach((consumer) => consumer?.(resolvedUrls));
+        consumers.forEach((consumer) => consumer?.(urls));
         consumers.clear();
       }
     } catch (error) {
@@ -3251,18 +3215,8 @@ const applyBlenderkitFinishTextures = (assetBaseId, targets) => {
     if (!urls) return;
     targets.forEach((target) => {
       if (!target?.material) return;
-      const useOriginalMapping = Boolean(target.useOriginalMapping);
-      const surface = target.surface || {};
-      const resolvedSurface = useOriginalMapping
-        ? {
-            repeat: new THREE.Vector2(1, 1),
-            rotation: 0,
-            textureSize: surface.textureSize,
-            woodRepeatScale: 1
-          }
-        : surface;
       applyWoodTextureToMaterial(target.material, {
-        ...resolvedSurface,
+        ...target.surface,
         mapUrl: urls.mapUrl,
         roughnessMapUrl: urls.roughnessMapUrl,
         normalMapUrl: urls.normalMapUrl
@@ -7684,13 +7638,12 @@ function Table3D(
   });
   if (resolvedFinish?.blenderkitAssetBaseId) {
     const blenderkitTargets = [
-      { material: railMat, surface: alignedRailSurfaceConfig, useOriginalMapping: true },
-      { material: frameMat, surface: synchronizedFrameSurface, useOriginalMapping: true },
-      { material: legMat, surface: synchronizedFrameSurface, useOriginalMapping: true },
+      { material: railMat, surface: alignedRailSurfaceConfig },
+      { material: frameMat, surface: synchronizedFrameSurface },
+      { material: legMat, surface: synchronizedFrameSurface },
       ...finishParts.underlayMeshes.map((mesh) => ({
         material: mesh?.material,
-        surface: underlaySurfaceConfig,
-        useOriginalMapping: true
+        surface: underlaySurfaceConfig
       }))
     ];
     applyBlenderkitFinishTextures(resolvedFinish.blenderkitAssetBaseId, blenderkitTargets);
@@ -10017,19 +9970,6 @@ function Table3D(
     return modelFiles[0]?.downloadUrl || null;
   };
 
-  const resolveBlenderkitModelUrl = async (url) => {
-    if (!url || typeof fetch !== 'function') return url;
-    if (!isBlenderkitDownloadUrl(url)) return url;
-    try {
-      const response = await fetch(url, { mode: 'cors' });
-      if (!response?.ok) return url;
-      const data = await response.json();
-      return data?.filePath || url;
-    } catch (error) {
-      return url;
-    }
-  };
-
   const ensureBlenderkitBaseTemplate = (assetBaseId, renderer = null) => {
     if (!assetBaseId) {
       return Promise.reject(new Error('Missing BlenderKit asset id'));
@@ -10051,7 +9991,7 @@ function Table3D(
       }
       const data = await response.json();
       const asset = data?.results?.[0];
-      const url = await resolveBlenderkitModelUrl(pickBlenderkitModelUrl(asset));
+      const url = pickBlenderkitModelUrl(asset);
       if (!url) {
         throw new Error(`No GLTF payload found for BlenderKit asset ${assetBaseId}`);
       }
@@ -10689,16 +10629,12 @@ function applyTableFinishToTable(table, finish) {
           mesh.userData?.baseMaterialKey === 'frame' ? 'frame' : 'rail';
         const underlaySurface =
           baseMaterialKey === 'frame' ? synchronizedFrameSurface : synchronizedRailSurface;
-        return {
-          material: mesh.material,
-          surface: underlaySurface,
-          useOriginalMapping: true
-        };
+        return { material: mesh.material, surface: underlaySurface };
       });
       const blenderkitTargets = [
-        { material: railMat, surface: synchronizedRailSurface, useOriginalMapping: true },
-        { material: frameMat, surface: synchronizedFrameSurface, useOriginalMapping: true },
-        { material: legMat, surface: synchronizedFrameSurface, useOriginalMapping: true },
+        { material: railMat, surface: synchronizedRailSurface },
+        { material: frameMat, surface: synchronizedFrameSurface },
+        { material: legMat, surface: synchronizedFrameSurface },
         ...underlayTargets.filter(Boolean)
       ];
       applyBlenderkitFinishTextures(resolvedFinish.blenderkitAssetBaseId, blenderkitTargets);
