@@ -288,94 +288,53 @@ const AIR_HOCKEY_HDRI_VARIANTS = Object.freeze(
 
 const AIR_HOCKEY_TABLE_FINISHES = Object.freeze([
   Object.freeze({
-    id: 'peelingPaintWeathered',
-    name: 'Wood Peeling Paint Weathered',
-    wood: '#b8b3aa',
-    trim: '#d6d0c7',
-    swatches: ['#a89f95', '#b8b3aa'],
-    price: 980,
-    woodTextureId: 'wood_peeling_paint_weathered',
-    description: 'Weathered peeling paint wood rails with a reclaimed finish.'
-  }),
-  Object.freeze({
-    id: 'oakVeneer01',
-    name: 'Oak Veneer 01',
-    wood: '#c89a64',
-    trim: '#e0bb7a',
-    swatches: ['#b9854e', '#c89a64'],
-    price: 990,
-    woodTextureId: 'oak_veneer_01',
-    description: 'Warm oak veneer rails with smooth satin polish.'
-  }),
-  Object.freeze({
-    id: 'woodTable001',
-    name: 'Wood Table 001',
-    wood: '#a4724f',
-    trim: '#c89a64',
+    id: 'poolRoyaleClassic',
+    name: 'Pool Royale Classic',
+    wood: '#8f6243',
+    trim: '#a4724f',
     swatches: ['#8f6243', '#a4724f'],
-    price: 1000,
-    woodTextureId: 'wood_table_001',
-    description: 'Balanced walnut-brown rails inspired by classic table slabs.'
-  }),
-  Object.freeze({
-    id: 'darkWood',
-    name: 'Dark Wood',
-    wood: '#3d2f2a',
-    trim: '#6a5a52',
-    swatches: ['#2f241f', '#3d2f2a'],
-    price: 1010,
-    woodTextureId: 'dark_wood',
-    description: 'Deep espresso rails with strong grain contrast.'
-  }),
-  Object.freeze({
-    id: 'rosewoodVeneer01',
-    name: 'Rosewood Veneer 01',
-    wood: '#6f3a2f',
-    trim: '#9b5a44',
-    swatches: ['#5b2f26', '#6f3a2f'],
-    price: 1020,
-    woodTextureId: 'rosewood_veneer_01',
-    description: 'Rosewood veneer rails with rich, reddish undertones.'
+    price: 0,
+    description: 'Pool Royale-style wood rails sized to frame the air hockey field.'
   })
 ]);
 
 const AIR_HOCKEY_TABLE_BASES = Object.freeze([
   Object.freeze({
-    id: 'classicCylinders',
-    name: 'Classic Cylinders',
-    description: 'Rounded skirt with six cylinder legs and subtle foot pads.',
+    id: 'poolRoyaleClassicCylinders',
+    name: 'Pool Royale Classic Cylinders',
+    description: 'Pool Royale pedestal skirt with six cylinder legs and subtle foot pads.',
     base: '#8f6243',
     accent: '#6f3a2f',
     swatches: ['#8f6243', '#6f3a2f']
   }),
   Object.freeze({
-    id: 'openPortal',
-    name: 'Open Portal',
-    description: 'Twin portal legs with angled sides and negative space.',
+    id: 'poolRoyaleOpenPortal',
+    name: 'Pool Royale Open Portal',
+    description: 'Pool Royale twin portal legs with angled sides and negative space.',
     base: '#f8fafc',
     accent: '#e5e7eb',
     swatches: ['#f8fafc', '#e5e7eb']
   }),
   Object.freeze({
-    id: 'coffeeTableRound01',
-    name: 'Coffee Table Round 01 Base',
-    description: 'Rounded Poly Haven coffee table legs tucked beneath the pool table.',
+    id: 'poolRoyaleCoffeeTableRound01',
+    name: 'Pool Royale Coffee Table Round 01',
+    description: 'Rounded Poly Haven coffee table legs adapted to the Pool Royale base.',
     base: '#c5a47e',
     accent: '#7a5534',
     swatches: ['#c5a47e', '#7a5534']
   }),
   Object.freeze({
-    id: 'gothicCoffeeTable',
-    name: 'Gothic Coffee Table Base',
-    description: 'Gothic coffee table from Murlan Royale re-used as a sculpted support base.',
+    id: 'poolRoyaleGothicCoffeeTable',
+    name: 'Pool Royale Gothic Coffee Table',
+    description: 'Gothic coffee table from Murlan Royale re-used as a sculpted Pool Royale base.',
     base: '#8f4a2b',
     accent: '#3b2a1f',
     swatches: ['#8f4a2b', '#3b2a1f']
   }),
   Object.freeze({
-    id: 'woodenTable02Alt',
-    name: 'Wooden Table 02 Alt Base',
-    description: 'Alternate Wooden Table 02 variant resized to cradle the pool playfield.',
+    id: 'poolRoyaleWoodenTable02Alt',
+    name: 'Pool Royale Wooden Table 02 Alt',
+    description: 'Alternate Wooden Table 02 variant resized to cradle the Pool Royale base.',
     base: '#6f5140',
     accent: '#caa07a',
     swatches: ['#6f5140', '#caa07a']
