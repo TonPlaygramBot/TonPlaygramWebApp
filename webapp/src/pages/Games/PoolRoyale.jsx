@@ -20118,7 +20118,7 @@ const powerRef = useRef(hud.power);
       };
 
       // Fire (slider triggers on release)
-      const fire = () => {
+      const fire = (overridePower) => {
         const currentHud = hudRef.current;
         const frameSnapshot = frameRef.current ?? frameState;
         const fullTableHandPlacement =
@@ -20229,7 +20229,11 @@ const powerRef = useRef(hud.power);
             pocketSwitchIntentRef.current = null;
           }
           lastPocketBallRef.current = null;
-          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
+          const clampedPower = THREE.MathUtils.clamp(
+            overridePower ?? powerRef.current,
+            0,
+            1
+          );
           const curvedPower = Math.pow(clampedPower, CUE_POWER_GAMMA);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
@@ -24736,12 +24740,14 @@ const powerRef = useRef(hud.power);
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
       onChange: (v) => applyPower(v / 100),
-      onCommit: () => {
-      fireRef.current?.();
-      requestAnimationFrame(() => {
-        slider.set(slider.min, { animate: true });
-        applyPower(0);
-      });
+      onCommit: (value) => {
+        const nextPower = Number.isFinite(value) ? value / 100 : powerRef.current ?? 0;
+        applyPower(nextPower);
+        fireRef.current?.(nextPower);
+        requestAnimationFrame(() => {
+          slider.set(slider.min, { animate: true });
+          applyPower(0);
+        });
       }
     });
     sliderInstanceRef.current = slider;
