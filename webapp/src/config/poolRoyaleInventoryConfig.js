@@ -325,6 +325,14 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     name: 'Wooden Table 02 Alt Base',
     description: 'Alternate Wooden Table 02 variant resized to cradle the pool playfield.',
     swatches: ['#6f5140', '#caa07a']
+  },
+  {
+    id: 'blenderkitPoolTable',
+    name: 'BlenderKit Pool Table',
+    description: 'BlenderKit pool table model aligned beneath the pro playfield.',
+    swatches: ['#2b6f4f', '#1f3d2d'],
+    source: 'blenderkit',
+    assetBaseId: '84a78996-6ed0-4833-a110-b00c36c348a8'
   }
 ]);
 
