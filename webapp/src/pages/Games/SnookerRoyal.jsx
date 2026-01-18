@@ -24708,13 +24708,12 @@ const powerRef = useRef(hud.power);
       onStart: () => {
         captureCueStickAnchor();
       },
-      onCommit: (value) => {
-        applyPower((value ?? 0) / 100);
-        fireRef.current?.();
-        requestAnimationFrame(() => {
-          slider.set(slider.min, { animate: true });
-          applyPower(0);
-        });
+      onCommit: () => {
+      fireRef.current?.();
+      requestAnimationFrame(() => {
+        slider.set(slider.min, { animate: true });
+        applyPower(0);
+      });
       }
     });
     sliderInstanceRef.current = slider;
