@@ -1443,9 +1443,19 @@ const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned wi
 const CUE_TIP_CLEARANCE = BALL_R * 0.02; // keep the tip aligned without overreaching the cue ball
 const CUE_TIP_GAP = BALL_R * 0.95 + CUE_TIP_CLEARANCE; // keep the tip aligned while allowing visible contact on impact
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
+const CUE_PULL_MIN_VISUAL = BALL_R * 2.1; // guarantee a clear visible pull even when clearance is tight
+const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
+const CUE_PULL_VISUAL_MULTIPLIER = 1.85;
+const CUE_PULL_SMOOTHING = 0.55;
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
+const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
+const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
+const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
+const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.18; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_STRIKE_DURATION_MS = 120;
 const CUE_STRIKE_HOLD_MS = 50;
+const CUE_RETURN_SPEEDUP = 0.95;
 const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 9.5;
@@ -19952,30 +19962,71 @@ const powerRef = useRef(hud.power);
         );
       };
 
-      const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
       const computeCuePull = (
         pullTarget = 0,
         maxPull = CUE_PULL_BASE,
-        { preserveLarger = false } = {}
+        { instant = false, preserveLarger = false } = {}
       ) => {
+        const slider = sliderInstanceRef.current;
+        const dragging = Boolean(slider?.dragging);
         const cappedMax = Number.isFinite(maxPull) ? Math.max(0, maxPull) : CUE_PULL_BASE;
+        const effectiveMax = Math.max(cappedMax + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL);
         const desiredTarget = preserveLarger
           ? Math.max(cuePullCurrentRef.current ?? 0, pullTarget ?? 0)
           : pullTarget ?? 0;
-        const clampedTarget = THREE.MathUtils.clamp(desiredTarget, 0, cappedMax);
+        const boostedTarget = desiredTarget * CUE_PULL_GLOBAL_VISIBILITY_BOOST;
+        const clampedTarget = THREE.MathUtils.clamp(boostedTarget, 0, effectiveMax);
+        const smoothing = instant || dragging ? 1 : CUE_PULL_SMOOTHING;
+        const nextPull =
+          smoothing >= 1
+            ? clampedTarget
+            : THREE.MathUtils.lerp(cuePullCurrentRef.current ?? 0, clampedTarget, smoothing);
         cuePullTargetRef.current = clampedTarget;
-        cuePullCurrentRef.current = clampedTarget;
-        return clampedTarget;
+        cuePullCurrentRef.current = nextPull;
+        return nextPull;
       };
       const applyVisualPullCompensation = (pullValue, dirVec3) => {
         const basePull = Math.max(pullValue ?? 0, 0);
-        return basePull;
+        if (basePull <= 1e-6 || !dirVec3) return basePull;
+        const cam =
+          activeRenderCameraRef.current ??
+          cameraRef.current ??
+          camera;
+        TMP_VEC3_CUE_DIR.set(dirVec3.x, 0, dirVec3.z);
+        if (TMP_VEC3_CUE_DIR.lengthSq() > 1e-8) {
+          TMP_VEC3_CUE_DIR.normalize();
+        } else {
+          TMP_VEC3_CUE_DIR.set(0, 0, 1);
+        }
+        let alignment = 0;
+        if (cam?.getWorldDirection) {
+          cam.getWorldDirection(TMP_VEC3_CAM_DIR);
+          TMP_VEC3_CAM_DIR.y = 0;
+          if (TMP_VEC3_CAM_DIR.lengthSq() > 1e-8) {
+            TMP_VEC3_CAM_DIR.normalize();
+            alignment = Math.abs(TMP_VEC3_CAM_DIR.dot(TMP_VEC3_CUE_DIR));
+          }
+        }
+        const blend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
+        const cameraPullScale = THREE.MathUtils.lerp(
+          1 - CUE_PULL_CUE_CAMERA_DAMPING,
+          1 + CUE_PULL_STANDING_CAMERA_BONUS,
+          blend
+        );
+        const alignmentBoost = 1 + alignment * CUE_PULL_ALIGNMENT_BOOST;
+        const compensated =
+          basePull * alignmentBoost * cameraPullScale;
+        const maxScale = 1 + CUE_PULL_MAX_VISUAL_BONUS;
+        return Math.min(compensated, basePull * maxScale);
       };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
-        const eased = easeOutCubic(ratio);
+        const curved = Math.pow(ratio, CUE_POWER_GAMMA);
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
-        return effectiveMax * eased;
+        const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
+        const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
+        const target = amplifiedMax * curved * CUE_PULL_VISUAL_MULTIPLIER;
+        return Math.min(target, visualMax);
       };
       const clampCueTipOffset = (vec, limit = BALL_R) => {
         if (!vec) return vec;
@@ -20352,6 +20403,7 @@ const powerRef = useRef(hud.power);
             : PLAYER_CUE_PULL_VISIBILITY_BOOST;
           const pullTarget = computePullTargetFromPower(clampedPower, maxPull) * pullVisibilityBoost;
           const pull = computeCuePull(pullTarget, maxPull, {
+            instant: true,
             preserveLarger: true
           });
           const visualPull = applyVisualPullCompensation(pull, dir);
@@ -20421,7 +20473,9 @@ const powerRef = useRef(hud.power);
           const pullbackDuration = isAiStroke
             ? AI_CUE_PULLBACK_DURATION_MS * CUE_STROKE_VISUAL_SLOWDOWN
             : 0;
-          const returnDuration = 0;
+          const baseReturnDuration =
+            pullbackDuration > 0 ? pullbackDuration : forwardDuration;
+          const returnDuration = Math.max(0, baseReturnDuration * CUE_RETURN_SPEEDUP);
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
@@ -23182,7 +23236,9 @@ const powerRef = useRef(hud.power);
             powerRef.current,
             maxPull
           );
-          const pull = computeCuePull(desiredPull, maxPull);
+          const pull = computeCuePull(desiredPull, maxPull, {
+            instant: Boolean(sliderInstanceRef.current?.dragging)
+          });
           const visualPull = applyVisualPullCompensation(pull, dir);
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
