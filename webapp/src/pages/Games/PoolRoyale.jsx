@@ -62,7 +62,6 @@ import {
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_HDRI_VARIANT_MAP,
   POOL_ROYALE_BASE_VARIANTS,
-  POOL_ROYALE_BLENDERKIT_TABLE_FINISHES,
   POOL_ROYALE_OPTION_LABELS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
@@ -2378,27 +2377,6 @@ const createStandardWoodFinish = ({
   }
 });
 
-const BLENDERKIT_TABLE_FINISH_MAP = POOL_ROYALE_BLENDERKIT_TABLE_FINISHES.reduce(
-  (acc, entry) => {
-    const baseFinish = createStandardWoodFinish({
-      id: entry.id,
-      label: entry.label,
-      rail: 0xd8d2c8,
-      base: 0xc9c2b8,
-      trim: 0xf2eee8,
-      woodTextureId: null,
-      woodRepeatScale: 1
-    });
-    acc[entry.id] = {
-      ...baseFinish,
-      blenderkitAssetBaseId: entry.assetBaseId,
-      woodTextureId: null
-    };
-    return acc;
-  },
-  {}
-);
-
 const TABLE_FINISHES = Object.freeze({
   peelingPaintWeathered: createStandardWoodFinish({
     id: 'peelingPaintWeathered',
@@ -2444,11 +2422,10 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: 1
-  }),
-  ...BLENDERKIT_TABLE_FINISH_MAP
+  })
 });
 
-const BASE_TABLE_FINISH_OPTIONS = Object.freeze(
+const TABLE_FINISH_OPTIONS = Object.freeze(
   [
     TABLE_FINISHES.peelingPaintWeathered,
     TABLE_FINISHES.oakVeneer01,
@@ -2458,14 +2435,7 @@ const BASE_TABLE_FINISH_OPTIONS = Object.freeze(
   ].filter(Boolean)
 );
 
-const TABLE_FINISH_OPTIONS = Object.freeze(
-  [
-    ...BASE_TABLE_FINISH_OPTIONS,
-    ...POOL_ROYALE_BLENDERKIT_TABLE_FINISHES.map((entry) => TABLE_FINISHES[entry.id])
-  ].filter(Boolean)
-);
-
-const CUE_FINISH_OPTIONS = BASE_TABLE_FINISH_OPTIONS;
+const CUE_FINISH_OPTIONS = TABLE_FINISH_OPTIONS;
 const CUE_FINISH_PALETTE = Object.freeze(
   CUE_FINISH_OPTIONS.map(
     (finish) => finish?.colors?.rail ?? finish?.colors?.base ?? 0xdeb887
@@ -3061,169 +3031,6 @@ const upgradePolyHavenTextureUrlTo4k = (url) => {
   if (typeof url !== 'string' || url.length === 0) return url;
   if (!url.includes('/2k/') && !url.includes('_2k')) return url;
   return url.replace('/2k/', '/4k/').replace(/_2k(\.\w+)$/, '_4k$1');
-};
-
-const blenderkitFinishTextureCache = new Map();
-const pendingBlenderkitFinishTextureRequests = new Map();
-const blenderkitFinishTextureConsumers = new Map();
-const blenderkitFinishAssetCache = new Map();
-const pendingBlenderkitFinishAssets = new Map();
-
-const pickBlenderkitFinishThumbnailUrl = (asset) =>
-  asset?.thumbnailLargeUrl ||
-  asset?.thumbnailXlargeUrl ||
-  asset?.thumbnailLargeUrlNonsquared ||
-  asset?.thumbnailXlargeUrlNonsquared ||
-  asset?.thumbnailMiddleUrl ||
-  asset?.thumbnailSmallUrl ||
-  asset?.thumbnailLargeUrlWebp ||
-  asset?.thumbnailXlargeUrlWebp ||
-  asset?.thumbnailMiddleUrlWebp ||
-  asset?.thumbnailSmallUrlWebp ||
-  null;
-
-const collectBlenderkitFinishImageUrls = (asset) => {
-  const files = Array.isArray(asset?.files) ? asset.files : [];
-  return files
-    .map((file) => ({
-      url: file?.downloadUrl,
-      filename: file?.filename || '',
-      fileType: file?.fileType || ''
-    }))
-    .filter((file) => file.url && /\.(png|jpe?g|webp)$/i.test(file.filename));
-};
-
-const scoreBlenderkitFinishCandidate = (file, includes, excludes) => {
-  const name = `${file.filename || ''} ${file.fileType || ''}`.toLowerCase();
-  if (excludes.some((kw) => name.includes(kw))) return -Infinity;
-  let score = 0;
-  if (includes.some((kw) => name.includes(kw))) score += 6;
-  if (name.includes('4k')) score += 4;
-  if (name.includes('2k')) score += 3;
-  if (name.includes('1k')) score += 2;
-  if (name.includes('jpg') || name.includes('jpeg')) score += 2;
-  if (name.includes('png')) score += 1;
-  if (name.includes('webp')) score += 1;
-  return score;
-};
-
-const pickBlenderkitFinishTextureUrl = (files, includes, excludes) =>
-  files
-    .map((file) => ({
-      file,
-      score: scoreBlenderkitFinishCandidate(file, includes, excludes)
-    }))
-    .filter((entry) => Number.isFinite(entry.score))
-    .sort((a, b) => b.score - a.score)[0]?.file?.url || null;
-
-const pickBlenderkitFinishTextureUrls = (asset) => {
-  const files = collectBlenderkitFinishImageUrls(asset);
-  const excludeColor = ['normal', 'rough', 'roughness', 'metal', 'spec', 'ao', 'height'];
-  const includeColor = ['diff', 'diffuse', 'albedo', 'basecolor', 'color', 'col'];
-  const includeNormal = ['normal', 'nor', 'nrm'];
-  const includeRough = ['rough', 'roughness'];
-  return {
-    mapUrl:
-      pickBlenderkitFinishTextureUrl(files, includeColor, excludeColor) ||
-      pickBlenderkitFinishThumbnailUrl(asset),
-    normalMapUrl: pickBlenderkitFinishTextureUrl(files, includeNormal, []),
-    roughnessMapUrl: pickBlenderkitFinishTextureUrl(files, includeRough, [])
-  };
-};
-
-const fetchBlenderkitFinishAsset = async (assetBaseId) => {
-  if (!assetBaseId || typeof fetch !== 'function') return null;
-  if (blenderkitFinishAssetCache.has(assetBaseId)) {
-    return blenderkitFinishAssetCache.get(assetBaseId);
-  }
-  if (pendingBlenderkitFinishAssets.has(assetBaseId)) {
-    return pendingBlenderkitFinishAssets.get(assetBaseId);
-  }
-  const promise = (async () => {
-    try {
-      const response = await fetch(
-        `${BLENDERKIT_SEARCH_BASE_URL}${encodeURIComponent(assetBaseId)}`,
-        { mode: 'cors' }
-      );
-      if (!response?.ok) return null;
-      const data = await response.json();
-      const asset = data?.results?.[0] || null;
-      if (asset) {
-        blenderkitFinishAssetCache.set(assetBaseId, asset);
-      }
-      return asset;
-    } catch (error) {
-      return null;
-    } finally {
-      pendingBlenderkitFinishAssets.delete(assetBaseId);
-    }
-  })();
-  pendingBlenderkitFinishAssets.set(assetBaseId, promise);
-  return promise;
-};
-
-const ensureBlenderkitFinishTextureUrls = (assetBaseId) => {
-  if (!assetBaseId) return;
-  const cached = blenderkitFinishTextureCache.get(assetBaseId);
-  if (cached?.ready) return;
-  if (pendingBlenderkitFinishTextureRequests.has(assetBaseId)) return;
-  if (typeof window === 'undefined' || typeof fetch !== 'function') return;
-
-  const promise = (async () => {
-    try {
-      const asset = await fetchBlenderkitFinishAsset(assetBaseId);
-      if (!asset) return;
-      const urls = pickBlenderkitFinishTextureUrls(asset);
-      if (!urls?.mapUrl && !urls?.normalMapUrl && !urls?.roughnessMapUrl) return;
-      blenderkitFinishTextureCache.set(assetBaseId, {
-        urls,
-        ready: true
-      });
-      const consumers = blenderkitFinishTextureConsumers.get(assetBaseId);
-      if (consumers?.size) {
-        consumers.forEach((consumer) => consumer?.(urls));
-        consumers.clear();
-      }
-    } catch (error) {
-      console.warn('Failed to load BlenderKit finish textures', assetBaseId, error);
-    } finally {
-      pendingBlenderkitFinishTextureRequests.delete(assetBaseId);
-    }
-  })();
-  pendingBlenderkitFinishTextureRequests.set(assetBaseId, promise);
-};
-
-const registerBlenderkitFinishConsumer = (assetBaseId, consumer) => {
-  if (!assetBaseId || typeof consumer !== 'function') return;
-  const cached = blenderkitFinishTextureCache.get(assetBaseId);
-  if (cached?.ready && cached?.urls) {
-    consumer(cached.urls);
-    return;
-  }
-  let consumers = blenderkitFinishTextureConsumers.get(assetBaseId);
-  if (!consumers) {
-    consumers = new Set();
-    blenderkitFinishTextureConsumers.set(assetBaseId, consumers);
-  }
-  consumers.add(consumer);
-  ensureBlenderkitFinishTextureUrls(assetBaseId);
-};
-
-const applyBlenderkitFinishTextures = (assetBaseId, targets) => {
-  if (!assetBaseId || !Array.isArray(targets) || !targets.length) return;
-  const applyUrls = (urls) => {
-    if (!urls) return;
-    targets.forEach((target) => {
-      if (!target?.material) return;
-      applyWoodTextureToMaterial(target.material, {
-        ...target.surface,
-        mapUrl: urls.mapUrl,
-        roughnessMapUrl: urls.roughnessMapUrl,
-        normalMapUrl: urls.normalMapUrl
-      });
-    });
-  };
-  registerBlenderkitFinishConsumer(assetBaseId, applyUrls);
 };
 
 const createClothTextures = (() => {
@@ -7605,7 +7412,7 @@ function Table3D(
     resolvedWoodOption?.frame,
     initialFrameSurface
   );
-  const alignedRailSurfaceConfig = {
+  applyWoodTextureToMaterial(railMat, {
     repeat: new THREE.Vector2(
       alignedRailSurface.repeat.x,
       alignedRailSurface.repeat.y
@@ -7616,38 +7423,24 @@ function Table3D(
     roughnessMapUrl: alignedRailSurface.roughnessMapUrl,
     normalMapUrl: alignedRailSurface.normalMapUrl,
     woodRepeatScale
-  };
-  applyWoodTextureToMaterial(railMat, alignedRailSurfaceConfig);
-  const underlaySurface = initialFrameSurface;
-  const underlaySurfaceConfig = {
-    repeat: new THREE.Vector2(
-      underlaySurface.repeat.x,
-      underlaySurface.repeat.y
-    ),
-    rotation: underlaySurface.rotation,
-    textureSize: underlaySurface.textureSize,
-    mapUrl: underlaySurface.mapUrl,
-    roughnessMapUrl: underlaySurface.roughnessMapUrl,
-    normalMapUrl: underlaySurface.normalMapUrl,
-    woodRepeatScale
-  };
+  });
   finishParts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
-    applyWoodTextureToMaterial(mesh.material, underlaySurfaceConfig);
+    const underlaySurface = initialFrameSurface;
+    applyWoodTextureToMaterial(mesh.material, {
+      repeat: new THREE.Vector2(
+        underlaySurface.repeat.x,
+        underlaySurface.repeat.y
+      ),
+      rotation: underlaySurface.rotation,
+      textureSize: underlaySurface.textureSize,
+      mapUrl: underlaySurface.mapUrl,
+      roughnessMapUrl: underlaySurface.roughnessMapUrl,
+      normalMapUrl: underlaySurface.normalMapUrl,
+      woodRepeatScale
+    });
     mesh.material.needsUpdate = true;
   });
-  if (resolvedFinish?.blenderkitAssetBaseId) {
-    const blenderkitTargets = [
-      { material: railMat, surface: alignedRailSurfaceConfig },
-      { material: frameMat, surface: synchronizedFrameSurface },
-      { material: legMat, surface: synchronizedFrameSurface },
-      ...finishParts.underlayMeshes.map((mesh) => ({
-        material: mesh?.material,
-        surface: underlaySurfaceConfig
-      }))
-    ];
-    applyBlenderkitFinishTextures(resolvedFinish.blenderkitAssetBaseId, blenderkitTargets);
-  }
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(alignedRailSurface);
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.07; // push the cushions further outward so they meet the wooden rails without a gap
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
@@ -10622,23 +10415,6 @@ function applyTableFinishToTable(table, finish) {
     }
     applyTableFinishDulling(legMat);
     applyTableWoodVisibilityTuning(legMat);
-    if (resolvedFinish?.blenderkitAssetBaseId) {
-      const underlayTargets = finishInfo.parts.underlayMeshes.map((mesh) => {
-        if (!mesh?.material) return null;
-        const baseMaterialKey =
-          mesh.userData?.baseMaterialKey === 'frame' ? 'frame' : 'rail';
-        const underlaySurface =
-          baseMaterialKey === 'frame' ? synchronizedFrameSurface : synchronizedRailSurface;
-        return { material: mesh.material, surface: underlaySurface };
-      });
-      const blenderkitTargets = [
-        { material: railMat, surface: synchronizedRailSurface },
-        { material: frameMat, surface: synchronizedFrameSurface },
-        { material: legMat, surface: synchronizedFrameSurface },
-        ...underlayTargets.filter(Boolean)
-      ];
-      applyBlenderkitFinishTextures(resolvedFinish.blenderkitAssetBaseId, blenderkitTargets);
-    }
     woodSurfaces.rail = cloneWoodSurfaceConfig(synchronizedRailSurface);
     woodSurfaces.frame = cloneWoodSurfaceConfig(synchronizedFrameSurface);
     finishInfo.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
