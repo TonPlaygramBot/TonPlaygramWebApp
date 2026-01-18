@@ -7,6 +7,11 @@ import { ensureAccountId, getTelegramFirstName, getTelegramId, getTelegramPhotoU
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
+import {
+  DEFAULT_POOL_ROYALE_TABLE_MODEL_ID,
+  POOL_ROYALE_TABLE_MODELS,
+  resolvePoolRoyaleTableModel
+} from '../../config/poolRoyaleTableModels.js';
 import { socket } from '../../utils/socket.js';
 import { getOnlineUsers } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
@@ -14,6 +19,7 @@ import { runPoolRoyaleOnlineFlow } from './poolRoyaleOnlineFlow.js';
 
 const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
+const TABLE_MODEL_STORAGE_KEY = 'poolRoyaleTableModel';
 
 export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
@@ -37,6 +43,19 @@ export default function PoolRoyaleLobby() {
   const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
+  const [tableModelId, setTableModelId] = useState(() => {
+    const fromParams = searchParams.get('tableModel');
+    if (resolvePoolRoyaleTableModel(fromParams)?.id === fromParams) {
+      return fromParams;
+    }
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage?.getItem(TABLE_MODEL_STORAGE_KEY);
+      if (resolvePoolRoyaleTableModel(stored)?.id === stored) {
+        return stored;
+      }
+    }
+    return DEFAULT_POOL_ROYALE_TABLE_MODEL_ID;
+  });
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matching, setMatching] = useState(false);
@@ -57,6 +76,7 @@ export default function PoolRoyaleLobby() {
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
+  const activeTableModel = resolvePoolRoyaleTableModel(tableModelId);
 
   useEffect(() => {
     try {
@@ -90,6 +110,12 @@ export default function PoolRoyaleLobby() {
       setUkBallSet('uk');
     }
   }, [variant]);
+
+  useEffect(() => {
+    try {
+      if (tableModelId) window.localStorage?.setItem(TABLE_MODEL_STORAGE_KEY, tableModelId);
+    } catch {}
+  }, [tableModelId]);
 
   const navigateToPoolRoyale = ({ tableId: startedId, roster = [], accountId, currentTurn }) => {
     const selfId = accountId || accountIdRef.current;
@@ -128,6 +154,7 @@ export default function PoolRoyaleLobby() {
     const resolvedAccountId = accountIdRef.current;
     if (resolvedAccountId) params.set('accountId', resolvedAccountId);
     if (tableSize) params.set('tableSize', tableSize);
+    if (tableModelId) params.set('tableModel', tableModelId);
     params.set('seat', seat);
     params.set('starter', starterSeat);
     const name = (friendlyName || '').trim();
@@ -208,6 +235,7 @@ export default function PoolRoyaleLobby() {
       if (stake.amount) params.set('amount', stake.amount);
     }
     if (playType === 'tournament') params.set('players', players);
+    if (tableModelId) params.set('tableModel', tableModelId);
     const initData = window.Telegram?.WebApp?.initData;
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
@@ -390,6 +418,26 @@ export default function PoolRoyaleLobby() {
             </button>
           ))}
         </div>
+      </div>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Table</h3>
+        <p className="text-xs text-subtext">
+          Choose between the current Pool Royale table or the new BlenderKit model.
+        </p>
+        <div className="flex gap-2">
+          {POOL_ROYALE_TABLE_MODELS.map((model) => (
+            <button
+              key={model.id}
+              onClick={() => setTableModelId(model.id)}
+              className={`lobby-tile ${tableModelId === model.id ? 'lobby-selected' : ''}`}
+            >
+              {model.label}
+            </button>
+          ))}
+        </div>
+        {activeTableModel?.description && (
+          <div className="text-xs text-subtext">{activeTableModel.description}</div>
+        )}
       </div>
       {variant === 'uk' && (
         <div className="space-y-2">

@@ -33,6 +33,30 @@ const createSwatches = (baseHex) => [
   adjustHex(baseHex, 0.3)
 ];
 
+const BLENDERKIT_DEFAULT_CLOTH_HEX = '#2f7d4d';
+const BLENDERKIT_DEFAULT_CLOTH = Object.freeze({
+  id: 'blenderkitSnookerCloth',
+  name: 'BlenderKit Snooker Cloth',
+  sourceId: '99fc871f-e793-4ad7-9ab2-fb5d08db4385',
+  assetBaseId: '99fc871f-e793-4ad7-9ab2-fb5d08db4385',
+  sourceType: 'blenderkit',
+  tone: 'green',
+  baseColor: toNumber(BLENDERKIT_DEFAULT_CLOTH_HEX),
+  palette: buildPalette(BLENDERKIT_DEFAULT_CLOTH_HEX),
+  sparkle: 1.1,
+  stray: 1.12,
+  detail: {
+    bumpMultiplier: 1.18,
+    sheen: 0.62,
+    sheenRoughness: 0.48,
+    emissiveIntensity: 0.28,
+    envMapIntensity: 0.18
+  },
+  price: 720,
+  swatches: createSwatches(BLENDERKIT_DEFAULT_CLOTH_HEX),
+  description: 'Premium BlenderKit snooker cloth tuned for vivid green table surfaces.'
+});
+
 const CABAN_GREEN_SWATCHES = Object.freeze(['#33b46a', '#2ca85f', '#42c47a', '#4fd184', '#238f4a']);
 const CABAN_OCEAN_BLUE_SWATCHES = Object.freeze([
   '#0b74c6',
@@ -181,5 +205,5 @@ const createVariantsForMaterial = (material) => {
 };
 
 export const POOL_ROYALE_CLOTH_VARIANTS = Object.freeze(
-  MATERIAL_SERIES.flatMap((material) => createVariantsForMaterial(material))
+  [BLENDERKIT_DEFAULT_CLOTH, ...MATERIAL_SERIES.flatMap((material) => createVariantsForMaterial(material))]
 );
