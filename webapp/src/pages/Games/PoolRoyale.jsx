@@ -17388,7 +17388,8 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            cueStick.position.lerpVectors(warmupPos, startPos, t);
+            const eased = 1 - Math.pow(1 - t, 3);
+            cueStick.position.lerpVectors(warmupPos, startPos, eased);
             syncCueShadow();
             return true;
           }
@@ -20394,6 +20395,14 @@ const powerRef = useRef(hud.power);
             0,
             Math.min(visualPull - minVisibleGap, visualPull * warmupRatio)
           );
+          const maxVisualPull = Math.max(
+            maxPull + CUE_PULL_VISUAL_FUDGE,
+            CUE_PULL_MIN_VISUAL
+          );
+          const extraPull = Math.min(
+            Math.max(minVisibleGap, visualPull * warmupRatio),
+            Math.max(0, maxVisualPull - visualPull)
+          );
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftAngle;
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
@@ -20411,8 +20420,10 @@ const powerRef = useRef(hud.power);
             return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
-          const startPos = buildCuePosition(visualPull);
-          const warmupPos = isAiStroke ? buildCuePosition(warmupPull) : startPos.clone();
+          const startPull = isAiStroke ? visualPull : visualPull + extraPull;
+          const warmupPullTarget = isAiStroke ? warmupPull : visualPull;
+          const startPos = buildCuePosition(startPull);
+          const warmupPos = buildCuePosition(warmupPullTarget);
           cueStick.position.copy(warmupPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
@@ -20431,7 +20442,7 @@ const powerRef = useRef(hud.power);
           const settleDuration = CUE_STRIKE_HOLD_MS;
           const pullbackDuration = isAiStroke
             ? AI_CUE_PULLBACK_DURATION_MS * CUE_STROKE_VISUAL_SLOWDOWN
-            : 0;
+            : CUE_STRIKE_DURATION_MS;
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
