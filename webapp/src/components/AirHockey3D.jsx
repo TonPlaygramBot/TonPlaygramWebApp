@@ -792,21 +792,27 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     scene.background = new THREE.Color(0x050505);
     sceneRef.current = scene;
 
-    const TABLE_SCALE = 1.2;
+    const TABLE_SCALE = 1;
     const BASE_TABLE_LENGTH = POOL_ENVIRONMENT.tableLength * TABLE_SCALE;
-    const TOP_EXTENSION_FACTOR = 0.3;
+    const TOP_EXTENSION_FACTOR = 0;
     const TABLE = {
       w: POOL_ENVIRONMENT.tableWidth * TABLE_SCALE,
       h:
         BASE_TABLE_LENGTH / 2 + (BASE_TABLE_LENGTH / 2) * (1 + TOP_EXTENSION_FACTOR),
       thickness: POOL_ENVIRONMENT.tableThickness,
-      goalW: POOL_ENVIRONMENT.tableWidth * TABLE_SCALE * 0.45454545454545453,
       topExtension: (BASE_TABLE_LENGTH / 2) * TOP_EXTENSION_FACTOR
     };
-    const SCALE_WIDTH = TABLE.w / 2.2;
-    const SCALE_LENGTH = TABLE.h / (4.8 * 1.2);
+    const FIELD_INSET = TABLE.w * 0.08;
+    const PLAYFIELD = {
+      w: TABLE.w - FIELD_INSET * 2,
+      h: TABLE.h - FIELD_INSET * 2,
+      goalW: (TABLE.w - FIELD_INSET * 2) * 0.45454545454545453,
+      inset: FIELD_INSET
+    };
+    const SCALE_WIDTH = PLAYFIELD.w / 2.2;
+    const SCALE_LENGTH = PLAYFIELD.h / (4.8 * 1.2);
     const SPEED_SCALE = (SCALE_WIDTH + SCALE_LENGTH) / 2;
-    const MALLET_RADIUS = TABLE.w * 0.072;
+    const MALLET_RADIUS = PLAYFIELD.w * 0.072;
     const MALLET_HEIGHT = MALLET_RADIUS * (0.05 / 0.12);
     const MALLET_KNOB_RADIUS = MALLET_RADIUS * (0.065 / 0.12);
     const MALLET_KNOB_HEIGHT = MALLET_RADIUS * (0.1 / 0.12);
@@ -816,7 +822,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       height: MALLET_HEIGHT,
       knobHeight: MALLET_KNOB_HEIGHT
     };
-    const PUCK_RADIUS = TABLE.w * 0.0295;
+    const PUCK_RADIUS = PLAYFIELD.w * 0.0295;
     const PUCK_HEIGHT = PUCK_RADIUS * 1.05;
 
     const camera = new THREE.PerspectiveCamera(
@@ -844,7 +850,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     tableGroupRef.current = tableGroup;
 
     const tableSurface = new THREE.Mesh(
-      new THREE.BoxGeometry(TABLE.w, TABLE.thickness, TABLE.h),
+      new THREE.BoxGeometry(PLAYFIELD.w, TABLE.thickness, PLAYFIELD.h),
       new THREE.MeshStandardMaterial({
         color: 0x3b83c3,
         roughness: 0.85,
@@ -983,30 +989,22 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       tableGroup.add(foot);
     });
 
-    const railMat = new THREE.MeshStandardMaterial({
-      color: 0xdbe9ff,
-      transparent: true,
-      opacity: 0.32,
-      roughness: 0.18,
-      metalness: 0.1
-    });
-    materialsRef.current.rail = railMat;
-    const railHeight = 0.25 * SCALE_WIDTH;
-    const railThickness = 0.04 * SCALE_WIDTH;
+    const railHeight = 0.2 * SCALE_WIDTH;
+    const railThickness = PLAYFIELD.inset * 0.55;
     const buildRail = (w, h, d) =>
-      new THREE.Mesh(new THREE.BoxGeometry(w, h, d), railMat);
+      new THREE.Mesh(new THREE.BoxGeometry(w, h, d), frameMaterial);
 
-    const northRail = buildRail(TABLE.w, railHeight, railThickness);
-    northRail.position.set(0, railHeight / 2, -TABLE.h / 2 - railThickness / 2);
+    const northRail = buildRail(PLAYFIELD.w + railThickness * 2, railHeight, railThickness);
+    northRail.position.set(0, railHeight / 2, -PLAYFIELD.h / 2 - railThickness / 2);
     tableGroup.add(northRail);
-    const southRail = buildRail(TABLE.w, railHeight, railThickness);
-    southRail.position.set(0, railHeight / 2, TABLE.h / 2 + railThickness / 2);
+    const southRail = buildRail(PLAYFIELD.w + railThickness * 2, railHeight, railThickness);
+    southRail.position.set(0, railHeight / 2, PLAYFIELD.h / 2 + railThickness / 2);
     tableGroup.add(southRail);
-    const westRail = buildRail(railThickness, railHeight, TABLE.h);
-    westRail.position.set(-TABLE.w / 2 - railThickness / 2, railHeight / 2, 0);
+    const westRail = buildRail(railThickness, railHeight, PLAYFIELD.h);
+    westRail.position.set(-PLAYFIELD.w / 2 - railThickness / 2, railHeight / 2, 0);
     tableGroup.add(westRail);
-    const eastRail = buildRail(railThickness, railHeight, TABLE.h);
-    eastRail.position.set(TABLE.w / 2 + railThickness / 2, railHeight / 2, 0);
+    const eastRail = buildRail(railThickness, railHeight, PLAYFIELD.h);
+    eastRail.position.set(PLAYFIELD.w / 2 + railThickness / 2, railHeight / 2, 0);
     tableGroup.add(eastRail);
 
     const lineMat = new THREE.MeshStandardMaterial({
@@ -1016,14 +1014,14 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     materialsRef.current.line = lineMat;
     const lineThickness = 0.02 * SCALE_WIDTH;
     const midLine = new THREE.Mesh(
-      new THREE.BoxGeometry(TABLE.w, lineThickness * 0.5, lineThickness),
+      new THREE.BoxGeometry(PLAYFIELD.w, lineThickness * 0.5, lineThickness),
       lineMat
     );
     midLine.position.y = lineThickness * 0.25;
     tableGroup.add(midLine);
 
     const goalGeometry = new THREE.BoxGeometry(
-      TABLE.goalW,
+      PLAYFIELD.goalW,
       0.11 * SCALE_WIDTH,
       railThickness * 0.6
     );
@@ -1034,10 +1032,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     });
     materialsRef.current.goal = goalMaterial;
     const northGoal = new THREE.Mesh(goalGeometry, goalMaterial);
-    northGoal.position.set(0, 0.055 * SCALE_WIDTH, -TABLE.h / 2 - railThickness * 0.7);
+    northGoal.position.set(0, 0.055 * SCALE_WIDTH, -PLAYFIELD.h / 2 - railThickness * 0.7);
     tableGroup.add(northGoal);
     const southGoal = new THREE.Mesh(goalGeometry, goalMaterial);
-    southGoal.position.set(0, 0.055 * SCALE_WIDTH, TABLE.h / 2 + railThickness * 0.7);
+    southGoal.position.set(0, 0.055 * SCALE_WIDTH, PLAYFIELD.h / 2 + railThickness * 0.7);
     tableGroup.add(southGoal);
 
     const createGoalLabel = (text, accent) => {
@@ -1087,7 +1085,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         depthWrite: false
       });
       const sprite = new THREE.Sprite(material);
-      const labelWidth = TABLE.goalW * 0.72;
+      const labelWidth = PLAYFIELD.goalW * 0.72;
       const labelHeight = labelWidth * (height / width) * 0.6;
       sprite.scale.set(labelWidth, labelHeight, 1);
       sprite.renderOrder = 15;
@@ -1141,7 +1139,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
 
     const youData = makeMallet(0xff5577);
     const you = youData.mallet;
-    you.position.set(0, 0, TABLE.h * 0.42);
+    you.position.set(0, 0, PLAYFIELD.h * 0.42);
     tableGroup.add(you);
     materialsRef.current.playerMallet = youData.baseMaterial;
     materialsRef.current.playerKnob = youData.knobMaterial;
@@ -1149,7 +1147,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
 
     const aiData = makeMallet(0x66ddff);
     const aiMallet = aiData.mallet;
-    aiMallet.position.set(0, 0, -TABLE.h * 0.36);
+    aiMallet.position.set(0, 0, -PLAYFIELD.h * 0.36);
     tableGroup.add(aiMallet);
     materialsRef.current.aiMallet = aiData.baseMaterial;
     materialsRef.current.aiKnob = aiData.knobMaterial;
@@ -1171,7 +1169,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     tableGroup.add(puck);
     materialsRef.current.puck = puck.material;
 
-    const playerRailZ = TABLE.h / 2 + railThickness / 2;
+    const playerRailZ = PLAYFIELD.h / 2 + railThickness / 2;
     const cameraFocus = new THREE.Vector3(
       0,
       elevatedTableSurfaceY + TABLE.thickness * 0.06,
@@ -1268,8 +1266,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         return { x: you.position.x, z: you.position.z };
       }
       return {
-        x: clamp(hit.x, -TABLE.w / 2 + MALLET_RADIUS, TABLE.w / 2 - MALLET_RADIUS),
-        z: clamp(hit.z, 0, TABLE.h / 2 - MALLET_RADIUS)
+        x: clamp(hit.x, -PLAYFIELD.w / 2 + MALLET_RADIUS, PLAYFIELD.w / 2 - MALLET_RADIUS),
+        z: clamp(hit.z, 0, PLAYFIELD.h / 2 - MALLET_RADIUS)
       };
     };
 
@@ -1337,19 +1335,19 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
 
     const aiUpdate = (dt) => {
       const guardLine = -MALLET_RADIUS;
-      const defensiveZ = -TABLE.h * 0.36;
+      const defensiveZ = -PLAYFIELD.h * 0.36;
       const targetZ =
         puck.position.z < guardLine
           ? clamp(
               puck.position.z + MALLET_RADIUS * 0.8,
-              -TABLE.h / 2 + MALLET_RADIUS,
+              -PLAYFIELD.h / 2 + MALLET_RADIUS,
               guardLine - MALLET_RADIUS
             )
           : defensiveZ;
       const targetX = clamp(
         puck.position.x,
-        -TABLE.w / 2 + MALLET_RADIUS,
-        TABLE.w / 2 - MALLET_RADIUS
+        -PLAYFIELD.w / 2 + MALLET_RADIUS,
+        PLAYFIELD.w / 2 - MALLET_RADIUS
       );
       const chaseSpeed = 3.4;
       aiMallet.position.x += (targetX - aiMallet.position.x) * chaseSpeed * dt;
@@ -1359,8 +1357,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const reset = (towardTop = false, shouldServe = true) => {
       puck.position.set(0, PUCK_HEIGHT / 2, 0);
       S.vel.set(0, 0, 0);
-      you.position.set(0, 0, TABLE.h * 0.42);
-      aiMallet.position.set(0, 0, -TABLE.h * 0.36);
+      you.position.set(0, 0, PLAYFIELD.h * 0.42);
+      aiMallet.position.set(0, 0, -PLAYFIELD.h * 0.36);
       if (shouldServe) {
         servePuck(towardTop);
       }
@@ -1394,19 +1392,19 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       // keep puck speed manageable
       S.vel.clampLength(0, MAX_SPEED);
 
-      if (Math.abs(puck.position.x) > TABLE.w / 2 - PUCK_RADIUS) {
+      if (Math.abs(puck.position.x) > PLAYFIELD.w / 2 - PUCK_RADIUS) {
         puck.position.x = clamp(
           puck.position.x,
-          -TABLE.w / 2 + PUCK_RADIUS,
-          TABLE.w / 2 - PUCK_RADIUS
+          -PLAYFIELD.w / 2 + PUCK_RADIUS,
+          PLAYFIELD.w / 2 - PUCK_RADIUS
         );
         S.vel.x = -S.vel.x;
         playHit();
       }
 
-      const goalHalf = TABLE.goalW / 2;
-      const atTop = puck.position.z < -TABLE.h / 2 + PUCK_RADIUS;
-      const atBot = puck.position.z > TABLE.h / 2 - PUCK_RADIUS;
+      const goalHalf = PLAYFIELD.goalW / 2;
+      const atTop = puck.position.z < -PLAYFIELD.h / 2 + PUCK_RADIUS;
+      const atBot = puck.position.z > PLAYFIELD.h / 2 - PUCK_RADIUS;
       if (atTop || atBot) {
         if (Math.abs(puck.position.x) <= goalHalf) {
           const playerScored = atTop;
@@ -1424,8 +1422,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           S.vel.z = -S.vel.z;
           puck.position.z = clamp(
             puck.position.z,
-            -TABLE.h / 2 + PUCK_RADIUS,
-            TABLE.h / 2 - PUCK_RADIUS
+            -PLAYFIELD.h / 2 + PUCK_RADIUS,
+            PLAYFIELD.h / 2 - PUCK_RADIUS
           );
           playPost();
         }
