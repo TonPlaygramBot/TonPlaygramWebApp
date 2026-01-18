@@ -47,29 +47,7 @@ const BLUE_SHADE_NAMES = ['Harbor', 'Fjord', 'Glacier', 'Sapphire', 'Midnight'];
 const NATURE_SHADE_NAMES = ['Fern', 'Grove', 'Canopy', 'Meadow', 'Wildwood'];
 const OCEAN_SHADE_NAMES = ['Crest', 'Current', 'Lagoon', 'Reef', 'Abyss'];
 
-const BLENDERKIT_CLOTH_ASSET_BASE_ID = '99fc871f-e793-4ad7-9ab2-fb5d08db4385';
-
 const MATERIAL_SERIES = [
-  {
-    prefix: 'blenderkitCloth',
-    label: 'BlenderKit Table Cloth',
-    sourceId: BLENDERKIT_CLOTH_ASSET_BASE_ID,
-    sourceType: 'blenderkit',
-    basePrice: 0,
-    priceStep: 0,
-    bluePremium: 0,
-    sparkle: 1.06,
-    stray: 1.04,
-    detail: {
-      bumpMultiplier: 1.18,
-      sheen: 0.62,
-      sheenRoughness: 0.5,
-      emissiveIntensity: 0.28,
-      envMapIntensity: 0.16
-    },
-    greens: ['#2e8b57'],
-    blues: []
-  },
   {
     prefix: 'caban',
     label: 'Caban Wool',
@@ -192,8 +170,7 @@ const createVariantsForMaterial = (material) => {
         detail: material.detail,
         price,
         swatches: createSwatches(hex),
-        description: `${material.label} cloth with a ${toneLabel.toLowerCase()} ${name.toLowerCase()} tint and detailed scan from ${material.sourceId}.`,
-        sourceType: material.sourceType || 'polyhaven'
+        description: `${material.label} cloth with a ${toneLabel.toLowerCase()} ${name.toLowerCase()} tint and detailed scan from ${material.sourceId}.`
       };
     });
 
