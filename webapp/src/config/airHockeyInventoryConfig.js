@@ -341,44 +341,12 @@ const AIR_HOCKEY_TABLE_FINISHES = Object.freeze([
 
 const AIR_HOCKEY_TABLE_BASES = Object.freeze([
   Object.freeze({
-    id: 'classicCylinders',
-    name: 'Classic Cylinders',
-    description: 'Rounded skirt with six cylinder legs and subtle foot pads.',
+    id: 'blenderkitPoolTable',
+    name: 'Pool Royale Table',
+    description: 'Pool Royale table base model sized to the official tournament footprint.',
     base: '#8f6243',
     accent: '#6f3a2f',
     swatches: ['#8f6243', '#6f3a2f']
-  }),
-  Object.freeze({
-    id: 'openPortal',
-    name: 'Open Portal',
-    description: 'Twin portal legs with angled sides and negative space.',
-    base: '#f8fafc',
-    accent: '#e5e7eb',
-    swatches: ['#f8fafc', '#e5e7eb']
-  }),
-  Object.freeze({
-    id: 'coffeeTableRound01',
-    name: 'Coffee Table Round 01 Base',
-    description: 'Rounded Poly Haven coffee table legs tucked beneath the pool table.',
-    base: '#c5a47e',
-    accent: '#7a5534',
-    swatches: ['#c5a47e', '#7a5534']
-  }),
-  Object.freeze({
-    id: 'gothicCoffeeTable',
-    name: 'Gothic Coffee Table Base',
-    description: 'Gothic coffee table from Murlan Royale re-used as a sculpted support base.',
-    base: '#8f4a2b',
-    accent: '#3b2a1f',
-    swatches: ['#8f4a2b', '#3b2a1f']
-  }),
-  Object.freeze({
-    id: 'woodenTable02Alt',
-    name: 'Wooden Table 02 Alt Base',
-    description: 'Alternate Wooden Table 02 variant resized to cradle the pool playfield.',
-    base: '#6f5140',
-    accent: '#caa07a',
-    swatches: ['#6f5140', '#caa07a']
   })
 ]);
 
