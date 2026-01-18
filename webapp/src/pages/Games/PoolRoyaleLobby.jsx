@@ -14,6 +14,7 @@ import { runPoolRoyaleOnlineFlow } from './poolRoyaleOnlineFlow.js';
 
 const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
+const TABLE_THEME_STORAGE_KEY = 'poolRoyaleTableTheme';
 
 export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
@@ -37,6 +38,13 @@ export default function PoolRoyaleLobby() {
   const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
+  const [tableTheme, setTableTheme] = useState(() => {
+    try {
+      const stored = window.localStorage?.getItem(TABLE_THEME_STORAGE_KEY);
+      return stored === 'blenderkit' ? 'blenderkit' : 'classic';
+    } catch {}
+    return 'classic';
+  });
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matching, setMatching] = useState(false);
@@ -80,6 +88,12 @@ export default function PoolRoyaleLobby() {
       if (idx >= 0) setAiFlagIndex(idx);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage?.setItem(TABLE_THEME_STORAGE_KEY, tableTheme);
+    } catch {}
+  }, [tableTheme]);
 
   useEffect(() => {
     matchPlayersRef.current = matchPlayers;
@@ -128,6 +142,7 @@ export default function PoolRoyaleLobby() {
     const resolvedAccountId = accountIdRef.current;
     if (resolvedAccountId) params.set('accountId', resolvedAccountId);
     if (tableSize) params.set('tableSize', tableSize);
+    params.set('tableTheme', tableTheme);
     params.set('seat', seat);
     params.set('starter', starterSeat);
     const name = (friendlyName || '').trim();
@@ -203,6 +218,7 @@ export default function PoolRoyaleLobby() {
     params.set('tableSize', tableSize);
     params.set('type', playType);
     params.set('mode', mode);
+    params.set('tableTheme', tableTheme);
     if (isOnlineMatch) {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
@@ -412,6 +428,26 @@ export default function PoolRoyaleLobby() {
           </div>
         </div>
       )}
+      <div className="space-y-2">
+        <h3 className="font-semibold">Table</h3>
+        <p className="text-xs text-subtext">
+          Choose the classic Pool Royale table or the BlenderKit table model for this match.
+        </p>
+        <div className="flex gap-2">
+          {[
+            { id: 'classic', label: 'Actual Table' },
+            { id: 'blenderkit', label: 'BlenderKit Table' }
+          ].map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setTableTheme(id)}
+              className={`lobby-tile ${tableTheme === id ? 'lobby-selected' : ''}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       {playType === 'tournament' && (
         <div className="space-y-2">
           <h3 className="font-semibold">Players</h3>
