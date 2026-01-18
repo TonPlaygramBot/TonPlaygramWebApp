@@ -285,6 +285,10 @@ const POOL_ENVIRONMENT = (() => {
 
 const POLYHAVEN_BASE_TEMPLATES = new Map();
 const POLYHAVEN_BASE_PROMISES = new Map();
+const BLENDERKIT_BASE_TEMPLATES = new Map();
+const BLENDERKIT_BASE_PROMISES = new Map();
+const BLENDERKIT_SEARCH_BASE_URL = 'https://www.blenderkit.com/api/v1/search/?query=asset_base_id:';
+const BLENDERKIT_POOL_TABLE_ASSET_BASE_ID = '84a78996-6ed0-4833-a110-b00c36c348a8';
 
 const buildPolyhavenModelUrls = (assetId = '') => {
   const normalizedId = `${assetId}`.trim().toLowerCase();
@@ -337,6 +341,69 @@ const ensurePolyhavenBaseTemplate = (assetId) => {
 
 const clonePolyhavenBaseTemplate = (assetId) => {
   const template = POLYHAVEN_BASE_TEMPLATES.get(assetId);
+  return template?.clone?.(true) ?? null;
+};
+
+const pickBlenderkitModelUrl = (asset) => {
+  const files = Array.isArray(asset?.files) ? asset.files : [];
+  const modelFiles = files.filter((file) => {
+    const fileType = String(file?.fileType || '').toLowerCase();
+    const filename = String(file?.filename || '').toLowerCase();
+    return (
+      fileType.includes('gltf') ||
+      fileType.includes('glb') ||
+      filename.endsWith('.gltf') ||
+      filename.endsWith('.glb')
+    );
+  });
+  return modelFiles[0]?.downloadUrl || null;
+};
+
+const ensureBlenderkitBaseTemplate = (assetBaseId) => {
+  if (!assetBaseId) return Promise.resolve(null);
+  if (BLENDERKIT_BASE_TEMPLATES.has(assetBaseId)) {
+    return Promise.resolve(BLENDERKIT_BASE_TEMPLATES.get(assetBaseId));
+  }
+  if (BLENDERKIT_BASE_PROMISES.has(assetBaseId)) {
+    return BLENDERKIT_BASE_PROMISES.get(assetBaseId);
+  }
+  const loader = new GLTFLoader();
+  loader.setCrossOrigin('anonymous');
+  const promise = (async () => {
+    const response = await fetch(
+      `${BLENDERKIT_SEARCH_BASE_URL}${encodeURIComponent(assetBaseId)}`,
+      { mode: 'cors' }
+    );
+    if (!response?.ok) {
+      throw new Error(`Failed BlenderKit lookup for ${assetBaseId}`);
+    }
+    const data = await response.json();
+    const asset = data?.results?.[0];
+    const url = pickBlenderkitModelUrl(asset);
+    if (!url) {
+      throw new Error(`No GLTF payload found for BlenderKit asset ${assetBaseId}`);
+    }
+    const gltf = await loader.loadAsync(url);
+    const scene = gltf?.scene || gltf?.scenes?.[0];
+    if (scene) {
+      BLENDERKIT_BASE_TEMPLATES.set(assetBaseId, scene);
+      return scene;
+    }
+    throw new Error('Missing BlenderKit base scene');
+  })()
+    .catch((error) => {
+      console.warn('Failed to load BlenderKit pool table base', error);
+      return null;
+    })
+    .finally(() => {
+      BLENDERKIT_BASE_PROMISES.delete(assetBaseId);
+    });
+  BLENDERKIT_BASE_PROMISES.set(assetBaseId, promise);
+  return promise;
+};
+
+const cloneBlenderkitBaseTemplate = (assetBaseId) => {
+  const template = BLENDERKIT_BASE_TEMPLATES.get(assetBaseId);
   return template?.clone?.(true) ?? null;
 };
 
@@ -901,10 +968,13 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       (2 * TABLE_WALL);
     const END_RAIL_INNER_THICKNESS = TABLE_WALL * END_RAIL_INNER_SCALE;
     const FIELD_INSET = Math.min(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS);
+    const FIELD_SCALE = 1.06;
+    const basePlayfieldW = TABLE.w - SIDE_RAIL_INNER_THICKNESS * 2;
+    const basePlayfieldH = TABLE.h - END_RAIL_INNER_THICKNESS * 2;
     const PLAYFIELD = {
-      w: TABLE.w - SIDE_RAIL_INNER_THICKNESS * 2,
-      h: TABLE.h - END_RAIL_INNER_THICKNESS * 2,
-      goalW: (TABLE.w - SIDE_RAIL_INNER_THICKNESS * 2) * 0.45454545454545453,
+      w: basePlayfieldW * FIELD_SCALE,
+      h: basePlayfieldH * FIELD_SCALE,
+      goalW: basePlayfieldW * 0.45454545454545453 * FIELD_SCALE,
       inset: FIELD_INSET
     };
     const SCALE_WIDTH = PLAYFIELD.w / 2.2;
@@ -943,15 +1013,16 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     world.add(tableGroup);
     tableGroupRef.current = tableGroup;
 
+    const FIELD_LIFT = TABLE.thickness * 0.18;
     const tableSurface = new THREE.Mesh(
-      new THREE.BoxGeometry(PLAYFIELD.w, TABLE.thickness, PLAYFIELD.h),
+      new THREE.BoxGeometry(PLAYFIELD.w, TABLE.thickness * 0.92, PLAYFIELD.h),
       new THREE.MeshStandardMaterial({
         color: 0x3b83c3,
         roughness: 0.85,
         metalness: 0.1
       })
     );
-    tableSurface.position.y = -TABLE.thickness / 2;
+    tableSurface.position.y = -TABLE.thickness / 2 + FIELD_LIFT;
     tableGroup.add(tableSurface);
     materialsRef.current.tableSurface = tableSurface.material;
 
@@ -1030,71 +1101,13 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       mesh.receiveShadow = true;
     };
 
-    const buildClassicCylinders = () => {
-      const legRadius = Math.min(TABLE.w, TABLE.h) * 0.055;
-      const legHeight = Math.max(0.1, -floorLocalY + TABLE.thickness * 0.25);
-      const legGeometry = new THREE.CylinderGeometry(
-        legRadius * 0.92,
-        legRadius,
-        legHeight,
-        32
-      );
-      const legCenterY = floorLocalY + legHeight / 2;
-      const legInset = Math.max(TABLE_WALL * 1.2, legRadius * 1.6);
-      const halfW = frameOuterW / 2;
-      const halfH = frameOuterH / 2;
-      const legPositions = [
-        [-halfW + legInset, -halfH + legInset],
-        [halfW - legInset, -halfH + legInset],
-        [-halfW + legInset, 0],
-        [halfW - legInset, 0],
-        [-halfW + legInset, halfH - legInset],
-        [halfW - legInset, halfH - legInset]
-      ];
-      const footHeight = legRadius * 0.4;
-      const footGeometry = new THREE.CylinderGeometry(
-        legRadius * 1.08,
-        legRadius * 1.2,
-        footHeight,
-        32
-      );
-      const footY = floorLocalY + footHeight / 2;
-      legPositions.forEach(([lx, lz]) => {
-        const leg = new THREE.Mesh(legGeometry, baseMaterial);
-        leg.position.set(lx, legCenterY, lz);
-        tagBaseMesh(leg);
-        baseGroup.add(leg);
-
-        const foot = new THREE.Mesh(footGeometry, baseAccentMaterial);
-        foot.position.set(lx, footY, lz);
-        tagBaseMesh(foot);
-        baseGroup.add(foot);
-      });
-    };
-
-    const buildOpenPortal = () => {
-      const legRadius = Math.min(TABLE.w, TABLE.h) * 0.055;
-      const legHeight = Math.max(0.1, -floorLocalY + TABLE.thickness * 0.2);
-      const legWidth = legRadius * 1.4;
-      const portalDepth = frameOuterH * 0.22;
-      const portalHeight = legHeight * 0.92;
-      const legGeometry = new THREE.BoxGeometry(legWidth, portalHeight, portalDepth);
-      const legCenterY = floorLocalY + portalHeight / 2;
-      const halfW = frameOuterW / 2;
-      const halfH = frameOuterH / 2;
-      const offsetX = Math.max(legWidth * 0.6, halfW - legWidth * 0.8);
-      const portalZ = Math.max(0, halfH - portalDepth * 0.7);
-      [-1, 1].forEach((sign) => {
-        const portal = new THREE.Group();
-        [-1, 1].forEach((side) => {
-          const leg = new THREE.Mesh(legGeometry, baseMaterial);
-          leg.position.set(side * offsetX, legCenterY, 0);
-          tagBaseMesh(leg);
-          portal.add(leg);
-        });
-        portal.position.z = sign * portalZ;
-        baseGroup.add(portal);
-      });
+    const buildFallbackPoolBase = () => {
+      const baseHeight = Math.max(0.1, -floorLocalY + TABLE.thickness * 0.2);
+      const baseGeometry = new THREE.BoxGeometry(frameOuterW * 0.98, baseHeight, frameOuterH * 0.96);
+      const base = new THREE.Mesh(baseGeometry, baseMaterial);
+      base.position.y = floorLocalY + baseHeight / 2;
+      tagBaseMesh(base);
+      baseGroup.add(base);
     };
 
     const buildPolyhavenBase = (assetId, { widthScale = 0.98, depthScale = 0.96 } = {}) => {
@@ -1125,43 +1138,47 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       return true;
     };
 
+    const buildBlenderkitPoolTable = (assetBaseId, { widthScale = 0.98, depthScale = 1 } = {}) => {
+      const base = cloneBlenderkitBaseTemplate(assetBaseId);
+      if (!base) return false;
+      base.traverse((child) => {
+        if (child?.isMesh) {
+          tagBaseMesh(child);
+        }
+      });
+      const bounds = new THREE.Box3().setFromObject(base);
+      const size = bounds.getSize(new THREE.Vector3());
+      const targetWidth = frameOuterW * widthScale;
+      const targetDepth = frameOuterH * depthScale;
+      const widthScaleFactor = size.x > 0 ? targetWidth / size.x : 1;
+      const depthScaleFactor = size.z > 0 ? targetDepth / size.z : 1;
+      const uniformScale = Math.min(widthScaleFactor, depthScaleFactor);
+      if (Number.isFinite(widthScaleFactor) && Number.isFinite(depthScaleFactor) && uniformScale > 0) {
+        base.scale.set(widthScaleFactor, uniformScale, depthScaleFactor);
+      }
+      base.updateMatrixWorld(true);
+      const scaledBounds = new THREE.Box3().setFromObject(base);
+      const offsetY = floorLocalY - scaledBounds.min.y;
+      base.position.y += offsetY;
+      baseGroup.add(base);
+      return true;
+    };
+
     const rebuildTableBase = (variantId) => {
       clearBaseGroup();
-      if (variantId === 'openPortal') {
-        buildOpenPortal();
-        return;
+      if (
+        !buildBlenderkitPoolTable(BLENDERKIT_POOL_TABLE_ASSET_BASE_ID, {
+          widthScale: 0.98,
+          depthScale: 1
+        })
+      ) {
+        ensureBlenderkitBaseTemplate(BLENDERKIT_POOL_TABLE_ASSET_BASE_ID).then(() => {
+          if (selectionsRef.current.tableBase === variantId) {
+            rebuildTableBase(variantId);
+          }
+        });
+        buildFallbackPoolBase();
       }
-      if (variantId === 'coffeeTableRound01') {
-        if (!buildPolyhavenBase('coffee_table_round_01', { widthScale: 0.96, depthScale: 1.02 })) {
-          ensurePolyhavenBaseTemplate('coffee_table_round_01').then(() => {
-            if (selectionsRef.current.tableBase === 'coffeeTableRound01') {
-              rebuildTableBase('coffeeTableRound01');
-            }
-          });
-        }
-        return;
-      }
-      if (variantId === 'gothicCoffeeTable') {
-        if (!buildPolyhavenBase('gothic_coffee_table', { widthScale: 1.02, depthScale: 1.02 })) {
-          ensurePolyhavenBaseTemplate('gothic_coffee_table').then(() => {
-            if (selectionsRef.current.tableBase === 'gothicCoffeeTable') {
-              rebuildTableBase('gothicCoffeeTable');
-            }
-          });
-        }
-        return;
-      }
-      if (variantId === 'woodenTable02Alt') {
-        if (!buildPolyhavenBase('wooden_table_02', { widthScale: 0.95, depthScale: 0.98 })) {
-          ensurePolyhavenBaseTemplate('wooden_table_02').then(() => {
-            if (selectionsRef.current.tableBase === 'woodenTable02Alt') {
-              rebuildTableBase('woodenTable02Alt');
-            }
-          });
-        }
-        return;
-      }
-      buildClassicCylinders();
     };
 
     tableBaseRef.current = {
