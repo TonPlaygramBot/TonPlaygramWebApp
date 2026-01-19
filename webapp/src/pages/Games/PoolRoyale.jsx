@@ -1300,6 +1300,8 @@ const POCKET_CAM = Object.freeze({
   railFocusLong: BALL_R * 5.6,
   railFocusShort: BALL_R * 6.6
 });
+const POCKET_POPUP_DURATION_MS = 2000;
+const POCKET_POPUP_LIFT = BALL_R * 2.4;
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.92;
 const POCKET_EARLY_ALIGNMENT = 0.82;
@@ -5473,12 +5475,14 @@ const getPocketCenterById = (id) => {
       return null;
   }
 };
-const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
+const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
   BL: new THREE.Vector2(-0.72, 1).normalize(),
-  BR: new THREE.Vector2(0.72, 1).normalize()
+  BR: new THREE.Vector2(0.72, 1).normalize(),
+  TM: new THREE.Vector2(-1, 0).normalize(),
+  BM: new THREE.Vector2(1, 0).normalize()
 });
 const getPocketCameraOutward = (id) =>
   POCKET_CAMERA_OUTWARD[id] ? POCKET_CAMERA_OUTWARD[id].clone() : null;
@@ -5490,20 +5494,10 @@ const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
     case 'BL':
     case 'BR':
       return pocketId;
-    case 'TM': {
-      const ballY = ballPos?.y ?? 0;
-      if (ballY > 0.01) return 'BL';
-      if (ballY < -0.01) return 'TL';
-      const dirY = approachDir?.y ?? 0;
-      return dirY >= 0 ? 'BL' : 'TL';
-    }
-    case 'BM': {
-      const ballY = ballPos?.y ?? 0;
-      if (ballY > 0.01) return 'BR';
-      if (ballY < -0.01) return 'TR';
-      const dirY = approachDir?.y ?? 0;
-      return dirY >= 0 ? 'BR' : 'TR';
-    }
+    case 'TM':
+      return 'TM';
+    case 'BM':
+      return 'BM';
     default:
       return pocketId;
   }
@@ -12219,6 +12213,7 @@ const powerRef = useRef(hud.power);
   const ballsRef = useRef([]);
   const pocketDropRef = useRef(new Map());
   const pocketRestIndexRef = useRef(new Map());
+  const pocketPopupRef = useRef([]);
   const captureBallSnapshotRef = useRef(null);
   const applyBallSnapshotRef = useRef(null);
   const pendingLayoutRef = useRef(null);
@@ -16129,99 +16124,34 @@ const powerRef = useRef(hud.power);
             if (!activeShotView.anchorOutward) {
               activeShotView.anchorOutward = outward.clone();
             }
-            const cameraBounds = cameraBoundsRef.current ?? null;
-            const cueBounds = cameraBounds?.cueShot ?? null;
-            const standingBounds = cameraBounds?.standing ?? null;
             const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.12;
+            const focusPoint2D = focusBall?.active
+              ? new THREE.Vector2(focusBall.pos.x, focusBall.pos.y)
+              : pocketCenter2D;
             const focusTarget = new THREE.Vector3(
-              pocketCenter2D.x * worldScaleFactor,
+              focusPoint2D.x * worldScaleFactor,
               focusHeightLocal,
-              pocketCenter2D.y * worldScaleFactor
+              focusPoint2D.y * worldScaleFactor
             );
-            if (
-              anchorType === 'short' &&
-              (POCKET_CAM.railFocusLong || POCKET_CAM.railFocusShort)
-            ) {
-              const signX =
-                pocketCenter2D.x !== 0
-                  ? Math.sign(pocketCenter2D.x)
-                  : Math.sign(outward.x);
-              const signZ =
-                pocketCenter2D.y !== 0
-                  ? Math.sign(pocketCenter2D.y)
-                  : Math.sign(outward.y);
-              const offsetX =
-                (POCKET_CAM.railFocusLong ?? 0) * (signX ? -signX : 0);
-              const offsetZ =
-                (POCKET_CAM.railFocusShort ?? 0) * (signZ ? -signZ : 0);
-              if (offsetX || offsetZ) {
-                TMP_VEC3_A.set(
-                  offsetX * worldScaleFactor,
-                  0,
-                  offsetZ * worldScaleFactor
-                );
-                focusTarget.add(TMP_VEC3_A);
-              }
-            }
-            const pocketDirection2D = pocketCenter2D.clone();
-            if (pocketDirection2D.lengthSq() < 1e-6) {
-              pocketDirection2D.copy(outward.lengthSq() > 1e-6 ? outward : new THREE.Vector2(0, -1));
-            }
-            const azimuth = Math.atan2(pocketDirection2D.x, pocketDirection2D.y);
-            const preferredRadius =
+            const baseDistance =
               Number.isFinite(activeShotView.cameraDistance) &&
               activeShotView.cameraDistance > 0
                 ? activeShotView.cameraDistance
-                : null;
-            const baseRadius = (() => {
-              const fallback = clamp(
-                fitRadius(camera, STANDING_VIEW.margin, STANDING_VIEW_DISTANCE_SCALE),
-                CAMERA.minR,
-                CAMERA.maxR
-              );
-              const standingRadius = standingBounds?.radius ?? fallback;
-              const pocketRadius = pocketDirection2D.length();
-              const minOutside =
-                anchorType === 'short'
+                : anchorType === 'short'
                   ? POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside
                   : POCKET_CAM.minOutside;
-              const defaultRadius = Math.max(
-                standingRadius,
-                pocketRadius + minOutside
-              );
-              if (preferredRadius == null) return defaultRadius;
-              return Math.max(preferredRadius, pocketRadius + minOutside);
-            })();
-            const cuePhi = cueBounds?.phi ?? CUE_VIEW_TARGET_PHI;
-            const spherical = new THREE.Spherical(
-              baseRadius * worldScaleFactor,
-              cuePhi,
-              azimuth
-            );
-            const desiredPosition = focusTarget
-              .clone()
-              .add(new THREE.Vector3().setFromSpherical(spherical));
             const outwardOffsetMagnitude =
               anchorType === 'short'
                 ? POCKET_CAM.outwardOffsetShort ?? POCKET_CAM.outwardOffset
                 : POCKET_CAM.outwardOffset;
-            if (outwardOffsetMagnitude) {
-              const outwardOffset = new THREE.Vector3(outward.x, 0, outward.y);
-              if (outwardOffset.lengthSq() > 1e-6) {
-                outwardOffset
-                  .normalize()
-                  .multiplyScalar(outwardOffsetMagnitude * worldScaleFactor);
-                desiredPosition.add(outwardOffset);
-              }
-            }
-            const minHeightWorld =
+            const cameraDistance =
+              baseDistance + Math.max(0, outwardOffsetMagnitude ?? 0);
+            const desiredPosition = new THREE.Vector3(
+              (pocketCenter2D.x + outward.x * cameraDistance) * worldScaleFactor,
               (TABLE_Y + TABLE.THICK + activeShotView.heightOffset * heightScale) *
-              worldScaleFactor;
-            const loweredY =
-              desiredPosition.y -
-              (POCKET_CAM.heightDrop ?? 0) * worldScaleFactor;
-            desiredPosition.y =
-              loweredY < minHeightWorld ? minHeightWorld : loweredY;
+                worldScaleFactor,
+              (pocketCenter2D.y + outward.y * cameraDistance) * worldScaleFactor
+            );
             const now = performance.now();
             if (focusBall?.active) {
               activeShotView.completed = false;
@@ -16242,7 +16172,7 @@ const powerRef = useRef(hud.power);
             if (!activeShotView.smoothedPos) {
               activeShotView.smoothedPos = desiredPosition.clone();
             } else {
-              activeShotView.smoothedPos.lerp(desiredPosition, lerpT);
+              activeShotView.smoothedPos.copy(desiredPosition);
             }
             if (!activeShotView.smoothedTarget) {
               activeShotView.smoothedTarget = focusTarget.clone();
@@ -20502,9 +20432,10 @@ const powerRef = useRef(hud.power);
             instant: true,
             preserveLarger: true
           });
-          const visualPull = applyVisualPullCompensation(pull, dir);
-          cuePullCurrentRef.current = pull;
-          cuePullTargetRef.current = pull;
+          const startPull = Math.max(cuePullCurrentRef.current ?? 0, pull);
+          const visualPull = applyVisualPullCompensation(startPull, dir);
+          cuePullCurrentRef.current = startPull;
+          cuePullTargetRef.current = startPull;
           const cuePerp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (cuePerp.lengthSq() > 1e-8) cuePerp.normalize();
           const { side: contactSide, vert: contactVert, hasSpin } = computeSpinOffsets(
@@ -24279,6 +24210,22 @@ const powerRef = useRef(hud.power);
               b.swervePowerStrength = 0;
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
+              if (b.mesh && table) {
+                const popupMesh = new THREE.Mesh(BALL_GEOMETRY, b.mesh.material);
+                popupMesh.position.set(
+                  c.x,
+                  BALL_CENTER_Y + POCKET_POPUP_LIFT,
+                  c.y
+                );
+                popupMesh.renderOrder = (b.mesh.renderOrder ?? 0) + 1;
+                popupMesh.castShadow = false;
+                popupMesh.receiveShadow = false;
+                table.add(popupMesh);
+                pocketPopupRef.current.push({
+                  mesh: popupMesh,
+                  expiresAt: performance.now() + POCKET_POPUP_DURATION_MS
+                });
+              }
               const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
               const dropStart = performance.now();
               const fromX = b.pos.x;
@@ -24525,6 +24472,14 @@ const powerRef = useRef(hud.power);
               mesh.position.set(posX, entry.currentY, posZ);
             });
           }
+          if (pocketPopupRef.current.length > 0) {
+            pocketPopupRef.current = pocketPopupRef.current.filter((entry) => {
+              if (!entry?.mesh) return false;
+              if (now < entry.expiresAt) return true;
+              entry.mesh.parent?.remove?.(entry.mesh);
+              return false;
+            });
+          }
           prevCollisions = newCollisions;
           const fit = fitRef.current;
           if (fit && cue?.active && !shooting) {
@@ -24637,6 +24592,10 @@ const powerRef = useRef(hud.power);
         pocketCamerasRef.current.clear();
         pocketDropRef.current.clear();
         pocketRestIndexRef.current.clear();
+        pocketPopupRef.current.forEach((entry) => {
+          entry?.mesh?.parent?.remove?.(entry.mesh);
+        });
+        pocketPopupRef.current = [];
         captureBallSnapshotRef.current = null;
         applyBallSnapshotRef.current = null;
         pendingLayoutRef.current = null;
