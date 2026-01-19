@@ -1129,14 +1129,14 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 0.9,
-  mu: 0.17,
+  restitution: 0.985,
+  mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = Math.exp(-PHYSICS_PROFILE.mu * PHYSICS_BASE_STEP);
+const FRICTION = 0.993;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
@@ -1366,12 +1366,12 @@ const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
 const SPIN_STRENGTH = BALL_R * 0.034;
-const SPIN_DECAY = Math.exp(-PHYSICS_PROFILE.spinDecay * PHYSICS_BASE_STEP);
+const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
-const BACKSPIN_ROLL_BOOST = 2.2;
+const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
-const SPIN_ROLL_DECAY = Math.exp(-PHYSICS_PROFILE.spinDecay * PHYSICS_BASE_STEP);
-const SPIN_AIR_DECAY = Math.exp(-PHYSICS_PROFILE.airSpinDecay * PHYSICS_BASE_STEP); // hold spin energy while the cue ball travels straight pre-impact
+const SPIN_ROLL_DECAY = 0.983;
+const SPIN_AIR_DECAY = 0.995; // hold spin energy while the cue ball travels straight pre-impact
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // let cushion contacts inherit noticeable throw from active side spin
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
@@ -1384,9 +1384,9 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Pool Royale power pass: lift overall shot strength by another 25%.
-const SHOT_POWER_REDUCTION = 0.8;
-const SHOT_POWER_MULTIPLIER = 1.6875;
-const SHOT_SPEED_MULTIPLIER = 1.875; // boost overall shot speed by 87.5% for snappier ball travel
+const SHOT_POWER_REDUCTION = 0.85;
+const SHOT_POWER_MULTIPLIER = 1.25;
+const SHOT_SPEED_MULTIPLIER = 1;
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -26469,35 +26469,9 @@ const powerRef = useRef(hud.power);
               <div
                 className="absolute rounded-full"
                 style={{
-                  inset: `${SPIN_RING_THICKNESS_PX * 0.6}px`,
-                  background:
-                    'radial-gradient(circle at 35% 30%, #f8fafc 0 18%, #f1f5f9 18% 42%, #e5e7eb 42% 70%, #cbd5f5 70% 100%)',
-                  boxShadow:
-                    'inset 0 0 0 2px rgba(255,255,255,0.6), inset 0 8px 12px rgba(0,0,0,0.12)',
-                  pointerEvents: 'none'
-                }}
-              />
-              <div
-                className="absolute rounded-full"
-                style={{
-                  inset: `${SPIN_RING_THICKNESS_PX * 1.5}px`,
-                  background:
-                    'radial-gradient(circle at 50% 45%, rgba(255,255,255,0.9), rgba(255,255,255,0.1) 42%), radial-gradient(circle at center, #f8fafc 0 52%, #e2e8f0 52% 100%)',
-                  boxShadow:
-                    'inset 0 0 0 2px rgba(255,255,255,0.5), inset 0 10px 20px rgba(0,0,0,0.08)',
-                  pointerEvents: 'none'
-                }}
-              />
-              <div
-                className="absolute rounded-full"
-                style={{
-                  width: `${SPIN_DOT_DIAMETER_PX * 2.4}px`,
-                  height: `${SPIN_DOT_DIAMETER_PX * 2.4}px`,
-                  left: '50%',
-                  top: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  background: 'radial-gradient(circle at 35% 30%, #ffffff 0 35%, #e5e7eb 35% 70%, #cbd5f5 70% 100%)',
-                  boxShadow: 'inset 0 6px 10px rgba(0,0,0,0.12), 0 6px 16px rgba(0,0,0,0.18)',
+                  inset: `${SPIN_RING_THICKNESS_PX}px`,
+                  background: '#fef6df',
+                  boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.6)',
                   pointerEvents: 'none'
                 }}
               />
