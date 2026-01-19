@@ -1390,7 +1390,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 const SHOT_POWER_REDUCTION = 0.85;
 const SHOT_POWER_MULTIPLIER = 1.25;
 const SHOT_POWER_BOOST = 1.5;
-const SHOT_SPEED_MULTIPLIER = 1;
+const SHOT_SPEED_MULTIPLIER = 1.15;
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -4900,7 +4900,7 @@ const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
 const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-ball follow line toward a draw path
-const AIM_SPIN_PREVIEW_SIDE = 1;
+const AIM_SPIN_PREVIEW_SIDE = 0;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
