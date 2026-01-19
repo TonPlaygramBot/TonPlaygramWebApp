@@ -80,11 +80,11 @@ function drawNumberBadge(ctx, size, number) {
   ctx.restore();
 }
 
-function drawPoolNumberBadge(ctx, size, number, { offsetY = 0 } = {}) {
+function drawPoolNumberBadge(ctx, size, number) {
   const radius = size * 0.08; // shrink the badge so numbers sit farther inside the stripes
   const badgeStretch = 2; // compensate equirectangular vertical compression on spheres
   const cx = size * 0.5;
-  const cy = size * 0.5 + offsetY;
+  const cy = size * 0.5;
 
   ctx.save();
 
@@ -196,7 +196,7 @@ function drawCueBallDots(ctx, size) {
   ctx.restore();
 }
 
-function drawPoolBallTexture(ctx, size, baseColor, pattern, number, { numberOffsetY = 0 } = {}) {
+function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
   const baseHex = toHexString(baseColor);
 
   ctx.fillStyle = pattern === 'stripe' ? '#ffffff' : baseHex;
@@ -214,7 +214,7 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number, { numberOffs
   }
 
   if (Number.isFinite(number)) {
-    drawPoolNumberBadge(ctx, size, number, { offsetY: numberOffsetY });
+    drawPoolNumberBadge(ctx, size, number);
   }
 }
 
@@ -346,8 +346,7 @@ export function createBallPreviewDataUrl({
   pattern = 'solid',
   number = null,
   variantKey = 'pool',
-  size = 256,
-  numberOffsetY = 0
+  size = 256
 } = {}) {
   if (typeof document === 'undefined') return null;
   const canvas = document.createElement('canvas');
@@ -357,7 +356,7 @@ export function createBallPreviewDataUrl({
 
   const baseColor = color ?? 0xffffff;
   if (variantKey === 'pool') {
-    drawPoolBallTexture(ctx, size, baseColor, pattern, number, { numberOffsetY });
+    drawPoolBallTexture(ctx, size, baseColor, pattern, number);
   } else {
     drawDefaultBallTexture(ctx, size, baseColor, pattern, number);
   }
