@@ -20163,6 +20163,21 @@ const powerRef = useRef(hud.power);
         const inHandPlacementActive = Boolean(
           currentHud?.inHand && !fullTableHandPlacement
         );
+        if (inHandPlacementActive && !cueBallPlacedFromHandRef.current) {
+          const cuePos =
+            cue?.pos && Number.isFinite(cue.pos.x) && Number.isFinite(cue.pos.y)
+              ? new THREE.Vector2(cue.pos.x, cue.pos.y)
+              : null;
+          const clampedPos = cuePos ? clampInHandPosition(cuePos) : null;
+          const isValidPlacement =
+            cuePos &&
+            clampedPos &&
+            cuePos.distanceToSquared(clampedPos) <= 1e-6 &&
+            isSpotFree(cuePos);
+          if (isValidPlacement) {
+            cueBallPlacedFromHandRef.current = true;
+          }
+        }
         if (
           !cue?.active ||
           (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
