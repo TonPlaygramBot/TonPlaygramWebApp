@@ -6321,11 +6321,19 @@ export function Table3D(
   tableSpecMeta = null,
   railMarkerStyle = null,
   baseVariant = null,
-  renderer = null
+  renderer = null,
+  tableOptions = null
 ) {
   const tableSizeMeta =
     tableSpecMeta && typeof tableSpecMeta === 'object' ? tableSpecMeta : null;
   applyTablePhysicsSpec(tableSizeMeta);
+  const resolvedTableOptions =
+    tableOptions && typeof tableOptions === 'object' ? tableOptions : null;
+  const enableSidePockets = resolvedTableOptions?.enableSidePockets !== false;
+  const resolveTablePocketCenters = () => {
+    const centers = pocketCenters();
+    return enableSidePockets ? centers : centers.slice(0, 4);
+  };
 
   const table = new THREE.Group();
   table.userData = table.userData || {};
@@ -6767,7 +6775,7 @@ export function Table3D(
     rawSidePocketShift + SIDE_POCKET_OUTWARD_BIAS
   );
   const sidePocketCenterX = halfW + sidePocketShift;
-  const pocketPositions = pocketCenters();
+  const pocketPositions = resolveTablePocketCenters();
   const clothPocketPositions = pocketPositions.map((center, index) => {
     if (index < 4 || !center) return center;
     const direction = Math.sign(center.x || 1);
@@ -7070,7 +7078,7 @@ export function Table3D(
   );
   const pocketMeshes = [];
   table.userData.pocketHolderAnchors = [];
-  pocketCenters().forEach((p, index) => {
+  resolveTablePocketCenters().forEach((p, index) => {
     const pocketId = POCKET_IDS[index] ?? null;
     const isMiddlePocket = index >= 4;
     const pocketLift = isMiddlePocket ? SIDE_POCKET_PLYWOOD_LIFT : 0;
@@ -9844,7 +9852,7 @@ export function Table3D(
   const clothPlaneWorld = cloth.position.y;
 
   table.userData.pockets = [];
-  pocketCenters().forEach((p, index) => {
+  resolveTablePocketCenters().forEach((p, index) => {
     const marker = new THREE.Object3D();
     marker.position.set(p.x, clothPlaneWorld - POCKET_VIS_R, p.y);
     marker.userData.captureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
@@ -9872,7 +9880,7 @@ export function Table3D(
   const baulkZ = baulkLineZ;
 
   return {
-    centers: pocketCenters(),
+    centers: resolveTablePocketCenters(),
     baulkZ,
     group: table,
     clothMat,
