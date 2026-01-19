@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { bombSound, chatBeep } from '../assets/soundData.js';
 import BottomLeftIcons from './BottomLeftIcons.jsx';
@@ -13,6 +12,10 @@ import { getGameVolume, isGameMuted } from '../utils/sound.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 import { applyWoodTextures, WOOD_GRAIN_OPTIONS_BY_ID } from '../utils/woodMaterials.js';
 import { AIR_HOCKEY_CUSTOMIZATION } from '../config/airHockeyInventoryConfig.js';
+import {
+  Table3D as PoolRoyaleTable3D,
+  POOL_ROYALE_TABLE_DIMENSIONS
+} from '../pages/Games/PoolRoyale.jsx';
 import {
   airHockeyAccountId,
   getAirHockeyInventory,
@@ -130,6 +133,7 @@ function selectPerformanceProfile(option = null) {
 }
 
 const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
+const LOCK_POOL_ROYALE_TABLE_STYLE = true;
 
 const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
   if (!json || typeof json !== 'object') return null;
@@ -209,136 +213,6 @@ async function loadPolyHavenHdriEnvironment(renderer, config = {}) {
     );
   });
 }
-
-const POOL_ENVIRONMENT = (() => {
-  const TABLE_SIZE_SHRINK = 0.85;
-  const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK;
-  const SIZE_REDUCTION = 0.7;
-  const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-  const TABLE_DISPLAY_SCALE = 0.78;
-  const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
-
-  const TABLE_BASE_SCALE = 1.2;
-  const TABLE_WIDTH_SCALE = 1.25;
-  const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
-  const TABLE_LENGTH_SCALE = 0.8;
-  const TABLE_WIDTH_RAW = 72 * TABLE_SCALE;
-  const TABLE_LENGTH_RAW = 132 * TABLE_SCALE * TABLE_LENGTH_SCALE;
-  const TABLE_THICKNESS_RAW = 1.8 * TABLE_SCALE;
-  const FRAME_TOP_Y = -TABLE_THICKNESS_RAW + 0.01;
-
-  const LEG_SCALE = 6.2;
-  const LEG_HEIGHT_FACTOR = 4;
-  const LEG_HEIGHT_MULTIPLIER = 4.5;
-  const BASE_TABLE_LIFT = 3.6;
-  const TABLE_DROP = 0.4;
-  const TABLE_HEIGHT_REDUCTION = 1;
-  const TABLE_HEIGHT_SCALE = 1.56 * 1.3;
-  const TABLE_H_RAW = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION * TABLE_HEIGHT_SCALE;
-  const TABLE_LIFT_RAW = BASE_TABLE_LIFT + TABLE_H_RAW * (LEG_HEIGHT_FACTOR - 1);
-  const BASE_LEG_HEIGHT_RAW = TABLE_THICKNESS_RAW * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
-  const BASE_LEG_LENGTH_SCALE = 0.72;
-  const LEG_ELEVATION_SCALE = 0.96;
-  const LEG_LENGTH_SHRINK = 0.867;
-  const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK;
-  const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3;
-  const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT_RAW + TABLE_LIFT_RAW;
-  const BASE_LEG_ROOM_HEIGHT_RAW =
-    (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * BASE_LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
-  const LEG_ROOM_HEIGHT =
-    (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
-  const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT_RAW;
-
-  const BASE_TABLE_Y = -2 + (TABLE_H_RAW - 0.75) + TABLE_H_RAW + TABLE_LIFT_RAW - TABLE_DROP;
-  const TABLE_Y_RAW = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
-  const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
-  const TABLE_SURFACE_RAW = TABLE_Y_RAW - TABLE_THICKNESS_RAW + 0.01;
-  const FLOOR_Y_RAW = TABLE_Y_RAW - TABLE_THICKNESS_RAW - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
-
-  const ROOM_DEPTH_RAW = TABLE_LENGTH_RAW * 3.6;
-  const SIDE_CLEARANCE_RAW = ROOM_DEPTH_RAW / 2 - TABLE_LENGTH_RAW / 2;
-  const ROOM_WIDTH_RAW = TABLE_WIDTH_RAW + SIDE_CLEARANCE_RAW * 2;
-  const WALL_THICKNESS_RAW = 1.2;
-  const WALL_HEIGHT_BASE_RAW = LEG_ROOM_HEIGHT + TABLE_THICKNESS_RAW + 40;
-  const WALL_HEIGHT_RAW = WALL_HEIGHT_BASE_RAW * 1.3 * 1.3;
-  const CARPET_THICKNESS_RAW = 1.2;
-  const CARPET_INSET_RAW = WALL_THICKNESS_RAW * 0.02;
-  const CARPET_WIDTH_RAW = ROOM_WIDTH_RAW - WALL_THICKNESS_RAW + CARPET_INSET_RAW;
-  const CARPET_DEPTH_RAW = ROOM_DEPTH_RAW - WALL_THICKNESS_RAW + CARPET_INSET_RAW;
-
-  return Object.freeze({
-    WORLD_SCALE,
-    tableWidth: TABLE_WIDTH_RAW * WORLD_SCALE,
-    tableLength: TABLE_LENGTH_RAW * WORLD_SCALE,
-    tableThickness: TABLE_THICKNESS_RAW * WORLD_SCALE,
-    tableSurfaceY: TABLE_SURFACE_RAW * WORLD_SCALE,
-    floorY: FLOOR_Y_RAW * WORLD_SCALE,
-    roomWidth: ROOM_WIDTH_RAW * WORLD_SCALE,
-    roomDepth: ROOM_DEPTH_RAW * WORLD_SCALE,
-    wallThickness: WALL_THICKNESS_RAW * WORLD_SCALE,
-    wallHeight: WALL_HEIGHT_RAW * WORLD_SCALE,
-    carpetThickness: CARPET_THICKNESS_RAW * WORLD_SCALE,
-    carpetWidth: CARPET_WIDTH_RAW * WORLD_SCALE,
-    carpetDepth: CARPET_DEPTH_RAW * WORLD_SCALE
-  });
-})();
-
-const POLYHAVEN_BASE_TEMPLATES = new Map();
-const POLYHAVEN_BASE_PROMISES = new Map();
-
-const buildPolyhavenModelUrls = (assetId = '') => {
-  const normalizedId = `${assetId}`.trim().toLowerCase();
-  if (!normalizedId) return [];
-  return [
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/${normalizedId}/${normalizedId}_2k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/${normalizedId}/${normalizedId}_1k.gltf`,
-    `https://dl.polyhaven.org/file/ph-assets/Models/glb/${normalizedId}.glb`
-  ];
-};
-
-const ensurePolyhavenBaseTemplate = (assetId) => {
-  if (!assetId) return Promise.resolve(null);
-  if (POLYHAVEN_BASE_TEMPLATES.has(assetId)) {
-    return Promise.resolve(POLYHAVEN_BASE_TEMPLATES.get(assetId));
-  }
-  if (POLYHAVEN_BASE_PROMISES.has(assetId)) {
-    return POLYHAVEN_BASE_PROMISES.get(assetId);
-  }
-  const loader = new GLTFLoader();
-  loader.setCrossOrigin('anonymous');
-  const promise = (async () => {
-    const urls = buildPolyhavenModelUrls(assetId);
-    let lastError = null;
-    for (const url of urls) {
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        const gltf = await loader.loadAsync(url);
-        const scene = gltf?.scene || gltf?.scenes?.[0];
-        if (scene) {
-          POLYHAVEN_BASE_TEMPLATES.set(assetId, scene);
-          return scene;
-        }
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    throw lastError || new Error('Failed to load Poly Haven base model');
-  })()
-    .catch((error) => {
-      console.warn('Failed to load Poly Haven table base', error);
-      return null;
-    })
-    .finally(() => {
-      POLYHAVEN_BASE_PROMISES.delete(assetId);
-    });
-  POLYHAVEN_BASE_PROMISES.set(assetId, promise);
-  return promise;
-};
-
-const clonePolyhavenBaseTemplate = (assetId) => {
-  const template = POLYHAVEN_BASE_TEMPLATES.get(assetId);
-  return template?.clone?.(true) ?? null;
-};
 
 /**
  * AIR HOCKEY 3D — Mobile Portrait
@@ -882,30 +756,18 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     sceneRef.current = scene;
 
     const TABLE_SCALE = 1;
-    const BASE_TABLE_LENGTH = POOL_ENVIRONMENT.tableLength * TABLE_SCALE;
-    const TOP_EXTENSION_FACTOR = 0;
     const TABLE = {
-      w: POOL_ENVIRONMENT.tableWidth * TABLE_SCALE,
-      h:
-        BASE_TABLE_LENGTH / 2 + (BASE_TABLE_LENGTH / 2) * (1 + TOP_EXTENSION_FACTOR),
-      thickness: POOL_ENVIRONMENT.tableThickness,
-      topExtension: (BASE_TABLE_LENGTH / 2) * TOP_EXTENSION_FACTOR
+      w: POOL_ROYALE_TABLE_DIMENSIONS.tableWidth * TABLE_SCALE,
+      h: POOL_ROYALE_TABLE_DIMENSIONS.tableLength * TABLE_SCALE,
+      thickness: POOL_ROYALE_TABLE_DIMENSIONS.tableThickness * TABLE_SCALE,
+      topExtension: 0
     };
-    const TABLE_WALL = TABLE.thickness * (2.6 / 1.8);
-    const SIDE_RAIL_INNER_REDUCTION = 0.72;
-    const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
-    const SIDE_RAIL_INNER_THICKNESS = TABLE_WALL * SIDE_RAIL_INNER_SCALE;
-    const TARGET_RATIO = 1.83;
-    const END_RAIL_INNER_SCALE =
-      (TABLE.h - TARGET_RATIO * (TABLE.w - 2 * SIDE_RAIL_INNER_THICKNESS)) /
-      (2 * TABLE_WALL);
-    const END_RAIL_INNER_THICKNESS = TABLE_WALL * END_RAIL_INNER_SCALE;
-    const FIELD_INSET = Math.min(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS);
+    const TABLE_WALL = POOL_ROYALE_TABLE_DIMENSIONS.tableWall * TABLE_SCALE;
     const PLAYFIELD = {
-      w: TABLE.w - SIDE_RAIL_INNER_THICKNESS * 2,
-      h: TABLE.h - END_RAIL_INNER_THICKNESS * 2,
-      goalW: (TABLE.w - SIDE_RAIL_INNER_THICKNESS * 2) * 0.45454545454545453,
-      inset: FIELD_INSET
+      w: POOL_ROYALE_TABLE_DIMENSIONS.playfieldWidth * TABLE_SCALE,
+      h: POOL_ROYALE_TABLE_DIMENSIONS.playfieldHeight * TABLE_SCALE,
+      goalW: POOL_ROYALE_TABLE_DIMENSIONS.playfieldWidth * 0.45454545454545453,
+      inset: 0
     };
     const SCALE_WIDTH = PLAYFIELD.w / 2.2;
     const SCALE_LENGTH = PLAYFIELD.h / (4.8 * 1.2);
@@ -934,7 +796,18 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const world = new THREE.Group();
     scene.add(world);
 
-    const elevatedTableSurfaceY = POOL_ENVIRONMENT.tableSurfaceY;
+    const poolTableEntry = PoolRoyaleTable3D(
+      world,
+      null,
+      null,
+      null,
+      selectionsRef.current.tableBase,
+      renderer
+    );
+    const poolTable = poolTableEntry?.group ?? new THREE.Group();
+    const clothPlaneLocal =
+      poolTable?.userData?.clothPlaneLocal ?? -TABLE.thickness + 0.01;
+    const elevatedTableSurfaceY = (poolTable?.position?.y ?? 0) + clothPlaneLocal;
 
     const tableGroup = new THREE.Group();
     tableGroup.position.y = elevatedTableSurfaceY;
@@ -943,232 +816,18 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     world.add(tableGroup);
     tableGroupRef.current = tableGroup;
 
-    const tableSurface = new THREE.Mesh(
-      new THREE.BoxGeometry(PLAYFIELD.w, TABLE.thickness, PLAYFIELD.h),
-      new THREE.MeshStandardMaterial({
-        color: 0x3b83c3,
-        roughness: 0.85,
-        metalness: 0.1
-      })
-    );
-    tableSurface.position.y = -TABLE.thickness / 2;
-    tableGroup.add(tableSurface);
-    materialsRef.current.tableSurface = tableSurface.material;
-
-    const floorLocalY = POOL_ENVIRONMENT.floorY - elevatedTableSurfaceY;
-    const frameMaterial = new THREE.MeshStandardMaterial({
-      color: 0x5d3725,
-      roughness: 0.55,
-      metalness: 0.18
-    });
-    const trimMaterial = new THREE.MeshStandardMaterial({
-      color: 0x2c1a11,
-      roughness: 0.7,
-      metalness: 0.12
-    });
-    const baseMaterial = new THREE.MeshStandardMaterial({
-      color: 0x4a2918,
-      roughness: 0.5,
-      metalness: 0.16
-    });
-    const baseAccentMaterial = new THREE.MeshStandardMaterial({
-      color: 0x2c1a11,
-      roughness: 0.62,
-      metalness: 0.12
-    });
-    materialsRef.current.frame = frameMaterial;
-    materialsRef.current.trim = trimMaterial;
-    materialsRef.current.base = baseMaterial;
-    materialsRef.current.baseAccent = baseAccentMaterial;
-
-    const frameOuterW = TABLE.w + TABLE_WALL * 2;
-    const frameOuterH = TABLE.h + TABLE_WALL * 2;
-    const frameHeight = TABLE.thickness * 1.15;
-    const frame = new THREE.Mesh(
-      new THREE.BoxGeometry(frameOuterW, frameHeight, frameOuterH),
-      frameMaterial
-    );
-    frame.position.y = -frameHeight / 2 - TABLE.thickness * 0.05;
-    frame.castShadow = true;
-    frame.receiveShadow = true;
-    tableGroup.add(frame);
-
-    const trimHeight = TABLE.thickness * 0.32;
-    const trim = new THREE.Mesh(
-      new THREE.BoxGeometry(frameOuterW * 0.98, trimHeight, frameOuterH * 0.98),
-      trimMaterial
-    );
-    trim.position.y = -trimHeight / 2 - TABLE.thickness * 0.01;
-    trim.castShadow = true;
-    trim.receiveShadow = true;
-    tableGroup.add(trim);
+    materialsRef.current.tableSurface = poolTableEntry?.clothMat ?? null;
+    materialsRef.current.frame = null;
+    materialsRef.current.trim = null;
+    materialsRef.current.base = null;
+    materialsRef.current.baseAccent = null;
 
     const railThickness = TABLE_WALL * 0.6;
-    const baseGroup = new THREE.Group();
-    tableGroup.add(baseGroup);
-
-    const clearBaseGroup = () => {
-      baseGroup.children.forEach((child) => {
-        child.traverse?.((node) => {
-          if (node?.isMesh) {
-            if (node.userData?.__polyhavenBase) return;
-            node.geometry?.dispose?.();
-            if (Array.isArray(node.material)) {
-              node.material.forEach((mat) => mat?.dispose?.());
-            } else {
-              node.material?.dispose?.();
-            }
-          }
-        });
-      });
-      baseGroup.clear();
-    };
-
-    const tagBaseMesh = (mesh) => {
-      if (!mesh) return;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-    };
-
-    const buildClassicCylinders = () => {
-      const legRadius = Math.min(TABLE.w, TABLE.h) * 0.055;
-      const legHeight = Math.max(0.1, -floorLocalY + TABLE.thickness * 0.25);
-      const legGeometry = new THREE.CylinderGeometry(
-        legRadius * 0.92,
-        legRadius,
-        legHeight,
-        32
-      );
-      const legCenterY = floorLocalY + legHeight / 2;
-      const legInset = Math.max(TABLE_WALL * 1.2, legRadius * 1.6);
-      const halfW = frameOuterW / 2;
-      const halfH = frameOuterH / 2;
-      const legPositions = [
-        [-halfW + legInset, -halfH + legInset],
-        [halfW - legInset, -halfH + legInset],
-        [-halfW + legInset, 0],
-        [halfW - legInset, 0],
-        [-halfW + legInset, halfH - legInset],
-        [halfW - legInset, halfH - legInset]
-      ];
-      const footHeight = legRadius * 0.4;
-      const footGeometry = new THREE.CylinderGeometry(
-        legRadius * 1.08,
-        legRadius * 1.2,
-        footHeight,
-        32
-      );
-      const footY = floorLocalY + footHeight / 2;
-      legPositions.forEach(([lx, lz]) => {
-        const leg = new THREE.Mesh(legGeometry, baseMaterial);
-        leg.position.set(lx, legCenterY, lz);
-        tagBaseMesh(leg);
-        baseGroup.add(leg);
-
-        const foot = new THREE.Mesh(footGeometry, baseAccentMaterial);
-        foot.position.set(lx, footY, lz);
-        tagBaseMesh(foot);
-        baseGroup.add(foot);
-      });
-    };
-
-    const buildOpenPortal = () => {
-      const legRadius = Math.min(TABLE.w, TABLE.h) * 0.055;
-      const legHeight = Math.max(0.1, -floorLocalY + TABLE.thickness * 0.2);
-      const legWidth = legRadius * 1.4;
-      const portalDepth = frameOuterH * 0.22;
-      const portalHeight = legHeight * 0.92;
-      const legGeometry = new THREE.BoxGeometry(legWidth, portalHeight, portalDepth);
-      const legCenterY = floorLocalY + portalHeight / 2;
-      const halfW = frameOuterW / 2;
-      const halfH = frameOuterH / 2;
-      const offsetX = Math.max(legWidth * 0.6, halfW - legWidth * 0.8);
-      const portalZ = Math.max(0, halfH - portalDepth * 0.7);
-      [-1, 1].forEach((sign) => {
-        const portal = new THREE.Group();
-        [-1, 1].forEach((side) => {
-          const leg = new THREE.Mesh(legGeometry, baseMaterial);
-          leg.position.set(side * offsetX, legCenterY, 0);
-          tagBaseMesh(leg);
-          portal.add(leg);
-        });
-        portal.position.z = sign * portalZ;
-        baseGroup.add(portal);
-      });
-    };
-
-    const buildPolyhavenBase = (assetId, { widthScale = 0.98, depthScale = 0.96 } = {}) => {
-      const base = clonePolyhavenBaseTemplate(assetId);
-      if (!base) return false;
-      base.traverse((child) => {
-        if (child?.isMesh) {
-          child.userData = { ...(child.userData || {}), __polyhavenBase: true };
-          tagBaseMesh(child);
-        }
-      });
-      const bounds = new THREE.Box3().setFromObject(base);
-      const size = bounds.getSize(new THREE.Vector3());
-      const targetWidth = frameOuterW * widthScale;
-      const targetDepth = frameOuterH * depthScale;
-      const scale = Math.min(
-        size.x > 0 ? targetWidth / size.x : 1,
-        size.z > 0 ? targetDepth / size.z : 1
-      );
-      if (Number.isFinite(scale) && scale > 0) {
-        base.scale.setScalar(scale);
-      }
-      base.updateMatrixWorld(true);
-      const scaledBounds = new THREE.Box3().setFromObject(base);
-      const offsetY = floorLocalY - scaledBounds.min.y;
-      base.position.y += offsetY;
-      baseGroup.add(base);
-      return true;
-    };
-
-    const rebuildTableBase = (variantId) => {
-      clearBaseGroup();
-      if (variantId === 'openPortal') {
-        buildOpenPortal();
-        return;
-      }
-      if (variantId === 'coffeeTableRound01') {
-        if (!buildPolyhavenBase('coffee_table_round_01', { widthScale: 0.96, depthScale: 1.02 })) {
-          ensurePolyhavenBaseTemplate('coffee_table_round_01').then(() => {
-            if (selectionsRef.current.tableBase === 'coffeeTableRound01') {
-              rebuildTableBase('coffeeTableRound01');
-            }
-          });
-        }
-        return;
-      }
-      if (variantId === 'gothicCoffeeTable') {
-        if (!buildPolyhavenBase('gothic_coffee_table', { widthScale: 1.02, depthScale: 1.02 })) {
-          ensurePolyhavenBaseTemplate('gothic_coffee_table').then(() => {
-            if (selectionsRef.current.tableBase === 'gothicCoffeeTable') {
-              rebuildTableBase('gothicCoffeeTable');
-            }
-          });
-        }
-        return;
-      }
-      if (variantId === 'woodenTable02Alt') {
-        if (!buildPolyhavenBase('wooden_table_02', { widthScale: 0.95, depthScale: 0.98 })) {
-          ensurePolyhavenBaseTemplate('wooden_table_02').then(() => {
-            if (selectionsRef.current.tableBase === 'woodenTable02Alt') {
-              rebuildTableBase('woodenTable02Alt');
-            }
-          });
-        }
-        return;
-      }
-      buildClassicCylinders();
-    };
 
     tableBaseRef.current = {
-      rebuild: rebuildTableBase,
-      clear: clearBaseGroup
+      rebuild: (variantId) => poolTableEntry?.setBaseVariant?.(variantId),
+      clear: () => {}
     };
-    rebuildTableBase(selectionsRef.current.tableBase);
 
     const lineMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
@@ -1882,74 +1541,79 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
 
   useEffect(() => {
     const mats = materialsRef.current;
-    if (!mats.tableSurface) return;
+    if (!mats) return;
 
     const fieldTheme = getOption('field', selections.field);
-    const tableTheme = getOption('table', selections.table);
-    const baseTheme = getOption('tableBase', selections.tableBase);
     const puckTheme = getOption('puck', selections.puck);
     const malletTheme = getOption('mallet', selections.mallet);
     const railTheme = getOption('rails', selections.rails);
     const goalTheme = getOption('goals', selections.goals);
-    const tableGrain =
-      tableTheme?.woodTextureId && WOOD_GRAIN_OPTIONS_BY_ID[tableTheme.woodTextureId]
-        ? WOOD_GRAIN_OPTIONS_BY_ID[tableTheme.woodTextureId]
-        : null;
-    const fallbackHsl = tableTheme?.wood
-      ? new THREE.Color(tableTheme.wood).getHSL({})
-      : { h: 0.08, s: 0.35, l: 0.5 };
-    const baseHsl = baseTheme?.base ? new THREE.Color(baseTheme.base).getHSL({}) : fallbackHsl;
-    const accentHsl = baseTheme?.accent ? new THREE.Color(baseTheme.accent).getHSL({}) : baseHsl;
 
-    const applyTableTexture = (material, surfaceKey) => {
-      if (!material || !tableGrain) return;
-      const surface = tableGrain[surfaceKey] || tableGrain.frame || tableGrain.rail;
-      if (!surface) return;
-      applyWoodTextures(material, {
-        mapUrl: surface.mapUrl,
-        roughnessMapUrl: surface.roughnessMapUrl,
-        normalMapUrl: surface.normalMapUrl,
-        repeat: surface.repeat,
-        rotation: surface.rotation,
-        textureSize: surface.textureSize,
-        hue: fallbackHsl.h * 360,
-        sat: fallbackHsl.s,
-        light: fallbackHsl.l,
-        contrast: 0.55
-      });
-    };
-    const applyBaseTexture = (material, surfaceKey, tint) => {
-      if (!material || !tableGrain) return;
-      const surface = tableGrain[surfaceKey] || tableGrain.frame || tableGrain.rail;
-      if (!surface) return;
-      applyWoodTextures(material, {
-        mapUrl: surface.mapUrl,
-        roughnessMapUrl: surface.roughnessMapUrl,
-        normalMapUrl: surface.normalMapUrl,
-        repeat: surface.repeat,
-        rotation: surface.rotation,
-        textureSize: surface.textureSize,
-        hue: tint.h * 360,
-        sat: tint.s,
-        light: tint.l,
-        contrast: 0.55
-      });
-    };
-
-    mats.tableSurface.color.set(fieldTheme.surface);
     if (mats.line) mats.line.color.set(fieldTheme.lines);
     mats.rings.forEach((material) => material.color.set(fieldTheme.rings || fieldTheme.lines));
-    if (tableGrain) {
-      applyTableTexture(mats.frame, 'frame');
-      applyTableTexture(mats.trim, 'rail');
-      applyBaseTexture(mats.base, 'frame', baseHsl);
-      applyBaseTexture(mats.baseAccent, 'rail', accentHsl);
-    } else {
-      if (mats.frame) mats.frame.color.set(tableTheme.wood);
-      if (mats.trim) mats.trim.color.set(tableTheme.trim);
+
+    if (!LOCK_POOL_ROYALE_TABLE_STYLE) {
+      const tableTheme = getOption('table', selections.table);
+      const baseTheme = getOption('tableBase', selections.tableBase);
+      const tableGrain =
+        tableTheme?.woodTextureId && WOOD_GRAIN_OPTIONS_BY_ID[tableTheme.woodTextureId]
+          ? WOOD_GRAIN_OPTIONS_BY_ID[tableTheme.woodTextureId]
+          : null;
+      const fallbackHsl = tableTheme?.wood
+        ? new THREE.Color(tableTheme.wood).getHSL({})
+        : { h: 0.08, s: 0.35, l: 0.5 };
+      const baseHsl = baseTheme?.base ? new THREE.Color(baseTheme.base).getHSL({}) : fallbackHsl;
+      const accentHsl = baseTheme?.accent ? new THREE.Color(baseTheme.accent).getHSL({}) : baseHsl;
+
+      const applyTableTexture = (material, surfaceKey) => {
+        if (!material || !tableGrain) return;
+        const surface = tableGrain[surfaceKey] || tableGrain.frame || tableGrain.rail;
+        if (!surface) return;
+        applyWoodTextures(material, {
+          mapUrl: surface.mapUrl,
+          roughnessMapUrl: surface.roughnessMapUrl,
+          normalMapUrl: surface.normalMapUrl,
+          repeat: surface.repeat,
+          rotation: surface.rotation,
+          textureSize: surface.textureSize,
+          hue: fallbackHsl.h * 360,
+          sat: fallbackHsl.s,
+          light: fallbackHsl.l,
+          contrast: 0.55
+        });
+      };
+      const applyBaseTexture = (material, surfaceKey, tint) => {
+        if (!material || !tableGrain) return;
+        const surface = tableGrain[surfaceKey] || tableGrain.frame || tableGrain.rail;
+        if (!surface) return;
+        applyWoodTextures(material, {
+          mapUrl: surface.mapUrl,
+          roughnessMapUrl: surface.roughnessMapUrl,
+          normalMapUrl: surface.normalMapUrl,
+          repeat: surface.repeat,
+          rotation: surface.rotation,
+          textureSize: surface.textureSize,
+          hue: tint.h * 360,
+          sat: tint.s,
+          light: tint.l,
+          contrast: 0.55
+        });
+      };
+
+      if (mats.tableSurface) mats.tableSurface.color.set(fieldTheme.surface);
+      if (tableGrain) {
+        applyTableTexture(mats.frame, 'frame');
+        applyTableTexture(mats.trim, 'rail');
+        applyBaseTexture(mats.base, 'frame', baseHsl);
+        applyBaseTexture(mats.baseAccent, 'rail', accentHsl);
+      } else {
+        if (mats.frame) mats.frame.color.set(tableTheme.wood);
+        if (mats.trim) mats.trim.color.set(tableTheme.trim);
+      }
+      if (mats.base) mats.base.color.set(baseTheme.base);
+      if (mats.baseAccent) mats.baseAccent.color.set(baseTheme.accent);
     }
-    if (mats.base) mats.base.color.set(baseTheme.base);
-    if (mats.baseAccent) mats.baseAccent.color.set(baseTheme.accent);
+
     if (mats.rail) {
       mats.rail.color.set(railTheme.color);
       mats.rail.opacity = railTheme.opacity;

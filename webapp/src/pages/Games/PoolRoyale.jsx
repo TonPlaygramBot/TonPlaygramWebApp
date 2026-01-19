@@ -998,6 +998,14 @@ const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
 const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
 const PLAY_W = TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS;
 const PLAY_H = TABLE.H - 2 * END_RAIL_INNER_THICKNESS;
+export const POOL_ROYALE_TABLE_DIMENSIONS = Object.freeze({
+  tableWidth: TABLE.W,
+  tableLength: TABLE.H,
+  tableThickness: TABLE.THICK,
+  tableWall: TABLE.WALL,
+  playfieldWidth: PLAY_W,
+  playfieldHeight: PLAY_H
+});
 const innerLong = Math.max(PLAY_W, PLAY_H);
 const innerShort = Math.min(PLAY_W, PLAY_H);
 const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
@@ -6307,7 +6315,7 @@ function createAccentMesh(accent, dims) {
   return mesh;
 }
 
-function Table3D(
+export function Table3D(
   parent,
   finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID],
   tableSpecMeta = null,
