@@ -1383,10 +1383,10 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
-// Pool Royale power pass: lift overall shot strength by another 25%.
+// Match Snooker Royal slider power and launch speeds for consistent feel across modes.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 1.6875;
-const SHOT_SPEED_MULTIPLIER = 1.875; // boost overall shot speed by 87.5% for snappier ball travel
+const SHOT_POWER_MULTIPLIER = 1.25;
+const SHOT_SPEED_MULTIPLIER = 1;
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1453,21 +1453,21 @@ const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_MULTIPLIER = 1.7;
+const CUE_PULL_VISUAL_MULTIPLIER = 1.6;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
-const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
+const CUE_POWER_GAMMA = 1; // match Snooker Royal power curve for center hits
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
-const PLAYER_CUE_FORWARD_MIN_MS = 140;
-const PLAYER_CUE_FORWARD_MAX_MS = 420;
+const PLAYER_CUE_FORWARD_MIN_MS = 200;
+const PLAYER_CUE_FORWARD_MAX_MS = 520;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
-const CUE_STRIKE_HOLD_MS = 80;
+const CUE_STRIKE_HOLD_MS = 160;
 const CUE_RETURN_SPEEDUP = 0.95;
 const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
@@ -4957,11 +4957,11 @@ const AI_STROKE_PULLBACK_FACTOR = 1.05;
 const AI_WARMUP_PULL_RATIO = 0.55;
 const PLAYER_WARMUP_PULL_RATIO = 0.62;
 const PLAYER_STROKE_TIME_SCALE = 1;
-const PLAYER_FORWARD_SLOWDOWN = 1;
+const PLAYER_FORWARD_SLOWDOWN = 1.25;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1.25;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 26;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -20550,17 +20550,22 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(startPos);
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
           const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
-          const forwardDuration = isAiStroke
+          const forwardDurationBase = isAiStroke
             ? AI_CUE_FORWARD_DURATION_MS
             : THREE.MathUtils.lerp(
                 PLAYER_CUE_FORWARD_MAX_MS,
                 PLAYER_CUE_FORWARD_MIN_MS,
                 forwardBlend
               );
-          const settleDuration = isAiStroke ? 40 : 50;
+          const forwardDuration = isAiStroke
+            ? forwardDurationBase
+            : forwardDurationBase * PLAYER_FORWARD_SLOWDOWN;
+          const settleDuration = isAiStroke ? 40 : 70;
+          const returnDuration = isAiStroke ? 60 : CUE_STRIKE_HOLD_MS;
           const startTime = performance.now();
           const impactTime = startTime + forwardDuration;
           const settleTime = impactTime + settleDuration;
+          const returnTime = settleTime + returnDuration;
           const forwardPreviewHold =
             impactTime +
             Math.min(
@@ -20633,10 +20638,12 @@ const powerRef = useRef(hud.power);
               start: serializeVector3Snapshot(startPos),
               impact: serializeVector3Snapshot(impactPos),
               settle: serializeVector3Snapshot(impactPos),
+              idle: serializeVector3Snapshot(impactPos),
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
               forwardDuration,
               settleDuration,
+              returnDuration,
               startOffset: strokeStartOffset
             };
           }
@@ -20648,6 +20655,8 @@ const powerRef = useRef(hud.power);
               const eased = easeOutCubic(t);
               cueStick.position.lerpVectors(startPos, impactPos, eased);
             } else if (now <= settleTime) {
+              cueStick.position.copy(impactPos);
+            } else if (now <= returnTime) {
               cueStick.position.copy(impactPos);
             } else {
               cueStick.visible = false;
