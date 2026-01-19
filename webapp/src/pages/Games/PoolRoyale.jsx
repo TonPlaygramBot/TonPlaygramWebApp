@@ -11781,11 +11781,15 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
+  const clampPower = useCallback((value, fallback = 0) => {
+    if (!Number.isFinite(value)) return fallback;
+    return THREE.MathUtils.clamp(value, 0, 1);
+  }, []);
   const applyPower = useCallback((nextPower) => {
-    const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
+    const clampedPower = clampPower(nextPower, 0);
     powerRef.current = clampedPower;
     setHud((prev) => ({ ...prev, power: clampedPower }));
-  }, []);
+  }, [clampPower]);
   useEffect(() => {
     inHandPlacementModeRef.current = inHandPlacementMode;
   }, [inHandPlacementMode]);
@@ -20237,7 +20241,7 @@ const powerRef = useRef(hud.power);
             pocketSwitchIntentRef.current = null;
           }
           lastPocketBallRef.current = null;
-          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
+          const clampedPower = clampPower(powerRef.current, 0);
           const curvedPower = Math.pow(clampedPower, CUE_POWER_GAMMA);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
@@ -22249,8 +22253,9 @@ const powerRef = useRef(hud.power);
             // Reset the cue pull so AI strokes visibly wind up before firing.
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
-            powerRef.current = plan.power;
-            setHud((s) => ({ ...s, power: plan.power }));
+            const aiPower = clampPower(plan.power, 0.6);
+            powerRef.current = aiPower;
+            setHud((s) => ({ ...s, power: aiPower }));
             const spinToApply = plan.spin ?? { x: 0, y: 0 };
             spinRef.current = { ...spinToApply };
             spinRequestRef.current = { ...spinToApply };
