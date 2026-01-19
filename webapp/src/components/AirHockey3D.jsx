@@ -943,18 +943,15 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     world.add(tableGroup);
     tableGroupRef.current = tableGroup;
 
-    const clothThickness = TABLE.thickness * 0.18;
     const tableSurface = new THREE.Mesh(
-      new THREE.BoxGeometry(PLAYFIELD.w, clothThickness, PLAYFIELD.h),
+      new THREE.BoxGeometry(PLAYFIELD.w, TABLE.thickness, PLAYFIELD.h),
       new THREE.MeshStandardMaterial({
         color: 0x3b83c3,
-        roughness: 0.92,
-        metalness: 0.05
+        roughness: 0.85,
+        metalness: 0.1
       })
     );
-    tableSurface.position.y = -clothThickness / 2;
-    tableSurface.castShadow = true;
-    tableSurface.receiveShadow = true;
+    tableSurface.position.y = -TABLE.thickness / 2;
     tableGroup.add(tableSurface);
     materialsRef.current.tableSurface = tableSurface.material;
 
@@ -1007,107 +1004,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     tableGroup.add(trim);
 
     const railThickness = TABLE_WALL * 0.6;
-    const railHeight = TABLE.thickness * 0.32;
-    const railMaterial = new THREE.MeshStandardMaterial({
-      color: 0x8f6243,
-      roughness: 0.62,
-      metalness: 0.08,
-      transparent: true
-    });
-    materialsRef.current.rail = railMaterial;
-    const railInset = FIELD_INSET * 0.32;
-    const railOuterW = PLAYFIELD.w + railInset * 2;
-    const railOuterH = PLAYFIELD.h + railInset * 2;
-    const railY = railHeight / 2 + 0.002;
-    const railGroup = new THREE.Group();
-    tableGroup.add(railGroup);
-    const sideRailGeo = new THREE.BoxGeometry(railOuterW, railHeight, railThickness);
-    const endRailGeo = new THREE.BoxGeometry(railThickness, railHeight, railOuterH);
-    const northRail = new THREE.Mesh(sideRailGeo, railMaterial);
-    northRail.position.set(0, railY, -railOuterH / 2);
-    railGroup.add(northRail);
-    const southRail = northRail.clone();
-    southRail.position.z = railOuterH / 2;
-    railGroup.add(southRail);
-    const eastRail = new THREE.Mesh(endRailGeo, railMaterial);
-    eastRail.position.set(railOuterW / 2, railY, 0);
-    railGroup.add(eastRail);
-    const westRail = eastRail.clone();
-    westRail.position.x = -railOuterW / 2;
-    railGroup.add(westRail);
-
-    const pocketMaterial = new THREE.MeshStandardMaterial({
-      color: 0x101112,
-      roughness: 0.9,
-      metalness: 0.05
-    });
-    const chromeMaterial = new THREE.MeshStandardMaterial({
-      color: 0xd2d8e5,
-      roughness: 0.3,
-      metalness: 0.85,
-      envMapIntensity: 0.8
-    });
-    const pocketRingMaterial = new THREE.MeshStandardMaterial({
-      color: 0x99ffd6,
-      emissive: 0x003322,
-      emissiveIntensity: 0.6,
-      roughness: 0.25,
-      metalness: 0.5
-    });
-    materialsRef.current.goal = pocketRingMaterial;
-    const pocketGroup = new THREE.Group();
-    tableGroup.add(pocketGroup);
-    const pocketRadius = PLAYFIELD.w * 0.085;
-    const pocketDepth = TABLE.thickness * 0.9;
-    const pocketY = -clothThickness * 0.35 - pocketDepth / 2;
-    const ringRadius = pocketRadius * 1.18;
-    const ringTube = pocketRadius * 0.12;
-    const pocketInset = railInset * 0.8;
-    const pocketPositions = [
-      [-PLAYFIELD.w / 2 - pocketInset, -PLAYFIELD.h / 2 - pocketInset],
-      [PLAYFIELD.w / 2 + pocketInset, -PLAYFIELD.h / 2 - pocketInset],
-      [-PLAYFIELD.w / 2 - pocketInset, PLAYFIELD.h / 2 + pocketInset],
-      [PLAYFIELD.w / 2 + pocketInset, PLAYFIELD.h / 2 + pocketInset],
-      [0, -PLAYFIELD.h / 2 - pocketInset],
-      [0, PLAYFIELD.h / 2 + pocketInset]
-    ];
-    pocketPositions.forEach(([px, pz]) => {
-      const pocket = new THREE.Mesh(
-        new THREE.CylinderGeometry(pocketRadius, pocketRadius * 0.96, pocketDepth, 32),
-        pocketMaterial
-      );
-      pocket.position.set(px, pocketY, pz);
-      pocketGroup.add(pocket);
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(ringRadius, ringTube, 18, 64),
-        pocketRingMaterial
-      );
-      ring.rotation.x = Math.PI / 2;
-      ring.position.set(px, 0.002, pz);
-      pocketGroup.add(ring);
-    });
-
-    const chromePlateThickness = railHeight * 0.18;
-    const chromePlate = (width, depth) =>
-      new THREE.Mesh(new THREE.BoxGeometry(width, chromePlateThickness, depth), chromeMaterial);
-    const plateOffsetY = railHeight * 0.35;
-    const chromePlates = [
-      { w: railThickness * 1.7, d: railThickness * 1.1, x: 0, z: -railOuterH / 2 },
-      { w: railThickness * 1.7, d: railThickness * 1.1, x: 0, z: railOuterH / 2 },
-      { w: railThickness * 1.1, d: railThickness * 1.7, x: -railOuterW / 2, z: 0 },
-      { w: railThickness * 1.1, d: railThickness * 1.7, x: railOuterW / 2, z: 0 },
-      { w: railThickness * 1.25, d: railThickness * 1.1, x: -railOuterW / 2, z: -railOuterH / 2 },
-      { w: railThickness * 1.25, d: railThickness * 1.1, x: railOuterW / 2, z: -railOuterH / 2 },
-      { w: railThickness * 1.25, d: railThickness * 1.1, x: -railOuterW / 2, z: railOuterH / 2 },
-      { w: railThickness * 1.25, d: railThickness * 1.1, x: railOuterW / 2, z: railOuterH / 2 }
-    ];
-    chromePlates.forEach((plateInfo) => {
-      const plate = chromePlate(plateInfo.w, plateInfo.d);
-      plate.position.set(plateInfo.x, plateOffsetY, plateInfo.z);
-      plate.castShadow = true;
-      plate.receiveShadow = true;
-      railGroup.add(plate);
-    });
     const baseGroup = new THREE.Group();
     tableGroup.add(baseGroup);
 
@@ -1279,6 +1175,31 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       roughness: 0.6
     });
     materialsRef.current.line = lineMat;
+    const lineThickness = 0.02 * SCALE_WIDTH;
+    const midLine = new THREE.Mesh(
+      new THREE.BoxGeometry(PLAYFIELD.w, lineThickness * 0.5, lineThickness),
+      lineMat
+    );
+    midLine.position.y = lineThickness * 0.25;
+    tableGroup.add(midLine);
+
+    const goalGeometry = new THREE.BoxGeometry(
+      PLAYFIELD.goalW,
+      0.11 * SCALE_WIDTH,
+      railThickness * 0.6
+    );
+    const goalMaterial = new THREE.MeshStandardMaterial({
+      color: 0x99ffd6,
+      emissive: 0x003322,
+      emissiveIntensity: 0.6
+    });
+    materialsRef.current.goal = goalMaterial;
+    const northGoal = new THREE.Mesh(goalGeometry, goalMaterial);
+    northGoal.position.set(0, 0.055 * SCALE_WIDTH, -PLAYFIELD.h / 2 - railThickness * 0.7);
+    tableGroup.add(northGoal);
+    const southGoal = new THREE.Mesh(goalGeometry, goalMaterial);
+    southGoal.position.set(0, 0.055 * SCALE_WIDTH, PLAYFIELD.h / 2 + railThickness * 0.7);
+    tableGroup.add(southGoal);
 
     const createGoalLabel = (text, accent) => {
       const width = 1024;
