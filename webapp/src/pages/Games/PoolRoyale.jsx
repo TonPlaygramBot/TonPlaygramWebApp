@@ -25073,10 +25073,11 @@ const powerRef = useRef(hud.power);
     },
     [ballPreviewCache]
   );
-  const pottedTokenSize = isPortrait ? 22 : 24;
+  const pottedTokenSize = isPortrait ? 24 : 26;
+  const pottedNumberBadgeSize = Math.max(10, Math.round(pottedTokenSize * 0.48));
   const pottedGap = isPortrait ? 8 : 10;
   const renderPottedRow = useCallback(
-    (entries = []) => {
+    (entries = [], highlightId = null, glowColor = null) => {
       if (!entries.length) {
         return (
           <div
@@ -25130,12 +25131,23 @@ const powerRef = useRef(hud.power);
                     : isSolid
                       ? 'SO'
                       : colorKey.charAt(0);
+            const badgeNumber =
+              ballNumber != null ? ballNumber : colorKey === 'BLACK' ? 8 : null;
             const textColor = colorKey === 'BLACK' ? '#f8fafc' : '#0f172a';
             const shade = darkenHex(colorHex, 0.6);
             const gloss = isStripe
               ? `linear-gradient(90deg, transparent 28%, rgba(255,255,255,0.9) 28%, rgba(255,255,255,0.9) 72%, transparent 72%), `
               : '';
             const background = `${gloss}radial-gradient(circle at 30% 30%, rgba(255,255,255,0.82) 0, rgba(255,255,255,0.58) 36%, ${colorHex} 62%, ${shade} 94%)`;
+            const entryKey = String(entry.id ?? colorKey);
+            const highlightKey = highlightId != null ? String(highlightId) : null;
+            const shouldGlow = highlightKey && entryKey === highlightKey;
+            const glowStyle =
+              shouldGlow && glowColor
+                ? {
+                    boxShadow: `0 0 12px ${glowColor}, 0 0 22px ${glowColor}`
+                  }
+                : undefined;
             const previewUrl = getBallPreview({
               colorHex,
               pattern: isStripe ? 'stripe' : 'solid',
@@ -25150,17 +25162,36 @@ const powerRef = useRef(hud.power);
                 title={altLabel}
               >
                 {previewUrl ? (
-                  <img
-                    src={previewUrl}
-                    alt={altLabel}
-                    className="h-full w-full rounded-full border border-white/40 shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
-                  />
+                  <span
+                    className="relative flex h-full w-full items-center justify-center"
+                    style={glowStyle}
+                  >
+                    <img
+                      src={previewUrl}
+                      alt={altLabel}
+                      className="h-full w-full rounded-full border border-white/40 shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
+                    />
+                  </span>
                 ) : (
                   <span
-                    className="flex h-full w-full items-center justify-center rounded-full border border-white/40 text-[9px] font-bold leading-none shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
-                    style={{ background, color: textColor }}
+                    className="relative flex h-full w-full items-center justify-center rounded-full border border-white/40 text-[9px] font-bold leading-none shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
+                    style={{ background, color: textColor, ...glowStyle }}
                   >
                     <span className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">{label}</span>
+                  </span>
+                )}
+                {badgeNumber != null && (
+                  <span
+                    className="absolute flex items-center justify-center rounded-full border border-white/80 bg-white text-[10px] font-extrabold text-black shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
+                    style={{
+                      top: '6%',
+                      left: '50%',
+                      width: `${pottedNumberBadgeSize}px`,
+                      height: `${pottedNumberBadgeSize}px`,
+                      transform: 'translateX(-50%)'
+                    }}
+                  >
+                    {badgeNumber}
                   </span>
                 )}
               </span>
@@ -25169,12 +25200,35 @@ const powerRef = useRef(hud.power);
         </div>
       );
     },
-    [americanBallSwatches, ballSwatches, darkenHex, getBallPreview, isUkAmericanSet, pottedGap, pottedTokenSize]
+    [
+      americanBallSwatches,
+      ballSwatches,
+      darkenHex,
+      getBallPreview,
+      isUkAmericanSet,
+      pottedGap,
+      pottedNumberBadgeSize,
+      pottedTokenSize
+    ]
   );
   const playerSeatId = localSeat === 'A' ? 'A' : 'B';
   const opponentSeatId = playerSeatId === 'A' ? 'B' : 'A';
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
+  const lastPotGlow =
+    playerPotted.length || opponentPotted.length
+      ? frameState?.foul
+        ? 'rgba(248, 113, 113, 0.75)'
+        : 'rgba(34, 197, 94, 0.75)'
+      : null;
+  const lastPlayerPot = lastPottedBySeatRef.current?.[playerSeatId];
+  const lastOpponentPot = lastPottedBySeatRef.current?.[opponentSeatId];
+  const lastPlayerPotId =
+    lastPlayerPot != null ? String(lastPlayerPot.id ?? lastPlayerPot.color) : null;
+  const lastOpponentPotId =
+    lastOpponentPot != null
+      ? String(lastOpponentPot.id ?? lastOpponentPot.color)
+      : null;
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
   const bottomHudScale = isPortrait ? uiScale * 1.08 : uiScale * 1.12;
   const avatarSizeClass = isPortrait ? 'h-[2.6rem] w-[2.6rem]' : 'h-[3.5rem] w-[3.5rem]';
@@ -26143,7 +26197,9 @@ const powerRef = useRef(hud.power);
                 <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
                   {player.name}
                 </span>
-                <div className="mt-1">{renderPottedRow(playerPotted)}</div>
+                <div className="mt-1">
+                  {renderPottedRow(playerPotted, lastPlayerPotId, lastPotGlow)}
+                </div>
               </div>
             </div>
             <div
@@ -26173,7 +26229,9 @@ const powerRef = useRef(hud.power);
                     <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
                       {opponentDisplayName}
                     </span>
-                    <div className="mt-1">{renderPottedRow(opponentPotted)}</div>
+                    <div className="mt-1">
+                      {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
+                    </div>
                   </div>
                 </>
               ) : (
@@ -26194,7 +26252,9 @@ const powerRef = useRef(hud.power);
                           {aiFlagLabel}
                         </span>
                       </div>
-                      <div className="mt-1">{renderPottedRow(opponentPotted)}</div>
+                      <div className="mt-1">
+                        {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
+                      </div>
                     </div>
                   </div>
                 </>
