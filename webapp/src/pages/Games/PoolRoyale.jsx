@@ -1377,8 +1377,8 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Pool Royale power pass: lift overall shot strength by another 25%.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 1.6875;
-const SHOT_SPEED_MULTIPLIER = 1.875; // boost overall shot speed by 87.5% for snappier ball travel
+const SHOT_POWER_MULTIPLIER = 1.35;
+const SHOT_SPEED_MULTIPLIER = 1.5; // boost overall shot speed by 50% for snappier ball travel
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -24740,10 +24740,8 @@ const powerRef = useRef(hud.power);
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
       onChange: (v) => applyPower(v / 100),
-      onCommit: (value) => {
-        const nextPower = Number.isFinite(value) ? value / 100 : powerRef.current ?? 0;
-        applyPower(nextPower);
-        fireRef.current?.(nextPower);
+      onCommit: () => {
+        fireRef.current?.();
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
           applyPower(0);
