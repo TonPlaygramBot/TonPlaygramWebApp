@@ -23,7 +23,6 @@ import {
 } from '../utils/airHockeyInventory.js';
 
 const CUSTOMIZATION_KEYS = Object.freeze([
-  'field',
   'table',
   'tableBase',
   'environmentHdri',
@@ -802,7 +801,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       null,
       null,
       selectionsRef.current.tableBase,
-      renderer
+      renderer,
+      { enableSidePockets: false }
     );
     const poolTable = poolTableEntry?.group ?? new THREE.Group();
     const clothPlaneLocal =
@@ -828,19 +828,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       rebuild: (variantId) => poolTableEntry?.setBaseVariant?.(variantId),
       clear: () => {}
     };
-
-    const lineMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      roughness: 0.6
-    });
-    materialsRef.current.line = lineMat;
-    const lineThickness = 0.02 * SCALE_WIDTH;
-    const midLine = new THREE.Mesh(
-      new THREE.BoxGeometry(PLAYFIELD.w, lineThickness * 0.5, lineThickness),
-      lineMat
-    );
-    midLine.position.y = lineThickness * 0.25;
-    tableGroup.add(midLine);
 
     const goalGeometry = new THREE.BoxGeometry(
       PLAYFIELD.goalW,
@@ -1543,14 +1530,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const mats = materialsRef.current;
     if (!mats) return;
 
-    const fieldTheme = getOption('field', selections.field);
     const puckTheme = getOption('puck', selections.puck);
     const malletTheme = getOption('mallet', selections.mallet);
     const railTheme = getOption('rails', selections.rails);
     const goalTheme = getOption('goals', selections.goals);
-
-    if (mats.line) mats.line.color.set(fieldTheme.lines);
-    mats.rings.forEach((material) => material.color.set(fieldTheme.rings || fieldTheme.lines));
 
     if (!LOCK_POOL_ROYALE_TABLE_STYLE) {
       const tableTheme = getOption('table', selections.table);
@@ -1600,7 +1583,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         });
       };
 
-      if (mats.tableSurface) mats.tableSurface.color.set(fieldTheme.surface);
       if (tableGrain) {
         applyTableTexture(mats.frame, 'frame');
         applyTableTexture(mats.trim, 'rail');
@@ -1793,7 +1775,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
                 })}
               </div>
             </div>
-            {renderOptionRow('Field', 'field')}
             {renderOptionRow('Table Finish', 'table')}
             {renderOptionRow('Table Base', 'tableBase')}
             {renderOptionRow('HDRI Environment', 'environmentHdri')}
