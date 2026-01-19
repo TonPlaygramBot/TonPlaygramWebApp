@@ -6772,10 +6772,14 @@ export function Table3D(
     0,
     baseSidePocketShift + extraSidePocketShift - fieldPull
   );
-  sidePocketShift = Math.min(
-    maxSidePocketShift,
-    rawSidePocketShift + SIDE_POCKET_OUTWARD_BIAS
-  );
+  if (enableSidePockets) {
+    sidePocketShift = Math.min(
+      maxSidePocketShift,
+      rawSidePocketShift + SIDE_POCKET_OUTWARD_BIAS
+    );
+  } else {
+    sidePocketShift = 0;
+  }
   const sidePocketCenterX = halfW + sidePocketShift;
   const pocketPositions = resolveTablePocketCenters();
   const clothPocketPositions = pocketPositions.map((center, index) => {
@@ -7306,7 +7310,9 @@ export function Table3D(
   const cornerPocketRadius = CORNER_CHROME_NOTCH_RADIUS;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const cornerInset = innerHalfW - (halfW - CORNER_POCKET_CENTER_INSET);
-  const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
+  const sidePocketRadius = enableSidePockets
+    ? SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION
+    : 0;
 
   // Derive exact cushion extents from the chrome pocket arcs so the rails stop
   // precisely where each pocket begins.
@@ -7634,6 +7640,7 @@ export function Table3D(
   };
 
   const sideNotchMP = (sx) => {
+    if (!enableSidePockets) return null;
     const cx = sx * sidePocketCenterX;
     const radius = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
     const throatLength = Math.max(0, radius * CHROME_SIDE_NOTCH_THROAT_SCALE);
@@ -8039,55 +8046,57 @@ export function Table3D(
     outerHalfW - chromePlateInset + sideChromeOuterExtension
   );
 
-  [
-    { id: 'sideLeft', sx: -1 },
-    { id: 'sideRight', sx: 1 }
-  ].forEach(({ id, sx }) => {
-    let plateWidth = sideChromePlateWidth + sideChromeOuterExtension;
-    const baseCenterX =
-      sx *
-      (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset + sideChromePlateOutwardShift +
-        (sideChromePlateWidthExpansion * CHROME_SIDE_PLATE_CORNER_BIAS_SCALE) / 2);
-    let centerX = baseCenterX + sx * (sideChromeOuterExtension / 2);
-    const baseOuterEdge = Math.abs(centerX) + plateWidth / 2;
-    if (baseOuterEdge > sideChromeOuterEdgeLimit) {
-      const overrun = baseOuterEdge - sideChromeOuterEdgeLimit;
-      plateWidth = Math.max(MICRO_EPS, plateWidth - overrun * 2);
-      centerX = Math.sign(centerX) * Math.max(0, Math.abs(centerX) - overrun);
-    }
-    const centerZ = 0;
-    const notchMP = scaleChromeSidePocketCut(sideNotchMP(sx));
-    const sidePocketCutCenterPull =
-      TABLE.THICK * CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE;
-    const notchLocalMP = notchMP.map((poly) =>
-      poly.map((ring) =>
-        ring.map(([x, z]) => [x - centerX - sx * sidePocketCutCenterPull, -(z - centerZ)])
-      )
-    );
-    const plate = new THREE.Mesh(
-      buildChromePlateGeometry({
-        width: plateWidth,
-        height: sideChromePlateHeight,
-        radius: sideChromePlateRadius,
-        thickness: sideChromePlateThickness,
-        corner: id,
-        notchMP: notchLocalMP,
-        shapeSegments: chromePlateShapeSegments
-      }),
-      chromePlateMat
-    );
-    plate.userData.isChromePlate = true;
-    plate.position.set(
-      centerX,
-      sideChromePlateY + sideChromePlateThickness,
-      centerZ
-    );
-    plate.castShadow = false;
-    plate.receiveShadow = false;
-    plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
-    chromePlates.add(plate);
-    finishParts.trimMeshes.push(plate);
-  });
+  if (enableSidePockets) {
+    [
+      { id: 'sideLeft', sx: -1 },
+      { id: 'sideRight', sx: 1 }
+    ].forEach(({ id, sx }) => {
+      let plateWidth = sideChromePlateWidth + sideChromeOuterExtension;
+      const baseCenterX =
+        sx *
+        (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset + sideChromePlateOutwardShift +
+          (sideChromePlateWidthExpansion * CHROME_SIDE_PLATE_CORNER_BIAS_SCALE) / 2);
+      let centerX = baseCenterX + sx * (sideChromeOuterExtension / 2);
+      const baseOuterEdge = Math.abs(centerX) + plateWidth / 2;
+      if (baseOuterEdge > sideChromeOuterEdgeLimit) {
+        const overrun = baseOuterEdge - sideChromeOuterEdgeLimit;
+        plateWidth = Math.max(MICRO_EPS, plateWidth - overrun * 2);
+        centerX = Math.sign(centerX) * Math.max(0, Math.abs(centerX) - overrun);
+      }
+      const centerZ = 0;
+      const notchMP = scaleChromeSidePocketCut(sideNotchMP(sx));
+      const sidePocketCutCenterPull =
+        TABLE.THICK * CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE;
+      const notchLocalMP = notchMP.map((poly) =>
+        poly.map((ring) =>
+          ring.map(([x, z]) => [x - centerX - sx * sidePocketCutCenterPull, -(z - centerZ)])
+        )
+      );
+      const plate = new THREE.Mesh(
+        buildChromePlateGeometry({
+          width: plateWidth,
+          height: sideChromePlateHeight,
+          radius: sideChromePlateRadius,
+          thickness: sideChromePlateThickness,
+          corner: id,
+          notchMP: notchLocalMP,
+          shapeSegments: chromePlateShapeSegments
+        }),
+        chromePlateMat
+      );
+      plate.userData.isChromePlate = true;
+      plate.position.set(
+        centerX,
+        sideChromePlateY + sideChromePlateThickness,
+        centerZ
+      );
+      plate.castShadow = false;
+      plate.receiveShadow = false;
+      plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
+      chromePlates.add(plate);
+      finishParts.trimMeshes.push(plate);
+    });
+  }
   railsGroup.add(chromePlates);
 
   const pocketJawGroup = new THREE.Group();
@@ -8571,7 +8580,7 @@ export function Table3D(
     });
   }
 
-  if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
+  if (enableSidePockets && sideBaseRadius && sideBaseRadius > MICRO_EPS) {
     [-1, 1].forEach((sx) => {
       const baseMP = sideNotchMP(sx);
       const fallbackCenter = new THREE.Vector2(sx * sidePocketCenterX, 0);
@@ -8604,11 +8613,14 @@ export function Table3D(
   }
 
   // Rail openings simply reuse the chrome plate cuts; wood never dictates alternate pocket sizing.
-  let openingMP = safePolygonUnion(
-    rectPoly(innerHalfW * 2, innerHalfH * 2),
-    ...scaleWoodRailSidePocketCut(sideNotchMP(-1), -1),
-    ...scaleWoodRailSidePocketCut(sideNotchMP(1), 1)
-  );
+  let openingMP = safePolygonUnion(rectPoly(innerHalfW * 2, innerHalfH * 2));
+  if (enableSidePockets) {
+    openingMP = safePolygonUnion(
+      openingMP,
+      ...scaleWoodRailSidePocketCut(sideNotchMP(-1), -1),
+      ...scaleWoodRailSidePocketCut(sideNotchMP(1), 1)
+    );
+  }
   openingMP = safePolygonUnion(
     openingMP,
     ...translatePocketCutMP(

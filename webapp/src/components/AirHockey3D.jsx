@@ -287,6 +287,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const postTimeoutRef = useRef(null);
   const restartTimeoutRef = useRef(null);
   const redirectTimeoutRef = useRef(null);
+  const lastTouchRef = useRef(null);
   const materialsRef = useRef({
     tableSurface: null,
     frame: null,
@@ -783,6 +784,14 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     };
     const PUCK_RADIUS = PLAYFIELD.w * 0.0295;
     const PUCK_HEIGHT = PUCK_RADIUS * 1.05;
+    const CORNER_POCKET_RADIUS = Math.max(PUCK_RADIUS * 2.3, PLAYFIELD.w * 0.055);
+    const CORNER_POCKET_CAPTURE = Math.max(PUCK_RADIUS * 0.6, CORNER_POCKET_RADIUS - PUCK_RADIUS * 0.25);
+    const cornerPocketCenters = [
+      new THREE.Vector2(-PLAYFIELD.w / 2, -PLAYFIELD.h / 2),
+      new THREE.Vector2(PLAYFIELD.w / 2, -PLAYFIELD.h / 2),
+      new THREE.Vector2(-PLAYFIELD.w / 2, PLAYFIELD.h / 2),
+      new THREE.Vector2(PLAYFIELD.w / 2, PLAYFIELD.h / 2)
+    ];
 
     const camera = new THREE.PerspectiveCamera(
       56,
@@ -1186,6 +1195,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       const d2 = dx * dx + dz * dz;
       const collideRadius = MALLET_RADIUS + PUCK_RADIUS * 0.8;
       if (d2 < collideRadius * collideRadius) {
+        lastTouchRef.current = isPlayer ? 'player' : 'ai';
         const distance = Math.max(Math.sqrt(d2), 1e-6);
         const overlap = collideRadius - distance;
         const normal = new THREE.Vector3(dx / distance, 0, dz / distance);
@@ -1234,11 +1244,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       aiMallet.position.z += (targetZ - aiMallet.position.z) * chaseSpeed * dt;
     };
 
-    const reset = (towardTop = false, shouldServe = true) => {
-      puck.position.set(0, PUCK_HEIGHT / 2, 0);
+    const reset = (towardTop = false, shouldServe = true, spawnZ = 0) => {
+      puck.position.set(0, PUCK_HEIGHT / 2, spawnZ);
       S.vel.set(0, 0, 0);
       you.position.set(0, 0, PLAYFIELD.h * 0.42);
       aiMallet.position.set(0, 0, -PLAYFIELD.h * 0.36);
+      lastTouchRef.current = null;
       if (shouldServe) {
         servePuck(towardTop);
       }
@@ -1271,6 +1282,24 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       S.vel.multiplyScalar(Math.pow(S.friction, dt * 60));
       // keep puck speed manageable
       S.vel.clampLength(0, MAX_SPEED);
+
+      const cornerPocketed = cornerPocketCenters.some((center) => {
+        const dx = puck.position.x - center.x;
+        const dz = puck.position.z - center.y;
+        return dx * dx + dz * dz <= CORNER_POCKET_CAPTURE * CORNER_POCKET_CAPTURE;
+      });
+
+      if (cornerPocketed) {
+        const playerGetsPuck = lastTouchRef.current !== 'player';
+        const spawnZ = playerGetsPuck ? PLAYFIELD.h * 0.24 : -PLAYFIELD.h * 0.24;
+        reset(playerGetsPuck, true, spawnZ);
+        playPost();
+        renderer.render(scene, camera);
+        if (!gameOverRef.current) {
+          raf.current = requestAnimationFrame(tick);
+        }
+        return;
+      }
 
       if (Math.abs(puck.position.x) > PLAYFIELD.w / 2 - PUCK_RADIUS) {
         puck.position.x = clamp(
