@@ -11781,6 +11781,7 @@ useEffect(() => {
   }
 }, [hud.turn]);
 const [pottedBySeat, setPottedBySeat] = useState({ A: [], B: [] });
+const [lastPotOutcomeBySeat, setLastPotOutcomeBySeat] = useState({ A: null, B: null });
 const lastPottedBySeatRef = useRef({ A: null, B: null });
 const lastAssignmentsRef = useRef({ A: null, B: null });
 const lastShotReminderRef = useRef({ A: 0, B: 0 });
@@ -11851,6 +11852,7 @@ const powerRef = useRef(hud.power);
     const nextInHand = deriveInHandFromFrame(initialFrame);
     cueBallPlacedFromHandRef.current = !nextInHand;
     setPottedBySeat({ A: [], B: [] });
+    setLastPotOutcomeBySeat({ A: null, B: null });
     lastAssignmentsRef.current = { A: null, B: null };
     lastShotReminderRef.current = { A: 0, B: 0 };
     setTurnCycle(0);
@@ -22478,10 +22480,20 @@ const powerRef = useRef(hud.power);
             (entry) => entry && entry.color && entry.color !== 'CUE'
           );
           if (newPots.length) {
+            const latestPot = newPots[newPots.length - 1] ?? null;
             lastPottedBySeatRef.current = {
               ...lastPottedBySeatRef.current,
-              [shooterSeat]: newPots[newPots.length - 1] ?? null
+              [shooterSeat]: latestPot
             };
+            setLastPotOutcomeBySeat((prev) => ({
+              ...prev,
+              [shooterSeat]: latestPot
+                ? {
+                    id: String(latestPot.id ?? latestPot.color),
+                    status: safeState?.foul ? 'foul' : 'legal'
+                  }
+                : null
+            }));
             setPottedBySeat((prev) => {
               const next = {
                 ...prev,
@@ -22507,12 +22519,14 @@ const powerRef = useRef(hud.power);
               ...lastPottedBySeatRef.current,
               [shooterSeat]: null
             };
+            setLastPotOutcomeBySeat((prev) => ({ ...prev, [shooterSeat]: null }));
           }
         } else {
           lastPottedBySeatRef.current = {
             ...lastPottedBySeatRef.current,
             [shooterSeat]: null
           };
+          setLastPotOutcomeBySeat((prev) => ({ ...prev, [shooterSeat]: null }));
         }
         const metaState =
           safeState && typeof safeState.meta === 'object' ? safeState.meta.state : null;
@@ -25055,6 +25069,10 @@ const powerRef = useRef(hud.power);
     const b = Math.max(0, Math.min(255, Math.round((num & 0xff) * factor)));
     return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
   }, []);
+  const pottedTokenSize = isPortrait ? 26 : 28;
+  const pottedGap = isPortrait ? 8 : 10;
+  const pottedPreviewSize = 128;
+  const pottedNumberOffsetY = -pottedPreviewSize * 0.22;
   const getBallPreview = useCallback(
     ({ colorHex, pattern, number }) => {
       if (!colorHex) return null;
@@ -25066,17 +25084,16 @@ const powerRef = useRef(hud.power);
         pattern,
         number,
         variantKey: 'pool',
-        size: 128
+        size: pottedPreviewSize,
+        numberOffsetY: number != null ? pottedNumberOffsetY : 0
       });
       cache.set(cacheKey, preview || null);
       return preview;
     },
-    [ballPreviewCache]
+    [ballPreviewCache, pottedNumberOffsetY, pottedPreviewSize]
   );
-  const pottedTokenSize = isPortrait ? 22 : 24;
-  const pottedGap = isPortrait ? 8 : 10;
   const renderPottedRow = useCallback(
-    (entries = []) => {
+    (entries = [], seatId = 'A') => {
       if (!entries.length) {
         return (
           <div
@@ -25093,6 +25110,7 @@ const powerRef = useRef(hud.power);
           </div>
         );
       }
+      const lastOutcome = lastPotOutcomeBySeat?.[seatId] ?? null;
       return (
         <div
           className="flex items-center overflow-hidden whitespace-nowrap"
@@ -25142,11 +25160,21 @@ const powerRef = useRef(hud.power);
               number: ballNumber ?? (colorKey === 'BLACK' ? 8 : null)
             });
             const altLabel = `Pocketed ${label}`;
+            const entryKey = String(entry.id ?? entry.color ?? index);
+            const isLastPot = lastOutcome && String(lastOutcome.id) === entryKey;
+            const glowColor =
+              lastOutcome?.status === 'foul'
+                ? 'rgba(239, 68, 68, 0.85)'
+                : 'rgba(34, 197, 94, 0.85)';
             return (
               <span
                 key={`${entry.id ?? colorKey}-${index}`}
                 className="relative flex flex-shrink-0 items-center justify-center"
-                style={{ width: pottedTokenSize, height: pottedTokenSize }}
+                style={{
+                  width: pottedTokenSize,
+                  height: pottedTokenSize,
+                  boxShadow: isLastPot ? `0 0 12px ${glowColor}, 0 0 18px ${glowColor}` : undefined
+                }}
                 title={altLabel}
               >
                 {previewUrl ? (
@@ -25157,10 +25185,16 @@ const powerRef = useRef(hud.power);
                   />
                 ) : (
                   <span
-                    className="flex h-full w-full items-center justify-center rounded-full border border-white/40 text-[9px] font-bold leading-none shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
+                    className="relative flex h-full w-full items-center justify-center rounded-full border border-white/40 text-[9px] font-bold leading-none shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
                     style={{ background, color: textColor }}
                   >
-                    <span className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">{label}</span>
+                    <span
+                      className={`drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)] ${
+                        ballNumber != null ? 'absolute top-[2px]' : ''
+                      }`}
+                    >
+                      {label}
+                    </span>
                   </span>
                 )}
               </span>
@@ -25169,7 +25203,16 @@ const powerRef = useRef(hud.power);
         </div>
       );
     },
-    [americanBallSwatches, ballSwatches, darkenHex, getBallPreview, isUkAmericanSet, pottedGap, pottedTokenSize]
+    [
+      americanBallSwatches,
+      ballSwatches,
+      darkenHex,
+      getBallPreview,
+      isUkAmericanSet,
+      lastPotOutcomeBySeat,
+      pottedGap,
+      pottedTokenSize
+    ]
   );
   const playerSeatId = localSeat === 'A' ? 'A' : 'B';
   const opponentSeatId = playerSeatId === 'A' ? 'B' : 'A';
@@ -26143,7 +26186,7 @@ const powerRef = useRef(hud.power);
                 <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
                   {player.name}
                 </span>
-                <div className="mt-1">{renderPottedRow(playerPotted)}</div>
+                <div className="mt-1">{renderPottedRow(playerPotted, playerSeatId)}</div>
               </div>
             </div>
             <div
@@ -26173,7 +26216,7 @@ const powerRef = useRef(hud.power);
                     <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
                       {opponentDisplayName}
                     </span>
-                    <div className="mt-1">{renderPottedRow(opponentPotted)}</div>
+                    <div className="mt-1">{renderPottedRow(opponentPotted, opponentSeatId)}</div>
                   </div>
                 </>
               ) : (
@@ -26194,7 +26237,7 @@ const powerRef = useRef(hud.power);
                           {aiFlagLabel}
                         </span>
                       </div>
-                      <div className="mt-1">{renderPottedRow(opponentPotted)}</div>
+                      <div className="mt-1">{renderPottedRow(opponentPotted, opponentSeatId)}</div>
                     </div>
                   </div>
                 </>
