@@ -2737,11 +2737,8 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     focusPan: 0,
     trackingBias: 0.52,
     smoothing: 0.14,
-    avoidPocketCameras: true,
-    pocketCutaway: false,
-    pocketCutawayDurationMs: 320,
-    allowActionCamera: false,
-    forceActionActivation: false
+    avoidPocketCameras: false,
+    forceActionActivation: true
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
@@ -4862,16 +4859,6 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const computeBroadcastDistance = (aspect = 1, fov = BROADCAST_CAMERA_FOV) => {
-  const verticalFov = THREE.MathUtils.degToRad(fov || BROADCAST_CAMERA_FOV);
-  const halfVertical = Math.max(verticalFov / 2, 1e-3);
-  const halfHorizontal = Math.max(Math.atan(Math.tan(halfVertical) * aspect), 1e-3);
-  const halfWidth = (PLAY_W / 2) * BROADCAST_CAMERA_MARGIN;
-  const halfLength = (PLAY_H / 2) * BROADCAST_CAMERA_MARGIN;
-  const widthDistance = halfWidth / Math.tan(halfHorizontal);
-  const lengthDistance = halfLength / Math.tan(halfVertical);
-  return Math.max(widthDistance, lengthDistance);
-};
 const RAIL_OVERHEAD_DISTANCE_BIAS = 0.9; // pull the broadcast overhead camera closer to the table like the original framing
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
@@ -4911,13 +4898,7 @@ const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-bal
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
-const POCKET_CAMERA_FOV = 38; // tighter pocket framing for broadcast inserts
-const POCKET_CAMERA_INSET = BALL_R * 1.6; // sit inside the pocket mouth
-const POCKET_CAMERA_LOOK_DISTANCE = BALL_R * 3.2; // look outward through the pocket opening
-const POCKET_CAMERA_LOOK_UP = BALL_R * 1.1; // lift the gaze so the drop reads
-const POCKET_CAMERA_SURFACE_DROP = BALL_R * 0.6; // sit slightly below the cloth surface
-const POCKET_CUTAWAY_HALF_DURATION_MS = 220; // per-direction blend when cutaways are enabled
-const POCKET_CUTAWAY_MIN_INTERVAL_MS = 220; // keep cutaways consistent and brief
+const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
 const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
@@ -4983,26 +4964,6 @@ const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 26;
-const BROADCAST_CAMERA_FOV = 48; // modest broadcast field of view (no wide angle)
-const BROADCAST_CAMERA_PHI = 0.86; // slightly top-down perspective
-const BROADCAST_CAMERA_MARGIN = 1.06; // ensure cushions/pockets remain fully visible
-const BROADCAST_CAMERA_DISTANCE_SCALE = 1.02; // tiny cushion on top of fit distance
-const BROADCAST_CAMERA_BOTTOM_BIAS = PLAY_H * 0.06; // bias toward bottom rail to make it feel closer
-const BROADCAST_CAMERA_AIM_LEAD = BALL_R * 10; // aim offset lead distance
-const BROADCAST_CAMERA_AIM_WEIGHT = 0.42; // keep offsets subtle
-const BROADCAST_CAMERA_AIM_MAX_X = PLAY_W * 0.12;
-const BROADCAST_CAMERA_AIM_MAX_Z = PLAY_H * 0.12;
-const BROADCAST_CAMERA_AIM_DURATION_MS = 220;
-const BROADCAST_CAMERA_SHOT_DURATION_MS = 180;
-const BROADCAST_CAMERA_RETURN_DURATION_MS = 260;
-const POT_SINK_DISTANCE = BALL_R * 3.1;
-const POT_SINK_DURATION_MS = 260;
-const POT_SLIDE_DISTANCE = BALL_R * 0.85;
-const POT_SLIDE_PORTION = 0.28;
-const POT_SCALE_TARGET = 0.22;
-const POT_GLOW_RADIUS = BALL_R * 1.2;
-const POT_GLOW_DURATION_MS = 160;
-const POT_GLOW_HEIGHT = BALL_R * 0.06;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -5136,8 +5097,6 @@ const lerpAngle = (start = 0, end = 0, t = 0.5) => {
   const delta = Math.atan2(Math.sin(end - start), Math.cos(end - start));
   return start + delta * THREE.MathUtils.clamp(t ?? 0, 0, 1);
 };
-const easeInOut = (t) => t * t * (3 - 2 * t);
-const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 
 // --------------------------------------------------
@@ -5232,20 +5191,6 @@ const computeShortRailPairFraming = (camera, cuePos, targetPos = null, margin = 
     halfVertical,
     requiredDistance: Math.max(widthDistance, lengthDistance)
   };
-};
-const resolveBroadcastAimOffset = ({ cue, aimDir, fallbackCenterX = 0 } = {}) => {
-  if (!cue?.pos || !aimDir) return new THREE.Vector3(0, 0, 0);
-  TMP_VEC2_A.set(aimDir.x ?? 0, aimDir.y ?? 0);
-  if (TMP_VEC2_A.lengthSq() < 1e-6) return new THREE.Vector3(0, 0, 0);
-  TMP_VEC2_A.normalize();
-  TMP_VEC2_B.set(cue.pos.x, cue.pos.y);
-  TMP_VEC2_C.copy(TMP_VEC2_A).multiplyScalar(BROADCAST_CAMERA_AIM_LEAD);
-  TMP_VEC2_B.add(TMP_VEC2_C);
-  const center = TMP_VEC2_D.set(fallbackCenterX, 0);
-  TMP_VEC2_B.sub(center).multiplyScalar(BROADCAST_CAMERA_AIM_WEIGHT);
-  TMP_VEC2_B.x = clamp(TMP_VEC2_B.x, -BROADCAST_CAMERA_AIM_MAX_X, BROADCAST_CAMERA_AIM_MAX_X);
-  TMP_VEC2_B.y = clamp(TMP_VEC2_B.y, -BROADCAST_CAMERA_AIM_MAX_Z, BROADCAST_CAMERA_AIM_MAX_Z);
-  return new THREE.Vector3(TMP_VEC2_B.x, 0, TMP_VEC2_B.y);
 };
 
 function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
@@ -5528,14 +5473,12 @@ const getPocketCenterById = (id) => {
       return null;
   }
 };
-const POCKET_CAMERA_IDS = ['TL', 'TM', 'TR', 'BL', 'BM', 'BR'];
+const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
   BL: new THREE.Vector2(-0.72, 1).normalize(),
-  BR: new THREE.Vector2(0.72, 1).normalize(),
-  TM: new THREE.Vector2(-1, 0),
-  BM: new THREE.Vector2(1, 0)
+  BR: new THREE.Vector2(0.72, 1).normalize()
 });
 const getPocketCameraOutward = (id) =>
   POCKET_CAMERA_OUTWARD[id] ? POCKET_CAMERA_OUTWARD[id].clone() : null;
@@ -12133,24 +12076,7 @@ const powerRef = useRef(hud.power);
   const [pocketCameraActive, setPocketCameraActive] = useState(false);
   const pocketCameraStateRef = useRef(false);
   const pocketCamerasRef = useRef(new Map());
-  const pocketGlowRef = useRef(new Map());
-  const pocketCutawayRef = useRef({
-    active: false,
-    pocketId: null,
-    startTime: 0,
-    durationMs: POCKET_CUTAWAY_HALF_DURATION_MS * 2
-  });
-  // CameraRig: main broadcast camera + six pocket cameras.
-  const cameraRigRef = useRef({ main: null, pockets: pocketCamerasRef.current });
   const broadcastCamerasRef = useRef(null);
-  // CameraStateMachine for the broadcast view (IDLE_BROADCAST → AIMING → SHOT_IN_PROGRESS → SETTLE).
-  const broadcastCameraStateRef = useRef({
-    state: 'IDLE_BROADCAST',
-    lastUpdateAt: 0,
-    offset: new THREE.Vector3(),
-    targetOffset: new THREE.Vector3(),
-    settleUntil: 0
-  });
   const lightingRigRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
   const pocketSwitchIntentRef = useRef(null);
@@ -15128,34 +15054,6 @@ const powerRef = useRef(hud.power);
         standing: { phi: standingPhi, radius: standingRadius }
       };
 
-        const resolvePocketCameraPose = (anchorId, center) => {
-          if (!center) return null;
-          const pocketId = anchorId ?? '';
-          const outward2D = TMP_VEC2_A.set(center.x, center.y);
-          if (outward2D.lengthSq() < 1e-6) {
-            outward2D.set(0, -1);
-          } else {
-            outward2D.normalize();
-          }
-          const inward2D = TMP_VEC2_B.set(-outward2D.x, -outward2D.y);
-          const surfaceY = TABLE_Y + TABLE.THICK - POCKET_CAMERA_SURFACE_DROP;
-          const pocketInset =
-            (pocketId === 'TM' || pocketId === 'BM')
-              ? POCKET_CAMERA_INSET * 0.92
-              : POCKET_CAMERA_INSET;
-          const position = new THREE.Vector3(
-            center.x + outward2D.x * pocketInset,
-            surfaceY,
-            center.y + outward2D.y * pocketInset
-          );
-          const target = new THREE.Vector3(
-            center.x + inward2D.x * POCKET_CAMERA_LOOK_DISTANCE,
-            surfaceY + POCKET_CAMERA_LOOK_UP,
-            center.y + inward2D.y * POCKET_CAMERA_LOOK_DISTANCE
-          );
-          return { position, target };
-        };
-
         const ensurePocketCamera = (id, center) => {
           if (!id) return null;
           let entry = pocketCamerasRef.current.get(id);
@@ -15167,7 +15065,7 @@ const powerRef = useRef(hud.power);
               CAMERA.far
             );
             pocketCamera.up.set(0, 1, 0);
-            entry = { camera: pocketCamera, center: center?.clone() ?? null, pose: null };
+            entry = { camera: pocketCamera, center: center?.clone() ?? null };
             pocketCamerasRef.current.set(id, entry);
           } else if (entry.camera.aspect !== aspect) {
             entry.camera.aspect = aspect;
@@ -15179,7 +15077,6 @@ const powerRef = useRef(hud.power);
           }
           if (center) {
             entry.center = center.clone();
-            entry.pose = resolvePocketCameraPose(id, entry.center);
           }
           return entry.camera;
         };
@@ -15198,8 +15095,6 @@ const powerRef = useRef(hud.power);
           new THREE.Vector3(playerOffsetRef.current, ORBIT_FOCUS_BASE_Y, 0);
 
         activeRenderCameraRef.current = camera;
-        cameraRigRef.current.main = camera;
-        cameraRigRef.current.pockets = pocketCamerasRef.current;
 
         const ensureOrbitFocus = () => {
           const store = orbitFocusRef.current;
@@ -15731,110 +15626,6 @@ const powerRef = useRef(hud.power);
             broadcastArgs.focusWorld = resolvedTarget.clone();
             broadcastArgs.targetWorld = resolvedTarget.clone();
             broadcastArgs.lerp = 0.08;
-          } else if (!topViewRef.current && !replayActive) {
-            const now = performance.now();
-            const broadcastState = broadcastCameraStateRef.current;
-            const cueActive = Boolean(cue?.active) && !shooting;
-            const nextState = shooting
-              ? 'SHOT_IN_PROGRESS'
-              : cueActive
-                ? 'AIMING'
-                : broadcastState.state === 'SHOT_IN_PROGRESS'
-                  ? 'SETTLE'
-                  : broadcastState.state === 'SETTLE' && now < (broadcastState.settleUntil ?? 0)
-                    ? 'SETTLE'
-                    : 'IDLE_BROADCAST';
-            if (broadcastState.state !== nextState) {
-              broadcastState.state = nextState;
-              if (nextState === 'SETTLE') {
-                broadcastState.settleUntil = now + BROADCAST_CAMERA_RETURN_DURATION_MS;
-              }
-            }
-            const offsetTarget =
-              nextState === 'AIMING'
-                ? resolveBroadcastAimOffset({
-                    cue,
-                    aimDir: aimDirRef.current,
-                    fallbackCenterX: playerOffsetRef.current
-                  })
-                : TMP_VEC3_A.set(0, 0, 0);
-            broadcastState.targetOffset.copy(offsetTarget);
-            const lastUpdate = broadcastState.lastUpdateAt || now;
-            const dt = Math.min(0.2, Math.max(0, (now - lastUpdate) / 1000));
-            broadcastState.lastUpdateAt = now;
-            const transitionMs =
-              nextState === 'AIMING'
-                ? BROADCAST_CAMERA_AIM_DURATION_MS
-                : nextState === 'SHOT_IN_PROGRESS'
-                  ? BROADCAST_CAMERA_SHOT_DURATION_MS
-                  : BROADCAST_CAMERA_RETURN_DURATION_MS;
-            const lerpT =
-              transitionMs > 0
-                ? THREE.MathUtils.clamp(1 - Math.exp(-dt / (transitionMs / 1000)), 0, 1)
-                : 1;
-            broadcastState.offset.lerp(broadcastState.targetOffset, lerpT);
-
-            const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-            const baseTarget = TMP_VEC3_B.set(
-              playerOffsetRef.current,
-              ORBIT_FOCUS_BASE_Y,
-              0
-            );
-            baseTarget.add(broadcastState.offset);
-            const resolvedTarget = baseTarget.clone().multiplyScalar(scale);
-            const broadcastDistance =
-              computeBroadcastDistance(camera.aspect, BROADCAST_CAMERA_FOV) *
-              BROADCAST_CAMERA_DISTANCE_SCALE *
-              scale;
-            const spherical = new THREE.Spherical(
-              broadcastDistance,
-              BROADCAST_CAMERA_PHI,
-              Math.PI
-            );
-            const broadcastPosition = new THREE.Vector3()
-              .setFromSpherical(spherical)
-              .add(resolvedTarget);
-            broadcastPosition.z -= BROADCAST_CAMERA_BOTTOM_BIAS * scale;
-
-            const cutaway = pocketCutawayRef.current;
-            let finalPosition = broadcastPosition;
-            let finalTarget = resolvedTarget;
-            if (cutaway?.active && cutaway.pocketId) {
-              const elapsed = now - (cutaway.startTime ?? 0);
-              const total = Math.max(1, cutaway.durationMs ?? POCKET_CUTAWAY_HALF_DURATION_MS * 2);
-              if (elapsed >= total) {
-                cutaway.active = false;
-                updatePocketCameraState(false);
-              } else {
-                const half = total * 0.5;
-                const t = elapsed <= half
-                  ? easeInOut(Math.min(1, elapsed / Math.max(half, 1)))
-                  : 1 - easeInOut(Math.min(1, (elapsed - half) / Math.max(half, 1)));
-                const pocketEntry = pocketCamerasRef.current.get(cutaway.pocketId);
-                const pose = pocketEntry?.pose ?? null;
-                if (pose?.position && pose?.target) {
-                  const pocketPosition = pose.position.clone().multiplyScalar(scale);
-                  const pocketTarget = pose.target.clone().multiplyScalar(scale);
-                  finalPosition = broadcastPosition.clone().lerp(pocketPosition, t);
-                  finalTarget = resolvedTarget.clone().lerp(pocketTarget, t);
-                  updatePocketCameraState(true);
-                }
-              }
-            }
-
-            camera.up.set(0, 1, 0);
-            if (camera.fov !== BROADCAST_CAMERA_FOV) {
-              camera.fov = BROADCAST_CAMERA_FOV;
-              camera.updateProjectionMatrix();
-            }
-            camera.position.lerp(finalPosition, lerpT);
-            camera.lookAt(finalTarget);
-            renderCamera = camera;
-            lookTarget = finalTarget;
-            broadcastArgs.focusWorld = finalTarget.clone();
-            broadcastArgs.targetWorld = finalTarget.clone();
-            broadcastArgs.orbitWorld = finalPosition.clone();
-            broadcastArgs.lerp = 0.12;
           } else if (!cameraHoldActive && activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
@@ -20594,8 +20385,8 @@ const powerRef = useRef(hud.power);
             (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD);
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
-          const allowActionCamera = Boolean(broadcastSystem?.allowActionCamera);
-          const allowPocketTracking = false;
+          const suppressPocketCameras = broadcastSystem?.avoidPocketCameras;
+          const forceActionActivation = broadcastSystem?.forceActionActivation;
           const orbitSnapshot = sphRef.current
             ? {
                 radius: sphRef.current.radius,
@@ -20621,7 +20412,7 @@ const powerRef = useRef(hud.power);
             : orbitSnapshot
               ? { orbitSnapshot }
               : null;
-          const actionView = allowActionCamera && allowLongShotCameraSwitch
+          const actionView = allowLongShotCameraSwitch
             ? makeActionCameraView(
                 cue,
                 shotPrediction.ballId,
@@ -20634,7 +20425,7 @@ const powerRef = useRef(hud.power);
               )
             : null;
           const earlyPocketView =
-            allowPocketTracking && shotPrediction.ballId && followView
+            !suppressPocketCameras && shotPrediction.ballId && followView
               ? makePocketCameraView(shotPrediction.ballId, followView, {
                   forceEarly: true
                 })
@@ -20817,7 +20608,7 @@ const powerRef = useRef(hud.power);
           }
           if (!pocketViewActivated && actionView) {
             const shouldActivateActionView =
-              !isMaxPowerShot;
+              (!isLongShot || forceActionActivation) && !isMaxPowerShot;
             if (shouldActivateActionView && !holdActive) {
               suspendedActionView = null;
               activeShotView = actionView;
@@ -24311,7 +24102,9 @@ const powerRef = useRef(hud.power);
             }
           }
         }
-        const suppressPocketCameras = true;
+        const suppressPocketCameras =
+          (broadcastSystemRef.current ?? activeBroadcastSystem ?? null)
+            ?.avoidPocketCameras;
         const pocketHoldActive =
           powerImpactHoldRef.current &&
           performance.now() < powerImpactHoldRef.current;
@@ -24486,79 +24279,97 @@ const powerRef = useRef(hud.power);
               b.swervePowerStrength = 0;
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
-              b.potting = true;
               const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
-              const broadcastSystem =
-                broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
-              const pocketCutawayEnabled = Boolean(broadcastSystem?.pocketCutaway);
-              if (pocketCutawayEnabled) {
-                const cutawayState = pocketCutawayRef.current;
-                const lastStart = cutawayState?.startTime ?? 0;
-                if (!cutawayState?.active || now - lastStart >= POCKET_CUTAWAY_MIN_INTERVAL_MS) {
-                  pocketCutawayRef.current = {
-                    active: true,
-                    pocketId,
-                    startTime: now,
-                    durationMs: Math.max(
-                      POCKET_CUTAWAY_HALF_DURATION_MS * 2,
-                      broadcastSystem?.pocketCutawayDurationMs ?? 0
-                    )
-                  };
-                }
-              }
               const dropStart = performance.now();
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
-              TMP_VEC2_A.set(b.vel.x, b.vel.y);
-              if (TMP_VEC2_A.lengthSq() < 1e-6) {
-                TMP_VEC2_A.set(c.x - fromX, c.y - fromZ);
-              }
-              if (TMP_VEC2_A.lengthSq() < 1e-6) {
-                TMP_VEC2_A.set(0, -1);
-              }
-              TMP_VEC2_A.normalize();
+              const holderDir = resolvePocketHolderDirection(c, pocketId);
+              const pocketRestIndex =
+                pocketRestIndexRef.current.get(pocketId) ?? 0;
+              const pocketAnchors = table?.userData?.pocketHolderAnchors;
+              const anchorEntry =
+                Array.isArray(pocketAnchors) && pocketAnchors[pocketIndex]
+                  ? pocketAnchors[pocketIndex]
+                  : null;
+              const ringAnchor = anchorEntry?.ringAnchor
+                ? anchorEntry.ringAnchor.clone()
+                : new THREE.Vector3(
+                    c.x,
+                    BALL_CENTER_Y - POCKET_DROP_DEPTH + POCKET_NET_RING_VERTICAL_OFFSET,
+                    c.y
+                  );
+              const holderSpacing = POCKET_HOLDER_REST_SPACING;
+              const railStartDistance =
+                POCKET_NET_RING_RADIUS_SCALE * POCKET_BOTTOM_R +
+                POCKET_GUIDE_RING_CLEARANCE +
+                POCKET_GUIDE_RING_OVERLAP -
+                POCKET_GUIDE_RING_TOWARD_STRAP;
+              const railStartOffset = -railStartDistance;
+              const restDistanceBase = Math.max(
+                railStartDistance + POCKET_GUIDE_LENGTH - POCKET_HOLDER_REST_PULLBACK,
+                railStartDistance + holderSpacing
+              );
+              const minRestDistance = Math.max(
+                railStartDistance + holderSpacing * 0.5,
+                railStartDistance + BALL_R * 0.6
+              );
+              const clampedRestIndex = Math.max(0, pocketRestIndex);
+              const restDistance = Math.max(
+                minRestDistance,
+                restDistanceBase - clampedRestIndex * holderSpacing
+              );
+              pocketRestIndexRef.current.set(pocketId, pocketRestIndex + 1);
+              const tiltDrop = Math.tan(POCKET_HOLDER_TILT_RAD) * restDistance;
+              const restTarget = new THREE.Vector3(c.x, 0, c.y).addScaledVector(
+                holderDir,
+                restDistance
+              );
+              const targetX = restTarget.x;
+              const targetZ = restTarget.z;
+              const railRunStart = ringAnchor
+                .clone()
+                .addScaledVector(holderDir, railStartOffset)
+                .add(
+                  new THREE.Vector3(
+                    0,
+                    -POCKET_GUIDE_VERTICAL_DROP - POCKET_GUIDE_FLOOR_DROP,
+                    0
+                  )
+                );
+              const restY =
+                railRunStart.y - POCKET_HOLDER_REST_DROP - tiltDrop;
               const dropEntry = {
                 start: dropStart,
-                fromX,
-                fromZ,
                 fromY: BALL_CENTER_Y,
-                dirX: TMP_VEC2_A.x,
-                dirZ: TMP_VEC2_A.y,
-                sinkDistance: POT_SINK_DISTANCE,
-                slideDistance: POT_SLIDE_DISTANCE,
-                duration: POT_SINK_DURATION_MS,
+                currentY: BALL_CENTER_Y,
+                targetY: restY,
+                fromX: ringAnchor.x,
+                fromZ: ringAnchor.z,
+                toX: targetX,
+                toZ: targetZ,
+                runFromX: railRunStart.x,
+                runFromZ: railRunStart.z,
                 mesh: b.mesh,
+                entrySpeed,
+                velocityY:
+                  -Math.max(Math.abs(POCKET_DROP_ENTRY_VELOCITY), entrySpeed * 0.08),
+                runSpeed: THREE.MathUtils.clamp(
+                  entrySpeed * 0.8 + POCKET_HOLDER_RUN_ENTRY_SCALE,
+                  POCKET_HOLDER_RUN_SPEED_MIN,
+                  POCKET_HOLDER_RUN_SPEED_MAX
+                ),
+                holderDir,
+                restDistance,
+                settledAt: null,
+                rollStartAt: null,
+                rollProgress: 0,
                 pocketId,
-                ballId: b.id
+                resting: false
               };
               b.mesh.visible = true;
               b.mesh.scale.set(1, 1, 1);
               b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
               pocketDropRef.current.set(b.id, dropEntry);
-              if (table) {
-                const glow = new THREE.Mesh(
-                  new THREE.CircleGeometry(POT_GLOW_RADIUS, 32),
-                  new THREE.MeshBasicMaterial({
-                    color: 0xffffff,
-                    transparent: true,
-                    opacity: 0.9,
-                    blending: THREE.AdditiveBlending,
-                    depthWrite: false
-                  })
-                );
-                glow.rotation.x = -Math.PI / 2;
-                glow.position.set(
-                  c.x,
-                  TABLE_Y + TABLE.THICK + POT_GLOW_HEIGHT,
-                  c.y
-                );
-                table.add(glow);
-                pocketGlowRef.current.set(b.id, {
-                  mesh: glow,
-                  start: dropStart,
-                  duration: POT_GLOW_DURATION_MS
-                });
-              }
               const mappedColor = toBallColorId(b.id);
               const colorId =
                 mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
@@ -24670,52 +24481,48 @@ const powerRef = useRef(hud.power);
                 pocketDropRef.current.delete(key);
                 return;
               }
-              const duration = Math.max(1, entry.duration ?? POT_SINK_DURATION_MS);
-              const elapsed = now - (entry.start ?? now);
-              const t = THREE.MathUtils.clamp(elapsed / duration, 0, 1);
-              const slidePortion = THREE.MathUtils.clamp(POT_SLIDE_PORTION, 0.1, 0.8);
-              const slideT = t <= 0 ? 0 : Math.min(1, t / slidePortion);
-              const slideEase = easeOutCubic(slideT);
-              const sinkEase = easeInOut(t);
-              const slideDistance = entry.slideDistance ?? POT_SLIDE_DISTANCE;
-              const sinkDistance = entry.sinkDistance ?? POT_SINK_DISTANCE;
-              const posX = (entry.fromX ?? 0) + (entry.dirX ?? 0) * slideDistance * slideEase;
-              const posZ = (entry.fromZ ?? 0) + (entry.dirZ ?? 0) * slideDistance * slideEase;
-              const posY = (entry.fromY ?? BALL_CENTER_Y) - sinkDistance * sinkEase;
-              const scale = THREE.MathUtils.lerp(1, POT_SCALE_TARGET, easeOutCubic(t));
-              mesh.visible = true;
-              mesh.position.set(posX, posY, posZ);
-              mesh.scale.setScalar(scale);
-              if (t >= 1) {
-                mesh.visible = false;
-                if (entry.ballId != null) {
-                  const potBall = balls.find((ball) => ball.id === entry.ballId);
-                  if (potBall) potBall.potting = false;
-                }
-                pocketDropRef.current.delete(key);
-              }
-            });
-          }
-          if (pocketGlowRef.current.size > 0) {
-            pocketGlowRef.current.forEach((entry, key) => {
-              const glowMesh = entry?.mesh;
-              if (!glowMesh) {
-                pocketGlowRef.current.delete(key);
+              const targetY = entry.targetY ?? BALL_CENTER_Y - POCKET_DROP_STRAP_DEPTH;
+              const fromY = entry.fromY ?? BALL_CENTER_Y;
+              const fallDistance = Math.max(fromY - targetY, MICRO_EPS);
+              const runFromX = entry.runFromX ?? entry.fromX;
+              const runFromZ = entry.runFromZ ?? entry.fromZ;
+              if (entry.resting) {
+                mesh.visible = true;
+                mesh.position.set(entry.toX ?? runFromX, targetY, entry.toZ ?? runFromZ);
+                mesh.scale.set(1, 1, 1);
                 return;
               }
-              const elapsed = now - (entry.start ?? now);
-              const duration = Math.max(1, entry.duration ?? POT_GLOW_DURATION_MS);
-              const t = THREE.MathUtils.clamp(elapsed / duration, 0, 1);
-              const fade = 1 - t;
-              glowMesh.material.opacity = fade * 0.9;
-              const scale = 1 + t * 0.6;
-              glowMesh.scale.setScalar(scale);
-              if (t >= 1) {
-                glowMesh.parent?.remove?.(glowMesh);
-                glowMesh.geometry?.dispose?.();
-                glowMesh.material?.dispose?.();
-                pocketGlowRef.current.delete(key);
+              entry.velocityY =
+                (entry.velocityY ?? POCKET_DROP_ENTRY_VELOCITY) -
+                POCKET_DROP_GRAVITY * deltaSeconds;
+              entry.currentY =
+                (entry.currentY ?? fromY) + (entry.velocityY ?? 0) * deltaSeconds;
+              const reachedStrap = entry.currentY <= targetY;
+              if (reachedStrap) {
+                entry.currentY = targetY;
+                entry.velocityY = 0;
+                entry.settledAt = entry.settledAt ?? now;
+                entry.rollStartAt = entry.rollStartAt ?? now + POCKET_DROP_RING_HOLD_MS;
               }
+              const xDrop = entry.fromX;
+              const zDrop = entry.fromZ;
+              let posX = xDrop;
+              let posZ = zDrop;
+              mesh.visible = true;
+              mesh.scale.set(1, 1, 1);
+              if (entry.rollStartAt && now >= entry.rollStartAt) {
+                const runSpeed = Math.max(MICRO_EPS, entry.runSpeed ?? POCKET_HOLDER_RUN_SPEED_MIN);
+                const rollDuration = Math.max(MICRO_EPS, (entry.restDistance ?? 0) / runSpeed);
+                const rollElapsed = now - entry.rollStartAt;
+                const rollProgress = THREE.MathUtils.clamp(rollElapsed / rollDuration, 0, 1);
+                entry.rollProgress = rollProgress;
+                posX = THREE.MathUtils.lerp(runFromX, entry.toX ?? runFromX, rollProgress);
+                posZ = THREE.MathUtils.lerp(runFromZ, entry.toZ ?? runFromZ, rollProgress);
+                if (rollProgress >= 1 && entry.settledAt && now - entry.settledAt >= POCKET_DROP_REST_HOLD_MS) {
+                  entry.resting = true;
+                }
+              }
+              mesh.position.set(posX, entry.currentY, posZ);
             });
           }
           prevCollisions = newCollisions;
@@ -24829,14 +24636,6 @@ const powerRef = useRef(hud.power);
         updatePocketCameraState(false);
         pocketCamerasRef.current.clear();
         pocketDropRef.current.clear();
-        pocketGlowRef.current.forEach((entry) => {
-          const mesh = entry?.mesh;
-          if (!mesh) return;
-          mesh.parent?.remove?.(mesh);
-          mesh.geometry?.dispose?.();
-          mesh.material?.dispose?.();
-        });
-        pocketGlowRef.current.clear();
         pocketRestIndexRef.current.clear();
         captureBallSnapshotRef.current = null;
         applyBallSnapshotRef.current = null;
