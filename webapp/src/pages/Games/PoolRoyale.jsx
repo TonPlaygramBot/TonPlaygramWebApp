@@ -1271,7 +1271,7 @@ const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so i
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
-const POCKET_CAM_EDGE_SCALE = 0.6;
+const POCKET_CAM_EDGE_SCALE = 0.72;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1283,18 +1283,18 @@ const POCKET_CAM_BASE_OUTWARD_OFFSET =
     BALL_R * 1.05) *
   POCKET_CAM_EDGE_SCALE;
 const POCKET_CAM = Object.freeze({
-  triggerDist: CAPTURE_R * 18,
-  dotThreshold: 0.12,
+  triggerDist: CAPTURE_R * 12,
+  dotThreshold: 0.22,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
-  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE,
-  maxOutside: BALL_R * 26,
-  heightOffset: BALL_R * 0.85,
-  heightOffsetShortMultiplier: 0.85,
+  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.02,
+  maxOutside: BALL_R * 30,
+  heightOffset: BALL_R * 1.15,
+  heightOffsetShortMultiplier: 0.9,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1,
   heightDrop: BALL_R * 0.2,
-  distanceScale: 0.82,
-  heightScale: 0.98,
+  distanceScale: 0.96,
+  heightScale: 1.02,
   focusBlend: 0,
   lateralFocusShift: 0,
   railFocusLong: BALL_R * 5.6,
@@ -1303,8 +1303,8 @@ const POCKET_CAM = Object.freeze({
 const POCKET_POPUP_DURATION_MS = 2000;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
-const POCKET_GUARANTEED_ALIGNMENT = 0.88;
-const POCKET_EARLY_ALIGNMENT = 0.72;
+const POCKET_GUARANTEED_ALIGNMENT = 0.92;
+const POCKET_EARLY_ALIGNMENT = 0.82;
 const POCKET_INTENT_TIMEOUT_MS = 4200;
 const ACTION_CAM = Object.freeze({
   pairMinDistance: BALL_R * 28,
@@ -1382,10 +1382,13 @@ const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const SWERVE_PRE_IMPACT_DRIFT = 0.35; // allow a visible curve before the cue ball hits the object ball
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
-// Align shot strength to Snooker Royal so ball pace/shot power feel identical between modes.
+// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
+// Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
+// Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
+// Pool Royale power pass: lift overall shot strength by another 25%.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 1.25;
-const SHOT_SPEED_MULTIPLIER = 1;
+const SHOT_POWER_MULTIPLIER = 1.5;
+const SHOT_SPEED_MULTIPLIER = 1.08;
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -4896,7 +4899,7 @@ const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while
 const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-ball follow line toward a draw path
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
-const POCKET_VIEW_SMOOTH_TIME = 0.14; // seconds to ease pocket camera transitions
+const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
@@ -13946,33 +13949,31 @@ const powerRef = useRef(hud.power);
           : null;
         const aspect = Number.isFinite(hostAspect) ? hostAspect : 9 / 16; // fall back to worst-case portrait when unknown
         const tempCamera = new THREE.PerspectiveCamera(STANDING_VIEW_FOV, aspect);
-        const zoomProfile = resolveCameraZoomProfile(aspect);
-        const standingRadius = fitRadius(
-          tempCamera,
-          Math.max(STANDING_VIEW_MARGIN * zoomProfile.broadcast, 1e-4),
-          STANDING_VIEW_DISTANCE_SCALE
+        const topDownRadius = Math.max(
+          fitRadius(tempCamera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE,
+          CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
         );
-        return clampOrbitRadius(Math.max(standingRadius, CAMERA.minR));
+        return topDownRadius;
       };
-      const resolveStandingBroadcastCoords = () => {
+      const resolveTopDownCoords = () => {
         const radius = resolveBroadcastDistance();
-        const phi = STANDING_VIEW_PHI;
+        const phi = TOP_VIEW_RESOLVED_PHI;
         const focusY = ORBIT_FOCUS_BASE_Y * worldScaleFactor;
         const height = focusY + Math.cos(phi) * radius;
         const horizontal = Math.sin(phi) * radius;
         return { radius, height, horizontal };
       };
-      const { height: standingHeight, horizontal: standingHorizontal } =
-        resolveStandingBroadcastCoords();
+      const { height: topDownHeight, horizontal: topDownHorizontal } =
+        resolveTopDownCoords();
       const broadcastClearance = arenaMargin * 0.3 + BALL_R * 4;
       const shortRailTarget = Math.max(
-        standingHorizontal,
+        topDownHorizontal,
         arenaHalfDepth - broadcastClearance
       );
       const shortRailSlideLimit = 0;
       const broadcastRig = createBroadcastCameras({
         floorY,
-        cameraHeight: standingHeight,
+        cameraHeight: topDownHeight,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: Math.max(arenaHalfDepth - BALL_R * 4, BALL_R * 4)
