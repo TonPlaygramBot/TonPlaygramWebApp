@@ -1382,10 +1382,11 @@ const SWERVE_PRE_IMPACT_DRIFT = 0.35; // allow a visible curve before the cue ba
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
-// Snooker Royal feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
-// Snooker Royal power pass: lift overall shot strength by another 25%.
-const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 1.25;
+// Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
+// Pool Royale power pass: lift overall shot strength by another 25%.
+const SHOT_POWER_REDUCTION = 0.8;
+const SHOT_POWER_MULTIPLIER = 1.6875;
+const SHOT_SPEED_MULTIPLIER = 1.875; // boost overall shot speed by 87.5% for snappier ball travel
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1396,7 +1397,7 @@ const SHOT_FORCE_BOOST =
   SHOT_POWER_REDUCTION *
   SHOT_POWER_MULTIPLIER;
 const SHOT_BREAK_MULTIPLIER = 1.5;
-const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
+const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST * SHOT_SPEED_MULTIPLIER;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
