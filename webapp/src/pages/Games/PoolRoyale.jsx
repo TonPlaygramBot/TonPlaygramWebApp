@@ -1383,10 +1383,10 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
-// Pool Royale power pass: lift overall shot strength by another 25%.
+// Pool Royale power pass: align slider output with Snooker Royal for consistent shot strength.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 1.6875;
-const SHOT_SPEED_MULTIPLIER = 1.875; // boost overall shot speed by 87.5% for snappier ball travel
+const SHOT_POWER_MULTIPLIER = 1.25;
+const SHOT_SPEED_MULTIPLIER = 1; // match Snooker Royal base shot speed for consistent power feel
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1460,12 +1460,11 @@ const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while 
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
-const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
-const PLAYER_CUE_FORWARD_MIN_MS = 140;
-const PLAYER_CUE_FORWARD_MAX_MS = 420;
+const PLAYER_CUE_FORWARD_MIN_MS = 200;
+const PLAYER_CUE_FORWARD_MAX_MS = 520;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
@@ -4961,7 +4960,7 @@ const PLAYER_FORWARD_SLOWDOWN = 1;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
 const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1.35;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 26;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -20323,7 +20322,6 @@ const powerRef = useRef(hud.power);
           }
           lastPocketBallRef.current = null;
           const clampedPower = clampPower(powerRef.current, 0);
-          const curvedPower = Math.pow(clampedPower, CUE_POWER_GAMMA);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
           if (isMaxPowerShot) {
@@ -20350,7 +20348,7 @@ const powerRef = useRef(hud.power);
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
-          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
+          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = aimDir
             .clone()
@@ -20546,6 +20544,8 @@ const powerRef = useRef(hud.power);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           const impactPos = buildCuePosition(0);
+          const settlePos = impactPos.clone();
+          const idlePos = impactPos.clone();
           cueStick.visible = true;
           cueStick.position.copy(startPos);
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
@@ -20632,11 +20632,13 @@ const powerRef = useRef(hud.power);
               warmup: serializeVector3Snapshot(startPos),
               start: serializeVector3Snapshot(startPos),
               impact: serializeVector3Snapshot(impactPos),
-              settle: serializeVector3Snapshot(impactPos),
+              settle: serializeVector3Snapshot(settlePos),
+              idle: serializeVector3Snapshot(idlePos),
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
               forwardDuration,
               settleDuration,
+              returnDuration: 0,
               startOffset: strokeStartOffset
             };
           }
@@ -20648,7 +20650,7 @@ const powerRef = useRef(hud.power);
               const eased = easeOutCubic(t);
               cueStick.position.lerpVectors(startPos, impactPos, eased);
             } else if (now <= settleTime) {
-              cueStick.position.copy(impactPos);
+              cueStick.position.copy(settlePos);
             } else {
               cueStick.visible = false;
               cueAnimating = false;
