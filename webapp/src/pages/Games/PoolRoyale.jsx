@@ -1445,7 +1445,7 @@ const CUE_TIP_GAP = BALL_R * 0.95 + CUE_TIP_CLEARANCE; // keep the tip aligned w
 const CUE_PULL_BASE = BALL_R * 6.2; // match the reference pull range (~0.34m at standard cue-ball size)
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
-const CUE_STRIKE_DURATION_MS = 230;
+const CUE_STRIKE_DURATION_MS = 280;
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
 const CUE_FOLLOW_MIN_MS = 250;
@@ -24743,7 +24743,7 @@ const powerRef = useRef(hud.power);
       onCommit: (value) => {
         const nextPower = Number.isFinite(value) ? value / 100 : powerRef.current ?? 0;
         applyPower(nextPower);
-        fireRef.current?.(nextPower);
+        fireRef.current?.();
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
           applyPower(0);
