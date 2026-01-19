@@ -4867,6 +4867,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
 const RAIL_OVERHEAD_DISTANCE_BIAS = 1.05; // pull the broadcast overhead camera back for fuller table framing
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
+const USE_STANDING_BROADCAST_CAMERA = true; // keep broadcast cuts aligned with the standing camera instead of side-rail rigs
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
 const CUE_VIEW_RADIUS_RATIO = 0.0215; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
@@ -15442,6 +15443,25 @@ const powerRef = useRef(hud.power);
           focusOverride = null,
           minTargetY = null
         } = {}) => {
+          if (USE_STANDING_BROADCAST_CAMERA) {
+            const fallbackTarget =
+              focusOverride?.clone?.() ??
+              lastCameraTargetRef.current?.clone?.() ??
+              new THREE.Vector3(
+                0,
+                TABLE_Y + TABLE.THICK + BALL_R * 2.5,
+                0
+              );
+            if (fallbackTarget && Number.isFinite(minTargetY)) {
+              fallbackTarget.y = Math.max(fallbackTarget.y ?? minTargetY, minTargetY);
+            }
+            return {
+              position: camera.position.clone(),
+              target: fallbackTarget,
+              fov: STANDING_VIEW_FOV,
+              minTargetY
+            };
+          }
           const rig = broadcastCamerasRef.current;
           if (!rig?.cameras) return null;
           const activeRail =

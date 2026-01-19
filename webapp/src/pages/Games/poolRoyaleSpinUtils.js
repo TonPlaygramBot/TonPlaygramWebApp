@@ -133,10 +133,8 @@ export const computeQuantizedOffsetScaled = (
 export const normalizeSpinInput = (spin) => {
   let x = clamp(spin?.x ?? 0, -1, 1);
   let y = clamp(spin?.y ?? 0, -1, 1);
-  if (Math.abs(x) < STRAIGHT_SPIN_DEADZONE) x = 0;
-  if (Math.abs(y) < STRAIGHT_SPIN_DEADZONE) y = 0;
   const distance = Math.hypot(x, y);
-  if (distance <= SPIN_STUN_RADIUS) {
+  if (distance <= Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE)) {
     return { x: 0, y: STUN_TOPSPIN_BIAS };
   }
   return computeQuantizedOffsetScaled(x, y);
