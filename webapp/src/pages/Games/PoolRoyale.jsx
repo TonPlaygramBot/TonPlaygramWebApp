@@ -1384,7 +1384,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Pool Royale power pass: lift overall shot strength by another 25%.
-const SHOT_POWER_REDUCTION = 0.85;
+const SHOT_POWER_REDUCTION = 0.8;
 const SHOT_POWER_MULTIPLIER = 1.6875;
 const SHOT_SPEED_MULTIPLIER = 1.875; // boost overall shot speed by 87.5% for snappier ball travel
 const SHOT_FORCE_BOOST =
