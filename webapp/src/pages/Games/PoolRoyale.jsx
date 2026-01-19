@@ -1454,6 +1454,8 @@ const CUE_PULL_BASE = BALL_R * 6.2; // match the reference pull range (~0.34m at
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
+const PLAYER_CUE_STRIKE_MIN_MS = 120;
+const PLAYER_CUE_STRIKE_MAX_MS = 1400;
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
 const CUE_FOLLOW_MIN_MS = 250;
@@ -12034,6 +12036,9 @@ const powerRef = useRef(hud.power);
   const [err, setErr] = useState(null);
   const [renderResetKey, setRenderResetKey] = useState(0);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
+  const sliderPullStartRef = useRef(0);
+  const sliderPullLastChangeRef = useRef(0);
+  const sliderPullDurationRef = useRef(CUE_STRIKE_DURATION_MS);
   const sceneRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
   const disposeEnvironmentRef = useRef(null);
@@ -20477,7 +20482,13 @@ const powerRef = useRef(hud.power);
             followExtra > 1e-6 ? buildCuePosition(-followExtra) : impactPos.clone();
           cueStick.visible = true;
           cueStick.position.copy(warmupPos);
-          const forwardDuration = CUE_STRIKE_DURATION_MS;
+          const forwardDuration = isAiStroke
+            ? CUE_STRIKE_DURATION_MS
+            : THREE.MathUtils.clamp(
+                sliderPullDurationRef.current ?? CUE_STRIKE_DURATION_MS,
+                PLAYER_CUE_STRIKE_MIN_MS,
+                PLAYER_CUE_STRIKE_MAX_MS
+              );
           const settleDuration = CUE_STRIKE_HOLD_MS;
           const pullbackDuration = isAiStroke
             ? AI_CUE_PULLBACK_DURATION_MS * CUE_STROKE_VISUAL_SLOWDOWN
@@ -24756,8 +24767,23 @@ const powerRef = useRef(hud.power);
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => applyPower(v / 100),
+      onChange: (v) => {
+        applyPower(v / 100);
+        sliderPullLastChangeRef.current = performance.now();
+      },
+      onStart: () => {
+        sliderPullStartRef.current = performance.now();
+        sliderPullLastChangeRef.current = sliderPullStartRef.current;
+      },
       onCommit: () => {
+        const pullStart = sliderPullStartRef.current;
+        const pullEnd = sliderPullLastChangeRef.current || performance.now();
+        const rawDuration = pullEnd > 0 && pullStart > 0 ? pullEnd - pullStart : 0;
+        sliderPullDurationRef.current = THREE.MathUtils.clamp(
+          rawDuration || CUE_STRIKE_DURATION_MS,
+          PLAYER_CUE_STRIKE_MIN_MS,
+          PLAYER_CUE_STRIKE_MAX_MS
+        );
         fireRef.current?.();
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
