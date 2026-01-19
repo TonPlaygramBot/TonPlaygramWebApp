@@ -1136,7 +1136,7 @@ const PHYSICS_PROFILE = Object.freeze({
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = 0.995;
+const FRICTION = 0.993;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
@@ -1271,7 +1271,7 @@ const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so i
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
-const POCKET_CAM_EDGE_SCALE = 0.72;
+const POCKET_CAM_EDGE_SCALE = 0.6;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1283,18 +1283,18 @@ const POCKET_CAM_BASE_OUTWARD_OFFSET =
     BALL_R * 1.05) *
   POCKET_CAM_EDGE_SCALE;
 const POCKET_CAM = Object.freeze({
-  triggerDist: CAPTURE_R * 12,
-  dotThreshold: 0.22,
+  triggerDist: CAPTURE_R * 18,
+  dotThreshold: 0.15,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
-  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.02,
+  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 0.98,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 1.15,
+  heightOffset: BALL_R * 0.9,
   heightOffsetShortMultiplier: 0.9,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1,
   heightDrop: BALL_R * 0.2,
   distanceScale: 0.96,
-  heightScale: 1.02,
+  heightScale: 0.98,
   focusBlend: 0,
   lateralFocusShift: 0,
   railFocusLong: BALL_R * 5.6,
@@ -1303,8 +1303,8 @@ const POCKET_CAM = Object.freeze({
 const POCKET_POPUP_DURATION_MS = 2000;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
-const POCKET_GUARANTEED_ALIGNMENT = 0.92;
-const POCKET_EARLY_ALIGNMENT = 0.82;
+const POCKET_GUARANTEED_ALIGNMENT = 0.85;
+const POCKET_EARLY_ALIGNMENT = 0.7;
 const POCKET_INTENT_TIMEOUT_MS = 4200;
 const ACTION_CAM = Object.freeze({
   pairMinDistance: BALL_R * 28,
@@ -1372,7 +1372,7 @@ const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
-const SPIN_ROLL_DECAY = 0.986;
+const SPIN_ROLL_DECAY = 0.983;
 const SPIN_AIR_DECAY = 0.995; // hold spin energy while the cue ball travels straight pre-impact
 const LIFT_SPIN_AIR_DRIFT = SPIN_ROLL_STRENGTH * 1.45; // inject extra sideways carry while the cue ball is airborne
 const RAIL_SPIN_THROW_SCALE = BALL_R * 0.36; // let cushion contacts inherit noticeable throw from active side spin
@@ -1387,8 +1387,8 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Pool Royale power pass: lift overall shot strength by another 25%.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 1.5;
-const SHOT_SPEED_MULTIPLIER = 1.08;
+const SHOT_POWER_MULTIPLIER = 1.25;
+const SHOT_SPEED_MULTIPLIER = 1;
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -4861,7 +4861,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 0.9; // pull the broadcast overhead camera closer to the table like the original framing
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.05; // pull the broadcast overhead camera back for fuller table framing
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -4899,7 +4899,7 @@ const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while
 const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-ball follow line toward a draw path
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
-const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
+const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
@@ -4934,7 +4934,7 @@ const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
 const REPLAY_CUE_RETURN_WINDOW_MS = 260;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
-const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view for close shots
+const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 12; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
   RAIL_LIMIT_Y - POCKET_VIS_R * 0.45; // request pocket cams as soon as play reaches the short rail mouths
 const SHORT_RAIL_POCKET_INTENT_COOLDOWN_MS = 280;
