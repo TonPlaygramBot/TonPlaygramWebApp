@@ -10,6 +10,7 @@ export const SPIN_LEVEL1_MAG = 0.25 * MAX_SPIN_OFFSET;
 export const SPIN_LEVEL2_MAG = 0.5 * MAX_SPIN_OFFSET;
 export const SPIN_LEVEL3_MAG = 1.0 * MAX_SPIN_OFFSET;
 export const STRAIGHT_SPIN_DEADZONE = 0.08;
+export const STUN_TOPSPIN_BIAS = 0.04;
 
 export const SPIN_DIRECTIONS = [
   {
@@ -134,6 +135,10 @@ export const normalizeSpinInput = (spin) => {
   let y = clamp(spin?.y ?? 0, -1, 1);
   if (Math.abs(x) < STRAIGHT_SPIN_DEADZONE) x = 0;
   if (Math.abs(y) < STRAIGHT_SPIN_DEADZONE) y = 0;
+  const distance = Math.hypot(x, y);
+  if (distance <= SPIN_STUN_RADIUS) {
+    return { x: 0, y: STUN_TOPSPIN_BIAS };
+  }
   return computeQuantizedOffsetScaled(x, y);
 };
 
