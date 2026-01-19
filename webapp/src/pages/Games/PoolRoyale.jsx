@@ -1383,10 +1383,10 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
-// Pool Royale power pass: match Snooker Royal shot strength for a consistent slider feel.
+// Pool Royale power pass: lift overall shot strength by another 25%.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 1.25;
-const SHOT_SPEED_MULTIPLIER = 1; // align base cue speed to Snooker Royal
+const SHOT_POWER_MULTIPLIER = 1.6875;
+const SHOT_SPEED_MULTIPLIER = 1.875; // boost overall shot speed by 87.5% for snappier ball travel
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1459,13 +1459,13 @@ const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera l
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.06; // keep pullback readable while trimming overall draw a touch
-const CUE_POWER_GAMMA = 1; // keep power response linear to match Snooker Royal
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
+const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
-const PLAYER_CUE_FORWARD_MIN_MS = 220;
-const PLAYER_CUE_FORWARD_MAX_MS = 520;
+const PLAYER_CUE_FORWARD_MIN_MS = 140;
+const PLAYER_CUE_FORWARD_MAX_MS = 420;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
