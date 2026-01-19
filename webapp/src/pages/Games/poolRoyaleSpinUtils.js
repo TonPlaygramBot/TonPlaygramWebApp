@@ -1,7 +1,7 @@
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 export const MAX_SPIN_OFFSET = 0.7;
-export const SPIN_STUN_RADIUS = 0.12;
+export const SPIN_STUN_RADIUS = 0.16;
 export const SPIN_RING1_RADIUS = 0.32;
 export const SPIN_RING2_RADIUS = 0.52;
 export const SPIN_RING3_RADIUS = MAX_SPIN_OFFSET;
@@ -9,7 +9,7 @@ export const SPIN_LEVEL0_MAG = 0;
 export const SPIN_LEVEL1_MAG = 0.25 * MAX_SPIN_OFFSET;
 export const SPIN_LEVEL2_MAG = 0.5 * MAX_SPIN_OFFSET;
 export const SPIN_LEVEL3_MAG = 1.0 * MAX_SPIN_OFFSET;
-export const STRAIGHT_SPIN_DEADZONE = 0.08;
+export const STRAIGHT_SPIN_DEADZONE = 0.1;
 
 export const SPIN_DIRECTIONS = [
   {
