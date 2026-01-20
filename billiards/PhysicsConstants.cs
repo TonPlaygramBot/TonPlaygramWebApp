@@ -33,7 +33,7 @@ public static class PhysicsConstants
     public const double MaxTipOffsetRatio = 0.9;       // max cue tip offset as a fraction of radius
     public const double PreviewPointSpacing = BallRadius * 0.85; // spacing for curved aim preview
     public const double TableWidth = 2.627;            // 9ft table reduced by ~7.5%
-    public const double TableHeight = 1.3135;
+    public const double TableHeight = 1.07707;
     public const double FixedDt = 1.0 / 120.0;         // simulation step
     public const double Epsilon = 1e-9;                // numerical epsilon
     public const double MaxPreviewTime = 30.0;         // safeguard for CCD
@@ -42,11 +42,15 @@ public static class PhysicsConstants
     public const int MaxSubSteps = 64;                 // hard cap per integration step
 
     // Pocket geometry derived from WPA spec (metres)
-    public const double CornerPocketMouth = 0.1057275; // scaled with table reduction
-    public const double SidePocketMouth = 0.117475;    // scaled with table reduction
+    public const double CornerPocketMouth = 0.1014984; // scaled with table reduction
+    public const double SidePocketMouth = 0.1116013;    // scaled with table reduction
     public const double PocketCaptureRadius = 0.087875; // scaled with table reduction
-    // Keep side pockets aligned with the rail line so they behave identically to corner pockets.
-    public const double SidePocketOutset = 0.0;
+    public const double CornerJawRadiusScale = 0.94;
+    public const double CornerJawInset = 0.006;
+    public const double SideJawInset = 0.006;
+    public const double SideJawDepthScale = 1.08;
+    // Shift the pocket capture center outward for the chrome plate cut.
+    public const double SidePocketOutset = 0.006;
 
     // Tesselation density for proxy mesh generation (higher => smoother normals)
     public const int CornerJawSegments = 32;
