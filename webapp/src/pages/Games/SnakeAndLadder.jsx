@@ -38,6 +38,7 @@ import {
 } from "../../utils/api.js";
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from "../../config/poolRoyaleInventoryConfig.js";
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from "../../config/murlanThemes.js";
+import { SNAKE_TOKEN_COLOR_OPTIONS } from "../../config/snakeInventoryConfig.js";
 // Developer accounts that receive shares of each pot
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -92,12 +93,13 @@ import { giftSounds } from "../../utils/giftSounds.js";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 import { getSnakeInventory, isSnakeOptionUnlocked, snakeAccountId } from "../../utils/snakeInventory.js";
 
-const TOKEN_COLORS = [
-  { name: "blue", color: "#60a5fa" },
-  { name: "red", color: "#ef4444" },
-  { name: "green", color: "#4ade80" },
-  { name: "yellow", color: "#facc15" },
-];
+const TOKEN_COLOR_OPTIONS = Object.freeze(
+  SNAKE_TOKEN_COLOR_OPTIONS.map((option) => ({
+    id: option.id,
+    label: option.label,
+    color: option.color
+  }))
+);
 
 const PLAYERS = 4;
 // Adjusted board dimensions to show five columns
@@ -152,6 +154,20 @@ function shuffle(arr) {
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy;
+}
+
+function resolveTokenPalette(options, inventory, count) {
+  const unlocked = new Set(inventory?.tokenColor || []);
+  const unlockedOptions = options.filter((option) => unlocked.has(option.id));
+  const base = unlockedOptions.length ? unlockedOptions : options;
+  const deduped = [];
+  const seen = new Set();
+  [...base, ...options].forEach((option) => {
+    if (seen.has(option.id)) return;
+    seen.add(option.id);
+    deduped.push(option);
+  });
+  return shuffle(deduped).slice(0, count).map((option) => option.color);
 }
 
 const FALLBACK_SEAT_POSITIONS = [
@@ -1469,7 +1485,7 @@ export default function SnakeAndLadder() {
         )
       );
     }
-    const colors = shuffle(TOKEN_COLORS).slice(0, aiCount + 1).map(c => c.color);
+    const colors = resolveTokenPalette(TOKEN_COLOR_OPTIONS, snakeInventory, aiCount + 1);
     setPlayerColors(colors);
 
     const storedTable = localStorage.getItem('snakeCurrentTable');
