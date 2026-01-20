@@ -601,11 +601,11 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.12; // ease the side fascias back toward the table centreline so the middle plates sit closer to the pocket mouth
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.18; // push the side fascias slightly outward away from the table centreline
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.07; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.0525; // keep the rounded chrome cut width on the middle pockets consistent while the corner cut grows slightly
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.06; // keep the rounded chrome cutouts centred while nudging the plates outward
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.08; // open the rounded chrome cut slightly more on the middle pockets
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // keep the rounded chrome cutouts closer to the outward plate shift
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -925,10 +925,10 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.045; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.065; // push middle jaws slightly farther so the sides meet the cushions
-const POCKET_JAW_CORNER_INNER_SCALE = 1.22; // pull the inner lip slightly tighter so the jaw radius reads smaller against the expanded chrome cuts
-const POCKET_JAW_SIDE_INNER_SCALE = 1.28; // keep the middle jaw inner radius unchanged so side jaws keep their radius
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.02; // pull the corner jaws inward slightly so the mouth radius reads tighter
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.035; // pull middle jaws inward so their radius and reach sit closer to the center
+const POCKET_JAW_CORNER_INNER_SCALE = 1.24; // tighten the corner jaw inner lip for a slightly smaller radius
+const POCKET_JAW_SIDE_INNER_SCALE = 1.3; // tighten the middle jaw inner lip for a smaller radius
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.72; // preserve the playable mouth while letting the corner fascia run longer and slimmer
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
@@ -959,10 +959,10 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.54; // trim the middle jaw reach slightly while keeping the same radius and height
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.86; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.82; // trim the middle jaw arc radius so the side-pocket jaws read tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.22; // keep the middle pocket jaws straighter while still opening away from centre
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.12; // pull the middle pocket jaws inward toward the table center
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -1180,15 +1180,16 @@ const SIDE_POCKET_INTERIOR_CAPTURE_R =
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the true bowl opening
 const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now mirrors the bowl radius
 const POCKET_GUARD_RADIUS = Math.max(0, POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04); // align the rail guard to the playable capture bowl instead of the visual rim
-const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.08); // keep a slim safety margin so clean entries aren't rejected
+const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // shrink the safety margin so angled cushion cuts register sooner
 const CORNER_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
 const SIDE_POCKET_GUARD_RADIUS =
   SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.06; // use the middle-pocket bowl to gate reflections with a tighter inset
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
-  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.08
+  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.18
 );
+const CUSHION_CUT_RESTITUTION_SCALE = 0.82; // damp angled-cushion rebounds so they feel less punchy than straight rails
 const SIDE_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
 const SIDE_POCKET_SPAN =
@@ -1453,7 +1454,8 @@ const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so i
 const BASE_HEIGHT_FILL = 0.94; // grow bases upward so the stance stays consistent with the shorter skirt
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
+const TABLE_HEIGHT_DROP = TABLE_H * 0.18; // lower the full table assembly by 18%
+const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
@@ -5813,9 +5815,9 @@ function reflectRails(ball) {
           ? performance.now()
           : Date.now();
       ball.lastRailHitAt = stamp;
-      ball.lastRailHitType = 'rail';
+      ball.lastRailHitType = 'cut';
       return {
-        type: 'rail',
+        type: 'cut',
         normal: TMP_VEC2_B.clone(),
         tangent: TMP_VEC2_D.clone(),
         preImpactVel
@@ -5885,7 +5887,12 @@ function applyRailImpulse(ball, impact) {
   TMP_VEC3_D.copy(ball.omega).cross(TMP_VEC3_B).add(TMP_VEC3_C);
   const relNormal = TMP_VEC3_D.dot(TMP_VEC3_A);
   if (relNormal >= 0) return;
-  const normalImpulseMag = -(1 + CUSHION_RESTITUTION) * relNormal * BALL_MASS;
+  const restitutionScale =
+    impact.type === 'corner' || impact.type === 'cut'
+      ? CUSHION_CUT_RESTITUTION_SCALE
+      : 1;
+  const normalImpulseMag =
+    -(1 + CUSHION_RESTITUTION * restitutionScale) * relNormal * BALL_MASS;
   TMP_VEC3_E.copy(TMP_VEC3_A).multiplyScalar(normalImpulseMag);
   TMP_VEC3_C.addScaledVector(TMP_VEC3_E, 1 / BALL_MASS);
   ball.omega.addScaledVector(
