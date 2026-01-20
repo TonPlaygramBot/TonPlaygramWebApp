@@ -601,16 +601,16 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.3; // push the side fascias slightly outward away from the table centreline
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.34; // push the side fascias slightly outward away from the table centreline
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.07; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.05; // open the rounded chrome cut slightly more on the middle pockets
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.06; // keep the rounded chrome cutouts closer to the outward plate shift
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // open the rounded chrome cut slightly more on the middle pockets
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // keep the rounded chrome cutouts closer to the outward plate shift
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.99; // keep the middle rail rounded cuts slightly tighter to match the jaw radius
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.975; // keep the middle rail rounded cuts slightly tighter to match the jaw radius
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0; // keep the wood cutouts centered so the rounded relief stands straight
 
 function buildChromePlateGeometry({
@@ -928,7 +928,7 @@ const FRAME_RAIL_OUTWARD_SCALE = 1.35; // expand wooden frame rails outward by 3
 const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.01; // pull the corner jaws inward slightly so the mouth radius reads tighter
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.035; // pull middle jaws inward so their radius and reach sit closer to the center
-const POCKET_JAW_CORNER_INNER_SCALE = 1.22; // tighten the corner jaw inner lip for a slightly smaller radius
+const POCKET_JAW_CORNER_INNER_SCALE = 1.18; // tighten the corner jaw inner lip for a slightly smaller radius
 const POCKET_JAW_SIDE_INNER_SCALE = 1.3; // tighten the middle jaw inner lip for a smaller radius
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.72; // preserve the playable mouth while letting the corner fascia run longer and slimmer
 const POCKET_JAW_SIDE_OUTER_SCALE =
@@ -11026,7 +11026,7 @@ function PoolRoyaleGame({
     const isTelegram = isTelegramWebView();
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
-  const viewButtonsOffsetPx = 32;
+  const viewButtonsOffsetPx = 40;
   const viewToggleButtonDropPx = 56 * 0.18;
   const [isPortrait, setIsPortrait] = useState(
     () => (typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth)
@@ -26269,7 +26269,7 @@ const powerRef = useRef(hud.power);
             onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
-            className="fixed left-0 bottom-3 z-50 flex flex-col gap-2.5 -translate-x-1"
+            className="fixed left-0 bottom-1 z-50 flex flex-col gap-2.5 -translate-x-1"
             buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
             iconClassName="text-[1.1rem] leading-none"
             labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
