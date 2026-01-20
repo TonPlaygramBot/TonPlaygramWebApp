@@ -601,7 +601,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.18; // push the side fascias slightly outward away from the table centreline
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.26; // push the side fascias slightly outward away from the table centreline
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.07; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.08; // open the rounded chrome cut slightly more on the middle pockets
@@ -924,6 +924,7 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
+const FRAME_RAIL_OUTWARD_SCALE = 1.35; // expand wooden frame rails outward by 35% on all sides
 const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.02; // pull the corner jaws inward slightly so the mouth radius reads tighter
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.035; // pull middle jaws inward so their radius and reach sit closer to the center
@@ -962,7 +963,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.54; // trim the middle jaw reach sli
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.82; // trim the middle jaw arc radius so the side-pocket jaws read tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.12; // pull the middle pocket jaws inward toward the table center
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.2; // pull the middle pocket jaws further outward away from the table center
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -1030,8 +1031,8 @@ const CUE_SHADOW_OPACITY = 0.18;
 const CUE_SHADOW_WIDTH_RATIO = 0.62;
 const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
 const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 1.1;
-const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.1; // move middle pocket centres a touch farther outward before biasing back
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.32; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
+const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.16; // move middle pocket centres a touch farther outward before biasing back
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.42; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
 const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.0009; // gently bias the middle pocket centres and cuts back toward the playfield
 const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.0001; // keep the middle pocket cloth cutouts nearly aligned with the outward shift
 const CHALK_TOP_COLOR = 0xd9c489;
@@ -7254,11 +7255,14 @@ export function Table3D(
   const longRailW = ORIGINAL_RAIL_WIDTH; // keep the long rail caps as wide as the end rails so side pockets match visually
   const endRailW = ORIGINAL_RAIL_WIDTH;
   const frameExpansion = TABLE.WALL * 0.12 + TABLE_OUTER_EXPANSION;
-  const frameWidthEnd =
+  const frameWidthEndBase =
     Math.max(0, ORIGINAL_OUTER_HALF_H - halfH - 2 * endRailW) + frameExpansion;
+  const frameWidthEnd = frameWidthEndBase * FRAME_RAIL_OUTWARD_SCALE;
   const frameWidthLong = frameWidthEnd; // force side rails to carry the same exterior thickness as the short rails
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
+  const chromeOuterHalfW = halfW + 2 * longRailW + frameWidthEndBase;
+  const chromeOuterHalfH = halfH + 2 * endRailW + frameWidthEndBase;
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
 
   if (ENABLE_TABLE_FLOOR_SHADOW) {
@@ -7440,6 +7444,18 @@ export function Table3D(
       chromeCornerFieldExtension -
       chromeOuterFlushTrim * 2
   );
+  const sideChromePlateBaseHeight = Math.max(
+    MICRO_EPS,
+    chromeOuterHalfH - chromePlateInset - chromePlateInnerLimitZ + chromePlateExpansionZ -
+      chromeCornerPlateTrim
+  );
+  const sideChromePlateHeightBase = Math.max(
+    MICRO_EPS,
+    sideChromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE -
+      chromeCornerEdgeTrim +
+      chromeCornerFieldExtension -
+      chromeOuterFlushTrim * 2
+  );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.95,
     chromePlateWidth / 2,
@@ -7459,7 +7475,7 @@ export function Table3D(
   const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
   const sidePlateMaxWidth = Math.max(
     MICRO_EPS,
-    outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
+    chromeOuterHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
   );
   const sideChromePlateWidthExpansion = TABLE.THICK * CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE;
   let sideChromePlateWidth = Math.max(
@@ -7486,7 +7502,10 @@ export function Table3D(
       CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE
   );
   const sideChromePlateHeight = Math.min(
-    Math.max(MICRO_EPS, chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeOuterFlushTrim * 2),
+    Math.max(
+      MICRO_EPS,
+      sideChromePlateHeightBase * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeOuterFlushTrim * 2
+    ),
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
   const sideChromePlateRadius = Math.min(
@@ -11008,6 +11027,7 @@ function PoolRoyaleGame({
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
   const viewButtonsOffsetPx = 32;
+  const viewToggleButtonDropPx = 56 * 0.18;
   const [isPortrait, setIsPortrait] = useState(
     () => (typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth)
   );
@@ -26236,6 +26256,7 @@ const powerRef = useRef(hud.power);
               ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
               : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
           }`}
+          style={{ marginTop: `${viewToggleButtonDropPx}px` }}
           aria-label={isTopDownView ? 'Switch to 3D view' : 'Switch to 2D view'}
         >
           <span aria-hidden="true">{isTopDownView ? '3D' : '2D'}</span>
