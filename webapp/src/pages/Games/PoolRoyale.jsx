@@ -601,7 +601,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.5; // ease the side fascias back toward the table centreline so the middle plates sit closer to the pocket mouth
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.4; // ease the side fascias back toward the table centreline so the middle plates sit closer to the pocket mouth
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.07; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.0525; // keep the rounded chrome cut width on the middle pockets consistent while the corner cut grows slightly
@@ -925,9 +925,9 @@ const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.18;
 const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.065; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.085; // push middle jaws slightly farther so the sides meet the cushions
-const POCKET_JAW_CORNER_INNER_SCALE = 1.38; // pull the inner lip slightly tighter so the jaw radius reads smaller against the expanded chrome cuts
+const POCKET_JAW_CORNER_INNER_SCALE = 1.32; // pull the inner lip slightly tighter so the jaw radius reads smaller against the expanded chrome cuts
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1; // keep the middle jaw inner radius tighter so the side jaws read smaller
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.84; // preserve the playable mouth while letting the corner fascia run longer and slimmer
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.78; // preserve the playable mouth while letting the corner fascia run longer and slimmer
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.02; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
@@ -1522,8 +1522,8 @@ const SPIN_DECORATION_DOT_SIZE_PX = 12;
 const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
-// middle pocket cushion cuts are set to a 35° cut to tighten the side-pocket entry
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 35;
+// middle pocket cushion cuts are set to a 22° cut to soften the side-pocket entry
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 22;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
