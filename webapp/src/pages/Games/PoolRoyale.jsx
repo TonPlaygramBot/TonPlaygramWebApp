@@ -601,11 +601,11 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.18; // push the side fascias slightly outward away from the table center
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.12; // ease the side fascias back toward the table centreline so the middle plates sit closer to the pocket mouth
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.07; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.07; // open the rounded chrome cut on the middle pockets a touch more
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.08; // nudge the middle pocket chrome cuts outward away from center
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.0525; // keep the rounded chrome cut width on the middle pockets consistent while the corner cut grows slightly
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.06; // keep the rounded chrome cutouts centred while nudging the plates outward
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -925,7 +925,7 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.03; // tighten the corner jaw radius slightly while keeping chrome alignment
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.045; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.065; // push middle jaws slightly farther so the sides meet the cushions
 const POCKET_JAW_CORNER_INNER_SCALE = 1.22; // pull the inner lip slightly tighter so the jaw radius reads smaller against the expanded chrome cuts
 const POCKET_JAW_SIDE_INNER_SCALE = 1.28; // keep the middle jaw inner radius unchanged so side jaws keep their radius
@@ -959,11 +959,10 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.54; // trim the middle jaw reach slightly while keeping the same radius and height
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.82; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.86; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * -0.06; // pull the middle pocket jaws slightly inward toward the table center
-const CORNER_POCKET_JAW_INWARD_SHIFT = TABLE.THICK * 0.06; // pull corner jaws slightly inward toward the table center
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.22; // keep the middle pocket jaws straighter while still opening away from centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -1454,8 +1453,7 @@ const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so i
 const BASE_HEIGHT_FILL = 0.94; // grow bases upward so the stance stays consistent with the shorter skirt
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_HEIGHT_DROP_SCALE = 0.82; // lower the table height by 18% without altering other dimensions
-const TABLE_Y = (BASE_TABLE_Y + LEG_ELEVATION_DELTA) * TABLE_HEIGHT_DROP_SCALE;
+const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
@@ -1530,8 +1528,6 @@ const DEFAULT_CUSHION_CUT_ANGLE = 27;
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
-const CUSHION_CUT_BACK_OFFSET = BALL_R * 0.35; // push angled cushion impacts deeper so balls hit the back of the cut
-const CUSHION_CUT_RESTITUTION_SCALE = 0.88; // soften cut-angle rebounds slightly vs straight rails
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playable face and cushion nose further inward to match the expanded top surface
 
@@ -5761,7 +5757,6 @@ function reflectRails(ball) {
   for (const { sx, sy } of CORNER_SIGNS) {
     TMP_VEC2_C.set(sx * limX, sy * limY);
     TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
-    TMP_VEC2_C.addScaledVector(TMP_VEC2_B, CUSHION_CUT_BACK_OFFSET);
     TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
     const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
     if (distNormal >= BALL_R) continue;
@@ -5782,9 +5777,7 @@ function reflectRails(ball) {
       type: 'corner',
       normal: TMP_VEC2_B.clone(),
       tangent: TMP_VEC2_D.clone(),
-      preImpactVel,
-      restitutionScale: CUSHION_CUT_RESTITUTION_SCALE,
-      isCut: true
+      preImpactVel
     };
   }
 
@@ -5805,7 +5798,6 @@ function reflectRails(ball) {
       if (TMP_VEC2_A.y * signY < 0) continue;
       TMP_VEC2_C.set(signX * limX, center.y + signY * sideSpan);
       TMP_VEC2_B.set(-signX * sideCutCos, signY * sideCutSin);
-      TMP_VEC2_C.addScaledVector(TMP_VEC2_B, CUSHION_CUT_BACK_OFFSET);
       TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
       TMP_VEC2_LIMIT.copy(ball.pos).sub(TMP_VEC2_C);
       const distNormal = TMP_VEC2_LIMIT.dot(TMP_VEC2_B);
@@ -5826,9 +5818,7 @@ function reflectRails(ball) {
         type: 'rail',
         normal: TMP_VEC2_B.clone(),
         tangent: TMP_VEC2_D.clone(),
-        preImpactVel,
-        restitutionScale: CUSHION_CUT_RESTITUTION_SCALE,
-        isCut: true
+        preImpactVel
       };
     }
   }
@@ -5895,11 +5885,7 @@ function applyRailImpulse(ball, impact) {
   TMP_VEC3_D.copy(ball.omega).cross(TMP_VEC3_B).add(TMP_VEC3_C);
   const relNormal = TMP_VEC3_D.dot(TMP_VEC3_A);
   if (relNormal >= 0) return;
-  const restitutionScale = Number.isFinite(impact.restitutionScale)
-    ? impact.restitutionScale
-    : 1;
-  const restitution = CUSHION_RESTITUTION * restitutionScale;
-  const normalImpulseMag = -(1 + restitution) * relNormal * BALL_MASS;
+  const normalImpulseMag = -(1 + CUSHION_RESTITUTION) * relNormal * BALL_MASS;
   TMP_VEC3_E.copy(TMP_VEC3_A).multiplyScalar(normalImpulseMag);
   TMP_VEC3_C.addScaledVector(TMP_VEC3_E, 1 / BALL_MASS);
   ball.omega.addScaledVector(
@@ -8603,9 +8589,6 @@ export function Table3D(
         sz * (innerHalfH - cornerInset)
       );
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
-      center.add(
-        new THREE.Vector2(-sx, -sz).multiplyScalar(CORNER_POCKET_JAW_INWARD_SHIFT)
-      );
       const orientationAngle = Math.atan2(sz, sx);
       addPocketJaw({
         center,
