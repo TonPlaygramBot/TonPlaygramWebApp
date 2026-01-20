@@ -1060,7 +1060,7 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_INTERIOR_TOP_SCALE = 1.012; // gently expand the interior diameter at the top of each pocket for a broader opening
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.27 * POCKET_VISUAL_EXPANSION; // push the corner pocket centres and cuts farther outward toward the rails
+  POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // push the corner pocket centres and cuts a bit farther outward toward the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS =
   POCKET_VIS_R * POCKET_VISUAL_EXPANSION * CORNER_POCKET_INWARD_SCALE;
@@ -4319,7 +4319,11 @@ function createBroadcastCameras({
   const panBarGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.32, 12);
   const gripGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.2, 12);
 
-  const defaultFocus = new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0);
+  const defaultFocus = new THREE.Vector3(
+    0,
+    TABLE_Y + TABLE.THICK + BALL_R * 2.5,
+    0
+  );
 
   const fallbackDepth = Math.max(
     shortRailZ + BALL_R * 12,
@@ -13945,43 +13949,37 @@ const powerRef = useRef(hud.power);
         updateCueRackHighlights();
       }
 
-      const resolveStandingCoords = () => {
+      const resolveBroadcastDistance = () => {
         const hostAspect = host?.clientWidth && host?.clientHeight
           ? host.clientWidth / host.clientHeight
           : null;
-        const aspect = Number.isFinite(hostAspect) ? hostAspect : 9 / 16;
+        const aspect = Number.isFinite(hostAspect) ? hostAspect : 9 / 16; // fall back to worst-case portrait when unknown
         const tempCamera = new THREE.PerspectiveCamera(STANDING_VIEW_FOV, aspect);
-        const zoomProfile = resolveCameraZoomProfile(aspect);
-        const standingPhi = THREE.MathUtils.clamp(
-          STANDING_VIEW.phi,
-          CAMERA.minPhi,
-          CAMERA.maxPhi
+        const topDownRadius = Math.max(
+          fitRadius(tempCamera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE,
+          CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
         );
-        const standingRadius = clamp(
-          fitRadius(
-            tempCamera,
-            STANDING_VIEW.margin * zoomProfile.margin,
-            STANDING_VIEW_DISTANCE_SCALE
-          ),
-          CAMERA.minR,
-          CAMERA.maxR
-        );
-        const focusY = ORBIT_FOCUS_BASE_Y * worldScaleFactor;
-        const height = focusY + Math.cos(standingPhi) * standingRadius;
-        const horizontal = Math.sin(standingPhi) * standingRadius;
-        return { radius: standingRadius, height, horizontal };
+        return topDownRadius;
       };
-      const { height: standingHeight, horizontal: standingHorizontal } =
-        resolveStandingCoords();
+      const resolveTopDownCoords = () => {
+        const radius = resolveBroadcastDistance();
+        const phi = TOP_VIEW_RESOLVED_PHI;
+        const focusY = ORBIT_FOCUS_BASE_Y * worldScaleFactor;
+        const height = focusY + Math.cos(phi) * radius;
+        const horizontal = Math.sin(phi) * radius;
+        return { radius, height, horizontal };
+      };
+      const { height: topDownHeight, horizontal: topDownHorizontal } =
+        resolveTopDownCoords();
       const broadcastClearance = arenaMargin * 0.3 + BALL_R * 4;
       const shortRailTarget = Math.max(
-        standingHorizontal,
+        topDownHorizontal,
         arenaHalfDepth - broadcastClearance
       );
       const shortRailSlideLimit = 0;
       const broadcastRig = createBroadcastCameras({
         floorY,
-        cameraHeight: standingHeight,
+        cameraHeight: topDownHeight,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: Math.max(arenaHalfDepth - BALL_R * 4, BALL_R * 4)
