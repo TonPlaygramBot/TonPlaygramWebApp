@@ -449,12 +449,14 @@ function pickChessPieceTargets(scene) {
     knight: null,
     bishop: null,
     rook: null,
-    queen: null
+    queen: null,
+    king: null
   };
   if (!scene) return targets;
   scene.traverse((node) => {
     if (!node.name) return;
     const name = node.name.toLowerCase();
+    if (/board|chessboard|table/.test(name)) return;
     const maybeAssign = (key, regex) => {
       if (!targets[key] && regex.test(name)) {
         targets[key] = node;
@@ -465,16 +467,36 @@ function pickChessPieceTargets(scene) {
     maybeAssign('bishop', /bishop/);
     maybeAssign('rook', /rook|castle/);
     maybeAssign('queen', /queen/);
+    maybeAssign('king', /king/);
   });
   return targets;
+}
+
+function resolveChessPieceRoot(node, regex) {
+  if (!node) return node;
+  let current = node;
+  let parent = current.parent;
+  while (parent && parent.name && regex.test(parent.name.toLowerCase())) {
+    current = parent;
+    parent = current.parent;
+  }
+  return current;
 }
 
 function buildChessPiecePrototypes(scene) {
   const candidates = pickChessPieceTargets(scene);
   const prototypes = {};
+  const regexMap = {
+    pawn: /pawn/,
+    knight: /knight|horse/,
+    bishop: /bishop/,
+    rook: /rook|castle/,
+    queen: /queen/,
+    king: /king/
+  };
   Object.entries(candidates).forEach(([key, node]) => {
     if (!node) return;
-    const root = node.isMesh ? node.parent || node : node;
+    const root = resolveChessPieceRoot(node, regexMap[key] || /.*/);
     const clone = root.clone(true);
     prepareLoadedModel(clone);
     prototypes[key] = clone;
@@ -3080,7 +3102,15 @@ function updateTokens(
       token = new THREE.Group();
       const baseColor = new THREE.Color(player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]);
       const piecePrototype = basePiecePrototype;
-      let coreMaterial = null;
+      const coreMaterial = new THREE.MeshPhysicalMaterial({
+        color: baseColor.clone(),
+        roughness: coreRoughness,
+        metalness: coreMetalness,
+        clearcoat: coreClearcoat,
+        clearcoatRoughness: coreClearcoatRoughness,
+        sheen: coreSheen,
+        sheenColor: baseColor.clone().lerp(accentTarget, sheenBlend)
+      });
       let accentMaterial = null;
       if (piecePrototype) {
         const piece = piecePrototype.clone(true);
@@ -3088,9 +3118,9 @@ function updateTokens(
         piece.traverse((child) => {
           if (child.isMesh) {
             if (Array.isArray(child.material)) {
-              child.material = child.material.map((material) => material?.clone?.() ?? material);
-            } else if (child.material?.clone) {
-              child.material = child.material.clone();
+              child.material = child.material.map(() => coreMaterial);
+            } else {
+              child.material = coreMaterial;
             }
             child.castShadow = true;
             child.receiveShadow = true;
@@ -3098,15 +3128,6 @@ function updateTokens(
         });
         token.add(piece);
       } else {
-        coreMaterial = new THREE.MeshPhysicalMaterial({
-          color: baseColor.clone(),
-          roughness: coreRoughness,
-          metalness: coreMetalness,
-          clearcoat: coreClearcoat,
-          clearcoatRoughness: coreClearcoatRoughness,
-          sheen: coreSheen,
-          sheenColor: baseColor.clone().lerp(accentTarget, sheenBlend)
-        });
         accentMaterial = new THREE.MeshPhysicalMaterial({
           color: baseColor.clone().lerp(accentTarget, accentBlend),
           roughness: accentRoughness,
@@ -3170,9 +3191,9 @@ function updateTokens(
 
       token.userData = {
         playerIndex: index,
-        material: piecePrototype ? null : coreMaterial,
-        coreMaterial: piecePrototype ? null : coreMaterial,
-        accentMaterial: piecePrototype ? null : accentMaterial,
+        material: coreMaterial,
+        coreMaterial,
+        accentMaterial,
         isSliding: false,
         shapeId: desiredShapeId,
         pieceType: desiredPieceType,
