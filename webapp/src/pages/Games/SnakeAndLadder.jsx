@@ -605,8 +605,7 @@ const TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'knight', label: 'Knight', pieceType: 'knight', source: 'chessBattleRoyal' },
   { id: 'bishop', label: 'Bishop', pieceType: 'bishop', source: 'chessBattleRoyal' },
   { id: 'rook', label: 'Rook', pieceType: 'rook', source: 'chessBattleRoyal' },
-  { id: 'queen', label: 'Queen', pieceType: 'queen', source: 'chessBattleRoyal' },
-  { id: 'king', label: 'King', pieceType: 'king', source: 'chessBattleRoyal' }
+  { id: 'queen', label: 'Queen', pieceType: 'queen', source: 'chessBattleRoyal' }
 ]);
 
 const SNAKE_SKIN_OPTIONS = Object.freeze([
