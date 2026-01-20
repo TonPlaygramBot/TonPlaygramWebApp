@@ -892,6 +892,7 @@ function addPocketCuts(
 // to fit comfortably inside the existing mobile arena presentation.
 const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
+const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while keeping the table height unchanged
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 0.78; // shrink the table footprint ~22% while keeping proportions intact
@@ -916,10 +917,10 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE = {
-    W: 72 * TABLE_SCALE,
-    H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE,
+    W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE,
+    H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE,
     THICK: 1.8 * TABLE_SCALE,
-    WALL: 2.6 * TABLE_SCALE
+    WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.18;
 const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
@@ -960,7 +961,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.54; // trim the middle jaw reach sli
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.88; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.16; // keep the middle pocket jaws straighter while still opening away from centre
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.22; // keep the middle pocket jaws straighter while still opening away from centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -1028,10 +1029,10 @@ const CUE_SHADOW_OPACITY = 0.18;
 const CUE_SHADOW_WIDTH_RATIO = 0.62;
 const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
 const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 1.1;
-const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.07; // move middle pocket centres a touch farther outward before biasing back
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.24; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
+const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.1; // move middle pocket centres a touch farther outward before biasing back
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.32; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
 const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.0009; // gently bias the middle pocket centres and cuts back toward the playfield
-const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.0004; // pull only the middle pocket cloth cutouts slightly toward the playfield centre
+const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.0001; // keep the middle pocket cloth cutouts nearly aligned with the outward shift
 const CHALK_TOP_COLOR = 0xd9c489;
 const CHALK_SIDE_COLOR = 0x10141b;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1a2430;
