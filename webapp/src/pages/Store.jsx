@@ -194,6 +194,7 @@ const SNAKE_TYPE_LABELS = {
   diceTheme: 'Dice Finish',
   railTheme: 'Rails & Nets',
   tokenFinish: 'Token Finish',
+  tokenColor: 'Token Colors',
   tokenShape: 'Token Shape',
   tableFinish: 'Table Finish',
   tables: 'Table Models',
@@ -289,6 +290,7 @@ const TYPE_SWATCHES = {
   diceTheme: ['#f8fafc', '#e11d48'],
   railTheme: ['#1e293b', '#64748b'],
   tokenFinish: ['#facc15', '#fb7185'],
+  tokenColor: ['#f59e0b', '#10b981'],
   default: ['#22c55e', '#0ea5e9']
 };
 
@@ -325,6 +327,13 @@ const OPTION_SWATCH_OVERRIDES = {
   'carbon-matrix': ['#0f172a', '#94a3b8'],
   'maple-horizon': ['#fef3c7', '#fbbf24'],
   'graphite-aurora': ['#111827', '#22d3ee'],
+  amberGlow: ['#f59e0b', '#fbbf24'],
+  mintVale: ['#10b981', '#34d399'],
+  royalWave: ['#3b82f6', '#60a5fa'],
+  roseMist: ['#ef4444', '#f87171'],
+  amethyst: ['#8b5cf6', '#c4b5fd'],
+  marble: ['#f8fafc', '#e2e8f0'],
+  darkForest: ['#14532d', '#22c55e'],
   arcticRidge: ['#bae6fd', '#38bdf8'],
   basaltStone: ['#1f2937', '#0f172a'],
   emeraldSide: ['#22c55e', '#16a34a'],

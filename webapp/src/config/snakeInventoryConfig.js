@@ -52,6 +52,18 @@ const SNAKE_TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'king', label: 'King Token' }
 ]);
 
+export const SNAKE_TOKEN_COLOR_OPTIONS = Object.freeze([
+  { id: 'marble', label: 'Marble', color: '#f8fafc' },
+  { id: 'darkForest', label: 'Dark Forest', color: '#14532d' },
+  { id: 'amberGlow', label: 'Amber Glow', color: '#f59e0b' },
+  { id: 'mintVale', label: 'Mint Vale', color: '#10b981' },
+  { id: 'royalWave', label: 'Royal Wave', color: '#3b82f6' },
+  { id: 'roseMist', label: 'Rose Mist', color: '#ef4444' },
+  { id: 'amethyst', label: 'Amethyst', color: '#8b5cf6' },
+  { id: 'cinderBlaze', label: 'Cinder Blaze', color: '#ff6b35' },
+  { id: 'arcticDrift', label: 'Arctic Drift', color: '#bcd7ff' }
+]);
+
 export const SNAKE_DEFAULT_UNLOCKS = Object.freeze({
   arenaTheme: ['nebulaAtrium'],
   boardPalette: ['desertMarble'],
@@ -59,6 +71,7 @@ export const SNAKE_DEFAULT_UNLOCKS = Object.freeze({
   diceTheme: ['imperialIvory'],
   railTheme: ['platinumOak'],
   tokenFinish: ['ceramicSheen'],
+  tokenColor: ['amberGlow', 'mintVale', 'royalWave', 'roseMist'],
   tableFinish: [SNAKE_TABLE_FINISH_OPTIONS[0].id],
   floorTexture: [SNAKE_FLOOR_TEXTURE_OPTIONS[0].id],
   wallTexture: [SNAKE_WALL_TEXTURE_OPTIONS[0].id],
@@ -99,6 +112,7 @@ export const SNAKE_OPTION_LABELS = Object.freeze({
     matteVelvet: 'Matte Velvet',
     holographicPulse: 'Holographic Pulse'
   }),
+  tokenColor: mapLabels(SNAKE_TOKEN_COLOR_OPTIONS),
   tableFinish: mapLabels(SNAKE_TABLE_FINISH_OPTIONS),
   floorTexture: mapLabels(SNAKE_FLOOR_TEXTURE_OPTIONS),
   wallTexture: mapLabels(SNAKE_WALL_TEXTURE_OPTIONS),
@@ -210,6 +224,15 @@ export const SNAKE_STORE_ITEMS = [
     price: 520,
     description: 'Holographic core with shimmering pulse highlights for each token.'
   },
+  ...SNAKE_TOKEN_COLOR_OPTIONS.map((option, idx) => ({
+    id: `snake-token-color-${option.id}`,
+    type: 'tokenColor',
+    optionId: option.id,
+    name: `${option.label} Tokens`,
+    price: 420 + idx * 35,
+    description: `Chess Battle Royal ${option.label.toLowerCase()} palette for snake tokens.`,
+    swatches: [option.color, '#0f172a']
+  })),
   ...SNAKE_TABLE_FINISH_OPTIONS.map((finish, idx) => ({
     id: `finish-${finish.id}`,
     type: 'tableFinish',
@@ -280,6 +303,7 @@ export const SNAKE_DEFAULT_LOADOUT = [
   { type: 'diceTheme', optionId: 'imperialIvory', label: 'Imperial Ivory Dice' },
   { type: 'railTheme', optionId: 'platinumOak', label: 'Platinum & Oak Rails' },
   { type: 'tokenFinish', optionId: 'ceramicSheen', label: 'Ceramic Sheen Tokens' },
+  { type: 'tokenColor', optionId: 'amberGlow', label: 'Amber Glow Tokens' },
   {
     type: 'tableFinish',
     optionId: SNAKE_TABLE_FINISH_OPTIONS[0].id,
