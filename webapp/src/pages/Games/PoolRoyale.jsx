@@ -1520,10 +1520,10 @@ const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
 const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 const SPIN_DECORATION_DOT_SIZE_PX = 12;
 const SPIN_DECORATION_OFFSET_PERCENT = 58;
-// angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
-const DEFAULT_CUSHION_CUT_ANGLE = 32;
-// middle pocket cushion cuts are set to a 22° cut to soften the side-pocket entry
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 22;
+// angle for cushion cuts guiding balls into corner pockets
+const DEFAULT_CUSHION_CUT_ANGLE = 27;
+// keep side-pocket cushion cuts aligned to the same 27° spec
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 27;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
