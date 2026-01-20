@@ -178,6 +178,7 @@ const TILE_100_SUPPORT_HEIGHT_EXTRA = TILE_SIZE * 0.25;
 
 const TOKEN_RADIUS = TILE_SIZE * 0.3;
 const TOKEN_HEIGHT = TILE_SIZE * 0.48;
+const CHESS_TOKEN_HEIGHT_SCALE = 2;
 const TOKEN_ACCENT_TARGET = new THREE.Color('#f8fafc');
 const TILE_LABEL_OFFSET = TILE_SIZE * 0.0004;
 
@@ -421,20 +422,22 @@ async function loadPolyhavenTextureSet(assetId, renderer) {
 
 function applyTextureSetToMaterial(material, textureSet, repeat = 1) {
   if (!material || !textureSet) return;
+  const repeatX = typeof repeat === 'number' ? repeat : (repeat?.x ?? 1);
+  const repeatY = typeof repeat === 'number' ? repeat : (repeat?.y ?? repeatX);
   const { map, roughnessMap, normalMap, anisotropy } = textureSet;
   if (map) {
     map.wrapS = map.wrapT = THREE.RepeatWrapping;
-    map.repeat.set(repeat, repeat);
+    map.repeat.set(repeatX, repeatY);
     map.anisotropy = anisotropy ?? 6;
   }
   if (roughnessMap) {
     roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
-    roughnessMap.repeat.set(repeat, repeat);
+    roughnessMap.repeat.set(repeatX, repeatY);
     roughnessMap.anisotropy = anisotropy ?? 6;
   }
   if (normalMap) {
     normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
-    normalMap.repeat.set(repeat, repeat);
+    normalMap.repeat.set(repeatX, repeatY);
     normalMap.anisotropy = anisotropy ?? 6;
   }
   material.map = map || null;
@@ -524,6 +527,7 @@ async function loadChessPiecePrototypes(renderer = null) {
 
 function scaleChessPieceToToken(piece, targetHeight) {
   if (!piece) return;
+  piece.position.set(0, 0, 0);
   const box = new THREE.Box3().setFromObject(piece);
   const size = box.getSize(new THREE.Vector3());
   if (!size.y) return;
@@ -531,8 +535,10 @@ function scaleChessPieceToToken(piece, targetHeight) {
   piece.scale.setScalar(scale);
   piece.updateMatrixWorld(true);
   const scaledBox = new THREE.Box3().setFromObject(piece);
-  const yOffset = -scaledBox.min.y;
-  piece.position.y += yOffset;
+  const center = scaledBox.getCenter(new THREE.Vector3());
+  piece.position.x -= center.x;
+  piece.position.z -= center.z;
+  piece.position.y -= scaledBox.min.y;
 }
 
 function addChromeRailings(
@@ -2686,7 +2692,7 @@ function buildSnakeBoard(
     loadPolyhavenTextureSet(floorTexture.assetId, renderer)
       .then((textureSet) => {
         if (!textureSet) return;
-        const repeat = (floorTexture.repeat ?? 2) * TEXTURE_REPEAT_SCALE;
+        const repeat = (floorTexture.repeat ?? 2) * TEXTURE_REPEAT_SCALE * 2;
         applyTextureSetToMaterial(pavementMaterial, textureSet, repeat);
         topMaterials.forEach((material) => {
           applyTextureSetToMaterial(material, textureSet, repeat);
@@ -2700,8 +2706,9 @@ function buildSnakeBoard(
       .then((textureSet) => {
         if (!textureSet) return;
         wallMaterials.forEach((material) => {
-          const repeat = (wallTexture.repeat ?? 1.6) * TEXTURE_REPEAT_SCALE * 0.5;
-          applyTextureSetToMaterial(material, textureSet, repeat);
+          const repeatX = (wallTexture.repeat ?? 1.6) * TEXTURE_REPEAT_SCALE * 0.5;
+          const repeatY = repeatX / 1.5;
+          applyTextureSetToMaterial(material, textureSet, { x: repeatX, y: repeatY });
         });
       })
       .catch(() => {});
@@ -3100,7 +3107,7 @@ function updateTokens(
       let accentMaterial = null;
       if (piecePrototype) {
         const piece = piecePrototype.clone(true);
-        scaleChessPieceToToken(piece, TOKEN_HEIGHT);
+        scaleChessPieceToToken(piece, TOKEN_HEIGHT * CHESS_TOKEN_HEIGHT_SCALE);
         piece.traverse((child) => {
           if (child.isMesh) {
             if (Array.isArray(child.material)) {
