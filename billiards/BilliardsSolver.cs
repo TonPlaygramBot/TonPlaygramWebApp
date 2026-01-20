@@ -67,7 +67,11 @@ public class BilliardsSolver
         double sideMouth = PhysicsConstants.SidePocketMouth;
         double cornerCut = cornerMouth / Math.Sqrt(2.0);
         double sideCut = sideMouth / 2.0;
-        double sideDepth = Math.Max(sideCut * 1.05, PhysicsConstants.BallRadius * 1.8);
+        double cornerJawRadius = cornerCut * PhysicsConstants.CornerJawRadiusScale;
+        double cornerJawInset = PhysicsConstants.CornerJawInset;
+        double cornerJawCenter = cornerCut + cornerJawInset;
+        double sideJawInset = PhysicsConstants.SideJawInset;
+        double sideDepth = Math.Max(sideCut * 1.05, PhysicsConstants.BallRadius * 1.8) * PhysicsConstants.SideJawDepthScale;
         double sideOutset = Math.Max(0.0, PhysicsConstants.SidePocketOutset);
 
         // Straight cushion spans (long rails)
@@ -83,16 +87,82 @@ public class BilliardsSolver
         AddCushionSegment(new Vec2(width, height / 2 + sideCut), new Vec2(width, height - cornerCut), new Vec2(-1, 0));
 
         int cornerSegments = Math.Max(8, PhysicsConstants.CornerJawSegments);
-        AddCornerJaw(new Vec2(cornerCut, cornerCut), cornerCut, Math.PI, 1.5 * Math.PI, cornerSegments);
-        AddCornerJaw(new Vec2(width - cornerCut, cornerCut), cornerCut, 1.5 * Math.PI, 2.0 * Math.PI, cornerSegments);
-        AddCornerJaw(new Vec2(width - cornerCut, height - cornerCut), cornerCut, 0, 0.5 * Math.PI, cornerSegments);
-        AddCornerJaw(new Vec2(cornerCut, height - cornerCut), cornerCut, 0.5 * Math.PI, Math.PI, cornerSegments);
+        AddCornerJaw(new Vec2(cornerJawCenter, cornerJawCenter), cornerJawRadius, Math.PI, 1.5 * Math.PI, cornerSegments);
+        AddCornerJaw(new Vec2(width - cornerJawCenter, cornerJawCenter), cornerJawRadius, 1.5 * Math.PI, 2.0 * Math.PI, cornerSegments);
+        AddCornerJaw(new Vec2(width - cornerJawCenter, height - cornerJawCenter), cornerJawRadius, 0, 0.5 * Math.PI, cornerSegments);
+        AddCornerJaw(new Vec2(cornerJawCenter, height - cornerJawCenter), cornerJawRadius, 0.5 * Math.PI, Math.PI, cornerSegments);
+
+        AddConnectorSegment(
+            new Vec2(cornerCut, 0),
+            new Vec2(cornerJawCenter, cornerJawCenter - cornerJawRadius),
+            new Vec2(0, 1));
+        AddConnectorSegment(
+            new Vec2(0, cornerCut),
+            new Vec2(cornerJawCenter - cornerJawRadius, cornerJawCenter),
+            new Vec2(1, 0));
+        AddConnectorSegment(
+            new Vec2(width - cornerCut, 0),
+            new Vec2(width - cornerJawCenter, cornerJawCenter - cornerJawRadius),
+            new Vec2(0, 1));
+        AddConnectorSegment(
+            new Vec2(width, cornerCut),
+            new Vec2(width - cornerJawCenter + cornerJawRadius, cornerJawCenter),
+            new Vec2(-1, 0));
+        AddConnectorSegment(
+            new Vec2(width - cornerCut, height),
+            new Vec2(width - cornerJawCenter, height - cornerJawCenter + cornerJawRadius),
+            new Vec2(0, -1));
+        AddConnectorSegment(
+            new Vec2(width, height - cornerCut),
+            new Vec2(width - cornerJawCenter + cornerJawRadius, height - cornerJawCenter),
+            new Vec2(-1, 0));
+        AddConnectorSegment(
+            new Vec2(cornerCut, height),
+            new Vec2(cornerJawCenter, height - cornerJawCenter + cornerJawRadius),
+            new Vec2(0, -1));
+        AddConnectorSegment(
+            new Vec2(0, height - cornerCut),
+            new Vec2(cornerJawCenter - cornerJawRadius, height - cornerJawCenter),
+            new Vec2(1, 0));
 
         int sideSegments = Math.Max(6, PhysicsConstants.SideJawSegments);
-        AddSidePocketJaw(new Vec2(width / 2, 0 - sideOutset), sideCut, sideDepth, true, sideSegments);
-        AddSidePocketJaw(new Vec2(width / 2, height + sideOutset), sideCut, sideDepth, false, sideSegments);
-        AddSidePocketJaw(new Vec2(0 - sideOutset, height / 2), sideCut, sideDepth, true, sideSegments, vertical: true);
-        AddSidePocketJaw(new Vec2(width + sideOutset, height / 2), sideCut, sideDepth, false, sideSegments, vertical: true);
+        AddSidePocketJaw(new Vec2(width / 2, sideJawInset), sideCut, sideDepth, true, sideSegments);
+        AddSidePocketJaw(new Vec2(width / 2, height - sideJawInset), sideCut, sideDepth, false, sideSegments);
+        AddSidePocketJaw(new Vec2(sideJawInset, height / 2), sideCut, sideDepth, true, sideSegments, vertical: true);
+        AddSidePocketJaw(new Vec2(width - sideJawInset, height / 2), sideCut, sideDepth, false, sideSegments, vertical: true);
+
+        AddConnectorSegment(
+            new Vec2(width / 2 - sideCut, 0),
+            new Vec2(width / 2 - sideCut, sideJawInset),
+            new Vec2(0, 1));
+        AddConnectorSegment(
+            new Vec2(width / 2 + sideCut, 0),
+            new Vec2(width / 2 + sideCut, sideJawInset),
+            new Vec2(0, 1));
+        AddConnectorSegment(
+            new Vec2(width / 2 - sideCut, height),
+            new Vec2(width / 2 - sideCut, height - sideJawInset),
+            new Vec2(0, -1));
+        AddConnectorSegment(
+            new Vec2(width / 2 + sideCut, height),
+            new Vec2(width / 2 + sideCut, height - sideJawInset),
+            new Vec2(0, -1));
+        AddConnectorSegment(
+            new Vec2(0, height / 2 - sideCut),
+            new Vec2(sideJawInset, height / 2 - sideCut),
+            new Vec2(1, 0));
+        AddConnectorSegment(
+            new Vec2(0, height / 2 + sideCut),
+            new Vec2(sideJawInset, height / 2 + sideCut),
+            new Vec2(1, 0));
+        AddConnectorSegment(
+            new Vec2(width, height / 2 - sideCut),
+            new Vec2(width - sideJawInset, height / 2 - sideCut),
+            new Vec2(-1, 0));
+        AddConnectorSegment(
+            new Vec2(width, height / 2 + sideCut),
+            new Vec2(width - sideJawInset, height / 2 + sideCut),
+            new Vec2(-1, 0));
 
         double capture = Math.Max(PhysicsConstants.BallRadius * 1.05, PhysicsConstants.PocketCaptureRadius);
         Pockets.Add(new Pocket { Center = new Vec2(0, 0), Radius = capture });
@@ -134,7 +204,7 @@ public class BilliardsSolver
                 blended = normal;
             var edge = new Edge { A = prev, B = next, Normal = blended };
             if (i <= cushionBands || i > segments - cushionBands)
-                CushionEdges.Add(edge);
+                ConnectorEdges.Add(edge);
             else
                 PocketEdges.Add(edge);
             prev = next;
@@ -189,10 +259,21 @@ public class BilliardsSolver
             var edge = new Edge { A = a, B = b, Normal = normal };
             bool nearMouth = i < cushionBands || i >= pts.Count - 1 - cushionBands;
             if (nearMouth)
-                CushionEdges.Add(edge);
+                ConnectorEdges.Add(edge);
             else
                 PocketEdges.Add(edge);
         }
+    }
+
+    private void AddConnectorSegment(Vec2 a, Vec2 b, Vec2 interiorHint)
+    {
+        if ((b - a).Length < PhysicsConstants.Epsilon)
+            return;
+        Vec2 dir = (b - a).Normalized();
+        Vec2 normal = new Vec2(-dir.Y, dir.X);
+        if (Vec2.Dot(normal, interiorHint) < 0)
+            normal = -normal;
+        ConnectorEdges.Add(new Edge { A = a, B = b, Normal = normal.Normalized() });
     }
 
     private static Vec2 PointOnCircle(Vec2 center, double radius, double angle)
