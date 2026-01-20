@@ -601,7 +601,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.74; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.84; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = CHROME_CORNER_POCKET_CUT_SCALE * 1.012; // open the rounded chrome cut slightly wider on the middle pockets only
@@ -1029,9 +1029,9 @@ const CUE_SHADOW_WIDTH_RATIO = 0.62;
 const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
 const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 1.1;
 const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.07; // move middle pocket centres a touch farther outward before biasing back
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.15; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
-const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.0015; // gently bias the middle pocket centres and cuts back toward the playfield
-const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.0008; // pull only the middle pocket cloth cutouts slightly toward the playfield centre
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.2; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
+const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.0009; // gently bias the middle pocket centres and cuts back toward the playfield
+const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.0004; // pull only the middle pocket cloth cutouts slightly toward the playfield centre
 const CHALK_TOP_COLOR = 0xd9c489;
 const CHALK_SIDE_COLOR = 0x10141b;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1a2430;
@@ -1060,7 +1060,7 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_INTERIOR_TOP_SCALE = 1.012; // gently expand the interior diameter at the top of each pocket for a broader opening
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.24 * POCKET_VISUAL_EXPANSION; // push the corner pocket centres and cuts a bit farther outward toward the rails
+  POCKET_VIS_R * 0.2 * POCKET_VISUAL_EXPANSION; // push the corner pocket centres and cuts a bit farther outward toward the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS =
   POCKET_VIS_R * POCKET_VISUAL_EXPANSION * CORNER_POCKET_INWARD_SCALE;
@@ -1271,7 +1271,7 @@ const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so i
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
-const POCKET_CAM_EDGE_SCALE = 0.49;
+const POCKET_CAM_EDGE_SCALE = 0.46;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 0.92 +
     POCKET_VIS_R * 1.95 +
@@ -1465,6 +1465,7 @@ const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while 
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.12; // ensure every stroke pulls slightly farther back for readability at all angles
+const CUE_PULL_RETURN_PUSH = 0.78; // push the cue forward to its start point more decisively after a pull
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.18; // ensure the forward push is visible even on short strokes
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 1.8; // cap the forward travel so the cue never overshoots the ball too far
 const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes controllable
@@ -19841,7 +19842,9 @@ const powerRef = useRef(hud.power);
         if (currentHud.turn !== 1 || !currentHud.inHand) return false;
         if (!cue) return false;
         if (!allStopped(balls)) return false;
-        const pos = findAiInHandPlacement();
+        const fallbackTarget = defaultInHandPosition();
+        const fallbackClamped = fallbackTarget ? clampInHandPosition(fallbackTarget) : null;
+        const pos = findAiInHandPlacement() || fallbackClamped;
         if (!pos) return false;
         cue.active = false;
         updateCuePlacement(pos);
@@ -20000,10 +20003,22 @@ const powerRef = useRef(hud.power);
         const boostedTarget = desiredTarget * CUE_PULL_GLOBAL_VISIBILITY_BOOST;
         const clampedTarget = THREE.MathUtils.clamp(boostedTarget, 0, effectiveMax);
         const smoothing = instant || dragging ? 1 : CUE_PULL_SMOOTHING;
+        const isReturning =
+          !dragging &&
+          !instant &&
+          clampedTarget <= 0 &&
+          (cuePullCurrentRef.current ?? 0) > 0;
+        const returnSmoothing = isReturning
+          ? Math.max(smoothing, CUE_PULL_RETURN_PUSH)
+          : smoothing;
         const nextPull =
-          smoothing >= 1
+          returnSmoothing >= 1
             ? clampedTarget
-            : THREE.MathUtils.lerp(cuePullCurrentRef.current ?? 0, clampedTarget, smoothing);
+            : THREE.MathUtils.lerp(
+                cuePullCurrentRef.current ?? 0,
+                clampedTarget,
+                returnSmoothing
+              );
         cuePullTargetRef.current = clampedTarget;
         cuePullCurrentRef.current = nextPull;
         return nextPull;
