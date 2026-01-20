@@ -601,16 +601,16 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.18; // ease the side fascias back toward the table centreline so the middle plates sit closer to the pocket mouth
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.22; // ease the side fascias back toward the table centreline so the middle plates sit closer to the pocket mouth
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.07; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.0525; // keep the rounded chrome cut width on the middle pockets consistent while the corner cut grows slightly
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.06; // keep the rounded chrome cutouts centred while nudging the plates outward
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.02; // keep the rounded chrome cutouts centred while nudging the plates outward
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.06; // push the middle rail rounded cuts slightly farther outward so they sit farther from the table centre while keeping their slim profile
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.1; // push the middle rail rounded cuts slightly farther outward so they sit farther from the table centre while keeping their slim profile
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0; // keep the wood cutouts centered so the rounded relief stands straight
 
 function buildChromePlateGeometry({
@@ -892,6 +892,7 @@ function addPocketCuts(
 // to fit comfortably inside the existing mobile arena presentation.
 const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
+const TABLE_FOOTPRINT_SCALE = 0.82; // shrink the play surface footprint by ~18% while keeping the table height unchanged
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 0.78; // shrink the table footprint ~22% while keeping proportions intact
@@ -916,10 +917,10 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE = {
-    W: 72 * TABLE_SCALE,
-    H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE,
+    W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE,
+    H: 132 * TABLE_SCALE * TABLE_LENGTH_SCALE * TABLE_FOOTPRINT_SCALE,
     THICK: 1.8 * TABLE_SCALE,
-    WALL: 2.6 * TABLE_SCALE
+    WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.18;
 const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
@@ -960,7 +961,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.54; // trim the middle jaw reach sli
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.88; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.16; // keep the middle pocket jaws straighter while still opening away from centre
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.2; // keep the middle pocket jaws straighter while still opening away from centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -1028,10 +1029,10 @@ const CUE_SHADOW_OPACITY = 0.18;
 const CUE_SHADOW_WIDTH_RATIO = 0.62;
 const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
 const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 1.1;
-const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.07; // move middle pocket centres a touch farther outward before biasing back
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.24; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
-const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.0009; // gently bias the middle pocket centres and cuts back toward the playfield
-const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.0004; // pull only the middle pocket cloth cutouts slightly toward the playfield centre
+const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.1; // move middle pocket centres a touch farther outward before biasing back
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.3; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
+const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.0002; // gently bias the middle pocket centres and cuts back toward the playfield
+const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.0001; // pull only the middle pocket cloth cutouts slightly toward the playfield centre
 const CHALK_TOP_COLOR = 0xd9c489;
 const CHALK_SIDE_COLOR = 0x10141b;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1a2430;
