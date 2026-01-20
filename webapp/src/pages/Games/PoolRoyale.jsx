@@ -601,9 +601,9 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.8; // ease the side fascias back toward the table centreline so the middle plates sit closer to the pocket mouth
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.72; // ease the side fascias back toward the table centreline so the middle plates sit closer to the pocket mouth
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.055; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.0525; // keep the rounded chrome cut width on the middle pockets consistent while the corner cut grows slightly
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.06; // keep the rounded chrome cutouts centred while nudging the plates outward
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
@@ -906,7 +906,6 @@ const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
 const SKIP_REPLAYS_STORAGE_KEY = 'poolSkipReplays';
 const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
 const ENABLE_CUE_GALLERY = false;
-const ENABLE_CUE_STICK_ANIMATION = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
@@ -923,8 +922,8 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.18;
 const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.05; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.06; // push middle jaws slightly farther so the sides meet the cushions
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.026; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.034; // push middle jaws slightly farther so the sides meet the cushions
 const POCKET_JAW_CORNER_INNER_SCALE = 1.46; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.02; // round the middle jaws slightly more while keeping the corner match
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.84; // preserve the playable mouth while letting the corner fascia run longer and slimmer
@@ -955,9 +954,9 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42; // widen the chamfer so the corner j
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.7; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.45; // push the middle jaw reach a touch wider so the openings read larger
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.96; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.64; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.36; // push the middle jaw reach a touch wider so the openings read larger
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.99; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.195; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
@@ -7315,7 +7314,7 @@ export function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.26; // shorten the corner cushions more so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.3; // trim the cushion tips near middle pockets further for cleaner jaw clearance
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.22; // trim the cushion tips near middle pockets further for cleaner jaw clearance
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
@@ -17235,14 +17234,6 @@ const powerRef = useRef(hud.power);
         };
 
         const applyReplayCueStroke = (playback, targetTime) => {
-          if (!ENABLE_CUE_STICK_ANIMATION) {
-            if (cueStick) {
-              cueStick.visible = false;
-            }
-            cueAnimating = false;
-            syncCueShadow();
-            return;
-          }
           const stroke = playback?.cueStroke;
           if (!cueStick) {
             cueAnimating = false;
@@ -17386,18 +17377,6 @@ const powerRef = useRef(hud.power);
         };
 
         const updateCueStroke = (now) => {
-          if (!ENABLE_CUE_STICK_ANIMATION) {
-            if (cueStick) {
-              cueStick.visible = false;
-            }
-            cueAnimating = false;
-            cuePullCurrentRef.current = 0;
-            cuePullTargetRef.current = 0;
-            cueStrokeStateRef.current = null;
-            pendingImpactRef.current = null;
-            syncCueShadow();
-            return false;
-          }
           const stroke = cueStrokeStateRef.current;
           if (!stroke || !cueStick) {
             return Boolean(cueAnimating);
@@ -20506,145 +20485,82 @@ const powerRef = useRef(hud.power);
           const visualPull = applyVisualPullCompensation(startPull, dir);
           cuePullCurrentRef.current = startPull;
           cuePullTargetRef.current = startPull;
-          if (!ENABLE_CUE_STICK_ANIMATION) {
-            cueAnimating = false;
-            if (cueStick) {
-              cueStick.visible = false;
-            }
-            cuePullCurrentRef.current = 0;
-            cuePullTargetRef.current = 0;
-          } else {
-            const cuePerp = new THREE.Vector3(-dir.z, 0, dir.x);
-            if (cuePerp.lengthSq() > 1e-8) cuePerp.normalize();
-            const { side: contactSide, vert: contactVert, hasSpin } = computeSpinOffsets(
-              appliedSpin,
-              ranges
-            );
-            const spinWorld = new THREE.Vector3(
-              cuePerp.x * contactSide,
-              contactVert,
-              cuePerp.z * contactSide
-            );
-            clampCueTipOffset(spinWorld);
-            const obstructionStrength = resolveCueObstruction(
-              dir,
-              pull,
-              activeRenderCameraRef.current ?? cameraRef.current ?? camera
-            );
-            const { obstructionTilt, obstructionTiltFromLift } =
-              resolveCueObstructionTilt(obstructionStrength);
-            const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
-            const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftAngle;
-            cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
-            applyCueButtTilt(
-              cueStick,
-              extraTilt + obstructionTilt + obstructionTiltFromLift
-            );
-            if (tipGroupRef.current) {
-              tipGroupRef.current.position.set(0, 0, -cueLen / 2);
-            }
-            TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
-            TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
-            const buildCuePosition = (pullAmount = visualPull) => {
-              const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld);
-              return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
-                .sub(TMP_VEC3_CUE_TIP_OFFSET);
-            };
-            const startPos = buildCuePosition(visualPull);
-            cueStick.position.copy(startPos);
-            TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
-            cueAnimating = true;
-            const impactPos = buildCuePosition(0);
-            cueStick.visible = true;
-            cueStick.position.copy(startPos);
-            const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
-            const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
-            const followThrough = Math.min(
-              CUE_FOLLOW_THROUGH_MAX,
-              Math.max(
-                CUE_FOLLOW_THROUGH_MIN,
-                visualPull * (0.22 + 0.28 * powerStrength)
-              )
-            );
-            const followThroughPos = buildCuePosition(-followThrough);
-            const forwardDuration = isAiStroke
-              ? AI_CUE_FORWARD_DURATION_MS
-              : THREE.MathUtils.lerp(
-                  PLAYER_CUE_FORWARD_MAX_MS,
-                  PLAYER_CUE_FORWARD_MIN_MS,
-                  forwardBlend
-                );
-            const settleDuration = isAiStroke ? 40 : 50;
-            const returnDuration = isAiStroke ? 120 : 160;
-            const startTime = performance.now();
-            const impactTime = startTime + forwardDuration;
-            const settleTime = impactTime + settleDuration;
-            const returnTime = settleTime + returnDuration;
-            const forwardPreviewHold =
-              impactTime +
-              Math.min(
-                settleDuration,
-                Math.max(180, forwardDuration * 0.9)
-              );
-            powerImpactHoldRef.current = Math.max(
-              powerImpactHoldRef.current || 0,
-              forwardPreviewHold
-            );
-            if (shotRecording) {
-              const strokeStartOffset = Math.max(
-                0,
-                startTime - (shotRecording.startTime ?? startTime)
-              );
-              shotRecording.cueStroke = {
-                warmup: serializeVector3Snapshot(startPos),
-                start: serializeVector3Snapshot(startPos),
-                impact: serializeVector3Snapshot(impactPos),
-                settle: serializeVector3Snapshot(impactPos),
-                rotationX: cueStick.rotation.x,
-                rotationY: cueStick.rotation.y,
-                forwardDuration,
-                settleDuration,
-                startOffset: strokeStartOffset
-              };
-            }
-            const animateStroke = (now) => {
-              if (now <= impactTime) {
-                const t = forwardDuration > 0
-                  ? THREE.MathUtils.clamp((now - startTime) / forwardDuration, 0, 1)
-                  : 1;
-                const eased = easeOutCubic(t);
-                cueStick.position.lerpVectors(startPos, impactPos, eased);
-              } else if (now <= settleTime) {
-                const t = settleDuration > 0
-                  ? THREE.MathUtils.clamp((now - impactTime) / settleDuration, 0, 1)
-                  : 1;
-                const eased = easeOutCubic(t);
-                cueStick.position.lerpVectors(impactPos, followThroughPos, eased);
-              } else if (now <= returnTime) {
-                const t = returnDuration > 0
-                  ? THREE.MathUtils.clamp((now - settleTime) / returnDuration, 0, 1)
-                  : 1;
-                const eased = easeOutCubic(t);
-                cueStick.position.lerpVectors(followThroughPos, impactPos, eased);
-              } else {
-                cueStick.visible = false;
-                cueAnimating = false;
-                cuePullCurrentRef.current = 0;
-                cuePullTargetRef.current = 0;
-                if (cameraRef.current && sphRef.current) {
-                  topViewRef.current = false;
-                  topViewLockedRef.current = false;
-                  setIsTopDownView(false);
-                  const sph = sphRef.current;
-                  sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-                  updateCamera();
-                }
-                return;
-              }
-              requestAnimationFrame(animateStroke);
-            };
-            requestAnimationFrame(animateStroke);
+          const cuePerp = new THREE.Vector3(-dir.z, 0, dir.x);
+          if (cuePerp.lengthSq() > 1e-8) cuePerp.normalize();
+          const { side: contactSide, vert: contactVert, hasSpin } = computeSpinOffsets(
+            appliedSpin,
+            ranges
+          );
+          const spinWorld = new THREE.Vector3(
+            cuePerp.x * contactSide,
+            contactVert,
+            cuePerp.z * contactSide
+          );
+          clampCueTipOffset(spinWorld);
+          const obstructionStrength = resolveCueObstruction(
+            dir,
+            pull,
+            activeRenderCameraRef.current ?? cameraRef.current ?? camera
+          );
+          const { obstructionTilt, obstructionTiltFromLift } =
+            resolveCueObstructionTilt(obstructionStrength);
+          const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftAngle;
+          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
+          applyCueButtTilt(
+            cueStick,
+            extraTilt + obstructionTilt + obstructionTiltFromLift
+          );
+          if (tipGroupRef.current) {
+            tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
+          TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
+          TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
+          const buildCuePosition = (pullAmount = visualPull) => {
+            const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld);
+            return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
+              .sub(TMP_VEC3_CUE_TIP_OFFSET);
+          };
+          const startPos = buildCuePosition(visualPull);
+          cueStick.position.copy(startPos);
+          TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
+          cueAnimating = true;
+          const impactPos = buildCuePosition(0);
+          cueStick.visible = true;
+          cueStick.position.copy(startPos);
+          const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
+          const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
+          const followThrough = Math.min(
+            CUE_FOLLOW_THROUGH_MAX,
+            Math.max(
+              CUE_FOLLOW_THROUGH_MIN,
+              visualPull * (0.22 + 0.28 * powerStrength)
+            )
+          );
+          const followThroughPos = buildCuePosition(-followThrough);
+          const forwardDuration = isAiStroke
+            ? AI_CUE_FORWARD_DURATION_MS
+            : THREE.MathUtils.lerp(
+                PLAYER_CUE_FORWARD_MAX_MS,
+                PLAYER_CUE_FORWARD_MIN_MS,
+                forwardBlend
+              );
+          const settleDuration = isAiStroke ? 40 : 50;
+          const returnDuration = isAiStroke ? 120 : 160;
+          const startTime = performance.now();
+          const impactTime = startTime + forwardDuration;
+          const settleTime = impactTime + settleDuration;
+          const returnTime = settleTime + returnDuration;
+          const forwardPreviewHold =
+            impactTime +
+            Math.min(
+              settleDuration,
+              Math.max(180, forwardDuration * 0.9)
+            );
+          powerImpactHoldRef.current = Math.max(
+            powerImpactHoldRef.current || 0,
+            forwardPreviewHold
+          );
           const holdUntil = powerImpactHoldRef.current || 0;
           const holdActive = holdUntil > performance.now();
           let pocketViewActivated = false;
@@ -20700,6 +20616,57 @@ const powerRef = useRef(hud.power);
               suspendedActionView = actionView;
             }
           }
+          if (shotRecording) {
+            const strokeStartOffset = Math.max(0, startTime - (shotRecording.startTime ?? startTime));
+            shotRecording.cueStroke = {
+              warmup: serializeVector3Snapshot(startPos),
+              start: serializeVector3Snapshot(startPos),
+              impact: serializeVector3Snapshot(impactPos),
+              settle: serializeVector3Snapshot(impactPos),
+              rotationX: cueStick.rotation.x,
+              rotationY: cueStick.rotation.y,
+              forwardDuration,
+              settleDuration,
+              startOffset: strokeStartOffset
+            };
+          }
+          const animateStroke = (now) => {
+            if (now <= impactTime) {
+              const t = forwardDuration > 0
+                ? THREE.MathUtils.clamp((now - startTime) / forwardDuration, 0, 1)
+                : 1;
+              const eased = easeOutCubic(t);
+              cueStick.position.lerpVectors(startPos, impactPos, eased);
+            } else if (now <= settleTime) {
+              const t = settleDuration > 0
+                ? THREE.MathUtils.clamp((now - impactTime) / settleDuration, 0, 1)
+                : 1;
+              const eased = easeOutCubic(t);
+              cueStick.position.lerpVectors(impactPos, followThroughPos, eased);
+            } else if (now <= returnTime) {
+              const t = returnDuration > 0
+                ? THREE.MathUtils.clamp((now - settleTime) / returnDuration, 0, 1)
+                : 1;
+              const eased = easeOutCubic(t);
+              cueStick.position.lerpVectors(followThroughPos, impactPos, eased);
+            } else {
+              cueStick.visible = false;
+              cueAnimating = false;
+              cuePullCurrentRef.current = 0;
+              cuePullTargetRef.current = 0;
+              if (cameraRef.current && sphRef.current) {
+                topViewRef.current = false;
+                topViewLockedRef.current = false;
+                setIsTopDownView(false);
+                const sph = sphRef.current;
+                sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+                updateCamera();
+              }
+              return;
+            }
+            requestAnimationFrame(animateStroke);
+          };
+          requestAnimationFrame(animateStroke);
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
