@@ -601,11 +601,11 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.84; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 1.1; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = CHROME_CORNER_POCKET_CUT_SCALE * 1.012; // open the rounded chrome cut slightly wider on the middle pockets only
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.06; // keep the rounded chrome cutouts centred while nudging the plates outward
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.04; // nudge the rounded chrome cutouts outward so the middle plates sit farther from the table centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -1523,7 +1523,7 @@ const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // middle pocket cushion cuts are set to a 28° cut to align the side-rail cushions with the updated spec
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 28;
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 24;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -5061,6 +5061,7 @@ const TMP_VEC2_A = new THREE.Vector2();
 const TMP_VEC2_B = new THREE.Vector2();
 const TMP_VEC2_C = new THREE.Vector2();
 const TMP_VEC2_D = new THREE.Vector2();
+const TMP_VEC2_E = new THREE.Vector2();
 const TMP_VEC2_SPIN = new THREE.Vector2();
 const TMP_VEC2_FORWARD = new THREE.Vector2();
 const TMP_VEC2_LATERAL = new THREE.Vector2();
@@ -5782,6 +5783,11 @@ function reflectRails(ball) {
   const sidePocketGuard = SIDE_POCKET_GUARD_RADIUS;
   const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
   const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
+  const sideCutRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
+  const sideCutCos = Math.cos(sideCutRad);
+  const sideCutSin = Math.sin(sideCutRad);
+  const sideCutReach =
+    SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION * 0.85 + BALL_R * 0.65;
   const sidePocketCenters = pocketCenters().slice(4);
   for (const center of sidePocketCenters) {
     TMP_VEC2_A.copy(ball.pos).sub(center);
@@ -5811,6 +5817,42 @@ function reflectRails(ball) {
       type: 'rail',
       normal: normal.clone(),
       tangent: tangent.clone(),
+      preImpactVel
+    };
+  }
+
+  // Add angled cushion cuts around the side pockets so balls funnel inward.
+  for (const sx of [-1, 1]) {
+    const baseNormalX = -sx;
+    const baseDepth = (ball.pos.x - sx * limX) * baseNormalX;
+    if (baseDepth < -sideDepthLimit) continue;
+    const absY = Math.abs(ball.pos.y);
+    if (absY <= sideSpan || absY > sideSpan + sideCutReach) continue;
+    const cutSign = ball.pos.y >= 0 ? -1 : 1;
+    TMP_VEC2_B.set(baseNormalX, 0);
+    TMP_VEC2_D.set(0, 1);
+    TMP_VEC2_C.copy(TMP_VEC2_B)
+      .multiplyScalar(sideCutCos)
+      .addScaledVector(TMP_VEC2_D, cutSign * sideCutSin)
+      .normalize();
+    TMP_VEC2_A.set(sx * limX, Math.sign(ball.pos.y || 1) * sideSpan);
+    TMP_VEC2_E.copy(ball.pos).sub(TMP_VEC2_A);
+    const distNormal = TMP_VEC2_E.dot(TMP_VEC2_C);
+    if (distNormal >= BALL_R) continue;
+    if (ball.vel.dot(TMP_VEC2_C) >= 0) continue;
+    const push = BALL_R - distNormal;
+    ball.pos.addScaledVector(TMP_VEC2_C, push);
+    preImpactVel = ball.vel.clone();
+    const stamp =
+      typeof performance !== 'undefined' && performance.now
+        ? performance.now()
+        : Date.now();
+    ball.lastRailHitAt = stamp;
+    ball.lastRailHitType = 'side-cut';
+    return {
+      type: 'rail',
+      normal: TMP_VEC2_C.clone(),
+      tangent: TMP_VEC2_D.set(-TMP_VEC2_C.y, TMP_VEC2_C.x).clone(),
       preImpactVel
     };
   }
