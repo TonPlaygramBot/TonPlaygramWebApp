@@ -48,8 +48,7 @@ const SNAKE_TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'knight', label: 'Knight Token' },
   { id: 'bishop', label: 'Bishop Token' },
   { id: 'rook', label: 'Rook Token' },
-  { id: 'queen', label: 'Queen Token' },
-  { id: 'king', label: 'King Token' }
+  { id: 'queen', label: 'Queen Token' }
 ]);
 
 export const SNAKE_DEFAULT_UNLOCKS = Object.freeze({
