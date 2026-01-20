@@ -927,9 +927,9 @@ const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.35; // expand wooden frame rails outward by 35% on all sides
 const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.005; // pull the corner jaws inward slightly so the mouth radius reads tighter
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.035; // pull middle jaws inward so their radius and reach sit closer to the center
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.025; // pull middle jaws inward so their radius and reach sit closer to the center
 const POCKET_JAW_CORNER_INNER_SCALE = 1.26; // tighten the corner jaw inner lip for a slightly smaller radius
-const POCKET_JAW_SIDE_INNER_SCALE = 1.3; // tighten the middle jaw inner lip for a smaller radius
+const POCKET_JAW_SIDE_INNER_SCALE = 1.24; // tighten the middle jaw inner lip for a smaller radius
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.72; // preserve the playable mouth while letting the corner fascia run longer and slimmer
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
@@ -960,7 +960,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.54; // trim the middle jaw reach slightly while keeping the same radius and height
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.82; // trim the middle jaw arc radius so the side-pocket jaws read tighter
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.86; // trim the middle jaw arc radius so the side-pocket jaws read tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.2; // pull the middle pocket jaws further outward away from the table center
@@ -1050,12 +1050,12 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.958; // shrink the middle pocket mouth width a touch more so the radius tightens up further
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.97; // shrink the middle pocket mouth width a touch more so the radius tightens up further
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
-const SIDE_POCKET_CUT_SCALE = 0.975; // trim the middle cloth/rail cutouts a bit more so the openings follow the tighter pocket radius
+const SIDE_POCKET_CUT_SCALE = 0.985; // trim the middle cloth/rail cutouts a bit more so the openings follow the tighter pocket radius
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -1309,6 +1309,13 @@ const POCKET_CAM = Object.freeze({
 });
 const POCKET_POPUP_DURATION_MS = 2000;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
+const POCKET_GLOW_RADIUS = BALL_R * 1.32;
+const POCKET_GLOW_LIFT = BALL_R * 0.78;
+const POCKET_GLOW_OPACITY = 0.62;
+const POCKET_GLOW_COLORS = Object.freeze({
+  good: 0x2eea73,
+  foul: 0xff4b4b
+});
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.85;
 const POCKET_EARLY_ALIGNMENT = 0.7;
@@ -1394,7 +1401,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Pool Royale power pass: lift overall shot strength by another 25%.
 // Pool Royale request: increase shot power by an additional 50% for stronger strikes.
-const SHOT_POWER_REDUCTION = 0.85;
+const SHOT_POWER_REDUCTION = 0.6375; // reduce overall shot strength by another 25%
 const SHOT_POWER_MULTIPLIER = 1.25;
 const SHOT_POWER_BOOST = 1.5;
 const SHOT_SPEED_MULTIPLIER = 1.15;
@@ -4762,7 +4769,7 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.88; // lift the standing orbit slightly higher for a clearer top surface view
+const STANDING_VIEW_PHI = 0.85; // lift the standing orbit slightly higher for a clearer top surface view
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
@@ -7094,6 +7101,53 @@ export function Table3D(
     side: THREE.DoubleSide,
     depthWrite: false
   });
+  const pocketGlowGeometry = new THREE.CircleGeometry(POCKET_GLOW_RADIUS, 36);
+  const pocketGlowMaterials = {
+    good: new THREE.MeshBasicMaterial({
+      color: POCKET_GLOW_COLORS.good,
+      transparent: true,
+      opacity: POCKET_GLOW_OPACITY,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    }),
+    foul: new THREE.MeshBasicMaterial({
+      color: POCKET_GLOW_COLORS.foul,
+      transparent: true,
+      opacity: POCKET_GLOW_OPACITY,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    })
+  };
+  const createPocketGlowMesh = (tone = 'good') => {
+    const material = pocketGlowMaterials[tone] || pocketGlowMaterials.good;
+    if (!material) return null;
+    const glow = new THREE.Mesh(pocketGlowGeometry, material);
+    glow.rotation.x = -Math.PI / 2;
+    glow.renderOrder = 3;
+    glow.castShadow = false;
+    glow.receiveShadow = false;
+    return glow;
+  };
+  const setPocketGlowTone = (entry, tone = 'good') => {
+    if (!entry?.glowMesh) return;
+    const material = pocketGlowMaterials[tone] || pocketGlowMaterials.good;
+    if (material) entry.glowMesh.material = material;
+    entry.glowTone = tone;
+  };
+  const clearPocketGlow = (entry) => {
+    if (!entry?.glowMesh) return;
+    entry.glowMesh.parent?.remove?.(entry.glowMesh);
+    entry.glowMesh = null;
+  };
+  const removePocketDropEntry = (ballId) => {
+    const entry = pocketDropRef.current.get(ballId);
+    if (entry) {
+      clearPocketGlow(entry);
+    }
+    pocketDropRef.current.delete(ballId);
+  };
   const pocketGuideRingRadius = POCKET_BOTTOM_R * POCKET_NET_RING_RADIUS_SCALE;
   const pocketNetProfile = [
     new THREE.Vector2(pocketGuideRingRadius, 0),
@@ -22486,7 +22540,8 @@ const powerRef = useRef(hud.power);
           if (potCount > 1) tags.add('multi');
           if (shotContext?.cushionAfterContact) tags.add('bank');
           if (lastShotPower >= POWER_REPLAY_THRESHOLD) tags.add('power');
-          if (tags.size === 0) return null;
+          const nonPotTags = Array.from(tags).filter((tag) => tag !== 'pot');
+          if (nonPotTags.length === 0) return null;
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
@@ -22649,6 +22704,15 @@ const powerRef = useRef(hud.power);
         if (safeState?.foul) {
           showRuleToast('Foul');
         }
+        const shotWasFoul = Boolean(safeState?.foul);
+        if (potted.length) {
+          potted.forEach((entry) => {
+            const dropEntry = pocketDropRef.current.get(entry.id);
+            if (dropEntry?.glowMesh) {
+              setPocketGlowTone(dropEntry, shotWasFoul ? 'foul' : 'good');
+            }
+          });
+        }
         if (metaState && typeof metaState === 'object') {
           const assignments = metaState.assignments || null;
           if (assignments) {
@@ -22734,7 +22798,7 @@ const powerRef = useRef(hud.power);
               if (!simBall || !stateBall) return;
               if (stateBall.onTable) {
                 if (!simBall.active) {
-                  pocketDropRef.current.delete(simBall.id);
+                  removePocketDropEntry(simBall.id);
                   simBall.mesh.scale.set(1, 1, 1);
                   const [sx, sy] = SPOTS[name];
                   simBall.active = true;
@@ -22750,7 +22814,7 @@ const powerRef = useRef(hud.power);
                 }
               } else {
                 simBall.active = false;
-                pocketDropRef.current.delete(simBall.id);
+                removePocketDropEntry(simBall.id);
                 simBall.mesh.visible = false;
               }
             });
@@ -22776,7 +22840,7 @@ const powerRef = useRef(hud.power);
             }
             if (cueBallPotted) {
               cue.active = false;
-              pocketDropRef.current.delete(cue.id);
+              removePocketDropEntry(cue.id);
               const fallback = defaultInHandPosition();
               if (fallback) {
                 updateCuePlacement(fallback);
@@ -23785,7 +23849,7 @@ const powerRef = useRef(hud.power);
           const dropEntry = pocketDropRef.current.get(ball.id);
           const dropping = Boolean(dropEntry);
           if (ball.active && dropEntry) {
-            pocketDropRef.current.delete(ball.id);
+            removePocketDropEntry(ball.id);
             ball.mesh.visible = true;
             if (ball.shadow) ball.shadow.visible = true;
           }
@@ -24423,6 +24487,11 @@ const powerRef = useRef(hud.power);
                 );
               const restY =
                 railRunStart.y - POCKET_HOLDER_REST_DROP - tiltDrop;
+              const glowMesh = table ? createPocketGlowMesh('good') : null;
+              if (glowMesh) {
+                glowMesh.position.set(fromX, BALL_CENTER_Y - POCKET_GLOW_LIFT, fromZ);
+                table.add(glowMesh);
+              }
               const dropEntry = {
                 start: dropStart,
                 fromY: BALL_CENTER_Y,
@@ -24435,6 +24504,8 @@ const powerRef = useRef(hud.power);
                 runFromX: railRunStart.x,
                 runFromZ: railRunStart.z,
                 mesh: b.mesh,
+                glowMesh,
+                glowTone: 'good',
                 entrySpeed,
                 velocityY:
                   -Math.max(Math.abs(POCKET_DROP_ENTRY_VELOCITY), entrySpeed * 0.08),
@@ -24563,7 +24634,7 @@ const powerRef = useRef(hud.power);
             pocketDropRef.current.forEach((entry, key) => {
               const { mesh } = entry;
               if (!mesh) {
-                pocketDropRef.current.delete(key);
+                removePocketDropEntry(key);
                 return;
               }
               const targetY = entry.targetY ?? BALL_CENTER_Y - POCKET_DROP_STRAP_DEPTH;
@@ -24575,6 +24646,14 @@ const powerRef = useRef(hud.power);
                 mesh.visible = true;
                 mesh.position.set(entry.toX ?? runFromX, targetY, entry.toZ ?? runFromZ);
                 mesh.scale.set(1, 1, 1);
+                if (entry.glowMesh) {
+                  entry.glowMesh.visible = true;
+                  entry.glowMesh.position.set(
+                    entry.toX ?? runFromX,
+                    targetY - POCKET_GLOW_LIFT,
+                    entry.toZ ?? runFromZ
+                  );
+                }
                 return;
               }
               entry.velocityY =
@@ -24608,6 +24687,11 @@ const powerRef = useRef(hud.power);
                 }
               }
               mesh.position.set(posX, entry.currentY, posZ);
+              if (entry.glowMesh) {
+                const glowY = (entry.currentY ?? targetY) - POCKET_GLOW_LIFT;
+                entry.glowMesh.visible = true;
+                entry.glowMesh.position.set(posX, glowY, posZ);
+              }
             });
           }
           if (pocketPopupRef.current.length > 0) {
@@ -24728,7 +24812,12 @@ const powerRef = useRef(hud.power);
         window.removeEventListener('resize', onResize);
         updatePocketCameraState(false);
         pocketCamerasRef.current.clear();
+        pocketDropRef.current.forEach((entry) => {
+          clearPocketGlow(entry);
+        });
         pocketDropRef.current.clear();
+        pocketGlowGeometry.dispose?.();
+        Object.values(pocketGlowMaterials).forEach((material) => material?.dispose?.());
         pocketRestIndexRef.current.clear();
         pocketPopupRef.current.forEach((entry) => {
           entry?.mesh?.parent?.remove?.(entry.mesh);
