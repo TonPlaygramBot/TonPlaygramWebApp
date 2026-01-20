@@ -449,7 +449,8 @@ function pickChessPieceTargets(scene) {
     knight: null,
     bishop: null,
     rook: null,
-    queen: null
+    queen: null,
+    king: null
   };
   if (!scene) return targets;
   scene.traverse((node) => {
@@ -465,8 +466,23 @@ function pickChessPieceTargets(scene) {
     maybeAssign('bishop', /bishop/);
     maybeAssign('rook', /rook|castle/);
     maybeAssign('queen', /queen/);
+    maybeAssign('king', /king/);
   });
   return targets;
+}
+
+function findChessPieceRoot(node, key) {
+  if (!node) return null;
+  const keyRegex = new RegExp(key, 'i');
+  let current = node;
+  let candidate = node;
+  while (current.parent) {
+    if (current.parent.name && keyRegex.test(current.parent.name)) {
+      candidate = current.parent;
+    }
+    current = current.parent;
+  }
+  return candidate;
 }
 
 function buildChessPiecePrototypes(scene) {
@@ -474,7 +490,7 @@ function buildChessPiecePrototypes(scene) {
   const prototypes = {};
   Object.entries(candidates).forEach(([key, node]) => {
     if (!node) return;
-    const root = node.isMesh ? node.parent || node : node;
+    const root = findChessPieceRoot(node, key) ?? node;
     const clone = root.clone(true);
     prepareLoadedModel(clone);
     prototypes[key] = clone;
