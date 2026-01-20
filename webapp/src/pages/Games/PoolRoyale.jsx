@@ -601,7 +601,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.22; // ease the side fascias back toward the table centreline so the middle plates sit closer to the pocket mouth
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.18; // ease the side fascias back toward the table centreline so the middle plates sit closer to the pocket mouth
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.07; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.0525; // keep the rounded chrome cut width on the middle pockets consistent while the corner cut grows slightly
@@ -610,7 +610,7 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.02; // push the middle rail rounded cuts slightly farther outward so they sit farther from the table centre while keeping their slim profile
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.06; // push the middle rail rounded cuts slightly farther outward so they sit farther from the table centre while keeping their slim profile
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0; // keep the wood cutouts centered so the rounded relief stands straight
 
 function buildChromePlateGeometry({
@@ -922,11 +922,11 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
     THICK: 1.8 * TABLE_SCALE,
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
   };
-const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.24;
+const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.18;
 const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.045; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.065; // push middle jaws slightly farther so the sides meet the cushions
-const POCKET_JAW_CORNER_INNER_SCALE = 1.22; // pull the inner lip slightly tighter so the jaw radius reads smaller against the expanded chrome cuts
+const POCKET_JAW_CORNER_INNER_SCALE = 1.24; // pull the inner lip slightly tighter so the jaw radius reads smaller against the expanded chrome cuts
 const POCKET_JAW_SIDE_INNER_SCALE = 1.28; // keep the middle jaw inner radius unchanged so side jaws keep their radius
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.72; // preserve the playable mouth while letting the corner fascia run longer and slimmer
 const POCKET_JAW_SIDE_OUTER_SCALE =
@@ -958,7 +958,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.54; // trim the middle jaw reach slightly while keeping the same radius and height
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.84; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.88; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.22; // keep the middle pocket jaws straighter while still opening away from centre
@@ -1053,7 +1053,7 @@ const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
-const SIDE_POCKET_CUT_SCALE = 0.96; // trim the middle cloth/rail cutouts a bit more so the openings follow the tighter pocket radius
+const SIDE_POCKET_CUT_SCALE = 0.975; // trim the middle cloth/rail cutouts a bit more so the openings follow the tighter pocket radius
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -1433,7 +1433,6 @@ const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for ba
 const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
 const LEG_LENGTH_SHRINK = 0.867; // lengthen legs to extend the base downward with the taller table stance
 const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK;
-const BASE_FOOTPRINT_SCALE = 0.82; // shrink base footprint on X/Z while keeping table height unchanged
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
 const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
 const BASE_LEG_ROOM_HEIGHT =
@@ -1525,7 +1524,7 @@ const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets
 const DEFAULT_CUSHION_CUT_ANGLE = 27;
 // keep side-pocket cushion cuts aligned to the 22° spec
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 22;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -9839,18 +9838,6 @@ export function Table3D(
       }
     }
   };
-  const applyBaseFootprintScale = (meshes = [], scale = 1) => {
-    if (!Array.isArray(meshes) || meshes.length === 0) return;
-    if (!Number.isFinite(scale) || Math.abs(scale - 1) <= 1e-6) return;
-    meshes.forEach((mesh) => {
-      if (!mesh) return;
-      mesh.position.x *= scale;
-      mesh.position.z *= scale;
-      mesh.scale.x *= scale;
-      mesh.scale.z *= scale;
-      mesh.updateMatrixWorld(true);
-    });
-  };
 
   const resolveBaseVariantId = (variant) => {
     if (variant && typeof variant === 'object' && variant.id) return variant.id;
@@ -9870,7 +9857,6 @@ export function Table3D(
       frameMat: finishMaterials.frame ?? baseContext.frameMat,
       trimMat: finishMaterials.trim ?? baseContext.trimMat
     });
-    applyBaseFootprintScale(built.meshes, BASE_FOOTPRINT_SCALE);
     normalizeBasePlacement(built.meshes, built.normalizeOptions);
     addBaseMeshesToFinish(built);
     if (built?.asyncReady?.then) {
