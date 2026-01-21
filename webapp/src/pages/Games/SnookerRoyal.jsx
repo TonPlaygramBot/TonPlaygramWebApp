@@ -10422,11 +10422,6 @@ function SnookerRoyalGame({
   const [winnerOverlay, setWinnerOverlay] = useState(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingActive, setLoadingActive] = useState(true);
-  const loadingActiveRef = useRef(loadingActive);
-  const loadingHeartbeatRef = useRef(Date.now());
-  useEffect(() => {
-    loadingActiveRef.current = loadingActive;
-  }, [loadingActive]);
   useEffect(() => {
     const manager = THREE.DefaultLoadingManager;
     let cancelled = false;
@@ -10440,9 +10435,6 @@ function SnookerRoyalGame({
       const safeTotal = Number.isFinite(total) && total > 0 ? total : Math.max(1, loaded || 1);
       const ratio = Number.isFinite(loaded) ? loaded / safeTotal : 0;
       setLoadingProgress(Math.max(0, Math.min(1, ratio)));
-    };
-    const updateHeartbeat = () => {
-      loadingHeartbeatRef.current = Date.now();
     };
     const syncManagerState = () => {
       const loaded = Number(manager.itemsLoaded || 0);
@@ -10461,20 +10453,17 @@ function SnookerRoyalGame({
     manager.onStart = (url, loaded, total) => {
       prev.onStart?.(url, loaded, total);
       if (cancelled) return;
-      updateHeartbeat();
       setLoadingActive(true);
       updateProgress(loaded, total);
     };
     manager.onProgress = (url, loaded, total) => {
       prev.onProgress?.(url, loaded, total);
       if (cancelled) return;
-      updateHeartbeat();
       updateProgress(loaded, total);
     };
     manager.onLoad = () => {
       prev.onLoad?.();
       if (cancelled) return;
-      updateHeartbeat();
       setLoadingProgress(1);
       window.setTimeout(() => {
         if (!cancelled) setLoadingActive(false);
@@ -10483,24 +10472,15 @@ function SnookerRoyalGame({
     manager.onError = (url) => {
       prev.onError?.(url);
       if (cancelled) return;
-      updateHeartbeat();
       setLoadingProgress((prevValue) => Math.max(prevValue, 0.9));
     };
     syncManagerState();
-    const stallInterval = window.setInterval(() => {
-      if (cancelled || !loadingActiveRef.current) return;
-      const elapsed = Date.now() - loadingHeartbeatRef.current;
-      if (elapsed > 20000) {
-        setLoadingActive(false);
-      }
-    }, 2000);
     return () => {
       cancelled = true;
       manager.onStart = prev.onStart;
       manager.onLoad = prev.onLoad;
       manager.onProgress = prev.onProgress;
       manager.onError = prev.onError;
-      window.clearInterval(stallInterval);
     };
   }, []);
   const coinStyleInjectedRef = useRef(false);
