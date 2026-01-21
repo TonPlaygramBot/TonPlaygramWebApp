@@ -958,12 +958,12 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // trim the chamfer so the jaw outli
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.6; // extend corner jaw span so both ends meet the cushions
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.55; // align corner jaw span to the reference pocket arc
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.45; // keep middle jaw span consistent with the reference
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // match the middle jaw radius to the corner profile
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.02; // pull middle jaws slightly toward table center for cleaner balance
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.04; // keep middle jaws aligned to the pocket center like the reference
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.9; // keep the middle jaw edges fuller like the reference
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -7444,11 +7444,9 @@ export function Table3D(
   const sidePocketReach = Math.sqrt(
     Math.max(sidePocketRadius * sidePocketRadius - sideDeltaX * sideDeltaX, 0)
   );
-  const sidePocketReachReduction =
-    SIDE_CUSHION_POCKET_REACH_REDUCTION + TABLE.THICK * 0.03;
   const adjustedSidePocketReach = Math.max(
     0,
-    sidePocketReach - sidePocketReachReduction
+    sidePocketReach - SIDE_CUSHION_POCKET_REACH_REDUCTION
   );
   const verticalCushionLength = Math.max(
     MICRO_EPS,
