@@ -7444,9 +7444,13 @@ export function Table3D(
   const sidePocketReach = Math.sqrt(
     Math.max(sidePocketRadius * sidePocketRadius - sideDeltaX * sideDeltaX, 0)
   );
+  const sidePocketReachReduction = Math.max(
+    SIDE_CUSHION_POCKET_REACH_REDUCTION,
+    cornerCushionClearance
+  );
   const adjustedSidePocketReach = Math.max(
     0,
-    sidePocketReach - SIDE_CUSHION_POCKET_REACH_REDUCTION
+    sidePocketReach - sidePocketReachReduction
   );
   const verticalCushionLength = Math.max(
     MICRO_EPS,
