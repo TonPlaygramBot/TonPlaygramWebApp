@@ -601,7 +601,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.38; // push the side fascias slightly outward away from the table centreline
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.46; // push the side fascias farther outward away from the table centreline
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.07; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.03; // open the rounded chrome cut slightly more on the middle pockets
@@ -925,11 +925,11 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.35; // expand wooden frame rails outward by 35% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
+const RAIL_HEIGHT = TABLE.THICK * 1.18; // shorten rails by ~35% so the stance sits lower
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.005; // pull the corner jaws inward slightly so the mouth radius reads tighter
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.025; // pull middle jaws inward so their radius and reach sit closer to the center
-const POCKET_JAW_CORNER_INNER_SCALE = 1.26; // tighten the corner jaw inner lip for a slightly smaller radius
-const POCKET_JAW_SIDE_INNER_SCALE = 1.24; // tighten the middle jaw inner lip for a smaller radius
+const POCKET_JAW_CORNER_INNER_SCALE = 1.28; // tighten the corner jaw inner lip for a slightly smaller radius
+const POCKET_JAW_SIDE_INNER_SCALE = 1.22; // relax the middle jaw inner lip for a slightly larger radius
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.72; // preserve the playable mouth while letting the corner fascia run longer and slimmer
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
@@ -960,7 +960,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.54; // trim the middle jaw reach slightly while keeping the same radius and height
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.86; // trim the middle jaw arc radius so the side-pocket jaws read tighter
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.9; // relax the middle jaw arc radius so the side-pocket jaws read wider
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.2; // pull the middle pocket jaws further outward away from the table center
@@ -1309,6 +1309,7 @@ const POCKET_CAM = Object.freeze({
 });
 const POCKET_POPUP_DURATION_MS = 2000;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
+const POCKET_GLOW_ENABLED = false;
 const POCKET_GLOW_RADIUS = BALL_R * 1.32;
 const POCKET_GLOW_LIFT = BALL_R * 0.78;
 const POCKET_GLOW_OPACITY = 0.62;
@@ -1377,10 +1378,10 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
   side: PLAY_H * 0.45
 });
-const POCKET_VIEW_MIN_DURATION_MS = 560;
-const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
-const POCKET_VIEW_POST_POT_HOLD_MS = 160;
-const POCKET_VIEW_MAX_HOLD_MS = 3200;
+const POCKET_VIEW_MIN_DURATION_MS = 420;
+const POCKET_VIEW_ACTIVE_EXTENSION_MS = 220;
+const POCKET_VIEW_POST_POT_HOLD_MS = 80;
+const POCKET_VIEW_MAX_HOLD_MS = 1400;
 const SPIN_STRENGTH = BALL_R * 0.034;
 const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.021;
@@ -4769,11 +4770,11 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.85; // lift the standing orbit slightly higher for a clearer top surface view
+const STANDING_VIEW_PHI = 0.82; // lift the standing orbit slightly higher for a clearer top surface view
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
-const CAMERA_ABS_MIN_PHI = 0.1;
+const CAMERA_ABS_MIN_PHI = 0.08;
 const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.22; // keep the cue view a touch higher while staying above the cue
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
@@ -7101,26 +7102,31 @@ export function Table3D(
     side: THREE.DoubleSide,
     depthWrite: false
   });
-  const pocketGlowGeometry = new THREE.CircleGeometry(POCKET_GLOW_RADIUS, 36);
-  const pocketGlowMaterials = {
-    good: new THREE.MeshBasicMaterial({
-      color: POCKET_GLOW_COLORS.good,
-      transparent: true,
-      opacity: POCKET_GLOW_OPACITY,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      side: THREE.DoubleSide
-    }),
-    foul: new THREE.MeshBasicMaterial({
-      color: POCKET_GLOW_COLORS.foul,
-      transparent: true,
-      opacity: POCKET_GLOW_OPACITY,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      side: THREE.DoubleSide
-    })
-  };
+  const pocketGlowGeometry = POCKET_GLOW_ENABLED
+    ? new THREE.CircleGeometry(POCKET_GLOW_RADIUS, 36)
+    : null;
+  const pocketGlowMaterials = POCKET_GLOW_ENABLED
+    ? {
+        good: new THREE.MeshBasicMaterial({
+          color: POCKET_GLOW_COLORS.good,
+          transparent: true,
+          opacity: POCKET_GLOW_OPACITY,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide
+        }),
+        foul: new THREE.MeshBasicMaterial({
+          color: POCKET_GLOW_COLORS.foul,
+          transparent: true,
+          opacity: POCKET_GLOW_OPACITY,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide
+        })
+      }
+    : {};
   const createPocketGlowMesh = (tone = 'good') => {
+    if (!POCKET_GLOW_ENABLED || !pocketGlowGeometry) return null;
     const material = pocketGlowMaterials[tone] || pocketGlowMaterials.good;
     if (!material) return null;
     const glow = new THREE.Mesh(pocketGlowGeometry, material);
