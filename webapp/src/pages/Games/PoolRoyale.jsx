@@ -601,7 +601,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome p
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.32; // pull the middle-pocket fascias closer to center while keeping the rounded cut anchored
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.46; // push the side fascias farther outward away from the table centreline
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.07; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.03; // open the rounded chrome cut slightly more on the middle pockets
@@ -963,7 +963,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.54; // trim the middle jaw reach sli
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.9; // relax the middle jaw arc radius so the side-pocket jaws read wider
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.12; // pull the middle pocket jaws slightly closer toward the table center
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.2; // pull the middle pocket jaws further outward away from the table center
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -9223,8 +9223,6 @@ export function Table3D(
   const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.42;
   const CUSHION_NOSE_FRONT_PULL_SCALE = 0.11; // extend only the exposed nose + undercut toward the playfield without moving the cushion base
   const CUSHION_FRONT_FIELD_EXPANSION = BALL_R * 0.5; // grow the exposed triangular faces toward the playfield without touching the rail side
-  const SIDE_POCKET_CUSHION_END_CURVE_SCALE = 0.18; // small fillet so middle-pocket cushion ends stay straight with a soft edge
-  const SIDE_POCKET_CUSHION_END_CURVE_LIMIT = 0.46; // cap the fillet radius to preserve the straight cut near the jaws
   const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
   const rawCushionHeight = Math.max(0, railsTopY - cushionBaseY);
   const cushionDrop = Math.min(CUSHION_HEIGHT_DROP, rawCushionHeight);
@@ -9237,7 +9235,7 @@ export function Table3D(
   const gapStripePad = TABLE.THICK * 0.005;
   const gapStripeOutwardShift = TABLE.THICK * 0.03;
 
-  function cushionProfileAdvanced(len, horizontal, cutAngles = {}, endStyles = {}) {
+  function cushionProfileAdvanced(len, horizontal, cutAngles = {}) {
     const halfLen = len / 2;
     const thicknessScale = horizontal ? FACE_SHRINK_LONG : FACE_SHRINK_SHORT;
     const baseRailWidth = horizontal ? longRailW : endRailW;
@@ -9259,10 +9257,8 @@ export function Table3D(
       return Math.max(minCutLength, rawCut);
     };
 
-    const leftStyle = endStyles.left ?? 'angled';
-    const rightStyle = endStyles.right ?? 'angled';
-    let leftCut = leftStyle === 'angled' ? computeCut(leftCutAngle) : 0;
-    let rightCut = rightStyle === 'angled' ? computeCut(rightCutAngle) : 0;
+    let leftCut = computeCut(leftCutAngle);
+    let rightCut = computeCut(rightCutAngle);
     const maxTotalCut = Math.max(MICRO_EPS, len - MICRO_EPS);
     const totalCut = leftCut + rightCut;
     if (totalCut > maxTotalCut) {
@@ -9271,28 +9267,12 @@ export function Table3D(
       rightCut *= scale;
     }
 
-    const endCurveRadius = Math.min(
-      noseThickness * SIDE_POCKET_CUSHION_END_CURVE_SCALE,
-      (backY - frontY) * SIDE_POCKET_CUSHION_END_CURVE_LIMIT
-    );
-
     const shape = new THREE.Shape();
     shape.moveTo(-halfLen, backY);
     shape.lineTo(halfLen, backY);
-    if (rightStyle === 'straightRounded' && endCurveRadius > MICRO_EPS) {
-      shape.lineTo(halfLen, frontY + endCurveRadius);
-      shape.quadraticCurveTo(halfLen, frontY, halfLen - endCurveRadius, frontY);
-    } else {
-      shape.lineTo(halfLen - rightCut, frontY);
-    }
-    if (leftStyle === 'straightRounded' && endCurveRadius > MICRO_EPS) {
-      shape.lineTo(-halfLen + endCurveRadius, frontY);
-      shape.quadraticCurveTo(-halfLen, frontY, -halfLen, frontY + endCurveRadius);
-      shape.lineTo(-halfLen, backY);
-    } else {
-      shape.lineTo(-halfLen + leftCut, frontY);
-      shape.lineTo(-halfLen, backY);
-    }
+    shape.lineTo(halfLen - rightCut, frontY);
+    shape.lineTo(-halfLen + leftCut, frontY);
+    shape.lineTo(-halfLen, backY);
 
     const cushionBevel = Math.min(railH, baseThickness) * 0.12;
     const geo = new THREE.ExtrudeGeometry(shape, {
@@ -9364,13 +9344,7 @@ export function Table3D(
           rightCutAngle: leftCloserToCenter ? CUSHION_CUT_ANGLE : SIDE_CUSHION_CUT_ANGLE
         }
       : undefined;
-    const sidePocketEndStyles = !horizontal
-      ? {
-          left: leftCloserToCenter ? 'straightRounded' : 'angled',
-          right: leftCloserToCenter ? 'angled' : 'straightRounded'
-        }
-      : undefined;
-    const geo = cushionProfileAdvanced(len, horizontal, sidePocketCuts, sidePocketEndStyles);
+    const geo = cushionProfileAdvanced(len, horizontal, sidePocketCuts);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
     const orientationScale = horizontal ? SHORT_CUSHION_HEIGHT_SCALE : 1;
