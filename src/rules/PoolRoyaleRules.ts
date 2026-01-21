@@ -27,7 +27,7 @@ type UkSerializedState = {
   lastEvent: string | null;
   frameOver: boolean;
   winner: 'A' | 'B' | null;
-  mustPlayFromBaulk: boolean;
+  ballInHand: boolean;
 };
 
 type AmericanSerializedState = {
@@ -101,7 +101,7 @@ function serializeUkState(state: UkPool['state']): UkSerializedState {
     lastEvent: state.lastEvent,
     frameOver: state.frameOver,
     winner: state.winner,
-    mustPlayFromBaulk: state.mustPlayFromBaulk
+    ballInHand: state.ballInHand
   };
 }
 
@@ -120,7 +120,7 @@ function applyUkState(game: UkPool, snapshot: UkSerializedState) {
     lastEvent: snapshot.lastEvent,
     frameOver: snapshot.frameOver,
     winner: snapshot.winner,
-    mustPlayFromBaulk: snapshot.mustPlayFromBaulk
+    ballInHand: snapshot.ballInHand
   };
 }
 
