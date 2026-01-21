@@ -7345,8 +7345,8 @@ export function Table3D(
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.07; // push the cushions further outward so they meet the wooden rails without a gap
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.4; // trim the cushion tips near middle pockets so they stop at the rail cut
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.38; // shorten the short-rail cushions a touch more so they stay clear of the pocket openings
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.52; // trim the side-rail cushion tips further so they stop before the pocket perimeter
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
@@ -19601,10 +19601,8 @@ const powerRef = useRef(hud.power);
       // Pointer → XZ plane
       const pointer = new THREE.Vector2();
       const ray = new THREE.Raycaster();
-      const plane = new THREE.Plane(
-        new THREE.Vector3(0, 1, 0),
-        -TABLE_Y * worldScaleFactor
-      );
+      const planeHeight = (TABLE_Y + BALL_CENTER_Y) * worldScaleFactor;
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -planeHeight);
       project = (ev) => {
         const r = dom.getBoundingClientRect();
         const cx =
