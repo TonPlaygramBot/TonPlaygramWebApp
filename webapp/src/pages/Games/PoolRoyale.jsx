@@ -926,11 +926,11 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.35; // expand wooden frame rails outward by 35% on all sides
 const RAIL_HEIGHT = TABLE.THICK * 1.18; // shorten rails by ~35% so the stance sits lower
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // match the chrome cut exactly so the jaw outline mirrors the reference
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep middle jaws aligned to the chrome cut like the reference
-const POCKET_JAW_CORNER_INNER_SCALE = 1.22; // slim the corner jaw inner lip to match the reference opening
-const POCKET_JAW_SIDE_INNER_SCALE = 1.18; // keep middle jaws consistent with the corner profile
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.6; // slightly reduce jaw thickness so the silhouette matches the reference
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.045; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.065; // push middle jaws slightly farther so the sides meet the cushions
+const POCKET_JAW_CORNER_INNER_SCALE = 1.24; // pull the inner lip slightly tighter so the jaw radius reads smaller against the expanded chrome cuts
+const POCKET_JAW_SIDE_INNER_SCALE = 1.28; // keep the middle jaw inner radius unchanged so side jaws keep their radius
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.72; // preserve the playable mouth while letting the corner fascia run longer and slimmer
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.02; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
@@ -958,9 +958,9 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // trim the chamfer so the jaw outli
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.55; // align corner jaw span to the reference pocket arc
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.32; // trim middle jaw span so the ends stop at the rail cut start
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // match the middle jaw radius to the corner profile
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.54; // trim the middle jaw reach slightly while keeping the same radius and height
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.88; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.04; // keep middle jaws aligned to the pocket center like the reference
@@ -1463,7 +1463,8 @@ const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so i
 const BASE_HEIGHT_FILL = 0.94; // grow bases upward so the stance stays consistent with the shorter skirt
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_HEIGHT_DROP = TABLE_H * 0.18; // lower the full table assembly by 18%
+const TABLE_HEIGHT_DROP_FACTOR = 0.18; // lower the full table assembly by 18%
+const TABLE_HEIGHT_DROP = TABLE_H * TABLE_HEIGHT_DROP_FACTOR;
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
@@ -1534,9 +1535,9 @@ const SPIN_DECORATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 const SPIN_DECORATION_DOT_SIZE_PX = 12;
 const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets
-const DEFAULT_CUSHION_CUT_ANGLE = 45;
-// keep side-pocket cushion cuts aligned to the corner angle
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
+const DEFAULT_CUSHION_CUT_ANGLE = 27;
+// keep side-pocket cushion cuts aligned to the 22° spec
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 22;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -7391,6 +7392,7 @@ export function Table3D(
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.32; // trim the cushion tips near middle pockets so they stop at the rail cut
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
+  const LONG_CUSHION_LENGTH_TRIM = TABLE.THICK * 0.06; // trim the long-rail cushion span slightly to match the earlier reference length
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
@@ -7434,9 +7436,10 @@ export function Table3D(
     0,
     rawCornerCushionClearance - CUSHION_CORNER_CLEARANCE_REDUCTION
   );
+  const longCushionClearance = cornerCushionClearance + LONG_CUSHION_LENGTH_TRIM;
   const horizontalCushionLength = Math.max(
     MICRO_EPS,
-    PLAY_W - 2 * cornerCushionClearance
+    PLAY_W - 2 * longCushionClearance
   );
   const sideLineX =
     halfW - CUSHION_RAIL_FLUSH - CUSHION_LONG_RAIL_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH;
