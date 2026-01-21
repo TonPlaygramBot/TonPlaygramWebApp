@@ -15,6 +15,7 @@ import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -88,18 +89,6 @@ import {
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-let meshoptDecoderPromise = null;
-const loadMeshoptDecoder = async () => {
-  if (!meshoptDecoderPromise) {
-    meshoptDecoderPromise = import('three/examples/jsm/libs/meshopt_decoder.module.js')
-      .then((module) => module.MeshoptDecoder)
-      .catch((error) => {
-        console.warn('Pool Royale meshopt decoder failed to load', error);
-        return null;
-      });
-  }
-  return meshoptDecoderPromise;
-};
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -9676,7 +9665,7 @@ export function Table3D(
     return polyhavenKtx2Loader;
   };
 
-  const createConfiguredGLTFLoader = async (renderer = null) => {
+  const createConfiguredGLTFLoader = (renderer = null) => {
     const loader = new GLTFLoader();
     loader.setCrossOrigin('anonymous');
     const draco = new DRACOLoader();
@@ -9684,10 +9673,7 @@ export function Table3D(
     loader.setDRACOLoader(draco);
     const ktx2 = ensurePolyhavenKtx2Loader(renderer);
     loader.setKTX2Loader(ktx2);
-    const meshoptDecoder = await loadMeshoptDecoder();
-    if (meshoptDecoder) {
-      loader.setMeshoptDecoder?.(meshoptDecoder);
-    }
+    loader.setMeshoptDecoder?.(MeshoptDecoder);
     return loader;
   };
 
@@ -9711,7 +9697,7 @@ export function Table3D(
       return polyhavenBasePromises.get(assetId);
     }
     const promise = (async () => {
-      const loader = await createConfiguredGLTFLoader(renderer);
+      const loader = createConfiguredGLTFLoader(renderer);
       let lastError = null;
       const urls = buildPolyhavenModelUrls(assetId);
       for (const url of urls) {
