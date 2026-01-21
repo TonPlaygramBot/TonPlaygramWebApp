@@ -1463,7 +1463,7 @@ const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so i
 const BASE_HEIGHT_FILL = 0.94; // grow bases upward so the stance stays consistent with the shorter skirt
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.2; // lower the full table assembly by 20%
+const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.18; // lower the full table assembly by 18%
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
@@ -1535,8 +1535,8 @@ const SPIN_DECORATION_DOT_SIZE_PX = 12;
 const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets
 const DEFAULT_CUSHION_CUT_ANGLE = 27;
-// keep side-pocket cushion cuts aligned to the middle-pocket 45° spec
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 45;
+// keep side-pocket cushion cuts aligned to the corner angle
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -6130,28 +6130,6 @@ function calcTarget(cue, dir, balls) {
       targetBall = null;
     }
   };
-  const checkCut = (
-    linePoint,
-    normal,
-    tangent,
-    guardClearance,
-    depthLimit,
-    impactFilter
-  ) => {
-    const denom = dirNorm.dot(normal);
-    if (denom >= -1e-6) return;
-    TMP_VEC2_A.copy(cuePos).sub(linePoint);
-    const distNormal = TMP_VEC2_A.dot(normal);
-    if (Number.isFinite(depthLimit) && distNormal < -depthLimit) return;
-    const t = (BALL_R - distNormal) / denom;
-    if (!(t > 0 && t < tHit)) return;
-    TMP_VEC2_LIMIT.copy(dirNorm).multiplyScalar(t).add(cuePos);
-    TMP_VEC2_A.copy(TMP_VEC2_LIMIT).sub(linePoint);
-    const lateral = Math.abs(TMP_VEC2_A.dot(tangent));
-    if (lateral < guardClearance) return;
-    if (impactFilter && !impactFilter(TMP_VEC2_LIMIT)) return;
-    checkRail(t, normal.clone());
-  };
   if (dirNorm.x < -1e-8)
     checkRail((-limX - cuePos.x) / dirNorm.x, new THREE.Vector2(1, 0));
   if (dirNorm.x > 1e-8)
@@ -6160,46 +6138,6 @@ function calcTarget(cue, dir, balls) {
     checkRail((-limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, 1));
   if (dirNorm.y > 1e-8)
     checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
-
-  const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-  const cornerCos = Math.cos(cornerRad);
-  const cornerSin = Math.sin(cornerRad);
-  for (const { sx, sy } of CORNER_SIGNS) {
-    TMP_VEC2_C.set(sx * limX, sy * limY);
-    TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
-    TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-    checkCut(
-      TMP_VEC2_C,
-      TMP_VEC2_B,
-      TMP_VEC2_D,
-      POCKET_GUARD_CLEARANCE,
-      CORNER_POCKET_DEPTH_LIMIT
-    );
-  }
-
-  const sideSpan = SIDE_POCKET_SPAN;
-  const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
-  const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
-  const sidePocketCenters = pocketCenters().slice(4);
-  const sideCutRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
-  const sideCutCos = Math.cos(sideCutRad);
-  const sideCutSin = Math.sin(sideCutRad);
-  for (const center of sidePocketCenters) {
-    const signX = center.x >= 0 ? 1 : -1;
-    for (const signY of SIDE_POCKET_CUT_SIGNS) {
-      TMP_VEC2_C.set(signX * limX, center.y + signY * sideSpan);
-      TMP_VEC2_B.set(-signX * sideCutCos, signY * sideCutSin);
-      TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-      checkCut(
-        TMP_VEC2_C,
-        TMP_VEC2_B,
-        TMP_VEC2_D,
-        sideGuardClearance,
-        sideDepthLimit,
-        (impactPos) => (impactPos.y - center.y) * signY >= 0
-      );
-    }
-  }
 
   const contactRadius = BALL_R * 2;
   const contactRadius2 = contactRadius * contactRadius;
@@ -7450,7 +7388,7 @@ export function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.3; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.36; // trim the cushion tips near middle pockets so they stop at the rail cut
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.32; // trim the cushion tips near middle pockets so they stop at the rail cut
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
