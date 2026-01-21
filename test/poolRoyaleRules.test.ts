@@ -38,7 +38,7 @@ describe('PoolRoyaleRules', () => {
     const foulMeta = foulState.meta as any;
 
     expect(foulState.foul?.reason).toBe('scratch');
-    expect(foulMeta?.state?.mustPlayFromBaulk).toBe(true);
+    expect(foulMeta?.state?.ballInHand).toBe(true);
     expect(foulState.activePlayer).toBe('B');
     expect(foulMeta?.hud?.phase).toBe('groups');
     expect(foulState.ballOn).toContain('YELLOW');

@@ -23,11 +23,11 @@ type UkSerializedState = {
   assignments: { A: UkColour | null; B: UkColour | null };
   currentPlayer: 'A' | 'B';
   shotsRemaining: number;
+  ballInHand: boolean;
   isOpenTable: boolean;
   lastEvent: string | null;
   frameOver: boolean;
   winner: 'A' | 'B' | null;
-  mustPlayFromBaulk: boolean;
 };
 
 type AmericanSerializedState = {
@@ -97,11 +97,11 @@ function serializeUkState(state: UkPool['state']): UkSerializedState {
     assignments: { ...state.assignments },
     currentPlayer: state.currentPlayer,
     shotsRemaining: state.shotsRemaining,
+    ballInHand: state.ballInHand,
     isOpenTable: state.isOpenTable,
     lastEvent: state.lastEvent,
     frameOver: state.frameOver,
-    winner: state.winner,
-    mustPlayFromBaulk: state.mustPlayFromBaulk
+    winner: state.winner
   };
 }
 
@@ -116,11 +116,11 @@ function applyUkState(game: UkPool, snapshot: UkSerializedState) {
     assignments: { ...snapshot.assignments },
     currentPlayer: snapshot.currentPlayer,
     shotsRemaining: snapshot.shotsRemaining,
+    ballInHand: snapshot.ballInHand,
     isOpenTable: snapshot.isOpenTable,
     lastEvent: snapshot.lastEvent,
     frameOver: snapshot.frameOver,
-    winner: snapshot.winner,
-    mustPlayFromBaulk: snapshot.mustPlayFromBaulk
+    winner: snapshot.winner
   };
 }
 
