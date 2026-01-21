@@ -596,7 +596,7 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.45; // tighten the middle fascia s
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.8; // reduce fascia reach so the middle pocket chrome reads compact like the reference
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.24; // widen the middle plates to match the photo reference span
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.98; // extend the outward chrome reach so the sides feel broader
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0; // trim the outward chrome reach so side plates stop where the wooden rails end
 const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1; // allow the plate ends to run farther toward the pocket entry
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 1; // keep the widened fascia width intact
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1; // keep the chrome plate centered between pocket shoulders
@@ -963,7 +963,8 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.32; // trim middle jaw span so the e
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // match the middle jaw radius to the corner profile
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.04; // keep middle jaws aligned to the pocket center like the reference
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * -0.02; // pull the middle jaws slightly inward toward the table center
+const POCKET_JAW_INWARD_PULL = TABLE.THICK * 0.02; // tuck all pocket jaws subtly inward to tighten the mouth toward the playfield
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.84; // trim the jaw edges so they stop at the wood rail curve
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -8717,6 +8718,15 @@ export function Table3D(
     return new THREE.Vector2(fallbackX, fallbackZ);
   };
 
+  const pullPocketJawInward = (center, amount) => {
+    if (!(center instanceof THREE.Vector2)) return center;
+    if (!Number.isFinite(amount) || amount <= MICRO_EPS) return center;
+    const len = center.length();
+    if (!Number.isFinite(len) || len <= MICRO_EPS) return center;
+    center.add(center.clone().multiplyScalar(-amount / len));
+    return center;
+  };
+
   if (cornerBaseRadius && cornerBaseRadius > MICRO_EPS) {
     [
       { sx: 1, sz: 1 },
@@ -8730,6 +8740,7 @@ export function Table3D(
         sz * (innerHalfH - cornerInset)
       );
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
+      pullPocketJawInward(center, POCKET_JAW_INWARD_PULL);
       const orientationAngle = Math.atan2(sz, sx);
       addPocketJaw({
         center,
@@ -8750,6 +8761,7 @@ export function Table3D(
       const fallbackCenter = new THREE.Vector2(sx * sidePocketCenterX, 0);
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
       center.x += sx * SIDE_POCKET_JAW_OUTWARD_SHIFT;
+      pullPocketJawInward(center, POCKET_JAW_INWARD_PULL);
       const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
         center,
@@ -9415,7 +9427,9 @@ export function Table3D(
     const orientationSign = flip ? -1 : 1;
     const worldZLeft = z + -halfLen * orientationSign;
     const worldZRight = z + halfLen * orientationSign;
-    const leftCloserToCenter = Math.abs(worldZLeft) <= Math.abs(worldZRight);
+    const leftDistanceToSidePocket = Math.abs(worldZLeft);
+    const rightDistanceToSidePocket = Math.abs(worldZRight);
+    const leftCloserToCenter = leftDistanceToSidePocket < rightDistanceToSidePocket;
     const side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
     const sidePocketCuts = !horizontal
       ? {
