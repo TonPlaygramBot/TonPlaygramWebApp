@@ -959,13 +959,13 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.55; // align corner jaw span to the reference pocket arc
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.45; // keep middle jaw span consistent with the reference
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.32; // trim middle jaw span so the ends stop at the rail cut start
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // match the middle jaw radius to the corner profile
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.04; // keep middle jaws aligned to the pocket center like the reference
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.9; // keep the middle jaw edges fuller like the reference
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.84; // trim the jaw edges so they stop at the wood rail curve
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
@@ -9419,8 +9419,12 @@ export function Table3D(
     const side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
     const sidePocketCuts = !horizontal
       ? {
-          leftCutAngle: SIDE_CUSHION_CUT_ANGLE,
-          rightCutAngle: SIDE_CUSHION_CUT_ANGLE
+          leftCutAngle: leftCloserToCenter
+            ? SIDE_CUSHION_CUT_ANGLE
+            : CUSHION_CUT_ANGLE,
+          rightCutAngle: leftCloserToCenter
+            ? CUSHION_CUT_ANGLE
+            : SIDE_CUSHION_CUT_ANGLE
         }
       : undefined;
     const geo = cushionProfileAdvanced(len, horizontal, sidePocketCuts);
