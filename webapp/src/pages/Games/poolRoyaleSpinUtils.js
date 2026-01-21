@@ -6,9 +6,9 @@ export const SPIN_RING1_RADIUS = 0.32;
 export const SPIN_RING2_RADIUS = 0.52;
 export const SPIN_RING3_RADIUS = MAX_SPIN_OFFSET;
 export const SPIN_LEVEL0_MAG = 0;
-export const SPIN_LEVEL1_MAG = 0;
-export const SPIN_LEVEL2_MAG = 0.45 * MAX_SPIN_OFFSET;
-export const SPIN_LEVEL3_MAG = 0.9 * MAX_SPIN_OFFSET;
+export const SPIN_LEVEL1_MAG = 0.1 * MAX_SPIN_OFFSET;
+export const SPIN_LEVEL2_MAG = 0.5 * MAX_SPIN_OFFSET;
+export const SPIN_LEVEL3_MAG = 1.0 * MAX_SPIN_OFFSET;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
 export const STUN_TOPSPIN_BIAS = 0;
 

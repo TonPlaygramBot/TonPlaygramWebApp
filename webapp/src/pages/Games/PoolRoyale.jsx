@@ -940,11 +940,11 @@ const POCKET_JAW_DEPTH_SCALE = 1.08; // extend the jaw bodies so the underside r
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim so the pocket lips sit nearer the cloth plane
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // allow the jaw extrusion to extend farther down without lifting the top
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // keep the underside tight to the cloth depth instead of the deeper pocket floor
-const POCKET_JAW_EDGE_FLUSH_START = 0.2; // start easing earlier so the jaw thins gradually toward the cushions
+const POCKET_JAW_EDGE_FLUSH_START = 0.12; // start easing earlier so the jaw thins gradually toward the cushions
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
-const POCKET_JAW_EDGE_TAPER_SCALE = 0.08; // thin the outer lips more aggressively while leaving the centre crown unchanged
-const POCKET_JAW_CENTER_TAPER_HOLD = 0.22; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
-const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.35; // smooth the taper curve so thickness falls away progressively instead of dropping late
+const POCKET_JAW_EDGE_TAPER_SCALE = 0.1; // thin the outer lips more aggressively while leaving the centre crown unchanged
+const POCKET_JAW_CENTER_TAPER_HOLD = 0.16; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
+const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.15; // smooth the taper curve so thickness falls away progressively instead of dropping late
 const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD; // keep the taper hold consistent so the middle jaw crown mirrors the corners
 const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE; // reuse the corner taper scale so edge thickness matches exactly
 const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // maintain the identical taper curve across all six jaws
@@ -959,8 +959,8 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42; // widen the chamfer so the corner j
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.66; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.28; // push the middle jaw reach a touch wider so the openings read larger
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.78; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.4; // push the middle jaw reach a touch wider so the openings read larger
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
@@ -1538,7 +1538,7 @@ const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // match the corner-cushion cut angle on both sides of the corner pockets
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 45;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -5938,12 +5938,29 @@ function resolveSwerveSettings(
   forceSwerve = false,
   liftStrength = 0
 ) {
+  const sideSpin = spin?.x ?? 0;
   const magnitude = Math.hypot(spin?.x ?? 0, spin?.y ?? 0);
+  const active =
+    (forceSwerve || magnitude >= SWERVE_THRESHOLD) &&
+    Math.abs(sideSpin) >= 1e-3;
+  if (!active) {
+    return {
+      active: false,
+      sideSpin: 0,
+      magnitude,
+      intensity: 0
+    };
+  }
+  const threshold = Math.max(1 - SWERVE_THRESHOLD, 1e-6);
+  const normalized = clamp((magnitude - SWERVE_THRESHOLD) / threshold, 0, 1);
+  const liftBoost = 0.75 + Math.max(0, liftStrength) * 0.5;
+  const powerBoost = 0.7 + powerStrength * 0.85;
+  const spinBoost = 0.75 + Math.min(Math.abs(sideSpin), 1) * 0.6;
   return {
-    active: false,
-    sideSpin: 0,
+    active: true,
+    sideSpin,
     magnitude,
-    intensity: 0
+    intensity: normalized * powerBoost * spinBoost * liftBoost
   };
 }
 
@@ -5955,12 +5972,24 @@ function resolveSpinPreviewSettings(
 ) {
   const swerve = resolveSwerveSettings(spin, powerStrength, forceSwerve, liftStrength);
   if (swerve.active) return swerve;
-  const magnitude = Math.abs(spin?.x ?? 0);
+  const sideSpin = spin?.x ?? 0;
+  const magnitude = Math.abs(sideSpin);
+  if (magnitude < 1e-3) {
+    return {
+      active: false,
+      sideSpin: 0,
+      magnitude,
+      intensity: 0
+    };
+  }
+  const powerBoost = 0.55 + powerStrength * 0.35;
+  const liftBoost = 0.8 + Math.max(0, liftStrength) * 0.3;
+  const intensity = Math.min(magnitude, 1) * powerBoost * liftBoost * 0.35;
   return {
     active: false,
-    sideSpin: 0,
+    sideSpin,
     magnitude,
-    intensity: 0
+    intensity
   };
 }
 
@@ -5971,7 +6000,30 @@ function resolveSwerveAimDir(
   forceSwerve = false,
   liftStrength = 0
 ) {
-  return aimDir;
+  if (!aimDir || aimDir.lengthSq() < 1e-8) return aimDir;
+  const swerve = resolveSpinPreviewSettings(
+    spin,
+    powerStrength,
+    forceSwerve,
+    liftStrength
+  );
+  if (swerve.intensity <= 0 || Math.abs(swerve.sideSpin) < 1e-3) return aimDir;
+  const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
+  const curveBase =
+    (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
+  const powerScale = 4 + powerStrength * 6;
+  const swerveScale = 0.6 + swerve.intensity * 0.9;
+  const sideSpin = swerve.sideSpin;
+  const adjust =
+    sideSpin *
+    swerve.intensity *
+    curveBase *
+    powerScale *
+    AIM_SPIN_PREVIEW_SIDE *
+    swerveScale;
+  const adjusted = aimDir.clone().add(perp.multiplyScalar(adjust));
+  if (adjusted.lengthSq() > 1e-8) adjusted.normalize();
+  return adjusted;
 }
 
 function buildSwerveAimLinePoints(
@@ -5987,11 +6039,59 @@ function buildSwerveAimLinePoints(
   liftStrength = 0
 ) {
   if (!points) return [start, end];
-  points.length = 2;
-  if (!points[0]) points[0] = new THREE.Vector3();
-  if (!points[1]) points[1] = new THREE.Vector3();
-  points[0].copy(start);
-  points[1].copy(end);
+  const swerve = resolveSpinPreviewSettings(
+    spin,
+    powerStrength,
+    swerveActive,
+    liftStrength
+  );
+  const sideSpin = swerve.sideSpin;
+  const travel = start.distanceTo(end);
+  if (swerve.intensity <= 0 || Math.abs(sideSpin) < 1e-3 || travel < 1e-4) {
+    points.length = 2;
+    if (!points[0]) points[0] = new THREE.Vector3();
+    if (!points[1]) points[1] = new THREE.Vector3();
+    points[0].copy(start);
+    points[1].copy(end);
+    return points;
+  }
+  const segments = clamp(Math.round(travel / (BALL_R * 1.6)), 6, 14);
+  const curveBase =
+    (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
+  const swerveScale = 0.6 + swerve.intensity * 0.9;
+  const curveScale =
+    curveBase *
+    (4 + powerStrength * 6.5) *
+    AIM_SPIN_PREVIEW_SIDE *
+    swerveScale;
+  const curveAmount = sideSpin * curveScale * travel;
+  controlPoint
+    .copy(start)
+    .addScaledVector(dir, travel * 0.5)
+    .addScaledVector(perp, curveAmount);
+  points.length = segments + 1;
+  const ax = start.x;
+  const ay = start.y;
+  const az = start.z;
+  const bx = controlPoint.x;
+  const by = controlPoint.y;
+  const bz = controlPoint.z;
+  const cx = end.x;
+  const cy = end.y;
+  const cz = end.z;
+  for (let i = 0; i <= segments; i += 1) {
+    const t = segments === 0 ? 0 : i / segments;
+    const omt = 1 - t;
+    const omt2 = omt * omt;
+    const t2 = t * t;
+    const point = points[i] ?? new THREE.Vector3();
+    point.set(
+      omt2 * ax + 2 * omt * t * bx + t2 * cx,
+      omt2 * ay + 2 * omt * t * by + t2 * cy,
+      omt2 * az + 2 * omt * t * bz + t2 * cz
+    );
+    points[i] = point;
+  }
   return points;
 }
 
@@ -9331,13 +9431,14 @@ export function Table3D(
     const leftDistanceToSidePocket = Math.abs(worldZLeft);
     const rightDistanceToSidePocket = Math.abs(worldZRight);
     const leftCloserToCenter = leftDistanceToSidePocket < rightDistanceToSidePocket;
+    const centerOnLeft = flip ? !leftCloserToCenter : leftCloserToCenter;
     const side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
     const sidePocketCuts = !horizontal
       ? {
-          leftCutAngle: leftCloserToCenter
+          leftCutAngle: centerOnLeft
             ? SIDE_CUSHION_CUT_ANGLE
             : CUSHION_CUT_ANGLE,
-          rightCutAngle: leftCloserToCenter
+          rightCutAngle: centerOnLeft
             ? CUSHION_CUT_ANGLE
             : SIDE_CUSHION_CUT_ANGLE
         }
