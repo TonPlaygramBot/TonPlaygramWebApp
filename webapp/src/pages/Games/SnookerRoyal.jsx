@@ -10422,6 +10422,7 @@ function SnookerRoyalGame({
   const [winnerOverlay, setWinnerOverlay] = useState(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingActive, setLoadingActive] = useState(true);
+  const firstFrameRenderedRef = useRef(false);
   useEffect(() => {
     const manager = THREE.DefaultLoadingManager;
     let cancelled = false;
@@ -13391,6 +13392,7 @@ const powerRef = useRef(hud.power);
     const host = mountRef.current;
     if (!host) return;
     setErr(null);
+    firstFrameRenderedRef.current = false;
     const webglSupported = isWebGLAvailable();
     const cueRackDisposers = [];
     let disposed = false;
@@ -24410,6 +24412,11 @@ const powerRef = useRef(hud.power);
           }
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
+          if (!firstFrameRenderedRef.current) {
+            firstFrameRenderedRef.current = true;
+            setLoadingProgress(1);
+            setLoadingActive(false);
+          }
           const shouldStreamAim =
             isOnlineMatch &&
             tableId &&
