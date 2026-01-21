@@ -934,17 +934,17 @@ const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.02; // rou
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.84; // preserve the playable mouth while letting the corner fascia run longer and slimmer
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
-const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
+const POCKET_JAW_CORNER_OUTER_EXPANSION = 0; // stop the jaws right at the cushion boundary
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 1.08; // extend the jaw bodies so the underside reaches deeper below the cloth
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim so the pocket lips sit nearer the cloth plane
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // allow the jaw extrusion to extend farther down without lifting the top
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // keep the underside tight to the cloth depth instead of the deeper pocket floor
-const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
+const POCKET_JAW_EDGE_FLUSH_START = 0.2; // start easing earlier so the jaw thins gradually toward the cushions
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
-const POCKET_JAW_EDGE_TAPER_SCALE = 0.12; // thin the outer lips more aggressively while leaving the centre crown unchanged
-const POCKET_JAW_CENTER_TAPER_HOLD = 0.28; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
-const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.25; // smooth the taper curve so thickness falls away progressively instead of dropping late
+const POCKET_JAW_EDGE_TAPER_SCALE = 0.08; // thin the outer lips more aggressively while leaving the centre crown unchanged
+const POCKET_JAW_CENTER_TAPER_HOLD = 0.22; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
+const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.35; // smooth the taper curve so thickness falls away progressively instead of dropping late
 const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD; // keep the taper hold consistent so the middle jaw crown mirrors the corners
 const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE; // reuse the corner taper scale so edge thickness matches exactly
 const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // maintain the identical taper curve across all six jaws
@@ -959,8 +959,8 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42; // widen the chamfer so the corner j
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.58; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.22; // push the middle jaw reach a touch wider so the openings read larger
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.66; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.28; // push the middle jaw reach a touch wider so the openings read larger
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
@@ -1537,8 +1537,8 @@ const SPIN_DECORATION_DOT_SIZE_PX = 12;
 const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
-// use a sharper default cut on side-pocket cushions
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 45;
+// match the corner-cushion cut angle on both sides of the corner pockets
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -5938,29 +5938,12 @@ function resolveSwerveSettings(
   forceSwerve = false,
   liftStrength = 0
 ) {
-  const sideSpin = spin?.x ?? 0;
   const magnitude = Math.hypot(spin?.x ?? 0, spin?.y ?? 0);
-  const active =
-    (forceSwerve || magnitude >= SWERVE_THRESHOLD) &&
-    Math.abs(sideSpin) >= 1e-3;
-  if (!active) {
-    return {
-      active: false,
-      sideSpin: 0,
-      magnitude,
-      intensity: 0
-    };
-  }
-  const threshold = Math.max(1 - SWERVE_THRESHOLD, 1e-6);
-  const normalized = clamp((magnitude - SWERVE_THRESHOLD) / threshold, 0, 1);
-  const liftBoost = 0.75 + Math.max(0, liftStrength) * 0.5;
-  const powerBoost = 0.7 + powerStrength * 0.85;
-  const spinBoost = 0.75 + Math.min(Math.abs(sideSpin), 1) * 0.6;
   return {
-    active: true,
-    sideSpin,
+    active: false,
+    sideSpin: 0,
     magnitude,
-    intensity: normalized * powerBoost * spinBoost * liftBoost
+    intensity: 0
   };
 }
 
@@ -5972,24 +5955,12 @@ function resolveSpinPreviewSettings(
 ) {
   const swerve = resolveSwerveSettings(spin, powerStrength, forceSwerve, liftStrength);
   if (swerve.active) return swerve;
-  const sideSpin = spin?.x ?? 0;
-  const magnitude = Math.abs(sideSpin);
-  if (magnitude < 1e-3) {
-    return {
-      active: false,
-      sideSpin: 0,
-      magnitude,
-      intensity: 0
-    };
-  }
-  const powerBoost = 0.55 + powerStrength * 0.35;
-  const liftBoost = 0.8 + Math.max(0, liftStrength) * 0.3;
-  const intensity = Math.min(magnitude, 1) * powerBoost * liftBoost * 0.35;
+  const magnitude = Math.abs(spin?.x ?? 0);
   return {
     active: false,
-    sideSpin,
+    sideSpin: 0,
     magnitude,
-    intensity
+    intensity: 0
   };
 }
 
@@ -6000,30 +5971,7 @@ function resolveSwerveAimDir(
   forceSwerve = false,
   liftStrength = 0
 ) {
-  if (!aimDir || aimDir.lengthSq() < 1e-8) return aimDir;
-  const swerve = resolveSpinPreviewSettings(
-    spin,
-    powerStrength,
-    forceSwerve,
-    liftStrength
-  );
-  if (swerve.intensity <= 0 || Math.abs(swerve.sideSpin) < 1e-3) return aimDir;
-  const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
-  const curveBase =
-    (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
-  const powerScale = 4 + powerStrength * 6;
-  const swerveScale = 0.6 + swerve.intensity * 0.9;
-  const sideSpin = swerve.sideSpin;
-  const adjust =
-    sideSpin *
-    swerve.intensity *
-    curveBase *
-    powerScale *
-    AIM_SPIN_PREVIEW_SIDE *
-    swerveScale;
-  const adjusted = aimDir.clone().add(perp.multiplyScalar(adjust));
-  if (adjusted.lengthSq() > 1e-8) adjusted.normalize();
-  return adjusted;
+  return aimDir;
 }
 
 function buildSwerveAimLinePoints(
@@ -6039,59 +5987,11 @@ function buildSwerveAimLinePoints(
   liftStrength = 0
 ) {
   if (!points) return [start, end];
-  const swerve = resolveSpinPreviewSettings(
-    spin,
-    powerStrength,
-    swerveActive,
-    liftStrength
-  );
-  const sideSpin = swerve.sideSpin;
-  const travel = start.distanceTo(end);
-  if (swerve.intensity <= 0 || Math.abs(sideSpin) < 1e-3 || travel < 1e-4) {
-    points.length = 2;
-    if (!points[0]) points[0] = new THREE.Vector3();
-    if (!points[1]) points[1] = new THREE.Vector3();
-    points[0].copy(start);
-    points[1].copy(end);
-    return points;
-  }
-  const segments = clamp(Math.round(travel / (BALL_R * 1.6)), 6, 14);
-  const curveBase =
-    (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
-  const swerveScale = 0.6 + swerve.intensity * 0.9;
-  const curveScale =
-    curveBase *
-    (4 + powerStrength * 6.5) *
-    AIM_SPIN_PREVIEW_SIDE *
-    swerveScale;
-  const curveAmount = sideSpin * curveScale * travel;
-  controlPoint
-    .copy(start)
-    .addScaledVector(dir, travel * 0.5)
-    .addScaledVector(perp, curveAmount);
-  points.length = segments + 1;
-  const ax = start.x;
-  const ay = start.y;
-  const az = start.z;
-  const bx = controlPoint.x;
-  const by = controlPoint.y;
-  const bz = controlPoint.z;
-  const cx = end.x;
-  const cy = end.y;
-  const cz = end.z;
-  for (let i = 0; i <= segments; i += 1) {
-    const t = segments === 0 ? 0 : i / segments;
-    const omt = 1 - t;
-    const omt2 = omt * omt;
-    const t2 = t * t;
-    const point = points[i] ?? new THREE.Vector3();
-    point.set(
-      omt2 * ax + 2 * omt * t * bx + t2 * cx,
-      omt2 * ay + 2 * omt * t * by + t2 * cy,
-      omt2 * az + 2 * omt * t * bz + t2 * cz
-    );
-    points[i] = point;
-  }
+  points.length = 2;
+  if (!points[0]) points[0] = new THREE.Vector3();
+  if (!points[1]) points[1] = new THREE.Vector3();
+  points[0].copy(start);
+  points[1].copy(end);
   return points;
 }
 
@@ -7444,8 +7344,8 @@ export function Table3D(
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.07; // push the cushions further outward so they meet the wooden rails without a gap
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.3; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.36; // trim the cushion tips near middle pockets so they stop at the rail cut
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.4; // trim the cushion tips near middle pockets so they stop at the rail cut
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
@@ -23525,7 +23425,7 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const spinSideInfluence = (aimLineSpin.x || 0) * (0.4 + 0.42 * powerStrength);
+          const spinSideInfluence = 0;
           const spinVerticalInfluence = (aimLineSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
