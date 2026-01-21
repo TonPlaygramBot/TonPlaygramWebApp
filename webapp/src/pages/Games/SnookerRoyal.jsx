@@ -13447,6 +13447,7 @@ const powerRef = useRef(hud.power);
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
+      let worldScaleFactor = WORLD_SCALE * (tableSizeRef.current?.scale ?? 1);
       const applyEnvironmentMaps = (envMap, skyboxMap, activeVariant) => {
         const sceneInstance = sceneRef.current;
         if (!envMap || !sceneInstance) return;
@@ -13584,7 +13585,6 @@ const powerRef = useRef(hud.power);
       };
       updateEnvironmentRef.current = applyHdriEnvironment;
       void applyHdriEnvironment(activeEnvironmentVariantRef.current);
-      let worldScaleFactor = WORLD_SCALE * (tableSizeRef.current?.scale ?? 1);
       let cue;
       let clothMat;
       let cushionMat;
