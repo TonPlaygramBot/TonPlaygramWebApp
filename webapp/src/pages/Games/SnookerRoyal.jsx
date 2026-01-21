@@ -1740,7 +1740,7 @@ function deriveInHandFromFrame(frame) {
     return Boolean(meta.state.ballInHand);
   }
   if (meta.variant === 'uk' && meta.state) {
-    return Boolean(meta.state.mustPlayFromBaulk);
+    return Boolean(meta.state.ballInHand);
   }
   return false;
 }
@@ -20088,7 +20088,7 @@ const powerRef = useRef(hud.power);
           } else if (meta.variant === '9ball' && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
           } else if (meta.variant === 'uk' && meta.state) {
-            placedFromHand = Boolean(meta.state.mustPlayFromBaulk);
+            placedFromHand = Boolean(meta.state.ballInHand);
           }
         }
         shotContextRef.current = {
@@ -21608,7 +21608,7 @@ const powerRef = useRef(hud.power);
             ballOn: ballOnColour,
             isOpenTable: snapshot.isOpenTable,
             shotsRemaining: snapshot.shotsRemaining,
-            mustPlayFromBaulk: snapshot.mustPlayFromBaulk,
+            ballInHand: snapshot.ballInHand,
             baulkLineX: baulkLineLocal + height / 2
           };
           try {
@@ -22569,7 +22569,7 @@ const powerRef = useRef(hud.power);
               } else if (nextMeta.variant === '9ball' && nextMeta.state) {
                 nextInHand = Boolean(nextMeta.state.ballInHand);
               } else if (nextMeta.variant === 'uk' && nextMeta.state) {
-                nextInHand = Boolean(nextMeta.state.mustPlayFromBaulk);
+                nextInHand = Boolean(nextMeta.state.ballInHand);
               }
             }
           }
@@ -26162,7 +26162,7 @@ const powerRef = useRef(hud.power);
           <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg ring-1 ring-white/60">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">BIH</span>
             <span className="text-left leading-tight">
-              Drag the cue ball {['american', '9ball'].includes(variantKey) ? 'anywhere on the table' : 'inside the baulk semicircle'}
+              Drag the cue ball {['american', '9ball', 'uk'].includes(variantKey) ? 'anywhere on the table' : 'inside the baulk semicircle'}
             </span>
           </div>
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
