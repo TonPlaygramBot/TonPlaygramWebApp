@@ -592,16 +592,16 @@ const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so 
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // push the side fascia farther along the arch so it blankets the larger chrome reveal
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.42; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.45; // tighten the middle fascia span so the chrome plate matches the reference pocket cut
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.8; // reduce fascia reach so the middle pocket chrome reads compact like the reference
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.75; // trim fascia span further so the middle plates finish before intruding into the pocket zone while keeping the rounded edge intact
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.62; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
-const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.08; // extend middle chrome plates slightly toward the corner pockets without widening outward
-const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.995; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
-const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.14; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.15; // limit the added width so the side plates stay snug to the pocket
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.9; // shorten the outward chrome reach to match the compact middle plates
+const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 0.92; // keep the plate ends tucked closer toward the pocket entry
+const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.98; // trim the middle fascia width so it mirrors the reference outline
+const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1; // keep the chrome plate centered between pocket shoulders
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.32; // pull the side fascias slightly closer toward the table centreline
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.12; // keep the side plates closer to the rail edge like the reference
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.07; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.03; // open the rounded chrome cut slightly more on the middle pockets
@@ -926,11 +926,11 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.35; // expand wooden frame rails outward by 35% on all sides
 const RAIL_HEIGHT = TABLE.THICK * 1.18; // shorten rails by ~35% so the stance sits lower
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.005; // pull the corner jaws inward slightly so the mouth radius reads tighter
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1.025; // pull middle jaws inward so their radius and reach sit closer to the center
-const POCKET_JAW_CORNER_INNER_SCALE = 1.28; // tighten the corner jaw inner lip for a slightly smaller radius
-const POCKET_JAW_SIDE_INNER_SCALE = 1.22; // relax the middle jaw inner lip for a slightly larger radius
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.72; // preserve the playable mouth while letting the corner fascia run longer and slimmer
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // match the chrome cut exactly so the jaw outline mirrors the reference
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep middle jaws aligned to the chrome cut like the reference
+const POCKET_JAW_CORNER_INNER_SCALE = 1.22; // slim the corner jaw inner lip to match the reference opening
+const POCKET_JAW_SIDE_INNER_SCALE = 1.18; // keep middle jaws consistent with the corner profile
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.6; // slightly reduce jaw thickness so the silhouette matches the reference
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.02; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
@@ -941,31 +941,31 @@ const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // allow the jaw extrusi
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
-const POCKET_JAW_EDGE_TAPER_SCALE = 0.12; // thin the outer lips more aggressively while leaving the centre crown unchanged
+const POCKET_JAW_EDGE_TAPER_SCALE = 0.18; // soften the edge taper so the jaw thickness stays even like the reference
 const POCKET_JAW_CENTER_TAPER_HOLD = 0.28; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
-const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.25; // smooth the taper curve so thickness falls away progressively instead of dropping late
+const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.1; // smooth the taper curve so thickness stays consistent across the jaw
 const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD; // keep the taper hold consistent so the middle jaw crown mirrors the corners
 const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE; // reuse the corner taper scale so edge thickness matches exactly
 const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // maintain the identical taper curve across all six jaws
-const POCKET_JAW_CENTER_THICKNESS_MIN = 0.38; // let the inner arc sit leaner while preserving the curved silhouette across the pocket
-const POCKET_JAW_CENTER_THICKNESS_MAX = 0.7; // keep a pronounced middle section while slimming the jaw before tapering toward the edges
+const POCKET_JAW_CENTER_THICKNESS_MIN = 0.34; // slim the inner arc so the jaw ring reads lighter like the reference
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.66; // keep a softer mid-crown that matches the reference top view
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144; // higher tessellation for crisper high-res pocket jaws
-const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42; // widen the chamfer so the corner jaw shoulders carry the same mass as the photographed reference
+const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // trim the chamfer so the jaw outline matches the reference arc
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.82; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.54; // trim the middle jaw reach slightly while keeping the same radius and height
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.9; // relax the middle jaw arc radius so the side-pocket jaws read wider
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.55; // align corner jaw span to the reference pocket arc
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.45; // keep middle jaw span consistent with the reference
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // match the middle jaw radius to the corner profile
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.1; // pull the middle pocket jaws slightly closer toward the table center
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.04; // keep middle jaws aligned to the pocket center like the reference
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the middle jaw edges sooner so they finish where the rails stop
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.9; // keep the middle jaw edges fuller like the reference
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
@@ -9364,10 +9364,8 @@ export function Table3D(
     const side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
     const sidePocketCuts = !horizontal
       ? {
-          leftCutAngle: leftCloserToCenter ? 90 : CUSHION_CUT_ANGLE,
-          rightCutAngle: leftCloserToCenter ? CUSHION_CUT_ANGLE : 90,
-          leftStraightEdge: leftCloserToCenter,
-          rightStraightEdge: !leftCloserToCenter
+          leftCutAngle: SIDE_CUSHION_CUT_ANGLE,
+          rightCutAngle: SIDE_CUSHION_CUT_ANGLE
         }
       : undefined;
     const geo = cushionProfileAdvanced(len, horizontal, sidePocketCuts);
