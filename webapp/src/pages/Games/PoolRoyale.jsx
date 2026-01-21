@@ -1259,15 +1259,15 @@ const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 7.
 const POCKET_GUIDE_DROP = BALL_R * 0.12;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
-const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
+const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.12; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = -BALL_R * 0.02; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_VERTICAL_DROP = -BALL_R * 0.18; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER; // tighter spacing so potted balls touch on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.15; // let potted balls roll a touch farther before stopping
-const POCKET_HOLDER_REST_DROP = BALL_R * 2.02; // lift the resting spot so balls ride higher on the chrome holder
+const POCKET_HOLDER_REST_DROP = BALL_R * 1.55; // lift the resting spot so balls ride higher on the chrome holder
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -1276,7 +1276,7 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.98; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.48; // lift the leather strap so it meets the raised holder rails
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -4836,6 +4836,10 @@ const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // compensate for the 20% sma
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
+const AIM_LINE_OPACITY = 0.88; // keep aiming line visibility consistent across power strength
+const AIM_AFTER_OPACITY = 0.55; // keep follow line stable to match the morning build
+const AIM_TARGET_OPACITY = 0.7; // keep target preview steady
+const AIM_TARGET_FAINT_OPACITY = 0.45;
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -4913,8 +4917,8 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
-const BIH_INDICATOR_LINE_PX = 34;
-const BIH_INDICATOR_HAND_SIZE_PX = 30;
+const BIH_INDICATOR_LINE_PX = 22;
+const BIH_INDICATOR_HAND_SIZE_PX = 24;
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
@@ -11849,6 +11853,8 @@ function PoolRoyaleGame({
   const shotCameraHoldTimeoutRef = useRef(null);
   const cueStrokeStateRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
+  const [inHandIndicatorHold, setInHandIndicatorHold] = useState(false);
+  const inHandIndicatorHoldRef = useRef(false);
   useEffect(
     () => () => {
       if (replayBannerTimeoutRef.current) {
@@ -11941,6 +11947,9 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     inHandPlacementModeRef.current = inHandPlacementMode;
   }, [inHandPlacementMode]);
+  useEffect(() => {
+    inHandIndicatorHoldRef.current = inHandIndicatorHold;
+  }, [inHandIndicatorHold]);
   useEffect(() => {
     powerRef.current = hud.power;
   }, [hud.power]);
@@ -12043,6 +12052,19 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     shootingRef.current = shotActive;
   }, [shotActive]);
+  useEffect(() => {
+    const isPlayerTurn = hud.turn === 0 && !hud.over;
+    if (!isPlayerTurn) {
+      setInHandIndicatorHold(false);
+      return;
+    }
+    if (hud.inHand) {
+      setInHandIndicatorHold(true);
+    }
+    if (shotActive) {
+      setInHandIndicatorHold(false);
+    }
+  }, [hud.inHand, hud.over, hud.turn, shotActive]);
   const sliderInstanceRef = useRef(null);
   const suggestionAimKeyRef = useRef(null);
   const aiEarlyShotIntentRef = useRef(null);
@@ -23448,7 +23470,7 @@ const powerRef = useRef(hud.power);
               ? 0xffd166
               : 0x7ce7ff;
           aim.material.color.set(primaryColor);
-          aim.material.opacity = 0.55 + 0.35 * powerStrength;
+          aim.material.opacity = AIM_LINE_OPACITY;
           tickGeom.setFromPoints([
             end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
             end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
@@ -23490,7 +23512,7 @@ const powerRef = useRef(hud.power);
             .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
-          cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
+          cueAfter.material.opacity = AIM_AFTER_OPACITY;
           cueAfter.computeLineDistances();
           if (impactRingEnabled) {
             impactRing.visible = true;
@@ -23648,7 +23670,7 @@ const powerRef = useRef(hud.power);
               .add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([targetStart, tEnd]);
             target.material.color.setHex(0xffd166);
-            target.material.opacity = 0.65 + 0.3 * powerStrength;
+            target.material.opacity = AIM_TARGET_OPACITY;
             target.visible = true;
             target.computeLineDistances();
           } else if (railNormal && cueDir) {
@@ -23659,7 +23681,7 @@ const powerRef = useRef(hud.power);
               .add(bounceDir.clone().multiplyScalar(bounceLength));
             targetGeom.setFromPoints([end, bounceEnd]);
             target.material.color.setHex(0x7ce7ff);
-            target.material.opacity = 0.35 + 0.25 * powerStrength;
+            target.material.opacity = AIM_TARGET_FAINT_OPACITY;
             target.visible = true;
             target.computeLineDistances();
           } else {
@@ -23722,7 +23744,7 @@ const powerRef = useRef(hud.power);
           );
           aimGeom.setFromPoints(aimPoints);
           aim.material.color.set(0x7ce7ff);
-          aim.material.opacity = 0.55 + 0.35 * powerStrength;
+          aim.material.opacity = AIM_LINE_OPACITY;
           aim.visible = true;
           tickGeom.setFromPoints([
             end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
@@ -23738,7 +23760,7 @@ const powerRef = useRef(hud.power);
             .add(cueFollowDir.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
-          cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
+          cueAfter.material.opacity = AIM_AFTER_OPACITY;
           cueAfter.computeLineDistances();
           impactRing.visible = false;
           const maxPull = CUE_PULL_BASE;
@@ -23795,7 +23817,7 @@ const powerRef = useRef(hud.power);
               .add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([targetStart, tEnd]);
             target.material.color.setHex(0xffd166);
-            target.material.opacity = 0.65 + 0.3 * powerStrength;
+            target.material.opacity = AIM_TARGET_OPACITY;
             target.visible = true;
             target.computeLineDistances();
           } else if (railNormal && cueDir) {
@@ -23806,7 +23828,7 @@ const powerRef = useRef(hud.power);
               .add(bounceDir.clone().multiplyScalar(bounceLength));
             targetGeom.setFromPoints([end, bounceEnd]);
             target.material.color.setHex(0x7ce7ff);
-            target.material.opacity = 0.35 + 0.25 * powerStrength;
+            target.material.opacity = AIM_TARGET_FAINT_OPACITY;
             target.visible = true;
             target.computeLineDistances();
           } else {
@@ -24764,10 +24786,11 @@ const powerRef = useRef(hud.power);
           if (inHandIndicator) {
             const hudState = hudRef.current;
             const shouldShow =
-              Boolean(hudState?.inHand) &&
+              Boolean(inHandIndicatorHoldRef.current) &&
               hudState?.turn === 0 &&
               !hudState?.over &&
-              cue?.active;
+              cue?.active &&
+              !shooting;
             if (!shouldShow) {
               inHandIndicator.style.opacity = '0';
             } else {
@@ -24780,7 +24803,7 @@ const powerRef = useRef(hud.power);
               const screenY =
                 rect.top + (-TMP_VEC3_A.y * 0.5 + 0.5) * rect.height;
               inHandIndicator.style.opacity = '1';
-              inHandIndicator.style.transform = `translate(-50%, -100%) translate(${screenX}px, ${screenY}px)`;
+              inHandIndicator.style.transform = `translate(-50%, -50%) translate(${screenX}px, ${screenY}px)`;
             }
           }
           renderer.render(scene, frameCamera ?? camera);
@@ -26751,21 +26774,25 @@ const powerRef = useRef(hud.power);
           </div>
         </div>
       )}
-      {hud?.inHand && isPlayerTurn && (
+      {inHandIndicatorHold && isPlayerTurn && (
         <div
           ref={inHandIndicatorRef}
-          className="pointer-events-none absolute z-40 flex flex-col items-center gap-1"
+          className="pointer-events-none absolute z-40 flex items-center"
           style={{
             left: 0,
             top: 0,
-            transform: 'translate(-50%, -100%)',
+            transform: 'translate(-50%, -50%)',
             transition: 'opacity 120ms ease'
           }}
         >
+          <div
+            className="h-[2px] rounded-full bg-white/80 shadow-[0_4px_12px_rgba(255,255,255,0.45)]"
+            style={{ width: `${BIH_INDICATOR_LINE_PX}px` }}
+          />
           <button
             type="button"
             aria-label="Move cue ball"
-            className="pointer-events-auto flex items-center justify-center rounded-full border border-white/70 bg-white/95 text-xl shadow-[0_12px_22px_rgba(0,0,0,0.35)]"
+            className="pointer-events-auto mx-1 flex items-center justify-center rounded-full border border-white/80 bg-white/95 text-lg shadow-[0_10px_18px_rgba(0,0,0,0.35)]"
             style={{
               width: `${BIH_INDICATOR_HAND_SIZE_PX}px`,
               height: `${BIH_INDICATOR_HAND_SIZE_PX}px`
@@ -26778,8 +26805,8 @@ const powerRef = useRef(hud.power);
             🖐
           </button>
           <div
-            className="w-[2px] rounded-full bg-white/80 shadow-[0_4px_12px_rgba(255,255,255,0.45)]"
-            style={{ height: `${BIH_INDICATOR_LINE_PX}px` }}
+            className="h-[2px] rounded-full bg-white/80 shadow-[0_4px_12px_rgba(255,255,255,0.45)]"
+            style={{ width: `${BIH_INDICATOR_LINE_PX}px` }}
           />
         </div>
       )}
@@ -27002,10 +27029,16 @@ export default function PoolRoyale() {
       resolve(window.confirm(exitMessage));
     });
   }, [exitMessage]);
+  const exitToLobby = useCallback(() => {
+    navigate('/games/poolroyale/lobby', { replace: true });
+    if (window.location.pathname !== '/games/poolroyale/lobby') {
+      window.location.assign('/games/poolroyale/lobby');
+    }
+  }, [navigate]);
   useTelegramBackButton(() => {
     confirmExit().then((confirmed) => {
       if (confirmed) {
-        navigate('/games/poolroyale/lobby');
+        exitToLobby();
       }
     });
   });
@@ -27020,7 +27053,7 @@ export default function PoolRoyale() {
         if (!confirmed) {
           window.history.pushState(null, '', window.location.href);
         } else {
-          navigate('/games/poolroyale/lobby');
+          exitToLobby();
         }
       });
     };
@@ -27031,7 +27064,7 @@ export default function PoolRoyale() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [confirmExit, exitMessage, navigate]);
+  }, [confirmExit, exitMessage, exitToLobby]);
   const opponentName = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('opponent') || '';
