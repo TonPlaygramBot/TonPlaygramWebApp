@@ -942,20 +942,20 @@ const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // allow the jaw extrusi
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.12; // start easing earlier so the jaw thins gradually toward the cushions
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
-const POCKET_JAW_EDGE_TAPER_SCALE = 0.08; // thin the outer lips more aggressively while leaving the centre crown unchanged
-const POCKET_JAW_CENTER_TAPER_HOLD = 0.1; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
-const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.35; // smooth the taper curve so thickness falls away progressively instead of dropping late
+const POCKET_JAW_EDGE_TAPER_SCALE = 0.1; // thin the outer lips more aggressively while leaving the centre crown unchanged
+const POCKET_JAW_CENTER_TAPER_HOLD = 0.16; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
+const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.15; // smooth the taper curve so thickness falls away progressively instead of dropping late
 const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD; // keep the taper hold consistent so the middle jaw crown mirrors the corners
 const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE; // reuse the corner taper scale so edge thickness matches exactly
 const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // maintain the identical taper curve across all six jaws
-const POCKET_JAW_CENTER_THICKNESS_MIN = 0.32; // let the inner arc sit leaner while preserving the curved silhouette across the pocket
+const POCKET_JAW_CENTER_THICKNESS_MIN = 0.38; // let the inner arc sit leaner while preserving the curved silhouette across the pocket
 const POCKET_JAW_CENTER_THICKNESS_MAX = 0.7; // keep a pronounced middle section while slimming the jaw before tapering toward the edges
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144; // higher tessellation for crisper high-res pocket jaws
-const POCKET_JAW_CORNER_EDGE_FACTOR = 0.34; // widen the chamfer so the corner jaw shoulders carry the same mass as the photographed reference
+const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42; // widen the chamfer so the corner jaw shoulders carry the same mass as the photographed reference
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
@@ -1755,7 +1755,7 @@ function deriveInHandFromFrame(frame) {
     return Boolean(meta.state.ballInHand);
   }
   if (meta.variant === 'uk' && meta.state) {
-    return Boolean(meta.state.ballInHand);
+    return Boolean(meta.state.mustPlayFromBaulk);
   }
   return false;
 }
@@ -11847,7 +11847,6 @@ function PoolRoyaleGame({
   const shotCameraHoldTimeoutRef = useRef(null);
   const cueStrokeStateRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
-  const [inHandGrabActive, setInHandGrabActive] = useState(false);
   useEffect(
     () => () => {
       if (replayBannerTimeoutRef.current) {
@@ -11862,10 +11861,6 @@ function PoolRoyaleGame({
     []
   );
   const inHandPlacementModeRef = useRef(inHandPlacementMode);
-  const inHandGrabActiveRef = useRef(inHandGrabActive);
-  const inHandDragRef = useRef({ active: false, pointerId: null, lastPos: null });
-  const inHandProjectRef = useRef(null);
-  const inHandTryUpdateRef = useRef(null);
   const gameOverHandledRef = useRef(false);
   const userSuggestionRef = useRef(null);
   const startAiThinkingRef = useRef(() => {});
@@ -11913,9 +11908,6 @@ const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
 const [bottomHudOffset, setBottomHudOffset] = useState(0);
 const leftControlsRef = useRef(null);
 const spinBoxRef = useRef(null);
-const inHandIndicatorRef = useRef(null);
-const inHandLineRef = useRef(null);
-const inHandHandRef = useRef(null);
 const showRuleToast = useCallback((message) => {
   if (!message) return;
   if (ruleToastTimeoutRef.current) {
@@ -11927,70 +11919,6 @@ const showRuleToast = useCallback((message) => {
     setRuleToast(null);
     ruleToastTimeoutRef.current = null;
   }, 3000);
-}, []);
-const handleInHandGrabStart = useCallback((event) => {
-  const currentHud = hudRef.current;
-  if (!currentHud?.inHand || currentHud?.turn !== 0) return;
-  if (event.button != null && event.button !== 0) return;
-  setInHandGrabActive(true);
-  inHandGrabActiveRef.current = true;
-  const project = inHandProjectRef.current;
-  const tryUpdate = inHandTryUpdateRef.current;
-  if (project && tryUpdate) {
-    const pos = project(event);
-    if (pos) {
-      tryUpdate(pos, false);
-      const dragState = inHandDragRef.current;
-      dragState.active = true;
-      dragState.pointerId = event.pointerId ?? 'hand';
-      dragState.lastPos = pos;
-    }
-  }
-  if (event.pointerId != null && event.currentTarget?.setPointerCapture) {
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {}
-  }
-  event.preventDefault?.();
-  event.stopPropagation?.();
-}, []);
-const handleInHandGrabMove = useCallback((event) => {
-  if (!inHandGrabActiveRef.current) return;
-  const dragState = inHandDragRef.current;
-  if (dragState.pointerId != null && event.pointerId != null && event.pointerId !== dragState.pointerId) {
-    return;
-  }
-  const project = inHandProjectRef.current;
-  const tryUpdate = inHandTryUpdateRef.current;
-  if (project && tryUpdate) {
-    const pos = project(event);
-    if (pos) {
-      tryUpdate(pos, false);
-      dragState.lastPos = pos;
-    }
-  }
-  event.preventDefault?.();
-  event.stopPropagation?.();
-}, []);
-const handleInHandGrabEnd = useCallback((event) => {
-  if (!inHandGrabActiveRef.current) return;
-  const dragState = inHandDragRef.current;
-  if (dragState.pointerId != null && event.pointerId != null && event.pointerId !== dragState.pointerId) {
-    return;
-  }
-  if (event.pointerId != null && event.currentTarget?.releasePointerCapture) {
-    try {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    } catch {}
-  }
-  dragState.active = false;
-  if (dragState.lastPos) {
-    inHandTryUpdateRef.current?.(dragState.lastPos, true);
-  }
-  setInHandGrabActive(false);
-  inHandGrabActiveRef.current = false;
-  event.preventDefault?.();
-  event.stopPropagation?.();
 }, []);
 const powerRef = useRef(hud.power);
   const clampPower = useCallback((value, fallback = 0) => {
@@ -12005,9 +11933,6 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     inHandPlacementModeRef.current = inHandPlacementMode;
   }, [inHandPlacementMode]);
-  useEffect(() => {
-    inHandGrabActiveRef.current = inHandGrabActive;
-  }, [inHandGrabActive]);
   useEffect(() => {
     powerRef.current = hud.power;
   }, [hud.power]);
@@ -12096,15 +12021,12 @@ const powerRef = useRef(hud.power);
   const cueBallPlacedFromHandRef = useRef(false);
   useEffect(() => {
     const playerTurn = (hud.turn ?? 0) === 0;
-    const placing = Boolean(hud.inHand && playerTurn && inHandGrabActiveRef.current);
+    const placing = Boolean(hud.inHand && playerTurn);
     setInHandPlacementMode(placing);
     if (placing) {
       cueBallPlacedFromHandRef.current = false;
     }
-    if (!hud.inHand || !playerTurn) {
-      setInHandGrabActive(false);
-    }
-  }, [hud.inHand, hud.turn, inHandGrabActive]);
+  }, [hud.inHand, hud.turn]);
   const [shotActive, setShotActive] = useState(false);
   const shootingRef = useRef(shotActive);
   useEffect(() => {
@@ -19792,7 +19714,7 @@ const powerRef = useRef(hud.power);
 
       const allowFullTableInHand = () => {
         const id = variantId();
-        if (id === 'uk') return true;
+        if (id === 'uk') return false;
         if (id === 'american' || id === '9ball') {
           return !isBreakRestrictedInHand();
         }
@@ -19836,7 +19758,11 @@ const powerRef = useRef(hud.power);
         clampInHandPosition(
           new THREE.Vector2(0, allowFullTableInHand() ? 0 : baulkZ)
         );
-      const inHandDrag = inHandDragRef.current;
+      const inHandDrag = {
+        active: false,
+        pointerId: null,
+        lastPos: null
+      };
       const updateCuePlacement = (pos) => {
         if (!cue || !pos) return;
         cue.mesh.visible = true;
@@ -19858,15 +19784,18 @@ const powerRef = useRef(hud.power);
         cue.active = false;
         updateCuePlacement(clamped);
         inHandDrag.lastPos = clamped;
-        if (commit) {
-          cue.active = true;
-          inHandDrag.lastPos = null;
-          cueBallPlacedFromHandRef.current = true;
+      if (commit) {
+        cue.active = true;
+        inHandDrag.lastPos = null;
+        cueBallPlacedFromHandRef.current = true;
+        if (hudRef.current?.inHand) {
+          const nextHud = { ...hudRef.current, inHand: false };
+          hudRef.current = nextHud;
+          setHud(nextHud);
         }
-        return true;
-      };
-      inHandProjectRef.current = project;
-      inHandTryUpdateRef.current = tryUpdatePlacement;
+      }
+      return true;
+    };
       const findAiInHandPlacement = () => {
         const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
         const forwardBias = Math.max(baulkZ - BALL_R * 0.6, -PLAY_H / 2 + BALL_R);
@@ -20095,7 +20024,7 @@ const powerRef = useRef(hud.power);
         const pos = inHandDrag.lastPos;
         if (pos) {
           tryUpdatePlacement(pos, true);
-          setInHandGrabActive(false);
+          setInHandPlacementMode(false);
           autoAimRequestRef.current = true;
         }
         e.preventDefault?.();
@@ -20392,8 +20321,6 @@ const powerRef = useRef(hud.power);
         if (currentHud?.inHand && (fullTableHandPlacement || inHandPlacementActive)) {
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
-          setInHandGrabActive(false);
-          inHandGrabActiveRef.current = false;
         }
         if (aiOpponentEnabled && currentHud?.turn === 1) {
           aiTurnShotCountRef.current += 1;
@@ -20418,7 +20345,7 @@ const powerRef = useRef(hud.power);
           } else if (meta.variant === '9ball' && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
           } else if (meta.variant === 'uk' && meta.state) {
-            placedFromHand = Boolean(meta.state.ballInHand);
+            placedFromHand = Boolean(meta.state.mustPlayFromBaulk);
           }
         }
         shotContextRef.current = {
@@ -21877,7 +21804,7 @@ const powerRef = useRef(hud.power);
             aiState.ballOn ?? 'open',
             aiState.isOpenTable ? '1' : '0',
             aiState.shotsRemaining ?? '0',
-            aiState.ballInHand ? '1' : '0',
+            aiState.mustPlayFromBaulk ? '1' : '0',
             Math.round((aiState.baulkLineX ?? 0) * 10)
           ].join('::');
         };
@@ -21927,7 +21854,7 @@ const powerRef = useRef(hud.power);
             ballOn: ballOnColour,
             isOpenTable: snapshot.isOpenTable,
             shotsRemaining: snapshot.shotsRemaining,
-            ballInHand: snapshot.ballInHand,
+            mustPlayFromBaulk: snapshot.mustPlayFromBaulk,
             baulkLineX: baulkLineLocal + height / 2
           };
           try {
@@ -22959,7 +22886,7 @@ const powerRef = useRef(hud.power);
               } else if (nextMeta.variant === '9ball' && nextMeta.state) {
                 nextInHand = Boolean(nextMeta.state.ballInHand);
               } else if (nextMeta.variant === 'uk' && nextMeta.state) {
-                nextInHand = Boolean(nextMeta.state.ballInHand);
+                nextInHand = Boolean(nextMeta.state.mustPlayFromBaulk);
               }
             }
           }
@@ -23314,47 +23241,6 @@ const powerRef = useRef(hud.power);
           isOnlineMatch &&
           currentHud?.turn === 1 &&
           remoteAimFresh;
-        const inHandIndicator = inHandIndicatorRef.current;
-        if (inHandIndicator) {
-          const showIndicator = Boolean(
-            currentHud?.inHand && currentHud?.turn === 0 && !replayPlaybackRef.current
-          );
-          inHandIndicator.style.opacity = showIndicator ? '1' : '0';
-          inHandIndicator.style.pointerEvents = showIndicator ? 'auto' : 'none';
-          if (showIndicator && cue?.mesh) {
-            const rect = dom.getBoundingClientRect();
-            const cam = activeRenderCameraRef.current ?? camera;
-            TMP_VEC3_A.copy(cue.mesh.position).project(cam);
-            const cueScreenX = (TMP_VEC3_A.x * 0.5 + 0.5) * rect.width + rect.left;
-            const cueScreenY = (-TMP_VEC3_A.y * 0.5 + 0.5) * rect.height + rect.top;
-            inHandIndicator.style.left = `${cueScreenX}px`;
-            inHandIndicator.style.top = `${cueScreenY}px`;
-            TMP_VEC2_A.copy(aimDirRef.current);
-            if (TMP_VEC2_A.lengthSq() < 1e-6) {
-              TMP_VEC2_A.set(0, 1);
-            } else {
-              TMP_VEC2_A.normalize();
-            }
-            TMP_VEC3_B.set(
-              cue.mesh.position.x + TMP_VEC2_A.x * BALL_R * 3.4,
-              cue.mesh.position.y,
-              cue.mesh.position.z + TMP_VEC2_A.y * BALL_R * 3.4
-            ).project(cam);
-            const endX = (TMP_VEC3_B.x * 0.5 + 0.5) * rect.width + rect.left;
-            const endY = (-TMP_VEC3_B.y * 0.5 + 0.5) * rect.height + rect.top;
-            const dx = endX - cueScreenX;
-            const dy = endY - cueScreenY;
-            const length = THREE.MathUtils.clamp(Math.hypot(dx, dy), 18, 42);
-            const angle = Math.atan2(dy, dx);
-            if (inHandLineRef.current) {
-              inHandLineRef.current.style.width = `${length}px`;
-              inHandLineRef.current.style.transform = `translateY(-50%) rotate(${angle}rad)`;
-            }
-            if (inHandHandRef.current) {
-              inHandHandRef.current.style.transform = `translate(${length}px, -50%)`;
-            }
-          }
-        }
         function resolveCueObstruction(
           dirVec3,
           pullDistance = cuePullTargetRef.current ?? 0,
@@ -25645,7 +25531,6 @@ const powerRef = useRef(hud.power);
           ? '0 0 18px rgba(16,185,129,0.35), 14px 0 22px rgba(16,185,129,0.28)'
           : '0 6px 14px rgba(0,0,0,0.35)'
       };
-  const inHandAnywhere = ['american', '9ball', 'uk'].includes(variantKey);
   const renderFlagAvatar = useCallback(
     (flagEmoji, label, isActive) => (
       <span
@@ -25665,32 +25550,6 @@ const powerRef = useRef(hud.power);
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-      {hud?.inHand && hud.turn === 0 && (
-        <div
-          ref={inHandIndicatorRef}
-          className="fixed z-50"
-          style={{ left: 0, top: 0, opacity: 0, transform: 'translate(-50%, -50%)', transition: 'opacity 150ms ease' }}
-          aria-hidden={!hud?.inHand}
-        >
-          <div
-            ref={inHandLineRef}
-            className="absolute left-0 top-1/2 h-[2px] bg-white/80 shadow-[0_0_6px_rgba(255,255,255,0.65)] pointer-events-none"
-          />
-          <button
-            ref={inHandHandRef}
-            type="button"
-            onPointerDown={handleInHandGrabStart}
-            onPointerMove={handleInHandGrabMove}
-            onPointerUp={handleInHandGrabEnd}
-            onPointerCancel={handleInHandGrabEnd}
-            onPointerLeave={handleInHandGrabEnd}
-            className="absolute left-0 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-lg shadow-[0_6px_14px_rgba(0,0,0,0.35)] ring-1 ring-emerald-300/70 pointer-events-auto"
-            aria-label="Hold to move the cue ball"
-          >
-            🖐️
-          </button>
-        </div>
-      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-4 right-4 z-50">
@@ -26822,11 +26681,11 @@ const powerRef = useRef(hud.power);
           <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg ring-1 ring-white/60">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">BIH</span>
             <span className="text-left leading-tight">
-              Hold the hand icon to move the cue ball {inHandAnywhere ? 'anywhere on the table' : 'inside the baulk semicircle'}
+              Drag the cue ball {['american', '9ball'].includes(variantKey) ? 'anywhere on the table' : 'inside the baulk semicircle'}
             </span>
           </div>
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
-            Press and hold the hand, then drag to respot
+            Tap and hold, then slide to place
           </span>
         </div>
       )}
