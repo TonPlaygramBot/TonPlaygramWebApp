@@ -13392,6 +13392,10 @@ const powerRef = useRef(hud.power);
     if (!host) return;
     setErr(null);
     const webglSupported = isWebGLAvailable();
+    if (!webglSupported) {
+      setErr('WebGL is not available on this device. Enable hardware acceleration to play.');
+      return;
+    }
     const cueRackDisposers = [];
     let disposed = false;
     let contextLost = false;
@@ -13408,11 +13412,9 @@ const powerRef = useRef(hud.power);
         setPocketCameraActive(active);
       };
       updatePocketCameraState(false);
-      screen.orientation?.lock?.('portrait').catch(() => {});
+      const orientationLock = screen.orientation?.lock?.('portrait');
+      orientationLock?.catch?.(() => {});
       // Renderer
-      if (!webglSupported) {
-        console.warn('WebGL availability check failed; attempting to init renderer anyway.');
-      }
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: false,
