@@ -171,12 +171,30 @@ function applyNineState(game: NineBall, snapshot: NineSerializedState) {
 }
 
 function parseUkColour(value: unknown): UkColour | null {
+  if (typeof value === 'number') {
+    if (value === 0) return 'cue';
+    if (value === 8) return 'black';
+    if (value >= 1 && value <= 7) return 'blue';
+    if (value >= 9 && value <= 15) return 'red';
+    return null;
+  }
   if (typeof value !== 'string') return null;
   const lower = value.toLowerCase();
   if (lower.startsWith('yellow')) return 'blue';
   if (lower.startsWith('blue')) return 'blue';
   if (lower.startsWith('red')) return 'red';
   if (lower.startsWith('black')) return 'black';
+  if (lower.startsWith('solid')) return 'blue';
+  if (lower.startsWith('stripe')) return 'red';
+  if (lower.startsWith('ball_')) {
+    const match = lower.match(/ball_(\d+)/);
+    if (match) {
+      const numericId = Number.parseInt(match[1], 10);
+      if (numericId === 8) return 'black';
+      if (numericId >= 1 && numericId <= 7) return 'blue';
+      if (numericId >= 9 && numericId <= 15) return 'red';
+    }
+  }
   if (lower === 'cue') return 'cue';
   return null;
 }
