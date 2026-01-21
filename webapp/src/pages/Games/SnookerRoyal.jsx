@@ -1091,13 +1091,13 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_INTERIOR_TOP_SCALE = 1.012; // gently expand the interior diameter at the top of each pocket for a broader opening
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.28 * POCKET_VISUAL_EXPANSION; // push the corner pocket centres and cuts a bit farther outward toward the rails
+  POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // push the corner pocket centres and cuts a bit farther outward toward the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS =
   POCKET_VIS_R * POCKET_VISUAL_EXPANSION * CORNER_POCKET_INWARD_SCALE;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
 const CORNER_RAIL_NOTCH_INSET =
-  POCKET_VIS_R * 0.068 * POCKET_VISUAL_EXPANSION; // let the rail and chrome cutouts follow the outward corner pocket shift
+  POCKET_VIS_R * 0.078 * POCKET_VISUAL_EXPANSION; // let the rail and chrome cutouts follow the outward corner pocket shift
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -13392,10 +13392,6 @@ const powerRef = useRef(hud.power);
     if (!host) return;
     setErr(null);
     const webglSupported = isWebGLAvailable();
-    if (!webglSupported) {
-      setErr('WebGL is not available on this device. Enable hardware acceleration to play.');
-      return;
-    }
     const cueRackDisposers = [];
     let disposed = false;
     let contextLost = false;
@@ -13412,9 +13408,11 @@ const powerRef = useRef(hud.power);
         setPocketCameraActive(active);
       };
       updatePocketCameraState(false);
-      const orientationLock = screen.orientation?.lock?.('portrait');
-      orientationLock?.catch?.(() => {});
+      screen.orientation?.lock?.('portrait').catch(() => {});
       // Renderer
+      if (!webglSupported) {
+        console.warn('WebGL availability check failed; attempting to init renderer anyway.');
+      }
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: false,
@@ -13449,7 +13447,6 @@ const powerRef = useRef(hud.power);
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
-      let worldScaleFactor = WORLD_SCALE * (tableSizeRef.current?.scale ?? 1);
       const applyEnvironmentMaps = (envMap, skyboxMap, activeVariant) => {
         const sceneInstance = sceneRef.current;
         if (!envMap || !sceneInstance) return;
@@ -13587,6 +13584,7 @@ const powerRef = useRef(hud.power);
       };
       updateEnvironmentRef.current = applyHdriEnvironment;
       void applyHdriEnvironment(activeEnvironmentVariantRef.current);
+      let worldScaleFactor = WORLD_SCALE * (tableSizeRef.current?.scale ?? 1);
       let cue;
       let clothMat;
       let cushionMat;
@@ -14100,62 +14098,37 @@ const powerRef = useRef(hud.power);
         updateCueRackHighlights();
       }
 
-      const resolveStandingBroadcastCoords = () => {
+      const resolveBroadcastDistance = () => {
         const hostAspect = host?.clientWidth && host?.clientHeight
           ? host.clientWidth / host.clientHeight
           : null;
         const aspect = Number.isFinite(hostAspect) ? hostAspect : 9 / 16; // fall back to worst-case portrait when unknown
         const tempCamera = new THREE.PerspectiveCamera(STANDING_VIEW_FOV, aspect);
-        const zoomProfile = resolveCameraZoomProfile(aspect);
-        const standingMargin = Math.max(
-          STANDING_VIEW.margin,
-          aspect < 1 ? STANDING_VIEW_MARGIN_PORTRAIT : STANDING_VIEW_MARGIN_LANDSCAPE
+        const topDownRadius = Math.max(
+          fitRadius(tempCamera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE,
+          CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
         );
-        const standingRadiusRaw = fitRadius(
-          tempCamera,
-          Math.max(standingMargin * zoomProfile.margin, 1e-4)
-        );
-        const cueBase = clampOrbitRadius(BREAK_VIEW.radius);
-        const playerRadiusBase = Math.max(standingRadiusRaw, cueBase);
-        const shouldApplyBroadcastPullIn = aspect >= 1;
-        const broadcastBaseRadius = shouldApplyBroadcastPullIn
-          ? Math.max(
-              standingRadiusRaw,
-              playerRadiusBase * BROADCAST_DISTANCE_MULTIPLIER
-            )
-          : playerRadiusBase;
-        const baseBroadcastRadius =
-          broadcastBaseRadius + BROADCAST_RADIUS_PADDING;
-        const baseStandingRadius = Math.max(
-          standingRadiusRaw,
-          baseBroadcastRadius
-        );
-        const standingRadius = clamp(
-          Math.max(standingRadiusRaw, baseStandingRadius * zoomProfile.broadcast),
-          CAMERA.minR,
-          CAMERA.maxR
-        );
-        const standingPhi = THREE.MathUtils.clamp(
-          STANDING_VIEW.phi,
-          CAMERA.minPhi,
-          CAMERA.maxPhi - CAMERA_RAIL_SAFETY
-        );
-        const focusY = ORBIT_FOCUS_BASE_Y * worldScaleFactor;
-        const height = focusY + Math.cos(standingPhi) * standingRadius;
-        const horizontal = Math.sin(standingPhi) * standingRadius;
-        return { radius: standingRadius, height, horizontal };
+        return topDownRadius;
       };
-      const { height: standingHeight, horizontal: standingHorizontal } =
-        resolveStandingBroadcastCoords();
+      const resolveTopDownCoords = () => {
+        const radius = resolveBroadcastDistance();
+        const phi = TOP_VIEW_RESOLVED_PHI;
+        const focusY = ORBIT_FOCUS_BASE_Y * worldScaleFactor;
+        const height = focusY + Math.cos(phi) * radius;
+        const horizontal = Math.sin(phi) * radius;
+        return { radius, height, horizontal };
+      };
+      const { height: topDownHeight, horizontal: topDownHorizontal } =
+        resolveTopDownCoords();
       const broadcastClearance = arenaMargin * 0.3 + BALL_R * 4;
       const shortRailTarget = Math.max(
-        standingHorizontal,
+        topDownHorizontal,
         arenaHalfDepth - broadcastClearance
       );
       const shortRailSlideLimit = 0;
       const broadcastRig = createBroadcastCameras({
         floorY,
-        cameraHeight: standingHeight,
+        cameraHeight: topDownHeight,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: Math.max(arenaHalfDepth - BALL_R * 4, BALL_R * 4)
