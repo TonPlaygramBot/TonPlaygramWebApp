@@ -17,7 +17,7 @@
 /**
  * @typedef {Object} AimRequest
  * @property {GameType} game
- * @property {{balls:Ball[],pockets:Pocket[],width:number,height:number,ballRadius:number,friction:number,myGroup?:'SOLIDS'|'STRIPES'|'UNASSIGNED',ballOn?:'blue'|'red'|null,ballInHand?:boolean,mustPlayFromBaulk?:boolean,baulkLineY?:number}} state
+ * @property {{balls:Ball[],pockets:Pocket[],width:number,height:number,ballRadius:number,friction:number,myGroup?:'SOLIDS'|'STRIPES'|'UNASSIGNED',ballOn?:'blue'|'red'|null,ballInHand?:boolean,baulkLineY?:number}} state
  * @property {number} [timeBudgetMs]
  * @property {number} [rngSeed]
  * @property {number} [maxCutAngle] maximum allowed cut angle in radians for a shot candidate
@@ -626,13 +626,6 @@ export function planShot (req) {
             cand.x > req.state.width - r ||
             cand.y < r ||
             cand.y > req.state.height - r
-          ) {
-            continue
-          }
-          if (
-            req.state.mustPlayFromBaulk &&
-            typeof req.state.baulkLineY === 'number' &&
-            cand.y < req.state.baulkLineY
           ) {
             continue
           }

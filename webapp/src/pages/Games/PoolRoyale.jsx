@@ -942,9 +942,9 @@ const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // allow the jaw extrusi
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // keep the underside tight to the cloth depth instead of the deeper pocket floor
 const POCKET_JAW_EDGE_FLUSH_START = 0.12; // start easing earlier so the jaw thins gradually toward the cushions
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
-const POCKET_JAW_EDGE_TAPER_SCALE = 0.1; // thin the outer lips more aggressively while leaving the centre crown unchanged
-const POCKET_JAW_CENTER_TAPER_HOLD = 0.16; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
-const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.15; // smooth the taper curve so thickness falls away progressively instead of dropping late
+const POCKET_JAW_EDGE_TAPER_SCALE = 0.08; // thin the outer lips more aggressively while leaving the centre crown unchanged
+const POCKET_JAW_CENTER_TAPER_HOLD = 0.1; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
+const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1; // smooth the taper curve so thickness falls away progressively instead of dropping late
 const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD; // keep the taper hold consistent so the middle jaw crown mirrors the corners
 const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE; // reuse the corner taper scale so edge thickness matches exactly
 const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // maintain the identical taper curve across all six jaws
@@ -955,7 +955,7 @@ const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144; // higher tessellation for crisper high-res pocket jaws
-const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42; // widen the chamfer so the corner jaw shoulders carry the same mass as the photographed reference
+const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // widen the chamfer so the corner jaw shoulders carry the same mass as the photographed reference
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
@@ -1755,7 +1755,7 @@ function deriveInHandFromFrame(frame) {
     return Boolean(meta.state.ballInHand);
   }
   if (meta.variant === 'uk' && meta.state) {
-    return Boolean(meta.state.mustPlayFromBaulk);
+    return Boolean(meta.state.ballInHand);
   }
   return false;
 }
@@ -4913,6 +4913,8 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
+const BIH_INDICATOR_LINE_PX = 34;
+const BIH_INDICATOR_HAND_SIZE_PX = 30;
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
@@ -11861,6 +11863,12 @@ function PoolRoyaleGame({
     []
   );
   const inHandPlacementModeRef = useRef(inHandPlacementMode);
+  const inHandIndicatorRef = useRef(null);
+  const inHandPointerHandlersRef = useRef({
+    onDown: null,
+    onMove: null,
+    onUp: null
+  });
   const gameOverHandledRef = useRef(false);
   const userSuggestionRef = useRef(null);
   const startAiThinkingRef = useRef(() => {});
@@ -12021,9 +12029,12 @@ const powerRef = useRef(hud.power);
   const cueBallPlacedFromHandRef = useRef(false);
   useEffect(() => {
     const playerTurn = (hud.turn ?? 0) === 0;
-    const placing = Boolean(hud.inHand && playerTurn);
-    setInHandPlacementMode(placing);
-    if (placing) {
+    const isInHandTurn = Boolean(hud.inHand && playerTurn);
+    if (!isInHandTurn) {
+      setInHandPlacementMode(false);
+      inHandPlacementModeRef.current = false;
+    }
+    if (isInHandTurn) {
       cueBallPlacedFromHandRef.current = false;
     }
   }, [hud.inHand, hud.turn]);
@@ -17997,7 +18008,9 @@ const powerRef = useRef(hud.power);
           if (ENABLE_CUE_GALLERY && attemptCueGalleryPress(e)) return;
           if (attemptChalkPress(e)) return;
           const currentHud = hudRef.current;
-          if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
+          const placementActive =
+            Boolean(currentHud?.inHand) && inHandPlacementModeRef.current;
+          if (currentHud?.turn === 1 || placementActive || shooting) return;
           if (e.touches?.length === 2) return;
           if (attemptCueLiftPress(e)) return;
           if (topViewRef.current && !topViewLockedRef.current)
@@ -18159,7 +18172,10 @@ const powerRef = useRef(hud.power);
           if (
             !moved &&
             !topViewRef.current &&
-            !(hudRef.current?.inHand ?? false) &&
+            !(
+              Boolean(hudRef.current?.inHand) &&
+              inHandPlacementModeRef.current
+            ) &&
             !shooting
           ) {
             if (e?.button !== undefined && e.button !== 0) return;
@@ -18178,7 +18194,9 @@ const powerRef = useRef(hud.power);
             return;
           }
           const currentHud = hudRef.current;
-          if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
+          const placementActive =
+            Boolean(currentHud?.inHand) && inHandPlacementModeRef.current;
+          if (currentHud?.turn === 1 || placementActive || shooting) return;
           const baseStep = e.shiftKey ? 0.08 : 0.035;
           const slowScale =
             chalkAssistEnabledRef.current && chalkAssistTargetRef.current
@@ -19514,7 +19532,9 @@ const powerRef = useRef(hud.power);
         if (!ENABLE_CUE_GALLERY) return false;
         if (cueGalleryStateRef.current.active) return false;
         const currentHud = hudRef.current;
-        if (currentHud?.inHand || shooting) return false;
+        const placementActive =
+          Boolean(currentHud?.inHand) && inHandPlacementModeRef.current;
+        if (placementActive || shooting) return false;
         if (ev.touches?.length && ev.touches.length > 1) return false;
         const racks = cueRackGroupsRef.current;
         if (!Array.isArray(racks) || racks.length === 0) return false;
@@ -19650,7 +19670,9 @@ const powerRef = useRef(hud.power);
 
       const pickOrbitFocus = (ev) => {
         const currentHud = hudRef.current;
-        if ((currentHud?.inHand ?? false) || shooting) return;
+        const placementActive =
+          Boolean(currentHud?.inHand) && inHandPlacementModeRef.current;
+        if (placementActive || shooting) return;
         const rect = dom.getBoundingClientRect();
         const clientX =
           ev?.clientX ?? ev?.changedTouches?.[0]?.clientX ?? drag.x;
@@ -19714,7 +19736,7 @@ const powerRef = useRef(hud.power);
 
       const allowFullTableInHand = () => {
         const id = variantId();
-        if (id === 'uk') return false;
+        if (id === 'uk') return true;
         if (id === 'american' || id === '9ball') {
           return !isBreakRestrictedInHand();
         }
@@ -19788,11 +19810,6 @@ const powerRef = useRef(hud.power);
         cue.active = true;
         inHandDrag.lastPos = null;
         cueBallPlacedFromHandRef.current = true;
-        if (hudRef.current?.inHand) {
-          const nextHud = { ...hudRef.current, inHand: false };
-          hudRef.current = nextHud;
-          setHud(nextHud);
-        }
       }
       return true;
     };
@@ -20028,6 +20045,11 @@ const powerRef = useRef(hud.power);
           autoAimRequestRef.current = true;
         }
         e.preventDefault?.();
+      };
+      inHandPointerHandlersRef.current = {
+        onDown: handleInHandDown,
+        onMove: handleInHandMove,
+        onUp: endInHandDrag
       };
       dom.addEventListener('pointerdown', handleInHandDown);
       dom.addEventListener('pointermove', handleInHandMove);
@@ -20345,7 +20367,7 @@ const powerRef = useRef(hud.power);
           } else if (meta.variant === '9ball' && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
           } else if (meta.variant === 'uk' && meta.state) {
-            placedFromHand = Boolean(meta.state.mustPlayFromBaulk);
+            placedFromHand = Boolean(meta.state.ballInHand);
           }
         }
         shotContextRef.current = {
@@ -21804,7 +21826,7 @@ const powerRef = useRef(hud.power);
             aiState.ballOn ?? 'open',
             aiState.isOpenTable ? '1' : '0',
             aiState.shotsRemaining ?? '0',
-            aiState.mustPlayFromBaulk ? '1' : '0',
+            aiState.ballInHand ? '1' : '0',
             Math.round((aiState.baulkLineX ?? 0) * 10)
           ].join('::');
         };
@@ -21854,7 +21876,7 @@ const powerRef = useRef(hud.power);
             ballOn: ballOnColour,
             isOpenTable: snapshot.isOpenTable,
             shotsRemaining: snapshot.shotsRemaining,
-            mustPlayFromBaulk: snapshot.mustPlayFromBaulk,
+            ballInHand: snapshot.ballInHand,
             baulkLineX: baulkLineLocal + height / 2
           };
           try {
@@ -22521,7 +22543,7 @@ const powerRef = useRef(hud.power);
             aiPlanRef.current = null;
             setHud((s) => ({ ...s, turn: 0, inHand: true }));
             setFrameState((prev) => ({ ...prev, activePlayer: 'A' }));
-            setInHandPlacementMode(true);
+            setInHandPlacementMode(false);
           }
         };
 
@@ -22886,7 +22908,7 @@ const powerRef = useRef(hud.power);
               } else if (nextMeta.variant === '9ball' && nextMeta.state) {
                 nextInHand = Boolean(nextMeta.state.ballInHand);
               } else if (nextMeta.variant === 'uk' && nextMeta.state) {
-                nextInHand = Boolean(nextMeta.state.mustPlayFromBaulk);
+              nextInHand = Boolean(nextMeta.state.ballInHand);
               }
             }
           }
@@ -24738,6 +24760,29 @@ const powerRef = useRef(hud.power);
           }
           syncCueShadow();
           const frameCamera = updateCamera();
+          const inHandIndicator = inHandIndicatorRef.current;
+          if (inHandIndicator) {
+            const hudState = hudRef.current;
+            const shouldShow =
+              Boolean(hudState?.inHand) &&
+              hudState?.turn === 0 &&
+              !hudState?.over &&
+              cue?.active;
+            if (!shouldShow) {
+              inHandIndicator.style.opacity = '0';
+            } else {
+              const activeCamera = frameCamera ?? camera;
+              TMP_VEC3_A.set(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+              TMP_VEC3_A.project(activeCamera);
+              const rect = renderer.domElement.getBoundingClientRect();
+              const screenX =
+                rect.left + (TMP_VEC3_A.x * 0.5 + 0.5) * rect.width;
+              const screenY =
+                rect.top + (-TMP_VEC3_A.y * 0.5 + 0.5) * rect.height;
+              inHandIndicator.style.opacity = '1';
+              inHandIndicator.style.transform = `translate(-50%, -100%) translate(${screenX}px, ${screenY}px)`;
+            }
+          }
           renderer.render(scene, frameCamera ?? camera);
           const shouldStreamAim =
             isOnlineMatch &&
@@ -25545,6 +25590,36 @@ const powerRef = useRef(hud.power);
     ),
     [avatarSizeClass]
   );
+  const handleInHandIndicatorDown = useCallback(
+    (event) => {
+      const currentHud = hudRef.current;
+      if (!currentHud?.inHand || currentHud.turn !== 0) return;
+      event.preventDefault?.();
+      setInHandPlacementMode(true);
+      inHandPlacementModeRef.current = true;
+      inHandPointerHandlersRef.current?.onDown?.(event);
+      if (event.pointerId != null && event.currentTarget?.setPointerCapture) {
+        try {
+          event.currentTarget.setPointerCapture(event.pointerId);
+        } catch {}
+      }
+    },
+    []
+  );
+  const handleInHandIndicatorMove = useCallback((event) => {
+    if (!inHandPlacementModeRef.current) return;
+    inHandPointerHandlersRef.current?.onMove?.(event);
+  }, []);
+  const handleInHandIndicatorUp = useCallback((event) => {
+    inHandPointerHandlersRef.current?.onUp?.(event);
+    setInHandPlacementMode(false);
+    inHandPlacementModeRef.current = false;
+    if (event.pointerId != null && event.currentTarget?.releasePointerCapture) {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {}
+    }
+  }, []);
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
@@ -26676,16 +26751,48 @@ const powerRef = useRef(hud.power);
           </div>
         </div>
       )}
+      {hud?.inHand && isPlayerTurn && (
+        <div
+          ref={inHandIndicatorRef}
+          className="pointer-events-none absolute z-40 flex flex-col items-center gap-1"
+          style={{
+            left: 0,
+            top: 0,
+            transform: 'translate(-50%, -100%)',
+            transition: 'opacity 120ms ease'
+          }}
+        >
+          <button
+            type="button"
+            aria-label="Move cue ball"
+            className="pointer-events-auto flex items-center justify-center rounded-full border border-white/70 bg-white/95 text-xl shadow-[0_12px_22px_rgba(0,0,0,0.35)]"
+            style={{
+              width: `${BIH_INDICATOR_HAND_SIZE_PX}px`,
+              height: `${BIH_INDICATOR_HAND_SIZE_PX}px`
+            }}
+            onPointerDown={handleInHandIndicatorDown}
+            onPointerMove={handleInHandIndicatorMove}
+            onPointerUp={handleInHandIndicatorUp}
+            onPointerCancel={handleInHandIndicatorUp}
+          >
+            🖐
+          </button>
+          <div
+            className="w-[2px] rounded-full bg-white/80 shadow-[0_4px_12px_rgba(255,255,255,0.45)]"
+            style={{ height: `${BIH_INDICATOR_LINE_PX}px` }}
+          />
+        </div>
+      )}
       {hud?.inHand && (
         <div className="pointer-events-none absolute left-1/2 top-4 z-40 flex -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
           <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg ring-1 ring-white/60">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">BIH</span>
             <span className="text-left leading-tight">
-              Drag the cue ball {['american', '9ball'].includes(variantKey) ? 'anywhere on the table' : 'inside the baulk semicircle'}
+              Drag the cue ball anywhere on the table
             </span>
           </div>
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
-            Tap and hold, then slide to place
+            Hold the hand to move the cue ball
           </span>
         </div>
       )}
