@@ -1434,7 +1434,7 @@ const LEG_HEIGHT_MULTIPLIER = 4.5;
 const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
 const TABLE_HEIGHT_REDUCTION = 0.82;
-const TABLE_HEIGHT_SCALE = 1.56 * 1.3;
+const TABLE_HEIGHT_SCALE = 1.56;
 const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION * TABLE_HEIGHT_SCALE;
 const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
@@ -1535,8 +1535,8 @@ const SPIN_DECORATION_DOT_SIZE_PX = 12;
 const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets
 const DEFAULT_CUSHION_CUT_ANGLE = 27;
-// keep side-pocket cushion cuts aligned to the corner angle
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
+// use a sharper default cut on side-pocket cushions
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 45;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -6130,6 +6130,61 @@ function calcTarget(cue, dir, balls) {
       targetBall = null;
     }
   };
+
+  const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
+  const cornerCos = Math.cos(cornerRad);
+  const cornerSin = Math.sin(cornerRad);
+  const guardClearance = POCKET_GUARD_CLEARANCE;
+  const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
+  for (const { sx, sy } of CORNER_SIGNS) {
+    TMP_VEC2_C.set(sx * limX, sy * limY);
+    TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
+    const denom = dirNorm.dot(TMP_VEC2_B);
+    if (denom >= -1e-6) continue;
+    TMP_VEC2_A.copy(cuePos).sub(TMP_VEC2_C);
+    const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
+    if (distNormal < -cornerDepthLimit) continue;
+    const t = (BALL_R - distNormal) / denom;
+    if (t < 0) continue;
+    TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
+    TMP_VEC2_LIMIT.copy(TMP_VEC2_A).addScaledVector(dirNorm, t);
+    const lateral = Math.abs(TMP_VEC2_LIMIT.dot(TMP_VEC2_D));
+    if (lateral < guardClearance) continue;
+    checkRail(t, new THREE.Vector2(TMP_VEC2_B.x, TMP_VEC2_B.y));
+  }
+
+  const sideSpan = SIDE_POCKET_SPAN;
+  const sidePocketGuard = SIDE_POCKET_GUARD_RADIUS;
+  const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
+  const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
+  const sidePocketCenters = pocketCenters().slice(4);
+  const sideCutRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
+  const sideCutCos = Math.cos(sideCutRad);
+  const sideCutSin = Math.sin(sideCutRad);
+  for (const center of sidePocketCenters) {
+    TMP_VEC2_A.copy(cuePos).sub(center);
+    const distToCenterSq = TMP_VEC2_A.lengthSq();
+    if (distToCenterSq < sidePocketGuard * sidePocketGuard) continue;
+    const signX = center.x >= 0 ? 1 : -1;
+    for (const signY of SIDE_POCKET_CUT_SIGNS) {
+      if (TMP_VEC2_A.y * signY < 0) continue;
+      TMP_VEC2_C.set(signX * limX, center.y + signY * sideSpan);
+      TMP_VEC2_B.set(-signX * sideCutCos, signY * sideCutSin);
+      const denom = dirNorm.dot(TMP_VEC2_B);
+      if (denom >= -1e-6) continue;
+      TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
+      TMP_VEC2_LIMIT.copy(cuePos).sub(TMP_VEC2_C);
+      const distNormal = TMP_VEC2_LIMIT.dot(TMP_VEC2_B);
+      if (distNormal < -sideDepthLimit) continue;
+      const t = (BALL_R - distNormal) / denom;
+      if (t < 0) continue;
+      TMP_VEC2_LIMIT.addScaledVector(dirNorm, t);
+      const lateral = Math.abs(TMP_VEC2_LIMIT.dot(TMP_VEC2_D));
+      if (lateral < sideGuardClearance) continue;
+      checkRail(t, new THREE.Vector2(TMP_VEC2_B.x, TMP_VEC2_B.y));
+    }
+  }
+
   if (dirNorm.x < -1e-8)
     checkRail((-limX - cuePos.x) / dirNorm.x, new THREE.Vector2(1, 0));
   if (dirNorm.x > 1e-8)
@@ -7388,7 +7443,7 @@ export function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.3; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.32; // trim the cushion tips near middle pockets so they stop at the rail cut
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.36; // trim the cushion tips near middle pockets so they stop at the rail cut
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
