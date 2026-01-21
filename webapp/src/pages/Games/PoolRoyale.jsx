@@ -596,7 +596,7 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.45; // tighten the middle fascia s
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.8; // reduce fascia reach so the middle pocket chrome reads compact like the reference
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.24; // widen the middle plates to match the photo reference span
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0; // trim the middle-pocket chrome flush with the outer wood rail edge
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.98; // extend the outward chrome reach so the sides feel broader
 const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1; // allow the plate ends to run farther toward the pocket entry
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 1; // keep the widened fascia width intact
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1; // keep the chrome plate centered between pocket shoulders
@@ -964,7 +964,6 @@ const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // match the middle jaw radius to th
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.04; // keep middle jaws aligned to the pocket center like the reference
-const POCKET_JAW_CENTER_INWARD_SHIFT = TABLE.THICK * 0.025; // pull the jaws slightly toward the table center
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.84; // trim the jaw edges so they stop at the wood rail curve
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -1538,7 +1537,6 @@ const SPIN_DECORATION_OFFSET_PERCENT = 58;
 const DEFAULT_CUSHION_CUT_ANGLE = 27;
 // use a sharper default cut on side-pocket cushions
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 45;
-const SIDE_RAIL_CORNER_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -8719,18 +8717,6 @@ export function Table3D(
     return new THREE.Vector2(fallbackX, fallbackZ);
   };
 
-  const pullJawCenterInward = (center, amount) => {
-    if (!(center instanceof THREE.Vector2)) return center;
-    if (!Number.isFinite(amount) || amount <= 0) return center;
-    const len = center.length();
-    if (!Number.isFinite(len) || len <= MICRO_EPS) return center;
-    const shift = Math.min(amount, len - MICRO_EPS);
-    if (shift <= 0) return center;
-    const inward = center.clone().normalize().multiplyScalar(shift);
-    center.sub(inward);
-    return center;
-  };
-
   if (cornerBaseRadius && cornerBaseRadius > MICRO_EPS) {
     [
       { sx: 1, sz: 1 },
@@ -8744,7 +8730,6 @@ export function Table3D(
         sz * (innerHalfH - cornerInset)
       );
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
-      pullJawCenterInward(center, POCKET_JAW_CENTER_INWARD_SHIFT);
       const orientationAngle = Math.atan2(sz, sx);
       addPocketJaw({
         center,
@@ -8765,7 +8750,6 @@ export function Table3D(
       const fallbackCenter = new THREE.Vector2(sx * sidePocketCenterX, 0);
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
       center.x += sx * SIDE_POCKET_JAW_OUTWARD_SHIFT;
-      pullJawCenterInward(center, POCKET_JAW_CENTER_INWARD_SHIFT);
       const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
         center,
@@ -9437,9 +9421,9 @@ export function Table3D(
       ? {
           leftCutAngle: leftCloserToCenter
             ? SIDE_CUSHION_CUT_ANGLE
-            : SIDE_RAIL_CORNER_CUSHION_CUT_ANGLE,
+            : CUSHION_CUT_ANGLE,
           rightCutAngle: leftCloserToCenter
-            ? SIDE_RAIL_CORNER_CUSHION_CUT_ANGLE
+            ? CUSHION_CUT_ANGLE
             : SIDE_CUSHION_CUT_ANGLE
         }
       : undefined;
