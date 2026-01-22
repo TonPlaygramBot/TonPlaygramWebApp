@@ -557,20 +557,25 @@ function abgBbox(obj) {
 
 function abgPreparePiece(src) {
   const clone = abgCloneWithMats(src);
-  const { size } = abgBbox(clone);
-  const footprint = Math.max(size.x, size.z) || 1;
-  const target = LUDO_TILE * 0.7;
-  const scale = target / footprint;
-  clone.scale.setScalar(scale);
-  const { box } = abgBbox(clone);
-  const baseLift = -box.min.y + TOKEN_TRACK_HEIGHT;
-  const group = new THREE.Group();
-  group.add(clone);
-  group.position.y = baseLift;
-  group.traverse((node) => {
+  clone.traverse((node) => {
     if (node.isMesh) node.castShadow = true;
   });
-  return group;
+  return clone;
+}
+
+function scaleTokenToHeight(piece, targetHeight) {
+  if (!piece || !targetHeight) return;
+  piece.position.set(0, 0, 0);
+  const { size } = abgBbox(piece);
+  if (!size.y) return;
+  const scale = targetHeight / size.y;
+  piece.scale.setScalar(scale);
+  piece.updateMatrixWorld(true);
+  const { box } = abgBbox(piece);
+  const center = box.getCenter(new THREE.Vector3());
+  piece.position.x -= center.x;
+  piece.position.z -= center.z;
+  piece.position.y -= box.min.y;
 }
 
 function abgApplyPalette(node, palette) {
@@ -2438,6 +2443,38 @@ function makeRook(mat) {
 
   g.add(base, body, collar, crownBase, crownTop, finial);
   return g;
+}
+
+let cachedProceduralTokenHeight = null;
+
+function getProceduralTokenHeight() {
+  if (cachedProceduralTokenHeight) return cachedProceduralTokenHeight;
+  const sample = makeRook(new THREE.MeshStandardMaterial({ color: '#ffffff' }));
+  if (sample.userData?.countLabel) {
+    sample.remove(sample.userData.countLabel);
+  }
+  const { size } = abgBbox(sample);
+  cachedProceduralTokenHeight = size.y || 0.095;
+  return cachedProceduralTokenHeight;
+}
+
+function buildChessToken({ piece, palette, color, targetHeight }) {
+  if (!piece) return null;
+  const clone = abgCloneWithMats(piece);
+  if (palette?.length) {
+    const tinted = abgTintPalette(palette, color);
+    abgApplyPalette(clone, tinted);
+  }
+  scaleTokenToHeight(clone, targetHeight);
+  clone.traverse((node) => {
+    if (node.isMesh) {
+      node.castShadow = true;
+      node.receiveShadow = true;
+    }
+  });
+  const group = new THREE.Group();
+  group.add(clone);
+  return group;
 }
 
 function makeHeadMaterial(preset) {
@@ -5436,6 +5473,11 @@ async function buildLudoBoard(
     tokenTypeSequence = Array(4).fill(tokenPieceOption.type);
   }
   const headPreset = headPresetOption?.preset ?? HEAD_PRESET_OPTIONS[0].preset;
+  const tokenHeight = getProceduralTokenHeight();
+  const useChessTokens = tokenStyleOption?.id === 'battleChess';
+  const chessAssets = useChessTokens ? await getAbgAssets() : null;
+  const chessPalette =
+    chessAssets?.palettes?.w?.length ? chessAssets.palettes.w : chessAssets?.palettes?.b ?? null;
 
   const trackTileMeshes = new Array(RING_STEPS).fill(null);
   const homeColumnTiles = Array.from({ length: playerCount }, () =>
@@ -5542,7 +5584,22 @@ async function buildLudoBoard(
   const tokens = playerColors.slice(0, playerCount).map((color, playerIdx) => {
     return Array.from({ length: 4 }, (_, i) => {
       const type = tokenTypeSequence[i % tokenTypeSequence.length];
-      const token = makeRook(makeTokenMaterial(color));
+      const chessPiece =
+        chessAssets?.proto?.w?.[type] ??
+        chessAssets?.proto?.b?.[type] ??
+        null;
+      let token =
+        useChessTokens && chessPiece
+          ? buildChessToken({
+              piece: chessPiece,
+              palette: chessPalette,
+              color,
+              targetHeight: tokenHeight
+            })
+          : null;
+      if (!token) {
+        token = makeRook(makeTokenMaterial(color));
+      }
       if (headPreset) {
         applyHeadPresetToToken(token, headPreset);
       }
