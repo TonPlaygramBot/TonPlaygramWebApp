@@ -603,8 +603,8 @@ const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width furth
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.16; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.075; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.0506; // mirror the snooker middle pocket chrome cut sizing
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.085; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
@@ -1758,6 +1758,25 @@ function deriveInHandFromFrame(frame) {
     return Boolean(meta.state.ballInHand);
   }
   return false;
+}
+
+function applyStarterToFrame(frame, starterSeat) {
+  if (!frame || typeof frame !== 'object') return frame;
+  const desired = starterSeat === 'B' ? 'B' : 'A';
+  if (frame.activePlayer === desired) return frame;
+  const meta = frame.meta && typeof frame.meta === 'object' ? frame.meta : null;
+  if (!meta || !meta.state) {
+    return { ...frame, activePlayer: desired };
+  }
+  let nextMeta = meta;
+  if (meta.variant === 'uk') {
+    nextMeta = { ...meta, state: { ...meta.state, currentPlayer: desired } };
+  } else if (meta.variant === 'american') {
+    nextMeta = { ...meta, state: { ...meta.state, currentPlayer: desired } };
+  } else if (meta.variant === '9ball') {
+    nextMeta = { ...meta, state: { ...meta.state, currentPlayer: desired } };
+  }
+  return { ...frame, activePlayer: desired, meta: nextMeta };
 }
 
 
@@ -7353,7 +7372,7 @@ export function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.18; // trim the cushion tips near middle pockets so they stop at the rail cut
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.10; // trim the cushion tips near middle pockets so they stop at the rail cut
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.55; // reduce long-rail cushion reach further to keep noses out of pocket perimeters
   const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.28; // lightly trim short-rail cushions to match the new pocket clearance
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
@@ -11786,12 +11805,11 @@ function PoolRoyaleGame({
   const aiOpponentEnabled = !isOnlineMatch;
   const framePlayerAName = localSeat === 'A' ? playerLabel : opponentLabel;
   const framePlayerBName = localSeat === 'A' ? opponentLabel : playerLabel;
-  const initialFrame = useMemo(() => {
-    const baseFrame = rules.getInitialFrame(framePlayerAName, framePlayerBName);
-    const desiredStarter = starterSeat === 'B' ? 'B' : 'A';
-    if (baseFrame.activePlayer === desiredStarter) return baseFrame;
-    return { ...baseFrame, activePlayer: desiredStarter };
-  }, [framePlayerAName, framePlayerBName, rules, starterSeat]);
+const initialFrame = useMemo(() => {
+  const baseFrame = rules.getInitialFrame(framePlayerAName, framePlayerBName);
+  const desiredStarter = starterSeat === 'B' ? 'B' : 'A';
+  return applyStarterToFrame(baseFrame, desiredStarter);
+}, [framePlayerAName, framePlayerBName, rules, starterSeat]);
   const [frameState, setFrameState] = useState(initialFrame);
   useEffect(() => {
     setFrameState(initialFrame);
