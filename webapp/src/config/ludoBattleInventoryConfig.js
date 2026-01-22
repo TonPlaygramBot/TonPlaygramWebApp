@@ -81,7 +81,7 @@ export const LUDO_BATTLE_STORE_ITEMS = [
     price: 450,
     description: 'Swap the token mesh set for a new silhouette.'
   })),
-  ...TOKEN_PIECE_OPTIONS.map((option, idx) => ({
+  ...TOKEN_PIECE_OPTIONS.slice(1).map((option, idx) => ({
     id: `ludo-piece-${option.id}`,
     type: 'tokenPiece',
     optionId: option.id,
