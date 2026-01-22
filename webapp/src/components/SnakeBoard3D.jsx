@@ -22,6 +22,7 @@ import {
 } from '../utils/tableCustomizationOptions.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const clamp01 = (v) => clamp(v, 0, 1);
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
@@ -176,7 +177,7 @@ const BENTONITE_EXTRA_SHRINK = [0.85, 0.92];
 const TILE_100_SUPPORT_RADIUS = TILE_SIZE * 0.58;
 const TILE_100_SUPPORT_HEIGHT_EXTRA = TILE_SIZE * 0.25;
 
-const TOKEN_SCALE = 1.7;
+const TOKEN_SCALE = 1.19;
 const TOKEN_RADIUS = TILE_SIZE * 0.3 * TOKEN_SCALE;
 const TOKEN_HEIGHT = TILE_SIZE * 0.48 * TOKEN_SCALE;
 const CHESS_TOKEN_HEIGHT_SCALE = 2;
@@ -540,6 +541,73 @@ function scaleChessPieceToToken(piece, targetHeight) {
   piece.position.x -= center.x;
   piece.position.z -= center.z;
   piece.position.y -= scaledBox.min.y;
+}
+
+function makeHeadMaterial(preset) {
+  if (!preset) return null;
+  return new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(preset.color ?? '#ffffff'),
+    metalness: clamp01(preset.metalness ?? 0),
+    roughness: clamp01(preset.roughness ?? 0.1),
+    transparent: (preset.transmission ?? 0) > 0,
+    transmission: clamp01(preset.transmission ?? 0),
+    ior: preset.ior ?? 1.5,
+    thickness: preset.thickness ?? 0.4,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.06
+  });
+}
+
+function collectHeadMeshes(piece) {
+  const targets = [];
+  if (!piece) return targets;
+  const pbox = new THREE.Box3().setFromObject(piece);
+  const height = pbox.max.y - pbox.min.y;
+  const cutoff = pbox.max.y - height * 0.22;
+  piece.traverse((node) => {
+    if (!node?.isMesh) return;
+    const mbox = new THREE.Box3().setFromObject(node);
+    const size = new THREE.Vector3();
+    mbox.getSize(size);
+    const nearTop = mbox.max.y >= cutoff;
+    const notFullBody = size.y <= height * 0.45;
+    const name = node.name?.toLowerCase?.() ?? '';
+    const nameHint = /(head|top|cap|finial|ball)/.test(name);
+    if ((nearTop && notFullBody) || nameHint) {
+      targets.push(node);
+    }
+  });
+  return targets;
+}
+
+function applyHeadPresetToMeshes(meshes, preset) {
+  if (!meshes || !preset) return;
+  const list = Array.isArray(meshes) ? meshes : [meshes];
+  const baseMaterial = makeHeadMaterial(preset);
+  if (!baseMaterial) return;
+  list.forEach((mesh) => {
+    const heads = collectHeadMeshes(mesh);
+    heads.forEach((head) => {
+      const mats = Array.isArray(head.material) ? head.material : [head.material];
+      mats.forEach((mat) => {
+        if (!mat) return;
+        if (mat.color?.set) {
+          mat.color.set(baseMaterial.color);
+        }
+        if ('metalness' in mat) mat.metalness = clamp01(baseMaterial.metalness ?? 0);
+        if ('roughness' in mat) mat.roughness = clamp01(baseMaterial.roughness ?? 0.1);
+        mat.transparent = baseMaterial.transparent;
+        mat.transmission = clamp01(baseMaterial.transmission ?? 0);
+        mat.ior = baseMaterial.ior ?? 1.5;
+        mat.thickness = baseMaterial.thickness ?? 0.4;
+        if ('clearcoat' in mat) mat.clearcoat = 0.5;
+        if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = 0.06;
+        mat.needsUpdate = true;
+      });
+      head.castShadow = true;
+      head.receiveShadow = true;
+    });
+  });
 }
 
 function addChromeRailings(
@@ -3076,19 +3144,22 @@ function updateTokens(
     ? tokenTheme.accentClearcoatRoughness
     : 0.25;
 
-  const desiredShapeId = tokenShape?.id || 'default';
-  const desiredPieceType = tokenShape?.pieceType || null;
-  const basePiecePrototype = desiredPieceType ? tokenPrototypes?.[desiredPieceType] : null;
-
   players.forEach((player, index) => {
     keep.add(index);
     let token = existing.get(index);
     const seatIndex = Number.isFinite(player?.seatIndex) ? player.seatIndex : index;
+    const playerShape = player?.tokenShape ?? tokenShape;
+    const desiredShapeId = playerShape?.id || 'default';
+    const desiredPieceType = playerShape?.pieceType || null;
+    const basePiecePrototype = desiredPieceType ? tokenPrototypes?.[desiredPieceType] : null;
+    const headPreset = player?.headPreset || null;
+    const headPresetId = player?.headPresetId || 'current';
     if (
       token &&
       (token.userData?.shapeId !== desiredShapeId ||
         token.userData?.pieceType !== desiredPieceType ||
-        token.userData?.usesPrototype !== Boolean(basePiecePrototype))
+        token.userData?.usesPrototype !== Boolean(basePiecePrototype) ||
+        token.userData?.headPresetId !== headPresetId)
     ) {
       tokensGroup.remove(token);
       token.traverse((obj) => {
@@ -3109,6 +3180,9 @@ function updateTokens(
       if (piecePrototype) {
         const piece = piecePrototype.clone(true);
         scaleChessPieceToToken(piece, TOKEN_HEIGHT * CHESS_TOKEN_HEIGHT_SCALE);
+        if (headPreset && desiredPieceType === 'pawn') {
+          applyHeadPresetToMeshes(piece, headPreset);
+        }
         piece.traverse((child) => {
           if (child.isMesh) {
             if (Array.isArray(child.material)) {
@@ -3200,9 +3274,20 @@ function updateTokens(
         isSliding: false,
         shapeId: desiredShapeId,
         pieceType: desiredPieceType,
-        usesPrototype: Boolean(piecePrototype)
+        usesPrototype: Boolean(piecePrototype),
+        headPresetId
       };
       tokensGroup.add(token);
+    }
+
+    if (
+      token.userData?.usesPrototype &&
+      headPreset &&
+      desiredPieceType === 'pawn' &&
+      token.userData?.headPresetId !== headPresetId
+    ) {
+      applyHeadPresetToMeshes(token, headPreset);
+      token.userData.headPresetId = headPresetId;
     }
 
     const mat = token.userData.coreMaterial || token.userData.material;

@@ -52,6 +52,14 @@ const SNAKE_TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'king', label: 'King Token' }
 ]);
 
+export const SNAKE_PAWN_HEAD_OPTIONS = Object.freeze([
+  { id: 'current', label: 'Current' },
+  { id: 'headRuby', label: 'Ruby' },
+  { id: 'headSapphire', label: 'Sapphire' },
+  { id: 'headChrome', label: 'Chrome' },
+  { id: 'headGold', label: 'Gold' }
+]);
+
 export const SNAKE_TOKEN_COLOR_OPTIONS = Object.freeze([
   { id: 'marble', label: 'Marble', color: '#f8fafc' },
   { id: 'darkForest', label: 'Dark Forest', color: '#14532d' },
@@ -75,6 +83,7 @@ export const SNAKE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: [SNAKE_TABLE_FINISH_OPTIONS[0].id],
   floorTexture: [SNAKE_FLOOR_TEXTURE_OPTIONS[0].id],
   wallTexture: [SNAKE_WALL_TEXTURE_OPTIONS[0].id],
+  headStyle: [SNAKE_PAWN_HEAD_OPTIONS[0].id],
   tokenShape: [SNAKE_TOKEN_SHAPE_OPTIONS[0].id],
   tables: [MURLAN_TABLE_THEMES[0].id],
   stools: [MURLAN_STOOL_THEMES[0].id],
@@ -113,6 +122,7 @@ export const SNAKE_OPTION_LABELS = Object.freeze({
     holographicPulse: 'Holographic Pulse'
   }),
   tokenColor: mapLabels(SNAKE_TOKEN_COLOR_OPTIONS),
+  headStyle: mapLabels(SNAKE_PAWN_HEAD_OPTIONS),
   tableFinish: mapLabels(SNAKE_TABLE_FINISH_OPTIONS),
   floorTexture: mapLabels(SNAKE_FLOOR_TEXTURE_OPTIONS),
   wallTexture: mapLabels(SNAKE_WALL_TEXTURE_OPTIONS),
@@ -224,6 +234,38 @@ export const SNAKE_STORE_ITEMS = [
     price: 520,
     description: 'Holographic core with shimmering pulse highlights for each token.'
   },
+  {
+    id: 'snake-head-ruby',
+    type: 'headStyle',
+    optionId: 'headRuby',
+    name: 'Ruby Pawn Heads',
+    price: 310,
+    description: 'Unlocks an additional pawn head glass preset.'
+  },
+  {
+    id: 'snake-head-sapphire',
+    type: 'headStyle',
+    optionId: 'headSapphire',
+    name: 'Sapphire Pawn Heads',
+    price: 335,
+    description: 'Unlocks an additional pawn head glass preset.'
+  },
+  {
+    id: 'snake-head-chrome',
+    type: 'headStyle',
+    optionId: 'headChrome',
+    name: 'Chrome Pawn Heads',
+    price: 360,
+    description: 'Unlocks an additional pawn head glass preset.'
+  },
+  {
+    id: 'snake-head-gold',
+    type: 'headStyle',
+    optionId: 'headGold',
+    name: 'Gold Pawn Heads',
+    price: 385,
+    description: 'Unlocks an additional pawn head glass preset.'
+  },
   ...SNAKE_TOKEN_COLOR_OPTIONS.map((option, idx) => ({
     id: `snake-token-color-${option.id}`,
     type: 'tokenColor',
@@ -304,6 +346,7 @@ export const SNAKE_DEFAULT_LOADOUT = [
   { type: 'railTheme', optionId: 'platinumOak', label: 'Platinum & Oak Rails' },
   { type: 'tokenFinish', optionId: 'ceramicSheen', label: 'Ceramic Sheen Tokens' },
   { type: 'tokenColor', optionId: 'amberGlow', label: 'Amber Glow Tokens' },
+  { type: 'headStyle', optionId: 'current', label: 'Current Pawn Heads' },
   {
     type: 'tableFinish',
     optionId: SNAKE_TABLE_FINISH_OPTIONS[0].id,

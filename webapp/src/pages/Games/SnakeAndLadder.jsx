@@ -38,7 +38,10 @@ import {
 } from "../../utils/api.js";
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from "../../config/poolRoyaleInventoryConfig.js";
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from "../../config/murlanThemes.js";
-import { SNAKE_TOKEN_COLOR_OPTIONS } from "../../config/snakeInventoryConfig.js";
+import {
+  SNAKE_PAWN_HEAD_OPTIONS,
+  SNAKE_TOKEN_COLOR_OPTIONS
+} from "../../config/snakeInventoryConfig.js";
 // Developer accounts that receive shares of each pot
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -101,6 +104,63 @@ const TOKEN_COLOR_OPTIONS = Object.freeze(
   }))
 );
 const AI_TOKEN_COLOR_ORDER = Object.freeze(['mintVale', 'royalWave', 'roseMist']);
+const PAWN_HEAD_LABELS = Object.freeze(
+  SNAKE_PAWN_HEAD_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option.label;
+    return acc;
+  }, {})
+);
+const PAWN_HEAD_PRESET_OPTIONS = Object.freeze([
+  { id: 'current', label: PAWN_HEAD_LABELS.current || 'Current', preset: null },
+  {
+    id: 'headRuby',
+    label: PAWN_HEAD_LABELS.headRuby || 'Ruby',
+    preset: {
+      color: '#9b111e',
+      metalness: 0.05,
+      roughness: 0.08,
+      transmission: 0.92,
+      ior: 2.4,
+      thickness: 0.6
+    }
+  },
+  {
+    id: 'headSapphire',
+    label: PAWN_HEAD_LABELS.headSapphire || 'Sapphire',
+    preset: {
+      color: '#0f52ba',
+      metalness: 0.05,
+      roughness: 0.08,
+      transmission: 0.9,
+      ior: 1.8,
+      thickness: 0.7
+    }
+  },
+  {
+    id: 'headChrome',
+    label: PAWN_HEAD_LABELS.headChrome || 'Chrome',
+    preset: {
+      color: '#d6d8dc',
+      metalness: 0.95,
+      roughness: 0.12,
+      transmission: 0.1,
+      ior: 2.1,
+      thickness: 0.22
+    }
+  },
+  {
+    id: 'headGold',
+    label: PAWN_HEAD_LABELS.headGold || 'Gold',
+    preset: {
+      color: '#d4af37',
+      metalness: 0.92,
+      roughness: 0.16,
+      transmission: 0.06,
+      ior: 1.85,
+      thickness: 0.28
+    }
+  }
+]);
 
 const PLAYERS = 4;
 // Adjusted board dimensions to show five columns
@@ -177,6 +237,11 @@ function resolveAiTokenColors(options, count) {
     .filter(Boolean)
     .slice(0, count)
     .map((option) => option.color);
+}
+
+function resolveAiTokenShapes(options, count) {
+  if (!Array.isArray(options) || options.length === 0) return [];
+  return Array.from({ length: count }, () => options[Math.floor(Math.random() * options.length)]);
 }
 
 const FALLBACK_SEAT_POSITIONS = [
@@ -671,6 +736,7 @@ const SNAKE_CUSTOMIZATION_SECTIONS = [
   { key: 'boardPalette', label: 'Board Palette', options: BOARD_PALETTE_OPTIONS },
   { key: 'diceTheme', label: 'Dice Finish', options: DICE_THEME_OPTIONS },
   { key: 'tokenShape', label: 'Token Shape', options: TOKEN_SHAPE_OPTIONS },
+  { key: 'headStyle', label: 'Pawn Heads', options: PAWN_HEAD_PRESET_OPTIONS },
   { key: 'tableFinish', label: 'Table Finish', options: TABLE_FINISH_OPTIONS },
   { key: 'tables', label: 'Table Models', options: TABLE_THEME_OPTIONS },
   { key: 'stools', label: 'Chairs', options: STOOL_THEME_OPTIONS },
@@ -740,6 +806,7 @@ const DEFAULT_APPEARANCE = Object.freeze({
   boardPalette: 0,
   diceTheme: 0,
   tokenShape: 0,
+  headStyle: 0,
   tableFinish: 0,
   tables: 0,
   stools: 0,
@@ -759,6 +826,7 @@ function normalizeAppearance(value = {}) {
     ['boardPalette', BOARD_PALETTE_OPTIONS.length],
     ['diceTheme', DICE_THEME_OPTIONS.length],
     ['tokenShape', TOKEN_SHAPE_OPTIONS.length],
+    ['headStyle', PAWN_HEAD_PRESET_OPTIONS.length],
     ['tableFinish', TABLE_FINISH_OPTIONS.length],
     ['tables', TABLE_THEME_OPTIONS.length],
     ['stools', STOOL_THEME_OPTIONS.length],
@@ -786,6 +854,7 @@ function resolveAppearance(appearance) {
   const rail = RAIL_THEME_OPTIONS[0];
   const token = TOKEN_FINISH_OPTIONS[0];
   const tokenShape = TOKEN_SHAPE_OPTIONS[normalized.tokenShape] ?? TOKEN_SHAPE_OPTIONS[0];
+  const pawnHead = PAWN_HEAD_PRESET_OPTIONS[normalized.headStyle] ?? PAWN_HEAD_PRESET_OPTIONS[0];
   const tableFinish = TABLE_FINISH_OPTIONS[normalized.tableFinish] ?? TABLE_FINISH_OPTIONS[0];
   const snakeSkin = SNAKE_SKIN_OPTIONS[0];
   const tableTheme = TABLE_THEME_OPTIONS[normalized.tables] ?? TABLE_THEME_OPTIONS[0];
@@ -808,6 +877,7 @@ function resolveAppearance(appearance) {
     rail: { ...rail },
     token: { ...token },
     tokenShape,
+    pawnHead,
     tableFinish,
     snakeSkin: { ...snakeSkin },
     tableTheme,
@@ -1045,6 +1115,7 @@ export default function SnakeAndLadder() {
   const [gameOver, setGameOver] = useState(false);
   const [ai, setAi] = useState(0);
   const [aiPositions, setAiPositions] = useState([]);
+  const [aiTokenShapes, setAiTokenShapes] = useState([]);
   const [playerColors, setPlayerColors] = useState([]);
   const [, setRollColor] = useState('#fff');
   const [currentTurn, setCurrentTurn] = useState(0); // 0 = player
@@ -1553,6 +1624,14 @@ export default function SnakeAndLadder() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (ai > 0) {
+      setAiTokenShapes(resolveAiTokenShapes(TOKEN_SHAPE_OPTIONS, ai));
+    } else {
+      setAiTokenShapes([]);
+    }
+  }, [ai]);
 
   useEffect(() => {
     tableCapacityRef.current = tableCapacity;
@@ -2658,6 +2737,9 @@ export default function SnakeAndLadder() {
     [isMultiplayer, mpPlayers, accountId]
   );
 
+  const playerHeadPreset = resolvedAppearance?.pawnHead?.preset ?? null;
+  const playerHeadPresetId = resolvedAppearance?.pawnHead?.id ?? 'current';
+
   const players = isMultiplayer
     ? mpPlayers.map((p, i) => ({
         id: p.id,
@@ -2668,13 +2750,25 @@ export default function SnakeAndLadder() {
         seatIndex: seatAssignments.get(i)
       }))
     : [
-        { position: pos, photoUrl, type: tokenType, color: playerColors[0], seatIndex: 0 },
+        {
+          position: pos,
+          photoUrl,
+          type: tokenType,
+          color: playerColors[0],
+          seatIndex: 0,
+          tokenShape: resolvedAppearance?.tokenShape,
+          headPreset: playerHeadPreset,
+          headPresetId: playerHeadPresetId
+        },
         ...aiPositions.map((p, i) => ({
           position: p,
           photoUrl: aiAvatars[i] || '/assets/icons/profile.svg',
           type: 'normal',
           color: playerColors[i + 1],
-          seatIndex: i + 1
+          seatIndex: i + 1,
+          tokenShape: aiTokenShapes[i] || TOKEN_SHAPE_OPTIONS[i % TOKEN_SHAPE_OPTIONS.length],
+          headPreset: null,
+          headPresetId: 'current'
         }))
       ];
 
@@ -2828,6 +2922,21 @@ export default function SnakeAndLadder() {
         return (
           <div className="flex h-12 w-full items-center justify-center rounded-xl border border-white/10 bg-slate-900/70 text-base text-white/80">
             ♟️
+          </div>
+        );
+      }
+      case 'headStyle': {
+        const color = option.preset?.color ?? '#e2e8f0';
+        const accent = option.preset?.color ? lightenHex(option.preset.color, 0.2) : '#f8fafc';
+        return (
+          <div className="flex h-12 w-full items-center justify-center">
+            <div
+              className="relative h-10 w-10 rounded-full border border-white/10"
+              style={{
+                background: `radial-gradient(circle at 30% 30%, ${accent}, ${color})`,
+                boxShadow: `0 10px 20px ${color}44`
+              }}
+            />
           </div>
         );
       }
