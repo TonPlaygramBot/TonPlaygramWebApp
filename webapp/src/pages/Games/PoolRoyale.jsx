@@ -909,7 +909,7 @@ const SKIP_REPLAYS_STORAGE_KEY = 'poolSkipReplays';
 const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
-const ENABLE_CUE_STROKE_ANIMATION = false;
+const ENABLE_CUE_STROKE_ANIMATION = true;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
@@ -1250,7 +1250,7 @@ const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 1.05; // drop deeper so potted ball
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.74; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
-const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
+const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.1; // lift the ring so the holder assembly sits higher
 const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.26; // raise the net so the weave meets the pocket mouth
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
@@ -1259,21 +1259,21 @@ const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 7.
 const POCKET_GUIDE_DROP = BALL_R * 0.12;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
-const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
+const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.18; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
-const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
+const POCKET_GUIDE_VERTICAL_DROP = -BALL_R * 0.26; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.16; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
-const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
-const POCKET_HOLDER_REST_DROP = BALL_R * 2.18; // drop the resting spot so potted balls settle onto the chrome rails
+const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER; // tighter spacing so potted balls touch on the holder rails
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 3.6; // let potted balls roll farther until they meet the leather strap
+const POCKET_HOLDER_RUN_SURFACE_LIFT = BALL_R * 1.12 + POCKET_GUIDE_RADIUS; // keep the ball resting on top of the center chrome holder
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
 const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
 const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
-const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
+const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.98; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
 const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.62; // lift the leather strap so it meets the raised holder rails
@@ -4807,8 +4807,9 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0013;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.0011;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.97;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
+const STANDING_VIEW_DISTANCE_SCALE = 0.54; // pull the standing camera slightly closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -4905,9 +4906,10 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 0.9; // pull the broadcast overhead camera closer to the table like the original framing
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.05; // pull the broadcast overhead camera back for fuller table framing
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
+const USE_STANDING_BROADCAST_CAMERA = true; // keep broadcast cuts aligned with the standing camera instead of side-rail rigs
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
 const CUE_VIEW_RADIUS_RATIO = 0.0215; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
@@ -4915,7 +4917,7 @@ const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
 );
-const CUE_VIEW_PHI_LIFT = 0.075; // nudge the cue camera lower so the stroke and cue pull stay in frame
+const CUE_VIEW_PHI_LIFT = 0.06; // keep the cue camera slightly higher before it bottoms out
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -4933,7 +4935,7 @@ const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the 
 const BIH_INDICATOR_HAND_SIZE_PX = 34;
 const BIH_INDICATOR_WORLD_OFFSET = BALL_R * 1.35;
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
-const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.22; // nudge forward slightly at the floor of the cue view, then stop
+const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
@@ -4943,7 +4945,7 @@ const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
 const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-ball follow line toward a draw path
-const AIM_SPIN_PREVIEW_SIDE = 1;
+const AIM_SPIN_PREVIEW_SIDE = 0;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
@@ -4959,10 +4961,11 @@ const REPLAY_SLATE_DURATION_MS = 1200;
 const REPLAY_TIMEOUT_GRACE_MS = 750;
 const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
-const AI_CUE_PULLBACK_DURATION_MS = 2500;
-const AI_CUE_FORWARD_DURATION_MS = 2500;
+const CUE_STROKE_VISUAL_SLOWDOWN = 1.5;
+const AI_CUE_PULLBACK_DURATION_MS = 3400;
+const AI_CUE_FORWARD_DURATION_MS = 3400;
 const AI_STROKE_VISIBLE_DURATION_MS =
-  AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS;
+  (AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS) * CUE_STROKE_VISUAL_SLOWDOWN;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
 const AI_POST_SHOT_CAMERA_HOLD_MS = AI_STROKE_VISIBLE_DURATION_MS + AI_CAMERA_POST_STROKE_HOLD_MS;
 const SHOT_CAMERA_HOLD_MS = 2000;
@@ -4995,19 +4998,19 @@ const AI_CAMERA_DROP_DURATION_MS = 480;
 const AI_CAMERA_SETTLE_MS = 320; // allow time for the cue view to settle before firing
 const AI_CAMERA_DROP_LEAD_MS =
   AI_CAMERA_DROP_DURATION_MS + AI_CAMERA_SETTLE_MS; // start lowering into cue view early enough to finish before the stroke begins
-const AI_CUE_VIEW_HOLD_MS = 0;
+const AI_CUE_VIEW_HOLD_MS = 180;
 // Ease the AI camera just partway toward cue view (still above the stick) so the shot preview
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
-const AI_STROKE_TIME_SCALE = 1.35;
+const AI_STROKE_TIME_SCALE = 2.15;
 const AI_STROKE_PULLBACK_FACTOR = 1.05;
-const AI_WARMUP_PULL_RATIO = 0.62;
-const PLAYER_WARMUP_PULL_RATIO = 0.72;
-const PLAYER_STROKE_TIME_SCALE = 1.28;
-const PLAYER_FORWARD_SLOWDOWN = 1.2;
-const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
-const PLAYER_PULLBACK_MIN_SCALE = 1.1;
-const MIN_PULLBACK_GAP = BALL_R * 0.5;
+const AI_WARMUP_PULL_RATIO = 0.55;
+const PLAYER_WARMUP_PULL_RATIO = 0.62;
+const PLAYER_STROKE_TIME_SCALE = 1;
+const PLAYER_FORWARD_SLOWDOWN = 1;
+const PLAYER_STROKE_PULLBACK_FACTOR = 0.82;
+const PLAYER_PULLBACK_MIN_SCALE = 1.35;
+const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 26;
@@ -5958,29 +5961,12 @@ function resolveSwerveSettings(
   forceSwerve = false,
   liftStrength = 0
 ) {
-  const sideSpin = spin?.x ?? 0;
   const magnitude = Math.hypot(spin?.x ?? 0, spin?.y ?? 0);
-  const active =
-    (forceSwerve || magnitude >= SWERVE_THRESHOLD) &&
-    Math.abs(sideSpin) >= 1e-3;
-  if (!active) {
-    return {
-      active: false,
-      sideSpin: 0,
-      magnitude,
-      intensity: 0
-    };
-  }
-  const threshold = Math.max(1 - SWERVE_THRESHOLD, 1e-6);
-  const normalized = clamp((magnitude - SWERVE_THRESHOLD) / threshold, 0, 1);
-  const liftBoost = 0.75 + Math.max(0, liftStrength) * 0.5;
-  const powerBoost = 0.7 + powerStrength * 0.85;
-  const spinBoost = 0.75 + Math.min(Math.abs(sideSpin), 1) * 0.6;
   return {
-    active: true,
-    sideSpin,
+    active: false,
+    sideSpin: 0,
     magnitude,
-    intensity: normalized * powerBoost * spinBoost * liftBoost
+    intensity: 0
   };
 }
 
@@ -5992,24 +5978,12 @@ function resolveSpinPreviewSettings(
 ) {
   const swerve = resolveSwerveSettings(spin, powerStrength, forceSwerve, liftStrength);
   if (swerve.active) return swerve;
-  const sideSpin = spin?.x ?? 0;
-  const magnitude = Math.abs(sideSpin);
-  if (magnitude < 1e-3) {
-    return {
-      active: false,
-      sideSpin: 0,
-      magnitude,
-      intensity: 0
-    };
-  }
-  const powerBoost = 0.55 + powerStrength * 0.35;
-  const liftBoost = 0.8 + Math.max(0, liftStrength) * 0.3;
-  const intensity = Math.min(magnitude, 1) * powerBoost * liftBoost * 0.35;
+  const magnitude = Math.abs(spin?.x ?? 0);
   return {
     active: false,
-    sideSpin,
+    sideSpin: 0,
     magnitude,
-    intensity
+    intensity: 0
   };
 }
 
@@ -6020,30 +5994,7 @@ function resolveSwerveAimDir(
   forceSwerve = false,
   liftStrength = 0
 ) {
-  if (!aimDir || aimDir.lengthSq() < 1e-8) return aimDir;
-  const swerve = resolveSpinPreviewSettings(
-    spin,
-    powerStrength,
-    forceSwerve,
-    liftStrength
-  );
-  if (swerve.intensity <= 0 || Math.abs(swerve.sideSpin) < 1e-3) return aimDir;
-  const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
-  const curveBase =
-    (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
-  const powerScale = 4 + powerStrength * 6;
-  const swerveScale = 0.6 + swerve.intensity * 0.9;
-  const sideSpin = -swerve.sideSpin;
-  const adjust =
-    sideSpin *
-    swerve.intensity *
-    curveBase *
-    powerScale *
-    AIM_SPIN_PREVIEW_SIDE *
-    swerveScale;
-  const adjusted = aimDir.clone().add(perp.multiplyScalar(adjust));
-  if (adjusted.lengthSq() > 1e-8) adjusted.normalize();
-  return adjusted;
+  return aimDir;
 }
 
 function buildSwerveAimLinePoints(
@@ -6059,55 +6010,11 @@ function buildSwerveAimLinePoints(
   liftStrength = 0
 ) {
   if (!points) return [start, end];
-  const swerve = resolveSpinPreviewSettings(
-    spin,
-    powerStrength,
-    swerveActive,
-    liftStrength
-  );
-  const sideSpin = -swerve.sideSpin;
-  const travel = start.distanceTo(end);
-  if (swerve.intensity <= 0 || Math.abs(sideSpin) < 1e-3 || travel < 1e-4) {
-    points.length = 2;
-    if (!points[0]) points[0] = new THREE.Vector3();
-    if (!points[1]) points[1] = new THREE.Vector3();
-    points[0].copy(start);
-    points[1].copy(end);
-    return points;
-  }
-  const segments = clamp(Math.round(travel / (BALL_R * 1.6)), 6, 14);
-  const curveBase =
-    (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
-  const swerveScale = 0.6 + swerve.intensity * 0.9;
-  const curveScale =
-    curveBase *
-    (4 + powerStrength * 6.5) *
-    AIM_SPIN_PREVIEW_SIDE *
-    swerveScale;
-  const curveAmount = sideSpin * curveScale * travel;
-  controlPoint
-    .copy(start)
-    .addScaledVector(dir, travel * 0.5)
-    .addScaledVector(perp, curveAmount);
-  points.length = segments + 1;
-  const ax = start.x;
-  const ay = start.y;
-  const az = start.z;
-  const bx = controlPoint.x;
-  const by = controlPoint.y;
-  const bz = controlPoint.z;
-  const cx = end.x;
-  const cy = end.y;
-  const cz = end.z;
-  for (let i = 0; i <= segments; i += 1) {
-    const t = segments === 0 ? 0 : i / segments;
-    const tInv = 1 - t;
-    const px = tInv * tInv * ax + 2 * tInv * t * bx + t * t * cx;
-    const py = tInv * tInv * ay + 2 * tInv * t * by + t * t * cy;
-    const pz = tInv * tInv * az + 2 * tInv * t * bz + t * t * cz;
-    if (!points[i]) points[i] = new THREE.Vector3();
-    points[i].set(px, py, pz);
-  }
+  points.length = 2;
+  if (!points[0]) points[0] = new THREE.Vector3();
+  if (!points[1]) points[1] = new THREE.Vector3();
+  points[0].copy(start);
+  points[1].copy(end);
   return points;
 }
 
@@ -15309,7 +15216,11 @@ const powerRef = useRef(hud.power);
         CAMERA.maxPhi
       );
       const standingRadius = clamp(
-        fitRadius(camera, STANDING_VIEW.margin * zoomProfile.margin),
+        fitRadius(
+          camera,
+          STANDING_VIEW.margin * zoomProfile.margin,
+          STANDING_VIEW_DISTANCE_SCALE
+        ),
         CAMERA.minR,
         CAMERA.maxR
       );
@@ -15717,6 +15628,25 @@ const powerRef = useRef(hud.power);
           focusOverride = null,
           minTargetY = null
         } = {}) => {
+          if (USE_STANDING_BROADCAST_CAMERA) {
+            const fallbackTarget =
+              focusOverride?.clone?.() ??
+              lastCameraTargetRef.current?.clone?.() ??
+              new THREE.Vector3(
+                0,
+                TABLE_Y + TABLE.THICK + BALL_R * 2.5,
+                0
+              );
+            if (fallbackTarget && Number.isFinite(minTargetY)) {
+              fallbackTarget.y = Math.max(fallbackTarget.y ?? minTargetY, minTargetY);
+            }
+            return {
+              position: camera.position.clone(),
+              target: fallbackTarget,
+              fov: STANDING_VIEW_FOV,
+              minTargetY
+            };
+          }
           const rig = broadcastCamerasRef.current;
           if (!rig?.cameras) return null;
           const activeRail =
@@ -15780,7 +15710,7 @@ const powerRef = useRef(hud.power);
           const focusTarget = target ?? lastCameraTargetRef.current ?? null;
           if (!focusTarget) return;
           const baseDistance = Math.max(
-            fitRadius(renderCamera, STANDING_VIEW.margin),
+            fitRadius(renderCamera, STANDING_VIEW.margin, STANDING_VIEW_DISTANCE_SCALE),
             1e-3
           );
           const currentDistance = renderCamera.position.distanceTo(focusTarget);
@@ -17123,7 +17053,8 @@ const powerRef = useRef(hud.power);
           const zoomProfile = resolveCameraZoomProfile(aspect);
           const standingRadiusRaw = fitRadius(
             camera,
-            Math.max(m * zoomProfile.margin, 1e-4)
+            Math.max(m * zoomProfile.margin, 1e-4),
+            STANDING_VIEW_DISTANCE_SCALE
           );
           const cueBase = clampOrbitRadius(BREAK_VIEW.radius);
           const playerRadiusBase = Math.max(standingRadiusRaw, cueBase);
@@ -20161,12 +20092,13 @@ const powerRef = useRef(hud.power);
       const handleInHandDown = (e) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand) || currentHud.turn !== 0) return;
-        if (!inHandPlacementModeRef.current) return;
         if (shooting) return;
         if (e.button != null && e.button !== 0) return;
         const p = project(e);
         if (!p) return;
         if (!tryUpdatePlacement(p, false)) return;
+        setInHandPlacementMode(true);
+        inHandPlacementModeRef.current = true;
         inHandDrag.active = true;
         inHandDrag.pointerId = e.pointerId ?? 'mouse';
         if (e.pointerId != null && dom.setPointerCapture) {
@@ -24625,6 +24557,22 @@ const powerRef = useRef(hud.power);
               b.swervePowerStrength = 0;
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
+              if (b.mesh && table) {
+                const popupMesh = new THREE.Mesh(BALL_GEOMETRY, b.mesh.material);
+                popupMesh.position.set(
+                  c.x,
+                  BALL_CENTER_Y + POCKET_POPUP_LIFT,
+                  c.y
+                );
+                popupMesh.renderOrder = (b.mesh.renderOrder ?? 0) + 1;
+                popupMesh.castShadow = false;
+                popupMesh.receiveShadow = false;
+                table.add(popupMesh);
+                pocketPopupRef.current.push({
+                  mesh: popupMesh,
+                  expiresAt: performance.now() + POCKET_POPUP_DURATION_MS
+                });
+              }
               const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
               const dropStart = performance.now();
               const fromX = b.pos.x;
@@ -24683,7 +24631,7 @@ const powerRef = useRef(hud.power);
                   )
                 );
               const restY =
-                railRunStart.y - POCKET_HOLDER_REST_DROP - tiltDrop;
+                railRunStart.y + POCKET_HOLDER_RUN_SURFACE_LIFT - tiltDrop;
               const glowMesh = table ? createPocketGlowMesh('good') : null;
               if (glowMesh) {
                 glowMesh.position.set(fromX, BALL_CENTER_Y - POCKET_GLOW_LIFT, fromZ);
