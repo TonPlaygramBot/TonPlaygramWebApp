@@ -4850,16 +4850,11 @@ const CAMERA = {
 };
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
-const AIM_LINE_SURFACE_OFFSET = BALL_R * 0.04; // keep the aim line grazing the cloth surface for more accurate depth reads
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
 const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // compensate for the 20% smaller cue ball when rendering the guide
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
-const AIM_LINE_OPACITY = 0.95; // restore the brighter aiming line from the morning build
-const AIM_AFTER_OPACITY = 0.55; // keep follow line stable to match the morning build
-const AIM_TARGET_OPACITY = 0.8; // keep target preview steady across the full playfield
-const AIM_TARGET_FAINT_OPACITY = 0.55;
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -19077,14 +19072,11 @@ const powerRef = useRef(hud.power);
       ballsRef.current = balls;
 
       // Aiming visuals
-      const clothRenderOrder = table?.userData?.cloth?.renderOrder ?? 3;
       const aimMat = new THREE.LineBasicMaterial({
         color: 0x7ce7ff,
         linewidth: AIM_LINE_WIDTH,
         transparent: true,
-        opacity: AIM_LINE_OPACITY,
-        depthTest: false,
-        depthWrite: false
+        opacity: 0.9
       });
       const aimGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -19092,7 +19084,6 @@ const powerRef = useRef(hud.power);
       ]);
       const aim = new THREE.Line(aimGeom, aimMat);
       aim.visible = false;
-      aim.renderOrder = clothRenderOrder + 2;
       table.add(aim);
       const cueAfterGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -19106,13 +19097,10 @@ const powerRef = useRef(hud.power);
           dashSize: AIM_DASH_SIZE * 0.9,
           gapSize: AIM_GAP_SIZE,
           transparent: true,
-          opacity: AIM_AFTER_OPACITY,
-          depthTest: false,
-          depthWrite: false
+          opacity: 0.45
         })
       );
       cueAfter.visible = false;
-      cueAfter.renderOrder = clothRenderOrder + 2;
       table.add(cueAfter);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -19120,14 +19108,9 @@ const powerRef = useRef(hud.power);
       ]);
       const tick = new THREE.Line(
         tickGeom,
-        new THREE.LineBasicMaterial({
-          color: 0xffffff,
-          depthTest: false,
-          depthWrite: false
-        })
+        new THREE.LineBasicMaterial({ color: 0xffffff })
       );
       tick.visible = false;
-      tick.renderOrder = clothRenderOrder + 2;
       table.add(tick);
 
       const targetGeom = new THREE.BufferGeometry().setFromPoints([
@@ -19142,13 +19125,10 @@ const powerRef = useRef(hud.power);
           dashSize: AIM_DASH_SIZE,
           gapSize: AIM_GAP_SIZE,
           transparent: true,
-          opacity: 0.65,
-          depthTest: false,
-          depthWrite: false
+          opacity: 0.65
         })
       );
       target.visible = false;
-      target.renderOrder = clothRenderOrder + 2;
       table.add(target);
       const replayTrailGeom = new THREE.BufferGeometry();
       replayTrail = new THREE.Line(
@@ -20587,6 +20567,11 @@ const powerRef = useRef(hud.power);
             .clone()
             .multiplyScalar(speedBase * powerScale);
           const predictedCueSpeed = base.length();
+          const maxShotSpeed = speedBase * (SHOT_MIN_FACTOR + SHOT_POWER_RANGE);
+          const strokeSpeedRatio =
+            maxShotSpeed > 1e-6
+              ? THREE.MathUtils.clamp(predictedCueSpeed / maxShotSpeed, 0, 1)
+              : powerStrength;
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
             const frameTiming = frameTimingRef.current;
@@ -20771,11 +20756,12 @@ const powerRef = useRef(hud.power);
           };
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
           const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
+          const strokeBlend = Math.max(forwardBlend, strokeSpeedRatio ?? 0);
           const followThrough = Math.min(
             CUE_FOLLOW_THROUGH_MAX,
             Math.max(
               CUE_FOLLOW_THROUGH_MIN,
-              visualPull * (0.22 + 0.28 * powerStrength)
+              visualPull * (0.22 + 0.28 * strokeBlend)
             )
           );
           const followThroughPos = buildCuePosition(-followThrough);
@@ -20784,7 +20770,7 @@ const powerRef = useRef(hud.power);
             : THREE.MathUtils.lerp(
                 PLAYER_CUE_FORWARD_MAX_MS,
                 PLAYER_CUE_FORWARD_MIN_MS,
-                forwardBlend
+                strokeBlend
               );
           const settleDuration = isAiStroke ? 40 : 50;
           const returnDuration = isAiStroke ? 120 : 160;
@@ -23462,12 +23448,6 @@ const powerRef = useRef(hud.power);
           return strength;
         }
 
-        const clampAimLinePoint = (point) => {
-          if (!point) return point;
-          point.x = THREE.MathUtils.clamp(point.x, -RAIL_LIMIT_X, RAIL_LIMIT_X);
-          point.z = THREE.MathUtils.clamp(point.z, -RAIL_LIMIT_Y, RAIL_LIMIT_Y);
-          return point;
-        };
         sidePocketAimRef.current = false;
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
           const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
@@ -23494,13 +23474,8 @@ const powerRef = useRef(hud.power);
             guideAimDir2D,
             balls
           );
-          const aimLineY = tableSurfaceY + AIM_LINE_SURFACE_OFFSET;
-          const start = clampAimLinePoint(
-            new THREE.Vector3(cue.pos.x, aimLineY, cue.pos.y)
-          );
-          let end = clampAimLinePoint(
-            new THREE.Vector3(impact.x, aimLineY, impact.y)
-          );
+          const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+          let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           const dir = baseAimDir.clone();
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
@@ -23572,7 +23547,7 @@ const powerRef = useRef(hud.power);
               ? 0xffd166
               : 0x7ce7ff;
           aim.material.color.set(primaryColor);
-          aim.material.opacity = AIM_LINE_OPACITY;
+          aim.material.opacity = 0.55 + 0.35 * powerStrength;
           tickGeom.setFromPoints([
             end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
             end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
@@ -23614,7 +23589,7 @@ const powerRef = useRef(hud.power);
             .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
-          cueAfter.material.opacity = AIM_AFTER_OPACITY;
+          cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
           if (impactRingEnabled) {
             impactRing.visible = true;
@@ -23767,33 +23742,23 @@ const powerRef = useRef(hud.power);
               targetBall.pos.y
             );
             const distanceScale = travelScale;
-            const targetRailPoint = resolveRailIntersectionPoint(
-              new THREE.Vector2(targetStart.x, targetStart.z),
-              new THREE.Vector2(tDir.x, tDir.z)
-            );
-            const tEnd = targetRailPoint
-              ? new THREE.Vector3(targetRailPoint.x, BALL_CENTER_Y, targetRailPoint.y)
-              : targetStart
-                  .clone()
-                  .add(tDir.clone().multiplyScalar(distanceScale));
+            const tEnd = targetStart
+              .clone()
+              .add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([targetStart, tEnd]);
             target.material.color.setHex(0xffd166);
-            target.material.opacity = AIM_TARGET_OPACITY;
+            target.material.opacity = 0.65 + 0.3 * powerStrength;
             target.visible = true;
             target.computeLineDistances();
           } else if (railNormal && cueDir) {
             const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
             const bounceLength = BALL_R * (12 + powerStrength * 18);
-            const bounceRailPoint = resolveRailIntersectionPoint(
-              new THREE.Vector2(end.x, end.z),
-              new THREE.Vector2(bounceDir.x, bounceDir.z)
-            );
-            const bounceEnd = bounceRailPoint
-              ? new THREE.Vector3(bounceRailPoint.x, BALL_CENTER_Y, bounceRailPoint.y)
-              : end.clone().add(bounceDir.clone().multiplyScalar(bounceLength));
+            const bounceEnd = end
+              .clone()
+              .add(bounceDir.clone().multiplyScalar(bounceLength));
             targetGeom.setFromPoints([end, bounceEnd]);
             target.material.color.setHex(0x7ce7ff);
-            target.material.opacity = AIM_TARGET_FAINT_OPACITY;
+            target.material.opacity = 0.35 + 0.25 * powerStrength;
             target.visible = true;
             target.computeLineDistances();
           } else {
@@ -23838,13 +23803,8 @@ const powerRef = useRef(hud.power);
             guideAimDir2D,
             balls
           );
-          const aimLineY = tableSurfaceY + AIM_LINE_SURFACE_OFFSET;
-          const start = clampAimLinePoint(
-            new THREE.Vector3(cue.pos.x, aimLineY, cue.pos.y)
-          );
-          let end = clampAimLinePoint(
-            new THREE.Vector3(impact.x, aimLineY, impact.y)
-          );
+          const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+          let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(baseDir.clone().multiplyScalar(BALL_R));
           }
@@ -23861,7 +23821,7 @@ const powerRef = useRef(hud.power);
           );
           aimGeom.setFromPoints(aimPoints);
           aim.material.color.set(0x7ce7ff);
-          aim.material.opacity = AIM_LINE_OPACITY;
+          aim.material.opacity = 0.55 + 0.35 * powerStrength;
           aim.visible = true;
           tickGeom.setFromPoints([
             end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
@@ -23877,7 +23837,7 @@ const powerRef = useRef(hud.power);
             .add(cueFollowDir.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
-          cueAfter.material.opacity = AIM_AFTER_OPACITY;
+          cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
           impactRing.visible = false;
           const maxPull = CUE_PULL_BASE;
@@ -23929,33 +23889,23 @@ const powerRef = useRef(hud.power);
               targetBall.pos.y
             );
             const distanceScale = travelScale;
-            const targetRailPoint = resolveRailIntersectionPoint(
-              new THREE.Vector2(targetStart.x, targetStart.z),
-              new THREE.Vector2(tDir.x, tDir.z)
-            );
-            const tEnd = targetRailPoint
-              ? new THREE.Vector3(targetRailPoint.x, BALL_CENTER_Y, targetRailPoint.y)
-              : targetStart
-                  .clone()
-                  .add(tDir.clone().multiplyScalar(distanceScale));
+            const tEnd = targetStart
+              .clone()
+              .add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([targetStart, tEnd]);
             target.material.color.setHex(0xffd166);
-            target.material.opacity = AIM_TARGET_OPACITY;
+            target.material.opacity = 0.65 + 0.3 * powerStrength;
             target.visible = true;
             target.computeLineDistances();
           } else if (railNormal && cueDir) {
             const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
             const bounceLength = BALL_R * (12 + powerStrength * 18);
-            const bounceRailPoint = resolveRailIntersectionPoint(
-              new THREE.Vector2(end.x, end.z),
-              new THREE.Vector2(bounceDir.x, bounceDir.z)
-            );
-            const bounceEnd = bounceRailPoint
-              ? new THREE.Vector3(bounceRailPoint.x, BALL_CENTER_Y, bounceRailPoint.y)
-              : end.clone().add(bounceDir.clone().multiplyScalar(bounceLength));
+            const bounceEnd = end
+              .clone()
+              .add(bounceDir.clone().multiplyScalar(bounceLength));
             targetGeom.setFromPoints([end, bounceEnd]);
             target.material.color.setHex(0x7ce7ff);
-            target.material.opacity = AIM_TARGET_FAINT_OPACITY;
+            target.material.opacity = 0.35 + 0.25 * powerStrength;
             target.visible = true;
             target.computeLineDistances();
           } else {
