@@ -76,6 +76,8 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const CHESS_PIECE_URLS = [
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
@@ -3180,9 +3182,6 @@ function updateTokens(
       if (piecePrototype) {
         const piece = piecePrototype.clone(true);
         scaleChessPieceToToken(piece, TOKEN_HEIGHT * CHESS_TOKEN_HEIGHT_SCALE);
-        if (headPreset && desiredPieceType === 'pawn') {
-          applyHeadPresetToMeshes(piece, headPreset);
-        }
         piece.traverse((child) => {
           if (child.isMesh) {
             if (Array.isArray(child.material)) {
@@ -3278,16 +3277,6 @@ function updateTokens(
         headPresetId
       };
       tokensGroup.add(token);
-    }
-
-    if (
-      token.userData?.usesPrototype &&
-      headPreset &&
-      desiredPieceType === 'pawn' &&
-      token.userData?.headPresetId !== headPresetId
-    ) {
-      applyHeadPresetToMeshes(token, headPreset);
-      token.userData.headPresetId = headPresetId;
     }
 
     const mat = token.userData.coreMaterial || token.userData.material;
