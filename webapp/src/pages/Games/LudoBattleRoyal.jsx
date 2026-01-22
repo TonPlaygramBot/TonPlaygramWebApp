@@ -281,6 +281,16 @@ const ABG_TYPE_ALIASES = Object.freeze([
 const ABG_COLOR_W = /\b(white|ivory|light|w)\b/i;
 const ABG_COLOR_B = /\b(black|ebony|dark|b)\b/i;
 const ABG_PLAYER_COLOR_KEYS = Object.freeze(['w', 'b', 'w', 'b']);
+const CHESS_BATTLE_SIDE_COLOR_MAP = Object.freeze({
+  roseMist: 0xef4444,
+  royalWave: 0x3b82f6,
+  mintVale: 0x10b981
+});
+const LUDO_AI_CHESS_SIDE_COLORS = Object.freeze({
+  0: CHESS_BATTLE_SIDE_COLOR_MAP.roseMist,
+  1: CHESS_BATTLE_SIDE_COLOR_MAP.royalWave,
+  3: CHESS_BATTLE_SIDE_COLOR_MAP.mintVale
+});
 
 const ARENA_SCALE = 0.85;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
@@ -564,7 +574,7 @@ function abgPreparePiece(src) {
   const scale = target / footprint;
   clone.scale.setScalar(scale);
   const { box } = abgBbox(clone);
-  const baseLift = -box.min.y + TOKEN_TRACK_HEIGHT;
+  const baseLift = -box.min.y;
   const group = new THREE.Group();
   group.add(clone);
   group.position.y = baseLift;
@@ -632,6 +642,27 @@ function resolveAbgPrototype(proto, colorKey, type) {
 function cloneAbgToken(proto) {
   if (!proto) return null;
   return abgCloneWithMats(proto);
+}
+
+function isGoldLikeMaterial(material) {
+  const name = (material?.name || '').toLowerCase();
+  if (/gold|crown|ring|band/.test(name)) return true;
+  const { metalness, roughness } = material || {};
+  return typeof metalness === 'number' && typeof roughness === 'number' && metalness >= 0.6 && roughness <= 0.4;
+}
+
+function applyChessSideColor(token, hex) {
+  if (!token || hex == null) return;
+  const target = new THREE.Color(hex);
+  token.traverse((node) => {
+    if (!node?.isMesh) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    mats.forEach((mat) => {
+      if (!mat || isGoldLikeMaterial(mat)) return;
+      mat?.color?.copy(target);
+      mat?.emissive?.set(0x000000);
+    });
+  });
 }
 
 let abgAssetPromise = null;
@@ -2827,6 +2858,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     });
   }, [activePlayerCount, aiFlags, avatar, username, playerColorsHex]);
 
+  const aiSeatMap = useMemo(() => players.map((player) => player.isAI), [players]);
+
   useEffect(() => {
     uiRef.current = ui;
   }, [ui]);
@@ -3811,12 +3844,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         nextColors,
         tokenStyleOption,
         headOption,
-        tokenPieceOption
+        tokenPieceOption,
+        aiSeatMap
       );
-        if (arenaState.boardGroup) {
-          arenaState.tableInfo.group.remove(arenaState.boardGroup);
-          disposeBoardGroup(arenaState.boardGroup);
-        }
+      if (arenaState.boardGroup) {
+        arenaState.tableInfo.group.remove(arenaState.boardGroup);
+        disposeBoardGroup(arenaState.boardGroup);
+      }
       arenaState.boardGroup = nextBoardGroup;
       diceRef.current = boardData.dice;
       turnIndicatorRef.current = boardData.turnIndicator;
@@ -3898,6 +3932,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, [
     appearance,
     activePlayerCount,
+    aiSeatMap,
     applyHdriEnvironment,
     applyRailLayout,
     ensureAppearanceUnlocked,
@@ -4198,7 +4233,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       initialPlayerColors,
       tokenStyleOption,
       headOption,
-      tokenPieceOption
+      tokenPieceOption,
+      aiSeatMap
     );
     diceRef.current = boardData.dice;
     turnIndicatorRef.current = boardData.turnIndicator;
@@ -5439,7 +5475,8 @@ async function buildLudoBoard(
   playerColors = DEFAULT_PLAYER_COLORS,
   tokenStyleOption = TOKEN_STYLE_OPTIONS[0],
   headPresetOption = HEAD_PRESET_OPTIONS[0],
-  tokenPieceOption = TOKEN_PIECE_OPTIONS[0]
+  tokenPieceOption = TOKEN_PIECE_OPTIONS[0],
+  aiSeatMap = []
 ) {
   const scene = boardGroup;
 
@@ -5451,7 +5488,8 @@ async function buildLudoBoard(
     tokenTypeSequence = Array(4).fill(tokenPieceOption.type);
   }
   const useAbgTokens = Boolean(tokenStyleOption?.prefersAbg);
-  const abgAssets = useAbgTokens ? await getAbgAssets() : null;
+  const useAbgForAi = Array.isArray(aiSeatMap) && aiSeatMap.some(Boolean);
+  const abgAssets = useAbgTokens || useAbgForAi ? await getAbgAssets() : null;
   const abgPrototypes = abgAssets?.proto ?? null;
   const shouldUseAbgTokens = Boolean(abgPrototypes);
   const headPreset = shouldUseAbgTokens ? null : headPresetOption?.preset ?? HEAD_PRESET_OPTIONS[0].preset;
@@ -5559,13 +5597,19 @@ async function buildLudoBoard(
   addBoardMarkers(scene, cellToWorld, playerColors);
 
   const tokens = playerColors.slice(0, playerCount).map((color, playerIdx) => {
+    const isAiSeat = Boolean(aiSeatMap?.[playerIdx]);
+    const aiChessColor = isAiSeat ? LUDO_AI_CHESS_SIDE_COLORS[playerIdx] : null;
+    const shouldUseChessTokens = shouldUseAbgTokens && (useAbgTokens || isAiSeat);
     return Array.from({ length: 4 }, (_, i) => {
       const type = tokenTypeSequence[i % tokenTypeSequence.length];
       let token = null;
-      if (shouldUseAbgTokens) {
+      if (shouldUseChessTokens) {
         const colorKey = resolveAbgColorKey(playerIdx);
         const proto = resolveAbgPrototype(abgPrototypes, colorKey, type);
         token = cloneAbgToken(proto);
+        if (aiChessColor != null) {
+          applyChessSideColor(token, aiChessColor);
+        }
       }
       if (!token) {
         token = makeRook(makeTokenMaterial(color));
@@ -5579,7 +5623,8 @@ async function buildLudoBoard(
         token.userData.countLabel = label;
       }
       if (!token.userData) token.userData = {};
-      token.userData.tokenColor = colorNumberToHex(color);
+      const tokenColor = aiChessColor ?? color;
+      token.userData.tokenColor = colorNumberToHex(tokenColor);
       token.userData.tokenType = type;
       token.userData.playerIndex = playerIdx;
       token.userData.tokenIndex = i;
