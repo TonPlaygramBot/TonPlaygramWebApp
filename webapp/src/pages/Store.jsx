@@ -195,6 +195,7 @@ const SNAKE_TYPE_LABELS = {
   railTheme: 'Rails & Nets',
   tokenFinish: 'Token Finish',
   tokenColor: 'Token Colors',
+  headStyle: 'Pawn Heads',
   tokenShape: 'Token Shape',
   tableFinish: 'Table Finish',
   tables: 'Table Models',
