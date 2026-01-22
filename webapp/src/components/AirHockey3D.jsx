@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { bombSound, chatBeep } from '../assets/soundData.js';
 import BottomLeftIcons from './BottomLeftIcons.jsx';
@@ -34,6 +35,7 @@ const CUSTOMIZATION_KEYS = Object.freeze([
 ]);
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const resolveNumber = (...values) => values.find((value) => typeof value === 'number' && !Number.isNaN(value));
 
 const DEFAULT_RENDER_PIXEL_RATIO_CAP = 1.25;
 const RENDER_PIXEL_RATIO_SCALE = 1.0;
@@ -136,6 +138,7 @@ const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
 const LOCK_POOL_ROYALE_TABLE_STYLE = false;
 const PREFERRED_MARBLE_TEXTURE_SIZES = ['2k', '1k'];
 const MARBLE_TEXTURE_CACHE = new Map();
+const GLTF_MATERIAL_CACHE = new Map();
 const POOL_BALL_MARBLE_FINISH = Object.freeze({
   clearcoat: 1,
   clearcoatRoughness: 0.03,
@@ -252,6 +255,73 @@ const loadMarbleTextureSet = (fieldOption) => {
   })();
   MARBLE_TEXTURE_CACHE.set(cacheKey, promise);
   return promise;
+};
+
+const loadGltfMaterialSet = (fieldOption) => {
+  const urls = fieldOption?.gltfUrls;
+  const cacheKey = fieldOption?.id || urls?.[0];
+  if (!Array.isArray(urls) || !urls.length) return Promise.resolve(null);
+  if (GLTF_MATERIAL_CACHE.has(cacheKey)) return GLTF_MATERIAL_CACHE.get(cacheKey);
+
+  const promise = (async () => {
+    const loader = new GLTFLoader();
+    let gltf = null;
+    for (const url of urls) {
+      try {
+        gltf = await loader.loadAsync(url);
+        if (gltf) break;
+      } catch (error) {
+        console.warn('Failed to load field GLTF material', url, error);
+      }
+    }
+    if (!gltf) return null;
+    const root = gltf.scene || gltf.scenes?.[0] || gltf;
+    let pickedMaterial = null;
+    root?.traverse?.((child) => {
+      if (pickedMaterial || !child?.isMesh) return;
+      if (child.material) {
+        pickedMaterial = Array.isArray(child.material) ? child.material[0] : child.material;
+      }
+    });
+    if (!pickedMaterial) return null;
+    const textures = {
+      map: pickedMaterial.map ?? null,
+      normal: pickedMaterial.normalMap ?? null,
+      roughness: pickedMaterial.roughnessMap ?? null,
+      metalness: pickedMaterial.metalnessMap ?? null,
+      emissive: pickedMaterial.emissiveMap ?? null
+    };
+    if (textures.map) {
+      textures.map.colorSpace = THREE.SRGBColorSpace;
+    }
+    if (textures.emissive) {
+      textures.emissive.colorSpace = THREE.SRGBColorSpace;
+    }
+    return {
+      textures,
+      materialProps: {
+        color: pickedMaterial.color?.clone?.(),
+        roughness: pickedMaterial.roughness,
+        metalness: pickedMaterial.metalness,
+        clearcoat: pickedMaterial.clearcoat,
+        clearcoatRoughness: pickedMaterial.clearcoatRoughness,
+        sheen: pickedMaterial.sheen,
+        sheenColor: pickedMaterial.sheenColor?.clone?.(),
+        envMapIntensity: pickedMaterial.envMapIntensity
+      }
+    };
+  })();
+
+  GLTF_MATERIAL_CACHE.set(cacheKey, promise);
+  return promise;
+};
+
+const loadFieldSurface = async (fieldOption) => {
+  if (Array.isArray(fieldOption?.gltfUrls) && fieldOption.gltfUrls.length) {
+    return loadGltfMaterialSet(fieldOption);
+  }
+  const textures = await loadMarbleTextureSet(fieldOption);
+  return textures ? { textures } : null;
 };
 
 const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
@@ -904,7 +974,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       height: MALLET_HEIGHT,
       knobHeight: MALLET_KNOB_HEIGHT
     };
-    const PUCK_RADIUS = PLAYFIELD.w * 0.0295;
+    const PUCK_RADIUS = PLAYFIELD.w * 0.0285;
     const PUCK_HEIGHT = PUCK_RADIUS * 1.05;
     const CORNER_POCKET_RADIUS = Math.max(PUCK_RADIUS * 2.3, PLAYFIELD.w * 0.055);
     const CORNER_POCKET_CAPTURE = Math.max(PUCK_RADIUS * 0.6, CORNER_POCKET_RADIUS - PUCK_RADIUS * 0.25);
@@ -1630,53 +1700,76 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       texture.needsUpdate = true;
     };
 
-    const applyFieldMaterial = (textures) => {
+    const applyFieldMaterial = (surface) => {
       if (cancelled || !mats.tableSurface) return;
       const mat = mats.tableSurface;
-      const fallbackColor = fieldOption.swatches?.[0] || '#f8fafc';
+      const fallbackColor = fieldOption.color || fieldOption.swatches?.[0] || '#f8fafc';
       const repeat = fieldOption.repeat ?? 1;
+      const textures = surface?.textures ?? surface;
+      const materialProps = surface?.materialProps;
       const hasTextures = Boolean(textures?.map);
+      const baseColor = materialProps?.color || (fieldOption.color ? new THREE.Color(fieldOption.color) : null);
 
       if (hasTextures) {
         applyTextureRepeat(textures.map, repeat);
         applyTextureRepeat(textures.normal, repeat);
         applyTextureRepeat(textures.roughness, repeat);
+        applyTextureRepeat(textures.metalness, repeat);
         mat.map = textures.map;
         mat.normalMap = textures.normal ?? null;
         mat.roughnessMap = textures.roughness ?? null;
+        mat.metalnessMap = textures.metalness ?? null;
         mat.color.set(0xffffff);
+        if (baseColor) {
+          mat.color.copy(baseColor);
+        }
       } else {
         mat.map = createFallbackTexture(fallbackColor);
         mat.normalMap = null;
         mat.roughnessMap = null;
+        mat.metalnessMap = null;
         mat.color.set(fallbackColor);
       }
 
       mat.bumpMap = null;
-      mat.sheen = 0;
+      const roughness = resolveNumber(fieldOption.roughness, materialProps?.roughness, POOL_BALL_MARBLE_FINISH.roughness);
+      const metalness = resolveNumber(fieldOption.metalness, materialProps?.metalness, POOL_BALL_MARBLE_FINISH.metalness);
+      const clearcoat = resolveNumber(fieldOption.clearcoat, materialProps?.clearcoat, POOL_BALL_MARBLE_FINISH.clearcoat);
+      const clearcoatRoughness = resolveNumber(
+        fieldOption.clearcoatRoughness,
+        materialProps?.clearcoatRoughness,
+        POOL_BALL_MARBLE_FINISH.clearcoatRoughness
+      );
+      const reflectivity = resolveNumber(fieldOption.reflectivity, POOL_BALL_MARBLE_FINISH.reflectivity);
+      const sheen = resolveNumber(fieldOption.sheen, materialProps?.sheen, 0);
+      const envMapIntensity = resolveNumber(
+        fieldOption.envMapIntensity,
+        materialProps?.envMapIntensity,
+        POOL_BALL_MARBLE_FINISH.envMapIntensity
+      );
       if ('sheenRoughness' in mat) {
         mat.sheenRoughness = 1;
       }
-      mat.metalness = POOL_BALL_MARBLE_FINISH.metalness;
-      mat.roughness = POOL_BALL_MARBLE_FINISH.roughness;
-      mat.clearcoat = POOL_BALL_MARBLE_FINISH.clearcoat;
-      mat.clearcoatRoughness = POOL_BALL_MARBLE_FINISH.clearcoatRoughness;
-      mat.reflectivity = POOL_BALL_MARBLE_FINISH.reflectivity;
+      if (typeof metalness === 'number') mat.metalness = metalness;
+      if (typeof roughness === 'number') mat.roughness = roughness;
+      if (typeof clearcoat === 'number') mat.clearcoat = clearcoat;
+      if (typeof clearcoatRoughness === 'number') mat.clearcoatRoughness = clearcoatRoughness;
+      if (typeof reflectivity === 'number') mat.reflectivity = reflectivity;
       if ('sheen' in mat) {
-        mat.sheen = POOL_BALL_MARBLE_FINISH.sheen;
+        mat.sheen = sheen ?? 0;
       }
       if ('sheenColor' in mat) {
-        mat.sheenColor = POOL_BALL_MARBLE_FINISH.sheenColor;
+        mat.sheenColor = materialProps?.sheenColor || POOL_BALL_MARBLE_FINISH.sheenColor;
       }
-      if ('envMapIntensity' in mat) {
-        mat.envMapIntensity = POOL_BALL_MARBLE_FINISH.envMapIntensity;
+      if ('envMapIntensity' in mat && typeof envMapIntensity === 'number') {
+        mat.envMapIntensity = envMapIntensity;
       }
       mat.needsUpdate = true;
     };
 
-    loadMarbleTextureSet(fieldOption).then((textures) => {
+    loadFieldSurface(fieldOption).then((surface) => {
       if (cancelled) return;
-      applyFieldMaterial(textures);
+      applyFieldMaterial(surface);
     });
 
     return () => {
@@ -2091,7 +2184,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
                 })}
               </div>
             </div>
-            {renderOptionRow('Field Marble', 'field')}
+            {renderOptionRow('Field Surface', 'field')}
             {renderOptionRow('Cushion Cloth', 'cushionCloth')}
             {renderOptionRow('Table Finish', 'table')}
             {renderOptionRow('Table Base', 'tableBase')}
