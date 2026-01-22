@@ -17241,6 +17241,47 @@ const powerRef = useRef(hud.power);
               }
               if (meshState.visible != null) ball.mesh.visible = meshState.visible;
             }
+            if (state.active) {
+              removePocketDropEntry(ball.id);
+              return;
+            }
+            const meshVisible =
+              meshState?.visible ?? (ball.mesh ? ball.mesh.visible : false);
+            if (!meshVisible || !ball.mesh) {
+              removePocketDropEntry(ball.id);
+              return;
+            }
+            const snapshotPos =
+              normalizeVector3Snapshot(meshState?.position) ?? ball.mesh.position;
+            if (!snapshotPos) return;
+            if (!pocketDropRef.current.has(ball.id)) {
+              const now = performance.now();
+              pocketDropRef.current.set(ball.id, {
+                start: now,
+                fromY: snapshotPos.y,
+                currentY: snapshotPos.y,
+                targetY: snapshotPos.y,
+                fromX: snapshotPos.x,
+                fromZ: snapshotPos.z,
+                toX: snapshotPos.x,
+                toZ: snapshotPos.z,
+                runFromX: snapshotPos.x,
+                runFromZ: snapshotPos.z,
+                mesh: ball.mesh,
+                glowMesh: null,
+                glowTone: 'good',
+                entrySpeed: 0,
+                velocityY: 0,
+                runSpeed: POCKET_HOLDER_RUN_SPEED_MIN,
+                holderDir: new THREE.Vector3(0, 0, 1),
+                restDistance: 0,
+                settledAt: now,
+                rollStartAt: now,
+                rollProgress: 1,
+                pocketId: null,
+                resting: true
+              });
+            }
           });
         };
 
@@ -19792,7 +19833,7 @@ const powerRef = useRef(hud.power);
 
       const allowFullTableInHand = () => {
         const id = variantId();
-        if (id === 'uk') return true;
+        if (id === 'uk') return false;
         if (id === 'american' || id === '9ball') {
           return !isBreakRestrictedInHand();
         }
