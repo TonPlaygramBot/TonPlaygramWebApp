@@ -23,6 +23,8 @@ import {
 } from '../utils/airHockeyInventory.js';
 
 const CUSTOMIZATION_KEYS = Object.freeze([
+  'field',
+  'cushionCloth',
   'table',
   'tableBase',
   'environmentHdri',
@@ -133,6 +135,110 @@ function selectPerformanceProfile(option = null) {
 
 const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
 const LOCK_POOL_ROYALE_TABLE_STYLE = true;
+const PREFERRED_MARBLE_TEXTURE_SIZES = ['2k', '1k'];
+const MARBLE_TEXTURE_CACHE = new Map();
+
+const pickBestTextureUrls = (apiJson, preferredSizes = PREFERRED_MARBLE_TEXTURE_SIZES) => {
+  const urls = [];
+  const walk = (value) => {
+    if (!value) return;
+    if (typeof value === 'string') {
+      const lower = value.toLowerCase();
+      if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
+        urls.push(value);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.values(value).forEach(walk);
+    }
+  };
+  walk(apiJson);
+  const pick = (keywords) => {
+    const scored = urls
+      .filter((url) => keywords.some((kw) => url.toLowerCase().includes(kw)))
+      .map((url) => {
+        const lower = url.toLowerCase();
+        let score = 0;
+        preferredSizes.forEach((size, index) => {
+          if (lower.includes(size)) {
+            score += (preferredSizes.length - index) * 10;
+          }
+        });
+        if (lower.includes('jpg')) score += 6;
+        if (lower.includes('png')) score += 3;
+        if (lower.includes('preview') || lower.includes('thumb')) score -= 50;
+        if (lower.includes('.exr')) score -= 100;
+        return { url, score };
+      })
+      .sort((a, b) => b.score - a.score);
+    return scored[0]?.url;
+  };
+  return {
+    diffuse: pick(['diff', 'diffuse', 'albedo', 'basecolor']),
+    normal: pick(['nor_gl', 'normal_gl', 'nor', 'normal']),
+    roughness: pick(['rough', 'roughness'])
+  };
+};
+
+const loadTexture = (loader, url, isColor) =>
+  new Promise((resolve) => {
+    loader.load(
+      url,
+      (texture) => {
+        if (isColor) {
+          texture.colorSpace = THREE.SRGBColorSpace;
+        }
+        resolve(texture);
+      },
+      undefined,
+      () => resolve(null)
+    );
+  });
+
+const createFallbackTexture = (color) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 8;
+  canvas.height = 8;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+};
+
+const loadMarbleTextureSet = (fieldOption) => {
+  const assetId = fieldOption?.assetId;
+  if (!assetId) return Promise.resolve(null);
+  if (MARBLE_TEXTURE_CACHE.has(assetId)) return MARBLE_TEXTURE_CACHE.get(assetId);
+  const promise = (async () => {
+    try {
+      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
+      if (!response.ok) return null;
+      const json = await response.json();
+      const urls = pickBestTextureUrls(json, PREFERRED_MARBLE_TEXTURE_SIZES);
+      if (!urls.diffuse) return null;
+      const loader = new THREE.TextureLoader();
+      loader.setCrossOrigin('anonymous');
+      const [map, normal, roughness] = await Promise.all([
+        loadTexture(loader, urls.diffuse, true),
+        urls.normal ? loadTexture(loader, urls.normal, false) : Promise.resolve(null),
+        urls.roughness ? loadTexture(loader, urls.roughness, false) : Promise.resolve(null)
+      ]);
+      return { map, normal, roughness };
+    } catch (error) {
+      console.warn('Failed to load marble texture set', error);
+      return null;
+    }
+  })();
+  MARBLE_TEXTURE_CACHE.set(assetId, promise);
+  return promise;
+};
 
 const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
   if (!json || typeof json !== 'object') return null;
@@ -290,6 +396,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const lastTouchRef = useRef(null);
   const materialsRef = useRef({
     tableSurface: null,
+    cushion: null,
     frame: null,
     trim: null,
     base: null,
@@ -384,6 +491,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     cameraViewRef.current.applyCurrent?.(isTopDownViewRef.current, clamped);
   }, []);
   const tableGroupRef = useRef(null);
+  const tableMarkingsRef = useRef({ line: null, circle: null });
   const avatarSpritesRef = useRef({ player: null, ai: null });
   const getOption = (key, optionId) => {
     const options = AIR_HOCKEY_CUSTOMIZATION[key] || [];
@@ -826,6 +934,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     tableGroupRef.current = tableGroup;
 
     materialsRef.current.tableSurface = poolTableEntry?.clothMat ?? null;
+    materialsRef.current.cushion = poolTableEntry?.cushionMat ?? null;
     materialsRef.current.frame = null;
     materialsRef.current.trim = null;
     materialsRef.current.base = null;
@@ -921,6 +1030,41 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     southLabel.position.set(0, southGoal.position.y + SCALE_WIDTH * 0.12, southGoal.position.z);
     tableGroup.add(southLabel);
     goalLabels.push(southLabel);
+
+    const markingLift = PLAYFIELD.h * 0.002;
+    const markingThickness = PLAYFIELD.h * 0.01;
+    const lineMaterial = new THREE.MeshStandardMaterial({
+      color: 0xf8fafc,
+      roughness: 0.28,
+      metalness: 0.05,
+      transparent: true,
+      opacity: 0.9
+    });
+    const lineMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(PLAYFIELD.w * 0.92, markingThickness),
+      lineMaterial
+    );
+    lineMesh.rotation.x = -Math.PI / 2;
+    lineMesh.position.set(0, markingLift, 0);
+    tableGroup.add(lineMesh);
+
+    const circleRadius = PLAYFIELD.w * 0.18;
+    const circleMaterial = lineMaterial.clone();
+    const circleMesh = new THREE.Mesh(
+      new THREE.RingGeometry(
+        Math.max(0.01, circleRadius - markingThickness * 0.5),
+        circleRadius + markingThickness * 0.5,
+        96
+      ),
+      circleMaterial
+    );
+    circleMesh.rotation.x = -Math.PI / 2;
+    circleMesh.position.set(0, markingLift, 0);
+    tableGroup.add(circleMesh);
+
+    materialsRef.current.line = lineMaterial;
+    materialsRef.current.rings = [circleMaterial];
+    tableMarkingsRef.current = { line: lineMesh, circle: circleMesh };
 
     const makeMallet = (color) => {
       const mallet = new THREE.Group();
@@ -1379,6 +1523,16 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         label.material.map?.dispose();
         label.material.dispose();
       });
+      if (tableMarkingsRef.current.line) {
+        tableMarkingsRef.current.line.parent?.remove(tableMarkingsRef.current.line);
+        tableMarkingsRef.current.line.geometry?.dispose();
+        tableMarkingsRef.current.line.material?.dispose();
+      }
+      if (tableMarkingsRef.current.circle) {
+        tableMarkingsRef.current.circle.parent?.remove(tableMarkingsRef.current.circle);
+        tableMarkingsRef.current.circle.geometry?.dispose();
+        tableMarkingsRef.current.circle.material?.dispose();
+      }
       try {
         host.removeChild(renderer.domElement);
       } catch {}
@@ -1430,6 +1584,65 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       cancelled = true;
     };
   }, [selections.environmentHdri]);
+
+  useEffect(() => {
+    const mats = materialsRef.current;
+    const fieldOption = getOption('field', selections.field);
+    if (!mats?.tableSurface || !fieldOption) return undefined;
+    let cancelled = false;
+
+    const applyTextureRepeat = (texture, repeat) => {
+      if (!texture) return;
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(repeat, repeat);
+      texture.anisotropy = rendererRef.current?.capabilities.getMaxAnisotropy() ?? 1;
+      texture.needsUpdate = true;
+    };
+
+    const applyFieldMaterial = (textures) => {
+      if (cancelled || !mats.tableSurface) return;
+      const mat = mats.tableSurface;
+      const fallbackColor = fieldOption.swatches?.[0] || '#f8fafc';
+      const repeat = fieldOption.repeat ?? 1;
+      const hasTextures = Boolean(textures?.map);
+
+      if (hasTextures) {
+        applyTextureRepeat(textures.map, repeat);
+        applyTextureRepeat(textures.normal, repeat);
+        applyTextureRepeat(textures.roughness, repeat);
+        mat.map = textures.map;
+        mat.normalMap = textures.normal ?? null;
+        mat.roughnessMap = textures.roughness ?? null;
+        mat.color.set(0xffffff);
+      } else {
+        mat.map = createFallbackTexture(fallbackColor);
+        mat.normalMap = null;
+        mat.roughnessMap = null;
+        mat.color.set(fallbackColor);
+      }
+
+      mat.bumpMap = null;
+      mat.sheen = 0;
+      if ('sheenRoughness' in mat) {
+        mat.sheenRoughness = 1;
+      }
+      mat.metalness = fieldOption.metalness ?? 0.03;
+      mat.roughness = fieldOption.roughness ?? 0.22;
+      mat.clearcoat = fieldOption.clearcoat ?? 0.3;
+      mat.clearcoatRoughness = fieldOption.clearcoatRoughness ?? 0.2;
+      mat.needsUpdate = true;
+    };
+
+    loadMarbleTextureSet(fieldOption).then((textures) => {
+      if (cancelled) return;
+      applyFieldMaterial(textures);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selections.field]);
 
   useEffect(() => {
     const playerMallet = malletRefs.current.player;
@@ -1559,6 +1772,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const mats = materialsRef.current;
     if (!mats) return;
 
+    const fieldTheme = getOption('field', selections.field);
+    const cushionTheme = getOption('cushionCloth', selections.cushionCloth);
     const puckTheme = getOption('puck', selections.puck);
     const malletTheme = getOption('mallet', selections.mallet);
     const railTheme = getOption('rails', selections.rails);
@@ -1628,6 +1843,42 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     if (mats.rail) {
       mats.rail.color.set(railTheme.color);
       mats.rail.opacity = railTheme.opacity;
+    }
+    if (mats.line && fieldTheme?.lineColor) {
+      mats.line.color.set(fieldTheme.lineColor);
+    }
+    if (Array.isArray(mats.rings) && fieldTheme?.lineColor) {
+      mats.rings.forEach((ring) => ring?.color?.set?.(fieldTheme.lineColor));
+    }
+    if (mats.cushion && cushionTheme) {
+      const palette = cushionTheme.palette || {};
+      const base = palette.base ?? cushionTheme.baseColor ?? 0x2d7f4b;
+      const baseColor = new THREE.Color(base);
+      mats.cushion.color.copy(baseColor);
+      if (mats.cushion.emissive) {
+        mats.cushion.emissive.copy(baseColor.clone().multiplyScalar(0.06));
+      }
+      if (typeof cushionTheme.detail?.emissiveIntensity === 'number') {
+        mats.cushion.emissiveIntensity = cushionTheme.detail.emissiveIntensity;
+      }
+      if (typeof cushionTheme.detail?.sheen === 'number' && 'sheen' in mats.cushion) {
+        mats.cushion.sheen = cushionTheme.detail.sheen;
+      }
+      if (
+        typeof cushionTheme.detail?.sheenRoughness === 'number' &&
+        'sheenRoughness' in mats.cushion
+      ) {
+        mats.cushion.sheenRoughness = cushionTheme.detail.sheenRoughness;
+      }
+      if (typeof cushionTheme.detail?.envMapIntensity === 'number') {
+        mats.cushion.envMapIntensity = cushionTheme.detail.envMapIntensity;
+      }
+      if (typeof cushionTheme.detail?.bumpMultiplier === 'number') {
+        const baseBumpScale =
+          mats.cushion.userData?.baseBumpScale ?? mats.cushion.bumpScale ?? 1;
+        mats.cushion.bumpScale = baseBumpScale * cushionTheme.detail.bumpMultiplier;
+      }
+      mats.cushion.needsUpdate = true;
     }
     if (mats.puck) {
       mats.puck.color.set(puckTheme.color);
@@ -1804,6 +2055,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
                 })}
               </div>
             </div>
+            {renderOptionRow('Field Marble', 'field')}
+            {renderOptionRow('Cushion Cloth', 'cushionCloth')}
             {renderOptionRow('Table Finish', 'table')}
             {renderOptionRow('Table Base', 'tableBase')}
             {renderOptionRow('HDRI Environment', 'environmentHdri')}
