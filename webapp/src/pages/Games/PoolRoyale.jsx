@@ -6370,7 +6370,6 @@ export function Table3D(
   const resolvedTableOptions =
     tableOptions && typeof tableOptions === 'object' ? tableOptions : null;
   const enableSidePockets = resolvedTableOptions?.enableSidePockets !== false;
-  const mergeSideCushions = resolvedTableOptions?.mergeSideCushions === true;
   const resolveTablePocketCenters = () => {
     const centers = pocketCenters();
     return enableSidePockets ? centers : centers.slice(0, 4);
@@ -9372,7 +9371,7 @@ export function Table3D(
     return geo;
   }
 
-  function addCushion(x, z, len, horizontal, flip = false, cutAnglesOverride = null) {
+  function addCushion(x, z, len, horizontal, flip = false) {
     const halfLen = len / 2;
     const orientationSign = flip ? -1 : 1;
     const worldZLeft = z + -halfLen * orientationSign;
@@ -9382,7 +9381,7 @@ export function Table3D(
     const leftCloserToCenter = leftDistanceToSidePocket < rightDistanceToSidePocket;
     const side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
     const sidePocketCuts = !horizontal
-      ? cutAnglesOverride || {
+      ? {
           leftCutAngle: leftCloserToCenter
             ? CUSHION_CUT_ANGLE
             : VISUAL_SIDE_CUSHION_CUT_ANGLE,
@@ -9390,8 +9389,8 @@ export function Table3D(
             ? VISUAL_SIDE_CUSHION_CUT_ANGLE
             : CUSHION_CUT_ANGLE
         }
-      : cutAnglesOverride;
-    const geo = cushionProfileAdvanced(len, horizontal, sidePocketCuts ?? undefined);
+      : undefined;
+    const geo = cushionProfileAdvanced(len, horizontal, sidePocketCuts);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
     const orientationScale = horizontal ? SHORT_CUSHION_HEIGHT_SCALE : 1;
@@ -9466,20 +9465,10 @@ export function Table3D(
   addCushion(0, bottomZ, horizontalCushionLength, true, false);
   addCushion(0, topZ, horizontalCushionLength, true, true);
 
-  if (mergeSideCushions && !enableSidePockets) {
-    const mergedLength = Math.max(MICRO_EPS, verticalCushionLength * 2);
-    const mergedCuts = {
-      leftCutAngle: CUSHION_CUT_ANGLE,
-      rightCutAngle: CUSHION_CUT_ANGLE
-    };
-    addCushion(leftX, 0, mergedLength, false, false, mergedCuts);
-    addCushion(rightX, 0, mergedLength, false, true, mergedCuts);
-  } else {
-    addCushion(leftX, -verticalCushionCenter, verticalCushionLength, false, false);
-    addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
-    addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
-    addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
-  }
+  addCushion(leftX, -verticalCushionCenter, verticalCushionLength, false, false);
+  addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
+  addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
+  addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
