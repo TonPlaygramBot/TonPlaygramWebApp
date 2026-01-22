@@ -4917,7 +4917,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
-const BIH_INDICATOR_LINE_PX = 22;
+const BIH_INDICATOR_LINE_PX = 32;
 const BIH_INDICATOR_HAND_SIZE_PX = 24;
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
@@ -26781,7 +26781,7 @@ const powerRef = useRef(hud.power);
           style={{
             left: 0,
             top: 0,
-            transform: 'translate(-50%, -50%)',
+            transform: 'translate(0, -50%)',
             transition: 'opacity 120ms ease'
           }}
         >
@@ -26792,7 +26792,7 @@ const powerRef = useRef(hud.power);
           <button
             type="button"
             aria-label="Move cue ball"
-            className="pointer-events-auto mx-1 flex items-center justify-center rounded-full border border-white/80 bg-white/95 text-lg shadow-[0_10px_18px_rgba(0,0,0,0.35)]"
+            className="pointer-events-auto ml-1 flex items-center justify-center rounded-full border border-white/80 bg-white/95 text-lg shadow-[0_10px_18px_rgba(0,0,0,0.35)]"
             style={{
               width: `${BIH_INDICATOR_HAND_SIZE_PX}px`,
               height: `${BIH_INDICATOR_HAND_SIZE_PX}px`
@@ -26804,10 +26804,6 @@ const powerRef = useRef(hud.power);
           >
             🖐
           </button>
-          <div
-            className="h-[2px] rounded-full bg-white/80 shadow-[0_4px_12px_rgba(255,255,255,0.45)]"
-            style={{ width: `${BIH_INDICATOR_LINE_PX}px` }}
-          />
         </div>
       )}
       {hud?.inHand && (
