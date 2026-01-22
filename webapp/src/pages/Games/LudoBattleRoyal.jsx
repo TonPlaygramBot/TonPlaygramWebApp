@@ -281,6 +281,12 @@ const ABG_TYPE_ALIASES = Object.freeze([
 const ABG_COLOR_W = /\b(white|ivory|light|w)\b/i;
 const ABG_COLOR_B = /\b(black|ebony|dark|b)\b/i;
 const ABG_PLAYER_COLOR_KEYS = Object.freeze(['w', 'b', 'w', 'b']);
+const CHESS_TOKEN_TINTS = Object.freeze({
+  0: 0xef4444, // Rose Mist (red player)
+  1: 0x3b82f6, // Royal Wave (blue player)
+  3: 0x10b981 // Mint Vale (green player)
+});
+let proceduralTokenHeight = null;
 
 const ARENA_SCALE = 0.85;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
@@ -556,68 +562,65 @@ function abgBbox(obj) {
   return { box, size };
 }
 
+function measureProceduralTokenHeight() {
+  if (proceduralTokenHeight) return proceduralTokenHeight;
+  const tempMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+  const token = makeRook(tempMaterial);
+  const { size } = abgBbox(token);
+  const height = size.y || 0.09;
+  token.traverse((node) => {
+    if (node.isMesh) {
+      node.geometry?.dispose?.();
+      if (Array.isArray(node.material)) {
+        node.material.forEach((mat) => mat?.dispose?.());
+      } else {
+        node.material?.dispose?.();
+      }
+    }
+  });
+  proceduralTokenHeight = height;
+  return proceduralTokenHeight;
+}
+
 function abgPreparePiece(src) {
   const clone = abgCloneWithMats(src);
   const { size } = abgBbox(clone);
-  const footprint = Math.max(size.x, size.z) || 1;
-  const target = LUDO_TILE * 0.7;
-  const scale = target / footprint;
-  clone.scale.setScalar(scale);
-  const { box } = abgBbox(clone);
-  const baseLift = -box.min.y + TOKEN_TRACK_HEIGHT;
+  const targetHeight = measureProceduralTokenHeight();
+  if (size.y) {
+    const scale = targetHeight / size.y;
+    clone.scale.setScalar(scale);
+    clone.updateMatrixWorld(true);
+    const scaledBox = new THREE.Box3().setFromObject(clone);
+    const center = scaledBox.getCenter(new THREE.Vector3());
+    clone.position.x -= center.x;
+    clone.position.z -= center.z;
+    clone.position.y -= scaledBox.min.y;
+  }
   const group = new THREE.Group();
   group.add(clone);
-  group.position.y = baseLift;
   group.traverse((node) => {
     if (node.isMesh) node.castShadow = true;
   });
   return group;
 }
 
-function abgApplyPalette(node, palette) {
-  if (!Array.isArray(palette) || !palette.length) return;
+function tintGltfToken(node, tint) {
+  if (!node || !tint) return;
+  const target = new THREE.Color(tint);
   node.traverse((child) => {
     if (!child.isMesh) return;
     const mats = Array.isArray(child.material) ? child.material : [child.material];
-    const next = mats.map((_, idx) => palette[idx % palette.length].clone());
-    child.material = Array.isArray(child.material) ? next : next[0];
-  });
-}
-
-function abgTintPalette(palette, color) {
-  const tint = new THREE.Color(color);
-  return (palette || []).map((mat) => {
-    const clone = mat?.clone?.() ?? mat;
-    if (clone?.color) {
-      clone.color.copy(tint);
-    }
-    if (clone?.emissive) {
-      clone.emissive.set(0x000000);
-    }
-    return clone;
-  });
-}
-
-function abgSnapshotBoardPalette(root) {
-  const swatches = [];
-  root.traverse((node) => {
-    if (!node.isMesh) return;
-    const mats = Array.isArray(node.material) ? node.material : [node.material];
     mats.forEach((mat) => {
-      if (mat?.color) swatches.push(mat);
+      if (!mat) return;
+      if (mat.color?.set) {
+        mat.color.set(target);
+      }
+      if (mat.emissive?.set) {
+        mat.emissive.set(0x000000);
+      }
+      mat.needsUpdate = true;
     });
   });
-  if (!swatches.length) return { light: null, dark: null };
-  const withLum = swatches.map((mat) => {
-    const c = mat.color;
-    const lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-    return { mat, lum };
-  });
-  withLum.sort((a, b) => b.lum - a.lum);
-  return {
-    light: withLum[0]?.mat?.clone?.() ?? null,
-    dark: withLum[withLum.length - 1]?.mat?.clone?.() ?? null
-  };
 }
 
 function resolveAbgColorKey(playerIdx) {
@@ -658,7 +661,6 @@ async function getAbgAssets() {
     root.updateMatrixWorld(true);
 
     const proto = { w: {}, b: {} };
-    const palettes = { w: [], b: [] };
     const boards = [];
 
     root.traverse((node) => {
@@ -679,9 +681,7 @@ async function getAbgAssets() {
         });
         const lumAvg = cnt ? lum / cnt : 0.6;
         const colorKey = abgDetectColor(path, lumAvg);
-        mats.forEach((mat) => {
-          if (mat?.isMaterial) palettes[colorKey].push(mat.clone());
-        });
+        void colorKey;
         if (/board|table|chessboard/i.test(node.name || '')) boards.push(node);
       }
       if (!type) return;
@@ -692,15 +692,12 @@ async function getAbgAssets() {
     });
 
     const boardNode = boards[0] || root;
-    const boardPalette = abgSnapshotBoardPalette(boardNode);
-
     (['w', 'b']).forEach((color) => {
       ABG_TYPES.forEach((type) => {
         if (!proto[color][type]) {
           const other = color === 'w' ? 'b' : 'w';
           if (proto[other][type]) {
             const clone = abgCloneWithMats(proto[other][type]);
-            abgApplyPalette(clone, palettes[color]);
             proto[color][type] = clone;
           }
         }
@@ -710,7 +707,7 @@ async function getAbgAssets() {
       });
     });
 
-    return { proto, palettes, boardPalette, boardPrototype: abgCloneWithMats(boardNode) };
+    return { proto, boardPrototype: abgCloneWithMats(boardNode) };
   })();
   return abgAssetPromise;
 }
@@ -3811,12 +3808,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         nextColors,
         tokenStyleOption,
         headOption,
-        tokenPieceOption
+        tokenPieceOption,
+        players.filter((player) => player.isAI).map((player) => player.index)
       );
-        if (arenaState.boardGroup) {
-          arenaState.tableInfo.group.remove(arenaState.boardGroup);
-          disposeBoardGroup(arenaState.boardGroup);
-        }
+      if (arenaState.boardGroup) {
+        arenaState.tableInfo.group.remove(arenaState.boardGroup);
+        disposeBoardGroup(arenaState.boardGroup);
+      }
       arenaState.boardGroup = nextBoardGroup;
       diceRef.current = boardData.dice;
       turnIndicatorRef.current = boardData.turnIndicator;
@@ -3903,6 +3901,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     ensureAppearanceUnlocked,
     rebuildChairs,
     rebuildTable,
+    players,
     scheduleHumanAutoRoll,
     updateTurnIndicator
   ]);
@@ -4198,7 +4197,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       initialPlayerColors,
       tokenStyleOption,
       headOption,
-      tokenPieceOption
+      tokenPieceOption,
+      players.filter((player) => player.isAI).map((player) => player.index)
     );
     diceRef.current = boardData.dice;
     turnIndicatorRef.current = boardData.turnIndicator;
@@ -5069,39 +5069,50 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       className="fixed inset-0 bg-[#0c1020] text-white touch-pan-y select-none"
     >
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
-          <div className="pointer-events-none rounded bg-white/10 px-3 py-2 text-xs">
+        <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3">
+          <div className="flex items-center gap-3 pointer-events-auto">
+            <button
+              type="button"
+              onClick={() => setConfigOpen((prev) => !prev)}
+              aria-expanded={configOpen}
+              className={`flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                configOpen ? 'bg-black/60' : 'hover:bg-black/60'
+              }`}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="h-6 w-6"
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
+                />
+              </svg>
+              <span className="sr-only">Open table customization</span>
+            </button>
+            <BottomLeftIcons
+              onInfo={() => setShowInfo(true)}
+              onChat={() => setShowChat(true)}
+              onGift={() => setShowGift(true)}
+              className="flex items-center gap-3"
+              buttonClassName="flex flex-col items-center text-[0.65rem]"
+              iconClassName="text-xl"
+              labelClassName="text-[0.6rem]"
+            />
+          </div>
+          <div className="rounded bg-white/10 px-3 py-2 text-xs">
             <div className="font-semibold">{ui.status}</div>
             {ui.dice != null && (
               <div className="mt-1 text-[10px]">Rolled: {ui.dice}</div>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => setConfigOpen((prev) => !prev)}
-            aria-expanded={configOpen}
-            className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-              configOpen ? 'bg-black/60' : 'hover:bg-black/60'
-            }`}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="h-6 w-6"
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
-              />
-            </svg>
-            <span className="sr-only">Open table customization</span>
-          </button>
           {configOpen && (
             <div className="pointer-events-auto mt-2 flex max-h-[80vh] w-72 max-w-[80vw] flex-col rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
               <div className="flex items-center justify-between gap-3">
@@ -5270,30 +5281,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             );
           })}
         </div>
-        <div className="absolute top-3 right-3 flex items-center space-x-3 pointer-events-auto">
-          <div className="flex items-center space-x-2 rounded-full bg-white/10 px-3 py-1 text-xs">
-            {avatar && (
-              <img src={avatar} alt="avatar" className="h-7 w-7 rounded-full object-cover" />
-            )}
-            <span>{username || 'Guest'}</span>
-          </div>
-        </div>
-        <div className="pointer-events-auto">
-          <BottomLeftIcons
-            onInfo={() => setShowInfo(true)}
-            onChat={() => setShowChat(true)}
-            onGift={() => setShowGift(true)}
-          />
-        </div>
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
-          <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
-            {ui.winner
-              ? `${ui.winner} Wins`
-              : ui.turn === 0
-              ? 'Your turn — dice rolling soon'
-              : ui.status}
-          </div>
-        </div>
       </div>
       {chatBubbles.map((bubble) => (
         <div key={bubble.id} className="chat-bubble">
@@ -5439,7 +5426,8 @@ async function buildLudoBoard(
   playerColors = DEFAULT_PLAYER_COLORS,
   tokenStyleOption = TOKEN_STYLE_OPTIONS[0],
   headPresetOption = HEAD_PRESET_OPTIONS[0],
-  tokenPieceOption = TOKEN_PIECE_OPTIONS[0]
+  tokenPieceOption = TOKEN_PIECE_OPTIONS[0],
+  aiPlayerIndices = []
 ) {
   const scene = boardGroup;
 
@@ -5450,11 +5438,12 @@ async function buildLudoBoard(
   if (tokenPieceOption?.type) {
     tokenTypeSequence = Array(4).fill(tokenPieceOption.type);
   }
-  const useAbgTokens = Boolean(tokenStyleOption?.prefersAbg);
+  const useAbgTokens = Boolean(tokenStyleOption?.prefersAbg) || aiPlayerIndices.length > 0;
   const abgAssets = useAbgTokens ? await getAbgAssets() : null;
   const abgPrototypes = abgAssets?.proto ?? null;
   const shouldUseAbgTokens = Boolean(abgPrototypes);
   const headPreset = shouldUseAbgTokens ? null : headPresetOption?.preset ?? HEAD_PRESET_OPTIONS[0].preset;
+  const aiPlayerSet = new Set(aiPlayerIndices);
 
   const trackTileMeshes = new Array(RING_STEPS).fill(null);
   const homeColumnTiles = Array.from({ length: playerCount }, () =>
@@ -5561,11 +5550,16 @@ async function buildLudoBoard(
   const tokens = playerColors.slice(0, playerCount).map((color, playerIdx) => {
     return Array.from({ length: 4 }, (_, i) => {
       const type = tokenTypeSequence[i % tokenTypeSequence.length];
+      const useAbgForPlayer = shouldUseAbgTokens || aiPlayerSet.has(playerIdx);
+      const tokenTint = aiPlayerSet.has(playerIdx) ? CHESS_TOKEN_TINTS[playerIdx] : null;
       let token = null;
-      if (shouldUseAbgTokens) {
+      if (useAbgForPlayer && abgPrototypes) {
         const colorKey = resolveAbgColorKey(playerIdx);
         const proto = resolveAbgPrototype(abgPrototypes, colorKey, type);
         token = cloneAbgToken(proto);
+        if (token && tokenTint) {
+          tintGltfToken(token, tokenTint);
+        }
       }
       if (!token) {
         token = makeRook(makeTokenMaterial(color));
@@ -5579,7 +5573,7 @@ async function buildLudoBoard(
         token.userData.countLabel = label;
       }
       if (!token.userData) token.userData = {};
-      token.userData.tokenColor = colorNumberToHex(color);
+      token.userData.tokenColor = colorNumberToHex(tokenTint ?? color);
       token.userData.tokenType = type;
       token.userData.playerIndex = playerIdx;
       token.userData.tokenIndex = i;
