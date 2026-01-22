@@ -3168,8 +3168,10 @@ export default function SnakeAndLadder() {
                 />
                 <div className="flex flex-col items-center gap-1 mt-2">
                   <div
-                    className="relative w-5 h-5 rounded-full border border-white/40 shadow-[0_2px_8px_rgba(0,0,0,0.45)]"
+                    className="relative rounded-full border border-white/40 shadow-[0_2px_8px_rgba(0,0,0,0.45)]"
                     style={{
+                      width: '2.125rem',
+                      height: '2.125rem',
                       background: `radial-gradient(circle at 30% 30%, ${tokenHighlight}, ${tokenColor})`,
                       boxShadow: `0 4px 8px ${tokenShadow}55`
                     }}
