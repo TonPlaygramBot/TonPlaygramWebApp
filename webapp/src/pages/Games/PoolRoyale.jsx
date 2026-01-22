@@ -6386,13 +6386,13 @@ function updateRailLimitsFromTable(table) {
   if (minAbsX !== Infinity) {
     const computedX = Math.max(0, minAbsX - BALL_R - RAIL_LIMIT_PADDING);
     if (computedX > 0) {
-      RAIL_LIMIT_X = Math.min(DEFAULT_RAIL_LIMIT_X, computedX);
+      RAIL_LIMIT_X = Math.max(DEFAULT_RAIL_LIMIT_X, computedX);
     }
   }
   if (minAbsZ !== Infinity) {
     const computedZ = Math.max(0, minAbsZ - BALL_R - RAIL_LIMIT_PADDING);
     if (computedZ > 0) {
-      RAIL_LIMIT_Y = Math.min(DEFAULT_RAIL_LIMIT_Y, computedZ);
+      RAIL_LIMIT_Y = Math.max(DEFAULT_RAIL_LIMIT_Y, computedZ);
     }
   }
 }
@@ -16519,7 +16519,7 @@ const powerRef = useRef(hud.power);
             });
             if (overheadCamera?.position) {
               const resolvedTarget = overheadCamera.target ?? topFocusTarget;
-              camera.up.set(0, 0, 1);
+              camera.up.set(0, 1, 0);
               camera.position.copy(overheadCamera.position);
               if (Number.isFinite(overheadCamera.fov) && camera.fov !== overheadCamera.fov) {
                 camera.fov = overheadCamera.fov;
@@ -16547,7 +16547,7 @@ const powerRef = useRef(hud.power);
             const topTheta = Math.PI;
             const topPhi = TOP_VIEW_RESOLVED_PHI;
             TMP_SPH.set(topRadius, topPhi, topTheta);
-            camera.up.set(0, 0, 1);
+            camera.up.set(0, 1, 0);
             camera.position.setFromSpherical(TMP_SPH);
             camera.position.add(topFocusTarget);
             const resolvedTarget = topFocusTarget.clone();
@@ -23995,8 +23995,6 @@ const powerRef = useRef(hud.power);
             if (dropEntry) {
               ball.mesh.visible = true;
               if (ball.shadow) ball.shadow.visible = false;
-            } else if (ball.mesh?.visible) {
-              if (ball.shadow) ball.shadow.visible = false;
             } else {
               ball.mesh.visible = false;
               if (ball.shadow) ball.shadow.visible = false;
@@ -24650,6 +24648,28 @@ const powerRef = useRef(hud.power);
               b.mesh.scale.set(1, 1, 1);
               b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
               pocketDropRef.current.set(b.id, dropEntry);
+              if (table && POCKET_POPUP_DURATION_MS > 0 && b.mesh) {
+                const popupMesh = b.mesh.clone(true);
+                popupMesh.traverse((child) => {
+                  if (!child.isMesh) return;
+                  if (child.material?.clone) {
+                    child.material = child.material.clone();
+                  }
+                  child.castShadow = false;
+                  child.receiveShadow = false;
+                });
+                popupMesh.position.set(
+                  c.x,
+                  BALL_CENTER_Y + POCKET_POPUP_LIFT,
+                  c.y
+                );
+                popupMesh.renderOrder = 6;
+                table.add(popupMesh);
+                pocketPopupRef.current.push({
+                  mesh: popupMesh,
+                  expiresAt: dropStart + POCKET_POPUP_DURATION_MS
+                });
+              }
               const mappedColor = toBallColorId(b.id);
               const colorId =
                 mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
