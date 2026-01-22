@@ -4937,8 +4937,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
-const BIH_INDICATOR_LINE_PX = 32;
-const BIH_INDICATOR_HAND_SIZE_PX = 24;
+const BIH_INDICATOR_HAND_SIZE_PX = 34;
 const BIH_INDICATOR_WORLD_OFFSET = BALL_R * 1.35;
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
@@ -7389,7 +7388,8 @@ export function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.02; // trim the cushion tips near middle pockets so they stop at the rail cut
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.0; // trim the cushion tips near middle pockets so they stop at the rail cut
+  const SHORT_RAIL_POCKET_REACH_REDUCTION = TABLE.THICK * 0.02; // match the trimmed amount removed from the side cushions
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.55; // reduce long-rail cushion reach further to keep noses out of pocket perimeters
   const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.28; // lightly trim short-rail cushions to match the new pocket clearance
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
@@ -7456,7 +7456,10 @@ export function Table3D(
     MICRO_EPS,
     Math.max(
       0,
-      cornerIntersectionZ - adjustedSidePocketReach - SHORT_RAIL_CUSHION_LENGTH_TRIM
+      cornerIntersectionZ -
+        adjustedSidePocketReach -
+        SHORT_RAIL_CUSHION_LENGTH_TRIM -
+        SHORT_RAIL_POCKET_REACH_REDUCTION
     )
   );
   const verticalCushionCenter =
@@ -20108,13 +20111,14 @@ const powerRef = useRef(hud.power);
       };
       const handleInHandDown = (e) => {
         const currentHud = hudRef.current;
-        if (!(currentHud?.inHand)) return;
-        if (!inHandPlacementModeRef.current) return;
+        if (!(currentHud?.inHand) || currentHud.turn !== 0) return;
         if (shooting) return;
         if (e.button != null && e.button !== 0) return;
         const p = project(e);
         if (!p) return;
         if (!tryUpdatePlacement(p, false)) return;
+        setInHandPlacementMode(true);
+        inHandPlacementModeRef.current = true;
         inHandDrag.active = true;
         inHandDrag.pointerId = e.pointerId ?? 'mouse';
         if (e.pointerId != null && dom.setPointerCapture) {
@@ -20156,6 +20160,7 @@ const powerRef = useRef(hud.power);
         if (pos) {
           tryUpdatePlacement(pos, true);
           setInHandPlacementMode(false);
+          inHandPlacementModeRef.current = false;
           autoAimRequestRef.current = true;
         }
         e.preventDefault?.();
@@ -23457,6 +23462,12 @@ const powerRef = useRef(hud.power);
           return strength;
         }
 
+        const clampAimLinePoint = (point) => {
+          if (!point) return point;
+          point.x = THREE.MathUtils.clamp(point.x, -RAIL_LIMIT_X, RAIL_LIMIT_X);
+          point.z = THREE.MathUtils.clamp(point.z, -RAIL_LIMIT_Y, RAIL_LIMIT_Y);
+          return point;
+        };
         sidePocketAimRef.current = false;
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
           const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
@@ -23484,8 +23495,12 @@ const powerRef = useRef(hud.power);
             balls
           );
           const aimLineY = tableSurfaceY + AIM_LINE_SURFACE_OFFSET;
-          const start = new THREE.Vector3(cue.pos.x, aimLineY, cue.pos.y);
-          let end = new THREE.Vector3(impact.x, aimLineY, impact.y);
+          const start = clampAimLinePoint(
+            new THREE.Vector3(cue.pos.x, aimLineY, cue.pos.y)
+          );
+          let end = clampAimLinePoint(
+            new THREE.Vector3(impact.x, aimLineY, impact.y)
+          );
           const dir = baseAimDir.clone();
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
@@ -23824,8 +23839,12 @@ const powerRef = useRef(hud.power);
             balls
           );
           const aimLineY = tableSurfaceY + AIM_LINE_SURFACE_OFFSET;
-          const start = new THREE.Vector3(cue.pos.x, aimLineY, cue.pos.y);
-          let end = new THREE.Vector3(impact.x, aimLineY, impact.y);
+          const start = clampAimLinePoint(
+            new THREE.Vector3(cue.pos.x, aimLineY, cue.pos.y)
+          );
+          let end = clampAimLinePoint(
+            new THREE.Vector3(impact.x, aimLineY, impact.y)
+          );
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(baseDir.clone().multiplyScalar(BALL_R));
           }
@@ -26739,7 +26758,7 @@ const powerRef = useRef(hud.power);
           open={showInfo}
           onClose={() => setShowInfo(false)}
           title="Pool Royale"
-          info="Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent ball in hand."
+          info="Pocket your assigned group, then sink the 8-ball to win."
         />
       </div>
       <div className="pointer-events-auto">
@@ -26904,14 +26923,10 @@ const powerRef = useRef(hud.power);
             transition: 'opacity 120ms ease'
           }}
         >
-          <div
-            className="h-[2px] rounded-full bg-white/80 shadow-[0_4px_12px_rgba(255,255,255,0.45)]"
-            style={{ width: `${BIH_INDICATOR_LINE_PX}px` }}
-          />
           <button
             type="button"
             aria-label="Move cue ball"
-            className="pointer-events-auto ml-1 flex items-center justify-center rounded-full border border-white/80 bg-white/95 text-lg shadow-[0_10px_18px_rgba(0,0,0,0.35)]"
+            className="pointer-events-auto flex items-center justify-center rounded-full border border-white/80 bg-white/95 text-xl shadow-[0_10px_18px_rgba(0,0,0,0.35)]"
             style={{
               width: `${BIH_INDICATOR_HAND_SIZE_PX}px`,
               height: `${BIH_INDICATOR_HAND_SIZE_PX}px`
@@ -26923,19 +26938,6 @@ const powerRef = useRef(hud.power);
           >
             🖐
           </button>
-        </div>
-      )}
-      {hud?.inHand && (
-        <div className="pointer-events-none absolute left-1/2 top-4 z-40 flex -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
-          <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg ring-1 ring-white/60">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">BIH</span>
-            <span className="text-left leading-tight">
-              Drag the cue ball anywhere on the table
-            </span>
-          </div>
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
-            Hold the hand to move the cue ball
-          </span>
         </div>
       )}
       {/* Power Slider */}
