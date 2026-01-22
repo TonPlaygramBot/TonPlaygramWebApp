@@ -24020,6 +24020,8 @@ const powerRef = useRef(hud.power);
             if (dropEntry) {
               ball.mesh.visible = true;
               if (ball.shadow) ball.shadow.visible = false;
+            } else if (ball.mesh?.visible) {
+              if (ball.shadow) ball.shadow.visible = false;
             } else {
               ball.mesh.visible = false;
               if (ball.shadow) ball.shadow.visible = false;
