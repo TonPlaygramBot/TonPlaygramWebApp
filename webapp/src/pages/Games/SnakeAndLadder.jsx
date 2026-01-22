@@ -100,6 +100,7 @@ const TOKEN_COLOR_OPTIONS = Object.freeze(
     color: option.color
   }))
 );
+const AI_TOKEN_COLOR_ORDER = Object.freeze(['mintVale', 'royalWave', 'roseMist']);
 
 const PLAYERS = 4;
 // Adjusted board dimensions to show five columns
@@ -168,6 +169,14 @@ function resolveTokenPalette(options, inventory, count) {
     deduped.push(option);
   });
   return shuffle(deduped).slice(0, count).map((option) => option.color);
+}
+
+function resolveAiTokenColors(options, count) {
+  const resolved = AI_TOKEN_COLOR_ORDER.map((id) => options.find((option) => option.id === id));
+  return resolved
+    .filter(Boolean)
+    .slice(0, count)
+    .map((option) => option.color);
 }
 
 const FALLBACK_SEAT_POSITIONS = [
@@ -1486,7 +1495,17 @@ export default function SnakeAndLadder() {
       );
     }
     const colors = resolveTokenPalette(TOKEN_COLOR_OPTIONS, snakeInventory, aiCount + 1);
-    setPlayerColors(colors);
+    const isAiMode = aiCount > 0 && (!tableParam || aiParam);
+    if (isAiMode) {
+      const aiColors = resolveAiTokenColors(TOKEN_COLOR_OPTIONS, aiCount);
+      const merged = [...colors];
+      aiColors.forEach((color, index) => {
+        if (color) merged[index + 1] = color;
+      });
+      setPlayerColors(merged);
+    } else {
+      setPlayerColors(colors);
+    }
 
     const storedTable = localStorage.getItem('snakeCurrentTable');
     const table = params.get("table") || storedTable || "snake-4";
