@@ -19792,7 +19792,7 @@ const powerRef = useRef(hud.power);
 
       const allowFullTableInHand = () => {
         const id = variantId();
-        if (id === 'uk') return true;
+        if (id === 'uk') return false;
         if (id === 'american' || id === '9ball') {
           return !isBreakRestrictedInHand();
         }
@@ -23978,6 +23978,8 @@ const powerRef = useRef(hud.power);
           if (!ball.active) {
             if (dropEntry) {
               ball.mesh.visible = true;
+              if (ball.shadow) ball.shadow.visible = false;
+            } else if (ball.mesh?.visible) {
               if (ball.shadow) ball.shadow.visible = false;
             } else {
               ball.mesh.visible = false;
