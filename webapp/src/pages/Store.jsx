@@ -165,7 +165,9 @@ const LUDO_TYPE_LABELS = {
   environmentHdri: 'HDR Environments',
   tokenPalette: 'Token Palette',
   tokenStyle: 'Token Style',
-  tokenPiece: 'Token Piece'
+  tokenPiece: 'Token Piece',
+  sideColor: 'Piece Colors',
+  headStyle: 'Pawn Heads'
 };
 
 const MURLAN_TYPE_LABELS = {

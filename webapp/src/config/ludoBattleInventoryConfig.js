@@ -5,6 +5,7 @@ import {
 } from './ludoBattleOptions.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
+import { CHESS_BATTLE_OPTION_LABELS, CHESS_BATTLE_STORE_ITEMS } from './chessBattleInventoryConfig.js';
 
 export const LUDO_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   tables: [MURLAN_TABLE_THEMES[0]?.id],
@@ -34,7 +35,9 @@ export const LUDO_BATTLE_OPTION_LABELS = Object.freeze({
   ),
   tokenPalette: Object.freeze(reduceLabels(TOKEN_PALETTE_OPTIONS)),
   tokenStyle: Object.freeze(reduceLabels(TOKEN_STYLE_OPTIONS)),
-  tokenPiece: Object.freeze(reduceLabels(TOKEN_PIECE_OPTIONS))
+  tokenPiece: Object.freeze(reduceLabels(TOKEN_PIECE_OPTIONS)),
+  sideColor: Object.freeze(CHESS_BATTLE_OPTION_LABELS.sideColor),
+  headStyle: Object.freeze(CHESS_BATTLE_OPTION_LABELS.headStyle)
 });
 
 export const LUDO_BATTLE_STORE_ITEMS = [
@@ -88,7 +91,8 @@ export const LUDO_BATTLE_STORE_ITEMS = [
     name: option.label,
     price: 300 + idx * 20,
     description: 'Unlock an alternate piece identity for your pawns.'
-  }))
+  })),
+  ...CHESS_BATTLE_STORE_ITEMS.filter((item) => ['sideColor', 'headStyle'].includes(item.type))
 ];
 
 export const LUDO_BATTLE_DEFAULT_LOADOUT = [
