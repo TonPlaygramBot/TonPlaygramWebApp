@@ -3179,9 +3179,11 @@ function updateTokens(
       const piecePrototype = basePiecePrototype;
       let coreMaterial = null;
       let accentMaterial = null;
+      let pieceMaterials = null;
       if (piecePrototype) {
         const piece = piecePrototype.clone(true);
         scaleChessPieceToToken(piece, TOKEN_HEIGHT * CHESS_TOKEN_HEIGHT_SCALE);
+        pieceMaterials = [];
         piece.traverse((child) => {
           if (child.isMesh) {
             if (Array.isArray(child.material)) {
@@ -3189,6 +3191,10 @@ function updateTokens(
             } else if (child.material?.clone) {
               child.material = child.material.clone();
             }
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            mats.forEach((mat) => {
+              if (mat?.color?.set) pieceMaterials.push(mat);
+            });
             child.castShadow = true;
             child.receiveShadow = true;
           }
@@ -3270,6 +3276,7 @@ function updateTokens(
         material: piecePrototype ? null : coreMaterial,
         coreMaterial: piecePrototype ? null : coreMaterial,
         accentMaterial: piecePrototype ? null : accentMaterial,
+        pieceMaterials,
         isSliding: false,
         shapeId: desiredShapeId,
         pieceType: desiredPieceType,
@@ -3301,6 +3308,11 @@ function updateTokens(
       accentMat.metalness = accentMetalness;
       accentMat.clearcoat = accentClearcoat;
       accentMat.clearcoatRoughness = accentClearcoatRoughness;
+    }
+    if (token.userData.pieceMaterials?.length) {
+      token.userData.pieceMaterials.forEach((mat) => {
+        if (mat?.color?.set) mat.color.copy(targetColor);
+      });
     }
 
     let emissiveHex = 0x000000;
