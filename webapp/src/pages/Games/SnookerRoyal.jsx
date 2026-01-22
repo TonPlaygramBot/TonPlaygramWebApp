@@ -1504,7 +1504,7 @@ const SIDE_SPIN_MULTIPLIER = 1.5;
 const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.5;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
-const SPIN_CONTROL_DIAMETER_PX = 138;
+const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
 const SPIN_RING_THICKNESS_PX = 14;
 const SPIN_DECORATION_RADII = [0.18, 0.34, 0.5, 0.66];
@@ -24626,50 +24626,53 @@ const powerRef = useRef(hud.power);
   useLayoutEffect(() => {
     const computeInsets = () => {
       if (!isPortrait) {
-      const left = uiScale * 150;
-      const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 150);
-      setHudInsets({
-        left: `${left}px`,
-        right: `${right}px`
-      });
-      setBottomHudOffset(0);
-      return;
+        const left = uiScale * 150;
+        const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 150);
+        setHudInsets({
+          left: `${left}px`,
+          right: `${right}px`
+        });
+        setBottomHudOffset(0);
+        return;
       }
       const leftBox = leftControlsRef.current?.getBoundingClientRect();
       const spinBox = spinBoxRef.current?.getBoundingClientRect();
       const viewportWidth =
-      typeof window !== 'undefined'
-        ? window.innerWidth || document.documentElement?.clientWidth || 0
-        : 0;
+        typeof window !== 'undefined'
+          ? window.innerWidth || document.documentElement?.clientWidth || 0
+          : 0;
       const fallbackLeftWidth = uiScale * 120;
       const fallbackSpinWidth = uiScale * (SPIN_CONTROL_DIAMETER_PX + 64);
       const leftBoxIsLeft =
         viewportWidth > 0 ? (leftBox?.left ?? 0) < viewportWidth * 0.5 : true;
       const leftInset = leftBoxIsLeft
-      ? (leftBox?.width ?? fallbackLeftWidth) + 12
-      : uiScale * 24;
+        ? (leftBox?.width ?? fallbackLeftWidth) + 12
+        : uiScale * 24;
       const rightInset =
-      (spinBox?.width ?? fallbackSpinWidth) +
-      uiScale * 32 +
-      12;
+        (spinBox?.width ?? fallbackSpinWidth) +
+        uiScale * 32 +
+        12;
       setHudInsets({
-      left: `${leftInset}px`,
-      right: `${rightInset}px`
+        left: `${leftInset}px`,
+        right: `${rightInset}px`
       });
       if (viewportWidth > 0) {
-      const sideMargin = 16;
-      const leftCenter =
-        leftBox && leftBoxIsLeft
-          ? leftBox.left + leftBox.width / 2
-          : leftInset / 2 + sideMargin;
-      const spinWidth = spinBox?.width ?? fallbackSpinWidth;
-      const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
-      const spinCenter = spinLeft + spinWidth / 2;
-      const desiredCenter = (leftCenter + spinCenter) / 2;
-      const screenCenter = viewportWidth / 2;
-      setBottomHudOffset(desiredCenter - screenCenter - PORTRAIT_HUD_HORIZONTAL_NUDGE_PX);
+        const sideMargin = 16;
+        const leftCenter =
+          leftBox && leftBoxIsLeft
+            ? leftBox.left + leftBox.width / 2
+            : leftInset / 2 + sideMargin;
+        const spinWidth = spinBox?.width ?? fallbackSpinWidth;
+        const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
+        const spinCenter = spinLeft + spinWidth / 2;
+        const desiredCenter = (leftCenter + spinCenter) / 2;
+        const screenCenter = viewportWidth / 2;
+        const chatButtonOffset = 3.15 * 16;
+        setBottomHudOffset(
+          desiredCenter - screenCenter - PORTRAIT_HUD_HORIZONTAL_NUDGE_PX + chatButtonOffset
+        );
       } else {
-      setBottomHudOffset(0);
+        setBottomHudOffset(0);
       }
     };
     computeInsets();
