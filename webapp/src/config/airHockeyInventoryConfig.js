@@ -384,11 +384,19 @@ const AIR_HOCKEY_TABLE_BASES = Object.freeze([
   })
 ]);
 
+const createMarbleTextureUrls = (assetId, size = '2k') =>
+  Object.freeze({
+    diffuse: `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${size}/${assetId}/${assetId}_diff_${size}.jpg`,
+    normal: `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${size}/${assetId}/${assetId}_nor_gl_${size}.jpg`,
+    roughness: `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${size}/${assetId}/${assetId}_rough_${size}.jpg`
+  });
+
 const AIR_HOCKEY_MARBLE_FIELDS = Object.freeze([
   Object.freeze({
     id: 'carraraClassic',
     name: 'Carrara Classic',
     assetId: 'marble_01',
+    textureUrls: createMarbleTextureUrls('marble_01'),
     swatches: ['#f5f5f4', '#e7e5e4'],
     repeat: 1.1,
     lineColor: '#f8fafc',
@@ -401,6 +409,7 @@ const AIR_HOCKEY_MARBLE_FIELDS = Object.freeze([
     id: 'silverVein',
     name: 'Silver Vein',
     assetId: 'marble_02',
+    textureUrls: createMarbleTextureUrls('marble_02'),
     swatches: ['#e2e8f0', '#cbd5f5'],
     repeat: 1.1,
     lineColor: '#f8fafc',
@@ -413,6 +422,7 @@ const AIR_HOCKEY_MARBLE_FIELDS = Object.freeze([
     id: 'ivoryMist',
     name: 'Ivory Mist',
     assetId: 'marble_03',
+    textureUrls: createMarbleTextureUrls('marble_03'),
     swatches: ['#fef3c7', '#fde68a'],
     repeat: 1.05,
     lineColor: '#fff7ed',
@@ -425,6 +435,7 @@ const AIR_HOCKEY_MARBLE_FIELDS = Object.freeze([
     id: 'roseQuartz',
     name: 'Rose Quartz',
     assetId: 'marble_04',
+    textureUrls: createMarbleTextureUrls('marble_04'),
     swatches: ['#fecdd3', '#fda4af'],
     repeat: 1.05,
     lineColor: '#fff1f2',
@@ -437,6 +448,7 @@ const AIR_HOCKEY_MARBLE_FIELDS = Object.freeze([
     id: 'emeraldCascade',
     name: 'Emerald Cascade',
     assetId: 'marble_05',
+    textureUrls: createMarbleTextureUrls('marble_05'),
     swatches: ['#bbf7d0', '#4ade80'],
     repeat: 1.05,
     lineColor: '#dcfce7',
@@ -449,6 +461,7 @@ const AIR_HOCKEY_MARBLE_FIELDS = Object.freeze([
     id: 'noirOnyx',
     name: 'Noir Onyx',
     assetId: 'marble_06',
+    textureUrls: createMarbleTextureUrls('marble_06'),
     swatches: ['#111827', '#374151'],
     repeat: 1,
     lineColor: '#e5e7eb',
@@ -461,6 +474,7 @@ const AIR_HOCKEY_MARBLE_FIELDS = Object.freeze([
     id: 'glacierBlue',
     name: 'Glacier Blue',
     assetId: 'marble_07',
+    textureUrls: createMarbleTextureUrls('marble_07'),
     swatches: ['#dbeafe', '#93c5fd'],
     repeat: 1.1,
     lineColor: '#f8fafc',
@@ -473,6 +487,7 @@ const AIR_HOCKEY_MARBLE_FIELDS = Object.freeze([
     id: 'smokeSlate',
     name: 'Smoke Slate',
     assetId: 'marble_08',
+    textureUrls: createMarbleTextureUrls('marble_08'),
     swatches: ['#d1d5db', '#6b7280'],
     repeat: 1.1,
     lineColor: '#f3f4f6',
@@ -485,6 +500,7 @@ const AIR_HOCKEY_MARBLE_FIELDS = Object.freeze([
     id: 'goldenSand',
     name: 'Golden Sand',
     assetId: 'marble_09',
+    textureUrls: createMarbleTextureUrls('marble_09'),
     swatches: ['#fef3c7', '#facc15'],
     repeat: 1.08,
     lineColor: '#fff7ed',
@@ -497,6 +513,7 @@ const AIR_HOCKEY_MARBLE_FIELDS = Object.freeze([
     id: 'violetStorm',
     name: 'Violet Storm',
     assetId: 'marble_10',
+    textureUrls: createMarbleTextureUrls('marble_10'),
     swatches: ['#ddd6fe', '#a78bfa'],
     repeat: 1.05,
     lineColor: '#f5f3ff',

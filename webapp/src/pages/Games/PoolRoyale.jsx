@@ -6370,6 +6370,7 @@ export function Table3D(
   const resolvedTableOptions =
     tableOptions && typeof tableOptions === 'object' ? tableOptions : null;
   const enableSidePockets = resolvedTableOptions?.enableSidePockets !== false;
+  const mergeSideCushions = resolvedTableOptions?.mergeSideCushions === true;
   const resolveTablePocketCenters = () => {
     const centers = pocketCenters();
     return enableSidePockets ? centers : centers.slice(0, 4);
@@ -9465,10 +9466,19 @@ export function Table3D(
   addCushion(0, bottomZ, horizontalCushionLength, true, false);
   addCushion(0, topZ, horizontalCushionLength, true, true);
 
-  addCushion(leftX, -verticalCushionCenter, verticalCushionLength, false, false);
-  addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
-  addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
-  addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
+  if (!enableSidePockets && mergeSideCushions) {
+    const mergedVerticalCushionLength = Math.max(
+      MICRO_EPS,
+      2 * cornerIntersectionZ - SHORT_RAIL_CUSHION_LENGTH_TRIM * 2
+    );
+    addCushion(leftX, 0, mergedVerticalCushionLength, false, false);
+    addCushion(rightX, 0, mergedVerticalCushionLength, false, true);
+  } else {
+    addCushion(leftX, -verticalCushionCenter, verticalCushionLength, false, false);
+    addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
+    addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
+    addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
+  }
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
