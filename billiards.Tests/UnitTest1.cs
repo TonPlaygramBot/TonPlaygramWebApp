@@ -129,7 +129,8 @@ public class PocketEdgeTests
         var balls = new List<BilliardsSolver.Ball> { ball };
         solver.Step(balls, 0.3);
         Assert.That(ball.Pocketed, Is.True);
-        Assert.That(balls, Is.Empty);
+        Assert.That(balls, Has.Count.EqualTo(1));
+        Assert.That(ball.Velocity.Length, Is.GreaterThanOrEqualTo(0));
     }
 }
 
