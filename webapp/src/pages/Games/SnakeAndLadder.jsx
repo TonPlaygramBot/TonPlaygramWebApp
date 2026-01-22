@@ -101,6 +101,8 @@ const TOKEN_COLOR_OPTIONS = Object.freeze(
   }))
 );
 
+const AI_TOKEN_COLOR_IDS = Object.freeze(['mintVale', 'royalWave', 'roseMist']);
+
 const PLAYERS = 4;
 // Adjusted board dimensions to show five columns
 // while keeping the total cell count at 100
@@ -168,6 +170,18 @@ function resolveTokenPalette(options, inventory, count) {
     deduped.push(option);
   });
   return shuffle(deduped).slice(0, count).map((option) => option.color);
+}
+
+function applyAiTokenColors(colors, aiCount) {
+  if (!Array.isArray(colors) || aiCount <= 0) return colors;
+  const next = [...colors];
+  AI_TOKEN_COLOR_IDS.slice(0, aiCount).forEach((id, index) => {
+    const match = TOKEN_COLOR_OPTIONS.find((option) => option.id === id);
+    if (match?.color) {
+      next[index + 1] = match.color;
+    }
+  });
+  return next;
 }
 
 const FALLBACK_SEAT_POSITIONS = [
@@ -1486,7 +1500,10 @@ export default function SnakeAndLadder() {
       );
     }
     const colors = resolveTokenPalette(TOKEN_COLOR_OPTIONS, snakeInventory, aiCount + 1);
-    setPlayerColors(colors);
+    const resolvedColors = !tableParam && aiCount > 0
+      ? applyAiTokenColors(colors, aiCount)
+      : colors;
+    setPlayerColors(resolvedColors);
 
     const storedTable = localStorage.getItem('snakeCurrentTable');
     const table = params.get("table") || storedTable || "snake-4";
