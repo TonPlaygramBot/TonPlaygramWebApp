@@ -134,8 +134,8 @@ function selectPerformanceProfile(option = null) {
 
 const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
 const LOCK_POOL_ROYALE_TABLE_STYLE = false;
-const PREFERRED_MARBLE_TEXTURE_SIZES = ['2k', '1k'];
-const MARBLE_TEXTURE_CACHE = new Map();
+const PREFERRED_FIELD_TEXTURE_SIZES = ['2k', '1k'];
+const FIELD_TEXTURE_CACHE = new Map();
 const POOL_BALL_MARBLE_FINISH = Object.freeze({
   clearcoat: 1,
   clearcoatRoughness: 0.03,
@@ -147,7 +147,7 @@ const POOL_BALL_MARBLE_FINISH = Object.freeze({
   envMapIntensity: 1.05
 });
 
-const pickBestTextureUrls = (apiJson, preferredSizes = PREFERRED_MARBLE_TEXTURE_SIZES) => {
+const pickBestTextureUrls = (apiJson, preferredSizes = PREFERRED_FIELD_TEXTURE_SIZES) => {
   const urls = [];
   const walk = (value) => {
     if (!value) return;
@@ -221,12 +221,12 @@ const createFallbackTexture = (color) => {
   return texture;
 };
 
-const loadMarbleTextureSet = (fieldOption) => {
+const loadFieldTextureSet = (fieldOption) => {
   const assetId = fieldOption?.assetId;
   const textureUrls = fieldOption?.textureUrls;
   const cacheKey = fieldOption?.id || assetId || textureUrls?.diffuse;
   if (!cacheKey) return Promise.resolve(null);
-  if (MARBLE_TEXTURE_CACHE.has(cacheKey)) return MARBLE_TEXTURE_CACHE.get(cacheKey);
+  if (FIELD_TEXTURE_CACHE.has(cacheKey)) return FIELD_TEXTURE_CACHE.get(cacheKey);
   const promise = (async () => {
     try {
       let urls = textureUrls;
@@ -234,7 +234,7 @@ const loadMarbleTextureSet = (fieldOption) => {
         const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
         if (!response.ok) return null;
         const json = await response.json();
-        urls = pickBestTextureUrls(json, PREFERRED_MARBLE_TEXTURE_SIZES);
+        urls = pickBestTextureUrls(json, PREFERRED_FIELD_TEXTURE_SIZES);
       }
       if (!urls?.diffuse) return null;
       const loader = new THREE.TextureLoader();
@@ -246,11 +246,11 @@ const loadMarbleTextureSet = (fieldOption) => {
       ]);
       return { map, normal, roughness };
     } catch (error) {
-      console.warn('Failed to load marble texture set', error);
+      console.warn('Failed to load field texture set', error);
       return null;
     }
   })();
-  MARBLE_TEXTURE_CACHE.set(cacheKey, promise);
+  FIELD_TEXTURE_CACHE.set(cacheKey, promise);
   return promise;
 };
 
@@ -904,7 +904,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       height: MALLET_HEIGHT,
       knobHeight: MALLET_KNOB_HEIGHT
     };
-    const PUCK_RADIUS = PLAYFIELD.w * 0.0295;
+    const PUCK_RADIUS = PLAYFIELD.w * 0.0275;
     const PUCK_HEIGHT = PUCK_RADIUS * 1.05;
     const CORNER_POCKET_RADIUS = Math.max(PUCK_RADIUS * 2.3, PLAYFIELD.w * 0.055);
     const CORNER_POCKET_CAPTURE = Math.max(PUCK_RADIUS * 0.6, CORNER_POCKET_RADIUS - PUCK_RADIUS * 0.25);
@@ -1674,7 +1674,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       mat.needsUpdate = true;
     };
 
-    loadMarbleTextureSet(fieldOption).then((textures) => {
+    loadFieldTextureSet(fieldOption).then((textures) => {
       if (cancelled) return;
       applyFieldMaterial(textures);
     });
@@ -2091,7 +2091,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
                 })}
               </div>
             </div>
-            {renderOptionRow('Field Marble', 'field')}
+            {renderOptionRow('Field Finish', 'field')}
             {renderOptionRow('Cushion Cloth', 'cushionCloth')}
             {renderOptionRow('Table Finish', 'table')}
             {renderOptionRow('Table Base', 'tableBase')}
