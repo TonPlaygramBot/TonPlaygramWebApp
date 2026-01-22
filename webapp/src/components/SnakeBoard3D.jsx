@@ -176,7 +176,7 @@ const BENTONITE_EXTRA_SHRINK = [0.85, 0.92];
 const TILE_100_SUPPORT_RADIUS = TILE_SIZE * 0.58;
 const TILE_100_SUPPORT_HEIGHT_EXTRA = TILE_SIZE * 0.25;
 
-const TOKEN_SCALE = 1.7;
+const TOKEN_SCALE = 1.19;
 const TOKEN_RADIUS = TILE_SIZE * 0.3 * TOKEN_SCALE;
 const TOKEN_HEIGHT = TILE_SIZE * 0.48 * TOKEN_SCALE;
 const CHESS_TOKEN_HEIGHT_SCALE = 2;
@@ -3004,7 +3004,8 @@ function updateTokens(
     baseLevelTop = 0,
     tokenTheme = {},
     tokenShape = null,
-    tokenPrototypes = null
+    tokenPrototypes = null,
+    headStyle = null
   } = {}
 ) {
   if (!tokensGroup) return;
@@ -3079,6 +3080,8 @@ function updateTokens(
   const desiredShapeId = tokenShape?.id || 'default';
   const desiredPieceType = tokenShape?.pieceType || null;
   const basePiecePrototype = desiredPieceType ? tokenPrototypes?.[desiredPieceType] : null;
+  const headStyleId = headStyle?.id ?? 'current';
+  const headPreset = desiredPieceType === 'pawn' ? headStyle?.preset : null;
 
   players.forEach((player, index) => {
     keep.add(index);
@@ -3200,7 +3203,8 @@ function updateTokens(
         isSliding: false,
         shapeId: desiredShapeId,
         pieceType: desiredPieceType,
-        usesPrototype: Boolean(piecePrototype)
+        usesPrototype: Boolean(piecePrototype),
+        headStyleId: null
       };
       tokensGroup.add(token);
     }
@@ -3227,6 +3231,13 @@ function updateTokens(
       accentMat.metalness = accentMetalness;
       accentMat.clearcoat = accentClearcoat;
       accentMat.clearcoatRoughness = accentClearcoatRoughness;
+    }
+
+    if (token.userData.usesPrototype && desiredPieceType === 'pawn') {
+      if (token.userData.headStyleId !== headStyleId) {
+        applyPawnHeadPresetToToken(token, headPreset);
+        token.userData.headStyleId = headStyleId;
+      }
     }
 
     let emissiveHex = 0x000000;
@@ -3600,6 +3611,69 @@ function sampleSubCurve(curve, t0, t1, samples = 20) {
   return new THREE.CatmullRomCurve3(pts);
 }
 
+function cloneMaterialSource(source) {
+  if (Array.isArray(source)) {
+    return source.map((mat) => (mat?.clone ? mat.clone() : mat));
+  }
+  return source?.clone ? source.clone() : source;
+}
+
+function collectPawnHeadMeshes(piece) {
+  if (!piece) return [];
+  const box = new THREE.Box3().setFromObject(piece);
+  const size = box.getSize(new THREE.Vector3());
+  const height = size.y || 1;
+  const cutoff = box.max.y - height * 0.22;
+  const targets = [];
+  piece.traverse((node) => {
+    if (!node?.isMesh) return;
+    const bb = new THREE.Box3().setFromObject(node);
+    const sz = bb.getSize(new THREE.Vector3());
+    const nearTop = bb.max.y >= cutoff;
+    const shortEnough = sz.y <= height * 0.45;
+    const name = (node.name || '').toLowerCase();
+    const hinted = /(head|top|cap|crown|finial|ball)/.test(name);
+    const gold = /(gold|ring|band)/.test(name);
+    if (((nearTop && shortEnough) || hinted) && !gold) targets.push(node);
+  });
+  return targets;
+}
+
+function applyPawnHeadPresetToToken(token, preset) {
+  if (!token) return;
+  const targets = collectPawnHeadMeshes(token);
+  if (!preset) {
+    targets.forEach((node) => {
+      const original = node.userData?.__snakeHeadMaterial;
+      if (!original) return;
+      node.material = cloneMaterialSource(original);
+    });
+    return;
+  }
+  targets.forEach((node) => {
+    if (!node.userData) node.userData = {};
+    if (!node.userData.__snakeHeadMaterial) {
+      node.userData.__snakeHeadMaterial = cloneMaterialSource(node.material);
+    }
+    const headMat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(preset.color ?? '#ffffff'),
+      metalness: clamp(preset.metalness ?? 0, 0, 1),
+      roughness: clamp(preset.roughness ?? 0.1, 0, 1),
+      transmission: clamp(preset.transmission ?? 0, 0, 1),
+      ior: preset.ior ?? 1.5,
+      thickness: preset.thickness ?? 0.4,
+      clearcoat: 0.5,
+      clearcoatRoughness: 0.06,
+      transparent: (preset.transmission ?? 0) > 0
+    });
+    node.material = Array.isArray(node.material)
+      ? node.material.map(() => headMat.clone())
+      : headMat;
+    node.castShadow = true;
+    node.receiveShadow = true;
+  });
+}
+
 export default function SnakeBoard3D({
   players = [],
   highlight,
@@ -3649,6 +3723,7 @@ export default function SnakeBoard3D({
   const appearanceMemo = useMemo(() => appearance || {}, [keyForEffect, appearance]);
   const tokenTheme = appearanceMemo?.token;
   const tokenShape = appearanceMemo?.tokenShape;
+  const headStyle = appearanceMemo?.headStyle;
   const railTheme = appearanceMemo?.rail;
   const snakeTheme = appearanceMemo?.snakeSkin;
 
@@ -3933,7 +4008,8 @@ export default function SnakeBoard3D({
       baseLevelTop: board.baseLevelTop,
       tokenTheme,
       tokenShape,
-      tokenPrototypes: board.tokenPrototypes
+      tokenPrototypes: board.tokenPrototypes,
+      headStyle
     });
 
     const sanitizedPositions = players.map((player) => {
@@ -3992,6 +4068,7 @@ export default function SnakeBoard3D({
     keyForEffect,
     tokenTheme,
     tokenShape,
+    headStyle,
     tokenPrototypeVersion
   ]);
 
