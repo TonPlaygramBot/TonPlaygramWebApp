@@ -30,7 +30,6 @@ const CUSTOMIZATION_KEYS = Object.freeze([
   'environmentHdri',
   'puck',
   'mallet',
-  'rails',
   'goals'
 ]);
 
@@ -134,9 +133,19 @@ function selectPerformanceProfile(option = null) {
 }
 
 const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
-const LOCK_POOL_ROYALE_TABLE_STYLE = true;
+const LOCK_POOL_ROYALE_TABLE_STYLE = false;
 const PREFERRED_MARBLE_TEXTURE_SIZES = ['2k', '1k'];
 const MARBLE_TEXTURE_CACHE = new Map();
+const POOL_BALL_MARBLE_FINISH = Object.freeze({
+  clearcoat: 1,
+  clearcoatRoughness: 0.03,
+  metalness: 0.24,
+  roughness: 0.08,
+  reflectivity: 0.9,
+  sheen: 0.14,
+  sheenColor: new THREE.Color(0xf8f9ff),
+  envMapIntensity: 1.05
+});
 
 const pickBestTextureUrls = (apiJson, preferredSizes = PREFERRED_MARBLE_TEXTURE_SIZES) => {
   const urls = [];
@@ -952,12 +961,14 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     world.add(tableGroup);
     tableGroupRef.current = tableGroup;
 
+    const finishMaterials = poolTable?.userData?.finish?.materials ?? {};
     materialsRef.current.tableSurface = poolTableEntry?.clothMat ?? null;
     materialsRef.current.cushion = poolTableEntry?.cushionMat ?? null;
-    materialsRef.current.frame = null;
-    materialsRef.current.trim = null;
-    materialsRef.current.base = null;
-    materialsRef.current.baseAccent = null;
+    materialsRef.current.frame = finishMaterials.frame ?? null;
+    materialsRef.current.trim = finishMaterials.trim ?? null;
+    materialsRef.current.rail = finishMaterials.rail ?? null;
+    materialsRef.current.base = finishMaterials.leg ?? finishMaterials.frame ?? null;
+    materialsRef.current.baseAccent = finishMaterials.trim ?? finishMaterials.rail ?? null;
 
     const railThickness = TABLE_WALL * 0.6;
 
@@ -1646,10 +1657,20 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       if ('sheenRoughness' in mat) {
         mat.sheenRoughness = 1;
       }
-      mat.metalness = fieldOption.metalness ?? 0.03;
-      mat.roughness = fieldOption.roughness ?? 0.22;
-      mat.clearcoat = fieldOption.clearcoat ?? 0.3;
-      mat.clearcoatRoughness = fieldOption.clearcoatRoughness ?? 0.2;
+      mat.metalness = POOL_BALL_MARBLE_FINISH.metalness;
+      mat.roughness = POOL_BALL_MARBLE_FINISH.roughness;
+      mat.clearcoat = POOL_BALL_MARBLE_FINISH.clearcoat;
+      mat.clearcoatRoughness = POOL_BALL_MARBLE_FINISH.clearcoatRoughness;
+      mat.reflectivity = POOL_BALL_MARBLE_FINISH.reflectivity;
+      if ('sheen' in mat) {
+        mat.sheen = POOL_BALL_MARBLE_FINISH.sheen;
+      }
+      if ('sheenColor' in mat) {
+        mat.sheenColor = POOL_BALL_MARBLE_FINISH.sheenColor;
+      }
+      if ('envMapIntensity' in mat) {
+        mat.envMapIntensity = POOL_BALL_MARBLE_FINISH.envMapIntensity;
+      }
       mat.needsUpdate = true;
     };
 
@@ -1795,7 +1816,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const cushionTheme = getOption('cushionCloth', selections.cushionCloth);
     const puckTheme = getOption('puck', selections.puck);
     const malletTheme = getOption('mallet', selections.mallet);
-    const railTheme = getOption('rails', selections.rails);
     const goalTheme = getOption('goals', selections.goals);
 
     if (!LOCK_POOL_ROYALE_TABLE_STYLE) {
@@ -1848,20 +1868,17 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
 
       if (tableGrain) {
         applyTableTexture(mats.frame, 'frame');
+        applyTableTexture(mats.rail, 'rail');
         applyTableTexture(mats.trim, 'rail');
         applyBaseTexture(mats.base, 'frame', baseHsl);
         applyBaseTexture(mats.baseAccent, 'rail', accentHsl);
       } else {
         if (mats.frame) mats.frame.color.set(tableTheme.wood);
+        if (mats.rail) mats.rail.color.set(tableTheme.wood);
         if (mats.trim) mats.trim.color.set(tableTheme.trim);
       }
       if (mats.base) mats.base.color.set(baseTheme.base);
       if (mats.baseAccent) mats.baseAccent.color.set(baseTheme.accent);
-    }
-
-    if (mats.rail) {
-      mats.rail.color.set(railTheme.color);
-      mats.rail.opacity = railTheme.opacity;
     }
     if (mats.line && fieldTheme?.lineColor) {
       mats.line.color.set(fieldTheme.lineColor);
@@ -2081,7 +2098,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
             {renderOptionRow('HDRI Environment', 'environmentHdri')}
             {renderOptionRow('Puck', 'puck')}
             {renderOptionRow('Mallets', 'mallet')}
-            {renderOptionRow('Rails', 'rails')}
             {renderOptionRow('Goals', 'goals')}
           </div>
         )}
