@@ -1183,14 +1183,14 @@ const SIDE_POCKET_INTERIOR_CAPTURE_R =
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the true bowl opening
 const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.08; // give middle pockets a touch more capture so shots don't hang in the jaws
 const POCKET_GUARD_RADIUS = Math.max(0, POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04); // align the rail guard to the playable capture bowl instead of the visual rim
-const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // shrink the safety margin so angled cushion cuts register sooner
+const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.08); // keep a slim safety margin so clean entries aren't rejected
 const CORNER_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
 const SIDE_POCKET_GUARD_RADIUS =
   SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.06; // use the middle-pocket bowl to gate reflections with a tighter inset
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
-  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.18
+  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.08
 );
 const CUSHION_CUT_RESTITUTION_SCALE = 0.82; // damp angled-cushion rebounds so they feel less punchy than straight rails
 const SIDE_POCKET_DEPTH_LIMIT =
@@ -1226,6 +1226,7 @@ const POCKET_RECESS_DEPTH =
 const POCKET_DROP_GRAVITY = 42; // steeper gravity for a natural fall into the leather cradle
 const POCKET_DROP_ENTRY_VELOCITY = -0.6; // initial downward impulse before gravity takes over
 const POCKET_DROP_REST_HOLD_MS = 360; // keep the ball visible on the strap briefly before hiding it
+const POCKET_POPUP_HIDE_DELAY_MS = 2000;
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_HOLDER_SLIDE = BALL_R * 1.2; // horizontal drift as the ball rolls toward the leather strap
 const POCKET_HOLDER_TILT_RAD = THREE.MathUtils.degToRad(9); // slight angle so potted balls settle against the strap
@@ -1251,7 +1252,7 @@ const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.74; // stop the fall sligh
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
-const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.26; // raise the net so the weave meets the pocket mouth
+const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // raise the net so the weave sits higher on screen
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
@@ -1276,7 +1277,7 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.62; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so it meets the raised holder rails
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -15676,6 +15677,7 @@ const powerRef = useRef(hud.power);
               headTarget.y += system?.focusLift ?? 0;
               headTarget.x += (system?.focusPan ?? 0) * direction;
               headTarget.z += (system?.focusDepthBias ?? 0) * direction;
+              unit.head.up.set(0, 1, 0);
               unit.head.lookAt(headTarget);
             }
           };
@@ -23982,23 +23984,40 @@ const powerRef = useRef(hud.power);
         chalkAssistTargetRef.current = shouldSlowAim;
 
         // Fizika
+        const popupEntries = pocketPopupRef.current;
         balls.forEach((ball) => {
           if (!ball) return;
           const dropEntry = pocketDropRef.current.get(ball.id);
-          const dropping = Boolean(dropEntry);
+          const popupIndex = popupEntries.findIndex((entry) => entry?.id === ball.id);
+          const clearPopup = () => {
+            if (popupIndex >= 0) {
+              popupEntries.splice(popupIndex, 1);
+            }
+          };
           if (ball.active && dropEntry) {
             removePocketDropEntry(ball.id);
+            clearPopup();
             ball.mesh.visible = true;
             if (ball.shadow) ball.shadow.visible = true;
           }
           if (!ball.active) {
             if (dropEntry) {
+              clearPopup();
               ball.mesh.visible = true;
               if (ball.shadow) ball.shadow.visible = false;
-            } else if (ball.mesh?.visible) {
-              if (ball.shadow) ball.shadow.visible = false;
             } else {
-              ball.mesh.visible = false;
+              if (ball.mesh?.visible) {
+                if (popupIndex < 0) {
+                  popupEntries.push({
+                    id: ball.id,
+                    mesh: ball.mesh,
+                    expiresAt: now + POCKET_POPUP_HIDE_DELAY_MS,
+                    detach: false
+                  });
+                }
+              } else {
+                clearPopup();
+              }
               if (ball.shadow) ball.shadow.visible = false;
             }
           }
@@ -24822,7 +24841,11 @@ const powerRef = useRef(hud.power);
             pocketPopupRef.current = pocketPopupRef.current.filter((entry) => {
               if (!entry?.mesh) return false;
               if (now < entry.expiresAt) return true;
-              entry.mesh.parent?.remove?.(entry.mesh);
+              if (entry.detach) {
+                entry.mesh.parent?.remove?.(entry.mesh);
+              } else {
+                entry.mesh.visible = false;
+              }
               return false;
             });
           }
@@ -24977,7 +25000,12 @@ const powerRef = useRef(hud.power);
         Object.values(pocketGlowMaterials).forEach((material) => material?.dispose?.());
         pocketRestIndexRef.current.clear();
         pocketPopupRef.current.forEach((entry) => {
-          entry?.mesh?.parent?.remove?.(entry.mesh);
+          if (!entry?.mesh) return;
+          if (entry.detach) {
+            entry.mesh.parent?.remove?.(entry.mesh);
+          } else {
+            entry.mesh.visible = false;
+          }
         });
         pocketPopupRef.current = [];
         captureBallSnapshotRef.current = null;
