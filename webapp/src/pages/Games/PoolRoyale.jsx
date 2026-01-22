@@ -6959,6 +6959,7 @@ export function Table3D(
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
+  table.userData.cloth = cloth;
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
   const plywoodTopY =
     clothBottomY - (PLYWOOD_ENABLED ? PLYWOOD_GAP + PLYWOOD_EXTRA_DROP : 0);
@@ -19073,6 +19074,7 @@ const powerRef = useRef(hud.power);
       ballsRef.current = balls;
 
       // Aiming visuals
+      const clothRenderOrder = table?.userData?.cloth?.renderOrder ?? 3;
       const aimMat = new THREE.LineBasicMaterial({
         color: 0x7ce7ff,
         linewidth: AIM_LINE_WIDTH,
@@ -19087,7 +19089,7 @@ const powerRef = useRef(hud.power);
       ]);
       const aim = new THREE.Line(aimGeom, aimMat);
       aim.visible = false;
-      aim.renderOrder = cloth.renderOrder + 2;
+      aim.renderOrder = clothRenderOrder + 2;
       table.add(aim);
       const cueAfterGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -19107,7 +19109,7 @@ const powerRef = useRef(hud.power);
         })
       );
       cueAfter.visible = false;
-      cueAfter.renderOrder = cloth.renderOrder + 2;
+      cueAfter.renderOrder = clothRenderOrder + 2;
       table.add(cueAfter);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -19122,7 +19124,7 @@ const powerRef = useRef(hud.power);
         })
       );
       tick.visible = false;
-      tick.renderOrder = cloth.renderOrder + 2;
+      tick.renderOrder = clothRenderOrder + 2;
       table.add(tick);
 
       const targetGeom = new THREE.BufferGeometry().setFromPoints([
@@ -19143,7 +19145,7 @@ const powerRef = useRef(hud.power);
         })
       );
       target.visible = false;
-      target.renderOrder = cloth.renderOrder + 2;
+      target.renderOrder = clothRenderOrder + 2;
       table.add(target);
       const replayTrailGeom = new THREE.BufferGeometry();
       replayTrail = new THREE.Line(
