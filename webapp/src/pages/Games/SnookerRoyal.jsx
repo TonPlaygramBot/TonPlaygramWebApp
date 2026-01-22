@@ -11125,7 +11125,7 @@ function SnookerRoyalGame({
     const isTelegram = isTelegramWebView();
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
-  const viewButtonsOffsetPx = 32;
+  const viewButtonsOffsetPx = 38;
   const viewToggleButtonDropPx = 56 * 0.18;
   const [isPortrait, setIsPortrait] = useState(
     () => (typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth)
@@ -24643,7 +24643,11 @@ const powerRef = useRef(hud.power);
         : 0;
       const fallbackLeftWidth = uiScale * 120;
       const fallbackSpinWidth = uiScale * (SPIN_CONTROL_DIAMETER_PX + 64);
-      const leftInset = (leftBox?.width ?? fallbackLeftWidth) + 12;
+      const leftBoxIsLeft =
+        viewportWidth > 0 ? (leftBox?.left ?? 0) < viewportWidth * 0.5 : true;
+      const leftInset = leftBoxIsLeft
+      ? (leftBox?.width ?? fallbackLeftWidth) + 12
+      : uiScale * 24;
       const rightInset =
       (spinBox?.width ?? fallbackSpinWidth) +
       uiScale * 32 +
@@ -24655,7 +24659,9 @@ const powerRef = useRef(hud.power);
       if (viewportWidth > 0) {
       const sideMargin = 16;
       const leftCenter =
-        (leftBox ? leftBox.left + leftBox.width / 2 : leftInset / 2 + sideMargin);
+        leftBox && leftBoxIsLeft
+          ? leftBox.left + leftBox.width / 2
+          : leftInset / 2 + sideMargin;
       const spinWidth = spinBox?.width ?? fallbackSpinWidth;
       const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
       const spinCenter = spinLeft + spinWidth / 2;
