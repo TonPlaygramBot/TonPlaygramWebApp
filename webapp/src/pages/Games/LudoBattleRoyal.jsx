@@ -2374,351 +2374,70 @@ function makeTokenMaterial(color) {
   return material;
 }
 
-const TOKEN_MESH_SEGMENTS = 48;
-let tokenTargetHeight = null;
-
-function createTokenAccentMaterial(mat, lighten = 0.28) {
+function makeRook(mat) {
+  const g = new THREE.Group();
   const accent = mat.clone();
   if (accent.color) {
-    accent.color = accent.color.clone().lerp(new THREE.Color(0xffffff), lighten);
+    accent.color = accent.color.clone().lerp(new THREE.Color(0xffffff), 0.28);
   }
   accent.metalness = Math.min(0.55, (accent.metalness ?? 0) + 0.2);
   accent.roughness = Math.max(0.18, (accent.roughness ?? 0.32) - 0.12);
   accent.clearcoat = Math.min(0.95, (accent.clearcoat ?? 0.65) + 0.1);
   accent.clearcoatRoughness = Math.max(0.12, (accent.clearcoatRoughness ?? 0.18) * 0.65);
-  return accent;
-}
 
-function markTokenMesh(mesh, name) {
-  if (!mesh) return mesh;
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  if (name) mesh.name = name;
-  return mesh;
-}
-
-function normalizeTokenHeight(token, targetHeight) {
-  if (!token || !Number.isFinite(targetHeight) || targetHeight <= 0) return;
-  const box = new THREE.Box3().setFromObject(token);
-  const size = box.getSize(new THREE.Vector3());
-  if (!size.y) return;
-  const scale = targetHeight / size.y;
-  token.scale.multiplyScalar(scale);
-}
-
-function getTokenTargetHeight() {
-  if (Number.isFinite(tokenTargetHeight)) return tokenTargetHeight;
-  const tempMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-  const rook = makeRook(tempMat);
-  const box = new THREE.Box3().setFromObject(rook);
-  tokenTargetHeight = box.getSize(new THREE.Vector3()).y || 1;
-  return tokenTargetHeight;
-}
-
-function makeRook(mat) {
-  const g = new THREE.Group();
-  const accent = createTokenAccentMaterial(mat);
   const baseHeight = 0.018;
   const bodyHeight = 0.034;
   const crownHeight = 0.015;
   const crownRadius = 0.013;
   const finialRadius = 0.0065;
 
-  const base = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.032, baseHeight, TOKEN_MESH_SEGMENTS), mat),
-    'base'
-  );
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.032, baseHeight, 48), mat);
   base.position.y = baseHeight / 2;
+  base.castShadow = true;
+  base.receiveShadow = true;
 
-  const body = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, bodyHeight, TOKEN_MESH_SEGMENTS), mat),
-    'body'
-  );
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, bodyHeight, 48), mat);
   body.position.y = baseHeight + bodyHeight / 2;
+  body.castShadow = true;
+  body.receiveShadow = true;
 
-  const collar = markTokenMesh(
-    new THREE.Mesh(new THREE.TorusGeometry(0.019, 0.0032, 18, TOKEN_MESH_SEGMENTS), accent),
-    'collar'
-  );
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.019, 0.0032, 18, 48), accent);
   collar.rotation.x = Math.PI / 2;
   collar.position.y = baseHeight + bodyHeight;
+  collar.castShadow = true;
+  collar.receiveShadow = true;
 
-  const crownBase = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.02, crownHeight, TOKEN_MESH_SEGMENTS), accent),
-    'crown'
-  );
+  const crownBase = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.02, crownHeight, 48), accent);
   crownBase.position.y = baseHeight + bodyHeight + crownHeight / 2;
-  crownBase.userData.tokenHead = true;
+  crownBase.castShadow = true;
+  crownBase.receiveShadow = true;
 
-  const crownTop = markTokenMesh(
-    new THREE.Mesh(new THREE.SphereGeometry(crownRadius, 32, 24), accent),
-    'crownTop'
-  );
+  const crownTop = new THREE.Mesh(new THREE.SphereGeometry(crownRadius, 32, 24), accent);
   crownTop.position.y = baseHeight + bodyHeight + crownHeight + crownRadius;
-  crownTop.userData.tokenHead = true;
+  crownTop.castShadow = true;
+  crownTop.receiveShadow = true;
 
   const finialMaterial = accent.clone();
   finialMaterial.metalness = Math.min(0.7, finialMaterial.metalness + 0.1);
   finialMaterial.roughness = Math.max(0.12, finialMaterial.roughness - 0.08);
-  const finial = markTokenMesh(
-    new THREE.Mesh(new THREE.SphereGeometry(finialRadius, 24, 18), finialMaterial),
-    'finial'
-  );
+  const finial = new THREE.Mesh(new THREE.SphereGeometry(finialRadius, 24, 18), finialMaterial);
   finial.position.y = crownTop.position.y + crownRadius * 0.7;
-  finial.userData.tokenHead = true;
+  finial.castShadow = true;
+  finial.receiveShadow = true;
+
+  const label = createTokenCountLabel();
+  if (label) {
+    g.add(label);
+    g.userData.countLabel = label;
+  }
+
+  const tokenColorHex = mat?.color?.getHexString?.();
+  if (tokenColorHex) {
+    g.userData.tokenColor = `#${tokenColorHex}`;
+  }
 
   g.add(base, body, collar, crownBase, crownTop, finial);
   return g;
-}
-
-function makePawn(mat) {
-  const g = new THREE.Group();
-  const accent = createTokenAccentMaterial(mat, 0.22);
-  const baseHeight = 0.016;
-  const bodyHeight = 0.028;
-  const neckHeight = 0.01;
-  const headRadius = 0.013;
-
-  const base = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.033, baseHeight, TOKEN_MESH_SEGMENTS), mat),
-    'base'
-  );
-  base.position.y = baseHeight / 2;
-
-  const body = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.022, bodyHeight, TOKEN_MESH_SEGMENTS), mat),
-    'body'
-  );
-  body.position.y = baseHeight + bodyHeight / 2;
-
-  const neck = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, neckHeight, TOKEN_MESH_SEGMENTS), accent),
-    'neck'
-  );
-  neck.position.y = baseHeight + bodyHeight + neckHeight / 2;
-
-  const head = markTokenMesh(
-    new THREE.Mesh(new THREE.SphereGeometry(headRadius, 28, 20), accent),
-    'head'
-  );
-  head.position.y = baseHeight + bodyHeight + neckHeight + headRadius * 1.05;
-  head.userData.tokenHead = true;
-
-  g.add(base, body, neck, head);
-  return g;
-}
-
-function makeKnight(mat) {
-  const g = new THREE.Group();
-  const accent = createTokenAccentMaterial(mat, 0.3);
-  const baseHeight = 0.016;
-  const bodyHeight = 0.028;
-  const neckHeight = 0.015;
-
-  const base = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.033, baseHeight, TOKEN_MESH_SEGMENTS), mat),
-    'base'
-  );
-  base.position.y = baseHeight / 2;
-
-  const body = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.023, bodyHeight, TOKEN_MESH_SEGMENTS), mat),
-    'body'
-  );
-  body.position.y = baseHeight + bodyHeight / 2;
-
-  const neck = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.017, neckHeight, TOKEN_MESH_SEGMENTS), accent),
-    'neck'
-  );
-  neck.position.y = baseHeight + bodyHeight + neckHeight / 2;
-
-  const head = markTokenMesh(
-    new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.025, 0.016), accent),
-    'head'
-  );
-  head.position.y = baseHeight + bodyHeight + neckHeight + 0.015;
-  head.position.z = 0.006;
-  head.rotation.x = -0.1;
-  head.userData.tokenHead = true;
-
-  const muzzle = markTokenMesh(
-    new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.02, 18), accent),
-    'muzzle'
-  );
-  muzzle.position.set(0, head.position.y + 0.01, 0.014);
-  muzzle.rotation.x = Math.PI / 2.4;
-  muzzle.userData.tokenHead = true;
-
-  g.add(base, body, neck, head, muzzle);
-  return g;
-}
-
-function makeBishop(mat) {
-  const g = new THREE.Group();
-  const accent = createTokenAccentMaterial(mat, 0.25);
-  const baseHeight = 0.016;
-  const bodyHeight = 0.03;
-  const headHeight = 0.02;
-
-  const base = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.033, baseHeight, TOKEN_MESH_SEGMENTS), mat),
-    'base'
-  );
-  base.position.y = baseHeight / 2;
-
-  const body = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.023, bodyHeight, TOKEN_MESH_SEGMENTS), mat),
-    'body'
-  );
-  body.position.y = baseHeight + bodyHeight / 2;
-
-  const collar = markTokenMesh(
-    new THREE.Mesh(new THREE.TorusGeometry(0.017, 0.003, 16, TOKEN_MESH_SEGMENTS), accent),
-    'collar'
-  );
-  collar.rotation.x = Math.PI / 2;
-  collar.position.y = baseHeight + bodyHeight;
-
-  const head = markTokenMesh(
-    new THREE.Mesh(new THREE.SphereGeometry(0.014, 26, 18), accent),
-    'head'
-  );
-  head.position.y = baseHeight + bodyHeight + headHeight * 0.55;
-  head.userData.tokenHead = true;
-
-  const tip = markTokenMesh(
-    new THREE.Mesh(new THREE.ConeGeometry(0.01, 0.018, 20), accent),
-    'tip'
-  );
-  tip.position.y = head.position.y + 0.016;
-  tip.userData.tokenHead = true;
-
-  g.add(base, body, collar, head, tip);
-  return g;
-}
-
-function makeQueen(mat) {
-  const g = new THREE.Group();
-  const accent = createTokenAccentMaterial(mat, 0.32);
-  const baseHeight = 0.017;
-  const bodyHeight = 0.032;
-  const crownHeight = 0.018;
-
-  const base = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.034, baseHeight, TOKEN_MESH_SEGMENTS), mat),
-    'base'
-  );
-  base.position.y = baseHeight / 2;
-
-  const body = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.024, bodyHeight, TOKEN_MESH_SEGMENTS), mat),
-    'body'
-  );
-  body.position.y = baseHeight + bodyHeight / 2;
-
-  const collar = markTokenMesh(
-    new THREE.Mesh(new THREE.TorusGeometry(0.019, 0.0032, 18, TOKEN_MESH_SEGMENTS), accent),
-    'collar'
-  );
-  collar.rotation.x = Math.PI / 2;
-  collar.position.y = baseHeight + bodyHeight;
-
-  const crown = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.022, crownHeight, TOKEN_MESH_SEGMENTS), accent),
-    'crown'
-  );
-  crown.position.y = baseHeight + bodyHeight + crownHeight / 2;
-  crown.userData.tokenHead = true;
-
-  const gem = markTokenMesh(
-    new THREE.Mesh(new THREE.SphereGeometry(0.01, 20, 16), accent),
-    'gem'
-  );
-  gem.position.y = baseHeight + bodyHeight + crownHeight + 0.01;
-  gem.userData.tokenHead = true;
-
-  g.add(base, body, collar, crown, gem);
-  return g;
-}
-
-function makeKing(mat) {
-  const g = new THREE.Group();
-  const accent = createTokenAccentMaterial(mat, 0.34);
-  const baseHeight = 0.017;
-  const bodyHeight = 0.034;
-  const crownHeight = 0.018;
-
-  const base = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.035, baseHeight, TOKEN_MESH_SEGMENTS), mat),
-    'base'
-  );
-  base.position.y = baseHeight / 2;
-
-  const body = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.024, bodyHeight, TOKEN_MESH_SEGMENTS), mat),
-    'body'
-  );
-  body.position.y = baseHeight + bodyHeight / 2;
-
-  const collar = markTokenMesh(
-    new THREE.Mesh(new THREE.TorusGeometry(0.019, 0.0032, 18, TOKEN_MESH_SEGMENTS), accent),
-    'collar'
-  );
-  collar.rotation.x = Math.PI / 2;
-  collar.position.y = baseHeight + bodyHeight;
-
-  const crown = markTokenMesh(
-    new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.021, crownHeight, TOKEN_MESH_SEGMENTS), accent),
-    'crown'
-  );
-  crown.position.y = baseHeight + bodyHeight + crownHeight / 2;
-  crown.userData.tokenHead = true;
-
-  const crossVert = markTokenMesh(
-    new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.02, 0.006), accent),
-    'cross'
-  );
-  crossVert.position.y = baseHeight + bodyHeight + crownHeight + 0.01;
-  crossVert.userData.tokenHead = true;
-
-  const crossH = markTokenMesh(
-    new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.0045, 0.006), accent),
-    'crossBar'
-  );
-  crossH.position.y = crossVert.position.y + 0.003;
-  crossH.userData.tokenHead = true;
-
-  g.add(base, body, collar, crown, crossVert, crossH);
-  return g;
-}
-
-function makeChessToken(type, mat) {
-  const targetHeight = getTokenTargetHeight();
-  let token;
-  switch ((type || '').toLowerCase()) {
-    case 'p':
-      token = makePawn(mat);
-      break;
-    case 'n':
-      token = makeKnight(mat);
-      break;
-    case 'b':
-      token = makeBishop(mat);
-      break;
-    case 'q':
-      token = makeQueen(mat);
-      break;
-    case 'k':
-      token = makeKing(mat);
-      break;
-    case 'r':
-    default:
-      token = makeRook(mat);
-      break;
-  }
-  normalizeTokenHeight(token, targetHeight);
-  return token;
 }
 
 function makeHeadMaterial(preset) {
@@ -5823,7 +5542,7 @@ async function buildLudoBoard(
   const tokens = playerColors.slice(0, playerCount).map((color, playerIdx) => {
     return Array.from({ length: 4 }, (_, i) => {
       const type = tokenTypeSequence[i % tokenTypeSequence.length];
-      const token = makeChessToken(type, makeTokenMaterial(color));
+      const token = makeRook(makeTokenMaterial(color));
       if (headPreset) {
         applyHeadPresetToToken(token, headPreset);
       }
