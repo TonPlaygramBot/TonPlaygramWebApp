@@ -559,9 +559,6 @@ export const AIR_HOCKEY_CUSTOMIZATION = Object.freeze({
     Object.freeze({ id: 'violet', name: 'Violet', color: '#a855f7', knob: '#312e81' }),
     Object.freeze({ id: 'lime', name: 'Lime', color: '#84cc16', knob: '#1a2e05' })
   ]),
-  rails: Object.freeze([
-    Object.freeze({ id: 'woodenRails', name: 'Wooden Rails', color: '#8f6243', opacity: 1 })
-  ]),
   goals: Object.freeze([
     Object.freeze({ id: 'mintNet', name: 'Mint Net', color: '#99ffd6', emissive: '#1aaf80' }),
     Object.freeze({ id: 'crimsonNet', name: 'Crimson Net', color: '#ef4444', emissive: '#7f1d1d' }),
@@ -620,7 +617,6 @@ export const AIR_HOCKEY_STORE_ITEMS = [
   { id: 'mallet-amber', type: 'mallet', optionId: 'amber', name: 'Amber Mallets', price: 280, description: 'Amber mallets with dark wood knobs.' },
   { id: 'mallet-violet', type: 'mallet', optionId: 'violet', name: 'Violet Mallets', price: 300, description: 'Violet mallets with indigo knobs.' },
   { id: 'mallet-lime', type: 'mallet', optionId: 'lime', name: 'Lime Mallets', price: 320, description: 'Lime mallets with forest knobs.' },
-  { id: 'rails-wooden', type: 'rails', optionId: 'woodenRails', name: 'Wooden Rails', price: 0, description: 'Solid wood rails fitted inside the Pool Royale frame.' },
   { id: 'goal-crimson', type: 'goals', optionId: 'crimsonNet', name: 'Crimson Net Goals', price: 330, description: 'Crimson goal nets with deep ember glow.' },
   { id: 'goal-cobalt', type: 'goals', optionId: 'cobaltNet', name: 'Cobalt Net Goals', price: 360, description: 'Cobalt nets with electric blue emissive.' },
   { id: 'goal-amber', type: 'goals', optionId: 'amberNet', name: 'Amber Net Goals', price: 390, description: 'Amber nets with warm metallic shine.' },
@@ -664,6 +660,5 @@ export const AIR_HOCKEY_DEFAULT_LOADOUT = [
   { type: 'environmentHdri', optionId: AIR_HOCKEY_CUSTOMIZATION.environmentHdri[0].id, label: AIR_HOCKEY_CUSTOMIZATION.environmentHdri[0].name },
   { type: 'puck', optionId: AIR_HOCKEY_CUSTOMIZATION.puck[0].id, label: AIR_HOCKEY_CUSTOMIZATION.puck[0].name },
   { type: 'mallet', optionId: AIR_HOCKEY_CUSTOMIZATION.mallet[0].id, label: AIR_HOCKEY_CUSTOMIZATION.mallet[0].name },
-  { type: 'rails', optionId: AIR_HOCKEY_CUSTOMIZATION.rails[0].id, label: AIR_HOCKEY_CUSTOMIZATION.rails[0].name },
   { type: 'goals', optionId: AIR_HOCKEY_CUSTOMIZATION.goals[0].id, label: AIR_HOCKEY_CUSTOMIZATION.goals[0].name }
 ];
