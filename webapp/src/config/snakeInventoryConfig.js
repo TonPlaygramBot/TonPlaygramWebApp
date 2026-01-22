@@ -52,14 +52,6 @@ const SNAKE_TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'king', label: 'King Token' }
 ]);
 
-export const SNAKE_HEAD_STYLE_OPTIONS = Object.freeze([
-  { id: 'current', label: 'Current' },
-  { id: 'headRuby', label: 'Ruby' },
-  { id: 'headSapphire', label: 'Sapphire' },
-  { id: 'headChrome', label: 'Chrome' },
-  { id: 'headGold', label: 'Gold' }
-]);
-
 export const SNAKE_TOKEN_COLOR_OPTIONS = Object.freeze([
   { id: 'marble', label: 'Marble', color: '#f8fafc' },
   { id: 'darkForest', label: 'Dark Forest', color: '#14532d' },
@@ -80,7 +72,6 @@ export const SNAKE_DEFAULT_UNLOCKS = Object.freeze({
   railTheme: ['platinumOak'],
   tokenFinish: ['ceramicSheen'],
   tokenColor: ['amberGlow', 'mintVale', 'royalWave', 'roseMist'],
-  headStyle: ['current'],
   tableFinish: [SNAKE_TABLE_FINISH_OPTIONS[0].id],
   floorTexture: [SNAKE_FLOOR_TEXTURE_OPTIONS[0].id],
   wallTexture: [SNAKE_WALL_TEXTURE_OPTIONS[0].id],
@@ -122,7 +113,6 @@ export const SNAKE_OPTION_LABELS = Object.freeze({
     holographicPulse: 'Holographic Pulse'
   }),
   tokenColor: mapLabels(SNAKE_TOKEN_COLOR_OPTIONS),
-  headStyle: mapLabels(SNAKE_HEAD_STYLE_OPTIONS),
   tableFinish: mapLabels(SNAKE_TABLE_FINISH_OPTIONS),
   floorTexture: mapLabels(SNAKE_FLOOR_TEXTURE_OPTIONS),
   wallTexture: mapLabels(SNAKE_WALL_TEXTURE_OPTIONS),
@@ -274,14 +264,6 @@ export const SNAKE_STORE_ITEMS = [
     name: option.label,
     price: 480 + idx * 35,
     description: `Chess Battle Royal ${option.label.toLowerCase()} piece token.`
-  })),
-  ...SNAKE_HEAD_STYLE_OPTIONS.filter((option) => option.id !== 'current').map((option, idx) => ({
-    id: `snake-head-${option.id}`,
-    type: 'headStyle',
-    optionId: option.id,
-    name: `${option.label} Pawn Heads`,
-    price: 310 + idx * 25,
-    description: 'Unlocks an additional pawn head glass preset.'
   }))
 ].concat(
   MURLAN_TABLE_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
@@ -322,7 +304,6 @@ export const SNAKE_DEFAULT_LOADOUT = [
   { type: 'railTheme', optionId: 'platinumOak', label: 'Platinum & Oak Rails' },
   { type: 'tokenFinish', optionId: 'ceramicSheen', label: 'Ceramic Sheen Tokens' },
   { type: 'tokenColor', optionId: 'amberGlow', label: 'Amber Glow Tokens' },
-  { type: 'headStyle', optionId: 'current', label: 'Current Pawn Heads' },
   {
     type: 'tableFinish',
     optionId: SNAKE_TABLE_FINISH_OPTIONS[0].id,

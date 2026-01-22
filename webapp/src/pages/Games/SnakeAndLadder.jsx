@@ -38,10 +38,7 @@ import {
 } from "../../utils/api.js";
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from "../../config/poolRoyaleInventoryConfig.js";
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from "../../config/murlanThemes.js";
-import {
-  SNAKE_HEAD_STYLE_OPTIONS,
-  SNAKE_TOKEN_COLOR_OPTIONS
-} from "../../config/snakeInventoryConfig.js";
+import { SNAKE_TOKEN_COLOR_OPTIONS } from "../../config/snakeInventoryConfig.js";
 // Developer accounts that receive shares of each pot
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -101,47 +98,6 @@ const TOKEN_COLOR_OPTIONS = Object.freeze(
     id: option.id,
     label: option.label,
     color: option.color
-  }))
-);
-const HEAD_STYLE_PRESETS = Object.freeze({
-  current: null,
-  headRuby: {
-    color: '#9b111e',
-    metalness: 0.05,
-    roughness: 0.08,
-    transmission: 0.92,
-    ior: 2.4,
-    thickness: 0.6
-  },
-  headSapphire: {
-    color: '#0f52ba',
-    metalness: 0.05,
-    roughness: 0.08,
-    transmission: 0.9,
-    ior: 1.8,
-    thickness: 0.7
-  },
-  headChrome: {
-    color: '#d6d8dc',
-    metalness: 0.95,
-    roughness: 0.12,
-    transmission: 0.1,
-    ior: 2.1,
-    thickness: 0.22
-  },
-  headGold: {
-    color: '#d4af37',
-    metalness: 0.92,
-    roughness: 0.16,
-    transmission: 0.06,
-    ior: 1.85,
-    thickness: 0.28
-  }
-});
-const HEAD_STYLE_OPTIONS = Object.freeze(
-  SNAKE_HEAD_STYLE_OPTIONS.map((option) => ({
-    ...option,
-    preset: HEAD_STYLE_PRESETS[option.id] ?? null
   }))
 );
 const AI_TOKEN_COLOR_ORDER = Object.freeze(['mintVale', 'royalWave', 'roseMist']);
@@ -715,7 +671,6 @@ const SNAKE_CUSTOMIZATION_SECTIONS = [
   { key: 'boardPalette', label: 'Board Palette', options: BOARD_PALETTE_OPTIONS },
   { key: 'diceTheme', label: 'Dice Finish', options: DICE_THEME_OPTIONS },
   { key: 'tokenShape', label: 'Token Shape', options: TOKEN_SHAPE_OPTIONS },
-  { key: 'headStyle', label: 'Pawn Heads', options: HEAD_STYLE_OPTIONS },
   { key: 'tableFinish', label: 'Table Finish', options: TABLE_FINISH_OPTIONS },
   { key: 'tables', label: 'Table Models', options: TABLE_THEME_OPTIONS },
   { key: 'stools', label: 'Chairs', options: STOOL_THEME_OPTIONS },
@@ -785,7 +740,6 @@ const DEFAULT_APPEARANCE = Object.freeze({
   boardPalette: 0,
   diceTheme: 0,
   tokenShape: 0,
-  headStyle: 0,
   tableFinish: 0,
   tables: 0,
   stools: 0,
@@ -805,7 +759,6 @@ function normalizeAppearance(value = {}) {
     ['boardPalette', BOARD_PALETTE_OPTIONS.length],
     ['diceTheme', DICE_THEME_OPTIONS.length],
     ['tokenShape', TOKEN_SHAPE_OPTIONS.length],
-    ['headStyle', HEAD_STYLE_OPTIONS.length],
     ['tableFinish', TABLE_FINISH_OPTIONS.length],
     ['tables', TABLE_THEME_OPTIONS.length],
     ['stools', STOOL_THEME_OPTIONS.length],
@@ -833,7 +786,6 @@ function resolveAppearance(appearance) {
   const rail = RAIL_THEME_OPTIONS[0];
   const token = TOKEN_FINISH_OPTIONS[0];
   const tokenShape = TOKEN_SHAPE_OPTIONS[normalized.tokenShape] ?? TOKEN_SHAPE_OPTIONS[0];
-  const headStyle = HEAD_STYLE_OPTIONS[normalized.headStyle] ?? HEAD_STYLE_OPTIONS[0];
   const tableFinish = TABLE_FINISH_OPTIONS[normalized.tableFinish] ?? TABLE_FINISH_OPTIONS[0];
   const snakeSkin = SNAKE_SKIN_OPTIONS[0];
   const tableTheme = TABLE_THEME_OPTIONS[normalized.tables] ?? TABLE_THEME_OPTIONS[0];
@@ -856,7 +808,6 @@ function resolveAppearance(appearance) {
     rail: { ...rail },
     token: { ...token },
     tokenShape,
-    headStyle,
     tableFinish,
     snakeSkin: { ...snakeSkin },
     tableTheme,
@@ -2877,22 +2828,6 @@ export default function SnakeAndLadder() {
         return (
           <div className="flex h-12 w-full items-center justify-center rounded-xl border border-white/10 bg-slate-900/70 text-base text-white/80">
             ♟️
-          </div>
-        );
-      }
-      case 'headStyle': {
-        const accent = option.preset?.color ?? '#f8fafc';
-        return (
-          <div className="w-full h-12 flex items-center justify-center">
-            <div
-              className="relative h-10 w-10 rounded-full border border-white/15"
-              style={{
-                background: `radial-gradient(circle at 30% 30%, ${lightenHex(accent, 0.35)}, ${accent})`,
-                boxShadow: `0 8px 18px ${accent}33`
-              }}
-            >
-              <div className="absolute inset-2 rounded-full border border-white/30" />
-            </div>
           </div>
         );
       }
