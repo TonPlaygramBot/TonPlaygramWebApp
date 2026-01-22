@@ -384,91 +384,143 @@ const AIR_HOCKEY_TABLE_BASES = Object.freeze([
   })
 ]);
 
-const createSurfaceTextureUrls = (assetId, size = '2k') =>
+const createMarbleTextureUrls = (assetId, size = '2k') =>
   Object.freeze({
     diffuse: `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${size}/${assetId}/${assetId}_diff_${size}.jpg`,
     normal: `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${size}/${assetId}/${assetId}_nor_gl_${size}.jpg`,
     roughness: `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${size}/${assetId}/${assetId}_rough_${size}.jpg`
   });
 
-const AIR_HOCKEY_FIELD_FINISHES = Object.freeze([
+const AIR_HOCKEY_MARBLE_FIELDS = Object.freeze([
   Object.freeze({
-    id: 'marbleMosaic',
-    name: 'Marble Mosaic',
-    assetId: 'marble_mosaic_tiles',
-    textureUrls: createSurfaceTextureUrls('marble_mosaic_tiles'),
-    swatches: ['#f5f3f4', '#e7e5e4'],
-    repeat: 1.2,
+    id: 'carraraClassic',
+    name: 'Carrara Classic',
+    assetId: 'marble_01',
+    textureUrls: createMarbleTextureUrls('marble_01'),
+    swatches: ['#f5f5f4', '#e7e5e4'],
+    repeat: 1.1,
     lineColor: '#f8fafc',
-    roughness: 0.24,
-    clearcoat: 0.34,
-    clearcoatRoughness: 0.2,
-    description: 'Open-source marble mosaic tiles from Poly Haven (CC0).'
-  }),
-  Object.freeze({
-    id: 'marbleTiles',
-    name: 'Marble Tiles',
-    assetId: 'marble_tiles',
-    textureUrls: createSurfaceTextureUrls('marble_tiles'),
-    swatches: ['#f1f5f9', '#e2e8f0'],
-    repeat: 1.15,
-    lineColor: '#f8fafc',
-    roughness: 0.26,
+    roughness: 0.22,
     clearcoat: 0.32,
     clearcoatRoughness: 0.2,
-    description: 'Open-source honed marble tile texture from Poly Haven (CC0).'
+    description: 'Open-source Carrara marble texture sourced from Poly Haven.'
   }),
   Object.freeze({
-    id: 'graphiteMetallic',
-    name: 'Graphite Metallic',
-    assetId: 'metal_plate_02',
-    textureUrls: createSurfaceTextureUrls('metal_plate_02'),
-    swatches: ['#1f2937', '#4b5563'],
-    repeat: 1,
-    lineColor: '#e2e8f0',
-    roughness: 0.18,
-    clearcoat: 0.48,
-    clearcoatRoughness: 0.18,
-    description: 'Dark metallic automotive paint finish inspired by CC0 metal plate textures.'
-  }),
-  Object.freeze({
-    id: 'cobaltMetallic',
-    name: 'Cobalt Metallic',
-    assetId: 'blue_metal_plate',
-    textureUrls: createSurfaceTextureUrls('blue_metal_plate'),
-    swatches: ['#1e3a8a', '#60a5fa'],
-    repeat: 1.02,
-    lineColor: '#e0f2fe',
-    roughness: 0.2,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.2,
-    description: 'Blue metallic paint finish built from CC0 Poly Haven metal textures.'
-  }),
-  Object.freeze({
-    id: 'crimsonMetallic',
-    name: 'Crimson Metallic',
-    assetId: 'rusty_painted_metal',
-    textureUrls: createSurfaceTextureUrls('rusty_painted_metal'),
-    swatches: ['#7f1d1d', '#ef4444'],
-    repeat: 1,
-    lineColor: '#fee2e2',
-    roughness: 0.22,
-    clearcoat: 0.46,
+    id: 'silverVein',
+    name: 'Silver Vein',
+    assetId: 'marble_02',
+    textureUrls: createMarbleTextureUrls('marble_02'),
+    swatches: ['#e2e8f0', '#cbd5f5'],
+    repeat: 1.1,
+    lineColor: '#f8fafc',
+    roughness: 0.24,
+    clearcoat: 0.3,
     clearcoatRoughness: 0.22,
-    description: 'Crimson automotive paint vibe from open-source painted metal textures.'
+    description: 'Cool silver marble texture with soft veining from Poly Haven.'
   }),
   Object.freeze({
-    id: 'pearlMetallic',
-    name: 'Pearl Metallic',
-    assetId: 'painted_metal_shutter',
-    textureUrls: createSurfaceTextureUrls('painted_metal_shutter'),
-    swatches: ['#f8fafc', '#cbd5f5'],
+    id: 'ivoryMist',
+    name: 'Ivory Mist',
+    assetId: 'marble_03',
+    textureUrls: createMarbleTextureUrls('marble_03'),
+    swatches: ['#fef3c7', '#fde68a'],
     repeat: 1.05,
-    lineColor: '#f1f5f9',
+    lineColor: '#fff7ed',
     roughness: 0.2,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.18,
-    description: 'Bright pearlescent metallic paint feel using CC0 painted metal textures.'
+    clearcoat: 0.34,
+    clearcoatRoughness: 0.2,
+    description: 'Warm ivory marble texture with open-source scan detail.'
+  }),
+  Object.freeze({
+    id: 'roseQuartz',
+    name: 'Rose Quartz',
+    assetId: 'marble_04',
+    textureUrls: createMarbleTextureUrls('marble_04'),
+    swatches: ['#fecdd3', '#fda4af'],
+    repeat: 1.05,
+    lineColor: '#fff1f2',
+    roughness: 0.23,
+    clearcoat: 0.34,
+    clearcoatRoughness: 0.22,
+    description: 'Soft rose marble texture from Poly Haven’s open collection.'
+  }),
+  Object.freeze({
+    id: 'emeraldCascade',
+    name: 'Emerald Cascade',
+    assetId: 'marble_05',
+    textureUrls: createMarbleTextureUrls('marble_05'),
+    swatches: ['#bbf7d0', '#4ade80'],
+    repeat: 1.05,
+    lineColor: '#dcfce7',
+    roughness: 0.25,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.24,
+    description: 'Green marble texture with lively veins (Poly Haven CC0).'
+  }),
+  Object.freeze({
+    id: 'noirOnyx',
+    name: 'Noir Onyx',
+    assetId: 'marble_06',
+    textureUrls: createMarbleTextureUrls('marble_06'),
+    swatches: ['#111827', '#374151'],
+    repeat: 1,
+    lineColor: '#e5e7eb',
+    roughness: 0.28,
+    clearcoat: 0.28,
+    clearcoatRoughness: 0.24,
+    description: 'Deep onyx marble with bold contrast from Poly Haven.'
+  }),
+  Object.freeze({
+    id: 'glacierBlue',
+    name: 'Glacier Blue',
+    assetId: 'marble_07',
+    textureUrls: createMarbleTextureUrls('marble_07'),
+    swatches: ['#dbeafe', '#93c5fd'],
+    repeat: 1.1,
+    lineColor: '#f8fafc',
+    roughness: 0.21,
+    clearcoat: 0.34,
+    clearcoatRoughness: 0.2,
+    description: 'Icy blue marble texture with open-source scan quality.'
+  }),
+  Object.freeze({
+    id: 'smokeSlate',
+    name: 'Smoke Slate',
+    assetId: 'marble_08',
+    textureUrls: createMarbleTextureUrls('marble_08'),
+    swatches: ['#d1d5db', '#6b7280'],
+    repeat: 1.1,
+    lineColor: '#f3f4f6',
+    roughness: 0.26,
+    clearcoat: 0.28,
+    clearcoatRoughness: 0.24,
+    description: 'Smoky slate marble texture from Poly Haven (CC0).'
+  }),
+  Object.freeze({
+    id: 'goldenSand',
+    name: 'Golden Sand',
+    assetId: 'marble_09',
+    textureUrls: createMarbleTextureUrls('marble_09'),
+    swatches: ['#fef3c7', '#facc15'],
+    repeat: 1.08,
+    lineColor: '#fff7ed',
+    roughness: 0.22,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.22,
+    description: 'Golden sand marble with warm veining (open-source).'
+  }),
+  Object.freeze({
+    id: 'violetStorm',
+    name: 'Violet Storm',
+    assetId: 'marble_10',
+    textureUrls: createMarbleTextureUrls('marble_10'),
+    swatches: ['#ddd6fe', '#a78bfa'],
+    repeat: 1.05,
+    lineColor: '#f5f3ff',
+    roughness: 0.24,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.22,
+    description: 'Violet marble texture with expressive veins from Poly Haven.'
   })
 ]);
 
@@ -488,7 +540,7 @@ const AIR_HOCKEY_CUSHION_CLOTH_OPTIONS = Object.freeze(
 );
 
 export const AIR_HOCKEY_CUSTOMIZATION = Object.freeze({
-  field: AIR_HOCKEY_FIELD_FINISHES,
+  field: AIR_HOCKEY_MARBLE_FIELDS,
   cushionCloth: AIR_HOCKEY_CUSHION_CLOTH_OPTIONS,
   table: AIR_HOCKEY_TABLE_FINISHES,
   tableBase: AIR_HOCKEY_TABLE_BASES,
@@ -540,11 +592,11 @@ export const AIR_HOCKEY_OPTION_LABELS = Object.freeze(
 );
 
 export const AIR_HOCKEY_STORE_ITEMS = [
-  ...AIR_HOCKEY_FIELD_FINISHES.map((field, idx) => ({
+  ...AIR_HOCKEY_MARBLE_FIELDS.map((field, idx) => ({
     id: `field-${field.id}`,
     type: 'field',
     optionId: field.id,
-    name: `${field.name} Finish`,
+    name: `${field.name} Marble`,
     price: 520 + idx * 20,
     description: field.description,
     swatches: field.swatches
