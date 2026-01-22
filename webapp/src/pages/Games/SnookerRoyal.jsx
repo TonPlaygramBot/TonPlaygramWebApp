@@ -31,7 +31,7 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { SnookerRoyalRules } from '../../../../src/rules/SnookerRoyalRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/snookerClubTables.js';
-import { isGameMuted, getGameVolume, toggleGameMuted } from '../../utils/sound.js';
+import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import {
   createBallPreviewDataUrl,
   getBallMaterial as getBilliardBallMaterial
@@ -73,6 +73,7 @@ import {
   resolvePlayableTrainingLevel
 } from '../../utils/snookerRoyalTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
@@ -11124,6 +11125,8 @@ function SnookerRoyalGame({
     const isTelegram = isTelegramWebView();
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
+  const viewButtonsOffsetPx = 32;
+  const viewToggleButtonDropPx = 56 * 0.18;
   const [isPortrait, setIsPortrait] = useState(
     () => (typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth)
   );
@@ -24935,10 +24938,11 @@ const powerRef = useRef(hud.power);
     },
     [ballPreviewCache]
   );
-  const pottedTokenSize = isPortrait ? 20 : 22;
-  const pottedGap = isPortrait ? 7 : 9;
+  const pottedTokenSize = isPortrait ? 24 : 26;
+  const pottedNumberBadgeSize = Math.max(10, Math.round(pottedTokenSize * 0.48));
+  const pottedGap = isPortrait ? 8 : 10;
   const renderPottedRow = useCallback(
-    (entries = []) => {
+    (entries = [], highlightId = null, glowColor = null) => {
       if (!entries.length) {
         return (
           <div
@@ -24992,12 +24996,23 @@ const powerRef = useRef(hud.power);
                     : isSolid
                       ? 'SO'
                       : colorKey.charAt(0);
+            const badgeNumber =
+              ballNumber != null ? ballNumber : colorKey === 'BLACK' ? 8 : null;
             const textColor = colorKey === 'BLACK' ? '#f8fafc' : '#0f172a';
             const shade = darkenHex(colorHex, 0.6);
             const gloss = isStripe
               ? `linear-gradient(90deg, transparent 28%, rgba(255,255,255,0.9) 28%, rgba(255,255,255,0.9) 72%, transparent 72%), `
               : '';
             const background = `${gloss}radial-gradient(circle at 30% 30%, rgba(255,255,255,0.82) 0, rgba(255,255,255,0.58) 36%, ${colorHex} 62%, ${shade} 94%)`;
+            const entryKey = String(entry.id ?? colorKey);
+            const highlightKey = highlightId != null ? String(highlightId) : null;
+            const shouldGlow = highlightKey && entryKey === highlightKey;
+            const glowStyle =
+              shouldGlow && glowColor
+                ? {
+                    boxShadow: `0 0 12px ${glowColor}, 0 0 22px ${glowColor}`
+                  }
+                : undefined;
             const previewUrl = getBallPreview({
               colorHex,
               pattern: isStripe ? 'stripe' : 'solid',
@@ -25012,17 +25027,36 @@ const powerRef = useRef(hud.power);
                 title={altLabel}
               >
                 {previewUrl ? (
-                  <img
-                    src={previewUrl}
-                    alt={altLabel}
-                    className="h-full w-full rounded-full border border-white/40 shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
-                  />
+                  <span
+                    className="relative flex h-full w-full items-center justify-center"
+                    style={glowStyle}
+                  >
+                    <img
+                      src={previewUrl}
+                      alt={altLabel}
+                      className="h-full w-full rounded-full border border-white/40 shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
+                    />
+                  </span>
                 ) : (
                   <span
-                    className="flex h-full w-full items-center justify-center rounded-full border border-white/40 text-[9px] font-bold leading-none shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
-                    style={{ background, color: textColor }}
+                    className="relative flex h-full w-full items-center justify-center rounded-full border border-white/40 text-[9px] font-bold leading-none shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
+                    style={{ background, color: textColor, ...glowStyle }}
                   >
                     <span className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">{label}</span>
+                  </span>
+                )}
+                {badgeNumber != null && (
+                  <span
+                    className="absolute flex items-center justify-center rounded-full border border-white/80 bg-white text-[10px] font-extrabold text-black shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
+                    style={{
+                      top: '6%',
+                      left: '50%',
+                      width: `${pottedNumberBadgeSize}px`,
+                      height: `${pottedNumberBadgeSize}px`,
+                      transform: 'translateX(-50%)'
+                    }}
+                  >
+                    {badgeNumber}
                   </span>
                 )}
               </span>
@@ -25031,19 +25065,55 @@ const powerRef = useRef(hud.power);
         </div>
       );
     },
-    [americanBallSwatches, ballSwatches, darkenHex, getBallPreview, isUkAmericanSet, pottedGap, pottedTokenSize]
+    [
+      americanBallSwatches,
+      ballSwatches,
+      darkenHex,
+      getBallPreview,
+      isUkAmericanSet,
+      pottedGap,
+      pottedNumberBadgeSize,
+      pottedTokenSize
+    ]
   );
   const playerSeatId = localSeat === 'A' ? 'A' : 'B';
   const opponentSeatId = playerSeatId === 'A' ? 'B' : 'A';
   const playerPotted = pottedBySeat[playerSeatId] || [];
   const opponentPotted = pottedBySeat[opponentSeatId] || [];
+  const lastPotGlow =
+    playerPotted.length || opponentPotted.length
+      ? frameState?.foul
+        ? 'rgba(248, 113, 113, 0.75)'
+        : 'rgba(34, 197, 94, 0.75)'
+      : null;
+  const lastPlayerPot = lastPottedBySeatRef.current?.[playerSeatId];
+  const lastOpponentPot = lastPottedBySeatRef.current?.[opponentSeatId];
+  const lastPlayerPotId =
+    lastPlayerPot != null ? String(lastPlayerPot.id ?? lastPlayerPot.color) : null;
+  const lastOpponentPotId =
+    lastOpponentPot != null
+      ? String(lastOpponentPot.id ?? lastOpponentPot.color)
+      : null;
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
-  const bottomHudScale = isPortrait ? uiScale * 0.99 : uiScale * 1.06;
-  const avatarSizeClass = isPortrait ? 'h-[2.25rem] w-[2.25rem]' : 'h-[3.25rem] w-[3.25rem]';
-  const nameWidthClass = isPortrait ? 'max-w-[7rem]' : 'max-w-[9.25rem]';
-  const nameTextClass = isPortrait ? 'text-xs' : 'text-sm';
-  const hudGapClass = isPortrait ? 'gap-3' : 'gap-5';
+  const bottomHudScale = isPortrait ? uiScale * 1.08 : uiScale * 1.12;
+  const avatarSizeClass = isPortrait ? 'h-[2.6rem] w-[2.6rem]' : 'h-[3.5rem] w-[3.5rem]';
+  const nameWidthClass = isPortrait ? 'max-w-[9rem]' : 'max-w-[12rem]';
+  const nameTextClass = isPortrait ? 'text-sm' : 'text-base';
+  const hudGapClass = isPortrait ? 'gap-4' : 'gap-6';
   const bottomHudLayoutClass = isPortrait ? 'justify-center px-4 w-full' : 'justify-center';
+  const chatGiftOverlayClass =
+    'fixed inset-0 z-50 flex items-center justify-center bg-black/70';
+  const chatGiftPanelClass =
+    'w-[min(340px,88vw)] rounded-2xl border border-[#233050] bg-[#0b1220] p-4 text-white shadow-[0_18px_40px_rgba(0,0,0,0.5)]';
+  const chatGiftHeaderClass = 'flex items-center justify-between gap-2';
+  const chatGiftTitleClass = 'text-sm font-semibold tracking-[0.04em] text-white';
+  const chatGiftCloseButtonClass =
+    'flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/80 hover:bg-white/20';
+  const chatGiftOptionClass =
+    'text-[11px] font-semibold border border-white/15 rounded-[10px] px-2 py-1 bg-[#0f172a]/60 text-white/85';
+  const chatGiftOptionActiveClass = 'border-emerald-400/80 bg-emerald-400/20 text-emerald-50';
+  const chatGiftActionButtonClass =
+    'w-full rounded-[12px] border border-emerald-400/70 bg-gradient-to-br from-emerald-400/95 to-emerald-500/85 px-3 py-2 text-sm font-extrabold uppercase tracking-[0.18em] text-[#04210f] shadow-[0_12px_24px_rgba(16,185,129,0.3)]';
   const playerPanelClass = isPortrait
     ? `flex min-w-0 items-center gap-2.5 rounded-full ${isPlayerTurn ? 'text-white' : 'text-white/80'}`
     : `flex min-w-0 items-center ${isPortrait ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
@@ -25286,31 +25356,35 @@ const powerRef = useRef(hud.power);
         </div>
       )}
       {replayActive && (
-        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
-          <div className="rounded-full border border-white/25 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
-            Replay
+        <>
+          <div className="pointer-events-none absolute left-4 top-4 z-50">
+            <div className="rounded-full border border-white/25 bg-black/70 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.34em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
+              Replay
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => skipReplayRef.current?.()}
-            className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="h-4 w-4"
-              aria-hidden="true"
+          <div className="pointer-events-auto absolute right-8 top-1/2 z-50 flex -translate-y-1/2 items-center">
+            <button
+              type="button"
+              onClick={() => skipReplayRef.current?.()}
+              className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
             >
-              <path d="M4 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75A1 1 0 0 1 4 16.75zM12.5 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75a1 1 0 0 1-1.6-.8z" />
-            </svg>
-            <span className="sr-only">Skip replay</span>
-          </button>
-        </div>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="h-5 w-5"
+                aria-hidden="true"
+              >
+                <path d="M4 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75A1 1 0 0 1 4 16.75zM12.5 7.25a1 1 0 0 1 1.6-.8l6 4.75a1 1 0 0 1 0 1.6l-6 4.75a1 1 0 0 1-1.6-.8z" />
+              </svg>
+              <span className="sr-only">Skip replay</span>
+            </button>
+          </div>
+        </>
       )}
 
       <div
-        className={`absolute top-4 left-4 z-50 flex flex-col items-start gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute top-2 right-1 z-50 flex flex-col items-end gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
       >
         <button
           ref={configButtonRef}
@@ -25318,7 +25392,11 @@ const powerRef = useRef(hud.power);
           onClick={() => setConfigOpen((prev) => !prev)}
           aria-expanded={configOpen}
           aria-controls="snooker-config-panel"
-          className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+          style={{
+            transform: `scale(${uiScale * 1.08})`,
+            transformOrigin: 'top right'
+          }}
+          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
             configOpen ? 'bg-black/60' : 'hover:bg-black/60'
           }`}
         >
@@ -25918,103 +25996,80 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute left-3 z-50 flex flex-col gap-2 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none absolute right-1 z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
-          bottom: `${16 + chromeUiLiftPx}px`,
-          transform: `scale(${uiScale * 1.06})`,
-          transformOrigin: 'bottom left'
+          bottom: `${SPIN_CONTROL_DIAMETER_PX + 2 + chromeUiLiftPx - viewButtonsOffsetPx}px`,
+          transform: `scale(${uiScale * 1.08})`,
+          transformOrigin: 'bottom right'
         }}
       >
         <button
           type="button"
           aria-pressed={isLookMode}
           onClick={() => setIsLookMode((prev) => !prev)}
-          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-xl font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
             isLookMode
               ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
               : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
           }`}
+          aria-label="Toggle look mode"
         >
-          <span className="text-base">👁️</span>
-          <span>Look</span>
+          <span aria-hidden="true">👁️</span>
         </button>
         <button
           type="button"
           aria-pressed={isTopDownView}
           onClick={() => setIsTopDownView((prev) => !prev)}
-          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-[12px] font-semibold uppercase tracking-[0.28em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
             isTopDownView
               ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
               : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
           }`}
+          style={{ marginTop: `${viewToggleButtonDropPx}px` }}
+          aria-label={isTopDownView ? 'Switch to 3D view' : 'Switch to 2D view'}
         >
-          <span className="text-base">🧭</span>
-          <span>{isTopDownView ? '3D' : '2D'}</span>
+          <span aria-hidden="true">{isTopDownView ? '3D' : '2D'}</span>
         </button>
       </div>
 
-      <div
-        className={`absolute z-50 flex flex-col gap-[0.6rem] transition-opacity duration-200 ${replayActive ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
-        style={{
-          left: 'calc(0.75rem + env(safe-area-inset-left, 0px))',
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)'
-        }}
-        aria-label="Quick actions"
-      >
-        <button
-          type="button"
-          onClick={() => setShowChat(true)}
-          className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
-        >
-          <span className="text-[1.1rem] leading-none" aria-hidden="true">💬</span>
-          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">Chat</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowGift(true)}
-          className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
-        >
-          <span className="text-[1.1rem] leading-none" aria-hidden="true">🎁</span>
-          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">Gift</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowInfo(true)}
-          className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
-        >
-          <span className="text-[1.1rem] leading-none" aria-hidden="true">ℹ️</span>
-          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">Info</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            toggleGameMuted();
-            setMuted(isGameMuted());
-          }}
-          className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
-        >
-          <span className="text-[1.1rem] leading-none" aria-hidden="true">{muted ? '🔇' : '🔊'}</span>
-          <span className="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]">{muted ? 'Unmute' : 'Mute'}</span>
-        </button>
-      </div>
+      {!replayActive && (
+        <div className="pointer-events-auto">
+          <BottomLeftIcons
+            onInfo={() => setShowInfo(true)}
+            onChat={() => setShowChat(true)}
+            onGift={() => setShowGift(true)}
+            className="fixed left-0 bottom-2 z-50 flex flex-col gap-2.5 -translate-x-1"
+            buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
+            iconClassName="text-[1.1rem] leading-none"
+            labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
+            chatIcon="💬"
+            giftIcon="🎁"
+            infoIcon="ℹ️"
+            muteIconOn="🔇"
+            muteIconOff="🔊"
+            showInfo={false}
+            showMute={false}
+          />
+        </div>
+      )}
 
       {bottomHudVisible && (
         <div
           className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive || replayActive}
           style={{
-            bottom: `${16 + chromeUiLiftPx}px`,
+            bottom: `${10 + chromeUiLiftPx}px`,
             left: hudInsets.left,
             right: hudInsets.right,
             transform: isPortrait ? `translateX(${bottomHudOffset}px)` : undefined
           }}
         >
           <div
-            className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'px-5 py-2' : 'px-6 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
+            className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'pl-6 pr-8 py-2' : 'pl-7 pr-9 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
             style={{
               transform: `scale(${bottomHudScale})`,
               transformOrigin: 'bottom center',
-              maxWidth: isPortrait ? 'min(28rem, 100%)' : 'min(34rem, 100%)'
+              maxWidth: isPortrait ? 'min(34rem, 100%)' : 'min(40rem, 100%)'
             }}
           >
             <div
@@ -26047,7 +26102,9 @@ const powerRef = useRef(hud.power);
                 <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
                   {player.name}
                 </span>
-                <div className="mt-1">{renderPottedRow(playerPotted)}</div>
+                <div className="mt-1">
+                  {renderPottedRow(playerPotted, lastPlayerPotId, lastPotGlow)}
+                </div>
               </div>
             </div>
             <div
@@ -26077,7 +26134,9 @@ const powerRef = useRef(hud.power);
                     <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
                       {opponentDisplayName}
                     </span>
-                    <div className="mt-1">{renderPottedRow(opponentPotted)}</div>
+                    <div className="mt-1">
+                      {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
+                    </div>
                   </div>
                 </>
               ) : (
@@ -26098,7 +26157,9 @@ const powerRef = useRef(hud.power);
                           {aiFlagLabel}
                         </span>
                       </div>
-                      <div className="mt-1">{renderPottedRow(opponentPotted)}</div>
+                      <div className="mt-1">
+                        {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
+                      </div>
                     </div>
                   </div>
                 </>
@@ -26191,83 +26252,85 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute right-2 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          className={`absolute right-1 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${28 + chromeUiLiftPx}px`,
-            transform: `scale(${uiScale})`,
+            bottom: `${6 + chromeUiLiftPx}px`,
+            transform: `scale(${uiScale * 0.88})`,
             transformOrigin: 'bottom right'
           }}
         >
           <div
             id="spinBox"
-            className={`relative rounded-full shadow-lg border border-white/70 overflow-hidden ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
+            className={`relative rounded-full border border-white/40 shadow-[0_18px_34px_rgba(0,0,0,0.45)] ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
               height: `${SPIN_CONTROL_DIAMETER_PX}px`,
-              background: `radial-gradient(circle at center, #fef6df 0 62%, #c81d25 62% 100%)`
+              background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.65), rgba(255,255,255,0) 45%), radial-gradient(circle at center, #4b5563 0 45%, #1f2937 46% 100%)`
             }}
           >
-            <div
-              className="absolute inset-0 rounded-full"
-              style={{
-                boxShadow:
-                  'inset 0 0 0 2px rgba(255,255,255,0.7), inset 0 6px 12px rgba(255,255,255,0.25)',
-                pointerEvents: 'none'
-              }}
-            />
-            <div
-              className="absolute rounded-full"
-              style={{
-                inset: `${SPIN_RING_THICKNESS_PX}px`,
-                background: '#fef6df',
-                boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.6)',
-                pointerEvents: 'none'
-              }}
-            />
-            <div
-              className="absolute left-1/2 top-0 h-full w-[2px] bg-red-500/60"
-              style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}
-            />
-            <div
-              className="absolute top-1/2 left-0 h-[2px] w-full bg-red-500/60"
-              style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
-            />
-            <div
-              className="absolute rounded-full border-2 border-red-500/70"
-              style={{
-                width: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
-                height: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                pointerEvents: 'none'
-              }}
-            />
-            {spinDecorationPoints.map((point, index) => (
-              <span
-                key={`spin-deco-${index}`}
-                className="absolute rounded-full border-2 border-black/75"
+            <div className="absolute inset-0 rounded-full overflow-hidden">
+              <div
+                className="absolute inset-0 rounded-full"
                 style={{
-                  width: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
-                  height: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
-                  left: `${50 + point.x * SPIN_DECORATION_OFFSET_PERCENT}%`,
-                  top: `${50 + point.y * SPIN_DECORATION_OFFSET_PERCENT}%`,
-                  transform: 'translate(-50%, -50%)',
-                  background: 'rgba(255,255,255,0.4)',
+                  boxShadow:
+                    'inset 0 0 0 2px rgba(255,255,255,0.2), inset 0 14px 24px rgba(255,255,255,0.18), inset 0 -14px 24px rgba(0,0,0,0.55)',
                   pointerEvents: 'none'
                 }}
               />
-            ))}
-            <div
-              id="spinDot"
-              className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-              style={{
-                width: `${SPIN_DOT_DIAMETER_PX}px`,
-                height: `${SPIN_DOT_DIAMETER_PX}px`,
-                left: '50%',
-                top: '50%'
-              }}
-            ></div>
+              <div
+                className="absolute rounded-full"
+                style={{
+                  inset: `${SPIN_RING_THICKNESS_PX}px`,
+                  background: '#fef6df',
+                  boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.6)',
+                  pointerEvents: 'none'
+                }}
+              />
+              <div
+                className="absolute left-1/2 top-0 h-full w-[2px] bg-rose-500/60"
+                style={{ transform: 'translateX(-50%)', pointerEvents: 'none' }}
+              />
+              <div
+                className="absolute top-1/2 left-0 h-[2px] w-full bg-rose-500/60"
+                style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
+              />
+              <div
+                className="absolute rounded-full border-2 border-rose-500/70"
+                style={{
+                  width: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
+                  height: `${SPIN_DOT_DIAMETER_PX * 1.75}px`,
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  pointerEvents: 'none'
+                }}
+              />
+              {spinDecorationPoints.map((point, index) => (
+                <span
+                  key={`spin-deco-${index}`}
+                  className="absolute rounded-full border-2 border-black/75"
+                  style={{
+                    width: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
+                    height: `${SPIN_DECORATION_DOT_SIZE_PX}px`,
+                    left: `${50 + point.x * SPIN_DECORATION_OFFSET_PERCENT}%`,
+                    top: `${50 + point.y * SPIN_DECORATION_OFFSET_PERCENT}%`,
+                    transform: 'translate(-50%, -50%)',
+                    background: 'rgba(156,163,175,0.65)',
+                    pointerEvents: 'none'
+                  }}
+                />
+              ))}
+              <div
+                id="spinDot"
+                className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                style={{
+                  width: `${SPIN_DOT_DIAMETER_PX}px`,
+                  height: `${SPIN_DOT_DIAMETER_PX}px`,
+                  left: '50%',
+                  top: '50%'
+                }}
+              ></div>
+            </div>
           </div>
         </div>
       )}
@@ -26282,6 +26345,17 @@ const powerRef = useRef(hud.power);
       <QuickMessagePopup
         open={showChat}
         onClose={() => setShowChat(false)}
+        title="Quick Chat"
+        headerClassName={chatGiftHeaderClass}
+        titleClassName={chatGiftTitleClass}
+        closeButtonClassName={chatGiftCloseButtonClass}
+        showCloseButton
+        overlayClassName={chatGiftOverlayClass}
+        panelClassName={chatGiftPanelClass}
+        messageGridClassName="grid grid-cols-2 gap-[0.45rem] max-h-48 overflow-y-auto"
+        messageButtonClassName={chatGiftOptionClass}
+        messageButtonActiveClassName={chatGiftOptionActiveClass}
+        sendButtonClassName={chatGiftActionButtonClass}
         onSend={(text) => {
           const id = Date.now();
           setChatBubbles((bubbles) => [
@@ -26304,6 +26378,24 @@ const powerRef = useRef(hud.power);
         onClose={() => setShowGift(false)}
         players={giftPlayers}
         senderIndex={0}
+        overlayClassName={chatGiftOverlayClass}
+        panelClassName={chatGiftPanelClass}
+        title="Send Gift"
+        headerClassName={chatGiftHeaderClass}
+        titleClassName={chatGiftTitleClass}
+        closeButtonClassName={chatGiftCloseButtonClass}
+        showCloseButton
+        playerListClassName="flex flex-col gap-[0.4rem] max-h-[8.5rem] overflow-y-auto"
+        tierGroupClassName="flex flex-col gap-[0.35rem]"
+        giftGridClassName="grid grid-cols-2 gap-[0.4rem]"
+        playerButtonClassName={`${chatGiftOptionClass} flex items-center gap-2 text-left`}
+        playerButtonActiveClassName={chatGiftOptionActiveClass}
+        tierTitleClassName="text-[11px] uppercase tracking-[0.18em] text-white/70"
+        giftButtonClassName={`${chatGiftOptionClass} flex items-center justify-center gap-2`}
+        giftButtonActiveClassName={chatGiftOptionActiveClass}
+        costClassName="text-[11px] uppercase tracking-[0.18em] text-white/70 mt-2 flex items-center justify-center gap-2"
+        sendButtonClassName={chatGiftActionButtonClass}
+        noteClassName="text-[10px] uppercase tracking-[0.18em] text-white/60 text-center"
         onGiftSent={({ from, to, gift }) => animateGift(from, to, gift)}
       />
       <InfoPopup open={showInfo} onClose={() => setShowInfo(false)} title="Snooker Royal Rules">
