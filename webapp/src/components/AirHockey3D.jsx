@@ -214,15 +214,20 @@ const createFallbackTexture = (color) => {
 
 const loadMarbleTextureSet = (fieldOption) => {
   const assetId = fieldOption?.assetId;
-  if (!assetId) return Promise.resolve(null);
-  if (MARBLE_TEXTURE_CACHE.has(assetId)) return MARBLE_TEXTURE_CACHE.get(assetId);
+  const textureUrls = fieldOption?.textureUrls;
+  const cacheKey = fieldOption?.id || assetId || textureUrls?.diffuse;
+  if (!cacheKey) return Promise.resolve(null);
+  if (MARBLE_TEXTURE_CACHE.has(cacheKey)) return MARBLE_TEXTURE_CACHE.get(cacheKey);
   const promise = (async () => {
     try {
-      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
-      if (!response.ok) return null;
-      const json = await response.json();
-      const urls = pickBestTextureUrls(json, PREFERRED_MARBLE_TEXTURE_SIZES);
-      if (!urls.diffuse) return null;
+      let urls = textureUrls;
+      if (!urls?.diffuse && assetId) {
+        const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
+        if (!response.ok) return null;
+        const json = await response.json();
+        urls = pickBestTextureUrls(json, PREFERRED_MARBLE_TEXTURE_SIZES);
+      }
+      if (!urls?.diffuse) return null;
       const loader = new THREE.TextureLoader();
       loader.setCrossOrigin('anonymous');
       const [map, normal, roughness] = await Promise.all([
@@ -236,7 +241,7 @@ const loadMarbleTextureSet = (fieldOption) => {
       return null;
     }
   })();
-  MARBLE_TEXTURE_CACHE.set(assetId, promise);
+  MARBLE_TEXTURE_CACHE.set(cacheKey, promise);
   return promise;
 };
 
@@ -919,9 +924,23 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       null,
       selectionsRef.current.tableBase,
       renderer,
-      { enableSidePockets: false }
+      { enableSidePockets: false, mergeSideCushions: true }
     );
     const poolTable = poolTableEntry?.group ?? new THREE.Group();
+    const poolMarkings = poolTable?.userData?.markings;
+    if (poolMarkings?.group) {
+      poolMarkings.group.traverse((child) => {
+        if (!child?.isMesh) return;
+        child.geometry?.dispose?.();
+        if (Array.isArray(child.material)) {
+          child.material.forEach((mat) => mat?.dispose?.());
+        } else {
+          child.material?.dispose?.();
+        }
+      });
+      poolTable.remove(poolMarkings.group);
+      delete poolTable.userData.markings;
+    }
     const clothPlaneLocal =
       poolTable?.userData?.clothPlaneLocal ?? -TABLE.thickness + 0.01;
     const elevatedTableSurfaceY = (poolTable?.position?.y ?? 0) + clothPlaneLocal;
