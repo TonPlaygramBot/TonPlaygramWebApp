@@ -135,53 +135,16 @@ function selectPerformanceProfile(option = null) {
 
 const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
 const LOCK_POOL_ROYALE_TABLE_STYLE = true;
-const PREFERRED_MARBLE_TEXTURE_SIZES = ['2k', '1k'];
+const DEFAULT_MARBLE_TEXTURE_SIZE = '2k';
 const MARBLE_TEXTURE_CACHE = new Map();
 
-const pickBestTextureUrls = (apiJson, preferredSizes = PREFERRED_MARBLE_TEXTURE_SIZES) => {
-  const urls = [];
-  const walk = (value) => {
-    if (!value) return;
-    if (typeof value === 'string') {
-      const lower = value.toLowerCase();
-      if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
-        urls.push(value);
-      }
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach(walk);
-      return;
-    }
-    if (typeof value === 'object') {
-      Object.values(value).forEach(walk);
-    }
-  };
-  walk(apiJson);
-  const pick = (keywords) => {
-    const scored = urls
-      .filter((url) => keywords.some((kw) => url.toLowerCase().includes(kw)))
-      .map((url) => {
-        const lower = url.toLowerCase();
-        let score = 0;
-        preferredSizes.forEach((size, index) => {
-          if (lower.includes(size)) {
-            score += (preferredSizes.length - index) * 10;
-          }
-        });
-        if (lower.includes('jpg')) score += 6;
-        if (lower.includes('png')) score += 3;
-        if (lower.includes('preview') || lower.includes('thumb')) score -= 50;
-        if (lower.includes('.exr')) score -= 100;
-        return { url, score };
-      })
-      .sort((a, b) => b.score - a.score);
-    return scored[0]?.url;
-  };
+const buildPolyHavenMarbleUrls = (assetId, size = DEFAULT_MARBLE_TEXTURE_SIZE) => {
+  if (!assetId) return null;
+  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${size}/${assetId}/${assetId}`;
   return {
-    diffuse: pick(['diff', 'diffuse', 'albedo', 'basecolor']),
-    normal: pick(['nor_gl', 'normal_gl', 'nor', 'normal']),
-    roughness: pick(['rough', 'roughness'])
+    diffuse: `${base}_diff_${size}.jpg`,
+    normal: `${base}_nor_gl_${size}.jpg`,
+    roughness: `${base}_rough_${size}.jpg`
   };
 };
 
@@ -200,35 +163,22 @@ const loadTexture = (loader, url, isColor) =>
     );
   });
 
-const createFallbackTexture = (color) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = 8;
-  canvas.height = 8;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-};
-
 const loadMarbleTextureSet = (fieldOption) => {
   const assetId = fieldOption?.assetId;
-  if (!assetId) return Promise.resolve(null);
-  if (MARBLE_TEXTURE_CACHE.has(assetId)) return MARBLE_TEXTURE_CACHE.get(assetId);
+  const textureUrls =
+    fieldOption?.textureUrls ||
+    buildPolyHavenMarbleUrls(assetId, fieldOption?.textureSize ?? DEFAULT_MARBLE_TEXTURE_SIZE);
+  if (!textureUrls?.diffuse) return Promise.resolve(null);
+  const cacheKey = assetId || textureUrls.diffuse;
+  if (MARBLE_TEXTURE_CACHE.has(cacheKey)) return MARBLE_TEXTURE_CACHE.get(cacheKey);
   const promise = (async () => {
     try {
-      const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
-      if (!response.ok) return null;
-      const json = await response.json();
-      const urls = pickBestTextureUrls(json, PREFERRED_MARBLE_TEXTURE_SIZES);
-      if (!urls.diffuse) return null;
       const loader = new THREE.TextureLoader();
       loader.setCrossOrigin('anonymous');
       const [map, normal, roughness] = await Promise.all([
-        loadTexture(loader, urls.diffuse, true),
-        urls.normal ? loadTexture(loader, urls.normal, false) : Promise.resolve(null),
-        urls.roughness ? loadTexture(loader, urls.roughness, false) : Promise.resolve(null)
+        loadTexture(loader, textureUrls.diffuse, true),
+        textureUrls.normal ? loadTexture(loader, textureUrls.normal, false) : Promise.resolve(null),
+        textureUrls.roughness ? loadTexture(loader, textureUrls.roughness, false) : Promise.resolve(null)
       ]);
       return { map, normal, roughness };
     } catch (error) {
@@ -236,7 +186,7 @@ const loadMarbleTextureSet = (fieldOption) => {
       return null;
     }
   })();
-  MARBLE_TEXTURE_CACHE.set(assetId, promise);
+  MARBLE_TEXTURE_CACHE.set(cacheKey, promise);
   return promise;
 };
 
@@ -919,7 +869,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       null,
       selectionsRef.current.tableBase,
       renderer,
-      { enableSidePockets: false }
+      { enableSidePockets: false, mergeSideCushions: true }
     );
     const poolTable = poolTableEntry?.group ?? new THREE.Group();
     const clothPlaneLocal =
@@ -939,6 +889,18 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     materialsRef.current.trim = null;
     materialsRef.current.base = null;
     materialsRef.current.baseAccent = null;
+
+    const poolMarkings = poolTable?.userData?.markings;
+    if (poolMarkings) {
+      if (poolMarkings.group) poolMarkings.group.visible = false;
+      if (poolMarkings.baulkLine) poolMarkings.baulkLine.visible = false;
+      if (poolMarkings.dArc) poolMarkings.dArc.visible = false;
+      if (Array.isArray(poolMarkings.spots)) {
+        poolMarkings.spots.forEach((spot) => {
+          if (spot) spot.visible = false;
+        });
+      }
+    }
 
     const railThickness = TABLE_WALL * 0.6;
 
@@ -1616,7 +1578,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         mat.roughnessMap = textures.roughness ?? null;
         mat.color.set(0xffffff);
       } else {
-        mat.map = createFallbackTexture(fallbackColor);
+        mat.map = null;
         mat.normalMap = null;
         mat.roughnessMap = null;
         mat.color.set(fallbackColor);

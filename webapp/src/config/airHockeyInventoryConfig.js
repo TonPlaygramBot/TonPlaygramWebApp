@@ -384,126 +384,155 @@ const AIR_HOCKEY_TABLE_BASES = Object.freeze([
   })
 ]);
 
+const buildMarbleTextureUrls = (assetId, size = '2k') => {
+  const base = `https://dl.polyhaven.org/file/ph-assets/Textures/jpg/${size}/${assetId}/${assetId}`;
+  return {
+    diffuse: `${base}_diff_${size}.jpg`,
+    normal: `${base}_nor_gl_${size}.jpg`,
+    roughness: `${base}_rough_${size}.jpg`
+  };
+};
+
 const AIR_HOCKEY_MARBLE_FIELDS = Object.freeze([
   Object.freeze({
     id: 'carraraClassic',
     name: 'Carrara Classic',
     assetId: 'marble_01',
+    textureSize: '2k',
+    textureUrls: buildMarbleTextureUrls('marble_01'),
     swatches: ['#f5f5f4', '#e7e5e4'],
     repeat: 1.1,
     lineColor: '#f8fafc',
     roughness: 0.22,
     clearcoat: 0.32,
     clearcoatRoughness: 0.2,
-    description: 'Open-source Carrara marble texture sourced from Poly Haven.'
+    description: 'glTF-ready Carrara marble textures sourced from Poly Haven (CC0).'
   }),
   Object.freeze({
     id: 'silverVein',
     name: 'Silver Vein',
     assetId: 'marble_02',
+    textureSize: '2k',
+    textureUrls: buildMarbleTextureUrls('marble_02'),
     swatches: ['#e2e8f0', '#cbd5f5'],
     repeat: 1.1,
     lineColor: '#f8fafc',
     roughness: 0.24,
     clearcoat: 0.3,
     clearcoatRoughness: 0.22,
-    description: 'Cool silver marble texture with soft veining from Poly Haven.'
+    description: 'glTF-ready silver marble textures with soft veining (Poly Haven CC0).'
   }),
   Object.freeze({
     id: 'ivoryMist',
     name: 'Ivory Mist',
     assetId: 'marble_03',
+    textureSize: '2k',
+    textureUrls: buildMarbleTextureUrls('marble_03'),
     swatches: ['#fef3c7', '#fde68a'],
     repeat: 1.05,
     lineColor: '#fff7ed',
     roughness: 0.2,
     clearcoat: 0.34,
     clearcoatRoughness: 0.2,
-    description: 'Warm ivory marble texture with open-source scan detail.'
+    description: 'glTF-ready ivory marble textures with warm, creamy veining (CC0).'
   }),
   Object.freeze({
     id: 'roseQuartz',
     name: 'Rose Quartz',
     assetId: 'marble_04',
+    textureSize: '2k',
+    textureUrls: buildMarbleTextureUrls('marble_04'),
     swatches: ['#fecdd3', '#fda4af'],
     repeat: 1.05,
     lineColor: '#fff1f2',
     roughness: 0.23,
     clearcoat: 0.34,
     clearcoatRoughness: 0.22,
-    description: 'Soft rose marble texture from Poly Haven’s open collection.'
+    description: 'glTF-ready rose marble textures from Poly Haven’s open collection.'
   }),
   Object.freeze({
     id: 'emeraldCascade',
     name: 'Emerald Cascade',
     assetId: 'marble_05',
+    textureSize: '2k',
+    textureUrls: buildMarbleTextureUrls('marble_05'),
     swatches: ['#bbf7d0', '#4ade80'],
     repeat: 1.05,
     lineColor: '#dcfce7',
     roughness: 0.25,
     clearcoat: 0.3,
     clearcoatRoughness: 0.24,
-    description: 'Green marble texture with lively veins (Poly Haven CC0).'
+    description: 'glTF-ready green marble textures with lively veins (Poly Haven CC0).'
   }),
   Object.freeze({
     id: 'noirOnyx',
     name: 'Noir Onyx',
     assetId: 'marble_06',
+    textureSize: '2k',
+    textureUrls: buildMarbleTextureUrls('marble_06'),
     swatches: ['#111827', '#374151'],
     repeat: 1,
     lineColor: '#e5e7eb',
     roughness: 0.28,
     clearcoat: 0.28,
     clearcoatRoughness: 0.24,
-    description: 'Deep onyx marble with bold contrast from Poly Haven.'
+    description: 'glTF-ready onyx marble textures with bold contrast (Poly Haven CC0).'
   }),
   Object.freeze({
     id: 'glacierBlue',
     name: 'Glacier Blue',
     assetId: 'marble_07',
+    textureSize: '2k',
+    textureUrls: buildMarbleTextureUrls('marble_07'),
     swatches: ['#dbeafe', '#93c5fd'],
     repeat: 1.1,
     lineColor: '#f8fafc',
     roughness: 0.21,
     clearcoat: 0.34,
     clearcoatRoughness: 0.2,
-    description: 'Icy blue marble texture with open-source scan quality.'
+    description: 'glTF-ready icy blue marble textures with open-source scan quality.'
   }),
   Object.freeze({
     id: 'smokeSlate',
     name: 'Smoke Slate',
     assetId: 'marble_08',
+    textureSize: '2k',
+    textureUrls: buildMarbleTextureUrls('marble_08'),
     swatches: ['#d1d5db', '#6b7280'],
     repeat: 1.1,
     lineColor: '#f3f4f6',
     roughness: 0.26,
     clearcoat: 0.28,
     clearcoatRoughness: 0.24,
-    description: 'Smoky slate marble texture from Poly Haven (CC0).'
+    description: 'glTF-ready smoky slate marble textures from Poly Haven (CC0).'
   }),
   Object.freeze({
     id: 'goldenSand',
     name: 'Golden Sand',
     assetId: 'marble_09',
+    textureSize: '2k',
+    textureUrls: buildMarbleTextureUrls('marble_09'),
     swatches: ['#fef3c7', '#facc15'],
     repeat: 1.08,
     lineColor: '#fff7ed',
     roughness: 0.22,
     clearcoat: 0.32,
     clearcoatRoughness: 0.22,
-    description: 'Golden sand marble with warm veining (open-source).'
+    description: 'glTF-ready golden sand marble textures with warm veining (CC0).'
   }),
   Object.freeze({
     id: 'violetStorm',
     name: 'Violet Storm',
     assetId: 'marble_10',
+    textureSize: '2k',
+    textureUrls: buildMarbleTextureUrls('marble_10'),
     swatches: ['#ddd6fe', '#a78bfa'],
     repeat: 1.05,
     lineColor: '#f5f3ff',
     roughness: 0.24,
     clearcoat: 0.32,
     clearcoatRoughness: 0.22,
-    description: 'Violet marble texture with expressive veins from Poly Haven.'
+    description: 'glTF-ready violet marble textures with expressive veins (CC0).'
   })
 ]);
 
