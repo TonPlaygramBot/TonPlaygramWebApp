@@ -280,6 +280,7 @@ const ABG_TYPE_ALIASES = Object.freeze([
 ]);
 const ABG_COLOR_W = /\b(white|ivory|light|w)\b/i;
 const ABG_COLOR_B = /\b(black|ebony|dark|b)\b/i;
+const ABG_PLAYER_COLOR_KEYS = Object.freeze(['w', 'b', 'w', 'b']);
 
 const ARENA_SCALE = 0.85;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
@@ -617,6 +618,20 @@ function abgSnapshotBoardPalette(root) {
     light: withLum[0]?.mat?.clone?.() ?? null,
     dark: withLum[withLum.length - 1]?.mat?.clone?.() ?? null
   };
+}
+
+function resolveAbgColorKey(playerIdx) {
+  return ABG_PLAYER_COLOR_KEYS[playerIdx % ABG_PLAYER_COLOR_KEYS.length] ?? 'w';
+}
+
+function resolveAbgPrototype(proto, colorKey, type) {
+  if (!proto) return null;
+  return proto[colorKey]?.[type] ?? proto[colorKey]?.p ?? proto.w?.p ?? proto.b?.p ?? null;
+}
+
+function cloneAbgToken(proto) {
+  if (!proto) return null;
+  return abgCloneWithMats(proto);
 }
 
 let abgAssetPromise = null;
@@ -5435,7 +5450,11 @@ async function buildLudoBoard(
   if (tokenPieceOption?.type) {
     tokenTypeSequence = Array(4).fill(tokenPieceOption.type);
   }
-  const headPreset = headPresetOption?.preset ?? HEAD_PRESET_OPTIONS[0].preset;
+  const useAbgTokens = Boolean(tokenStyleOption?.prefersAbg);
+  const abgAssets = useAbgTokens ? await getAbgAssets() : null;
+  const abgPrototypes = abgAssets?.proto ?? null;
+  const shouldUseAbgTokens = Boolean(abgPrototypes);
+  const headPreset = shouldUseAbgTokens ? null : headPresetOption?.preset ?? HEAD_PRESET_OPTIONS[0].preset;
 
   const trackTileMeshes = new Array(RING_STEPS).fill(null);
   const homeColumnTiles = Array.from({ length: playerCount }, () =>
@@ -5542,9 +5561,17 @@ async function buildLudoBoard(
   const tokens = playerColors.slice(0, playerCount).map((color, playerIdx) => {
     return Array.from({ length: 4 }, (_, i) => {
       const type = tokenTypeSequence[i % tokenTypeSequence.length];
-      const token = makeRook(makeTokenMaterial(color));
-      if (headPreset) {
-        applyHeadPresetToToken(token, headPreset);
+      let token = null;
+      if (shouldUseAbgTokens) {
+        const colorKey = resolveAbgColorKey(playerIdx);
+        const proto = resolveAbgPrototype(abgPrototypes, colorKey, type);
+        token = cloneAbgToken(proto);
+      }
+      if (!token) {
+        token = makeRook(makeTokenMaterial(color));
+        if (headPreset) {
+          applyHeadPresetToToken(token, headPreset);
+        }
       }
       const label = createTokenCountLabel();
       if (label) {
