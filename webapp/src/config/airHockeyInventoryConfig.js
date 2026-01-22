@@ -1,3 +1,5 @@
+import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
+
 const AIR_HOCKEY_HDRI_PLACEMENTS = Object.freeze({
   neonPhotostudio: {
     cameraHeightM: 1.52,
@@ -382,44 +384,147 @@ const AIR_HOCKEY_TABLE_BASES = Object.freeze([
   })
 ]);
 
-export const AIR_HOCKEY_CUSTOMIZATION = Object.freeze({
-  field: Object.freeze([
+const AIR_HOCKEY_MARBLE_FIELDS = Object.freeze([
+  Object.freeze({
+    id: 'carraraClassic',
+    name: 'Carrara Classic',
+    assetId: 'marble_01',
+    swatches: ['#f5f5f4', '#e7e5e4'],
+    repeat: 1.1,
+    lineColor: '#f8fafc',
+    roughness: 0.22,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.2,
+    description: 'Open-source Carrara marble texture sourced from Poly Haven.'
+  }),
+  Object.freeze({
+    id: 'silverVein',
+    name: 'Silver Vein',
+    assetId: 'marble_02',
+    swatches: ['#e2e8f0', '#cbd5f5'],
+    repeat: 1.1,
+    lineColor: '#f8fafc',
+    roughness: 0.24,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.22,
+    description: 'Cool silver marble texture with soft veining from Poly Haven.'
+  }),
+  Object.freeze({
+    id: 'ivoryMist',
+    name: 'Ivory Mist',
+    assetId: 'marble_03',
+    swatches: ['#fef3c7', '#fde68a'],
+    repeat: 1.05,
+    lineColor: '#fff7ed',
+    roughness: 0.2,
+    clearcoat: 0.34,
+    clearcoatRoughness: 0.2,
+    description: 'Warm ivory marble texture with open-source scan detail.'
+  }),
+  Object.freeze({
+    id: 'roseQuartz',
+    name: 'Rose Quartz',
+    assetId: 'marble_04',
+    swatches: ['#fecdd3', '#fda4af'],
+    repeat: 1.05,
+    lineColor: '#fff1f2',
+    roughness: 0.23,
+    clearcoat: 0.34,
+    clearcoatRoughness: 0.22,
+    description: 'Soft rose marble texture from Poly Haven’s open collection.'
+  }),
+  Object.freeze({
+    id: 'emeraldCascade',
+    name: 'Emerald Cascade',
+    assetId: 'marble_05',
+    swatches: ['#bbf7d0', '#4ade80'],
+    repeat: 1.05,
+    lineColor: '#dcfce7',
+    roughness: 0.25,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.24,
+    description: 'Green marble texture with lively veins (Poly Haven CC0).'
+  }),
+  Object.freeze({
+    id: 'noirOnyx',
+    name: 'Noir Onyx',
+    assetId: 'marble_06',
+    swatches: ['#111827', '#374151'],
+    repeat: 1,
+    lineColor: '#e5e7eb',
+    roughness: 0.28,
+    clearcoat: 0.28,
+    clearcoatRoughness: 0.24,
+    description: 'Deep onyx marble with bold contrast from Poly Haven.'
+  }),
+  Object.freeze({
+    id: 'glacierBlue',
+    name: 'Glacier Blue',
+    assetId: 'marble_07',
+    swatches: ['#dbeafe', '#93c5fd'],
+    repeat: 1.1,
+    lineColor: '#f8fafc',
+    roughness: 0.21,
+    clearcoat: 0.34,
+    clearcoatRoughness: 0.2,
+    description: 'Icy blue marble texture with open-source scan quality.'
+  }),
+  Object.freeze({
+    id: 'smokeSlate',
+    name: 'Smoke Slate',
+    assetId: 'marble_08',
+    swatches: ['#d1d5db', '#6b7280'],
+    repeat: 1.1,
+    lineColor: '#f3f4f6',
+    roughness: 0.26,
+    clearcoat: 0.28,
+    clearcoatRoughness: 0.24,
+    description: 'Smoky slate marble texture from Poly Haven (CC0).'
+  }),
+  Object.freeze({
+    id: 'goldenSand',
+    name: 'Golden Sand',
+    assetId: 'marble_09',
+    swatches: ['#fef3c7', '#facc15'],
+    repeat: 1.08,
+    lineColor: '#fff7ed',
+    roughness: 0.22,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.22,
+    description: 'Golden sand marble with warm veining (open-source).'
+  }),
+  Object.freeze({
+    id: 'violetStorm',
+    name: 'Violet Storm',
+    assetId: 'marble_10',
+    swatches: ['#ddd6fe', '#a78bfa'],
+    repeat: 1.05,
+    lineColor: '#f5f3ff',
+    roughness: 0.24,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.22,
+    description: 'Violet marble texture with expressive veins from Poly Haven.'
+  })
+]);
+
+const AIR_HOCKEY_CUSHION_CLOTH_OPTIONS = Object.freeze(
+  POOL_ROYALE_CLOTH_VARIANTS.map((variant) =>
     Object.freeze({
-      id: 'auroraIce',
-      name: 'Aurora Ice',
-      surface: '#3b83c3',
-      lines: '#ffffff',
-      rings: '#d8f3ff'
-    }),
-    Object.freeze({
-      id: 'neonNight',
-      name: 'Neon Night',
-      surface: '#152238',
-      lines: '#4de1ff',
-      rings: '#9bf1ff'
-    }),
-    Object.freeze({
-      id: 'sunsetClash',
-      name: 'Sunset Clash',
-      surface: '#c93f4b',
-      lines: '#ffe8d0',
-      rings: '#ffd1a1'
-    }),
-    Object.freeze({
-      id: 'midnightSteel',
-      name: 'Midnight Steel',
-      surface: '#0f172a',
-      lines: '#a1a1aa',
-      rings: '#d4d4d8'
-    }),
-    Object.freeze({
-      id: 'mintRush',
-      name: 'Mint Rush',
-      surface: '#0f766e',
-      lines: '#d1fae5',
-      rings: '#34d399'
+      id: variant.id,
+      name: variant.name,
+      palette: variant.palette,
+      detail: variant.detail,
+      swatches: variant.swatches,
+      price: variant.price,
+      sourceId: variant.sourceId,
+      description: variant.description
     })
-  ]),
+  )
+);
+
+export const AIR_HOCKEY_CUSTOMIZATION = Object.freeze({
+  field: AIR_HOCKEY_MARBLE_FIELDS,
+  cushionCloth: AIR_HOCKEY_CUSHION_CLOTH_OPTIONS,
   table: AIR_HOCKEY_TABLE_FINISHES,
   tableBase: AIR_HOCKEY_TABLE_BASES,
   environmentHdri: AIR_HOCKEY_HDRI_VARIANTS,
@@ -473,10 +578,15 @@ export const AIR_HOCKEY_OPTION_LABELS = Object.freeze(
 );
 
 export const AIR_HOCKEY_STORE_ITEMS = [
-  { id: 'field-neonNight', type: 'field', optionId: 'neonNight', name: 'Neon Night Rink', price: 480, description: 'Electric cyan lines on a dark rink glow.' },
-  { id: 'field-sunsetClash', type: 'field', optionId: 'sunsetClash', name: 'Sunset Clash Rink', price: 520, description: 'Warm sunset cloth with soft ivory lines.' },
-  { id: 'field-midnightSteel', type: 'field', optionId: 'midnightSteel', name: 'Midnight Steel Rink', price: 560, description: 'Slate midnight tones with metallic accents.' },
-  { id: 'field-mintRush', type: 'field', optionId: 'mintRush', name: 'Mint Rush Rink', price: 600, description: 'Mint-emerald surface with bright rings.' },
+  ...AIR_HOCKEY_MARBLE_FIELDS.map((field, idx) => ({
+    id: `field-${field.id}`,
+    type: 'field',
+    optionId: field.id,
+    name: `${field.name} Marble`,
+    price: 520 + idx * 20,
+    description: field.description,
+    swatches: field.swatches
+  })),
   ...AIR_HOCKEY_TABLE_FINISHES.map((finish) => ({
     id: `finish-${finish.id}`,
     type: 'table',
@@ -498,6 +608,15 @@ export const AIR_HOCKEY_STORE_ITEMS = [
   { id: 'goal-cobalt', type: 'goals', optionId: 'cobaltNet', name: 'Cobalt Net Goals', price: 360, description: 'Cobalt nets with electric blue emissive.' },
   { id: 'goal-amber', type: 'goals', optionId: 'amberNet', name: 'Amber Net Goals', price: 390, description: 'Amber nets with warm metallic shine.' },
   { id: 'goal-ghost', type: 'goals', optionId: 'ghostNet', name: 'Ghost Net Goals', price: 420, description: 'Ghostly pale nets with steel glow.' },
+  ...AIR_HOCKEY_CUSHION_CLOTH_OPTIONS.map((variant, idx) => ({
+    id: `cushion-cloth-${variant.id}`,
+    type: 'cushionCloth',
+    optionId: variant.id,
+    name: variant.name,
+    price: variant.price ?? 680 + idx * 8,
+    description: variant.description,
+    swatches: variant.swatches
+  })),
   ...AIR_HOCKEY_TABLE_BASES.map((variant) => ({
     id: `base-${variant.id}`,
     type: 'tableBase',
@@ -518,6 +637,11 @@ export const AIR_HOCKEY_STORE_ITEMS = [
 
 export const AIR_HOCKEY_DEFAULT_LOADOUT = [
   { type: 'field', optionId: AIR_HOCKEY_CUSTOMIZATION.field[0].id, label: AIR_HOCKEY_CUSTOMIZATION.field[0].name },
+  {
+    type: 'cushionCloth',
+    optionId: AIR_HOCKEY_CUSTOMIZATION.cushionCloth[0].id,
+    label: AIR_HOCKEY_CUSTOMIZATION.cushionCloth[0].name
+  },
   { type: 'table', optionId: AIR_HOCKEY_CUSTOMIZATION.table[0].id, label: AIR_HOCKEY_CUSTOMIZATION.table[0].name },
   { type: 'tableBase', optionId: AIR_HOCKEY_CUSTOMIZATION.tableBase[0].id, label: AIR_HOCKEY_CUSTOMIZATION.tableBase[0].name },
   { type: 'environmentHdri', optionId: AIR_HOCKEY_CUSTOMIZATION.environmentHdri[0].id, label: AIR_HOCKEY_CUSTOMIZATION.environmentHdri[0].name },
