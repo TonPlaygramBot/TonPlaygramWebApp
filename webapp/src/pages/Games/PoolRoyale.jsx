@@ -1250,8 +1250,8 @@ const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 1.05; // drop deeper so potted ball
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.74; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
-const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.1; // lift the ring so the holder assembly sits higher
-const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.26; // raise the net so the weave meets the pocket mouth
+const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
+const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // raise the net so the weave sits higher on screen
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
@@ -1259,24 +1259,24 @@ const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 7.
 const POCKET_GUIDE_DROP = BALL_R * 0.12;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
-const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.18; // allow the L-arms to peek past the ring without blocking the pocket mouth
+const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = -BALL_R * 0.26; // lift the chrome holder rails so the short L segments meet the ring
-const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.16; // nudge the L segments toward the leather strap
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
-const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER; // tighter spacing so potted balls touch on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 3.6; // let potted balls roll farther until they meet the leather strap
-const POCKET_HOLDER_RUN_SURFACE_LIFT = BALL_R * 1.12 + POCKET_GUIDE_RADIUS; // keep the ball resting on top of the center chrome holder
+const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
+const POCKET_HOLDER_REST_DROP = BALL_R * 2.18; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
 const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
 const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
-const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.98; // extend the short L section so it reaches the ring and guides balls like the reference trays
+const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.62; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so it meets the raised holder rails
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -4793,12 +4793,12 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.82; // lift the standing orbit slightly higher for a clearer top surface view
+const STANDING_VIEW_PHI = 0.86; // raise the standing orbit a touch for a clearer overview
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
-const CAMERA_ABS_MIN_PHI = 0.08;
-const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.22; // keep the cue view a touch higher while staying above the cue
+const CAMERA_ABS_MIN_PHI = 0.1;
+const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.14; // let the cue view drop to the same rail-hugging height used by AI shots while staying above the cue
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
@@ -4807,9 +4807,8 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.97;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
-const STANDING_VIEW_DISTANCE_SCALE = 0.54; // pull the standing camera slightly closer while keeping the angle unchanged
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0013;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.0011;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -4873,14 +4872,14 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.04; // raise the camera a touch to ensure full end-rail coverage
-const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.04; // lower the 2D top view slightly to keep framing consistent after the table shrink
-const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
+const TOP_VIEW_MARGIN = 1.15; // lift the top view slightly to keep both near pockets visible on portrait
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
+const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22); // reduce angle toward a flatter overhead
+const TOP_VIEW_RADIUS_SCALE = 1.26; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
+const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
-  z: PLAY_H * -0.078 // keep the existing vertical alignment
+  x: PLAY_W * 0.006, // bias the top view so the table sits slightly lower on screen
+  z: PLAY_H * 0.006 // bias the top view so the table sits slightly more to the right
 });
 const REPLAY_TOP_VIEW_MARGIN = 1.15;
 const REPLAY_TOP_VIEW_MIN_RADIUS_SCALE = 1.08;
@@ -4906,10 +4905,9 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1.05; // pull the broadcast overhead camera back for fuller table framing
+const RAIL_OVERHEAD_DISTANCE_BIAS = 0.9; // pull the broadcast overhead camera closer to the table like the original framing
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
-const USE_STANDING_BROADCAST_CAMERA = true; // keep broadcast cuts aligned with the standing camera instead of side-rail rigs
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
 const CUE_VIEW_RADIUS_RATIO = 0.0215; // tighten cue camera distance so the cue ball and object ball appear larger
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.09;
@@ -4917,7 +4915,7 @@ const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
 );
-const CUE_VIEW_PHI_LIFT = 0.06; // keep the cue camera slightly higher before it bottoms out
+const CUE_VIEW_PHI_LIFT = 0.075; // nudge the cue camera lower so the stroke and cue pull stay in frame
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -4935,7 +4933,7 @@ const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the 
 const BIH_INDICATOR_HAND_SIZE_PX = 34;
 const BIH_INDICATOR_WORLD_OFFSET = BALL_R * 1.35;
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
-const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
+const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.22; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
@@ -15218,8 +15216,7 @@ const powerRef = useRef(hud.power);
       const standingRadius = clamp(
         fitRadius(
           camera,
-          STANDING_VIEW.margin * zoomProfile.margin,
-          STANDING_VIEW_DISTANCE_SCALE
+          STANDING_VIEW.margin * zoomProfile.margin
         ),
         CAMERA.minR,
         CAMERA.maxR
@@ -15628,25 +15625,6 @@ const powerRef = useRef(hud.power);
           focusOverride = null,
           minTargetY = null
         } = {}) => {
-          if (USE_STANDING_BROADCAST_CAMERA) {
-            const fallbackTarget =
-              focusOverride?.clone?.() ??
-              lastCameraTargetRef.current?.clone?.() ??
-              new THREE.Vector3(
-                0,
-                TABLE_Y + TABLE.THICK + BALL_R * 2.5,
-                0
-              );
-            if (fallbackTarget && Number.isFinite(minTargetY)) {
-              fallbackTarget.y = Math.max(fallbackTarget.y ?? minTargetY, minTargetY);
-            }
-            return {
-              position: camera.position.clone(),
-              target: fallbackTarget,
-              fov: STANDING_VIEW_FOV,
-              minTargetY
-            };
-          }
           const rig = broadcastCamerasRef.current;
           if (!rig?.cameras) return null;
           const activeRail =
@@ -15710,7 +15688,7 @@ const powerRef = useRef(hud.power);
           const focusTarget = target ?? lastCameraTargetRef.current ?? null;
           if (!focusTarget) return;
           const baseDistance = Math.max(
-            fitRadius(renderCamera, STANDING_VIEW.margin, STANDING_VIEW_DISTANCE_SCALE),
+            fitRadius(renderCamera, STANDING_VIEW.margin),
             1e-3
           );
           const currentDistance = renderCamera.position.distanceTo(focusTarget);
@@ -17053,8 +17031,7 @@ const powerRef = useRef(hud.power);
           const zoomProfile = resolveCameraZoomProfile(aspect);
           const standingRadiusRaw = fitRadius(
             camera,
-            Math.max(m * zoomProfile.margin, 1e-4),
-            STANDING_VIEW_DISTANCE_SCALE
+            Math.max(m * zoomProfile.margin, 1e-4)
           );
           const cueBase = clampOrbitRadius(BREAK_VIEW.radius);
           const playerRadiusBase = Math.max(standingRadiusRaw, cueBase);
@@ -20338,89 +20315,6 @@ const powerRef = useRef(hud.power);
         return { side, vert, hasSpin };
       };
 
-      const applyShotAtImpact = (payload) => {
-        if (!payload || payload.applied) return;
-        payload.applied = true;
-        const { base, aimDir, physicsSpin, clampedPower, liftStrength } = payload;
-        const offsetScaled = {
-          x: physicsSpin?.x ?? 0,
-          y: physicsSpin?.y ?? 0
-        };
-        cue.vel.copy(base);
-        if (cue.spin) {
-          cue.spin.set(offsetScaled.x, offsetScaled.y);
-        }
-        if (cue.omega) {
-          cue.omega.set(0, 0, 0);
-        }
-        if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-        cue.spinMode = 'standard';
-        cue.swerveStrength = 0;
-        cue.swervePowerStrength = 0;
-        const shotDir = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
-        if (shotDir.lengthSq() > 1e-8) shotDir.normalize();
-        const sideAxis = TMP_VEC3_D.set(-shotDir.z, 0, shotDir.x);
-        if (sideAxis.lengthSq() > 1e-8) sideAxis.normalize();
-        const rOffset = TMP_VEC3_E
-          .copy(sideAxis)
-          .multiplyScalar(offsetScaled.x * BALL_R)
-          .addScaledVector(new THREE.Vector3(0, 1, 0), offsetScaled.y * BALL_R);
-        const impulseMag = BALL_MASS * base.length();
-        const impulse = TMP_VEC3_A.copy(shotDir).multiplyScalar(impulseMag);
-        const torqueImpulse = TMP_VEC3_B.copy(rOffset).cross(impulse);
-        if (cue.omega) {
-          cue.omega.addScaledVector(torqueImpulse, 1 / BALL_INERTIA);
-        }
-        resetSpinRef.current?.();
-        cueLiftRef.current.lift = 0;
-        cueLiftRef.current.startLift = 0;
-        cue.impacted = false;
-        cue.launchDir = aimDir.clone().normalize();
-        maxPowerLiftTriggered = false;
-        cue.lift = 0;
-        cue.liftVel = 0;
-        const topSpinWeight = Math.max(0, physicsSpin?.y || 0);
-        if (
-          clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
-          liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
-          topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
-        ) {
-          const powerRatio = THREE.MathUtils.clamp(
-            (clampedPower - JUMP_SHOT_POWER_THRESHOLD) /
-              Math.max(1 - JUMP_SHOT_POWER_THRESHOLD, 1e-4),
-            0,
-            1
-          );
-          const liftRatio = THREE.MathUtils.clamp(
-            (liftStrength - JUMP_SHOT_LIFT_THRESHOLD) /
-              Math.max(1 - JUMP_SHOT_LIFT_THRESHOLD, 1e-4),
-            0,
-            1
-          );
-          const spinRatio = THREE.MathUtils.clamp(
-            (topSpinWeight - JUMP_SHOT_TOPSPIN_THRESHOLD) /
-              Math.max(1 - JUMP_SHOT_TOPSPIN_THRESHOLD, 1e-4),
-            0,
-            1
-          );
-          const jumpStrength =
-            (0.25 + 0.75 * powerRatio) *
-            (0.4 + 0.6 * liftRatio) *
-            (0.55 + 0.45 * spinRatio);
-          const jumpVelocity = MAX_POWER_BOUNCE_IMPULSE * JUMP_SHOT_LAUNCH_SCALE * jumpStrength;
-          const physicsHeight =
-            (jumpVelocity * jumpVelocity) /
-            (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
-          const jumpHeight = Math.min(
-            MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE,
-            physicsHeight
-          );
-          cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
-          cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
-        }
-        playCueHit(clampedPower * 0.6);
-      };
-
       // Fire (slider triggers on release)
       const fire = () => {
         const currentHud = hudRef.current;
@@ -20534,15 +20428,11 @@ const powerRef = useRef(hud.power);
           }
           lastPocketBallRef.current = null;
           const clampedPower = clampPower(powerRef.current, 0);
-          const curvedPower = Math.pow(clampedPower, CUE_POWER_GAMMA);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
-          if (isMaxPowerShot) {
-            powerImpactHoldRef.current = Math.max(
-              powerImpactHoldRef.current || 0,
-              performance.now() + MAX_POWER_CAMERA_HOLD_MS
-            );
-          }
+          powerImpactHoldRef.current = isMaxPowerShot
+            ? performance.now() + MAX_POWER_CAMERA_HOLD_MS
+            : 0;
           if (aiOpponentEnabled && hudRef.current?.turn === 1) {
             powerImpactHoldRef.current = Math.max(
               powerImpactHoldRef.current || 0,
@@ -20561,7 +20451,7 @@ const powerRef = useRef(hud.power);
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
-          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
+          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = aimDir
             .clone()
@@ -20571,7 +20461,7 @@ const powerRef = useRef(hud.power);
           const strokeSpeedRatio =
             maxShotSpeed > 1e-6
               ? THREE.MathUtils.clamp(predictedCueSpeed / maxShotSpeed, 0, 1)
-              : powerStrength;
+              : clampedPower;
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
             const frameTiming = frameTimingRef.current;
@@ -20654,25 +20544,80 @@ const powerRef = useRef(hud.power);
         const appliedSpin = applySpinConstraints(aimDir, true);
         const liftAngle = resolveUserCueLift();
         const liftStrength = normalizeCueLift(liftAngle);
-        const cameraBasis = resolveCameraBasis(activeRenderCameraRef.current ?? cameraRef.current);
-        const physicsSpin = mapSpinForPhysics(appliedSpin, {
-            cameraRight: cameraBasis?.right ?? null,
-            cameraUp: cameraBasis?.up ?? null,
-            cueForward: { x: aimDir.x, z: aimDir.y }
-          });
-          const offsetScaled = {
-            x: physicsSpin?.x ?? 0,
-            y: physicsSpin?.y ?? 0
-          };
-          const shotPayload = {
-            base: base.clone(),
-            aimDir: aimDir.clone(),
-            physicsSpin: { x: offsetScaled.x, y: offsetScaled.y },
-            clampedPower,
-            liftStrength,
-            applied: false
-          };
-          const triggerImpact = () => applyShotAtImpact(shotPayload);
+        const physicsSpin = mapSpinForPhysics(appliedSpin);
+        const ranges = spinRangeRef.current || {};
+        const powerSpinScale = 0.55 + clampedPower * 0.45;
+        const baseSide = physicsSpin.x * (ranges.side ?? 0);
+        let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
+        let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+        if (physicsSpin.y < 0) {
+          spinTop *= BACKSPIN_MULTIPLIER;
+        } else if (physicsSpin.y > 0) {
+          spinTop *= TOPSPIN_MULTIPLIER;
+        }
+        cue.vel.copy(base);
+        if (cue.spin) {
+          cue.spin.set(spinSide, spinTop);
+        }
+        if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+        cue.spinMode =
+          spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
+        const swerveSettings = resolveSwerveSettings(
+          physicsSpin,
+          clampedPower,
+          cue.spinMode === 'swerve',
+          liftStrength
+        );
+        cue.swerveStrength = cue.spinMode === 'swerve' ? swerveSettings.intensity : 0;
+        cue.swervePowerStrength = cue.spinMode === 'swerve' ? clampedPower : 0;
+        resetSpinRef.current?.();
+        cueLiftRef.current.lift = 0;
+        cueLiftRef.current.startLift = 0;
+        cue.impacted = false;
+        cue.launchDir = aimDir.clone().normalize();
+        maxPowerLiftTriggered = false;
+        cue.lift = 0;
+        cue.liftVel = 0;
+        const topSpinWeight = Math.max(0, physicsSpin.y || 0);
+        if (
+          clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
+          liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
+          topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
+        ) {
+          const powerRatio = THREE.MathUtils.clamp(
+            (clampedPower - JUMP_SHOT_POWER_THRESHOLD) /
+              Math.max(1 - JUMP_SHOT_POWER_THRESHOLD, 1e-4),
+            0,
+            1
+          );
+          const liftRatio = THREE.MathUtils.clamp(
+            (liftStrength - JUMP_SHOT_LIFT_THRESHOLD) /
+              Math.max(1 - JUMP_SHOT_LIFT_THRESHOLD, 1e-4),
+            0,
+            1
+          );
+          const spinRatio = THREE.MathUtils.clamp(
+            (topSpinWeight - JUMP_SHOT_TOPSPIN_THRESHOLD) /
+              Math.max(1 - JUMP_SHOT_TOPSPIN_THRESHOLD, 1e-4),
+            0,
+            1
+          );
+          const jumpStrength =
+            (0.25 + 0.75 * powerRatio) *
+            (0.4 + 0.6 * liftRatio) *
+            (0.55 + 0.45 * spinRatio);
+          const jumpVelocity = MAX_POWER_BOUNCE_IMPULSE * JUMP_SHOT_LAUNCH_SCALE * jumpStrength;
+          const physicsHeight =
+            (jumpVelocity * jumpVelocity) /
+            (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
+          const jumpHeight = Math.min(
+            MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE,
+            physicsHeight
+          );
+          cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
+          cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
+        }
+        playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -20897,11 +20842,10 @@ const powerRef = useRef(hud.power);
               settleDuration,
               returnDuration,
               holdUntilStop: false,
-              shotApplied: false,
-              onImpact: triggerImpact
+              shotApplied: true,
+              onImpact: null
             };
           } else {
-            triggerImpact();
             cueStick.visible = false;
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
@@ -24631,7 +24575,7 @@ const powerRef = useRef(hud.power);
                   )
                 );
               const restY =
-                railRunStart.y + POCKET_HOLDER_RUN_SURFACE_LIFT - tiltDrop;
+                railRunStart.y - POCKET_HOLDER_REST_DROP - tiltDrop;
               const glowMesh = table ? createPocketGlowMesh('good') : null;
               if (glowMesh) {
                 glowMesh.position.set(fromX, BALL_CENTER_Y - POCKET_GLOW_LIFT, fromZ);
