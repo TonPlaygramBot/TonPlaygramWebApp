@@ -34,6 +34,7 @@ public static class PhysicsConstants
     public const double PreviewPointSpacing = BallRadius * 0.85; // spacing for curved aim preview
     public const double TableWidth = 2.627;            // 9ft table reduced by ~7.5%
     public const double TableHeight = 1.07707;
+    public const double TableThickness = 0.12;         // rail slab thickness (visual alignment)
     public const double FixedDt = 1.0 / 120.0;         // simulation step
     public const double Epsilon = 1e-9;                // numerical epsilon
     public const double MaxPreviewTime = 30.0;         // safeguard for CCD
@@ -49,8 +50,14 @@ public static class PhysicsConstants
     public const double CornerJawInset = 0.006;
     public const double SideJawInset = 0.006;
     public const double SideJawDepthScale = 1.08;
+    public const double SideCushionPocketReachReduction = TableThickness * 0.02;
     // Shift the pocket capture center outward for the chrome plate cut.
-    public const double SidePocketOutset = 0.006;
+    public const double SidePocketOutset = 0.012;
+
+    // Pocketed ball roll-through tuning.
+    public const double PocketRollSpeed = 0.35;
+    public const double PocketRollSpeedFactor = 0.35;
+    public const double PocketRollDragMultiplier = 4.5;
 
     // Tesselation density for proxy mesh generation (higher => smoother normals)
     public const int CornerJawSegments = 32;

@@ -73,18 +73,22 @@ public class BilliardsSolver
         double sideJawInset = PhysicsConstants.SideJawInset;
         double sideDepth = Math.Max(sideCut * 1.05, PhysicsConstants.BallRadius * 1.8) * PhysicsConstants.SideJawDepthScale;
         double sideOutset = Math.Max(0.0, PhysicsConstants.SidePocketOutset);
+        double sideReachTrim = Math.Clamp(
+            PhysicsConstants.SideCushionPocketReachReduction,
+            0.0,
+            Math.Max(0.0, sideCut * 0.45));
 
         // Straight cushion spans (long rails)
-        AddCushionSegment(new Vec2(cornerCut, 0), new Vec2(width / 2 - sideCut, 0), new Vec2(0, 1));
-        AddCushionSegment(new Vec2(width / 2 + sideCut, 0), new Vec2(width - cornerCut, 0), new Vec2(0, 1));
-        AddCushionSegment(new Vec2(cornerCut, height), new Vec2(width / 2 - sideCut, height), new Vec2(0, -1));
-        AddCushionSegment(new Vec2(width / 2 + sideCut, height), new Vec2(width - cornerCut, height), new Vec2(0, -1));
+        AddCushionSegment(new Vec2(cornerCut, 0), new Vec2(width / 2 - sideCut - sideReachTrim, 0), new Vec2(0, 1));
+        AddCushionSegment(new Vec2(width / 2 + sideCut + sideReachTrim, 0), new Vec2(width - cornerCut, 0), new Vec2(0, 1));
+        AddCushionSegment(new Vec2(cornerCut, height), new Vec2(width / 2 - sideCut - sideReachTrim, height), new Vec2(0, -1));
+        AddCushionSegment(new Vec2(width / 2 + sideCut + sideReachTrim, height), new Vec2(width - cornerCut, height), new Vec2(0, -1));
 
         // Straight cushion spans (short rails)
-        AddCushionSegment(new Vec2(0, cornerCut), new Vec2(0, height / 2 - sideCut), new Vec2(1, 0));
-        AddCushionSegment(new Vec2(0, height / 2 + sideCut), new Vec2(0, height - cornerCut), new Vec2(1, 0));
-        AddCushionSegment(new Vec2(width, cornerCut), new Vec2(width, height / 2 - sideCut), new Vec2(-1, 0));
-        AddCushionSegment(new Vec2(width, height / 2 + sideCut), new Vec2(width, height - cornerCut), new Vec2(-1, 0));
+        AddCushionSegment(new Vec2(0, cornerCut), new Vec2(0, height / 2 - sideCut - sideReachTrim), new Vec2(1, 0));
+        AddCushionSegment(new Vec2(0, height / 2 + sideCut + sideReachTrim), new Vec2(0, height - cornerCut), new Vec2(1, 0));
+        AddCushionSegment(new Vec2(width, cornerCut), new Vec2(width, height / 2 - sideCut - sideReachTrim), new Vec2(-1, 0));
+        AddCushionSegment(new Vec2(width, height / 2 + sideCut + sideReachTrim), new Vec2(width, height - cornerCut), new Vec2(-1, 0));
 
         int cornerSegments = Math.Max(8, PhysicsConstants.CornerJawSegments);
         AddCornerJaw(new Vec2(cornerJawCenter, cornerJawCenter), cornerJawRadius, Math.PI, 1.5 * Math.PI, cornerSegments);
@@ -303,6 +307,12 @@ public class BilliardsSolver
     {
         foreach (var b in balls)
         {
+            if (b.Pocketed)
+            {
+                AdvancePocketedBall(b, dt);
+                continue;
+            }
+
             if (b.Velocity.Length > 0)
             {
                 double remaining = dt;
@@ -391,6 +401,14 @@ public class BilliardsSolver
                         if (pocket)
                         {
                             b.Pocketed = true;
+                            b.Height = 0;
+                            b.VerticalVelocity = 0;
+                            b.SideSpin = 0;
+                            b.ForwardSpin = 0;
+                            b.Velocity = PocketRollVelocity(b.Velocity, normal);
+                            double leftover = Math.Max(0, remaining - travel);
+                            if (leftover > PhysicsConstants.Epsilon)
+                                AdvancePocketedBall(b, leftover);
                             break;
                         }
                         b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
@@ -410,7 +428,6 @@ public class BilliardsSolver
                 }
             }
         }
-        balls.RemoveAll(ball => ball.Pocketed);
     }
 
     /// <summary>Runs CCD to predict cue-ball path until first impact.</summary>
@@ -581,6 +598,26 @@ public class BilliardsSolver
         StepVertical(b, dt);
     }
 
+    private static void AdvancePocketedBall(Ball b, double dt)
+    {
+        var speed = b.Velocity.Length;
+        if (speed < PhysicsConstants.Epsilon)
+            return;
+        b.Position += b.Velocity * dt;
+        double drag = LinearDrag(false) * PhysicsConstants.PocketRollDragMultiplier;
+        var newSpeed = Math.Max(0, speed - drag * dt);
+        b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
+    }
+
+    private static Vec2 PocketRollVelocity(Vec2 currentVelocity, Vec2 pocketNormal)
+    {
+        Vec2 dir = pocketNormal.Length > PhysicsConstants.Epsilon ? -pocketNormal.Normalized() : new Vec2(0, -1);
+        double speed = Math.Max(
+            PhysicsConstants.PocketRollSpeed,
+            currentVelocity.Length * PhysicsConstants.PocketRollSpeedFactor);
+        return dir * speed;
+    }
+
     private static void StepVertical(Ball b, double dt)
     {
         if (Math.Abs(b.VerticalVelocity) < PhysicsConstants.Epsilon && b.Height <= 0)
@@ -619,6 +656,8 @@ public class BilliardsSolver
         // check collisions using CCD for the next dt
         foreach (var b in others)
         {
+            if (b.Pocketed)
+                continue;
             if (Ccd.CircleCircle(cue.Position, cue.Velocity, PhysicsConstants.BallRadius, b.Position, PhysicsConstants.BallRadius, out double t))
             {
                 if (t <= dt)
