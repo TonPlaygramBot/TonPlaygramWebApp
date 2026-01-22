@@ -6370,8 +6370,6 @@ export function Table3D(
   const resolvedTableOptions =
     tableOptions && typeof tableOptions === 'object' ? tableOptions : null;
   const enableSidePockets = resolvedTableOptions?.enableSidePockets !== false;
-  const mergeSideCushions = resolvedTableOptions?.mergeSideCushions === true;
-  const disableMarkings = resolvedTableOptions?.disableMarkings === true;
   const resolveTablePocketCenters = () => {
     const centers = pocketCenters();
     return enableSidePockets ? centers : centers.slice(0, 4);
@@ -7015,70 +7013,68 @@ export function Table3D(
     clothEdgeMat.needsUpdate = true;
   }
 
-  if (!disableMarkings) {
-    const markingsGroup = new THREE.Group();
-    const markingMat = new THREE.MeshBasicMaterial({
-      color: palette.markings,
-      transparent: true,
-      opacity: 0.9,
-      side: THREE.DoubleSide
-    });
-    const markingHeight = clothPlaneLocal - CLOTH_DROP + MICRO_EPS * 2;
-    const lineThickness = Math.max(BALL_R * 0.08, 0.1);
-    const baulkLineLength = PLAY_W - SIDE_RAIL_INNER_THICKNESS * 0.4;
-    const baulkLineGeom = new THREE.PlaneGeometry(baulkLineLength, lineThickness);
-    const baulkLine = new THREE.Mesh(baulkLineGeom, markingMat);
-    baulkLine.rotation.x = -Math.PI / 2;
-    baulkLine.position.set(0, markingHeight, baulkLineZ);
-    markingsGroup.add(baulkLine);
+  const markingsGroup = new THREE.Group();
+  const markingMat = new THREE.MeshBasicMaterial({
+    color: palette.markings,
+    transparent: true,
+    opacity: 0.9,
+    side: THREE.DoubleSide
+  });
+  const markingHeight = clothPlaneLocal - CLOTH_DROP + MICRO_EPS * 2;
+  const lineThickness = Math.max(BALL_R * 0.08, 0.1);
+  const baulkLineLength = PLAY_W - SIDE_RAIL_INNER_THICKNESS * 0.4;
+  const baulkLineGeom = new THREE.PlaneGeometry(baulkLineLength, lineThickness);
+  const baulkLine = new THREE.Mesh(baulkLineGeom, markingMat);
+  baulkLine.rotation.x = -Math.PI / 2;
+  baulkLine.position.set(0, markingHeight, baulkLineZ);
+  markingsGroup.add(baulkLine);
 
-    const dRadius = D_RADIUS;
-    const dThickness = Math.max(lineThickness * 0.75, BALL_R * 0.07);
-    const dGeom = new THREE.RingGeometry(
-      Math.max(0.001, dRadius - dThickness),
-      dRadius,
-      64,
-      1,
-      0,
-      Math.PI
-    );
-    const dArc = new THREE.Mesh(dGeom, markingMat.clone());
-    dArc.rotation.x = -Math.PI / 2;
-    dArc.position.set(0, markingHeight, baulkLineZ);
-    markingsGroup.add(dArc);
+  const dRadius = D_RADIUS;
+  const dThickness = Math.max(lineThickness * 0.75, BALL_R * 0.07);
+  const dGeom = new THREE.RingGeometry(
+    Math.max(0.001, dRadius - dThickness),
+    dRadius,
+    64,
+    1,
+    0,
+    Math.PI
+  );
+  const dArc = new THREE.Mesh(dGeom, markingMat.clone());
+  dArc.rotation.x = -Math.PI / 2;
+  dArc.position.set(0, markingHeight, baulkLineZ);
+  markingsGroup.add(dArc);
 
-    const spotRadius = BALL_R * 0.26;
-    const spotMeshes = [];
-    const addSpot = (x, z) => {
-      const spotGeo = new THREE.CircleGeometry(spotRadius, 32);
-      const spot = new THREE.Mesh(spotGeo, markingMat.clone());
-      spot.rotation.x = -Math.PI / 2;
-      spot.position.set(x, markingHeight, z);
-      markingsGroup.add(spot);
-      spotMeshes.push(spot);
-    };
-    addSpot(-D_RADIUS, baulkLineZ);
-    addSpot(0, baulkLineZ);
-    addSpot(D_RADIUS, baulkLineZ);
-    addSpot(0, 0);
-    const topCushionZ = PLAY_H / 2;
-    addSpot(0, (topCushionZ + 0) / 2);
-    addSpot(0, topCushionZ - BLACK_FROM_TOP);
-    markingsGroup.traverse((child) => {
-      if (child.isMesh) {
-        child.renderOrder = cloth.renderOrder + 1;
-        child.castShadow = false;
-        child.receiveShadow = false;
-      }
-    });
-    table.add(markingsGroup);
-    table.userData.markings = {
-      group: markingsGroup,
-      baulkLine,
-      dArc,
-      spots: spotMeshes
-    };
-  }
+  const spotRadius = BALL_R * 0.26;
+  const spotMeshes = [];
+  const addSpot = (x, z) => {
+    const spotGeo = new THREE.CircleGeometry(spotRadius, 32);
+    const spot = new THREE.Mesh(spotGeo, markingMat.clone());
+    spot.rotation.x = -Math.PI / 2;
+    spot.position.set(x, markingHeight, z);
+    markingsGroup.add(spot);
+    spotMeshes.push(spot);
+  };
+  addSpot(-D_RADIUS, baulkLineZ);
+  addSpot(0, baulkLineZ);
+  addSpot(D_RADIUS, baulkLineZ);
+  addSpot(0, 0);
+  const topCushionZ = PLAY_H / 2;
+  addSpot(0, (topCushionZ + 0) / 2);
+  addSpot(0, topCushionZ - BLACK_FROM_TOP);
+  markingsGroup.traverse((child) => {
+    if (child.isMesh) {
+      child.renderOrder = cloth.renderOrder + 1;
+      child.castShadow = false;
+      child.receiveShadow = false;
+    }
+  });
+  table.add(markingsGroup);
+  table.userData.markings = {
+    group: markingsGroup,
+    baulkLine,
+    dArc,
+    spots: spotMeshes
+  };
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
@@ -9384,7 +9380,7 @@ export function Table3D(
     const rightDistanceToSidePocket = Math.abs(worldZRight);
     const leftCloserToCenter = leftDistanceToSidePocket < rightDistanceToSidePocket;
     const side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
-    const sidePocketCuts = !horizontal && enableSidePockets && !mergeSideCushions
+    const sidePocketCuts = !horizontal
       ? {
           leftCutAngle: leftCloserToCenter
             ? CUSHION_CUT_ANGLE
@@ -9469,19 +9465,10 @@ export function Table3D(
   addCushion(0, bottomZ, horizontalCushionLength, true, false);
   addCushion(0, topZ, horizontalCushionLength, true, true);
 
-  if (mergeSideCushions) {
-    const sideCushionLength = Math.max(
-      MICRO_EPS,
-      (cornerIntersectionZ - SHORT_RAIL_CUSHION_LENGTH_TRIM) * 2
-    );
-    addCushion(leftX, 0, sideCushionLength, false, false);
-    addCushion(rightX, 0, sideCushionLength, false, true);
-  } else {
-    addCushion(leftX, -verticalCushionCenter, verticalCushionLength, false, false);
-    addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
-    addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
-    addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
-  }
+  addCushion(leftX, -verticalCushionCenter, verticalCushionLength, false, false);
+  addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
+  addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
+  addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
