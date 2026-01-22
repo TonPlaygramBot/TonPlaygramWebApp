@@ -601,7 +601,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1; // allow the plate ends to r
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.986; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.16; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.22; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.085; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
@@ -926,7 +926,7 @@ const REPLAY_CUE_STICK_HOLD_MS = 620;
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.35; // expand wooden frame rails outward by 35% on all sides
 const RAIL_HEIGHT = TABLE.THICK * 1.18; // shorten rails by ~35% so the stance sits lower
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.012; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.46; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
@@ -940,11 +940,11 @@ const POCKET_JAW_DEPTH_SCALE = 1.08; // extend the jaw bodies so the underside r
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim so the pocket lips sit nearer the cloth plane
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.03; // allow the jaw extrusion to extend farther down without lifting the top
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.18; // keep the underside tight to the cloth depth instead of the deeper pocket floor
-const POCKET_JAW_EDGE_FLUSH_START = 0.12; // start easing earlier so the jaw thins gradually toward the cushions
+const POCKET_JAW_EDGE_FLUSH_START = 0.1; // start easing earlier so the jaw thins gradually toward the cushions
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
-const POCKET_JAW_EDGE_TAPER_SCALE = 0.08; // thin the outer lips more aggressively while leaving the centre crown unchanged
-const POCKET_JAW_CENTER_TAPER_HOLD = 0.1; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
-const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1; // smooth the taper curve so thickness falls away progressively instead of dropping late
+const POCKET_JAW_EDGE_TAPER_SCALE = 0.12; // thin the outer lips more aggressively while leaving the centre crown unchanged
+const POCKET_JAW_CENTER_TAPER_HOLD = 0.08; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
+const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.2; // smooth the taper curve so thickness falls away progressively instead of dropping late
 const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD; // keep the taper hold consistent so the middle jaw crown mirrors the corners
 const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE; // reuse the corner taper scale so edge thickness matches exactly
 const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // maintain the identical taper curve across all six jaws
@@ -959,8 +959,8 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // widen the chamfer so the corner j
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.78; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.48; // push the middle jaw reach a touch wider so the openings read larger
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.74; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // push the middle jaw reach a touch wider so the openings read larger
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.02; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * -0.016; // nudge the middle jaws down so their rims sit level with the cloth
@@ -1181,7 +1181,7 @@ const POCKET_INTERIOR_CAPTURE_R =
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the true bowl opening
-const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now mirrors the bowl radius
+const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.08; // give middle pockets a touch more capture so shots don't hang in the jaws
 const POCKET_GUARD_RADIUS = Math.max(0, POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04); // align the rail guard to the playable capture bowl instead of the visual rim
 const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // shrink the safety margin so angled cushion cuts register sooner
 const CORNER_POCKET_DEPTH_LIMIT =
@@ -1267,7 +1267,7 @@ const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.16; // nudge the L segments to
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER; // tighter spacing so potted balls touch on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 3.6; // let potted balls roll farther until they meet the leather strap
-const POCKET_HOLDER_RUN_SURFACE_LIFT = BALL_R + POCKET_GUIDE_RADIUS; // keep the ball resting on top of the center chrome holder
+const POCKET_HOLDER_RUN_SURFACE_LIFT = BALL_R * 1.12 + POCKET_GUIDE_RADIUS; // keep the ball resting on top of the center chrome holder
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -4850,6 +4850,7 @@ const CAMERA = {
 };
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
+const AIM_LINE_SURFACE_OFFSET = BALL_R * 0.04; // keep the aim line grazing the cloth surface for more accurate depth reads
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
 const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // compensate for the 20% smaller cue ball when rendering the guide
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
@@ -4938,6 +4939,7 @@ const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 const BIH_INDICATOR_LINE_PX = 32;
 const BIH_INDICATOR_HAND_SIZE_PX = 24;
+const BIH_INDICATOR_WORLD_OFFSET = BALL_R * 1.35;
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
@@ -23429,8 +23431,9 @@ const powerRef = useRef(hud.power);
             guideAimDir2D,
             balls
           );
-          const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
-          let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
+          const aimLineY = tableSurfaceY + AIM_LINE_SURFACE_OFFSET;
+          const start = new THREE.Vector3(cue.pos.x, aimLineY, cue.pos.y);
+          let end = new THREE.Vector3(impact.x, aimLineY, impact.y);
           const dir = baseAimDir.clone();
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
@@ -23768,8 +23771,9 @@ const powerRef = useRef(hud.power);
             guideAimDir2D,
             balls
           );
-          const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
-          let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
+          const aimLineY = tableSurfaceY + AIM_LINE_SURFACE_OFFSET;
+          const start = new THREE.Vector3(cue.pos.x, aimLineY, cue.pos.y);
+          let end = new THREE.Vector3(impact.x, aimLineY, impact.y);
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(baseDir.clone().multiplyScalar(BALL_R));
           }
@@ -24848,6 +24852,15 @@ const powerRef = useRef(hud.power);
             } else {
               const activeCamera = frameCamera ?? camera;
               TMP_VEC3_A.set(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+              const indicatorBasis = resolveCameraBasis(activeCamera);
+              if (indicatorBasis?.right) {
+                TMP_VEC3_A.addScaledVector(
+                  indicatorBasis.right,
+                  BIH_INDICATOR_WORLD_OFFSET
+                );
+              } else {
+                TMP_VEC3_A.x += BIH_INDICATOR_WORLD_OFFSET;
+              }
               TMP_VEC3_A.project(activeCamera);
               const rect = renderer.domElement.getBoundingClientRect();
               const screenX =
