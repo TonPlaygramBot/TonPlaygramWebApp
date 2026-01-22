@@ -255,11 +255,11 @@ export class SnookerRoyalRules {
       nextActivePlayer = state.activePlayer === 'A' ? 'B' : 'A';
       nextBreak = 0;
       if (state.phase === 'REDS_AND_COLORS') {
-        if (redsRemaining === 0) {
+        if (redsRemaining === 0 && !state.colorOnAfterRed) {
           nextPhase = 'COLORS_ORDER';
           colorOnAfterRed = false;
         } else {
-          colorOnAfterRed = false;
+          colorOnAfterRed = state.colorOnAfterRed ?? false;
         }
       }
     } else {
@@ -270,12 +270,7 @@ export class SnookerRoyalRules {
         scores[state.activePlayer] += scored;
         nextBreak = (state.currentBreak ?? 0) + scored;
         if (pottedReds.length > 0 || freeBallPotted) {
-          if (redsRemaining === 0) {
-            nextPhase = 'COLORS_ORDER';
-            colorOnAfterRed = false;
-          } else {
-            colorOnAfterRed = true;
-          }
+          colorOnAfterRed = true;
         }
       } else if (state.phase === 'REDS_AND_COLORS' && state.colorOnAfterRed) {
         const color = declaredBall ?? pottedColors[0] ?? nominatedFreeBall;
