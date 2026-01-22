@@ -1195,8 +1195,8 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
 const CUSHION_CUT_RESTITUTION_SCALE = 0.82; // damp angled-cushion rebounds so they feel less punchy than straight rails
 const SIDE_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
-const SIDE_POCKET_SPAN =
-  SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.52; // tune the middle lane to the real mouth width
+let SIDE_POCKET_SPAN =
+  SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.52; // tuned further once pocket geometry is resolved
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_ENABLED = false; // fully disable any plywood underlay beneath the cloth
 const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
@@ -1267,7 +1267,7 @@ const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.16; // nudge the L segments to
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER; // tighter spacing so potted balls touch on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 3.6; // let potted balls roll farther until they meet the leather strap
-const POCKET_HOLDER_REST_DROP = BALL_R * 1.35; // lift the resting spot so balls ride higher on the chrome holder
+const POCKET_HOLDER_RUN_SURFACE_LIFT = BALL_R + POCKET_GUIDE_RADIUS; // keep the ball resting on top of the center chrome holder
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -7385,7 +7385,7 @@ export function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.02; // trim the cushion tips near middle pockets so they stop at the rail cut
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.55; // reduce long-rail cushion reach further to keep noses out of pocket perimeters
   const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.28; // lightly trim short-rail cushions to match the new pocket clearance
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
@@ -7447,6 +7447,7 @@ export function Table3D(
     0,
     sidePocketReach - SIDE_CUSHION_POCKET_REACH_REDUCTION
   );
+  SIDE_POCKET_SPAN = Math.max(adjustedSidePocketReach, BALL_R * 0.6);
   const verticalCushionLength = Math.max(
     MICRO_EPS,
     Math.max(
@@ -24603,7 +24604,7 @@ const powerRef = useRef(hud.power);
                   )
                 );
               const restY =
-                railRunStart.y - POCKET_HOLDER_REST_DROP - tiltDrop;
+                railRunStart.y + POCKET_HOLDER_RUN_SURFACE_LIFT - tiltDrop;
               const glowMesh = table ? createPocketGlowMesh('good') : null;
               if (glowMesh) {
                 glowMesh.position.set(fromX, BALL_CENTER_Y - POCKET_GLOW_LIFT, fromZ);
