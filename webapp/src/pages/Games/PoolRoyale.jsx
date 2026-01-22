@@ -909,7 +909,7 @@ const SKIP_REPLAYS_STORAGE_KEY = 'poolSkipReplays';
 const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
-const ENABLE_CUE_STROKE_ANIMATION = false;
+const ENABLE_CUE_STROKE_ANIMATION = true;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
@@ -1250,7 +1250,7 @@ const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 1.05; // drop deeper so potted ball
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.74; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
-const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
+const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.1; // lift the ring so the holder assembly sits higher
 const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.26; // raise the net so the weave meets the pocket mouth
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
@@ -1259,15 +1259,15 @@ const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 7.
 const POCKET_GUIDE_DROP = BALL_R * 0.12;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
-const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.12; // allow the L-arms to peek past the ring without blocking the pocket mouth
+const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.18; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = -BALL_R * 0.18; // lift the chrome holder rails so the short L segments meet the ring
-const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
+const POCKET_GUIDE_VERTICAL_DROP = -BALL_R * 0.26; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.16; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER; // tighter spacing so potted balls touch on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.15; // let potted balls roll a touch farther before stopping
-const POCKET_HOLDER_REST_DROP = BALL_R * 1.55; // lift the resting spot so balls ride higher on the chrome holder
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 3.6; // let potted balls roll farther until they meet the leather strap
+const POCKET_HOLDER_REST_DROP = BALL_R * 1.35; // lift the resting spot so balls ride higher on the chrome holder
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -1276,7 +1276,7 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.98; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.48; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.62; // lift the leather strap so it meets the raised holder rails
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -4855,10 +4855,10 @@ const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // compensate for the 20% sma
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
-const AIM_LINE_OPACITY = 0.88; // keep aiming line visibility consistent across power strength
+const AIM_LINE_OPACITY = 0.95; // restore the brighter aiming line from the morning build
 const AIM_AFTER_OPACITY = 0.55; // keep follow line stable to match the morning build
-const AIM_TARGET_OPACITY = 0.7; // keep target preview steady
-const AIM_TARGET_FAINT_OPACITY = 0.45;
+const AIM_TARGET_OPACITY = 0.8; // keep target preview steady across the full playfield
+const AIM_TARGET_FAINT_OPACITY = 0.55;
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -6167,6 +6167,19 @@ function calcTarget(cue, dir, balls) {
       .normalize();
   }
   return { impact, targetDir, cueDir, targetBall, railNormal, tHit: travel };
+}
+
+function resolveRailIntersectionPoint(start, dir) {
+  if (!start || !dir || dir.lengthSq() < 1e-8) return null;
+  const limX = RAIL_LIMIT_X;
+  const limY = RAIL_LIMIT_Y;
+  let tHit = Infinity;
+  if (dir.x > 1e-8) tHit = Math.min(tHit, (limX - start.x) / dir.x);
+  if (dir.x < -1e-8) tHit = Math.min(tHit, (-limX - start.x) / dir.x);
+  if (dir.y > 1e-8) tHit = Math.min(tHit, (limY - start.y) / dir.y);
+  if (dir.y < -1e-8) tHit = Math.min(tHit, (-limY - start.y) / dir.y);
+  if (!Number.isFinite(tHit) || tHit <= 0) return null;
+  return start.clone().add(dir.clone().multiplyScalar(tHit));
 }
 
 function Guret(parent, id, color, x, y, options = {}) {
@@ -23683,9 +23696,15 @@ const powerRef = useRef(hud.power);
               targetBall.pos.y
             );
             const distanceScale = travelScale;
-            const tEnd = targetStart
-              .clone()
-              .add(tDir.clone().multiplyScalar(distanceScale));
+            const targetRailPoint = resolveRailIntersectionPoint(
+              new THREE.Vector2(targetStart.x, targetStart.z),
+              new THREE.Vector2(tDir.x, tDir.z)
+            );
+            const tEnd = targetRailPoint
+              ? new THREE.Vector3(targetRailPoint.x, BALL_CENTER_Y, targetRailPoint.y)
+              : targetStart
+                  .clone()
+                  .add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([targetStart, tEnd]);
             target.material.color.setHex(0xffd166);
             target.material.opacity = AIM_TARGET_OPACITY;
@@ -23694,9 +23713,13 @@ const powerRef = useRef(hud.power);
           } else if (railNormal && cueDir) {
             const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
             const bounceLength = BALL_R * (12 + powerStrength * 18);
-            const bounceEnd = end
-              .clone()
-              .add(bounceDir.clone().multiplyScalar(bounceLength));
+            const bounceRailPoint = resolveRailIntersectionPoint(
+              new THREE.Vector2(end.x, end.z),
+              new THREE.Vector2(bounceDir.x, bounceDir.z)
+            );
+            const bounceEnd = bounceRailPoint
+              ? new THREE.Vector3(bounceRailPoint.x, BALL_CENTER_Y, bounceRailPoint.y)
+              : end.clone().add(bounceDir.clone().multiplyScalar(bounceLength));
             targetGeom.setFromPoints([end, bounceEnd]);
             target.material.color.setHex(0x7ce7ff);
             target.material.opacity = AIM_TARGET_FAINT_OPACITY;
@@ -23830,9 +23853,15 @@ const powerRef = useRef(hud.power);
               targetBall.pos.y
             );
             const distanceScale = travelScale;
-            const tEnd = targetStart
-              .clone()
-              .add(tDir.clone().multiplyScalar(distanceScale));
+            const targetRailPoint = resolveRailIntersectionPoint(
+              new THREE.Vector2(targetStart.x, targetStart.z),
+              new THREE.Vector2(tDir.x, tDir.z)
+            );
+            const tEnd = targetRailPoint
+              ? new THREE.Vector3(targetRailPoint.x, BALL_CENTER_Y, targetRailPoint.y)
+              : targetStart
+                  .clone()
+                  .add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([targetStart, tEnd]);
             target.material.color.setHex(0xffd166);
             target.material.opacity = AIM_TARGET_OPACITY;
@@ -23841,9 +23870,13 @@ const powerRef = useRef(hud.power);
           } else if (railNormal && cueDir) {
             const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
             const bounceLength = BALL_R * (12 + powerStrength * 18);
-            const bounceEnd = end
-              .clone()
-              .add(bounceDir.clone().multiplyScalar(bounceLength));
+            const bounceRailPoint = resolveRailIntersectionPoint(
+              new THREE.Vector2(end.x, end.z),
+              new THREE.Vector2(bounceDir.x, bounceDir.z)
+            );
+            const bounceEnd = bounceRailPoint
+              ? new THREE.Vector3(bounceRailPoint.x, BALL_CENTER_Y, bounceRailPoint.y)
+              : end.clone().add(bounceDir.clone().multiplyScalar(bounceLength));
             targetGeom.setFromPoints([end, bounceEnd]);
             target.material.color.setHex(0x7ce7ff);
             target.material.opacity = AIM_TARGET_FAINT_OPACITY;
@@ -27063,9 +27096,10 @@ export default function PoolRoyale() {
       return exitMessage;
     };
     const handlePopState = () => {
+      window.history.pushState(null, '', window.location.href);
       confirmExit().then((confirmed) => {
         if (!confirmed) {
-          window.history.pushState(null, '', window.location.href);
+          return;
         } else {
           exitToLobby();
         }
