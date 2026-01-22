@@ -179,19 +179,17 @@ function parseUkColour(value: unknown): UkColour | null {
   }
   if (typeof value !== 'string') return null;
   const lower = value.toLowerCase();
-  const numericMatch = lower.match(/ball_(\d+)/);
-  if (numericMatch) {
-    const num = Number.parseInt(numericMatch[1], 10);
-    if (num === 0) return 'cue';
-    if (num === 8) return 'black';
-    if (num >= 1 && num <= 7) return 'blue';
-    if (num >= 9 && num <= 15) return 'red';
-  }
-  if (lower.startsWith('yellow')) return 'blue';
-  if (lower.startsWith('blue')) return 'blue';
+  if (lower === 'cue' || lower === 'cue_ball') return 'cue';
+  if (lower.startsWith('yellow') || lower.startsWith('blue')) return 'blue';
   if (lower.startsWith('red')) return 'red';
   if (lower.startsWith('black')) return 'black';
-  if (lower === 'cue') return 'cue';
+  const numericMatch = lower.match(/ball_(\d+)/) ?? lower.match(/(\d+)/);
+  if (!numericMatch) return null;
+  const num = Number.parseInt(numericMatch[1], 10);
+  if (num === 0) return 'cue';
+  if (num === 8) return 'black';
+  if (num >= 1 && num <= 7) return 'blue';
+  if (num >= 9 && num <= 15) return 'red';
   return null;
 }
 
