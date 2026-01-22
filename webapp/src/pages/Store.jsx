@@ -197,6 +197,7 @@ const SNAKE_TYPE_LABELS = {
   tokenFinish: 'Token Finish',
   tokenColor: 'Token Colors',
   tokenShape: 'Token Shape',
+  headStyle: 'Pawn Heads',
   tableFinish: 'Table Finish',
   tables: 'Table Models',
   stools: 'Chairs',
