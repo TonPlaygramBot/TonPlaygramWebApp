@@ -100,6 +100,65 @@ export const TOKEN_PIECE_OPTIONS = Object.freeze([
   { id: 'pieceKing', label: 'Play as King', type: 'k', symbol: '♔' }
 ]);
 
+const CHESS_SIDE_COLOR_OPTIONS = Object.freeze([
+  {
+    id: 'marble',
+    label: 'Marble Pieces',
+    color: 0xf8fafc,
+    storeName: 'Marble Pieces',
+    storeDescription: 'Premium marble-inspired pieces for either side.',
+    price: 1400
+  },
+  {
+    id: 'darkForest',
+    label: 'Dark Forest Pieces',
+    color: 0x14532d,
+    storeName: 'Dark Forest Pieces',
+    storeDescription: 'Deep forest hue pieces with luxe accents.',
+    price: 1300
+  },
+  {
+    id: 'royalWave',
+    label: 'Royal Wave Pieces',
+    color: 0x3b82f6,
+    storeName: 'Royal Wave Pieces',
+    storeDescription: 'Royal blue quick-select palette.',
+    price: 420
+  },
+  {
+    id: 'roseMist',
+    label: 'Rose Mist Pieces',
+    color: 0xef4444,
+    storeName: 'Rose Mist Pieces',
+    storeDescription: 'Rosy quick-select palette with soft glow.',
+    price: 420
+  },
+  {
+    id: 'amethyst',
+    label: 'Amethyst Pieces',
+    color: 0x8b5cf6,
+    storeName: 'Amethyst Pieces',
+    storeDescription: 'Amethyst quick-select palette with sheen.',
+    price: 460
+  },
+  {
+    id: 'cinderBlaze',
+    label: 'Cinder Blaze Pieces',
+    color: 0xff6b35,
+    storeName: 'Cinder Blaze Pieces',
+    storeDescription: 'Molten orange-on-charcoal palette for fiery showdowns.',
+    price: 480
+  },
+  {
+    id: 'arcticDrift',
+    label: 'Arctic Drift Pieces',
+    color: 0xbcd7ff,
+    storeName: 'Arctic Drift Pieces',
+    storeDescription: 'Icy stone palette with frosted metallic hints.',
+    price: 520
+  }
+]);
+
 export const TOKEN_PALETTE_OPTIONS = Object.freeze([
   {
     id: 'vividCore',
@@ -130,7 +189,15 @@ export const TOKEN_PALETTE_OPTIONS = Object.freeze([
     id: 'sunsetArena',
     label: 'Sunset Arena',
     swatches: [0xfb7185, 0xf97316, 0xfacc15, 0x4ade80]
-  }
+  },
+  ...CHESS_SIDE_COLOR_OPTIONS.map((option) => ({
+    id: option.id,
+    label: option.label,
+    swatches: Array(4).fill(option.color),
+    storeName: option.storeName,
+    storeDescription: option.storeDescription,
+    price: option.price
+  }))
 ]);
 
 export const CHAIR_COLOR_OPTIONS = Object.freeze([

@@ -69,9 +69,9 @@ export const LUDO_BATTLE_STORE_ITEMS = [
     id: `ludo-palette-${option.id}`,
     type: 'tokenPalette',
     optionId: option.id,
-    name: `${option.label} Palette`,
-    price: 260 + idx * 20,
-    description: 'Alternate pawn color palette for every side.'
+    name: option.storeName || `${option.label} Palette`,
+    price: option.price ?? 260 + idx * 20,
+    description: option.storeDescription || 'Alternate pawn color palette for every side.'
   })),
   ...TOKEN_STYLE_OPTIONS.slice(1).map((option) => ({
     id: `ludo-style-${option.id}`,
