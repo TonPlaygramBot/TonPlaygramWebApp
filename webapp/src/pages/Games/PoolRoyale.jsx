@@ -1251,7 +1251,7 @@ const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.74; // stop the fall sligh
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
-const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.26; // raise the net so the weave meets the pocket mouth
+const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // match Snooker Royal pocket net lift for identical potted-ball framing
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
@@ -1262,21 +1262,21 @@ const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails jus
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = -BALL_R * 0.02; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
-const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER; // tighter spacing so potted balls touch on the holder rails
-const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.15; // let potted balls roll a touch farther before stopping
-const POCKET_HOLDER_REST_DROP = BALL_R * 2.02; // lift the resting spot so balls ride higher on the chrome holder
+const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
+const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
+const POCKET_HOLDER_REST_DROP = BALL_R * 2.18; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
 const POCKET_MIDDLE_HOLDER_SWAY = 0.32; // add a slight diagonal so middle-pocket holders angle like the reference photos
 const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve past the felt base so it meets the pocket walls cleanly
-const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.98; // extend the short L section so it reaches the ring and guides balls like the reference trays
+const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // align strap height with Snooker Royal for identical potted-ball rests
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -1755,7 +1755,7 @@ function deriveInHandFromFrame(frame) {
     return Boolean(meta.state.ballInHand);
   }
   if (meta.variant === 'uk' && meta.state) {
-    return Boolean(meta.state.ballInHand);
+    return Boolean(meta.state.mustPlayFromBaulk);
   }
   return false;
 }
@@ -4924,7 +4924,7 @@ const CUE_VIEW_SPIN_ZOOM = 0; // remove zoom shifts while spin control is active
 const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
 const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-ball follow line toward a draw path
-const AIM_SPIN_PREVIEW_SIDE = 0;
+const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
 const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
@@ -6015,7 +6015,7 @@ function resolveSwerveAimDir(
     (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
   const powerScale = 4 + powerStrength * 6;
   const swerveScale = 0.6 + swerve.intensity * 0.9;
-  const sideSpin = swerve.sideSpin;
+  const sideSpin = -swerve.sideSpin;
   const adjust =
     sideSpin *
     swerve.intensity *
@@ -6047,7 +6047,7 @@ function buildSwerveAimLinePoints(
     swerveActive,
     liftStrength
   );
-  const sideSpin = swerve.sideSpin;
+  const sideSpin = -swerve.sideSpin;
   const travel = start.distanceTo(end);
   if (swerve.intensity <= 0 || Math.abs(sideSpin) < 1e-3 || travel < 1e-4) {
     points.length = 2;
@@ -20441,7 +20441,7 @@ const powerRef = useRef(hud.power);
           } else if (meta.variant === '9ball' && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
           } else if (meta.variant === 'uk' && meta.state) {
-            placedFromHand = Boolean(meta.state.ballInHand);
+            placedFromHand = Boolean(meta.state.mustPlayFromBaulk);
           }
         }
         shotContextRef.current = {
@@ -20625,27 +20625,80 @@ const powerRef = useRef(hud.power);
           const appliedSpin = applySpinConstraints(aimDir, true);
           const liftAngle = resolveUserCueLift();
           const liftStrength = normalizeCueLift(liftAngle);
-          const cameraBasis = resolveCameraBasis(activeRenderCameraRef.current ?? cameraRef.current);
-          const physicsSpin = mapSpinForPhysics(appliedSpin, {
-            cameraRight: cameraBasis?.right ?? null,
-            cameraUp: cameraBasis?.up ?? null,
-            cueForward: { x: aimDir.x, z: aimDir.y }
-          });
-          const offsetScaled = {
-            x: physicsSpin?.x ?? 0,
-            y: physicsSpin?.y ?? 0
-          };
-          const shotPayload = {
-            base: base.clone(),
-            aimDir: aimDir.clone(),
-            physicsSpin: { x: offsetScaled.x, y: offsetScaled.y },
+          const physicsSpin = mapSpinForPhysics(appliedSpin);
+          const ranges = spinRangeRef.current || {};
+          const powerSpinScale = 0.55 + clampedPower * 0.45;
+          const baseSide = physicsSpin.x * (ranges.side ?? 0);
+          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
+          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+          if (physicsSpin.y < 0) {
+            spinTop *= BACKSPIN_MULTIPLIER;
+          } else if (physicsSpin.y > 0) {
+            spinTop *= TOPSPIN_MULTIPLIER;
+          }
+          cue.vel.copy(base);
+          if (cue.spin) {
+            cue.spin.set(spinSide, spinTop);
+          }
+          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+          cue.spinMode =
+            spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
+          const swerveSettings = resolveSwerveSettings(
+            physicsSpin,
             clampedPower,
-            liftStrength,
-            applied: false
-          };
-
-          applyShotAtImpact(shotPayload);
-          const topSpinWeight = Math.max(0, physicsSpin?.y || 0);
+            cue.spinMode === 'swerve',
+            liftStrength
+          );
+          cue.swerveStrength = cue.spinMode === 'swerve' ? swerveSettings.intensity : 0;
+          cue.swervePowerStrength = cue.spinMode === 'swerve' ? clampedPower : 0;
+          resetSpinRef.current?.();
+          cueLiftRef.current.lift = 0;
+          cueLiftRef.current.startLift = 0;
+          cue.impacted = false;
+          cue.launchDir = aimDir.clone().normalize();
+          maxPowerLiftTriggered = false;
+          cue.lift = 0;
+          cue.liftVel = 0;
+          const topSpinWeight = Math.max(0, physicsSpin.y || 0);
+          if (
+            clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
+            liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
+            topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
+          ) {
+            const powerRatio = THREE.MathUtils.clamp(
+              (clampedPower - JUMP_SHOT_POWER_THRESHOLD) /
+                Math.max(1 - JUMP_SHOT_POWER_THRESHOLD, 1e-4),
+              0,
+              1
+            );
+            const liftRatio = THREE.MathUtils.clamp(
+              (liftStrength - JUMP_SHOT_LIFT_THRESHOLD) /
+                Math.max(1 - JUMP_SHOT_LIFT_THRESHOLD, 1e-4),
+              0,
+              1
+            );
+            const spinRatio = THREE.MathUtils.clamp(
+              (topSpinWeight - JUMP_SHOT_TOPSPIN_THRESHOLD) /
+                Math.max(1 - JUMP_SHOT_TOPSPIN_THRESHOLD, 1e-4),
+              0,
+              1
+            );
+            const jumpStrength =
+              (0.25 + 0.75 * powerRatio) *
+              (0.4 + 0.6 * liftRatio) *
+              (0.55 + 0.45 * spinRatio);
+            const jumpVelocity = MAX_POWER_BOUNCE_IMPULSE * JUMP_SHOT_LAUNCH_SCALE * jumpStrength;
+            const physicsHeight =
+              (jumpVelocity * jumpVelocity) /
+              (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
+            const jumpHeight = Math.min(
+              MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE,
+              physicsHeight
+            );
+            cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
+            cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
+          }
+          playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -21892,7 +21945,7 @@ const powerRef = useRef(hud.power);
             aiState.ballOn ?? 'open',
             aiState.isOpenTable ? '1' : '0',
             aiState.shotsRemaining ?? '0',
-            aiState.ballInHand ? '1' : '0',
+            aiState.mustPlayFromBaulk ? '1' : '0',
             Math.round((aiState.baulkLineX ?? 0) * 10)
           ].join('::');
         };
@@ -21942,7 +21995,7 @@ const powerRef = useRef(hud.power);
             ballOn: ballOnColour,
             isOpenTable: snapshot.isOpenTable,
             shotsRemaining: snapshot.shotsRemaining,
-            ballInHand: snapshot.ballInHand,
+            mustPlayFromBaulk: snapshot.mustPlayFromBaulk,
             baulkLineX: baulkLineLocal + height / 2
           };
           try {
@@ -22974,7 +23027,7 @@ const powerRef = useRef(hud.power);
               } else if (nextMeta.variant === '9ball' && nextMeta.state) {
                 nextInHand = Boolean(nextMeta.state.ballInHand);
               } else if (nextMeta.variant === 'uk' && nextMeta.state) {
-                nextInHand = Boolean(nextMeta.state.ballInHand);
+                nextInHand = Boolean(nextMeta.state.mustPlayFromBaulk);
               }
             }
           }
@@ -23271,19 +23324,13 @@ const powerRef = useRef(hud.power);
           : baseAimLerp;
         if (!lookModeRef.current) {
           aimDir.lerp(tmpAim, aimLerpFactor);
+          if (aimDir.lengthSq() > 1e-6) {
+            aimDir.normalize();
+          }
         }
         const appliedSpin = applySpinConstraints(aimDir, true);
         const liftStrength = normalizeCueLift(resolveUserCueLift());
-        const cameraBasis = resolveCameraBasis(activeRenderCameraRef.current ?? cameraRef.current);
-        const physicsSpin = mapSpinForPhysics(appliedSpin, {
-          cameraRight: cameraBasis?.right ?? null,
-          cameraUp: cameraBasis?.up ?? null,
-          cueForward: { x: aimDir.x, z: aimDir.y }
-        });
-        const aimLineSpin = {
-          x: physicsSpin.x || 0,
-          y: physicsSpin.y || 0
-        };
+        const physicsSpin = mapSpinForPhysics(appliedSpin);
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
         let shouldSlowAim = false;
@@ -23428,7 +23475,7 @@ const powerRef = useRef(hud.power);
           const aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
           const guideAimDir2D = resolveSwerveAimDir(
             aimDir2D,
-            aimLineSpin,
+            physicsSpin,
             powerStrength,
             swerveActive,
             liftStrength
@@ -23453,7 +23500,7 @@ const powerRef = useRef(hud.power);
             end,
             dir,
             perp,
-            aimLineSpin,
+            physicsSpin,
             powerStrength,
             swerveActive,
             liftStrength
@@ -23528,8 +23575,8 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const spinSideInfluence = 0;
-          const spinVerticalInfluence = (aimLineSpin.y || 0) * (0.68 + 0.45 * powerStrength);
+          const spinSideInfluence = (physicsSpin.x || 0) * (0.4 + 0.42 * powerStrength);
+          const spinVerticalInfluence = (physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
             .add(perp.clone().multiplyScalar(spinSideInfluence))
@@ -23537,7 +23584,7 @@ const powerRef = useRef(hud.power);
           if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
             cueFollowDirSpinAdjusted.normalize();
           }
-          const backSpinWeight = Math.max(0, -(aimLineSpin.y || 0));
+          const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
           if (backSpinWeight > 1e-8) {
             const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
             const drawDir = dir.clone().negate();
@@ -23746,21 +23793,10 @@ const powerRef = useRef(hud.power);
           const remoteSpin = remoteAimState?.spin ?? { x: 0, y: 0 };
           const remoteSpinMagnitude = Math.hypot(remoteSpin.x ?? 0, remoteSpin.y ?? 0);
           const remoteSwerveActive = remoteSpinMagnitude >= SWERVE_THRESHOLD;
-          const remoteCameraBasis = resolveCameraBasis(
-            activeRenderCameraRef.current ?? cameraRef.current
-          );
-          const remotePhysicsSpin = mapSpinForPhysics(remoteSpin, {
-            cameraRight: remoteCameraBasis?.right ?? null,
-            cameraUp: remoteCameraBasis?.up ?? null,
-            cueForward: { x: remoteAimDir.x, z: remoteAimDir.y }
-          });
-          const remoteAimSpin = {
-            x: remotePhysicsSpin.x || 0,
-            y: remotePhysicsSpin.y || 0
-          };
+          const remotePhysicsSpin = mapSpinForPhysics(remoteSpin);
           const guideAimDir2D = resolveSwerveAimDir(
             remoteAimDir,
-            remoteAimSpin,
+            remotePhysicsSpin,
             powerStrength,
             remoteSwerveActive
           );
@@ -23781,7 +23817,7 @@ const powerRef = useRef(hud.power);
             end,
             baseDir,
             perp,
-            remoteAimSpin,
+            remotePhysicsSpin,
             powerStrength,
             remoteSwerveActive
           );
