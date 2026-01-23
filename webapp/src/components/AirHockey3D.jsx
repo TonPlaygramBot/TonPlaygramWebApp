@@ -4,12 +4,12 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { bombSound, chatBeep } from '../assets/soundData.js';
-import BottomLeftIcons from './BottomLeftIcons.jsx';
 import GiftPopup from './GiftPopup.jsx';
 import InfoPopup from './InfoPopup.jsx';
 import QuickMessagePopup from './QuickMessagePopup.jsx';
 import { giftSounds } from '../utils/giftSounds.js';
-import { getGameVolume, isGameMuted } from '../utils/sound.js';
+import { AiOutlineInfoCircle, AiOutlineMessage } from 'react-icons/ai';
+import { getGameVolume, isGameMuted, toggleGameMuted } from '../utils/sound.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 import { applyWoodTextures, WOOD_GRAIN_OPTIONS_BY_ID } from '../utils/woodMaterials.js';
 import { AIR_HOCKEY_CUSTOMIZATION } from '../config/airHockeyInventoryConfig.js';
@@ -2103,13 +2103,86 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           className="w-5 h-5 rounded-full object-cover"
         />
       </div>
-      <div className="absolute bottom-2 left-2 z-20 flex flex-col items-start gap-3 pointer-events-auto">
-        <BottomLeftIcons
-          onInfo={() => setShowInfo(true)}
-          onChat={() => setShowChat(true)}
-          onGift={() => setShowGift(true)}
-          className="flex flex-col items-center space-y-2"
-        />
+      <div
+        className={`absolute z-20 flex flex-col gap-3 pointer-events-auto ${
+          isTopDownView
+            ? 'left-3 top-[45%] -translate-y-1/2 items-center'
+            : 'bottom-2 left-2 items-start'
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() => setShowChat(true)}
+          className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+        >
+          <AiOutlineMessage className="text-xl" />
+          <span>Chat</span>
+        </button>
+        {isTopDownView ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setShowInfo(true)}
+              className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+            >
+              <AiOutlineInfoCircle className="text-xl" />
+              <span>Info</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                toggleGameMuted();
+                setMuted(isGameMuted());
+              }}
+              className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+            >
+              <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
+              <span>{muted ? 'Unmute' : 'Mute'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowGift(true)}
+              className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+            >
+              <span className="text-xl">🎁</span>
+              <span>Gift</span>
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => setShowGift(true)}
+              className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+            >
+              <span className="text-xl">🎁</span>
+              <span>Gift</span>
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  toggleGameMuted();
+                  setMuted(isGameMuted());
+                }}
+                className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+              >
+                <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
+                <span>{muted ? 'Unmute' : 'Mute'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowInfo(true)}
+                className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
+              >
+                <AiOutlineInfoCircle className="text-xl" />
+                <span>Info</span>
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+      <div className="absolute bottom-2 right-2 flex flex-col items-end space-y-2 z-20">
         <button
           type="button"
           aria-pressed={isTopDownView}
@@ -2125,16 +2198,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
             <span>{isTopDownView ? '3D' : '2D'}</span>
           </span>
         </button>
-        {!gameOver && (
-          <button
-            onClick={() => (window.location.href = '/games/airhockey/lobby')}
-            className="text-white text-xs bg-white/10 hover:bg-white/20 rounded px-2 py-1"
-          >
-            Exit to Lobby
-          </button>
-        )}
-      </div>
-      <div className="absolute bottom-2 right-2 flex flex-col items-end space-y-2 z-20">
         <button
           onClick={() => setShowCustomizer((v) => !v)}
           className="rounded px-3 py-2 text-xs font-semibold text-white bg-white/10 hover:bg-white/20 backdrop-blur"
