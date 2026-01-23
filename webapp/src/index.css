@@ -1525,6 +1525,12 @@ input:focus {
   transform: none;
 }
 
+.texas-holdem-chat-bubble {
+  left: calc(0.75rem + (3.15rem * 2) + 0.75rem);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem + 0.5rem);
+  transform: none;
+}
+
 
 /* Rolling dice animation */
 .dice-screen-animation {
