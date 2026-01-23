@@ -596,14 +596,14 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // push the side fascia farther
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.62; // trim fascia span further so the middle plates finish before intruding into the pocket zone while keeping the rounded edge intact
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.45; // trim the outside edge slightly so the middle fascia keeps its curve without overreaching
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.68; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
 const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1; // allow the plate ends to run farther toward the pocket entry
-const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.978; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
+const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.986; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.3; // push the side fascias outward a touch so their outer edge clears the middle pocket cut
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.22; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.1; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.085; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
@@ -984,7 +984,7 @@ const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
   const WIDTH_REF = 2540;
   const HEIGHT_REF = 1270;
   const BALL_D_REF = 57.15;
-  const BAULK_FROM_BAULK_REF = WIDTH_REF * 0.25; // Head string distance from the baulk cushion (1/4 of the playing length)
+  const BAULK_FROM_BAULK_REF = 737; // Baulk line distance from the baulk cushion (29")
   const D_RADIUS_REF = 292;
   const PINK_FROM_TOP_REF = 737;
   const BLACK_FROM_TOP_REF = 324; // Black spot distance from the top cushion (12.75")
@@ -1309,6 +1309,8 @@ const POCKET_CAM = Object.freeze({
   railFocusLong: BALL_R * 5.6,
   railFocusShort: BALL_R * 6.6
 });
+const POCKET_POPUP_DURATION_MS = 2000;
+const POCKET_POPUP_LIFT = BALL_R * 2.4;
 const POCKET_GLOW_ENABLED = false;
 const POCKET_GLOW_RADIUS = BALL_R * 1.32;
 const POCKET_GLOW_LIFT = BALL_R * 0.78;
@@ -4870,14 +4872,14 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.15; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22); // restore the pre-tweak overhead camera tilt
-const TOP_VIEW_RADIUS_SCALE = 1.26; // restore the 2D top view height to the earlier framing
-const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
+const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.04; // raise the camera a touch to ensure full end-rail coverage
+const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
+const TOP_VIEW_RADIUS_SCALE = 1.04; // lower the 2D top view slightly to keep framing consistent after the table shrink
+const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.006, // align with Snooker Royal top-down framing
-  z: PLAY_H * 0.006 // align with Snooker Royal top-down framing
+  x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
+  z: PLAY_H * -0.078 // keep the existing vertical alignment
 });
 const REPLAY_TOP_VIEW_MARGIN = 1.15;
 const REPLAY_TOP_VIEW_MIN_RADIUS_SCALE = 1.08;
@@ -6271,7 +6273,13 @@ function resolveAimLineEnd(start, impact, dir, targetBall) {
   if (!start || !impact) return impact;
   if (targetBall) return impact;
   const railImpact = resolveRailIntersectionPoint(start, dir);
-  return railImpact ?? impact;
+  if (!railImpact) return impact;
+  const impactDistance = start.distanceTo(impact);
+  const railDistance = start.distanceTo(railImpact);
+  if (!Number.isFinite(impactDistance) || !Number.isFinite(railDistance)) {
+    return impact;
+  }
+  return railDistance > impactDistance + BALL_R * 0.1 ? railImpact : impact;
 }
 
 function Guret(parent, id, color, x, y, options = {}) {
@@ -7478,11 +7486,11 @@ export function Table3D(
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.07; // push the cushions further outward so they meet the wooden rails without a gap
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.26; // match Snooker Royal corner clearance so cushions align to the jaw mapping
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.14; // trim the cushion tips near middle pockets to match Snooker Royal mapping
-  const SHORT_RAIL_POCKET_REACH_REDUCTION = 0; // keep the short-rail reach aligned with the corner cushions
-  const LONG_RAIL_CUSHION_LENGTH_TRIM = 0; // remove extra trimming so the rail limits match the cushion faces
-  const SHORT_RAIL_CUSHION_LENGTH_TRIM = 0; // remove extra trimming so the rail limits match the cushion faces
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.0; // trim the cushion tips near middle pockets so they stop at the rail cut
+  const SHORT_RAIL_POCKET_REACH_REDUCTION = TABLE.THICK * 0.02; // match the trimmed amount removed from the side cushions
+  const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.55; // reduce long-rail cushion reach further to keep noses out of pocket perimeters
+  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.28; // lightly trim short-rail cushions to match the new pocket clearance
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
@@ -12507,6 +12515,7 @@ const powerRef = useRef(hud.power);
   const ballsRef = useRef([]);
   const pocketDropRef = useRef(new Map());
   const pocketRestIndexRef = useRef(new Map());
+  const pocketPopupRef = useRef([]);
   const captureBallSnapshotRef = useRef(null);
   const applyBallSnapshotRef = useRef(null);
   const pendingLayoutRef = useRef(null);
@@ -24663,6 +24672,8 @@ const powerRef = useRef(hud.power);
               b.mesh.scale.set(1, 1, 1);
               b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
               pocketDropRef.current.set(b.id, dropEntry);
+              dropEntry.popupX = c.x;
+              dropEntry.popupZ = c.y;
               const mappedColor = toBallColorId(b.id);
               const colorId =
                 mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
@@ -24783,6 +24794,35 @@ const powerRef = useRef(hud.power);
                 mesh.visible = true;
                 mesh.position.set(entry.toX ?? runFromX, targetY, entry.toZ ?? runFromZ);
                 mesh.scale.set(1, 1, 1);
+                if (
+                  !entry.popupShown &&
+                  POCKET_POPUP_DURATION_MS > 0 &&
+                  table &&
+                  entry.popupX != null &&
+                  entry.popupZ != null
+                ) {
+                  const popupMesh = mesh.clone(true);
+                  popupMesh.traverse((child) => {
+                    if (!child.isMesh) return;
+                    if (child.material?.clone) {
+                      child.material = child.material.clone();
+                    }
+                    child.castShadow = false;
+                    child.receiveShadow = false;
+                  });
+                  popupMesh.position.set(
+                    entry.popupX,
+                    BALL_CENTER_Y + POCKET_POPUP_LIFT,
+                    entry.popupZ
+                  );
+                  popupMesh.renderOrder = 6;
+                  table.add(popupMesh);
+                  pocketPopupRef.current.push({
+                    mesh: popupMesh,
+                    expiresAt: now + POCKET_POPUP_DURATION_MS
+                  });
+                  entry.popupShown = true;
+                }
                 if (entry.glowMesh) {
                   entry.glowMesh.visible = true;
                   entry.glowMesh.position.set(
@@ -24829,6 +24869,14 @@ const powerRef = useRef(hud.power);
                 entry.glowMesh.visible = true;
                 entry.glowMesh.position.set(posX, glowY, posZ);
               }
+            });
+          }
+          if (pocketPopupRef.current.length > 0) {
+            pocketPopupRef.current = pocketPopupRef.current.filter((entry) => {
+              if (!entry?.mesh) return false;
+              if (now < entry.expiresAt) return true;
+              entry.mesh.parent?.remove?.(entry.mesh);
+              return false;
             });
           }
           prevCollisions = newCollisions;
@@ -24981,6 +25029,10 @@ const powerRef = useRef(hud.power);
         pocketGlowGeometry.dispose?.();
         Object.values(pocketGlowMaterials).forEach((material) => material?.dispose?.());
         pocketRestIndexRef.current.clear();
+        pocketPopupRef.current.forEach((entry) => {
+          entry?.mesh?.parent?.remove?.(entry.mesh);
+        });
+        pocketPopupRef.current = [];
         captureBallSnapshotRef.current = null;
         applyBallSnapshotRef.current = null;
         pendingLayoutRef.current = null;
@@ -27118,18 +27170,10 @@ export default function PoolRoyale() {
     });
   }, [exitMessage]);
   const exitToLobby = useCallback(() => {
-    const target = '/games/poolroyale/lobby';
-    navigate(target, { replace: true });
-    window.requestAnimationFrame(() => {
-      if (window.location.pathname !== target) {
-        window.location.replace(target);
-      }
-    });
-    window.setTimeout(() => {
-      if (window.location.pathname !== target) {
-        window.location.assign(target);
-      }
-    }, 250);
+    navigate('/games/poolroyale/lobby', { replace: true });
+    if (window.location.pathname !== '/games/poolroyale/lobby') {
+      window.location.assign('/games/poolroyale/lobby');
+    }
   }, [navigate]);
   useTelegramBackButton(() => {
     confirmExit().then((confirmed) => {
