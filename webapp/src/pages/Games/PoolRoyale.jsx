@@ -601,9 +601,9 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1; // allow the plate ends to r
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.986; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.22; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.28; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.085; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.095; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
@@ -6131,60 +6131,6 @@ function calcTarget(cue, dir, balls) {
     }
   };
 
-  const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-  const cornerCos = Math.cos(cornerRad);
-  const cornerSin = Math.sin(cornerRad);
-  const guardClearance = POCKET_GUARD_CLEARANCE;
-  const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
-  for (const { sx, sy } of CORNER_SIGNS) {
-    TMP_VEC2_C.set(sx * limX, sy * limY);
-    TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
-    const denom = dirNorm.dot(TMP_VEC2_B);
-    if (denom >= -1e-6) continue;
-    TMP_VEC2_A.copy(cuePos).sub(TMP_VEC2_C);
-    const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
-    if (distNormal < -cornerDepthLimit) continue;
-    const t = (BALL_R - distNormal) / denom;
-    if (t < 0) continue;
-    TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-    TMP_VEC2_LIMIT.copy(TMP_VEC2_A).addScaledVector(dirNorm, t);
-    const lateral = Math.abs(TMP_VEC2_LIMIT.dot(TMP_VEC2_D));
-    if (lateral < guardClearance) continue;
-    checkRail(t, new THREE.Vector2(TMP_VEC2_B.x, TMP_VEC2_B.y));
-  }
-
-  const sideSpan = SIDE_POCKET_SPAN;
-  const sidePocketGuard = SIDE_POCKET_GUARD_RADIUS;
-  const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
-  const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
-  const sidePocketCenters = pocketCenters().slice(4);
-  const sideCutRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
-  const sideCutCos = Math.cos(sideCutRad);
-  const sideCutSin = Math.sin(sideCutRad);
-  for (const center of sidePocketCenters) {
-    TMP_VEC2_A.copy(cuePos).sub(center);
-    const distToCenterSq = TMP_VEC2_A.lengthSq();
-    if (distToCenterSq < sidePocketGuard * sidePocketGuard) continue;
-    const signX = center.x >= 0 ? 1 : -1;
-    for (const signY of SIDE_POCKET_CUT_SIGNS) {
-      if (TMP_VEC2_A.y * signY < 0) continue;
-      TMP_VEC2_C.set(signX * limX, center.y + signY * sideSpan);
-      TMP_VEC2_B.set(-signX * sideCutCos, signY * sideCutSin);
-      const denom = dirNorm.dot(TMP_VEC2_B);
-      if (denom >= -1e-6) continue;
-      TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-      TMP_VEC2_LIMIT.copy(cuePos).sub(TMP_VEC2_C);
-      const distNormal = TMP_VEC2_LIMIT.dot(TMP_VEC2_B);
-      if (distNormal < -sideDepthLimit) continue;
-      const t = (BALL_R - distNormal) / denom;
-      if (t < 0) continue;
-      TMP_VEC2_LIMIT.addScaledVector(dirNorm, t);
-      const lateral = Math.abs(TMP_VEC2_LIMIT.dot(TMP_VEC2_D));
-      if (lateral < sideGuardClearance) continue;
-      checkRail(t, new THREE.Vector2(TMP_VEC2_B.x, TMP_VEC2_B.y));
-    }
-  }
-
   if (dirNorm.x < -1e-8)
     checkRail((-limX - cuePos.x) / dirNorm.x, new THREE.Vector2(1, 0));
   if (dirNorm.x > 1e-8)
@@ -7206,9 +7152,6 @@ export function Table3D(
     const entry = pocketDropRef.current.get(ballId);
     if (entry) {
       clearPocketGlow(entry);
-      if (entry.proxyMesh) {
-        entry.proxyMesh.parent?.remove?.(entry.proxyMesh);
-      }
     }
     pocketDropRef.current.delete(ballId);
   };
@@ -22709,8 +22652,6 @@ const powerRef = useRef(hud.power);
           if (potCount > 1) tags.add('multi');
           if (shotContext?.cushionAfterContact) tags.add('bank');
           if (lastShotPower >= POWER_REPLAY_THRESHOLD) tags.add('power');
-          const nonPotTags = Array.from(tags).filter((tag) => tag !== 'pot');
-          if (nonPotTags.length === 0) return null;
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
@@ -24001,8 +23942,6 @@ const powerRef = useRef(hud.power);
         balls.forEach((ball) => {
           if (!ball) return;
           const dropEntry = pocketDropRef.current.get(ball.id);
-          const usesProxyMesh =
-            Boolean(dropEntry?.proxyMesh) && dropEntry.proxyMesh !== ball.mesh;
           if (ball.active && dropEntry) {
             removePocketDropEntry(ball.id);
             ball.mesh.visible = true;
@@ -24010,7 +23949,7 @@ const powerRef = useRef(hud.power);
           }
           if (!ball.active) {
             if (dropEntry) {
-              ball.mesh.visible = !usesProxyMesh;
+              ball.mesh.visible = true;
               if (ball.shadow) ball.shadow.visible = false;
             } else {
               ball.mesh.visible = false;
@@ -24642,26 +24581,6 @@ const powerRef = useRef(hud.power);
                 );
               const restY =
                 railRunStart.y - POCKET_HOLDER_REST_DROP - tiltDrop;
-              const glowMesh = table ? createPocketGlowMesh('good') : null;
-              if (glowMesh) {
-                glowMesh.position.set(fromX, BALL_CENTER_Y - POCKET_GLOW_LIFT, fromZ);
-                table.add(glowMesh);
-              }
-              let dropMesh = b.mesh;
-              let proxyMesh = null;
-              if (b.mesh && table) {
-                proxyMesh = b.mesh.clone();
-                proxyMesh.geometry = BALL_GEOMETRY;
-                proxyMesh.material = b.mesh.material;
-                proxyMesh.position.set(fromX, BALL_CENTER_Y, fromZ);
-                proxyMesh.quaternion.copy(b.mesh.quaternion);
-                proxyMesh.scale.copy(b.mesh.scale);
-                proxyMesh.castShadow = b.mesh.castShadow;
-                proxyMesh.receiveShadow = b.mesh.receiveShadow;
-                proxyMesh.renderOrder = b.mesh.renderOrder ?? 0;
-                table.add(proxyMesh);
-                dropMesh = proxyMesh;
-              }
               const dropEntry = {
                 start: dropStart,
                 fromY: BALL_CENTER_Y,
@@ -24673,10 +24592,7 @@ const powerRef = useRef(hud.power);
                 toZ: targetZ,
                 runFromX: railRunStart.x,
                 runFromZ: railRunStart.z,
-                mesh: dropMesh,
-                proxyMesh,
-                glowMesh,
-                glowTone: 'good',
+                mesh: b.mesh,
                 entrySpeed,
                 velocityY:
                   -Math.max(Math.abs(POCKET_DROP_ENTRY_VELOCITY), entrySpeed * 0.08),
@@ -24694,7 +24610,7 @@ const powerRef = useRef(hud.power);
                 resting: false
               };
               if (b.mesh) {
-                b.mesh.visible = !proxyMesh;
+                b.mesh.visible = true;
                 b.mesh.scale.set(1, 1, 1);
                 b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
               }
@@ -24819,14 +24735,6 @@ const powerRef = useRef(hud.power);
                 mesh.visible = true;
                 mesh.position.set(entry.toX ?? runFromX, targetY, entry.toZ ?? runFromZ);
                 mesh.scale.set(1, 1, 1);
-                if (entry.glowMesh) {
-                  entry.glowMesh.visible = true;
-                  entry.glowMesh.position.set(
-                    entry.toX ?? runFromX,
-                    targetY - POCKET_GLOW_LIFT,
-                    entry.toZ ?? runFromZ
-                  );
-                }
                 return;
               }
               entry.velocityY =
@@ -24860,11 +24768,6 @@ const powerRef = useRef(hud.power);
                 }
               }
               mesh.position.set(posX, entry.currentY, posZ);
-              if (entry.glowMesh) {
-                const glowY = (entry.currentY ?? targetY) - POCKET_GLOW_LIFT;
-                entry.glowMesh.visible = true;
-                entry.glowMesh.position.set(posX, glowY, posZ);
-              }
             });
           }
           if (pocketPopupRef.current.length > 0) {
@@ -24987,9 +24890,6 @@ const powerRef = useRef(hud.power);
         pocketCamerasRef.current.clear();
         pocketDropRef.current.forEach((entry) => {
           clearPocketGlow(entry);
-          if (entry?.proxyMesh) {
-            entry.proxyMesh.parent?.remove?.(entry.proxyMesh);
-          }
         });
         pocketDropRef.current.clear();
         pocketGlowGeometry.dispose?.();
