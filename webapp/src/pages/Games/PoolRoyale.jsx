@@ -1251,7 +1251,7 @@ const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.74; // stop the fall sligh
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
-const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // match Snooker Royal pocket net lift for identical potted-ball framing
+const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.26; // raise the net so the weave meets the pocket mouth
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
@@ -1276,7 +1276,7 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // align strap height with Snooker Royal for identical potted-ball rests
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.62; // lift the leather strap so it meets the raised holder rails
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -6267,19 +6267,6 @@ function resolveRailIntersectionPoint(start, dir) {
   if (dir.y < -1e-8) tHit = Math.min(tHit, (-limY - start.y) / dir.y);
   if (!Number.isFinite(tHit) || tHit <= 0) return null;
   return start.clone().add(dir.clone().multiplyScalar(tHit));
-}
-
-function resolveAimLineEnd(start, impact, dir, targetBall) {
-  if (!start || !impact) return impact;
-  if (targetBall) return impact;
-  const railImpact = resolveRailIntersectionPoint(start, dir);
-  if (!railImpact) return impact;
-  const impactDistance = start.distanceTo(impact);
-  const railDistance = start.distanceTo(railImpact);
-  if (!Number.isFinite(impactDistance) || !Number.isFinite(railDistance)) {
-    return impact;
-  }
-  return railDistance > impactDistance + BALL_R * 0.1 ? railImpact : impact;
 }
 
 function Guret(parent, id, color, x, y, options = {}) {
@@ -12017,11 +12004,6 @@ const initialFrame = useMemo(() => {
   );
   const inHandPlacementModeRef = useRef(inHandPlacementMode);
   const inHandIndicatorRef = useRef(null);
-  const IN_HAND_HOLD_DELAY_MS = 180;
-  const inHandHoldTimerRef = useRef(null);
-  const inHandHoldPointerRef = useRef(null);
-  const inHandHoldEventRef = useRef(null);
-  const inHandHoldTargetRef = useRef(null);
   const inHandPointerHandlersRef = useRef({
     onDown: null,
     onMove: null,
@@ -12118,10 +12100,6 @@ const powerRef = useRef(hud.power);
       if (shotCameraHoldTimeoutRef.current) {
         clearTimeout(shotCameraHoldTimeoutRef.current);
         shotCameraHoldTimeoutRef.current = null;
-      }
-      if (inHandHoldTimerRef.current) {
-        clearTimeout(inHandHoldTimerRef.current);
-        inHandHoldTimerRef.current = null;
       }
     },
     []
@@ -23484,8 +23462,7 @@ const powerRef = useRef(hud.power);
             balls
           );
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
-          const aimEnd2D = resolveAimLineEnd(cue.pos, impact, guideAimDir2D, targetBall);
-          let end = new THREE.Vector3(aimEnd2D.x, BALL_CENTER_Y, aimEnd2D.y);
+          let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           const dir = baseAimDir.clone();
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
@@ -23809,8 +23786,7 @@ const powerRef = useRef(hud.power);
             balls
           );
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
-          const aimEnd2D = resolveAimLineEnd(cue.pos, impact, guideAimDir2D, targetBall);
-          let end = new THREE.Vector3(aimEnd2D.x, BALL_CENTER_Y, aimEnd2D.y);
+          let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(baseDir.clone().multiplyScalar(BALL_R));
           }
@@ -24672,8 +24648,28 @@ const powerRef = useRef(hud.power);
               b.mesh.scale.set(1, 1, 1);
               b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
               pocketDropRef.current.set(b.id, dropEntry);
-              dropEntry.popupX = c.x;
-              dropEntry.popupZ = c.y;
+              if (table && POCKET_POPUP_DURATION_MS > 0 && b.mesh) {
+                const popupMesh = b.mesh.clone(true);
+                popupMesh.traverse((child) => {
+                  if (!child.isMesh) return;
+                  if (child.material?.clone) {
+                    child.material = child.material.clone();
+                  }
+                  child.castShadow = false;
+                  child.receiveShadow = false;
+                });
+                popupMesh.position.set(
+                  c.x,
+                  BALL_CENTER_Y + POCKET_POPUP_LIFT,
+                  c.y
+                );
+                popupMesh.renderOrder = 6;
+                table.add(popupMesh);
+                pocketPopupRef.current.push({
+                  mesh: popupMesh,
+                  expiresAt: dropStart + POCKET_POPUP_DURATION_MS
+                });
+              }
               const mappedColor = toBallColorId(b.id);
               const colorId =
                 mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
@@ -24794,35 +24790,6 @@ const powerRef = useRef(hud.power);
                 mesh.visible = true;
                 mesh.position.set(entry.toX ?? runFromX, targetY, entry.toZ ?? runFromZ);
                 mesh.scale.set(1, 1, 1);
-                if (
-                  !entry.popupShown &&
-                  POCKET_POPUP_DURATION_MS > 0 &&
-                  table &&
-                  entry.popupX != null &&
-                  entry.popupZ != null
-                ) {
-                  const popupMesh = mesh.clone(true);
-                  popupMesh.traverse((child) => {
-                    if (!child.isMesh) return;
-                    if (child.material?.clone) {
-                      child.material = child.material.clone();
-                    }
-                    child.castShadow = false;
-                    child.receiveShadow = false;
-                  });
-                  popupMesh.position.set(
-                    entry.popupX,
-                    BALL_CENTER_Y + POCKET_POPUP_LIFT,
-                    entry.popupZ
-                  );
-                  popupMesh.renderOrder = 6;
-                  table.add(popupMesh);
-                  pocketPopupRef.current.push({
-                    mesh: popupMesh,
-                    expiresAt: now + POCKET_POPUP_DURATION_MS
-                  });
-                  entry.popupShown = true;
-                }
                 if (entry.glowMesh) {
                   entry.glowMesh.visible = true;
                   entry.glowMesh.position.set(
@@ -25733,69 +25700,28 @@ const powerRef = useRef(hud.power);
     ),
     [avatarSizeClass]
   );
-  const snapshotPointerEvent = useCallback(
-    (event) => ({
-      clientX: event.clientX,
-      clientY: event.clientY,
-      pointerId: event.pointerId,
-      button: event.button,
-      preventDefault: () => {}
-    }),
-    []
-  );
-  const clearInHandHoldTimer = useCallback(() => {
-    if (inHandHoldTimerRef.current) {
-      clearTimeout(inHandHoldTimerRef.current);
-      inHandHoldTimerRef.current = null;
-    }
-  }, []);
   const handleInHandIndicatorDown = useCallback(
     (event) => {
       const currentHud = hudRef.current;
       if (!currentHud?.inHand || currentHud.turn !== 0) return;
       event.preventDefault?.();
-      clearInHandHoldTimer();
-      inHandHoldPointerRef.current = event.pointerId ?? 'mouse';
-      inHandHoldEventRef.current = snapshotPointerEvent(event);
-      inHandHoldTargetRef.current = event.currentTarget ?? null;
-      inHandHoldTimerRef.current = window.setTimeout(() => {
-        if (!inHandHoldPointerRef.current) return;
-        setInHandPlacementMode(true);
-        inHandPlacementModeRef.current = true;
-        const pendingEvent = inHandHoldEventRef.current;
-        if (pendingEvent) {
-          inHandPointerHandlersRef.current?.onDown?.(pendingEvent);
-        }
-        if (
-          pendingEvent?.pointerId != null &&
-          inHandHoldTargetRef.current?.setPointerCapture
-        ) {
-          try {
-            inHandHoldTargetRef.current.setPointerCapture(pendingEvent.pointerId);
-          } catch {}
-        }
-      }, IN_HAND_HOLD_DELAY_MS);
+      setInHandPlacementMode(true);
+      inHandPlacementModeRef.current = true;
+      inHandPointerHandlersRef.current?.onDown?.(event);
+      if (event.pointerId != null && event.currentTarget?.setPointerCapture) {
+        try {
+          event.currentTarget.setPointerCapture(event.pointerId);
+        } catch {}
+      }
     },
-    [IN_HAND_HOLD_DELAY_MS, clearInHandHoldTimer, snapshotPointerEvent]
+    []
   );
   const handleInHandIndicatorMove = useCallback((event) => {
-    if (
-      inHandHoldPointerRef.current != null &&
-      event.pointerId != null &&
-      event.pointerId === inHandHoldPointerRef.current &&
-      !inHandPlacementModeRef.current
-    ) {
-      inHandHoldEventRef.current = snapshotPointerEvent(event);
-    }
     if (!inHandPlacementModeRef.current) return;
     inHandPointerHandlersRef.current?.onMove?.(event);
-  }, [snapshotPointerEvent]);
+  }, []);
   const handleInHandIndicatorUp = useCallback((event) => {
     inHandPointerHandlersRef.current?.onUp?.(event);
-    clearInHandHoldTimer();
-    inHandHoldPointerRef.current = null;
-    inHandHoldEventRef.current = null;
-    inHandHoldTargetRef.current = null;
     setInHandPlacementMode(false);
     inHandPlacementModeRef.current = false;
     if (event.pointerId != null && event.currentTarget?.releasePointerCapture) {
@@ -25803,7 +25729,7 @@ const powerRef = useRef(hud.power);
         event.currentTarget.releasePointerCapture(event.pointerId);
       } catch {}
     }
-  }, [clearInHandHoldTimer]);
+  }, []);
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
