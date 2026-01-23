@@ -340,6 +340,9 @@ export class PoolRoyaleRules {
     } else {
       game.startBreak();
     }
+    if (state.activePlayer && game.state.currentPlayer !== state.activePlayer) {
+      game.state.currentPlayer = state.activePlayer;
+    }
     const contactOrder: UkColour[] = [];
     for (const ev of events) {
       if (ev.type !== 'HIT') continue;
@@ -451,6 +454,9 @@ export class PoolRoyaleRules {
     } else {
       game.state.ballInHand = true;
     }
+    if (state.activePlayer && game.state.currentPlayer !== state.activePlayer) {
+      game.state.currentPlayer = state.activePlayer;
+    }
     const contactOrder: number[] = [];
     for (const ev of events) {
       if (ev.type !== 'HIT') continue;
@@ -537,6 +543,9 @@ export class PoolRoyaleRules {
       applyNineState(game, previous.state);
     } else {
       game.state.ballInHand = true;
+    }
+    if (state.activePlayer && game.state.currentPlayer !== state.activePlayer) {
+      game.state.currentPlayer = state.activePlayer;
     }
     const contactOrder: number[] = [];
     for (const ev of events) {
