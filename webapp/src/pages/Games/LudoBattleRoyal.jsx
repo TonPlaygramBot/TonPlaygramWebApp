@@ -4104,10 +4104,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
-    controls.enableZoom = false;
-    const lockedRadius = CAM.maxR;
-    controls.minDistance = lockedRadius;
-    controls.maxDistance = lockedRadius;
+    controls.enableZoom = true;
+    controls.zoomSpeed = CAMERA_DOLLY_FACTOR;
+    controls.minDistance = CAM.minR;
+    controls.maxDistance = CAM.maxR;
     controls.minPolarAngle = CAM.phiMin;
     controls.maxPolarAngle = CAM.phiMax;
     controls.target.copy(boardLookTarget);
@@ -4140,7 +4140,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const span = Math.max(tableSpan, boardSpan);
       const needed = span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
       const currentRadius = camera.position.distanceTo(boardLookTarget);
-      const radius = clamp(Math.max(needed, currentRadius), lockedRadius, lockedRadius);
+      const radius = clamp(Math.max(needed, currentRadius), CAM.minR, CAM.maxR);
       const dir = camera.position.clone().sub(boardLookTarget).normalize();
       camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
       if (baseCameraRadiusRef.current == null) {
