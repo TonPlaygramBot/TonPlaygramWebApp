@@ -51,6 +51,10 @@ export default function DominoRoyalLobby() {
   }, []);
 
   useEffect(() => {
+    import('./DominoRoyal.jsx').catch(() => {});
+  }, []);
+
+  useEffect(() => {
     try {
       const storedFrameRate = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
       if (storedFrameRate) {
@@ -126,93 +130,226 @@ export default function DominoRoyalLobby() {
   };
 
   return (
-    <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
-      <h2 className="text-xl font-bold text-center">Domino Royal 3D Lobby</h2>
-      <p className="text-center text-sm text-subtext">Double-six set • up to 4 players</p>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Stake</h3>
-        <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-        <p className="text-sm text-center">
-          Start bet: {startBet.toLocaleString('en-US')} TPC • Pot max: {stake.amount.toLocaleString('en-US')} TPC
-        </p>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Players</h3>
-        <div className="flex gap-2">
-          {PLAYER_OPTIONS.map((value) => (
-            <button
-              key={value}
-              onClick={() => setPlayerCount(value)}
-              className={`lobby-tile ${playerCount === value ? 'lobby-selected' : ''}`}
-            >
-              {value}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Mode</h3>
-        <div className="flex gap-2">
-          {[
-            { id: 'local', label: 'Local (AI)' },
-            { id: 'online', label: 'Online', disabled: true }
-          ].map(({ id, label, disabled }) => (
-            <div key={id} className="relative">
-              <button
-                onClick={() => !disabled && setMode(id)}
-                className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
-                  disabled ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-                disabled={disabled}
-              >
-                {label}
-              </button>
-              {disabled && (
-                <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
-                  Under development
-                </span>
-              )}
+    <div className="relative min-h-screen bg-[#070b16] text-text">
+      <div className="absolute inset-0 tetris-grid-bg opacity-60" />
+      <div className="relative z-10 space-y-4 p-4 pb-8">
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#111827]/90 via-[#0f172a]/80 to-[#0b1324]/90 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.35em] text-sky-200/70">Domino Battle Royal</p>
+              <h2 className="text-2xl font-bold text-white">Modern Lobby</h2>
             </div>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">AI Avatar Flags</h3>
-        <p className="text-sm text-subtext text-center">
-          Match the Snake &amp; Ladder lobby by picking worldwide flags for AI opponents and your seat. We reuse your Chess Battle
-          Royal flag choices when available so avatars stay consistent.
-        </p>
-        <button
-          type="button"
-          onClick={openAiFlagPicker}
-          className="w-full px-3 py-2 rounded-lg border border-border bg-background/60 hover:border-primary text-sm text-left"
-        >
-          <div className="text-[11px] uppercase tracking-wide text-subtext">AI Flags</div>
-          <div className="flex items-center gap-2 text-base font-semibold">
-            <span className="text-lg">
-              {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : '🌐'}
-            </span>
-            <span>{flags.length ? 'Custom AI avatars' : 'Auto-pick from global flags'}</span>
+            <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/80">
+              Double-six set
+            </div>
           </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-[1.2fr_1fr]">
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1f2937]/90 to-[#0f172a]/90 p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-400/40 via-sky-400/20 to-indigo-500/40 p-[1px]">
+                  <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
+                    🀄
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">Arena Warmup</p>
+                  <p className="text-xs text-white/60">
+                    Set your domino table while the match scene loads in the background.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-white/70">
+                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Instant lobby</span>
+                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Mobile first</span>
+                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">HDR arena</span>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
+              <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
+              <div className="mt-3 flex items-center gap-3">
+                <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
+                  {avatar ? (
+                    <img src={avatar} alt="Your avatar" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-lg">🙂</div>
+                  )}
+                </div>
+                <div className="text-sm text-white/80">
+                  <p className="font-semibold">Seat ready</p>
+                  <p className="text-xs text-white/50">Flags: {flags.length ? 'Custom' : 'Auto'}</p>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-white/60">
+                Your lobby choices persist into the domino match start.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-yellow-400/40 to-orange-500/40 p-[1px]">
+              <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
+                💰
+              </div>
+            </div>
+            <div>
+              <h3 className="font-semibold text-white">Stake</h3>
+              <p className="text-xs text-white/60">Lock your entry with TPC.</p>
+            </div>
+          </div>
+          <div className="mt-3">
+            <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+          </div>
+          <p className="text-center text-white/60 text-xs">
+            Start bet: {startBet.toLocaleString('en-US')} TPC • Pot max: {stake.amount.toLocaleString('en-US')} TPC
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-white">Players</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Seats</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {PLAYER_OPTIONS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setPlayerCount(value)}
+                className={`flex items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
+                  playerCount === value
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
+                }`}
+              >
+                <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-slate-400/30 via-slate-500/10 to-transparent p-[1px]">
+                  <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
+                    {value}
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">{value} Players</span>
+                    {playerCount === value && <span className="text-[10px] font-bold uppercase">Selected</span>}
+                  </div>
+                  <div className="text-xs text-white/60">Local table seats</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-white">Mode</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              {
+                id: 'local',
+                label: 'Local (AI)',
+                desc: 'Instant practice',
+                accent: 'from-emerald-400/30 via-emerald-500/10 to-transparent',
+                icon: '🤖',
+                disabled: false
+              },
+              {
+                id: 'online',
+                label: 'Online',
+                desc: 'Coming soon',
+                accent: 'from-indigo-400/30 via-sky-500/10 to-transparent',
+                icon: '⚔️',
+                disabled: true
+              }
+            ].map(({ id, label, desc, accent, icon, disabled }) => {
+              const active = mode === id;
+              return (
+                <div key={id} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => !disabled && setMode(id)}
+                    className={`group flex w-full items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
+                      active
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
+                    } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
+                    disabled={disabled}
+                  >
+                    <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
+                      <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
+                        {icon}
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-base font-semibold">{label}</span>
+                        {active && <span className="text-[10px] font-bold uppercase">Selected</span>}
+                      </div>
+                      <div className="text-xs text-white/60">{desc}</div>
+                    </div>
+                  </button>
+                  {disabled && (
+                    <span className="absolute inset-0 flex items-center justify-center text-xs text-white/80">
+                      Under development
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-white/60 text-center">
+            Local mode keeps the match offline while the arena loads instantly.
+          </p>
+        </div>
+
+        <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+          <div className="flex items-start gap-3">
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-purple-400/40 to-indigo-500/40 p-[1px]">
+              <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
+                🧑‍🤝‍🧑
+              </div>
+            </div>
+            <div>
+              <h3 className="font-semibold text-white">AI Avatar Flags</h3>
+              <p className="text-xs text-white/60">
+                Pick worldwide flags for AI opponents and your seat to keep the domino lobby consistent.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={openAiFlagPicker}
+            className="mt-3 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-left text-sm text-white/80 transition hover:border-white/30"
+          >
+            <div className="text-[10px] uppercase tracking-[0.35em] text-white/60">AI Flags</div>
+            <div className="mt-2 flex items-center gap-2 text-base font-semibold">
+              <span className="text-lg">
+                {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : '🌐'}
+              </span>
+              <span>{flags.length ? 'Custom AI avatars' : 'Auto-pick from global flags'}</span>
+            </div>
+          </button>
+        </div>
+
+        <button
+          onClick={startGame}
+          disabled={mode === 'local' && flags.length !== flagPickerCount}
+          className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background shadow-[0_16px_30px_rgba(14,165,233,0.35)] transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          START
         </button>
+
+        <FlagPickerModal
+          open={showFlagPicker}
+          count={flagPickerCount}
+          selected={flags}
+          onSave={setFlags}
+          onClose={() => setShowFlagPicker(false)}
+          onComplete={(sel) => startGame(sel)}
+        />
       </div>
-
-      <button
-        onClick={startGame}
-        disabled={mode === 'local' && flags.length !== flagPickerCount}
-        className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded disabled:opacity-50"
-      >
-        START
-      </button>
-
-      <FlagPickerModal
-        open={showFlagPicker}
-        count={flagPickerCount}
-        selected={flags}
-        onSave={setFlags}
-        onClose={() => setShowFlagPicker(false)}
-        onComplete={(sel) => startGame(sel)}
-      />
     </div>
   );
 }
