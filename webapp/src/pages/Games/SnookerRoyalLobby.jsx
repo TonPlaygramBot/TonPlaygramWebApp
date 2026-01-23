@@ -66,6 +66,10 @@ export default function SnookerRoyalLobby() {
   }, []);
 
   useEffect(() => {
+    import('./SnookerRoyal.jsx').catch(() => {});
+  }, []);
+
+  useEffect(() => {
     try {
       const stored = window.localStorage?.getItem(PLAYER_FLAG_STORAGE_KEY);
       const idx = FLAG_EMOJIS.indexOf(stored);
@@ -312,236 +316,445 @@ export default function SnookerRoyalLobby() {
   const winnerParam = searchParams.get('winner');
 
   return (
-    <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
-      {winnerParam && (
-        <div className="text-center font-semibold">
-          {winnerParam === '1' ? 'You won!' : 'CPU won!'}
-        </div>
-      )}
-      <h2 className="text-xl font-bold text-center">Snooker Royal Lobby</h2>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Type</h3>
-        <div className="flex gap-2">
-          {[
-            { id: 'regular', label: 'Regular' },
-            { id: 'tournament', label: 'Tournament' }
-          ].map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setPlayType(id)}
-              className={`lobby-tile ${playType === id ? 'lobby-selected' : ''}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Mode</h3>
-        <div className="flex gap-2">
-          {[
-            { id: 'ai', label: 'Vs AI' },
-            { id: 'online', label: '1v1 Online', disabled: playType === 'tournament' }
-          ].map(({ id, label, disabled }) => (
-            <div key={id} className="relative">
-              <button
-                onClick={() => !disabled && setMode(id)}
-                className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
-                  disabled ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-                disabled={disabled}
-              >
-                {label}
-              </button>
-              {disabled && (
-                <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
-                  Tournament bracket only
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Variant</h3>
-        <div className="flex gap-2">
-          {[
-            { id: 'uk', label: 'Championship 12 ft' },
-            { id: 'american', label: 'Club 10 ft' },
-            { id: '9ball', label: 'Practice Session' }
-          ].map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setVariant(id)}
-              className={`lobby-tile ${variant === id ? 'lobby-selected' : ''}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-      {playType === 'tournament' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Players</h3>
-          <div className="flex gap-2">
-            {[8, 16, 24].map((p) => (
-              <button
-                key={p}
-                onClick={() => setPlayers(p)}
-                className={`lobby-tile ${players === p ? 'lobby-selected' : ''}`}
-              >
-                {p}
-              </button>
-            ))}
+    <div className="relative min-h-screen bg-[#070b16] text-text">
+      <div className="absolute inset-0 tetris-grid-bg opacity-60" />
+      <div className="relative z-10 space-y-4 p-4 pb-8">
+        {winnerParam && (
+          <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-center text-sm font-semibold text-emerald-200">
+            {winnerParam === '1' ? 'You won!' : 'CPU won!'}
           </div>
-          <p className="text-xs">Winner takes pot minus 10% developer fee.</p>
-        </div>
-      )}
-      {mode === 'online' && playType === 'regular' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Stake</h3>
-          <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-          <p className="text-center text-xs text-subtext">
-            Online games use your TPC stake as escrow, while AI matches stay free.
-          </p>
-        </div>
-      )}
-      <div className="space-y-2">
-        <h3 className="font-semibold">Your Flag & Avatar</h3>
-        <div className="rounded-xl border border-border bg-surface/60 p-3 space-y-2 shadow">
-          <button
-            type="button"
-            onClick={() => setShowFlagPicker(true)}
-            className="w-full px-3 py-2 rounded-lg border border-border bg-background/60 hover:border-primary text-sm text-left"
-          >
-            <div className="text-[11px] uppercase tracking-wide text-subtext">Flag</div>
-            <div className="flex items-center gap-2 text-base font-semibold">
-              <span className="text-lg">{selectedFlag || '🌐'}</span>
-              <span>{selectedFlag ? 'Custom flag' : 'Auto-detect & save'}</span>
-            </div>
-          </button>
-          {avatar && (
-            <div className="flex items-center gap-3">
-              <img
-                src={avatar}
-                alt="Your avatar"
-                className="h-12 w-12 rounded-full border border-border object-cover"
-              />
-              <div className="text-sm text-subtext">Your avatar will appear in the match intro.</div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="font-semibold">AI Avatar Flags</h3>
-        <button
-          type="button"
-          onClick={() => setShowAiFlagPicker(true)}
-          className="w-full px-3 py-2 rounded-lg border border-border bg-background/60 hover:border-primary text-sm text-left"
-        >
-          <div className="text-[11px] uppercase tracking-wide text-subtext">AI Flag</div>
-          <div className="flex items-center gap-2 text-base font-semibold">
-            <span className="text-lg">{selectedAiFlag || '🌐'}</span>
-            <span>{selectedAiFlag ? 'Custom AI flag' : 'Auto-pick for opponent'}</span>
-          </div>
-        </button>
-      </div>
-      {mode === 'online' && playType === 'regular' && (
-        <div className="space-y-3 p-3 rounded-lg border border-border bg-surface/60">
-          <div className="flex items-center justify-between">
+        )}
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#111827]/90 via-[#0f172a]/80 to-[#0b1324]/90 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <h3 className="font-semibold">Online Arena</h3>
-              <p className="text-sm text-subtext">
-                We match players by TPC account number, stake ({stake.amount} {stake.token}),
-                and Snooker Royal game type.
+              <p className="text-[11px] uppercase tracking-[0.35em] text-sky-200/70">
+                Snooker Royal
+              </p>
+              <h2 className="text-2xl font-bold text-white">Modern Lobby</h2>
+            </div>
+            <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/80">
+              {onlinePlayers.length} online
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-[1.2fr_1fr]">
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1f2937]/90 to-[#0f172a]/90 p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-400/40 via-sky-400/20 to-indigo-500/40 p-[1px]">
+                  <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
+                    🎱
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">Cue Table Ready</p>
+                  <p className="text-xs text-white/60">
+                    Load the snooker arena in the background while you configure your match.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-white/70">
+                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Fast load</span>
+                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Mobile ready</span>
+                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Tournament ready</span>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
+              <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
+              <div className="mt-3 flex items-center gap-3">
+                <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
+                  {avatar ? (
+                    <img src={avatar} alt="Your avatar" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-lg">🙂</div>
+                  )}
+                </div>
+                <div className="text-sm text-white/80">
+                  <p className="font-semibold">{getTelegramFirstName() || 'Player'} ready</p>
+                  <p className="text-xs text-white/50">Flag: {selectedFlag || 'Auto'}</p>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-white/60">
+                Your lobby choices persist into the match intro.
               </p>
             </div>
-            <div className="text-xs text-subtext">{onlinePlayers.length} online</div>
           </div>
-          {matchingError && (
-            <div className="text-sm text-red-400">{matchingError}</div>
-          )}
-          {matching && (
-            <div className="space-y-2">
-              {matchStatus && <div className="text-xs text-subtext">{matchStatus}</div>}
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold">Spinning wheel</span>
-                <span className="text-xs text-subtext">Searching for stake match…</span>
-              </div>
-              <div className="lobby-tile w-full flex items-center justify-between">
-                <span>🎯 {spinningPlayer || 'Searching…'}</span>
-                <span className="text-xs text-subtext">Stake {stake.amount} {stake.token}</span>
-              </div>
-              <div className="space-y-1">
-                {matchPlayers.map((p) => (
-                  <div
-                    key={p.id}
-                    className="lobby-tile w-full flex items-center justify-between"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold">{p.name || `TPC ${p.id}`}</p>
-                      <p className="text-xs text-subtext">Account #{p.id}</p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-white">Choose Match Type</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              {
+                id: 'regular',
+                label: 'Regular',
+                desc: 'Quick single match',
+                accent: 'from-emerald-400/30 via-emerald-500/10 to-transparent',
+                icon: '🎯'
+              },
+              {
+                id: 'tournament',
+                label: 'Tournament',
+                desc: 'Bracket challenge',
+                accent: 'from-indigo-400/30 via-sky-500/10 to-transparent',
+                icon: '🏆'
+              }
+            ].map(({ id, label, desc, accent, icon }) => {
+              const active = playType === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setPlayType(id)}
+                  className={`group flex items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
+                    active
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
+                  }`}
+                >
+                  <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
+                    <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
+                      {icon}
                     </div>
-                    <span
-                      className={`text-xs font-semibold ${
-                        readyIds.has(String(p.id)) ? 'text-emerald-400' : 'text-subtext'
-                      }`}
-                    >
-                      {readyIds.has(String(p.id)) ? 'Ready' : 'Waiting'}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-base font-semibold">{label}</span>
+                      {active && <span className="text-[10px] font-bold uppercase">Selected</span>}
+                    </div>
+                    <div className="text-xs text-white/60">{desc}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-white/60 text-center">
+            Tournament mode locks online matchmaking and uses the bracket flow.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-white">Choose Mode</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              {
+                id: 'ai',
+                label: 'Vs AI',
+                desc: 'Instant practice',
+                accent: 'from-emerald-400/30 via-emerald-500/10 to-transparent',
+                icon: '🤖',
+                disabled: false
+              },
+              {
+                id: 'online',
+                label: '1v1 Online',
+                desc: 'Stake & match',
+                accent: 'from-indigo-400/30 via-sky-500/10 to-transparent',
+                icon: '⚔️',
+                disabled: playType === 'tournament'
+              }
+            ].map(({ id, label, desc, accent, icon, disabled }) => {
+              const active = mode === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => !disabled && setMode(id)}
+                  disabled={disabled}
+                  className={`group flex items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
+                    active
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
+                  } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                >
+                  <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
+                    <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
+                      {icon}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-base font-semibold">{label}</span>
+                      {active && <span className="text-[10px] font-bold uppercase">Selected</span>}
+                    </div>
+                    <div className="text-xs text-white/60">
+                      {disabled ? 'Tournament bracket only' : desc}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-white/60 text-center">
+            AI matches stay offline. Online mode uses your TPC stake and pairs you with another player.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-white">Table Setup</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Options</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              { id: 'uk', label: 'Championship 12 ft', desc: 'Official layout', icon: '🏟️' },
+              { id: 'american', label: 'Club 10 ft', desc: 'Local tables', icon: '🎲' },
+              { id: '9ball', label: 'Practice Session', desc: 'Warm-up mode', icon: '🎱' }
+            ].map(({ id, label, desc, icon }) => {
+              const active = variant === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setVariant(id)}
+                  className={`flex flex-col gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
+                    active
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
+                  }`}
+                >
+                  <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-slate-400/30 via-slate-500/10 to-transparent p-[1px]">
+                    <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
+                      {icon}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">{label}</span>
+                      {active && <span className="text-[10px] font-bold uppercase">Selected</span>}
+                    </div>
+                    <div className="text-xs text-white/60">{desc}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {playType === 'tournament' && (
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-purple-400/40 to-indigo-500/40 p-[1px]">
+                <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
+                  🧩
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">Tournament Seats</h3>
+                <p className="text-xs text-white/60">Choose the bracket size before launching.</p>
+              </div>
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              {[8, 16, 24].map((p) => {
+                const active = players === p;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPlayers(p)}
+                    className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold shadow transition ${
+                      active
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
+                    }`}
+                  >
+                    {p} players
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-white/60">
+              Winner takes the pot minus a 10% developer fee.
+            </p>
+          </div>
+        )}
+
+        {mode === 'online' && playType === 'regular' && (
+          <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-yellow-400/40 to-orange-500/40 p-[1px]">
+                <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
+                  💰
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">Select Stake</h3>
+                <p className="text-xs text-white/60">Stake your TPC to lock a table.</p>
+              </div>
+            </div>
+            <div className="mt-3">
+              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+            </div>
+            <p className="text-center text-white/60 text-xs">
+              Online games use your TPC stake as escrow, while AI matches stay free.
+            </p>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-white">Your Flag & Avatar</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Identity</span>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+            <button
+              type="button"
+              onClick={() => setShowFlagPicker(true)}
+              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-left text-sm text-white/80 transition hover:border-white/30"
+            >
+              <div className="text-[10px] uppercase tracking-[0.35em] text-white/60">Flag</div>
+              <div className="mt-2 flex items-center gap-2 text-base font-semibold">
+                <span className="text-lg">{selectedFlag || '🌐'}</span>
+                <span>{selectedFlag ? 'Custom flag' : 'Auto-detect & save'}</span>
+              </div>
+            </button>
+            {avatar && (
+              <div className="mt-3 flex items-center gap-3">
+                <img
+                  src={avatar}
+                  alt="Your avatar"
+                  className="h-12 w-12 rounded-full border border-white/20 object-cover"
+                />
+                <div className="text-sm text-white/60">Your avatar will appear in the match intro.</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {mode === 'ai' && (
+          <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+            <div className="flex items-start gap-3">
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-purple-400/40 to-indigo-500/40 p-[1px]">
+                <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
+                  🤝
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">AI Avatar Flags</h3>
+                <p className="text-xs text-white/60">
+                  Pick the country flag for the AI rival so the intro stays consistent.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAiFlagPicker(true)}
+              className="mt-3 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-left text-sm text-white/80 transition hover:border-white/30"
+            >
+              <div className="text-[10px] uppercase tracking-[0.35em] text-white/60">AI Flag</div>
+              <div className="mt-2 flex items-center gap-2 text-base font-semibold">
+                <span className="text-lg">{selectedAiFlag || '🌐'}</span>
+                <span>{selectedAiFlag ? 'Custom AI flag' : 'Auto-pick for opponent'}</span>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {mode === 'online' && playType === 'regular' && (
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-white">Online Arena</h3>
+                <p className="text-sm text-white/60">
+                  We match players by TPC account number, stake ({stake.amount} {stake.token}),
+                  and Snooker Royal game type.
+                </p>
+              </div>
+              <div className="text-xs text-white/60">{onlinePlayers.length} online</div>
+            </div>
+            {matchingError && <div className="text-sm text-red-400">{matchingError}</div>}
+            {matching && (
+              <div className="space-y-2">
+                {matchStatus && <div className="text-xs text-white/60">{matchStatus}</div>}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-white">Spinning wheel</span>
+                  <span className="text-xs text-white/60">Searching for stake match…</span>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/80">
+                  <div className="flex items-center justify-between">
+                    <span>🎯 {spinningPlayer || 'Searching…'}</span>
+                    <span className="text-xs text-white/60">
+                      Stake {stake.amount} {stake.token}
                     </span>
                   </div>
-                ))}
-                {matchPlayers.length === 0 && (
-                  <div className="lobby-tile w-full text-sm text-subtext">
-                    Waiting for another player in this snooker arena…
-                  </div>
-                )}
+                </div>
+                <div className="space-y-2">
+                  {matchPlayers.map((p) => (
+                    <div
+                      key={p.id}
+                      className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/80"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold">{p.name || `TPC ${p.id}`}</p>
+                          <p className="text-xs text-white/60">Account #{p.id}</p>
+                        </div>
+                        <span
+                          className={`text-xs font-semibold ${
+                            readyIds.has(String(p.id)) ? 'text-emerald-400' : 'text-white/50'
+                          }`}
+                        >
+                          {readyIds.has(String(p.id)) ? 'Ready' : 'Waiting'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {matchPlayers.length === 0 && (
+                    <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/60">
+                      Waiting for another player in this snooker arena…
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-          {!matching && (
-            <div className="text-sm text-subtext">
-              Start to join a 1v1 snooker arena. We keep you at the same table until the match begins.
-            </div>
-          )}
-        </div>
-      )}
-      <button
-        onClick={startGame}
-        className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded"
-        disabled={mode === 'online' && (isSearching || matching)}
-      >
-        {mode === 'online' ? (matching ? 'Waiting for opponent…' : 'START ONLINE') : 'START'}
-      </button>
+            )}
+            {!matching && (
+              <div className="text-sm text-white/60">
+                Start to join a 1v1 snooker arena. We keep you at the same table until the match begins.
+              </div>
+            )}
+          </div>
+        )}
 
-      <FlagPickerModal
-        open={showFlagPicker}
-        count={1}
-        selected={playerFlagIndex != null ? [playerFlagIndex] : []}
-        onSave={(indices) => {
-          const idx = indices?.[0] ?? null;
-          setPlayerFlagIndex(idx);
-          try {
-            if (idx != null) window.localStorage?.setItem(PLAYER_FLAG_STORAGE_KEY, FLAG_EMOJIS[idx]);
-          } catch {}
-        }}
-        onClose={() => setShowFlagPicker(false)}
-      />
+        <button
+          onClick={startGame}
+          className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background shadow-[0_16px_30px_rgba(14,165,233,0.35)] transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={mode === 'online' && (isSearching || matching)}
+        >
+          {mode === 'online' ? (matching ? 'Waiting for opponent…' : 'Start Online') : 'Start'}
+        </button>
 
-      <FlagPickerModal
-        open={showAiFlagPicker}
-        count={1}
-        selected={aiFlagIndex != null ? [aiFlagIndex] : []}
-        onSave={(indices) => {
-          const idx = indices?.[0] ?? null;
-          setAiFlagIndex(idx);
-          try {
-            if (idx != null) window.localStorage?.setItem(AI_FLAG_STORAGE_KEY, FLAG_EMOJIS[idx]);
-          } catch {}
-        }}
-        onClose={() => setShowAiFlagPicker(false)}
-      />
+        <FlagPickerModal
+          open={showFlagPicker}
+          count={1}
+          selected={playerFlagIndex != null ? [playerFlagIndex] : []}
+          onSave={(indices) => {
+            const idx = indices?.[0] ?? null;
+            setPlayerFlagIndex(idx);
+            try {
+              if (idx != null) window.localStorage?.setItem(PLAYER_FLAG_STORAGE_KEY, FLAG_EMOJIS[idx]);
+            } catch {}
+          }}
+          onClose={() => setShowFlagPicker(false)}
+        />
+
+        <FlagPickerModal
+          open={showAiFlagPicker}
+          count={1}
+          selected={aiFlagIndex != null ? [aiFlagIndex] : []}
+          onSave={(indices) => {
+            const idx = indices?.[0] ?? null;
+            setAiFlagIndex(idx);
+            try {
+              if (idx != null) window.localStorage?.setItem(AI_FLAG_STORAGE_KEY, FLAG_EMOJIS[idx]);
+            } catch {}
+          }}
+          onClose={() => setShowAiFlagPicker(false)}
+        />
+      </div>
     </div>
   );
 }
