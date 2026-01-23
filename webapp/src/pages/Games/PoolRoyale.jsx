@@ -1306,7 +1306,7 @@ const POCKET_CAM = Object.freeze({
   railFocusLong: BALL_R * 8,
   railFocusShort: BALL_R * 5.4
 });
-const POCKET_POPUP_DURATION_MS = 0;
+const POCKET_POPUP_DURATION_MS = 2000;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
 const POCKET_GLOW_ENABLED = false;
 const POCKET_GLOW_RADIUS = BALL_R * 1.32;
@@ -4868,11 +4868,11 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.15; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22); // restore the pre-tweak overhead camera tilt
-const TOP_VIEW_RADIUS_SCALE = 1.26; // restore the 2D top view height to the earlier framing
-const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
+const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.04; // raise the camera a touch to ensure full end-rail coverage
+const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
+const TOP_VIEW_RADIUS_SCALE = 1.04; // lower the 2D top view slightly to keep framing consistent after the table shrink
+const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
   z: PLAY_H * -0.078 // keep the existing vertical alignment
@@ -6395,13 +6395,13 @@ function updateRailLimitsFromTable(table) {
   if (minAbsX !== Infinity) {
     const computedX = Math.max(0, minAbsX - BALL_R - RAIL_LIMIT_PADDING);
     if (computedX > 0) {
-      RAIL_LIMIT_X = Math.max(DEFAULT_RAIL_LIMIT_X, computedX);
+      RAIL_LIMIT_X = Math.min(DEFAULT_RAIL_LIMIT_X, computedX);
     }
   }
   if (minAbsZ !== Infinity) {
     const computedZ = Math.max(0, minAbsZ - BALL_R - RAIL_LIMIT_PADDING);
     if (computedZ > 0) {
-      RAIL_LIMIT_Y = Math.max(DEFAULT_RAIL_LIMIT_Y, computedZ);
+      RAIL_LIMIT_Y = Math.min(DEFAULT_RAIL_LIMIT_Y, computedZ);
     }
   }
 }
@@ -7486,7 +7486,7 @@ export function Table3D(
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.0; // trim the cushion tips near middle pockets so they stop at the rail cut
   const SHORT_RAIL_POCKET_REACH_REDUCTION = TABLE.THICK * 0.02; // match the trimmed amount removed from the side cushions
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.55; // reduce long-rail cushion reach further to keep noses out of pocket perimeters
-  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.28; // lightly trim short-rail cushions to match the new pocket clearance
+  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.34; // lightly trim short-rail cushions to match the new pocket clearance
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
