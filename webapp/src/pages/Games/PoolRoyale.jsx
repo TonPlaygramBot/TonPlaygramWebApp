@@ -984,7 +984,7 @@ const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
   const WIDTH_REF = 2540;
   const HEIGHT_REF = 1270;
   const BALL_D_REF = 57.15;
-  const BAULK_FROM_BAULK_REF = 737; // Baulk line distance from the baulk cushion (29")
+  const BAULK_FROM_BAULK_REF = WIDTH_REF * 0.25; // Head string at 1/4 table length (25")
   const D_RADIUS_REF = 292;
   const PINK_FROM_TOP_REF = 737;
   const BLACK_FROM_TOP_REF = 324; // Black spot distance from the top cushion (12.75")
@@ -1309,7 +1309,7 @@ const POCKET_CAM = Object.freeze({
   railFocusLong: BALL_R * 5.6,
   railFocusShort: BALL_R * 6.6
 });
-const POCKET_POPUP_DURATION_MS = 2000;
+const POCKET_POPUP_DURATION_MS = 2500;
 const POCKET_POPUP_LIFT = BALL_R * 2.4;
 const POCKET_GLOW_ENABLED = false;
 const POCKET_GLOW_RADIUS = BALL_R * 1.32;
@@ -4880,6 +4880,15 @@ const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
   z: PLAY_H * -0.078 // keep the existing vertical alignment
+});
+const TOP_VIEW_BUTTON_MARGIN = 1.15; // restore the 2D button framing from the previous build
+const TOP_VIEW_BUTTON_MIN_RADIUS_SCALE = 1.08;
+const TOP_VIEW_BUTTON_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22);
+const TOP_VIEW_BUTTON_RADIUS_SCALE = 1.26;
+const TOP_VIEW_BUTTON_RESOLVED_PHI = Math.max(TOP_VIEW_BUTTON_PHI, CAMERA_ABS_MIN_PHI * 0.5);
+const TOP_VIEW_BUTTON_SCREEN_OFFSET = Object.freeze({
+  x: PLAY_W * 0.006,
+  z: PLAY_H * 0.006
 });
 const REPLAY_TOP_VIEW_MARGIN = 1.15;
 const REPLAY_TOP_VIEW_MIN_RADIUS_SCALE = 1.08;
@@ -12017,11 +12026,6 @@ const initialFrame = useMemo(() => {
   );
   const inHandPlacementModeRef = useRef(inHandPlacementMode);
   const inHandIndicatorRef = useRef(null);
-  const IN_HAND_HOLD_DELAY_MS = 180;
-  const inHandHoldTimerRef = useRef(null);
-  const inHandHoldPointerRef = useRef(null);
-  const inHandHoldEventRef = useRef(null);
-  const inHandHoldTargetRef = useRef(null);
   const inHandPointerHandlersRef = useRef({
     onDown: null,
     onMove: null,
@@ -12118,10 +12122,6 @@ const powerRef = useRef(hud.power);
       if (shotCameraHoldTimeoutRef.current) {
         clearTimeout(shotCameraHoldTimeoutRef.current);
         shotCameraHoldTimeoutRef.current = null;
-      }
-      if (inHandHoldTimerRef.current) {
-        clearTimeout(inHandHoldTimerRef.current);
-        inHandHoldTimerRef.current = null;
       }
     },
     []
@@ -16526,9 +16526,9 @@ const powerRef = useRef(hud.power);
         lookTarget = focusTarget;
         if (topViewRef.current) {
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-            playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
+            playerOffsetRef.current + TOP_VIEW_BUTTON_SCREEN_OFFSET.x,
             ORBIT_FOCUS_BASE_Y,
-            TOP_VIEW_SCREEN_OFFSET.z
+            TOP_VIEW_BUTTON_SCREEN_OFFSET.z
           ).multiplyScalar(worldScaleFactor);
           const overheadVariant = overheadBroadcastVariantRef.current ?? 'top';
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
@@ -16562,12 +16562,13 @@ const powerRef = useRef(hud.power);
             }
           }
           if (!overheadApplied) {
-            const topRadiusBase = fitRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
+            const topRadiusBase =
+              fitRadius(camera, TOP_VIEW_BUTTON_MARGIN) * TOP_VIEW_BUTTON_RADIUS_SCALE;
             const topRadius = clampOrbitRadius(
-              Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
+              Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_BUTTON_MIN_RADIUS_SCALE)
             );
             const topTheta = Math.PI;
-            const topPhi = TOP_VIEW_RESOLVED_PHI;
+            const topPhi = TOP_VIEW_BUTTON_RESOLVED_PHI;
             TMP_SPH.set(topRadius, topPhi, topTheta);
             camera.up.set(0, 1, 0);
             camera.position.setFromSpherical(TMP_SPH);
@@ -17221,7 +17222,7 @@ const powerRef = useRef(hud.power);
         const margin = Math.max(
           STANDING_VIEW.margin,
           topViewRef.current
-            ? TOP_VIEW_MARGIN
+            ? TOP_VIEW_BUTTON_MARGIN
             : window.innerHeight > window.innerWidth
               ? STANDING_VIEW_MARGIN_PORTRAIT
               : STANDING_VIEW_MARGIN_LANDSCAPE
@@ -17233,7 +17234,7 @@ const powerRef = useRef(hud.power);
             const nextMargin = Math.max(
               STANDING_VIEW.margin,
               topViewRef.current
-                ? TOP_VIEW_MARGIN
+                ? TOP_VIEW_BUTTON_MARGIN
                 : window.innerHeight > window.innerWidth
                   ? STANDING_VIEW_MARGIN_PORTRAIT
                   : STANDING_VIEW_MARGIN_LANDSCAPE
@@ -18036,21 +18037,22 @@ const powerRef = useRef(hud.power);
           topViewRef.current = true;
           topViewLockedRef.current = true;
           overheadBroadcastVariantRef.current = 'top';
-          const margin = TOP_VIEW_MARGIN;
+          const margin = TOP_VIEW_BUTTON_MARGIN;
           fit(margin);
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-            playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
+            playerOffsetRef.current + TOP_VIEW_BUTTON_SCREEN_OFFSET.x,
             ORBIT_FOCUS_BASE_Y,
-            TOP_VIEW_SCREEN_OFFSET.z
+            TOP_VIEW_BUTTON_SCREEN_OFFSET.z
           ).multiplyScalar(
             Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE
           );
-          const targetRadiusBase = fitRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
+          const targetRadiusBase =
+            fitRadius(camera, TOP_VIEW_BUTTON_MARGIN) * TOP_VIEW_BUTTON_RADIUS_SCALE;
           const targetRadius = clampOrbitRadius(
-            Math.max(targetRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
+            Math.max(targetRadiusBase, CAMERA.minR * TOP_VIEW_BUTTON_MIN_RADIUS_SCALE)
           );
           sph.radius = targetRadius;
-          sph.phi = TOP_VIEW_RESOLVED_PHI;
+          sph.phi = TOP_VIEW_BUTTON_RESOLVED_PHI;
           sph.theta = Math.PI;
           lastCameraTargetRef.current.copy(topFocusTarget);
           syncBlendToSpherical();
@@ -19058,7 +19060,7 @@ const powerRef = useRef(hud.power);
       updateCamera();
       fit(
         topViewRef.current
-          ? TOP_VIEW_MARGIN
+          ? TOP_VIEW_BUTTON_MARGIN
           : window.innerHeight > window.innerWidth
             ? 1.6
             : 1.4
@@ -22726,8 +22728,6 @@ const powerRef = useRef(hud.power);
           if (potCount > 1) tags.add('multi');
           if (shotContext?.cushionAfterContact) tags.add('bank');
           if (lastShotPower >= POWER_REPLAY_THRESHOLD) tags.add('power');
-          const nonPotTags = Array.from(tags).filter((tag) => tag !== 'pot');
-          if (nonPotTags.length === 0) return null;
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
@@ -24652,12 +24652,6 @@ const powerRef = useRef(hud.power);
                 mesh: b.mesh,
                 glowMesh,
                 glowTone: 'good',
-                popupPending: Boolean(table && POCKET_POPUP_DURATION_MS > 0 && b.mesh),
-                popupCenter: new THREE.Vector3(
-                  c.x,
-                  BALL_CENTER_Y + POCKET_POPUP_LIFT,
-                  c.y
-                ),
                 entrySpeed,
                 velocityY:
                   -Math.max(Math.abs(POCKET_DROP_ENTRY_VELOCITY), entrySpeed * 0.08),
@@ -24678,6 +24672,28 @@ const powerRef = useRef(hud.power);
               b.mesh.scale.set(1, 1, 1);
               b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
               pocketDropRef.current.set(b.id, dropEntry);
+              if (table && POCKET_POPUP_DURATION_MS > 0 && b.mesh) {
+                const popupMesh = b.mesh.clone(true);
+                popupMesh.traverse((child) => {
+                  if (!child.isMesh) return;
+                  if (child.material?.clone) {
+                    child.material = child.material.clone();
+                  }
+                  child.castShadow = false;
+                  child.receiveShadow = false;
+                });
+                popupMesh.position.set(
+                  c.x,
+                  BALL_CENTER_Y + POCKET_POPUP_LIFT,
+                  c.y
+                );
+                popupMesh.renderOrder = 6;
+                table.add(popupMesh);
+                pocketPopupRef.current.push({
+                  mesh: popupMesh,
+                  expiresAt: dropStart + POCKET_POPUP_DURATION_MS
+                });
+              }
               const mappedColor = toBallColorId(b.id);
               const colorId =
                 mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
@@ -24798,28 +24814,6 @@ const powerRef = useRef(hud.power);
                 mesh.visible = true;
                 mesh.position.set(entry.toX ?? runFromX, targetY, entry.toZ ?? runFromZ);
                 mesh.scale.set(1, 1, 1);
-                if (entry.popupPending && table) {
-                  const popupMesh = mesh.clone(true);
-                  popupMesh.traverse((child) => {
-                    if (!child.isMesh) return;
-                    if (child.material?.clone) {
-                      child.material = child.material.clone();
-                    }
-                    child.castShadow = false;
-                    child.receiveShadow = false;
-                  });
-                  const popupCenter = entry.popupCenter;
-                  if (popupCenter) {
-                    popupMesh.position.set(popupCenter.x, popupCenter.y, popupCenter.z);
-                  }
-                  popupMesh.renderOrder = 6;
-                  table.add(popupMesh);
-                  pocketPopupRef.current.push({
-                    mesh: popupMesh,
-                    expiresAt: (entry.settledAt ?? now) + POCKET_POPUP_DURATION_MS
-                  });
-                  entry.popupPending = false;
-                }
                 if (entry.glowMesh) {
                   entry.glowMesh.visible = true;
                   entry.glowMesh.position.set(
@@ -24993,7 +24987,7 @@ const powerRef = useRef(hud.power);
           const margin = Math.max(
             STANDING_VIEW.margin,
             topViewRef.current
-              ? TOP_VIEW_MARGIN
+              ? TOP_VIEW_BUTTON_MARGIN
               : window.innerHeight > window.innerWidth
                 ? STANDING_VIEW_MARGIN_PORTRAIT
                 : STANDING_VIEW_MARGIN_LANDSCAPE
@@ -25730,69 +25724,28 @@ const powerRef = useRef(hud.power);
     ),
     [avatarSizeClass]
   );
-  const snapshotPointerEvent = useCallback(
-    (event) => ({
-      clientX: event.clientX,
-      clientY: event.clientY,
-      pointerId: event.pointerId,
-      button: event.button,
-      preventDefault: () => {}
-    }),
-    []
-  );
-  const clearInHandHoldTimer = useCallback(() => {
-    if (inHandHoldTimerRef.current) {
-      clearTimeout(inHandHoldTimerRef.current);
-      inHandHoldTimerRef.current = null;
-    }
-  }, []);
   const handleInHandIndicatorDown = useCallback(
     (event) => {
       const currentHud = hudRef.current;
       if (!currentHud?.inHand || currentHud.turn !== 0) return;
       event.preventDefault?.();
-      clearInHandHoldTimer();
-      inHandHoldPointerRef.current = event.pointerId ?? 'mouse';
-      inHandHoldEventRef.current = snapshotPointerEvent(event);
-      inHandHoldTargetRef.current = event.currentTarget ?? null;
-      inHandHoldTimerRef.current = window.setTimeout(() => {
-        if (!inHandHoldPointerRef.current) return;
-        setInHandPlacementMode(true);
-        inHandPlacementModeRef.current = true;
-        const pendingEvent = inHandHoldEventRef.current;
-        if (pendingEvent) {
-          inHandPointerHandlersRef.current?.onDown?.(pendingEvent);
-        }
-        if (
-          pendingEvent?.pointerId != null &&
-          inHandHoldTargetRef.current?.setPointerCapture
-        ) {
-          try {
-            inHandHoldTargetRef.current.setPointerCapture(pendingEvent.pointerId);
-          } catch {}
-        }
-      }, IN_HAND_HOLD_DELAY_MS);
+      setInHandPlacementMode(true);
+      inHandPlacementModeRef.current = true;
+      inHandPointerHandlersRef.current?.onDown?.(event);
+      if (event.pointerId != null && event.currentTarget?.setPointerCapture) {
+        try {
+          event.currentTarget.setPointerCapture(event.pointerId);
+        } catch {}
+      }
     },
-    [IN_HAND_HOLD_DELAY_MS, clearInHandHoldTimer, snapshotPointerEvent]
+    []
   );
   const handleInHandIndicatorMove = useCallback((event) => {
-    if (
-      inHandHoldPointerRef.current != null &&
-      event.pointerId != null &&
-      event.pointerId === inHandHoldPointerRef.current &&
-      !inHandPlacementModeRef.current
-    ) {
-      inHandHoldEventRef.current = snapshotPointerEvent(event);
-    }
     if (!inHandPlacementModeRef.current) return;
     inHandPointerHandlersRef.current?.onMove?.(event);
-  }, [snapshotPointerEvent]);
+  }, []);
   const handleInHandIndicatorUp = useCallback((event) => {
     inHandPointerHandlersRef.current?.onUp?.(event);
-    clearInHandHoldTimer();
-    inHandHoldPointerRef.current = null;
-    inHandHoldEventRef.current = null;
-    inHandHoldTargetRef.current = null;
     setInHandPlacementMode(false);
     inHandPlacementModeRef.current = false;
     if (event.pointerId != null && event.currentTarget?.releasePointerCapture) {
@@ -25800,7 +25753,7 @@ const powerRef = useRef(hud.power);
         event.currentTarget.releasePointerCapture(event.pointerId);
       } catch {}
     }
-  }, [clearInHandHoldTimer]);
+  }, []);
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
