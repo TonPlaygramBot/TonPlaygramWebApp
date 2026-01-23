@@ -4874,8 +4874,8 @@ const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22); 
 const TOP_VIEW_RADIUS_SCALE = 1.26; // restore the 2D top view height to the earlier framing
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
-  z: PLAY_H * -0.078 // keep the existing vertical alignment
+  x: PLAY_W * 0.006, // bias the top view so the table sits slightly lower on screen
+  z: PLAY_H * 0.006 // bias the top view so the table sits slightly more to the right
 });
 const REPLAY_TOP_VIEW_MARGIN = 1.15;
 const REPLAY_TOP_VIEW_MIN_RADIUS_SCALE = 1.08;
@@ -6378,6 +6378,8 @@ function alignRailsToCushions(table, frame, railMeshes = null) {
 function updateRailLimitsFromTable(table) {
   if (!table?.userData?.cushions?.length) return;
   table.updateMatrixWorld(true);
+  let nextRailLimitX = DEFAULT_RAIL_LIMIT_X;
+  let nextRailLimitY = DEFAULT_RAIL_LIMIT_Y;
   let minAbsX = Infinity;
   let minAbsZ = Infinity;
   for (const cushion of table.userData.cushions) {
@@ -6395,15 +6397,17 @@ function updateRailLimitsFromTable(table) {
   if (minAbsX !== Infinity) {
     const computedX = Math.max(0, minAbsX - BALL_R - RAIL_LIMIT_PADDING);
     if (computedX > 0) {
-      RAIL_LIMIT_X = Math.max(DEFAULT_RAIL_LIMIT_X, computedX);
+      nextRailLimitX = computedX;
     }
   }
   if (minAbsZ !== Infinity) {
     const computedZ = Math.max(0, minAbsZ - BALL_R - RAIL_LIMIT_PADDING);
     if (computedZ > 0) {
-      RAIL_LIMIT_Y = Math.max(DEFAULT_RAIL_LIMIT_Y, computedZ);
+      nextRailLimitY = computedZ;
     }
   }
+  RAIL_LIMIT_X = nextRailLimitX;
+  RAIL_LIMIT_Y = nextRailLimitY;
 }
 
 // --------------------------------------------------
@@ -7486,7 +7490,7 @@ export function Table3D(
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.0; // trim the cushion tips near middle pockets so they stop at the rail cut
   const SHORT_RAIL_POCKET_REACH_REDUCTION = TABLE.THICK * 0.02; // match the trimmed amount removed from the side cushions
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.55; // reduce long-rail cushion reach further to keep noses out of pocket perimeters
-  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.28; // lightly trim short-rail cushions to match the new pocket clearance
+  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.34; // trim short-rail cushions slightly more to reduce their length without altering the profile
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
