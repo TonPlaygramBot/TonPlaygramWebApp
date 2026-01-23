@@ -41,6 +41,10 @@ export default function TexasHoldemLobby() {
   };
 
   useEffect(() => {
+    import('./TexasHoldem.jsx').catch(() => {});
+  }, []);
+
+  useEffect(() => {
     try {
       const saved = loadAvatar();
       setAvatar(saved || getTelegramPhotoUrl());
@@ -98,95 +102,194 @@ export default function TexasHoldemLobby() {
   };
 
   return (
-    <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
-      <h2 className="text-xl font-bold text-center">Texas Hold'em Lobby</h2>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Stake</h3>
-        <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-        <p className="text-sm text-center">
-          Start bet: {startBet.toLocaleString('en-US')} TPC • Pot max: {stake.amount.toLocaleString('en-US')} TPC
-        </p>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Opponents</h3>
-        <div className="grid grid-cols-3 gap-2">
-          {Array.from({ length: 5 }, (_, idx) => idx + 1).map((count) => {
-            const isSelected = opponents === count;
-            return (
-              <button
-                key={count}
-                type="button"
-                onClick={() => setOpponents(count)}
-                className={`lobby-tile ${isSelected ? 'lobby-selected' : ''}`}
-              >
-                VS {count}
-              </button>
-            );
-          })}
-        </div>
-        <p className="text-xs text-center text-text/80">
-          Choose how many players you want to face (1 - 5)
-        </p>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Mode</h3>
-        <div className="flex gap-2">
-          {[
-            { id: 'local', label: 'Local (AI)' },
-            { id: 'online', label: 'Online', disabled: true }
-          ].map(({ id, label, disabled }) => (
-            <div key={id} className="relative">
-              <button
-                onClick={() => !disabled && setMode(id)}
-                className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
-                  disabled ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-                disabled={disabled}
-              >
-                {label}
-              </button>
-              {disabled && (
-                <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
-                  Under development
-                </span>
-              )}
+    <div className="relative min-h-screen bg-[#070b16] text-text">
+      <div className="absolute inset-0 tetris-grid-bg opacity-60" />
+      <div className="relative z-10 space-y-4 p-4 pb-8">
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#111827]/90 via-[#0f172a]/80 to-[#0b1324]/90 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.35em] text-emerald-200/70">
+                Texas Hold&apos;em
+              </p>
+              <h2 className="text-2xl font-bold text-white">Modern Lobby</h2>
             </div>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">AI Avatar Flags</h3>
-        <p className="text-sm text-subtext text-center">
-          Auto-filled with random worldwide flags—tap to customize or reshuffle before you start.
-        </p>
-        <button
-          type="button"
-          onClick={openAiFlagPicker}
-          className="w-full px-3 py-2 rounded-lg border border-border bg-background/60 hover:border-primary text-sm text-left"
-        >
-          <div className="text-[11px] uppercase tracking-wide text-subtext">AI Flags</div>
-          <div className="flex items-center gap-2 text-base font-semibold">
-            <span className="text-lg">{flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : '🌐'}</span>
-            <span>{flags.length ? 'Custom AI avatars' : 'Auto-pick from global flags'}</span>
+            <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/80">
+              Poker table ready
+            </div>
           </div>
-        </button>
-      </div>
-      <button
-        onClick={startGame}
-        disabled={mode === 'local' && flags.length !== flagPickerCount}
-        className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded disabled:opacity-50"
-      >
-        START
-      </button>
+          <div className="mt-4 grid gap-3 sm:grid-cols-[1.2fr_1fr]">
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1f2937]/90 to-[#0f172a]/90 p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-400/40 via-sky-400/20 to-indigo-500/40 p-[1px]">
+                  <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
+                    ♠️
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">Dealer&apos;s Lounge</p>
+                  <p className="text-xs text-white/60">
+                    Configure your match while the poker table loads in the background.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-white/70">
+                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Instant lobby</span>
+                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Mobile ready</span>
+                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Fast dealing</span>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
+              <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
+              <div className="mt-3 flex items-center gap-3">
+                <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
+                  {avatar ? (
+                    <img src={avatar} alt="Your avatar" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-lg">🙂</div>
+                  )}
+                </div>
+                <div className="text-sm text-white/80">
+                  <p className="font-semibold">Ready to shuffle</p>
+                  <p className="text-xs text-white/50">
+                    AI flags: {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : 'Auto'}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-white/60">
+                Your lobby settings carry over as soon as the poker arena finishes loading.
+              </p>
+            </div>
+          </div>
+        </div>
 
-      <FlagPickerModal
-        open={showFlagPicker}
-        count={flagPickerCount}
-        selected={flags}
-        onSave={setFlags}
-        onClose={() => setShowFlagPicker(false)}
-        onComplete={(sel) => startGame(sel)}
-      />
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#111827]/90 to-[#0f172a]/80 p-4 shadow-[0_20px_40px_rgba(0,0,0,0.35)]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.3em] text-emerald-200/70">Stake</p>
+              <h3 className="text-lg font-semibold text-white">Pick your buy-in</h3>
+            </div>
+            <div className="rounded-full border border-emerald-300/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-100">
+              Start bet: {startBet.toLocaleString('en-US')} TPC
+            </div>
+          </div>
+          <div className="mt-4">
+            <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+          </div>
+          <p className="mt-3 text-xs text-white/60">
+            Pot max: {stake.amount.toLocaleString('en-US')} TPC
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#111827]/90 to-[#0f172a]/80 p-4 shadow-[0_20px_40px_rgba(0,0,0,0.35)]">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-purple-400/40 to-indigo-500/40 p-[1px]">
+              <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-lg">
+                🧑‍🤝‍🧑
+              </div>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Opponents</h3>
+              <p className="text-xs text-white/60">Choose how many players you want to face.</p>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {Array.from({ length: 5 }, (_, idx) => idx + 1).map((count) => {
+              const isSelected = opponents === count;
+              return (
+                <button
+                  key={count}
+                  type="button"
+                  onClick={() => setOpponents(count)}
+                  className={`lobby-tile ${isSelected ? 'lobby-selected' : ''}`}
+                >
+                  VS {count}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#111827]/90 to-[#0f172a]/80 p-4 shadow-[0_20px_40px_rgba(0,0,0,0.35)]">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-yellow-400/40 to-orange-500/40 p-[1px]">
+              <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-lg">
+                ⚙️
+              </div>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Mode</h3>
+              <p className="text-xs text-white/60">Local AI is ready, online tables are coming soon.</p>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {[
+              { id: 'local', label: 'Local (AI)' },
+              { id: 'online', label: 'Online', disabled: true }
+            ].map(({ id, label, disabled }) => (
+              <div key={id} className="relative">
+                <button
+                  onClick={() => !disabled && setMode(id)}
+                  className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
+                    disabled ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={disabled}
+                >
+                  {label}
+                </button>
+                {disabled && (
+                  <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
+                    Under development
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#111827]/90 to-[#0f172a]/80 p-4 shadow-[0_20px_40px_rgba(0,0,0,0.35)]">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-sky-400/40 to-indigo-500/40 p-[1px]">
+              <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-lg">
+                🏳️
+              </div>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">AI Avatar Flags</h3>
+              <p className="text-xs text-white/60">
+                Auto-filled with random worldwide flags—tap to customize or reshuffle before you start.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={openAiFlagPicker}
+            className="mt-4 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm text-white/80 transition hover:border-primary/70"
+          >
+            <div className="text-[11px] uppercase tracking-wide text-white/50">AI Flags</div>
+            <div className="mt-1 flex items-center gap-2 text-base font-semibold text-white">
+              <span className="text-lg">{flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : '🌐'}</span>
+              <span>{flags.length ? 'Custom AI avatars' : 'Auto-pick from global flags'}</span>
+            </div>
+          </button>
+        </div>
+
+        <button
+          onClick={startGame}
+          disabled={mode === 'local' && flags.length !== flagPickerCount}
+          className="w-full rounded-full bg-primary px-4 py-3 text-sm font-semibold text-background shadow-[0_18px_30px_rgba(59,130,246,0.35)] transition hover:bg-primary-hover disabled:opacity-50"
+        >
+          START
+        </button>
+
+        <FlagPickerModal
+          open={showFlagPicker}
+          count={flagPickerCount}
+          selected={flags}
+          onSave={setFlags}
+          onClose={() => setShowFlagPicker(false)}
+          onComplete={(sel) => startGame(sel)}
+        />
+      </div>
     </div>
   );
 }
