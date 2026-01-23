@@ -10517,6 +10517,12 @@ function PoolRoyaleGame({
     () => resolvePoolVariant(variantKey, ballSetKey),
     [variantKey, ballSetKey]
   );
+  const infoText = useMemo(() => {
+    if (activeVariant?.id === 'uk') {
+      return 'Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent two shots.';
+    }
+    return 'Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent ball in hand.';
+  }, [activeVariant]);
   const isUkAmericanSet = useMemo(
     () => activeVariant?.id === 'uk' && activeVariant?.ballSet === 'american',
     [activeVariant]
@@ -26670,7 +26676,7 @@ const powerRef = useRef(hud.power);
           open={showInfo}
           onClose={() => setShowInfo(false)}
           title="Pool Royale"
-          info="Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent ball in hand."
+          info={infoText}
         />
       </div>
       <div className="pointer-events-auto">
