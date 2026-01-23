@@ -2986,6 +2986,9 @@ export default function MurlanRoyaleArena({ search }) {
         </div>
         <div className="pointer-events-auto">
           <BottomLeftIcons
+            className="fixed right-4 top-4 flex flex-col items-center space-y-2 z-20"
+            buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
+            order={['info', 'mute', 'chat', 'gift']}
             onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}

@@ -18,7 +18,8 @@ export default function BottomLeftIcons({
   giftIcon,
   infoIcon,
   muteIconOn,
-  muteIconOff
+  muteIconOff,
+  order = ['chat', 'gift', 'info', 'mute']
 }) {
   const [muted, setMuted] = useState(isGameMuted());
 
@@ -33,42 +34,59 @@ export default function BottomLeftIcons({
     setMuted(isGameMuted());
   };
 
+  const actions = {
+    chat: showChat && onChat
+      ? (
+          <button type="button" onClick={onChat} className={buttonClassName}>
+            {chatIcon ? (
+              <span className={iconClassName}>{chatIcon}</span>
+            ) : (
+              <AiOutlineMessage className={iconClassName} />
+            )}
+            <span className={labelClassName}>Chat</span>
+          </button>
+        )
+      : null,
+    gift: showGift && onGift
+      ? (
+          <button type="button" onClick={onGift} className={buttonClassName}>
+            <span className={iconClassName}>{giftIcon ?? '🎁'}</span>
+            <span className={labelClassName}>Gift</span>
+          </button>
+        )
+      : null,
+    info: showInfo
+      ? (
+          <button type="button" onClick={onInfo} className={buttonClassName}>
+            {infoIcon ? (
+              <span className={iconClassName}>{infoIcon}</span>
+            ) : (
+              <AiOutlineInfoCircle className={iconClassName} />
+            )}
+            <span className={labelClassName}>Info</span>
+          </button>
+        )
+      : null,
+    mute: showMute
+      ? (
+          <button type="button" onClick={toggle} className={buttonClassName}>
+            <span className={iconClassName}>
+              {muted ? muteIconOn ?? '🔇' : muteIconOff ?? '🔊'}
+            </span>
+            <span className={labelClassName}>{muted ? 'Unmute' : 'Mute'}</span>
+          </button>
+        )
+      : null
+  };
+
   return (
     <div className={className} style={style}>
-      {showChat && onChat && (
-        <button type="button" onClick={onChat} className={buttonClassName}>
-          {chatIcon ? (
-            <span className={iconClassName}>{chatIcon}</span>
-          ) : (
-            <AiOutlineMessage className={iconClassName} />
-          )}
-          <span className={labelClassName}>Chat</span>
-        </button>
-      )}
-      {showGift && onGift && (
-        <button type="button" onClick={onGift} className={buttonClassName}>
-          <span className={iconClassName}>{giftIcon ?? '🎁'}</span>
-          <span className={labelClassName}>Gift</span>
-        </button>
-      )}
-      {showInfo && (
-        <button type="button" onClick={onInfo} className={buttonClassName}>
-          {infoIcon ? (
-            <span className={iconClassName}>{infoIcon}</span>
-          ) : (
-            <AiOutlineInfoCircle className={iconClassName} />
-          )}
-          <span className={labelClassName}>Info</span>
-        </button>
-      )}
-      {showMute && (
-        <button type="button" onClick={toggle} className={buttonClassName}>
-          <span className={iconClassName}>
-            {muted ? muteIconOn ?? '🔇' : muteIconOff ?? '🔊'}
-          </span>
-          <span className={labelClassName}>{muted ? 'Unmute' : 'Mute'}</span>
-        </button>
-      )}
+      {order
+        .map((key) => ({ key, node: actions[key] }))
+        .filter(({ node }) => node)
+        .map(({ key, node }) => (
+          <div key={key}>{node}</div>
+        ))}
     </div>
   );
 }
