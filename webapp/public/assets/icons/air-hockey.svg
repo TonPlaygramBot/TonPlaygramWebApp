@@ -1,0 +1,18 @@
+<svg width="300" height="200" viewBox="0 0 300 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="airHockeyBg" x1="0" y1="0" x2="300" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0EA5E9"/>
+      <stop offset="1" stop-color="#1E293B"/>
+    </linearGradient>
+    <linearGradient id="airHockeyTable" x1="38" y1="40" x2="262" y2="160" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#1F2937"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="200" rx="28" fill="url(#airHockeyBg)"/>
+  <rect x="38" y="40" width="224" height="120" rx="20" fill="url(#airHockeyTable)" stroke="#38BDF8" stroke-width="4"/>
+  <line x1="150" y1="48" x2="150" y2="152" stroke="#38BDF8" stroke-width="2" stroke-dasharray="6 6"/>
+  <circle cx="110" cy="110" r="14" fill="#E2E8F0" stroke="#38BDF8" stroke-width="3"/>
+  <circle cx="198" cy="88" r="20" fill="#22D3EE" stroke="#0EA5E9" stroke-width="4"/>
+  <circle cx="198" cy="88" r="7" fill="#0F172A"/>
+</svg>
