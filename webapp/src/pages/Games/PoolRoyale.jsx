@@ -7206,6 +7206,9 @@ export function Table3D(
     const entry = pocketDropRef.current.get(ballId);
     if (entry) {
       clearPocketGlow(entry);
+      if (entry.proxyMesh) {
+        entry.proxyMesh.parent?.remove?.(entry.proxyMesh);
+      }
     }
     pocketDropRef.current.delete(ballId);
   };
@@ -7443,7 +7446,7 @@ export function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.4; // trim the cushion tips near middle pockets so they stop at the rail cut
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.55; // reduce long-rail cushion reach further to keep noses out of pocket perimeters
   const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.28; // lightly trim short-rail cushions to match the new pocket clearance
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
@@ -23992,7 +23995,8 @@ const powerRef = useRef(hud.power);
         balls.forEach((ball) => {
           if (!ball) return;
           const dropEntry = pocketDropRef.current.get(ball.id);
-          const dropping = Boolean(dropEntry);
+          const usesProxyMesh =
+            Boolean(dropEntry?.proxyMesh) && dropEntry.proxyMesh !== ball.mesh;
           if (ball.active && dropEntry) {
             removePocketDropEntry(ball.id);
             ball.mesh.visible = true;
@@ -24000,7 +24004,7 @@ const powerRef = useRef(hud.power);
           }
           if (!ball.active) {
             if (dropEntry) {
-              ball.mesh.visible = true;
+              ball.mesh.visible = !usesProxyMesh;
               if (ball.shadow) ball.shadow.visible = false;
             } else {
               ball.mesh.visible = false;
@@ -24637,6 +24641,21 @@ const powerRef = useRef(hud.power);
                 glowMesh.position.set(fromX, BALL_CENTER_Y - POCKET_GLOW_LIFT, fromZ);
                 table.add(glowMesh);
               }
+              let dropMesh = b.mesh;
+              let proxyMesh = null;
+              if (b.mesh && table) {
+                proxyMesh = b.mesh.clone();
+                proxyMesh.geometry = BALL_GEOMETRY;
+                proxyMesh.material = b.mesh.material;
+                proxyMesh.position.set(fromX, BALL_CENTER_Y, fromZ);
+                proxyMesh.quaternion.copy(b.mesh.quaternion);
+                proxyMesh.scale.copy(b.mesh.scale);
+                proxyMesh.castShadow = b.mesh.castShadow;
+                proxyMesh.receiveShadow = b.mesh.receiveShadow;
+                proxyMesh.renderOrder = b.mesh.renderOrder ?? 0;
+                table.add(proxyMesh);
+                dropMesh = proxyMesh;
+              }
               const dropEntry = {
                 start: dropStart,
                 fromY: BALL_CENTER_Y,
@@ -24648,7 +24667,8 @@ const powerRef = useRef(hud.power);
                 toZ: targetZ,
                 runFromX: railRunStart.x,
                 runFromZ: railRunStart.z,
-                mesh: b.mesh,
+                mesh: dropMesh,
+                proxyMesh,
                 glowMesh,
                 glowTone: 'good',
                 entrySpeed,
@@ -24667,9 +24687,11 @@ const powerRef = useRef(hud.power);
                 pocketId,
                 resting: false
               };
-              b.mesh.visible = true;
-              b.mesh.scale.set(1, 1, 1);
-              b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
+              if (b.mesh) {
+                b.mesh.visible = !proxyMesh;
+                b.mesh.scale.set(1, 1, 1);
+                b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
+              }
               pocketDropRef.current.set(b.id, dropEntry);
               const mappedColor = toBallColorId(b.id);
               const colorId =
@@ -24959,6 +24981,9 @@ const powerRef = useRef(hud.power);
         pocketCamerasRef.current.clear();
         pocketDropRef.current.forEach((entry) => {
           clearPocketGlow(entry);
+          if (entry?.proxyMesh) {
+            entry.proxyMesh.parent?.remove?.(entry.proxyMesh);
+          }
         });
         pocketDropRef.current.clear();
         pocketGlowGeometry.dispose?.();
