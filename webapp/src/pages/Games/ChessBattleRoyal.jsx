@@ -1566,6 +1566,10 @@ const cameraPhiHardMax = Math.min(cameraPhiMax, Math.PI - 0.45);
 const CAMERA_SAFE_MAX_RADIUS = CAMERA_BASE_RADIUS * 2.2;
 const CAMERA_TOPDOWN_MIN_RADIUS = CAMERA_BASE_RADIUS * 1.05;
 const CAMERA_TOPDOWN_MAX_RADIUS = CAMERA_BASE_RADIUS * 1.65;
+const CAMERA_3D_MIN_RADIUS = CAMERA_SAFE_MAX_RADIUS * 0.65;
+const CAMERA_3D_MAX_RADIUS = CAMERA_SAFE_MAX_RADIUS * 1.35;
+const CAMERA_2D_MIN_RADIUS = CAMERA_TOPDOWN_MAX_RADIUS * 0.75;
+const CAMERA_2D_MAX_RADIUS = CAMERA_TOPDOWN_MAX_RADIUS * 1.15;
 const CAM = {
   fov: ARENA_CAMERA_DEFAULTS.fov,
   near: ARENA_CAMERA_DEFAULTS.near,
@@ -6202,6 +6206,25 @@ function Chess3D({
   const activeCustomizationSection =
     customizationSections.find(({ key }) => key === activeCustomizationKey) ?? customizationSections[0];
 
+  const handleZoom = useCallback((direction) => {
+    const arena = arenaRef.current;
+    const controls = controlsRef.current;
+    if (!arena?.camera || !arena?.boardLookTarget) return;
+    const camera = arena.camera;
+    const target = arena.boardLookTarget;
+    const minDistance = controls?.minDistance ?? CAMERA_3D_MIN_RADIUS;
+    const maxDistance = controls?.maxDistance ?? CAMERA_3D_MAX_RADIUS;
+    const currentRadius = camera.position.distanceTo(target);
+    const step = Math.max(0.1, (maxDistance - minDistance) * 0.12);
+    const nextRadius = clamp(currentRadius + direction * step, minDistance, maxDistance);
+    const dir = camera.position.clone().sub(target).normalize();
+    camera.position.copy(target).addScaledVector(dir, nextRadius);
+    camera.lookAt(target);
+    controls?.update();
+    controls?.dispatchEvent?.({ type: 'change' });
+    arena.syncSkyboxToCamera?.();
+  }, []);
+
   const updateSandTimerPlacement = useCallback(
     (_turnWhiteValue = uiRef.current?.turnWhite ?? true) => {
       const arena = arenaRef.current;
@@ -7195,9 +7218,9 @@ function Chess3D({
     controls.dampingFactor = 0.08;
     controls.enablePan = true;
     controls.screenSpacePanning = true;
-    controls.enableZoom = false;
-    controls.minDistance = CAMERA_SAFE_MAX_RADIUS;
-    controls.maxDistance = CAMERA_SAFE_MAX_RADIUS;
+    controls.enableZoom = true;
+    controls.minDistance = CAMERA_3D_MIN_RADIUS;
+    controls.maxDistance = CAMERA_3D_MAX_RADIUS;
     controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
     controls.maxPolarAngle = CAM.phiMax;
     controls.rotateSpeed = 0.85;
@@ -7275,19 +7298,20 @@ function Chess3D({
         controls.enableRotate = false;
         controls.minPolarAngle = CAMERA_TOPDOWN_LOCK;
         controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
-        controls.minDistance = CAMERA_TOPDOWN_MAX_RADIUS;
-        controls.maxDistance = CAMERA_TOPDOWN_MAX_RADIUS;
-        const target = new THREE.Spherical(CAMERA_TOPDOWN_MAX_RADIUS, CAMERA_TOPDOWN_LOCK, 0);
+        controls.minDistance = CAMERA_2D_MIN_RADIUS;
+        controls.maxDistance = CAMERA_2D_MAX_RADIUS;
+        const targetRadius = clamp(CAMERA_TOPDOWN_MAX_RADIUS, CAMERA_2D_MIN_RADIUS, CAMERA_2D_MAX_RADIUS);
+        const target = new THREE.Spherical(targetRadius, CAMERA_TOPDOWN_LOCK, 0);
         animateCameraTo(target, 360);
       } else {
         controls.enableRotate = true;
         controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
         controls.maxPolarAngle = CAM.phiMax;
-        controls.minDistance = CAMERA_SAFE_MAX_RADIUS;
-        controls.maxDistance = CAMERA_SAFE_MAX_RADIUS;
+        controls.minDistance = CAMERA_3D_MIN_RADIUS;
+        controls.maxDistance = CAMERA_3D_MAX_RADIUS;
         const restore = cameraMemory.last3d || default3d;
         const target = new THREE.Spherical(
-          CAMERA_SAFE_MAX_RADIUS,
+          clamp(CAMERA_SAFE_MAX_RADIUS, CAMERA_3D_MIN_RADIUS, CAMERA_3D_MAX_RADIUS),
           clamp(restore.phi, CAMERA_PULL_FORWARD_MIN, CAM.phiMax),
           Number.isFinite(restore.theta) ? restore.theta : default3d.theta
         );
@@ -7307,9 +7331,10 @@ function Chess3D({
       renderer.setSize(renderW, renderH, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      const lockedRadius =
-        viewModeRef.current === '2d' ? CAMERA_TOPDOWN_MAX_RADIUS : CAMERA_SAFE_MAX_RADIUS;
-      const radius = lockedRadius;
+      const minDistance = viewModeRef.current === '2d' ? CAMERA_2D_MIN_RADIUS : CAMERA_3D_MIN_RADIUS;
+      const maxDistance = viewModeRef.current === '2d' ? CAMERA_2D_MAX_RADIUS : CAMERA_3D_MAX_RADIUS;
+      const currentRadius = camera.position.distanceTo(boardLookTarget);
+      const radius = clamp(currentRadius || CAMERA_SAFE_MAX_RADIUS, minDistance, maxDistance);
       const dir = camera.position.clone().sub(boardLookTarget).normalize();
       camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
       controls.update();
@@ -7923,6 +7948,7 @@ function Chess3D({
         scene,
         camera,
         controls,
+        syncSkyboxToCamera,
         arenaGroup: arena,
         tableInfo,
         tableShapeId: tableInfo.shapeId,
@@ -8885,6 +8911,24 @@ function Chess3D({
             >
               {viewMode === '3d' ? '2D' : '3D'}
             </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => handleZoom(-1)}
+                aria-label="Zoom in"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/70 text-lg font-semibold text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              >
+                +
+              </button>
+              <button
+                type="button"
+                onClick={() => handleZoom(1)}
+                aria-label="Zoom out"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/70 text-lg font-semibold text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              >
+                −
+              </button>
+            </div>
           </div>
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
