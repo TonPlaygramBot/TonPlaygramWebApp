@@ -1251,7 +1251,7 @@ const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.74; // stop the fall sligh
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
-const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // raise the net so the weave sits higher on screen
+const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.26; // raise the net so the weave meets the pocket mouth
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
@@ -1276,7 +1276,7 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.62; // lift the leather strap so it meets the raised holder rails
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -6110,7 +6110,7 @@ function buildSwerveAimLinePoints(
 }
 
 // calculate impact point and post-collision direction for aiming guide
-function calcTarget(cue, dir, balls, options = {}) {
+function calcTarget(cue, dir, balls) {
   if (!cue) {
     return {
       impact: new THREE.Vector2(),
@@ -6136,7 +6136,6 @@ function calcTarget(cue, dir, balls, options = {}) {
   let tHit = Infinity;
   let targetBall = null;
   let railNormal = null;
-  const usePocketGuards = options.usePocketGuards !== false;
 
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
@@ -6148,59 +6147,57 @@ function calcTarget(cue, dir, balls, options = {}) {
     }
   };
 
-  if (usePocketGuards) {
-    const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-    const cornerCos = Math.cos(cornerRad);
-    const cornerSin = Math.sin(cornerRad);
-    const guardClearance = POCKET_GUARD_CLEARANCE;
-    const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
-    for (const { sx, sy } of CORNER_SIGNS) {
-      TMP_VEC2_C.set(sx * limX, sy * limY);
-      TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
+  const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
+  const cornerCos = Math.cos(cornerRad);
+  const cornerSin = Math.sin(cornerRad);
+  const guardClearance = POCKET_GUARD_CLEARANCE;
+  const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
+  for (const { sx, sy } of CORNER_SIGNS) {
+    TMP_VEC2_C.set(sx * limX, sy * limY);
+    TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
+    const denom = dirNorm.dot(TMP_VEC2_B);
+    if (denom >= -1e-6) continue;
+    TMP_VEC2_A.copy(cuePos).sub(TMP_VEC2_C);
+    const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
+    if (distNormal < -cornerDepthLimit) continue;
+    const t = (BALL_R - distNormal) / denom;
+    if (t < 0) continue;
+    TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
+    TMP_VEC2_LIMIT.copy(TMP_VEC2_A).addScaledVector(dirNorm, t);
+    const lateral = Math.abs(TMP_VEC2_LIMIT.dot(TMP_VEC2_D));
+    if (lateral < guardClearance) continue;
+    checkRail(t, new THREE.Vector2(TMP_VEC2_B.x, TMP_VEC2_B.y));
+  }
+
+  const sideSpan = SIDE_POCKET_SPAN;
+  const sidePocketGuard = SIDE_POCKET_GUARD_RADIUS;
+  const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
+  const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
+  const sidePocketCenters = pocketCenters().slice(4);
+  const sideCutRad = THREE.MathUtils.degToRad(SIDE_POCKET_CUT_ANGLE_DEG);
+  const sideCutCos = Math.cos(sideCutRad);
+  const sideCutSin = Math.sin(sideCutRad);
+  for (const center of sidePocketCenters) {
+    TMP_VEC2_A.copy(cuePos).sub(center);
+    const distToCenterSq = TMP_VEC2_A.lengthSq();
+    if (distToCenterSq < sidePocketGuard * sidePocketGuard) continue;
+    const signX = center.x >= 0 ? 1 : -1;
+    for (const signY of SIDE_POCKET_CUT_SIGNS) {
+      if (TMP_VEC2_A.y * signY < 0) continue;
+      TMP_VEC2_C.set(signX * limX, center.y + signY * sideSpan);
+      TMP_VEC2_B.set(-signX * sideCutCos, signY * sideCutSin);
       const denom = dirNorm.dot(TMP_VEC2_B);
       if (denom >= -1e-6) continue;
-      TMP_VEC2_A.copy(cuePos).sub(TMP_VEC2_C);
-      const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
-      if (distNormal < -cornerDepthLimit) continue;
+      TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
+      TMP_VEC2_LIMIT.copy(cuePos).sub(TMP_VEC2_C);
+      const distNormal = TMP_VEC2_LIMIT.dot(TMP_VEC2_B);
+      if (distNormal < -sideDepthLimit) continue;
       const t = (BALL_R - distNormal) / denom;
       if (t < 0) continue;
-      TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-      TMP_VEC2_LIMIT.copy(TMP_VEC2_A).addScaledVector(dirNorm, t);
+      TMP_VEC2_LIMIT.addScaledVector(dirNorm, t);
       const lateral = Math.abs(TMP_VEC2_LIMIT.dot(TMP_VEC2_D));
-      if (lateral < guardClearance) continue;
+      if (lateral < sideGuardClearance) continue;
       checkRail(t, new THREE.Vector2(TMP_VEC2_B.x, TMP_VEC2_B.y));
-    }
-
-    const sideSpan = SIDE_POCKET_SPAN;
-    const sidePocketGuard = SIDE_POCKET_GUARD_RADIUS;
-    const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
-    const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
-    const sidePocketCenters = pocketCenters().slice(4);
-    const sideCutRad = THREE.MathUtils.degToRad(SIDE_POCKET_CUT_ANGLE_DEG);
-    const sideCutCos = Math.cos(sideCutRad);
-    const sideCutSin = Math.sin(sideCutRad);
-    for (const center of sidePocketCenters) {
-      TMP_VEC2_A.copy(cuePos).sub(center);
-      const distToCenterSq = TMP_VEC2_A.lengthSq();
-      if (distToCenterSq < sidePocketGuard * sidePocketGuard) continue;
-      const signX = center.x >= 0 ? 1 : -1;
-      for (const signY of SIDE_POCKET_CUT_SIGNS) {
-        if (TMP_VEC2_A.y * signY < 0) continue;
-        TMP_VEC2_C.set(signX * limX, center.y + signY * sideSpan);
-        TMP_VEC2_B.set(-signX * sideCutCos, signY * sideCutSin);
-        const denom = dirNorm.dot(TMP_VEC2_B);
-        if (denom >= -1e-6) continue;
-        TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-        TMP_VEC2_LIMIT.copy(cuePos).sub(TMP_VEC2_C);
-        const distNormal = TMP_VEC2_LIMIT.dot(TMP_VEC2_B);
-        if (distNormal < -sideDepthLimit) continue;
-        const t = (BALL_R - distNormal) / denom;
-        if (t < 0) continue;
-        TMP_VEC2_LIMIT.addScaledVector(dirNorm, t);
-        const lateral = Math.abs(TMP_VEC2_LIMIT.dot(TMP_VEC2_D));
-        if (lateral < sideGuardClearance) continue;
-        checkRail(t, new THREE.Vector2(TMP_VEC2_B.x, TMP_VEC2_B.y));
-      }
     }
   }
 
@@ -11992,7 +11989,6 @@ const initialFrame = useMemo(() => {
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   const [inHandIndicatorHold, setInHandIndicatorHold] = useState(false);
   const inHandIndicatorHoldRef = useRef(false);
-  const inHandIndicatorPointerIdRef = useRef(null);
   useEffect(
     () => () => {
       if (replayBannerTimeoutRef.current) {
@@ -20166,14 +20162,11 @@ const powerRef = useRef(hud.power);
         if (!inHandPlacementModeRef.current) return;
         if (shooting) return;
         if (e.button != null && e.button !== 0) return;
-        const activePointerId = inHandIndicatorPointerIdRef.current;
-        const pointerId = e.pointerId ?? 'mouse';
-        if (activePointerId != null && pointerId !== activePointerId) return;
         const p = project(e);
         if (!p) return;
         if (!tryUpdatePlacement(p, false)) return;
         inHandDrag.active = true;
-        inHandDrag.pointerId = pointerId;
+        inHandDrag.pointerId = e.pointerId ?? 'mouse';
         if (e.pointerId != null && dom.setPointerCapture) {
           try {
             dom.setPointerCapture(e.pointerId);
@@ -20202,12 +20195,6 @@ const powerRef = useRef(hud.power);
           e.pointerId !== inHandDrag.pointerId
         ) {
           return;
-        }
-        if (
-          inHandDrag.pointerId != null &&
-          inHandIndicatorPointerIdRef.current === inHandDrag.pointerId
-        ) {
-          inHandIndicatorPointerIdRef.current = null;
         }
         if (e.pointerId != null && dom.releasePointerCapture) {
           try {
@@ -23472,8 +23459,7 @@ const powerRef = useRef(hud.power);
           const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
             cue,
             guideAimDir2D,
-            balls,
-            { usePocketGuards: false }
+            balls
           );
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
@@ -23797,8 +23783,7 @@ const powerRef = useRef(hud.power);
           const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
             cue,
             guideAimDir2D,
-            balls,
-            { usePocketGuards: false }
+            balls
           );
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
@@ -25720,8 +25705,6 @@ const powerRef = useRef(hud.power);
       const currentHud = hudRef.current;
       if (!currentHud?.inHand || currentHud.turn !== 0) return;
       event.preventDefault?.();
-      const pointerId = event.pointerId ?? 'mouse';
-      inHandIndicatorPointerIdRef.current = pointerId;
       setInHandPlacementMode(true);
       inHandPlacementModeRef.current = true;
       inHandPointerHandlersRef.current?.onDown?.(event);
@@ -25738,17 +25721,9 @@ const powerRef = useRef(hud.power);
     inHandPointerHandlersRef.current?.onMove?.(event);
   }, []);
   const handleInHandIndicatorUp = useCallback((event) => {
-    if (
-      inHandIndicatorPointerIdRef.current != null &&
-      event.pointerId != null &&
-      event.pointerId !== inHandIndicatorPointerIdRef.current
-    ) {
-      return;
-    }
     inHandPointerHandlersRef.current?.onUp?.(event);
     setInHandPlacementMode(false);
     inHandPlacementModeRef.current = false;
-    inHandIndicatorPointerIdRef.current = null;
     if (event.pointerId != null && event.currentTarget?.releasePointerCapture) {
       try {
         event.currentTarget.releasePointerCapture(event.pointerId);
