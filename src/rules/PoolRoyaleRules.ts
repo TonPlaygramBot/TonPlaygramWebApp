@@ -23,11 +23,11 @@ type UkSerializedState = {
   assignments: { A: UkColour | null; B: UkColour | null };
   currentPlayer: 'A' | 'B';
   shotsRemaining: number;
-  ballInHand: boolean;
   isOpenTable: boolean;
   lastEvent: string | null;
   frameOver: boolean;
   winner: 'A' | 'B' | null;
+  mustPlayFromBaulk: boolean;
 };
 
 type AmericanSerializedState = {
@@ -97,11 +97,11 @@ function serializeUkState(state: UkPool['state']): UkSerializedState {
     assignments: { ...state.assignments },
     currentPlayer: state.currentPlayer,
     shotsRemaining: state.shotsRemaining,
-    ballInHand: state.ballInHand,
     isOpenTable: state.isOpenTable,
     lastEvent: state.lastEvent,
     frameOver: state.frameOver,
-    winner: state.winner
+    winner: state.winner,
+    mustPlayFromBaulk: state.mustPlayFromBaulk
   };
 }
 
@@ -116,11 +116,11 @@ function applyUkState(game: UkPool, snapshot: UkSerializedState) {
     assignments: { ...snapshot.assignments },
     currentPlayer: snapshot.currentPlayer,
     shotsRemaining: snapshot.shotsRemaining,
-    ballInHand: snapshot.ballInHand,
     isOpenTable: snapshot.isOpenTable,
     lastEvent: snapshot.lastEvent,
     frameOver: snapshot.frameOver,
-    winner: snapshot.winner
+    winner: snapshot.winner,
+    mustPlayFromBaulk: snapshot.mustPlayFromBaulk
   };
 }
 
@@ -171,25 +171,13 @@ function applyNineState(game: NineBall, snapshot: NineSerializedState) {
 }
 
 function parseUkColour(value: unknown): UkColour | null {
-  if (typeof value === 'number') {
-    if (value === 0) return 'cue';
-    if (value === 8) return 'black';
-    if (value >= 1 && value <= 7) return 'blue';
-    if (value >= 9 && value <= 15) return 'red';
-  }
   if (typeof value !== 'string') return null;
   const lower = value.toLowerCase();
-  if (lower === 'cue' || lower === 'cue_ball') return 'cue';
-  if (lower.startsWith('yellow') || lower.startsWith('blue')) return 'blue';
+  if (lower.startsWith('yellow')) return 'blue';
+  if (lower.startsWith('blue')) return 'blue';
   if (lower.startsWith('red')) return 'red';
   if (lower.startsWith('black')) return 'black';
-  const numericMatch = lower.match(/ball_(\d+)/) ?? lower.match(/(\d+)/);
-  if (!numericMatch) return null;
-  const num = Number.parseInt(numericMatch[1], 10);
-  if (num === 0) return 'cue';
-  if (num === 8) return 'black';
-  if (num >= 1 && num <= 7) return 'blue';
-  if (num >= 9 && num <= 15) return 'red';
+  if (lower === 'cue') return 'cue';
   return null;
 }
 
