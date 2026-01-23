@@ -59,24 +59,28 @@ export default function MurlanRoyaleLobby() {
     let accountId;
     try {
       accountId = await ensureAccountId();
-      const balRes = await getAccountBalance(accountId);
-      if ((balRes.balance || 0) < stake.amount) {
-        alert('Insufficient balance');
-        return;
+      if (mode !== 'local' && stake.amount > 0) {
+        const balRes = await getAccountBalance(accountId);
+        if ((balRes.balance || 0) < stake.amount) {
+          alert('Insufficient balance');
+          return;
+        }
+        tgId = getTelegramId();
+        await addTransaction(tgId, -stake.amount, 'stake', {
+          game: 'murlanroyale',
+          accountId,
+        });
+      } else {
+        tgId = getTelegramId();
       }
-      tgId = getTelegramId();
-      await addTransaction(tgId, -stake.amount, 'stake', {
-        game: 'murlanroyale',
-        accountId,
-      });
     } catch {}
 
     const params = new URLSearchParams();
     params.set('mode', mode);
     params.set('game', gameType);
     if (gameType === 'points') params.set('points', targetPoints);
-    if (stake.token) params.set('token', stake.token);
-    if (stake.amount) params.set('amount', stake.amount);
+    if (mode !== 'local' && stake.token) params.set('token', stake.token);
+    if (mode !== 'local' && stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
     const aiFlagSelection = flagOverride && flagOverride.length ? flagOverride : flags;
     if (mode === 'local') {
@@ -96,10 +100,17 @@ export default function MurlanRoyaleLobby() {
   return (
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
       <h2 className="text-xl font-bold text-center">Murlan Royale Lobby</h2>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Stake</h3>
-        <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-      </div>
+      {mode === 'local' ? (
+        <div className="space-y-2 rounded-lg border border-border bg-background/60 p-3 text-sm text-subtext">
+          <h3 className="font-semibold text-text">Stake</h3>
+          <p className="text-sm text-subtext">Playing against AI is free — no stake required.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Stake</h3>
+          <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+        </div>
+      )}
       <div className="space-y-2">
         <h3 className="font-semibold">Mode</h3>
         <div className="flex gap-2">
