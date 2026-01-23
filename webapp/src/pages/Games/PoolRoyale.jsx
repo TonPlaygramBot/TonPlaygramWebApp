@@ -5940,29 +5940,12 @@ function resolveSwerveSettings(
   forceSwerve = false,
   liftStrength = 0
 ) {
-  const sideSpin = spin?.x ?? 0;
   const magnitude = Math.hypot(spin?.x ?? 0, spin?.y ?? 0);
-  const active =
-    (forceSwerve || magnitude >= SWERVE_THRESHOLD) &&
-    Math.abs(sideSpin) >= 1e-3;
-  if (!active) {
-    return {
-      active: false,
-      sideSpin: 0,
-      magnitude,
-      intensity: 0
-    };
-  }
-  const threshold = Math.max(1 - SWERVE_THRESHOLD, 1e-6);
-  const normalized = clamp((magnitude - SWERVE_THRESHOLD) / threshold, 0, 1);
-  const liftBoost = 0.75 + Math.max(0, liftStrength) * 0.5;
-  const powerBoost = 0.7 + powerStrength * 0.85;
-  const spinBoost = 0.75 + Math.min(Math.abs(sideSpin), 1) * 0.6;
   return {
-    active: true,
-    sideSpin,
+    active: false,
+    sideSpin: 0,
     magnitude,
-    intensity: normalized * powerBoost * spinBoost * liftBoost
+    intensity: 0
   };
 }
 
@@ -5974,24 +5957,12 @@ function resolveSpinPreviewSettings(
 ) {
   const swerve = resolveSwerveSettings(spin, powerStrength, forceSwerve, liftStrength);
   if (swerve.active) return swerve;
-  const sideSpin = spin?.x ?? 0;
-  const magnitude = Math.abs(sideSpin);
-  if (magnitude < 1e-3) {
-    return {
-      active: false,
-      sideSpin: 0,
-      magnitude,
-      intensity: 0
-    };
-  }
-  const powerBoost = 0.55 + powerStrength * 0.35;
-  const liftBoost = 0.8 + Math.max(0, liftStrength) * 0.3;
-  const intensity = Math.min(magnitude, 1) * powerBoost * liftBoost * 0.35;
+  const magnitude = Math.abs(spin?.x ?? 0);
   return {
     active: false,
-    sideSpin,
+    sideSpin: 0,
     magnitude,
-    intensity
+    intensity: 0
   };
 }
 
@@ -6002,30 +5973,7 @@ function resolveSwerveAimDir(
   forceSwerve = false,
   liftStrength = 0
 ) {
-  if (!aimDir || aimDir.lengthSq() < 1e-8) return aimDir;
-  const swerve = resolveSpinPreviewSettings(
-    spin,
-    powerStrength,
-    forceSwerve,
-    liftStrength
-  );
-  if (swerve.intensity <= 0 || Math.abs(swerve.sideSpin) < 1e-3) return aimDir;
-  const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
-  const curveBase =
-    (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
-  const powerScale = 4 + powerStrength * 6;
-  const swerveScale = 0.6 + swerve.intensity * 0.9;
-  const sideSpin = -swerve.sideSpin;
-  const adjust =
-    sideSpin *
-    swerve.intensity *
-    curveBase *
-    powerScale *
-    AIM_SPIN_PREVIEW_SIDE *
-    swerveScale;
-  const adjusted = aimDir.clone().add(perp.multiplyScalar(adjust));
-  if (adjusted.lengthSq() > 1e-8) adjusted.normalize();
-  return adjusted;
+  return aimDir;
 }
 
 function buildSwerveAimLinePoints(
@@ -6041,55 +5989,11 @@ function buildSwerveAimLinePoints(
   liftStrength = 0
 ) {
   if (!points) return [start, end];
-  const swerve = resolveSpinPreviewSettings(
-    spin,
-    powerStrength,
-    swerveActive,
-    liftStrength
-  );
-  const sideSpin = -swerve.sideSpin;
-  const travel = start.distanceTo(end);
-  if (swerve.intensity <= 0 || Math.abs(sideSpin) < 1e-3 || travel < 1e-4) {
-    points.length = 2;
-    if (!points[0]) points[0] = new THREE.Vector3();
-    if (!points[1]) points[1] = new THREE.Vector3();
-    points[0].copy(start);
-    points[1].copy(end);
-    return points;
-  }
-  const segments = clamp(Math.round(travel / (BALL_R * 1.6)), 6, 14);
-  const curveBase =
-    (SPIN_ROLL_STRENGTH / Math.max(BALL_R, 1e-6)) * SWERVE_PRE_IMPACT_DRIFT;
-  const swerveScale = 0.6 + swerve.intensity * 0.9;
-  const curveScale =
-    curveBase *
-    (4 + powerStrength * 6.5) *
-    AIM_SPIN_PREVIEW_SIDE *
-    swerveScale;
-  const curveAmount = sideSpin * curveScale * travel;
-  controlPoint
-    .copy(start)
-    .addScaledVector(dir, travel * 0.5)
-    .addScaledVector(perp, curveAmount);
-  points.length = segments + 1;
-  const ax = start.x;
-  const ay = start.y;
-  const az = start.z;
-  const bx = controlPoint.x;
-  const by = controlPoint.y;
-  const bz = controlPoint.z;
-  const cx = end.x;
-  const cy = end.y;
-  const cz = end.z;
-  for (let i = 0; i <= segments; i += 1) {
-    const t = i / segments;
-    const inv = 1 - t;
-    const x = inv * inv * ax + 2 * inv * t * bx + t * t * cx;
-    const y = inv * inv * ay + 2 * inv * t * by + t * t * cy;
-    const z = inv * inv * az + 2 * inv * t * bz + t * t * cz;
-    if (!points[i]) points[i] = new THREE.Vector3();
-    points[i].set(x, y, z);
-  }
+  points.length = 2;
+  if (!points[0]) points[0] = new THREE.Vector3();
+  if (!points[1]) points[1] = new THREE.Vector3();
+  points[0].copy(start);
+  points[1].copy(end);
   return points;
 }
 
@@ -20625,80 +20529,27 @@ const powerRef = useRef(hud.power);
           const appliedSpin = applySpinConstraints(aimDir, true);
           const liftAngle = resolveUserCueLift();
           const liftStrength = normalizeCueLift(liftAngle);
-          const physicsSpin = mapSpinForPhysics(appliedSpin);
-          const ranges = spinRangeRef.current || {};
-          const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const baseSide = physicsSpin.x * (ranges.side ?? 0);
-          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (physicsSpin.y < 0) {
-            spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (physicsSpin.y > 0) {
-            spinTop *= TOPSPIN_MULTIPLIER;
-          }
-          cue.vel.copy(base);
-          if (cue.spin) {
-            cue.spin.set(spinSide, spinTop);
-          }
-          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-          cue.spinMode =
-            spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
-          const swerveSettings = resolveSwerveSettings(
-            physicsSpin,
+          const cameraBasis = resolveCameraBasis(activeRenderCameraRef.current ?? cameraRef.current);
+          const physicsSpin = mapSpinForPhysics(appliedSpin, {
+            cameraRight: cameraBasis?.right ?? null,
+            cameraUp: cameraBasis?.up ?? null,
+            cueForward: { x: aimDir.x, z: aimDir.y }
+          });
+          const offsetScaled = {
+            x: physicsSpin?.x ?? 0,
+            y: physicsSpin?.y ?? 0
+          };
+          const shotPayload = {
+            base: base.clone(),
+            aimDir: aimDir.clone(),
+            physicsSpin: { x: offsetScaled.x, y: offsetScaled.y },
             clampedPower,
-            cue.spinMode === 'swerve',
-            liftStrength
-          );
-          cue.swerveStrength = cue.spinMode === 'swerve' ? swerveSettings.intensity : 0;
-          cue.swervePowerStrength = cue.spinMode === 'swerve' ? clampedPower : 0;
-          resetSpinRef.current?.();
-          cueLiftRef.current.lift = 0;
-          cueLiftRef.current.startLift = 0;
-          cue.impacted = false;
-          cue.launchDir = aimDir.clone().normalize();
-          maxPowerLiftTriggered = false;
-          cue.lift = 0;
-          cue.liftVel = 0;
-          const topSpinWeight = Math.max(0, physicsSpin.y || 0);
-          if (
-            clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
-            liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
-            topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
-          ) {
-            const powerRatio = THREE.MathUtils.clamp(
-              (clampedPower - JUMP_SHOT_POWER_THRESHOLD) /
-                Math.max(1 - JUMP_SHOT_POWER_THRESHOLD, 1e-4),
-              0,
-              1
-            );
-            const liftRatio = THREE.MathUtils.clamp(
-              (liftStrength - JUMP_SHOT_LIFT_THRESHOLD) /
-                Math.max(1 - JUMP_SHOT_LIFT_THRESHOLD, 1e-4),
-              0,
-              1
-            );
-            const spinRatio = THREE.MathUtils.clamp(
-              (topSpinWeight - JUMP_SHOT_TOPSPIN_THRESHOLD) /
-                Math.max(1 - JUMP_SHOT_TOPSPIN_THRESHOLD, 1e-4),
-              0,
-              1
-            );
-            const jumpStrength =
-              (0.25 + 0.75 * powerRatio) *
-              (0.4 + 0.6 * liftRatio) *
-              (0.55 + 0.45 * spinRatio);
-            const jumpVelocity = MAX_POWER_BOUNCE_IMPULSE * JUMP_SHOT_LAUNCH_SCALE * jumpStrength;
-            const physicsHeight =
-              (jumpVelocity * jumpVelocity) /
-              (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
-            const jumpHeight = Math.min(
-              MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE,
-              physicsHeight
-            );
-            cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
-            cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
-          }
-          playCueHit(clampedPower * 0.6);
+            liftStrength,
+            applied: false
+          };
+
+          applyShotAtImpact(shotPayload);
+          const topSpinWeight = Math.max(0, physicsSpin?.y || 0);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -23324,13 +23175,19 @@ const powerRef = useRef(hud.power);
           : baseAimLerp;
         if (!lookModeRef.current) {
           aimDir.lerp(tmpAim, aimLerpFactor);
-          if (aimDir.lengthSq() > 1e-6) {
-            aimDir.normalize();
-          }
         }
         const appliedSpin = applySpinConstraints(aimDir, true);
         const liftStrength = normalizeCueLift(resolveUserCueLift());
-        const physicsSpin = mapSpinForPhysics(appliedSpin);
+        const cameraBasis = resolveCameraBasis(activeRenderCameraRef.current ?? cameraRef.current);
+        const physicsSpin = mapSpinForPhysics(appliedSpin, {
+          cameraRight: cameraBasis?.right ?? null,
+          cameraUp: cameraBasis?.up ?? null,
+          cueForward: { x: aimDir.x, z: aimDir.y }
+        });
+        const aimLineSpin = {
+          x: physicsSpin.x || 0,
+          y: physicsSpin.y || 0
+        };
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
         let shouldSlowAim = false;
@@ -23475,7 +23332,7 @@ const powerRef = useRef(hud.power);
           const aimDir2D = new THREE.Vector2(baseAimDir.x, baseAimDir.z);
           const guideAimDir2D = resolveSwerveAimDir(
             aimDir2D,
-            physicsSpin,
+            aimLineSpin,
             powerStrength,
             swerveActive,
             liftStrength
@@ -23500,7 +23357,7 @@ const powerRef = useRef(hud.power);
             end,
             dir,
             perp,
-            physicsSpin,
+            aimLineSpin,
             powerStrength,
             swerveActive,
             liftStrength
@@ -23575,8 +23432,8 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const spinSideInfluence = (physicsSpin.x || 0) * (0.4 + 0.42 * powerStrength);
-          const spinVerticalInfluence = (physicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
+          const spinSideInfluence = 0;
+          const spinVerticalInfluence = (aimLineSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
             .add(perp.clone().multiplyScalar(spinSideInfluence))
@@ -23584,7 +23441,7 @@ const powerRef = useRef(hud.power);
           if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
             cueFollowDirSpinAdjusted.normalize();
           }
-          const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
+          const backSpinWeight = Math.max(0, -(aimLineSpin.y || 0));
           if (backSpinWeight > 1e-8) {
             const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
             const drawDir = dir.clone().negate();
@@ -23793,10 +23650,21 @@ const powerRef = useRef(hud.power);
           const remoteSpin = remoteAimState?.spin ?? { x: 0, y: 0 };
           const remoteSpinMagnitude = Math.hypot(remoteSpin.x ?? 0, remoteSpin.y ?? 0);
           const remoteSwerveActive = remoteSpinMagnitude >= SWERVE_THRESHOLD;
-          const remotePhysicsSpin = mapSpinForPhysics(remoteSpin);
+          const remoteCameraBasis = resolveCameraBasis(
+            activeRenderCameraRef.current ?? cameraRef.current
+          );
+          const remotePhysicsSpin = mapSpinForPhysics(remoteSpin, {
+            cameraRight: remoteCameraBasis?.right ?? null,
+            cameraUp: remoteCameraBasis?.up ?? null,
+            cueForward: { x: remoteAimDir.x, z: remoteAimDir.y }
+          });
+          const remoteAimSpin = {
+            x: remotePhysicsSpin.x || 0,
+            y: remotePhysicsSpin.y || 0
+          };
           const guideAimDir2D = resolveSwerveAimDir(
             remoteAimDir,
-            remotePhysicsSpin,
+            remoteAimSpin,
             powerStrength,
             remoteSwerveActive
           );
@@ -23817,7 +23685,7 @@ const powerRef = useRef(hud.power);
             end,
             baseDir,
             perp,
-            remotePhysicsSpin,
+            remoteAimSpin,
             powerStrength,
             remoteSwerveActive
           );
