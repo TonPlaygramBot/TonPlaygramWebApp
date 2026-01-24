@@ -20738,17 +20738,14 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(startPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
-          const impactPos = buildCuePosition(0);
           cueStick.visible = true;
           cueStick.position.copy(startPos);
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
           const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
+          const topspinFactor = Math.max(0, appliedSpin?.y ?? 0);
           const followThrough = Math.min(
             CUE_FOLLOW_THROUGH_MAX,
-            Math.max(
-              CUE_FOLLOW_THROUGH_MIN,
-              visualPull * (0.22 + 0.28 * powerStrength)
-            )
+            topspinFactor * powerStrength * BALL_R * 0.3
           );
           const followThroughPos = buildCuePosition(-followThrough);
           const forwardDuration = isAiStroke
@@ -20759,11 +20756,9 @@ const powerRef = useRef(hud.power);
                 forwardBlend
               );
           const settleDuration = isAiStroke ? 40 : 50;
-          const returnDuration = isAiStroke ? 120 : 160;
           const startTime = performance.now();
           const impactTime = startTime + forwardDuration;
           const settleTime = impactTime + settleDuration;
-          const returnTime = settleTime + returnDuration;
           const forwardPreviewHold =
             impactTime +
             Math.min(
@@ -20834,8 +20829,8 @@ const powerRef = useRef(hud.power);
             shotRecording.cueStroke = {
               warmup: serializeVector3Snapshot(startPos),
               start: serializeVector3Snapshot(startPos),
-              impact: serializeVector3Snapshot(impactPos),
-              settle: serializeVector3Snapshot(impactPos),
+              impact: serializeVector3Snapshot(followThroughPos),
+              settle: serializeVector3Snapshot(followThroughPos),
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
               forwardDuration,
@@ -20850,19 +20845,9 @@ const powerRef = useRef(hud.power);
                   ? THREE.MathUtils.clamp((now - startTime) / forwardDuration, 0, 1)
                   : 1;
                 const eased = easeOutCubic(t);
-                cueStick.position.lerpVectors(startPos, impactPos, eased);
+                cueStick.position.lerpVectors(startPos, followThroughPos, eased);
               } else if (now <= settleTime) {
-                const t = settleDuration > 0
-                  ? THREE.MathUtils.clamp((now - impactTime) / settleDuration, 0, 1)
-                  : 1;
-                const eased = easeOutCubic(t);
-                cueStick.position.lerpVectors(impactPos, followThroughPos, eased);
-              } else if (now <= returnTime) {
-                const t = returnDuration > 0
-                  ? THREE.MathUtils.clamp((now - settleTime) / returnDuration, 0, 1)
-                  : 1;
-                const eased = easeOutCubic(t);
-                cueStick.position.lerpVectors(followThroughPos, impactPos, eased);
+                cueStick.position.copy(followThroughPos);
               } else {
                 cueStick.visible = false;
                 cueAnimating = false;
