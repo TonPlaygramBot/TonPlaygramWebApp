@@ -14,6 +14,7 @@ import { loadAvatar } from '../../utils/avatarUtils.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
+import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
 
 const AI_FLAG_STORAGE_KEY = 'airHockeyAiFlag';
 const PLAYER_FLAG_STORAGE_KEY = 'airHockeyPlayerFlag';
@@ -120,17 +121,7 @@ export default function AirHockeyLobby() {
     <div className="relative min-h-screen bg-[#070b16] text-text">
       <div className="absolute inset-0 tetris-grid-bg opacity-60" />
       <div className="relative z-10 space-y-4 p-4 pb-8">
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#111827]/90 via-[#0f172a]/80 to-[#0b1324]/90 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.35em] text-sky-200/70">Air Hockey</p>
-              <h2 className="text-2xl font-bold text-white">Air Hockey Lobby</h2>
-            </div>
-            <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/80">
-              Fast load
-            </div>
-          </div>
-        </div>
+        <GameLobbyHeader slug="airhockey" title="Air Hockey Lobby" badge="Fast load" />
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
