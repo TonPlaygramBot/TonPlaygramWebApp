@@ -597,7 +597,7 @@ const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so 
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.08; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.95; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.32; // trim fascia span so the middle plates shave off a little on both sides
@@ -1496,8 +1496,8 @@ const CUE_POWER_GAMMA = 1.85; // ease-in curve to keep low-power strokes control
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
-const PLAYER_CUE_FORWARD_MIN_MS = 140;
-const PLAYER_CUE_FORWARD_MAX_MS = 420;
+const PLAYER_CUE_FORWARD_MIN_MS = 240;
+const PLAYER_CUE_FORWARD_MAX_MS = 520;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
@@ -4952,7 +4952,7 @@ const POWER_REPLAY_THRESHOLD = 0.78;
 const SPIN_REPLAY_THRESHOLD = 0.32;
 const CUE_STROKE_VISUAL_SLOWDOWN = 1.5;
 const AI_CUE_PULLBACK_DURATION_MS = 520;
-const AI_CUE_FORWARD_DURATION_MS = 420;
+const AI_CUE_FORWARD_DURATION_MS = 520;
 const AI_STROKE_VISIBLE_DURATION_MS =
   (AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS) * CUE_STROKE_VISUAL_SLOWDOWN;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
@@ -5003,7 +5003,7 @@ const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 18;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 24;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -12096,7 +12096,7 @@ const powerRef = useRef(hud.power);
     const playerTurn = (hud.turn ?? 0) === 0;
     const placing = Boolean(hud.inHand && playerTurn);
     setInHandPlacementMode(placing);
-    if (placing) {
+    if (hud.inHand) {
       cueBallPlacedFromHandRef.current = false;
     }
   }, [hud.inHand, hud.turn]);
@@ -20784,7 +20784,7 @@ const powerRef = useRef(hud.power);
               );
           const pullbackDuration = isAiStroke
             ? AI_CUE_PULLBACK_DURATION_MS
-            : Math.max(120, forwardDuration * 0.65);
+            : Math.max(180, forwardDuration);
           const settleDuration = isAiStroke ? 80 : 60;
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
@@ -26522,31 +26522,33 @@ const powerRef = useRef(hud.power);
               style={playerPanelStyle}
               data-player-index="0"
             >
-              {isOnlineMatch ? (
-                <img
-                  src={player.avatar || '/assets/icons/profile.svg'}
-                  alt="player avatar"
-                  className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
-                    isPlayerTurn
-                      ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                      : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                  }`}
-                />
-              ) : (
-                <img
-                  src={resolvedPlayerAvatar || '/assets/icons/profile.svg'}
-                  alt="player avatar"
-                  className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
-                    isPlayerTurn
-                      ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                      : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                  }`}
-                />
-              )}
               <div className="flex min-w-0 flex-col">
-                <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
-                  {player.name}
-                </span>
+                <div className="flex min-w-0 items-center gap-2.5">
+                  {isOnlineMatch ? (
+                    <img
+                      src={player.avatar || '/assets/icons/profile.svg'}
+                      alt="player avatar"
+                      className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
+                        isPlayerTurn
+                          ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                          : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
+                      }`}
+                    />
+                  ) : (
+                    <img
+                      src={resolvedPlayerAvatar || '/assets/icons/profile.svg'}
+                      alt="player avatar"
+                      className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
+                        isPlayerTurn
+                          ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                          : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
+                      }`}
+                    />
+                  )}
+                  <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
+                    {player.name}
+                  </span>
+                </div>
                 <div className="mt-1">
                   {renderPottedRow(playerPotted, lastPlayerPotId, lastPotGlow)}
                 </div>
@@ -26565,28 +26567,28 @@ const powerRef = useRef(hud.power);
               data-player-index="1"
             >
               {isOnlineMatch ? (
-                <>
-                  <img
-                    src={opponentDisplayAvatar}
-                    alt="opponent avatar"
-                    className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
-                      isOpponentTurn
-                        ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                        : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                    }`}
-                  />
-                  <div className="flex min-w-0 flex-col">
+                <div className="flex min-w-0 flex-col">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <img
+                      src={opponentDisplayAvatar}
+                      alt="opponent avatar"
+                      className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
+                        isOpponentTurn
+                          ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                          : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
+                      }`}
+                    />
                     <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
                       {opponentDisplayName}
                     </span>
-                    <div className="mt-1">
-                      {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
-                    </div>
                   </div>
-                </>
+                  <div className="mt-1">
+                    {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
+                  </div>
+                </div>
               ) : (
-                <>
-                  <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-col">
+                  <div className="flex min-w-0 items-center gap-2.5">
                     <img
                       src={opponentDisplayAvatar || '/assets/icons/profile.svg'}
                       alt="opponent avatar"
@@ -26596,18 +26598,14 @@ const powerRef = useRef(hud.power);
                           : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
                       }`}
                     />
-                    <div className="flex min-w-0 flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
-                          {aiFlagLabel}
-                        </span>
-                      </div>
-                      <div className="mt-1">
-                        {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
-                      </div>
-                    </div>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
+                      {aiFlagLabel}
+                    </span>
                   </div>
-                </>
+                  <div className="mt-1">
+                    {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
+                  </div>
+                </div>
               )}
             </div>
           </div>
