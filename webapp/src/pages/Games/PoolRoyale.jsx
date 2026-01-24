@@ -12623,15 +12623,15 @@ const powerRef = useRef(hud.power);
     }
   }, []);
 
-  const playBallHit = useCallback((vol = 1) => {
-    if (vol <= 0) return;
-    const ctx = audioContextRef.current;
-    const buffer = audioBuffersRef.current.ball;
-    if (!ctx || !buffer || muteRef.current) return;
-    const scaled = clamp(vol * volumeRef.current * 0.9, 0, 1);
-    if (scaled <= 0) return;
-    ctx.resume().catch(() => {});
-    const source = ctx.createBufferSource();
+      const playBallHit = useCallback((vol = 1) => {
+        if (vol <= 0) return;
+        const ctx = audioContextRef.current;
+        const buffer = audioBuffersRef.current.ball;
+        if (!ctx || !buffer || muteRef.current) return;
+        const scaled = clamp(vol * volumeRef.current, 0, 1);
+        if (scaled <= 0) return;
+        ctx.resume().catch(() => {});
+        const source = ctx.createBufferSource();
     source.buffer = buffer;
     const gain = ctx.createGain();
     gain.gain.value = scaled;
@@ -17453,7 +17453,11 @@ const powerRef = useRef(hud.power);
             cuePos.y = CUE_Y;
             cueStick.rotation.y = Math.atan2(TMP_VEC3_CUE_DIR.x, TMP_VEC3_CUE_DIR.z) + Math.PI;
             cueStick.rotation.x = 0;
-            const showCue = targetTime <= REPLAY_CUE_STICK_HOLD_MS;
+            const holdMs = Math.max(
+              REPLAY_CUE_STICK_HOLD_MS,
+              Math.min(playback?.duration ?? REPLAY_CUE_STICK_HOLD_MS, 2000)
+            );
+            const showCue = targetTime <= holdMs;
             cueStick.visible = showCue;
             cueAnimating = showCue;
             if (showCue) {
@@ -19835,6 +19839,59 @@ const powerRef = useRef(hud.power);
         }
         return clamped;
       };
+      const getLegalTargetBalls = () => {
+        const frameSnapshot = frameRef.current ?? frameState;
+        const legalTargetsRaw = frameSnapshot?.ballOn ?? frameState.ballOn ?? [];
+        const legalTargets = Array.isArray(legalTargetsRaw) ? legalTargetsRaw : [];
+        if (legalTargets.length === 0) return [];
+        return balls.filter(
+          (ball) =>
+            ball?.active &&
+            ball !== cue &&
+            legalTargets.includes(toBallColorId(ball.id))
+        );
+      };
+      const distanceToSegment = (point, start, end) => {
+        if (!point || !start || !end) return Infinity;
+        TMP_VEC2_A.copy(end).sub(start);
+        const segLenSq = TMP_VEC2_A.lengthSq();
+        if (segLenSq < 1e-8) return point.distanceTo(start);
+        const t = THREE.MathUtils.clamp(
+          point.clone().sub(start).dot(TMP_VEC2_A) / segLenSq,
+          0,
+          1
+        );
+        TMP_VEC2_B.copy(start).add(TMP_VEC2_A.multiplyScalar(t));
+        return point.distanceTo(TMP_VEC2_B);
+      };
+      const scoreInHandCandidate = (candidate, targets) => {
+        if (!candidate || !isSpotFree(candidate)) return -Infinity;
+        if (!targets.length) return 0;
+        let bestScore = -Infinity;
+        for (const targetBall of targets) {
+          if (!targetBall?.active) continue;
+          const targetPos = targetBall.pos;
+          const distance = candidate.distanceTo(targetPos);
+          if (!Number.isFinite(distance) || distance < BALL_R * 1.5) continue;
+          let clearance = Infinity;
+          for (const blocker of balls) {
+            if (!blocker?.active || blocker === cue || blocker === targetBall) continue;
+            const blockerDist = distanceToSegment(blocker.pos, candidate, targetPos);
+            clearance = Math.min(clearance, blockerDist);
+          }
+          const railClearX = PLAY_W / 2 - BALL_R - Math.abs(candidate.x);
+          const railClearZ = PLAY_H / 2 - BALL_R - Math.abs(candidate.y);
+          const railClearance = Math.min(railClearX, railClearZ);
+          const openLaneBonus = clearance >= BALL_R * 2.05 ? BALL_R * 3 : 0;
+          const clearanceScore = Math.min(clearance, BALL_R * 6);
+          const distancePenalty = distance * 0.15;
+          const railBonus = Math.max(0, railClearance) * 0.05;
+          const score =
+            clearanceScore + openLaneBonus + railBonus - distancePenalty;
+          if (score > bestScore) bestScore = score;
+        }
+        return bestScore;
+      };
       const defaultInHandPosition = () =>
         clampInHandPosition(
           new THREE.Vector2(0, allowFullTableInHand() ? 0 : baulkZ)
@@ -19955,25 +20012,21 @@ const powerRef = useRef(hud.power);
             }
           }
         }
-        let best = null;
-        let bestGap = -Infinity;
         const combined = candidateGroups.flat();
+        const targets = getLegalTargetBalls();
+        let best = null;
+        let bestScore = -Infinity;
         for (const raw of combined) {
           const clamped = clampInHandPosition(raw);
           if (!clamped) continue;
-          let minDist = Infinity;
-          for (const ball of balls) {
-            if (!ball.active || ball === cue) continue;
-            const dist = clamped.distanceTo(ball.pos);
-            if (dist < minDist) minDist = dist;
-          }
-          if (minDist > bestGap) {
-            bestGap = minDist;
+          const score = scoreInHandCandidate(clamped, targets);
+          if (score > bestScore) {
+            bestScore = score;
             best = clamped;
           }
         }
         if (best) {
-          if (bestGap < BALL_R * 2.02) {
+          if (bestScore < BALL_R * 0.5) {
             let nearest = null;
             let nearestDist = Infinity;
             for (const ball of balls) {
@@ -19990,9 +20043,7 @@ const powerRef = useRef(hud.power);
                 offset.set(1, 0);
               }
               offset.setLength(BALL_R * 2.05);
-              const nudged = clampInHandPosition(
-                nearest.pos.clone().add(offset)
-              );
+              const nudged = clampInHandPosition(nearest.pos.clone().add(offset));
               if (nudged && isSpotFree(nudged, 2.02)) {
                 return nudged;
               }
@@ -20007,8 +20058,8 @@ const powerRef = useRef(hud.power);
               [-Math.SQRT1_2, Math.SQRT1_2],
               [-Math.SQRT1_2, -Math.SQRT1_2]
             ];
-            const stepSize = BALL_R * 0.45;
-            const maxSteps = 10;
+            const stepSize = BALL_R * 0.55;
+            const maxSteps = 12;
             for (const [dx, dz] of searchDirs) {
               for (let stepIdx = 1; stepIdx <= maxSteps; stepIdx++) {
                 TMP_VEC2_A.copy(best);
@@ -20034,6 +20085,26 @@ const powerRef = useRef(hud.power);
         const baulkCenter = defaultInHandPosition();
         if (baulkCenter && isSpotFree(baulkCenter, 2.0)) {
           return baulkCenter;
+        }
+        const spiralOrigin = fallback ?? baulkCenter;
+        if (spiralOrigin) {
+          const maxRadius = Math.max(PLAY_W, PLAY_H);
+          const step = BALL_R * 0.6;
+          for (let radiusStep = 1; radiusStep <= maxRadius / step; radiusStep++) {
+            const radiusStepSize = step * radiusStep;
+            const samples = 8 + radiusStep;
+            for (let i = 0; i < samples; i++) {
+              const angle = (Math.PI * 2 * i) / samples;
+              TMP_VEC2_A.set(
+                spiralOrigin.x + Math.cos(angle) * radiusStepSize,
+                spiralOrigin.y + Math.sin(angle) * radiusStepSize
+              );
+              const candidate = clampInHandPosition(TMP_VEC2_A);
+              if (candidate && isSpotFree(candidate, 2.0)) {
+                return candidate;
+              }
+            }
+          }
         }
         return null;
       };
@@ -23353,7 +23424,7 @@ const powerRef = useRef(hud.power);
           !(inHandPlacementModeRef.current) &&
           (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current) &&
           !remoteShotActive &&
-          (isPlayerTurn || previewingAiShot || aiCueViewActive);
+          (isPlayerTurn || previewingAiShot || aiCueViewActive || aiTakingShot);
         if (
           cue?.pos &&
           !sliderInstanceRef.current?.dragging &&
