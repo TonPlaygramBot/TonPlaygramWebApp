@@ -117,48 +117,47 @@ export default function MurlanRoyaleLobby() {
               AI ready
             </div>
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-[1.2fr_1fr]">
-            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1f2937]/90 to-[#0f172a]/90 p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-400/40 via-sky-400/20 to-indigo-500/40 p-[1px]">
-                  <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
-                    🂠
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">Royal Table</p>
-                  <p className="text-xs text-white/60">
-                    Keep the arena loading while you choose your Murlan settings.
-                  </p>
-                </div>
+          <p className="mt-3 text-sm text-white/70">
+            Keep the arena loading while you choose your Murlan settings.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-white/70">
+            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Instant start</span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Flag avatars</span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">3D arena</span>
+          </div>
+          <div className="mt-4 rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
+            <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Identity</p>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
+                {avatar ? (
+                  <img src={avatar} alt="Your avatar" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-lg">🙂</div>
+                )}
               </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-white/70">
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Instant start</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Flag avatars</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">3D arena</span>
+              <div className="text-sm text-white/80">
+                <p className="font-semibold">Seat ready</p>
+                <p className="text-xs text-white/50">
+                  Flags: {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : 'Auto'}
+                </p>
               </div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
-              <div className="mt-3 flex items-center gap-3">
-                <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
-                  {avatar ? (
-                    <img src={avatar} alt="Your avatar" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-lg">🙂</div>
-                  )}
+            <div className="mt-3 grid gap-2">
+              <button
+                type="button"
+                onClick={openAiFlagPicker}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:border-white/30"
+              >
+                <div className="text-[11px] uppercase tracking-wide text-white/50">Flags</div>
+                <div className="flex items-center gap-2 text-base font-semibold">
+                  <span className="text-lg">
+                    {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : '🌐'}
+                  </span>
+                  <span>{flags.length ? 'Custom flag set' : 'Auto-pick from global flags'}</span>
                 </div>
-                <div className="text-sm text-white/80">
-                  <p className="font-semibold">Seat ready</p>
-                  <p className="text-xs text-white/50">
-                    Flags: {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : 'Auto'}
-                  </p>
-                </div>
-              </div>
-              <p className="mt-3 text-xs text-white/60">
-                Your choices load into the Murlan Royale match instantly.
-              </p>
+              </button>
             </div>
+            <p className="mt-3 text-xs text-white/60">Your lobby choices persist into the match intro.</p>
           </div>
         </div>
 
@@ -173,18 +172,18 @@ export default function MurlanRoyaleLobby() {
                 id: 'local',
                 label: 'Local (AI)',
                 desc: 'Instant practice',
-                accent: 'from-emerald-400/30 via-emerald-500/10 to-transparent',
+                iconKey: 'mode-ai',
                 icon: '🤖'
               },
               {
                 id: 'online',
                 label: 'Online',
                 desc: 'Stake & match',
-                accent: 'from-indigo-400/30 via-sky-500/10 to-transparent',
+                iconKey: 'mode-online',
                 icon: '⚔️',
                 disabled: true
               }
-            ].map(({ id, label, desc, accent, icon, disabled }) => {
+            ].map(({ id, label, desc, iconKey, icon, disabled }) => {
               const active = mode === id;
               return (
                 <div key={id} className="relative">
@@ -196,10 +195,10 @@ export default function MurlanRoyaleLobby() {
                     } ${disabled ? 'lobby-option-card-disabled' : ''}`}
                     disabled={disabled}
                   >
-                    <div className={`lobby-option-thumb bg-gradient-to-br ${accent}`}>
+                    <div className="lobby-option-thumb bg-gradient-to-br from-sky-400/30 via-indigo-500/10 to-transparent">
                       <div className="lobby-option-thumb-inner">
                         <OptionIcon
-                          src={getLobbyIcon('murlanroyale', `mode-${id}`)}
+                          src={getLobbyIcon('poolroyale', iconKey)}
                           alt={label}
                           fallback={icon}
                           className="lobby-option-icon"
@@ -330,31 +329,6 @@ export default function MurlanRoyaleLobby() {
               ))}
             </div>
           )}
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">AI Avatar Flags</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Identity</span>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-            <p className="text-xs text-white/60">
-              Match the Snake &amp; Ladder lobby by picking worldwide flags for AI opponents and your seat.
-            </p>
-            <button
-              type="button"
-              onClick={openAiFlagPicker}
-              className="mt-3 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-left text-sm text-white/80 transition hover:border-white/30"
-            >
-              <div className="text-[10px] uppercase tracking-[0.35em] text-white/60">AI Flags</div>
-              <div className="mt-2 flex items-center gap-2 text-base font-semibold">
-                <span className="text-lg">
-                  {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : '🌐'}
-                </span>
-                <span>{flags.length ? 'Custom AI avatars' : 'Auto-pick from global flags'}</span>
-              </div>
-            </button>
-          </div>
         </div>
 
         <button
