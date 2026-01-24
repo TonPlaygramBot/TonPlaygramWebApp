@@ -5704,11 +5704,12 @@ export default function LudoBattleRoyal() {
     getTelegramFirstName() ||
     getTelegramUsername();
   const tableId = params.get('table') || 'royale';
+  const mode = params.get('mode') || (tableId === 'practice' ? 'local' : 'online');
   const capacityParam = parseInt(params.get('capacity') ?? '', 10);
   const aiParam = parseInt(params.get('ai') ?? '', 10);
   const parsedCapacity = clampPlayerCount(capacityParam);
   const requestedAiCount = clamp(Math.max(0, aiParam || 0), 0, DEFAULT_PLAYER_COUNT - 1);
-  const playerCount = tableId === 'practice'
+  const playerCount = mode === 'local'
     ? clampPlayerCount(1 + requestedAiCount)
     : parsedCapacity;
   const flagsParam = params.get('flags');
@@ -5727,7 +5728,7 @@ export default function LudoBattleRoyal() {
       username={username}
       aiFlagOverrides={aiFlagOverrides}
       playerCount={playerCount}
-      aiCount={tableId === 'practice' ? requestedAiCount : playerCount - 1}
+      aiCount={mode === 'local' ? requestedAiCount : playerCount - 1}
     />
   );
 }
