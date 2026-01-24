@@ -11,16 +11,16 @@ const withBase = (path) => {
 };
 
 export const gameThumbnails = {
-  texasholdem: 'games/texas-holdem.webp',
-  'domino-royal': 'games/domino-royal.webp',
+  texasholdem: '/assets/icons/Texas%20holdem%20poker%20game%20logo.png',
+  'domino-royal': '/assets/icons/Domino%20battle%20Royal%20logo.png',
   poolroyale: '/assets/icons/Pool%20Royal%20game%20logo.png',
   snookerroyale: '/assets/icons/file_00000000123071f4a91766ac58320bce.png',
-  goalrush: 'games/goal-rush.webp',
-  airhockey: 'games/air-hockey.webp',
-  snake: 'games/snake-ladder.webp',
-  murlanroyale: 'games/murlan-royale.webp',
-  chessbattleroyal: 'games/chess-battle-royal.webp',
-  ludobattleroyal: 'games/ludo-battle-royal.webp'
+  goalrush: '/assets/icons/Goal%20rush%20logo.png',
+  airhockey: '/assets/icons/Air%20hockey%20game%20logo.png',
+  snake: '/assets/icons/Snake%20and%20ladder%20game%20logo.png',
+  murlanroyale: '/assets/icons/Murlan%20Royal%20logo.png',
+  chessbattleroyal: '/assets/icons/Chess%20battle%20Royal%20logo.png',
+  ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png'
 };
 
 export const lobbyOptionIcons = {

@@ -3,14 +3,14 @@ const gamesCatalog = [
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',
     slug: 'texasholdem',
-    image: '/assets/icons/texas-holdem.svg',
+    image: '/assets/icons/Texas%20holdem%20poker%20game%20logo.png',
     description: 'High-stakes poker tables with quick matchmaking.'
   },
   {
     name: 'Domino Royal 3D',
     route: '/games/domino-royal/lobby',
     slug: 'domino-royal',
-    image: '/assets/icons/domino-royal.svg',
+    image: '/assets/icons/Domino%20battle%20Royal%20logo.png',
     description: 'Classic domino strategy with modern 3D flair.'
   },
   {
@@ -31,42 +31,42 @@ const gamesCatalog = [
     name: 'Goal Rush',
     route: '/games/goalrush/lobby',
     slug: 'goalrush',
-    image: '/assets/icons/goal_rush_card_1200x675.webp',
+    image: '/assets/icons/Goal%20rush%20logo.png',
     description: 'Score fast goals and climb the rankings.'
   },
   {
     name: 'Air Hockey',
     route: '/games/airhockey/lobby',
     slug: 'airhockey',
-    image: '/assets/icons/air-hockey.svg',
+    image: '/assets/icons/Air%20hockey%20game%20logo.png',
     description: 'Lightning puck duels with neon energy.'
   },
   {
     name: 'Snake & Ladder',
     route: '/games/snake/lobby',
     slug: 'snake',
-    image: '/assets/icons/snakes_and_ladders.webp',
+    image: '/assets/icons/Snake%20and%20ladder%20game%20logo.png',
     description: 'Race to the top with quick dice rolls.'
   },
   {
     name: 'Murlan Royale',
     route: '/games/murlanroyale/lobby',
     slug: 'murlanroyale',
-    image: '/assets/icons/murlan-royale.svg',
+    image: '/assets/icons/Murlan%20Royal%20logo.png',
     description: 'Card-based tactics with a competitive twist.'
   },
   {
     name: 'Chess Battle Royal',
     route: '/games/chessbattleroyal/lobby',
     slug: 'chessbattleroyal',
-    image: '/assets/icons/chess-royale.svg',
+    image: '/assets/icons/Chess%20battle%20Royal%20logo.png',
     description: 'Strategic chess showdowns with royal flair.'
   },
   {
     name: 'Ludo Battle Royal',
     route: '/games/ludobattleroyal/lobby',
     slug: 'ludobattleroyal',
-    image: '/assets/icons/ludo-royale.svg',
+    image: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
     description: 'Classic ludo chaos in a battle royale lobby.'
   }
 ];
