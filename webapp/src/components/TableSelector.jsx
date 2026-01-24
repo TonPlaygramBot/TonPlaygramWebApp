@@ -5,11 +5,14 @@ export default function TableSelector({ tables, selected, onSelect }) {
     <div className="grid grid-cols-3 gap-3">
       {tables.map((t) => {
         const isSelected = selected?.id === t.id;
-        const subtitle = t.capacity
-          ? t.players
-            ? `${t.players}/${t.capacity} players`
-            : `${t.capacity} seats`
-          : null;
+        const hasSubtitle = Object.prototype.hasOwnProperty.call(t, 'subtitle');
+        const subtitle = hasSubtitle
+          ? t.subtitle
+          : t.capacity
+            ? t.players
+              ? `${t.players}/${t.capacity} players`
+              : `${t.capacity} seats`
+            : null;
         return (
           <div key={t.id} className="relative">
             <button
