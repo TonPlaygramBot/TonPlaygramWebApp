@@ -7,6 +7,8 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { ensureAccountId, getTelegramId, getTelegramPhotoUrl } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
+import OptionIcon from '../../components/OptionIcon.jsx';
+import { getLobbyIcon } from '../../config/gameAssets.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -198,7 +200,12 @@ export default function MurlanRoyaleLobby() {
                   >
                     <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
                       <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
-                        {icon}
+                        <OptionIcon
+                          src={getLobbyIcon('murlanroyale', `mode-${id}`)}
+                          alt={label}
+                          fallback={icon}
+                          className="h-8 w-8"
+                        />
                       </div>
                     </div>
                     <div className="flex-1">
@@ -292,7 +299,12 @@ export default function MurlanRoyaleLobby() {
                 >
                   <div className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
                     <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
-                      {icon}
+                      <OptionIcon
+                        src={getLobbyIcon('murlanroyale', `type-${id}`)}
+                        alt={label}
+                        fallback={icon}
+                        className="h-7 w-7"
+                      />
                     </div>
                   </div>
                   <div>
@@ -318,7 +330,15 @@ export default function MurlanRoyaleLobby() {
                       : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
                   }`}
                 >
-                  {pts} pts
+                  <div className="flex items-center gap-2">
+                    <OptionIcon
+                      src={getLobbyIcon('murlanroyale', `points-${pts}`)}
+                      alt={`${pts} points`}
+                      fallback="🏁"
+                      className="h-5 w-5"
+                    />
+                    {pts} pts
+                  </div>
                 </button>
               ))}
             </div>

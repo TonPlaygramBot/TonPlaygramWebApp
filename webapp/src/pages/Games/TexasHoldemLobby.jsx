@@ -7,6 +7,8 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { ensureAccountId, getTelegramId, getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
+import OptionIcon from '../../components/OptionIcon.jsx';
+import { getLobbyIcon } from '../../config/gameAssets.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -202,7 +204,15 @@ export default function TexasHoldemLobby() {
                   onClick={() => setOpponents(count)}
                   className={`lobby-tile ${isSelected ? 'lobby-selected' : ''}`}
                 >
-                  VS {count}
+                  <div className="flex flex-col items-center gap-1">
+                    <OptionIcon
+                      src={getLobbyIcon('texasholdem', `opponents-${count}`)}
+                      alt={`${count} opponents`}
+                      fallback="🂡"
+                      className="h-6 w-6"
+                    />
+                    <span>VS {count}</span>
+                  </div>
                 </button>
               );
             })}
@@ -213,7 +223,12 @@ export default function TexasHoldemLobby() {
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-yellow-400/40 to-orange-500/40 p-[1px]">
               <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-lg">
-                ⚙️
+                <OptionIcon
+                  src={getLobbyIcon('texasholdem', 'mode-local')}
+                  alt="Match mode"
+                  fallback="⚙️"
+                  className="h-6 w-6"
+                />
               </div>
             </div>
             <div>
@@ -234,7 +249,15 @@ export default function TexasHoldemLobby() {
                   }`}
                   disabled={disabled}
                 >
-                  {label}
+                  <div className="flex items-center gap-2">
+                    <OptionIcon
+                      src={getLobbyIcon('texasholdem', `mode-${id}`)}
+                      alt={label}
+                      fallback={id === 'local' ? '🤖' : '🌐'}
+                      className="h-5 w-5"
+                    />
+                    <span>{label}</span>
+                  </div>
                 </button>
                 {disabled && (
                   <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">

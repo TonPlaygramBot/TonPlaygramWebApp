@@ -11,6 +11,8 @@ import { socket } from '../../utils/socket.js';
 import { getOnlineUsers } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { runPoolRoyaleOnlineFlow } from './poolRoyaleOnlineFlow.js';
+import OptionIcon from '../../components/OptionIcon.jsx';
+import { getLobbyIcon, getVariantThumbnail } from '../../config/gameAssets.js';
 
 const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
@@ -342,7 +344,15 @@ export default function PoolRoyaleLobby() {
               onClick={() => setPlayType(id)}
               className={`lobby-tile ${playType === id ? 'lobby-selected' : ''}`}
             >
-              {label}
+              <span className="flex items-center gap-2">
+                <OptionIcon
+                  src={getLobbyIcon('poolroyale', `type-${id}`)}
+                  alt={label}
+                  fallback={id === 'regular' ? '🎯' : '🏆'}
+                  className="h-5 w-5"
+                />
+                {label}
+              </span>
             </button>
           ))}
         </div>
@@ -362,7 +372,15 @@ export default function PoolRoyaleLobby() {
                 }`}
                 disabled={disabled}
               >
-                {label}
+                <span className="flex items-center gap-2">
+                  <OptionIcon
+                    src={getLobbyIcon('poolroyale', `mode-${id}`)}
+                    alt={label}
+                    fallback={id === 'ai' ? '🤖' : '🌐'}
+                    className="h-5 w-5"
+                  />
+                  {label}
+                </span>
               </button>
               {disabled && (
                 <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
@@ -386,7 +404,15 @@ export default function PoolRoyaleLobby() {
               onClick={() => setVariant(id)}
               className={`lobby-tile ${variant === id ? 'lobby-selected' : ''}`}
             >
-              {label}
+              <span className="flex items-center gap-2">
+                <OptionIcon
+                  src={getVariantThumbnail('poolroyale', id)}
+                  alt={label}
+                  fallback="🎱"
+                  className="h-5 w-5"
+                />
+                {label}
+              </span>
             </button>
           ))}
         </div>
@@ -405,7 +431,15 @@ export default function PoolRoyaleLobby() {
                   onClick={() => setUkBallSet(id)}
                   className={`lobby-tile ${ukBallSet === id ? 'lobby-selected' : ''}`}
                 >
-                  {label}
+                  <span className="flex items-center gap-2">
+                    <OptionIcon
+                      src={getLobbyIcon('poolroyale', `ball-${id}`)}
+                      alt={label}
+                      fallback={id === 'uk' ? '🟡' : '🔵'}
+                      className="h-5 w-5"
+                    />
+                    {label}
+                  </span>
                 </button>
               )
             )}

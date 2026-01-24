@@ -8,6 +8,8 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { ensureAccountId, getTelegramId, getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
+import OptionIcon from '../../components/OptionIcon.jsx';
+import { getLobbyIcon } from '../../config/gameAssets.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -225,7 +227,12 @@ export default function DominoRoyalLobby() {
               >
                 <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-slate-400/30 via-slate-500/10 to-transparent p-[1px]">
                   <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
-                    {value}
+                    <OptionIcon
+                      src={getLobbyIcon('domino-royal', `players-${value}`)}
+                      alt={`${value} players`}
+                      fallback={`${value}`}
+                      className="h-7 w-7"
+                    />
                   </div>
                 </div>
                 <div>
@@ -267,21 +274,26 @@ export default function DominoRoyalLobby() {
               const active = mode === id;
               return (
                 <div key={id} className="relative">
-                  <button
-                    type="button"
-                    onClick={() => !disabled && setMode(id)}
-                    className={`group flex w-full items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
-                      active
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
-                    } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
-                    disabled={disabled}
-                  >
-                    <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
-                      <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
-                        {icon}
-                      </div>
+                <button
+                  type="button"
+                  onClick={() => !disabled && setMode(id)}
+                  className={`group flex w-full items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
+                    active
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
+                  } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
+                  disabled={disabled}
+                >
+                  <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
+                    <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
+                      <OptionIcon
+                        src={getLobbyIcon('domino-royal', `mode-${id}`)}
+                        alt={label}
+                        fallback={icon}
+                        className="h-8 w-8"
+                      />
                     </div>
+                  </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <span className="text-base font-semibold">{label}</span>

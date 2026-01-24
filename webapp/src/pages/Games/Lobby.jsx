@@ -24,6 +24,8 @@ import {
 import { canStartGame } from '../../utils/lobby.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { runSnakeOnlineFlow } from './snakeOnlineFlow.js';
+import OptionIcon from '../../components/OptionIcon.jsx';
+import { getLobbyIcon } from '../../config/gameAssets.js';
 
 export default function Lobby() {
   const { game } = useParams();
@@ -121,7 +123,13 @@ export default function Lobby() {
   useEffect(() => {
     if (game !== 'snake') return undefined;
     let cancelled = false;
-    const singleTable = { id: 'single', label: 'Single Player vs AI', capacity: 1 };
+    const singleTable = {
+      id: 'single',
+      label: 'Single Player vs AI',
+      capacity: 1,
+      icon: getLobbyIcon('snake', 'table-single'),
+      iconFallback: '🎯'
+    };
 
     const applyTables = (lobbies = []) => {
       if (cancelled) return;
@@ -130,7 +138,9 @@ export default function Lobby() {
           id: entry.id,
           label: `Table ${entry.capacity} Players`,
           capacity: entry.capacity,
-          players: entry.players || 0
+          players: entry.players || 0,
+          icon: getLobbyIcon('snake', `table-${entry.capacity}`),
+          iconFallback: '🎲'
         }))
         .sort((a, b) => a.capacity - b.capacity);
       const nextTables = [singleTable, ...multiplayer];
@@ -511,7 +521,15 @@ export default function Lobby() {
                         : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
                     }`}
                   >
-                    {n} AI
+                    <span className="flex items-center justify-center gap-2">
+                      <OptionIcon
+                        src={getLobbyIcon('snake', `ai-${n}`)}
+                        alt={`${n} AI`}
+                        fallback="🤖"
+                        className="h-5 w-5"
+                      />
+                      {n} AI
+                    </span>
                   </button>
                 ))}
               </div>

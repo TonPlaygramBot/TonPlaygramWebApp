@@ -13,15 +13,35 @@ import {
   pingOnline
 } from '../../utils/api.js';
 import { ensureAccountId, getTelegramId, getTelegramPhotoUrl } from '../../utils/telegram.js';
+import OptionIcon from '../../components/OptionIcon.jsx';
+import { getLobbyIcon } from '../../config/gameAssets.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 
 const TABLES = [
-  { id: 'practice', label: 'Practice (Solo)', capacity: 1 },
-  { id: 'duo', label: 'Duo Battle', capacity: 2 },
-  { id: 'royale', label: 'Battle Royale (4 Players)', capacity: 4 }
+  {
+    id: 'practice',
+    label: 'Practice (Solo)',
+    capacity: 1,
+    icon: getLobbyIcon('ludobattleroyal', 'table-1'),
+    iconFallback: '🎯'
+  },
+  {
+    id: 'duo',
+    label: 'Duo Battle',
+    capacity: 2,
+    icon: getLobbyIcon('ludobattleroyal', 'table-2'),
+    iconFallback: '👥'
+  },
+  {
+    id: 'royale',
+    label: 'Battle Royale (4 Players)',
+    capacity: 4,
+    icon: getLobbyIcon('ludobattleroyal', 'table-4'),
+    iconFallback: '👑'
+  }
 ];
 
 export default function LudoBattleRoyalLobby() {
@@ -291,7 +311,15 @@ export default function LudoBattleRoyalLobby() {
                       onClick={() => setAiCount(n)}
                       className={`lobby-tile ${aiCount === n ? 'lobby-selected' : ''}`}
                     >
-                      {n}
+                      <span className="flex items-center gap-2">
+                        <OptionIcon
+                          src={getLobbyIcon('ludobattleroyal', `ai-${n}`)}
+                          alt={`${n} AI`}
+                          fallback="🤖"
+                          className="h-5 w-5"
+                        />
+                        {n}
+                      </span>
                     </button>
                   ))}
                 </div>

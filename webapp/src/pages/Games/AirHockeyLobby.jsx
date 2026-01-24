@@ -12,6 +12,8 @@ import {
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
+import OptionIcon from '../../components/OptionIcon.jsx';
+import { getLobbyIcon } from '../../config/gameAssets.js';
 
 const AI_FLAG_STORAGE_KEY = 'airHockeyAiFlag';
 const PLAYER_FLAG_STORAGE_KEY = 'airHockeyPlayerFlag';
@@ -196,7 +198,12 @@ export default function AirHockeyLobby() {
                 >
                   <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-sky-400/30 via-indigo-400/20 to-transparent p-[1px]">
                     <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
-                      {icon}
+                      <OptionIcon
+                        src={getLobbyIcon('airhockey', `type-${id}`)}
+                        alt={label}
+                        fallback={icon}
+                        className="h-7 w-7"
+                      />
                     </div>
                   </div>
                   <div>
@@ -219,10 +226,10 @@ export default function AirHockeyLobby() {
               <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              {[
-                { id: 'ai', label: 'Vs AI', desc: 'Instant practice', icon: '🤖' },
-                { id: 'online', label: '1v1 Online', desc: 'Coming soon', icon: '⚔️', disabled: true }
-              ].map(({ id, label, desc, icon, disabled }) => {
+                {[
+                  { id: 'ai', label: 'Vs AI', desc: 'Instant practice', icon: '🤖' },
+                  { id: 'online', label: '1v1 Online', desc: 'Coming soon', icon: '⚔️', disabled: true }
+                ].map(({ id, label, desc, icon, disabled }) => {
                 const active = mode === id;
                 return (
                   <div key={id} className="relative">
@@ -238,7 +245,12 @@ export default function AirHockeyLobby() {
                     >
                       <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-400/30 via-sky-400/20 to-transparent p-[1px]">
                         <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
-                          {icon}
+                          <OptionIcon
+                            src={getLobbyIcon('airhockey', `mode-${id}`)}
+                            alt={label}
+                            fallback={icon}
+                            className="h-7 w-7"
+                          />
                         </div>
                       </div>
                       <div className="flex-1">
@@ -280,7 +292,15 @@ export default function AirHockeyLobby() {
                       : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
                   }`}
                 >
-                  First to {g}
+                  <div className="flex items-center justify-center gap-2">
+                    <OptionIcon
+                      src={getLobbyIcon('airhockey', `target-${g}`)}
+                      alt={`First to ${g}`}
+                      fallback="🏁"
+                      className="h-5 w-5"
+                    />
+                    First to {g}
+                  </div>
                 </button>
               );
             })}
