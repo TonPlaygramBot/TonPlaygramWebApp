@@ -11,6 +11,8 @@ import { socket } from '../../utils/socket.js';
 import { getOnlineUsers } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { runSnookerRoyalOnlineFlow } from './snookerRoyalOnlineFlow.js';
+import OptionIcon from '../../components/OptionIcon.jsx';
+import { getLobbyIcon } from '../../config/gameAssets.js';
 
 const PLAYER_FLAG_STORAGE_KEY = 'snookerRoyalPlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'snookerRoyalAiFlag';
@@ -415,7 +417,12 @@ export default function SnookerRoyalLobby() {
                 >
                   <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
                     <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
-                      {icon}
+                      <OptionIcon
+                        src={getLobbyIcon('snookerroyale', `type-${id}`)}
+                        alt={label}
+                        fallback={icon}
+                        className="h-8 w-8"
+                      />
                     </div>
                   </div>
                   <div className="flex-1">
@@ -473,7 +480,12 @@ export default function SnookerRoyalLobby() {
                 >
                   <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
                     <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
-                      {icon}
+                      <OptionIcon
+                        src={getLobbyIcon('snookerroyale', `mode-${id}`)}
+                        alt={label}
+                        fallback={icon}
+                        className="h-8 w-8"
+                      />
                     </div>
                   </div>
                   <div className="flex-1">
@@ -519,7 +531,15 @@ export default function SnookerRoyalLobby() {
                 >
                   <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-slate-400/30 via-slate-500/10 to-transparent p-[1px]">
                     <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
-                      {icon}
+                      <OptionIcon
+                        src={getLobbyIcon(
+                          'snookerroyale',
+                          `table-${id === 'uk' ? 'championship' : id === 'american' ? 'club' : 'practice'}`
+                        )}
+                        alt={label}
+                        fallback={icon}
+                        className="h-7 w-7"
+                      />
                     </div>
                   </div>
                   <div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import OptionIcon from './OptionIcon.jsx';
 
 export default function TableSelector({ tables, selected, onSelect }) {
   return (
@@ -14,7 +15,17 @@ export default function TableSelector({ tables, selected, onSelect }) {
               selected?.id === t.id ? 'lobby-selected' : ''
             } ${t.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            <span>{t.label || `Table ${t.capacity}p`}</span>
+            <span className="flex items-center gap-2">
+              {(t.icon || t.iconFallback) && (
+                <OptionIcon
+                  src={t.icon}
+                  alt={t.iconAlt || t.label || 'Table'}
+                  fallback={t.iconFallback || '🎲'}
+                  className="h-5 w-5"
+                />
+              )}
+              {t.label || `Table ${t.capacity}p`}
+            </span>
             {t.capacity && (
               <span>
                 {t.players}/{t.capacity}

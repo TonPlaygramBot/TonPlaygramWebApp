@@ -12,6 +12,8 @@ import {
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
+import OptionIcon from '../../components/OptionIcon.jsx';
+import { getLobbyIcon } from '../../config/gameAssets.js';
 
 const AI_FLAG_STORAGE_KEY = 'goalRushAiFlag';
 const PLAYER_FLAG_STORAGE_KEY = 'goalRushPlayerFlag';
@@ -194,7 +196,15 @@ export default function GoalRushLobby() {
                   onClick={() => setPlayType(id)}
                   className={`lobby-tile ${playType === id ? 'lobby-selected' : ''}`}
                 >
-                  {label}
+                  <span className="flex items-center gap-2">
+                    <OptionIcon
+                      src={getLobbyIcon('goalrush', `type-${id}`)}
+                      alt={label}
+                      fallback={id === 'regular' ? '🎯' : id === 'training' ? '🛠️' : '🏆'}
+                      className="h-5 w-5"
+                    />
+                    {label}
+                  </span>
                 </button>
               ))}
             </div>
@@ -221,7 +231,15 @@ export default function GoalRushLobby() {
                       }`}
                       disabled={disabled}
                     >
-                      {label}
+                      <span className="flex items-center gap-2">
+                        <OptionIcon
+                          src={getLobbyIcon('goalrush', `mode-${id}`)}
+                          alt={label}
+                          fallback={id === 'ai' ? '🤖' : '🌐'}
+                          className="h-5 w-5"
+                        />
+                        {label}
+                      </span>
                     </button>
                     {disabled && (
                       <span className="absolute inset-0 flex items-center justify-center text-xs bg-black/60 text-background">
@@ -248,7 +266,15 @@ export default function GoalRushLobby() {
                   onClick={() => setGoal(g)}
                   className={`lobby-tile ${goal === g ? 'lobby-selected' : ''}`}
                 >
-                  {g}
+                  <span className="flex items-center gap-2">
+                    <OptionIcon
+                      src={getLobbyIcon('goalrush', `target-${g}`)}
+                      alt={`${g} goals`}
+                      fallback="🥅"
+                      className="h-5 w-5"
+                    />
+                    {g}
+                  </span>
                 </button>
               ))}
             </div>

@@ -14,6 +14,8 @@ import { getAccountBalance, addTransaction, getOnlineCount } from '../../utils/a
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { socket } from '../../utils/socket.js';
+import OptionIcon from '../../components/OptionIcon.jsx';
+import { getLobbyIcon } from '../../config/gameAssets.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -338,7 +340,12 @@ export default function ChessBattleRoyalLobby() {
                 >
                   <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
                     <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
-                      {icon}
+                      <OptionIcon
+                        src={getLobbyIcon('chessbattleroyal', `mode-${key}`)}
+                        alt={label}
+                        fallback={icon}
+                        className="h-8 w-8"
+                      />
                     </div>
                   </div>
                   <div className="flex-1">
