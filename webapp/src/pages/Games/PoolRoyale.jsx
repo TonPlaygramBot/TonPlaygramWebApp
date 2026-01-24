@@ -601,7 +601,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1; // allow the plate ends to r
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.986; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.34; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.28; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.095; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
@@ -1181,13 +1181,13 @@ const POCKET_INTERIOR_CAPTURE_R =
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the true bowl opening
-const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.16; // give middle pockets a touch more capture so shots don't hang in the jaws
+const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.08; // give middle pockets a touch more capture so shots don't hang in the jaws
 const POCKET_GUARD_RADIUS = Math.max(0, POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04); // align the rail guard to the playable capture bowl instead of the visual rim
 const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // shrink the safety margin so angled cushion cuts register sooner
 const CORNER_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
 const SIDE_POCKET_GUARD_RADIUS =
-  SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.02; // keep the guard aligned with the adjusted middle-pocket capture zone
+  SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.06; // use the middle-pocket bowl to gate reflections with a tighter inset
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.18
@@ -1247,11 +1247,11 @@ const POCKET_WALL_HEIGHT = TABLE.THICK * 0.7 - POCKET_WALL_OPEN_TRIM;
 const POCKET_NET_DEPTH = TABLE.THICK * 2.26;
 const POCKET_NET_SEGMENTS = 64;
 const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 1.05; // drop deeper so potted balls meet the chrome holders cleanly
-const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.64; // stop the fall slightly above the ring/strap junction
+const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.74; // stop the fall slightly above the ring/strap junction
 const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
-const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.22; // match Snooker Royal pocket net lift for identical potted-ball framing
+const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // match Snooker Royal pocket net lift for identical potted-ball framing
 const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
@@ -1262,12 +1262,12 @@ const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails jus
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.02; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
-const POCKET_HOLDER_REST_DROP = BALL_R * 1.82; // drop the resting spot so potted balls settle onto the chrome rails
+const POCKET_HOLDER_REST_DROP = BALL_R * 2.18; // drop the resting spot so potted balls settle onto the chrome rails
 const POCKET_HOLDER_RUN_SPEED_MIN = BALL_DIAMETER * 2.2; // base roll speed along the holder rails after clearing the ring
 const POCKET_HOLDER_RUN_SPEED_MAX = BALL_DIAMETER * 5.6; // clamp the roll speed so balls don't overshoot the leather backstop
 const POCKET_HOLDER_RUN_ENTRY_SCALE = BALL_DIAMETER * 0.9; // scale entry speed into a believable roll along the holders
@@ -1276,7 +1276,7 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.36; // align strap height with Snooker Royal for identical potted-ball rests
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // align strap height with Snooker Royal for identical potted-ball rests
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -1462,7 +1462,7 @@ const PORTAL_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.46; // pull portal uprights
 const SKIRT_DROP_MULTIPLIER = 0; // remove the apron/skirt drop so the table body stays tight to the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
-const BASE_HEIGHT_FILL = 0.98; // grow bases upward so the stance stays consistent with the shorter skirt
+const BASE_HEIGHT_FILL = 0.94; // grow bases upward so the stance stays consistent with the shorter skirt
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.18; // lower the full table assembly by 18%
@@ -9922,7 +9922,7 @@ export function Table3D(
     const topInset =
       Number.isFinite(options?.topInset) && options.topInset >= 0
         ? options.topInset
-        : baseContext.skirtH * 0.06;
+        : baseContext.skirtH * 0.1;
     const heightFill =
       Number.isFinite(options?.fill) && options.fill > 0 ? options.fill : BASE_HEIGHT_FILL;
     const bounds = new THREE.Box3();
