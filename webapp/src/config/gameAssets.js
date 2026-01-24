@@ -42,10 +42,13 @@ export const lobbyOptionIcons = {
     ],
     '/assets/icons/texas-holdem.svg'
   ),
-  'domino-royal': buildLobbyIconSet(
-    ['players-2', 'players-3', 'players-4', 'mode-local', 'mode-online'],
-    '/assets/icons/domino-royal.svg'
-  ),
+  'domino-royal': {
+    'players-2': '/assets/icons/profile.svg',
+    'players-3': '/assets/icons/profile.svg',
+    'players-4': '/assets/icons/profile.svg',
+    'mode-local': 'lobby/pool-royale/mode-ai.webp',
+    'mode-online': 'lobby/pool-royale/mode-online.webp'
+  },
   poolroyale: {
     'type-regular': 'lobby/pool-royale/type-regular.webp',
     'type-tournament': 'lobby/pool-royale/type-tournament.webp',
