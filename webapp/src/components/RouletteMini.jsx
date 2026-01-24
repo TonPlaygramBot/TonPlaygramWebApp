@@ -108,6 +108,8 @@ export default function RouletteMini() {
   const [nextSpinTime, setNextSpinTime] = useState(null);
   const [remaining, setRemaining] = useState(0);
   const spinTimeoutRef = useRef(null);
+  const spinSoundRef = useRef(null);
+  const targetRotationRef = useRef(0);
 
   const wheelBackground = useMemo(() => {
     const parts = ROULETTE_ORDER.map((num, idx) => {
@@ -118,6 +120,21 @@ export default function RouletteMini() {
       return `${color} ${start}deg ${end}deg`;
     });
     return `conic-gradient(from -90deg, ${parts.join(',')})`;
+  }, []);
+
+  useEffect(() => {
+    spinSoundRef.current = new Audio('/assets/sounds/spinning.mp3');
+    spinSoundRef.current.preload = 'auto';
+    spinSoundRef.current.loop = true;
+    spinSoundRef.current.volume = getGameVolume();
+    const handler = () => {
+      if (spinSoundRef.current) spinSoundRef.current.volume = getGameVolume();
+    };
+    window.addEventListener('gameVolumeChanged', handler);
+    return () => {
+      spinSoundRef.current?.pause();
+      window.removeEventListener('gameVolumeChanged', handler);
+    };
   }, []);
 
   useEffect(() => {
@@ -163,26 +180,39 @@ export default function RouletteMini() {
     if (spinTimeoutRef.current) clearTimeout(spinTimeoutRef.current);
   }, []);
 
+  const resolveWinningIndex = (rotation) => {
+    const normalized = ((-rotation - SEGMENT_ANGLE / 2) % 360 + 360) % 360;
+    const index =
+      Math.round(normalized / SEGMENT_ANGLE) % ROULETTE_ORDER.length;
+    return index;
+  };
+
   const startSpin = () => {
     if (spinning) return;
     const index = Math.floor(Math.random() * ROULETTE_ORDER.length);
-    const number = ROULETTE_ORDER[index];
-    const prize = PRIZE_MAP[number];
     const extraSpins = Math.floor(Math.random() * 3) + 4;
+    const totalSpins = spinState.totalSpins + extraSpins;
+    const rotation =
+      -totalSpins * 360 - index * SEGMENT_ANGLE - SEGMENT_ANGLE / 2;
 
     setSpinning(true);
     setOutcome(null);
     setAdWatched(false);
-    setSpinState((prev) => {
-      const totalSpins = prev.totalSpins + extraSpins;
-      const rotation =
-        -totalSpins * 360 - index * SEGMENT_ANGLE - SEGMENT_ANGLE / 2;
-      return { totalSpins, rotation };
-    });
+    setSpinState({ totalSpins, rotation });
+    targetRotationRef.current = rotation;
+    if (spinSoundRef.current) {
+      spinSoundRef.current.currentTime = 0;
+      spinSoundRef.current.play().catch(() => {});
+    }
 
     const timeout = setTimeout(async () => {
       setSpinning(false);
-      setOutcome({ number, prize });
+      spinSoundRef.current?.pause();
+      if (spinSoundRef.current) spinSoundRef.current.currentTime = 0;
+      const resolvedIndex = resolveWinningIndex(targetRotationRef.current);
+      const resolvedNumber = ROULETTE_ORDER[resolvedIndex];
+      const resolvedPrize = PRIZE_MAP[resolvedNumber];
+      setOutcome({ number: resolvedNumber, prize: resolvedPrize });
       const now = Date.now();
       localStorage.setItem('rouletteSpinTs', String(now));
       const next = now + COOLDOWN;
@@ -191,9 +221,9 @@ export default function RouletteMini() {
 
       try {
         const balRes = await getWalletBalance(telegramId);
-        const newBalance = (balRes.balance || 0) + prize;
+        const newBalance = (balRes.balance || 0) + resolvedPrize;
         await updateBalance(telegramId, newBalance);
-        await addTransaction(telegramId, prize, 'roulette');
+        await addTransaction(telegramId, resolvedPrize, 'roulette');
       } catch (err) {
         // ignore API errors silently
       }
@@ -242,7 +272,7 @@ export default function RouletteMini() {
       <div className="relative mx-auto w-72 h-72 sm:w-80 sm:h-80">
         <div className="absolute left-1/2 -translate-x-1/2 -top-3 z-20 flex flex-col items-center">
           <div className="w-0 h-0 border-l-[10px] border-r-[10px] border-b-[18px] border-l-transparent border-r-transparent border-b-yellow-400 drop-shadow" />
-          <div className="w-2 h-2 bg-yellow-400 rounded-full mt-1" />
+          <div className="w-2 h-2 bg-white rounded-full mt-1 shadow ring-1 ring-gray-300" />
         </div>
         <div
           className="relative w-full h-full rounded-full border-[3px] border-yellow-400/80 shadow-inner flex items-center justify-center overflow-hidden [--roulette-label-radius:120px] sm:[--roulette-label-radius:136px] will-change-transform"
