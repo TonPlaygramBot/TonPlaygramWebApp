@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import {
   POOL_ROYALE_DEFAULT_LOADOUT,
@@ -422,6 +423,193 @@ const PREVIEW_LABELS = {
   default: '3D sample'
 };
 
+const USAGE_BY_TYPE = {
+  tableFinish: {
+    title: 'Table finish',
+    description: 'Updates the main table finish visible in every match, replay, and lobby preview.'
+  },
+  tableBase: {
+    title: 'Table base',
+    description: 'Swaps the base build under the table for all match cameras and result screens.'
+  },
+  tableWood: {
+    title: 'Table wood',
+    description: 'Replaces the wooden trim around the table for all match broadcasts.'
+  },
+  tableCloth: {
+    title: 'Table cloth',
+    description: 'Changes the cloth color and texture players see during every rally.'
+  },
+  clothColor: {
+    title: 'Cloth color',
+    description: 'Applies a new cloth palette to the table surface in matches and training rooms.'
+  },
+  cueStyle: {
+    title: 'Cue style',
+    description: 'Replaces the cue model shown in aim view, replays, and win screens.'
+  },
+  pocketLiner: {
+    title: 'Pocket jaws',
+    description: 'Updates the pocket liners that are visible in close-up shots and replays.'
+  },
+  chromeColor: {
+    title: 'Chrome fascia',
+    description: 'Re-tints the table hardware for every broadcast camera and showroom view.'
+  },
+  railMarkerColor: {
+    title: 'Rail markers',
+    description: 'Changes the rail marker accents used in guides and live play.'
+  },
+  environmentHdri: {
+    title: 'HDR environment',
+    description: 'Replaces the HDR lighting setup used for showroom previews and match lighting.'
+  },
+  table: {
+    title: 'Table finish',
+    description: 'Swaps the main table surface used in matches and lobby previews.'
+  },
+  field: {
+    title: 'Rink surface',
+    description: 'Changes the rink surface and markings used in Air Hockey matches.'
+  },
+  cushionCloth: {
+    title: 'Cushion cloth',
+    description: 'Refreshes the padded rail cloth used in gameplay and highlight reels.'
+  },
+  puck: {
+    title: 'Puck finish',
+    description: 'Applies a new puck material in every serve, replay, and highlight view.'
+  },
+  mallet: {
+    title: 'Mallet style',
+    description: 'Updates the striker model used by players throughout each match.'
+  },
+  rails: {
+    title: 'Rails',
+    description: 'Replaces the rink rails shown in match play and top-down camera shots.'
+  },
+  goals: {
+    title: 'Goals',
+    description: 'Updates the goal framing and net details visible in match shots.'
+  },
+  tables: {
+    title: 'Table model',
+    description: 'Swaps the full table model used in Chess, Ludo, and Snake arenas.'
+  },
+  chairColor: {
+    title: 'Chair finish',
+    description: 'Changes the seating upholstery shown in lobby previews and matches.'
+  },
+  stools: {
+    title: 'Stools & chairs',
+    description: 'Updates the chair styling around the arena table and podium views.'
+  },
+  sideColor: {
+    title: 'Piece colors',
+    description: 'Applies a new palette to player pieces in live matches and replays.'
+  },
+  boardTheme: {
+    title: 'Board theme',
+    description: 'Replaces the board texture and accents used in Chess matches.'
+  },
+  headStyle: {
+    title: 'Pawn heads',
+    description: 'Swaps pawn head shapes visible during zoomed match play.'
+  },
+  tokenPalette: {
+    title: 'Token palette',
+    description: 'Changes the palette for your Ludo tokens across matches and highlights.'
+  },
+  tokenStyle: {
+    title: 'Token style',
+    description: 'Updates the body shape for your tokens in every match camera.'
+  },
+  tokenPiece: {
+    title: 'Token piece',
+    description: 'Replaces the token model shown on the board and victory screens.'
+  },
+  outfit: {
+    title: 'Outfit',
+    description: 'Applies a new outfit skin to your Murlan avatar across match scenes.'
+  },
+  cards: {
+    title: 'Card theme',
+    description: 'Updates the card backs and suits shown during every deal and replay.'
+  },
+  tableTheme: {
+    title: 'Table model',
+    description: 'Swaps the full table model used in Domino or Texas Hold’em arenas.'
+  },
+  dominoStyle: {
+    title: 'Domino style',
+    description: 'Applies a new domino material finish for match play and replays.'
+  },
+  highlightStyle: {
+    title: 'Highlights',
+    description: 'Changes highlight glow effects in gameplay and UI moments.'
+  },
+  chairTheme: {
+    title: 'Chair theme',
+    description: 'Replaces the chair set shown around the table in every scene.'
+  },
+  arenaTheme: {
+    title: 'Arena atmosphere',
+    description: 'Changes the arena backdrop and lighting ambiance.'
+  },
+  boardPalette: {
+    title: 'Board palette',
+    description: 'Updates the Snake board palette used in match and lobby views.'
+  },
+  snakeSkin: {
+    title: 'Snake skin',
+    description: 'Applies a new snake skin material visible during all rounds.'
+  },
+  diceTheme: {
+    title: 'Dice finish',
+    description: 'Updates dice materials shown in each roll and replay.'
+  },
+  railTheme: {
+    title: 'Rails & nets',
+    description: 'Changes the board rails and nets for Snake arenas.'
+  },
+  tokenFinish: {
+    title: 'Token finish',
+    description: 'Updates token materials for Snake & Ladder gameplay.'
+  },
+  tokenColor: {
+    title: 'Token colors',
+    description: 'Applies color palettes to player tokens during every match.'
+  },
+  tokenShape: {
+    title: 'Token shape',
+    description: 'Changes the 3D token shape shown in matches and previews.'
+  },
+  floorTexture: {
+    title: 'Floor texture',
+    description: 'Swaps the floor surface texture used in the arena scene.'
+  },
+  wallTexture: {
+    title: 'Wall texture',
+    description: 'Replaces the arena wall panels visible behind the board.'
+  }
+};
+
+const hashString = (value) => {
+  let hash = 0;
+  if (!value) return hash;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) % 1000000;
+  }
+  return hash;
+};
+
+const formatShortDate = (date) =>
+  new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  }).format(date);
+
 const storeMeta = {
   poolroyale: {
     name: 'Pool Royale',
@@ -499,6 +687,8 @@ const storeMeta = {
 
 export default function Store() {
   useTelegramBackButton();
+  const navigate = useNavigate();
+  const { gameSlug } = useParams();
   const [accountId, setAccountId] = useState(() => poolRoyalAccountId());
   const [poolOwned, setPoolOwned] = useState(() => getCachedPoolRoyalInventory(accountId));
   const [snookerOwned, setSnookerOwned] = useState(() => getCachedSnookerRoyalInventory(accountId));
@@ -525,6 +715,18 @@ export default function Store() {
   const [detailItem, setDetailItem] = useState(null);
   const [selectedKeys, setSelectedKeys] = useState([]);
   const [confirmItems, setConfirmItems] = useState([]);
+
+  const resolvedGameSlug = useMemo(() => {
+    if (!gameSlug) return 'all';
+    if (gameSlug === 'all') return 'all';
+    return storeMeta[gameSlug] ? gameSlug : 'all';
+  }, [gameSlug]);
+
+  useEffect(() => {
+    if (activeGame !== resolvedGameSlug) {
+      setActiveGame(resolvedGameSlug);
+    }
+  }, [activeGame, resolvedGameSlug]);
 
   useEffect(() => {
     setAccountId(poolRoyalAccountId());
@@ -661,10 +863,67 @@ export default function Store() {
     []
   );
 
+  const buildNftMetadata = useCallback((item) => {
+    const key = `${item.slug}-${item.id}-${item.optionId}`;
+    const hash = hashString(key);
+    const serialSuffix = String(hash).padStart(6, '0');
+    const circulation = 400 + (hash % 1800);
+    const burns = hash % 6;
+    const mintedDaysAgo = 20 + (hash % 280);
+    const lastSaleDaysAgo = Math.max(2, mintedDaysAgo - (hash % 18));
+    const mintedDate = new Date(Date.now() - mintedDaysAgo * 86400000);
+    const purchaseDate = new Date(mintedDate.getTime() + 6 * 86400000);
+    const lastSaleDate = new Date(Date.now() - lastSaleDaysAgo * 86400000);
+    const history = [
+      {
+        label: 'Minted',
+        date: formatShortDate(mintedDate),
+        price: item.price
+      },
+      {
+        label: 'Purchased',
+        date: formatShortDate(purchaseDate),
+        price: Math.max(20, item.price + (hash % 60))
+      },
+      {
+        label: 'Last sold',
+        date: formatShortDate(lastSaleDate),
+        price: Math.max(20, item.price + (hash % 90))
+      },
+      {
+        label: 'Burns',
+        date: burns ? `${burns} retired` : 'None'
+      }
+    ];
+
+    return {
+      serial: `TPG-${item.slug.slice(0, 4).toUpperCase()}-${serialSuffix}`,
+      circulation,
+      burns,
+      games: [storeMeta[item.slug]?.name || item.slug],
+      history
+    };
+  }, []);
+
+  const resolveUsageDetails = useCallback((item, gameName) => {
+    const typeUsage = USAGE_BY_TYPE[item.type] || {};
+    const title = typeUsage.title || `${item.typeLabel} usage`;
+    const description =
+      typeUsage.description ||
+      `This cosmetic updates the ${item.typeLabel.toLowerCase()} presentation in ${gameName} matches, lobbies, and replays.`;
+    const placements = [
+      'Match gameplay',
+      'Lobby preview',
+      'Replays & highlights'
+    ];
+    return { title, description, placements };
+  }, []);
+
   const decorateMarketplaceItem = (item) => {
     const swatches = resolveSwatches(item.type, item.optionId, item.swatches);
     const previewShape = resolvePreviewShape(item.slug, item.type, item.previewShape);
-    return { ...item, swatches, previewShape };
+    const nftMeta = buildNftMetadata({ ...item, swatches });
+    return { ...item, swatches, previewShape, nftMeta };
   };
 
   const baseMarketplaceItems = useMemo(() => {
@@ -841,6 +1100,31 @@ export default function Store() {
     setPurchaseStatus('');
     setInfo('');
   };
+
+  const handleGameChange = useCallback(
+    (slug) => {
+      setActiveGame(slug);
+      setActiveType('all');
+      if (slug === 'all') {
+        navigate('/store/all');
+      } else {
+        navigate(`/store/${slug}`);
+      }
+    },
+    [navigate]
+  );
+
+  const groupedItems = useMemo(() => {
+    if (activeGame === 'all') return [];
+    const groups = new Map();
+    visibleItems.forEach((item) => {
+      if (item.slug !== activeGame) return;
+      const key = item.typeLabel || 'Accessories';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(item);
+    });
+    return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [activeGame, visibleItems]);
 
   const handleListSubmit = (event) => {
     event?.preventDefault();
@@ -1151,7 +1435,7 @@ export default function Store() {
               This NFT cosmetic will be unlocked instantly for your account. Please confirm the payment to continue.
             </p>
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-              {renderStoreThumbnail(confirmItem)}
+              {renderStoreThumbnail(confirmItem, 'compact')}
               <div className="grid gap-1 text-xs">
                 <div className="text-sm font-semibold text-white">{confirmItem.displayLabel}</div>
                 <div className="text-white/60">{gameName} • {confirmItem.typeLabel}</div>
@@ -1234,7 +1518,7 @@ export default function Store() {
                   className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2"
                 >
                   <div className="flex items-center gap-3">
-                    {renderStoreThumbnail(item)}
+                    {renderStoreThumbnail(item, 'compact')}
                     <div className="grid gap-0.5">
                       <span className="text-white font-semibold">{item.displayLabel}</span>
                       <span className="text-xs text-white/60">{storeMeta[item.slug]?.name || item.slug} • {item.typeLabel}</span>
@@ -1279,6 +1563,7 @@ export default function Store() {
   const renderDetailModal = () => {
     if (!detailItem) return null;
     const gameName = storeMeta[detailItem.slug]?.name || detailItem.slug;
+    const usageDetails = resolveUsageDetails(detailItem, gameName);
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
@@ -1327,6 +1612,39 @@ export default function Store() {
                 <p className="mt-1">{detailItem.description || 'Cosmetic details will appear here.'}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
+                <p className="font-semibold text-white">{usageDetails.title}</p>
+                <p className="text-white/70">{usageDetails.description}</p>
+                <div className="flex flex-wrap gap-2 text-xs text-white/60">
+                  {usageDetails.placements.map((placement) => (
+                    <span
+                      key={`${detailItem.id}-${placement}`}
+                      className="rounded-full border border-white/10 bg-black/30 px-2.5 py-1"
+                    >
+                      {placement}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
+                <p className="font-semibold text-white">NFT utility & circulation</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Usable in</span>
+                  <span className="font-semibold">{detailItem.nftMeta?.games?.join(', ') || gameName}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Circulation</span>
+                  <span className="font-semibold">{detailItem.nftMeta?.circulation?.toLocaleString() || '—'} minted</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Burns</span>
+                  <span className="font-semibold">{detailItem.nftMeta?.burns ?? 0}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Serial</span>
+                  <span className="font-semibold">{detailItem.nftMeta?.serial || 'TPG-XXXXXX'}</span>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-white/60">Seller</span>
                   <span className="font-semibold">{detailItem.seller || 'Official store'}</span>
@@ -1347,6 +1665,28 @@ export default function Store() {
                   {(!detailItem.swatches || detailItem.swatches.length === 0) && (
                     <span className="text-xs text-white/60">Color samples unavailable</span>
                   )}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
+                <p className="font-semibold text-white">Provenance history</p>
+                <div className="grid gap-2">
+                  {(detailItem.nftMeta?.history || []).map((event, index) => (
+                    <div
+                      key={`${detailItem.id}-history-${index}`}
+                      className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/70"
+                    >
+                      <div className="font-semibold text-white">{event.label}</div>
+                      <div className="flex items-center gap-2">
+                        {event.date ? <span>{event.date}</span> : null}
+                        {event.price ? (
+                          <span className="flex items-center gap-1 font-semibold text-white">
+                            {event.price}
+                            <img src={TPC_ICON} alt="TPC" className="h-3.5 w-3.5" />
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -1373,7 +1713,7 @@ export default function Store() {
             </div>
 
             <div className="space-y-3">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">{renderPreview3d(detailItem)}</div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">{renderPreview3d(detailItem, { size: 'md' })}</div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
                 <p className="font-semibold text-white">What you get</p>
                 <p className="mt-1">Unlock this cosmetic instantly for your next match with your linked TPC account.</p>
@@ -1385,7 +1725,9 @@ export default function Store() {
     );
   };
 
-  const renderPreview3d = (item, showCaption = true) => {
+  const renderPreview3d = (item, options = {}) => {
+    const resolvedOptions = typeof options === 'boolean' ? { showCaption: options } : options;
+    const { showCaption = true, size = 'sm', containerClassName = '' } = resolvedOptions;
     if (!item) return null;
     const previewShape = item.previewShape || 'default';
     const primary = item.swatches?.[0] || '#0f172a';
@@ -1395,6 +1737,11 @@ export default function Store() {
     const gradientId = `${safeId}-grad`;
     const shineId = `${safeId}-shine`;
     const shadowId = `${safeId}-shadow`;
+    const sizeClasses = {
+      sm: 'h-16 w-24',
+      md: 'h-24 w-40',
+      lg: 'h-32 w-full'
+    };
 
     const shapeLayer = (shape) => {
       switch (shape) {
@@ -1549,8 +1896,8 @@ export default function Store() {
     };
 
     return (
-      <div className="flex items-center gap-3">
-        <div className="relative h-16 w-24 overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-black/40 shadow-[0_18px_45px_-26px_rgba(0,0,0,0.9)]">
+      <div className={`flex items-center gap-3 ${containerClassName}`}>
+        <div className={`relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-black/40 shadow-[0_18px_45px_-26px_rgba(0,0,0,0.9)] ${sizeClasses[size] || sizeClasses.sm}`}>
           <svg viewBox="0 0 160 100" className="h-full w-full">
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
@@ -1579,113 +1926,108 @@ export default function Store() {
     );
   };
 
-  const renderStoreThumbnail = (item) => {
+  const renderStoreThumbnail = (item, variant = 'card') => {
     if (!item) return null;
-    const primary = item.swatches?.[0] || '#0f172a';
-    const secondary = item.swatches?.[1] || primary;
-    const accent = item.swatches?.[2] || '#f8fafc';
-    const previewShape = item.previewShape || 'default';
-    const label = (item.displayLabel || item.name || '').slice(0, 14);
-
-    const base = (children) => (
-      <div className="relative h-16 w-20 overflow-hidden rounded-2xl border border-white/10 bg-black/30 shadow-[0_16px_30px_-24px_rgba(0,0,0,0.9)]">
-        <div className="absolute inset-0 opacity-80" style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }} />
-        <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/50" />
-        <div className="absolute inset-[5px] rounded-xl border border-white/10 bg-black/40" />
-        <div className="relative z-10 flex h-full w-full items-center justify-center">{children}</div>
-      </div>
-    );
+    const label = (item.displayLabel || item.name || '').slice(0, 18);
+    const isCompact = variant === 'compact';
+    const wrapperClass = isCompact
+      ? 'relative h-16 w-20 overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_16px_30px_-24px_rgba(0,0,0,0.9)]'
+      : 'relative h-32 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)]';
 
     if (item.thumbnail) {
       return (
-        <div className="relative h-16 w-20 overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_16px_30px_-24px_rgba(0,0,0,0.9)]">
-          <img src={item.thumbnail} alt={item.displayLabel || item.name} className="h-full w-full object-cover opacity-90" loading="lazy" />
-          <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-transparent to-black/60" />
-          <div className="absolute bottom-1 left-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/80">
+        <div className={wrapperClass}>
+          <img src={item.thumbnail} alt={item.displayLabel || item.name} className="h-full w-full object-cover" loading="lazy" />
+          <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/60" />
+          <div className={`absolute ${isCompact ? 'bottom-1 left-1' : 'bottom-2 left-2'} rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/80`}>
             {label}
           </div>
         </div>
       );
     }
 
-    switch (previewShape) {
-      case 'table':
-        return base(
-          <div className="relative h-9 w-16">
-            <div className="absolute inset-x-1 top-2 h-5 rounded-xl" style={{ background: `linear-gradient(90deg, ${primary}, ${secondary})` }} />
-            <div className="absolute inset-x-3 top-4 h-3 rounded-lg" style={{ background: accent, opacity: 0.25 }} />
-            <div className="absolute inset-x-4 bottom-2 h-2 rounded-full" style={{ background: accent, opacity: 0.3 }} />
+    return (
+      <div className={wrapperClass}>
+        {renderPreview3d(item, { showCaption: false, size: isCompact ? 'sm' : 'lg', containerClassName: 'h-full w-full' })}
+        <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/60" />
+        <div className={`absolute ${isCompact ? 'bottom-1 left-1' : 'bottom-2 left-2'} rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/80`}>
+          {label}
+        </div>
+      </div>
+    );
+  };
+
+  const renderStoreCard = (item) => {
+    const checked = selectedKeys.includes(selectionKey(item));
+    const usageDetails = resolveUsageDetails(item, item.gameName);
+
+    return (
+      <div
+        key={`${item.slug}-${item.id}`}
+        className="group flex h-full flex-col gap-3 rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-black/30 p-4 text-left shadow-sm transition hover:border-white/20 hover:bg-white/10"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              className="h-5 w-5 rounded border-white/30 bg-black/40 text-emerald-400 focus:ring-emerald-300"
+              checked={checked}
+              onChange={() => toggleSelection(item)}
+              disabled={item.owned}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => setDetailItem(item)}
+            className="rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-xs font-semibold text-white/70 hover:bg-white/10"
+            title="View usage, circulation, and NFT history"
+          >
+            ℹ️
+          </button>
+        </div>
+
+        {renderStoreThumbnail(item)}
+
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm font-semibold">{item.displayLabel}</div>
+            {item.owned && (
+              <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
+                Owned
+              </span>
+            )}
           </div>
-        );
-      case 'cue':
-        return base(
-          <div className="relative h-2 w-16 rounded-full" style={{ background: `linear-gradient(90deg, ${primary}, ${secondary})` }}>
-            <div className="absolute -left-2 -top-1 h-4 w-6 rounded-full" style={{ background: accent, opacity: 0.4 }} />
-            <div className="absolute right-0 top-0 h-2 w-4 rounded-full" style={{ background: accent, opacity: 0.9 }} />
+          <div className="text-xs text-white/60">{item.gameName} • {item.typeLabel}</div>
+          <div className="text-[11px] text-white/50">Usage: {usageDetails.title}</div>
+          <div className="text-[11px] text-white/50">Serial {item.nftMeta?.serial}</div>
+        </div>
+
+        <div className="mt-auto flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
+            {item.price}
+            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
           </div>
-        );
-      case 'cards':
-        return base(
-          <div className="relative h-12 w-16">
-            <div className="absolute left-2 top-1 h-10 w-7 rotate-[-8deg] rounded-lg border border-white/20" style={{ background: secondary, opacity: 0.7 }} />
-            <div className="absolute left-5 top-2 h-10 w-7 rotate-[6deg] rounded-lg border border-white/40" style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})`, boxShadow: `0 0 0 2px ${accent} inset` }} />
-          </div>
-        );
-      case 'domino':
-        return base(
-          <div className="relative h-12 w-16 rounded-xl border border-white/15" style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }}>
-            <div className="absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-white/40" />
-            <div className="absolute left-4 top-3 h-3 w-3 rounded-full" style={{ background: accent }} />
-            <div className="absolute right-4 bottom-3 h-3 w-3 rounded-full" style={{ background: accent }} />
-            <div className="absolute right-4 top-3 h-2 w-2 rounded-full" style={{ background: accent, opacity: 0.7 }} />
-          </div>
-        );
-      case 'dice':
-        return base(
-          <div className="relative flex gap-1">
-            <div className="relative h-9 w-9 rounded-xl border border-white/15" style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }}>
-              <div className="absolute left-2 top-2 h-2 w-2 rounded-full" style={{ background: accent }} />
-              <div className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ background: accent }} />
-              <div className="absolute right-2 bottom-2 h-2 w-2 rounded-full" style={{ background: accent }} />
-            </div>
-            <div className="relative h-9 w-9 rounded-xl border border-white/15" style={{ background: `linear-gradient(135deg, ${secondary}, ${primary})` }}>
-              <div className="absolute left-2 top-2 h-2 w-2 rounded-full" style={{ background: accent }} />
-              <div className="absolute right-2 top-2 h-2 w-2 rounded-full" style={{ background: accent }} />
-              <div className="absolute left-2 bottom-2 h-2 w-2 rounded-full" style={{ background: accent }} />
-              <div className="absolute right-2 bottom-2 h-2 w-2 rounded-full" style={{ background: accent }} />
-            </div>
-          </div>
-        );
-      case 'puck':
-        return base(
-          <div className="relative h-10 w-10 rounded-full" style={{ background: `radial-gradient(circle at 40% 30%, ${accent}, ${secondary})` }}>
-            <div className="absolute inset-2 rounded-full" style={{ background: `linear-gradient(145deg, ${primary}, ${secondary})` }} />
-          </div>
-        );
-      case 'token-stack':
-        return base(
-          <div className="relative h-12 w-16">
-            <div className="absolute left-1 top-2 h-3 w-12 rounded-full" style={{ background: `linear-gradient(90deg, ${primary}, ${secondary})`, opacity: 0.85 }} />
-            <div className="absolute left-3 top-5 h-3 w-12 rounded-full" style={{ background: `linear-gradient(90deg, ${secondary}, ${primary})`, opacity: 0.9 }} />
-            <div className="absolute left-5 top-8 h-3 w-12 rounded-full" style={{ background: accent, opacity: 0.8 }} />
-          </div>
-        );
-      case 'chair':
-        return base(
-          <div className="relative h-12 w-14">
-            <div className="absolute inset-x-1 top-2 h-5 rounded-xl" style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }} />
-            <div className="absolute inset-x-2 top-5 h-4 rounded-lg" style={{ background: `linear-gradient(135deg, ${secondary}, ${primary})`, opacity: 0.9 }} />
-            <div className="absolute left-3 bottom-2 h-3 w-3 rounded-full" style={{ background: accent, opacity: 0.75 }} />
-            <div className="absolute right-3 bottom-2 h-3 w-3 rounded-full" style={{ background: accent, opacity: 0.75 }} />
-          </div>
-        );
-      default:
-        return base(
-          <div className="relative h-10 w-16 rounded-xl" style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }}>
-            <div className="absolute inset-2 rounded-lg" style={{ background: accent, opacity: 0.2 }} />
-          </div>
-        );
-    }
+          <button
+            type="button"
+            onClick={() => setDetailItem(item)}
+            className="rounded-2xl border border-white/15 bg-black/30 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10"
+          >
+            View
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setConfirmItems([]);
+              setConfirmItem(item);
+            }}
+            className="rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={item.owned || Boolean(processing)}
+          >
+            {item.owned ? 'Owned' : 'Buy'}
+          </button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -1775,7 +2117,7 @@ export default function Store() {
               </div>
             </div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-[2fr_1fr_1fr_1fr]">
+            <div className="sticky top-20 z-20 mt-4 grid gap-3 rounded-2xl border border-white/10 bg-zinc-950/85 p-3 shadow-sm backdrop-blur md:grid-cols-[2fr_1fr_1fr_1fr]">
               <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
                 <span className="text-white/60">🔎</span>
                 <input
@@ -1789,7 +2131,7 @@ export default function Store() {
               <select
                 className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white/90 outline-none"
                 value={activeGame}
-                onChange={(e) => setActiveGame(e.target.value)}
+                onChange={(e) => handleGameChange(e.target.value)}
               >
                 <option value="all">All games</option>
                 {Object.entries(storeMeta).map(([slug, meta]) => (
@@ -1935,8 +2277,8 @@ export default function Store() {
                       activeGame === 'all'
                         ? 'border-white/20 bg-white text-zinc-950'
                         : 'border-white/10 bg-black/20 text-white/75 hover:bg-white/10 hover:text-white'
-                    }`}
-                    onClick={() => setActiveGame('all')}
+                      }`}
+                    onClick={() => handleGameChange('all')}
                   >
                     All
                   </button>
@@ -1948,7 +2290,7 @@ export default function Store() {
                           ? 'border-white/20 bg-white text-zinc-950'
                           : 'border-white/10 bg-black/20 text-white/75 hover:bg-white/10 hover:text-white'
                       }`}
-                      onClick={() => setActiveGame(slug)}
+                      onClick={() => handleGameChange(slug)}
                     >
                       {meta.name}
                     </button>
@@ -1987,65 +2329,29 @@ export default function Store() {
             </button>
           </div>
 
-          <div className="space-y-2">
-            {visibleItems.map((item) => {
-              const checked = selectedKeys.includes(selectionKey(item));
-              return (
-                <div
-                  key={`${item.slug}-${item.id}`}
-                  className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-left shadow-sm transition hover:border-white/20 hover:bg-white/10 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        className="h-5 w-5 rounded border-white/30 bg-black/40 text-emerald-400 focus:ring-emerald-300"
-                        checked={checked}
-                        onChange={() => toggleSelection(item)}
-                        disabled={item.owned}
-                      />
-                    </label>
-                    {renderStoreThumbnail(item)}
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="text-sm font-semibold">{item.displayLabel}</div>
-                        {item.owned && (
-                          <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
-                            Owned
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-white/60">{item.gameName} • {item.typeLabel}</div>
+          <div className="space-y-4">
+            {activeGame !== 'all' ? (
+              groupedItems.map(([typeLabel, items]) => (
+                <section key={typeLabel} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-semibold text-white">{typeLabel}</div>
+                      <div className="text-xs text-white/60">{items.length} items • {storeMeta[activeGame]?.name || activeGame}</div>
+                    </div>
+                    <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-white/60">
+                      Category
                     </div>
                   </div>
-
-                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
-                      {item.price}
-                      <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setDetailItem(item)}
-                      className="rounded-2xl border border-white/15 bg-black/30 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10"
-                    >
-                      View
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setConfirmItems([]);
-                        setConfirmItem(item);
-                      }}
-                      className="rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={item.owned || Boolean(processing)}
-                    >
-                      {item.owned ? 'Owned' : 'Buy'}
-                    </button>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {items.map((item) => renderStoreCard(item))}
                   </div>
-                </div>
-              );
-            })}
+                </section>
+              ))
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {visibleItems.map((item) => renderStoreCard(item))}
+              </div>
+            )}
           </div>
 
           {visibleItems.length === 0 && (

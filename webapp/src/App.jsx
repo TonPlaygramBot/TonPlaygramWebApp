@@ -137,7 +137,7 @@ export default function App() {
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
             <Route path="/tasks" element={<Tasks />} />
-            <Route path="/store" element={<Navigate to="/store/poolroyale" replace />} />
+            <Route path="/store" element={<Navigate to="/store/all" replace />} />
             <Route path="/store/:gameSlug" element={<Store />} />
             <Route path="/referral" element={<Referral />} />
             <Route path="/wallet" element={<Wallet />} />
