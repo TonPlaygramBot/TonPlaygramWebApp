@@ -12628,7 +12628,7 @@ const powerRef = useRef(hud.power);
     const ctx = audioContextRef.current;
     const buffer = audioBuffersRef.current.ball;
     if (!ctx || !buffer || muteRef.current) return;
-    const scaled = clamp(vol * volumeRef.current, 0, 1);
+    const scaled = clamp(vol * volumeRef.current * 0.9, 0, 1);
     if (scaled <= 0) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -17276,14 +17276,13 @@ const powerRef = useRef(hud.power);
           const relative = Math.max(0, timestamp - start);
           const snapshot = captureBallSnapshot();
           const cameraSnapshot = captureReplayCameraSnapshot();
-          const cueSnapshot =
-            cueStick && cueStick.visible
-              ? {
-                  position: serializeVector3Snapshot(cueStick.position),
-                  rotation: serializeQuaternionSnapshot(cueStick.quaternion),
-                  visible: cueStick.visible
-                }
-              : null;
+          const cueSnapshot = cueStick
+            ? {
+                position: serializeVector3Snapshot(cueStick.position),
+                rotation: serializeQuaternionSnapshot(cueStick.quaternion),
+                visible: cueStick.visible
+              }
+            : null;
           shotRecording.frames.push({
             t: relative,
             balls: snapshot,
@@ -19866,115 +19865,18 @@ const powerRef = useRef(hud.power);
         cue.active = false;
         updateCuePlacement(clamped);
         inHandDrag.lastPos = clamped;
-        if (commit) {
-          cue.active = true;
-          inHandDrag.lastPos = null;
-          cueBallPlacedFromHandRef.current = true;
-          if (hudRef.current?.inHand) {
-            const nextHud = { ...hudRef.current, inHand: false };
-            hudRef.current = nextHud;
-            setHud(nextHud);
-          }
+      if (commit) {
+        cue.active = true;
+        inHandDrag.lastPos = null;
+        cueBallPlacedFromHandRef.current = true;
+        if (hudRef.current?.inHand) {
+          const nextHud = { ...hudRef.current, inHand: false };
+          hudRef.current = nextHud;
+          setHud(nextHud);
         }
-        return true;
-      };
-      const normalizeTargetId = (value) => {
-        const normalized = String(value ?? '').trim().toUpperCase();
-        return normalized.length ? normalized : null;
-      };
-      const parseBallNumber = (colorId) => {
-        const match = /^BALL_(\d+)/.exec(colorId ?? '');
-        return match ? parseInt(match[1], 10) : null;
-      };
-      const mapNumberToGroup = (colorId) => {
-        const num = parseBallNumber(colorId);
-        if (num == null) return null;
-        if (num === 8) return 'BLACK';
-        if (num >= 9) return 'STRIPE';
-        return 'SOLID';
-      };
-      const matchesInHandTarget = (ball, targetId) => {
-        if (!ball || !targetId) return false;
-        const normalizedTarget = normalizeTargetId(targetId);
-        if (!normalizedTarget) return false;
-        const colorId = toBallColorId(ball.id);
-        if (!colorId) return false;
-        const numericGroup = mapNumberToGroup(colorId);
-        if (normalizedTarget === 'BLACK') {
-          return colorId === 'BLACK' || numericGroup === 'BLACK';
-        }
-        if (normalizedTarget === 'SOLID' || normalizedTarget === 'SOLIDS') {
-          return colorId === 'SOLID' || numericGroup === 'SOLID';
-        }
-        if (normalizedTarget === 'STRIPE' || normalizedTarget === 'STRIPES') {
-          return colorId === 'STRIPE' || numericGroup === 'STRIPE';
-        }
-        if (normalizedTarget === 'YELLOW' || normalizedTarget === 'BLUE') {
-          return colorId === 'YELLOW' || colorId === 'BLUE';
-        }
-        if (normalizedTarget === 'BALL_8' || normalizedTarget === '8') {
-          return colorId === 'BLACK' || numericGroup === 'BLACK';
-        }
-        return colorId === normalizedTarget;
-      };
-      const resolveInHandTargets = () => {
-        const snapshot = frameRef.current ?? frameState;
-        const rawTargets = Array.isArray(snapshot?.ballOn) ? snapshot.ballOn : [];
-        const activeBalls = balls.filter((ball) => ball?.active && ball !== cue);
-        if (!rawTargets.length) return activeBalls;
-        const normalizedTargets = rawTargets
-          .map((entry) => normalizeTargetId(entry))
-          .filter(Boolean);
-        if (!normalizedTargets.length) return activeBalls;
-        const filtered = activeBalls.filter((ball) =>
-          normalizedTargets.some((target) => matchesInHandTarget(ball, target))
-        );
-        return filtered.length ? filtered : activeBalls;
-      };
-      const isLineClear = (start, end, ignoreIds = new Set()) => {
-        const delta = end.clone().sub(start);
-        const lenSq = delta.lengthSq();
-        if (lenSq < 1e-6) return true;
-        const len = Math.sqrt(lenSq);
-        const dir = delta.clone().divideScalar(len);
-        const clearanceSq = Math.pow(BALL_R * 2.05, 2);
-        for (const ball of balls) {
-          if (!ball?.active || ignoreIds.has(ball.id) || ball === cue) continue;
-          const rel = ball.pos.clone().sub(start);
-          const proj = THREE.MathUtils.clamp(rel.dot(dir), 0, len);
-          const closest = start.clone().add(dir.clone().multiplyScalar(proj));
-          const distSq = ball.pos.distanceToSquared(closest);
-          if (distSq < clearanceSq) return false;
-        }
-        return true;
-      };
-      const scoreAiInHandCandidate = (candidate, targetBalls) => {
-        if (!candidate) return -Infinity;
-        const maxDistance = Math.max(PLAY_W, PLAY_H);
-        let bestTargetScore = 0;
-        targetBalls.forEach((ball) => {
-          const dist = candidate.distanceTo(ball.pos);
-          const laneClear = isLineClear(candidate, ball.pos, new Set([ball.id]));
-          const distanceScore = 1 - clamp(dist / maxDistance, 0, 1);
-          const laneScore = laneClear ? 1 : 0.3;
-          bestTargetScore = Math.max(
-            bestTargetScore,
-            laneScore * (0.6 + 0.4 * distanceScore)
-          );
-        });
-        let minGap = Infinity;
-        for (const ball of balls) {
-          if (!ball?.active || ball === cue) continue;
-          const dist = candidate.distanceTo(ball.pos);
-          if (dist < minGap) minGap = dist;
-        }
-        const gapScore = Number.isFinite(minGap)
-          ? clamp(minGap / Math.max(BALL_R * 6, 1e-6), 0, 1)
-          : 0;
-        const centerBias =
-          1 - clamp(Math.abs(candidate.y) / Math.max(PLAY_H / 2, 1e-6), 0, 1);
-        return bestTargetScore + gapScore * 0.25 + centerBias * 0.15;
-      };
+      }
+      return true;
+    };
       const findAiInHandPlacement = () => {
         const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
         const forwardBias = Math.max(baulkZ - BALL_R * 0.6, -PLAY_H / 2 + BALL_R);
@@ -20042,39 +19944,36 @@ const powerRef = useRef(hud.power);
           gridCandidates,
           jitterCandidates
         ];
-        const targetBalls = resolveInHandTargets();
         const clearanceLevels = [2.15, 2.1, 2.05, 2.02, 2.0];
         for (const clearance of clearanceLevels) {
-          let bestCandidate = null;
-          let bestScore = -Infinity;
           for (const group of candidateGroups) {
             for (const raw of group) {
               const clamped = clampInHandPosition(raw);
               if (!clamped) continue;
               if (!isSpotFree(clamped, clearance)) continue;
-              const score = scoreAiInHandCandidate(clamped, targetBalls);
-              if (score > bestScore) {
-                bestScore = score;
-                bestCandidate = clamped;
-              }
+              return clamped;
             }
           }
-          if (bestCandidate) return bestCandidate;
         }
         let best = null;
-        let bestScore = -Infinity;
+        let bestGap = -Infinity;
         const combined = candidateGroups.flat();
         for (const raw of combined) {
           const clamped = clampInHandPosition(raw);
           if (!clamped) continue;
-          const score = scoreAiInHandCandidate(clamped, targetBalls);
-          if (score > bestScore) {
-            bestScore = score;
+          let minDist = Infinity;
+          for (const ball of balls) {
+            if (!ball.active || ball === cue) continue;
+            const dist = clamped.distanceTo(ball.pos);
+            if (dist < minDist) minDist = dist;
+          }
+          if (minDist > bestGap) {
+            bestGap = minDist;
             best = clamped;
           }
         }
         if (best) {
-          if (!isSpotFree(best, 2.0)) {
+          if (bestGap < BALL_R * 2.02) {
             let nearest = null;
             let nearestDist = Infinity;
             for (const ball of balls) {
@@ -20124,17 +20023,6 @@ const powerRef = useRef(hud.power);
             }
           } else {
             return best;
-          }
-        }
-        const randomAttempts = 120;
-        for (let i = 0; i < randomAttempts; i += 1) {
-          const randX = (Math.random() * 2 - 1) * (PLAY_W / 2 - BALL_R);
-          const randY = allowFullTableInHand()
-            ? (Math.random() * 2 - 1) * (PLAY_H / 2 - BALL_R)
-            : baulkZ + (Math.random() * 2 - 1) * (D_RADIUS - BALL_R);
-          const candidate = clampInHandPosition(new THREE.Vector2(randX, randY));
-          if (candidate && isSpotFree(candidate, 2.0)) {
-            return candidate;
           }
         }
         const fallback = allowFullTableInHand()
@@ -23571,7 +23459,7 @@ const powerRef = useRef(hud.power);
         }
 
         sidePocketAimRef.current = false;
-        if (canShowCue && (isPlayerTurn || previewingAiShot || aiCueViewActive)) {
+        if (canShowCue && (isPlayerTurn || previewingAiShot)) {
           const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
           else baseAimDir.normalize();
