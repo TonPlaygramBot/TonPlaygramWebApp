@@ -130,7 +130,7 @@ export default function GoalRushLobby() {
               <p className="text-[11px] uppercase tracking-[0.35em] text-emerald-200/70">
                 Goal Rush
               </p>
-              <h2 className="text-2xl font-bold text-white">Modern Lobby</h2>
+              <h2 className="text-2xl font-bold text-white">Goal Rush Lobby</h2>
             </div>
             <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/80">
               Pitch ready
@@ -224,7 +224,7 @@ export default function GoalRushLobby() {
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               {[
                 { id: 'ai', label: 'Vs AI' },
                 { id: 'online', label: '1v1 Online', disabled: true }

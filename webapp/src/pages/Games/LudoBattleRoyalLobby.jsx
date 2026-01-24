@@ -192,7 +192,7 @@ export default function LudoBattleRoyalLobby() {
               <p className="text-[11px] uppercase tracking-[0.35em] text-emerald-200/70">
                 Ludo Battle Royal
               </p>
-              <h2 className="text-2xl font-bold text-white">Modern Lobby</h2>
+              <h2 className="text-2xl font-bold text-white">Ludo Battle Royal Lobby</h2>
             </div>
             <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/80">
               {online != null ? `${online} online` : 'Syncing…'}

@@ -332,7 +332,7 @@ export default function SnookerRoyalLobby() {
               <p className="text-[11px] uppercase tracking-[0.35em] text-sky-200/70">
                 Snooker Royal
               </p>
-              <h2 className="text-2xl font-bold text-white">Modern Lobby</h2>
+              <h2 className="text-2xl font-bold text-white">Snooker Royal Lobby</h2>
             </div>
             <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/80">
               {onlinePlayers.length} online
@@ -386,7 +386,7 @@ export default function SnookerRoyalLobby() {
             <h3 className="font-semibold text-white">Choose Match Type</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-3 gap-3">
             {[
               {
                 id: 'regular',
@@ -441,7 +441,7 @@ export default function SnookerRoyalLobby() {
             <h3 className="font-semibold text-white">Choose Mode</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-3 gap-3">
             {[
               {
                 id: 'ai',
@@ -501,7 +501,7 @@ export default function SnookerRoyalLobby() {
             <h3 className="font-semibold text-white">Table Setup</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Options</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-3">
             {[
               { id: 'uk', label: 'Championship 12 ft', desc: 'Official layout', icon: '🏟️' },
               { id: 'american', label: 'Club 10 ft', desc: 'Local tables', icon: '🎲' },
@@ -553,7 +553,7 @@ export default function SnookerRoyalLobby() {
                 <p className="text-xs text-white/60">Choose the bracket size before launching.</p>
               </div>
             </div>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="mt-3 grid grid-cols-3 gap-3">
               {[8, 16, 24].map((p) => {
                 const active = players === p;
                 return (

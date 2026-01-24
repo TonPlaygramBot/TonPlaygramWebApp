@@ -1,45 +1,47 @@
-import React from 'react';
 import OptionIcon from './OptionIcon.jsx';
 
 export default function TableSelector({ tables, selected, onSelect }) {
   return (
-    <div className="space-y-2">
-      {tables.map((t, idx) => (
-        <React.Fragment key={t.id}>
-          {idx === 1 && tables[0]?.id === 'single' && <div className="h-4" />}
-          <div className="relative">
-          <button
-            onClick={() => !t.disabled && onSelect(t)}
-            disabled={t.disabled}
-            className={`lobby-tile w-full flex justify-between ${
-              selected?.id === t.id ? 'lobby-selected' : ''
-            } ${t.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            <span className="flex items-center gap-2">
-              {(t.icon || t.iconFallback) && (
-                <OptionIcon
-                  src={t.icon}
-                  alt={t.iconAlt || t.label || 'Table'}
-                  fallback={t.iconFallback || '🎲'}
-                  className="h-5 w-5"
-                />
-              )}
-              {t.label || `Table ${t.capacity}p`}
-            </span>
-            {t.capacity && (
-              <span>
-                {t.players}/{t.capacity}
+    <div className="grid grid-cols-3 gap-3">
+      {tables.map((t) => {
+        const isSelected = selected?.id === t.id;
+        const subtitle = t.capacity
+          ? t.players
+            ? `${t.players}/${t.capacity} players`
+            : `${t.capacity} seats`
+          : null;
+        return (
+          <div key={t.id} className="relative">
+            <button
+              onClick={() => !t.disabled && onSelect(t)}
+              disabled={t.disabled}
+              className={`lobby-option-card ${
+                isSelected ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+              } ${t.disabled ? 'lobby-option-card-disabled' : ''}`}
+            >
+              <div className="lobby-option-thumb bg-gradient-to-br from-slate-400/30 via-slate-500/10 to-transparent">
+                <div className="lobby-option-thumb-inner">
+                  <OptionIcon
+                    src={t.icon}
+                    alt={t.iconAlt || t.label || 'Table'}
+                    fallback={t.iconFallback || '🎲'}
+                    className="lobby-option-icon"
+                  />
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="lobby-option-label">{t.label || `Table ${t.capacity || ''}`}</p>
+                {subtitle && <p className="lobby-option-subtitle">{subtitle}</p>}
+              </div>
+            </button>
+            {t.disabled && (
+              <span className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/60 text-xs text-background">
+                Under development
               </span>
             )}
-          </button>
-          {t.disabled && (
-            <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
-              Under development
-            </span>
-          )}
           </div>
-        </React.Fragment>
-      ))}
+        );
+      })}
     </div>
   );
 }

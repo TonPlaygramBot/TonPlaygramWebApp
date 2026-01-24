@@ -111,7 +111,7 @@ export default function MurlanRoyaleLobby() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-[0.35em] text-sky-200/70">Murlan Royale</p>
-              <h2 className="text-2xl font-bold text-white">Modern Lobby</h2>
+              <h2 className="text-2xl font-bold text-white">Murlan Royale Lobby</h2>
             </div>
             <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/80">
               AI ready
@@ -167,7 +167,7 @@ export default function MurlanRoyaleLobby() {
             <h3 className="font-semibold text-white">Choose Mode</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-3 gap-3">
             {[
               {
                 id: 'local',
@@ -258,7 +258,7 @@ export default function MurlanRoyaleLobby() {
             <h3 className="font-semibold text-white">Game Type</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Rules</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-3 gap-3">
             {[
               {
                 id: 'single',
@@ -304,7 +304,7 @@ export default function MurlanRoyaleLobby() {
             })}
           </div>
           {gameType === 'points' && (
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-3 gap-3">
               {[11, 21, 31].map((pts) => (
                 <button
                   key={pts}

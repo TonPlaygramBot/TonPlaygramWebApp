@@ -23,23 +23,29 @@ export const gameThumbnails = {
   ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png'
 };
 
+const buildLobbyIconSet = (keys, icon) =>
+  keys.reduce((acc, key) => {
+    acc[key] = icon;
+    return acc;
+  }, {});
+
 export const lobbyOptionIcons = {
-  texasholdem: {
-    'mode-local': 'lobby/texas-holdem/mode-local.webp',
-    'mode-online': 'lobby/texas-holdem/mode-online.webp',
-    'opponents-1': 'lobby/texas-holdem/opponents-1.webp',
-    'opponents-2': 'lobby/texas-holdem/opponents-2.webp',
-    'opponents-3': 'lobby/texas-holdem/opponents-3.webp',
-    'opponents-4': 'lobby/texas-holdem/opponents-4.webp',
-    'opponents-5': 'lobby/texas-holdem/opponents-5.webp'
-  },
-  'domino-royal': {
-    'players-2': 'lobby/domino-royal/players-2.webp',
-    'players-3': 'lobby/domino-royal/players-3.webp',
-    'players-4': 'lobby/domino-royal/players-4.webp',
-    'mode-local': 'lobby/domino-royal/mode-local.webp',
-    'mode-online': 'lobby/domino-royal/mode-online.webp'
-  },
+  texasholdem: buildLobbyIconSet(
+    [
+      'mode-local',
+      'mode-online',
+      'opponents-1',
+      'opponents-2',
+      'opponents-3',
+      'opponents-4',
+      'opponents-5'
+    ],
+    '/assets/icons/texas-holdem.svg'
+  ),
+  'domino-royal': buildLobbyIconSet(
+    ['players-2', 'players-3', 'players-4', 'mode-local', 'mode-online'],
+    '/assets/icons/domino-royal.svg'
+  ),
   poolroyale: {
     'type-regular': 'lobby/pool-royale/type-regular.webp',
     'type-tournament': 'lobby/pool-royale/type-tournament.webp',
@@ -51,74 +57,89 @@ export const lobbyOptionIcons = {
     'ball-uk': '/assets/icons/8ballrack.png',
     'ball-american': '/assets/icons/American%20Billiards%20.png'
   },
-  snookerroyale: {
-    'type-regular': 'lobby/snooker-royale/type-regular.webp',
-    'type-tournament': 'lobby/snooker-royale/type-tournament.webp',
-    'mode-ai': 'lobby/snooker-royale/mode-ai.webp',
-    'mode-online': 'lobby/snooker-royale/mode-online.webp',
-    'table-championship': 'lobby/snooker-royale/table-championship.webp',
-    'table-club': 'lobby/snooker-royale/table-club.webp',
-    'table-practice': 'lobby/snooker-royale/table-practice.webp'
-  },
-  goalrush: {
-    'type-regular': 'lobby/goal-rush/type-regular.webp',
-    'type-training': 'lobby/goal-rush/type-training.webp',
-    'type-tournament': 'lobby/goal-rush/type-tournament.webp',
-    'mode-ai': 'lobby/goal-rush/mode-ai.webp',
-    'mode-online': 'lobby/goal-rush/mode-online.webp',
-    'target-3': 'lobby/goal-rush/target-3.webp',
-    'target-5': 'lobby/goal-rush/target-5.webp',
-    'target-10': 'lobby/goal-rush/target-10.webp'
-  },
-  airhockey: {
-    'type-regular': 'lobby/air-hockey/type-regular.webp',
-    'type-training': 'lobby/air-hockey/type-training.webp',
-    'type-tournament': 'lobby/air-hockey/type-tournament.webp',
-    'mode-ai': 'lobby/air-hockey/mode-ai.webp',
-    'mode-online': 'lobby/air-hockey/mode-online.webp',
-    'target-11': 'lobby/air-hockey/target-11.webp',
-    'target-21': 'lobby/air-hockey/target-21.webp',
-    'target-31': 'lobby/air-hockey/target-31.webp'
-  },
-  snake: {
-    'board-quick': 'lobby/snake/board-quick.webp',
-    'board-mobile': 'lobby/snake/board-mobile.webp',
-    'board-3d': 'lobby/snake/board-3d.webp',
-    'table-single': 'lobby/snake/table-single.webp',
-    'table-2': 'lobby/snake/table-2.webp',
-    'table-3': 'lobby/snake/table-3.webp',
-    'table-4': 'lobby/snake/table-4.webp',
-    'ai-1': 'lobby/snake/ai-1.webp',
-    'ai-2': 'lobby/snake/ai-2.webp',
-    'ai-3': 'lobby/snake/ai-3.webp'
-  },
-  murlanroyale: {
-    'mode-local': 'lobby/murlan-royale/mode-local.webp',
-    'mode-online': 'lobby/murlan-royale/mode-online.webp',
-    'type-single': 'lobby/murlan-royale/type-single.webp',
-    'type-points': 'lobby/murlan-royale/type-points.webp',
-    'points-11': 'lobby/murlan-royale/points-11.webp',
-    'points-21': 'lobby/murlan-royale/points-21.webp',
-    'points-31': 'lobby/murlan-royale/points-31.webp'
-  },
-  chessbattleroyal: {
-    'mode-ai': 'lobby/chess-battle-royal/mode-ai.webp',
-    'mode-online': 'lobby/chess-battle-royal/mode-online.webp',
-    'queue-instant': 'lobby/chess-battle-royal/queue-instant.webp',
-    'queue-mobile': 'lobby/chess-battle-royal/queue-mobile.webp',
-    'queue-hdr': 'lobby/chess-battle-royal/queue-hdr.webp'
-  },
-  ludobattleroyal: {
-    'queue-instant': 'lobby/ludo-battle-royal/queue-instant.webp',
-    'queue-touch': 'lobby/ludo-battle-royal/queue-touch.webp',
-    'queue-hdr': 'lobby/ludo-battle-royal/queue-hdr.webp',
-    'table-1': 'lobby/ludo-battle-royal/table-1.webp',
-    'table-2': 'lobby/ludo-battle-royal/table-2.webp',
-    'table-4': 'lobby/ludo-battle-royal/table-4.webp',
-    'ai-1': 'lobby/ludo-battle-royal/ai-1.webp',
-    'ai-2': 'lobby/ludo-battle-royal/ai-2.webp',
-    'ai-3': 'lobby/ludo-battle-royal/ai-3.webp'
-  }
+  snookerroyale: buildLobbyIconSet(
+    [
+      'type-regular',
+      'type-tournament',
+      'mode-ai',
+      'mode-online',
+      'table-championship',
+      'table-club',
+      'table-practice'
+    ],
+    '/assets/icons/snooker-royale.svg'
+  ),
+  goalrush: buildLobbyIconSet(
+    [
+      'type-regular',
+      'type-training',
+      'type-tournament',
+      'mode-ai',
+      'mode-online',
+      'target-3',
+      'target-5',
+      'target-10'
+    ],
+    '/assets/icons/goal_rush_card_1200x675.webp'
+  ),
+  airhockey: buildLobbyIconSet(
+    [
+      'type-regular',
+      'type-training',
+      'type-tournament',
+      'mode-ai',
+      'mode-online',
+      'target-11',
+      'target-21',
+      'target-31'
+    ],
+    '/assets/icons/air-hockey.svg'
+  ),
+  snake: buildLobbyIconSet(
+    [
+      'board-quick',
+      'board-mobile',
+      'board-3d',
+      'table-single',
+      'table-2',
+      'table-3',
+      'table-4',
+      'ai-1',
+      'ai-2',
+      'ai-3'
+    ],
+    '/assets/icons/snake_vector_no_bg.webp'
+  ),
+  murlanroyale: buildLobbyIconSet(
+    [
+      'mode-local',
+      'mode-online',
+      'type-single',
+      'type-points',
+      'points-11',
+      'points-21',
+      'points-31'
+    ],
+    '/assets/icons/murlan-royale.svg'
+  ),
+  chessbattleroyal: buildLobbyIconSet(
+    ['mode-ai', 'mode-online', 'queue-instant', 'queue-mobile', 'queue-hdr'],
+    '/assets/icons/chess-royale.svg'
+  ),
+  ludobattleroyal: buildLobbyIconSet(
+    [
+      'queue-instant',
+      'queue-touch',
+      'queue-hdr',
+      'table-1',
+      'table-2',
+      'table-4',
+      'ai-1',
+      'ai-2',
+      'ai-3'
+    ],
+    '/assets/icons/ludo-royale.svg'
+  )
 };
 
 export const variantThumbnails = {
