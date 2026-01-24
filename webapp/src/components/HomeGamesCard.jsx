@@ -5,7 +5,7 @@ export default function HomeGamesCard() {
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card">
       <img
-        src={getGameThumbnail('snake') || '/assets/icons/snakes_and_ladders.webp'}
+        src={getGameThumbnail('snake') || '/assets/icons/Snake%20and%20ladder%20game%20logo.png'}
         className="background-behind-board object-cover"
         alt=""
         onError={(e) => {
@@ -19,11 +19,14 @@ export default function HomeGamesCard() {
           className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
         >
           <img
-            src={getGameThumbnail('texasholdem') || '/assets/icons/texas-holdem.svg'}
+            src={
+              getGameThumbnail('texasholdem') ||
+              '/assets/icons/Texas%20holdem%20poker%20game%20logo.png'
+            }
             alt=""
             className="h-20 w-20"
             onError={(event) => {
-              event.currentTarget.src = '/assets/icons/texas-holdem.svg';
+              event.currentTarget.src = '/assets/icons/Texas%20holdem%20poker%20game%20logo.png';
             }}
           />
           <h3 className="text-sm font-semibold text-center text-yellow-400">
@@ -35,11 +38,14 @@ export default function HomeGamesCard() {
           className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
         >
           <img
-            src={getGameThumbnail('domino-royal') || '/assets/icons/domino-royal.svg'}
+            src={
+              getGameThumbnail('domino-royal') ||
+              '/assets/icons/Domino%20battle%20Royal%20logo.png'
+            }
             alt=""
             className="h-20 w-20"
             onError={(event) => {
-              event.currentTarget.src = '/assets/icons/domino-royal.svg';
+              event.currentTarget.src = '/assets/icons/Domino%20battle%20Royal%20logo.png';
             }}
           />
           <h3 className="text-sm font-semibold text-center text-yellow-400">
@@ -51,11 +57,11 @@ export default function HomeGamesCard() {
           className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
         >
           <img
-            src={getGameThumbnail('poolroyale') || '/assets/icons/pool-royale.svg'}
+            src={getGameThumbnail('poolroyale') || '/assets/icons/Pool%20Royal%20game%20logo.png'}
             alt=""
             className="h-20 w-20"
             onError={(event) => {
-              event.currentTarget.src = '/assets/icons/pool-royale.svg';
+              event.currentTarget.src = '/assets/icons/Pool%20Royal%20game%20logo.png';
             }}
           />
           <h3 className="text-sm font-semibold text-center text-yellow-400">
@@ -87,11 +93,11 @@ export default function HomeGamesCard() {
           className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
         >
           <img
-            src={getGameThumbnail('goalrush') || '/assets/icons/goal_rush_card_1200x675.webp'}
+            src={getGameThumbnail('goalrush') || '/assets/icons/Goal%20rush%20logo.png'}
             alt=""
             className="h-20 w-20"
             onError={(event) => {
-              event.currentTarget.src = '/assets/icons/goal_rush_card_1200x675.webp';
+              event.currentTarget.src = '/assets/icons/Goal%20rush%20logo.png';
             }}
           />
           <h3 className="text-sm font-semibold text-center text-yellow-400">
@@ -103,11 +109,11 @@ export default function HomeGamesCard() {
           className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
         >
           <img
-            src={getGameThumbnail('snake') || '/assets/icons/snakes_and_ladders.webp'}
+            src={getGameThumbnail('snake') || '/assets/icons/Snake%20and%20ladder%20game%20logo.png'}
             alt=""
             className="h-20 w-20"
             onError={(event) => {
-              event.currentTarget.src = '/assets/icons/snakes_and_ladders.webp';
+              event.currentTarget.src = '/assets/icons/Snake%20and%20ladder%20game%20logo.png';
             }}
           />
           <h3 className="text-sm font-semibold text-center text-yellow-400">
