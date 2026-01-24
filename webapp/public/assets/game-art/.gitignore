@@ -1,3 +1,9 @@
 *
 !.gitignore
 !README.md
+!lobby/
+!lobby/pool-royale/
+!lobby/pool-royale/*.svg
+!variants/
+!variants/pool-royale/
+!variants/pool-royale/*.svg
