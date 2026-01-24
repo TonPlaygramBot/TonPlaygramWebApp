@@ -130,8 +130,6 @@ export class CommentaryManager {
   async processEntry(entry) {
     this.processing = true;
     const now = this.now();
-    this.lastSpokenAt = now;
-    this.categoryLastSpoken.set(entry.categoryKey, now);
 
     let result = null;
     try {
@@ -143,6 +141,11 @@ export class CommentaryManager {
       }
     } catch (error) {
       console.warn('Commentary TTS failed', error);
+    }
+
+    if (result) {
+      this.lastSpokenAt = now;
+      this.categoryLastSpoken.set(entry.categoryKey, now);
     }
 
     entry.resolve(result);

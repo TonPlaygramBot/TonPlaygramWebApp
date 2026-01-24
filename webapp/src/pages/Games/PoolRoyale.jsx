@@ -34,6 +34,8 @@ import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { chatBeep } from '../../assets/soundData.js';
+import { CommentaryManager } from '../../commentary/index.js';
+import { WebSpeechTtsService } from '../../commentary/webSpeechTtsService.js';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
@@ -10485,6 +10487,10 @@ function PoolRoyaleGame({
     () => resolvePoolVariant(variantKey, ballSetKey),
     [variantKey, ballSetKey]
   );
+  const commentaryModeKey = useMemo(() => {
+    if (activeVariant?.id === '9ball') return 'nineBall';
+    return 'eightBall';
+  }, [activeVariant?.id]);
   const infoText = useMemo(() => {
     if (activeVariant?.id === 'uk') {
       return 'Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent two shots.';
@@ -11863,6 +11869,9 @@ function PoolRoyaleGame({
   useEffect(() => {
     setFrameState(initialFrame);
   }, [initialFrame]);
+  useEffect(() => {
+    commentaryStartedRef.current = false;
+  }, [initialFrame]);
   const frameRef = useRef(frameState);
   useEffect(() => {
     frameRef.current = frameState;
@@ -12424,6 +12433,9 @@ const powerRef = useRef(hud.power);
   const chessBoardTextureRef = useRef(null);
   const dartboardTextureRef = useRef(null);
   const activeCrowdSoundRef = useRef(null);
+  const commentaryManagerRef = useRef(null);
+  const commentaryServiceRef = useRef(null);
+  const commentaryStartedRef = useRef(false);
   const muteRef = useRef(isGameMuted());
   const volumeRef = useRef(getGameVolume());
   const railSoundTimeRef = useRef(new Map());
@@ -12848,6 +12860,56 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('gameVolumeChanged', handleVolume);
     };
   }, [stopActiveCrowdSound]);
+  useEffect(() => {
+    commentaryServiceRef.current = new WebSpeechTtsService({
+      getMuted: () => muteRef.current,
+      getVolume: () => volumeRef.current,
+      settings: { locale: 'en-US' }
+    });
+    commentaryManagerRef.current = new CommentaryManager({
+      ttsService: commentaryServiceRef.current
+    });
+    return () => {
+      commentaryServiceRef.current?.stop?.();
+      commentaryServiceRef.current = null;
+      commentaryManagerRef.current = null;
+    };
+  }, []);
+  const resolveStartCommentaryContext = useCallback(() => {
+    const frame = frameRef.current || frameState;
+    const activeId = frame?.activePlayer === 'B' ? 'B' : 'A';
+    const opponentId = activeId === 'A' ? 'B' : 'A';
+    const playerNameResolved = frame?.players?.[activeId]?.name || framePlayerAName;
+    const opponentNameResolved = frame?.players?.[opponentId]?.name || framePlayerBName;
+    return {
+      playerName: playerNameResolved,
+      opponentName: opponentNameResolved
+    };
+  }, [framePlayerAName, framePlayerBName, frameState]);
+  const triggerStartCommentary = useCallback(async () => {
+    if (commentaryStartedRef.current) return;
+    const manager = commentaryManagerRef.current;
+    if (!manager) return;
+    const context = resolveStartCommentaryContext();
+    const result = await manager.onEvent(commentaryModeKey, 'break', context);
+    if (result) {
+      commentaryStartedRef.current = true;
+    }
+  }, [commentaryModeKey, resolveStartCommentaryContext]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handlePointer = () => {
+      triggerStartCommentary();
+    };
+    const timer = window.setTimeout(() => {
+      triggerStartCommentary();
+    }, 600);
+    window.addEventListener('pointerdown', handlePointer, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', handlePointer);
+      window.clearTimeout(timer);
+    };
+  }, [triggerStartCommentary]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
