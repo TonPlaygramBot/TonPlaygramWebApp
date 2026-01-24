@@ -1360,8 +1360,20 @@ input:focus {
   @apply h-20 w-20;
 }
 
+.lobby-option-thumb-sm {
+  @apply h-14 w-14 rounded-xl;
+}
+
+.lobby-option-icon-sm {
+  @apply h-10 w-10;
+}
+
 .lobby-option-label {
   @apply text-sm font-semibold;
+}
+
+.lobby-option-label-sm {
+  @apply text-xs;
 }
 
 .lobby-option-subtitle {

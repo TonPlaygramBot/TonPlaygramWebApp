@@ -119,48 +119,26 @@ export default function TexasHoldemLobby() {
               Poker table ready
             </div>
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-[1.2fr_1fr]">
-            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1f2937]/90 to-[#0f172a]/90 p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-400/40 via-sky-400/20 to-indigo-500/40 p-[1px]">
-                  <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
-                    ♠️
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">Dealer&apos;s Lounge</p>
-                  <p className="text-xs text-white/60">
-                    Configure your match while the poker table loads in the background.
-                  </p>
-                </div>
+          <div className="mt-4 rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
+            <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
+                {avatar ? (
+                  <img src={avatar} alt="Your avatar" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-lg">🙂</div>
+                )}
               </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-white/70">
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Instant lobby</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Mobile ready</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Fast dealing</span>
+              <div className="text-sm text-white/80">
+                <p className="font-semibold">Ready to shuffle</p>
+                <p className="text-xs text-white/50">
+                  AI flags: {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : 'Auto'}
+                </p>
               </div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
-              <div className="mt-3 flex items-center gap-3">
-                <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
-                  {avatar ? (
-                    <img src={avatar} alt="Your avatar" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-lg">🙂</div>
-                  )}
-                </div>
-                <div className="text-sm text-white/80">
-                  <p className="font-semibold">Ready to shuffle</p>
-                  <p className="text-xs text-white/50">
-                    AI flags: {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : 'Auto'}
-                  </p>
-                </div>
-              </div>
-              <p className="mt-3 text-xs text-white/60">
-                Your lobby settings carry over as soon as the poker arena finishes loading.
-              </p>
-            </div>
+            <p className="mt-3 text-xs text-white/60">
+              Your lobby settings carry over as soon as the poker arena finishes loading.
+            </p>
           </div>
         </div>
 
@@ -186,7 +164,7 @@ export default function TexasHoldemLobby() {
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-purple-400/40 to-indigo-500/40 p-[1px]">
               <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-lg">
-                🧑‍🤝‍🧑
+                <OptionIcon src="/assets/icons/profile.svg" alt="Opponents" fallback="🧑" className="h-6 w-6" />
               </div>
             </div>
             <div>
@@ -194,7 +172,7 @@ export default function TexasHoldemLobby() {
               <p className="text-xs text-white/60">Choose how many players you want to face.</p>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="mt-4 grid grid-cols-5 gap-2">
             {Array.from({ length: 5 }, (_, idx) => idx + 1).map((count) => {
               const isSelected = opponents === count;
               return (
@@ -206,18 +184,18 @@ export default function TexasHoldemLobby() {
                     isSelected ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
                   }`}
                 >
-                  <div className="lobby-option-thumb bg-gradient-to-br from-emerald-400/30 via-sky-500/10 to-transparent">
+                  <div className="lobby-option-thumb lobby-option-thumb-sm bg-gradient-to-br from-emerald-400/30 via-sky-500/10 to-transparent">
                     <div className="lobby-option-thumb-inner">
                       <OptionIcon
-                        src={getLobbyIcon('texasholdem', `opponents-${count}`)}
+                        src="/assets/icons/profile.svg"
                         alt={`${count} opponents`}
-                        fallback="🂡"
-                        className="lobby-option-icon"
+                        fallback="🧑"
+                        className="lobby-option-icon lobby-option-icon-sm"
                       />
                     </div>
                   </div>
                   <div className="text-center">
-                    <p className="lobby-option-label">VS {count}</p>
+                    <p className="lobby-option-label lobby-option-label-sm">VS {count}</p>
                   </div>
                 </button>
               );
@@ -244,9 +222,9 @@ export default function TexasHoldemLobby() {
           </div>
           <div className="mt-4 grid grid-cols-3 gap-3">
             {[
-              { id: 'local', label: 'Local (AI)' },
-              { id: 'online', label: 'Online', disabled: true }
-            ].map(({ id, label, disabled }) => (
+              { id: 'local', label: 'Local (AI)', iconKey: 'mode-ai' },
+              { id: 'online', label: 'Online', iconKey: 'mode-online', disabled: true }
+            ].map(({ id, label, iconKey, disabled }) => (
               <div key={id} className="relative">
                 <button
                   onClick={() => !disabled && setMode(id)}
@@ -258,7 +236,7 @@ export default function TexasHoldemLobby() {
                   <div className="lobby-option-thumb bg-gradient-to-br from-yellow-400/30 via-orange-500/10 to-transparent">
                     <div className="lobby-option-thumb-inner">
                       <OptionIcon
-                        src={getLobbyIcon('texasholdem', `mode-${id}`)}
+                        src={getLobbyIcon('poolroyale', iconKey)}
                         alt={label}
                         fallback={id === 'local' ? '🤖' : '🌐'}
                         className="lobby-option-icon"
