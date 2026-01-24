@@ -336,34 +336,13 @@ export default function PoolRoyaleLobby() {
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#111827]/90 via-[#0f172a]/80 to-[#0b1324]/90 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.35em] text-sky-200/70">Pool Royale</p>
-              <h2 className="text-2xl font-bold text-white">Modern Lobby</h2>
+              <h2 className="text-2xl font-bold text-white">Pool Royal Lobby</h2>
             </div>
             <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/80">
               {onlinePlayers.length} online
             </div>
           </div>
-          <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_1fr]">
-            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1f2937]/90 to-[#0f172a]/90 p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-400/40 via-sky-400/20 to-indigo-500/40 p-[1px]">
-                  <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
-                    🎱
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">Cue Table Ready</p>
-                  <p className="text-xs text-white/60">
-                    Match setup stays snappy while the arena finishes loading in the background.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-white/70">
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Precision cushions</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Mobile ready</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Tournament ready</span>
-              </div>
-            </div>
+          <div className="mt-4 grid gap-3 lg:grid-cols-1">
             <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
               <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
               <div className="mt-3 flex items-center gap-3">
@@ -453,7 +432,9 @@ export default function PoolRoyaleLobby() {
                     </div>
                   </div>
                   <div>
-                    <p className="text-base font-semibold">{label}</p>
+                    <p className={`font-semibold ${label === 'Tournament' ? 'text-sm' : 'text-base'}`}>
+                      {label}
+                    </p>
                     <p className="text-xs text-white/50">{desc}</p>
                   </div>
                 </button>
@@ -536,19 +517,18 @@ export default function PoolRoyaleLobby() {
                       : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
                   }`}
                 >
-                  <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-amber-400/30 via-sky-500/10 to-transparent p-[1px]">
+                  <div className="h-24 w-24 rounded-2xl bg-gradient-to-br from-amber-400/30 via-sky-500/10 to-transparent p-[1px]">
                     <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220]">
                       <OptionIcon
                         src={getVariantThumbnail('poolroyale', id)}
                         alt={label}
                         fallback="🎱"
-                        className="h-14 w-14"
+                        className="h-16 w-16"
                       />
                     </div>
                   </div>
                   <div>
                     <p className="text-base font-semibold">{label}</p>
-                    <p className="text-xs text-white/50">Official rack layout</p>
                   </div>
                 </button>
               );
@@ -576,25 +556,24 @@ export default function PoolRoyaleLobby() {
                     key={id}
                     type="button"
                     onClick={() => setUkBallSet(id)}
-                    className={`group flex items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
+                    className={`group flex flex-col items-start gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
                       active
                         ? 'border-primary bg-primary/10 text-primary'
                         : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
                     }`}
                   >
-                    <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-amber-400/30 via-rose-500/10 to-transparent p-[1px]">
+                    <div className="h-24 w-24 rounded-2xl bg-gradient-to-br from-amber-400/30 via-rose-500/10 to-transparent p-[1px]">
                       <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220]">
                         <OptionIcon
                           src={getLobbyIcon('poolroyale', `ball-${id}`)}
                           alt={label}
                           fallback={id === 'uk' ? '🟡' : '🔵'}
-                          className="h-12 w-12"
+                          className="h-16 w-16"
                         />
                       </div>
                     </div>
                     <div>
                       <p className="text-base font-semibold">{label}</p>
-                      <p className="text-xs text-white/50">Official rack</p>
                     </div>
                   </button>
                 );
