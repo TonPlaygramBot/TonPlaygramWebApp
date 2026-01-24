@@ -21,6 +21,7 @@ const CHESS_PLAYER_FLAG_KEY = 'chessBattleRoyalPlayerFlag';
 const CHESS_AI_FLAG_KEY = 'chessBattleRoyalAiFlag';
 
 const PLAYER_OPTIONS = [2, 3, 4];
+const HUMAN_ICON_FALLBACK = '🧑‍🤝‍🧑';
 
 export default function DominoRoyalLobby() {
   const navigate = useNavigate();
@@ -145,27 +146,7 @@ export default function DominoRoyalLobby() {
               Double-six set
             </div>
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-[1.2fr_1fr]">
-            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1f2937]/90 to-[#0f172a]/90 p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-400/40 via-sky-400/20 to-indigo-500/40 p-[1px]">
-                  <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
-                    🀄
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">Arena Warmup</p>
-                  <p className="text-xs text-white/60">
-                    Set your domino table while the match scene loads in the background.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-white/70">
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Instant lobby</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Mobile first</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">HDR arena</span>
-              </div>
-            </div>
+          <div className="mt-4">
             <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
               <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
               <div className="mt-3 flex items-center gap-3">
@@ -228,7 +209,7 @@ export default function DominoRoyalLobby() {
                     <OptionIcon
                       src={getLobbyIcon('domino-royal', `players-${value}`)}
                       alt={`${value} players`}
-                      fallback={`${value}`}
+                      fallback={HUMAN_ICON_FALLBACK}
                       className="lobby-option-icon"
                     />
                   </div>
@@ -305,7 +286,12 @@ export default function DominoRoyalLobby() {
           <div className="flex items-start gap-3">
             <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-purple-400/40 to-indigo-500/40 p-[1px]">
               <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
-                🧑‍🤝‍🧑
+                <OptionIcon
+                  src={getLobbyIcon('domino-royal', 'players-2')}
+                  alt="AI avatars"
+                  fallback={HUMAN_ICON_FALLBACK}
+                  className="h-full w-full text-2xl"
+                />
               </div>
             </div>
             <div>
