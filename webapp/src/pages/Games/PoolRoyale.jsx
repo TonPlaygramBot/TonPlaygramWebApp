@@ -20743,14 +20743,7 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(startPos);
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
           const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
-          const followThrough = Math.min(
-            CUE_FOLLOW_THROUGH_MAX,
-            Math.max(
-              CUE_FOLLOW_THROUGH_MIN,
-              visualPull * (0.22 + 0.28 * powerStrength)
-            )
-          );
-          const followThroughPos = buildCuePosition(-followThrough);
+          const holdDuration = isAiStroke ? 40 : 50;
           const forwardDuration = isAiStroke
             ? AI_CUE_FORWARD_DURATION_MS
             : THREE.MathUtils.lerp(
@@ -20758,16 +20751,13 @@ const powerRef = useRef(hud.power);
                 PLAYER_CUE_FORWARD_MIN_MS,
                 forwardBlend
               );
-          const settleDuration = isAiStroke ? 40 : 50;
-          const returnDuration = isAiStroke ? 120 : 160;
           const startTime = performance.now();
           const impactTime = startTime + forwardDuration;
-          const settleTime = impactTime + settleDuration;
-          const returnTime = settleTime + returnDuration;
+          const holdTime = impactTime + holdDuration;
           const forwardPreviewHold =
             impactTime +
             Math.min(
-              settleDuration,
+              holdDuration,
               Math.max(180, forwardDuration * 0.9)
             );
           powerImpactHoldRef.current = Math.max(
@@ -20839,7 +20829,7 @@ const powerRef = useRef(hud.power);
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
               forwardDuration,
-              settleDuration,
+              settleDuration: holdDuration,
               startOffset: strokeStartOffset
             };
           }
@@ -20851,18 +20841,8 @@ const powerRef = useRef(hud.power);
                   : 1;
                 const eased = easeOutCubic(t);
                 cueStick.position.lerpVectors(startPos, impactPos, eased);
-              } else if (now <= settleTime) {
-                const t = settleDuration > 0
-                  ? THREE.MathUtils.clamp((now - impactTime) / settleDuration, 0, 1)
-                  : 1;
-                const eased = easeOutCubic(t);
-                cueStick.position.lerpVectors(impactPos, followThroughPos, eased);
-              } else if (now <= returnTime) {
-                const t = returnDuration > 0
-                  ? THREE.MathUtils.clamp((now - settleTime) / returnDuration, 0, 1)
-                  : 1;
-                const eased = easeOutCubic(t);
-                cueStick.position.lerpVectors(followThroughPos, impactPos, eased);
+              } else if (now <= holdTime) {
+                cueStick.position.copy(impactPos);
               } else {
                 cueStick.visible = false;
                 cueAnimating = false;
