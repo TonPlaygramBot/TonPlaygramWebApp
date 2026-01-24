@@ -43,6 +43,7 @@ export const lobbyOptionIcons = {
     '/assets/icons/texas-holdem.svg'
   ),
   'domino-royal': {
+    'players-1': '/assets/icons/profile.svg',
     'players-2': '/assets/icons/profile.svg',
     'players-3': '/assets/icons/profile.svg',
     'players-4': '/assets/icons/profile.svg',

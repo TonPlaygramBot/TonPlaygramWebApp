@@ -42,9 +42,10 @@ export default function Lobby() {
   const [players, setPlayers] = useState([]);
   const [currentTurn, setCurrentTurn] = useState(null);
   const [aiCount, setAiCount] = useState(0);
-  const [aiType, setAiType] = useState('');
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [flags, setFlags] = useState([]);
+  const [playerFlag, setPlayerFlag] = useState([]);
+  const [flagPickerMode, setFlagPickerMode] = useState('ai');
   const [online, setOnline] = useState(0);
   const [playerName, setPlayerName] = useState('');
   const [playerAvatar, setPlayerAvatar] = useState('');
@@ -90,15 +91,14 @@ export default function Lobby() {
     };
   }, [joinedTableId]);
 
-  const selectAiType = (t) => {
-    setAiType(t);
-    if (t === 'flags') setShowFlagPicker(true);
-    if (t !== 'flags') setFlags([]);
-  };
-
   const openAiFlagPicker = () => {
     if (!aiCount) setAiCount(1);
-    selectAiType('flags');
+    setFlagPickerMode('ai');
+    setShowFlagPicker(true);
+  };
+
+  const openPlayerFlagPicker = () => {
+    setFlagPickerMode('player');
     setShowFlagPicker(true);
   };
 
@@ -125,10 +125,11 @@ export default function Lobby() {
     let cancelled = false;
     const singleTable = {
       id: 'single',
-      label: 'Single Player vs AI',
+      label: '1 Player',
       capacity: 1,
-      icon: getLobbyIcon('snake', 'table-single'),
-      iconFallback: '🎯'
+      icon: getLobbyIcon('domino-royal', 'players-1'),
+      iconFallback: '👤',
+      subtitle: null
     };
 
     const applyTables = (lobbies = []) => {
@@ -136,11 +137,12 @@ export default function Lobby() {
       const multiplayer = lobbies
         .map((entry) => ({
           id: entry.id,
-          label: `Table ${entry.capacity} Players`,
+          label: `${entry.capacity} Players`,
           capacity: entry.capacity,
           players: entry.players || 0,
-          icon: getLobbyIcon('snake', `table-${entry.capacity}`),
-          iconFallback: '🎲'
+          icon: getLobbyIcon('domino-royal', `players-${entry.capacity}`),
+          iconFallback: '👥',
+          subtitle: null
         }))
         .sort((a, b) => a.capacity - b.capacity);
       const nextTables = [singleTable, ...multiplayer];
@@ -336,9 +338,8 @@ export default function Lobby() {
     } else if (game === 'snake' && table?.id === 'single') {
       localStorage.removeItem(`snakeGameState_${aiCount}`);
       params.set('ai', aiCount);
-      params.set('avatars', aiType);
       params.set('token', 'TPC');
-      if (aiType === 'flags' && flagOverride.length) {
+      if (flagOverride.length) {
         params.set('flags', flagOverride.join(','));
       }
       if (stake.amount) params.set('amount', stake.amount);
@@ -374,15 +375,14 @@ export default function Lobby() {
 
   const disabled =
     !stake || !stake.token || !stake.amount ||
-    (game === 'snake' && table?.id === 'single' && !aiType) ||
-    (game === 'snake' &&
-      table?.id === 'single' &&
-      aiType === 'flags' &&
-      flags.length !== aiCount) ||
+    (game === 'snake' && table?.id === 'single' && !aiCount) ||
     matching ||
     isSearching;
 
-  const flagPickerCount = game === 'snake' && table?.id === 'single' ? aiCount : Math.max(aiCount || 1, 1);
+  const aiFlagPickerCount = game === 'snake' && table?.id === 'single'
+    ? Math.max(aiCount || 1, 1)
+    : Math.max(aiCount || 1, 1);
+  const flagPickerCount = flagPickerMode === 'player' ? 1 : aiFlagPickerCount;
 
   const readyIds = new Set(readyList.map((id) => String(id)));
 
@@ -403,29 +403,9 @@ export default function Lobby() {
                 {online != null ? `${online} online` : 'Syncing…'}
               </div>
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-[1.2fr_1fr]">
-              <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1f2937]/90 to-[#0f172a]/90 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-400/40 via-lime-400/20 to-sky-500/40 p-[1px]">
-                    <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
-                      🐍
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">Board Ready</p>
-                    <p className="text-xs text-white/60">
-                      Configure your lobby while the Snake &amp; Ladder board loads in the background.
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-white/70">
-                  <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Quick setup</span>
-                  <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Mobile ready</span>
-                  <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">3D board</span>
-                </div>
-              </div>
+            <div className="mt-4">
               <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
-                <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
+                <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Identity</p>
                 <div className="mt-3 flex items-center gap-3">
                   <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
                     {playerAvatar ? (
@@ -437,9 +417,38 @@ export default function Lobby() {
                   <div className="text-sm text-white/80">
                     <p className="font-semibold">{playerName || 'Player'} ready</p>
                     <p className="text-xs text-white/50">
-                      Flags: {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : 'Auto'}
+                      Player flag: {playerFlag.length ? FLAG_EMOJIS[playerFlag[0]] : 'Auto'} • AI flags:{' '}
+                      {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : 'Auto'}
                     </p>
                   </div>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  <button
+                    type="button"
+                    onClick={openPlayerFlagPicker}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:border-white/30"
+                  >
+                    <div className="text-[11px] uppercase tracking-wide text-white/50">Player Flag</div>
+                    <div className="flex items-center gap-2 text-base font-semibold">
+                      <span className="text-lg">{playerFlag.length ? FLAG_EMOJIS[playerFlag[0]] : '🌐'}</span>
+                      <span>{playerFlag.length ? 'Custom flag' : 'Auto-detect & save'}</span>
+                    </div>
+                  </button>
+                  {table?.id === 'single' && (
+                    <button
+                      type="button"
+                      onClick={openAiFlagPicker}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:border-white/30"
+                    >
+                      <div className="text-[11px] uppercase tracking-wide text-white/50">AI Flags</div>
+                      <div className="flex items-center gap-2 text-base font-semibold">
+                        <span className="text-lg">
+                          {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : '🌐'}
+                        </span>
+                        <span>{flags.length ? 'Custom AI flags' : 'Auto-pick each match'}</span>
+                      </div>
+                    </button>
+                  )}
                 </div>
                 <p className="mt-3 text-xs text-white/60">
                   Your lobby picks will carry into the match intro.
@@ -450,7 +459,7 @@ export default function Lobby() {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-white">Select Table</h3>
+              <h3 className="font-semibold text-white">Vs how many players</h3>
               <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
@@ -478,38 +487,15 @@ export default function Lobby() {
             </p>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-white">AI Avatar Flags</h3>
-              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Identity</span>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-              <p className="text-sm text-white/60 text-center">
-                Pick worldwide flags for the AI opponents to match the Snake &amp; Ladder experience.
-              </p>
-              <button
-                type="button"
-                onClick={openAiFlagPicker}
-                className="mt-3 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-left text-sm text-white/80 transition hover:border-white/30"
-              >
-                <div className="text-[10px] uppercase tracking-[0.35em] text-white/60">AI Flags</div>
-                <div className="mt-2 flex items-center gap-2 text-base font-semibold">
-                  <span className="text-lg">
-                    {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : '🌐'}
-                  </span>
-                  <span>{flags.length ? 'Custom AI avatars' : 'Auto-pick from global flags'}</span>
-                </div>
-              </button>
-            </div>
-          </div>
-
           {table?.id === 'single' && (
             <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-white">AI Opponents</h3>
                 <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Solo</span>
               </div>
-              <p className="text-xs text-white/60">Choose how many AI rivals join your board.</p>
+              <p className="text-xs text-white/60">
+                Choose how many AI rivals join your board. Flags auto-pick each match.
+              </p>
               <div className="mt-3 grid grid-cols-3 gap-3">
                 {[1, 2, 3].map((n) => (
                   <button
@@ -522,9 +508,9 @@ export default function Lobby() {
                     <div className="lobby-option-thumb bg-gradient-to-br from-emerald-400/30 via-sky-500/10 to-transparent">
                       <div className="lobby-option-thumb-inner">
                         <OptionIcon
-                          src={getLobbyIcon('snake', `ai-${n}`)}
-                          alt={`${n} AI`}
-                          fallback="🤖"
+                          src={getLobbyIcon('domino-royal', `players-${n + 1}`)}
+                          alt={`${n + 1} players`}
+                          fallback="👥"
                           className="lobby-option-icon"
                         />
                       </div>
@@ -534,24 +520,6 @@ export default function Lobby() {
                     </div>
                   </button>
                 ))}
-              </div>
-              <div className="mt-4">
-                <h4 className="text-sm font-semibold text-white">AI Avatars</h4>
-                <div className="mt-2 flex gap-2">
-                  {['flags'].map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => selectAiType(t)}
-                      className={`flex-1 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
-                        aiType === t
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
-                      }`}
-                    >
-                      Flags
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
           )}
@@ -628,10 +596,9 @@ export default function Lobby() {
           <FlagPickerModal
             open={showFlagPicker}
             count={flagPickerCount}
-            selected={flags}
-            onSave={setFlags}
+            selected={flagPickerMode === 'player' ? playerFlag : flags}
+            onSave={flagPickerMode === 'player' ? setPlayerFlag : setFlags}
             onClose={() => setShowFlagPicker(false)}
-            onComplete={(sel) => startGame(sel)}
           />
         </div>
       </div>
