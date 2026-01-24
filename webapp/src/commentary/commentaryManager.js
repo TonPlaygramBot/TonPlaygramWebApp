@@ -39,7 +39,7 @@ export class CommentaryManager {
     this.now = now || (() => performance.now());
     this.history = [];
     this.categoryLastSpoken = new Map();
-    this.lastSpokenAt = 0;
+    this.lastSpokenAt = Number.NEGATIVE_INFINITY;
     this.pending = null;
     this.processing = false;
   }
@@ -71,7 +71,7 @@ export class CommentaryManager {
     const globalCooldown = this.database.globalRules?.globalCooldownMs ?? 2500;
     if (now - this.lastSpokenAt < globalCooldown) return null;
     const categoryCooldown = category.cooldownMs ?? 4000;
-    const lastCategoryAt = this.categoryLastSpoken.get(categoryKey) ?? 0;
+    const lastCategoryAt = this.categoryLastSpoken.get(categoryKey) ?? Number.NEGATIVE_INFINITY;
     if (now - lastCategoryAt < categoryCooldown) return null;
 
     const text = this.pickTemplate(category.lines || [], modeKey, categoryKey);
