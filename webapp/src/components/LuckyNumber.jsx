@@ -170,32 +170,34 @@ export default function LuckyNumber() {
                 className="absolute inset-0 rounded-md flex items-center justify-center"
                 style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
               >
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-xl font-bold">
-                  <span
-                    className={`${
-                      card.suit === 'hearts' || card.suit === 'diamonds'
-                        ? 'text-red-500'
-                        : 'text-black'
-                    }`}
-                  >
-                    {card.rank}
-                  </span>
-                  <span
-                    className={`text-2xl ${
-                      card.suit === 'hearts' || card.suit === 'diamonds'
-                        ? 'text-red-500'
-                        : 'text-black'
-                    }`}
-                  >
-                    {card.suit === 'hearts'
-                      ? '♥'
-                      : card.suit === 'spades'
-                      ? '♠'
-                      : card.suit === 'diamonds'
-                      ? '♦'
-                      : '♣'}
-                  </span>
-                </div>
+                {cardPrize && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-xl font-bold">
+                    <span
+                      className={`${
+                        card.suit === 'hearts' || card.suit === 'diamonds'
+                          ? 'text-red-500'
+                          : 'text-black'
+                      }`}
+                    >
+                      {card.rank}
+                    </span>
+                    <span
+                      className={`text-2xl ${
+                        card.suit === 'hearts' || card.suit === 'diamonds'
+                          ? 'text-red-500'
+                          : 'text-black'
+                      }`}
+                    >
+                      {card.suit === 'hearts'
+                        ? '♥'
+                        : card.suit === 'spades'
+                        ? '♠'
+                        : card.suit === 'diamonds'
+                        ? '♦'
+                        : '♣'}
+                    </span>
+                  </div>
+                )}
                 {selected === i && !cardPrize && (
                   <CardSpinner trigger={spinTrigger} onFinish={handleSpinFinish} />
                 )}
