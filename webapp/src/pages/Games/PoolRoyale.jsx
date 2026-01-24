@@ -20743,13 +20743,14 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(startPos);
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
           const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
-          const followThrough = Math.min(
-            CUE_FOLLOW_THROUGH_MAX,
-            Math.max(
-              CUE_FOLLOW_THROUGH_MIN,
-              visualPull * (0.22 + 0.28 * powerStrength)
-            )
-          );
+          const topspinFactor = THREE.MathUtils.clamp(appliedSpin?.y ?? 0, 0, 1);
+          const followThrough =
+            topspinFactor > 1e-4
+              ? Math.min(
+                  CUE_FOLLOW_THROUGH_MAX,
+                  BALL_R * 0.33 * topspinFactor * (0.35 + 0.65 * powerStrength)
+                )
+              : 0;
           const followThroughPos = buildCuePosition(-followThrough);
           const forwardDuration = isAiStroke
             ? AI_CUE_FORWARD_DURATION_MS
