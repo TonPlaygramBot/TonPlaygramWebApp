@@ -409,28 +409,23 @@ export default function SnookerRoyalLobby() {
                   key={id}
                   type="button"
                   onClick={() => setPlayType(id)}
-                  className={`group flex items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
-                    active
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
+                  className={`lobby-option-card ${
+                    active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
                   }`}
                 >
-                  <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
-                    <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
+                  <div className={`lobby-option-thumb bg-gradient-to-br ${accent}`}>
+                    <div className="lobby-option-thumb-inner">
                       <OptionIcon
                         src={getLobbyIcon('snookerroyale', `type-${id}`)}
                         alt={label}
                         fallback={icon}
-                        className="h-8 w-8"
+                        className="lobby-option-icon"
                       />
                     </div>
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-base font-semibold">{label}</span>
-                      {active && <span className="text-[10px] font-bold uppercase">Selected</span>}
-                    </div>
-                    <div className="text-xs text-white/60">{desc}</div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{label}</p>
+                    <p className="lobby-option-subtitle">{desc}</p>
                   </div>
                 </button>
               );
@@ -472,30 +467,25 @@ export default function SnookerRoyalLobby() {
                   type="button"
                   onClick={() => !disabled && setMode(id)}
                   disabled={disabled}
-                  className={`group flex items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
-                    active
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
-                  } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                  className={`lobby-option-card ${
+                    active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                  } ${disabled ? 'lobby-option-card-disabled' : ''}`}
                 >
-                  <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
-                    <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
+                  <div className={`lobby-option-thumb bg-gradient-to-br ${accent}`}>
+                    <div className="lobby-option-thumb-inner">
                       <OptionIcon
                         src={getLobbyIcon('snookerroyale', `mode-${id}`)}
                         alt={label}
                         fallback={icon}
-                        className="h-8 w-8"
+                        className="lobby-option-icon"
                       />
                     </div>
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-base font-semibold">{label}</span>
-                      {active && <span className="text-[10px] font-bold uppercase">Selected</span>}
-                    </div>
-                    <div className="text-xs text-white/60">
+                  <div className="text-center">
+                    <p className="lobby-option-label">{label}</p>
+                    <p className="lobby-option-subtitle">
                       {disabled ? 'Tournament bracket only' : desc}
-                    </div>
+                    </p>
                   </div>
                 </button>
               );
@@ -523,14 +513,12 @@ export default function SnookerRoyalLobby() {
                   key={id}
                   type="button"
                   onClick={() => setVariant(id)}
-                  className={`flex flex-col gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
-                    active
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
+                  className={`lobby-option-card ${
+                    active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
                   }`}
                 >
-                  <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-slate-400/30 via-slate-500/10 to-transparent p-[1px]">
-                    <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
+                  <div className="lobby-option-thumb bg-gradient-to-br from-slate-400/30 via-slate-500/10 to-transparent">
+                    <div className="lobby-option-thumb-inner">
                       <OptionIcon
                         src={getLobbyIcon(
                           'snookerroyale',
@@ -538,16 +526,13 @@ export default function SnookerRoyalLobby() {
                         )}
                         alt={label}
                         fallback={icon}
-                        className="h-7 w-7"
+                        className="lobby-option-icon"
                       />
                     </div>
                   </div>
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">{label}</span>
-                      {active && <span className="text-[10px] font-bold uppercase">Selected</span>}
-                    </div>
-                    <div className="text-xs text-white/60">{desc}</div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{label}</p>
+                    <p className="lobby-option-subtitle">{desc}</p>
                   </div>
                 </button>
               );
@@ -576,13 +561,18 @@ export default function SnookerRoyalLobby() {
                     key={p}
                     type="button"
                     onClick={() => setPlayers(p)}
-                    className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold shadow transition ${
-                      active
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
+                    className={`lobby-option-card ${
+                      active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
                     }`}
                   >
-                    {p} players
+                    <div className="lobby-option-thumb bg-gradient-to-br from-purple-400/30 via-indigo-500/10 to-transparent">
+                      <div className="lobby-option-thumb-inner">
+                        <span className="text-2xl font-semibold">{p}</span>
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <p className="lobby-option-label">{p} Players</p>
+                    </div>
                   </button>
                 );
               })}

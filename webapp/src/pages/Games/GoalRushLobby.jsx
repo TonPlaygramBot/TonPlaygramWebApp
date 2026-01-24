@@ -185,7 +185,7 @@ export default function GoalRushLobby() {
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Play</span>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-3 gap-3">
               {[
                 { id: 'regular', label: 'Regular' },
                 { id: 'training', label: 'Training' },
@@ -194,17 +194,23 @@ export default function GoalRushLobby() {
                 <button
                   key={id}
                   onClick={() => setPlayType(id)}
-                  className={`lobby-tile ${playType === id ? 'lobby-selected' : ''}`}
+                  className={`lobby-option-card ${
+                    playType === id ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                  }`}
                 >
-                  <span className="flex items-center gap-2">
-                    <OptionIcon
-                      src={getLobbyIcon('goalrush', `type-${id}`)}
-                      alt={label}
-                      fallback={id === 'regular' ? '🎯' : id === 'training' ? '🛠️' : '🏆'}
-                      className="h-5 w-5"
-                    />
-                    {label}
-                  </span>
+                  <div className="lobby-option-thumb bg-gradient-to-br from-emerald-400/30 via-emerald-500/10 to-transparent">
+                    <div className="lobby-option-thumb-inner">
+                      <OptionIcon
+                        src={getLobbyIcon('goalrush', `type-${id}`)}
+                        alt={label}
+                        fallback={id === 'regular' ? '🎯' : id === 'training' ? '🛠️' : '🏆'}
+                        className="lobby-option-icon"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{label}</p>
+                  </div>
                 </button>
               ))}
             </div>
@@ -213,44 +219,44 @@ export default function GoalRushLobby() {
 
         {playType !== 'training' && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-white">Mode</h3>
-              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { id: 'ai', label: 'Vs AI' },
-                  { id: 'online', label: '1v1 Online', disabled: true }
-                ].map(({ id, label, disabled }) => (
-                  <div key={id} className="relative">
-                    <button
-                      onClick={() => !disabled && setMode(id)}
-                      className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
-                        disabled ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                      disabled={disabled}
-                    >
-                      <span className="flex items-center gap-2">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-white">Mode</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { id: 'ai', label: 'Vs AI' },
+                { id: 'online', label: '1v1 Online', disabled: true }
+              ].map(({ id, label, disabled }) => (
+                <div key={id} className="relative">
+                  <button
+                    onClick={() => !disabled && setMode(id)}
+                    className={`lobby-option-card ${
+                      mode === id ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                    } ${disabled ? 'lobby-option-card-disabled' : ''}`}
+                    disabled={disabled}
+                  >
+                    <div className="lobby-option-thumb bg-gradient-to-br from-sky-400/30 via-indigo-500/10 to-transparent">
+                      <div className="lobby-option-thumb-inner">
                         <OptionIcon
                           src={getLobbyIcon('goalrush', `mode-${id}`)}
                           alt={label}
                           fallback={id === 'ai' ? '🤖' : '🌐'}
-                          className="h-5 w-5"
+                          className="lobby-option-icon"
                         />
-                        {label}
-                      </span>
-                    </button>
-                    {disabled && (
-                      <span className="absolute inset-0 flex items-center justify-center text-xs bg-black/60 text-background">
-                        Under development
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <p className="lobby-option-label">{label}</p>
+                      {disabled && <p className="lobby-option-subtitle">Under development</p>}
+                    </div>
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
+        </div>
         )}
 
         <div className="space-y-3">
@@ -259,22 +265,28 @@ export default function GoalRushLobby() {
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Target</span>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-3 gap-3">
               {[3, 5, 10].map((g) => (
                 <button
                   key={g}
                   onClick={() => setGoal(g)}
-                  className={`lobby-tile ${goal === g ? 'lobby-selected' : ''}`}
+                  className={`lobby-option-card ${
+                    goal === g ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                  }`}
                 >
-                  <span className="flex items-center gap-2">
-                    <OptionIcon
-                      src={getLobbyIcon('goalrush', `target-${g}`)}
-                      alt={`${g} goals`}
-                      fallback="🥅"
-                      className="h-5 w-5"
-                    />
-                    {g}
-                  </span>
+                  <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/30 via-rose-500/10 to-transparent">
+                    <div className="lobby-option-thumb-inner">
+                      <OptionIcon
+                        src={getLobbyIcon('goalrush', `target-${g}`)}
+                        alt={`${g} goals`}
+                        fallback="🥅"
+                        className="lobby-option-icon"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{g} Goals</p>
+                  </div>
                 </button>
               ))}
             </div>
@@ -283,24 +295,33 @@ export default function GoalRushLobby() {
 
         {playType === 'tournament' && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-white">Players</h3>
-              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Bracket</span>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-white">Players</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Bracket</span>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow space-y-2">
+            <div className="grid grid-cols-3 gap-3">
+              {[8, 16, 24].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPlayers(p)}
+                  className={`lobby-option-card ${
+                    players === p ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                  }`}
+                >
+                  <div className="lobby-option-thumb bg-gradient-to-br from-purple-400/30 via-indigo-500/10 to-transparent">
+                    <div className="lobby-option-thumb-inner">
+                      <span className="text-2xl font-semibold">{p}</span>
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{p} Players</p>
+                  </div>
+                </button>
+              ))}
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow space-y-2">
-              <div className="flex flex-wrap gap-2">
-                {[8, 16, 24].map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setPlayers(p)}
-                    className={`lobby-tile ${players === p ? 'lobby-selected' : ''}`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-white/60">Winner takes pot minus 10% developer fee.</p>
-            </div>
+            <p className="text-xs text-white/60">Winner takes pot minus 10% developer fee.</p>
+          </div>
           </div>
         )}
 

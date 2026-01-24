@@ -219,28 +219,23 @@ export default function DominoRoyalLobby() {
                 key={value}
                 type="button"
                 onClick={() => setPlayerCount(value)}
-                className={`flex items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
-                  playerCount === value
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
+                className={`lobby-option-card ${
+                  playerCount === value ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
                 }`}
               >
-                <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-slate-400/30 via-slate-500/10 to-transparent p-[1px]">
-                  <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
+                <div className="lobby-option-thumb bg-gradient-to-br from-slate-400/30 via-slate-500/10 to-transparent">
+                  <div className="lobby-option-thumb-inner">
                     <OptionIcon
                       src={getLobbyIcon('domino-royal', `players-${value}`)}
                       alt={`${value} players`}
                       fallback={`${value}`}
-                      className="h-7 w-7"
+                      className="lobby-option-icon"
                     />
                   </div>
                 </div>
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">{value} Players</span>
-                    {playerCount === value && <span className="text-[10px] font-bold uppercase">Selected</span>}
-                  </div>
-                  <div className="text-xs text-white/60">Local table seats</div>
+                <div className="text-center">
+                  <p className="lobby-option-label">{value} Players</p>
+                  <p className="lobby-option-subtitle">Local table seats</p>
                 </div>
               </button>
             ))}
@@ -274,39 +269,29 @@ export default function DominoRoyalLobby() {
               const active = mode === id;
               return (
                 <div key={id} className="relative">
-                <button
-                  type="button"
-                  onClick={() => !disabled && setMode(id)}
-                  className={`group flex w-full items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
-                    active
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
-                  } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
-                  disabled={disabled}
-                >
-                  <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
-                    <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
-                      <OptionIcon
-                        src={getLobbyIcon('domino-royal', `mode-${id}`)}
-                        alt={label}
-                        fallback={icon}
-                        className="h-8 w-8"
-                      />
-                    </div>
-                  </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-base font-semibold">{label}</span>
-                        {active && <span className="text-[10px] font-bold uppercase">Selected</span>}
+                  <button
+                    type="button"
+                    onClick={() => !disabled && setMode(id)}
+                    className={`lobby-option-card ${
+                      active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                    } ${disabled ? 'lobby-option-card-disabled' : ''}`}
+                    disabled={disabled}
+                  >
+                    <div className={`lobby-option-thumb bg-gradient-to-br ${accent}`}>
+                      <div className="lobby-option-thumb-inner">
+                        <OptionIcon
+                          src={getLobbyIcon('domino-royal', `mode-${id}`)}
+                          alt={label}
+                          fallback={icon}
+                          className="lobby-option-icon"
+                        />
                       </div>
-                      <div className="text-xs text-white/60">{desc}</div>
+                    </div>
+                    <div className="text-center">
+                      <p className="lobby-option-label">{label}</p>
+                      <p className="lobby-option-subtitle">{disabled ? 'Under development' : desc}</p>
                     </div>
                   </button>
-                  {disabled && (
-                    <span className="absolute inset-0 flex items-center justify-center text-xs text-white/80">
-                      Under development
-                    </span>
-                  )}
                 </div>
               );
             })}

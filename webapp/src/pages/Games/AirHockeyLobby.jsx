@@ -190,28 +190,23 @@ export default function AirHockeyLobby() {
                   key={id}
                   type="button"
                   onClick={() => setPlayType(id)}
-                  className={`flex items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
-                    active
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
+                  className={`lobby-option-card ${
+                    active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
                   }`}
                 >
-                  <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-sky-400/30 via-indigo-400/20 to-transparent p-[1px]">
-                    <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
+                  <div className="lobby-option-thumb bg-gradient-to-br from-sky-400/30 via-indigo-400/20 to-transparent">
+                    <div className="lobby-option-thumb-inner">
                       <OptionIcon
                         src={getLobbyIcon('airhockey', `type-${id}`)}
                         alt={label}
                         fallback={icon}
-                        className="h-7 w-7"
+                        className="lobby-option-icon"
                       />
                     </div>
                   </div>
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">{label}</span>
-                      {active && <span className="text-[10px] font-bold uppercase">Selected</span>}
-                    </div>
-                    <div className="text-xs text-white/60">{desc}</div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{label}</p>
+                    <p className="lobby-option-subtitle">{desc}</p>
                   </div>
                 </button>
               );
@@ -236,36 +231,26 @@ export default function AirHockeyLobby() {
                     <button
                       type="button"
                       onClick={() => !disabled && setMode(id)}
-                      className={`group flex w-full items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
-                        active
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
-                      } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
+                      className={`lobby-option-card ${
+                        active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                      } ${disabled ? 'lobby-option-card-disabled' : ''}`}
                       disabled={disabled}
                     >
-                      <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-400/30 via-sky-400/20 to-transparent p-[1px]">
-                        <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
+                      <div className="lobby-option-thumb bg-gradient-to-br from-emerald-400/30 via-sky-400/20 to-transparent">
+                        <div className="lobby-option-thumb-inner">
                           <OptionIcon
                             src={getLobbyIcon('airhockey', `mode-${id}`)}
                             alt={label}
                             fallback={icon}
-                            className="h-7 w-7"
+                            className="lobby-option-icon"
                           />
                         </div>
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-base font-semibold">{label}</span>
-                          {active && <span className="text-[10px] font-bold uppercase">Selected</span>}
-                        </div>
-                        <div className="text-xs text-white/60">{desc}</div>
+                      <div className="text-center">
+                        <p className="lobby-option-label">{label}</p>
+                        <p className="lobby-option-subtitle">{disabled ? 'Under development' : desc}</p>
                       </div>
                     </button>
-                    {disabled && (
-                      <span className="absolute inset-0 flex items-center justify-center rounded-2xl text-xs text-white/70">
-                        Under development
-                      </span>
-                    )}
                   </div>
                 );
               })}
@@ -286,20 +271,22 @@ export default function AirHockeyLobby() {
                   key={g}
                   type="button"
                   onClick={() => setGoal(g)}
-                  className={`rounded-2xl border px-4 py-3 text-center font-semibold shadow transition ${
-                    active
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
+                  className={`lobby-option-card ${
+                    active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
                   }`}
                 >
-                  <div className="flex items-center justify-center gap-2">
-                    <OptionIcon
-                      src={getLobbyIcon('airhockey', `target-${g}`)}
-                      alt={`First to ${g}`}
-                      fallback="🏁"
-                      className="h-5 w-5"
-                    />
-                    First to {g}
+                  <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/30 via-rose-500/10 to-transparent">
+                    <div className="lobby-option-thumb-inner">
+                      <OptionIcon
+                        src={getLobbyIcon('airhockey', `target-${g}`)}
+                        alt={`First to ${g}`}
+                        fallback="🏁"
+                        className="lobby-option-icon"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">First to {g}</p>
                   </div>
                 </button>
               );
@@ -328,13 +315,18 @@ export default function AirHockeyLobby() {
                     key={p}
                     type="button"
                     onClick={() => setPlayers(p)}
-                    className={`rounded-2xl border px-4 py-3 text-center font-semibold shadow transition ${
-                      active
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
+                    className={`lobby-option-card ${
+                      active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
                     }`}
                   >
-                    {p} Players
+                    <div className="lobby-option-thumb bg-gradient-to-br from-purple-400/30 via-indigo-500/10 to-transparent">
+                      <div className="lobby-option-thumb-inner">
+                        <span className="text-2xl font-semibold">{p}</span>
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <p className="lobby-option-label">{p} Players</p>
+                    </div>
                   </button>
                 );
               })}
