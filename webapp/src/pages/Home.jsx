@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import TasksCard from '../components/TasksCard.jsx';
 import NftGiftCard from '../components/NftGiftCard.jsx';
@@ -33,7 +33,6 @@ import TonConnectButton from '../components/TonConnectButton.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
 import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
-import { cacheOfflineAssets, isTelegramEnvironment, shouldAutoWarmOfflineCache } from '../pwa/offlineCache.js';
 
 
 export default function Home() {
@@ -41,61 +40,10 @@ export default function Home() {
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
-  const baseUrl = useMemo(() => import.meta.env.BASE_URL || '/', []);
-  const launcherUrl = useMemo(
-    () => import.meta.env.VITE_LAUNCHER_URL || `${baseUrl}tonplaygram-launcher.apk`,
-    [baseUrl]
-  );
-  const [pwaDownloadStatus, setPwaDownloadStatus] = useState({ state: 'idle', message: '' });
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
   const [tonConnectUI] = useTonConnectUI();
-
-  const handlePwaDownload = useCallback(async ({ autoTriggered = false, isUpdate = false } = {}) => {
-    setPwaDownloadStatus({
-      state: 'working',
-      message: autoTriggered
-        ? isUpdate
-          ? 'Updating cached assets…'
-          : 'Preparing Telegram offline package…'
-        : 'Preparing offline download…'
-    });
-
-    try {
-      const result = await cacheOfflineAssets({
-        baseUrl,
-        onUpdate: ({ completed, total }) => {
-          setPwaDownloadStatus({
-            state: 'working',
-            message: `Caching assets (${completed}/${total})…`
-          });
-        }
-      });
-
-      setPwaDownloadStatus({
-        state: 'ready',
-        message: `Cached ${result.successes} of ${result.total} files. The PWA should start faster and work better offline.`
-      });
-    } catch (err) {
-      console.error('PWA offline download failed', err);
-      setPwaDownloadStatus({
-        state: 'error',
-        message:
-          'Offline download is unavailable right now. Please try again from the Telegram in-app browser after reloading.'
-      });
-    }
-  }, [baseUrl]);
-
-
-  useEffect(() => {
-    if (isTelegramEnvironment()) {
-      const { shouldWarm, isUpdate } = shouldAutoWarmOfflineCache();
-      if (shouldWarm) {
-        handlePwaDownload({ autoTriggered: true, isUpdate });
-      }
-    }
-  }, [handlePwaDownload]);
 
   useEffect(() => {
     ping()
@@ -253,76 +201,35 @@ export default function Home() {
         </div>
         <ProjectAchievementsCard />
 
-      <div className="flex justify-center space-x-4 mt-4">
-        <a
-          href="https://x.com/TonPlaygram?t=SyGyXA0H8PdLz7z2kfIWQw&s=09"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {xIcon}
-        </a>
-        <a
-          href="https://t.me/TonPlaygram"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <RiTelegramFill className="text-sky-400 w-6 h-6" />
-        </a>
-        <a
-          href="https://www.tiktok.com/@tonplaygram?_t=ZS-8xxPL1nbD9U&_r=1"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <IoLogoTiktok className="text-pink-500 w-6 h-6" />
-        </a>
-      </div>
-
       <div className="mt-4 bg-surface border border-border rounded-xl p-4 space-y-3">
         <div className="text-center space-y-1">
-          <h3 className="text-lg font-semibold text-white">Telegram PWA setup</h3>
+          <h3 className="text-lg font-semibold text-white">Tokenomics & Fee Split</h3>
           <p className="text-sm text-subtext">
-            Cache every in-game image and sound so the Telegram mini app behaves like a downloaded app.
-          </p>
-          <p className="text-[11px] text-subtext">
-            We auto-start this download inside Telegram; tap again if you want to retry.
+            We charge a 10% platform fee on paid matches and premium purchases to keep the ecosystem sustainable.
           </p>
         </div>
-        <div className="space-y-3">
-          <button
-            type="button"
-            onClick={() => handlePwaDownload()}
-            className="w-full inline-flex items-center justify-center px-3 py-2 text-sm font-semibold bg-primary text-surface rounded-full shadow-primary/40 hover:shadow-primary/60 shadow disabled:opacity-60 disabled:cursor-not-allowed"
-            disabled={pwaDownloadStatus.state === 'working'}
-          >
-            {pwaDownloadStatus.state === 'working' ? 'Downloading assets…' : 'Download Telegram asset pack'}
-          </button>
-          {pwaDownloadStatus.message && (
-            <p
-              className={`text-xs text-center ${
-                pwaDownloadStatus.state === 'error'
-                  ? 'text-red-400'
-                  : pwaDownloadStatus.state === 'ready'
-                    ? 'text-green-400'
-                    : 'text-subtext'
-              }`}
-            >
-              {pwaDownloadStatus.message}
-            </p>
-          )}
-          <div className="space-y-1 text-xs text-subtext text-left bg-background/50 border border-border rounded-lg p-3">
-            <p className="text-white font-semibold text-sm">Add to home screen</p>
-            <p>1) Tap the browser menu and choose &quot;Add to Home screen&quot; to pin the web app like an app.</p>
-            <p>2) On Android, you can also install the lightweight launcher APK for faster opening:</p>
-            <a
-              href={launcherUrl}
-              className="text-primary font-semibold underline"
-              download
-            >
-              Download launcher APK
-            </a>
-            <p className="italic text-[11px] text-subtext">
-              The APK link updates automatically when a new signed launcher is published.
-            </p>
+        <div className="space-y-2 text-xs text-subtext text-left bg-background/50 border border-border rounded-lg p-3">
+          <div className="flex items-start justify-between gap-4">
+            <p className="text-white font-semibold text-sm">Total platform fee</p>
+            <span className="text-white font-semibold text-sm">10%</span>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-start justify-between gap-4">
+              <p>4% Player rewards & prize pool boosts.</p>
+              <span className="text-white font-semibold">4%</span>
+            </div>
+            <div className="flex items-start justify-between gap-4">
+              <p>3% Treasury & liquidity to stabilize TPC markets.</p>
+              <span className="text-white font-semibold">3%</span>
+            </div>
+            <div className="flex items-start justify-between gap-4">
+              <p>2% Development & infrastructure (servers, anti-cheat, updates).</p>
+              <span className="text-white font-semibold">2%</span>
+            </div>
+            <div className="flex items-start justify-between gap-4">
+              <p>1% Marketing & community growth initiatives.</p>
+              <span className="text-white font-semibold">1%</span>
+            </div>
           </div>
         </div>
       </div>
@@ -348,6 +255,29 @@ export default function Home() {
           Thank you for your support and patience as we continue building the
           future of crypto gaming. 🚀
         </p>
+      </div>
+      <div className="flex justify-center space-x-4 mt-4">
+        <a
+          href="https://x.com/TonPlaygram?t=SyGyXA0H8PdLz7z2kfIWQw&s=09"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {xIcon}
+        </a>
+        <a
+          href="https://t.me/TonPlaygram"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <RiTelegramFill className="text-sky-400 w-6 h-6" />
+        </a>
+        <a
+          href="https://www.tiktok.com/@tonplaygram?_t=ZS-8xxPL1nbD9U&_r=1"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <IoLogoTiktok className="text-pink-500 w-6 h-6" />
+        </a>
       </div>
     </div>
 
