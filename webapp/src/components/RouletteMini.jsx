@@ -67,7 +67,7 @@ const RED_NUMBERS = new Set([
 ]);
 
 const SEGMENT_ANGLE = 360 / ROULETTE_ORDER.length;
-
+const LABEL_OFFSET_ANGLE = -90 + SEGMENT_ANGLE / 2;
 const PRIZE_MAP = ROULETTE_ORDER.reduce((acc, value) => {
   if (value === 0) acc[value] = 5000;
   else acc[value] = value * 100;
@@ -239,16 +239,16 @@ export default function RouletteMini() {
         }}
       />
       <h3 className="text-lg font-bold text-white">Roulette Spin</h3>
-      <div className="relative mx-auto w-64 h-64 sm:w-72 sm:h-72">
+      <div className="relative mx-auto w-72 h-72 sm:w-80 sm:h-80">
         <div className="absolute left-1/2 -translate-x-1/2 -top-3 z-20 flex flex-col items-center">
           <div className="w-0 h-0 border-l-[10px] border-r-[10px] border-b-[18px] border-l-transparent border-r-transparent border-b-yellow-400 drop-shadow" />
           <div className="w-2 h-2 bg-yellow-400 rounded-full mt-1" />
         </div>
         <div
-          className="relative w-full h-full rounded-full border-[6px] border-border shadow-inner flex items-center justify-center overflow-hidden"
+          className="relative w-full h-full rounded-full border-[3px] border-yellow-400/80 shadow-inner flex items-center justify-center overflow-hidden [--roulette-label-radius:120px] sm:[--roulette-label-radius:136px] will-change-transform"
           style={{
             background: wheelBackground,
-            transform: `rotate(${spinState.rotation}deg)`,
+            transform: `translateZ(0) rotate(${spinState.rotation}deg)`,
             transition: spinning
               ? 'transform 4.5s cubic-bezier(0.22, 1, 0.36, 1)'
               : 'transform 0s',
@@ -256,31 +256,33 @@ export default function RouletteMini() {
         >
           <div className="absolute inset-[6%] rounded-full border-2 border-red-500/80 pointer-events-none" />
           {ROULETTE_ORDER.map((num, idx) => {
-            const angle = idx * SEGMENT_ANGLE;
+            const angle = idx * SEGMENT_ANGLE + LABEL_OFFSET_ANGLE;
             const isWinning = outcome?.number === num;
             return (
               <div
                 key={num}
                 className="absolute top-1/2 left-1/2"
                 style={{
-                  transform: `rotate(${angle}deg) translateY(-48%)`,
+                  transform: `rotate(${angle}deg) translateY(calc(-1 * var(--roulette-label-radius)))`,
                   transformOrigin: '0 0',
                 }}
               >
                 <div
-                  className={`px-1 py-[1px] text-[11px] sm:text-xs font-bold rounded-full ${
+                  className={`px-1 py-[1px] text-[10px] sm:text-xs font-bold rounded-full ${
                     isWinning
                       ? 'bg-yellow-400 text-black shadow-lg'
                       : 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]'
                   }`}
-                  style={{ transform: `rotate(${-angle}deg)` }}
+                  style={{
+                    transform: `translate(-50%, -50%) rotate(${-angle}deg)`,
+                  }}
                 >
                   {num}
                 </div>
               </div>
             );
           })}
-          <div className="absolute inset-[28%] rounded-full bg-surface/85 border border-border flex flex-col items-center justify-center text-xs text-subtext space-y-1">
+          <div className="absolute inset-[28%] rounded-full bg-surface/85 border border-yellow-400/80 flex flex-col items-center justify-center text-xs text-subtext space-y-1">
             <span className="uppercase tracking-wide">TPC Rewards</span>
             <span className="text-sm font-semibold text-white">
               {outcome ? `+${formatPrize(outcome.prize)} TPC` : 'Spin to win'}

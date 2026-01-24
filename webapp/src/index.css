@@ -115,6 +115,12 @@ body.mining-page button {
   @apply text-white-shadow;
 }
 
+.mining-page-content {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
 input {
   border-color: #facc15;
   color: #facc15;
