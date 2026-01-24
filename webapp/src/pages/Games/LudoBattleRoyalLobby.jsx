@@ -127,12 +127,6 @@ export default function LudoBattleRoyalLobby() {
     }
   };
 
-  const handleAiCountSelect = (count) => {
-    setAiCount(count);
-    const matched = TABLES.find((option) => option.capacity === count + 1);
-    if (matched) setTable(matched);
-  };
-
   const buildAutoFlags = (count, selection = []) => {
     const desired = Math.max(1, count || 1);
     const pool = FLAG_EMOJIS.map((_, idx) => idx);
@@ -274,16 +268,6 @@ export default function LudoBattleRoyalLobby() {
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">VS How Many Players</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Players</span>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-            <TableSelector tables={TABLES} selected={table} onSelect={handleTableSelect} />
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Match Mode</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
           </div>
@@ -325,38 +309,11 @@ export default function LudoBattleRoyalLobby() {
         {matchMode === 'local' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-white">Local vs AI Settings</h3>
-              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Solo</span>
+              <h3 className="font-semibold text-white">VS How Many Players</h3>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Players</span>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow space-y-3">
-              <div>
-                <h4 className="font-semibold text-white text-sm">How many AI opponents?</h4>
-                <div className="mt-2 grid grid-cols-3 gap-3">
-                  {[1, 2, 3].map((n) => (
-                    <button
-                      key={n}
-                      onClick={() => handleAiCountSelect(n)}
-                      className={`lobby-option-card ${
-                        aiCount === n ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
-                      }`}
-                    >
-                      <div className="lobby-option-thumb bg-gradient-to-br from-emerald-400/30 via-sky-500/10 to-transparent">
-                        <div className="lobby-option-thumb-inner">
-                          <OptionIcon
-                            src={getLobbyIcon('ludobattleroyal', `ai-${n}`)}
-                            alt={`${n} AI`}
-                            fallback="🤖"
-                            className="lobby-option-icon"
-                          />
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <p className="lobby-option-label">{n} AI</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+              <TableSelector tables={TABLES} selected={table} onSelect={handleTableSelect} />
             </div>
           </div>
         )}
