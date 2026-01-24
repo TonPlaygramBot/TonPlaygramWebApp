@@ -8,7 +8,14 @@ const DPR_CAP = 1.75;
 const DIE_SIZE = 1;
 const DICE_RADIUS = 0.12;
 const DICE_SEGMENTS = 6;
-const DIE_COLOR = 0xf3f4f6;
+const DIE_COLOR = 0xffffff;
+const DICE_PIP_RADIUS = DIE_SIZE * 0.093;
+const DICE_PIP_DEPTH = DIE_SIZE * 0.018;
+const DICE_PIP_SPREAD = DIE_SIZE * 0.3;
+const DICE_FACE_INSET = DIE_SIZE * 0.064;
+const DICE_PIP_RIM_INNER = DICE_PIP_RADIUS * 0.78;
+const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
+const DICE_PIP_RIM_OFFSET = DIE_SIZE * 0.0048;
 const BACKGROUND_COLOR = 0x0b0f1a;
 
 const orientationMap = (() => {
@@ -22,67 +29,66 @@ const orientationMap = (() => {
   return map;
 })();
 
-function placePips(group, pipMaterial, geometrySet) {
-  const pipRadius = 0.1;
+function placePips(group, pipMaterial, rimMaterial, geometrySet) {
   const pipGeo = new THREE.SphereGeometry(
-    pipRadius,
+    DICE_PIP_RADIUS,
     36,
     24,
     0,
     Math.PI * 2,
     0,
-    Math.PI / 2
+    Math.PI
   );
   pipGeo.rotateX(Math.PI);
   pipGeo.computeVertexNormals();
+  const rimGeo = new THREE.RingGeometry(DICE_PIP_RIM_INNER, DICE_PIP_RIM_OUTER, 64);
   const surface = DIE_SIZE / 2;
-  const embedOffset = 0.01;
-  const rimOffset = surface - embedOffset;
+  const faceDepth = surface - DICE_FACE_INSET * 0.6;
   const faceDefinitions = [
     { normal: new THREE.Vector3(0, 1, 0), points: [[0, 0]] },
     {
       normal: new THREE.Vector3(0, 0, 1),
       points: [
-        [-0.3, -0.3],
-        [0.3, 0.3]
+        [-DICE_PIP_SPREAD, -DICE_PIP_SPREAD],
+        [DICE_PIP_SPREAD, DICE_PIP_SPREAD]
       ]
     },
     {
       normal: new THREE.Vector3(1, 0, 0),
       points: [
-        [-0.3, -0.3],
+        [-DICE_PIP_SPREAD, -DICE_PIP_SPREAD],
         [0, 0],
-        [0.3, 0.3]
+        [DICE_PIP_SPREAD, DICE_PIP_SPREAD]
       ]
     },
     {
       normal: new THREE.Vector3(-1, 0, 0),
       points: [
-        [-0.3, -0.3],
-        [-0.3, 0.3],
-        [0.3, -0.3],
-        [0.3, 0.3]
+        [-DICE_PIP_SPREAD, -DICE_PIP_SPREAD],
+        [-DICE_PIP_SPREAD, DICE_PIP_SPREAD],
+        [DICE_PIP_SPREAD, -DICE_PIP_SPREAD],
+        [DICE_PIP_SPREAD, DICE_PIP_SPREAD]
       ]
     },
     {
       normal: new THREE.Vector3(0, 0, -1),
       points: [
-        [-0.3, -0.3],
-        [-0.3, 0.3],
+        [-DICE_PIP_SPREAD, -DICE_PIP_SPREAD],
+        [-DICE_PIP_SPREAD, DICE_PIP_SPREAD],
         [0, 0],
-        [0.3, -0.3],
-        [0.3, 0.3]
+        [DICE_PIP_SPREAD, -DICE_PIP_SPREAD],
+        [DICE_PIP_SPREAD, DICE_PIP_SPREAD]
       ]
     },
     {
       normal: new THREE.Vector3(0, -1, 0),
       points: [
-        [-0.3, -0.3],
-        [-0.3, 0],
-        [-0.3, 0.3],
-        [0.3, -0.3],
-        [0.3, 0],
-        [0.3, 0.3]
+        [-DICE_PIP_SPREAD, -DICE_PIP_SPREAD],
+        [-DICE_PIP_SPREAD, 0],
+        [-DICE_PIP_SPREAD, DICE_PIP_SPREAD],
+        [DICE_PIP_SPREAD, -DICE_PIP_SPREAD],
+        [DICE_PIP_SPREAD, 0],
+        [DICE_PIP_SPREAD, DICE_PIP_SPREAD]
       ]
     }
   ];
@@ -94,17 +100,26 @@ function placePips(group, pipMaterial, geometrySet) {
     const x = new THREE.Vector3().crossVectors(referenceUp, n).normalize();
     const y = new THREE.Vector3().crossVectors(n, x).normalize();
     points.forEach(([gx, gy]) => {
-      const mesh = new THREE.Mesh(pipGeo, pipMaterial);
-      mesh.position
-        .copy(new THREE.Vector3())
+      const base = new THREE.Vector3()
         .addScaledVector(x, gx)
         .addScaledVector(y, gy)
-        .addScaledVector(n, rimOffset);
-      mesh.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(up, n));
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      group.add(mesh);
-      geometrySet?.add(mesh.geometry);
+        .addScaledVector(n, faceDepth - DICE_PIP_DEPTH * 0.5);
+
+      const pip = new THREE.Mesh(pipGeo, pipMaterial);
+      pip.position.copy(base).addScaledVector(n, DICE_PIP_DEPTH);
+      pip.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(up, n));
+      pip.castShadow = true;
+      pip.receiveShadow = true;
+      group.add(pip);
+      geometrySet?.add(pip.geometry);
+
+      const rim = new THREE.Mesh(rimGeo, rimMaterial);
+      rim.position.copy(base).addScaledVector(n, DICE_PIP_RIM_OFFSET);
+      rim.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), n));
+      rim.receiveShadow = true;
+      rim.renderOrder = 6;
+      group.add(rim);
+      geometrySet?.add(rim.geometry);
     });
   });
 }
@@ -207,19 +222,33 @@ export default function LuxuryDice({
 
     const dieMaterial = new THREE.MeshPhysicalMaterial({
       color: DIE_COLOR,
-      metalness: 0.35,
+      metalness: 0.25,
       roughness: 0.35,
       clearcoat: 1.0,
-      clearcoatRoughness: 0.12,
-      reflectivity: 0.65,
-      envMapIntensity: 1.35
+      clearcoatRoughness: 0.15,
+      reflectivity: 0.75,
+      envMapIntensity: 1.4
     });
-    const pipMaterial = new THREE.MeshStandardMaterial({
-      color: 0x111111,
-      metalness: 0.55,
-      roughness: 0.3,
-      envMapIntensity: 0.6,
-      side: THREE.BackSide
+    const pipMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x0a0a0a,
+      roughness: 0.05,
+      metalness: 0.6,
+      clearcoat: 0.9,
+      clearcoatRoughness: 0.04,
+      envMapIntensity: 1.1
+    });
+    const pipRimMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xffd700,
+      emissive: 0x3a2a00,
+      emissiveIntensity: 0.55,
+      metalness: 1,
+      roughness: 0.18,
+      reflectivity: 1,
+      envMapIntensity: 1.35,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1
     });
 
     const dieGroup = new THREE.Group();
@@ -231,7 +260,7 @@ export default function LuxuryDice({
     dieGroup.add(dieMesh);
 
     const pipGeometrySet = new Set();
-    placePips(dieGroup, pipMaterial, pipGeometrySet);
+    placePips(dieGroup, pipMaterial, pipRimMaterial, pipGeometrySet);
     pipGeometrySetRef.current = pipGeometrySet;
     scene.add(dieGroup);
     diceGroupRef.current = dieGroup;
@@ -295,6 +324,7 @@ export default function LuxuryDice({
       dieMesh.geometry.dispose();
       dieMaterial.dispose();
       pipMaterial.dispose();
+      pipRimMaterial.dispose();
       pipGeometrySetRef.current.forEach((geo) => geo.dispose());
       pipGeometrySetRef.current.clear();
       hemi.dispose?.();

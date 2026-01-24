@@ -356,6 +356,7 @@ export default function LuckyNumber() {
             clickable={false}
             trigger={trigger}
             className="lucky-dice"
+            diceTransparent
           />
         </div>
         {!canRoll && (
@@ -370,4 +371,3 @@ export default function LuckyNumber() {
     </div>
   );
 }
-
