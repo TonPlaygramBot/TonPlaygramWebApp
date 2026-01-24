@@ -60,18 +60,15 @@ export const lobbyOptionIcons = {
     'ball-uk': '/assets/icons/8ballrack.png',
     'ball-american': '/assets/icons/American%20Billiards%20.png'
   },
-  snookerroyale: buildLobbyIconSet(
-    [
-      'type-regular',
-      'type-tournament',
-      'mode-ai',
-      'mode-online',
-      'table-championship',
-      'table-club',
-      'table-practice'
-    ],
-    '/assets/icons/snooker-royale.svg'
-  ),
+  snookerroyale: {
+    'type-regular': '/assets/icons/snooker-regular.svg',
+    'type-tournament': '/assets/icons/snooker-tournament.svg',
+    'mode-ai': '/assets/icons/snooker-royale.svg',
+    'mode-online': '/assets/icons/snooker-royale.svg',
+    'table-championship': '/assets/icons/snooker-royale.svg',
+    'table-club': '/assets/icons/snooker-royale.svg',
+    'table-practice': '/assets/icons/snooker-royale.svg'
+  },
   goalrush: buildLobbyIconSet(
     [
       'type-regular',
