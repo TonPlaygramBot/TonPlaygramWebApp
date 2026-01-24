@@ -125,6 +125,11 @@ function applyTablePhysicsSpec(meta) {
       ? meta.cushionCutAngleDeg
       : DEFAULT_SIDE_CUSHION_CUT_ANGLE;
   SIDE_CUSHION_CUT_ANGLE = sideCushionAngle;
+  SIDE_POCKET_PHYSICS_CUT_ANGLE = clamp(
+    SIDE_CUSHION_CUT_ANGLE + 7,
+    MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE,
+    MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE
+  );
 
   const restitution = Number.isFinite(meta?.cushionRestitution)
     ? meta.cushionRestitution
@@ -601,7 +606,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1; // allow the plate ends to r
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.982; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.18; // pull the side fascias toward the table centre while keeping the rounded pocket cut aligned
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.12; // push the side fascias outward away from the table centre while keeping the rounded pocket cut aligned
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.095; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
@@ -1192,7 +1197,8 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 0.82; // damp angled-cushion rebounds so they feel less punchy than straight rails
+const CUSHION_CUT_RESTITUTION_SCALE = 0.78; // damp angled-cushion rebounds so they feel less punchy than straight rails
+const CUSHION_CUT_FRICTION_SCALE = 1.25; // add a touch more grab on angled cuts to prevent over-bouncy jaw rebounds
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
 let SIDE_POCKET_SPAN =
@@ -1539,10 +1545,14 @@ const SPIN_DECORATION_OFFSET_PERCENT = 58;
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // match the corner-cushion cut angle on both sides of the corner pockets
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
+const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 32;
+const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 38;
+const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 34;
 const VISUAL_SIDE_CUSHION_CUT_ANGLE = 45;
 const SIDE_POCKET_CUT_ANGLE_DEG = VISUAL_SIDE_CUSHION_CUT_ANGLE;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
+let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playable face and cushion nose further inward to match the expanded top surface
 
@@ -5802,7 +5812,7 @@ function reflectRails(ball) {
   const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
   const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
   const sidePocketCenters = pocketCenters().slice(4);
-  const sideCutRad = THREE.MathUtils.degToRad(SIDE_POCKET_CUT_ANGLE_DEG);
+  const sideCutRad = THREE.MathUtils.degToRad(SIDE_POCKET_PHYSICS_CUT_ANGLE);
   const sideCutCos = Math.cos(sideCutRad);
   const sideCutSin = Math.sin(sideCutRad);
   for (const center of sidePocketCenters) {
@@ -5901,10 +5911,16 @@ function applyRailImpulse(ball, impact) {
   TMP_VEC3_D.copy(ball.omega).cross(TMP_VEC3_B).add(TMP_VEC3_C);
   const relNormal = TMP_VEC3_D.dot(TMP_VEC3_A);
   if (relNormal >= 0) return;
-  const restitutionScale =
-    impact.type === 'corner' || impact.type === 'cut'
-      ? CUSHION_CUT_RESTITUTION_SCALE
-      : 1;
+  const isCutImpact = impact.type === 'corner' || impact.type === 'cut';
+  const impactSpeed = TMP_VEC3_D.length();
+  const impactFactor =
+    impactSpeed > 1e-6 ? clamp(Math.abs(relNormal) / impactSpeed, 0, 1) : 0;
+  const glancingScale = isCutImpact
+    ? THREE.MathUtils.lerp(0.72, 1, impactFactor)
+    : 1;
+  const restitutionScale = isCutImpact
+    ? CUSHION_CUT_RESTITUTION_SCALE * glancingScale
+    : 1;
   const normalImpulseMag =
     -(1 + CUSHION_RESTITUTION * restitutionScale) * relNormal * BALL_MASS;
   TMP_VEC3_E.copy(TMP_VEC3_A).multiplyScalar(normalImpulseMag);
@@ -5922,7 +5938,8 @@ function applyRailImpulse(ball, impact) {
     const rCrossT = TMP_VEC3_E.copy(TMP_VEC3_B).cross(TMP_VEC3_D).lengthSq();
     const denom = 1 / BALL_MASS + rCrossT / BALL_INERTIA;
     const jt = -tangentialSpeed / Math.max(denom, 1e-6);
-    const maxFriction = RAIL_FRICTION * Math.abs(normalImpulseMag);
+    const frictionScale = isCutImpact ? CUSHION_CUT_FRICTION_SCALE : 1;
+    const maxFriction = RAIL_FRICTION * frictionScale * Math.abs(normalImpulseMag);
     const clampedJt = clamp(jt, -maxFriction, maxFriction);
     const impulseT = TMP_VEC3_D.multiplyScalar(clampedJt);
     TMP_VEC3_C.addScaledVector(impulseT, 1 / BALL_MASS);

@@ -413,7 +413,7 @@ export default function PoolRoyaleLobby() {
             <h3 className="font-semibold text-white">Choose Match Type</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3">
             {[
               {
                 id: 'regular',
@@ -442,13 +442,13 @@ export default function PoolRoyaleLobby() {
                       : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
                   }`}
                 >
-                  <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
+                  <div className={`h-16 w-16 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
                     <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
                       <OptionIcon
                         src={getLobbyIcon('poolroyale', iconKey)}
                         alt={label}
                         fallback={id === 'regular' ? '🎯' : '🏆'}
-                        className="h-10 w-10"
+                        className="h-12 w-12"
                       />
                     </div>
                   </div>
@@ -467,7 +467,7 @@ export default function PoolRoyaleLobby() {
             <h3 className="font-semibold text-white">Play Mode</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Opponents</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3">
             {[
               { id: 'ai', label: 'Vs AI', desc: 'Practice precision', iconKey: 'mode-ai' },
               {
@@ -491,13 +491,13 @@ export default function PoolRoyaleLobby() {
                       : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
                   } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
                 >
-                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-sky-400/30 via-indigo-500/10 to-transparent p-[1px]">
+                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-sky-400/30 via-indigo-500/10 to-transparent p-[1px]">
                     <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
                       <OptionIcon
                         src={getLobbyIcon('poolroyale', iconKey)}
                         alt={label}
                         fallback={id === 'ai' ? '🤖' : '🌐'}
-                        className="h-10 w-10"
+                        className="h-12 w-12"
                       />
                     </div>
                   </div>
@@ -518,7 +518,7 @@ export default function PoolRoyaleLobby() {
             <h3 className="font-semibold text-white">Game Variant</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Ruleset</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-3">
             {[
               { id: 'uk', label: '8 Pool UK' },
               { id: 'american', label: 'American' },
@@ -536,13 +536,13 @@ export default function PoolRoyaleLobby() {
                       : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
                   }`}
                 >
-                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-amber-400/30 via-sky-500/10 to-transparent p-[1px]">
+                  <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-amber-400/30 via-sky-500/10 to-transparent p-[1px]">
                     <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220]">
                       <OptionIcon
                         src={getVariantThumbnail('poolroyale', id)}
                         alt={label}
                         fallback="🎱"
-                        className="h-12 w-12"
+                        className="h-14 w-14"
                       />
                     </div>
                   </div>
@@ -565,7 +565,7 @@ export default function PoolRoyaleLobby() {
             <p className="text-xs text-white/60">
               Keep UK yellow/red sets or switch to solids &amp; stripes visuals while retaining 8 Pool UK rules.
             </p>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3">
               {[
                 { id: 'uk', label: 'Yellow & Red' },
                 { id: 'american', label: 'Solids & Stripes' }
@@ -582,13 +582,13 @@ export default function PoolRoyaleLobby() {
                         : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
                     }`}
                   >
-                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-400/30 via-rose-500/10 to-transparent p-[1px]">
+                    <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-amber-400/30 via-rose-500/10 to-transparent p-[1px]">
                       <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220]">
                         <OptionIcon
                           src={getLobbyIcon('poolroyale', `ball-${id}`)}
                           alt={label}
                           fallback={id === 'uk' ? '🟡' : '🔵'}
-                          className="h-10 w-10"
+                          className="h-12 w-12"
                         />
                       </div>
                     </div>
