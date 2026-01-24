@@ -43,8 +43,8 @@ export const lobbyOptionIcons = {
     'variant-uk': 'lobby/pool-royale/variant-uk.webp',
     'variant-american': 'lobby/pool-royale/variant-american.webp',
     'variant-9ball': 'lobby/pool-royale/variant-9ball.webp',
-    'ball-uk': 'lobby/pool-royale/ball-uk.webp',
-    'ball-american': 'lobby/pool-royale/ball-american.webp'
+    'ball-uk': 'lobby/pool-royale/ball-uk-rack.svg',
+    'ball-american': 'lobby/pool-royale/ball-american-rack.svg'
   },
   snookerroyale: {
     'type-regular': 'lobby/snooker-royale/type-regular.webp',
@@ -118,9 +118,9 @@ export const lobbyOptionIcons = {
 
 export const variantThumbnails = {
   poolroyale: {
-    uk: 'variants/pool-royale/8-pool-uk.webp',
-    american: 'variants/pool-royale/8-ball-american.webp',
-    '9ball': 'variants/pool-royale/9-ball.webp'
+    uk: 'variants/pool-royale/8-pool-uk-rack.svg',
+    american: 'variants/pool-royale/8-ball-american-rack.svg',
+    '9ball': 'variants/pool-royale/9-ball-rack.svg'
   }
 };
 

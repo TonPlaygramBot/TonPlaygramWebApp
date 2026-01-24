@@ -601,7 +601,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1; // allow the plate ends to r
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.986; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.32; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.18; // pull the side fascias toward the table centre while keeping the rounded pocket cut aligned
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.095; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
@@ -909,7 +909,7 @@ const SKIP_REPLAYS_STORAGE_KEY = 'poolSkipReplays';
 const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
-const ENABLE_CUE_STROKE_ANIMATION = false;
+const ENABLE_CUE_STROKE_ANIMATION = true;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
@@ -1190,11 +1190,11 @@ const SIDE_POCKET_GUARD_RADIUS =
   SIDE_CAPTURE_R - BALL_R * 0.1; // use the middle-pocket bowl to gate reflections with a tighter inset
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
-  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.18
+  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
 const CUSHION_CUT_RESTITUTION_SCALE = 0.82; // damp angled-cushion rebounds so they feel less punchy than straight rails
 const SIDE_POCKET_DEPTH_LIMIT =
-  POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
+  SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
 let SIDE_POCKET_SPAN =
   SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION + BALL_R * 0.52; // tuned further once pocket geometry is resolved
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
@@ -7462,6 +7462,13 @@ export function Table3D(
     adjustedSidePocketReach +
     verticalCushionLength / 2 +
     SIDE_CUSHION_CORNER_SHIFT;
+  if (enableSidePockets) {
+    const resolvedSpan = Math.max(
+      BALL_R * 0.35,
+      Math.abs(verticalCushionCenter) - verticalCushionLength / 2
+    );
+    SIDE_POCKET_SPAN = Math.max(MICRO_EPS, resolvedSpan);
+  }
 
   const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // mirror snooker fascia thickness using rail height as the driver
   const sideChromePlateThickness = chromePlateThickness * CHROME_SIDE_PLATE_THICKNESS_BOOST; // match middle-pocket fascia depth to snooker
@@ -20743,9 +20750,12 @@ const powerRef = useRef(hud.power);
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
           const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
           const topspinFactor = Math.max(0, appliedSpin?.y ?? 0);
+          const baseFollowThrough =
+            CUE_FOLLOW_THROUGH_MIN + powerStrength * BALL_R * 0.45;
+          const spinFollowThrough = topspinFactor * powerStrength * BALL_R * 0.4;
           const followThrough = Math.min(
             CUE_FOLLOW_THROUGH_MAX,
-            topspinFactor * powerStrength * BALL_R * 0.3
+            Math.max(baseFollowThrough, spinFollowThrough)
           );
           const followThroughPos = buildCuePosition(-followThrough);
           const forwardDuration = isAiStroke
