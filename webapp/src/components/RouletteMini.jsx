@@ -254,6 +254,7 @@ export default function RouletteMini() {
               : 'transform 0s',
           }}
         >
+          <div className="absolute inset-[6%] rounded-full border-2 border-red-500/80 pointer-events-none" />
           {ROULETTE_ORDER.map((num, idx) => {
             const angle = idx * SEGMENT_ANGLE;
             const isWinning = outcome?.number === num;
@@ -262,30 +263,28 @@ export default function RouletteMini() {
                 key={num}
                 className="absolute top-1/2 left-1/2"
                 style={{
-                  transform: `rotate(${angle}deg) translateY(-44%)`,
+                  transform: `rotate(${angle}deg) translateY(-48%)`,
                   transformOrigin: '0 0',
                 }}
               >
                 <div
-                  className={`flex flex-col items-center text-[10px] sm:text-xs font-semibold px-1 py-[2px] rounded-md ${
+                  className={`px-1 py-[1px] text-[11px] sm:text-xs font-bold rounded-full ${
                     isWinning
                       ? 'bg-yellow-400 text-black shadow-lg'
-                      : 'bg-black/40 text-white/90'
+                      : 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]'
                   }`}
                   style={{ transform: `rotate(${-angle}deg)` }}
                 >
-                  <span className="text-sm sm:text-base font-bold leading-none">
-                    {num}
-                  </span>
-                  <span className="text-[9px] sm:text-[11px] leading-tight">
-                    +{formatPrize(PRIZE_MAP[num])} TPC
-                  </span>
+                  {num}
                 </div>
               </div>
             );
           })}
-          <div className="absolute inset-[28%] rounded-full bg-surface/80 border border-border flex items-center justify-center text-xs text-subtext">
+          <div className="absolute inset-[28%] rounded-full bg-surface/85 border border-border flex flex-col items-center justify-center text-xs text-subtext space-y-1">
             <span className="uppercase tracking-wide">TPC Rewards</span>
+            <span className="text-sm font-semibold text-white">
+              {outcome ? `+${formatPrize(outcome.prize)} TPC` : 'Spin to win'}
+            </span>
           </div>
         </div>
       </div>
