@@ -26,6 +26,7 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { runSnakeOnlineFlow } from './snakeOnlineFlow.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
+import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
 
 export default function Lobby() {
   const { game } = useParams();
@@ -391,70 +392,59 @@ export default function Lobby() {
       <div className="relative min-h-screen bg-[#070b16] text-text">
         <div className="absolute inset-0 tetris-grid-bg opacity-60" />
         <div className="relative z-10 space-y-4 p-4 pb-8">
-          <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#111827]/90 via-[#0f172a]/80 to-[#0b1324]/90 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.35em] text-emerald-200/70">
-                  Snake &amp; Ladder
-                </p>
-                <h2 className="text-2xl font-bold text-white">Snake &amp; Ladder Lobby</h2>
+          <GameLobbyHeader
+            slug="snake"
+            title="Snake & Ladder Lobby"
+            badge={online != null ? `${online} online` : 'Syncing…'}
+          />
+
+          <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
+            <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Identity</p>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
+                {playerAvatar ? (
+                  <img src={playerAvatar} alt="Your avatar" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-lg">🙂</div>
+                )}
               </div>
-              <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/80">
-                {online != null ? `${online} online` : 'Syncing…'}
-              </div>
-            </div>
-            <div className="mt-4">
-              <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
-                <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Identity</p>
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
-                    {playerAvatar ? (
-                      <img src={playerAvatar} alt="Your avatar" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-lg">🙂</div>
-                    )}
-                  </div>
-                  <div className="text-sm text-white/80">
-                    <p className="font-semibold">{playerName || 'Player'} ready</p>
-                    <p className="text-xs text-white/50">
-                      Player flag: {playerFlag.length ? FLAG_EMOJIS[playerFlag[0]] : 'Auto'} • AI flags:{' '}
-                      {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : 'Auto'}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-3 grid gap-2">
-                  <button
-                    type="button"
-                    onClick={openPlayerFlagPicker}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:border-white/30"
-                  >
-                    <div className="text-[11px] uppercase tracking-wide text-white/50">Player Flag</div>
-                    <div className="flex items-center gap-2 text-base font-semibold">
-                      <span className="text-lg">{playerFlag.length ? FLAG_EMOJIS[playerFlag[0]] : '🌐'}</span>
-                      <span>{playerFlag.length ? 'Custom flag' : 'Auto-detect & save'}</span>
-                    </div>
-                  </button>
-                  {table?.id === 'single' && (
-                    <button
-                      type="button"
-                      onClick={openAiFlagPicker}
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:border-white/30"
-                    >
-                      <div className="text-[11px] uppercase tracking-wide text-white/50">AI Flags</div>
-                      <div className="flex items-center gap-2 text-base font-semibold">
-                        <span className="text-lg">
-                          {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : '🌐'}
-                        </span>
-                        <span>{flags.length ? 'Custom AI flags' : 'Auto-pick each match'}</span>
-                      </div>
-                    </button>
-                  )}
-                </div>
-                <p className="mt-3 text-xs text-white/60">
-                  Your lobby picks will carry into the match intro.
+              <div className="text-sm text-white/80">
+                <p className="font-semibold">{playerName || 'Player'} ready</p>
+                <p className="text-xs text-white/50">
+                  Player flag: {playerFlag.length ? FLAG_EMOJIS[playerFlag[0]] : 'Auto'} • AI flags:{' '}
+                  {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : 'Auto'}
                 </p>
               </div>
             </div>
+            <div className="mt-3 grid gap-2">
+              <button
+                type="button"
+                onClick={openPlayerFlagPicker}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:border-white/30"
+              >
+                <div className="text-[11px] uppercase tracking-wide text-white/50">Player Flag</div>
+                <div className="flex items-center gap-2 text-base font-semibold">
+                  <span className="text-lg">{playerFlag.length ? FLAG_EMOJIS[playerFlag[0]] : '🌐'}</span>
+                  <span>{playerFlag.length ? 'Custom flag' : 'Auto-detect & save'}</span>
+                </div>
+              </button>
+              {table?.id === 'single' && (
+                <button
+                  type="button"
+                  onClick={openAiFlagPicker}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:border-white/30"
+                >
+                  <div className="text-[11px] uppercase tracking-wide text-white/50">AI Flags</div>
+                  <div className="flex items-center gap-2 text-base font-semibold">
+                    <span className="text-lg">
+                      {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : '🌐'}
+                    </span>
+                    <span>{flags.length ? 'Custom AI flags' : 'Auto-pick each match'}</span>
+                  </div>
+                </button>
+              )}
+            </div>
+            <p className="mt-3 text-xs text-white/60">Your lobby picks will carry into the match intro.</p>
           </div>
 
           <div className="space-y-3">

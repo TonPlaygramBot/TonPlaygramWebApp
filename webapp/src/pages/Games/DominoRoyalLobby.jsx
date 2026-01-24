@@ -10,6 +10,7 @@ import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
+import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -136,37 +137,28 @@ export default function DominoRoyalLobby() {
     <div className="relative min-h-screen bg-[#070b16] text-text">
       <div className="absolute inset-0 tetris-grid-bg opacity-60" />
       <div className="relative z-10 space-y-4 p-4 pb-8">
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#111827]/90 via-[#0f172a]/80 to-[#0b1324]/90 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.35em] text-sky-200/70">Domino Battle Royal</p>
-              <h2 className="text-2xl font-bold text-white">Domino Battle Royal Lobby</h2>
+        <GameLobbyHeader
+          slug="domino-royal"
+          title="Domino Battle Royal Lobby"
+          badge="Double-six set"
+        />
+
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
+          <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
+          <div className="mt-3 flex items-center gap-3">
+            <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
+              {avatar ? (
+                <img src={avatar} alt="Your avatar" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-lg">🙂</div>
+              )}
             </div>
-            <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/80">
-              Double-six set
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
-              <div className="mt-3 flex items-center gap-3">
-                <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
-                  {avatar ? (
-                    <img src={avatar} alt="Your avatar" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-lg">🙂</div>
-                  )}
-                </div>
-                <div className="text-sm text-white/80">
-                  <p className="font-semibold">Seat ready</p>
-                  <p className="text-xs text-white/50">Flags: {flags.length ? 'Custom' : 'Auto'}</p>
-                </div>
-              </div>
-              <p className="mt-3 text-xs text-white/60">
-                Your lobby choices persist into the domino match start.
-              </p>
+            <div className="text-sm text-white/80">
+              <p className="font-semibold">Seat ready</p>
+              <p className="text-xs text-white/50">Flags: {flags.length ? 'Custom' : 'Auto'}</p>
             </div>
           </div>
+          <p className="mt-3 text-xs text-white/60">Your lobby choices persist into the domino match start.</p>
         </div>
 
         <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
