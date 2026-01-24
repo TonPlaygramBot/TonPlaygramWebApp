@@ -958,7 +958,6 @@ const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
-const SHOW_FIELD_MAPPING_OVERLAY = true;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
@@ -1515,7 +1514,7 @@ const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // middle pocket cushion cuts are sharpened to a 29° cut to align the side-rail cushions with the updated spec
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 34;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -7039,44 +7038,6 @@ function Table3D(
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
-  if (SHOW_FIELD_MAPPING_OVERLAY) {
-    const overlayLift = BALL_R * 0.02;
-    const fieldOverlayGeo = new THREE.ShapeGeometry(clothShape, 96);
-    fieldOverlayGeo.rotateX(-Math.PI / 2);
-    const fieldOverlayMat = new THREE.MeshBasicMaterial({
-      color: 0xf8d400,
-      transparent: true,
-      opacity: 0.35,
-      depthWrite: false,
-      side: THREE.DoubleSide
-    });
-    const fieldOverlay = new THREE.Mesh(fieldOverlayGeo, fieldOverlayMat);
-    fieldOverlay.position.y = cloth.position.y + overlayLift;
-    fieldOverlay.renderOrder = 4;
-    fieldOverlay.name = 'fieldMappingOverlay';
-    table.add(fieldOverlay);
-
-    const pocketOverlayMat = new THREE.MeshBasicMaterial({
-      color: 0xd81f1f,
-      transparent: true,
-      opacity: 0.65,
-      depthWrite: false,
-      side: THREE.DoubleSide
-    });
-    const pocketOverlayLift = overlayLift + BALL_R * 0.01;
-    clothPocketPositions.forEach((center, index) => {
-      if (!center) return;
-      const isSide = index >= 4;
-      const radius = isSide ? POCKET_HOLE_R * sideRadiusScale : POCKET_HOLE_R;
-      const pocketOverlayGeo = new THREE.CircleGeometry(radius, 64);
-      pocketOverlayGeo.rotateX(-Math.PI / 2);
-      const pocketOverlay = new THREE.Mesh(pocketOverlayGeo, pocketOverlayMat);
-      pocketOverlay.position.set(center.x, cloth.position.y + pocketOverlayLift, center.y);
-      pocketOverlay.renderOrder = 4.1;
-      pocketOverlay.name = `pocketMappingOverlay-${index}`;
-      table.add(pocketOverlay);
-    });
-  }
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
   const plywoodTopY =
     clothBottomY - (PLYWOOD_ENABLED ? PLYWOOD_GAP + PLYWOOD_EXTRA_DROP : 0);
