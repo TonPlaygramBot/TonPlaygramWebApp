@@ -6,6 +6,9 @@ export default function ProjectAchievementsCard() {
     '🧾 Wallet transaction history works',
     '💬 In-chat TPC transfers enabled',
     '🧑‍🤝‍🤝 Friends and inbox chat',
+    '🎰 Roulette spin live',
+    '🤝 Game invites for 1v1 or group play with Telegram notifications (Android/iOS push notifications after migration)',
+    '💬 In-game chat enabled',
     '🕹️ Telegram bot and web app integration',
     '🔄 Daily Check-In rewards',
     '⛏️ Mining system active',
@@ -14,12 +17,25 @@ export default function ProjectAchievementsCard() {
     '📹 Intro video view rewards',
     '🎡 Spin & Win wheel',
     '🍀 Lucky Card prizes',
-    '🎁 NFT Gifts marketplace',
+    '🎁 NFT gifts',
+    '🚀 Referral boost: invite more friends to earn more TPC',
+    '🛒 NFT marketplace for user listings',
+    '🏆 Game tournaments live',
+    '🎁 Tournament winner gifts',
     '🏦 Game transactions are public',
     '⛏️ Mining transactions are public',
   ];
 
   const roadmap = [
+    {
+      title: 'Online Connection Fix',
+      description:
+        'Fixing the online connection is almost done, partly completed with a bit left to finalize.',
+    },
+    {
+      title: 'Store Item Photos',
+      description: 'Upload all necessary photos for the store items.',
+    },
     {
       title: 'Mobile Launch',
       description:
@@ -28,7 +44,7 @@ export default function ProjectAchievementsCard() {
     {
       title: 'Growth & Community',
       description:
-        'Start the marketing campaign and launch an airdrop program for early users.',
+        'Gather Telegram group feedback to identify glitches, errors, and malfunctions, then take new feature requests to community votes so every voice is heard.',
     },
     {
       title: 'TPC Tokenization',
@@ -50,6 +66,26 @@ export default function ProjectAchievementsCard() {
       description:
         'Post-listing initiatives are in progress and will be announced after CEX/DEX milestones.',
     },
+  ];
+
+  const poolVariants = [
+    {
+      name: 'UK 8 Pool',
+      image: '/assets/icons/8ballrack.png',
+    },
+    {
+      name: '9 Ball',
+      image: '/assets/icons/9ballrack.png',
+    },
+    {
+      name: 'American Billiards',
+      image: '/assets/icons/American%20Billiards%20.png',
+    },
+  ];
+
+  const liveGameLineup = [
+    ...gamesCatalog.filter((game) => game.slug !== 'poolroyale'),
+    ...poolVariants,
   ];
 
   return (
@@ -92,10 +128,11 @@ export default function ProjectAchievementsCard() {
           </span>
         </div>
         <p className="text-xs text-muted">
-          Pool Royale includes UK 8 Ball, 9 Ball, and American Billiards.
+          Pool Royale includes UK 8 Ball, 9 Ball, and American Billiards. All games are fully
+          playable (currently local vs AI only).
         </p>
         <div className="grid grid-cols-4 gap-2">
-          {gamesCatalog.map((game) => {
+          {liveGameLineup.map((game) => {
             const thumbnail = getGameThumbnail(game.slug);
             return (
               <div
