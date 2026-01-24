@@ -124,7 +124,7 @@ export default function AirHockeyLobby() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-[0.35em] text-sky-200/70">Air Hockey</p>
-              <h2 className="text-2xl font-bold text-white">Modern Lobby</h2>
+              <h2 className="text-2xl font-bold text-white">Air Hockey Lobby</h2>
             </div>
             <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/80">
               Fast load
@@ -178,7 +178,7 @@ export default function AirHockeyLobby() {
             <h3 className="font-semibold text-white">Game Type</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Mode</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-3">
             {[
               { id: 'regular', label: 'Regular', desc: 'Classic rink', icon: '🏒' },
               { id: 'training', label: 'Training', desc: 'Practice hits', icon: '🎯' },
@@ -220,7 +220,7 @@ export default function AirHockeyLobby() {
               <h3 className="font-semibold text-white">Match Mode</h3>
               <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-3 gap-3">
                 {[
                   { id: 'ai', label: 'Vs AI', desc: 'Instant practice', icon: '🤖' },
                   { id: 'online', label: '1v1 Online', desc: 'Coming soon', icon: '⚔️', disabled: true }
@@ -263,7 +263,7 @@ export default function AirHockeyLobby() {
             <h3 className="font-semibold text-white">Goal Target</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Score</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-3">
             {[11, 21, 31].map((g) => {
               const active = goal === g;
               return (
@@ -307,7 +307,7 @@ export default function AirHockeyLobby() {
                 <p className="text-xs text-white/60">Winner takes pot minus 10% developer fee.</p>
               </div>
             </div>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="mt-3 grid grid-cols-3 gap-3">
               {[8, 16, 24].map((p) => {
                 const active = players === p;
                 return (

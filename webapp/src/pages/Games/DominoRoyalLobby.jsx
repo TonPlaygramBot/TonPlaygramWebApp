@@ -139,7 +139,7 @@ export default function DominoRoyalLobby() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-[0.35em] text-sky-200/70">Domino Battle Royal</p>
-              <h2 className="text-2xl font-bold text-white">Modern Lobby</h2>
+              <h2 className="text-2xl font-bold text-white">Domino Battle Royal Lobby</h2>
             </div>
             <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/80">
               Double-six set
@@ -213,7 +213,7 @@ export default function DominoRoyalLobby() {
             <h3 className="font-semibold text-white">Players</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Seats</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-3">
             {PLAYER_OPTIONS.map((value) => (
               <button
                 key={value}
@@ -247,7 +247,7 @@ export default function DominoRoyalLobby() {
             <h3 className="font-semibold text-white">Mode</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-3 gap-3">
             {[
               {
                 id: 'local',

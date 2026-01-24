@@ -392,7 +392,7 @@ export default function PoolRoyaleLobby() {
             <h3 className="font-semibold text-white">Choose Match Type</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {[
               {
                 id: 'regular',
@@ -444,7 +444,7 @@ export default function PoolRoyaleLobby() {
             <h3 className="font-semibold text-white">Play Mode</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Opponents</span>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {[
               { id: 'ai', label: 'Vs AI', desc: 'Practice precision', iconKey: 'mode-ai' },
               {
@@ -537,7 +537,7 @@ export default function PoolRoyaleLobby() {
             <p className="text-xs text-white/60">
               Keep UK yellow/red sets or switch to solids &amp; stripes visuals while retaining 8 Pool UK rules.
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               {[
                 { id: 'uk', label: 'Yellow & Red' },
                 { id: 'american', label: 'Solids & Stripes' }

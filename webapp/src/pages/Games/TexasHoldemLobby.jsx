@@ -113,7 +113,7 @@ export default function TexasHoldemLobby() {
               <p className="text-[11px] uppercase tracking-[0.35em] text-emerald-200/70">
                 Texas Hold&apos;em
               </p>
-              <h2 className="text-2xl font-bold text-white">Modern Lobby</h2>
+              <h2 className="text-2xl font-bold text-white">Texas Hold&apos;em Lobby</h2>
             </div>
             <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/80">
               Poker table ready
@@ -242,7 +242,7 @@ export default function TexasHoldemLobby() {
               <p className="text-xs text-white/60">Local AI is ready, online tables are coming soon.</p>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="mt-4 grid grid-cols-3 gap-3">
             {[
               { id: 'local', label: 'Local (AI)' },
               { id: 'online', label: 'Online', disabled: true }
