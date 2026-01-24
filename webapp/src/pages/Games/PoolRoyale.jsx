@@ -597,16 +597,16 @@ const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so 
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // push the side fascia farther along the arch so it blankets the larger chrome reveal
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.08; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.56; // trim fascia span further so the middle plates finish before intruding into the pocket zone while keeping the rounded edge intact
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.68; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.32; // trim fascia span so the middle plates shave off a little on both sides
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.42; // reduce the outer fascia extension so the outside edge trims back slightly
 const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1; // allow the plate ends to run farther toward the pocket entry
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.982; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.12; // push the side fascias outward away from the table centre while keeping the rounded pocket cut aligned
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0; // keep the middle fascia centered so trims remove evenly from inside and outside edges
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.095; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
@@ -5003,7 +5003,7 @@ const PLAYER_PULLBACK_MIN_SCALE = 1.35;
 const MIN_PULLBACK_GAP = BALL_R * 0.75;
 const REPLAY_CUE_STROKE_SLOWDOWN = 1;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 26;
+const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 18;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -12628,7 +12628,7 @@ const powerRef = useRef(hud.power);
     const ctx = audioContextRef.current;
     const buffer = audioBuffersRef.current.ball;
     if (!ctx || !buffer || muteRef.current) return;
-    const scaled = clamp(vol * volumeRef.current * 0.72, 0, 1);
+    const scaled = clamp(vol * volumeRef.current * 0.9, 0, 1);
     if (scaled <= 0) return;
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
@@ -19795,7 +19795,7 @@ const powerRef = useRef(hud.power);
 
       const allowFullTableInHand = () => {
         const id = variantId();
-        if (id === 'uk') return false;
+        if (id === 'uk') return true;
         if (id === 'american' || id === '9ball') {
           return !isBreakRestrictedInHand();
         }
@@ -22835,26 +22835,17 @@ const powerRef = useRef(hud.power);
               ...lastPottedBySeatRef.current,
               [shooterSeat]: newPots[newPots.length - 1] ?? null
             };
-            setPottedBySeat((prev) => {
-              const next = {
-                ...prev,
-                [shooterSeat]: [...(prev[shooterSeat] || [])]
-              };
-              const existing = new Set(
-                next[shooterSeat].map((entry) => String(entry.id ?? entry.color))
-              );
-              newPots.forEach((entry) => {
-                const key = String(entry.id ?? entry.color);
-                if (existing.has(key)) return;
-                existing.add(key);
-                next[shooterSeat].push({
-                  id: entry.id ?? key,
+            setPottedBySeat((prev) => ({
+              ...prev,
+              [shooterSeat]: [
+                ...(prev[shooterSeat] || []),
+                ...newPots.map((entry) => ({
+                  id: entry.id ?? String(entry.color ?? 'unknown'),
                   color: entry.color,
                   pocket: entry.pocket
-                });
-              });
-              return next;
-            });
+                }))
+              ]
+            }));
           } else {
             lastPottedBySeatRef.current = {
               ...lastPottedBySeatRef.current,
@@ -25838,7 +25829,7 @@ const powerRef = useRef(hud.power);
       )}
 
       <div
-        className={`absolute top-2 right-1 z-50 flex flex-col items-end gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute top-2 right-0 z-50 flex flex-col items-end gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
       >
         <button
           ref={configButtonRef}
@@ -26450,7 +26441,7 @@ const powerRef = useRef(hud.power);
 
       <div
         ref={leftControlsRef}
-        className={`pointer-events-none absolute right-1 z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`pointer-events-none absolute right-0 z-50 flex flex-col gap-2.5 ${replayActive ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         style={{
           bottom: `${SPIN_CONTROL_DIAMETER_PX + 2 + chromeUiLiftPx - viewButtonsOffsetPx}px`,
           transform: `scale(${uiScale * 1.08})`,
@@ -26822,9 +26813,9 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute right-1 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          className={`absolute right-0 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${6 + chromeUiLiftPx}px`,
+            bottom: `${10 + chromeUiLiftPx}px`,
             transform: `scale(${uiScale * 0.88})`,
             transformOrigin: 'bottom right'
           }}
