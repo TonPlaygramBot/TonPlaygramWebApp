@@ -5,7 +5,7 @@ export default function TableSelector({ tables, selected, onSelect }) {
     <div className="grid grid-cols-3 gap-3">
       {tables.map((t) => {
         const isSelected = selected?.id === t.id;
-        const subtitle = t.capacity
+        const subtitle = t.capacity && !t.hideSubtitle
           ? t.players
             ? `${t.players}/${t.capacity} players`
             : `${t.capacity} seats`
