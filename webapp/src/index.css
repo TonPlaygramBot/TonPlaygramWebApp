@@ -1332,6 +1332,42 @@ input:focus {
   color: #facc15;
 }
 
+.lobby-option-card {
+  @apply flex flex-col items-center gap-3 rounded-2xl border px-4 py-4 text-center shadow transition;
+}
+
+.lobby-option-card-active {
+  @apply border-primary bg-primary/10 text-primary;
+}
+
+.lobby-option-card-inactive {
+  @apply border-white/10 bg-black/30 text-white/80 hover:border-white/30;
+}
+
+.lobby-option-card-disabled {
+  @apply cursor-not-allowed opacity-50;
+}
+
+.lobby-option-thumb {
+  @apply h-24 w-24 rounded-2xl p-[1px];
+}
+
+.lobby-option-thumb-inner {
+  @apply flex h-full w-full items-center justify-center overflow-hidden rounded-[18px] bg-[#0b1220];
+}
+
+.lobby-option-icon {
+  @apply h-20 w-20;
+}
+
+.lobby-option-label {
+  @apply text-sm font-semibold;
+}
+
+.lobby-option-subtitle {
+  @apply text-xs text-white/50;
+}
+
 .board-style {
   background-color: #0e3b45;
   color: #ffffff;

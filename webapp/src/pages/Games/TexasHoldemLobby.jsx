@@ -202,16 +202,22 @@ export default function TexasHoldemLobby() {
                   key={count}
                   type="button"
                   onClick={() => setOpponents(count)}
-                  className={`lobby-tile ${isSelected ? 'lobby-selected' : ''}`}
+                  className={`lobby-option-card ${
+                    isSelected ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                  }`}
                 >
-                  <div className="flex flex-col items-center gap-1">
-                    <OptionIcon
-                      src={getLobbyIcon('texasholdem', `opponents-${count}`)}
-                      alt={`${count} opponents`}
-                      fallback="🂡"
-                      className="h-6 w-6"
-                    />
-                    <span>VS {count}</span>
+                  <div className="lobby-option-thumb bg-gradient-to-br from-emerald-400/30 via-sky-500/10 to-transparent">
+                    <div className="lobby-option-thumb-inner">
+                      <OptionIcon
+                        src={getLobbyIcon('texasholdem', `opponents-${count}`)}
+                        alt={`${count} opponents`}
+                        fallback="🂡"
+                        className="lobby-option-icon"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">VS {count}</p>
                   </div>
                 </button>
               );
@@ -236,7 +242,7 @@ export default function TexasHoldemLobby() {
               <p className="text-xs text-white/60">Local AI is ready, online tables are coming soon.</p>
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 grid grid-cols-2 gap-3">
             {[
               { id: 'local', label: 'Local (AI)' },
               { id: 'online', label: 'Online', disabled: true }
@@ -244,26 +250,26 @@ export default function TexasHoldemLobby() {
               <div key={id} className="relative">
                 <button
                   onClick={() => !disabled && setMode(id)}
-                  className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
-                    disabled ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
+                  className={`lobby-option-card ${
+                    mode === id ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                  } ${disabled ? 'lobby-option-card-disabled' : ''}`}
                   disabled={disabled}
                 >
-                  <div className="flex items-center gap-2">
-                    <OptionIcon
-                      src={getLobbyIcon('texasholdem', `mode-${id}`)}
-                      alt={label}
-                      fallback={id === 'local' ? '🤖' : '🌐'}
-                      className="h-5 w-5"
-                    />
-                    <span>{label}</span>
+                  <div className="lobby-option-thumb bg-gradient-to-br from-yellow-400/30 via-orange-500/10 to-transparent">
+                    <div className="lobby-option-thumb-inner">
+                      <OptionIcon
+                        src={getLobbyIcon('texasholdem', `mode-${id}`)}
+                        alt={label}
+                        fallback={id === 'local' ? '🤖' : '🌐'}
+                        className="lobby-option-icon"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{label}</p>
+                    {disabled && <p className="lobby-option-subtitle">Under development</p>}
                   </div>
                 </button>
-                {disabled && (
-                  <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
-                    Under development
-                  </span>
-                )}
               </div>
             ))}
           </div>

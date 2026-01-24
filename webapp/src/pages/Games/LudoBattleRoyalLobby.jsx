@@ -304,22 +304,28 @@ export default function LudoBattleRoyalLobby() {
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow space-y-3">
               <div>
                 <h4 className="font-semibold text-white text-sm">How many AI opponents?</h4>
-                <div className="mt-2 flex gap-2">
+                <div className="mt-2 grid grid-cols-3 gap-3">
                   {[1, 2, 3].map((n) => (
                     <button
                       key={n}
                       onClick={() => setAiCount(n)}
-                      className={`lobby-tile ${aiCount === n ? 'lobby-selected' : ''}`}
+                      className={`lobby-option-card ${
+                        aiCount === n ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                      }`}
                     >
-                      <span className="flex items-center gap-2">
-                        <OptionIcon
-                          src={getLobbyIcon('ludobattleroyal', `ai-${n}`)}
-                          alt={`${n} AI`}
-                          fallback="🤖"
-                          className="h-5 w-5"
-                        />
-                        {n}
-                      </span>
+                      <div className="lobby-option-thumb bg-gradient-to-br from-emerald-400/30 via-sky-500/10 to-transparent">
+                        <div className="lobby-option-thumb-inner">
+                          <OptionIcon
+                            src={getLobbyIcon('ludobattleroyal', `ai-${n}`)}
+                            alt={`${n} AI`}
+                            fallback="🤖"
+                            className="lobby-option-icon"
+                          />
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <p className="lobby-option-label">{n} AI</p>
+                      </div>
                     </button>
                   ))}
                 </div>

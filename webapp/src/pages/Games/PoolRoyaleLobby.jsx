@@ -415,27 +415,23 @@ export default function PoolRoyaleLobby() {
                   key={id}
                   type="button"
                   onClick={() => setPlayType(id)}
-                  className={`group flex items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
-                    active
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
+                  className={`lobby-option-card ${
+                    active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
                   }`}
                 >
-                  <div className={`h-16 w-16 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
-                    <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
+                  <div className={`lobby-option-thumb bg-gradient-to-br ${accent}`}>
+                    <div className="lobby-option-thumb-inner">
                       <OptionIcon
                         src={getLobbyIcon('poolroyale', iconKey)}
                         alt={label}
                         fallback={id === 'regular' ? '🎯' : '🏆'}
-                        className="h-12 w-12"
+                        className="lobby-option-icon"
                       />
                     </div>
                   </div>
-                  <div>
-                    <p className={`font-semibold ${label === 'Tournament' ? 'text-sm' : 'text-base'}`}>
-                      {label}
-                    </p>
-                    <p className="text-xs text-white/50">{desc}</p>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{label}</p>
+                    <p className="lobby-option-subtitle">{desc}</p>
                   </div>
                 </button>
               );
@@ -466,25 +462,23 @@ export default function PoolRoyaleLobby() {
                   type="button"
                   onClick={() => !disabled && setMode(id)}
                   disabled={disabled}
-                  className={`group flex items-center gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
-                    active
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
-                  } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                  className={`lobby-option-card ${
+                    active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                  } ${disabled ? 'lobby-option-card-disabled' : ''}`}
                 >
-                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-sky-400/30 via-indigo-500/10 to-transparent p-[1px]">
-                    <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-2xl">
+                  <div className="lobby-option-thumb bg-gradient-to-br from-sky-400/30 via-indigo-500/10 to-transparent">
+                    <div className="lobby-option-thumb-inner">
                       <OptionIcon
                         src={getLobbyIcon('poolroyale', iconKey)}
                         alt={label}
                         fallback={id === 'ai' ? '🤖' : '🌐'}
-                        className="h-12 w-12"
+                        className="lobby-option-icon"
                       />
                     </div>
                   </div>
-                  <div>
-                    <p className="text-base font-semibold">{label}</p>
-                    <p className="text-xs text-white/50">
+                  <div className="text-center">
+                    <p className="lobby-option-label">{label}</p>
+                    <p className="lobby-option-subtitle">
                       {disabled ? 'Tournament bracket only' : desc}
                     </p>
                   </div>
@@ -511,24 +505,22 @@ export default function PoolRoyaleLobby() {
                   key={id}
                   type="button"
                   onClick={() => setVariant(id)}
-                  className={`group flex flex-col items-start gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
-                    active
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
+                  className={`lobby-option-card ${
+                    active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
                   }`}
                 >
-                  <div className="h-24 w-24 rounded-2xl bg-gradient-to-br from-amber-400/30 via-sky-500/10 to-transparent p-[1px]">
-                    <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220]">
+                  <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/30 via-sky-500/10 to-transparent">
+                    <div className="lobby-option-thumb-inner">
                       <OptionIcon
                         src={getVariantThumbnail('poolroyale', id)}
                         alt={label}
                         fallback="🎱"
-                        className="h-16 w-16"
+                        className="lobby-option-icon"
                       />
                     </div>
                   </div>
-                  <div>
-                    <p className="text-base font-semibold">{label}</p>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{label}</p>
                   </div>
                 </button>
               );
@@ -552,34 +544,32 @@ export default function PoolRoyaleLobby() {
               ].map(({ id, label }) => {
                 const active = ukBallSet === id;
                 return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setUkBallSet(id)}
-                    className={`group flex flex-col items-start gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
-                      active
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
-                    }`}
-                  >
-                    <div className="h-24 w-24 rounded-2xl bg-gradient-to-br from-amber-400/30 via-rose-500/10 to-transparent p-[1px]">
-                      <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220]">
-                        <OptionIcon
-                          src={getLobbyIcon('poolroyale', `ball-${id}`)}
-                          alt={label}
-                          fallback={id === 'uk' ? '🟡' : '🔵'}
-                          className="h-16 w-16"
-                        />
-                      </div>
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setUkBallSet(id)}
+                  className={`lobby-option-card ${
+                    active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                  }`}
+                >
+                  <div className="lobby-option-thumb bg-gradient-to-br from-amber-400/30 via-rose-500/10 to-transparent">
+                    <div className="lobby-option-thumb-inner">
+                      <OptionIcon
+                        src={getLobbyIcon('poolroyale', `ball-${id}`)}
+                        alt={label}
+                        fallback={id === 'uk' ? '🟡' : '🔵'}
+                        className="lobby-option-icon"
+                      />
                     </div>
-                    <div>
-                      <p className="text-base font-semibold">{label}</p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{label}</p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
+        </div>
         )}
 
         {playType === 'tournament' && (
