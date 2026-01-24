@@ -3,12 +3,17 @@ const GAME_ASSET_BASE_URL =
 
 const normalizeBase = (base) => base.replace(/\/+$/, '');
 
-const withBase = (path) => `${normalizeBase(GAME_ASSET_BASE_URL)}/${path.replace(/^\/+/, '')}`;
+const withBase = (path) => {
+  if (path.startsWith('/') || path.startsWith('http')) {
+    return path;
+  }
+  return `${normalizeBase(GAME_ASSET_BASE_URL)}/${path.replace(/^\/+/, '')}`;
+};
 
 export const gameThumbnails = {
   texasholdem: 'games/texas-holdem.webp',
   'domino-royal': 'games/domino-royal.webp',
-  poolroyale: 'games/pool-royale.webp',
+  poolroyale: '/assets/icons/Pool%20Royal%20game%20logo.png',
   snookerroyale: 'games/snooker-royale.webp',
   goalrush: 'games/goal-rush.webp',
   airhockey: 'games/air-hockey.webp',
@@ -40,11 +45,11 @@ export const lobbyOptionIcons = {
     'type-tournament': 'lobby/pool-royale/type-tournament.webp',
     'mode-ai': 'lobby/pool-royale/mode-ai.webp',
     'mode-online': 'lobby/pool-royale/mode-online.webp',
-    'variant-uk': 'lobby/pool-royale/variant-uk.webp',
-    'variant-american': 'lobby/pool-royale/variant-american.webp',
-    'variant-9ball': 'lobby/pool-royale/variant-9ball.webp',
-    'ball-uk': 'lobby/pool-royale/ball-uk-rack.svg',
-    'ball-american': 'lobby/pool-royale/ball-american-rack.svg'
+    'variant-uk': '/assets/icons/8ballrack.png',
+    'variant-american': '/assets/icons/American%20Billiards%20.png',
+    'variant-9ball': '/assets/icons/9ballrack.png',
+    'ball-uk': '/assets/icons/8ballrack.png',
+    'ball-american': '/assets/icons/American%20Billiards%20.png'
   },
   snookerroyale: {
     'type-regular': 'lobby/snooker-royale/type-regular.webp',
@@ -118,9 +123,9 @@ export const lobbyOptionIcons = {
 
 export const variantThumbnails = {
   poolroyale: {
-    uk: 'variants/pool-royale/8-pool-uk-rack.svg',
-    american: 'variants/pool-royale/8-ball-american-rack.svg',
-    '9ball': 'variants/pool-royale/9-ball-rack.svg'
+    uk: '/assets/icons/8ballrack.png',
+    american: '/assets/icons/American%20Billiards%20.png',
+    '9ball': '/assets/icons/9ballrack.png'
   }
 };
 
