@@ -1513,8 +1513,8 @@ const SPIN_DECORATION_DOT_SIZE_PX = 12;
 const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
-// middle pocket cushion cuts are sharpened to a 29° cut to align the side-rail cushions with the updated spec
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 34;
+// match Pool Royale by keeping the side cushion cuts aligned with the corner cuts
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -1532,6 +1532,8 @@ const WOOD_REPEAT_SCALE_MAX = 2;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
 const DEFAULT_POOL_VARIANT = 'snooker';
 const SNOOKER_BALL_MATERIAL_VARIANT = 'pool';
+const FIELD_MAPPING_MARKING_COLOR = 0xffd700;
+const FIELD_MAPPING_POCKET_COLOR = 0xd12c2c;
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
 const UK_POOL_BLACK = 0x000000;
@@ -7095,7 +7097,7 @@ function Table3D(
 
   const markingsGroup = new THREE.Group();
   const markingMat = new THREE.MeshBasicMaterial({
-    color: palette.markings,
+    color: FIELD_MAPPING_MARKING_COLOR,
     transparent: true,
     opacity: 0.9,
     side: THREE.DoubleSide
@@ -7164,7 +7166,7 @@ function Table3D(
     true
   );
   const pocketMat = new THREE.MeshStandardMaterial({
-    color: 0x000000,
+    color: FIELD_MAPPING_POCKET_COLOR,
     metalness: 0.45,
     roughness: 0.6,
     side: THREE.BackSide
