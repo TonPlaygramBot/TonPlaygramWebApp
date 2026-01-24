@@ -14,7 +14,7 @@ export const gameThumbnails = {
   texasholdem: 'games/texas-holdem.webp',
   'domino-royal': 'games/domino-royal.webp',
   poolroyale: '/assets/icons/Pool%20Royal%20game%20logo.png',
-  snookerroyale: 'games/snooker-royale.webp',
+  snookerroyale: '/assets/icons/file_00000000123071f4a91766ac58320bce.png',
   goalrush: 'games/goal-rush.webp',
   airhockey: 'games/air-hockey.webp',
   snake: 'games/snake-ladder.webp',

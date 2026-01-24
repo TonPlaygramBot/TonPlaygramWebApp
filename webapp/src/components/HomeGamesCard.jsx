@@ -67,11 +67,15 @@ export default function HomeGamesCard() {
           className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
         >
           <img
-            src={getGameThumbnail('snookerroyale') || '/assets/icons/snooker-royale.svg'}
+            src={
+              getGameThumbnail('snookerroyale') ||
+              '/assets/icons/file_00000000123071f4a91766ac58320bce.png'
+            }
             alt=""
             className="h-20 w-20"
             onError={(event) => {
-              event.currentTarget.src = '/assets/icons/snooker-royale.svg';
+              event.currentTarget.src =
+                '/assets/icons/file_00000000123071f4a91766ac58320bce.png';
             }}
           />
           <h3 className="text-sm font-semibold text-center text-yellow-400">
