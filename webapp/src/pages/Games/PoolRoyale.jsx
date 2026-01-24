@@ -34,6 +34,7 @@ import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { chatBeep } from '../../assets/soundData.js';
+import { CommentaryManager, WebSpeechTtsService } from '../../commentary/index.js';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
@@ -12426,6 +12427,10 @@ const powerRef = useRef(hud.power);
   const activeCrowdSoundRef = useRef(null);
   const muteRef = useRef(isGameMuted());
   const volumeRef = useRef(getGameVolume());
+  const commentaryManagerRef = useRef(null);
+  const commentaryTtsRef = useRef(null);
+  const commentaryPendingRef = useRef(null);
+  const commentaryUnlockedRef = useRef(false);
   const railSoundTimeRef = useRef(new Map());
   const liftLandingTimeRef = useRef(new Map());
   const powerImpactHoldRef = useRef(0);
@@ -12848,6 +12853,72 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('gameVolumeChanged', handleVolume);
     };
   }, [stopActiveCrowdSound]);
+  const resolveCommentaryMode = useCallback(() => {
+    const variantId = activeVariant?.id ?? variantKey;
+    if (variantId === '9ball') return 'nineBall';
+    return 'eightBall';
+  }, [activeVariant?.id, variantKey]);
+  const flushPendingCommentary = useCallback(() => {
+    const pending = commentaryPendingRef.current;
+    if (!pending || !commentaryManagerRef.current) return;
+    commentaryPendingRef.current = null;
+    commentaryManagerRef.current.onEvent(pending.mode, pending.eventType, pending.context);
+  }, []);
+  const queueCommentary = useCallback(
+    (eventType, context = {}) => {
+      if (muteRef.current) return;
+      const mode = resolveCommentaryMode();
+      commentaryPendingRef.current = { mode, eventType, context };
+      if (!commentaryManagerRef.current) return;
+      if (!commentaryUnlockedRef.current) return;
+      flushPendingCommentary();
+    },
+    [flushPendingCommentary, resolveCommentaryMode]
+  );
+  useEffect(() => {
+    commentaryTtsRef.current = new WebSpeechTtsService({
+      volume: () => (muteRef.current ? 0 : volumeRef.current)
+    });
+    commentaryManagerRef.current = new CommentaryManager({
+      ttsService: commentaryTtsRef.current
+    });
+    if (commentaryUnlockedRef.current) {
+      flushPendingCommentary();
+    }
+    return () => {
+      commentaryTtsRef.current?.cancel?.();
+      commentaryTtsRef.current = null;
+      commentaryManagerRef.current = null;
+    };
+  }, [flushPendingCommentary]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const unlock = () => {
+      if (commentaryUnlockedRef.current) return;
+      commentaryUnlockedRef.current = true;
+      flushPendingCommentary();
+    };
+    window.addEventListener('pointerdown', unlock);
+    window.addEventListener('keydown', unlock);
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, [flushPendingCommentary]);
+  useEffect(() => {
+    const activeSeat = initialFrame.activePlayer === 'B' ? 'B' : 'A';
+    const activePlayerName =
+      initialFrame.players?.[activeSeat]?.name ||
+      (activeSeat === 'A' ? framePlayerAName : framePlayerBName);
+    const opponentSeat = activeSeat === 'A' ? 'B' : 'A';
+    const opponentPlayerName =
+      initialFrame.players?.[opponentSeat]?.name ||
+      (opponentSeat === 'A' ? framePlayerAName : framePlayerBName);
+    queueCommentary('break', {
+      playerName: activePlayerName,
+      opponentName: opponentPlayerName
+    });
+  }, [framePlayerAName, framePlayerBName, initialFrame, queueCommentary]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
