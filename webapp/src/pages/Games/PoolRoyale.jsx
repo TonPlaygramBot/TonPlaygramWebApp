@@ -919,23 +919,23 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'arena-duo',
     label: 'Arena duo',
-    description: 'UK lead with US analyst',
+    description: 'UK female lead with US male analyst',
     voiceHints: {
-      Steven: ['Google UK English Male', 'en-GB', 'English', 'UK'],
-      John: ['Google US English', 'en-US', 'English', 'US']
+      Steven: ['Google UK English Female', 'en-GB', 'English', 'female', 'UK', 'Sonia'],
+      John: ['Google US English Male', 'en-US', 'English', 'male', 'US', 'David', 'Guy']
     },
     speakerSettings: {
-      Steven: { rate: 1, pitch: 0.94, volume: 1 },
-      John: { rate: 1.03, pitch: 1.04, volume: 1 }
+      Steven: { rate: 1, pitch: 1.02, volume: 1 },
+      John: { rate: 1.03, pitch: 0.98, volume: 1 }
     }
   },
   {
     id: 'atlantic',
     label: 'Atlantic booth',
-    description: 'US lead with UK analyst',
+    description: 'US female lead with UK male analyst',
     voiceHints: {
-      Steven: ['Google US English', 'en-US', 'English', 'US'],
-      John: ['Google UK English Male', 'en-GB', 'English', 'UK']
+      Steven: ['Google US English Female', 'en-US', 'English', 'female', 'US', 'Samantha', 'Zira'],
+      John: ['Google UK English Male', 'en-GB', 'English', 'male', 'UK', 'Daniel', 'Arthur']
     },
     speakerSettings: {
       Steven: { rate: 1.02, pitch: 0.98, volume: 1 },
@@ -945,23 +945,23 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'pacific',
     label: 'Pacific desk',
-    description: 'Australian & US cadence',
+    description: 'Australian male with US female analyst',
     voiceHints: {
-      Steven: ['Google Australian English', 'en-AU', 'English', 'Australia'],
-      John: ['Google US English', 'en-US', 'English', 'US']
+      Steven: ['Google Australian English', 'en-AU', 'English', 'male', 'Australia', 'Lee', 'William'],
+      John: ['Google US English Female', 'en-US', 'English', 'female', 'US', 'Samantha', 'Zira']
     },
     speakerSettings: {
       Steven: { rate: 1.01, pitch: 0.96, volume: 1 },
-      John: { rate: 1.04, pitch: 1.02, volume: 1 }
+      John: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
   },
   {
     id: 'emerald',
     label: 'Emerald studio',
-    description: 'Irish with UK tone',
+    description: 'Irish female with UK male analyst',
     voiceHints: {
-      Steven: ['Google Irish English', 'en-IE', 'English', 'Ireland'],
-      John: ['Google UK English Male', 'en-GB', 'English', 'UK']
+      Steven: ['Google Irish English Female', 'en-IE', 'English', 'female', 'Ireland', 'Moira'],
+      John: ['Google UK English Male', 'en-GB', 'English', 'male', 'UK', 'Daniel', 'Arthur']
     },
     speakerSettings: {
       Steven: { rate: 0.98, pitch: 0.9, volume: 1 },
@@ -971,10 +971,10 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'global',
     label: 'Global mix',
-    description: 'Indian lead with US analyst',
+    description: 'Indian female with US male analyst',
     voiceHints: {
-      Steven: ['Google Indian English', 'en-IN', 'English', 'India'],
-      John: ['Google US English', 'en-US', 'English', 'US']
+      Steven: ['Google Indian English Female', 'en-IN', 'English', 'female', 'India', 'Asha', 'Raveena'],
+      John: ['Google US English Male', 'en-US', 'English', 'male', 'US', 'David', 'Guy']
     },
     speakerSettings: {
       Steven: { rate: 1.02, pitch: 1.06, volume: 1 },
@@ -984,10 +984,10 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'northern',
     label: 'Northern call',
-    description: 'Canadian with UK analyst',
+    description: 'Canadian male with UK female analyst',
     voiceHints: {
-      Steven: ['Google Canadian English', 'en-CA', 'English', 'Canada'],
-      John: ['Google UK English Male', 'en-GB', 'English', 'UK']
+      Steven: ['Google Canadian English', 'en-CA', 'English', 'male', 'Canada', 'Liam'],
+      John: ['Google UK English Female', 'en-GB', 'English', 'female', 'UK', 'Sonia', 'Hazel']
     },
     speakerSettings: {
       Steven: { rate: 0.99, pitch: 0.97, volume: 1 },
@@ -12882,17 +12882,32 @@ const powerRef = useRef(hud.power);
     () => {
       const playerName = player.name || 'Player A';
       const opponentName = opponentLabel || 'Player B';
+      const scoreA = frameState?.players?.A?.score ?? 0;
+      const scoreB = frameState?.players?.B?.score ?? 0;
+      const scoreline =
+        scoreA === scoreB
+          ? `level at ${scoreA}-${scoreB}`
+          : scoreA > scoreB
+            ? `${framePlayerAName || playerName} leads ${scoreA}-${scoreB}`
+            : `${framePlayerBName || opponentName} leads ${scoreB}-${scoreA}`;
+      const commentaryVariant = activeVariant?.id ?? variantKey ?? '9ball';
       return [
         {
           speaker: 'Steven',
           text: buildCommentaryLine({
             event: 'intro',
-            variant: '9ball',
+            variant: commentaryVariant,
             speaker: 'Steven',
             context: {
               player: playerName,
               opponent: opponentName,
-              arena: 'Pool Royale arena'
+              arena: 'Pool Royale arena',
+              playerScore: scoreA,
+              opponentScore: scoreB,
+              playerPoints: scoreA,
+              opponentPoints: scoreB,
+              scoreline,
+              ballSet: activeVariant?.ballSet
             }
           })
         },
@@ -12900,29 +12915,71 @@ const powerRef = useRef(hud.power);
           speaker: 'John',
           text: buildCommentaryLine({
             event: 'introReply',
-            variant: '9ball',
+            variant: commentaryVariant,
             speaker: 'John',
             context: {
               player: playerName,
               opponent: opponentName,
-              arena: 'Pool Royale arena'
+              arena: 'Pool Royale arena',
+              playerScore: scoreA,
+              opponentScore: scoreB,
+              playerPoints: scoreA,
+              opponentPoints: scoreB,
+              scoreline,
+              ballSet: activeVariant?.ballSet
             }
           })
         }
       ];
     },
-    [opponentLabel, player.name]
+    [
+      activeVariant?.ballSet,
+      activeVariant?.id,
+      framePlayerAName,
+      framePlayerBName,
+      frameState?.players,
+      opponentLabel,
+      player.name,
+      variantKey
+    ]
   );
   const buildMatchCommentaryScript = useCallback(
     () =>
       createMatchCommentaryScript({
-        variant: '9ball',
+        variant: activeVariant?.id ?? variantKey ?? '9ball',
+        ballSet: activeVariant?.ballSet ?? 'uk',
         players: {
           A: framePlayerAName || 'Player A',
           B: framePlayerBName || 'Player B'
-        }
+        },
+        scores: {
+          A: frameState?.players?.A?.score ?? 0,
+          B: frameState?.players?.B?.score ?? 0
+        },
+        points: {
+          A: frameState?.players?.A?.score ?? 0,
+          B: frameState?.players?.B?.score ?? 0
+        },
+        pots: {
+          A: pottedBySeat?.A?.length ?? 0,
+          B: pottedBySeat?.B?.length ?? 0
+        },
+        scoreline:
+          (frameState?.players?.A?.score ?? 0) === (frameState?.players?.B?.score ?? 0)
+            ? `level at ${frameState?.players?.A?.score ?? 0}-${frameState?.players?.B?.score ?? 0}`
+            : (frameState?.players?.A?.score ?? 0) > (frameState?.players?.B?.score ?? 0)
+              ? `${framePlayerAName || 'Player A'} leads ${frameState?.players?.A?.score ?? 0}-${frameState?.players?.B?.score ?? 0}`
+              : `${framePlayerBName || 'Player B'} leads ${frameState?.players?.B?.score ?? 0}-${frameState?.players?.A?.score ?? 0}`
       }),
-    [framePlayerAName, framePlayerBName]
+    [
+      activeVariant?.ballSet,
+      activeVariant?.id,
+      framePlayerAName,
+      framePlayerBName,
+      frameState?.players,
+      pottedBySeat,
+      variantKey
+    ]
   );
 
   const speakPoolCommentary = useCallback(
@@ -13006,12 +13063,23 @@ const powerRef = useRef(hud.power);
             speaker: 'Steven',
             text: buildCommentaryLine({
               event: 'intro',
-              variant: '9ball',
+              variant: activeVariant?.id ?? variantKey ?? '9ball',
               speaker: 'Steven',
               context: {
                 player: player.name || 'Player A',
                 opponent: opponentLabel || 'Player B',
-                arena: 'Pool Royale arena'
+                arena: 'Pool Royale arena',
+                playerScore: frameState?.players?.A?.score ?? 0,
+                opponentScore: frameState?.players?.B?.score ?? 0,
+                playerPoints: frameState?.players?.A?.score ?? 0,
+                opponentPoints: frameState?.players?.B?.score ?? 0,
+                scoreline:
+                  (frameState?.players?.A?.score ?? 0) === (frameState?.players?.B?.score ?? 0)
+                    ? `level at ${frameState?.players?.A?.score ?? 0}-${frameState?.players?.B?.score ?? 0}`
+                    : (frameState?.players?.A?.score ?? 0) > (frameState?.players?.B?.score ?? 0)
+                      ? `${framePlayerAName || 'Player A'} leads ${frameState?.players?.A?.score ?? 0}-${frameState?.players?.B?.score ?? 0}`
+                      : `${framePlayerBName || 'Player B'} leads ${frameState?.players?.B?.score ?? 0}-${frameState?.players?.A?.score ?? 0}`,
+                ballSet: activeVariant?.ballSet
               }
             })
           }
@@ -13019,7 +13087,17 @@ const powerRef = useRef(hud.power);
         preset
       );
     },
-    [opponentLabel, player.name, speakPoolCommentary]
+    [
+      activeVariant?.ballSet,
+      activeVariant?.id,
+      framePlayerAName,
+      framePlayerBName,
+      frameState?.players,
+      opponentLabel,
+      player.name,
+      speakPoolCommentary,
+      variantKey
+    ]
   );
   useEffect(() => {
     document.title = 'Pool Royale 3D';

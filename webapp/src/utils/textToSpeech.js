@@ -50,6 +50,23 @@ const findVoiceMatch = (voices, hints = []) => {
   );
 };
 
+const findDistinctVoice = (voices, hints = [], usedVoices = new Set()) => {
+  if (!voices.length) return null;
+  const normalizedHints = hints.map((hint) => hint.toLowerCase());
+  const matchesByName = voices.filter((voice) =>
+    normalizedHints.some((hint) => voice.name.toLowerCase().includes(hint))
+  );
+  const matchesByLang = voices.filter((voice) =>
+    normalizedHints.some((hint) => voice.lang.toLowerCase().includes(hint))
+  );
+  const candidateLists = [matchesByName, matchesByLang, voices];
+  for (const candidates of candidateLists) {
+    const match = candidates.find((voice) => !usedVoices.has(voice));
+    if (match) return match;
+  }
+  return voices[0] || null;
+};
+
 export const resolveVoiceForSpeaker = (speaker, voices = []) => {
   if (!voices.length) return null;
   const hints = DEFAULT_VOICE_HINTS[speaker] || DEFAULT_VOICE_HINTS.Steven;
@@ -64,6 +81,16 @@ export const speakCommentaryLines = async (lines, {
   if (!synth || !Array.isArray(lines) || lines.length === 0) return;
 
   const voices = await loadVoices(synth);
+  const uniqueSpeakers = [...new Set(lines.map((line) => line.speaker || 'Steven'))];
+  const usedVoices = new Set();
+  const speakerVoices = uniqueSpeakers.reduce((acc, speaker) => {
+    const voice = findDistinctVoice(voices, voiceHints[speaker] || voiceHints.Steven, usedVoices);
+    if (voice) {
+      usedVoices.add(voice);
+      acc[speaker] = voice;
+    }
+    return acc;
+  }, {});
 
   if (typeof synth.resume === 'function') {
     try {
@@ -75,7 +102,7 @@ export const speakCommentaryLines = async (lines, {
     const speaker = line.speaker || 'Steven';
     const settings = speakerSettings[speaker] || DEFAULT_SPEAKER_SETTINGS.Steven;
     const utterance = new SpeechSynthesisUtterance(line.text);
-    const voice = findVoiceMatch(voices, voiceHints[speaker] || voiceHints.Steven);
+    const voice = speakerVoices[speaker] || findVoiceMatch(voices, voiceHints[speaker] || voiceHints.Steven);
 
     if (voice) utterance.voice = voice;
     utterance.rate = settings.rate;

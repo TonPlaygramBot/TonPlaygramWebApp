@@ -14,66 +14,75 @@ const SPEAKER_PROFILES = Object.freeze({
 const DEFAULT_CONTEXT = Object.freeze({
   player: 'Player A',
   opponent: 'Player B',
+  playerScore: 0,
+  opponentScore: 0,
+  playerPoints: 0,
+  opponentPoints: 0,
+  playerPots: 0,
+  opponentPots: 0,
   targetBall: 'the object ball',
   pocket: 'the corner pocket',
   table: 'the main table',
   arena: 'Pool Royale arena',
   breakType: 'thunder break',
-  scoreline: 'level',
+  scoreline: 'level at 0-0',
+  groupPrimary: 'reds',
+  groupSecondary: 'yellows',
+  ballSet: 'uk',
   rackNumber: 'this rack'
 });
 
 const TEMPLATES = Object.freeze({
   common: {
     intro: [
-      'Welcome to {arena}! I am {speaker}, alongside {partner} for {rackNumber}.',
-      'It is match time at {arena}. {speaker} here with {partner}, and we are set for {variantName}.',
-      'Good evening from {arena}. {speaker} with {partner}, and the balls are ready for {variantName}.'
+      'Welcome to {arena}. {speaker} with {partner}. {player} faces {opponent} with the score {playerScore}-{opponentScore} in {variantName}.',
+      'It is match time at {arena}. {speaker} alongside {partner}. {player} versus {opponent}, {scoreline} in {variantName}.',
+      'Good evening from {arena}. {speaker} with {partner}. {player} and {opponent} are locked at {playerScore}-{opponentScore}.'
     ],
     introReply: [
-      'Thanks {speaker}. The table is tight and the pressure is real in {variantName}.',
-      'Great to be here, {speaker}. Expect a tactical battle in {variantName}.',
-      'Absolutely, {speaker}. This is the kind of arena where every inch of position matters.'
+      'Thanks {speaker}. Points are precious tonight—every pot will matter for {player} and {opponent}.',
+      'Great to be here, {speaker}. The scoreboard reads {playerScore}-{opponentScore}, and the margins are razor thin.',
+      'Absolutely, {speaker}. {player} and {opponent} both need clean pots to turn points into control.'
     ],
     breakShot: [
-      '{player} steps in for the break—eyes on the head ball and the wing balls.',
-      '{player} leaning in. A clean break could open {table} wide.',
-      'Here comes the break from {player}. Watch the cue ball for control.'
+      '{player} steps in for the break; a sharp split sets up early pots.',
+      '{player} leans in. A controlled break can define the scoring chances.',
+      'Here comes the break from {player}. Cue ball control will be everything.'
     ],
     breakResult: [
-      'Nice spread off the break; the rack is open now.',
-      'That break has cracked the pack—plenty of lanes available.',
-      'Solid pop on the break. Control on the cue ball is the key.'
+      'Nice spread off the break, {speaker}. The rack is open now.',
+      'That break has cracked the pack—clean lanes for scoring chances, {speaker}.',
+      'Solid pop on the break. Control on the cue ball is the key from here.'
     ],
     openTable: [
-      'Early pattern here—{player} wants to take the natural angles.',
-      'Plenty of options with the open table; cue ball path is everything.',
-      '{player} is reading the table, looking for a simple route.'
+      'Early pattern here—{player} wants natural angles and quick pots.',
+      'Plenty of options with the open table; cue ball paths decide the points.',
+      '{player} is reading the table, looking for a simple route to the next pot.'
     ],
     safety: [
-      'A smart safety. {player} tucks the cue ball behind a blocker.',
+      'A smart safety, {partner}. {player} tucks the cue ball behind a blocker.',
       'That is a measured safety, leaving {opponent} long and awkward.',
-      '{player} turns down the pot and plays the safety battle.'
+      '{player} turns down the pot and plays the safety battle to protect the score.'
     ],
     pressure: [
-      'Big moment. {player} needs this pot to keep the run alive.',
-      'Pressure shot here for {player}; it is all about a soft touch.',
-      'This is where nerves show—{player} has to deliver.'
+      'Big moment. {player} needs this pot to keep the scoring run alive.',
+      'Pressure shot here for {player}; it is all about soft touch and points.',
+      'This is where nerves show—{player} has to deliver for the scoreboard.'
     ],
     pot: [
-      'Beautiful pot. {player} stays right on line for the next ball.',
-      'Clean strike from {player}. That is textbook cueing.',
-      '{player} drops it in and holds the cue ball in the lane.'
+      'Beautiful pot. {player} moves to {playerPots} pots and {playerPoints} points.',
+      'Clean strike from {player}. That pot bumps the score to {playerScore}-{opponentScore}.',
+      '{player} drops it in and holds the cue ball in the lane for more points.'
     ],
     combo: [
-      'That is a clever combination—using the {targetBall} to open the {pocket}.',
-      'What a combo! {player} turns a tough angle into a makeable shot.',
-      'Great combination play. {player} sees the carom and takes it.'
+      'That is a clever combination—{player} uses {targetBall} to open the {pocket}.',
+      'What a combo! {player} turns a tough angle into a makeable pot.',
+      'Great combination play. {player} sees the carom and takes the points.'
     ],
     bank: [
       '{player} goes to the cushion—bank shot, perfectly judged.',
       'Bold bank from {player}, and it lands in the heart of the {pocket}.',
-      'Bank shot called and made. That is confidence.'
+      'Bank shot called and made. That is confidence and points.'
     ],
     kick: [
       'Kick shot required—{player} goes one rail to find it.',
@@ -88,7 +97,7 @@ const TEMPLATES = Object.freeze({
     miss: [
       'Oh, that one drifts offline. {player} misses the pocket.',
       'It slides past. {player} will be disappointed with that miss.',
-      'A rare miss from {player}, and now {opponent} has a look.'
+      'A rare miss from {player}, and now {opponent} has a look at points.'
     ],
     foul: [
       'Foul called. That gives {opponent} a major opportunity.',
@@ -111,19 +120,19 @@ const TEMPLATES = Object.freeze({
       'Final rack nerves—every shot feels heavier now.'
     ],
     frameWin: [
-      '{player} closes the rack. That is clinical pool.',
-      'Rack won by {player}. Clean finish.',
-      '{player} finishes it in style and takes the rack.'
+      '{player} closes the rack. That is clinical pool and {playerPoints} points.',
+      'Rack won by {player}. Score now {playerScore}-{opponentScore}.',
+      '{player} finishes it in style and takes the rack with a points swing.'
     ],
     matchWin: [
-      '{player} seals the match—what a performance.',
-      'That is the match. {player} comes through under pressure.',
+      '{player} seals the match—what a performance and a final tally of {playerScore}-{opponentScore}.',
+      'That is the match. {player} comes through under pressure on points.',
       '{player} wins it, and {arena} appreciates a professional display.'
     ],
     outro: [
-      'That wraps it up from {arena}. Thanks for joining us.',
-      'From {arena}, that is full time. Great match tonight.',
-      'A fantastic finish in {variantName}. Thanks for watching.'
+      'That wraps it up from {arena}. Thanks for joining us, {partner}.',
+      'From {arena}, that is full time. Great match tonight, {partner}.',
+      'A fantastic finish in {variantName}. Thanks for watching with us.'
     ]
   },
   nineBall: {
@@ -149,12 +158,30 @@ const TEMPLATES = Object.freeze({
       'Push-out played—now {opponent} must decide to shoot or pass.'
     ]
   },
+  eightBallUs: {
+    variantName: '8-ball American pool',
+    groupCall: [
+      'Open table between {groupPrimary} and {groupSecondary}; {player} is looking to claim one.',
+      '{player} can choose {groupPrimary} or {groupSecondary}—the first clean pot decides the pattern.',
+      'Plenty of options here, {partner}. {groupPrimary} and {groupSecondary} are both available.'
+    ],
+    inHand: [
+      'Foul gives {opponent} ball in hand—prime time for an 8-ball run.',
+      '{opponent} has ball in hand, and that is a big swing in American 8-ball.',
+      'Ball in hand now for {opponent}; expect a composed clearance attempt.'
+    ],
+    eightBall: [
+      'The 8-ball is in play now. Position is everything.',
+      'Everything moves through the 8-ball from here.',
+      'Eight-ball on the table—one mistake decides it.'
+    ]
+  },
   eightBallUk: {
     variantName: '8-ball UK',
     groupCall: [
-      '{player} is on {group}, and that changes the pattern immediately.',
-      '{player} is taking {group}; the layout opens for a run.',
-      '{player} chooses {group}, so the route is clear to the black.'
+      'Open table between {groupPrimary} and {groupSecondary}; {player} will claim a set soon.',
+      '{groupPrimary} versus {groupSecondary} in UK rules; the first clean pot sets the route.',
+      'UK rules in play, {partner}. {groupPrimary} and {groupSecondary} are both available.'
     ],
     freeBall: [
       'Foul gives {player} a free ball—huge advantage in UK rules.',
@@ -205,7 +232,8 @@ const applyTemplate = (template, context) =>
   template.replace(/\{(\w+)\}/g, (_, key) => String(context[key] ?? `{${key}}`));
 
 const resolveVariantData = (variantId) => {
-  if (variantId === '8ball-uk') return TEMPLATES.eightBallUk;
+  if (variantId === 'uk' || variantId === '8ball-uk') return TEMPLATES.eightBallUk;
+  if (variantId === 'american' || variantId === '8ball-us') return TEMPLATES.eightBallUs;
   return TEMPLATES.nineBall;
 };
 
@@ -227,15 +255,26 @@ export const buildCommentaryLine = ({ event, variant = '9ball', speaker = 'Steve
 
 export const createMatchCommentaryScript = ({
   variant = '9ball',
+  ballSet = 'uk',
   players = { A: 'Player A', B: 'Player B' },
   commentators = ['Steven', 'John'],
-  scoreline = 'level'
+  scoreline = 'level at 0-0',
+  scores = { A: 0, B: 0 },
+  pots = { A: 0, B: 0 },
+  points = { A: 0, B: 0 }
 } = {}) => {
   const [lead, analyst] = commentators;
   const context = {
     player: players.A,
     opponent: players.B,
-    scoreline
+    scoreline,
+    playerScore: scores.A ?? 0,
+    opponentScore: scores.B ?? 0,
+    playerPoints: points.A ?? scores.A ?? 0,
+    opponentPoints: points.B ?? scores.B ?? 0,
+    playerPots: pots.A ?? 0,
+    opponentPots: pots.B ?? 0,
+    ballSet
   };
 
   const script = [
@@ -253,18 +292,39 @@ export const createMatchCommentaryScript = ({
     { speaker: analyst, event: EVENT_POOLS.outro }
   ];
 
+  const groupLabels =
+    variant === 'uk'
+      ? ballSet === 'american'
+        ? { primary: 'solids', secondary: 'stripes' }
+        : { primary: 'reds', secondary: 'yellows' }
+      : { primary: 'solids', secondary: 'stripes' };
+
   const variantScriptExtras =
-    variant === '8ball-uk'
+    variant === 'uk'
       ? [
-          { speaker: lead, event: EVENT_POOLS.groupCall, context: { group: 'reds' } },
+          {
+            speaker: lead,
+            event: EVENT_POOLS.groupCall,
+            context: { groupPrimary: groupLabels.primary, groupSecondary: groupLabels.secondary }
+          },
           { speaker: analyst, event: EVENT_POOLS.freeBall },
           { speaker: lead, event: EVENT_POOLS.blackBall }
         ]
-      : [
-          { speaker: lead, event: EVENT_POOLS.rotation },
-          { speaker: analyst, event: EVENT_POOLS.goldenBreak },
-          { speaker: lead, event: EVENT_POOLS.comboNine }
-        ];
+      : variant === 'american'
+        ? [
+            {
+              speaker: lead,
+              event: EVENT_POOLS.groupCall,
+              context: { groupPrimary: groupLabels.primary, groupSecondary: groupLabels.secondary }
+            },
+            { speaker: analyst, event: EVENT_POOLS.inHand },
+            { speaker: lead, event: EVENT_POOLS.blackBall }
+          ]
+        : [
+            { speaker: lead, event: EVENT_POOLS.rotation },
+            { speaker: analyst, event: EVENT_POOLS.goldenBreak },
+            { speaker: lead, event: EVENT_POOLS.comboNine }
+          ];
 
   const combined = [script[0], script[1], ...variantScriptExtras, ...script.slice(2)];
 
