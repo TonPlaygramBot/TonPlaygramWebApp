@@ -263,6 +263,7 @@ const FRAME_DROP_THRESHOLD = 1.35;
 const FRAME_DROP_WINDOW_MS = 3200;
 const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
 const FEEDBACK_STORAGE_KEY = 'dominoRoyalFeedback';
+const COMMENTARY_STORAGE_KEY = 'dominoRoyalCommentary';
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -602,6 +603,297 @@ function setFeedbackSettings(next, { refreshUi = true } = {}) {
 
 function isSoundEnabled() {
   return !!feedbackSettings.sound;
+}
+
+const COMMENTARY_VOICES = [
+  { id: 'atlas', label: 'Atlas', descriptor: 'Calm coach', hints: ['en', 'US', 'male', 'fred'], rate: 1.02, pitch: 0.95 },
+  { id: 'nova', label: 'Nova', descriptor: 'Energetic host', hints: ['en', 'female', 'Samantha', 'Google US English'], rate: 1.08, pitch: 1.1 },
+  { id: 'ember', label: 'Ember', descriptor: 'Warm strategist', hints: ['en', 'UK', 'female', 'Google UK English Female'], rate: 0.98, pitch: 1.02 },
+  { id: 'blitz', label: 'Blitz', descriptor: 'Hype announcer', hints: ['en', 'UK', 'male', 'Google UK English Male'], rate: 1.15, pitch: 1.05 },
+  { id: 'sage', label: 'Sage', descriptor: 'Analytical analyst', hints: ['en', 'US', 'Male', 'Alex'], rate: 0.96, pitch: 0.92 },
+  { id: 'luna', label: 'Luna', descriptor: 'Smooth narrator', hints: ['en', 'female', 'Victoria', 'Zira'], rate: 1.04, pitch: 1.12 }
+];
+const COMMENTARY_VOICES_BY_ID = COMMENTARY_VOICES.reduce((acc, voice) => {
+  acc[voice.id] = voice;
+  return acc;
+}, {});
+const DEFAULT_COMMENTARY_VOICE = COMMENTARY_VOICES[0]?.id ?? 'atlas';
+const COMMENTARY_MIN_GAP_MS = 1400;
+const COMMENTARY_LINES = {
+  gameStart: [
+    'Domino battle starts now. All eyes on the opening play.',
+    'New round, fresh tiles. Let the showdown begin.',
+    'Welcome to the table. Time to build the chain.',
+    'Shuffle done. It is go time.',
+    'Another domino royal round. Play smart and play fast.',
+    'Game on. Watch the doubles.'
+  ],
+  opening: [
+    'Opening tile is {tile}. That sets the pace.',
+    'We start with {tile} on the board.',
+    'First domino down: {tile}.',
+    'Opening play is {tile}. Big statement.',
+    'Starting chain with {tile}.',
+    'The table opens with {tile}.'
+  ],
+  yourTurn: [
+    'Your move. Look for the strongest lane.',
+    'You are up. Time to control the ends.',
+    'Your turn. Keep the pressure on.',
+    'Make it count. Your move.',
+    'You have the table. Choose wisely.',
+    'Your move. Set up the next chain.'
+  ],
+  opponentTurn: [
+    '{player} is thinking.',
+    '{player} to play. Watch the endpoints.',
+    '{player} is up. Stay ready.',
+    'Opponent move. Eyes on the chain.',
+    '{player} steps in now.',
+    'Waiting on {player}.'
+  ],
+  draw: [
+    '{player} draws from the boneyard.',
+    'No match. {player} pulls a tile.',
+    '{player} digs for a playable domino.',
+    'Drawing time for {player}.',
+    '{player} hits the stock.',
+    '{player} reaches for the boneyard.'
+  ],
+  pass: [
+    '{player} passes. No play available.',
+    'Nothing fits. {player} skips the turn.',
+    '{player} can not move and passes.',
+    '{player} forced to pass.',
+    'Pass from {player}. That slows the tempo.',
+    '{player} sits this one out.'
+  ],
+  place: [
+    '{player} lays down {tile}.',
+    '{player} plays {tile}.',
+    '{player} drops {tile} on the chain.',
+    '{player} connects with {tile}.',
+    '{player} slots in {tile}.',
+    '{player} answers with {tile}.'
+  ],
+  double: [
+    '{player} drops a double {value}.',
+    'Double {value} on the table by {player}.',
+    '{player} slams the double {value}.',
+    'Power play! Double {value} from {player}.',
+    '{player} anchors the line with double {value}.',
+    'Double {value} lands. Big pivot by {player}.'
+  ],
+  nearWin: [
+    '{player} is down to one tile.',
+    'Warning: {player} has one domino left.',
+    '{player} is on match point.',
+    '{player} is almost out. One tile remaining.',
+    'Pressure rising: {player} has a single tile.',
+    '{player} is one move from victory.'
+  ],
+  blocked: [
+    'The board is blocked. Counting pips.',
+    'No moves left. It is a blocked finish.',
+    'Chain is frozen. Going to pip totals.',
+    'We are locked out. Tallying hands.',
+    'No legal plays. This is a blocked round.',
+    'Board is jammed. Lowest hand wins.'
+  ],
+  win: [
+    'Victory! You take the table.',
+    'You win the round. Strong finish.',
+    'That seals it. You are the champion.',
+    'You close it out. Great domino control.',
+    'Winner: you. Clean execution.',
+    'You take the crown!'
+  ],
+  lose: [
+    '{player} wins the round.',
+    '{player} takes it. Tough fight.',
+    '{player} closes the game.',
+    'Round goes to {player}.',
+    '{player} finishes on top.',
+    '{player} claims the win.'
+  ]
+};
+
+function buildDefaultCommentarySettings() {
+  return {
+    enabled: !prefersReducedAudio(),
+    voiceId: DEFAULT_COMMENTARY_VOICE
+  };
+}
+
+function normalizeCommentarySettings(raw = {}) {
+  const defaults = buildDefaultCommentarySettings();
+  return {
+    enabled: typeof raw.enabled === 'boolean' ? raw.enabled : defaults.enabled,
+    voiceId: typeof raw.voiceId === 'string' && COMMENTARY_VOICES_BY_ID[raw.voiceId]
+      ? raw.voiceId
+      : defaults.voiceId
+  };
+}
+
+function readCommentarySettings() {
+  if (typeof window === 'undefined') return buildDefaultCommentarySettings();
+  try {
+    const raw = window.localStorage?.getItem(COMMENTARY_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return normalizeCommentarySettings(parsed);
+  } catch {
+    return buildDefaultCommentarySettings();
+  }
+}
+
+function persistCommentarySettings(settings) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage?.setItem(COMMENTARY_STORAGE_KEY, JSON.stringify(settings));
+  } catch {}
+}
+
+let commentarySettings = readCommentarySettings();
+let commentaryVoice = null;
+let lastCommentaryLine = '';
+let lastCommentaryTimestamp = 0;
+const announcedNearWin = new Set();
+
+function resolveSpeechSupport() {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.speechSynthesis !== 'undefined' &&
+    typeof window.SpeechSynthesisUtterance !== 'undefined'
+  );
+}
+
+function normalizeHint(value = '') {
+  return String(value).toLowerCase();
+}
+
+function findVoiceMatch(voices, hints = []) {
+  if (!Array.isArray(voices) || !voices.length) return null;
+  const normalizedHints = hints.map((hint) => normalizeHint(hint)).filter(Boolean);
+  return (
+    voices.find((voice) => normalizedHints.some((hint) => normalizeHint(voice.name).includes(hint))) ||
+    voices.find((voice) => normalizedHints.some((hint) => normalizeHint(voice.lang).includes(hint))) ||
+    voices[0] ||
+    null
+  );
+}
+
+function refreshCommentaryVoice() {
+  if (!resolveSpeechSupport()) return;
+  const voices = window.speechSynthesis.getVoices();
+  const profile = COMMENTARY_VOICES_BY_ID[commentarySettings.voiceId] || COMMENTARY_VOICES[0];
+  commentaryVoice = findVoiceMatch(voices, profile?.hints);
+}
+
+function setCommentarySettings(next, { refreshUi = true } = {}) {
+  commentarySettings = normalizeCommentarySettings({ ...commentarySettings, ...next });
+  persistCommentarySettings(commentarySettings);
+  refreshCommentaryVoice();
+  if (!commentarySettings.enabled && resolveSpeechSupport()) {
+    window.speechSynthesis.cancel();
+  }
+  if (refreshUi) {
+    refreshConfigUI();
+  }
+}
+
+function canSpeakCommentary() {
+  return commentarySettings.enabled && resolveSpeechSupport();
+}
+
+function pickRandomLine(lines = []) {
+  if (!Array.isArray(lines) || !lines.length) return '';
+  const fallback = lines[Math.floor(Math.random() * lines.length)];
+  if (lines.length === 1) return fallback;
+  const filtered = lines.filter((line) => line !== lastCommentaryLine);
+  return filtered[Math.floor(Math.random() * filtered.length)] || fallback;
+}
+
+function speakCommentary(text, { priority = 'normal', interrupt = false } = {}) {
+  if (!canSpeakCommentary() || !text) return;
+  const now = performance.now();
+  if (priority !== 'high' && now - lastCommentaryTimestamp < COMMENTARY_MIN_GAP_MS) return;
+  if (!window.speechSynthesis) return;
+  if (window.speechSynthesis.speaking) {
+    if (!interrupt) return;
+    window.speechSynthesis.cancel();
+  }
+  lastCommentaryTimestamp = now;
+  const utterance = new SpeechSynthesisUtterance(text);
+  const profile = COMMENTARY_VOICES_BY_ID[commentarySettings.voiceId] || COMMENTARY_VOICES[0];
+  if (commentaryVoice) {
+    utterance.voice = commentaryVoice;
+  }
+  if (profile?.rate) utterance.rate = profile.rate;
+  if (profile?.pitch) utterance.pitch = profile.pitch;
+  utterance.volume = 0.9;
+  window.speechSynthesis.speak(utterance);
+}
+
+function formatTileLabel(tile) {
+  if (!tile || typeof tile.a !== 'number' || typeof tile.b !== 'number') return 'a tile';
+  if (tile.a === tile.b) return `double ${tile.a}`;
+  return `${tile.a}-${tile.b}`;
+}
+
+function resolvePlayerLabel(index) {
+  if (index === human) return 'You';
+  return `Player ${index + 1}`;
+}
+
+function announceCommentary(kind, replacements = {}, options = {}) {
+  const lines = COMMENTARY_LINES[kind] || [];
+  if (!lines.length) return;
+  let line = pickRandomLine(lines);
+  lastCommentaryLine = line;
+  Object.entries(replacements).forEach(([key, value]) => {
+    line = line.replaceAll(`{${key}}`, value);
+  });
+  speakCommentary(line, options);
+}
+
+function announceTurnCommentary(playerIndex) {
+  if (gameFinished) return;
+  const kind = playerIndex === human ? 'yourTurn' : 'opponentTurn';
+  announceCommentary(kind, { player: resolvePlayerLabel(playerIndex) });
+}
+
+function announcePlacementCommentary(playerIndex, tile) {
+  const label = resolvePlayerLabel(playerIndex);
+  if (tile?.a === tile?.b) {
+    announceCommentary('double', { player: label, value: tile.a });
+    return;
+  }
+  announceCommentary('place', { player: label, tile: formatTileLabel(tile) });
+}
+
+function announceNearWinIfNeeded() {
+  if (gameFinished || !Array.isArray(players)) return;
+  players.forEach((player, idx) => {
+    if (!player?.hand || player.hand.length !== 1) return;
+    if (announcedNearWin.has(idx)) return;
+    announcedNearWin.add(idx);
+    announceCommentary('nearWin', { player: resolvePlayerLabel(idx) }, { priority: 'high', interrupt: true });
+  });
+}
+
+function resetCommentaryRound() {
+  announcedNearWin.clear();
+}
+
+if (resolveSpeechSupport()) {
+  refreshCommentaryVoice();
+  window.speechSynthesis.onvoiceschanged = refreshCommentaryVoice;
+  let speechUnlocked = false;
+  window.addEventListener('pointerdown', () => {
+    if (speechUnlocked) return;
+    speechUnlocked = true;
+    window.speechSynthesis.resume();
+  }, { once: true });
 }
 
 function isHapticsEnabled() {
@@ -4661,6 +4953,74 @@ function refreshConfigUI() {
   feedbackWrapper.appendChild(feedbackHint);
   configSectionsEl.appendChild(feedbackWrapper);
 
+  const commentaryWrapper = document.createElement('div');
+  commentaryWrapper.className = 'config-section';
+  const commentaryLabel = document.createElement('h4');
+  commentaryLabel.textContent = 'Voice commentary';
+  commentaryWrapper.appendChild(commentaryLabel);
+  const commentaryGrid = document.createElement('div');
+  commentaryGrid.className = 'config-options';
+  commentaryGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(150px, 1fr))';
+
+  const commentaryToggle = document.createElement('button');
+  commentaryToggle.type = 'button';
+  commentaryToggle.className = 'config-option';
+  if (commentarySettings.enabled) {
+    commentaryToggle.classList.add('active');
+  }
+  commentaryToggle.setAttribute('aria-pressed', String(!!commentarySettings.enabled));
+  const commentaryToggleLabel = document.createElement('span');
+  commentaryToggleLabel.textContent = commentarySettings.enabled ? 'Commentary on' : 'Commentary muted';
+  commentaryToggle.appendChild(commentaryToggleLabel);
+  const commentaryToggleHelper = document.createElement('div');
+  commentaryToggleHelper.textContent = 'Live play-by-play with free TTS voices.';
+  commentaryToggleHelper.style.fontSize = '0.65rem';
+  commentaryToggleHelper.style.color = 'rgba(226,232,240,0.78)';
+  commentaryToggleHelper.style.fontWeight = '700';
+  commentaryToggleHelper.style.lineHeight = '1.35';
+  commentaryToggle.appendChild(commentaryToggleHelper);
+  commentaryToggle.addEventListener('click', () => {
+    setCommentarySettings({ enabled: !commentarySettings.enabled });
+  });
+  commentaryGrid.appendChild(commentaryToggle);
+
+  COMMENTARY_VOICES.forEach((voice) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'config-option';
+    if (commentarySettings.voiceId === voice.id) {
+      button.classList.add('active');
+    }
+    button.setAttribute('aria-pressed', String(commentarySettings.voiceId === voice.id));
+    const label = document.createElement('span');
+    label.textContent = `${voice.label} — ${voice.descriptor}`;
+    button.appendChild(label);
+    const helper = document.createElement('div');
+    helper.textContent = 'Tap to switch voice.';
+    helper.style.fontSize = '0.65rem';
+    helper.style.color = 'rgba(226,232,240,0.78)';
+    helper.style.fontWeight = '700';
+    helper.style.lineHeight = '1.35';
+    button.appendChild(helper);
+    button.addEventListener('click', () => {
+      if (commentarySettings.voiceId === voice.id) return;
+      setCommentarySettings({ voiceId: voice.id });
+      announceCommentary('gameStart', {}, { priority: 'high', interrupt: true });
+    });
+    commentaryGrid.appendChild(button);
+  });
+  commentaryWrapper.appendChild(commentaryGrid);
+  const commentaryHint = document.createElement('p');
+  commentaryHint.textContent = resolveSpeechSupport()
+    ? 'Voices depend on your device. Commentary pauses automatically if unsupported.'
+    : 'Speech synthesis is unavailable on this device.';
+  commentaryHint.style.margin = '0';
+  commentaryHint.style.fontSize = '0.65rem';
+  commentaryHint.style.color = 'rgba(226,232,240,0.7)';
+  commentaryHint.style.lineHeight = '1.4';
+  commentaryWrapper.appendChild(commentaryHint);
+  configSectionsEl.appendChild(commentaryWrapper);
+
   const graphicsWrapper = document.createElement('div');
   graphicsWrapper.className = 'config-section';
   const graphicsLabel = document.createElement('h4');
@@ -5057,6 +5417,7 @@ const muteLabel = document.getElementById('muteLabel');
 let statusPrefix = '';
 let ends = null; // {L:{v,x,z,dir:[dx,dz]}, R:{...}}
 let current = 0; let human = 0;
+let lastAnnouncedTurn = null;
 let selectedTile = null;
 let selectedHighlight = null;
 let selectedHighlightHost = null;
@@ -5597,6 +5958,8 @@ function startGame(){
   winnerIndex = null;
   revealAllHands = false;
   clearWinnerHighlight();
+  resetCommentaryRound();
+  lastAnnouncedTurn = null;
   if(cpuMoveTimeout){
     clearTimeout(cpuMoveTimeout);
     cpuMoveTimeout = null;
@@ -5657,6 +6020,8 @@ function startGame(){
   renderChain();
   current=(starter-1+N)%N;
   updateInteractivity();
+  announceCommentary('gameStart');
+  announceCommentary('opening', { tile: formatTileLabel(firstTile) });
   if(current!==human){
     scheduleCpuPlay();
   }
@@ -5767,6 +6132,9 @@ function placeOnBoard(tile, side, options = {}){
     renderChain();
   }
   SFX.place();
+  const owner = Number.isInteger(options.owner) ? options.owner : current;
+  announcePlacementCommentary(owner, orientedTile);
+  announceNearWinIfNeeded();
   return { success:true, segment, end: updatedEnd };
 }
 function nextCandidate(end){
@@ -5958,7 +6326,7 @@ renderer.domElement.addEventListener('pointerdown',ev=>{
     const idx=players[human].hand.indexOf(selectedTile);
     if(idx>=0){
       const [picked] = players[human].hand.splice(idx,1);
-      const placement = placeOnBoard(picked, side, { animate: true });
+      const placement = placeOnBoard(picked, side, { animate: true, owner: human });
       if(!placement.success){
         players[human].hand.splice(idx,0,picked);
         selectedTile = picked;
@@ -5987,12 +6355,16 @@ btnDraw.addEventListener('click',()=>{ if(current!==human || gameFinished) retur
     if(canL||canR) break;
   }
   clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.drawTile(); }
+  if (drewTile) {
+    announceCommentary('draw', { player: resolvePlayerLabel(human) });
+  }
 });
 btnPass.addEventListener('click',()=>{
   if(current===human && !gameFinished){
     clearMarkers();
     selectedTile=null;
     SFX.pass();
+    announceCommentary('pass', { player: resolvePlayerLabel(human) });
     nextTurn();
   }
 });
@@ -6066,6 +6438,18 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}){
     setStatus('Game over');
   }
 
+  const isBlockedFinish = typeof reason === 'string' && reason.toLowerCase().includes('blocked');
+  if (isBlockedFinish) {
+    announceCommentary('blocked', {}, { priority: 'high', interrupt: true });
+  }
+  if (winnerIndex !== null) {
+    if (winnerIndex === human) {
+      announceCommentary('win', {}, { priority: 'high', interrupt: true });
+    } else {
+      announceCommentary('lose', { player: resolvePlayerLabel(winnerIndex) }, { priority: 'high', interrupt: true });
+    }
+  }
+
   if(winnerIndex !== null){
     SFX.win();
   } else {
@@ -6092,6 +6476,10 @@ function updateInteractivity(){
     return;
   }
   setStatus(`Turn: Player ${current+1}`);
+  if (lastAnnouncedTurn !== current) {
+    lastAnnouncedTurn = current;
+    announceTurnCommentary(current);
+  }
   renderHands(); renderChain();
 }
 function nextTurn(){
@@ -6111,6 +6499,7 @@ function nextTurn(){
     return;
   }
   updateInteractivity();
+  announceNearWinIfNeeded();
   if(gameFinished){
     return;
   }
@@ -6133,14 +6522,17 @@ function cpuPlay(){
     if(drew){
       renderHands();
       SFX.drawTile();
+      announceCommentary('draw', { player: resolvePlayerLabel(current) });
       if(canPlayAny(player.hand)){
         scheduleCpuPlay();
       } else {
         SFX.pass();
+        announceCommentary('pass', { player: resolvePlayerLabel(current) });
         nextTurn();
       }
     } else {
       SFX.pass();
+      announceCommentary('pass', { player: resolvePlayerLabel(current) });
       nextTurn();
     }
     return;
@@ -6150,7 +6542,7 @@ function cpuPlay(){
     const tile = player.hand[move.index];
     if(!tile) continue;
     const picked = player.hand.splice(move.index,1)[0];
-    const placement = placeOnBoard(picked, move.side, { animate: true });
+    const placement = placeOnBoard(picked, move.side, { animate: true, owner: current });
     if(placement.success){
       renderHands();
       if(player.hand.length===0){
@@ -6168,14 +6560,17 @@ function cpuPlay(){
   if(drew){
     renderHands();
     SFX.drawTile();
+    announceCommentary('draw', { player: resolvePlayerLabel(current) });
     if(canPlayAny(player.hand)){
       scheduleCpuPlay();
     } else {
       SFX.pass();
+      announceCommentary('pass', { player: resolvePlayerLabel(current) });
       nextTurn();
     }
   } else {
     SFX.pass();
+    announceCommentary('pass', { player: resolvePlayerLabel(current) });
     nextTurn();
   }
 }
