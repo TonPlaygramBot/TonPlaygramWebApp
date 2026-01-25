@@ -25,9 +25,12 @@ export const primeSpeechSynthesis = () => {
     } catch {}
   }
   const utterance = new SpeechSynthesisUtterance(' ');
-  utterance.volume = 0;
+  utterance.volume = 0.01;
   utterance.rate = 1;
   utterance.pitch = 1;
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    utterance.lang = navigator.language;
+  }
   utterance.onend = () => {
     if (typeof synth.cancel === 'function') {
       try {
@@ -95,6 +98,15 @@ const findDistinctVoice = (voices, hints = [], usedVoices = new Set()) => {
   return voices[0] || null;
 };
 
+const resolveHintedLanguage = (hints = [], fallback) => {
+  const normalizedHints = hints.map((hint) => String(hint || '').trim()).filter(Boolean);
+  const matched = normalizedHints.find((hint) => /^[a-z]{2}(?:-[a-z]{2})?$/i.test(hint));
+  if (matched) return matched;
+  if (fallback) return fallback;
+  if (typeof navigator !== 'undefined' && navigator.language) return navigator.language;
+  return 'en-US';
+};
+
 export const resolveVoiceForSpeaker = (speaker, voices = []) => {
   if (!voices.length) return null;
   const hints = DEFAULT_VOICE_HINTS[speaker] || DEFAULT_VOICE_HINTS.Mason;
@@ -131,10 +143,13 @@ export const speakCommentaryLines = async (lines, {
     const settings = speakerSettings[speaker] || DEFAULT_SPEAKER_SETTINGS.Mason;
     const utterance = new SpeechSynthesisUtterance(line.text);
     const voice = speakerVoices[speaker] || findVoiceMatch(voices, voiceHints[speaker] || voiceHints.Mason);
+    const fallbackLang = resolveHintedLanguage(voiceHints[speaker] || voiceHints.Mason);
 
     if (voice) {
       utterance.voice = voice;
       if (voice.lang) utterance.lang = voice.lang;
+    } else {
+      utterance.lang = fallbackLang;
     }
     utterance.rate = settings.rate;
     utterance.pitch = settings.pitch;
