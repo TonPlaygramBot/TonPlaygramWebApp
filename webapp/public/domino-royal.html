@@ -2866,8 +2866,12 @@ const copyDominoDefaults = () =>
 const resolveDominoAccountId = (accountId) => {
   if (accountId) return accountId;
   if (typeof window !== "undefined") {
-    const stored = window.localStorage.getItem("accountId");
-    if (stored) return stored;
+    try {
+      const stored = window.localStorage.getItem("accountId");
+      if (stored) return stored;
+    } catch (error) {
+      console.warn("Failed to read Domino account id, using guest", error);
+    }
   }
   return "guest";
 };
@@ -2885,7 +2889,11 @@ const readDominoInventories = () => {
 
 const writeDominoInventories = (payload) => {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(DOMINO_INVENTORY_STORAGE_KEY, JSON.stringify(payload));
+  try {
+    window.localStorage.setItem(DOMINO_INVENTORY_STORAGE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.warn("Failed to persist domino inventory", error);
+  }
 };
 
 const normalizeDominoInventory = (rawInventory) => {
