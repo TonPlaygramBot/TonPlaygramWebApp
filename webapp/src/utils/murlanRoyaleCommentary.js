@@ -27,6 +27,103 @@ const DEFAULT_CONTEXT = Object.freeze({
   round: 'this hand'
 });
 
+const LOCALIZED_DEFAULT_CONTEXT = Object.freeze({
+  zh: {
+    player: '玩家A',
+    opponent: '玩家B',
+    combo: '一手稳健的组合',
+    table: '主桌',
+    arena: '穆兰皇家竞技场',
+    scoreline: '比分0比0持平',
+    round: '本局'
+  },
+  hi: {
+    player: 'खिलाड़ी A',
+    opponent: 'खिलाड़ी B',
+    combo: 'साफ कॉम्बो',
+    table: 'मुख्य टेबल',
+    arena: 'मुरलान रॉयल एरिना',
+    scoreline: 'स्कोर 0-0 बराबर',
+    round: 'यह हाथ'
+  },
+  ru: {
+    player: 'Игрок A',
+    opponent: 'Игрок B',
+    combo: 'чистая комбинация',
+    table: 'главный стол',
+    arena: 'арена Murlan Royale',
+    scoreline: 'счет 0-0',
+    round: 'эта раздача'
+  },
+  es: {
+    player: 'Jugador A',
+    opponent: 'Jugador B',
+    combo: 'un combo limpio',
+    table: 'la mesa principal',
+    arena: 'arena Murlan Royale',
+    scoreline: 'igualados 0-0',
+    round: 'esta mano'
+  },
+  fr: {
+    player: 'Joueur A',
+    opponent: 'Joueur B',
+    combo: 'un combo propre',
+    table: 'la table principale',
+    arena: 'arène Murlan Royale',
+    scoreline: 'score nul 0-0',
+    round: 'cette manche'
+  },
+  ar: {
+    player: 'اللاعب A',
+    opponent: 'اللاعب B',
+    combo: 'تركيبة نظيفة',
+    table: 'الطاولة الرئيسية',
+    arena: 'ساحة مورلان رويال',
+    scoreline: 'التعادل 0-0',
+    round: 'هذه اليد'
+  },
+  sq: {
+    player: 'Lojtari A',
+    opponent: 'Lojtari B',
+    combo: 'një kombinim i pastër',
+    table: 'tavolina kryesore',
+    arena: 'arena Murlan Royale',
+    scoreline: 'barazim 0-0',
+    round: 'kjo dorë'
+  }
+});
+
+const LOCALIZED_SPEAKERS = Object.freeze({
+  zh: {
+    Mason: '梅森',
+    Lena: '莉娜'
+  },
+  hi: {
+    Mason: 'मोहन',
+    Lena: 'लीना'
+  },
+  ru: {
+    Mason: 'Мейсон',
+    Lena: 'Лена'
+  },
+  es: {
+    Mason: 'Mason',
+    Lena: 'Lena'
+  },
+  fr: {
+    Mason: 'Mason',
+    Lena: 'Lena'
+  },
+  ar: {
+    Mason: 'ميسون',
+    Lena: 'لينا'
+  },
+  sq: {
+    Mason: 'Mejson',
+    Lena: 'Lena'
+  }
+});
+
 const EVENT_POOLS = Object.freeze({
   intro: 'intro',
   introReply: 'introReply',
@@ -162,20 +259,20 @@ const LOCALIZED_TEMPLATES = Object.freeze({
     ...ENGLISH_TEMPLATES,
     common: {
       intro: ['{arena} से स्वागत है। {speaker} और {partner} आपके साथ हैं। {player} बनाम {opponent}।'],
-      introReply: ['धन्यवाद {speaker}. कॉम्बो चयन और टेम्पो ही मैच तय करेंगे।'],
-      shuffle: ['कार्ड डील हो चुके हैं, खेल शुरू।'],
-      firstMove: ['{player} ने शुरुआत की: {combo}.'],
+      introReply: ['धन्यवाद {speaker}. संयोजन की समझ और गति ही बाज़ी तय करेंगे।'],
+      shuffle: ['कार्ड बँट गए हैं, खेल शुरू।'],
+      firstMove: ['{player} ने शुरुआत की: {combo}।'],
       play: ['{player} ने {combo} खेला और दबाव बनाया।'],
-      pass: ['{player} पास करता है, टेम्पो {opponent} के पास।'],
-      single: ['{player} ने {combo} से गति संभाली।'],
-      pair: ['{player} ने पेयर दिखाया: {combo}.'],
-      trips: ['{player} ने ट्रिप्स खेली: {combo}.'],
-      straight: ['{player} की स्ट्रेट: {combo}.'],
-      flush: ['{player} ने फ्लश लगाया: {combo}.'],
+      pass: ['{player} पास करता है, बढ़त {opponent} के पास।'],
+      single: ['{player} ने {combo} से चाल संभाली।'],
+      pair: ['{player} ने जोड़ी दिखाई: {combo}।'],
+      trips: ['{player} ने तिकड़ी खेली: {combo}।'],
+      straight: ['{player} की सीधी चाल: {combo}।'],
+      flush: ['{player} ने रंग जमाया: {combo}।'],
       fullHouse: ['{player} का फुल हाउस।'],
-      straightFlush: ['स्ट्रेट फ्लश! {player} ने बाज़ी पलटी।'],
+      straightFlush: ['सीधा रंग! {player} ने बाज़ी पलटी।'],
       bomb: ['बॉम्ब! {player} ने {combo} फोड़ा।'],
-      clearTable: ['टेबल साफ़, लीड {player} के पास।'],
+      clearTable: ['टेबल साफ़, बढ़त {player} के पास।'],
       close: ['{player} के पास अब {cardsLeft} कार्ड बचे हैं।'],
       win: ['{player} ने सारे कार्ड उतार दिए, हाथ जीत लिया।'],
       outro: ['{arena} से इतना ही, देखने के लिए धन्यवाद।']
@@ -277,21 +374,21 @@ const LOCALIZED_TEMPLATES = Object.freeze({
     ...ENGLISH_TEMPLATES,
     common: {
       intro: ['Mirë se vini në {arena}. {speaker} me {partner}. {player} kundër {opponent}.'],
-      introReply: ['Faleminderit {speaker}. Ritmi dhe kombinimet vendosin rezultatin.'],
+      introReply: ['Faleminderit {speaker}. Zgjedhja e kombinimeve dhe ritmi vendosin rezultatin.'],
       shuffle: ['Kartat u shpërndanë, loja fillon.'],
       firstMove: ['{player} hap me {combo}.'],
       play: ['{player} luan {combo} dhe mban presionin.'],
       pass: ['{player} kalon dhe i lë ritmin {opponent}.'],
-      single: ['{player} kontrollon me {combo}.'],
-      pair: ['{player} nxjerr çiftin: {combo}.'],
-      trips: ['{player} luan treshen: {combo}.'],
-      straight: ['{player} bën vargun: {combo}.'],
-      flush: ['{player} vendos flush: {combo}.'],
-      fullHouse: ['{player} siguron full house.'],
-      straightFlush: ['Straight flush! {player} merr kontrollin.'],
+      single: ['{player} hedh {combo} për të kontrolluar ritmin.'],
+      pair: ['{player} nxjerr një çift: {combo}.'],
+      trips: ['{player} luan treshe: {combo}.'],
+      straight: ['{player} bën një drejtë: {combo}.'],
+      flush: ['{player} vendos një ngjyrë: {combo}.'],
+      fullHouse: ['{player} siguron një shtëpi të plotë.'],
+      straightFlush: ['Drejtë e ngjyrës! {player} merr kontrollin.'],
       bomb: ['Bombë në tavolinë! {player} me {combo}.'],
-      clearTable: ['Tavolina pastrohet, {player} udhëheq.'],
-      close: ['{player} ka edhe {cardsLeft} karta.'],
+      clearTable: ['Tavolina pastrohet, {player} merr kontrollin.'],
+      close: ['{player} ka edhe {cardsLeft} letra.'],
       win: ['{player} mbaron kartat dhe fiton dorën.'],
       outro: ['Nga {arena}, faleminderit që na ndoqët.']
     }
@@ -322,20 +419,33 @@ export const buildMurlanCommentaryLine = ({
   language = 'en',
   context = {}
 }) => {
-  const templates = LOCALIZED_TEMPLATES[resolveLanguageKey(language)] || ENGLISH_TEMPLATES;
+  const languageKey = resolveLanguageKey(language);
+  const templates = LOCALIZED_TEMPLATES[languageKey] || ENGLISH_TEMPLATES;
+  const localizedDefaults = LOCALIZED_DEFAULT_CONTEXT[languageKey] || {};
+  const partner =
+    speaker === MURLAN_ROYALE_SPEAKERS.lead
+      ? MURLAN_ROYALE_SPEAKERS.analyst
+      : MURLAN_ROYALE_SPEAKERS.lead;
+  const localizedSpeakers = LOCALIZED_SPEAKERS[languageKey] || {};
+  const resolvedArena =
+    languageKey !== 'en' && (!context.arena || context.arena === DEFAULT_CONTEXT.arena)
+      ? localizedDefaults.arena || DEFAULT_CONTEXT.arena
+      : context.arena ?? DEFAULT_CONTEXT.arena;
   const mergedContext = {
     ...DEFAULT_CONTEXT,
+    ...localizedDefaults,
     ...context,
-    speaker,
-    partner: speaker === MURLAN_ROYALE_SPEAKERS.lead
-      ? MURLAN_ROYALE_SPEAKERS.analyst
-      : MURLAN_ROYALE_SPEAKERS.lead
+    arena: resolvedArena,
+    speaker: localizedSpeakers[speaker] ?? speaker,
+    partner: localizedSpeakers[partner] ?? partner
   };
 
   const eventPool = templates.common[EVENT_POOLS[event]] || templates.common.play;
 
   return applyTemplate(pickRandom(eventPool), mergedContext);
 };
+
+export const resolveMurlanLanguageKey = resolveLanguageKey;
 
 export const createMurlanMatchCommentaryScript = ({
   players = { A: 'Player A', B: 'Player B' },
