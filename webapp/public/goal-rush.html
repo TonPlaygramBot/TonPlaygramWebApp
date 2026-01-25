@@ -206,7 +206,6 @@
         <h3 id="commentaryTitle">Commentary</h3>
         <button class="modal-close" id="commentaryClose" type="button" aria-label="Close commentary">✕</button>
       </div>
-      <div class="commentary-options" id="commentaryOptions"></div>
       <button class="commentary-toggle" id="commentaryMute" type="button">
         <span>Mute commentary</span>
         <span id="commentaryMuteState">Off</span>
@@ -710,121 +709,7 @@
   });
 
   const GOAL_RUSH_TEMPLATES = Object.freeze({
-    en: ENGLISH_COMMENTARY,
-    zh: {
-      ...ENGLISH_COMMENTARY,
-      common: {
-        intro: ['欢迎来到{arena}。{speaker}为您带来解说。{player}对阵{opponent}，{scoreline}。'],
-        introReply: ['谢谢{speaker}。关键在于速度与角度选择。'],
-        kickoff: ['开球开始，先手很关键。'],
-        goal: ['{player}进球！射门干净利落。'],
-        ownGoal: ['乌龙球，{player}不走运。'],
-        post: ['击中门柱，差之毫厘。'],
-        save: ['{opponent}神扑，反应很快。'],
-        counter: ['快速反击，{player}冲起来了。'],
-        pressure: ['压力时刻，{player}需要稳定处理。'],
-        leadChange: ['{player}反超比分，节奏变化很快。'],
-        equalizer: ['扳平比分！{player}追了回来。'],
-        matchPoint: ['赛点！{player}只差一球。'],
-        matchWin: ['比赛结束，{player}以{scoreline}获胜。'],
-        outro: ['{arena}的解说到此结束，感谢观看。']
-      }
-    },
-    hi: {
-      ...ENGLISH_COMMENTARY,
-      common: {
-        intro: ['{arena} से स्वागत है। {speaker} आपके साथ हैं। {player} बनाम {opponent}, स्कोर {scoreline}।'],
-        introReply: ['धन्यवाद {speaker}. आज गति और सही एंगल निर्णायक होंगे।'],
-        kickoff: ['किकऑफ शुरू—पहला टच बहुत अहम है।'],
-        goal: ['{player} का गोल! शानदार फिनिश।'],
-        ownGoal: ['ओन गोल—{player} के खिलाफ दुर्भाग्य।'],
-        post: ['पोस्ट लगा! बेहद करीब।'],
-        save: ['{opponent} का शानदार बचाव।'],
-        counter: ['तेज़ काउंटर—{player} आगे बढ़ रहा है।'],
-        pressure: ['दबाव भरा पल—{player} को सटीकता चाहिए।'],
-        leadChange: ['लीड बदल गई—{player} आगे निकल गया।'],
-        equalizer: ['बराबरी! {player} ने स्कोर सम किया।'],
-        matchPoint: ['मैच पॉइंट—{player} बस एक गोल दूर।'],
-        matchWin: ['मैच खत्म। {player} {scoreline} से जीतता है।'],
-        outro: ['{arena} से यहीं तक, देखने के लिए धन्यवाद।']
-      }
-    },
-    es: {
-      ...ENGLISH_COMMENTARY,
-      common: {
-        intro: ['Bienvenidos a {arena}. {speaker} con ustedes. {player} contra {opponent}, {scoreline}.'],
-        introReply: ['Gracias {speaker}. La velocidad y los ángulos van a decidir.'],
-        kickoff: ['Arranca el saque, el primer toque importa mucho.'],
-        goal: ['¡Gol de {player}! Definición limpia.'],
-        ownGoal: ['Autogol, mala fortuna para {player}.'],
-        post: ['¡Al poste! Se quedó a nada.'],
-        save: ['Gran atajada de {opponent}.'],
-        counter: ['Contraataque rápido, {player} acelera.'],
-        pressure: ['Momento de presión para {player}; necesita precisión.'],
-        leadChange: ['Cambio de líder: {player} se pone arriba.'],
-        equalizer: ['Empate. {player} iguala el marcador.'],
-        matchPoint: ['Punto de partido para {player}, un gol más.'],
-        matchWin: ['Final del partido. {player} gana {scoreline}.'],
-        outro: ['Desde {arena}, gracias por acompañarnos.']
-      }
-    },
-    fr: {
-      ...ENGLISH_COMMENTARY,
-      common: {
-        intro: ['Bienvenue à {arena}. {speaker} avec vous. {player} contre {opponent}, {scoreline}.'],
-        introReply: ['Merci {speaker}. La vitesse et les angles feront la différence.'],
-        kickoff: ['Engagement lancé, le premier toucher compte.'],
-        goal: ['But de {player} ! Finition propre.'],
-        ownGoal: ['But contre son camp, malchance pour {player}.'],
-        post: ['Sur le poteau ! À un souffle.'],
-        save: ['Super arrêt de {opponent}.'],
-        counter: ['Contre rapide, {player} accélère.'],
-        pressure: ['Moment sous pression pour {player}; précision requise.'],
-        leadChange: ['Changement de leader : {player} passe devant.'],
-        equalizer: ['Égalisation ! {player} revient au score.'],
-        matchPoint: ['Balle de match pour {player}, un but suffit.'],
-        matchWin: ['Fin du match. {player} s’impose {scoreline}.'],
-        outro: ['Depuis {arena}, merci de nous avoir suivis.']
-      }
-    },
-    ar: {
-      ...ENGLISH_COMMENTARY,
-      common: {
-        intro: ['مرحبًا بكم في {arena}. {speaker} معكم. {player} ضد {opponent}، {scoreline}.'],
-        introReply: ['شكرًا {speaker}. السرعة والزوايا ستحسم اللقاء.'],
-        kickoff: ['بداية اللعب، اللمسة الأولى مهمة جدًا.'],
-        goal: ['هدف لـ{player}! إنهاء رائع.'],
-        ownGoal: ['هدف عكسي، سوء حظ لـ{player}.'],
-        post: ['كرة في القائم! كانت قريبة جدًا.'],
-        save: ['تصدي رائع من {opponent}.'],
-        counter: ['هجمة مرتدة سريعة، {player} ينطلق.'],
-        pressure: ['لحظة ضغط على {player}—الدقة مطلوبة.'],
-        leadChange: ['تبدل القيادة؛ {player} يتقدم.'],
-        equalizer: ['تعادل! {player} يعيد المباراة.'],
-        matchPoint: ['نقطة مباراة لـ{player}، هدف واحد فقط.'],
-        matchWin: ['نهاية المباراة. {player} يفوز {scoreline}.'],
-        outro: ['من {arena}، شكرًا على المتابعة.']
-      }
-    },
-    sq: {
-      ...ENGLISH_COMMENTARY,
-      common: {
-        intro: ['Mirë se vini në {arena}. Me ju është {speaker}. {player} kundër {opponent}, {scoreline}.'],
-        introReply: ['Faleminderit {speaker}. Shpejtësia dhe këndet vendosin rezultatin.'],
-        kickoff: ['Nisja u dha, prekja e parë është kyçe.'],
-        goal: ['Gol për {player}! Përfundim i pastër.'],
-        ownGoal: ['Autogol, fat i keq për {player}.'],
-        post: ['Në shtyllë! Iku shumë pak.'],
-        save: ['Mbrojtje e madhe nga {opponent}.'],
-        counter: ['Kundërsulm i shpejtë, {player} po vrapon.'],
-        pressure: ['Moment presioni për {player}; kërkohet saktësi.'],
-        leadChange: ['Ndryshim epërsie—{player} kalon përpara.'],
-        equalizer: ['Barazim! {player} e kthen ndeshjen.'],
-        matchPoint: ['Pikë ndeshjeje për {player}, edhe një gol.'],
-        matchWin: ['Fundi i ndeshjes. {player} fiton {scoreline}.'],
-        outro: ['Kaq nga {arena}. Faleminderit që na ndoqët.']
-      }
-    }
+    en: ENGLISH_COMMENTARY
   });
 
   const GOAL_RUSH_COMMENTARY_PRESETS = Object.freeze([
@@ -841,90 +726,6 @@
         Kai: { rate: 0.98, pitch: 0.95, volume: 1 },
         Sofia: { rate: 1.02, pitch: 1.02, volume: 0.98 }
       }
-    },
-    {
-      id: 'mandarin',
-      label: 'Mandarin',
-      description: '普通话解说',
-      language: 'zh',
-      voiceHints: {
-        Kai: ['zh-CN', 'zh', 'mandarin', 'male', 'google'],
-        Sofia: ['zh-CN', 'zh', 'mandarin', 'female', 'google']
-      },
-      speakerSettings: {
-        Kai: { rate: 1, pitch: 0.95, volume: 1 },
-        Sofia: { rate: 1.02, pitch: 1, volume: 0.98 }
-      }
-    },
-    {
-      id: 'hindi',
-      label: 'Hindi',
-      description: 'हिंदी कमेंट्री',
-      language: 'hi',
-      voiceHints: {
-        Kai: ['hi-IN', 'hi', 'hindi', 'male', 'google'],
-        Sofia: ['hi-IN', 'hi', 'hindi', 'female', 'google']
-      },
-      speakerSettings: {
-        Kai: { rate: 1.02, pitch: 0.96, volume: 1 },
-        Sofia: { rate: 1.04, pitch: 1, volume: 0.98 }
-      }
-    },
-    {
-      id: 'spanish',
-      label: 'Spanish',
-      description: 'Relato en español',
-      language: 'es',
-      voiceHints: {
-        Kai: ['es-ES', 'es', 'spanish', 'male', 'google'],
-        Sofia: ['es-ES', 'es', 'spanish', 'female', 'google']
-      },
-      speakerSettings: {
-        Kai: { rate: 1, pitch: 0.96, volume: 1 },
-        Sofia: { rate: 1.02, pitch: 1, volume: 0.98 }
-      }
-    },
-    {
-      id: 'french',
-      label: 'French',
-      description: 'Commentaires en français',
-      language: 'fr',
-      voiceHints: {
-        Kai: ['fr-FR', 'fr', 'french', 'male', 'google'],
-        Sofia: ['fr-FR', 'fr', 'french', 'female', 'google']
-      },
-      speakerSettings: {
-        Kai: { rate: 0.98, pitch: 0.94, volume: 1 },
-        Sofia: { rate: 1, pitch: 0.98, volume: 0.98 }
-      }
-    },
-    {
-      id: 'arabic',
-      label: 'Arabic',
-      description: 'تعليق عربي',
-      language: 'ar',
-      voiceHints: {
-        Kai: ['ar-SA', 'ar', 'arabic', 'male', 'google'],
-        Sofia: ['ar-SA', 'ar', 'arabic', 'female', 'google']
-      },
-      speakerSettings: {
-        Kai: { rate: 1, pitch: 0.94, volume: 1 },
-        Sofia: { rate: 1.02, pitch: 0.98, volume: 0.98 }
-      }
-    },
-    {
-      id: 'albanian',
-      label: 'Albanian',
-      description: 'Komentim shqip',
-      language: 'sq',
-      voiceHints: {
-        Kai: ['sq-AL', 'sq', 'albanian', 'male', 'google'],
-        Sofia: ['sq-AL', 'sq', 'albanian', 'female', 'google']
-      },
-      speakerSettings: {
-        Kai: { rate: 1, pitch: 0.96, volume: 1 },
-        Sofia: { rate: 1.02, pitch: 0.98, volume: 0.98 }
-      }
     }
   ]);
 
@@ -935,14 +736,8 @@
 
   const resolveLanguageKey = (language = 'en') => {
     const normalized = String(language || '').toLowerCase();
-    if (normalized.startsWith('zh')) return 'zh';
-    if (normalized.startsWith('hi')) return 'hi';
-    if (normalized.startsWith('es')) return 'es';
-    if (normalized.startsWith('fr')) return 'fr';
-    if (normalized.startsWith('ar')) return 'ar';
-    if (normalized.startsWith('sq')) return 'sq';
     if (normalized.startsWith('en')) return 'en';
-    return normalized || 'en';
+    return 'en';
   };
 
   const pickRandom = (pool) => pool[Math.floor(Math.random() * pool.length)];
