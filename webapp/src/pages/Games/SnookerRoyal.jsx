@@ -1485,6 +1485,8 @@ const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.28; // keep orbit height aligned with the cue while leaving a tighter buffer at cue-top level
 const CUE_TIP_CLEARANCE = BALL_R * 0.22; // widen the visible air gap so the blue tip never kisses the cue ball
 const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
+const CUE_STROKE_MIN_PULL = BALL_R * 0.48; // ensure a visible pull-back before the forward stroke
+const CUE_STROKE_MIN_FOLLOW = BALL_R * 0.18; // ensure the cue visibly pushes forward on contact
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -20827,8 +20829,9 @@ const powerRef = useRef(hud.power);
             preserveLarger: true
           });
           const visualPull = applyVisualPullCompensation(pull, dir);
-          cuePullCurrentRef.current = pull;
-          cuePullTargetRef.current = pull;
+          const strokePull = Math.max(visualPull, CUE_STROKE_MIN_PULL);
+          cuePullCurrentRef.current = strokePull;
+          cuePullTargetRef.current = strokePull;
           const cuePerp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (cuePerp.lengthSq() > 1e-8) cuePerp.normalize();
           const { side: contactSide, vert: contactVert, hasSpin } = computeSpinOffsets(
@@ -20860,19 +20863,22 @@ const powerRef = useRef(hud.power);
           }
           TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
           TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
-          const buildCuePosition = (pullAmount = visualPull) => {
+          const buildCuePosition = (pullAmount = strokePull) => {
             const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld);
             return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
-          const startPos = buildCuePosition(visualPull);
+          const startPos = buildCuePosition(strokePull);
           cueStick.position.copy(startPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
-          const followThroughPull = THREE.MathUtils.clamp(
-            topSpinWeight * clampedPower * BALL_R * 0.35,
-            0,
-            BALL_R * 0.35
+          const followThroughPull = Math.max(
+            CUE_STROKE_MIN_FOLLOW,
+            THREE.MathUtils.clamp(
+              topSpinWeight * clampedPower * BALL_R * 0.35,
+              0,
+              BALL_R * 0.35
+            )
           );
           const impactPos = buildCuePosition(-followThroughPull);
           cueStick.visible = true;
