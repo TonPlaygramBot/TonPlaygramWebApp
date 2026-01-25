@@ -969,6 +969,7 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
     id: 'english',
     label: 'English',
     description: 'Male play-by-play in English.',
+    language: 'en',
     voiceHints: {
       [COMMENTARY_SPEAKER_LEAD]: ['en-GB', 'en-US', 'english', 'male', 'google'],
       [COMMENTARY_SPEAKER_ANALYST]: ['en-GB', 'en-US', 'english', 'male', 'google']
@@ -982,6 +983,7 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
     id: 'mandarin',
     label: 'Mandarin Chinese',
     description: 'Male play-by-play in Mandarin.',
+    language: 'zh',
     voiceHints: {
       [COMMENTARY_SPEAKER_LEAD]: ['zh-CN', 'zh', 'mandarin', 'male', 'google'],
       [COMMENTARY_SPEAKER_ANALYST]: ['zh-CN', 'zh', 'mandarin', 'male', 'google']
@@ -995,6 +997,7 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
     id: 'hindi',
     label: 'Hindi',
     description: 'Male play-by-play in Hindi.',
+    language: 'hi',
     voiceHints: {
       [COMMENTARY_SPEAKER_LEAD]: ['hi-IN', 'hi', 'hindi', 'male', 'google'],
       [COMMENTARY_SPEAKER_ANALYST]: ['hi-IN', 'hi', 'hindi', 'male', 'google']
@@ -1008,6 +1011,7 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
     id: 'spanish',
     label: 'Spanish',
     description: 'Male play-by-play in Spanish.',
+    language: 'es',
     voiceHints: {
       [COMMENTARY_SPEAKER_LEAD]: ['es-ES', 'es', 'spanish', 'male', 'google'],
       [COMMENTARY_SPEAKER_ANALYST]: ['es-ES', 'es', 'spanish', 'male', 'google']
@@ -1021,6 +1025,7 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
     id: 'french',
     label: 'French',
     description: 'Male play-by-play in French.',
+    language: 'fr',
     voiceHints: {
       [COMMENTARY_SPEAKER_LEAD]: ['fr-FR', 'fr', 'french', 'male', 'google'],
       [COMMENTARY_SPEAKER_ANALYST]: ['fr-FR', 'fr', 'french', 'male', 'google']
@@ -1034,6 +1039,7 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
     id: 'arabic',
     label: 'Arabic',
     description: 'Male play-by-play in Arabic.',
+    language: 'ar',
     voiceHints: {
       [COMMENTARY_SPEAKER_LEAD]: ['ar-SA', 'ar', 'arabic', 'male', 'google'],
       [COMMENTARY_SPEAKER_ANALYST]: ['ar-SA', 'ar', 'arabic', 'male', 'google']
@@ -11981,6 +11987,56 @@ function SnookerRoyalGame({
   );
   const opponentDisplayName = opponentProfile?.name || opponentLabel;
   const opponentDisplayAvatar = opponentProfile?.avatar || opponentAvatar || '/assets/icons/profile.svg';
+  const resolveFlagLabel = useCallback((flagEmoji) => {
+    if (!flagEmoji) return 'Flag';
+    try {
+      const codePoints = [...flagEmoji].map((c) => c.codePointAt(0));
+      if (codePoints.length === 2) {
+        const [a, b] = codePoints;
+        const base = 0x1f1e6;
+        const region = String.fromCharCode(a - base + 65, b - base + 65);
+        if (typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
+          const display = new Intl.DisplayNames(['en'], { type: 'region' });
+          return display.of(region) || region;
+        }
+        return region;
+      }
+    } catch (err) {
+      console.warn('flag label resolve failed', err);
+    }
+    return flagEmoji;
+  }, []);
+  const playerFlag = useMemo(
+    () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
+    []
+  );
+  const playerFlagLabel = useMemo(
+    () => resolveFlagLabel(playerFlag),
+    [playerFlag, resolveFlagLabel]
+  );
+  const aiFlag = useMemo(() => {
+    const pickRandom = () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
+    if (tournamentMode && typeof window !== 'undefined') {
+      try {
+        const stored = safeLocalStorageGet(tournamentAiFlagStorageKey);
+        if (stored && FLAG_EMOJIS.includes(stored)) {
+          return stored;
+        }
+      } catch (err) {
+        console.warn('Snooker Royal tournament AI flag restore failed', err);
+      }
+    }
+    const selected = pickRandom();
+    if (tournamentMode && typeof window !== 'undefined') {
+      try {
+        safeLocalStorageSet(tournamentAiFlagStorageKey, selected);
+      } catch (err) {
+        console.warn('Snooker Royal tournament AI flag save failed', err);
+      }
+    }
+    return selected;
+  }, [tournamentAiFlagStorageKey, tournamentMode]);
+  const aiFlagLabel = useMemo(() => resolveFlagLabel(aiFlag), [aiFlag, resolveFlagLabel]);
   const formatSnookerColorLabel = useCallback((colorId) => {
     if (!colorId) return 'the color';
     const normalized = String(colorId).toLowerCase();
@@ -11991,53 +12047,28 @@ function SnookerRoyalGame({
     (seat) => {
       const resolvedSeat = seat === 'B' ? 'B' : 'A';
       const seatName = frameState?.players?.[resolvedSeat]?.name;
-      if (seatName) return seatName;
+      if (seatName && seatName !== 'AI') return seatName;
+      if (aiOpponentEnabled && resolvedSeat !== localSeat) return aiFlagLabel || seatName || opponentLabel;
       return resolvedSeat === localSeat ? playerLabel : opponentLabel;
     },
-    [frameState?.players, localSeat, opponentLabel, playerLabel]
+    [aiFlagLabel, aiOpponentEnabled, frameState?.players, localSeat, opponentLabel, playerLabel]
   );
   const commentarySpeakers = useMemo(
-    () => [COMMENTARY_SPEAKER_LEAD, COMMENTARY_SPEAKER_ANALYST],
+    () => [COMMENTARY_SPEAKER_ANALYST],
     []
   );
-  const lastCommentarySpeakerRef = useRef(COMMENTARY_SPEAKER_LEAD);
+  const lastCommentarySpeakerRef = useRef(COMMENTARY_SPEAKER_ANALYST);
   const getAlternateCommentarySpeaker = useCallback(
-    (speaker) =>
-      speaker === COMMENTARY_SPEAKER_LEAD ? COMMENTARY_SPEAKER_ANALYST : COMMENTARY_SPEAKER_LEAD,
+    () => COMMENTARY_SPEAKER_ANALYST,
     []
   );
   const pickCommentarySpeaker = useCallback(
-    (event, preferred) => {
-      if (preferred) {
-        lastCommentarySpeakerRef.current = preferred;
-        return preferred;
-      }
-      if (
-        event === 'intro' ||
-        event === 'breakOff' ||
-        event === 'century' ||
-        event === 'frameBall' ||
-        event === 'frameWin' ||
-        event === 'outro'
-      ) {
-        lastCommentarySpeakerRef.current = COMMENTARY_SPEAKER_LEAD;
-        return COMMENTARY_SPEAKER_LEAD;
-      }
-      if (
-        event === 'safety' ||
-        event === 'snooker' ||
-        event === 'foul' ||
-        event === 'miss' ||
-        event === 'freeBall'
-      ) {
-        lastCommentarySpeakerRef.current = COMMENTARY_SPEAKER_ANALYST;
-        return COMMENTARY_SPEAKER_ANALYST;
-      }
-      const nextSpeaker = getAlternateCommentarySpeaker(lastCommentarySpeakerRef.current);
-      lastCommentarySpeakerRef.current = nextSpeaker;
-      return nextSpeaker;
+    (_event, preferred) => {
+      const selected = preferred || COMMENTARY_SPEAKER_ANALYST;
+      lastCommentarySpeakerRef.current = selected;
+      return selected;
     },
-    [getAlternateCommentarySpeaker]
+    []
   );
   const buildCommentaryLine = useCallback(
     (event, context = {}, options = {}) => {
@@ -12045,6 +12076,7 @@ function SnookerRoyalGame({
       const text = buildSnookerCommentaryLine({
         event,
         speaker,
+        language: options.language ?? activeCommentaryPreset?.language ?? commentaryPresetId,
         context: {
           arena: 'Snooker Royal arena',
           ...context
@@ -12053,7 +12085,7 @@ function SnookerRoyalGame({
       if (!text) return null;
       return { speaker, text };
     },
-    [pickCommentarySpeaker]
+    [activeCommentaryPreset?.language, commentaryPresetId, pickCommentarySpeaker]
   );
   const playNextCommentary = useCallback(async () => {
     if (commentarySpeakingRef.current) return;
@@ -12095,7 +12127,10 @@ function SnookerRoyalGame({
   );
   const enqueueSnookerCommentaryEvent = useCallback(
     (event, context = {}, options = {}) => {
-      const line = buildCommentaryLine(event, context, { speaker: options.speaker });
+      const line = buildCommentaryLine(event, context, {
+        speaker: options.speaker,
+        language: options.preset?.language
+      });
       if (!line) return;
       enqueueCommentaryLines([line], options);
     },
@@ -12205,21 +12240,22 @@ function SnookerRoyalGame({
       enqueueSnookerCommentaryEvent(
         'intro',
         {
-          player: framePlayerAName,
-          opponent: framePlayerBName
+          player: resolveSeatLabel('A'),
+          opponent: resolveSeatLabel('B')
         },
         { priority: true, preset }
       );
     },
-    [enqueueSnookerCommentaryEvent, framePlayerAName, framePlayerBName]
+    [enqueueSnookerCommentaryEvent, resolveSeatLabel]
   );
   useEffect(() => {
     const script = createSnookerMatchCommentaryScript({
       players: {
-        A: framePlayerAName || 'Player A',
-        B: framePlayerBName || 'Player B'
+        A: resolveSeatLabel('A') || 'Player A',
+        B: resolveSeatLabel('B') || 'Player B'
       },
-      commentators: commentarySpeakers
+      commentators: commentarySpeakers,
+      language: activeCommentaryPreset?.language ?? commentaryPresetId
     });
     const startLines = Array.isArray(script?.start)
       ? script.start
@@ -12243,8 +12279,16 @@ function SnookerRoyalGame({
     shotCountRef.current = 0;
     breakMilestoneRef.current = 0;
     freeBallAnnouncedRef.current = false;
-    lastCommentarySpeakerRef.current = COMMENTARY_SPEAKER_LEAD;
-  }, [commentarySpeakers, framePlayerAName, framePlayerBName, initialFrame]);
+    lastCommentarySpeakerRef.current = COMMENTARY_SPEAKER_ANALYST;
+  }, [
+    activeCommentaryPreset?.language,
+    commentaryPresetId,
+    commentarySpeakers,
+    framePlayerAName,
+    framePlayerBName,
+    initialFrame,
+    resolveSeatLabel
+  ]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const unlockCommentary = () => {
@@ -13642,56 +13686,6 @@ const powerRef = useRef(hud.power);
       } catch {}
     };
   }, []);
-  const resolveFlagLabel = useCallback((flagEmoji) => {
-    if (!flagEmoji) return 'Flag';
-    try {
-      const codePoints = [...flagEmoji].map((c) => c.codePointAt(0));
-      if (codePoints.length === 2) {
-        const [a, b] = codePoints;
-        const base = 0x1f1e6;
-        const region = String.fromCharCode(a - base + 65, b - base + 65);
-        if (typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
-          const display = new Intl.DisplayNames(['en'], { type: 'region' });
-          return display.of(region) || region;
-        }
-        return region;
-      }
-    } catch (err) {
-      console.warn('flag label resolve failed', err);
-    }
-    return flagEmoji;
-  }, []);
-  const playerFlag = useMemo(
-    () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
-    []
-  );
-  const playerFlagLabel = useMemo(
-    () => resolveFlagLabel(playerFlag),
-    [playerFlag, resolveFlagLabel]
-  );
-  const aiFlag = useMemo(() => {
-    const pickRandom = () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
-    if (tournamentMode && typeof window !== 'undefined') {
-      try {
-        const stored = safeLocalStorageGet(tournamentAiFlagStorageKey);
-        if (stored && FLAG_EMOJIS.includes(stored)) {
-          return stored;
-        }
-      } catch (err) {
-        console.warn('Snooker Royal tournament AI flag restore failed', err);
-      }
-    }
-    const selected = pickRandom();
-    if (tournamentMode && typeof window !== 'undefined') {
-      try {
-        safeLocalStorageSet(tournamentAiFlagStorageKey, selected);
-      } catch (err) {
-        console.warn('Snooker Royal tournament AI flag save failed', err);
-      }
-    }
-    return selected;
-  }, [tournamentAiFlagStorageKey, tournamentMode]);
-  const aiFlagLabel = useMemo(() => resolveFlagLabel(aiFlag), [aiFlag, resolveFlagLabel]);
   const aiShoot = useRef(() => {});
 
   const drawHudPanel = (ctx, logo, avatarImg, name, score, t, emoji) => {

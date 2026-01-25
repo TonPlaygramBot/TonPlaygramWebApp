@@ -925,6 +925,7 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     id: 'english',
     label: 'English',
     description: 'Male voice, English',
+    language: 'en',
     voiceHints: {
       [POOL_ROYALE_SPEAKERS.lead]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
       [POOL_ROYALE_SPEAKERS.analyst]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex']
@@ -938,6 +939,7 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     id: 'mandarin',
     label: 'Mandarin',
     description: 'Male voice, 中文',
+    language: 'zh',
     voiceHints: {
       [POOL_ROYALE_SPEAKERS.lead]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male'],
       [POOL_ROYALE_SPEAKERS.analyst]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male']
@@ -951,6 +953,7 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     id: 'hindi',
     label: 'Hindi',
     description: 'Male voice, हिंदी',
+    language: 'hi',
     voiceHints: {
       [POOL_ROYALE_SPEAKERS.lead]: ['hi-IN', 'Hindi', 'India', 'male'],
       [POOL_ROYALE_SPEAKERS.analyst]: ['hi-IN', 'Hindi', 'India', 'male']
@@ -964,6 +967,7 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     id: 'spanish',
     label: 'Spanish',
     description: 'Male voice, Español',
+    language: 'es',
     voiceHints: {
       [POOL_ROYALE_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male'],
       [POOL_ROYALE_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male']
@@ -977,6 +981,7 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     id: 'french',
     label: 'French',
     description: 'Male voice, Français',
+    language: 'fr',
     voiceHints: {
       [POOL_ROYALE_SPEAKERS.lead]: ['fr-FR', 'French', 'Français', 'male'],
       [POOL_ROYALE_SPEAKERS.analyst]: ['fr-FR', 'French', 'Français', 'male']
@@ -990,6 +995,7 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     id: 'arabic',
     label: 'Arabic',
     description: 'Male voice, العربية',
+    language: 'ar',
     voiceHints: {
       [POOL_ROYALE_SPEAKERS.lead]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male'],
       [POOL_ROYALE_SPEAKERS.analyst]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male']
@@ -10838,7 +10844,6 @@ function PoolRoyaleGame({
   const commentaryQueueRef = useRef([]);
   const commentarySpeakingRef = useRef(false);
   const commentaryLastEventAtRef = useRef(0);
-  const commentarySpeakerTurnRef = useRef(0);
   const pendingCommentaryLinesRef = useRef(null);
   useEffect(() => {
     skipAllReplaysRef.current = skipAllReplays;
@@ -12978,12 +12983,67 @@ const powerRef = useRef(hud.power);
     [activeCommentaryPreset, playNextCommentary]
   );
 
+  const resolveFlagLabel = useCallback((flagEmoji) => {
+    if (!flagEmoji) return 'Flag';
+    try {
+      const codePoints = [...flagEmoji].map((c) => c.codePointAt(0));
+      if (codePoints.length === 2) {
+        const [a, b] = codePoints;
+        const base = 0x1f1e6;
+        const region = String.fromCharCode(a - base + 65, b - base + 65);
+        if (typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
+          const display = new Intl.DisplayNames(['en'], { type: 'region' });
+          return display.of(region) || region;
+        }
+        return region;
+      }
+    } catch (err) {
+      console.warn('flag label resolve failed', err);
+    }
+    return flagEmoji;
+  }, []);
+  const playerFlag = useMemo(
+    () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
+    []
+  );
+  const playerFlagLabel = useMemo(
+    () => resolveFlagLabel(playerFlag),
+    [playerFlag, resolveFlagLabel]
+  );
+  const aiFlag = useMemo(() => {
+    const pickRandom = () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
+    if (tournamentMode && typeof window !== 'undefined') {
+      try {
+        const stored = window.localStorage.getItem(tournamentAiFlagStorageKey);
+        if (stored && FLAG_EMOJIS.includes(stored)) {
+          return stored;
+        }
+      } catch (err) {
+        console.warn('Pool Royale tournament AI flag restore failed', err);
+      }
+    }
+    const selected = pickRandom();
+    if (tournamentMode && typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(tournamentAiFlagStorageKey, selected);
+      } catch (err) {
+        console.warn('Pool Royale tournament AI flag save failed', err);
+      }
+    }
+    return selected;
+  }, [tournamentAiFlagStorageKey, tournamentMode]);
+  const aiFlagLabel = useMemo(() => resolveFlagLabel(aiFlag), [aiFlag, resolveFlagLabel]);
+
   const resolveSeatLabel = useCallback(
     (seat) => {
-      if (seat === 'A') return framePlayerAName || 'Player A';
+      if (seat === 'A') {
+        if (aiOpponentEnabled && localSeat === 'B') return aiFlagLabel || framePlayerAName || 'Player A';
+        return framePlayerAName || 'Player A';
+      }
+      if (aiOpponentEnabled && localSeat === 'A') return aiFlagLabel || framePlayerBName || 'Player B';
       return framePlayerBName || 'Player B';
     },
-    [framePlayerAName, framePlayerBName]
+    [aiFlagLabel, aiOpponentEnabled, framePlayerAName, framePlayerBName, localSeat]
   );
 
   const resolveScoreline = useCallback((scoreA, scoreB) => {
@@ -12994,10 +13054,7 @@ const powerRef = useRef(hud.power);
   }, [resolveSeatLabel]);
 
   const resolveCommentarySpeaker = useCallback(() => {
-    const speakers = [POOL_ROYALE_SPEAKERS.lead, POOL_ROYALE_SPEAKERS.analyst];
-    const next = speakers[commentarySpeakerTurnRef.current % speakers.length];
-    commentarySpeakerTurnRef.current += 1;
-    return next;
+    return POOL_ROYALE_SPEAKERS.analyst;
   }, []);
 
   const enqueuePoolCommentaryEvent = useCallback(
@@ -13007,6 +13064,7 @@ const powerRef = useRef(hud.power);
         event,
         variant: activeVariant?.id ?? variantKey ?? '9ball',
         speaker,
+        language: activeCommentaryPreset?.language ?? commentaryPresetId,
         context: {
           arena: 'Pool Royale arena',
           ballSet: activeVariant?.ballSet,
@@ -13015,7 +13073,15 @@ const powerRef = useRef(hud.power);
       });
       enqueuePoolCommentary([{ speaker, text }], options);
     },
-    [activeVariant?.ballSet, activeVariant?.id, enqueuePoolCommentary, resolveCommentarySpeaker, variantKey]
+    [
+      activeCommentaryPreset?.language,
+      activeVariant?.ballSet,
+      activeVariant?.id,
+      commentaryPresetId,
+      enqueuePoolCommentary,
+      resolveCommentarySpeaker,
+      variantKey
+    ]
   );
 
   const maybeSpeakShotCommentary = useCallback(
@@ -13609,56 +13675,6 @@ const powerRef = useRef(hud.power);
       } catch {}
     };
   }, []);
-  const resolveFlagLabel = useCallback((flagEmoji) => {
-    if (!flagEmoji) return 'Flag';
-    try {
-      const codePoints = [...flagEmoji].map((c) => c.codePointAt(0));
-      if (codePoints.length === 2) {
-        const [a, b] = codePoints;
-        const base = 0x1f1e6;
-        const region = String.fromCharCode(a - base + 65, b - base + 65);
-        if (typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
-          const display = new Intl.DisplayNames(['en'], { type: 'region' });
-          return display.of(region) || region;
-        }
-        return region;
-      }
-    } catch (err) {
-      console.warn('flag label resolve failed', err);
-    }
-    return flagEmoji;
-  }, []);
-  const playerFlag = useMemo(
-    () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
-    []
-  );
-  const playerFlagLabel = useMemo(
-    () => resolveFlagLabel(playerFlag),
-    [playerFlag, resolveFlagLabel]
-  );
-  const aiFlag = useMemo(() => {
-    const pickRandom = () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
-    if (tournamentMode && typeof window !== 'undefined') {
-      try {
-        const stored = window.localStorage.getItem(tournamentAiFlagStorageKey);
-        if (stored && FLAG_EMOJIS.includes(stored)) {
-          return stored;
-        }
-      } catch (err) {
-        console.warn('Pool Royale tournament AI flag restore failed', err);
-      }
-    }
-    const selected = pickRandom();
-    if (tournamentMode && typeof window !== 'undefined') {
-      try {
-        window.localStorage.setItem(tournamentAiFlagStorageKey, selected);
-      } catch (err) {
-        console.warn('Pool Royale tournament AI flag save failed', err);
-      }
-    }
-    return selected;
-  }, [tournamentAiFlagStorageKey, tournamentMode]);
-  const aiFlagLabel = useMemo(() => resolveFlagLabel(aiFlag), [aiFlag, resolveFlagLabel]);
   const aiShoot = useRef(() => {});
 
   const drawHudPanel = (ctx, logo, avatarImg, name, score, t, emoji) => {
