@@ -614,7 +614,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1; // allow the plate ends to r
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.982; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.045; // nudge the middle fascia inward so it sits closer to the table center without moving the pocket cut
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.07; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.095; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
@@ -5449,9 +5449,16 @@ const cornerPocketCenter = (sx, sz) =>
     sz * (PLAY_H / 2 - CORNER_POCKET_CENTER_INSET)
   );
 let sidePocketShift = 0;
+let cachedPocketCenters = null;
+let cachedSidePocketCenters = null;
+let cachedPocketShift = null;
 const pocketCenters = () => {
+  if (cachedPocketCenters && cachedPocketShift === sidePocketShift) {
+    return cachedPocketCenters;
+  }
   const sidePocketCenterX = PLAY_W / 2 + sidePocketShift;
-  return [
+  cachedPocketShift = sidePocketShift;
+  cachedPocketCenters = [
     cornerPocketCenter(-1, -1),
     cornerPocketCenter(1, -1),
     cornerPocketCenter(-1, 1),
@@ -5459,6 +5466,14 @@ const pocketCenters = () => {
     new THREE.Vector2(-sidePocketCenterX, 0),
     new THREE.Vector2(sidePocketCenterX, 0)
   ];
+  cachedSidePocketCenters = cachedPocketCenters.slice(4);
+  return cachedPocketCenters;
+};
+const getSidePocketCenters = () => {
+  if (!cachedPocketCenters || cachedPocketShift !== sidePocketShift) {
+    pocketCenters();
+  }
+  return cachedSidePocketCenters ?? [];
 };
 const pocketEntranceCenters = () =>
   pocketCenters().map((center, index) => {
@@ -5840,7 +5855,7 @@ function reflectRails(ball) {
   const sidePocketGuard = SIDE_POCKET_GUARD_RADIUS;
   const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
   const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
-  const sidePocketCenters = pocketCenters().slice(4);
+  const sidePocketCenters = getSidePocketCenters();
   const sideCutRad = THREE.MathUtils.degToRad(SIDE_POCKET_PHYSICS_CUT_ANGLE);
   const sideCutCos = Math.cos(sideCutRad);
   const sideCutSin = Math.sin(sideCutRad);
@@ -17650,7 +17665,7 @@ const powerRef = useRef(hud.power);
           }
         };
 
-        const applyReplayFrame = (frameA, frameB, alpha) => {
+        const applyReplayFrame = (frameA, frameB, alpha, preferCueStroke = false) => {
           if (!frameA) return false;
           const aMap = new Map(frameA.balls.map((entry) => [entry.id, entry]));
           const bMap = frameB ? new Map(frameB.balls.map((entry) => [entry.id, entry])) : null;
@@ -17727,7 +17742,8 @@ const powerRef = useRef(hud.power);
           });
           const cueStateA = frameA.cue ?? null;
           const cueStateB = frameB?.cue ?? cueStateA;
-          if (cueStick && (cueStateA || cueStateB)) {
+          const allowCueSnapshot = !preferCueStroke && (cueStateA || cueStateB);
+          if (cueStick && allowCueSnapshot) {
             const posA = normalizeVector3Snapshot(cueStateA?.position);
             const posB = normalizeVector3Snapshot(cueStateB?.position, posA);
             if (posA && posB) {
@@ -23561,7 +23577,12 @@ const powerRef = useRef(hud.power);
             const alpha = frameB
               ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
               : 0;
-            const hasCueSnapshot = applyReplayFrame(frameA, frameB, alpha);
+            const hasCueSnapshot = applyReplayFrame(
+              frameA,
+              frameB,
+              alpha,
+              Boolean(playback?.cueStroke)
+            );
             if (!hasCueSnapshot) {
               applyReplayCueStroke(playback, targetTime);
             }
