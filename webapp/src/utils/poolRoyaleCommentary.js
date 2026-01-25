@@ -628,19 +628,19 @@ const LOCALIZED_TEMPLATES = Object.freeze({
     ...ENGLISH_TEMPLATES,
     common: {
       intro: [
-        'Mirë se vini në {arena}. {speaker} me ju. {player} kundër {opponent}; {scoreline} në {variantName}.'
+        'Mirë se vini në {arena}. Me ju është {speaker}. {player} përballë {opponent}; {scoreline} në {variantName}.'
       ],
       introReply: [
-        'Faleminderit {speaker}. Kontrolli i topit të bardhë dhe pozicionimi vendosin gjithçka.'
+        'Faleminderit, {speaker}. Kontrolli i topit të bardhë dhe pozicionimi vendosin gjithçka.'
       ],
       breakShot: [
-        '{player} gati për thyerjen; shpërndarja dhe kontrolli i të bardhit janë kyçe.'
+        '{player} gati për thyerjen; shpërndarja dhe kontrolli i topit të bardhë janë kyçe.'
       ],
       breakResult: [
-        'Thyerje e mirë, topat janë hapur dhe ka linja të pastra.'
+        'Thyerje e mirë; topat janë hapur dhe ka linja të pastra.'
       ],
       openTable: [
-        'Tavolina është e hapur; {player} kërkon kënde natyrale dhe vazhdim të lehtë.'
+        'Tavolina është e hapur; {player} kërkon kënde të natyrshme dhe vazhdim të lehtë.'
       ],
       safety: [
         '{player} luan siguri dhe fsheh topin e bardhë.'
@@ -649,22 +649,22 @@ const LOCALIZED_TEMPLATES = Object.freeze({
         'Goditje me presion; prekja e butë dhe efekti janë vendimtarë.'
       ],
       pot: [
-        '{player} fut {targetBall} në {pocket} dhe mban pozicionin.'
+        '{player} fut {targetBall} në {pocket} dhe ruan pozicionin.'
       ],
       combo: [
-        '{player} kombinon {targetBall} në {pocket}.'
+        '{player} bën kombinim dhe fut {targetBall} në {pocket}.'
       ],
       bank: [
-        '{player} bën bankë dhe fut {targetBall} në {pocket}.'
+        '{player} godet nga banka dhe fut {targetBall} në {pocket}.'
       ],
       kick: [
-        '{player} duhet të godasë në bankinë për ta gjetur.'
+        '{player} duhet ta gjejë topin përmes bankës.'
       ],
       jump: [
-        '{player} përdor jump për të kaluar bllokimin.'
+        '{player} përdor goditje kërcimi për të kaluar bllokimin.'
       ],
       miss: [
-        '{player} e humb, shans për {opponent}.'
+        '{player} e humb; shans për {opponent}.'
       ],
       foul: [
         'Faull nga {player}.'
@@ -673,7 +673,7 @@ const LOCALIZED_TEMPLATES = Object.freeze({
         'Top në dorë për {opponent}.'
       ],
       runout: [
-        '{player} është në ritëm—mund të pastrojë gjithë tavolinën.'
+        '{player} është në ritëm—mund të mbyllë gjithë tavolinën.'
       ],
       hillHill: [
         'Rack vendimtar; tension maksimal.'
@@ -682,30 +682,30 @@ const LOCALIZED_TEMPLATES = Object.freeze({
         '{player} fiton këtë rack.'
       ],
       matchWin: [
-        'Ndeshja mbaron. {player} fiton {playerScore}-{opponentScore}.'
+        'Ndeshja mbyllet. {player} fiton {playerScore}-{opponentScore}.'
       ],
       outro: [
         'Kaq nga {arena}. Faleminderit që na ndoqët.'
       ]
     },
     nineBall: {
-      variantName: '9-ball amerikan',
-      rotation: ['Në 9-ball duhet goditur gjithmonë topi me numrin më të vogël.'],
-      goldenBreak: ['Nëse 9 futet në thyerje, është golden break.'],
+      variantName: '9-boll amerikan',
+      rotation: ['Në 9-boll duhet goditur gjithmonë topi me numrin më të vogël.'],
+      goldenBreak: ['Nëse 9-shi futet në thyerje, është thyerje e artë.'],
       comboNine: ['{player} sheh kombinimin për 9—shans i madh.'],
       pushOut: ['{player} luan push-out për një pozicion më të mirë.']
     },
     eightBallUs: {
-      variantName: '8-ball amerikan',
+      variantName: '8-boll amerikan',
       groupCall: ['Tavolinë e hapur; {groupPrimary} ose {groupSecondary} janë të lira.'],
       inHand: ['Faulli i jep {opponent} top në dorë—mundësi e madhe.'],
       eightBall: ['Tani 8-shi është në lojë; pozicioni është gjithçka.']
     },
     eightBallUk: {
-      variantName: '8-ball britanik',
+      variantName: '8-boll britanik',
       groupCall: ['Rregullat UK: {groupPrimary} dhe {groupSecondary} janë të hapura.'],
-      freeBall: ['{player} ka free ball dhe dy vizita.'],
-      blackBall: ['Tani topi i zi; kërkohet kënd perfekt.']
+      freeBall: ['{player} ka top të lirë dhe dy vizita.'],
+      blackBall: ['Tani topi i zi; kërkohet kënd i përsosur.']
     }
   }
 });

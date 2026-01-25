@@ -1007,8 +1007,8 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   },
   {
     id: 'albanian',
-    label: 'Albanian',
-    description: 'Male voice, Shqip',
+    label: 'Shqip',
+    description: 'Zë mashkulli, shqip.',
     language: 'sq',
     voiceHints: {
       [POOL_ROYALE_SPEAKERS.lead]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male'],
