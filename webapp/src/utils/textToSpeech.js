@@ -24,7 +24,7 @@ export const primeSpeechSynthesis = () => {
       synth.resume();
     } catch {}
   }
-  const utterance = new SpeechSynthesisUtterance(' ');
+  const utterance = new SpeechSynthesisUtterance('.');
   utterance.volume = 0.01;
   utterance.rate = 1;
   utterance.pitch = 1;
