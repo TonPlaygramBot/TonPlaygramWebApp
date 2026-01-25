@@ -1,9 +1,6 @@
 export const MURLAN_ROYALE_SPEAKERS = Object.freeze({
   lead: 'Mason',
-  analyst: 'Lena',
-  tactician: 'Kai',
-  hype: 'Zara',
-  sideline: 'Omar'
+  analyst: 'Lena'
 });
 
 const SPEAKER_PROFILES = Object.freeze({
@@ -16,21 +13,6 @@ const SPEAKER_PROFILES = Object.freeze({
     id: 'lena',
     name: 'Lena',
     style: 'Color analyst'
-  },
-  Kai: {
-    id: 'kai',
-    name: 'Kai',
-    style: 'Tactical analyst'
-  },
-  Zara: {
-    id: 'zara',
-    name: 'Zara',
-    style: 'Hype caster'
-  },
-  Omar: {
-    id: 'omar',
-    name: 'Omar',
-    style: 'Sideline reporter'
   }
 });
 
@@ -114,52 +96,31 @@ const LOCALIZED_DEFAULT_CONTEXT = Object.freeze({
 const LOCALIZED_SPEAKERS = Object.freeze({
   zh: {
     Mason: '梅森',
-    Lena: '莉娜',
-    Kai: '凯',
-    Zara: '扎拉',
-    Omar: '奥马尔'
+    Lena: '莉娜'
   },
   hi: {
     Mason: 'मोहन',
-    Lena: 'लीना',
-    Kai: 'काई',
-    Zara: 'ज़ारा',
-    Omar: 'ओमर'
+    Lena: 'लीना'
   },
   ru: {
     Mason: 'Мейсон',
-    Lena: 'Лена',
-    Kai: 'Кай',
-    Zara: 'Зара',
-    Omar: 'Омар'
+    Lena: 'Лена'
   },
   es: {
     Mason: 'Mason',
-    Lena: 'Lena',
-    Kai: 'Kai',
-    Zara: 'Zara',
-    Omar: 'Omar'
+    Lena: 'Lena'
   },
   fr: {
     Mason: 'Mason',
-    Lena: 'Lena',
-    Kai: 'Kai',
-    Zara: 'Zara',
-    Omar: 'Omar'
+    Lena: 'Lena'
   },
   ar: {
     Mason: 'ميسون',
-    Lena: 'لينا',
-    Kai: 'كاي',
-    Zara: 'زارا',
-    Omar: 'عمر'
+    Lena: 'لينا'
   },
   sq: {
     Mason: 'Mejson',
-    Lena: 'Lena',
-    Kai: 'Kai',
-    Zara: 'Zara',
-    Omar: 'Omar'
+    Lena: 'Lena'
   }
 });
 
@@ -189,100 +150,82 @@ const ENGLISH_TEMPLATES = Object.freeze({
     intro: [
       'Welcome to {arena}. {speaker} with {partner} as {player} meets {opponent} in Murlan Royale.',
       'Live from {arena}. {speaker} alongside {partner} for tonight’s Murlan Royale showdown.',
-      '{speaker} on the call at {arena}. {player} versus {opponent}, and the tempo is about to spike.',
-      'The lights are bright at {arena}. {speaker} with {partner}, and this hand is ready to explode.'
+      '{speaker} on the call at {arena}. {player} versus {opponent}, and the tempo is about to spike.'
     ],
     introReply: [
       'Thanks {speaker}. Combo selection and tempo control will shape this hand.',
       'Great to be here, {speaker}. Watch the timing on bombs and the race to shed cards.',
-      'Absolutely, {speaker}. Disciplined passes and clean combos decide the edge.',
-      'Could not be more excited, {speaker}. One fearless run can flip everything.'
+      'Absolutely, {speaker}. Disciplined passes and clean combos decide the edge.'
     ],
     shuffle: [
       'Cards are in the air; opening hands are set.',
       'The deal is done. Let us see who claims the first lead.',
-      'Hands are live and the table is ready.',
-      'Listen to that buzz—cards are live and the pressure is on.'
+      'Hands are live and the table is ready.'
     ],
     firstMove: [
       '{player} opens with {combo}, setting the rhythm early.',
       'First lead belongs to {player} with {combo}.',
-      '{player} starts the action with {combo}.',
-      'What a confident opener from {player}: {combo}.'
+      '{player} starts the action with {combo}.'
     ],
     play: [
       '{player} plays {combo} and keeps the pressure on.',
       '{player} lays down {combo} with composed timing.',
-      'A confident play from {player}: {combo}.',
-      '{player} fires {combo} and the crowd reacts.'
+      'A confident play from {player}: {combo}.'
     ],
     pass: [
       '{player} passes and yields the tempo.',
       '{player} takes the pass; the table stays with {opponent}.',
-      '{player} lets it go—discipline over risk.',
-      'A careful pass from {player}; patience under pressure.'
+      '{player} lets it go—discipline over risk.'
     ],
     single: [
       '{player} drops {combo} to manage the pace.',
-      '{player} checks the tempo with {combo}.',
-      '{player} steadies the table with {combo}.'
+      '{player} checks the tempo with {combo}.'
     ],
     pair: [
       '{player} pairs up with {combo}.',
-      '{player} shows a pair: {combo}.',
-      '{player} snaps out a pair and leans in.'
+      '{player} shows a pair: {combo}.'
     ],
     trips: [
       '{player} rolls out trips—{combo}.',
-      '{player} commands the table with trips: {combo}.',
-      'Trips on the felt! {player} with {combo}.'
+      '{player} commands the table with trips: {combo}.'
     ],
     straight: [
       '{player} strings a straight: {combo}.',
-      'Straight down—{player} with {combo}.',
-      'A smooth straight from {player}, {combo} on display.'
+      'Straight down—{player} with {combo}.'
     ],
     flush: [
       '{player} delivers a flush and tightens control.',
-      'Flush on the felt—{player} with {combo}.',
-      '{player} flashes a flush and the tempo jumps.'
+      'Flush on the felt—{player} with {combo}.'
     ],
     fullHouse: [
       '{player} locks in a full house.',
-      'Full house played by {player}.',
-      '{player} slams a full house—what a moment.'
+      'Full house played by {player}.'
     ],
     straightFlush: [
       'Straight flush! {player} takes command.',
-      '{player} lands a straight flush and turns the hand.',
-      'A jaw-dropping straight flush from {player}!'
+      '{player} lands a straight flush and turns the hand.'
     ],
     bomb: [
       'Bomb on the table—{player} detonates {combo}.',
-      '{player} drops the bomb and swings the momentum.',
-      'Boom! {player} detonates {combo} and the arena erupts.'
+      '{player} drops the bomb and swings the momentum.'
     ],
     clearTable: [
       'The table clears. {player} takes the lead.',
-      'Reset on the table; {player} has control.',
-      'Clean sweep—{player} owns the tempo now.'
+      'Reset on the table; {player} has control.'
     ],
     close: [
       '{player} is down to {cardsLeft} cards—finish line in sight.',
-      '{player} has {cardsLeft} left; the endgame is near.',
-      '{player} is almost home with {cardsLeft} cards left.'
+      '{player} has {cardsLeft} left; the endgame is near.'
     ],
     win: [
       '{player} is out of cards and wins the hand.',
       '{player} closes it out—hand secured.',
-      '{player} finishes the run and takes the hand.',
-      'It is done! {player} clears the hand with authority.'
+      '{player} finishes the run and takes the hand.'
     ],
     outro: [
       'That wraps it up from {arena}. Thanks for joining us.',
       'From {arena}, that is full time. A sharp Murlan Royale battle.',
-      'A professional finish in {round}. Thanks for watching.',
-      'That was a roller coaster from {arena}. Appreciate you staying with us.'
+      'A professional finish in {round}. Thanks for watching.'
     ]
   }
 });
@@ -292,78 +235,24 @@ const LOCALIZED_TEMPLATES = Object.freeze({
   zh: {
     ...ENGLISH_TEMPLATES,
     common: {
-      intro: [
-        '欢迎来到{arena}。{speaker}与{partner}为您解说，{player}对阵{opponent}。',
-        '灯光聚焦{arena}！{speaker}联手{partner}，Murlan Royale大战开打。'
-      ],
-      introReply: [
-        '谢谢{speaker}。组合选择与节奏控制将决定胜负。',
-        '期待值拉满，{speaker}。一波连出就能改写局势。'
-      ],
-      shuffle: [
-        '发牌结束，比赛开始。',
-        '手牌已就位，气氛升温。'
-      ],
-      firstMove: [
-        '{player}率先出牌：{combo}。',
-        '漂亮的开局！{player}先手出{combo}。'
-      ],
-      play: [
-        '{player}打出{combo}，继续施压。',
-        '{player}果断出{combo}，节奏拉满。'
-      ],
-      pass: [
-        '{player}选择过牌，节奏让给{opponent}。',
-        '{player}稳住心态，暂时让出节奏。'
-      ],
-      single: [
-        '{player}出{combo}，稳住节奏。',
-        '{player}用{combo}调整步调。'
-      ],
-      pair: [
-        '{player}亮出对子：{combo}。',
-        '{player}对子出击，气势到位。'
-      ],
-      trips: [
-        '{player}打出三条：{combo}。',
-        '三条落桌！{player}火力全开。'
-      ],
-      straight: [
-        '{player}连顺：{combo}。',
-        '{player}顺子成型，观众沸腾。'
-      ],
-      flush: [
-        '{player}同花上桌：{combo}。',
-        '{player}同花成型，局面升温。'
-      ],
-      fullHouse: [
-        '{player}打出葫芦。',
-        '{player}满堂红到位！'
-      ],
-      straightFlush: [
-        '同花顺！{player}掌控局面。',
-        '惊艳同花顺！{player}直接接管比赛。'
-      ],
-      bomb: [
-        '炸弹登场！{player}打出{combo}。',
-        '轰！{player}炸弹爆发，气氛炸裂。'
-      ],
-      clearTable: [
-        '桌面清空，{player}继续领先。',
-        '清台成功，{player}掌控节奏。'
-      ],
-      close: [
-        '{player}只剩{cardsLeft}张牌。',
-        '{player}距离收官只差{cardsLeft}张。'
-      ],
-      win: [
-        '{player}出完手牌，赢下本局。',
-        '胜利到手！{player}干净利落拿下。'
-      ],
-      outro: [
-        '{arena}的比赛到此结束，感谢观看。',
-        '精彩落幕，我们下场再见！'
-      ]
+      intro: ['欢迎来到{arena}。{speaker}与{partner}为您解说，{player}对阵{opponent}。'],
+      introReply: ['谢谢{speaker}。组合选择与节奏控制将决定胜负。'],
+      shuffle: ['发牌结束，比赛开始。'],
+      firstMove: ['{player}率先出牌：{combo}。'],
+      play: ['{player}打出{combo}，继续施压。'],
+      pass: ['{player}选择过牌，节奏让给{opponent}。'],
+      single: ['{player}出{combo}，稳住节奏。'],
+      pair: ['{player}亮出对子：{combo}。'],
+      trips: ['{player}打出三条：{combo}。'],
+      straight: ['{player}连顺：{combo}。'],
+      flush: ['{player}同花上桌：{combo}。'],
+      fullHouse: ['{player}打出葫芦。'],
+      straightFlush: ['同花顺！{player}掌控局面。'],
+      bomb: ['炸弹登场！{player}打出{combo}。'],
+      clearTable: ['桌面清空，{player}继续领先。'],
+      close: ['{player}只剩{cardsLeft}张牌。'],
+      win: ['{player}出完手牌，赢下本局。'],
+      outro: ['{arena}的比赛到此结束，感谢观看。']
     }
   },
   hi: {
@@ -461,155 +350,47 @@ const LOCALIZED_TEMPLATES = Object.freeze({
   ar: {
     ...ENGLISH_TEMPLATES,
     common: {
-      intro: [
-        'مرحبًا بكم في {arena}. معكم {speaker} و{partner}. {player} ضد {opponent}.',
-        'الأجواء مشتعلة في {arena}! {speaker} مع {partner} لنقل هذه المواجهة.'
-      ],
-      introReply: [
-        'شكرًا {speaker}. اختيار التركيبات وإدارة الإيقاع سيحسمان اليد.',
-        'الحماس في القمة يا {speaker}، أي اندفاع قد يقلب الطاولة.'
-      ],
-      shuffle: [
-        'تم توزيع الأوراق، لنبدأ.',
-        'الأوراق جاهزة والنبض يرتفع.'
-      ],
-      firstMove: [
-        '{player} يبدأ بـ {combo}.',
-        'بداية قوية من {player} بـ {combo}.'
-      ],
-      play: [
-        '{player} يلعب {combo} ويحافظ على الضغط.',
-        '{player} يضغط بإيقاع سريع مع {combo}.'
-      ],
-      pass: [
-        '{player} يمرر ويترك الإيقاع لـ {opponent}.',
-        '{player} يتروى ويترك الدور خصمه.'
-      ],
-      single: [
-        '{player} يهدئ اللعب بـ {combo}.',
-        '{player} يختار {combo} لضبط الإيقاع.'
-      ],
-      pair: [
-        '{player} يضع زوجًا: {combo}.',
-        '{player} يشعلها بزوجٍ قوي: {combo}.'
-      ],
-      trips: [
-        '{player} يلعب ثلاثية: {combo}.',
-        'ثلاثية نارية من {player}: {combo}.'
-      ],
-      straight: [
-        '{player} يصنع ستريت: {combo}.',
-        'ستريت رائع من {player} يلهب المدرجات.'
-      ],
-      flush: [
-        '{player} يضع فلش: {combo}.',
-        '{player} يفرض سيطرته بفلش أنيق.'
-      ],
-      fullHouse: [
-        '{player} يثبت فل هاوس.',
-        'فل هاوس مدهش من {player}!'
-      ],
-      straightFlush: [
-        'ستريت فلش! {player} يسيطر على اليد.',
-        'يا لها من لحظة! ستريت فلش لـ {player}.'
-      ],
-      bomb: [
-        'قنبلة على الطاولة! {player} بـ {combo}.',
-        'انفجار حقيقي! {player} يفجر {combo}.'
-      ],
-      clearTable: [
-        'تم مسح الطاولة، {player} يتقدم.',
-        'تنظيف كامل للطاولة، {player} يمسك بزمام اللعب.'
-      ],
-      close: [
-        'لم يتبق لـ {player} سوى {cardsLeft} أوراق.',
-        '{player} يقترب من النهاية بـ {cardsLeft} فقط.'
-      ],
-      win: [
-        '{player} أنهى أوراقه وفاز باليد.',
-        'انتهت! {player} يحسمها بحماس.'
-      ],
-      outro: [
-        'من {arena}، شكرًا لمتابعتكم.',
-        'كانت مواجهة مثيرة في {arena}، إلى اللقاء.'
-      ]
+      intro: ['مرحبًا بكم في {arena}. معكم {speaker} و{partner}. {player} ضد {opponent}.'],
+      introReply: ['شكرًا {speaker}. اختيار التركيبات وإدارة الإيقاع سيحسمان اليد.'],
+      shuffle: ['تم توزيع الأوراق، لنبدأ.'],
+      firstMove: ['{player} يبدأ بـ {combo}.'],
+      play: ['{player} يلعب {combo} ويحافظ على الضغط.'],
+      pass: ['{player} يمرر ويترك الإيقاع لـ {opponent}.'],
+      single: ['{player} يهدئ اللعب بـ {combo}.'],
+      pair: ['{player} يضع زوجًا: {combo}.'],
+      trips: ['{player} يلعب ثلاثية: {combo}.'],
+      straight: ['{player} يصنع ستريت: {combo}.'],
+      flush: ['{player} يضع فلش: {combo}.'],
+      fullHouse: ['{player} يثبت فل هاوس.'],
+      straightFlush: ['ستريت فلش! {player} يسيطر على اليد.'],
+      bomb: ['قنبلة على الطاولة! {player} بـ {combo}.'],
+      clearTable: ['تم مسح الطاولة، {player} يتقدم.'],
+      close: ['لم يتبق لـ {player} سوى {cardsLeft} أوراق.'],
+      win: ['{player} أنهى أوراقه وفاز باليد.'],
+      outro: ['من {arena}، شكرًا لمتابعتكم.']
     }
   },
   sq: {
     ...ENGLISH_TEMPLATES,
     common: {
-      intro: [
-        'Mirë se vini në {arena}. {speaker} me {partner}. {player} kundër {opponent}.',
-        'Atmosfera është elektrizuese në {arena}! {speaker} me {partner} ju sjell këtë duel.'
-      ],
-      introReply: [
-        'Faleminderit {speaker}. Zgjedhja e kombinimeve dhe ritmi vendosin rezultatin.',
-        'Jam gati, {speaker}. Një shpërthim i vetëm mund ta përmbysë lojën.'
-      ],
-      shuffle: [
-        'Kartat u shpërndanë, loja fillon.',
-        'Kartat janë gati dhe tensioni rritet.'
-      ],
-      firstMove: [
-        '{player} hap me {combo}.',
-        'Fillim i fuqishëm nga {player} me {combo}.'
-      ],
-      play: [
-        '{player} luan {combo} dhe mban presionin.',
-        '{player} shton ritmin me {combo}.'
-      ],
-      pass: [
-        '{player} kalon dhe i lë ritmin {opponent}.',
-        '{player} tregohet i duruar dhe lëshon ritmin.'
-      ],
-      single: [
-        '{player} hedh {combo} për të kontrolluar ritmin.',
-        '{player} rregullon lojën me {combo}.'
-      ],
-      pair: [
-        '{player} nxjerr një çift: {combo}.',
-        '{player} shpërthen me çiftin {combo}.'
-      ],
-      trips: [
-        '{player} luan treshe: {combo}.',
-        'Treshe e fuqishme nga {player}: {combo}.'
-      ],
-      straight: [
-        '{player} bën një drejtë: {combo}.',
-        '{player} lidh drejtën dhe emocionon arenën.'
-      ],
-      flush: [
-        '{player} vendos një ngjyrë: {combo}.',
-        '{player} shton kontrollin me një ngjyrë elegante.'
-      ],
-      fullHouse: [
-        '{player} siguron një shtëpi të plotë.',
-        'Shtëpi e plotë! {player} ndez lojën.'
-      ],
-      straightFlush: [
-        'Drejtë e ngjyrës! {player} merr kontrollin.',
-        'Uau! Drejtë e ngjyrës nga {player}.'
-      ],
-      bomb: [
-        'Bombë në tavolinë! {player} me {combo}.',
-        'Shpërthim i madh! {player} hedh {combo}.'
-      ],
-      clearTable: [
-        'Tavolina pastrohet, {player} merr kontrollin.',
-        'Pastrohet gjithçka, {player} mban ritmin.'
-      ],
-      close: [
-        '{player} ka edhe {cardsLeft} letra.',
-        '{player} është pranë finishit me {cardsLeft} letra.'
-      ],
-      win: [
-        '{player} mbaron kartat dhe fiton dorën.',
-        'Mbaroi! {player} fiton me stil.'
-      ],
-      outro: [
-        'Nga {arena}, faleminderit që na ndoqët.',
-        'Spektakël i vërtetë nga {arena}. Faleminderit dhe mirupafshim.'
-      ]
+      intro: ['Mirë se vini në {arena}. {speaker} me {partner}. {player} kundër {opponent}.'],
+      introReply: ['Faleminderit {speaker}. Zgjedhja e kombinimeve dhe ritmi vendosin rezultatin.'],
+      shuffle: ['Kartat u shpërndanë, loja fillon.'],
+      firstMove: ['{player} hap me {combo}.'],
+      play: ['{player} luan {combo} dhe mban presionin.'],
+      pass: ['{player} kalon dhe i lë ritmin {opponent}.'],
+      single: ['{player} hedh {combo} për të kontrolluar ritmin.'],
+      pair: ['{player} nxjerr një çift: {combo}.'],
+      trips: ['{player} luan treshe: {combo}.'],
+      straight: ['{player} bën një drejtë: {combo}.'],
+      flush: ['{player} vendos një ngjyrë: {combo}.'],
+      fullHouse: ['{player} siguron një shtëpi të plotë.'],
+      straightFlush: ['Drejtë e ngjyrës! {player} merr kontrollin.'],
+      bomb: ['Bombë në tavolinë! {player} me {combo}.'],
+      clearTable: ['Tavolina pastrohet, {player} merr kontrollin.'],
+      close: ['{player} ka edhe {cardsLeft} letra.'],
+      win: ['{player} mbaron kartat dhe fiton dorën.'],
+      outro: ['Nga {arena}, faleminderit që na ndoqët.']
     }
   }
 });
@@ -668,13 +449,7 @@ export const resolveMurlanLanguageKey = resolveLanguageKey;
 
 export const createMurlanMatchCommentaryScript = ({
   players = { A: 'Player A', B: 'Player B' },
-  commentators = [
-    MURLAN_ROYALE_SPEAKERS.lead,
-    MURLAN_ROYALE_SPEAKERS.analyst,
-    MURLAN_ROYALE_SPEAKERS.tactician,
-    MURLAN_ROYALE_SPEAKERS.hype,
-    MURLAN_ROYALE_SPEAKERS.sideline
-  ],
+  commentators = [MURLAN_ROYALE_SPEAKERS.analyst],
   language = 'en',
   scoreline = 'level at 0-0'
 } = {}) => {

@@ -1,17 +1,11 @@
 const DEFAULT_VOICE_HINTS = {
   Mason: ['en-US', 'English', 'Male', 'Google US English Male', 'David', 'Guy'],
-  Lena: ['en-GB', 'English', 'Female', 'Google UK English Female', 'Sonia', 'Hazel'],
-  Kai: ['en-US', 'English', 'Male', 'Google US English', 'Daniel', 'Alex'],
-  Zara: ['en-GB', 'English', 'Female', 'Google UK English', 'Kate', 'Emma'],
-  Omar: ['en-US', 'English', 'Male', 'Google US English', 'David', 'Guy']
+  Lena: ['en-GB', 'English', 'Female', 'Google UK English Female', 'Sonia', 'Hazel']
 };
 
 const DEFAULT_SPEAKER_SETTINGS = {
   Mason: { rate: 1, pitch: 0.95, volume: 1 },
-  Lena: { rate: 1.02, pitch: 1.05, volume: 1 },
-  Kai: { rate: 1.01, pitch: 0.98, volume: 1 },
-  Zara: { rate: 1.04, pitch: 1.06, volume: 1 },
-  Omar: { rate: 1, pitch: 0.96, volume: 1 }
+  Lena: { rate: 1.02, pitch: 1.05, volume: 1 }
 };
 
 export const getSpeechSynthesis = () => {
@@ -82,54 +76,36 @@ const loadVoices = (synth, timeoutMs = 3500) =>
     setTimeout(() => finalize(synth.getVoices()), timeoutMs);
   });
 
-const normalizeHints = (hints = []) =>
-  hints.map((hint) => String(hint || '').trim().toLowerCase()).filter(Boolean);
-
-const extractLanguageHints = (hints = []) =>
-  normalizeHints(hints).filter((hint) => /^[a-z]{2}(?:-[a-z0-9]+)?$/i.test(hint));
-
-const normalizeLangPrefix = (lang) => String(lang || '').toLowerCase().split(/[-_]/)[0] || '';
-
-const isHintedLanguageMatch = (voiceLang, hintedLanguages = []) => {
-  if (!voiceLang || !hintedLanguages.length) return false;
-  const voicePrefix = normalizeLangPrefix(voiceLang);
-  return hintedLanguages.some((hint) => normalizeLangPrefix(hint) === voicePrefix);
-};
-
 const findVoiceMatch = (voices, hints = []) => {
-  const normalizedHints = normalizeHints(hints);
-  if (!voices.length) return null;
-  const matchesByName = voices.find((voice) =>
-    normalizedHints.some((hint) => voice.name.toLowerCase().includes(hint))
+  const normalizedHints = hints.map((hint) => hint.toLowerCase());
+  return (
+    voices.find((voice) => normalizedHints.some((hint) => voice.name.toLowerCase().includes(hint))) ||
+    voices.find((voice) => normalizedHints.some((hint) => voice.lang.toLowerCase().includes(hint))) ||
+    voices[0] ||
+    null
   );
-  if (matchesByName) return matchesByName;
-  const matchesByLang = voices.find((voice) =>
-    normalizedHints.some((hint) => voice.lang.toLowerCase().includes(hint))
-  );
-  if (matchesByLang) return matchesByLang;
-  return normalizedHints.length ? null : voices[0] || null;
 };
 
 const findDistinctVoice = (voices, hints = [], usedVoices = new Set()) => {
   if (!voices.length) return null;
-  const normalizedHints = normalizeHints(hints);
+  const normalizedHints = hints.map((hint) => hint.toLowerCase());
   const matchesByName = voices.filter((voice) =>
     normalizedHints.some((hint) => voice.name.toLowerCase().includes(hint))
   );
   const matchesByLang = voices.filter((voice) =>
     normalizedHints.some((hint) => voice.lang.toLowerCase().includes(hint))
   );
-  const candidateLists = normalizedHints.length ? [matchesByName, matchesByLang] : [voices];
+  const candidateLists = [matchesByName, matchesByLang, voices];
   for (const candidates of candidateLists) {
     const match = candidates.find((voice) => !usedVoices.has(voice));
     if (match) return match;
   }
-  return normalizedHints.length ? null : voices.find((voice) => !usedVoices.has(voice)) || null;
+  return voices[0] || null;
 };
 
 const resolveHintedLanguage = (hints = [], fallback) => {
   const normalizedHints = hints.map((hint) => String(hint || '').trim()).filter(Boolean);
-  const matched = normalizedHints.find((hint) => /^[a-z]{2}(?:-[a-z0-9]+)?$/i.test(hint));
+  const matched = normalizedHints.find((hint) => /^[a-z]{2}(?:-[a-z]{2})?$/i.test(hint));
   if (matched) return matched;
   if (fallback) return fallback;
   if (typeof navigator !== 'undefined' && navigator.language) return navigator.language;
@@ -171,13 +147,8 @@ export const speakCommentaryLines = async (
     const speaker = line.speaker || 'Mason';
     const settings = speakerSettings[speaker] || DEFAULT_SPEAKER_SETTINGS.Mason;
     const utterance = new SpeechSynthesisUtterance(line.text);
-    let voice = speakerVoices[speaker] || findVoiceMatch(voices, voiceHints[speaker] || voiceHints.Mason);
+    const voice = speakerVoices[speaker] || findVoiceMatch(voices, voiceHints[speaker] || voiceHints.Mason);
     const fallbackLang = resolveHintedLanguage(voiceHints[speaker] || voiceHints.Mason);
-    const hintedLanguages = extractLanguageHints(voiceHints[speaker] || voiceHints.Mason);
-
-    if (voice && hintedLanguages.length && !isHintedLanguageMatch(voice.lang, hintedLanguages)) {
-      voice = null;
-    }
 
     if (voice) {
       utterance.voice = voice;
