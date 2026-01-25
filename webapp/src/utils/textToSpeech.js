@@ -8,8 +8,10 @@ const DEFAULT_SPEAKER_SETTINGS = {
   Lena: { rate: 1.02, pitch: 1.05, volume: 1 }
 };
 
-export const getSpeechSynthesis = () =>
-  typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null;
+export const getSpeechSynthesis = () => {
+  if (typeof window === 'undefined') return null;
+  return window.speechSynthesis || window.webkitSpeechSynthesis || null;
+};
 
 export const primeSpeechSynthesis = () => {
   const synth = getSpeechSynthesis();
@@ -42,7 +44,7 @@ export const primeSpeechSynthesis = () => {
   synth.speak(utterance);
 };
 
-const loadVoices = (synth, timeoutMs = 2500) =>
+const loadVoices = (synth, timeoutMs = 3500) =>
   new Promise((resolve) => {
     if (!synth) {
       resolve([]);
@@ -54,9 +56,11 @@ const loadVoices = (synth, timeoutMs = 2500) =>
       return;
     }
     let settled = false;
+    let intervalId = null;
     const finalize = (voices) => {
       if (settled) return;
       settled = true;
+      if (intervalId) clearInterval(intervalId);
       resolve(voices);
     };
     const handleVoices = () => {
@@ -68,6 +72,7 @@ const loadVoices = (synth, timeoutMs = 2500) =>
     } else {
       synth.onvoiceschanged = handleVoices;
     }
+    intervalId = setInterval(handleVoices, 250);
     setTimeout(() => finalize(synth.getVoices()), timeoutMs);
   });
 
@@ -113,10 +118,10 @@ export const resolveVoiceForSpeaker = (speaker, voices = []) => {
   return findVoiceMatch(voices, hints);
 };
 
-export const speakCommentaryLines = async (lines, {
-  speakerSettings = DEFAULT_SPEAKER_SETTINGS,
-  voiceHints = DEFAULT_VOICE_HINTS
-} = {}) => {
+export const speakCommentaryLines = async (
+  lines,
+  { speakerSettings = DEFAULT_SPEAKER_SETTINGS, voiceHints = DEFAULT_VOICE_HINTS } = {}
+) => {
   const synth = getSpeechSynthesis();
   if (!synth || !Array.isArray(lines) || lines.length === 0) return;
 
@@ -156,9 +161,30 @@ export const speakCommentaryLines = async (lines, {
     utterance.volume = settings.volume;
 
     await new Promise((resolve) => {
-      utterance.onend = resolve;
-      utterance.onerror = resolve;
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      const fallbackMs = Math.max(1800, line.text.length * 60);
+      const timeoutId = setTimeout(finish, fallbackMs);
+      utterance.onend = () => {
+        clearTimeout(timeoutId);
+        finish();
+      };
+      utterance.onerror = () => {
+        clearTimeout(timeoutId);
+        finish();
+      };
       synth.speak(utterance);
+      if (typeof synth.resume === 'function') {
+        setTimeout(() => {
+          try {
+            synth.resume();
+          } catch {}
+        }, 0);
+      }
     });
   }
 };
