@@ -1004,6 +1004,20 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
       [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
       [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
     }
+  },
+  {
+    id: 'albanian',
+    label: 'Albanian',
+    description: 'Male voice, Shqip',
+    language: 'sq',
+    voiceHints: {
+      [POOL_ROYALE_SPEAKERS.lead]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male']
+    },
+    speakerSettings: {
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';

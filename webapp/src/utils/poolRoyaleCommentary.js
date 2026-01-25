@@ -623,6 +623,90 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       freeBall: ['{player} يحصل على كرة حرة وزيارتين.'],
       blackBall: ['الكرة السوداء في اللعب؛ الزاوية مهمة جدًا.']
     }
+  },
+  sq: {
+    ...ENGLISH_TEMPLATES,
+    common: {
+      intro: [
+        'Mirë se vini në {arena}. {speaker} me ju. {player} kundër {opponent}; {scoreline} në {variantName}.'
+      ],
+      introReply: [
+        'Faleminderit {speaker}. Kontrolli i topit të bardhë dhe pozicionimi vendosin gjithçka.'
+      ],
+      breakShot: [
+        '{player} gati për thyerjen; shpërndarja dhe kontrolli i të bardhit janë kyçe.'
+      ],
+      breakResult: [
+        'Thyerje e mirë, topat janë hapur dhe ka linja të pastra.'
+      ],
+      openTable: [
+        'Tavolina është e hapur; {player} kërkon kënde natyrale dhe vazhdim të lehtë.'
+      ],
+      safety: [
+        '{player} luan siguri dhe fsheh topin e bardhë.'
+      ],
+      pressure: [
+        'Goditje me presion; prekja e butë dhe efekti janë vendimtarë.'
+      ],
+      pot: [
+        '{player} fut {targetBall} në {pocket} dhe mban pozicionin.'
+      ],
+      combo: [
+        '{player} kombinon {targetBall} në {pocket}.'
+      ],
+      bank: [
+        '{player} bën bankë dhe fut {targetBall} në {pocket}.'
+      ],
+      kick: [
+        '{player} duhet të godasë në bankinë për ta gjetur.'
+      ],
+      jump: [
+        '{player} përdor jump për të kaluar bllokimin.'
+      ],
+      miss: [
+        '{player} e humb, shans për {opponent}.'
+      ],
+      foul: [
+        'Faull nga {player}.'
+      ],
+      inHand: [
+        'Top në dorë për {opponent}.'
+      ],
+      runout: [
+        '{player} është në ritëm—mund të pastrojë gjithë tavolinën.'
+      ],
+      hillHill: [
+        'Rack vendimtar; tension maksimal.'
+      ],
+      frameWin: [
+        '{player} fiton këtë rack.'
+      ],
+      matchWin: [
+        'Ndeshja mbaron. {player} fiton {playerScore}-{opponentScore}.'
+      ],
+      outro: [
+        'Kaq nga {arena}. Faleminderit që na ndoqët.'
+      ]
+    },
+    nineBall: {
+      variantName: '9-ball amerikan',
+      rotation: ['Në 9-ball duhet goditur gjithmonë topi me numrin më të vogël.'],
+      goldenBreak: ['Nëse 9 futet në thyerje, është golden break.'],
+      comboNine: ['{player} sheh kombinimin për 9—shans i madh.'],
+      pushOut: ['{player} luan push-out për një pozicion më të mirë.']
+    },
+    eightBallUs: {
+      variantName: '8-ball amerikan',
+      groupCall: ['Tavolinë e hapur; {groupPrimary} ose {groupSecondary} janë të lira.'],
+      inHand: ['Faulli i jep {opponent} top në dorë—mundësi e madhe.'],
+      eightBall: ['Tani 8-shi është në lojë; pozicioni është gjithçka.']
+    },
+    eightBallUk: {
+      variantName: '8-ball britanik',
+      groupCall: ['Rregullat UK: {groupPrimary} dhe {groupSecondary} janë të hapura.'],
+      freeBall: ['{player} ka free ball dhe dy vizita.'],
+      blackBall: ['Tani topi i zi; kërkohet kënd perfekt.']
+    }
   }
 });
 
@@ -675,6 +759,7 @@ const resolveLanguageKey = (language = 'en') => {
   if (normalized.startsWith('es')) return 'es';
   if (normalized.startsWith('fr')) return 'fr';
   if (normalized.startsWith('ar')) return 'ar';
+  if (normalized.startsWith('sq')) return 'sq';
   if (normalized.startsWith('en')) return 'en';
   return normalized || 'en';
 };
