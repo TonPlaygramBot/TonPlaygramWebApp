@@ -614,7 +614,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1; // allow the plate ends to r
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.982; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.065; // nudge the middle fascia inward so it sits closer to the table center without moving the pocket cut
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.045; // nudge the middle fascia inward so it sits closer to the table center without moving the pocket cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.095; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
@@ -17329,9 +17329,7 @@ const powerRef = useRef(hud.power);
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
           const forcedEarly = forceEarly && shotPrediction?.ballId === ballId;
-          const allowForcedEarly =
-            forcedEarly && (!isSidePocket || best.dist <= POCKET_CAM.triggerDist);
-          if (best.dist > POCKET_CAM.triggerDist && !allowForcedEarly) return null;
+          if (best.dist > POCKET_CAM.triggerDist && !forcedEarly) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
           const shortPocketHeightMultiplier =
             POCKET_CAM.heightOffsetShortMultiplier ?? 1;
@@ -17355,7 +17353,7 @@ const powerRef = useRef(hud.power);
               }
             : null;
           const now = performance.now();
-          const effectiveDist = allowForcedEarly
+          const effectiveDist = forcedEarly
             ? Math.min(best.dist, POCKET_CAM.triggerDist)
             : best.dist;
           const minOutside = isSidePocket
@@ -17401,7 +17399,7 @@ const powerRef = useRef(hud.power);
             lastRailHitAt: targetBall.lastRailHitAt ?? null,
             lastRailHitType: targetBall.lastRailHitType ?? null,
             predictedAlignment,
-            forcedEarly: allowForcedEarly
+            forcedEarly
           };
         };
         const fit = (m = STANDING_VIEW.margin) => {
@@ -17652,8 +17650,7 @@ const powerRef = useRef(hud.power);
           }
         };
 
-        const applyReplayFrame = (frameA, frameB, alpha, options = {}) => {
-          const { allowCueSnapshot = true } = options;
+        const applyReplayFrame = (frameA, frameB, alpha) => {
           if (!frameA) return false;
           const aMap = new Map(frameA.balls.map((entry) => [entry.id, entry]));
           const bMap = frameB ? new Map(frameB.balls.map((entry) => [entry.id, entry])) : null;
@@ -17728,9 +17725,9 @@ const powerRef = useRef(hud.power);
               }
             }
           });
-          const cueStateA = allowCueSnapshot ? frameA.cue ?? null : null;
-          const cueStateB = allowCueSnapshot ? frameB?.cue ?? cueStateA : null;
-          if (allowCueSnapshot && cueStick && (cueStateA || cueStateB)) {
+          const cueStateA = frameA.cue ?? null;
+          const cueStateB = frameB?.cue ?? cueStateA;
+          if (cueStick && (cueStateA || cueStateB)) {
             const posA = normalizeVector3Snapshot(cueStateA?.position);
             const posB = normalizeVector3Snapshot(cueStateB?.position, posA);
             if (posA && posB) {
@@ -23564,9 +23561,7 @@ const powerRef = useRef(hud.power);
             const alpha = frameB
               ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
               : 0;
-            const hasCueSnapshot = applyReplayFrame(frameA, frameB, alpha, {
-              allowCueSnapshot: !playback?.cueStroke
-            });
+            const hasCueSnapshot = applyReplayFrame(frameA, frameB, alpha);
             if (!hasCueSnapshot) {
               applyReplayCueStroke(playback, targetTime);
             }
@@ -23733,7 +23728,7 @@ const powerRef = useRef(hud.power);
           !(inHandPlacementModeRef.current) &&
           (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current) &&
           !remoteShotActive &&
-          (isPlayerTurn || previewingAiShot || aiCueViewActive || aiTakingShot);
+          (isPlayerTurn || previewingAiShot || aiCueViewActive);
         if (
           cue?.pos &&
           !sliderInstanceRef.current?.dragging &&
