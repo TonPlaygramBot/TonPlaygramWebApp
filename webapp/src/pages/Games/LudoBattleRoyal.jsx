@@ -58,6 +58,12 @@ import {
   ludoBattleAccountId
 } from '../../utils/ludoBattleInventory.js';
 import { giftSounds } from '../../utils/giftSounds.js';
+import {
+  LUDO_BATTLE_SPEAKERS,
+  buildCommentaryLine,
+  createMatchCommentaryScript
+} from '../../utils/ludoBattleRoyaleCommentary.js';
+import { getSpeechSynthesis, primeSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
@@ -418,6 +424,112 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tokenStyle', label: 'Token Style', options: TOKEN_STYLE_OPTIONS },
   { key: 'tokenPiece', label: 'Token Piece', options: TOKEN_PIECE_OPTIONS }
 ];
+
+const COMMENTARY_PRESET_STORAGE_KEY = 'ludoBattleRoyaleCommentaryPreset';
+const COMMENTARY_MUTE_STORAGE_KEY = 'ludoBattleRoyaleCommentaryMute';
+const COMMENTARY_QUEUE_LIMIT = 4;
+const COMMENTARY_MIN_INTERVAL_MS = 1200;
+const LUDO_BATTLE_COMMENTARY_PRESETS = Object.freeze([
+  {
+    id: 'english',
+    label: 'English',
+    description: 'Male voice, English',
+    language: 'en',
+    voiceHints: {
+      [LUDO_BATTLE_SPEAKERS.lead]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex']
+    },
+    speakerSettings: {
+      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
+  },
+  {
+    id: 'mandarin',
+    label: 'Mandarin',
+    description: 'Male voice, 中文',
+    language: 'zh',
+    voiceHints: {
+      [LUDO_BATTLE_SPEAKERS.lead]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male']
+    },
+    speakerSettings: {
+      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
+    }
+  },
+  {
+    id: 'hindi',
+    label: 'Hindi',
+    description: 'Male voice, हिंदी',
+    language: 'hi',
+    voiceHints: {
+      [LUDO_BATTLE_SPEAKERS.lead]: ['hi-IN', 'Hindi', 'India', 'male'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['hi-IN', 'Hindi', 'India', 'male']
+    },
+    speakerSettings: {
+      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
+  },
+  {
+    id: 'spanish',
+    label: 'Spanish',
+    description: 'Male voice, Español',
+    language: 'es',
+    voiceHints: {
+      [LUDO_BATTLE_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male']
+    },
+    speakerSettings: {
+      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.97, volume: 1 },
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 0.97, volume: 1 }
+    }
+  },
+  {
+    id: 'french',
+    label: 'French',
+    description: 'Male voice, Français',
+    language: 'fr',
+    voiceHints: {
+      [LUDO_BATTLE_SPEAKERS.lead]: ['fr-FR', 'French', 'Français', 'male'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['fr-FR', 'French', 'Français', 'male']
+    },
+    speakerSettings: {
+      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
+  },
+  {
+    id: 'arabic',
+    label: 'Arabic',
+    description: 'Male voice, العربية',
+    language: 'ar',
+    voiceHints: {
+      [LUDO_BATTLE_SPEAKERS.lead]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male']
+    },
+    speakerSettings: {
+      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
+    }
+  },
+  {
+    id: 'albanian',
+    label: 'Shqip',
+    description: 'Zë mashkulli, shqip.',
+    language: 'sq',
+    voiceHints: {
+      [LUDO_BATTLE_SPEAKERS.lead]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male']
+    },
+    speakerSettings: {
+      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
+  }
+]);
+const DEFAULT_COMMENTARY_PRESET_ID = LUDO_BATTLE_COMMENTARY_PRESETS[0]?.id || 'english';
 
 const FRAME_RATE_STORAGE_KEY = 'ludoFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
@@ -2623,16 +2735,61 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, [resolvedAccountId]);
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(() => !isGameMuted());
+  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage?.getItem(COMMENTARY_PRESET_STORAGE_KEY);
+      if (stored && LUDO_BATTLE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_COMMENTARY_PRESET_ID;
+  });
+  const [commentaryMuted, setCommentaryMuted] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage?.getItem(COMMENTARY_MUTE_STORAGE_KEY);
+      if (stored === '1') return true;
+      if (stored === '0') return false;
+    }
+    return false;
+  });
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const settingsRef = useRef({ soundEnabled: true });
+  const commentaryMutedRef = useRef(commentaryMuted);
+  const commentaryReadyRef = useRef(false);
+  const commentaryQueueRef = useRef([]);
+  const commentarySpeakingRef = useRef(false);
+  const commentaryLastEventAtRef = useRef(0);
+  const pendingCommentaryLinesRef = useRef(null);
+  const commentaryIntroPlayedRef = useRef(false);
+  const commentarySpeakerIndexRef = useRef(0);
   useEffect(() => {
     const handler = () => setSoundEnabled(!isGameMuted());
     window.addEventListener('gameMuteChanged', handler);
     return () => window.removeEventListener('gameMuteChanged', handler);
   }, []);
+  useEffect(() => {
+    commentaryMutedRef.current = commentaryMuted;
+    if (commentaryMuted) {
+      const synth = getSpeechSynthesis();
+      synth?.cancel?.();
+      commentaryQueueRef.current = [];
+      commentarySpeakingRef.current = false;
+      pendingCommentaryLinesRef.current = null;
+    }
+  }, [commentaryMuted]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage?.setItem(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
+    }
+  }, [commentaryPresetId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage?.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
+    }
+  }, [commentaryMuted]);
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
@@ -2649,6 +2806,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const activeFrameRateOption = useMemo(
     () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? DEFAULT_FRAME_RATE_OPTION,
     [frameRateId]
+  );
+  const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
+  const activeCommentaryPreset = useMemo(
+    () =>
+      LUDO_BATTLE_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
+      LUDO_BATTLE_COMMENTARY_PRESETS[0],
+    [commentaryPresetId]
   );
   const frameQualityProfile = useMemo(() => {
     const option = activeFrameRateOption ?? DEFAULT_FRAME_RATE_OPTION;
@@ -2824,9 +2988,148 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     });
   }, [activePlayerCount, aiFlags, avatar, username, playerColorsHex]);
 
+  const commentarySpeakers = useMemo(
+    () => [LUDO_BATTLE_SPEAKERS.lead, LUDO_BATTLE_SPEAKERS.analyst],
+    []
+  );
+  const pickCommentarySpeaker = useCallback(() => {
+    const index = commentarySpeakerIndexRef.current;
+    commentarySpeakerIndexRef.current = index + 1;
+    return commentarySpeakers[index % commentarySpeakers.length] || LUDO_BATTLE_SPEAKERS.lead;
+  }, [commentarySpeakers]);
+
+  const playNextCommentary = useCallback(async () => {
+    if (commentarySpeakingRef.current) return;
+    const next = commentaryQueueRef.current.shift();
+    if (!next) return;
+    const synth = getSpeechSynthesis();
+    if (!synth) return;
+    commentarySpeakingRef.current = true;
+    try {
+      synth.cancel();
+    } catch {}
+    await speakCommentaryLines(next.lines, {
+      speakerSettings: next.preset?.speakerSettings,
+      voiceHints: next.preset?.voiceHints
+    });
+    commentarySpeakingRef.current = false;
+    if (commentaryQueueRef.current.length) {
+      playNextCommentary();
+    }
+  }, []);
+
+  const enqueueLudoCommentary = useCallback(
+    (lines, { priority = false, preset = activeCommentaryPreset } = {}) => {
+      if (!Array.isArray(lines) || lines.length === 0) return;
+      if (commentaryMutedRef.current || isGameMuted()) return;
+      if (!commentaryReadyRef.current) {
+        pendingCommentaryLinesRef.current = { lines, priority, preset };
+        return;
+      }
+      const now = performance.now();
+      if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
+      if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
+      if (priority) {
+        commentaryQueueRef.current.unshift({ lines, preset });
+      } else {
+        commentaryQueueRef.current.push({ lines, preset });
+      }
+      if (!commentarySpeakingRef.current) {
+        playNextCommentary();
+      }
+      commentaryLastEventAtRef.current = now;
+    },
+    [activeCommentaryPreset, playNextCommentary]
+  );
+
+  const resolvePlayerLabel = useCallback(
+    (playerIndex) => players[playerIndex]?.name || COLOR_NAMES[playerIndex] || `Player ${playerIndex + 1}`,
+    [players]
+  );
+
+  const resolveDefaultOpponent = useCallback(
+    (playerIndex) => {
+      if (activePlayerCount === 2) {
+        const opponentIndex = playerIndex === 0 ? 1 : 0;
+        return resolvePlayerLabel(opponentIndex);
+      }
+      return 'the rest of the table';
+    },
+    [activePlayerCount, resolvePlayerLabel]
+  );
+
+  const resolveTokensHomeCount = useCallback((state, playerIndex) => {
+    if (!state?.progress?.[playerIndex]) return 0;
+    return state.progress[playerIndex].filter((value) => value >= GOAL_PROGRESS).length;
+  }, []);
+
+  const enqueueLudoCommentaryEvent = useCallback(
+    (event, context = {}, options = {}) => {
+      const speaker = options.speaker ?? pickCommentarySpeaker();
+      const text = buildCommentaryLine({
+        event,
+        speaker,
+        language: activeCommentaryPreset?.language ?? commentaryPresetId,
+        context: {
+          arena: 'Ludo Battle Royal arena',
+          ...context
+        }
+      });
+      enqueueLudoCommentary([{ speaker, text }], options);
+    },
+    [activeCommentaryPreset?.language, commentaryPresetId, enqueueLudoCommentary, pickCommentarySpeaker]
+  );
+
   useEffect(() => {
     uiRef.current = ui;
   }, [ui]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const unlockCommentary = () => {
+      if (commentaryReadyRef.current) return;
+      primeSpeechSynthesis();
+      const synth = getSpeechSynthesis();
+      synth?.getVoices?.();
+      commentaryReadyRef.current = true;
+      const pending = pendingCommentaryLinesRef.current;
+      if (pending) {
+        pendingCommentaryLinesRef.current = null;
+        enqueueLudoCommentary(pending.lines, pending);
+      }
+    };
+    window.addEventListener('pointerdown', unlockCommentary);
+    window.addEventListener('click', unlockCommentary);
+    window.addEventListener('touchstart', unlockCommentary);
+    window.addEventListener('keydown', unlockCommentary);
+    return () => {
+      window.removeEventListener('pointerdown', unlockCommentary);
+      window.removeEventListener('click', unlockCommentary);
+      window.removeEventListener('touchstart', unlockCommentary);
+      window.removeEventListener('keydown', unlockCommentary);
+    };
+  }, [enqueueLudoCommentary]);
+
+  useEffect(() => {
+    if (commentaryIntroPlayedRef.current) return;
+    if (!players.length) return;
+    commentaryIntroPlayedRef.current = true;
+    const script = createMatchCommentaryScript({
+      players: {
+        A: players[0]?.name || 'Player A',
+        B: players[1]?.name || 'Player B'
+      },
+      commentators: commentarySpeakers,
+      language: activeCommentaryPreset?.language ?? commentaryPresetId,
+      arena: 'Ludo Battle Royal arena'
+    });
+    enqueueLudoCommentary(script, { priority: true, preset: activeCommentaryPreset });
+  }, [activeCommentaryPreset, commentaryPresetId, commentarySpeakers, enqueueLudoCommentary, players]);
+
+  const handleCommentaryPresetSelect = useCallback((preset) => {
+    if (!preset?.id) return;
+    setCommentaryPresetId(preset.id);
+  }, []);
 
   const seatAnchorMap = useMemo(() => {
     const map = new Map();
@@ -4886,11 +5189,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
   const handleCaptures = (player, tokenIndex) => {
     const state = stateRef.current;
-    if (!state) return;
+    if (!state) return { count: 0, opponents: [] };
     const prog = state.progress[player][tokenIndex];
-    if (prog < 0 || prog >= RING_STEPS) return;
+    if (prog < 0 || prog >= RING_STEPS) return { count: 0, opponents: [] };
     const landingIdx = (PLAYER_START_INDEX[player] + prog) % RING_STEPS;
-    if (SAFE_TRACK_INDEXES.has(landingIdx)) return;
+    if (SAFE_TRACK_INDEXES.has(landingIdx)) return { count: 0, opponents: [] };
+    const opponents = [];
     for (let p = 0; p < activePlayerCount; p++) {
       if (p === player) continue;
       for (let t = 0; t < 4; t++) {
@@ -4904,9 +5208,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           token.position.copy(pos);
           token.rotation.set(0, 0, 0);
           playCapture();
+          opponents.push(resolvePlayerLabel(p));
         }
       }
     }
+    return { count: opponents.length, opponents };
   };
 
   const checkWin = (player) => {
@@ -4916,6 +5222,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (allHome) {
       state.winner = player;
       clearHumanSelection();
+      const winnerName = resolvePlayerLabel(player);
+      const tokensHome = resolveTokensHomeCount(state, player);
       setUi((s) => ({
         ...s,
         winner: COLOR_NAMES[player],
@@ -4924,6 +5232,27 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       clearHumanRollTimeout();
       playCheer();
       coinConfetti();
+      const lines = [
+        {
+          speaker: LUDO_BATTLE_SPEAKERS.lead,
+          text: buildCommentaryLine({
+            event: 'win',
+            speaker: LUDO_BATTLE_SPEAKERS.lead,
+            language: activeCommentaryPreset?.language ?? commentaryPresetId,
+            context: { player: winnerName, tokensHome }
+          })
+        },
+        {
+          speaker: LUDO_BATTLE_SPEAKERS.analyst,
+          text: buildCommentaryLine({
+            event: 'outro',
+            speaker: LUDO_BATTLE_SPEAKERS.analyst,
+            language: activeCommentaryPreset?.language ?? commentaryPresetId,
+            context: { player: winnerName, tokensHome }
+          })
+        }
+      ];
+      enqueueLudoCommentary(lines, { priority: true, preset: activeCommentaryPreset });
       return true;
     }
     return false;
@@ -4942,8 +5271,48 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       state.tokens[player][tokenIndex].position.copy(finalPos);
       state.tokens[player][tokenIndex].rotation.set(0, 0, 0);
       playMove();
-      handleCaptures(player, tokenIndex);
+      const captures = handleCaptures(player, tokenIndex);
       updateTokenStacks();
+      const playerName = resolvePlayerLabel(player);
+      const tokensHome = resolveTokensHomeCount(state, player);
+      const landingIdx =
+        target >= 0 && target < RING_STEPS
+          ? (PLAYER_START_INDEX[player] + target) % RING_STEPS
+          : null;
+      const landedSafe = landingIdx != null && SAFE_TRACK_INDEXES.has(landingIdx);
+      const opponentLabel =
+        captures.opponents.length === 1 ? captures.opponents[0] : resolveDefaultOpponent(player);
+
+      if (captures.count > 0) {
+        enqueueLudoCommentaryEvent('capture', {
+          player: playerName,
+          opponent: opponentLabel,
+          captureCount: captures.count
+        });
+      } else if (target === GOAL_PROGRESS) {
+        enqueueLudoCommentaryEvent('goal', {
+          player: playerName,
+          tokensHome
+        });
+      } else if (target >= RING_STEPS) {
+        enqueueLudoCommentaryEvent('homeStretch', {
+          player: playerName,
+          tokensHome
+        });
+      } else if (entering) {
+        enqueueLudoCommentaryEvent('enter', {
+          player: playerName
+        });
+      } else if (landedSafe) {
+        enqueueLudoCommentaryEvent('safe', {
+          player: playerName
+        });
+      } else {
+        enqueueLudoCommentaryEvent('move', {
+          player: playerName,
+          roll
+        });
+      }
       const winner = checkWin(player);
       advanceTurn(!winner && roll === 6);
     };
@@ -5016,6 +5385,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       dice: value,
       status: player === 0 ? `You rolled ${value}` : `${COLOR_NAMES[player]} rolled ${value}`
     }));
+    const playerName = resolvePlayerLabel(player);
+    enqueueLudoCommentaryEvent('diceRoll', { player: playerName, roll: value });
+    if (value === 6) {
+      enqueueLudoCommentaryEvent('extraTurn', { player: playerName });
+    }
     scheduleDiceClear();
     const options = getMovableTokens(player, value);
     if (!options.length) {
@@ -5213,6 +5587,62 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                         }}
                       />
                     </label>
+                    <div>
+                      <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">
+                        Commentary language
+                      </h3>
+                      <div className="mt-2 grid grid-cols-1 gap-2">
+                        {LUDO_BATTLE_COMMENTARY_PRESETS.map((preset) => {
+                          const active = preset.id === commentaryPresetId;
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() => handleCommentaryPresetSelect(preset)}
+                              aria-pressed={active}
+                              disabled={!commentarySupported}
+                              className={`rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                active
+                                  ? 'border-sky-300 bg-sky-300 text-black shadow-[0_0_18px_rgba(56,189,248,0.55)]'
+                                  : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                              } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                            >
+                              <span className="block">{preset.label}</span>
+                              <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.18em] text-white/60">
+                                {preset.description}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCommentaryMuted((prev) => !prev)}
+                        aria-pressed={commentaryMuted}
+                        disabled={!commentarySupported}
+                        className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                          commentaryMuted
+                            ? 'bg-sky-300 text-black shadow-[0_0_18px_rgba(56,189,248,0.65)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                      >
+                        <span>Mute commentary</span>
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
+                            commentaryMuted
+                              ? 'border-black/30 text-black/70'
+                              : 'border-white/30 text-white/70'
+                          }`}
+                        >
+                          {commentaryMuted ? 'On' : 'Off'}
+                        </span>
+                      </button>
+                      {!commentarySupported && (
+                        <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/60">
+                          Voice commentary needs Web Speech support.
+                        </p>
+                      )}
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
