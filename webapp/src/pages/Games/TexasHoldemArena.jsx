@@ -282,90 +282,6 @@ const TEXAS_HOLDEM_COMMENTARY_PRESETS = Object.freeze([
       [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
       [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
     }
-  },
-  {
-    id: 'mandarin',
-    label: 'Mandarin',
-    description: 'Male voice, 中文',
-    language: 'zh',
-    voiceHints: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male'],
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male']
-    },
-    speakerSettings: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
-    }
-  },
-  {
-    id: 'hindi',
-    label: 'Hindi',
-    description: 'Male voice, हिंदी',
-    language: 'hi',
-    voiceHints: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: ['hi-IN', 'Hindi', 'India', 'male'],
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['hi-IN', 'Hindi', 'India', 'male']
-    },
-    speakerSettings: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
-    }
-  },
-  {
-    id: 'spanish',
-    label: 'Spanish',
-    description: 'Male voice, Español',
-    language: 'es',
-    voiceHints: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male'],
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male']
-    },
-    speakerSettings: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.97, volume: 1 },
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1, pitch: 0.97, volume: 1 }
-    }
-  },
-  {
-    id: 'french',
-    label: 'French',
-    description: 'Male voice, Français',
-    language: 'fr',
-    voiceHints: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: ['fr-FR', 'French', 'Français', 'male'],
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['fr-FR', 'French', 'Français', 'male']
-    },
-    speakerSettings: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
-    }
-  },
-  {
-    id: 'arabic',
-    label: 'Arabic',
-    description: 'Male voice, العربية',
-    language: 'ar',
-    voiceHints: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male'],
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male']
-    },
-    speakerSettings: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
-    }
-  },
-  {
-    id: 'albanian',
-    label: 'Albanian',
-    description: 'Male voice, Shqip',
-    language: 'sq',
-    voiceHints: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male'],
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male']
-    },
-    speakerSettings: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
-    }
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = TEXAS_HOLDEM_COMMENTARY_PRESETS[0]?.id || 'english';
@@ -2660,7 +2576,7 @@ function TexasHoldemArena({ search }) {
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
-  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
+  const [commentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
       if (stored && TEXAS_HOLDEM_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
@@ -5227,31 +5143,7 @@ function TexasHoldemArena({ search }) {
                 </div>
               ))}
               <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Commentary language</p>
-                <div className="grid gap-2">
-                  {TEXAS_HOLDEM_COMMENTARY_PRESETS.map((preset) => {
-                    const active = preset.id === commentaryPresetId;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => setCommentaryPresetId(preset.id)}
-                        aria-pressed={active}
-                        disabled={!commentarySupported}
-                        className={`rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                          active
-                            ? 'border-sky-300 bg-sky-300 text-black shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                      >
-                        <span className="block">{preset.label}</span>
-                        <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.18em] text-white/60">
-                          {preset.description}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Commentary</p>
                 <button
                   type="button"
                   onClick={() => setCommentaryMuted((prev) => !prev)}

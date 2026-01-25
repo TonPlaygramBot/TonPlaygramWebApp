@@ -978,93 +978,9 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
       [COMMENTARY_SPEAKER_LEAD]: { rate: 0.98, pitch: 0.92, volume: 1 },
       [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.02, pitch: 0.98, volume: 0.98 }
     }
-  },
-  {
-    id: 'mandarin',
-    label: 'Mandarin Chinese',
-    description: 'Male play-by-play in Mandarin.',
-    language: 'zh',
-    voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['zh-CN', 'zh', 'mandarin', 'male', 'google'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['zh-CN', 'zh', 'mandarin', 'male', 'google']
-    },
-    speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 1, pitch: 0.95, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.02, pitch: 1, volume: 0.98 }
-    }
-  },
-  {
-    id: 'hindi',
-    label: 'Hindi',
-    description: 'Male play-by-play in Hindi.',
-    language: 'hi',
-    voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['hi-IN', 'hi', 'hindi', 'male', 'google'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['hi-IN', 'hi', 'hindi', 'male', 'google']
-    },
-    speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 1.02, pitch: 0.96, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.04, pitch: 1, volume: 0.98 }
-    }
-  },
-  {
-    id: 'spanish',
-    label: 'Spanish',
-    description: 'Male play-by-play in Spanish.',
-    language: 'es',
-    voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['es-ES', 'es', 'spanish', 'male', 'google'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['es-ES', 'es', 'spanish', 'male', 'google']
-    },
-    speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 1, pitch: 0.96, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.02, pitch: 1, volume: 0.98 }
-    }
-  },
-  {
-    id: 'french',
-    label: 'French',
-    description: 'Male play-by-play in French.',
-    language: 'fr',
-    voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['fr-FR', 'fr', 'french', 'male', 'google'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['fr-FR', 'fr', 'french', 'male', 'google']
-    },
-    speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 0.98, pitch: 0.94, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1, pitch: 0.98, volume: 0.98 }
-    }
-  },
-  {
-    id: 'arabic',
-    label: 'Arabic',
-    description: 'Male play-by-play in Arabic.',
-    language: 'ar',
-    voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['ar-SA', 'ar', 'arabic', 'male', 'google'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['ar-SA', 'ar', 'arabic', 'male', 'google']
-    },
-    speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 1, pitch: 0.94, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.02, pitch: 0.98, volume: 0.98 }
-    }
-  },
-  {
-    id: 'albanian',
-    label: 'Shqip',
-    description: 'Komentim mashkullor në shqip.',
-    language: 'sq',
-    voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['sq-AL', 'sq', 'albanian', 'male', 'google'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['sq-AL', 'sq', 'albanian', 'male', 'google']
-    },
-    speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 1, pitch: 0.96, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.02, pitch: 0.98, volume: 0.98 }
-    }
   }
 ]);
-const DEFAULT_COMMENTARY_PRESET_ID = SNOOKER_ROYAL_COMMENTARY_PRESETS[0]?.id || 'atlas';
+const DEFAULT_COMMENTARY_PRESET_ID = SNOOKER_ROYAL_COMMENTARY_PRESETS[0]?.id || 'english';
 const DEFAULT_TABLE_BASE_ID = SNOOKER_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
@@ -10807,7 +10723,7 @@ function SnookerRoyalGame({
     }
     return false;
   });
-  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
+  const [commentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = safeLocalStorageGet(COMMENTARY_PRESET_STORAGE_KEY);
       if (stored && SNOOKER_ROYAL_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
@@ -12245,22 +12161,6 @@ function SnookerRoyalGame({
       getAlternateCommentarySpeaker,
       resolveSeatLabel
     ]
-  );
-  const handleCommentaryPresetSelect = useCallback(
-    (preset) => {
-      if (!preset?.id) return;
-      setCommentaryPresetId(preset.id);
-      if (commentaryMutedRef.current || isGameMuted()) return;
-      enqueueSnookerCommentaryEvent(
-        'intro',
-        {
-          player: resolveSeatLabel('A'),
-          opponent: resolveSeatLabel('B')
-        },
-        { priority: true, preset }
-      );
-    },
-    [enqueueSnookerCommentaryEvent, resolveSeatLabel]
   );
   useEffect(() => {
     const script = createSnookerMatchCommentaryScript({
@@ -25990,30 +25890,6 @@ const powerRef = useRef(hud.power);
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Commentary
                 </h3>
-                <div className="mt-2 grid grid-cols-1 gap-2">
-                  {SNOOKER_ROYAL_COMMENTARY_PRESETS.map((preset) => {
-                    const active = preset.id === commentaryPresetId;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => handleCommentaryPresetSelect(preset)}
-                        aria-pressed={active}
-                        disabled={!commentarySupported}
-                        className={`rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                      >
-                        <span className="block">{preset.label}</span>
-                        <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.18em] text-white/60">
-                          {preset.description}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
                 <button
                   type="button"
                   onClick={() => setCommentaryMuted((prev) => !prev)}
