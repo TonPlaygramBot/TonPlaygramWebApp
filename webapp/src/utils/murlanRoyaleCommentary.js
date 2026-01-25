@@ -1,42 +1,18 @@
 export const MURLAN_ROYALE_SPEAKERS = Object.freeze({
-  atlas: 'Atlas',
-  nova: 'Nova',
-  orion: 'Orion',
-  juno: 'Juno',
-  vega: 'Vega',
-  echo: 'Echo'
+  lead: 'Mason',
+  analyst: 'Lena'
 });
 
 const SPEAKER_PROFILES = Object.freeze({
-  Atlas: {
-    id: 'atlas',
-    name: 'Atlas',
+  Mason: {
+    id: 'mason',
+    name: 'Mason',
     style: 'Play-by-play'
   },
-  Nova: {
-    id: 'nova',
-    name: 'Nova',
+  Lena: {
+    id: 'lena',
+    name: 'Lena',
     style: 'Color analyst'
-  },
-  Orion: {
-    id: 'orion',
-    name: 'Orion',
-    style: 'Tactician'
-  },
-  Juno: {
-    id: 'juno',
-    name: 'Juno',
-    style: 'Momentum reader'
-  },
-  Vega: {
-    id: 'vega',
-    name: 'Vega',
-    style: 'Precision caller'
-  },
-  Echo: {
-    id: 'echo',
-    name: 'Echo',
-    style: 'Hype specialist'
   }
 });
 
@@ -318,23 +294,18 @@ const resolveLanguageKey = (language = 'en') => {
 
 export const buildMurlanCommentaryLine = ({
   event,
-  speaker = MURLAN_ROYALE_SPEAKERS.atlas,
+  speaker = MURLAN_ROYALE_SPEAKERS.analyst,
   language = 'en',
   context = {}
 }) => {
   const templates = LOCALIZED_TEMPLATES[resolveLanguageKey(language)] || ENGLISH_TEMPLATES;
-  const commentators = Array.isArray(context.commentators) && context.commentators.length
-    ? context.commentators
-    : [speaker];
-  const partner =
-    commentators.length > 1
-      ? commentators.find((name) => name !== speaker) ?? commentators[0]
-      : context.partner ?? 'the desk';
   const mergedContext = {
     ...DEFAULT_CONTEXT,
     ...context,
     speaker,
-    partner
+    partner: speaker === MURLAN_ROYALE_SPEAKERS.lead
+      ? MURLAN_ROYALE_SPEAKERS.analyst
+      : MURLAN_ROYALE_SPEAKERS.lead
   };
 
   const eventPool = templates.common[EVENT_POOLS[event]] || templates.common.play;
@@ -344,7 +315,7 @@ export const buildMurlanCommentaryLine = ({
 
 export const createMurlanMatchCommentaryScript = ({
   players = { A: 'Player A', B: 'Player B' },
-  commentators = [MURLAN_ROYALE_SPEAKERS.atlas, MURLAN_ROYALE_SPEAKERS.nova],
+  commentators = [MURLAN_ROYALE_SPEAKERS.analyst],
   language = 'en',
   scoreline = 'level at 0-0'
 } = {}) => {
@@ -352,8 +323,7 @@ export const createMurlanMatchCommentaryScript = ({
   const context = {
     player: players.A,
     opponent: players.B,
-    scoreline,
-    commentators
+    scoreline
   };
 
   const script = [

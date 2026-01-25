@@ -643,11 +643,10 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'english',
     label: 'English',
-    description: 'Classic English duo',
+    description: 'Mixed voices, classic English',
     language: 'en',
-    commentators: [MURLAN_ROYALE_SPEAKERS.atlas, MURLAN_ROYALE_SPEAKERS.nova],
     voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.atlas]: [
+      [MURLAN_ROYALE_SPEAKERS.lead]: [
         'en-US',
         'English',
         'male',
@@ -656,7 +655,7 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
         'Daniel',
         'Alex'
       ],
-      [MURLAN_ROYALE_SPEAKERS.nova]: [
+      [MURLAN_ROYALE_SPEAKERS.analyst]: [
         'en-GB',
         'English',
         'female',
@@ -667,134 +666,132 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
       ]
     },
     speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.atlas]: { rate: 1, pitch: 0.96, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.nova]: { rate: 1.04, pitch: 1.06, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
   },
   {
-    id: 'atlas',
-    label: 'Atlas',
-    description: 'Commanding play-by-play voice',
+    id: 'broadcast',
+    label: 'Broadcast',
+    description: 'Broadcast duo, mixed',
     language: 'en',
-    commentators: [MURLAN_ROYALE_SPEAKERS.atlas],
     voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.atlas]: [
+      [MURLAN_ROYALE_SPEAKERS.lead]: [
+        'en-US',
+        'English',
+        'female',
+        'Zira',
+        'Aria',
+        'Jenny',
+        'Natasha'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: [
         'en-US',
         'English',
         'male',
-        'David',
-        'Guy',
-        'Brian',
+        'Microsoft Mark',
+        'Mark',
+        'Ryan',
         'Matthew'
       ]
     },
     speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.atlas]: { rate: 0.98, pitch: 0.92, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.04, pitch: 1.08, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 0.98, volume: 1 }
     }
   },
   {
-    id: 'nova',
-    label: 'Nova',
-    description: 'Bright strategic guidance',
+    id: 'deep-studio',
+    label: 'Deep Studio',
+    description: 'Deep studio with contrast',
     language: 'en',
-    commentators: [MURLAN_ROYALE_SPEAKERS.nova],
     voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.nova]: [
+      [MURLAN_ROYALE_SPEAKERS.lead]: [
         'en-GB',
         'English',
+        'male',
+        'Piper',
+        'Coqui',
+        'George',
+        'Brian'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: [
+        'en-AU',
+        'English',
         'female',
-        'Sonia',
-        'Hazel',
-        'Olivia',
-        'Serena'
+        'Piper',
+        'Coqui',
+        'Karen',
+        'Nicole'
       ]
     },
     speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.nova]: { rate: 1.04, pitch: 1.08, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.9, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 1.08, volume: 1 }
     }
   },
   {
-    id: 'orion',
-    label: 'Orion',
-    description: 'Deep, tactical delivery',
+    id: 'clear-analyst',
+    label: 'Clear Analyst',
+    description: 'Clear analyst focus',
     language: 'en',
-    commentators: [MURLAN_ROYALE_SPEAKERS.orion],
     voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.orion]: [
+      [MURLAN_ROYALE_SPEAKERS.lead]: [
         'en-AU',
         'English',
         'male',
-        'William',
-        'James',
-        'Google Australian English',
-        'Microsoft James'
-      ]
-    },
-    speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.orion]: { rate: 0.96, pitch: 0.9, volume: 1 }
-    }
-  },
-  {
-    id: 'juno',
-    label: 'Juno',
-    description: 'Energetic crowd hype',
-    language: 'en',
-    commentators: [MURLAN_ROYALE_SPEAKERS.juno],
-    voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.juno]: [
+        'Alex',
+        'Daniel',
+        'Microsoft Guy'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: [
         'en-US',
         'English',
         'female',
         'Ava',
         'Allison',
         'Samantha',
-        'Zira'
+        'Google US English'
       ]
     },
     speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.juno]: { rate: 1.06, pitch: 1.12, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 1, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.06, pitch: 1.08, volume: 1 }
     }
   },
   {
-    id: 'vega',
-    label: 'Vega',
-    description: 'Precise, measured cadence',
+    id: 'gritty-arena',
+    label: 'Gritty Arena',
+    description: 'Gritty arena voices',
     language: 'en',
-    commentators: [MURLAN_ROYALE_SPEAKERS.vega],
     voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.vega]: [
+      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-US', 'English', 'male', 'Bruce', 'Ralph', 'Fred'],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-GB', 'English', 'female', 'Susan', 'Moira', 'Sally']
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.96, pitch: 0.92, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 1.04, volume: 1 }
+    }
+  },
+  {
+    id: 'warm-story',
+    label: 'Warm Story',
+    description: 'Warm storyteller mix',
+    language: 'en',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: [
         'en-GB',
         'English',
-        'male',
-        'George',
-        'Ralph',
-        'Daniel',
-        'Oliver'
-      ]
-    },
-    speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.vega]: { rate: 0.98, pitch: 0.98, volume: 1 }
-    }
-  },
-  {
-    id: 'echo',
-    label: 'Echo',
-    description: 'Warm storyteller tone',
-    language: 'en',
-    commentators: [MURLAN_ROYALE_SPEAKERS.echo],
-    voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.echo]: [
-        'en-IE',
-        'English',
         'female',
-        'Moira',
-        'Niamh',
-        'Olivia',
-        'Jenny'
-      ]
+        'Google UK English Female',
+        'Serena',
+        'Olivia'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-US', 'English', 'male', 'Oliver', 'Liam', 'Michael']
     },
     speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.echo]: { rate: 1.02, pitch: 1.04, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 1.08, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 1.04, volume: 1 }
     }
   }
 ]);
@@ -1607,14 +1604,14 @@ export default function MurlanRoyaleArena({ search }) {
     [commentaryPresetId]
   );
   const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
-  const commentarySpeakers = useMemo(() => {
-    const commentators = activeCommentaryPreset?.commentators ?? [];
-    return commentators.length ? commentators : [MURLAN_ROYALE_SPEAKERS.atlas];
-  }, [activeCommentaryPreset]);
+  const commentarySpeakers = useMemo(
+    () => [MURLAN_ROYALE_SPEAKERS.lead, MURLAN_ROYALE_SPEAKERS.analyst],
+    []
+  );
   const pickCommentarySpeaker = useCallback(() => {
     const index = commentarySpeakerIndexRef.current;
     commentarySpeakerIndexRef.current = index + 1;
-    return commentarySpeakers[index % commentarySpeakers.length] || commentarySpeakers[0];
+    return commentarySpeakers[index % commentarySpeakers.length] || MURLAN_ROYALE_SPEAKERS.analyst;
   }, [commentarySpeakers]);
 
   useEffect(() => {
@@ -1712,7 +1709,6 @@ export default function MurlanRoyaleArena({ search }) {
         language: activeCommentaryPreset?.language ?? commentaryPresetId,
         context: {
           arena: 'Murlan Royale arena',
-          commentators: commentarySpeakers,
           ...context
         }
       });
@@ -1722,8 +1718,7 @@ export default function MurlanRoyaleArena({ search }) {
       activeCommentaryPreset?.language,
       commentaryPresetId,
       enqueueMurlanCommentary,
-      pickCommentarySpeaker,
-      commentarySpeakers
+      pickCommentarySpeaker
     ]
   );
 
@@ -1746,11 +1741,6 @@ export default function MurlanRoyaleArena({ search }) {
     }
     setCommentaryMuted((prev) => !prev);
   }, [commentaryMuted, unlockCommentary]);
-
-  const handleToggleConfig = useCallback(() => {
-    unlockCommentary();
-    setConfigOpen((prev) => !prev);
-  }, [unlockCommentary]);
 
   const handleSelectCommentaryPreset = useCallback(
     (presetId) => {
@@ -1783,13 +1773,11 @@ export default function MurlanRoyaleArena({ search }) {
     window.addEventListener('pointerdown', unlockCommentary);
     window.addEventListener('click', unlockCommentary);
     window.addEventListener('touchstart', unlockCommentary);
-    window.addEventListener('touchend', unlockCommentary);
     window.addEventListener('keydown', unlockCommentary);
     return () => {
       window.removeEventListener('pointerdown', unlockCommentary);
       window.removeEventListener('click', unlockCommentary);
       window.removeEventListener('touchstart', unlockCommentary);
-      window.removeEventListener('touchend', unlockCommentary);
       window.removeEventListener('keydown', unlockCommentary);
     };
   }, [unlockCommentary]);
@@ -1842,39 +1830,38 @@ export default function MurlanRoyaleArena({ search }) {
 
     if (!commentaryIntroPlayedRef.current) {
       commentaryIntroPlayedRef.current = true;
-      const [leadSpeaker, replySpeaker] = commentarySpeakers;
-      const introLines = [
-        {
-          speaker: leadSpeaker,
-          text: buildMurlanCommentaryLine({
-            event: 'intro',
-            speaker: leadSpeaker,
-            language: activeCommentaryPreset?.language ?? commentaryPresetId,
-            context: { arena: 'Murlan Royale arena', commentators: commentarySpeakers }
-          })
-        }
-      ];
-      if (replySpeaker && replySpeaker !== leadSpeaker) {
-        introLines.push({
-          speaker: replySpeaker,
-          text: buildMurlanCommentaryLine({
-            event: 'introReply',
-            speaker: replySpeaker,
-            language: activeCommentaryPreset?.language ?? commentaryPresetId,
-            context: { arena: 'Murlan Royale arena', commentators: commentarySpeakers }
-          })
-        });
-      }
-      introLines.push({
-        speaker: leadSpeaker,
-        text: buildMurlanCommentaryLine({
-          event: 'shuffle',
-          speaker: leadSpeaker,
-          language: activeCommentaryPreset?.language ?? commentaryPresetId,
-          context: { arena: 'Murlan Royale arena', commentators: commentarySpeakers }
-        })
-      });
-      enqueueMurlanCommentary(introLines, { priority: true, preset: activeCommentaryPreset });
+      enqueueMurlanCommentary(
+        [
+          {
+            speaker: MURLAN_ROYALE_SPEAKERS.lead,
+            text: buildMurlanCommentaryLine({
+              event: 'intro',
+              speaker: MURLAN_ROYALE_SPEAKERS.lead,
+              language: activeCommentaryPreset?.language ?? commentaryPresetId,
+              context: { arena: 'Murlan Royale arena' }
+            })
+          },
+          {
+            speaker: MURLAN_ROYALE_SPEAKERS.analyst,
+            text: buildMurlanCommentaryLine({
+              event: 'introReply',
+              speaker: MURLAN_ROYALE_SPEAKERS.analyst,
+              language: activeCommentaryPreset?.language ?? commentaryPresetId,
+              context: { arena: 'Murlan Royale arena' }
+            })
+          },
+          {
+            speaker: MURLAN_ROYALE_SPEAKERS.lead,
+            text: buildMurlanCommentaryLine({
+              event: 'shuffle',
+              speaker: MURLAN_ROYALE_SPEAKERS.lead,
+              language: activeCommentaryPreset?.language ?? commentaryPresetId,
+              context: { arena: 'Murlan Royale arena' }
+            })
+          }
+        ],
+        { priority: true, preset: activeCommentaryPreset }
+      );
     }
 
     if (gameState.lastActionId && gameState.lastActionId !== previousActionId) {
@@ -1926,7 +1913,6 @@ export default function MurlanRoyaleArena({ search }) {
     };
   }, [
     activeCommentaryPreset,
-    commentarySpeakers,
     commentaryPresetId,
     enqueueMurlanCommentary,
     enqueueMurlanCommentaryEvent,
@@ -3393,7 +3379,7 @@ export default function MurlanRoyaleArena({ search }) {
           <div className="pointer-events-none flex flex-col items-start gap-2">
             <button
               type="button"
-              onClick={handleToggleConfig}
+              onClick={() => setConfigOpen((prev) => !prev)}
               aria-expanded={configOpen}
               className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                 configOpen ? 'bg-black/60' : 'hover:bg-black/60'
