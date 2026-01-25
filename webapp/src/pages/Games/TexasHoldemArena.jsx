@@ -35,6 +35,11 @@ import {
 } from '../../utils/tableCustomizationOptions.js';
 import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
+import {
+  buildTexasHoldemCommentaryLine,
+  TEXAS_HOLDEM_SPEAKERS
+} from '../../utils/texasHoldemCommentary.js';
+import { getSpeechSynthesis, primeSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
 import { TEXAS_HDRI_OPTIONS, TEXAS_TABLE_FINISH_OPTIONS } from '../../config/texasHoldemInventoryConfig.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID } from '../../config/poolRoyaleInventoryConfig.js';
 import { chatBeep } from '../../assets/soundData.js';
@@ -259,6 +264,111 @@ const DIAMOND_SHAPE_ID = 'diamondEdge';
 // Keep betting units aligned with the 2D classic experience (public/texas-holdem.js uses ANTE = 10).
 const CLASSIC_ANTE = 10;
 const ANTE = CLASSIC_ANTE;
+const COMMENTARY_PRESET_STORAGE_KEY = 'texasHoldemCommentaryPreset';
+const COMMENTARY_MUTE_STORAGE_KEY = 'texasHoldemCommentaryMute';
+const COMMENTARY_QUEUE_LIMIT = 4;
+const COMMENTARY_MIN_INTERVAL_MS = 1200;
+const TEXAS_HOLDEM_COMMENTARY_PRESETS = Object.freeze([
+  {
+    id: 'english',
+    label: 'English',
+    description: 'Male voice, English',
+    language: 'en',
+    voiceHints: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex']
+    },
+    speakerSettings: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
+  },
+  {
+    id: 'mandarin',
+    label: 'Mandarin',
+    description: 'Male voice, 中文',
+    language: 'zh',
+    voiceHints: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male']
+    },
+    speakerSettings: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
+    }
+  },
+  {
+    id: 'hindi',
+    label: 'Hindi',
+    description: 'Male voice, हिंदी',
+    language: 'hi',
+    voiceHints: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['hi-IN', 'Hindi', 'India', 'male'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['hi-IN', 'Hindi', 'India', 'male']
+    },
+    speakerSettings: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
+  },
+  {
+    id: 'spanish',
+    label: 'Spanish',
+    description: 'Male voice, Español',
+    language: 'es',
+    voiceHints: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male']
+    },
+    speakerSettings: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.97, volume: 1 },
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1, pitch: 0.97, volume: 1 }
+    }
+  },
+  {
+    id: 'french',
+    label: 'French',
+    description: 'Male voice, Français',
+    language: 'fr',
+    voiceHints: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['fr-FR', 'French', 'Français', 'male'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['fr-FR', 'French', 'Français', 'male']
+    },
+    speakerSettings: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
+  },
+  {
+    id: 'arabic',
+    label: 'Arabic',
+    description: 'Male voice, العربية',
+    language: 'ar',
+    voiceHints: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male']
+    },
+    speakerSettings: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
+    }
+  },
+  {
+    id: 'albanian',
+    label: 'Albanian',
+    description: 'Male voice, Shqip',
+    language: 'sq',
+    voiceHints: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male']
+    },
+    speakerSettings: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
+  }
+]);
+const DEFAULT_COMMENTARY_PRESET_ID = TEXAS_HOLDEM_COMMENTARY_PRESETS[0]?.id || 'english';
 const COMMUNITY_SPACING = CARD_W * 0.62;
 const COMMUNITY_CARD_FORWARD_OFFSET = 0;
 const COMMUNITY_CARD_LIFT = CARD_D * 3.2;
@@ -2110,7 +2220,9 @@ function buildInitialState(players, token, stake) {
     handId: 0,
     showdown: false,
     winningCommunityCards: [],
-    winnerFocusIndex: null
+    winnerFocusIndex: null,
+    lastAction: null,
+    lastActionId: 0
   };
 }
 
@@ -2127,6 +2239,7 @@ function resetForNextHand(state) {
   next.dealerIndex = (state.dealerIndex + 1) % state.players.length;
   next.winningCommunityCards = [];
   next.winnerFocusIndex = null;
+  next.lastAction = null;
   next.players = state.players.map((p, idx) => ({
     ...p,
     seatIndex: p.seatIndex ?? idx,
@@ -2341,6 +2454,19 @@ function prepareNextAction(state, isNewHand) {
   }
 }
 
+function recordLastAction(state, player, action, amount, toCall) {
+  state.lastActionId = (state.lastActionId ?? 0) + 1;
+  state.lastAction = {
+    playerIndex: player.seatIndex,
+    action,
+    amount: Math.max(0, Math.round(amount ?? 0)),
+    toCall: Math.max(0, Math.round(toCall ?? 0)),
+    stage: state.stage,
+    handId: state.handId,
+    allIn: Boolean(player.allIn)
+  };
+}
+
 function performPlayerAction(state, action, raiseSize = ANTE) {
   const player = state.players[state.actionIndex];
   if (!player || player.folded || player.allIn) return;
@@ -2351,11 +2477,13 @@ function performPlayerAction(state, action, raiseSize = ANTE) {
     player.status = 'Fold';
     player.actedInRound = true;
     advanced = true;
+    recordLastAction(state, player, 'fold', 0, toCall);
   } else if (action === 'check') {
     if (toCall === 0) {
       player.status = 'Check';
       player.actedInRound = true;
       advanced = true;
+      recordLastAction(state, player, 'check', 0, toCall);
     } else {
       return;
     }
@@ -2365,6 +2493,7 @@ function performPlayerAction(state, action, raiseSize = ANTE) {
       player.status = 'Check';
       player.actedInRound = true;
       advanced = true;
+      recordLastAction(state, player, 'check', 0, toCall);
     } else {
       const paid = payChips(player, amount, state);
       player.bet += paid;
@@ -2375,6 +2504,7 @@ function performPlayerAction(state, action, raiseSize = ANTE) {
         player.allIn = true;
       }
       advanced = true;
+      recordLastAction(state, player, player.chips === 0 ? 'allIn' : 'call', paid, toCall);
     }
   } else if (action === 'bet' || action === 'raise') {
     let amount = Math.max(state.minRaise, raiseSize);
@@ -2401,6 +2531,7 @@ function performPlayerAction(state, action, raiseSize = ANTE) {
       }
     });
     advanced = true;
+    recordLastAction(state, player, player.chips === 0 ? 'allIn' : action, paid, toCall);
   }
   if (!advanced) return;
   if (allActiveMatched(state)) {
@@ -2529,6 +2660,32 @@ function TexasHoldemArena({ search }) {
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
+  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
+      if (stored && TEXAS_HOLDEM_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_COMMENTARY_PRESET_ID;
+  });
+  const [commentaryMuted, setCommentaryMuted] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(COMMENTARY_MUTE_STORAGE_KEY);
+      if (stored === '1') return true;
+      if (stored === '0') return false;
+    }
+    return false;
+  });
+  const commentaryMutedRef = useRef(commentaryMuted);
+  const commentaryReadyRef = useRef(false);
+  const commentaryQueueRef = useRef([]);
+  const commentarySpeakingRef = useRef(false);
+  const commentaryLastEventAtRef = useRef(0);
+  const pendingCommentaryLinesRef = useRef(null);
+  const commentaryIntroPlayedRef = useRef(false);
+  const commentarySpeakerIndexRef = useRef(0);
+  const commentaryEventRef = useRef({ handId: null, lastActionId: null, stage: null, showdown: false });
   const [chipSelection, setChipSelection] = useState([]);
   const [sliderValue, setSliderValue] = useState(0);
   const overheadView = false;
@@ -2721,6 +2878,112 @@ function TexasHoldemArena({ search }) {
     return () => window.removeEventListener('gameMuteChanged', handleMute);
   }, []);
 
+  const activeCommentaryPreset = useMemo(
+    () =>
+      TEXAS_HOLDEM_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
+      TEXAS_HOLDEM_COMMENTARY_PRESETS[0],
+    [commentaryPresetId]
+  );
+  const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
+  const commentarySpeakers = useMemo(
+    () => [TEXAS_HOLDEM_SPEAKERS.lead, TEXAS_HOLDEM_SPEAKERS.analyst],
+    []
+  );
+  const pickCommentarySpeaker = useCallback(() => {
+    const index = commentarySpeakerIndexRef.current;
+    commentarySpeakerIndexRef.current = index + 1;
+    return commentarySpeakers[index % commentarySpeakers.length] || TEXAS_HOLDEM_SPEAKERS.analyst;
+  }, [commentarySpeakers]);
+
+  useEffect(() => {
+    commentaryMutedRef.current = commentaryMuted;
+    if (commentaryMuted) {
+      const synth = getSpeechSynthesis();
+      synth?.cancel();
+      commentaryQueueRef.current = [];
+      commentarySpeakingRef.current = false;
+      pendingCommentaryLinesRef.current = null;
+    }
+  }, [commentaryMuted]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
+    }
+  }, [commentaryPresetId]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
+    }
+  }, [commentaryMuted]);
+
+  const playNextCommentary = useCallback(async () => {
+    if (commentarySpeakingRef.current) return;
+    const next = commentaryQueueRef.current.shift();
+    if (!next) return;
+    const synth = getSpeechSynthesis();
+    if (!synth) return;
+    commentarySpeakingRef.current = true;
+    try {
+      synth.cancel();
+    } catch {}
+    await speakCommentaryLines(next.lines, {
+      speakerSettings: next.preset?.speakerSettings,
+      voiceHints: next.preset?.voiceHints
+    });
+    commentarySpeakingRef.current = false;
+    if (commentaryQueueRef.current.length) {
+      playNextCommentary();
+    }
+  }, []);
+
+  const enqueueTexasCommentary = useCallback(
+    (lines, { priority = false, preset = activeCommentaryPreset } = {}) => {
+      if (!Array.isArray(lines) || lines.length === 0) return;
+      if (commentaryMutedRef.current || isGameMuted()) return;
+      if (!commentaryReadyRef.current) {
+        pendingCommentaryLinesRef.current = { lines, priority, preset };
+        return;
+      }
+      const now = performance.now();
+      if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
+      if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
+      if (priority) {
+        commentaryQueueRef.current.unshift({ lines, preset });
+      } else {
+        commentaryQueueRef.current.push({ lines, preset });
+      }
+      if (!commentarySpeakingRef.current) {
+        playNextCommentary();
+      }
+      commentaryLastEventAtRef.current = now;
+    },
+    [activeCommentaryPreset, playNextCommentary]
+  );
+
+  const enqueueTexasCommentaryEvent = useCallback(
+    (event, context = {}, options = {}) => {
+      const speaker = options.speaker ?? pickCommentarySpeaker();
+      const text = buildTexasHoldemCommentaryLine({
+        event,
+        speaker,
+        language: activeCommentaryPreset?.language ?? commentaryPresetId,
+        context: {
+          arena: "Texas Hold'em arena",
+          ...context
+        }
+      });
+      enqueueTexasCommentary([{ speaker, text }], options);
+    },
+    [
+      activeCommentaryPreset?.language,
+      commentaryPresetId,
+      enqueueTexasCommentary,
+      pickCommentarySpeaker
+    ]
+  );
+
   const playSound = useCallback((name) => {
     const audio = soundsRef.current?.[name];
     if (!audio || isGameMuted()) return;
@@ -2790,6 +3053,149 @@ function TexasHoldemArena({ search }) {
       soundsRef.current = {};
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const unlockCommentary = () => {
+      if (commentaryReadyRef.current) return;
+      primeSpeechSynthesis();
+      const synth = getSpeechSynthesis();
+      synth?.getVoices?.();
+      commentaryReadyRef.current = true;
+      const pending = pendingCommentaryLinesRef.current;
+      if (pending) {
+        pendingCommentaryLinesRef.current = null;
+        enqueueTexasCommentary(pending.lines, pending);
+      }
+    };
+    window.addEventListener('pointerdown', unlockCommentary);
+    window.addEventListener('click', unlockCommentary);
+    window.addEventListener('touchstart', unlockCommentary);
+    window.addEventListener('keydown', unlockCommentary);
+    return () => {
+      window.removeEventListener('pointerdown', unlockCommentary);
+      window.removeEventListener('click', unlockCommentary);
+      window.removeEventListener('touchstart', unlockCommentary);
+      window.removeEventListener('keydown', unlockCommentary);
+    };
+  }, [enqueueTexasCommentary]);
+
+  useEffect(() => {
+    if (!gameState) return;
+    const snapshot = commentaryEventRef.current;
+    const previousHandId = snapshot.handId;
+    const previousStage = snapshot.stage;
+    const previousActionId = snapshot.lastActionId;
+    const previousShowdown = snapshot.showdown;
+    const players = gameState.players || [];
+    const stage = gameState.stage;
+
+    const resolvePlayerName = (index) => {
+      const player = players[index];
+      if (!player) return `Player ${index + 1}`;
+      return player.name || `Player ${index + 1}`;
+    };
+
+    const resolveOpponentName = (index) => {
+      const opponent = players.find((p, idx) => idx !== index && !p.folded) || players.find((p, idx) => idx !== index);
+      if (!opponent) return 'the table';
+      return opponent.name || `Player ${opponent.seatIndex + 1}`;
+    };
+
+    if (!commentaryIntroPlayedRef.current) {
+      commentaryIntroPlayedRef.current = true;
+      enqueueTexasCommentary(
+        [
+          {
+            speaker: TEXAS_HOLDEM_SPEAKERS.lead,
+            text: buildTexasHoldemCommentaryLine({
+              event: 'intro',
+              speaker: TEXAS_HOLDEM_SPEAKERS.lead,
+              language: activeCommentaryPreset?.language ?? commentaryPresetId,
+              context: { arena: "Texas Hold'em arena" }
+            })
+          },
+          {
+            speaker: TEXAS_HOLDEM_SPEAKERS.analyst,
+            text: buildTexasHoldemCommentaryLine({
+              event: 'introReply',
+              speaker: TEXAS_HOLDEM_SPEAKERS.analyst,
+              language: activeCommentaryPreset?.language ?? commentaryPresetId,
+              context: { arena: "Texas Hold'em arena" }
+            })
+          }
+        ],
+        { priority: true, preset: activeCommentaryPreset }
+      );
+    }
+
+    if (previousHandId !== gameState.handId) {
+      const opener = players[gameState.actionIndex];
+      enqueueTexasCommentaryEvent('newHand', {
+        player: opener?.name || `Player ${gameState.actionIndex + 1}`
+      });
+    }
+
+    if (previousStage && previousStage !== stage) {
+      if (stage === 'flop') {
+        enqueueTexasCommentaryEvent('flop');
+      } else if (stage === 'turn') {
+        enqueueTexasCommentaryEvent('turn');
+      } else if (stage === 'river') {
+        enqueueTexasCommentaryEvent('river');
+      }
+    }
+
+    if (gameState.lastActionId && gameState.lastActionId !== previousActionId) {
+      const action = gameState.lastAction;
+      if (action) {
+        const playerName = resolvePlayerName(action.playerIndex);
+        const opponentName = resolveOpponentName(action.playerIndex);
+        const amountLabel = action.amount > 0
+          ? `${action.amount} ${gameState.token}`
+          : `${Math.max(0, action.toCall)} ${gameState.token}`;
+        const potLabel = `${Math.max(0, Math.round(gameState.pot ?? 0))} ${gameState.token}`;
+        const context = {
+          player: playerName,
+          opponent: opponentName,
+          amount: amountLabel,
+          pot: potLabel,
+          stage: stage
+        };
+        enqueueTexasCommentaryEvent(action.action, context);
+      }
+    }
+
+    if (gameState.showdown && !previousShowdown) {
+      enqueueTexasCommentaryEvent('showdown', {}, { priority: true });
+      const potEntry = Array.isArray(gameState.winners) ? gameState.winners[0] : null;
+      const winners = Array.isArray(potEntry?.winners) ? potEntry.winners : [];
+      if (winners.length) {
+        const names = winners
+          .map((entry) => resolvePlayerName(entry.index))
+          .filter(Boolean);
+        const potLabel = `${Math.max(0, Math.round(potEntry.amount ?? 0))} ${gameState.token}`;
+        const winnerName = names.length > 1 ? names.join(' and ') : names[0];
+        enqueueTexasCommentaryEvent(names.length > 1 ? 'potSplit' : 'potWin', {
+          player: winnerName,
+          pot: potLabel
+        }, { priority: true });
+      }
+    }
+
+    commentaryEventRef.current = {
+      handId: gameState.handId,
+      lastActionId: gameState.lastActionId,
+      stage,
+      showdown: gameState.showdown
+    };
+  }, [
+    activeCommentaryPreset,
+    commentaryPresetId,
+    enqueueTexasCommentary,
+    enqueueTexasCommentaryEvent,
+    gameState
+  ]);
 
   const applyHeadOrientation = useCallback(() => {
     const three = threeRef.current;
@@ -4820,6 +5226,60 @@ function TexasHoldemArena({ search }) {
                   </div>
                 </div>
               ))}
+              <div className="space-y-2">
+                <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Commentary language</p>
+                <div className="grid gap-2">
+                  {TEXAS_HOLDEM_COMMENTARY_PRESETS.map((preset) => {
+                    const active = preset.id === commentaryPresetId;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => setCommentaryPresetId(preset.id)}
+                        aria-pressed={active}
+                        disabled={!commentarySupported}
+                        className={`rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                          active
+                            ? 'border-sky-300 bg-sky-300 text-black shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                      >
+                        <span className="block">{preset.label}</span>
+                        <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.18em] text-white/60">
+                          {preset.description}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCommentaryMuted((prev) => !prev)}
+                  aria-pressed={commentaryMuted}
+                  disabled={!commentarySupported}
+                  className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                    commentaryMuted
+                      ? 'bg-sky-300 text-black shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                      : 'bg-white/10 text-white/80 hover:bg-white/20'
+                  } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                >
+                  <span>Mute commentary</span>
+                  <span
+                    className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
+                      commentaryMuted
+                        ? 'border-black/30 text-black/70'
+                        : 'border-white/30 text-white/70'
+                    }`}
+                  >
+                    {commentaryMuted ? 'On' : 'Off'}
+                  </span>
+                </button>
+                {!commentarySupported && (
+                  <p className="text-[0.65rem] text-white/50">
+                    Voice commentary needs Web Speech support.
+                  </p>
+                )}
+              </div>
               <div className="space-y-2">
                 <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Graphics</p>
                 <p className="mt-1 text-[0.7rem] text-white/60">
