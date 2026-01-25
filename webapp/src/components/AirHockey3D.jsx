@@ -11,6 +11,8 @@ import { giftSounds } from '../utils/giftSounds.js';
 import { AiOutlineInfoCircle, AiOutlineMessage } from 'react-icons/ai';
 import { getGameVolume, isGameMuted, toggleGameMuted } from '../utils/sound.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
+import { buildAirHockeyCommentaryLine, AIR_HOCKEY_SPEAKERS } from '../utils/airHockeyCommentary.js';
+import { getSpeechSynthesis, primeSpeechSynthesis, speakCommentaryLines } from '../utils/textToSpeech.js';
 import { applyWoodTextures, WOOD_GRAIN_OPTIONS_BY_ID } from '../utils/woodMaterials.js';
 import { AIR_HOCKEY_CUSTOMIZATION } from '../config/airHockeyInventoryConfig.js';
 import {
@@ -41,6 +43,10 @@ const DEFAULT_RENDER_PIXEL_RATIO_CAP = 1.25;
 const RENDER_PIXEL_RATIO_SCALE = 1.0;
 const MIN_RENDER_PIXEL_RATIO = 0.85;
 const GRAPHICS_STORAGE_KEY = 'airHockeyGraphics';
+const COMMENTARY_PRESET_STORAGE_KEY = 'airHockeyCommentaryPreset';
+const COMMENTARY_MUTE_STORAGE_KEY = 'airHockeyCommentaryMute';
+const COMMENTARY_QUEUE_LIMIT = 4;
+const COMMENTARY_MIN_INTERVAL_MS = 1200;
 const GRAPHICS_OPTIONS = Object.freeze([
   {
     id: 'hd50',
@@ -94,6 +100,107 @@ const GRAPHICS_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_GRAPHICS_ID = 'fhd60';
+const AIR_HOCKEY_COMMENTARY_PRESETS = Object.freeze([
+  {
+    id: 'english',
+    label: 'English',
+    description: 'Male voice, English',
+    language: 'en',
+    voiceHints: {
+      [AIR_HOCKEY_SPEAKERS.lead]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+      [AIR_HOCKEY_SPEAKERS.analyst]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex']
+    },
+    speakerSettings: {
+      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
+  },
+  {
+    id: 'mandarin',
+    label: 'Mandarin',
+    description: 'Male voice, 中文',
+    language: 'zh',
+    voiceHints: {
+      [AIR_HOCKEY_SPEAKERS.lead]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male'],
+      [AIR_HOCKEY_SPEAKERS.analyst]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male']
+    },
+    speakerSettings: {
+      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
+    }
+  },
+  {
+    id: 'hindi',
+    label: 'Hindi',
+    description: 'Male voice, हिंदी',
+    language: 'hi',
+    voiceHints: {
+      [AIR_HOCKEY_SPEAKERS.lead]: ['hi-IN', 'Hindi', 'India', 'male'],
+      [AIR_HOCKEY_SPEAKERS.analyst]: ['hi-IN', 'Hindi', 'India', 'male']
+    },
+    speakerSettings: {
+      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
+  },
+  {
+    id: 'spanish',
+    label: 'Spanish',
+    description: 'Male voice, Español',
+    language: 'es',
+    voiceHints: {
+      [AIR_HOCKEY_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male'],
+      [AIR_HOCKEY_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male']
+    },
+    speakerSettings: {
+      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1, pitch: 0.97, volume: 1 },
+      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1, pitch: 0.97, volume: 1 }
+    }
+  },
+  {
+    id: 'french',
+    label: 'French',
+    description: 'Male voice, Français',
+    language: 'fr',
+    voiceHints: {
+      [AIR_HOCKEY_SPEAKERS.lead]: ['fr-FR', 'French', 'Français', 'male'],
+      [AIR_HOCKEY_SPEAKERS.analyst]: ['fr-FR', 'French', 'Français', 'male']
+    },
+    speakerSettings: {
+      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
+  },
+  {
+    id: 'arabic',
+    label: 'Arabic',
+    description: 'Male voice, العربية',
+    language: 'ar',
+    voiceHints: {
+      [AIR_HOCKEY_SPEAKERS.lead]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male'],
+      [AIR_HOCKEY_SPEAKERS.analyst]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male']
+    },
+    speakerSettings: {
+      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
+    }
+  },
+  {
+    id: 'albanian',
+    label: 'Shqip',
+    description: 'Zë mashkulli, shqip.',
+    language: 'sq',
+    voiceHints: {
+      [AIR_HOCKEY_SPEAKERS.lead]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male'],
+      [AIR_HOCKEY_SPEAKERS.analyst]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male']
+    },
+    speakerSettings: {
+      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
+  }
+]);
+const DEFAULT_COMMENTARY_PRESET_ID = AIR_HOCKEY_COMMENTARY_PRESETS[0]?.id || 'english';
 
 function detectRefreshRateHint() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return null;
@@ -444,6 +551,23 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
+  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
+      if (stored && AIR_HOCKEY_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_COMMENTARY_PRESET_ID;
+  });
+  const [commentaryMuted, setCommentaryMuted] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(COMMENTARY_MUTE_STORAGE_KEY);
+      if (stored === '1') return true;
+      if (stored === '0') return false;
+    }
+    return false;
+  });
   const [graphicsId, setGraphicsId] = useState(() => {
     const fallback = resolveDefaultGraphicsId();
     if (typeof window === 'undefined') return fallback;
@@ -460,6 +584,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       GRAPHICS_OPTIONS[0],
     [graphicsId]
   );
+  const activeCommentaryPreset = useMemo(
+    () =>
+      AIR_HOCKEY_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
+      AIR_HOCKEY_COMMENTARY_PRESETS[0],
+    [commentaryPresetId]
+  );
   const initialProfile = useMemo(() => selectPerformanceProfile(activeGraphicsOption), [activeGraphicsOption]);
   const targetRef = useRef(Number(target) || 3);
   const gameOverRef = useRef(false);
@@ -473,6 +603,14 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const hahaSoundRef = useRef(null);
   const bombSoundRef = useRef(null);
   const scoreRef = useRef({ left: 0, right: 0 });
+  const commentaryMutedRef = useRef(commentaryMuted);
+  const commentaryReadyRef = useRef(false);
+  const commentaryQueueRef = useRef([]);
+  const commentarySpeakingRef = useRef(false);
+  const commentaryLastEventAtRef = useRef(0);
+  const pendingCommentaryLinesRef = useRef(null);
+  const commentaryIntroPlayedRef = useRef(false);
+  const commentarySpeakerIndexRef = useRef(0);
   const goalTimeoutRef = useRef(null);
   const postTimeoutRef = useRef(null);
   const restartTimeoutRef = useRef(null);
@@ -674,9 +812,198 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   }, [cameraLift, isTopDownView]);
 
   useEffect(() => {
+    commentaryMutedRef.current = commentaryMuted;
+    if (commentaryMuted) {
+      const synth = getSpeechSynthesis();
+      synth?.cancel();
+      commentaryQueueRef.current = [];
+      commentarySpeakingRef.current = false;
+      pendingCommentaryLinesRef.current = null;
+    }
+  }, [commentaryMuted]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
+    }
+  }, [commentaryPresetId]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
+    }
+  }, [commentaryMuted]);
+
+  const playerNameRef = useRef(player.name || 'Player');
+  const aiNameRef = useRef(ai.name || 'Opponent');
+  useEffect(() => {
+    playerNameRef.current = player.name || 'Player';
+    aiNameRef.current = ai.name || 'Opponent';
+  }, [ai.name, player.name]);
+
+  const resolveScoreline = useCallback((left, right) => {
+    if (left === right) return `level at ${left}-${right}`;
+    const leader = left > right ? playerNameRef.current : aiNameRef.current;
+    const leaderScore = left > right ? left : right;
+    const trailerScore = left > right ? right : left;
+    return `${leader} leads ${leaderScore}-${trailerScore}`;
+  }, []);
+
+  const pickCommentarySpeaker = useCallback(() => {
+    const speakers = [AIR_HOCKEY_SPEAKERS.lead, AIR_HOCKEY_SPEAKERS.analyst];
+    const index = commentarySpeakerIndexRef.current;
+    commentarySpeakerIndexRef.current = index + 1;
+    return speakers[index % speakers.length] || AIR_HOCKEY_SPEAKERS.lead;
+  }, []);
+
+  const playNextCommentary = useCallback(async () => {
+    if (commentarySpeakingRef.current) return;
+    const next = commentaryQueueRef.current.shift();
+    if (!next) return;
+    const synth = getSpeechSynthesis();
+    if (!synth) return;
+    commentarySpeakingRef.current = true;
+    try {
+      synth.cancel();
+    } catch {}
+    await speakCommentaryLines(next.lines, {
+      speakerSettings: next.preset?.speakerSettings,
+      voiceHints: next.preset?.voiceHints
+    });
+    commentarySpeakingRef.current = false;
+    if (commentaryQueueRef.current.length) {
+      playNextCommentary();
+    }
+  }, []);
+
+  const enqueueAirHockeyCommentary = useCallback(
+    (lines, { priority = false, preset = activeCommentaryPreset } = {}) => {
+      if (!Array.isArray(lines) || lines.length === 0) return;
+      if (commentaryMutedRef.current || isGameMuted()) return;
+      if (!commentaryReadyRef.current) {
+        pendingCommentaryLinesRef.current = { lines, priority, preset };
+        return;
+      }
+      const now = performance.now();
+      if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
+      if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
+      if (priority) {
+        commentaryQueueRef.current.unshift({ lines, preset });
+      } else {
+        commentaryQueueRef.current.push({ lines, preset });
+      }
+      if (!commentarySpeakingRef.current) {
+        playNextCommentary();
+      }
+      commentaryLastEventAtRef.current = now;
+    },
+    [activeCommentaryPreset, playNextCommentary]
+  );
+
+  const enqueueAirHockeyCommentaryEventRef = useRef(() => {});
+  useEffect(() => {
+    enqueueAirHockeyCommentaryEventRef.current = (event, context = {}, options = {}) => {
+      const speaker = options.speaker ?? pickCommentarySpeaker();
+      const text = buildAirHockeyCommentaryLine({
+        event,
+        speaker,
+        language: activeCommentaryPreset?.language ?? commentaryPresetId,
+        context: {
+          arena: 'Air Hockey arena',
+          targetScore: targetRef.current ?? targetValue,
+          ...context
+        }
+      });
+      enqueueAirHockeyCommentary([{ speaker, text }], options);
+    };
+  }, [
+    activeCommentaryPreset?.language,
+    commentaryPresetId,
+    enqueueAirHockeyCommentary,
+    pickCommentarySpeaker,
+    targetValue
+  ]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const unlockCommentary = () => {
+      if (commentaryReadyRef.current) return;
+      primeSpeechSynthesis();
+      const synth = getSpeechSynthesis();
+      synth?.getVoices?.();
+      commentaryReadyRef.current = true;
+      const pending = pendingCommentaryLinesRef.current;
+      if (pending) {
+        pendingCommentaryLinesRef.current = null;
+        enqueueAirHockeyCommentary(pending.lines, pending);
+      }
+    };
+    window.addEventListener('pointerdown', unlockCommentary);
+    window.addEventListener('click', unlockCommentary);
+    window.addEventListener('touchstart', unlockCommentary);
+    window.addEventListener('keydown', unlockCommentary);
+    return () => {
+      window.removeEventListener('pointerdown', unlockCommentary);
+      window.removeEventListener('click', unlockCommentary);
+      window.removeEventListener('touchstart', unlockCommentary);
+      window.removeEventListener('keydown', unlockCommentary);
+    };
+  }, [enqueueAirHockeyCommentary]);
+
+  useEffect(() => {
+    if (commentaryIntroPlayedRef.current) return;
+    commentaryIntroPlayedRef.current = true;
+    const lead = AIR_HOCKEY_SPEAKERS.lead;
+    const analyst = AIR_HOCKEY_SPEAKERS.analyst;
+    const baseContext = {
+      player: playerNameRef.current,
+      opponent: aiNameRef.current,
+      playerScore: scoreRef.current.left,
+      opponentScore: scoreRef.current.right,
+      scoreline: resolveScoreline(scoreRef.current.left, scoreRef.current.right)
+    };
+    enqueueAirHockeyCommentary(
+      [
+        {
+          speaker: lead,
+          text: buildAirHockeyCommentaryLine({
+            event: 'intro',
+            speaker: lead,
+            language: activeCommentaryPreset?.language ?? commentaryPresetId,
+            context: baseContext
+          })
+        },
+        {
+          speaker: analyst,
+          text: buildAirHockeyCommentaryLine({
+            event: 'introReply',
+            speaker: analyst,
+            language: activeCommentaryPreset?.language ?? commentaryPresetId,
+            context: baseContext
+          })
+        }
+      ],
+      { priority: true }
+    );
+  }, [activeCommentaryPreset?.language, commentaryPresetId, enqueueAirHockeyCommentary, resolveScoreline]);
+
+  useEffect(() => {
     const handler = () => setMuted(isGameMuted());
     window.addEventListener('gameMuteChanged', handler);
     return () => window.removeEventListener('gameMuteChanged', handler);
+  }, []);
+
+  useEffect(() => {
+    const handleMute = () => {
+      if (!isGameMuted()) return;
+      const synth = getSpeechSynthesis();
+      synth?.cancel();
+      commentaryQueueRef.current = [];
+      commentarySpeakingRef.current = false;
+      pendingCommentaryLinesRef.current = null;
+    };
+    window.addEventListener('gameMuteChanged', handleMute);
+    return () => window.removeEventListener('gameMuteChanged', handleMute);
   }, []);
 
   useEffect(() => {
@@ -777,6 +1104,17 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       setPostPopup(true);
       clearTimeout(postTimeoutRef.current);
       postTimeoutRef.current = setTimeout(() => setPostPopup(false), 900);
+      const lastTouch = lastTouchRef.current;
+      const playerWasLast = lastTouch === 'player';
+      const scorerName = playerWasLast ? playerNameRef.current : aiNameRef.current;
+      const opponentName = playerWasLast ? aiNameRef.current : playerNameRef.current;
+      enqueueAirHockeyCommentaryEventRef.current('post', {
+        player: scorerName,
+        opponent: opponentName,
+        playerScore: playerWasLast ? scoreRef.current.left : scoreRef.current.right,
+        opponentScore: playerWasLast ? scoreRef.current.right : scoreRef.current.left,
+        scoreline: resolveScoreline(scoreRef.current.left, scoreRef.current.right)
+      });
     };
 
     const playGoal = () => {
@@ -793,6 +1131,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     };
 
     const recordGoal = (playerScored) => {
+      const prevLeft = scoreRef.current.left;
+      const prevRight = scoreRef.current.right;
+      const prevLeader =
+        prevLeft === prevRight ? 'tie' : prevLeft > prevRight ? 'left' : 'right';
       scoreRef.current = {
         left: scoreRef.current.left + (playerScored ? 1 : 0),
         right: scoreRef.current.right + (playerScored ? 0 : 1)
@@ -806,6 +1148,18 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       clearTimeout(goalTimeoutRef.current);
       goalTimeoutRef.current = setTimeout(() => setGoalPopup(null), 1500);
       const targetScore = targetRef.current;
+      const scoreline = resolveScoreline(scoreRef.current.left, scoreRef.current.right);
+      const scorerName = playerScored ? playerNameRef.current : aiNameRef.current;
+      const opponentName = playerScored ? aiNameRef.current : playerNameRef.current;
+      const playerScore = playerScored ? scoreRef.current.left : scoreRef.current.right;
+      const opponentScore = playerScored ? scoreRef.current.right : scoreRef.current.left;
+      const newLeader =
+        scoreRef.current.left === scoreRef.current.right
+          ? 'tie'
+          : scoreRef.current.left > scoreRef.current.right
+            ? 'left'
+            : 'right';
+      const leadChanged = newLeader !== prevLeader && newLeader !== 'tie';
       if (
         targetScore &&
         (scoreRef.current.left >= targetScore || scoreRef.current.right >= targetScore)
@@ -813,7 +1167,52 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         gameOverRef.current = true;
         setGameOver(true);
         setWinner(playerScored ? player.name : ai.name);
+        enqueueAirHockeyCommentaryEventRef.current(
+          'matchWin',
+          {
+            player: scorerName,
+            opponent: opponentName,
+            playerScore,
+            opponentScore,
+            scoreline
+          },
+          { priority: true }
+        );
         return true;
+      }
+      if (scoreRef.current.left === scoreRef.current.right) {
+        enqueueAirHockeyCommentaryEventRef.current('equalizer', {
+          player: scorerName,
+          opponent: opponentName,
+          playerScore,
+          opponentScore,
+          scoreline
+        });
+      } else if (leadChanged) {
+        enqueueAirHockeyCommentaryEventRef.current('leadChange', {
+          player: scorerName,
+          opponent: opponentName,
+          playerScore,
+          opponentScore,
+          scoreline
+        });
+      } else {
+        enqueueAirHockeyCommentaryEventRef.current('goal', {
+          player: scorerName,
+          opponent: opponentName,
+          playerScore,
+          opponentScore,
+          scoreline
+        });
+      }
+      if (targetScore && playerScore === targetScore - 1) {
+        enqueueAirHockeyCommentaryEventRef.current('matchPoint', {
+          player: scorerName,
+          opponent: opponentName,
+          playerScore,
+          opponentScore,
+          scoreline
+        });
       }
       return false;
     };
@@ -2024,6 +2423,14 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     }
   }, [selections]);
 
+  const handleCommentaryPresetSelect = useCallback(
+    (preset) => {
+      if (!preset?.id) return;
+      setCommentaryPresetId(preset.id);
+    },
+    []
+  );
+
   const renderOptionRow = (label, key) => {
     const options = (AIR_HOCKEY_CUSTOMIZATION[key] || []).filter((option) =>
       isAirHockeyOptionUnlocked(key, option.id, airInventory)
@@ -2246,6 +2653,54 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
                   );
                 })}
               </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary language</p>
+                <p className="mt-1 text-[0.7rem] text-white/60">Select the voice crew for air hockey.</p>
+              </div>
+              <div className="mt-2 grid gap-2">
+                {AIR_HOCKEY_COMMENTARY_PRESETS.map((preset) => {
+                  const active = preset.id === commentaryPresetId;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleCommentaryPresetSelect(preset)}
+                      aria-pressed={active}
+                      className={`w-full rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                        active
+                          ? 'border-sky-300 bg-sky-300/15 text-sky-100 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                          : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                      }`}
+                    >
+                      <span className="block">{preset.label}</span>
+                      <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.18em] text-white/60">
+                        {preset.description}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCommentaryMuted((prev) => !prev)}
+                aria-pressed={commentaryMuted}
+                className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                  commentaryMuted
+                    ? 'bg-sky-300 text-slate-900 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                    : 'bg-white/10 text-white/80 hover:bg-white/20'
+                }`}
+              >
+                <span>Mute commentary</span>
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
+                    commentaryMuted ? 'border-black/30 text-black/70' : 'border-white/30 text-white/70'
+                  }`}
+                >
+                  {commentaryMuted ? 'On' : 'Off'}
+                </span>
+              </button>
             </div>
             {renderOptionRow('Field Surface', 'field')}
             {renderOptionRow('Cushion Cloth', 'cushionCloth')}
