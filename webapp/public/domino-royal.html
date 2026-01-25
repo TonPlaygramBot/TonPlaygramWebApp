@@ -695,7 +695,7 @@ const speechSynth = (() => {
 })();
 let commentaryVoices = [];
 let commentaryPresetId = COMMENTARY_PRESETS[0]?.id || 'atlas';
-let commentaryMuted = prefersReducedAudio();
+let commentaryMuted = false;
 let commentaryQueue = [];
 let commentarySpeaking = false;
 let commentaryReady = false;
@@ -876,13 +876,12 @@ function buildCommentaryLine(kind, context = {}) {
 }
 
 function ensureSpeechUnlocked() {
-  if (!speechSynth || commentaryUnlocked) return;
+  if (!speechSynth) return;
   try {
     speechSynth.resume();
   } catch (error) {
     console.warn('Failed to resume speech synthesis', error);
   }
-  commentaryUnlocked = true;
 }
 
 function scheduleCommentaryVoicesRetry() {
@@ -904,8 +903,12 @@ function speakCommentary(text, { interrupt = false, priority = false, kind = '' 
   if (!commentaryVoices.length) {
     scheduleCommentaryVoicesRetry();
   }
+  if (!commentaryUnlocked) {
+    if (!priority && commentaryQueue.length >= COMMENTARY_QUEUE_LIMIT) return;
+    commentaryQueue.push({ text, options: { interrupt, priority, kind } });
+    return;
+  }
   ensureSpeechUnlocked();
-  if (!commentaryUnlocked) return;
   const now = performance.now();
   if (!priority && now - commentaryLastEventAt < COMMENTARY_MIN_INTERVAL_MS) return;
   if (!priority && commentaryQueue.length >= COMMENTARY_QUEUE_LIMIT) return;
@@ -971,6 +974,15 @@ if (speechSynth) {
 function unlockInteractiveAudio() {
   ensureAudioContext();
   ensureSpeechUnlocked();
+  if (!commentaryUnlocked) {
+    commentaryUnlocked = true;
+    if (!commentarySpeaking && commentaryQueue.length) {
+      const next = commentaryQueue.shift();
+      if (next) {
+        speakCommentary(next.text, next.options);
+      }
+    }
+  }
 }
 
 ['pointerdown', 'touchstart', 'keydown'].forEach((eventName) => {
