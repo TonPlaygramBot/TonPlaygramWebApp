@@ -39,6 +39,7 @@ import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import { giftSounds } from '../../utils/giftSounds.js';
+import { createPoolRoyaleCommentary } from '../../utils/poolRoyaleCommentary.js';
 import {
   createBallPreviewDataUrl,
   getBallMaterial as getBilliardBallMaterial
@@ -89,6 +90,7 @@ import {
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const COMMENTARY_MIN_INTERVAL_MS = 2300;
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -11853,6 +11855,10 @@ function PoolRoyaleGame({
   const aiOpponentEnabled = !isOnlineMatch;
   const framePlayerAName = localSeat === 'A' ? playerLabel : opponentLabel;
   const framePlayerBName = localSeat === 'A' ? opponentLabel : playerLabel;
+  const commentaryPlayers = useMemo(
+    () => ({ A: framePlayerAName, B: framePlayerBName }),
+    [framePlayerAName, framePlayerBName]
+  );
   const initialFrame = useMemo(() => {
     const baseFrame = rules.getInitialFrame(framePlayerAName, framePlayerBName);
     const desiredStarter = starterSeat === 'B' ? 'B' : 'A';
@@ -12426,6 +12432,12 @@ const powerRef = useRef(hud.power);
   const activeCrowdSoundRef = useRef(null);
   const muteRef = useRef(isGameMuted());
   const volumeRef = useRef(getGameVolume());
+  const [commentaryEnabled, setCommentaryEnabled] = useState(true);
+  const commentaryRef = useRef(null);
+  const commentaryVoiceMapRef = useRef({});
+  const commentaryLastSpokenRef = useRef(0);
+  const commentaryShotCountRef = useRef(0);
+  const commentaryFrameOverRef = useRef(false);
   const railSoundTimeRef = useRef(new Map());
   const liftLandingTimeRef = useRef(new Map());
   const powerImpactHoldRef = useRef(0);
@@ -12436,6 +12448,83 @@ const powerRef = useRef(hud.power);
   }, [player]);
   const panelsRef = useRef(null);
   const { mapDelta } = useAimCalibration();
+  const commentarySupported =
+    typeof window !== 'undefined' && Boolean(window.speechSynthesis);
+  const assignCommentaryVoices = useCallback((voices) => {
+    if (!Array.isArray(voices) || voices.length === 0) return;
+    const englishVoices = voices.filter((voice) =>
+      String(voice.lang || '').toLowerCase().startsWith('en')
+    );
+    const pool = englishVoices.length ? englishVoices : voices;
+    commentaryVoiceMapRef.current = {
+      Steven: pool[0],
+      John: pool[1] || pool[0]
+    };
+  }, []);
+  const speakCommentaryLines = useCallback(
+    (lines, { force = false } = {}) => {
+      if (!commentarySupported || !commentaryEnabled || muteRef.current) return;
+      const batch = Array.isArray(lines) ? lines.filter(Boolean) : [lines].filter(Boolean);
+      if (batch.length === 0) return;
+      const now = performance.now();
+      if (!force && now - commentaryLastSpokenRef.current < COMMENTARY_MIN_INTERVAL_MS) {
+        return;
+      }
+      commentaryLastSpokenRef.current = now;
+      const synth = window.speechSynthesis;
+      batch.forEach((line) => {
+        const utterance = new SpeechSynthesisUtterance(line.text);
+        const voice = commentaryVoiceMapRef.current[line.speaker];
+        if (voice) utterance.voice = voice;
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        synth.speak(utterance);
+      });
+    },
+    [commentaryEnabled, commentarySupported]
+  );
+  useEffect(() => {
+    if (!commentarySupported) return;
+    const updateVoices = () => {
+      const voices = window.speechSynthesis.getVoices() || [];
+      assignCommentaryVoices(voices);
+    };
+    updateVoices();
+    window.speechSynthesis.addEventListener('voiceschanged', updateVoices);
+    return () => {
+      window.speechSynthesis.removeEventListener('voiceschanged', updateVoices);
+    };
+  }, [assignCommentaryVoices, commentarySupported]);
+  useEffect(() => {
+    if (!commentarySupported) return;
+    if (!commentaryEnabled) {
+      window.speechSynthesis.cancel();
+    }
+  }, [commentaryEnabled, commentarySupported]);
+  useEffect(() => {
+    commentaryRef.current = createPoolRoyaleCommentary({
+      variantId: activeVariantRef.current?.id ?? variantKey,
+      playerNames: commentaryPlayers
+    });
+  }, [commentaryPlayers, variantKey]);
+  const commentaryMatchKey = useMemo(
+    () =>
+      `${variantKey}:${commentaryPlayers.A}:${commentaryPlayers.B}:${starterSeat}`,
+    [commentaryPlayers, starterSeat, variantKey]
+  );
+  const commentaryMatchKeyRef = useRef(null);
+  useEffect(() => {
+    if (commentaryMatchKeyRef.current === commentaryMatchKey) return;
+    commentaryMatchKeyRef.current = commentaryMatchKey;
+    commentaryRef.current?.reset();
+    commentaryShotCountRef.current = 0;
+    commentaryFrameOverRef.current = false;
+    commentaryLastSpokenRef.current = 0;
+    if (commentaryEnabled) {
+      const introLines = commentaryRef.current?.getMatchStartLines?.();
+      speakCommentaryLines(introLines, { force: true });
+    }
+  }, [commentaryEnabled, commentaryMatchKey, speakCommentaryLines]);
 
   const goToLobby = useCallback(() => {
     const winnerId = frameRef.current?.winner ?? frameState.winner;
@@ -22864,6 +22953,35 @@ const powerRef = useRef(hud.power);
           showRuleToast('Foul');
         }
         const shotWasFoul = Boolean(safeState?.foul);
+        const commentaryEngine = commentaryRef.current;
+        const shooterName =
+          shooterSeat === localSeatRef.current
+            ? player.name || 'You'
+            : isOnlineMatch
+              ? opponentDisplayName
+              : 'AI';
+        const pottedBalls = potted
+          .filter((entry) => entry && entry.color && entry.color !== 'CUE')
+          .map((entry) => entry.color ?? entry.id);
+        const isBreakShot = commentaryShotCountRef.current === 0;
+        const isSafetyShot = !shotWasFoul && pottedBalls.length === 0;
+        if (commentaryEngine) {
+          const shotLine = commentaryEngine.getShotLine({
+            player: shooterName,
+            pottedBalls,
+            isFoul: shotWasFoul,
+            isSafety: isSafetyShot,
+            isBreakShot
+          });
+          speakCommentaryLines(shotLine);
+          if (
+            shotWasFoul &&
+            (metaState?.ballInHand || metaState?.mustPlayFromBaulk)
+          ) {
+            speakCommentaryLines(commentaryEngine.getBallInHandLine());
+          }
+        }
+        commentaryShotCountRef.current += 1;
         if (potted.length) {
           potted.forEach((entry) => {
             const dropEntry = pocketDropRef.current.get(entry.id);
@@ -22920,6 +23038,22 @@ const powerRef = useRef(hud.power);
             lastShotReminderRef.current[shotsForPlayer] =
               Number.isFinite(remainingShots) && remainingShots > 0 ? remainingShots : 0;
           }
+        }
+        if (safeState?.frameOver && commentaryEngine && !commentaryFrameOverRef.current) {
+          commentaryFrameOverRef.current = true;
+          const winnerSeat = safeState.winner;
+          const winnerName =
+            winnerSeat === 'A'
+              ? framePlayerAName
+              : winnerSeat === 'B'
+                ? framePlayerBName
+                : 'No one';
+          const isTie = winnerSeat === 'TIE' || !winnerSeat;
+          const frameLines = commentaryEngine.getFrameEndLines({
+            winner: winnerName,
+            isTie
+          });
+          speakCommentaryLines(frameLines, { force: true });
         }
         shotContextRef.current = {
           placedFromHand: false,
@@ -26474,6 +26608,20 @@ const powerRef = useRef(hud.power);
           aria-label={isTopDownView ? 'Switch to 3D view' : 'Switch to 2D view'}
         >
           <span aria-hidden="true">{isTopDownView ? '3D' : '2D'}</span>
+        </button>
+        <button
+          type="button"
+          aria-pressed={commentaryEnabled}
+          onClick={() => setCommentaryEnabled((prev) => !prev)}
+          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-xl font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+            commentaryEnabled
+              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+          }`}
+          style={{ marginTop: '0.65rem' }}
+          aria-label={commentaryEnabled ? 'Disable commentary' : 'Enable commentary'}
+        >
+          <span aria-hidden="true">{commentaryEnabled ? '🎙️' : '🔕'}</span>
         </button>
       </div>
 
