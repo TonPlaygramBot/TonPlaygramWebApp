@@ -263,7 +263,6 @@ const FRAME_DROP_THRESHOLD = 1.35;
 const FRAME_DROP_WINDOW_MS = 3200;
 const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
 const FEEDBACK_STORAGE_KEY = 'dominoRoyalFeedback';
-const COMMENTARY_STORAGE_KEY = 'dominoRoyalCommentary';
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -614,298 +613,6 @@ function getSoundGainMultiplier() {
   return prefersReducedAudio() ? 0.65 : 1;
 }
 
-const COMMENTARY_CHARACTERS = Object.freeze([
-  {
-    id: 'arena',
-    label: 'Arena Announcer',
-    description: 'High-energy stadium hype.',
-    rate: 1.06,
-    pitch: 1.08,
-    lang: 'en-US',
-    voiceHints: ['en-us', 'english', 'us']
-  },
-  {
-    id: 'tactician',
-    label: 'Calm Tactician',
-    description: 'Measured, tactical breakdowns.',
-    rate: 0.96,
-    pitch: 0.92,
-    lang: 'en-GB',
-    voiceHints: ['en-gb', 'british', 'uk', 'english']
-  },
-  {
-    id: 'royal',
-    label: 'Royal Host',
-    description: 'Smooth royal court vibes.',
-    rate: 1,
-    pitch: 0.98,
-    lang: 'en-GB',
-    voiceHints: ['en-gb', 'english', 'royal', 'uk']
-  },
-  {
-    id: 'street',
-    label: 'Street Coach',
-    description: 'Punchy streetwise coaching.',
-    rate: 1.12,
-    pitch: 0.85,
-    lang: 'en-US',
-    voiceHints: ['en-us', 'english', 'us']
-  },
-  {
-    id: 'mystic',
-    label: 'Mystic Dealer',
-    description: 'Low, mysterious dealer energy.',
-    rate: 0.9,
-    pitch: 0.72,
-    lang: 'en-US',
-    voiceHints: ['en-us', 'english', 'us']
-  },
-  {
-    id: 'retro',
-    label: 'Retro DJ',
-    description: 'Upbeat throwback announcer.',
-    rate: 1.18,
-    pitch: 1.2,
-    lang: 'en-US',
-    voiceHints: ['en-us', 'english', 'us']
-  }
-]);
-
-const COMMENTARY_CHARACTERS_BY_ID = Object.freeze(
-  COMMENTARY_CHARACTERS.reduce((acc, character) => {
-    acc[character.id] = character;
-    return acc;
-  }, {})
-);
-
-const COMMENTARY_LINES = Object.freeze({
-  intro: [
-    'Domino Battle Royal is live. Stay sharp, stay fast.',
-    'Welcome to Domino Battle Royal. Every tile matters now.',
-    'Tables set. Let the domino showdown begin.',
-    'This is Domino Battle Royal. One chain, one winner.',
-    'Domino Battle Royal online. Mind the ends and the boneyard.'
-  ],
-  openingDouble: [
-    '{player} opens on double {pip}. A strong statement to start.',
-    'Double {pip} to kick it off for {player}. That sets the tone.',
-    '{player} drops double {pip}. Expect pressure on that value.'
-  ],
-  openingTile: [
-    '{player} opens with {tile}. The chain begins.',
-    '{player} lays down {tile}. Let the battle unfold.',
-    'First tile is {tile}. {player} sets the pace.'
-  ],
-  turnHuman: [
-    'Your move. Control the ends.',
-    'Your turn. Think two moves ahead.',
-    'You are up. Keep the tempo.',
-    'Your play. Watch the open values.'
-  ],
-  turnCpu: [
-    '{player} is thinking.',
-    '{player} steps up to the table.',
-    '{player} is on the move.'
-  ],
-  drawHuman: [
-    'You draw from the boneyard.',
-    'Pulling a new tile. Let us see.',
-    'Drawing for options. Stay calm.'
-  ],
-  drawCpu: [
-    '{player} draws from the stock.',
-    '{player} fishes for a play.',
-    '{player} reaches into the boneyard.'
-  ],
-  passHuman: [
-    'No play. You pass.',
-    'You are blocked. Passing turn.',
-    'No match available. Pass.'
-  ],
-  passCpu: [
-    '{player} passes the turn.',
-    '{player} cannot play. Passing.',
-    '{player} is blocked.'
-  ],
-  placeHuman: [
-    'You play {tile}.',
-    '{tile} hits the table. Nice choice.',
-    'You drop {tile}. Keep it moving.'
-  ],
-  placeCpu: [
-    '{player} places {tile}.',
-    '{player} drops {tile} onto the chain.',
-    '{player} plays {tile}.'
-  ],
-  doublePlay: [
-    '{player} plays double {pip}. Power move.',
-    'Double {pip} by {player}. That changes the flow.',
-    'Strong double {pip} from {player}. The table shifts.'
-  ],
-  boneyardEmpty: [
-    'Boneyard is empty. Every move counts now.',
-    'No tiles left to draw. It is pure tactics now.',
-    'Stock is gone. Play tight.'
-  ],
-  lastTileHuman: [
-    'You are down to one tile.',
-    'Last tile in hand. Finish strong.',
-    'One tile left. Close it out.'
-  ],
-  lastTileCpu: [
-    '{player} has one tile left.',
-    '{player} is on the brink with one tile.',
-    'Watch out. {player} has a single tile.'
-  ],
-  comeback: [
-    '{player} is staging a comeback.',
-    'Momentum swing for {player}.',
-    '{player} is surging back into it.'
-  ],
-  block: [
-    'The chain is locked. Blocked game.',
-    'No moves left. The game is blocked.',
-    'Board frozen. Counting tiles now.'
-  ],
-  winHuman: [
-    'Victory! You take the crown.',
-    'You win the table. Domination.',
-    'That is your win. Well played.'
-  ],
-  winCpu: [
-    '{player} wins the round.',
-    '{player} takes the crown.',
-    '{player} closes it out.'
-  ],
-  drawGame: [
-    'Draw game. No clear winner.',
-    'It ends in a draw.',
-    'Stalemate. No winner this time.'
-  ]
-});
-
-const COMMENTARY_MIN_INTERVAL_MS = 2200;
-let lastCommentaryAt = 0;
-let lastCommentaryKey = '';
-let speechVoices = [];
-
-function buildDefaultCommentarySettings() {
-  return {
-    enabled: !prefersReducedAudio(),
-    characterId: COMMENTARY_CHARACTERS[0]?.id || 'arena'
-  };
-}
-
-function normalizeCommentarySettings(raw = {}) {
-  const defaults = buildDefaultCommentarySettings();
-  const resolvedCharacter = COMMENTARY_CHARACTERS_BY_ID[raw.characterId]
-    ? raw.characterId
-    : defaults.characterId;
-  return {
-    enabled: typeof raw.enabled === 'boolean' ? raw.enabled : defaults.enabled,
-    characterId: resolvedCharacter
-  };
-}
-
-function readCommentarySettings() {
-  if (typeof window === 'undefined') return buildDefaultCommentarySettings();
-  try {
-    const raw = window.localStorage?.getItem(COMMENTARY_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return normalizeCommentarySettings(parsed);
-  } catch {
-    return buildDefaultCommentarySettings();
-  }
-}
-
-function persistCommentarySettings(settings) {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage?.setItem(COMMENTARY_STORAGE_KEY, JSON.stringify(settings));
-  } catch {}
-}
-
-let commentarySettings = readCommentarySettings();
-
-function stopCommentarySpeech() {
-  if (typeof window === 'undefined') return;
-  try {
-    window.speechSynthesis?.cancel?.();
-  } catch {}
-}
-
-function refreshSpeechVoices() {
-  if (typeof window === 'undefined') return;
-  if (!window.speechSynthesis) return;
-  speechVoices = window.speechSynthesis.getVoices?.() || [];
-}
-
-if (typeof window !== 'undefined' && window.speechSynthesis) {
-  refreshSpeechVoices();
-  window.speechSynthesis.addEventListener?.('voiceschanged', refreshSpeechVoices);
-}
-
-function setCommentarySettings(next, { refreshUi = true } = {}) {
-  commentarySettings = normalizeCommentarySettings({ ...commentarySettings, ...next });
-  persistCommentarySettings(commentarySettings);
-  if (!commentarySettings.enabled) {
-    stopCommentarySpeech();
-  }
-  if (refreshUi) {
-    refreshConfigUI();
-  }
-}
-
-function pickCommentaryLine(key, context = {}) {
-  const lines = COMMENTARY_LINES[key] || [];
-  if (!lines.length) return '';
-  const template = lines[Math.floor(Math.random() * lines.length)];
-  return template.replace(/\{(\w+)\}/g, (_, token) => {
-    const value = context[token];
-    return value != null ? String(value) : '';
-  });
-}
-
-function resolveVoiceForCharacter(character) {
-  if (!character || !speechVoices.length) return null;
-  const hints = Array.isArray(character.voiceHints) ? character.voiceHints : [];
-  const normalizedHints = hints.map((hint) => hint.toLowerCase());
-  const preferred = speechVoices.find((voice) => {
-    const name = `${voice.name || ''} ${voice.lang || ''}`.toLowerCase();
-    return normalizedHints.some((hint) => name.includes(hint));
-  });
-  if (preferred) return preferred;
-  const langMatch = speechVoices.find((voice) => voice.lang?.toLowerCase().startsWith(character.lang.toLowerCase()));
-  return langMatch || speechVoices[0] || null;
-}
-
-function speakCommentary(text, { priority = false, key = '' } = {}) {
-  if (!commentarySettings.enabled) return;
-  if (typeof window === 'undefined' || !window.speechSynthesis || !text) return;
-  const now = performance.now();
-  if (!priority && now - lastCommentaryAt < COMMENTARY_MIN_INTERVAL_MS) return;
-  if (!priority && window.speechSynthesis.speaking) return;
-  const character = COMMENTARY_CHARACTERS_BY_ID[commentarySettings.characterId] || COMMENTARY_CHARACTERS[0];
-  const voice = resolveVoiceForCharacter(character);
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = character?.rate ?? 1;
-  utterance.pitch = character?.pitch ?? 1;
-  if (voice) {
-    utterance.voice = voice;
-    utterance.lang = voice.lang || character.lang;
-  } else if (character?.lang) {
-    utterance.lang = character.lang;
-  }
-  if (priority) {
-    stopCommentarySpeech();
-  }
-  lastCommentaryAt = now;
-  lastCommentaryKey = key;
-  try {
-    window.speechSynthesis.speak(utterance);
-  } catch {}
-}
-
 function vibratePattern(pattern = []) {
   if (!isHapticsEnabled()) return;
   try {
@@ -1078,128 +785,6 @@ const SFX = {
     triggerHaptics('block');
   }
 };
-
-const PIP_NAMES = ['zero', 'one', 'two', 'three', 'four', 'five', 'six'];
-const commentaryState = {
-  lastHandCounts: [],
-  announcedLastTile: new Set(),
-  boneyardEmptyAnnounced: false,
-  lastTurnAnnounced: null
-};
-
-function formatTileSpeech(tile) {
-  if (!tile || typeof tile.a !== 'number' || typeof tile.b !== 'number') return '';
-  const a = PIP_NAMES[tile.a] ?? tile.a;
-  const b = PIP_NAMES[tile.b] ?? tile.b;
-  if (tile.a === tile.b) {
-    return `double ${a}`;
-  }
-  return `${a} ${b}`;
-}
-
-function formatTileLabel(tile) {
-  if (!tile || typeof tile.a !== 'number' || typeof tile.b !== 'number') return '';
-  return `${tile.a}|${tile.b}`;
-}
-
-function playerLabel(index) {
-  if (!Number.isInteger(index)) return 'Player';
-  return index === human ? 'You' : `Player ${index + 1}`;
-}
-
-function scheduleCommentaryLine(text, delayMs, options = {}) {
-  if (!text) return;
-  setTimeout(() => speakCommentary(text, options), Math.max(0, delayMs || 0));
-}
-
-function announceGameStart({ starter, firstTile, isDoubleStart } = {}) {
-  const player = playerLabel(starter);
-  const pip = PIP_NAMES[firstTile?.a] ?? firstTile?.a ?? '';
-  if (isDoubleStart) {
-    speakCommentary(pickCommentaryLine('openingDouble', { player, pip }), { priority: true, key: 'openingDouble' });
-  } else {
-    speakCommentary(pickCommentaryLine('openingTile', { player, tile: formatTileSpeech(firstTile) }), {
-      priority: true,
-      key: 'openingTile'
-    });
-  }
-}
-
-function announceTurn(playerIndex) {
-  if (commentaryState.lastTurnAnnounced === playerIndex) return;
-  commentaryState.lastTurnAnnounced = playerIndex;
-  const key = playerIndex === human ? 'turnHuman' : 'turnCpu';
-  speakCommentary(pickCommentaryLine(key, { player: playerLabel(playerIndex) }), { key: `turn-${playerIndex}` });
-}
-
-function announcePlacement({ playerIndex, tile } = {}) {
-  if (!tile) return;
-  if (tile.a === tile.b) {
-    speakCommentary(
-      pickCommentaryLine('doublePlay', { player: playerLabel(playerIndex), pip: PIP_NAMES[tile.a] ?? tile.a }),
-      { key: `double-${playerIndex}` }
-    );
-    return;
-  }
-  const key = playerIndex === human ? 'placeHuman' : 'placeCpu';
-  speakCommentary(pickCommentaryLine(key, { player: playerLabel(playerIndex), tile: formatTileSpeech(tile) }), {
-    key: `place-${playerIndex}`
-  });
-}
-
-function announceDraw(playerIndex) {
-  const key = playerIndex === human ? 'drawHuman' : 'drawCpu';
-  speakCommentary(pickCommentaryLine(key, { player: playerLabel(playerIndex) }), { key: `draw-${playerIndex}` });
-}
-
-function announcePass(playerIndex) {
-  const key = playerIndex === human ? 'passHuman' : 'passCpu';
-  speakCommentary(pickCommentaryLine(key, { player: playerLabel(playerIndex) }), { key: `pass-${playerIndex}` });
-}
-
-function updateCommentaryMilestones() {
-  if (!Array.isArray(players) || !players.length) return;
-  const counts = players.map((player) => (player?.hand?.length ?? 0));
-  counts.forEach((count, idx) => {
-    if (count === 1 && !commentaryState.announcedLastTile.has(idx)) {
-      const key = idx === human ? 'lastTileHuman' : 'lastTileCpu';
-      speakCommentary(pickCommentaryLine(key, { player: playerLabel(idx) }), { key: `last-${idx}` });
-      commentaryState.announcedLastTile.add(idx);
-    }
-  });
-  if (!commentaryState.boneyardEmptyAnnounced && Array.isArray(boneyard) && boneyard.length === 0) {
-    speakCommentary(pickCommentaryLine('boneyardEmpty'), { key: 'boneyard' });
-    commentaryState.boneyardEmptyAnnounced = true;
-  }
-  if (commentaryState.lastHandCounts.length) {
-    counts.forEach((count, idx) => {
-      const prev = commentaryState.lastHandCounts[idx];
-      if (Number.isFinite(prev) && prev - count >= 3 && count <= 3) {
-        speakCommentary(pickCommentaryLine('comeback', { player: playerLabel(idx) }), { key: `comeback-${idx}` });
-      }
-    });
-  }
-  commentaryState.lastHandCounts = counts;
-}
-
-function announceGameEnd({ winnerIndex: winner, blocked = false } = {}) {
-  if (blocked) {
-    speakCommentary(pickCommentaryLine('block'), { priority: true, key: 'block' });
-  }
-  if (winner === null || winner === undefined) {
-    scheduleCommentaryLine(pickCommentaryLine('drawGame'), blocked ? 900 : 0, { key: 'draw' });
-    return;
-  }
-  if (winner === human) {
-    scheduleCommentaryLine(pickCommentaryLine('winHuman'), blocked ? 900 : 0, { priority: !blocked, key: 'win' });
-    return;
-  }
-  scheduleCommentaryLine(
-    pickCommentaryLine('winCpu', { player: playerLabel(winner) }),
-    blocked ? 900 : 0,
-    { priority: !blocked, key: 'lose' }
-  );
-}
 
   /* ---------- Renderer / Scene ---------- */
 const app = document.getElementById("app");
@@ -4999,70 +4584,6 @@ function createOptionPreview(key, option) {
 function refreshConfigUI() {
   if (!configSectionsEl) return;
   configSectionsEl.replaceChildren();
-
-  const commentaryWrapper = document.createElement('div');
-  commentaryWrapper.className = 'config-section';
-  const commentaryLabel = document.createElement('h4');
-  commentaryLabel.textContent = 'Voice commentary';
-  commentaryWrapper.appendChild(commentaryLabel);
-  const commentaryGrid = document.createElement('div');
-  commentaryGrid.className = 'config-options';
-  commentaryGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(160px, 1fr))';
-  const commentaryToggle = document.createElement('button');
-  commentaryToggle.type = 'button';
-  commentaryToggle.className = 'config-option';
-  if (commentarySettings.enabled) {
-    commentaryToggle.classList.add('active');
-  }
-  commentaryToggle.setAttribute('aria-pressed', String(!!commentarySettings.enabled));
-  const toggleLabel = document.createElement('span');
-  toggleLabel.textContent = commentarySettings.enabled ? 'Commentary on' : 'Commentary muted';
-  commentaryToggle.appendChild(toggleLabel);
-  const toggleHelper = document.createElement('div');
-  toggleHelper.textContent = 'Spoken play-by-play using device voices.';
-  toggleHelper.style.fontSize = '0.65rem';
-  toggleHelper.style.color = 'rgba(226,232,240,0.78)';
-  toggleHelper.style.fontWeight = '700';
-  toggleHelper.style.lineHeight = '1.35';
-  commentaryToggle.appendChild(toggleHelper);
-  commentaryToggle.addEventListener('click', () => {
-    setCommentarySettings({ enabled: !commentarySettings.enabled });
-  });
-  commentaryGrid.appendChild(commentaryToggle);
-  commentaryWrapper.appendChild(commentaryGrid);
-
-  const voiceGrid = document.createElement('div');
-  voiceGrid.className = 'config-options';
-  voiceGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(150px, 1fr))';
-  COMMENTARY_CHARACTERS.forEach((character) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'config-option';
-    if (commentarySettings.characterId === character.id) {
-      button.classList.add('active');
-    }
-    button.setAttribute('aria-pressed', String(commentarySettings.characterId === character.id));
-    const name = document.createElement('span');
-    name.textContent = character.label;
-    button.appendChild(name);
-    const helper = document.createElement('div');
-    helper.textContent = character.description;
-    helper.style.fontSize = '0.65rem';
-    helper.style.color = 'rgba(226,232,240,0.78)';
-    helper.style.fontWeight = '700';
-    helper.style.lineHeight = '1.35';
-    button.appendChild(helper);
-    button.addEventListener('click', () => {
-      setCommentarySettings({ characterId: character.id });
-      if (commentarySettings.enabled) {
-        scheduleCommentaryLine(`Voice set to ${character.label}.`, 0, { priority: true, key: 'voice-preview' });
-      }
-    });
-    voiceGrid.appendChild(button);
-  });
-  commentaryWrapper.appendChild(voiceGrid);
-  configSectionsEl.appendChild(commentaryWrapper);
-
   TABLE_SETUP_SECTIONS.forEach((section) => {
     const wrapper = document.createElement('div');
     wrapper.className = 'config-section';
@@ -6076,10 +5597,6 @@ function startGame(){
   winnerIndex = null;
   revealAllHands = false;
   clearWinnerHighlight();
-  commentaryState.announcedLastTile = new Set();
-  commentaryState.boneyardEmptyAnnounced = false;
-  commentaryState.lastHandCounts = [];
-  commentaryState.lastTurnAnnounced = null;
   if(cpuMoveTimeout){
     clearTimeout(cpuMoveTimeout);
     cpuMoveTimeout = null;
@@ -6138,7 +5655,6 @@ function startGame(){
     }
   }
   renderChain();
-  announceGameStart({ starter, firstTile, isDoubleStart });
   current=(starter-1+N)%N;
   updateInteractivity();
   if(current!==human){
@@ -6251,7 +5767,6 @@ function placeOnBoard(tile, side, options = {}){
     renderChain();
   }
   SFX.place();
-  announcePlacement({ playerIndex: current, tile: orientedTile });
   return { success:true, segment, end: updatedEnd };
 }
 function nextCandidate(end){
@@ -6471,14 +5986,13 @@ btnDraw.addEventListener('click',()=>{ if(current!==human || gameFinished) retur
     const canL=(t.a===ends?.L?.v||t.b===ends?.L?.v); const canR=(t.a===ends?.R?.v||t.b===ends?.R?.v);
     if(canL||canR) break;
   }
-  clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.drawTile(); announceDraw(human); }
+  clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.drawTile(); }
 });
 btnPass.addEventListener('click',()=>{
   if(current===human && !gameFinished){
     clearMarkers();
     selectedTile=null;
     SFX.pass();
-    announcePass(human);
     nextTurn();
   }
 });
@@ -6517,7 +6031,7 @@ function scheduleCpuPlay(delay = CPU_PLAY_DELAY){
   }, safeDelay);
 }
 
-function finishGame({ winner = null, reason = '', revealAll = false, blocked = false } = {}){
+function finishGame({ winner = null, reason = '', revealAll = false } = {}){
   if(gameFinished){
     return;
   }
@@ -6557,8 +6071,6 @@ function finishGame({ winner = null, reason = '', revealAll = false, blocked = f
   } else {
     SFX.drawGame();
   }
-
-  announceGameEnd({ winnerIndex, blocked });
 }
 
 function checkForBlockedGame(){
@@ -6567,7 +6079,7 @@ function checkForBlockedGame(){
   }
   const blk = blockedAndWinner();
   if(blk){
-    finishGame({ winner: blk.winner, reason: blk.reason, revealAll: true, blocked: true });
+    finishGame({ winner: blk.winner, reason: blk.reason, revealAll: true });
     return true;
   }
   return false;
@@ -6581,8 +6093,6 @@ function updateInteractivity(){
   }
   setStatus(`Turn: Player ${current+1}`);
   renderHands(); renderChain();
-  announceTurn(current);
-  updateCommentaryMilestones();
 }
 function nextTurn(){
   if(gameFinished){
@@ -6623,17 +6133,14 @@ function cpuPlay(){
     if(drew){
       renderHands();
       SFX.drawTile();
-      announceDraw(current);
       if(canPlayAny(player.hand)){
         scheduleCpuPlay();
       } else {
         SFX.pass();
-        announcePass(current);
         nextTurn();
       }
     } else {
       SFX.pass();
-      announcePass(current);
       nextTurn();
     }
     return;
@@ -6661,17 +6168,14 @@ function cpuPlay(){
   if(drew){
     renderHands();
     SFX.drawTile();
-    announceDraw(current);
     if(canPlayAny(player.hand)){
       scheduleCpuPlay();
     } else {
       SFX.pass();
-      announcePass(current);
       nextTurn();
     }
   } else {
     SFX.pass();
-    announcePass(current);
     nextTurn();
   }
 }
