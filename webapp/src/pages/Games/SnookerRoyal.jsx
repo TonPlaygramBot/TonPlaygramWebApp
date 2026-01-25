@@ -962,17 +962,27 @@ const COMMENTARY_PRESET_STORAGE_KEY = 'snookerRoyalCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'snookerRoyalCommentaryMute';
 const COMMENTARY_QUEUE_LIMIT = 4;
 const COMMENTARY_MIN_INTERVAL_MS = 1200;
-const COMMENTARY_SPEAKER_ID = 'Caster';
+const COMMENTARY_SPEAKER_LEAD = 'Caster';
+const COMMENTARY_SPEAKER_ANALYST = 'Analyst';
 const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'atlas',
     label: 'Atlas',
     description: 'Classic arena broadcaster with measured pace.',
     voiceHints: {
-      [COMMENTARY_SPEAKER_ID]: ['en-GB', 'english', 'male', 'daniel', 'george', 'google uk english']
+      [COMMENTARY_SPEAKER_LEAD]: ['en-GB', 'english', 'male', 'daniel', 'george', 'google uk english'],
+      [COMMENTARY_SPEAKER_ANALYST]: [
+        'en-GB',
+        'english',
+        'female',
+        'kate',
+        'serena',
+        'google uk english female'
+      ]
     },
     speakerSettings: {
-      [COMMENTARY_SPEAKER_ID]: { rate: 0.98, pitch: 0.92, volume: 1 }
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 0.98, pitch: 0.92, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.02, pitch: 1.08, volume: 0.98 }
     }
   },
   {
@@ -980,10 +990,12 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
     label: 'Nova',
     description: 'High-energy commentary with a crisp edge.',
     voiceHints: {
-      [COMMENTARY_SPEAKER_ID]: ['en-US', 'female', 'samantha', 'victoria', 'zira', 'google us']
+      [COMMENTARY_SPEAKER_LEAD]: ['en-US', 'female', 'samantha', 'victoria', 'zira', 'google us'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['en-US', 'male', 'alex', 'david', 'guy', 'google us english male']
     },
     speakerSettings: {
-      [COMMENTARY_SPEAKER_ID]: { rate: 1.04, pitch: 1.08, volume: 1 }
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 1.04, pitch: 1.08, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 0.98, pitch: 0.92, volume: 1 }
     }
   },
   {
@@ -991,10 +1003,12 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
     label: 'Ivy',
     description: 'Smooth tactical analysis and calm delivery.',
     voiceHints: {
-      [COMMENTARY_SPEAKER_ID]: ['en-GB', 'female', 'kate', 'serena', 'google uk english female']
+      [COMMENTARY_SPEAKER_LEAD]: ['en-GB', 'female', 'kate', 'serena', 'google uk english female'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['en-GB', 'male', 'daniel', 'george', 'google uk english']
     },
     speakerSettings: {
-      [COMMENTARY_SPEAKER_ID]: { rate: 0.96, pitch: 1.1, volume: 0.98 }
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 0.96, pitch: 1.1, volume: 0.98 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 0.98, pitch: 0.9, volume: 1 }
     }
   },
   {
@@ -1002,10 +1016,12 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
     label: 'Onyx',
     description: 'Deep tone with a steady play-by-play focus.',
     voiceHints: {
-      [COMMENTARY_SPEAKER_ID]: ['en-US', 'male', 'alex', 'david', 'guy', 'google us english male']
+      [COMMENTARY_SPEAKER_LEAD]: ['en-US', 'male', 'alex', 'david', 'guy', 'google us english male'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['en-US', 'female', 'samantha', 'victoria', 'zira', 'google us']
     },
     speakerSettings: {
-      [COMMENTARY_SPEAKER_ID]: { rate: 0.94, pitch: 0.85, volume: 1 }
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 0.94, pitch: 0.85, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.04, pitch: 1.06, volume: 0.98 }
     }
   },
   {
@@ -1013,10 +1029,12 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
     label: 'Riley',
     description: 'Bright, upbeat narration for fast frames.',
     voiceHints: {
-      [COMMENTARY_SPEAKER_ID]: ['en-AU', 'en-US', 'karen', 'oliver', 'google']
+      [COMMENTARY_SPEAKER_LEAD]: ['en-AU', 'en-US', 'female', 'karen', 'google'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['en-AU', 'en-US', 'male', 'oliver', 'google']
     },
     speakerSettings: {
-      [COMMENTARY_SPEAKER_ID]: { rate: 1.06, pitch: 1.15, volume: 1 }
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 1.06, pitch: 1.15, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 0.96, pitch: 0.9, volume: 1 }
     }
   },
   {
@@ -1024,10 +1042,12 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
     label: 'Zara',
     description: 'Analytical calls with a balanced cadence.',
     voiceHints: {
-      [COMMENTARY_SPEAKER_ID]: ['en-IN', 'en-US', 'female', 'neural', 'google']
+      [COMMENTARY_SPEAKER_LEAD]: ['en-IN', 'en-US', 'female', 'neural', 'google'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['en-IN', 'en-GB', 'male', 'google']
     },
     speakerSettings: {
-      [COMMENTARY_SPEAKER_ID]: { rate: 1.02, pitch: 1.02, volume: 1 }
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 1.02, pitch: 1.02, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 0.98, pitch: 0.9, volume: 1 }
     }
   }
 ]);
@@ -11983,6 +12003,65 @@ function SnookerRoyalGame({
     },
     [frameState?.players, localSeat, opponentLabel, playerLabel]
   );
+  const commentarySpeakers = useMemo(
+    () => [COMMENTARY_SPEAKER_LEAD, COMMENTARY_SPEAKER_ANALYST],
+    []
+  );
+  const lastCommentarySpeakerRef = useRef(COMMENTARY_SPEAKER_LEAD);
+  const getAlternateCommentarySpeaker = useCallback(
+    (speaker) =>
+      speaker === COMMENTARY_SPEAKER_LEAD ? COMMENTARY_SPEAKER_ANALYST : COMMENTARY_SPEAKER_LEAD,
+    []
+  );
+  const pickCommentarySpeaker = useCallback(
+    (event, preferred) => {
+      if (preferred) {
+        lastCommentarySpeakerRef.current = preferred;
+        return preferred;
+      }
+      if (
+        event === 'intro' ||
+        event === 'breakOff' ||
+        event === 'century' ||
+        event === 'frameBall' ||
+        event === 'frameWin' ||
+        event === 'outro'
+      ) {
+        lastCommentarySpeakerRef.current = COMMENTARY_SPEAKER_LEAD;
+        return COMMENTARY_SPEAKER_LEAD;
+      }
+      if (
+        event === 'safety' ||
+        event === 'snooker' ||
+        event === 'foul' ||
+        event === 'miss' ||
+        event === 'freeBall'
+      ) {
+        lastCommentarySpeakerRef.current = COMMENTARY_SPEAKER_ANALYST;
+        return COMMENTARY_SPEAKER_ANALYST;
+      }
+      const nextSpeaker = getAlternateCommentarySpeaker(lastCommentarySpeakerRef.current);
+      lastCommentarySpeakerRef.current = nextSpeaker;
+      return nextSpeaker;
+    },
+    [getAlternateCommentarySpeaker]
+  );
+  const buildCommentaryLine = useCallback(
+    (event, context = {}, options = {}) => {
+      const speaker = pickCommentarySpeaker(event, options.speaker);
+      const text = buildSnookerCommentaryLine({
+        event,
+        speaker,
+        context: {
+          arena: 'Snooker Royal arena',
+          ...context
+        }
+      });
+      if (!text) return null;
+      return { speaker, text };
+    },
+    [pickCommentarySpeaker]
+  );
   const playNextCommentary = useCallback(async () => {
     if (commentarySpeakingRef.current) return;
     const next = commentaryQueueRef.current.shift();
@@ -12023,26 +12102,11 @@ function SnookerRoyalGame({
   );
   const enqueueSnookerCommentaryEvent = useCallback(
     (event, context = {}, options = {}) => {
-      const text = buildSnookerCommentaryLine({
-        event,
-        speaker: COMMENTARY_SPEAKER_ID,
-        context: {
-          arena: 'Snooker Royal arena',
-          ...context
-        }
-      });
-      if (!text) return;
-      enqueueCommentaryLines(
-        [
-          {
-            speaker: COMMENTARY_SPEAKER_ID,
-            text
-          }
-        ],
-        options
-      );
+      const line = buildCommentaryLine(event, context, { speaker: options.speaker });
+      if (!line) return;
+      enqueueCommentaryLines([line], options);
     },
-    [enqueueCommentaryLines]
+    [buildCommentaryLine, enqueueCommentaryLines]
   );
   const maybeSpeakShotCommentary = useCallback(
     ({ currentState, nextState, potted, shotContext, shooterSeat }) => {
@@ -12109,11 +12173,36 @@ function SnookerRoyalGame({
 
       if (event) {
         const priority = event === 'foul' || event === 'freeBall';
-        enqueueSnookerCommentaryEvent(event, context, { priority });
+        const lines = [];
+        const primaryLine = buildCommentaryLine(event, context);
+        if (primaryLine) lines.push(primaryLine);
+        const nextActiveSeat = nextState.activePlayer;
+        if (
+          primaryLine &&
+          nextActiveSeat &&
+          nextActiveSeat !== shooterSeat &&
+          ['miss', 'safety', 'foul'].includes(event)
+        ) {
+          const turnLine = buildCommentaryLine(
+            'turn',
+            { player: resolveSeatLabel(nextActiveSeat) },
+            { speaker: getAlternateCommentarySpeaker(primaryLine.speaker) }
+          );
+          if (turnLine) lines.push(turnLine);
+        }
+        if (lines.length) {
+          enqueueCommentaryLines(lines, { priority });
+        }
       }
       shotCountRef.current += 1;
     },
-    [enqueueSnookerCommentaryEvent, formatSnookerColorLabel, resolveSeatLabel]
+    [
+      buildCommentaryLine,
+      enqueueCommentaryLines,
+      formatSnookerColorLabel,
+      getAlternateCommentarySpeaker,
+      resolveSeatLabel
+    ]
   );
   const handleCommentaryPresetSelect = useCallback(
     (preset) => {
@@ -12136,11 +12225,22 @@ function SnookerRoyalGame({
       players: {
         A: framePlayerAName || 'Player A',
         B: framePlayerBName || 'Player B'
-      }
+      },
+      commentators: commentarySpeakers
     });
+    const startLines = Array.isArray(script?.start)
+      ? script.start
+      : Array.isArray(script)
+        ? script.slice(0, 1)
+        : [];
+    const endLines = Array.isArray(script?.end)
+      ? script.end
+      : Array.isArray(script)
+        ? script.slice(1)
+        : [];
     commentaryScriptRef.current = {
-      start: script.slice(0, 1),
-      end: script.slice(1)
+      start: startLines,
+      end: endLines
     };
     commentaryScriptPlayedRef.current = false;
     commentaryOutroPlayedRef.current = false;
@@ -12150,12 +12250,22 @@ function SnookerRoyalGame({
     shotCountRef.current = 0;
     breakMilestoneRef.current = 0;
     freeBallAnnouncedRef.current = false;
-  }, [framePlayerAName, framePlayerBName, initialFrame]);
+    lastCommentarySpeakerRef.current = COMMENTARY_SPEAKER_LEAD;
+  }, [commentarySpeakers, framePlayerAName, framePlayerBName, initialFrame]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const unlockCommentary = () => {
       if (commentaryReadyRef.current) return;
       commentaryReadyRef.current = true;
+      const synth = getSpeechSynthesis();
+      if (synth) {
+        try {
+          synth.resume?.();
+        } catch {}
+        try {
+          synth.getVoices();
+        } catch {}
+      }
       const pending = pendingCommentaryLinesRef.current;
       if (pending) {
         pendingCommentaryLinesRef.current = null;
@@ -12164,9 +12274,13 @@ function SnookerRoyalGame({
     };
     window.addEventListener('pointerdown', unlockCommentary);
     window.addEventListener('keydown', unlockCommentary);
+    window.addEventListener('touchstart', unlockCommentary);
+    window.addEventListener('click', unlockCommentary);
     return () => {
       window.removeEventListener('pointerdown', unlockCommentary);
       window.removeEventListener('keydown', unlockCommentary);
+      window.removeEventListener('touchstart', unlockCommentary);
+      window.removeEventListener('click', unlockCommentary);
     };
   }, [enqueueCommentaryLines]);
   useEffect(() => {
