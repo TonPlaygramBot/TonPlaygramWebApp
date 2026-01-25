@@ -13203,6 +13203,9 @@ const powerRef = useRef(hud.power);
         enqueuePoolCommentary(pending.lines, pending);
       }
     };
+    if (navigator?.userActivation?.hasBeenActive) {
+      unlockCommentary();
+    }
     window.addEventListener('pointerdown', unlockCommentary);
     window.addEventListener('click', unlockCommentary);
     window.addEventListener('touchstart', unlockCommentary);
