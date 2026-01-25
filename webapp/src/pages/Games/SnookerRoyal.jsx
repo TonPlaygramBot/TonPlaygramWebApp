@@ -20869,10 +20869,13 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(startPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
+          const baseFollowThrough = BALL_R * 0.16;
           const followThroughPull = THREE.MathUtils.clamp(
-            topSpinWeight * clampedPower * BALL_R * 0.35,
-            0,
-            BALL_R * 0.35
+            baseFollowThrough +
+              clampedPower * BALL_R * 0.2 +
+              topSpinWeight * clampedPower * BALL_R * 0.35,
+            BALL_R * 0.12,
+            BALL_R * 0.5
           );
           const impactPos = buildCuePosition(-followThroughPull);
           cueStick.visible = true;
