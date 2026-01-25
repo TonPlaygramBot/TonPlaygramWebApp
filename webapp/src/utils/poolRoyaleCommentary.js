@@ -26,7 +26,8 @@ const DEFAULT_CONTEXT = Object.freeze({
   playerPots: 0,
   opponentPots: 0,
   targetBall: 'the object ball',
-  pocket: 'the corner pocket',
+  pocket: 'the pocket',
+  potCount: 0,
   table: 'the main table',
   arena: 'Pool Royale arena',
   breakType: 'thunder break',
@@ -75,19 +76,19 @@ const TEMPLATES = Object.freeze({
       'This is where nerves show—{player} has to deliver for the scoreboard.'
     ],
     pot: [
-      'Beautiful pot. {player} moves to {playerPots} pots and {playerPoints} points.',
-      'Clean strike from {player}. That pot bumps the score to {playerScore}-{opponentScore}.',
-      '{player} drops it in and holds the cue ball in the lane for more points.'
+      '{player} pots {targetBall}.',
+      'Pot: {targetBall}.',
+      '{player} sends {targetBall} down.'
     ],
     combo: [
-      'That is a clever combination—{player} uses {targetBall} to open the {pocket}.',
-      'What a combo! {player} turns a tough angle into a makeable pot.',
-      'Great combination play. {player} sees the carom and takes the points.'
+      '{player} combos {targetBall}.',
+      'Combination pot on {targetBall}.',
+      '{player} caroms {targetBall} into the {pocket}.'
     ],
     bank: [
-      '{player} goes to the cushion—bank shot, perfectly judged.',
-      'Bold bank from {player}, and it lands in the heart of the {pocket}.',
-      'Bank shot called and made. That is confidence and points.'
+      '{player} banks {targetBall} into the {pocket}.',
+      'Bank shot: {targetBall} in the {pocket}.',
+      '{player} sends {targetBall} off the cushion and down.'
     ],
     kick: [
       'Kick shot required—{player} goes one rail to find it.',
@@ -100,19 +101,19 @@ const TEMPLATES = Object.freeze({
       'Jump shot executed; {player} gets the hit and stays in control.'
     ],
     miss: [
-      'Oh, that one drifts offline. {player} misses the pocket.',
-      'It slides past. {player} will be disappointed with that miss.',
-      'A rare miss from {player}, and now {opponent} has a look at points.'
+      '{player} misses the pot.',
+      'No pot for {player}.',
+      '{player} comes up short.'
     ],
     foul: [
-      'Foul called. That gives {opponent} a major opportunity.',
-      'That is a foul, and it flips the table in favor of {opponent}.',
-      'Unfortunate foul there; {opponent} will have ball in hand.'
+      'Foul on {player}.',
+      'Foul called. {opponent} to the table.',
+      '{player} commits a foul.'
     ],
     inHand: [
-      '{opponent} takes ball in hand and can lay it exactly where they want.',
-      'Ball in hand for {opponent}; the table is now theirs to map.',
-      '{opponent} will place the cue ball with surgical precision.'
+      'Ball in hand for {opponent}.',
+      '{opponent} has ball in hand.',
+      'Cue ball in hand for {opponent}.'
     ],
     runout: [
       '{player} is in rhythm—this could be a full clearance.',
@@ -125,14 +126,14 @@ const TEMPLATES = Object.freeze({
       'Final rack nerves—every shot feels heavier now.'
     ],
     frameWin: [
-      '{player} closes the rack. That is clinical pool and {playerPoints} points.',
-      'Rack won by {player}. Score now {playerScore}-{opponentScore}.',
-      '{player} finishes it in style and takes the rack with a points swing.'
+      '{player} wins the rack.',
+      'Rack to {player}.',
+      '{player} closes the rack.'
     ],
     matchWin: [
-      '{player} seals the match—what a performance and a final tally of {playerScore}-{opponentScore}.',
-      'That is the match. {player} comes through under pressure on points.',
-      '{player} wins it, and {arena} appreciates a professional display.'
+      'Match over. {player} wins {playerScore}-{opponentScore}.',
+      '{player} takes the match, {playerScore}-{opponentScore}.',
+      'Final score {playerScore}-{opponentScore}. {player} wins.'
     ],
     outro: [
       'That wraps it up from {arena}. Thanks for joining us, {partner}.',
