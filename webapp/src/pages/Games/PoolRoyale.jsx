@@ -39,7 +39,7 @@ import {
   createMatchCommentaryScript,
   POOL_ROYALE_SPEAKERS
 } from '../../utils/poolRoyaleCommentary.js';
-import { getSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
+import { getSpeechSynthesis, primeSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
@@ -13179,6 +13179,7 @@ const powerRef = useRef(hud.power);
     if (typeof window === 'undefined') return undefined;
     const unlockCommentary = () => {
       if (commentaryReadyRef.current) return;
+      primeSpeechSynthesis();
       commentaryReadyRef.current = true;
       const pending = pendingCommentaryLinesRef.current;
       if (pending) {
