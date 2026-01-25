@@ -4,7 +4,7 @@ import RoomSelector from '../../components/RoomSelector.jsx';
 import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { ensureAccountId, getTelegramId, getTelegramPhotoUrl } from '../../utils/telegram.js';
+import { ensureAccountId, getTelegramFirstName, getTelegramId, getTelegramPhotoUrl } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
@@ -110,19 +110,8 @@ export default function MurlanRoyaleLobby() {
       <div className="relative z-10 space-y-4 p-4 pb-8">
         <GameLobbyHeader slug="murlanroyale" title="Murlan Royale Lobby" badge="AI ready" />
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-          <p className="text-sm text-white/70">
-            Keep the arena loading while you choose your Murlan settings.
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-white/70">
-            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Instant start</span>
-            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Flag avatars</span>
-            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">3D arena</span>
-          </div>
-        </div>
-
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
-          <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Identity</p>
+          <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
           <div className="mt-3 flex items-center gap-3">
             <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
               {avatar ? (
@@ -132,9 +121,10 @@ export default function MurlanRoyaleLobby() {
               )}
             </div>
             <div className="text-sm text-white/80">
-              <p className="font-semibold">Seat ready</p>
+              <p className="font-semibold">{getTelegramFirstName() || 'Player'} ready</p>
               <p className="text-xs text-white/50">
-                Flags: {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : 'Auto'}
+                {flags.length > 1 ? 'Flags' : 'Flag'}:{' '}
+                {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : 'Auto'}
               </p>
             </div>
           </div>
