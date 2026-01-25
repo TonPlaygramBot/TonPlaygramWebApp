@@ -357,6 +357,10 @@ export class PoolRoyaleRules {
     });
     const pottedCount = potted.filter((colour) => colour !== 'cue').length;
     const snapshot = serializeUkState(game.state);
+    const scratched = potted.includes('cue') || Boolean(context.cueBallPotted);
+    if (shotResult.foul && scratched) {
+      snapshot.mustPlayFromBaulk = true;
+    }
     const totals = previous ? previous.totals : { blue: UK_TOTAL_PER_COLOUR, red: UK_TOTAL_PER_COLOUR };
     const playerScores = this.computeUkScores(snapshot, totals);
     const ballOn = this.computeUkBallOn(snapshot);
