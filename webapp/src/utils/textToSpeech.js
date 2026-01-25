@@ -11,6 +11,35 @@ const DEFAULT_SPEAKER_SETTINGS = {
 export const getSpeechSynthesis = () =>
   typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null;
 
+const loadVoices = (synth, timeoutMs = 2500) =>
+  new Promise((resolve) => {
+    if (!synth) {
+      resolve([]);
+      return;
+    }
+    const existing = synth.getVoices();
+    if (existing.length) {
+      resolve(existing);
+      return;
+    }
+    let settled = false;
+    const finalize = (voices) => {
+      if (settled) return;
+      settled = true;
+      resolve(voices);
+    };
+    const handleVoices = () => {
+      const next = synth.getVoices();
+      if (next.length) finalize(next);
+    };
+    if (typeof synth.addEventListener === 'function') {
+      synth.addEventListener('voiceschanged', handleVoices, { once: true });
+    } else {
+      synth.onvoiceschanged = handleVoices;
+    }
+    setTimeout(() => finalize(synth.getVoices()), timeoutMs);
+  });
+
 const findVoiceMatch = (voices, hints = []) => {
   const normalizedHints = hints.map((hint) => hint.toLowerCase());
   return (
@@ -34,7 +63,13 @@ export const speakCommentaryLines = async (lines, {
   const synth = getSpeechSynthesis();
   if (!synth || !Array.isArray(lines) || lines.length === 0) return;
 
-  const voices = synth.getVoices();
+  const voices = await loadVoices(synth);
+
+  if (typeof synth.resume === 'function') {
+    try {
+      synth.resume();
+    } catch {}
+  }
 
   for (const line of lines) {
     const speaker = line.speaker || 'Steven';

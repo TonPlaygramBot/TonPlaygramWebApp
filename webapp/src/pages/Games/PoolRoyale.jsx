@@ -34,7 +34,7 @@ import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { chatBeep } from '../../assets/soundData.js';
-import { buildCommentaryLine } from '../../utils/poolRoyaleCommentary.js';
+import { buildCommentaryLine, createMatchCommentaryScript } from '../../utils/poolRoyaleCommentary.js';
 import { getSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
@@ -10832,6 +10832,9 @@ function PoolRoyaleGame({
   const commentaryGreetingPlayedRef = useRef(false);
   const commentaryReadyRef = useRef(false);
   const pendingCommentaryLinesRef = useRef(null);
+  const commentaryScriptRef = useRef({ start: [], end: [] });
+  const commentaryScriptPlayedRef = useRef(false);
+  const commentaryOutroPlayedRef = useRef(false);
   useEffect(() => {
     skipAllReplaysRef.current = skipAllReplays;
   }, [skipAllReplays]);
@@ -12910,6 +12913,17 @@ const powerRef = useRef(hud.power);
     },
     [opponentLabel, player.name]
   );
+  const buildMatchCommentaryScript = useCallback(
+    () =>
+      createMatchCommentaryScript({
+        variant: '9ball',
+        players: {
+          A: framePlayerAName || 'Player A',
+          B: framePlayerBName || 'Player B'
+        }
+      }),
+    [framePlayerAName, framePlayerBName]
+  );
 
   const speakPoolCommentary = useCallback(
     async (lines, preset = activeCommentaryPreset) => {
@@ -12932,6 +12946,18 @@ const powerRef = useRef(hud.power);
     [activeCommentaryPreset]
   );
   useEffect(() => {
+    const fullScript = buildMatchCommentaryScript();
+    const outroIndex = Math.max(0, fullScript.length - 2);
+    commentaryScriptRef.current = {
+      start: fullScript.slice(0, outroIndex),
+      end: fullScript.slice(outroIndex)
+    };
+    commentaryScriptPlayedRef.current = false;
+    commentaryOutroPlayedRef.current = false;
+    commentaryGreetingPlayedRef.current = false;
+    pendingCommentaryLinesRef.current = null;
+  }, [buildMatchCommentaryScript, initialFrame]);
+  useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const unlockCommentary = () => {
       if (commentaryReadyRef.current) return;
@@ -12949,6 +12975,25 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('keydown', unlockCommentary);
     };
   }, [speakPoolCommentary]);
+  useEffect(() => {
+    if (commentaryScriptPlayedRef.current) return;
+    if (commentaryMutedRef.current || isGameMuted()) return;
+    if (frameState.frameOver) return;
+    const startLines = commentaryScriptRef.current.start;
+    if (!startLines.length) return;
+    commentaryScriptPlayedRef.current = true;
+    commentaryGreetingPlayedRef.current = true;
+    speakPoolCommentary(startLines);
+  }, [frameState.frameOver, speakPoolCommentary]);
+  useEffect(() => {
+    if (!frameState.frameOver) return;
+    if (commentaryOutroPlayedRef.current) return;
+    if (commentaryMutedRef.current || isGameMuted()) return;
+    const endLines = commentaryScriptRef.current.end;
+    if (!endLines.length) return;
+    commentaryOutroPlayedRef.current = true;
+    speakPoolCommentary(endLines);
+  }, [frameState.frameOver, speakPoolCommentary]);
 
   const handleCommentaryPresetSelect = useCallback(
     (preset) => {
@@ -12982,6 +13027,7 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     if (commentaryGreetingPlayedRef.current) return undefined;
     if (commentaryMutedRef.current || isGameMuted()) return undefined;
+    if (commentaryScriptRef.current.start.length) return undefined;
     let cancelled = false;
     const timer = window.setTimeout(() => {
       if (cancelled || commentaryGreetingPlayedRef.current) return;
