@@ -732,6 +732,111 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     }
   },
   {
+    id: 'saffron-table',
+    label: 'Indian Table',
+    description: 'Hindi commentary with lively pacing',
+    language: 'hi',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: [
+        'hi-IN',
+        'hi',
+        'Hindi',
+        'male',
+        'Raj',
+        'Amit',
+        'Arjun',
+        'en-IN',
+        'English',
+        'male',
+        'Ravi',
+        'Prakash'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: [
+        'hi-IN',
+        'hi',
+        'Hindi',
+        'female',
+        'Asha',
+        'Priya',
+        'Neha',
+        'en-IN',
+        'English',
+        'female',
+        'Sneha'
+      ]
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.06, pitch: 1.02, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.08, volume: 1 }
+    }
+  },
+  {
+    id: 'mandarin-glow',
+    label: 'Chinese Broadcast',
+    description: 'Mandarin booth with crisp calls',
+    language: 'zh',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: [
+        'zh-CN',
+        'zh',
+        'Chinese',
+        'male',
+        'Li',
+        'Wei',
+        'Chen',
+        'Microsoft Huihui',
+        'Microsoft Kangkang'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: [
+        'zh-CN',
+        'zh',
+        'Chinese',
+        'female',
+        'Mei',
+        'Xia',
+        'Lin',
+        'Microsoft Yaoyao',
+        'Microsoft Xiaoxiao'
+      ]
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 1, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.05, pitch: 1.06, volume: 1 }
+    }
+  },
+  {
+    id: 'moscow-mics',
+    label: 'Russian Booth',
+    description: 'Russian commentary with steady cadence',
+    language: 'ru',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: [
+        'ru-RU',
+        'ru',
+        'Russian',
+        'male',
+        'Dmitri',
+        'Ivan',
+        'Sergey',
+        'Alexey'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: [
+        'ru-RU',
+        'ru',
+        'Russian',
+        'female',
+        'Anna',
+        'Svetlana',
+        'Irina',
+        'Olga'
+      ]
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.03, pitch: 1.02, volume: 1 }
+    }
+  },
+  {
     id: 'latin-pulse',
     label: 'Latin Pulse',
     description: 'Spanish play-by-play with lively color',
