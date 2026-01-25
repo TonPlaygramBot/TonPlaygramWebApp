@@ -613,384 +613,6 @@ function getSoundGainMultiplier() {
   return prefersReducedAudio() ? 0.65 : 1;
 }
 
-/* ---------- Voice Commentary (Web Speech API) ---------- */
-const COMMENTARY_STORAGE_KEY = 'dominoRoyal.commentarySettings.v1';
-const isTelegramWebView = (() => {
-  if (typeof navigator === 'undefined') return false;
-  return /Telegram/i.test(navigator.userAgent || '');
-})();
-const supportsSpeechSynthesis =
-  !isTelegramWebView &&
-  typeof window !== 'undefined' &&
-  'speechSynthesis' in window &&
-  typeof window.SpeechSynthesisUtterance === 'function';
-
-const COMMENTARY_CHARACTERS = [
-  {
-    id: 'atlas',
-    label: 'Atlas',
-    description: 'Calm coach with steady pacing.',
-    rate: 0.98,
-    pitch: 0.95,
-    volume: 0.95,
-    hints: ['david', 'mark', 'en-us', 'en-gb']
-  },
-  {
-    id: 'nova',
-    label: 'Nova',
-    description: 'High-energy hype caster.',
-    rate: 1.08,
-    pitch: 1.2,
-    volume: 1,
-    hints: ['samantha', 'victoria', 'en-us', 'female']
-  },
-  {
-    id: 'echo',
-    label: 'Echo',
-    description: 'Tactical analyst voice.',
-    rate: 1.01,
-    pitch: 0.85,
-    volume: 0.92,
-    hints: ['james', 'daniel', 'en-gb', 'en-au']
-  },
-  {
-    id: 'blaze',
-    label: 'Blaze',
-    description: 'Bold trash-talker.',
-    rate: 1.12,
-    pitch: 0.92,
-    volume: 0.96,
-    hints: ['alex', 'fred', 'en-us', 'en-ca']
-  },
-  {
-    id: 'luna',
-    label: 'Luna',
-    description: 'Friendly guide.',
-    rate: 1.02,
-    pitch: 1.12,
-    volume: 0.9,
-    hints: ['zira', 'susan', 'en-us', 'female']
-  },
-  {
-    id: 'rex',
-    label: 'Rex',
-    description: 'Arena announcer.',
-    rate: 1.04,
-    pitch: 0.78,
-    volume: 1,
-    hints: ['bruce', 'microsoft', 'en-us', 'en-gb']
-  }
-];
-const COMMENTARY_CHARACTERS_BY_ID = COMMENTARY_CHARACTERS.reduce((acc, character) => {
-  acc[character.id] = character;
-  return acc;
-}, {});
-
-function buildDefaultCommentarySettings() {
-  return {
-    enabled: !prefersReducedAudio() && supportsSpeechSynthesis,
-    voiceId: COMMENTARY_CHARACTERS[0]?.id || 'atlas'
-  };
-}
-
-function normalizeCommentarySettings(raw = {}) {
-  const defaults = buildDefaultCommentarySettings();
-  const voiceId = COMMENTARY_CHARACTERS_BY_ID[raw.voiceId] ? raw.voiceId : defaults.voiceId;
-  return {
-    enabled: typeof raw.enabled === 'boolean' ? raw.enabled : defaults.enabled,
-    voiceId
-  };
-}
-
-function readCommentarySettings() {
-  if (typeof window === 'undefined') return buildDefaultCommentarySettings();
-  try {
-    const raw = window.localStorage?.getItem(COMMENTARY_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return normalizeCommentarySettings(parsed);
-  } catch {
-    return buildDefaultCommentarySettings();
-  }
-}
-
-function persistCommentarySettings(settings) {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage?.setItem(COMMENTARY_STORAGE_KEY, JSON.stringify(settings));
-  } catch {}
-}
-
-let commentarySettings = readCommentarySettings();
-let commentaryUnlocked = false;
-let commentaryVoices = [];
-let commentaryVoicesReady = false;
-let commentaryVoicesListener = false;
-let commentaryLastSpokenAt = 0;
-const commentaryLastLineByKey = new Map();
-const COMMENTARY_COOLDOWN_MS = 1200;
-
-const COMMENTARY_LINES = {
-  gameStart: [
-    'Domino Battle Royal is live. Shuffle up and play.',
-    'Welcome to the table. New round, new story.',
-    'The boneyard is stacked. Let the battle begin.',
-    'Fresh tiles, fresh tactics. Domino Royal starts now.',
-    'Arena lights on. Dominoes are in motion.'
-  ],
-  openingTile: [
-    'Opening with {tile}. That sets the tone.',
-    'First tile down: {tile}. Watch the tempo.',
-    'We open on {tile}. The chain is alive.'
-  ],
-  yourTurn: [
-    'Your move. Read the ends and strike.',
-    'Your turn. Control the chain.',
-    'You’re up. Find the best match.',
-    'Your turn. Tempo is yours.'
-  ],
-  opponentTurn: [
-    'Player {player} is thinking.',
-    'Opponent turn. Eyes on the ends.',
-    'Player {player} lines up the next play.',
-    'Opponent {player} is on the clock.'
-  ],
-  youPlay: [
-    'Clean placement: {tile} on the {side} end.',
-    'Nice. {tile} locks into the {side} side.',
-    'You drop {tile}. The chain shifts.',
-    'That {tile} play changes everything.'
-  ],
-  opponentPlay: [
-    'Player {player} answers with {tile}.',
-    'Opponent drops {tile} on the {side}.',
-    'Player {player} places {tile}.',
-    'The chain grows: {tile} from Player {player}.'
-  ],
-  youDouble: [
-    'Double down. {tile} stands tall.',
-    'Huge double! {tile} anchors the lane.',
-    'Double {tile}. That’s a power play.'
-  ],
-  opponentDouble: [
-    'Player {player} slams a double: {tile}.',
-    'Double alert. {tile} from Player {player}.',
-    'Opponent lands {tile}. That’s a double.'
-  ],
-  youDraw: [
-    'No match? Drawing from the boneyard.',
-    'You draw. Hunting for a fit.',
-    'Pulling a tile. Hope it’s a match.'
-  ],
-  opponentDraw: [
-    'Player {player} draws a tile.',
-    'Opponent reaches for the boneyard.',
-    'Player {player} reloads from the stock.'
-  ],
-  youPass: [
-    'Nothing fits. You pass.',
-    'Pass. Reset and wait for the opening.',
-    'You pass the tempo.'
-  ],
-  opponentPass: [
-    'Player {player} passes.',
-    'Opponent has no play and passes.',
-    'Player {player} skips the turn.'
-  ],
-  noMoves: [
-    'No legal move. Draw if the stock is open.',
-    'Stuck? The boneyard is your lifeline.',
-    'No fits on either end. Draw or pass.'
-  ],
-  stockEmpty: [
-    'The boneyard is empty. Passing is the only move.',
-    'No tiles left in the stock. Pass it.',
-    'Stock is dry. You’ll have to pass.'
-  ],
-  blocked: [
-    'The chain is blocked. Time for pip totals.',
-    'No one can play. We score the hands.',
-    'Blocked board. Lowest hand wins.'
-  ],
-  win: [
-    'Victory! You cleared your hand.',
-    'You win the round. Domino mastery.',
-    'That’s game. You take the crown.'
-  ],
-  lose: [
-    'Player {player} wins this round.',
-    'Opponent takes the game. Reset and run it back.',
-    'Round lost. New tactics next hand.'
-  ],
-  nearWin: [
-    'Only {count} tile left in your hand.',
-    'You’re down to {count}. Finish strong.',
-    'Final {count}. Close it out.'
-  ],
-  opponentNearWin: [
-    'Player {player} is down to {count}.',
-    'Opponent is low: {count} tile left.',
-    'Watch out. Player {player} has {count} remaining.'
-  ]
-};
-
-function setCommentarySettings(next, { refreshUi = true } = {}) {
-  commentarySettings = normalizeCommentarySettings({ ...commentarySettings, ...next });
-  persistCommentarySettings(commentarySettings);
-  if (!commentarySettings.enabled) {
-    cancelCommentarySpeech();
-  } else {
-    ensureSpeechVoices();
-  }
-  if (refreshUi) {
-    refreshConfigUI();
-  }
-}
-
-function isCommentaryEnabled() {
-  return !!commentarySettings.enabled && supportsSpeechSynthesis;
-}
-
-function loadSpeechVoices() {
-  if (!supportsSpeechSynthesis) return [];
-  try {
-    const voices = window.speechSynthesis.getVoices?.() || [];
-    commentaryVoices = voices;
-    commentaryVoicesReady = voices.length > 0;
-  } catch {
-    commentaryVoices = [];
-    commentaryVoicesReady = false;
-  }
-  return voices;
-}
-
-function ensureSpeechVoices() {
-  if (!supportsSpeechSynthesis) return;
-  if (!commentaryVoicesListener) {
-    commentaryVoicesListener = true;
-    try {
-      window.speechSynthesis.addEventListener?.('voiceschanged', () => {
-        loadSpeechVoices();
-      });
-    } catch {}
-  }
-  if (!commentaryVoicesReady) {
-    loadSpeechVoices();
-  }
-}
-
-function findVoiceMatch(voices, hints = []) {
-  const normalizedHints = hints.map((hint) => String(hint || '').toLowerCase());
-  return (
-    voices.find((voice) =>
-      normalizedHints.some((hint) => voice.name.toLowerCase().includes(hint))
-    ) ||
-    voices.find((voice) =>
-      normalizedHints.some((hint) => voice.lang.toLowerCase().includes(hint))
-    ) ||
-    voices[0] ||
-    null
-  );
-}
-
-function resolveCommentaryVoice() {
-  const character = COMMENTARY_CHARACTERS_BY_ID[commentarySettings.voiceId];
-  if (!character || !commentaryVoices.length) return null;
-  return findVoiceMatch(commentaryVoices, character.hints);
-}
-
-function cancelCommentarySpeech() {
-  if (!supportsSpeechSynthesis) return;
-  try {
-    window.speechSynthesis.cancel();
-  } catch {}
-}
-
-function pickCommentaryLine(key) {
-  const list = COMMENTARY_LINES[key] || [];
-  if (!list.length) return '';
-  const lastLine = commentaryLastLineByKey.get(key);
-  let nextLine = list[Math.floor(Math.random() * list.length)];
-  if (list.length > 1) {
-    let safety = 0;
-    while (nextLine === lastLine && safety < 6) {
-      nextLine = list[Math.floor(Math.random() * list.length)];
-      safety += 1;
-    }
-  }
-  commentaryLastLineByKey.set(key, nextLine);
-  return nextLine;
-}
-
-function formatCommentaryLine(template, data = {}) {
-  return template.replace(/\{(\w+)\}/g, (_, key) => {
-    return data[key] !== undefined ? String(data[key]) : '';
-  });
-}
-
-function speakCommentary(text, { priority = 0, interrupt = false } = {}) {
-  if (!isCommentaryEnabled() || !text) return;
-  if (!commentaryUnlocked && priority < 2) return;
-  ensureSpeechVoices();
-  const now = performance.now();
-  if (priority < 2 && now - commentaryLastSpokenAt < COMMENTARY_COOLDOWN_MS) {
-    return;
-  }
-  const character = COMMENTARY_CHARACTERS_BY_ID[commentarySettings.voiceId];
-  if (!character) return;
-  try {
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voice = resolveCommentaryVoice();
-    if (voice) {
-      utterance.voice = voice;
-    }
-    utterance.rate = character.rate ?? 1;
-    utterance.pitch = character.pitch ?? 1;
-    utterance.volume = character.volume ?? 1;
-    if (interrupt) {
-      window.speechSynthesis.cancel();
-    }
-    window.speechSynthesis.speak(utterance);
-    commentaryLastSpokenAt = now;
-  } catch {}
-}
-
-function speakCommentaryKey(key, data = {}, options = {}) {
-  const line = pickCommentaryLine(key);
-  if (!line) return;
-  const formatted = formatCommentaryLine(line, data);
-  speakCommentary(formatted, options);
-}
-
-function tileLabel(tile) {
-  if (!tile || !Number.isFinite(tile.a) || !Number.isFinite(tile.b)) return 'a tile';
-  return `${tile.a}-${tile.b}`;
-}
-
-function announceHandPressure(playerIndex, handSize) {
-  if (!Number.isInteger(playerIndex) || !Number.isInteger(handSize)) return;
-  if (handSize > 2) return;
-  const key = playerIndex === human ? 'nearWin' : 'opponentNearWin';
-  const lastKey = `${playerIndex}:${key}`;
-  const lastAnnounced = commentaryLastLineByKey.get(lastKey);
-  const thresholdKey = `${playerIndex}-threshold`;
-  const lastThreshold = commentaryLastLineByKey.get(thresholdKey);
-  if (lastThreshold === handSize) return;
-  commentaryLastLineByKey.set(thresholdKey, handSize);
-  const playerLabel = playerIndex === human ? 'You' : `Player ${playerIndex + 1}`;
-  speakCommentaryKey(key, { player: playerLabel, count: handSize }, { priority: 1 });
-  commentaryLastLineByKey.set(lastKey, handSize);
-}
-
-if (supportsSpeechSynthesis) {
-  window.addEventListener(
-    'pointerdown',
-    () => {
-      commentaryUnlocked = true;
-    },
-    { once: true }
-  );
-}
-
 function vibratePattern(pattern = []) {
   if (!isHapticsEnabled()) return;
   try {
@@ -5039,106 +4661,6 @@ function refreshConfigUI() {
   feedbackWrapper.appendChild(feedbackHint);
   configSectionsEl.appendChild(feedbackWrapper);
 
-  const commentaryWrapper = document.createElement('div');
-  commentaryWrapper.className = 'config-section';
-  const commentaryLabel = document.createElement('h4');
-  commentaryLabel.textContent = 'Voice commentary';
-  commentaryWrapper.appendChild(commentaryLabel);
-  const commentaryGrid = document.createElement('div');
-  commentaryGrid.className = 'config-options';
-  commentaryGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(150px, 1fr))';
-  const commentaryToggle = document.createElement('button');
-  commentaryToggle.type = 'button';
-  commentaryToggle.className = 'config-option';
-  if (commentarySettings.enabled && supportsSpeechSynthesis) {
-    commentaryToggle.classList.add('active');
-  }
-  commentaryToggle.disabled = !supportsSpeechSynthesis;
-  commentaryToggle.setAttribute(
-    'aria-pressed',
-    String(!!commentarySettings.enabled && supportsSpeechSynthesis)
-  );
-  const commentaryToggleLabel = document.createElement('span');
-  commentaryToggleLabel.textContent = commentarySettings.enabled ? 'Commentary on' : 'Commentary muted';
-  commentaryToggle.appendChild(commentaryToggleLabel);
-  const commentaryToggleHelper = document.createElement('div');
-  commentaryToggleHelper.textContent = supportsSpeechSynthesis
-    ? 'Narrated highlights and turn-by-turn callouts.'
-    : isTelegramWebView
-      ? 'Voice commentary is disabled in Telegram for stability.'
-      : 'Voice commentary is not supported on this device.';
-  commentaryToggleHelper.style.fontSize = '0.65rem';
-  commentaryToggleHelper.style.color = 'rgba(226,232,240,0.78)';
-  commentaryToggleHelper.style.fontWeight = '700';
-  commentaryToggleHelper.style.lineHeight = '1.35';
-  commentaryToggle.appendChild(commentaryToggleHelper);
-  commentaryToggle.addEventListener('click', () => {
-    if (!supportsSpeechSynthesis) return;
-    setCommentarySettings({ enabled: !commentarySettings.enabled });
-  });
-  commentaryGrid.appendChild(commentaryToggle);
-  commentaryWrapper.appendChild(commentaryGrid);
-
-  const voicesGrid = document.createElement('div');
-  voicesGrid.className = 'config-options';
-  voicesGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(140px, 1fr))';
-  COMMENTARY_CHARACTERS.forEach((character) => {
-    const voiceButton = document.createElement('button');
-    voiceButton.type = 'button';
-    voiceButton.className = 'config-option';
-    if (commentarySettings.voiceId === character.id) {
-      voiceButton.classList.add('active');
-    }
-    voiceButton.disabled = !supportsSpeechSynthesis;
-    voiceButton.setAttribute(
-      'aria-pressed',
-      String(commentarySettings.voiceId === character.id && supportsSpeechSynthesis)
-    );
-    const voiceLabel = document.createElement('span');
-    voiceLabel.textContent = character.label;
-    voiceButton.appendChild(voiceLabel);
-    const voiceHelper = document.createElement('div');
-    voiceHelper.textContent = character.description;
-    voiceHelper.style.fontSize = '0.65rem';
-    voiceHelper.style.color = 'rgba(226,232,240,0.78)';
-    voiceHelper.style.fontWeight = '700';
-    voiceHelper.style.lineHeight = '1.35';
-    voiceButton.appendChild(voiceHelper);
-    voiceButton.addEventListener('click', () => {
-      if (!supportsSpeechSynthesis) return;
-      setCommentarySettings({ voiceId: character.id });
-      speakCommentary(`Voice set to ${character.label}.`, { priority: 1, interrupt: true });
-    });
-    voicesGrid.appendChild(voiceButton);
-  });
-  commentaryWrapper.appendChild(voicesGrid);
-
-  const commentaryActions = document.createElement('div');
-  commentaryActions.className = 'config-options';
-  commentaryActions.style.gridTemplateColumns = 'repeat(auto-fit, minmax(140px, 1fr))';
-  const previewButton = document.createElement('button');
-  previewButton.type = 'button';
-  previewButton.className = 'config-option';
-  previewButton.disabled = !supportsSpeechSynthesis;
-  const previewLabel = document.createElement('span');
-  previewLabel.textContent = 'Preview voice';
-  previewButton.appendChild(previewLabel);
-  const previewHelper = document.createElement('div');
-  previewHelper.textContent = 'Tap to hear the selected commentator.';
-  previewHelper.style.fontSize = '0.65rem';
-  previewHelper.style.color = 'rgba(226,232,240,0.78)';
-  previewHelper.style.fontWeight = '700';
-  previewHelper.style.lineHeight = '1.35';
-  previewButton.appendChild(previewHelper);
-  previewButton.addEventListener('click', () => {
-    if (!supportsSpeechSynthesis) return;
-    commentaryUnlocked = true;
-    speakCommentaryKey('gameStart', {}, { priority: 2, interrupt: true });
-  });
-  commentaryActions.appendChild(previewButton);
-  commentaryWrapper.appendChild(commentaryActions);
-  configSectionsEl.appendChild(commentaryWrapper);
-
   const graphicsWrapper = document.createElement('div');
   graphicsWrapper.className = 'config-section';
   const graphicsLabel = document.createElement('h4');
@@ -5548,7 +5070,6 @@ let revealAllHands = false;
 let winnerHighlight = null;
 let winnerHighlightStart = 0;
 let cpuMoveTimeout = null;
-let lastAnnouncedTurn = null;
 
 function tileKey(tile){
   const ct = canonTile(tile);
@@ -6134,8 +5655,6 @@ function startGame(){
     }
   }
   renderChain();
-  speakCommentaryKey('gameStart', {}, { priority: 1 });
-  speakCommentaryKey('openingTile', { tile: tileLabel(firstTile) }, { priority: 1 });
   current=(starter-1+N)%N;
   updateInteractivity();
   if(current!==human){
@@ -6248,22 +5767,6 @@ function placeOnBoard(tile, side, options = {}){
     renderChain();
   }
   SFX.place();
-  if (Number.isInteger(options.playerIndex)) {
-    const isDouble = tile?.a === tile?.b;
-    const sideLabel = side < 0 ? 'left' : 'right';
-    const playerLabel = options.playerIndex === human ? 'You' : `Player ${options.playerIndex + 1}`;
-    const key = options.playerIndex === human
-      ? (isDouble ? 'youDouble' : 'youPlay')
-      : (isDouble ? 'opponentDouble' : 'opponentPlay');
-    speakCommentaryKey(
-      key,
-      { player: playerLabel, tile: tileLabel(tile), side: sideLabel },
-      { priority: isDouble ? 1 : 0 }
-    );
-    if (Number.isInteger(options.handSize)) {
-      announceHandPressure(options.playerIndex, options.handSize);
-    }
-  }
   return { success:true, segment, end: updatedEnd };
 }
 function nextCandidate(end){
@@ -6455,11 +5958,7 @@ renderer.domElement.addEventListener('pointerdown',ev=>{
     const idx=players[human].hand.indexOf(selectedTile);
     if(idx>=0){
       const [picked] = players[human].hand.splice(idx,1);
-      const placement = placeOnBoard(picked, side, {
-        animate: true,
-        playerIndex: human,
-        handSize: players[human].hand.length
-      });
+      const placement = placeOnBoard(picked, side, { animate: true });
       if(!placement.success){
         players[human].hand.splice(idx,0,picked);
         selectedTile = picked;
@@ -6487,20 +5986,13 @@ btnDraw.addEventListener('click',()=>{ if(current!==human || gameFinished) retur
     const canL=(t.a===ends?.L?.v||t.b===ends?.L?.v); const canR=(t.a===ends?.R?.v||t.b===ends?.R?.v);
     if(canL||canR) break;
   }
-  clearMarkers(); selectedTile=null; renderHands();
-  if(drewTile){
-    SFX.drawTile();
-    speakCommentaryKey('youDraw', {}, { priority: 0 });
-  } else {
-    speakCommentaryKey('stockEmpty', {}, { priority: 1 });
-  }
+  clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.drawTile(); }
 });
 btnPass.addEventListener('click',()=>{
   if(current===human && !gameFinished){
     clearMarkers();
     selectedTile=null;
     SFX.pass();
-    speakCommentaryKey('youPass', {}, { priority: 0 });
     nextTurn();
   }
 });
@@ -6579,16 +6071,6 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}){
   } else {
     SFX.drawGame();
   }
-
-  if (winnerIndex !== null) {
-    if (winnerIndex === human) {
-      speakCommentaryKey('win', {}, { priority: 2, interrupt: true });
-    } else {
-      speakCommentaryKey('lose', { player: `Player ${winnerIndex + 1}` }, { priority: 2, interrupt: true });
-    }
-  } else if (reason && reason.toLowerCase().includes('blocked')) {
-    speakCommentaryKey('blocked', {}, { priority: 2, interrupt: true });
-  }
 }
 
 function checkForBlockedGame(){
@@ -6611,17 +6093,6 @@ function updateInteractivity(){
   }
   setStatus(`Turn: Player ${current+1}`);
   renderHands(); renderChain();
-  if (current !== lastAnnouncedTurn) {
-    const playerLabel = current === human ? 'You' : `Player ${current + 1}`;
-    speakCommentaryKey(current === human ? 'yourTurn' : 'opponentTurn', { player: playerLabel });
-    lastAnnouncedTurn = current;
-  }
-  if (current === human && players[human]) {
-    const canPlay = canPlayAny(players[human].hand);
-    if (!canPlay) {
-      speakCommentaryKey(boneyard.length ? 'noMoves' : 'stockEmpty', {}, { priority: 1 });
-    }
-  }
 }
 function nextTurn(){
   if(gameFinished){
@@ -6662,17 +6133,14 @@ function cpuPlay(){
     if(drew){
       renderHands();
       SFX.drawTile();
-      speakCommentaryKey('opponentDraw', { player: `Player ${current + 1}` }, { priority: 0 });
       if(canPlayAny(player.hand)){
         scheduleCpuPlay();
       } else {
         SFX.pass();
-        speakCommentaryKey('opponentPass', { player: `Player ${current + 1}` }, { priority: 0 });
         nextTurn();
       }
     } else {
       SFX.pass();
-      speakCommentaryKey('opponentPass', { player: `Player ${current + 1}` }, { priority: 0 });
       nextTurn();
     }
     return;
@@ -6682,11 +6150,7 @@ function cpuPlay(){
     const tile = player.hand[move.index];
     if(!tile) continue;
     const picked = player.hand.splice(move.index,1)[0];
-    const placement = placeOnBoard(picked, move.side, {
-      animate: true,
-      playerIndex: current,
-      handSize: player.hand.length
-    });
+    const placement = placeOnBoard(picked, move.side, { animate: true });
     if(placement.success){
       renderHands();
       if(player.hand.length===0){
@@ -6704,17 +6168,14 @@ function cpuPlay(){
   if(drew){
     renderHands();
     SFX.drawTile();
-    speakCommentaryKey('opponentDraw', { player: `Player ${current + 1}` }, { priority: 0 });
     if(canPlayAny(player.hand)){
       scheduleCpuPlay();
     } else {
       SFX.pass();
-      speakCommentaryKey('opponentPass', { player: `Player ${current + 1}` }, { priority: 0 });
       nextTurn();
     }
   } else {
     SFX.pass();
-    speakCommentaryKey('opponentPass', { player: `Player ${current + 1}` }, { priority: 0 });
     nextTurn();
   }
 }
