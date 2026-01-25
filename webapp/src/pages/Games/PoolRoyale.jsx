@@ -130,8 +130,11 @@ function applyTablePhysicsSpec(meta) {
       ? meta.cushionCutAngleDeg
       : DEFAULT_SIDE_CUSHION_CUT_ANGLE;
   SIDE_CUSHION_CUT_ANGLE = sideCushionAngle;
+  const sidePocketPhysicsAngle = Number.isFinite(meta?.sidePocketCutAngleDeg)
+    ? meta.sidePocketCutAngleDeg
+    : VISUAL_SIDE_CUSHION_CUT_ANGLE;
   SIDE_POCKET_PHYSICS_CUT_ANGLE = clamp(
-    SIDE_CUSHION_CUT_ANGLE + 7,
+    sidePocketPhysicsAngle,
     MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE,
     MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE
   );
@@ -611,7 +614,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1; // allow the plate ends to r
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.982; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0; // keep the middle fascia centered so trims remove evenly from inside and outside edges
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.045; // nudge the middle fascia inward so it sits closer to the table center without moving the pocket cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.095; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
@@ -1064,8 +1067,8 @@ const CUE_SHADOW_OPACITY = 0.18;
 const CUE_SHADOW_WIDTH_RATIO = 0.62;
 const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
 const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 1.1;
-const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.16; // move middle pocket centres a touch farther outward before biasing back
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.42; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
+const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.1; // keep middle pocket centres closer to the mapped cushion cuts
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.24; // align middle pocket centres with the new 45° cut mapping
 const SIDE_POCKET_FIELD_PULL = 0; // keep the middle pocket centres perfectly centered to match the chrome cut symmetry
 const SIDE_POCKET_CLOTH_INWARD_PULL = 0; // keep the middle pocket cloth cutouts perfectly aligned to the pocket centres
 const CHALK_TOP_COLOR = 0xd9c489;
@@ -1571,9 +1574,9 @@ const SPIN_DECORATION_OFFSET_PERCENT = 58;
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // match the corner-cushion cut angle on both sides of the corner pockets
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
-const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 32;
-const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 38;
-const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 34;
+const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 44;
+const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 46;
+const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 45;
 const VISUAL_SIDE_CUSHION_CUT_ANGLE = 45;
 const SIDE_POCKET_CUT_ANGLE_DEG = VISUAL_SIDE_CUSHION_CUT_ANGLE;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -12017,6 +12020,7 @@ function PoolRoyaleGame({
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
+  const primeInHandPlacementRef = useRef(() => false);
 const initialHudInHand = useMemo(
   () => deriveInHandFromFrame(initialFrame),
   [initialFrame]
@@ -12173,6 +12177,7 @@ const powerRef = useRef(hud.power);
     setInHandPlacementMode(placing);
     if (hud.inHand) {
       cueBallPlacedFromHandRef.current = false;
+      primeInHandPlacementRef.current?.();
     }
   }, [hud.inHand, hud.turn]);
   const [shotActive, setShotActive] = useState(false);
@@ -20222,7 +20227,7 @@ const powerRef = useRef(hud.power);
       }
       return true;
     };
-      const findAiInHandPlacement = () => {
+      const findInHandPlacement = () => {
         const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
         const forwardBias = Math.max(baulkZ - BALL_R * 0.6, -PLAY_H / 2 + BALL_R);
         const baseCandidates = [];
@@ -20382,6 +20387,19 @@ const powerRef = useRef(hud.power);
         }
         return null;
       };
+      const primeInHandPlacement = () => {
+        const currentHud = hudRef.current;
+        if (!currentHud?.inHand || !cue) return false;
+        const placement =
+          findInHandPlacement() || defaultInHandPosition();
+        if (!placement) return false;
+        cue.active = false;
+        updateCuePlacement(placement);
+        cue.active = true;
+        cue.mesh.visible = true;
+        cueBallPlacedFromHandRef.current = true;
+        return true;
+      };
       const autoPlaceAiCueBall = () => {
         const currentHud = hudRef.current;
         if (!currentHud) return false;
@@ -20390,7 +20408,7 @@ const powerRef = useRef(hud.power);
         if (!allStopped(balls)) return false;
         const fallbackTarget = defaultInHandPosition();
         const fallbackClamped = fallbackTarget ? clampInHandPosition(fallbackTarget) : null;
-        const pos = findAiInHandPlacement() || fallbackClamped;
+        const pos = findInHandPlacement() || fallbackClamped;
         if (!pos) return false;
         cue.active = false;
         updateCuePlacement(pos);
@@ -20401,6 +20419,7 @@ const powerRef = useRef(hud.power);
         setHud((prev) => ({ ...prev, inHand: false }));
         return true;
       };
+      primeInHandPlacementRef.current = primeInHandPlacement;
       const handleInHandDown = (e) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return;
@@ -27164,11 +27183,11 @@ const powerRef = useRef(hud.power);
           <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg ring-1 ring-white/60">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">BIH</span>
             <span className="text-left leading-tight">
-              Drag the cue ball {['american', '9ball'].includes(variantKey) ? 'anywhere on the table' : 'inside the baulk semicircle'}
+              Place the cue ball {['american', '9ball'].includes(variantKey) ? 'anywhere on the table' : 'inside the baulk semicircle'}
             </span>
           </div>
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
-            Tap and hold, then slide to place
+            Tap to place · drag to fine-tune · release to lock
           </span>
         </div>
       )}
