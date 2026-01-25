@@ -33,6 +33,11 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import {
+  buildSnookerCommentaryLine,
+  createSnookerMatchCommentaryScript
+} from '../../utils/snookerRoyalCommentary.js';
+import { getSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
+import {
   createBallPreviewDataUrl,
   getBallMaterial as getBilliardBallMaterial
 } from '../../utils/ballMaterialFactory.js';
@@ -953,6 +958,80 @@ const CLOTH_COLOR_STORAGE_KEY = 'snookerRoyalClothColor';
 const TABLE_BASE_STORAGE_KEY = 'snookerRoyalTableBase';
 const POCKET_LINER_STORAGE_KEY = 'snookerPocketLiner';
 const SKIP_REPLAYS_STORAGE_KEY = 'snookerSkipReplays';
+const COMMENTARY_PRESET_STORAGE_KEY = 'snookerRoyalCommentaryPreset';
+const COMMENTARY_MUTE_STORAGE_KEY = 'snookerRoyalCommentaryMute';
+const COMMENTARY_QUEUE_LIMIT = 4;
+const COMMENTARY_MIN_INTERVAL_MS = 1200;
+const COMMENTARY_SPEAKER_ID = 'Caster';
+const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
+  {
+    id: 'atlas',
+    label: 'Atlas',
+    description: 'Classic arena broadcaster with measured pace.',
+    voiceHints: {
+      [COMMENTARY_SPEAKER_ID]: ['en-GB', 'english', 'male', 'daniel', 'george', 'google uk english']
+    },
+    speakerSettings: {
+      [COMMENTARY_SPEAKER_ID]: { rate: 0.98, pitch: 0.92, volume: 1 }
+    }
+  },
+  {
+    id: 'nova',
+    label: 'Nova',
+    description: 'High-energy commentary with a crisp edge.',
+    voiceHints: {
+      [COMMENTARY_SPEAKER_ID]: ['en-US', 'female', 'samantha', 'victoria', 'zira', 'google us']
+    },
+    speakerSettings: {
+      [COMMENTARY_SPEAKER_ID]: { rate: 1.04, pitch: 1.08, volume: 1 }
+    }
+  },
+  {
+    id: 'ivy',
+    label: 'Ivy',
+    description: 'Smooth tactical analysis and calm delivery.',
+    voiceHints: {
+      [COMMENTARY_SPEAKER_ID]: ['en-GB', 'female', 'kate', 'serena', 'google uk english female']
+    },
+    speakerSettings: {
+      [COMMENTARY_SPEAKER_ID]: { rate: 0.96, pitch: 1.1, volume: 0.98 }
+    }
+  },
+  {
+    id: 'onyx',
+    label: 'Onyx',
+    description: 'Deep tone with a steady play-by-play focus.',
+    voiceHints: {
+      [COMMENTARY_SPEAKER_ID]: ['en-US', 'male', 'alex', 'david', 'guy', 'google us english male']
+    },
+    speakerSettings: {
+      [COMMENTARY_SPEAKER_ID]: { rate: 0.94, pitch: 0.85, volume: 1 }
+    }
+  },
+  {
+    id: 'riley',
+    label: 'Riley',
+    description: 'Bright, upbeat narration for fast frames.',
+    voiceHints: {
+      [COMMENTARY_SPEAKER_ID]: ['en-AU', 'en-US', 'karen', 'oliver', 'google']
+    },
+    speakerSettings: {
+      [COMMENTARY_SPEAKER_ID]: { rate: 1.06, pitch: 1.15, volume: 1 }
+    }
+  },
+  {
+    id: 'zara',
+    label: 'Zara',
+    description: 'Analytical calls with a balanced cadence.',
+    voiceHints: {
+      [COMMENTARY_SPEAKER_ID]: ['en-IN', 'en-US', 'female', 'neural', 'google']
+    },
+    speakerSettings: {
+      [COMMENTARY_SPEAKER_ID]: { rate: 1.02, pitch: 1.02, volume: 1 }
+    }
+  }
+]);
+const DEFAULT_COMMENTARY_PRESET_ID = SNOOKER_ROYAL_COMMENTARY_PRESETS[0]?.id || 'atlas';
 const DEFAULT_TABLE_BASE_ID = SNOOKER_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
@@ -10695,8 +10774,38 @@ function SnookerRoyalGame({
     }
     return false;
   });
+  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = safeLocalStorageGet(COMMENTARY_PRESET_STORAGE_KEY);
+      if (stored && SNOOKER_ROYAL_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_COMMENTARY_PRESET_ID;
+  });
+  const [commentaryMuted, setCommentaryMuted] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = safeLocalStorageGet(COMMENTARY_MUTE_STORAGE_KEY);
+      if (stored === '1') return true;
+      if (stored === '0') return false;
+    }
+    return false;
+  });
   const skipReplayRef = useRef(() => {});
   const skipAllReplaysRef = useRef(skipAllReplays);
+  const commentaryMutedRef = useRef(commentaryMuted);
+  const commentaryReadyRef = useRef(false);
+  const commentaryQueueRef = useRef([]);
+  const commentarySpeakingRef = useRef(false);
+  const commentaryLastEventAtRef = useRef(0);
+  const pendingCommentaryLinesRef = useRef(null);
+  const commentaryScriptRef = useRef({ start: [], end: [] });
+  const commentaryScriptPlayedRef = useRef(false);
+  const commentaryOutroPlayedRef = useRef(false);
+  const commentaryGreetingPlayedRef = useRef(false);
+  const breakMilestoneRef = useRef(0);
+  const shotCountRef = useRef(0);
+  const freeBallAnnouncedRef = useRef(false);
   useEffect(() => {
     skipAllReplaysRef.current = skipAllReplays;
   }, [skipAllReplays]);
@@ -10705,6 +10814,22 @@ function SnookerRoyalGame({
       skipReplayRef.current?.();
     }
   }, [skipAllReplays]);
+  useEffect(() => {
+    commentaryMutedRef.current = commentaryMuted;
+    if (commentaryMuted) {
+      const synth = getSpeechSynthesis();
+      synth?.cancel();
+      commentaryQueueRef.current = [];
+      pendingCommentaryLinesRef.current = null;
+      commentarySpeakingRef.current = false;
+    }
+  }, [commentaryMuted]);
+  useEffect(() => {
+    safeLocalStorageSet(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
+  }, [commentaryPresetId]);
+  useEffect(() => {
+    safeLocalStorageSet(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
+  }, [commentaryMuted]);
   const [pocketLinerId, setPocketLinerId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = safeLocalStorageGet(POCKET_LINER_STORAGE_KEY);
@@ -10815,6 +10940,13 @@ function SnookerRoyalGame({
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
   );
+  const activeCommentaryPreset = useMemo(
+    () =>
+      SNOOKER_ROYAL_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
+      SNOOKER_ROYAL_COMMENTARY_PRESETS[0],
+    [commentaryPresetId]
+  );
+  const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
   const availableTableFinishes = useMemo(
     () =>
       TABLE_FINISH_OPTIONS.filter((option) =>
@@ -11836,6 +11968,252 @@ function SnookerRoyalGame({
   );
   const opponentDisplayName = opponentProfile?.name || opponentLabel;
   const opponentDisplayAvatar = opponentProfile?.avatar || opponentAvatar || '/assets/icons/profile.svg';
+  const formatSnookerColorLabel = useCallback((colorId) => {
+    if (!colorId) return 'the color';
+    const normalized = String(colorId).toLowerCase();
+    if (normalized === 'cue') return 'cue ball';
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  }, []);
+  const resolveSeatLabel = useCallback(
+    (seat) => {
+      const resolvedSeat = seat === 'B' ? 'B' : 'A';
+      const seatName = frameState?.players?.[resolvedSeat]?.name;
+      if (seatName) return seatName;
+      return resolvedSeat === localSeat ? playerLabel : opponentLabel;
+    },
+    [frameState?.players, localSeat, opponentLabel, playerLabel]
+  );
+  const playNextCommentary = useCallback(async () => {
+    if (commentarySpeakingRef.current) return;
+    const next = commentaryQueueRef.current.shift();
+    if (!next) return;
+    const synth = getSpeechSynthesis();
+    if (!synth) return;
+    commentarySpeakingRef.current = true;
+    try {
+      synth.cancel();
+    } catch {}
+    await speakCommentaryLines(next.lines, {
+      speakerSettings: next.preset?.speakerSettings,
+      voiceHints: next.preset?.voiceHints
+    });
+    commentarySpeakingRef.current = false;
+    if (commentaryQueueRef.current.length) {
+      playNextCommentary();
+    }
+  }, []);
+  const enqueueCommentaryLines = useCallback(
+    (lines, { priority = false, preset = activeCommentaryPreset } = {}) => {
+      if (!Array.isArray(lines) || lines.length === 0) return;
+      if (commentaryMutedRef.current || isGameMuted()) return;
+      if (!commentaryReadyRef.current) {
+        pendingCommentaryLinesRef.current = lines;
+        return;
+      }
+      const now = performance.now();
+      if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
+      if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
+      commentaryQueueRef.current.push({ lines, preset });
+      if (!commentarySpeakingRef.current) {
+        playNextCommentary();
+      }
+      commentaryLastEventAtRef.current = now;
+    },
+    [activeCommentaryPreset, playNextCommentary]
+  );
+  const enqueueSnookerCommentaryEvent = useCallback(
+    (event, context = {}, options = {}) => {
+      const text = buildSnookerCommentaryLine({
+        event,
+        speaker: COMMENTARY_SPEAKER_ID,
+        context: {
+          arena: 'Snooker Royal arena',
+          ...context
+        }
+      });
+      if (!text) return;
+      enqueueCommentaryLines(
+        [
+          {
+            speaker: COMMENTARY_SPEAKER_ID,
+            text
+          }
+        ],
+        options
+      );
+    },
+    [enqueueCommentaryLines]
+  );
+  const maybeSpeakShotCommentary = useCallback(
+    ({ currentState, nextState, potted, shotContext, shooterSeat }) => {
+      if (!nextState || !currentState) return;
+      if (commentaryMutedRef.current || isGameMuted()) return;
+      const shooterLabel = resolveSeatLabel(shooterSeat);
+      const opponentSeat = shooterSeat === 'A' ? 'B' : 'A';
+      const opponentName = resolveSeatLabel(opponentSeat);
+      const pottedNonCue = (potted || []).filter(
+        (entry) => entry?.color && entry.color !== 'CUE'
+      );
+      const redsPotted = pottedNonCue.filter((entry) => entry.color === 'RED');
+      const colorsPotted = pottedNonCue.filter((entry) => entry.color !== 'RED');
+      const foul = nextState.foul;
+      const breakTotal = Number.isFinite(nextState.currentBreak)
+        ? nextState.currentBreak
+        : 0;
+      const scoreline = `${nextState.players?.A?.score ?? 0}-${nextState.players?.B?.score ?? 0}`;
+      let event = null;
+      const context = {
+        player: shooterLabel,
+        opponent: opponentName,
+        breakTotal: String(breakTotal),
+        scoreline
+      };
+
+      if (foul) {
+        event = 'foul';
+        context.points = String(foul.points ?? 4);
+        context.foulReason = foul.reason ?? 'foul';
+      } else if (nextState.freeBall && !freeBallAnnouncedRef.current) {
+        event = 'freeBall';
+        freeBallAnnouncedRef.current = true;
+      } else if (shotCountRef.current === 0) {
+        event = 'breakOff';
+      } else if (currentState.phase !== 'COLORS_ORDER' && nextState.phase === 'COLORS_ORDER') {
+        event = 'colorsOrder';
+      } else if (breakTotal >= 100 && breakMilestoneRef.current < 100) {
+        event = 'century';
+        breakMilestoneRef.current = 100;
+      } else if (breakTotal >= 50 && breakMilestoneRef.current < 50) {
+        event = 'breakBuild';
+        breakMilestoneRef.current = 50;
+      } else if (pottedNonCue.length > 0) {
+        if (redsPotted.length > 1) {
+          event = 'multiRed';
+        } else if (redsPotted.length === 1 && colorsPotted.length === 0) {
+          event = 'redPot';
+        } else if (colorsPotted.length > 0) {
+          context.color = formatSnookerColorLabel(colorsPotted[0]?.color);
+          if (currentState.phase === 'COLORS_ORDER' || nextState.phase === 'COLORS_ORDER') {
+            event = 'colorOrder';
+          } else if ((nextState.redsRemaining ?? 0) > 0) {
+            event = 'respot';
+          } else {
+            event = 'colorPot';
+          }
+        }
+      } else if (shotContext?.contactMade) {
+        event = 'safety';
+      } else {
+        event = 'miss';
+      }
+
+      if (event) {
+        const priority = event === 'foul' || event === 'freeBall';
+        enqueueSnookerCommentaryEvent(event, context, { priority });
+      }
+      shotCountRef.current += 1;
+    },
+    [enqueueSnookerCommentaryEvent, formatSnookerColorLabel, resolveSeatLabel]
+  );
+  const handleCommentaryPresetSelect = useCallback(
+    (preset) => {
+      if (!preset?.id) return;
+      setCommentaryPresetId(preset.id);
+      if (commentaryMutedRef.current || isGameMuted()) return;
+      enqueueSnookerCommentaryEvent(
+        'intro',
+        {
+          player: framePlayerAName,
+          opponent: framePlayerBName
+        },
+        { priority: true, preset }
+      );
+    },
+    [enqueueSnookerCommentaryEvent, framePlayerAName, framePlayerBName]
+  );
+  useEffect(() => {
+    const script = createSnookerMatchCommentaryScript({
+      players: {
+        A: framePlayerAName || 'Player A',
+        B: framePlayerBName || 'Player B'
+      }
+    });
+    commentaryScriptRef.current = {
+      start: script.slice(0, 1),
+      end: script.slice(1)
+    };
+    commentaryScriptPlayedRef.current = false;
+    commentaryOutroPlayedRef.current = false;
+    commentaryGreetingPlayedRef.current = false;
+    pendingCommentaryLinesRef.current = null;
+    commentaryQueueRef.current = [];
+    shotCountRef.current = 0;
+    breakMilestoneRef.current = 0;
+    freeBallAnnouncedRef.current = false;
+  }, [framePlayerAName, framePlayerBName, initialFrame]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const unlockCommentary = () => {
+      if (commentaryReadyRef.current) return;
+      commentaryReadyRef.current = true;
+      const pending = pendingCommentaryLinesRef.current;
+      if (pending) {
+        pendingCommentaryLinesRef.current = null;
+        enqueueCommentaryLines(pending, { priority: true });
+      }
+    };
+    window.addEventListener('pointerdown', unlockCommentary);
+    window.addEventListener('keydown', unlockCommentary);
+    return () => {
+      window.removeEventListener('pointerdown', unlockCommentary);
+      window.removeEventListener('keydown', unlockCommentary);
+    };
+  }, [enqueueCommentaryLines]);
+  useEffect(() => {
+    if (commentaryScriptPlayedRef.current) return;
+    if (commentaryMutedRef.current || isGameMuted()) return;
+    if (frameState.frameOver) return;
+    const startLines = commentaryScriptRef.current.start;
+    if (!startLines.length) return;
+    commentaryScriptPlayedRef.current = true;
+    commentaryGreetingPlayedRef.current = true;
+    enqueueCommentaryLines(startLines, { priority: true });
+  }, [enqueueCommentaryLines, frameState.frameOver]);
+  useEffect(() => {
+    if (!frameState.frameOver) return;
+    if (commentaryOutroPlayedRef.current) return;
+    if (commentaryMutedRef.current || isGameMuted()) return;
+    const winnerSeat = frameState.winner;
+    if (winnerSeat && winnerSeat !== 'TIE') {
+      enqueueSnookerCommentaryEvent(
+        'frameWin',
+        {
+          player: resolveSeatLabel(winnerSeat),
+          scoreline: `${frameState.players?.A?.score ?? 0}-${frameState.players?.B?.score ?? 0}`
+        },
+        { priority: true }
+      );
+    }
+    const endLines = commentaryScriptRef.current.end;
+    if (endLines.length) {
+      enqueueCommentaryLines(endLines, { priority: true });
+    }
+    commentaryOutroPlayedRef.current = true;
+  }, [enqueueCommentaryLines, enqueueSnookerCommentaryEvent, frameState, resolveSeatLabel]);
+  useEffect(() => {
+    const handleMute = () => {
+      if (!isGameMuted()) return;
+      const synth = getSpeechSynthesis();
+      synth?.cancel();
+      commentaryQueueRef.current = [];
+      pendingCommentaryLinesRef.current = null;
+      commentarySpeakingRef.current = false;
+    };
+    window.addEventListener('gameMuteChanged', handleMute);
+    return () => {
+      window.removeEventListener('gameMuteChanged', handleMute);
+    };
+  }, []);
   const [aiPlanning, setAiPlanning] = useState(null);
   const aiPlanRef = useRef(null);
   const aiPlanningRef = useRef(null);
@@ -22467,6 +22845,13 @@ const powerRef = useRef(hud.power);
               Number.isFinite(remainingShots) && remainingShots > 0 ? remainingShots : 0;
           }
         }
+        maybeSpeakShotCommentary({
+          currentState,
+          nextState: safeState,
+          potted,
+          shotContext: shotContextRef.current,
+          shooterSeat
+        });
         shotContextRef.current = {
           placedFromHand: false,
           contactMade: false,
@@ -25485,6 +25870,62 @@ const powerRef = useRef(hud.power);
                     {skipAllReplays ? 'On' : 'Off'}
                   </span>
                 </button>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Commentary
+                </h3>
+                <div className="mt-2 grid grid-cols-1 gap-2">
+                  {SNOOKER_ROYAL_COMMENTARY_PRESETS.map((preset) => {
+                    const active = preset.id === commentaryPresetId;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => handleCommentaryPresetSelect(preset)}
+                        aria-pressed={active}
+                        disabled={!commentarySupported}
+                        className={`rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                      >
+                        <span className="block">{preset.label}</span>
+                        <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.18em] text-white/60">
+                          {preset.description}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCommentaryMuted((prev) => !prev)}
+                  aria-pressed={commentaryMuted}
+                  disabled={!commentarySupported}
+                  className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                    commentaryMuted
+                      ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                      : 'bg-white/10 text-white/80 hover:bg-white/20'
+                  } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                >
+                  <span>Mute commentary</span>
+                  <span
+                    className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
+                      commentaryMuted
+                        ? 'border-black/30 text-black/70'
+                        : 'border-white/30 text-white/70'
+                    }`}
+                  >
+                    {commentaryMuted ? 'On' : 'Off'}
+                  </span>
+                </button>
+                {!commentarySupported && (
+                  <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/60">
+                    Voice commentary needs Web Speech support.
+                  </p>
+                )}
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
