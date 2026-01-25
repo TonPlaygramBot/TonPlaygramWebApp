@@ -915,18 +915,22 @@ const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
 const SKIP_REPLAYS_STORAGE_KEY = 'poolSkipReplays';
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
+const COMMENTARY_LEAD_ID = 'Lead';
+const COMMENTARY_ANALYST_ID = 'Analyst';
+const COMMENTARY_QUEUE_LIMIT = 4;
+const COMMENTARY_MIN_INTERVAL_MS = 1300;
 const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'arena-duo',
     label: 'Arena duo',
     description: 'UK female lead with US male analyst',
     voiceHints: {
-      Steven: ['Google UK English Female', 'en-GB', 'English', 'female', 'UK', 'Sonia'],
-      John: ['Google US English Male', 'en-US', 'English', 'male', 'US', 'David', 'Guy']
+      [COMMENTARY_LEAD_ID]: ['Google UK English Female', 'en-GB', 'English', 'female', 'UK', 'Sonia'],
+      [COMMENTARY_ANALYST_ID]: ['Google US English Male', 'en-US', 'English', 'male', 'US', 'David', 'Guy']
     },
     speakerSettings: {
-      Steven: { rate: 1, pitch: 1.02, volume: 1 },
-      John: { rate: 1.03, pitch: 0.98, volume: 1 }
+      [COMMENTARY_LEAD_ID]: { rate: 1, pitch: 1.02, volume: 1 },
+      [COMMENTARY_ANALYST_ID]: { rate: 1.03, pitch: 0.98, volume: 1 }
     }
   },
   {
@@ -934,12 +938,12 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     label: 'Atlantic booth',
     description: 'US female lead with UK male analyst',
     voiceHints: {
-      Steven: ['Google US English Female', 'en-US', 'English', 'female', 'US', 'Samantha', 'Zira'],
-      John: ['Google UK English Male', 'en-GB', 'English', 'male', 'UK', 'Daniel', 'Arthur']
+      [COMMENTARY_LEAD_ID]: ['Google US English Female', 'en-US', 'English', 'female', 'US', 'Samantha', 'Zira'],
+      [COMMENTARY_ANALYST_ID]: ['Google UK English Male', 'en-GB', 'English', 'male', 'UK', 'Daniel', 'Arthur']
     },
     speakerSettings: {
-      Steven: { rate: 1.02, pitch: 0.98, volume: 1 },
-      John: { rate: 1, pitch: 0.92, volume: 1 }
+      [COMMENTARY_LEAD_ID]: { rate: 1.02, pitch: 0.98, volume: 1 },
+      [COMMENTARY_ANALYST_ID]: { rate: 1, pitch: 0.92, volume: 1 }
     }
   },
   {
@@ -947,12 +951,12 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     label: 'Pacific desk',
     description: 'Australian male with US female analyst',
     voiceHints: {
-      Steven: ['Google Australian English', 'en-AU', 'English', 'male', 'Australia', 'Lee', 'William'],
-      John: ['Google US English Female', 'en-US', 'English', 'female', 'US', 'Samantha', 'Zira']
+      [COMMENTARY_LEAD_ID]: ['Google Australian English', 'en-AU', 'English', 'male', 'Australia', 'Lee', 'William'],
+      [COMMENTARY_ANALYST_ID]: ['Google US English Female', 'en-US', 'English', 'female', 'US', 'Samantha', 'Zira']
     },
     speakerSettings: {
-      Steven: { rate: 1.01, pitch: 0.96, volume: 1 },
-      John: { rate: 1.04, pitch: 1.06, volume: 1 }
+      [COMMENTARY_LEAD_ID]: { rate: 1.01, pitch: 0.96, volume: 1 },
+      [COMMENTARY_ANALYST_ID]: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
   },
   {
@@ -960,12 +964,12 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     label: 'Emerald studio',
     description: 'Irish female with UK male analyst',
     voiceHints: {
-      Steven: ['Google Irish English Female', 'en-IE', 'English', 'female', 'Ireland', 'Moira'],
-      John: ['Google UK English Male', 'en-GB', 'English', 'male', 'UK', 'Daniel', 'Arthur']
+      [COMMENTARY_LEAD_ID]: ['Google Irish English Female', 'en-IE', 'English', 'female', 'Ireland', 'Moira'],
+      [COMMENTARY_ANALYST_ID]: ['Google UK English Male', 'en-GB', 'English', 'male', 'UK', 'Daniel', 'Arthur']
     },
     speakerSettings: {
-      Steven: { rate: 0.98, pitch: 0.9, volume: 1 },
-      John: { rate: 1.01, pitch: 1, volume: 1 }
+      [COMMENTARY_LEAD_ID]: { rate: 0.98, pitch: 0.9, volume: 1 },
+      [COMMENTARY_ANALYST_ID]: { rate: 1.01, pitch: 1, volume: 1 }
     }
   },
   {
@@ -973,12 +977,12 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     label: 'Global mix',
     description: 'Indian female with US male analyst',
     voiceHints: {
-      Steven: ['Google Indian English Female', 'en-IN', 'English', 'female', 'India', 'Asha', 'Raveena'],
-      John: ['Google US English Male', 'en-US', 'English', 'male', 'US', 'David', 'Guy']
+      [COMMENTARY_LEAD_ID]: ['Google Indian English Female', 'en-IN', 'English', 'female', 'India', 'Asha', 'Raveena'],
+      [COMMENTARY_ANALYST_ID]: ['Google US English Male', 'en-US', 'English', 'male', 'US', 'David', 'Guy']
     },
     speakerSettings: {
-      Steven: { rate: 1.02, pitch: 1.06, volume: 1 },
-      John: { rate: 1, pitch: 1.01, volume: 1 }
+      [COMMENTARY_LEAD_ID]: { rate: 1.02, pitch: 1.06, volume: 1 },
+      [COMMENTARY_ANALYST_ID]: { rate: 1, pitch: 1.01, volume: 1 }
     }
   },
   {
@@ -986,12 +990,12 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     label: 'Northern call',
     description: 'Canadian male with UK female analyst',
     voiceHints: {
-      Steven: ['Google Canadian English', 'en-CA', 'English', 'male', 'Canada', 'Liam'],
-      John: ['Google UK English Female', 'en-GB', 'English', 'female', 'UK', 'Sonia', 'Hazel']
+      [COMMENTARY_LEAD_ID]: ['Google Canadian English', 'en-CA', 'English', 'male', 'Canada', 'Liam'],
+      [COMMENTARY_ANALYST_ID]: ['Google UK English Female', 'en-GB', 'English', 'female', 'UK', 'Sonia', 'Hazel']
     },
     speakerSettings: {
-      Steven: { rate: 0.99, pitch: 0.97, volume: 1 },
-      John: { rate: 1.01, pitch: 1.03, volume: 1 }
+      [COMMENTARY_LEAD_ID]: { rate: 0.99, pitch: 0.97, volume: 1 },
+      [COMMENTARY_ANALYST_ID]: { rate: 1.01, pitch: 1.03, volume: 1 }
     }
   }
 ]);
@@ -10832,6 +10836,10 @@ function PoolRoyaleGame({
   const commentaryGreetingPlayedRef = useRef(false);
   const commentaryReadyRef = useRef(false);
   const pendingCommentaryLinesRef = useRef(null);
+  const commentaryQueueRef = useRef([]);
+  const commentarySpeakingRef = useRef(false);
+  const commentaryLastEventAtRef = useRef(0);
+  const commentarySpeakerIndexRef = useRef(0);
   const commentaryScriptRef = useRef({ start: [], end: [] });
   const commentaryScriptPlayedRef = useRef(false);
   const commentaryOutroPlayedRef = useRef(false);
@@ -10849,6 +10857,8 @@ function PoolRoyaleGame({
       const synth = getSpeechSynthesis();
       synth?.cancel();
       pendingCommentaryLinesRef.current = null;
+      commentaryQueueRef.current = [];
+      commentarySpeakingRef.current = false;
     }
   }, [commentaryMuted]);
   useEffect(() => {
@@ -12893,11 +12903,11 @@ const powerRef = useRef(hud.power);
       const commentaryVariant = activeVariant?.id ?? variantKey ?? '9ball';
       return [
         {
-          speaker: 'Steven',
+          speaker: COMMENTARY_LEAD_ID,
           text: buildCommentaryLine({
             event: 'intro',
             variant: commentaryVariant,
-            speaker: 'Steven',
+            speaker: COMMENTARY_LEAD_ID,
             context: {
               player: playerName,
               opponent: opponentName,
@@ -12912,11 +12922,11 @@ const powerRef = useRef(hud.power);
           })
         },
         {
-          speaker: 'John',
+          speaker: COMMENTARY_ANALYST_ID,
           text: buildCommentaryLine({
             event: 'introReply',
             variant: commentaryVariant,
-            speaker: 'John',
+            speaker: COMMENTARY_ANALYST_ID,
             context: {
               player: playerName,
               opponent: opponentName,
@@ -12982,25 +12992,58 @@ const powerRef = useRef(hud.power);
     ]
   );
 
-  const speakPoolCommentary = useCallback(
-    async (lines, preset = activeCommentaryPreset) => {
+  const playNextCommentary = useCallback(async () => {
+    if (commentarySpeakingRef.current) return;
+    const next = commentaryQueueRef.current.shift();
+    if (!next) return;
+    commentarySpeakingRef.current = true;
+    await speakCommentaryLines(next.lines, {
+      speakerSettings: next.preset?.speakerSettings,
+      voiceHints: next.preset?.voiceHints
+    });
+    commentarySpeakingRef.current = false;
+    if (commentaryQueueRef.current.length) {
+      playNextCommentary();
+    }
+  }, []);
+  const enqueuePoolCommentary = useCallback(
+    (lines, { priority = false, preset = activeCommentaryPreset } = {}) => {
       if (!Array.isArray(lines) || lines.length === 0) return;
       if (commentaryMutedRef.current || isGameMuted()) return;
       if (!commentaryReadyRef.current) {
         pendingCommentaryLinesRef.current = lines;
         return;
       }
-      const synth = getSpeechSynthesis();
-      if (!synth) return;
-      try {
-        synth.cancel();
-      } catch {}
-      await speakCommentaryLines(lines, {
-        speakerSettings: preset?.speakerSettings,
-        voiceHints: preset?.voiceHints
-      });
+      const now = performance.now();
+      if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
+      if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
+      commentaryQueueRef.current.push({ lines, preset });
+      if (!commentarySpeakingRef.current) {
+        playNextCommentary();
+      }
+      commentaryLastEventAtRef.current = now;
     },
-    [activeCommentaryPreset]
+    [activeCommentaryPreset, playNextCommentary]
+  );
+  const buildGameplayCommentaryLines = useCallback(
+    ({ event, context }) => {
+      const speakerOrder = [COMMENTARY_LEAD_ID, COMMENTARY_ANALYST_ID];
+      const speaker =
+        speakerOrder[commentarySpeakerIndexRef.current % speakerOrder.length] ?? COMMENTARY_LEAD_ID;
+      commentarySpeakerIndexRef.current += 1;
+      return [
+        {
+          speaker,
+          text: buildCommentaryLine({
+            event,
+            variant: activeVariant?.id ?? variantKey ?? '9ball',
+            speaker,
+            context
+          })
+        }
+      ];
+    },
+    [activeVariant?.id, variantKey]
   );
   useEffect(() => {
     const fullScript = buildMatchCommentaryScript();
@@ -13013,16 +13056,28 @@ const powerRef = useRef(hud.power);
     commentaryOutroPlayedRef.current = false;
     commentaryGreetingPlayedRef.current = false;
     pendingCommentaryLinesRef.current = null;
+    commentaryQueueRef.current = [];
+    commentarySpeakingRef.current = false;
+    commentarySpeakerIndexRef.current = 0;
   }, [buildMatchCommentaryScript, initialFrame]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const unlockCommentary = () => {
       if (commentaryReadyRef.current) return;
+      const synth = getSpeechSynthesis();
+      if (synth) {
+        try {
+          synth.resume?.();
+        } catch {}
+        try {
+          synth.getVoices();
+        } catch {}
+      }
       commentaryReadyRef.current = true;
       const pending = pendingCommentaryLinesRef.current;
       if (pending) {
         pendingCommentaryLinesRef.current = null;
-        speakPoolCommentary(pending);
+        enqueuePoolCommentary(pending, { priority: true });
       }
     };
     window.addEventListener('pointerdown', unlockCommentary);
@@ -13031,7 +13086,7 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('pointerdown', unlockCommentary);
       window.removeEventListener('keydown', unlockCommentary);
     };
-  }, [speakPoolCommentary]);
+  }, [enqueuePoolCommentary]);
   useEffect(() => {
     if (commentaryScriptPlayedRef.current) return;
     if (commentaryMutedRef.current || isGameMuted()) return;
@@ -13040,8 +13095,8 @@ const powerRef = useRef(hud.power);
     if (!startLines.length) return;
     commentaryScriptPlayedRef.current = true;
     commentaryGreetingPlayedRef.current = true;
-    speakPoolCommentary(startLines);
-  }, [frameState.frameOver, speakPoolCommentary]);
+    enqueuePoolCommentary(startLines, { priority: true });
+  }, [enqueuePoolCommentary, frameState.frameOver]);
   useEffect(() => {
     if (!frameState.frameOver) return;
     if (commentaryOutroPlayedRef.current) return;
@@ -13049,22 +13104,22 @@ const powerRef = useRef(hud.power);
     const endLines = commentaryScriptRef.current.end;
     if (!endLines.length) return;
     commentaryOutroPlayedRef.current = true;
-    speakPoolCommentary(endLines);
-  }, [frameState.frameOver, speakPoolCommentary]);
+    enqueuePoolCommentary(endLines, { priority: true });
+  }, [enqueuePoolCommentary, frameState.frameOver]);
 
   const handleCommentaryPresetSelect = useCallback(
     (preset) => {
       if (!preset?.id) return;
       setCommentaryPresetId(preset.id);
       if (commentaryMutedRef.current || isGameMuted()) return;
-      speakPoolCommentary(
+      enqueuePoolCommentary(
         [
           {
-            speaker: 'Steven',
+            speaker: COMMENTARY_LEAD_ID,
             text: buildCommentaryLine({
               event: 'intro',
               variant: activeVariant?.id ?? variantKey ?? '9ball',
-              speaker: 'Steven',
+              speaker: COMMENTARY_LEAD_ID,
               context: {
                 player: player.name || 'Player A',
                 opponent: opponentLabel || 'Player B',
@@ -13084,7 +13139,7 @@ const powerRef = useRef(hud.power);
             })
           }
         ],
-        preset
+        { priority: true, preset }
       );
     },
     [
@@ -13095,7 +13150,7 @@ const powerRef = useRef(hud.power);
       frameState?.players,
       opponentLabel,
       player.name,
-      speakPoolCommentary,
+      enqueuePoolCommentary,
       variantKey
     ]
   );
@@ -13110,13 +13165,13 @@ const powerRef = useRef(hud.power);
     const timer = window.setTimeout(() => {
       if (cancelled || commentaryGreetingPlayedRef.current) return;
       commentaryGreetingPlayedRef.current = true;
-      speakPoolCommentary(buildCommentaryGreetingLines());
+      enqueuePoolCommentary(buildCommentaryGreetingLines(), { priority: true });
     }, 1200);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [buildCommentaryGreetingLines, commentaryMuted, speakPoolCommentary]);
+  }, [buildCommentaryGreetingLines, commentaryMuted, enqueuePoolCommentary]);
   useEffect(() => {
     const nextName = playerName || getTelegramUsername() || 'Player';
     const nextAvatar = playerAvatar || getTelegramPhotoUrl();
@@ -23246,6 +23301,56 @@ const powerRef = useRef(hud.power);
               setPocketGlowTone(dropEntry, shotWasFoul ? 'foul' : 'good');
             }
           });
+        }
+        const objectPots = potted.filter((entry) => entry.id !== 'cue');
+        const shotPotCount = objectPots.length;
+        let commentaryEvent = null;
+        if (shotWasFoul) {
+          commentaryEvent = 'foul';
+        } else if (shotPotCount > 0) {
+          if (shotPotCount > 1) {
+            commentaryEvent = 'combo';
+          } else if (shotContextRef.current.cushionAfterContact) {
+            commentaryEvent = 'bank';
+          } else {
+            commentaryEvent = 'pot';
+          }
+        } else if (shotContextRef.current.contactMade) {
+          commentaryEvent = 'miss';
+        }
+        if (commentaryEvent) {
+          const playerAName = framePlayerAName || player.name || 'Player A';
+          const playerBName =
+            framePlayerBName || opponentDisplayName || opponentLabel || (isOnlineMatch ? 'Opponent' : 'AI');
+          const shooterName = shooterSeat === 'A' ? playerAName : playerBName;
+          const opponentName = shooterSeat === 'A' ? playerBName : playerAName;
+          const scoreA = safeState?.players?.A?.score ?? frameState?.players?.A?.score ?? 0;
+          const scoreB = safeState?.players?.B?.score ?? frameState?.players?.B?.score ?? 0;
+          const pocketLabels = {
+            TL: 'the top-left corner pocket',
+            TM: 'the top middle pocket',
+            TR: 'the top-right corner pocket',
+            BL: 'the bottom-left corner pocket',
+            BM: 'the bottom middle pocket',
+            BR: 'the bottom-right corner pocket'
+          };
+          const lastPocket = objectPots[objectPots.length - 1]?.pocket;
+          const opponentSeat = shooterSeat === 'A' ? 'B' : 'A';
+          const playerPots =
+            (pottedBySeat?.[shooterSeat]?.length ?? 0) + (shotPotCount || 0);
+          const opponentPots = pottedBySeat?.[opponentSeat]?.length ?? 0;
+          const context = {
+            player: shooterName,
+            opponent: opponentName,
+            playerScore: shooterSeat === 'A' ? scoreA : scoreB,
+            opponentScore: shooterSeat === 'A' ? scoreB : scoreA,
+            playerPoints: shooterSeat === 'A' ? scoreA : scoreB,
+            opponentPoints: shooterSeat === 'A' ? scoreB : scoreA,
+            playerPots,
+            opponentPots,
+            pocket: pocketLabels[lastPocket] || 'the pocket'
+          };
+          enqueuePoolCommentary(buildGameplayCommentaryLines({ event: commentaryEvent, context }));
         }
         if (metaState && typeof metaState === 'object') {
           const assignments = metaState.assignments || null;

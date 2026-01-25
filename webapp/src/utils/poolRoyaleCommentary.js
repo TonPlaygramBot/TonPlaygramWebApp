@@ -1,12 +1,12 @@
 const SPEAKER_PROFILES = Object.freeze({
-  Steven: {
-    id: 'steven',
-    name: 'Steven',
+  Lead: {
+    id: 'lead',
+    name: 'Lead',
     style: 'Play-by-play'
   },
-  John: {
-    id: 'john',
-    name: 'John',
+  Analyst: {
+    id: 'analyst',
+    name: 'Analyst',
     style: 'Color analyst'
   }
 });
@@ -35,14 +35,14 @@ const DEFAULT_CONTEXT = Object.freeze({
 const TEMPLATES = Object.freeze({
   common: {
     intro: [
-      'Welcome to {arena}. {speaker} with {partner}. {player} faces {opponent} with the score {playerScore}-{opponentScore} in {variantName}.',
-      'It is match time at {arena}. {speaker} alongside {partner}. {player} versus {opponent}, {scoreline} in {variantName}.',
-      'Good evening from {arena}. {speaker} with {partner}. {player} and {opponent} are locked at {playerScore}-{opponentScore}.'
+      'Welcome to {arena}. Our booth is ready as {player} faces {opponent} with the score {playerScore}-{opponentScore} in {variantName}.',
+      'It is match time at {arena}. {player} versus {opponent}, {scoreline} in {variantName}.',
+      'Good evening from {arena}. {player} and {opponent} are locked at {playerScore}-{opponentScore}.'
     ],
     introReply: [
-      'Thanks {speaker}. Points are precious tonight—every pot will matter for {player} and {opponent}.',
-      'Great to be here, {speaker}. The scoreboard reads {playerScore}-{opponentScore}, and the margins are razor thin.',
-      'Absolutely, {speaker}. {player} and {opponent} both need clean pots to turn points into control.'
+      'Points are precious tonight—every pot will matter for {player} and {opponent}.',
+      'Great to be here. The scoreboard reads {playerScore}-{opponentScore}, and the margins are razor thin.',
+      '{player} and {opponent} both need clean pots to turn points into control.'
     ],
     breakShot: [
       '{player} steps in for the break; a sharp split sets up early pots.',
@@ -50,8 +50,8 @@ const TEMPLATES = Object.freeze({
       'Here comes the break from {player}. Cue ball control will be everything.'
     ],
     breakResult: [
-      'Nice spread off the break, {speaker}. The rack is open now.',
-      'That break has cracked the pack—clean lanes for scoring chances, {speaker}.',
+      'Nice spread off the break. The rack is open now.',
+      'That break has cracked the pack—clean lanes for scoring chances.',
       'Solid pop on the break. Control on the cue ball is the key from here.'
     ],
     openTable: [
@@ -60,7 +60,7 @@ const TEMPLATES = Object.freeze({
       '{player} is reading the table, looking for a simple route to the next pot.'
     ],
     safety: [
-      'A smart safety, {partner}. {player} tucks the cue ball behind a blocker.',
+      'A smart safety. {player} tucks the cue ball behind a blocker.',
       'That is a measured safety, leaving {opponent} long and awkward.',
       '{player} turns down the pot and plays the safety battle to protect the score.'
     ],
@@ -130,8 +130,8 @@ const TEMPLATES = Object.freeze({
       '{player} wins it, and {arena} appreciates a professional display.'
     ],
     outro: [
-      'That wraps it up from {arena}. Thanks for joining us, {partner}.',
-      'From {arena}, that is full time. Great match tonight, {partner}.',
+      'That wraps it up from {arena}. Thanks for joining us.',
+      'From {arena}, that is full time. Great match tonight.',
       'A fantastic finish in {variantName}. Thanks for watching with us.'
     ]
   },
@@ -163,7 +163,7 @@ const TEMPLATES = Object.freeze({
     groupCall: [
       'Open table between {groupPrimary} and {groupSecondary}; {player} is looking to claim one.',
       '{player} can choose {groupPrimary} or {groupSecondary}—the first clean pot decides the pattern.',
-      'Plenty of options here, {partner}. {groupPrimary} and {groupSecondary} are both available.'
+      'Plenty of options here. {groupPrimary} and {groupSecondary} are both available.'
     ],
     inHand: [
       'Foul gives {opponent} ball in hand—prime time for an 8-ball run.',
@@ -181,7 +181,7 @@ const TEMPLATES = Object.freeze({
     groupCall: [
       'Open table between {groupPrimary} and {groupSecondary}; {player} will claim a set soon.',
       '{groupPrimary} versus {groupSecondary} in UK rules; the first clean pot sets the route.',
-      'UK rules in play, {partner}. {groupPrimary} and {groupSecondary} are both available.'
+      'UK rules in play. {groupPrimary} and {groupSecondary} are both available.'
     ],
     freeBall: [
       'Foul gives {player} a free ball—huge advantage in UK rules.',
@@ -237,13 +237,13 @@ const resolveVariantData = (variantId) => {
   return TEMPLATES.nineBall;
 };
 
-export const buildCommentaryLine = ({ event, variant = '9ball', speaker = 'Steven', context = {} }) => {
+export const buildCommentaryLine = ({ event, variant = '9ball', speaker = 'Lead', context = {} }) => {
   const resolvedVariant = resolveVariantData(variant);
   const mergedContext = {
     ...DEFAULT_CONTEXT,
     ...context,
     speaker,
-    partner: speaker === 'Steven' ? 'John' : 'Steven',
+    partner: speaker === 'Lead' ? 'Analyst' : 'Lead',
     variantName: resolvedVariant.variantName
   };
 
@@ -257,7 +257,7 @@ export const createMatchCommentaryScript = ({
   variant = '9ball',
   ballSet = 'uk',
   players = { A: 'Player A', B: 'Player B' },
-  commentators = ['Steven', 'John'],
+  commentators = ['Lead', 'Analyst'],
   scoreline = 'level at 0-0',
   scores = { A: 0, B: 0 },
   pots = { A: 0, B: 0 },
