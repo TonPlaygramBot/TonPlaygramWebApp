@@ -651,6 +651,76 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
       [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
     }
+  },
+  {
+    id: 'broadcast',
+    label: 'Broadcast',
+    description: 'Male voice, broadcast tone (open-source friendly)',
+    language: 'en',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-US', 'English', 'male', 'Microsoft David', 'David', 'Guy'],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-US', 'English', 'male', 'Microsoft Mark', 'Mark', 'Ryan', 'Matthew']
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.94, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 0.98, volume: 1 }
+    }
+  },
+  {
+    id: 'deep-studio',
+    label: 'Deep Studio',
+    description: 'Male voice, deep studio (Piper/Coqui style)',
+    language: 'en',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-GB', 'English', 'male', 'Piper', 'Coqui', 'George', 'Brian'],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-US', 'English', 'male', 'Piper', 'Coqui', 'James', 'William']
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.9, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
+    }
+  },
+  {
+    id: 'clear-analyst',
+    label: 'Clear Analyst',
+    description: 'Male voice, clear analyst (open-source friendly)',
+    language: 'en',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-AU', 'English', 'male', 'Alex', 'Daniel', 'Microsoft Guy'],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-US', 'English', 'male', 'Justin', 'Scott', 'Google US English']
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 1, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.02, volume: 1 }
+    }
+  },
+  {
+    id: 'gritty-arena',
+    label: 'Gritty Arena',
+    description: 'Male voice, gritty arena (open-source friendly)',
+    language: 'en',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-US', 'English', 'male', 'Bruce', 'Ralph', 'Fred'],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-GB', 'English', 'male', 'Tony', 'Albert', 'Graham']
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.96, pitch: 0.92, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.94, volume: 1 }
+    }
+  },
+  {
+    id: 'warm-story',
+    label: 'Warm Story',
+    description: 'Male voice, warm storyteller (open-source friendly)',
+    language: 'en',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-GB', 'English', 'male', 'Google UK English Male', 'Matthew', 'Sam'],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-US', 'English', 'male', 'Oliver', 'Liam', 'Michael']
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 1.02, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 1.04, volume: 1 }
+    }
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = MURLAN_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
@@ -1251,7 +1321,7 @@ export default function MurlanRoyaleArena({ search }) {
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
-  const [commentaryPresetId] = useState(() => {
+  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
       if (stored && MURLAN_ROYALE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
@@ -1561,6 +1631,42 @@ export default function MurlanRoyaleArena({ search }) {
     ]
   );
 
+  const unlockCommentary = useCallback(() => {
+    if (commentaryReadyRef.current) return;
+    primeSpeechSynthesis();
+    const synth = getSpeechSynthesis();
+    synth?.getVoices?.();
+    commentaryReadyRef.current = true;
+    const pending = pendingCommentaryLinesRef.current;
+    if (pending) {
+      pendingCommentaryLinesRef.current = null;
+      enqueueMurlanCommentary(pending.lines, pending);
+    }
+  }, [enqueueMurlanCommentary]);
+
+  const handleToggleCommentary = useCallback(() => {
+    if (commentaryMuted) {
+      unlockCommentary();
+    }
+    setCommentaryMuted((prev) => !prev);
+  }, [commentaryMuted, unlockCommentary]);
+
+  const handleSelectCommentaryPreset = useCallback(
+    (presetId) => {
+      if (!presetId || presetId === commentaryPresetId) return;
+      unlockCommentary();
+      setCommentaryPresetId(presetId);
+      const synth = getSpeechSynthesis();
+      synth?.cancel?.();
+      commentaryQueueRef.current = [];
+      commentarySpeakingRef.current = false;
+      commentaryLastEventAtRef.current = 0;
+      commentarySpeakerIndexRef.current = 0;
+      pendingCommentaryLinesRef.current = null;
+    },
+    [commentaryPresetId, unlockCommentary]
+  );
+
   useEffect(() => {
     syncAudioVolume();
   }, [syncAudioVolume]);
@@ -1573,18 +1679,6 @@ export default function MurlanRoyaleArena({ search }) {
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
-    const unlockCommentary = () => {
-      if (commentaryReadyRef.current) return;
-      primeSpeechSynthesis();
-      const synth = getSpeechSynthesis();
-      synth?.getVoices?.();
-      commentaryReadyRef.current = true;
-      const pending = pendingCommentaryLinesRef.current;
-      if (pending) {
-        pendingCommentaryLinesRef.current = null;
-        enqueueMurlanCommentary(pending.lines, pending);
-      }
-    };
     window.addEventListener('pointerdown', unlockCommentary);
     window.addEventListener('click', unlockCommentary);
     window.addEventListener('touchstart', unlockCommentary);
@@ -1595,7 +1689,7 @@ export default function MurlanRoyaleArena({ search }) {
       window.removeEventListener('touchstart', unlockCommentary);
       window.removeEventListener('keydown', unlockCommentary);
     };
-  }, [enqueueMurlanCommentary]);
+  }, [unlockCommentary]);
 
   useEffect(() => {
     if (!gameState) return;
@@ -3302,9 +3396,40 @@ export default function MurlanRoyaleArena({ search }) {
                   </div>
                   <div className="space-y-2">
                     <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Commentary</p>
+                    <div className="grid gap-2">
+                      {MURLAN_ROYALE_COMMENTARY_PRESETS.map((preset) => {
+                        const active = preset.id === commentaryPresetId;
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => handleSelectCommentaryPreset(preset.id)}
+                            aria-pressed={active}
+                            disabled={!commentarySupported}
+                            className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              active
+                                ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                                : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                            } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                          >
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
+                              {active && (
+                                <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
+                                  Active
+                                </span>
+                              )}
+                            </span>
+                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                              {preset.description}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setCommentaryMuted((prev) => !prev)}
+                      onClick={handleToggleCommentary}
                       aria-pressed={commentaryMuted}
                       disabled={!commentarySupported}
                       className={`flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
