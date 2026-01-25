@@ -65,6 +65,7 @@ export default function Lobby() {
   const stakeDebitRef = useRef(null);
   const matchTimeoutRef = useRef(null);
   const seatTimeoutRef = useRef(null);
+  const isOnlineMatch = table?.id && table.id !== 'single';
 
   useEffect(() => {
     cleanupRef.current?.({ keepError: true });
@@ -101,6 +102,17 @@ export default function Lobby() {
   const openPlayerFlagPicker = () => {
     setFlagPickerMode('player');
     setShowFlagPicker(true);
+  };
+
+  const handleMatchModeChange = (mode) => {
+    if (mode === 'local') {
+      const singleTable = tables.find((entry) => entry.id === 'single');
+      if (singleTable) setTable(singleTable);
+      setAiCount((current) => current || 1);
+      return;
+    }
+    const onlineTable = tables.find((entry) => entry.id !== 'single');
+    if (onlineTable) setTable(onlineTable);
   };
 
   useEffect(() => {
@@ -181,6 +193,12 @@ export default function Lobby() {
       setTable(tables[0]);
     }
   }, [game, tables, table]);
+
+  useEffect(() => {
+    if (game === 'snake' && table?.id === 'single' && !aiCount) {
+      setAiCount(1);
+    }
+  }, [game, table, aiCount]);
 
   useEffect(() => {
     if (game !== 'snake') return;
@@ -449,6 +467,46 @@ export default function Lobby() {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-white">Match Mode</h3>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { id: 'local', label: 'Local vs AI', desc: 'Offline practice', iconKey: 'mode-ai' },
+                { id: 'online', label: 'Online', desc: 'Live matchmaking', iconKey: 'mode-online' }
+              ].map(({ id, label, desc, iconKey }) => {
+                const active = id === 'online' ? isOnlineMatch : !isOnlineMatch;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => handleMatchModeChange(id)}
+                    className={`lobby-option-card ${
+                      active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
+                    }`}
+                  >
+                    <div className="lobby-option-thumb bg-gradient-to-br from-sky-400/30 via-indigo-500/10 to-transparent">
+                      <div className="lobby-option-thumb-inner">
+                        <OptionIcon
+                          src={getLobbyIcon('poolroyale', iconKey)}
+                          alt={label}
+                          fallback={id === 'local' ? '🤖' : '🌐'}
+                          className="lobby-option-icon"
+                        />
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <p className="lobby-option-label">{label}</p>
+                      <p className="lobby-option-subtitle">{desc}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
               <h3 className="font-semibold text-white">Vs how many players</h3>
               <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
             </div>
@@ -476,43 +534,6 @@ export default function Lobby() {
               Staking uses your TPC account as escrow for each match.
             </p>
           </div>
-
-          {table?.id === 'single' && (
-            <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-white">AI Opponents</h3>
-                <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Solo</span>
-              </div>
-              <p className="text-xs text-white/60">
-                Choose how many AI rivals join your board. Flags auto-pick each match.
-              </p>
-              <div className="mt-3 grid grid-cols-3 gap-3">
-                {[1, 2, 3].map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setAiCount(n)}
-                    className={`lobby-option-card ${
-                      aiCount === n ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
-                    }`}
-                  >
-                    <div className="lobby-option-thumb bg-gradient-to-br from-emerald-400/30 via-sky-500/10 to-transparent">
-                      <div className="lobby-option-thumb-inner">
-                        <OptionIcon
-                          src={getLobbyIcon('domino-royal', `players-${n + 1}`)}
-                          alt={`${n + 1} players`}
-                          fallback="👥"
-                          className="lobby-option-icon"
-                        />
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <p className="lobby-option-label">{n} AI</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {table?.id !== 'single' && (
             <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
