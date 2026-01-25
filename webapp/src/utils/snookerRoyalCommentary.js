@@ -305,6 +305,30 @@ const LOCALIZED_TEMPLATES = Object.freeze({
     outro: ['{frameNumber} ينتهي. {scoreline}.'],
     outroReply: ['الاستعداد للفريم التالي.'],
     turn: ['الدور على {player}.']
+  },
+  sq: {
+    ...ENGLISH_TEMPLATES,
+    intro: ['{frameNumber} nis. {player} në break.'],
+    introReply: ['Fillim taktik; kontrolli i topit të bardhë është kyç.'],
+    breakOff: ['{player} bën break-off, kërkon siguri.'],
+    redPot: ['E kuqja futet, {player} qëndron në tavolinë.'],
+    multiRed: ['Bien disa të kuqe; loja hapet.'],
+    colorPot: ['{player} fut {color} me pozicion të mirë.'],
+    colorOrder: ['Ngjyrat në rend; {player} mban kontrollin.'],
+    respot: ['{color} futet dhe rikthehet në pikë.'],
+    safety: ['{player} luan siguri.'],
+    snooker: ['{player} lë {opponent} në snooker.'],
+    freeBall: ['Free ball për {player}.'],
+    foul: ['Faull nga {player}. {points} për {opponent}.'],
+    miss: ['{player} gabon; rradha për {opponent}.'],
+    breakBuild: ['{player} shkon në {breakTotal}.'],
+    century: ['Shekullor; {player} arrin {breakTotal}.'],
+    colorsOrder: ['Të kuqet mbaruan; ngjyrat në rend.'],
+    frameBall: ['Top i frame-it për {player}.'],
+    frameWin: ['{player} fiton frame-in. {scoreline}.'],
+    outro: ['{frameNumber} përfundon. {scoreline}.'],
+    outroReply: ['Përgatitet frame-i tjetër.'],
+    turn: ['Rradha e {player}.']
   }
 });
 
@@ -320,6 +344,7 @@ const resolveLanguageKey = (language = 'en') => {
   if (normalized.startsWith('es')) return 'es';
   if (normalized.startsWith('fr')) return 'fr';
   if (normalized.startsWith('ar')) return 'ar';
+  if (normalized.startsWith('sq')) return 'sq';
   if (normalized.startsWith('en')) return 'en';
   return normalized || 'en';
 };

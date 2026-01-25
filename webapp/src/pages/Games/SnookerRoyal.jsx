@@ -1048,6 +1048,20 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
       [COMMENTARY_SPEAKER_LEAD]: { rate: 1, pitch: 0.94, volume: 1 },
       [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.02, pitch: 0.98, volume: 0.98 }
     }
+  },
+  {
+    id: 'albanian',
+    label: 'Albanian',
+    description: 'Male play-by-play in Albanian.',
+    language: 'sq',
+    voiceHints: {
+      [COMMENTARY_SPEAKER_LEAD]: ['sq-AL', 'sq', 'albanian', 'male', 'google'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['sq-AL', 'sq', 'albanian', 'male', 'google']
+    },
+    speakerSettings: {
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 1, pitch: 0.96, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.02, pitch: 0.98, volume: 0.98 }
+    }
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = SNOOKER_ROYAL_COMMENTARY_PRESETS[0]?.id || 'atlas';
