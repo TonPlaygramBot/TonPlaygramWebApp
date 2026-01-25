@@ -594,48 +594,6 @@ const COMMENTARY_PRESETS = [
         pitch: 1.18
       }
     ]
-  },
-  {
-    id: 'sage-nova',
-    name: 'Sage & Nova',
-    tone: 'Tactical Coach + Cyber Analyst',
-    voices: [
-      {
-        id: 'sage',
-        role: 'playByPlay',
-        voiceHints: ['en-GB', 'en-US', 'daniel', 'mark', 'google'],
-        rate: 0.98,
-        pitch: 0.96
-      },
-      {
-        id: 'nova',
-        role: 'color',
-        voiceHints: ['en-US', 'female', 'neural', 'assistant', 'google'],
-        rate: 1.0,
-        pitch: 1.06
-      }
-    ]
-  },
-  {
-    id: 'blaze-echo',
-    name: 'Blaze & Echo',
-    tone: 'Arena Hype + Calm Ref',
-    voices: [
-      {
-        id: 'blaze',
-        role: 'playByPlay',
-        voiceHints: ['en-US', 'guy', 'ryan', 'ben', 'google'],
-        rate: 1.06,
-        pitch: 1.04
-      },
-      {
-        id: 'echo',
-        role: 'color',
-        voiceHints: ['en-AU', 'en-GB', 'audrey', 'oliver', 'google'],
-        rate: 0.94,
-        pitch: 0.9
-      }
-    ]
   }
 ];
 const COMMENTARY_LINES = {
@@ -5057,36 +5015,11 @@ function refreshConfigUI() {
   const commentaryWrapper = document.createElement('div');
   commentaryWrapper.className = 'config-section';
   const commentaryLabel = document.createElement('h4');
-  commentaryLabel.textContent = 'Commentary crew (2 voices)';
+  commentaryLabel.textContent = 'Commentary';
   commentaryWrapper.appendChild(commentaryLabel);
   const commentaryGrid = document.createElement('div');
   commentaryGrid.className = 'config-options';
-  commentaryGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(150px, 1fr))';
   const commentarySupported = Boolean(speechSynth);
-  COMMENTARY_PRESETS.forEach((preset) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'config-option';
-    if (preset.id === commentaryPresetId) {
-      button.classList.add('active');
-    }
-    button.disabled = !commentarySupported;
-    const label = document.createElement('span');
-    label.textContent = preset.name;
-    button.appendChild(label);
-    const helper = document.createElement('div');
-    helper.textContent = preset.tone;
-    helper.style.fontSize = '0.65rem';
-    helper.style.color = 'rgba(226,232,240,0.78)';
-    helper.style.fontWeight = '700';
-    helper.style.lineHeight = '1.35';
-    button.appendChild(helper);
-    button.addEventListener('click', () => {
-      setCommentaryPresetId(preset.id);
-      announceCommentary('greeting', { player: human }, { priority: true, interrupt: true });
-    });
-    commentaryGrid.appendChild(button);
-  });
   const muteButton = document.createElement('button');
   muteButton.type = 'button';
   muteButton.className = 'config-option';

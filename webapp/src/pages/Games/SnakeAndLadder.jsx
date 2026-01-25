@@ -192,90 +192,6 @@ const SNAKE_COMMENTARY_PRESETS = Object.freeze([
       [SNAKE_LADDER_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
       [SNAKE_LADDER_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
     }
-  },
-  {
-    id: 'mandarin',
-    label: 'Mandarin',
-    description: 'Male voice, 中文',
-    language: 'zh',
-    voiceHints: {
-      [SNAKE_LADDER_SPEAKERS.lead]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male'],
-      [SNAKE_LADDER_SPEAKERS.analyst]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male']
-    },
-    speakerSettings: {
-      [SNAKE_LADDER_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
-      [SNAKE_LADDER_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
-    }
-  },
-  {
-    id: 'hindi',
-    label: 'Hindi',
-    description: 'Male voice, हिंदी',
-    language: 'hi',
-    voiceHints: {
-      [SNAKE_LADDER_SPEAKERS.lead]: ['hi-IN', 'Hindi', 'India', 'male'],
-      [SNAKE_LADDER_SPEAKERS.analyst]: ['hi-IN', 'Hindi', 'India', 'male']
-    },
-    speakerSettings: {
-      [SNAKE_LADDER_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [SNAKE_LADDER_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
-    }
-  },
-  {
-    id: 'spanish',
-    label: 'Spanish',
-    description: 'Male voice, Español',
-    language: 'es',
-    voiceHints: {
-      [SNAKE_LADDER_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male'],
-      [SNAKE_LADDER_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male']
-    },
-    speakerSettings: {
-      [SNAKE_LADDER_SPEAKERS.lead]: { rate: 1, pitch: 0.97, volume: 1 },
-      [SNAKE_LADDER_SPEAKERS.analyst]: { rate: 1, pitch: 0.97, volume: 1 }
-    }
-  },
-  {
-    id: 'french',
-    label: 'French',
-    description: 'Male voice, Français',
-    language: 'fr',
-    voiceHints: {
-      [SNAKE_LADDER_SPEAKERS.lead]: ['fr-FR', 'French', 'Français', 'male'],
-      [SNAKE_LADDER_SPEAKERS.analyst]: ['fr-FR', 'French', 'Français', 'male']
-    },
-    speakerSettings: {
-      [SNAKE_LADDER_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [SNAKE_LADDER_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
-    }
-  },
-  {
-    id: 'arabic',
-    label: 'Arabic',
-    description: 'Male voice, العربية',
-    language: 'ar',
-    voiceHints: {
-      [SNAKE_LADDER_SPEAKERS.lead]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male'],
-      [SNAKE_LADDER_SPEAKERS.analyst]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male']
-    },
-    speakerSettings: {
-      [SNAKE_LADDER_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
-      [SNAKE_LADDER_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
-    }
-  },
-  {
-    id: 'albanian',
-    label: 'Shqip',
-    description: 'Zë mashkulli, shqip.',
-    language: 'sq',
-    voiceHints: {
-      [SNAKE_LADDER_SPEAKERS.lead]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male'],
-      [SNAKE_LADDER_SPEAKERS.analyst]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male']
-    },
-    speakerSettings: {
-      [SNAKE_LADDER_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [SNAKE_LADDER_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
-    }
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = SNAKE_COMMENTARY_PRESETS[0]?.id || 'english';
@@ -1185,7 +1101,7 @@ export default function SnakeAndLadder() {
   const [showInfo, setShowInfo] = useState(false);
   const [showExactHelp, setShowExactHelp] = useState(false);
   const [muted, setMuted] = useState(isGameMuted());
-  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
+  const [commentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
       if (stored && SNAKE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
@@ -3562,31 +3478,7 @@ export default function SnakeAndLadder() {
                 </label>
               </div>
               <div className="mt-4 space-y-2">
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-white/60">Commentary language</h3>
-                <div className="grid gap-2">
-                  {SNAKE_COMMENTARY_PRESETS.map((preset) => {
-                    const active = preset.id === commentaryPresetId;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => setCommentaryPresetId(preset.id)}
-                        aria-pressed={active}
-                        disabled={!commentarySupported}
-                        className={`w-full rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                      >
-                        <span className="block">{preset.label}</span>
-                        <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.18em] text-white/60">
-                          {preset.description}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-white/60">Commentary</h3>
                 <button
                   type="button"
                   onClick={() => setCommentaryMuted((prev) => !prev)}

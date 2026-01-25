@@ -443,90 +443,6 @@ const LUDO_BATTLE_COMMENTARY_PRESETS = Object.freeze([
       [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
       [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
     }
-  },
-  {
-    id: 'mandarin',
-    label: 'Mandarin',
-    description: 'Male voice, 中文',
-    language: 'zh',
-    voiceHints: {
-      [LUDO_BATTLE_SPEAKERS.lead]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male'],
-      [LUDO_BATTLE_SPEAKERS.analyst]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male']
-    },
-    speakerSettings: {
-      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
-      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
-    }
-  },
-  {
-    id: 'hindi',
-    label: 'Hindi',
-    description: 'Male voice, हिंदी',
-    language: 'hi',
-    voiceHints: {
-      [LUDO_BATTLE_SPEAKERS.lead]: ['hi-IN', 'Hindi', 'India', 'male'],
-      [LUDO_BATTLE_SPEAKERS.analyst]: ['hi-IN', 'Hindi', 'India', 'male']
-    },
-    speakerSettings: {
-      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
-    }
-  },
-  {
-    id: 'spanish',
-    label: 'Spanish',
-    description: 'Male voice, Español',
-    language: 'es',
-    voiceHints: {
-      [LUDO_BATTLE_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male'],
-      [LUDO_BATTLE_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male']
-    },
-    speakerSettings: {
-      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.97, volume: 1 },
-      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 0.97, volume: 1 }
-    }
-  },
-  {
-    id: 'french',
-    label: 'French',
-    description: 'Male voice, Français',
-    language: 'fr',
-    voiceHints: {
-      [LUDO_BATTLE_SPEAKERS.lead]: ['fr-FR', 'French', 'Français', 'male'],
-      [LUDO_BATTLE_SPEAKERS.analyst]: ['fr-FR', 'French', 'Français', 'male']
-    },
-    speakerSettings: {
-      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
-    }
-  },
-  {
-    id: 'arabic',
-    label: 'Arabic',
-    description: 'Male voice, العربية',
-    language: 'ar',
-    voiceHints: {
-      [LUDO_BATTLE_SPEAKERS.lead]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male'],
-      [LUDO_BATTLE_SPEAKERS.analyst]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male']
-    },
-    speakerSettings: {
-      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
-      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
-    }
-  },
-  {
-    id: 'albanian',
-    label: 'Shqip',
-    description: 'Zë mashkulli, shqip.',
-    language: 'sq',
-    voiceHints: {
-      [LUDO_BATTLE_SPEAKERS.lead]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male'],
-      [LUDO_BATTLE_SPEAKERS.analyst]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male']
-    },
-    speakerSettings: {
-      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
-    }
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = LUDO_BATTLE_COMMENTARY_PRESETS[0]?.id || 'english';
@@ -2735,7 +2651,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, [resolvedAccountId]);
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(() => !isGameMuted());
-  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
+  const [commentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage?.getItem(COMMENTARY_PRESET_STORAGE_KEY);
       if (stored && LUDO_BATTLE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
@@ -3125,11 +3041,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     });
     enqueueLudoCommentary(script, { priority: true, preset: activeCommentaryPreset });
   }, [activeCommentaryPreset, commentaryPresetId, commentarySpeakers, enqueueLudoCommentary, players]);
-
-  const handleCommentaryPresetSelect = useCallback((preset) => {
-    if (!preset?.id) return;
-    setCommentaryPresetId(preset.id);
-  }, []);
 
   const seatAnchorMap = useMemo(() => {
     const map = new Map();
@@ -5589,32 +5500,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                     </label>
                     <div>
                       <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">
-                        Commentary language
+                        Commentary
                       </h3>
-                      <div className="mt-2 grid grid-cols-1 gap-2">
-                        {LUDO_BATTLE_COMMENTARY_PRESETS.map((preset) => {
-                          const active = preset.id === commentaryPresetId;
-                          return (
-                            <button
-                              key={preset.id}
-                              type="button"
-                              onClick={() => handleCommentaryPresetSelect(preset)}
-                              aria-pressed={active}
-                              disabled={!commentarySupported}
-                              className={`rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                                active
-                                  ? 'border-sky-300 bg-sky-300 text-black shadow-[0_0_18px_rgba(56,189,248,0.55)]'
-                                  : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                              } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                            >
-                              <span className="block">{preset.label}</span>
-                              <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.18em] text-white/60">
-                                {preset.description}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
                       <button
                         type="button"
                         onClick={() => setCommentaryMuted((prev) => !prev)}
