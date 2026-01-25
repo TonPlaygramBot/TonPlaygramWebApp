@@ -85,6 +85,11 @@
     .gift-cost{display:flex;align-items:center;justify-content:center;gap:.35rem;font-size:.7rem;color:rgba(226,232,240,.9);}
     .gift-cost img{width:.9rem;height:.9rem;}
     .gift-note{font-size:.6rem;line-height:1.4;text-align:center;color:rgba(226,232,240,.7);}
+    .commentary-options{display:grid;grid-template-columns:repeat(1,minmax(0,1fr));gap:.4rem;max-height:12rem;overflow:auto;}
+    .commentary-options button{font-size:.7rem;padding:.45rem;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);color:#e2e8f0;font-weight:700;text-align:left;}
+    .commentary-options button.active{border-color:rgba(34,197,94,.8);background:rgba(34,197,94,.2);color:#eafff0;}
+    .commentary-toggle{display:flex;align-items:center;justify-content:space-between;gap:.5rem;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);color:#e2e8f0;font-size:.7rem;font-weight:700;padding:.5rem .75rem;}
+    .commentary-toggle.active{border-color:rgba(34,197,94,.8);background:rgba(34,197,94,.2);color:#eafff0;}
     .chat-bubble{position:fixed;display:flex;align-items:center;gap:.35rem;padding:.35rem .6rem;border-radius:999px;background:rgba(8,13,26,.88);border:1px solid rgba(255,255,255,.12);color:#f8fafc;font-size:.7rem;font-weight:700;box-shadow:0 10px 24px rgba(0,0,0,.45);z-index:7;pointer-events:none;white-space:nowrap;}
     .chat-bubble img,.chat-bubble .avatar{width:1.2rem;height:1.2rem;border-radius:999px;display:grid;place-items:center;background:rgba(255,255,255,.2);font-size:.75rem;}
     .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 4.5rem);transform:translateX(-50%);padding:.4rem .75rem;border-radius:999px;background:rgba(15,23,42,.8);border:1px solid rgba(255,255,255,.18);color:#f8fafc;font-size:.72rem;font-weight:700;z-index:7;box-shadow:0 10px 24px rgba(0,0,0,.45);pointer-events:none;}
@@ -139,6 +144,10 @@
         <span class="icon" aria-hidden="true">ℹ️</span>
         <span>Info</span>
       </button>
+      <button class="quick-action" type="button" data-action="commentary">
+        <span class="icon" aria-hidden="true">🎙️</span>
+        <span>Audio</span>
+      </button>
       <button class="quick-action" type="button" data-action="mute">
         <span class="icon" id="muteIcon" aria-hidden="true">🔊</span>
         <span id="muteLabel">Mute</span>
@@ -191,6 +200,20 @@
       <p class="gift-note">10% charge and the amount of the gift will be deducted from your balance.</p>
     </div>
   </div>
+  <div id="commentaryModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="commentaryTitle">
+      <div class="modal-header">
+        <h3 id="commentaryTitle">Commentary</h3>
+        <button class="modal-close" id="commentaryClose" type="button" aria-label="Close commentary">✕</button>
+      </div>
+      <div class="commentary-options" id="commentaryOptions"></div>
+      <button class="commentary-toggle" id="commentaryMute" type="button">
+        <span>Mute commentary</span>
+        <span id="commentaryMuteState">Off</span>
+      </button>
+      <p class="gift-note" id="commentarySupportNote" style="display:none;">Voice commentary needs Web Speech support.</p>
+    </div>
+  </div>
   <div class="hint" id="startHint"></div>
   <div class="landscape-block" style="display:none">Please hold your phone in <b>portrait</b> for the best experience.</div>
 
@@ -221,6 +244,12 @@
   const giftTiersEl = document.getElementById('giftTiers');
   const giftSend = document.getElementById('giftSend');
   const giftClose = document.getElementById('giftClose');
+  const commentaryModal = document.getElementById('commentaryModal');
+  const commentaryOptionsEl = document.getElementById('commentaryOptions');
+  const commentaryClose = document.getElementById('commentaryClose');
+  const commentaryMuteButton = document.getElementById('commentaryMute');
+  const commentaryMuteState = document.getElementById('commentaryMuteState');
+  const commentarySupportNote = document.getElementById('commentarySupportNote');
   const muteIcon = document.getElementById('muteIcon');
   const muteLabel = document.getElementById('muteLabel');
   const panelRules = document.getElementById('rules');
@@ -538,6 +567,7 @@
     if(audioStarted || !audioEnabled) return;
     audioStarted = true;
     crowdSound.play().catch(()=>{});
+    unlockCommentary();
     if(pendingWhistle) playWhistle();
   }
 
@@ -582,6 +612,615 @@
       },2000);
       playWhistle();
     }
+  };
+
+  /* ---------- Commentary (multi-language, professional) ---------- */
+  const GOAL_RUSH_SPEAKERS = Object.freeze({
+    lead: 'Kai',
+    analyst: 'Sofia'
+  });
+
+  const COMMENTARY_EVENTS = Object.freeze({
+    intro: 'intro',
+    introReply: 'introReply',
+    kickoff: 'kickoff',
+    goal: 'goal',
+    ownGoal: 'ownGoal',
+    post: 'post',
+    save: 'save',
+    counter: 'counter',
+    pressure: 'pressure',
+    leadChange: 'leadChange',
+    equalizer: 'equalizer',
+    matchPoint: 'matchPoint',
+    matchWin: 'matchWin',
+    outro: 'outro'
+  });
+
+  const DEFAULT_COMMENTARY_CONTEXT = Object.freeze({
+    player: 'Player A',
+    opponent: 'Player B',
+    playerScore: 0,
+    opponentScore: 0,
+    scoreline: '0-0',
+    arena: 'Goal Rush arena',
+    targetScore: 3
+  });
+
+  const ENGLISH_COMMENTARY = Object.freeze({
+    common: {
+      intro: [
+        'Welcome to {arena}. {speaker} here with you. {player} faces {opponent}—{scoreline}.',
+        'Match time at {arena}. {speaker} on the mic. {player} versus {opponent}, score {scoreline}.'
+      ],
+      introReply: [
+        'Thanks {speaker}. It is all about quick reads, clean touches, and smart angles.',
+        'Great to be here, {speaker}. Pace and positioning will decide this one.'
+      ],
+      kickoff: [
+        'Kickoff underway. First touch matters in Goal Rush.',
+        'Puck drops center—early control is everything.'
+      ],
+      goal: [
+        'Goal for {player}! That was laser-accurate finishing.',
+        '{player} scores! Clean strike, no doubt about it.',
+        '{player} finds the net. Clinical execution.'
+      ],
+      ownGoal: [
+        'Own goal. A brutal deflection against {player}.',
+        'Unfortunate own goal—{player} will want that back.'
+      ],
+      post: [
+        'Off the post! Inches away from a highlight.',
+        'Rattled the post—no goal this time.'
+      ],
+      save: [
+        'Big save by {opponent}. Brilliant reaction.',
+        '{opponent} shuts the door with a strong stop.'
+      ],
+      counter: [
+        'Quick counter—{player} is flying into space.',
+        'Transition chance for {player}; this is dangerous.'
+      ],
+      pressure: [
+        'High-pressure moment for {player}; they need precision here.',
+        '{player} under pressure—touch and timing are key.'
+      ],
+      leadChange: [
+        '{player} takes the lead. Momentum swings fast in Goal Rush.',
+        'Lead change! {player} moves in front.'
+      ],
+      equalizer: [
+        'Equalizer! {player} drags it level.',
+        'We are level again—{player} answers back.'
+      ],
+      matchPoint: [
+        '{player} is on match point. One more goal seals it.',
+        'Match point for {player}. The finish line is in sight.'
+      ],
+      matchWin: [
+        'Full time. {player} wins it {scoreline}.',
+        '{player} takes the match with a {scoreline} victory.'
+      ],
+      outro: [
+        'That is it from {arena}. Thanks for watching Goal Rush.',
+        'From {arena}, we are done. What a contest.'
+      ]
+    }
+  });
+
+  const GOAL_RUSH_TEMPLATES = Object.freeze({
+    en: ENGLISH_COMMENTARY,
+    zh: {
+      ...ENGLISH_COMMENTARY,
+      common: {
+        intro: ['欢迎来到{arena}。{speaker}为您带来解说。{player}对阵{opponent}，{scoreline}。'],
+        introReply: ['谢谢{speaker}。关键在于速度与角度选择。'],
+        kickoff: ['开球开始，先手很关键。'],
+        goal: ['{player}进球！射门干净利落。'],
+        ownGoal: ['乌龙球，{player}不走运。'],
+        post: ['击中门柱，差之毫厘。'],
+        save: ['{opponent}神扑，反应很快。'],
+        counter: ['快速反击，{player}冲起来了。'],
+        pressure: ['压力时刻，{player}需要稳定处理。'],
+        leadChange: ['{player}反超比分，节奏变化很快。'],
+        equalizer: ['扳平比分！{player}追了回来。'],
+        matchPoint: ['赛点！{player}只差一球。'],
+        matchWin: ['比赛结束，{player}以{scoreline}获胜。'],
+        outro: ['{arena}的解说到此结束，感谢观看。']
+      }
+    },
+    hi: {
+      ...ENGLISH_COMMENTARY,
+      common: {
+        intro: ['{arena} से स्वागत है। {speaker} आपके साथ हैं। {player} बनाम {opponent}, स्कोर {scoreline}।'],
+        introReply: ['धन्यवाद {speaker}. आज गति और सही एंगल निर्णायक होंगे।'],
+        kickoff: ['किकऑफ शुरू—पहला टच बहुत अहम है।'],
+        goal: ['{player} का गोल! शानदार फिनिश।'],
+        ownGoal: ['ओन गोल—{player} के खिलाफ दुर्भाग्य।'],
+        post: ['पोस्ट लगा! बेहद करीब।'],
+        save: ['{opponent} का शानदार बचाव।'],
+        counter: ['तेज़ काउंटर—{player} आगे बढ़ रहा है।'],
+        pressure: ['दबाव भरा पल—{player} को सटीकता चाहिए।'],
+        leadChange: ['लीड बदल गई—{player} आगे निकल गया।'],
+        equalizer: ['बराबरी! {player} ने स्कोर सम किया।'],
+        matchPoint: ['मैच पॉइंट—{player} बस एक गोल दूर।'],
+        matchWin: ['मैच खत्म। {player} {scoreline} से जीतता है।'],
+        outro: ['{arena} से यहीं तक, देखने के लिए धन्यवाद।']
+      }
+    },
+    es: {
+      ...ENGLISH_COMMENTARY,
+      common: {
+        intro: ['Bienvenidos a {arena}. {speaker} con ustedes. {player} contra {opponent}, {scoreline}.'],
+        introReply: ['Gracias {speaker}. La velocidad y los ángulos van a decidir.'],
+        kickoff: ['Arranca el saque, el primer toque importa mucho.'],
+        goal: ['¡Gol de {player}! Definición limpia.'],
+        ownGoal: ['Autogol, mala fortuna para {player}.'],
+        post: ['¡Al poste! Se quedó a nada.'],
+        save: ['Gran atajada de {opponent}.'],
+        counter: ['Contraataque rápido, {player} acelera.'],
+        pressure: ['Momento de presión para {player}; necesita precisión.'],
+        leadChange: ['Cambio de líder: {player} se pone arriba.'],
+        equalizer: ['Empate. {player} iguala el marcador.'],
+        matchPoint: ['Punto de partido para {player}, un gol más.'],
+        matchWin: ['Final del partido. {player} gana {scoreline}.'],
+        outro: ['Desde {arena}, gracias por acompañarnos.']
+      }
+    },
+    fr: {
+      ...ENGLISH_COMMENTARY,
+      common: {
+        intro: ['Bienvenue à {arena}. {speaker} avec vous. {player} contre {opponent}, {scoreline}.'],
+        introReply: ['Merci {speaker}. La vitesse et les angles feront la différence.'],
+        kickoff: ['Engagement lancé, le premier toucher compte.'],
+        goal: ['But de {player} ! Finition propre.'],
+        ownGoal: ['But contre son camp, malchance pour {player}.'],
+        post: ['Sur le poteau ! À un souffle.'],
+        save: ['Super arrêt de {opponent}.'],
+        counter: ['Contre rapide, {player} accélère.'],
+        pressure: ['Moment sous pression pour {player}; précision requise.'],
+        leadChange: ['Changement de leader : {player} passe devant.'],
+        equalizer: ['Égalisation ! {player} revient au score.'],
+        matchPoint: ['Balle de match pour {player}, un but suffit.'],
+        matchWin: ['Fin du match. {player} s’impose {scoreline}.'],
+        outro: ['Depuis {arena}, merci de nous avoir suivis.']
+      }
+    },
+    ar: {
+      ...ENGLISH_COMMENTARY,
+      common: {
+        intro: ['مرحبًا بكم في {arena}. {speaker} معكم. {player} ضد {opponent}، {scoreline}.'],
+        introReply: ['شكرًا {speaker}. السرعة والزوايا ستحسم اللقاء.'],
+        kickoff: ['بداية اللعب، اللمسة الأولى مهمة جدًا.'],
+        goal: ['هدف لـ{player}! إنهاء رائع.'],
+        ownGoal: ['هدف عكسي، سوء حظ لـ{player}.'],
+        post: ['كرة في القائم! كانت قريبة جدًا.'],
+        save: ['تصدي رائع من {opponent}.'],
+        counter: ['هجمة مرتدة سريعة، {player} ينطلق.'],
+        pressure: ['لحظة ضغط على {player}—الدقة مطلوبة.'],
+        leadChange: ['تبدل القيادة؛ {player} يتقدم.'],
+        equalizer: ['تعادل! {player} يعيد المباراة.'],
+        matchPoint: ['نقطة مباراة لـ{player}، هدف واحد فقط.'],
+        matchWin: ['نهاية المباراة. {player} يفوز {scoreline}.'],
+        outro: ['من {arena}، شكرًا على المتابعة.']
+      }
+    },
+    sq: {
+      ...ENGLISH_COMMENTARY,
+      common: {
+        intro: ['Mirë se vini në {arena}. Me ju është {speaker}. {player} kundër {opponent}, {scoreline}.'],
+        introReply: ['Faleminderit {speaker}. Shpejtësia dhe këndet vendosin rezultatin.'],
+        kickoff: ['Nisja u dha, prekja e parë është kyçe.'],
+        goal: ['Gol për {player}! Përfundim i pastër.'],
+        ownGoal: ['Autogol, fat i keq për {player}.'],
+        post: ['Në shtyllë! Iku shumë pak.'],
+        save: ['Mbrojtje e madhe nga {opponent}.'],
+        counter: ['Kundërsulm i shpejtë, {player} po vrapon.'],
+        pressure: ['Moment presioni për {player}; kërkohet saktësi.'],
+        leadChange: ['Ndryshim epërsie—{player} kalon përpara.'],
+        equalizer: ['Barazim! {player} e kthen ndeshjen.'],
+        matchPoint: ['Pikë ndeshjeje për {player}, edhe një gol.'],
+        matchWin: ['Fundi i ndeshjes. {player} fiton {scoreline}.'],
+        outro: ['Kaq nga {arena}. Faleminderit që na ndoqët.']
+      }
+    }
+  });
+
+  const GOAL_RUSH_COMMENTARY_PRESETS = Object.freeze([
+    {
+      id: 'english',
+      label: 'English',
+      description: 'Broadcast-style commentary',
+      language: 'en',
+      voiceHints: {
+        Kai: ['en-US', 'english', 'male', 'google'],
+        Sofia: ['en-GB', 'english', 'female', 'google']
+      },
+      speakerSettings: {
+        Kai: { rate: 0.98, pitch: 0.95, volume: 1 },
+        Sofia: { rate: 1.02, pitch: 1.02, volume: 0.98 }
+      }
+    },
+    {
+      id: 'mandarin',
+      label: 'Mandarin',
+      description: '普通话解说',
+      language: 'zh',
+      voiceHints: {
+        Kai: ['zh-CN', 'zh', 'mandarin', 'male', 'google'],
+        Sofia: ['zh-CN', 'zh', 'mandarin', 'female', 'google']
+      },
+      speakerSettings: {
+        Kai: { rate: 1, pitch: 0.95, volume: 1 },
+        Sofia: { rate: 1.02, pitch: 1, volume: 0.98 }
+      }
+    },
+    {
+      id: 'hindi',
+      label: 'Hindi',
+      description: 'हिंदी कमेंट्री',
+      language: 'hi',
+      voiceHints: {
+        Kai: ['hi-IN', 'hi', 'hindi', 'male', 'google'],
+        Sofia: ['hi-IN', 'hi', 'hindi', 'female', 'google']
+      },
+      speakerSettings: {
+        Kai: { rate: 1.02, pitch: 0.96, volume: 1 },
+        Sofia: { rate: 1.04, pitch: 1, volume: 0.98 }
+      }
+    },
+    {
+      id: 'spanish',
+      label: 'Spanish',
+      description: 'Relato en español',
+      language: 'es',
+      voiceHints: {
+        Kai: ['es-ES', 'es', 'spanish', 'male', 'google'],
+        Sofia: ['es-ES', 'es', 'spanish', 'female', 'google']
+      },
+      speakerSettings: {
+        Kai: { rate: 1, pitch: 0.96, volume: 1 },
+        Sofia: { rate: 1.02, pitch: 1, volume: 0.98 }
+      }
+    },
+    {
+      id: 'french',
+      label: 'French',
+      description: 'Commentaires en français',
+      language: 'fr',
+      voiceHints: {
+        Kai: ['fr-FR', 'fr', 'french', 'male', 'google'],
+        Sofia: ['fr-FR', 'fr', 'french', 'female', 'google']
+      },
+      speakerSettings: {
+        Kai: { rate: 0.98, pitch: 0.94, volume: 1 },
+        Sofia: { rate: 1, pitch: 0.98, volume: 0.98 }
+      }
+    },
+    {
+      id: 'arabic',
+      label: 'Arabic',
+      description: 'تعليق عربي',
+      language: 'ar',
+      voiceHints: {
+        Kai: ['ar-SA', 'ar', 'arabic', 'male', 'google'],
+        Sofia: ['ar-SA', 'ar', 'arabic', 'female', 'google']
+      },
+      speakerSettings: {
+        Kai: { rate: 1, pitch: 0.94, volume: 1 },
+        Sofia: { rate: 1.02, pitch: 0.98, volume: 0.98 }
+      }
+    },
+    {
+      id: 'albanian',
+      label: 'Albanian',
+      description: 'Komentim shqip',
+      language: 'sq',
+      voiceHints: {
+        Kai: ['sq-AL', 'sq', 'albanian', 'male', 'google'],
+        Sofia: ['sq-AL', 'sq', 'albanian', 'female', 'google']
+      },
+      speakerSettings: {
+        Kai: { rate: 1, pitch: 0.96, volume: 1 },
+        Sofia: { rate: 1.02, pitch: 0.98, volume: 0.98 }
+      }
+    }
+  ]);
+
+  const COMMENTARY_PRESET_STORAGE_KEY = 'goalRushCommentaryPreset';
+  const COMMENTARY_MUTE_STORAGE_KEY = 'goalRushCommentaryMute';
+  const COMMENTARY_QUEUE_LIMIT = 4;
+  const COMMENTARY_MIN_INTERVAL_MS = 1200;
+
+  const resolveLanguageKey = (language = 'en') => {
+    const normalized = String(language || '').toLowerCase();
+    if (normalized.startsWith('zh')) return 'zh';
+    if (normalized.startsWith('hi')) return 'hi';
+    if (normalized.startsWith('es')) return 'es';
+    if (normalized.startsWith('fr')) return 'fr';
+    if (normalized.startsWith('ar')) return 'ar';
+    if (normalized.startsWith('sq')) return 'sq';
+    if (normalized.startsWith('en')) return 'en';
+    return normalized || 'en';
+  };
+
+  const pickRandom = (pool) => pool[Math.floor(Math.random() * pool.length)];
+  const applyTemplate = (template, context) =>
+    template.replace(/\{(\w+)\}/g, (_, key) => String(context[key] ?? `{${key}}`));
+
+  const buildGoalRushCommentaryLine = ({ event, speaker, language = 'en', context = {} }) => {
+    const templates = GOAL_RUSH_TEMPLATES[resolveLanguageKey(language)] || ENGLISH_COMMENTARY;
+    const pool = templates.common[event] || ENGLISH_COMMENTARY.common[event] || ENGLISH_COMMENTARY.common.goal;
+    const mergedContext = { ...DEFAULT_COMMENTARY_CONTEXT, ...context, speaker };
+    return applyTemplate(pickRandom(pool), mergedContext);
+  };
+
+  const getSpeechSynthesis = () =>
+    typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null;
+
+  const loadVoices = (synth, timeoutMs = 2500) =>
+    new Promise((resolve) => {
+      if (!synth) {
+        resolve([]);
+        return;
+      }
+      const existing = synth.getVoices();
+      if (existing.length) {
+        resolve(existing);
+        return;
+      }
+      let settled = false;
+      const finalize = (voices) => {
+        if (settled) return;
+        settled = true;
+        resolve(voices);
+      };
+      const handleVoices = () => {
+        const next = synth.getVoices();
+        if (next.length) finalize(next);
+      };
+      if (typeof synth.addEventListener === 'function') {
+        synth.addEventListener('voiceschanged', handleVoices, { once: true });
+      } else {
+        synth.onvoiceschanged = handleVoices;
+      }
+      setTimeout(() => finalize(synth.getVoices()), timeoutMs);
+    });
+
+  const findDistinctVoice = (voices, hints = [], usedVoices = new Set()) => {
+    if (!voices.length) return null;
+    const normalizedHints = hints.map((hint) => hint.toLowerCase());
+    const matchesByName = voices.filter((voice) =>
+      normalizedHints.some((hint) => voice.name.toLowerCase().includes(hint))
+    );
+    const matchesByLang = voices.filter((voice) =>
+      normalizedHints.some((hint) => voice.lang.toLowerCase().includes(hint))
+    );
+    const candidateLists = [matchesByName, matchesByLang, voices];
+    for (const candidates of candidateLists) {
+      const match = candidates.find((voice) => !usedVoices.has(voice));
+      if (match) return match;
+    }
+    return voices[0] || null;
+  };
+
+  const speakCommentaryLines = async (lines, {
+    speakerSettings = {},
+    voiceHints = {}
+  } = {}) => {
+    const synth = getSpeechSynthesis();
+    if (!synth || !Array.isArray(lines) || lines.length === 0) return;
+
+    const voices = await loadVoices(synth);
+    const uniqueSpeakers = [...new Set(lines.map((line) => line.speaker || GOAL_RUSH_SPEAKERS.lead))];
+    const usedVoices = new Set();
+    const speakerVoices = uniqueSpeakers.reduce((acc, speaker) => {
+      const voice = findDistinctVoice(voices, voiceHints[speaker] || [], usedVoices);
+      if (voice) {
+        usedVoices.add(voice);
+        acc[speaker] = voice;
+      }
+      return acc;
+    }, {});
+
+    if (typeof synth.resume === 'function') {
+      try { synth.resume(); } catch {}
+    }
+
+    for (const line of lines) {
+      const speaker = line.speaker || GOAL_RUSH_SPEAKERS.lead;
+      const settings = speakerSettings[speaker] || { rate: 1, pitch: 1, volume: 1 };
+      const utterance = new SpeechSynthesisUtterance(line.text);
+      const voice = speakerVoices[speaker] || findDistinctVoice(voices, voiceHints[speaker] || []);
+      if (voice) {
+        utterance.voice = voice;
+        if (voice.lang) utterance.lang = voice.lang;
+      }
+      utterance.rate = settings.rate;
+      utterance.pitch = settings.pitch;
+      utterance.volume = settings.volume;
+      await new Promise((resolve) => {
+        utterance.onend = resolve;
+        utterance.onerror = resolve;
+        synth.speak(utterance);
+      });
+    }
+  };
+
+  const commentarySupported = Boolean(getSpeechSynthesis());
+  let commentaryPresetId = GOAL_RUSH_COMMENTARY_PRESETS[0]?.id || 'english';
+  try {
+    const stored = localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
+    if (stored && GOAL_RUSH_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
+      commentaryPresetId = stored;
+    }
+  } catch {}
+
+  let commentaryMuted = false;
+  try {
+    const storedMuted = localStorage.getItem(COMMENTARY_MUTE_STORAGE_KEY);
+    commentaryMuted = storedMuted === '1';
+  } catch {}
+
+  let commentaryReady = false;
+  let commentaryQueue = [];
+  let commentarySpeaking = false;
+  let commentaryLastEventAt = 0;
+  let commentaryGreetingPlayed = false;
+  let commentaryOutroPlayed = false;
+  let commentarySpeakerIndex = 0;
+  let pendingCommentary = null;
+
+  const activeCommentaryPreset = () =>
+    GOAL_RUSH_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ||
+    GOAL_RUSH_COMMENTARY_PRESETS[0];
+
+  const pickCommentarySpeaker = (preferred) => {
+    if (preferred) return preferred;
+    const speakers = [GOAL_RUSH_SPEAKERS.lead, GOAL_RUSH_SPEAKERS.analyst];
+    const selected = speakers[commentarySpeakerIndex % speakers.length] || GOAL_RUSH_SPEAKERS.lead;
+    commentarySpeakerIndex += 1;
+    return selected;
+  };
+
+  const getBaseCommentaryContext = () => ({
+    player: p1Name,
+    opponent: p2Name,
+    playerScore: score.p1,
+    opponentScore: score.p2,
+    scoreline: `${score.p1}-${score.p2}`,
+    arena: 'Goal Rush arena',
+    targetScore: score.target
+  });
+
+  const getContextForScorer = (scorerKey) => {
+    const base = getBaseCommentaryContext();
+    if (scorerKey === 'p2') {
+      return {
+        ...base,
+        player: p2Name,
+        opponent: p1Name,
+        playerScore: score.p2,
+        opponentScore: score.p1
+      };
+    }
+    return base;
+  };
+
+  const buildCommentaryLine = (event, context = {}, options = {}) => {
+    const preset = activeCommentaryPreset();
+    const speaker = pickCommentarySpeaker(options.speaker);
+    return {
+      speaker,
+      text: buildGoalRushCommentaryLine({
+        event,
+        speaker,
+        language: options.language ?? preset?.language ?? 'en',
+        context
+      })
+    };
+  };
+
+  const playNextCommentary = async () => {
+    if (commentarySpeaking) return;
+    const next = commentaryQueue.shift();
+    if (!next) return;
+    commentarySpeaking = true;
+    await speakCommentaryLines(next.lines, {
+      speakerSettings: next.preset?.speakerSettings || {},
+      voiceHints: next.preset?.voiceHints || {}
+    });
+    commentarySpeaking = false;
+    if (commentaryQueue.length) {
+      playNextCommentary();
+    }
+  };
+
+  const enqueueCommentaryLines = (lines, { priority = false, preset = activeCommentaryPreset() } = {}) => {
+    if (!commentarySupported || commentaryMuted) return;
+    if (!commentaryReady) {
+      pendingCommentary = { lines, priority, preset };
+      return;
+    }
+    const now = performance.now();
+    if (!priority && now - commentaryLastEventAt < COMMENTARY_MIN_INTERVAL_MS) return;
+    if (!priority && commentaryQueue.length >= COMMENTARY_QUEUE_LIMIT) return;
+    commentaryQueue.push({ lines, preset });
+    if (!commentarySpeaking) {
+      playNextCommentary();
+    }
+    commentaryLastEventAt = now;
+  };
+
+  const enqueueCommentaryEvent = (event, context = {}, options = {}) => {
+    const line = buildCommentaryLine(event, context, options);
+    enqueueCommentaryLines([line], options);
+  };
+
+  const queueIntroIfNeeded = () => {
+    if (commentaryGreetingPlayed || !commentarySupported || commentaryMuted) return;
+    const baseContext = getBaseCommentaryContext();
+    const lines = [
+      buildCommentaryLine(COMMENTARY_EVENTS.intro, baseContext, { speaker: GOAL_RUSH_SPEAKERS.lead }),
+      buildCommentaryLine(COMMENTARY_EVENTS.introReply, baseContext, { speaker: GOAL_RUSH_SPEAKERS.analyst }),
+      buildCommentaryLine(COMMENTARY_EVENTS.kickoff, baseContext, { speaker: GOAL_RUSH_SPEAKERS.lead })
+    ];
+    enqueueCommentaryLines(lines, { priority: true });
+    commentaryGreetingPlayed = true;
+  };
+
+  const unlockCommentary = () => {
+    if (commentaryReady) return;
+    commentaryReady = true;
+    if (pendingCommentary) {
+      const pending = pendingCommentary;
+      pendingCommentary = null;
+      enqueueCommentaryLines(pending.lines, pending);
+    }
+    queueIntroIfNeeded();
+  };
+
+  const updateCommentaryMuteState = () => {
+    if (!commentaryMuteState || !commentaryMuteButton) return;
+    commentaryMuteState.textContent = commentaryMuted ? 'On' : 'Off';
+    commentaryMuteButton.classList.toggle('active', commentaryMuted);
+  };
+
+  const updateCommentarySupport = () => {
+    if (!commentarySupportNote) return;
+    commentarySupportNote.style.display = commentarySupported ? 'none' : 'block';
+    if (commentaryMuteButton) {
+      commentaryMuteButton.disabled = !commentarySupported;
+    }
+  };
+
+  const populateCommentaryOptions = () => {
+    if (!commentaryOptionsEl) return;
+    commentaryOptionsEl.replaceChildren();
+    GOAL_RUSH_COMMENTARY_PRESETS.forEach((preset) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = `${preset.label} — ${preset.description}`;
+      if (preset.id === commentaryPresetId) {
+        button.classList.add('active');
+      }
+      button.disabled = !commentarySupported;
+      button.addEventListener('click', () => {
+        if (!commentarySupported) return;
+        commentaryPresetId = preset.id;
+        try { localStorage.setItem(COMMENTARY_PRESET_STORAGE_KEY, preset.id); } catch {}
+        populateCommentaryOptions();
+        if (!commentaryMuted) {
+          const context = getBaseCommentaryContext();
+          enqueueCommentaryLines([
+            buildCommentaryLine(COMMENTARY_EVENTS.intro, context, { speaker: GOAL_RUSH_SPEAKERS.lead }),
+            buildCommentaryLine(COMMENTARY_EVENTS.introReply, context, { speaker: GOAL_RUSH_SPEAKERS.analyst })
+          ], { priority: true });
+        }
+      });
+      commentaryOptionsEl.appendChild(button);
+    });
   };
 
   /* ---------- Quick actions: chat, gift, info, mute ---------- */
@@ -853,7 +1492,16 @@
     toggleModal(giftModal, true);
   }
 
+  function openCommentaryModal() {
+    populateCommentaryOptions();
+    updateCommentaryMuteState();
+    updateCommentarySupport();
+    toggleModal(commentaryModal, true);
+  }
+
   updateQuickActionMute();
+  updateCommentaryMuteState();
+  updateCommentarySupport();
 
   if (panelRules && closeRules) {
     closeRules.addEventListener('click', () => { panelRules.style.display = 'none'; });
@@ -872,6 +1520,8 @@
         openGiftModal();
       } else if (action === 'info' && panelRules) {
         panelRules.style.display = 'flex';
+      } else if (action === 'commentary') {
+        openCommentaryModal();
       } else if (action === 'mute') {
         setAudioEnabled(!audioEnabled);
       }
@@ -907,6 +1557,32 @@
       animateGift(0, recipient, selectedGift);
       playEffectSound(GIFT_SOUNDS[selectedGift.id], { delay: selectedGift.id === 'bullseye' ? 2500 : 0 });
       showToast(`Sent ${selectedGift.name} to ${getPlayerNames()[recipient] || `Player ${recipient + 1}`}`);
+    });
+  }
+  if (commentaryModal) {
+    commentaryModal.addEventListener('click', (event) => {
+      if (event.target === commentaryModal) toggleModal(commentaryModal, false);
+    });
+  }
+  if (commentaryClose) {
+    commentaryClose.addEventListener('click', () => toggleModal(commentaryModal, false));
+  }
+  if (commentaryMuteButton) {
+    commentaryMuteButton.addEventListener('click', () => {
+      commentaryMuted = !commentaryMuted;
+      updateCommentaryMuteState();
+      try { localStorage.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0'); } catch {}
+      if (commentaryMuted) {
+        commentaryQueue = [];
+        pendingCommentary = null;
+        commentarySpeaking = false;
+        const synth = getSpeechSynthesis();
+        if (synth && typeof synth.cancel === 'function') {
+          try { synth.cancel(); } catch {}
+        }
+      } else {
+        queueIntroIfNeeded();
+      }
     });
   }
 
@@ -948,6 +1624,28 @@
     postText.textContent = 'HIT THE POST';
     postText.style.display = 'block';
     setTimeout(()=>{ postText.style.display='none'; }, 1000);
+    enqueueCommentaryEvent(COMMENTARY_EVENTS.post, getBaseCommentaryContext());
+  }
+
+  function handleGoalCommentary({ scorerKey, ownGoal, prevP1, prevP2 }){
+    const context = getContextForScorer(scorerKey);
+    if (ownGoal) {
+      enqueueCommentaryEvent(COMMENTARY_EVENTS.ownGoal, context);
+    } else {
+      enqueueCommentaryEvent(COMMENTARY_EVENTS.goal, context);
+    }
+    const prevLeader = prevP1 === prevP2 ? null : prevP1 > prevP2 ? 'p1' : 'p2';
+    const newLeader = score.p1 === score.p2 ? null : score.p1 > score.p2 ? 'p1' : 'p2';
+    if (newLeader && newLeader !== prevLeader) {
+      enqueueCommentaryEvent(COMMENTARY_EVENTS.leadChange, context);
+    }
+    if (!newLeader && prevLeader) {
+      enqueueCommentaryEvent(COMMENTARY_EVENTS.equalizer, context);
+    }
+    const scorerScore = scorerKey === 'p1' ? score.p1 : score.p2;
+    if (scorerScore === score.target - 1) {
+      enqueueCommentaryEvent(COMMENTARY_EVENTS.matchPoint, context);
+    }
   }
 
   function rr(x,y,w,h,r){
@@ -1345,11 +2043,14 @@
 
     if (puck.y < top){
       if (puck.x > goalLeft && puck.x < goalRight){
+        const prevP1 = score.p1;
+        const prevP2 = score.p2;
         score.p1++; updateScore(); sfx.goal();
         const goalLine = goalTopY + 6;
         puck.y = goalLine - 0.6 * puck.r;
         puck.vx = 0; puck.vy = 0;
         const ownGoal = lastTouch === 'p2';
+        handleGoalCommentary({ scorerKey: 'p1', ownGoal, prevP1, prevP2 });
         running = false;
         showGoalMessage(ownGoal);
         checkWin();
@@ -1372,11 +2073,14 @@
     }
     if (puck.y > bottom){
       if (puck.x > goalLeft && puck.x < goalRight){
+        const prevP1 = score.p1;
+        const prevP2 = score.p2;
         score.p2++; updateScore(); sfx.goal();
         const goalLine = goalBottomY - 6;
         puck.y = goalLine + 0.6 * puck.r;
         puck.vx = 0; puck.vy = 0;
         const ownGoal = lastTouch === 'p1';
+        handleGoalCommentary({ scorerKey: 'p2', ownGoal, prevP1, prevP2 });
         running = false;
         showGoalMessage(ownGoal);
         checkWin();
@@ -1449,6 +2153,18 @@
   function checkWin(){
     if (score.p1>=score.target){
       running=false;
+      if (!commentaryOutroPlayed) {
+        const context = getContextForScorer('p1');
+        enqueueCommentaryEvent(COMMENTARY_EVENTS.matchWin, context, {
+          priority: true,
+          speaker: GOAL_RUSH_SPEAKERS.lead
+        });
+        enqueueCommentaryEvent(COMMENTARY_EVENTS.outro, context, {
+          priority: true,
+          speaker: GOAL_RUSH_SPEAKERS.analyst
+        });
+        commentaryOutroPlayed = true;
+      }
       const pot = stake*2;
       if(!window.tournamentMode){
         if (stake>0 && myAccountId){
@@ -1468,6 +2184,18 @@
     }
     if (score.p2>=score.target){
       running=false;
+      if (!commentaryOutroPlayed) {
+        const context = getContextForScorer('p2');
+        enqueueCommentaryEvent(COMMENTARY_EVENTS.matchWin, context, {
+          priority: true,
+          speaker: GOAL_RUSH_SPEAKERS.lead
+        });
+        enqueueCommentaryEvent(COMMENTARY_EVENTS.outro, context, {
+          priority: true,
+          speaker: GOAL_RUSH_SPEAKERS.analyst
+        });
+        commentaryOutroPlayed = true;
+      }
       const pot = stake*2;
       if(!window.tournamentMode){
         if(stake>0 && oppAccountId){
@@ -1506,6 +2234,7 @@
     canvas.setPointerCapture(e.pointerId);
     const t = performance.now();
     touches.set(e.pointerId, {x:p.x, y:p.y, vx:0, vy:0, t});
+    unlockCommentary();
     initAudio();
   });
   canvas.addEventListener('pointermove', e=>{
@@ -1537,6 +2266,7 @@
         const p = posFromEvent(t);
         touches.set(t.identifier, { x: p.x, y: p.y, vx: 0, vy: 0, t: now });
       }
+      unlockCommentary();
       initAudio();
     }, { passive: false });
 
