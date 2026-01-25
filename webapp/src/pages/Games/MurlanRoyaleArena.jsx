@@ -664,11 +664,40 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
         'Hazel',
         'Kate',
         'Emma'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.tactician]: [
+        'en-AU',
+        'en-US',
+        'English',
+        'male',
+        'James',
+        'Liam',
+        'Ryan'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.hype]: [
+        'en-US',
+        'en-GB',
+        'English',
+        'female',
+        'Ava',
+        'Chloe',
+        'Samantha'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.sideline]: [
+        'en-US',
+        'English',
+        'male',
+        'Nathan',
+        'Brian',
+        'Christopher'
       ]
     },
     speakerSettings: {
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 0.98, pitch: 0.94, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.12, pitch: 1.12, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.sideline]: { rate: 1, pitch: 0.98, volume: 1 }
     }
   },
   {
@@ -694,11 +723,41 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
         'Asha',
         'Priya',
         'Neha'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.tactician]: [
+        'hi-IN',
+        'hi',
+        'Hindi',
+        'male',
+        'Ravi',
+        'Kiran',
+        'Vikram'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.hype]: [
+        'hi-IN',
+        'hi',
+        'Hindi',
+        'female',
+        'Anaya',
+        'Rani',
+        'Deepa'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.sideline]: [
+        'hi-IN',
+        'hi',
+        'Hindi',
+        'male',
+        'Sanjay',
+        'Ayaan',
+        'Manish'
       ]
     },
     speakerSettings: {
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.06, pitch: 1.02, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.08, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.08, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 0.98, pitch: 0.96, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.12, pitch: 1.1, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.sideline]: { rate: 1.02, pitch: 0.98, volume: 1 }
     }
   },
   {
@@ -709,6 +768,8 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     voiceHints: {
       [MURLAN_ROYALE_SPEAKERS.lead]: [
         'zh-CN',
+        'zh-TW',
+        'zh-HK',
         'zh',
         'Chinese',
         'male',
@@ -720,6 +781,8 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
       ],
       [MURLAN_ROYALE_SPEAKERS.analyst]: [
         'zh-CN',
+        'zh-TW',
+        'zh-HK',
         'zh',
         'Chinese',
         'female',
@@ -728,11 +791,50 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
         'Lin',
         'Microsoft Yaoyao',
         'Microsoft Xiaoxiao'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.tactician]: [
+        'zh-CN',
+        'zh-TW',
+        'zh-HK',
+        'zh',
+        'Chinese',
+        'male',
+        'Jun',
+        'Tao',
+        'Lei',
+        'Microsoft Yunxi'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.hype]: [
+        'zh-CN',
+        'zh-TW',
+        'zh-HK',
+        'zh',
+        'Chinese',
+        'female',
+        'Lan',
+        'Qian',
+        'Min',
+        'Microsoft Xiaohan'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.sideline]: [
+        'zh-CN',
+        'zh-TW',
+        'zh-HK',
+        'zh',
+        'Chinese',
+        'male',
+        'Bo',
+        'Hao',
+        'Sheng',
+        'Microsoft Yunyang'
       ]
     },
     speakerSettings: {
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 1, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.05, pitch: 1.06, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.05, pitch: 1.06, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 0.98, pitch: 0.98, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.1, pitch: 1.12, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.sideline]: { rate: 1, pitch: 0.98, volume: 1 }
     }
   },
   {
@@ -760,11 +862,41 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
         'Svetlana',
         'Irina',
         'Olga'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.tactician]: [
+        'ru-RU',
+        'ru',
+        'Russian',
+        'male',
+        'Maksim',
+        'Nikolai',
+        'Yuri'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.hype]: [
+        'ru-RU',
+        'ru',
+        'Russian',
+        'female',
+        'Daria',
+        'Elena',
+        'Polina'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.sideline]: [
+        'ru-RU',
+        'ru',
+        'Russian',
+        'male',
+        'Igor',
+        'Pavel',
+        'Roman'
       ]
     },
     speakerSettings: {
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.03, pitch: 1.02, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.03, pitch: 1.02, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 0.98, pitch: 0.94, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.08, pitch: 1.08, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.sideline]: { rate: 1, pitch: 0.96, volume: 1 }
     }
   },
   {
@@ -790,11 +922,41 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
         'Isabella',
         'Lucia',
         'Camila'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.tactician]: [
+        'es-ES',
+        'es-MX',
+        'Spanish',
+        'male',
+        'Diego',
+        'Sergio',
+        'Andres'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.hype]: [
+        'es-ES',
+        'es-MX',
+        'Spanish',
+        'female',
+        'Valeria',
+        'Mariana',
+        'Paula'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.sideline]: [
+        'es-ES',
+        'es-MX',
+        'Spanish',
+        'male',
+        'Rafael',
+        'Javier',
+        'Mateo'
       ]
     },
     speakerSettings: {
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.05, pitch: 1, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.1, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.1, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 0.98, pitch: 0.96, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.12, pitch: 1.12, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.sideline]: { rate: 1.02, pitch: 0.98, volume: 1 }
     }
   },
   {
@@ -818,11 +980,38 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
         'Amelie',
         'Marie',
         'Charlotte'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.tactician]: [
+        'fr-FR',
+        'French',
+        'male',
+        'Julien',
+        'Antoine',
+        'Romain'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.hype]: [
+        'fr-FR',
+        'French',
+        'female',
+        'Camille',
+        'Manon',
+        'Elise'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.sideline]: [
+        'fr-FR',
+        'French',
+        'male',
+        'Lucas',
+        'Thomas',
+        'Nicolas'
       ]
     },
     speakerSettings: {
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 0.96, pitch: 0.94, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.08, pitch: 1.1, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.sideline]: { rate: 1, pitch: 0.98, volume: 1 }
     }
   },
   {
@@ -840,31 +1029,57 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
         'Omar',
         'Khalid',
         'Hassan',
-        'en-US',
-        'English',
-        'male',
-        'David',
-        'Alex'
+        'Youssef',
+        'Mahmoud'
       ],
       [MURLAN_ROYALE_SPEAKERS.analyst]: [
         'ar-SA',
         'ar-EG',
         'ar',
         'Arabic',
+        'female',
+        'Layla',
+        'Mona',
+        'Nour',
+        'Hala'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.tactician]: [
+        'ar-SA',
+        'ar-EG',
+        'ar',
+        'Arabic',
         'male',
-        'Omar',
-        'Khalid',
-        'Hassan',
-        'en-GB',
-        'English',
+        'Fadi',
+        'Rami',
+        'Tariq'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.hype]: [
+        'ar-SA',
+        'ar-EG',
+        'ar',
+        'Arabic',
+        'female',
+        'Sara',
+        'Salma',
+        'Yara'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.sideline]: [
+        'ar-SA',
+        'ar-EG',
+        'ar',
+        'Arabic',
         'male',
-        'Guy',
-        'Daniel'
+        'Ziad',
+        'Karim',
+        'Adel'
       ]
     },
     speakerSettings: {
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 0.98, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.02, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 0.98, pitch: 0.94, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.1, pitch: 1.12, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.sideline]: { rate: 1, pitch: 0.98, volume: 1 }
     }
   },
   {
@@ -886,15 +1101,45 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
         'sq-AL',
         'sq',
         'Albanian',
+        'female',
+        'Bora',
+        'Elira',
+        'Arlinda'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.tactician]: [
+        'sq-AL',
+        'sq',
+        'Albanian',
         'male',
-        'Besar',
+        'Kreshnik',
+        'Altin',
+        'Luan'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.hype]: [
+        'sq-AL',
+        'sq',
+        'Albanian',
+        'female',
+        'Era',
+        'Jonida',
+        'Flora'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.sideline]: [
+        'sq-AL',
+        'sq',
+        'Albanian',
+        'male',
+        'Blerim',
         'Erion',
         'Gent'
       ]
     },
     speakerSettings: {
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.98, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 0.96, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 0.96, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 0.98, pitch: 0.94, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.08, pitch: 1.1, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.sideline]: { rate: 1, pitch: 0.98, volume: 1 }
     }
   }
 ]);
@@ -1857,7 +2102,13 @@ export default function MurlanRoyaleArena({ search }) {
   );
   const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
   const commentarySpeakers = useMemo(
-    () => [MURLAN_ROYALE_SPEAKERS.lead, MURLAN_ROYALE_SPEAKERS.analyst],
+    () => [
+      MURLAN_ROYALE_SPEAKERS.lead,
+      MURLAN_ROYALE_SPEAKERS.analyst,
+      MURLAN_ROYALE_SPEAKERS.tactician,
+      MURLAN_ROYALE_SPEAKERS.hype,
+      MURLAN_ROYALE_SPEAKERS.sideline
+    ],
     []
   );
   const pickCommentarySpeaker = useCallback(() => {
