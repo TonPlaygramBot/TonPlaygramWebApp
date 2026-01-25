@@ -68,6 +68,7 @@ const RED_NUMBERS = new Set([
 
 const SEGMENT_ANGLE = 360 / ROULETTE_ORDER.length;
 const LABEL_OFFSET_ANGLE = -90 + SEGMENT_ANGLE / 2;
+const WHEEL_ROTATION_OFFSET = 90;
 const PRIZE_MAP = ROULETTE_ORDER.reduce((acc, value) => {
   if (value === 0) acc[value] = 5000;
   else acc[value] = value * 100;
@@ -99,7 +100,10 @@ export default function RouletteMini() {
     return null;
   }
 
-  const [spinState, setSpinState] = useState({ totalSpins: 0, rotation: 0 });
+  const [spinState, setSpinState] = useState({
+    totalSpins: 0,
+    rotation: WHEEL_ROTATION_OFFSET,
+  });
   const [spinning, setSpinning] = useState(false);
   const [outcome, setOutcome] = useState(null);
   const [showAd, setShowAd] = useState(false);
@@ -186,7 +190,10 @@ export default function RouletteMini() {
     const extraSpins = Math.floor(Math.random() * 3) + 4;
     const totalSpins = spinState.totalSpins + extraSpins;
     const rotation =
-      -totalSpins * 360 - index * SEGMENT_ANGLE - SEGMENT_ANGLE / 2;
+      WHEEL_ROTATION_OFFSET -
+      totalSpins * 360 -
+      index * SEGMENT_ANGLE -
+      SEGMENT_ANGLE / 2;
 
     setSpinning(true);
     setOutcome(null);
