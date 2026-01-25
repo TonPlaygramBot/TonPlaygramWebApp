@@ -2978,15 +2978,24 @@ function getUnlockedOptions(key, inventory = dominoInventory) {
   return options.filter((option) => isDominoOptionUnlocked(key, option.id, inventory));
 }
 
-const HDRI_RESOLUTION_ORDER = Object.freeze(['4k']);
+const HDRI_RESOLUTION_ORDER = Object.freeze(['1k', '2k', '4k']);
+const isTelegramWebView = /Telegram/i.test(navigator.userAgent || '') || Boolean(window?.Telegram?.WebApp);
+const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+const isLowMemoryDevice = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
+const isLowCoreDevice = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
+function resolveHdriResolutionOrder() {
+  if (prefersUhd) return ['4k'];
+  const lowProfile = isTelegramWebView || isMobileDevice || isLowMemoryDevice || isLowCoreDevice;
+  return lowProfile ? ['1k', '2k', '4k'] : ['2k', '4k'];
+}
 let activeEnvironmentHdri = null;
 
 async function loadHdriEnvironment(variant) {
   if (!variant?.assetId) return null;
   const preferred = Array.isArray(variant.preferredResolutions)
-    ? variant.preferredResolutions.filter((res) => res === '4k')
+    ? variant.preferredResolutions.filter((res) => HDRI_RESOLUTION_ORDER.includes(res))
     : [];
-  const order = preferred.length ? preferred : HDRI_RESOLUTION_ORDER;
+  const order = preferred.length ? preferred : resolveHdriResolutionOrder();
   let lastError = null;
   for (const res of order) {
     const cacheKey = `${variant.id}:${res}`;
