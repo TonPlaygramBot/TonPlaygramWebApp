@@ -11,6 +11,29 @@ const DEFAULT_SPEAKER_SETTINGS = {
 export const getSpeechSynthesis = () =>
   typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null;
 
+export const primeSpeechSynthesis = () => {
+  const synth = getSpeechSynthesis();
+  if (!synth || synth.speaking || synth.pending) return;
+  if (typeof synth.resume === 'function') {
+    try {
+      synth.resume();
+    } catch {}
+  }
+  const utterance = new SpeechSynthesisUtterance(' ');
+  utterance.volume = 0;
+  utterance.rate = 1;
+  utterance.pitch = 1;
+  utterance.onend = () => {
+    if (typeof synth.cancel === 'function') {
+      try {
+        synth.cancel();
+      } catch {}
+    }
+  };
+  utterance.onerror = utterance.onend;
+  synth.speak(utterance);
+};
+
 const loadVoices = (synth, timeoutMs = 2500) =>
   new Promise((resolve) => {
     if (!synth) {
