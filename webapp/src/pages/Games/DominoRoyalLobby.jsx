@@ -16,7 +16,7 @@ const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
-const DEFAULT_FRAME_RATE_ID = 'balanced60';
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const CHESS_PLAYER_FLAG_KEY = 'chessBattleRoyalPlayerFlag';
 const CHESS_AI_FLAG_KEY = 'chessBattleRoyalAiFlag';
