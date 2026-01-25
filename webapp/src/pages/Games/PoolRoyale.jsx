@@ -34,8 +34,6 @@ import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { chatBeep } from '../../assets/soundData.js';
-import { buildCommentaryLine } from '../../utils/poolRoyaleCommentary.js';
-import { getSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
@@ -913,89 +911,6 @@ const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
 const SKIP_REPLAYS_STORAGE_KEY = 'poolSkipReplays';
-const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
-const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
-const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
-  {
-    id: 'arena-duo',
-    label: 'Arena duo',
-    description: 'UK lead with US analyst',
-    voiceHints: {
-      Steven: ['Google UK English Male', 'en-GB', 'English', 'UK'],
-      John: ['Google US English', 'en-US', 'English', 'US']
-    },
-    speakerSettings: {
-      Steven: { rate: 1, pitch: 0.94, volume: 1 },
-      John: { rate: 1.03, pitch: 1.04, volume: 1 }
-    }
-  },
-  {
-    id: 'atlantic',
-    label: 'Atlantic booth',
-    description: 'US lead with UK analyst',
-    voiceHints: {
-      Steven: ['Google US English', 'en-US', 'English', 'US'],
-      John: ['Google UK English Male', 'en-GB', 'English', 'UK']
-    },
-    speakerSettings: {
-      Steven: { rate: 1.02, pitch: 0.98, volume: 1 },
-      John: { rate: 1, pitch: 0.92, volume: 1 }
-    }
-  },
-  {
-    id: 'pacific',
-    label: 'Pacific desk',
-    description: 'Australian & US cadence',
-    voiceHints: {
-      Steven: ['Google Australian English', 'en-AU', 'English', 'Australia'],
-      John: ['Google US English', 'en-US', 'English', 'US']
-    },
-    speakerSettings: {
-      Steven: { rate: 1.01, pitch: 0.96, volume: 1 },
-      John: { rate: 1.04, pitch: 1.02, volume: 1 }
-    }
-  },
-  {
-    id: 'emerald',
-    label: 'Emerald studio',
-    description: 'Irish with UK tone',
-    voiceHints: {
-      Steven: ['Google Irish English', 'en-IE', 'English', 'Ireland'],
-      John: ['Google UK English Male', 'en-GB', 'English', 'UK']
-    },
-    speakerSettings: {
-      Steven: { rate: 0.98, pitch: 0.9, volume: 1 },
-      John: { rate: 1.01, pitch: 1, volume: 1 }
-    }
-  },
-  {
-    id: 'global',
-    label: 'Global mix',
-    description: 'Indian lead with US analyst',
-    voiceHints: {
-      Steven: ['Google Indian English', 'en-IN', 'English', 'India'],
-      John: ['Google US English', 'en-US', 'English', 'US']
-    },
-    speakerSettings: {
-      Steven: { rate: 1.02, pitch: 1.06, volume: 1 },
-      John: { rate: 1, pitch: 1.01, volume: 1 }
-    }
-  },
-  {
-    id: 'northern',
-    label: 'Northern call',
-    description: 'Canadian with UK analyst',
-    voiceHints: {
-      Steven: ['Google Canadian English', 'en-CA', 'English', 'Canada'],
-      John: ['Google UK English Male', 'en-GB', 'English', 'UK']
-    },
-    speakerSettings: {
-      Steven: { rate: 0.99, pitch: 0.97, volume: 1 },
-      John: { rate: 1.01, pitch: 1.03, volume: 1 }
-    }
-  }
-]);
-const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'arena-duo';
 const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
@@ -10809,27 +10724,8 @@ function PoolRoyaleGame({
     }
     return false;
   });
-  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
-      if (stored && POOL_ROYALE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_COMMENTARY_PRESET_ID;
-  });
-  const [commentaryMuted, setCommentaryMuted] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(COMMENTARY_MUTE_STORAGE_KEY);
-      if (stored === '1') return true;
-      if (stored === '0') return false;
-    }
-    return false;
-  });
   const skipReplayRef = useRef(() => {});
   const skipAllReplaysRef = useRef(skipAllReplays);
-  const commentaryMutedRef = useRef(commentaryMuted);
-  const commentaryGreetingPlayedRef = useRef(false);
   useEffect(() => {
     skipAllReplaysRef.current = skipAllReplays;
   }, [skipAllReplays]);
@@ -10838,23 +10734,6 @@ function PoolRoyaleGame({
       skipReplayRef.current?.();
     }
   }, [skipAllReplays]);
-  useEffect(() => {
-    commentaryMutedRef.current = commentaryMuted;
-    if (commentaryMuted) {
-      const synth = getSpeechSynthesis();
-      synth?.cancel();
-    }
-  }, [commentaryMuted]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
-    }
-  }, [commentaryPresetId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
-    }
-  }, [commentaryMuted]);
   const [pocketLinerId, setPocketLinerId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(POCKET_LINER_STORAGE_KEY);
@@ -10968,12 +10847,6 @@ function PoolRoyaleGame({
   const activeBroadcastSystem = useMemo(
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
-  );
-  const activeCommentaryPreset = useMemo(
-    () =>
-      POOL_ROYALE_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
-      POOL_ROYALE_COMMENTARY_PRESETS[0],
-    [commentaryPresetId]
   );
   const availableTableFinishes = useMemo(
     () =>
@@ -12715,33 +12588,6 @@ const powerRef = useRef(hud.power);
     [applySelectedCueStyle, ensureCueFeePaid, isCueFinishUnlocked, poolInventory, resolveCueIndex]
   );
 
-  const handleCommentaryPresetSelect = useCallback(
-    (preset) => {
-      if (!preset?.id) return;
-      setCommentaryPresetId(preset.id);
-      if (commentaryMutedRef.current || isGameMuted()) return;
-      speakPoolCommentary(
-        [
-          {
-            speaker: 'Steven',
-            text: buildCommentaryLine({
-              event: 'intro',
-              variant: '9ball',
-              speaker: 'Steven',
-              context: {
-                player: player.name || 'Player A',
-                opponent: opponentLabel || 'Player B',
-                arena: 'Pool Royale arena'
-              }
-            })
-          }
-        ],
-        preset
-      );
-    },
-    [opponentLabel, player.name, speakPoolCommentary]
-  );
-
   const routeAudioNode = useCallback((node) => {
     const ctx = audioContextRef.current;
     if (!ctx || !node) return;
@@ -12898,76 +12744,9 @@ const powerRef = useRef(hud.power);
     },
     [stopActiveCrowdSound]
   );
-
-  const buildCommentaryGreetingLines = useCallback(
-    () => {
-      const playerName = player.name || 'Player A';
-      const opponentName = opponentLabel || 'Player B';
-      return [
-        {
-          speaker: 'Steven',
-          text: buildCommentaryLine({
-            event: 'intro',
-            variant: '9ball',
-            speaker: 'Steven',
-            context: {
-              player: playerName,
-              opponent: opponentName,
-              arena: 'Pool Royale arena'
-            }
-          })
-        },
-        {
-          speaker: 'John',
-          text: buildCommentaryLine({
-            event: 'introReply',
-            variant: '9ball',
-            speaker: 'John',
-            context: {
-              player: playerName,
-              opponent: opponentName,
-              arena: 'Pool Royale arena'
-            }
-          })
-        }
-      ];
-    },
-    [opponentLabel, player.name]
-  );
-
-  const speakPoolCommentary = useCallback(
-    async (lines, preset = activeCommentaryPreset) => {
-      if (!Array.isArray(lines) || lines.length === 0) return;
-      if (commentaryMutedRef.current || isGameMuted()) return;
-      const synth = getSpeechSynthesis();
-      if (!synth) return;
-      try {
-        synth.cancel();
-      } catch {}
-      await speakCommentaryLines(lines, {
-        speakerSettings: preset?.speakerSettings,
-        voiceHints: preset?.voiceHints
-      });
-    },
-    [activeCommentaryPreset]
-  );
   useEffect(() => {
     document.title = 'Pool Royale 3D';
   }, []);
-  useEffect(() => {
-    if (commentaryGreetingPlayedRef.current) return undefined;
-    if (commentaryMutedRef.current || isGameMuted()) return undefined;
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      if (cancelled || commentaryGreetingPlayedRef.current) return;
-      commentaryGreetingPlayedRef.current = true;
-      speakPoolCommentary(buildCommentaryGreetingLines());
-    }, 1200);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [buildCommentaryGreetingLines, commentaryMuted, speakPoolCommentary]);
   useEffect(() => {
     const nextName = playerName || getTelegramUsername() || 'Player';
     const nextAvatar = playerAvatar || getTelegramPhotoUrl();
@@ -13057,11 +12836,7 @@ const powerRef = useRef(hud.power);
     volumeRef.current = getGameVolume();
     const handleMute = () => {
       muteRef.current = isGameMuted();
-      if (muteRef.current) {
-        stopActiveCrowdSound();
-        const synth = getSpeechSynthesis();
-        synth?.cancel();
-      }
+      if (muteRef.current) stopActiveCrowdSound();
     };
     const handleVolume = () => {
       volumeRef.current = getGameVolume();
@@ -26144,55 +25919,6 @@ const powerRef = useRef(hud.power);
                     }`}
                   >
                     {skipAllReplays ? 'On' : 'Off'}
-                  </span>
-                </button>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Commentary
-                </h3>
-                <div className="mt-2 grid grid-cols-1 gap-2">
-                  {POOL_ROYALE_COMMENTARY_PRESETS.map((preset) => {
-                    const active = preset.id === commentaryPresetId;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => handleCommentaryPresetSelect(preset)}
-                        aria-pressed={active}
-                        className={`rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="block">{preset.label}</span>
-                        <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.18em] text-white/60">
-                          {preset.description}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCommentaryMuted((prev) => !prev)}
-                  aria-pressed={commentaryMuted}
-                  className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                    commentaryMuted
-                      ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                      : 'bg-white/10 text-white/80 hover:bg-white/20'
-                  }`}
-                >
-                  <span>Mute commentary</span>
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
-                      commentaryMuted
-                        ? 'border-black/30 text-black/70'
-                        : 'border-white/30 text-white/70'
-                    }`}
-                  >
-                    {commentaryMuted ? 'On' : 'Off'}
                   </span>
                 </button>
               </div>
