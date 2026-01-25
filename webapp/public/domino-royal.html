@@ -600,6 +600,294 @@ function setFeedbackSettings(next, { refreshUi = true } = {}) {
   }
 }
 
+const COMMENTARY_STORAGE_KEY = 'dominoRoyalCommentaryPreset';
+const COMMENTARY_MUTE_STORAGE_KEY = 'dominoRoyalCommentaryMute';
+const COMMENTARY_QUEUE_LIMIT = 4;
+const COMMENTARY_MIN_INTERVAL_MS = 1000;
+const COMMENTARY_PRESETS = [
+  {
+    id: 'atlas',
+    name: 'Atlas',
+    tone: 'Strategist',
+    voiceHints: ['en-US', 'english', 'male', 'alex', 'david', 'google'],
+    rate: 0.96,
+    pitch: 0.88
+  },
+  {
+    id: 'luna',
+    name: 'Luna',
+    tone: 'Cheer Captain',
+    voiceHints: ['en-US', 'female', 'samantha', 'victoria', 'zira', 'google'],
+    rate: 1.02,
+    pitch: 1.18
+  },
+  {
+    id: 'sage',
+    name: 'Sage',
+    tone: 'Tactical Coach',
+    voiceHints: ['en-GB', 'en-US', 'daniel', 'mark', 'google'],
+    rate: 0.98,
+    pitch: 0.96
+  },
+  {
+    id: 'blaze',
+    name: 'Blaze',
+    tone: 'Arena Hype',
+    voiceHints: ['en-US', 'guy', 'ryan', 'ben', 'google'],
+    rate: 1.06,
+    pitch: 1.04
+  },
+  {
+    id: 'nova',
+    name: 'Nova',
+    tone: 'Cyber Analyst',
+    voiceHints: ['en-US', 'female', 'neural', 'assistant', 'google'],
+    rate: 1.0,
+    pitch: 1.06
+  },
+  {
+    id: 'echo',
+    name: 'Echo',
+    tone: 'Calm Ref',
+    voiceHints: ['en-AU', 'en-GB', 'audrey', 'oliver', 'google'],
+    rate: 0.94,
+    pitch: 0.9
+  }
+];
+const COMMENTARY_LINES = {
+  greeting: [
+    'Welcome to Domino Battle Royal. Let us rule the table.',
+    'Domino Battle Royal is live. Keep the chain moving.',
+    'New arena online. Domino Battle Royal begins.'
+  ],
+  startRound: [
+    'Fresh round. Watch the opening tile.',
+    'New deal. Set your tempo early.',
+    'Round reset. Chain control is everything.'
+  ],
+  yourTurn: [
+    'Your move. Find the match.',
+    'You are on the clock. Keep the chain alive.',
+    'Your turn. Time to drop a tile.'
+  ],
+  opponentTurn: [
+    '{name} is lining up a play.',
+    '{name} is thinking.',
+    'Eyes on {name}.'
+  ],
+  playTile: [
+    '{name} drops {tile}.',
+    '{name} plays {tile}.',
+    '{name} sends {tile} to the chain.'
+  ],
+  playDouble: [
+    'Double down from {name}.',
+    '{name} slams a double!',
+    'Power play. {name} drops a double.'
+  ],
+  draw: [
+    '{name} draws from the boneyard.',
+    '{name} reloads with a draw.',
+    '{name} digs into the stock.'
+  ],
+  pass: [
+    '{name} passes. No match.',
+    '{name} skips the turn.',
+    '{name} has to pass.'
+  ],
+  nearWin: [
+    '{name} is down to one tile!',
+    '{name} is on match point!',
+    'Pressure rising. {name} holds one tile.'
+  ],
+  blocked: [
+    'Blocked table. Tally the pips.',
+    'No moves left. Count the hands.',
+    'Stalemate. Lowest pips win.'
+  ],
+  win: [
+    'Victory secured. Great control.',
+    'You ruled the chain. Victory!',
+    'That is game. Well played.'
+  ],
+  lose: [
+    'Tough finish. Reset and strike back.',
+    'Game over. Reload for the next round.',
+    'Close one. You will get the next.'
+  ]
+};
+
+const speechSynth =
+  typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null;
+let commentaryVoices = [];
+let commentaryPresetId = COMMENTARY_PRESETS[0]?.id || 'atlas';
+let commentaryMuted = prefersReducedAudio();
+let commentaryQueue = [];
+let commentarySpeaking = false;
+let commentaryReady = false;
+let commentaryLastEventAt = 0;
+let commentaryGreetingPlayed = false;
+let lastAnnouncedTurn = null;
+
+function readCommentaryPrefs() {
+  if (typeof window === 'undefined') return;
+  try {
+    const storedPreset = window.localStorage?.getItem(COMMENTARY_STORAGE_KEY);
+    if (storedPreset && COMMENTARY_PRESETS.some((preset) => preset.id === storedPreset)) {
+      commentaryPresetId = storedPreset;
+    }
+    const storedMute = window.localStorage?.getItem(COMMENTARY_MUTE_STORAGE_KEY);
+    if (storedMute === '1') commentaryMuted = true;
+    if (storedMute === '0') commentaryMuted = false;
+  } catch {}
+}
+
+function persistCommentaryPrefs() {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage?.setItem(COMMENTARY_STORAGE_KEY, commentaryPresetId);
+    window.localStorage?.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
+  } catch {}
+}
+
+function refreshCommentaryVoices() {
+  if (!speechSynth) return;
+  commentaryVoices = speechSynth.getVoices() || [];
+  commentaryReady = true;
+}
+
+function findVoiceMatch(voices, hints = []) {
+  if (!voices.length) return null;
+  const normalizedHints = hints.map((hint) => String(hint || '').toLowerCase()).filter(Boolean);
+  if (!normalizedHints.length) return voices[0];
+  return (
+    voices.find((voice) =>
+      normalizedHints.some((hint) => voice.name.toLowerCase().includes(hint))
+    ) ||
+    voices.find((voice) =>
+      normalizedHints.some((hint) => voice.lang.toLowerCase().includes(hint))
+    ) ||
+    voices[0]
+  );
+}
+
+function getActiveCommentaryPreset() {
+  return COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) || COMMENTARY_PRESETS[0];
+}
+
+function resolveCommentaryVoice() {
+  const preset = getActiveCommentaryPreset();
+  return findVoiceMatch(commentaryVoices, preset?.voiceHints || []);
+}
+
+function clearCommentaryQueue() {
+  commentaryQueue = [];
+  commentarySpeaking = false;
+  if (speechSynth) {
+    speechSynth.cancel();
+  }
+}
+
+function setCommentaryMuted(next) {
+  commentaryMuted = !!next;
+  persistCommentaryPrefs();
+  if (commentaryMuted) {
+    clearCommentaryQueue();
+  }
+  refreshConfigUI();
+}
+
+function setCommentaryPresetId(next) {
+  if (!next || commentaryPresetId === next) return;
+  commentaryPresetId = next;
+  persistCommentaryPrefs();
+  refreshConfigUI();
+}
+
+function formatSeatName(index) {
+  if (index === human) return 'You';
+  const names = getSeatUsernames(N);
+  return names[index] || `Player ${index + 1}`;
+}
+
+function formatTileName(tile) {
+  if (!tile) return 'a tile';
+  const a = tile.a;
+  const b = tile.b;
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 'a tile';
+  if (a === b) return `double ${a}`;
+  return `${a}-${b}`;
+}
+
+function pickRandom(list = []) {
+  if (!list.length) return '';
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+function buildCommentaryLine(kind, context = {}) {
+  const template = pickRandom(COMMENTARY_LINES[kind] || []);
+  if (!template) return '';
+  return template
+    .replace('{name}', context.name || formatSeatName(context.player ?? human))
+    .replace('{tile}', context.tileLabel || formatTileName(context.tile));
+}
+
+function speakCommentary(text, { interrupt = false, priority = false } = {}) {
+  if (!speechSynth || commentaryMuted || !text) return;
+  if (!commentaryReady) {
+    refreshCommentaryVoices();
+  }
+  const now = performance.now();
+  if (!priority && now - commentaryLastEventAt < COMMENTARY_MIN_INTERVAL_MS) return;
+  if (!priority && commentaryQueue.length >= COMMENTARY_QUEUE_LIMIT) return;
+  const preset = getActiveCommentaryPreset();
+  const utterance = new SpeechSynthesisUtterance(text);
+  const voice = resolveCommentaryVoice();
+  if (voice) utterance.voice = voice;
+  utterance.rate = preset?.rate ?? 1;
+  utterance.pitch = preset?.pitch ?? 1;
+  utterance.onend = () => {
+    commentarySpeaking = false;
+    const next = commentaryQueue.shift();
+    if (next) {
+      speakCommentary(next.text, next.options);
+    }
+  };
+  utterance.onerror = () => {
+    commentarySpeaking = false;
+    const next = commentaryQueue.shift();
+    if (next) {
+      speakCommentary(next.text, next.options);
+    }
+  };
+  commentaryLastEventAt = now;
+  if (speechSynth.speaking || commentarySpeaking) {
+    if (interrupt) {
+      speechSynth.cancel();
+    } else {
+      commentaryQueue.push({ text, options: { interrupt, priority } });
+      return;
+    }
+  }
+  commentarySpeaking = true;
+  speechSynth.speak(utterance);
+}
+
+function announceCommentary(kind, context = {}, options = {}) {
+  if (commentaryMuted || !speechSynth) return;
+  const line = buildCommentaryLine(kind, context);
+  if (!line) return;
+  speakCommentary(line, options);
+}
+
+if (speechSynth) {
+  readCommentaryPrefs();
+  refreshCommentaryVoices();
+  speechSynth.onvoiceschanged = () => refreshCommentaryVoices();
+} else {
+  readCommentaryPrefs();
+}
+
 function isSoundEnabled() {
   return !!feedbackSettings.sound;
 }
@@ -4584,6 +4872,71 @@ function createOptionPreview(key, option) {
 function refreshConfigUI() {
   if (!configSectionsEl) return;
   configSectionsEl.replaceChildren();
+  const commentaryWrapper = document.createElement('div');
+  commentaryWrapper.className = 'config-section';
+  const commentaryLabel = document.createElement('h4');
+  commentaryLabel.textContent = 'Voice commentary';
+  commentaryWrapper.appendChild(commentaryLabel);
+  const commentaryGrid = document.createElement('div');
+  commentaryGrid.className = 'config-options';
+  commentaryGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(150px, 1fr))';
+  const commentarySupported = Boolean(speechSynth);
+  COMMENTARY_PRESETS.forEach((preset) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'config-option';
+    if (preset.id === commentaryPresetId) {
+      button.classList.add('active');
+    }
+    button.disabled = !commentarySupported;
+    const label = document.createElement('span');
+    label.textContent = preset.name;
+    button.appendChild(label);
+    const helper = document.createElement('div');
+    helper.textContent = preset.tone;
+    helper.style.fontSize = '0.65rem';
+    helper.style.color = 'rgba(226,232,240,0.78)';
+    helper.style.fontWeight = '700';
+    helper.style.lineHeight = '1.35';
+    button.appendChild(helper);
+    button.addEventListener('click', () => {
+      setCommentaryPresetId(preset.id);
+      announceCommentary('greeting', { player: human }, { priority: true, interrupt: true });
+    });
+    commentaryGrid.appendChild(button);
+  });
+  const muteButton = document.createElement('button');
+  muteButton.type = 'button';
+  muteButton.className = 'config-option';
+  muteButton.setAttribute('aria-pressed', String(commentaryMuted));
+  if (commentaryMuted) {
+    muteButton.classList.add('active');
+  }
+  const muteLabel = document.createElement('span');
+  muteLabel.textContent = commentaryMuted ? 'Commentary muted' : 'Commentary on';
+  muteButton.appendChild(muteLabel);
+  const muteHelper = document.createElement('div');
+  muteHelper.textContent = commentaryMuted ? 'Tap to unmute the announcer' : 'Tap to mute the announcer';
+  muteHelper.style.fontSize = '0.65rem';
+  muteHelper.style.color = 'rgba(226,232,240,0.78)';
+  muteHelper.style.fontWeight = '700';
+  muteHelper.style.lineHeight = '1.35';
+  muteButton.appendChild(muteHelper);
+  muteButton.addEventListener('click', () => {
+    setCommentaryMuted(!commentaryMuted);
+  });
+  commentaryGrid.appendChild(muteButton);
+  commentaryWrapper.appendChild(commentaryGrid);
+  if (!commentarySupported) {
+    const commentaryNote = document.createElement('p');
+    commentaryNote.textContent = 'Voice commentary requires a browser with Web Speech support.';
+    commentaryNote.style.margin = '0';
+    commentaryNote.style.fontSize = '0.65rem';
+    commentaryNote.style.color = 'rgba(226,232,240,0.7)';
+    commentaryNote.style.lineHeight = '1.4';
+    commentaryWrapper.appendChild(commentaryNote);
+  }
+  configSectionsEl.appendChild(commentaryWrapper);
   TABLE_SETUP_SECTIONS.forEach((section) => {
     const wrapper = document.createElement('div');
     wrapper.className = 'config-section';
@@ -5596,6 +5949,7 @@ function startGame(){
   gameFinished = false;
   winnerIndex = null;
   revealAllHands = false;
+  lastAnnouncedTurn = null;
   clearWinnerHighlight();
   if(cpuMoveTimeout){
     clearTimeout(cpuMoveTimeout);
@@ -5659,6 +6013,12 @@ function startGame(){
   updateInteractivity();
   if(current!==human){
     scheduleCpuPlay();
+  }
+  if (!commentaryGreetingPlayed) {
+    commentaryGreetingPlayed = true;
+    announceCommentary('greeting', { player: human }, { priority: true, interrupt: true });
+  } else {
+    announceCommentary('startRound', { player: starter });
   }
 }
 
@@ -5956,6 +6316,7 @@ renderer.domElement.addEventListener('pointerdown',ev=>{
   if(obj.userData && obj.userData.marker && selectedTile){
     const side=obj.userData.side;
     const idx=players[human].hand.indexOf(selectedTile);
+    let playedTile = null;
     if(idx>=0){
       const [picked] = players[human].hand.splice(idx,1);
       const placement = placeOnBoard(picked, side, { animate: true });
@@ -5966,6 +6327,13 @@ renderer.domElement.addEventListener('pointerdown',ev=>{
         renderHands();
         showMarkersFor(selectedTile);
         return;
+      }
+      playedTile = picked;
+    }
+    if (playedTile) {
+      announceCommentary(playedTile.a === playedTile.b ? 'playDouble' : 'playTile', { player: human, tile: playedTile });
+      if (players[human].hand.length === 1) {
+        announceCommentary('nearWin', { player: human }, { priority: true });
       }
     }
     selectedTile=null; clearMarkers(); renderHands(); nextTurn(); return;
@@ -5987,12 +6355,16 @@ btnDraw.addEventListener('click',()=>{ if(current!==human || gameFinished) retur
     if(canL||canR) break;
   }
   clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.drawTile(); }
+  if (drewTile) {
+    announceCommentary('draw', { player: human });
+  }
 });
 btnPass.addEventListener('click',()=>{
   if(current===human && !gameFinished){
     clearMarkers();
     selectedTile=null;
     SFX.pass();
+    announceCommentary('pass', { player: human });
     nextTurn();
   }
 });
@@ -6066,6 +6438,12 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}){
     setStatus('Game over');
   }
 
+  if (reason && reason.toLowerCase().includes('blocked')) {
+    announceCommentary('blocked', { player: winnerIndex }, { priority: true, interrupt: true });
+  } else if (winnerIndex !== null) {
+    announceCommentary(winnerIndex === human ? 'win' : 'lose', { player: winnerIndex }, { priority: true, interrupt: true });
+  }
+
   if(winnerIndex !== null){
     SFX.win();
   } else {
@@ -6092,6 +6470,10 @@ function updateInteractivity(){
     return;
   }
   setStatus(`Turn: Player ${current+1}`);
+  if (lastAnnouncedTurn !== current) {
+    lastAnnouncedTurn = current;
+    announceCommentary(current === human ? 'yourTurn' : 'opponentTurn', { player: current });
+  }
   renderHands(); renderChain();
 }
 function nextTurn(){
@@ -6133,14 +6515,17 @@ function cpuPlay(){
     if(drew){
       renderHands();
       SFX.drawTile();
+      announceCommentary('draw', { player: current });
       if(canPlayAny(player.hand)){
         scheduleCpuPlay();
       } else {
         SFX.pass();
+        announceCommentary('pass', { player: current });
         nextTurn();
       }
     } else {
       SFX.pass();
+      announceCommentary('pass', { player: current });
       nextTurn();
     }
     return;
@@ -6153,6 +6538,10 @@ function cpuPlay(){
     const placement = placeOnBoard(picked, move.side, { animate: true });
     if(placement.success){
       renderHands();
+      announceCommentary(picked.a === picked.b ? 'playDouble' : 'playTile', { player: current, tile: picked });
+      if (player.hand.length === 1) {
+        announceCommentary('nearWin', { player: current }, { priority: true });
+      }
       if(player.hand.length===0){
         finishGame({ winner: current, reason: current === human ? 'You won!' : `Player ${current+1} won!` });
         return;
@@ -6168,14 +6557,17 @@ function cpuPlay(){
   if(drew){
     renderHands();
     SFX.drawTile();
+    announceCommentary('draw', { player: current });
     if(canPlayAny(player.hand)){
       scheduleCpuPlay();
     } else {
       SFX.pass();
+      announceCommentary('pass', { player: current });
       nextTurn();
     }
   } else {
     SFX.pass();
+    announceCommentary('pass', { player: current });
     nextTurn();
   }
 }
