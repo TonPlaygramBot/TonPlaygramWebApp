@@ -123,6 +123,48 @@ export default function AirHockeyLobby() {
       <div className="relative z-10 space-y-4 p-4 pb-8">
         <GameLobbyHeader slug="airhockey" title="Air Hockey Lobby" badge="Fast load" />
 
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
+          <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
+          <div className="mt-3 flex items-center gap-3">
+            <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
+              {avatar ? (
+                <img src={avatar} alt="Your avatar" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-lg">🙂</div>
+              )}
+            </div>
+            <div className="text-sm text-white/80">
+              <p className="font-semibold">{getTelegramFirstName() || 'Player'} ready</p>
+              <p className="text-xs text-white/50">Flag: {selectedFlag || 'Auto'}</p>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2">
+            <button
+              type="button"
+              onClick={() => setShowFlagPicker(true)}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:border-white/30"
+            >
+              <div className="text-[11px] uppercase tracking-wide text-white/50">Flag</div>
+              <div className="flex items-center gap-2 text-base font-semibold">
+                <span className="text-lg">{selectedFlag || '🌐'}</span>
+                <span>{selectedFlag ? 'Custom flag' : 'Auto-detect & save'}</span>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAiFlagPicker(true)}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:border-white/30"
+            >
+              <div className="text-[11px] uppercase tracking-wide text-white/50">AI Flag</div>
+              <div className="flex items-center gap-2 text-base font-semibold">
+                <span className="text-lg">{selectedAiFlag || '🌐'}</span>
+                <span>{selectedAiFlag ? 'Custom AI flag' : 'Auto-pick opponent'}</span>
+              </div>
+            </button>
+          </div>
+          <p className="mt-3 text-xs text-white/60">Your lobby choices persist into the match intro.</p>
+        </div>
+
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Game Type</h3>
@@ -302,60 +344,6 @@ export default function AirHockeyLobby() {
             </div>
           </div>
         )}
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">Identity</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Flags</span>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-            <div className="flex items-start gap-3">
-              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-purple-400/40 to-indigo-500/40 p-[1px]">
-                <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
-                  👤
-                </div>
-              </div>
-              <div>
-                <h3 className="font-semibold text-white">Player & AI Identity</h3>
-                <p className="text-xs text-white/60">Set your flag, avatar, and AI rival flag in one place.</p>
-              </div>
-            </div>
-            <div className="mt-3 grid gap-3">
-              <button
-                type="button"
-                onClick={() => setShowFlagPicker(true)}
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-left text-sm text-white/80 transition hover:border-white/30"
-              >
-                <div className="text-[10px] uppercase tracking-[0.35em] text-white/60">Flag</div>
-                <div className="mt-2 flex items-center gap-2 text-base font-semibold">
-                  <span className="text-lg">{selectedFlag || '🌐'}</span>
-                  <span>{selectedFlag ? 'Custom flag' : 'Auto-detect & save'}</span>
-                </div>
-              </button>
-              {avatar && (
-                <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                  <img
-                    src={avatar}
-                    alt="Your avatar"
-                    className="h-12 w-12 rounded-full border border-white/20 object-cover"
-                  />
-                  <div className="text-sm text-white/60">Your avatar will appear in the match intro.</div>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowAiFlagPicker(true)}
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-left text-sm text-white/80 transition hover:border-white/30"
-              >
-                <div className="text-[10px] uppercase tracking-[0.35em] text-white/60">AI Flag</div>
-                <div className="mt-2 flex items-center gap-2 text-base font-semibold">
-                  <span className="text-lg">{selectedAiFlag || '🌐'}</span>
-                  <span>{selectedAiFlag ? 'Custom AI flag' : 'Auto-pick for opponent'}</span>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
 
         <button
           onClick={startGame}
