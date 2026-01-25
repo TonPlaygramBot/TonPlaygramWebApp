@@ -158,6 +158,21 @@ export default function DominoRoyalLobby() {
               <p className="text-xs text-white/50">Flags: {flags.length ? 'Custom' : 'Auto'}</p>
             </div>
           </div>
+          <div className="mt-3 grid gap-2">
+            <button
+              type="button"
+              onClick={openAiFlagPicker}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:border-white/30"
+            >
+              <div className="text-[11px] uppercase tracking-wide text-white/50">AI Flags</div>
+              <div className="flex items-center gap-2 text-base font-semibold">
+                <span className="text-lg">
+                  {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : '🌐'}
+                </span>
+                <span>{flags.length ? 'Custom AI avatars' : 'Auto-pick from global flags'}</span>
+              </div>
+            </button>
+          </div>
           <p className="mt-3 text-xs text-white/60">Your lobby choices persist into the domino match start.</p>
         </div>
 
@@ -272,40 +287,6 @@ export default function DominoRoyalLobby() {
           <p className="text-xs text-white/60 text-center">
             Local mode keeps the match offline while the arena loads instantly.
           </p>
-        </div>
-
-        <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-          <div className="flex items-start gap-3">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-purple-400/40 to-indigo-500/40 p-[1px]">
-              <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
-                <OptionIcon
-                  src={getLobbyIcon('domino-royal', 'players-2')}
-                  alt="AI avatars"
-                  fallback={HUMAN_ICON_FALLBACK}
-                  className="h-full w-full text-2xl"
-                />
-              </div>
-            </div>
-            <div>
-              <h3 className="font-semibold text-white">AI Avatar Flags</h3>
-              <p className="text-xs text-white/60">
-                Pick worldwide flags for AI opponents and your seat to keep the domino lobby consistent.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={openAiFlagPicker}
-            className="mt-3 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-left text-sm text-white/80 transition hover:border-white/30"
-          >
-            <div className="text-[10px] uppercase tracking-[0.35em] text-white/60">AI Flags</div>
-            <div className="mt-2 flex items-center gap-2 text-base font-semibold">
-              <span className="text-lg">
-                {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : '🌐'}
-              </span>
-              <span>{flags.length ? 'Custom AI avatars' : 'Auto-pick from global flags'}</span>
-            </div>
-          </button>
         </div>
 
         <button
