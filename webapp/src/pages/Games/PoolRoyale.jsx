@@ -36,7 +36,6 @@ import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { chatBeep } from '../../assets/soundData.js';
 import {
   buildCommentaryLine,
-  createMatchCommentaryScript,
   POOL_ROYALE_SPEAKERS
 } from '../../utils/poolRoyaleCommentary.js';
 import { getSpeechSynthesis, primeSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
@@ -923,85 +922,85 @@ const COMMENTARY_QUEUE_LIMIT = 4;
 const COMMENTARY_MIN_INTERVAL_MS = 1200;
 const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   {
-    id: 'arena-duo',
-    label: 'Arena duo',
-    description: 'UK female lead with US male analyst',
+    id: 'english',
+    label: 'English',
+    description: 'Male voice, English',
     voiceHints: {
-      [POOL_ROYALE_SPEAKERS.lead]: ['Google UK English Female', 'en-GB', 'English', 'female', 'UK', 'Sonia'],
-      [POOL_ROYALE_SPEAKERS.analyst]: ['Google US English Male', 'en-US', 'English', 'male', 'US', 'David', 'Guy']
+      [POOL_ROYALE_SPEAKERS.lead]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex']
     },
     speakerSettings: {
-      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 1.02, volume: 1 },
-      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.03, pitch: 0.98, volume: 1 }
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
     }
   },
   {
-    id: 'atlantic',
-    label: 'Atlantic booth',
-    description: 'US female lead with UK male analyst',
+    id: 'mandarin',
+    label: 'Mandarin',
+    description: 'Male voice, 中文',
     voiceHints: {
-      [POOL_ROYALE_SPEAKERS.lead]: ['Google US English Female', 'en-US', 'English', 'female', 'US', 'Samantha', 'Zira'],
-      [POOL_ROYALE_SPEAKERS.analyst]: ['Google UK English Male', 'en-GB', 'English', 'male', 'UK', 'Daniel', 'Arthur']
+      [POOL_ROYALE_SPEAKERS.lead]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male']
     },
     speakerSettings: {
-      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 0.98, volume: 1 },
-      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.92, volume: 1 }
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
     }
   },
   {
-    id: 'pacific',
-    label: 'Pacific desk',
-    description: 'Australian male with US female analyst',
+    id: 'hindi',
+    label: 'Hindi',
+    description: 'Male voice, हिंदी',
     voiceHints: {
-      [POOL_ROYALE_SPEAKERS.lead]: ['Google Australian English', 'en-AU', 'English', 'male', 'Australia', 'Lee', 'William'],
-      [POOL_ROYALE_SPEAKERS.analyst]: ['Google US English Female', 'en-US', 'English', 'female', 'US', 'Samantha', 'Zira']
+      [POOL_ROYALE_SPEAKERS.lead]: ['hi-IN', 'Hindi', 'India', 'male'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['hi-IN', 'Hindi', 'India', 'male']
     },
     speakerSettings: {
-      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1.01, pitch: 0.96, volume: 1 },
-      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
     }
   },
   {
-    id: 'emerald',
-    label: 'Emerald studio',
-    description: 'Irish female with UK male analyst',
+    id: 'spanish',
+    label: 'Spanish',
+    description: 'Male voice, Español',
     voiceHints: {
-      [POOL_ROYALE_SPEAKERS.lead]: ['Google Irish English Female', 'en-IE', 'English', 'female', 'Ireland', 'Moira'],
-      [POOL_ROYALE_SPEAKERS.analyst]: ['Google UK English Male', 'en-GB', 'English', 'male', 'UK', 'Daniel', 'Arthur']
+      [POOL_ROYALE_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male']
     },
     speakerSettings: {
-      [POOL_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.9, volume: 1 },
-      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.01, pitch: 1, volume: 1 }
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.97, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.97, volume: 1 }
     }
   },
   {
-    id: 'global',
-    label: 'Global mix',
-    description: 'Indian female with US male analyst',
+    id: 'french',
+    label: 'French',
+    description: 'Male voice, Français',
     voiceHints: {
-      [POOL_ROYALE_SPEAKERS.lead]: ['Google Indian English Female', 'en-IN', 'English', 'female', 'India', 'Asha', 'Raveena'],
-      [POOL_ROYALE_SPEAKERS.analyst]: ['Google US English Male', 'en-US', 'English', 'male', 'US', 'David', 'Guy']
+      [POOL_ROYALE_SPEAKERS.lead]: ['fr-FR', 'French', 'Français', 'male'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['fr-FR', 'French', 'Français', 'male']
     },
     speakerSettings: {
-      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 1.06, volume: 1 },
-      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 1.01, volume: 1 }
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
     }
   },
   {
-    id: 'northern',
-    label: 'Northern call',
-    description: 'Canadian male with UK female analyst',
+    id: 'arabic',
+    label: 'Arabic',
+    description: 'Male voice, العربية',
     voiceHints: {
-      [POOL_ROYALE_SPEAKERS.lead]: ['Google Canadian English', 'en-CA', 'English', 'male', 'Canada', 'Liam'],
-      [POOL_ROYALE_SPEAKERS.analyst]: ['Google UK English Female', 'en-GB', 'English', 'female', 'UK', 'Sonia', 'Hazel']
+      [POOL_ROYALE_SPEAKERS.lead]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male']
     },
     speakerSettings: {
-      [POOL_ROYALE_SPEAKERS.lead]: { rate: 0.99, pitch: 0.97, volume: 1 },
-      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.01, pitch: 1.03, volume: 1 }
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
     }
   }
 ]);
-const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'arena-duo';
+const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
 const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
@@ -10835,16 +10834,12 @@ function PoolRoyaleGame({
   const skipReplayRef = useRef(() => {});
   const skipAllReplaysRef = useRef(skipAllReplays);
   const commentaryMutedRef = useRef(commentaryMuted);
-  const commentaryGreetingPlayedRef = useRef(false);
   const commentaryReadyRef = useRef(false);
   const commentaryQueueRef = useRef([]);
   const commentarySpeakingRef = useRef(false);
   const commentaryLastEventAtRef = useRef(0);
   const commentarySpeakerTurnRef = useRef(0);
   const pendingCommentaryLinesRef = useRef(null);
-  const commentaryScriptRef = useRef({ start: [], end: [] });
-  const commentaryScriptPlayedRef = useRef(false);
-  const commentaryOutroPlayedRef = useRef(false);
   useEffect(() => {
     skipAllReplaysRef.current = skipAllReplays;
   }, [skipAllReplays]);
@@ -12890,108 +12885,53 @@ const powerRef = useRef(hud.power);
     [stopActiveCrowdSound]
   );
 
-  const buildCommentaryGreetingLines = useCallback(
-    () => {
-      const playerName = player.name || 'Player A';
-      const opponentName = opponentLabel || 'Player B';
-      const scoreA = frameState?.players?.A?.score ?? 0;
-      const scoreB = frameState?.players?.B?.score ?? 0;
-      const scoreline =
-        scoreA === scoreB
-          ? `level at ${scoreA}-${scoreB}`
-          : scoreA > scoreB
-            ? `${framePlayerAName || playerName} leads ${scoreA}-${scoreB}`
-            : `${framePlayerBName || opponentName} leads ${scoreB}-${scoreA}`;
-      const commentaryVariant = activeVariant?.id ?? variantKey ?? '9ball';
-      return [
-        {
-          speaker: POOL_ROYALE_SPEAKERS.lead,
-          text: buildCommentaryLine({
-            event: 'intro',
-            variant: commentaryVariant,
-            speaker: POOL_ROYALE_SPEAKERS.lead,
-            context: {
-              player: playerName,
-              opponent: opponentName,
-              arena: 'Pool Royale arena',
-              playerScore: scoreA,
-              opponentScore: scoreB,
-              playerPoints: scoreA,
-              opponentPoints: scoreB,
-              scoreline,
-              ballSet: activeVariant?.ballSet
-            }
-          })
-        },
-        {
-          speaker: POOL_ROYALE_SPEAKERS.analyst,
-          text: buildCommentaryLine({
-            event: 'introReply',
-            variant: commentaryVariant,
-            speaker: POOL_ROYALE_SPEAKERS.analyst,
-            context: {
-              player: playerName,
-              opponent: opponentName,
-              arena: 'Pool Royale arena',
-              playerScore: scoreA,
-              opponentScore: scoreB,
-              playerPoints: scoreA,
-              opponentPoints: scoreB,
-              scoreline,
-              ballSet: activeVariant?.ballSet
-            }
-          })
-        }
-      ];
+  const resolveBallLabel = useCallback(
+    (entry) => {
+      if (!entry) return 'the object ball';
+      const colorKey = String(entry.color || '').toUpperCase();
+      const idValue = typeof entry.id === 'string' ? entry.id : '';
+      if (colorKey === 'CUE' || entry.id === 'cue') return 'the cue ball';
+      const idMatch = /(\d+)/.exec(idValue) || /BALL_(\d+)/.exec(colorKey);
+      if (idMatch) return `the ${parseInt(idMatch[1], 10)} ball`;
+      if (colorKey === 'BLACK') return isUkAmericanSet ? 'the 8 ball' : 'the black';
+      if (colorKey === 'RED') return 'a red';
+      if (colorKey === 'YELLOW') return 'a yellow';
+      if (colorKey === 'BLUE') return 'the blue';
+      if (colorKey === 'GREEN') return 'the green';
+      if (colorKey === 'BROWN') return 'the brown';
+      if (colorKey === 'PINK') return 'the pink';
+      if (colorKey === 'STRIPE') return 'a stripe';
+      if (colorKey === 'SOLID') return 'a solid';
+      return `the ${colorKey.toLowerCase()}`;
     },
-    [
-      activeVariant?.ballSet,
-      activeVariant?.id,
-      framePlayerAName,
-      framePlayerBName,
-      frameState?.players,
-      opponentLabel,
-      player.name,
-      variantKey
-    ]
+    [isUkAmericanSet]
   );
-  const buildMatchCommentaryScript = useCallback(
-    () =>
-      createMatchCommentaryScript({
-        variant: activeVariant?.id ?? variantKey ?? '9ball',
-        ballSet: activeVariant?.ballSet ?? 'uk',
-        players: {
-          A: framePlayerAName || 'Player A',
-          B: framePlayerBName || 'Player B'
-        },
-        scores: {
-          A: frameState?.players?.A?.score ?? 0,
-          B: frameState?.players?.B?.score ?? 0
-        },
-        points: {
-          A: frameState?.players?.A?.score ?? 0,
-          B: frameState?.players?.B?.score ?? 0
-        },
-        pots: {
-          A: pottedBySeat?.A?.length ?? 0,
-          B: pottedBySeat?.B?.length ?? 0
-        },
-        scoreline:
-          (frameState?.players?.A?.score ?? 0) === (frameState?.players?.B?.score ?? 0)
-            ? `level at ${frameState?.players?.A?.score ?? 0}-${frameState?.players?.B?.score ?? 0}`
-            : (frameState?.players?.A?.score ?? 0) > (frameState?.players?.B?.score ?? 0)
-              ? `${framePlayerAName || 'Player A'} leads ${frameState?.players?.A?.score ?? 0}-${frameState?.players?.B?.score ?? 0}`
-              : `${framePlayerBName || 'Player B'} leads ${frameState?.players?.B?.score ?? 0}-${frameState?.players?.A?.score ?? 0}`
-      }),
-    [
-      activeVariant?.ballSet,
-      activeVariant?.id,
-      framePlayerAName,
-      framePlayerBName,
-      frameState?.players,
-      pottedBySeat,
-      variantKey
-    ]
+
+  const resolvePotSummary = useCallback(
+    (pottedBalls = []) => {
+      const objectBalls = pottedBalls.filter(
+        (entry) => entry && entry.id !== 'cue' && entry.color !== 'CUE'
+      );
+      if (!objectBalls.length) {
+        return { targetBall: 'the object ball', potCount: 0, pocket: 'the pocket' };
+      }
+      const lastPocket = objectBalls[objectBalls.length - 1]?.pocket;
+      const pocket =
+        lastPocket === 'TM' || lastPocket === 'BM'
+          ? 'the side pocket'
+          : lastPocket
+            ? 'the corner pocket'
+            : 'the pocket';
+      const labels = objectBalls.map(resolveBallLabel).filter(Boolean);
+      if (labels.length === 1) {
+        return { targetBall: labels[0], potCount: 1, pocket };
+      }
+      if (labels.length === 2) {
+        return { targetBall: `${labels[0]} and ${labels[1]}`, potCount: 2, pocket };
+      }
+      return { targetBall: `${labels.length} balls`, potCount: labels.length, pocket };
+    },
+    [resolveBallLabel]
   );
 
   const playNextCommentary = useCallback(async () => {
@@ -13086,7 +13026,8 @@ const powerRef = useRef(hud.power);
       shotWasFoul,
       cueBallPotted,
       replayDecision,
-      potCount
+      potCount,
+      pottedBalls
     }) => {
       if (commentaryMutedRef.current || isGameMuted()) return;
       const scoreA = safeState?.players?.A?.score ?? frameState?.players?.A?.score ?? 0;
@@ -13100,6 +13041,7 @@ const powerRef = useRef(hud.power);
       const opponentScore = shooter === 'A' ? scoreB : scoreA;
       const shooterPots = (pottedBySeat?.[shooter]?.length ?? 0) + (potCount ?? 0);
       const opponentPots = pottedBySeat?.[opponent]?.length ?? 0;
+      const { targetBall, potCount: resolvedPotCount, pocket } = resolvePotSummary(pottedBalls);
       const context = {
         player: shooterName,
         opponent: opponentName,
@@ -13109,7 +13051,10 @@ const powerRef = useRef(hud.power);
         opponentPoints: opponentScore,
         playerPots: shooterPots,
         opponentPots,
-        scoreline
+        scoreline,
+        targetBall,
+        potCount: resolvedPotCount,
+        pocket
       };
 
       if (safeState?.frameOver) {
@@ -13159,27 +13104,18 @@ const powerRef = useRef(hud.power);
       enqueuePoolCommentaryEvent,
       frameState?.players,
       pottedBySeat,
+      resolvePotSummary,
       resolveScoreline,
       resolveSeatLabel
     ]
   );
   useEffect(() => {
-    const fullScript = buildMatchCommentaryScript();
-    const outroIndex = Math.max(0, fullScript.length - 2);
-    commentaryScriptRef.current = {
-      start: fullScript.slice(0, outroIndex),
-      end: fullScript.slice(outroIndex)
-    };
-    commentaryScriptPlayedRef.current = false;
-    commentaryOutroPlayedRef.current = false;
-    commentaryGreetingPlayedRef.current = false;
-    pendingCommentaryLinesRef.current = null;
-  }, [buildMatchCommentaryScript, initialFrame]);
-  useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const unlockCommentary = () => {
       if (commentaryReadyRef.current) return;
       primeSpeechSynthesis();
+      const synth = getSpeechSynthesis();
+      synth?.getVoices?.();
       commentaryReadyRef.current = true;
       const pending = pendingCommentaryLinesRef.current;
       if (pending) {
@@ -13198,91 +13134,17 @@ const powerRef = useRef(hud.power);
       window.removeEventListener('keydown', unlockCommentary);
     };
   }, [enqueuePoolCommentary]);
-  useEffect(() => {
-    if (commentaryScriptPlayedRef.current) return;
-    if (commentaryMutedRef.current || isGameMuted()) return;
-    if (frameState.frameOver) return;
-    const startLines = commentaryScriptRef.current.start;
-    if (!startLines.length) return;
-    commentaryScriptPlayedRef.current = true;
-    commentaryGreetingPlayedRef.current = true;
-    enqueuePoolCommentary(startLines, { priority: true });
-  }, [enqueuePoolCommentary, frameState.frameOver]);
-  useEffect(() => {
-    if (!frameState.frameOver) return;
-    if (commentaryOutroPlayedRef.current) return;
-    if (commentaryMutedRef.current || isGameMuted()) return;
-    const endLines = commentaryScriptRef.current.end;
-    if (!endLines.length) return;
-    commentaryOutroPlayedRef.current = true;
-    enqueuePoolCommentary(endLines, { priority: true });
-  }, [enqueuePoolCommentary, frameState.frameOver]);
 
   const handleCommentaryPresetSelect = useCallback(
     (preset) => {
       if (!preset?.id) return;
       setCommentaryPresetId(preset.id);
-      if (commentaryMutedRef.current || isGameMuted()) return;
-      enqueuePoolCommentary(
-        [
-          {
-            speaker: POOL_ROYALE_SPEAKERS.lead,
-            text: buildCommentaryLine({
-              event: 'intro',
-              variant: activeVariant?.id ?? variantKey ?? '9ball',
-              speaker: POOL_ROYALE_SPEAKERS.lead,
-              context: {
-                player: player.name || 'Player A',
-                opponent: opponentLabel || 'Player B',
-                arena: 'Pool Royale arena',
-                playerScore: frameState?.players?.A?.score ?? 0,
-                opponentScore: frameState?.players?.B?.score ?? 0,
-                playerPoints: frameState?.players?.A?.score ?? 0,
-                opponentPoints: frameState?.players?.B?.score ?? 0,
-                scoreline:
-                  (frameState?.players?.A?.score ?? 0) === (frameState?.players?.B?.score ?? 0)
-                    ? `level at ${frameState?.players?.A?.score ?? 0}-${frameState?.players?.B?.score ?? 0}`
-                    : (frameState?.players?.A?.score ?? 0) > (frameState?.players?.B?.score ?? 0)
-                      ? `${framePlayerAName || 'Player A'} leads ${frameState?.players?.A?.score ?? 0}-${frameState?.players?.B?.score ?? 0}`
-                      : `${framePlayerBName || 'Player B'} leads ${frameState?.players?.B?.score ?? 0}-${frameState?.players?.A?.score ?? 0}`,
-                ballSet: activeVariant?.ballSet
-              }
-            })
-          }
-        ],
-        { preset, priority: true }
-      );
     },
-    [
-      activeVariant?.ballSet,
-      activeVariant?.id,
-      framePlayerAName,
-      framePlayerBName,
-      frameState?.players,
-      opponentLabel,
-      player.name,
-      enqueuePoolCommentary,
-      variantKey
-    ]
+    []
   );
   useEffect(() => {
     document.title = 'Pool Royale 3D';
   }, []);
-  useEffect(() => {
-    if (commentaryGreetingPlayedRef.current) return undefined;
-    if (commentaryMutedRef.current || isGameMuted()) return undefined;
-    if (commentaryScriptRef.current.start.length) return undefined;
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      if (cancelled || commentaryGreetingPlayedRef.current) return;
-      commentaryGreetingPlayedRef.current = true;
-      enqueuePoolCommentary(buildCommentaryGreetingLines(), { priority: true });
-    }, 1200);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [buildCommentaryGreetingLines, commentaryMuted, enqueuePoolCommentary]);
   useEffect(() => {
     const nextName = playerName || getTelegramUsername() || 'Player';
     const nextAvatar = playerAvatar || getTelegramPhotoUrl();
@@ -23421,7 +23283,8 @@ const powerRef = useRef(hud.power);
           shotWasFoul,
           cueBallPotted,
           replayDecision,
-          potCount
+          potCount,
+          pottedBalls: potted
         });
         if (metaState && typeof metaState === 'object') {
           const assignments = metaState.assignments || null;
@@ -26475,7 +26338,7 @@ const powerRef = useRef(hud.power);
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Commentary
+                  Commentary language
                 </h3>
                 <div className="mt-2 grid grid-cols-1 gap-2">
                   {POOL_ROYALE_COMMENTARY_PRESETS.map((preset) => {

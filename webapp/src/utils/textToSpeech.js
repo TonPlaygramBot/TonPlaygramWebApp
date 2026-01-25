@@ -14,6 +14,11 @@ export const getSpeechSynthesis = () =>
 export const primeSpeechSynthesis = () => {
   const synth = getSpeechSynthesis();
   if (!synth || synth.speaking || synth.pending) return;
+  if (typeof synth.getVoices === 'function') {
+    try {
+      synth.getVoices();
+    } catch {}
+  }
   if (typeof synth.resume === 'function') {
     try {
       synth.resume();
