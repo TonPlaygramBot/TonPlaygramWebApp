@@ -966,88 +966,81 @@ const COMMENTARY_SPEAKER_LEAD = 'Caster';
 const COMMENTARY_SPEAKER_ANALYST = 'Analyst';
 const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
   {
-    id: 'atlas',
-    label: 'Atlas',
-    description: 'Classic arena broadcaster with measured pace.',
+    id: 'english',
+    label: 'English',
+    description: 'Male play-by-play in English.',
     voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['en-GB', 'english', 'male', 'daniel', 'george', 'google uk english'],
-      [COMMENTARY_SPEAKER_ANALYST]: [
-        'en-GB',
-        'english',
-        'female',
-        'kate',
-        'serena',
-        'google uk english female'
-      ]
+      [COMMENTARY_SPEAKER_LEAD]: ['en-GB', 'en-US', 'english', 'male', 'google'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['en-GB', 'en-US', 'english', 'male', 'google']
     },
     speakerSettings: {
       [COMMENTARY_SPEAKER_LEAD]: { rate: 0.98, pitch: 0.92, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.02, pitch: 1.08, volume: 0.98 }
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.02, pitch: 0.98, volume: 0.98 }
     }
   },
   {
-    id: 'nova',
-    label: 'Nova',
-    description: 'High-energy commentary with a crisp edge.',
+    id: 'mandarin',
+    label: 'Mandarin Chinese',
+    description: 'Male play-by-play in Mandarin.',
     voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['en-US', 'female', 'samantha', 'victoria', 'zira', 'google us'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['en-US', 'male', 'alex', 'david', 'guy', 'google us english male']
+      [COMMENTARY_SPEAKER_LEAD]: ['zh-CN', 'zh', 'mandarin', 'male', 'google'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['zh-CN', 'zh', 'mandarin', 'male', 'google']
     },
     speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 1.04, pitch: 1.08, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 0.98, pitch: 0.92, volume: 1 }
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 1, pitch: 0.95, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.02, pitch: 1, volume: 0.98 }
     }
   },
   {
-    id: 'ivy',
-    label: 'Ivy',
-    description: 'Smooth tactical analysis and calm delivery.',
+    id: 'hindi',
+    label: 'Hindi',
+    description: 'Male play-by-play in Hindi.',
     voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['en-GB', 'female', 'kate', 'serena', 'google uk english female'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['en-GB', 'male', 'daniel', 'george', 'google uk english']
+      [COMMENTARY_SPEAKER_LEAD]: ['hi-IN', 'hi', 'hindi', 'male', 'google'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['hi-IN', 'hi', 'hindi', 'male', 'google']
     },
     speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 0.96, pitch: 1.1, volume: 0.98 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 0.98, pitch: 0.9, volume: 1 }
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 1.02, pitch: 0.96, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.04, pitch: 1, volume: 0.98 }
     }
   },
   {
-    id: 'onyx',
-    label: 'Onyx',
-    description: 'Deep tone with a steady play-by-play focus.',
+    id: 'spanish',
+    label: 'Spanish',
+    description: 'Male play-by-play in Spanish.',
     voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['en-US', 'male', 'alex', 'david', 'guy', 'google us english male'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['en-US', 'female', 'samantha', 'victoria', 'zira', 'google us']
+      [COMMENTARY_SPEAKER_LEAD]: ['es-ES', 'es', 'spanish', 'male', 'google'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['es-ES', 'es', 'spanish', 'male', 'google']
     },
     speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 0.94, pitch: 0.85, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.04, pitch: 1.06, volume: 0.98 }
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 1, pitch: 0.96, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.02, pitch: 1, volume: 0.98 }
     }
   },
   {
-    id: 'riley',
-    label: 'Riley',
-    description: 'Bright, upbeat narration for fast frames.',
+    id: 'french',
+    label: 'French',
+    description: 'Male play-by-play in French.',
     voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['en-AU', 'en-US', 'female', 'karen', 'google'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['en-AU', 'en-US', 'male', 'oliver', 'google']
+      [COMMENTARY_SPEAKER_LEAD]: ['fr-FR', 'fr', 'french', 'male', 'google'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['fr-FR', 'fr', 'french', 'male', 'google']
     },
     speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 1.06, pitch: 1.15, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 0.96, pitch: 0.9, volume: 1 }
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 0.98, pitch: 0.94, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1, pitch: 0.98, volume: 0.98 }
     }
   },
   {
-    id: 'zara',
-    label: 'Zara',
-    description: 'Analytical calls with a balanced cadence.',
+    id: 'arabic',
+    label: 'Arabic',
+    description: 'Male play-by-play in Arabic.',
     voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['en-IN', 'en-US', 'female', 'neural', 'google'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['en-IN', 'en-GB', 'male', 'google']
+      [COMMENTARY_SPEAKER_LEAD]: ['ar-SA', 'ar', 'arabic', 'male', 'google'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['ar-SA', 'ar', 'arabic', 'male', 'google']
     },
     speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 1.02, pitch: 1.02, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 0.98, pitch: 0.9, volume: 1 }
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 1, pitch: 0.94, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.02, pitch: 0.98, volume: 0.98 }
     }
   }
 ]);
