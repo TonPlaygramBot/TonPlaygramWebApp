@@ -50,7 +50,8 @@ import { getGameVolume, isGameMuted } from '../../utils/sound.js';
 import { getSpeechSynthesis, primeSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
 import {
   buildMurlanCommentaryLine,
-  MURLAN_ROYALE_SPEAKERS
+  MURLAN_ROYALE_SPEAKERS,
+  resolveMurlanLanguageKey
 } from '../../utils/murlanRoyaleCommentary.js';
 
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
@@ -671,67 +672,6 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     }
   },
   {
-    id: 'arena-captain',
-    label: 'Arena Captain',
-    description: 'Commanding stadium duo, bold English booth',
-    language: 'en',
-    voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: [
-        'en-US',
-        'English',
-        'male',
-        'Bruce',
-        'Ralph',
-        'Fred',
-        'Matthew'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: [
-        'en-GB',
-        'en-US',
-        'English',
-        'male',
-        'Guy',
-        'Daniel',
-        'Alex',
-        'Ryan'
-      ]
-    },
-    speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.9, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 0.95, volume: 1 }
-    }
-  },
-  {
-    id: 'skyline-duo',
-    label: 'Skyline Duo',
-    description: 'Energetic English booth with twin leads',
-    language: 'en',
-    voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: [
-        'en-US',
-        'English',
-        'male',
-        'David',
-        'Mark',
-        'Ryan',
-        'Matthew'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: [
-        'en-US',
-        'English',
-        'male',
-        'Microsoft Mark',
-        'Mark',
-        'Ryan',
-        'Matthew'
-      ]
-    },
-    speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.04, pitch: 0.98, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 0.98, volume: 1 }
-    }
-  },
-  {
     id: 'saffron-table',
     label: 'Indian Table',
     description: 'Hindi commentary with lively pacing',
@@ -744,12 +684,7 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
         'male',
         'Raj',
         'Amit',
-        'Arjun',
-        'en-IN',
-        'English',
-        'male',
-        'Ravi',
-        'Prakash'
+        'Arjun'
       ],
       [MURLAN_ROYALE_SPEAKERS.analyst]: [
         'hi-IN',
@@ -758,11 +693,7 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
         'female',
         'Asha',
         'Priya',
-        'Neha',
-        'en-IN',
-        'English',
-        'female',
-        'Sneha'
+        'Neha'
       ]
     },
     speakerSettings: {
@@ -949,12 +880,7 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
         'male',
         'Arben',
         'Ilir',
-        'Dritan',
-        'en-US',
-        'English',
-        'male',
-        'David',
-        'Alex'
+        'Dritan'
       ],
       [MURLAN_ROYALE_SPEAKERS.analyst]: [
         'sq-AL',
@@ -963,12 +889,7 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
         'male',
         'Besar',
         'Erion',
-        'Gent',
-        'en-GB',
-        'English',
-        'male',
-        'Guy',
-        'Daniel'
+        'Gent'
       ]
     },
     speakerSettings: {
@@ -1497,6 +1418,155 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '22%' }
 ];
 
+const AI_NAME_TRANSLATIONS = Object.freeze({
+  zh: {
+    Aria: '艾莉娅',
+    Milo: '米洛',
+    Sora: '索拉'
+  },
+  hi: {
+    Aria: 'आरिया',
+    Milo: 'माइलो',
+    Sora: 'सोरा'
+  },
+  ru: {
+    Aria: 'Ария',
+    Milo: 'Майло',
+    Sora: 'Сора'
+  },
+  sq: {
+    Aria: 'Aria',
+    Milo: 'Milo',
+    Sora: 'Sora'
+  }
+});
+
+const COMMENTARY_FALLBACK_LABELS = Object.freeze({
+  en: {
+    player: 'Player',
+    table: 'table',
+    combo: 'a clean combo'
+  },
+  zh: {
+    player: '玩家',
+    table: '牌桌',
+    combo: '一手稳健的组合'
+  },
+  hi: {
+    player: 'खिलाड़ी',
+    table: 'टेबल',
+    combo: 'साफ कॉम्बो'
+  },
+  ru: {
+    player: 'Игрок',
+    table: 'стол',
+    combo: 'чистая комбинация'
+  },
+  es: {
+    player: 'Jugador',
+    table: 'mesa',
+    combo: 'un combo limpio'
+  },
+  fr: {
+    player: 'Joueur',
+    table: 'table',
+    combo: 'un combo propre'
+  },
+  ar: {
+    player: 'اللاعب',
+    table: 'الطاولة',
+    combo: 'تركيبة نظيفة'
+  },
+  sq: {
+    player: 'Lojtari',
+    table: 'tavolina',
+    combo: 'një kombinim i pastër'
+  }
+});
+
+const COMMENTARY_COMBO_LABELS = Object.freeze({
+  en: {
+    single: (card) => `a ${card}`,
+    pair: (rank) => `pair ${rank}`,
+    trips: (rank) => `trips ${rank}`,
+    bomb: (rank) => `bomb ${rank}`,
+    straight: (start, end) => `straight ${start} - ${end}`,
+    flush: (count) => `flush with ${count} cards`,
+    fullHouse: () => 'full house',
+    straightFlush: () => 'straight flush'
+  },
+  zh: {
+    single: (card) => `单张${card}`,
+    pair: (rank) => `对子${rank}`,
+    trips: (rank) => `三条${rank}`,
+    bomb: (rank) => `炸弹${rank}`,
+    straight: (start, end) => `顺子${start}-${end}`,
+    flush: (count) => `同花${count}张`,
+    fullHouse: () => '葫芦',
+    straightFlush: () => '同花顺'
+  },
+  hi: {
+    single: (card) => `एकल ${card}`,
+    pair: (rank) => `जोड़ी ${rank}`,
+    trips: (rank) => `ट्रिप्स ${rank}`,
+    bomb: (rank) => `बॉम्ब ${rank}`,
+    straight: (start, end) => `स्ट्रेट ${start}-${end}`,
+    flush: (count) => `${count} पत्तों का फ्लश`,
+    fullHouse: () => 'फुल हाउस',
+    straightFlush: () => 'स्ट्रेट फ्लश'
+  },
+  ru: {
+    single: (card) => `одиночная ${card}`,
+    pair: (rank) => `пара ${rank}`,
+    trips: (rank) => `сет ${rank}`,
+    bomb: (rank) => `бомба ${rank}`,
+    straight: (start, end) => `стрит ${start}-${end}`,
+    flush: (count) => `флеш на ${count} карт`,
+    fullHouse: () => 'фул-хаус',
+    straightFlush: () => 'стрит-флеш'
+  },
+  es: {
+    single: (card) => `una ${card}`,
+    pair: (rank) => `pareja ${rank}`,
+    trips: (rank) => `trío ${rank}`,
+    bomb: (rank) => `bomba ${rank}`,
+    straight: (start, end) => `escalera ${start}-${end}`,
+    flush: (count) => `color de ${count} cartas`,
+    fullHouse: () => 'full house',
+    straightFlush: () => 'escalera de color'
+  },
+  fr: {
+    single: (card) => `une ${card}`,
+    pair: (rank) => `paire ${rank}`,
+    trips: (rank) => `brelan ${rank}`,
+    bomb: (rank) => `bombe ${rank}`,
+    straight: (start, end) => `suite ${start}-${end}`,
+    flush: (count) => `couleur de ${count} cartes`,
+    fullHouse: () => 'full',
+    straightFlush: () => 'quinte flush'
+  },
+  ar: {
+    single: (card) => `ورقة ${card}`,
+    pair: (rank) => `زوج ${rank}`,
+    trips: (rank) => `ثلاثية ${rank}`,
+    bomb: (rank) => `قنبلة ${rank}`,
+    straight: (start, end) => `تسلسل ${start}-${end}`,
+    flush: (count) => `فلش من ${count} أوراق`,
+    fullHouse: () => 'فل هاوس',
+    straightFlush: () => 'ستريت فلش'
+  },
+  sq: {
+    single: (card) => `një ${card}`,
+    pair: (rank) => `çift ${rank}`,
+    trips: (rank) => `treshe ${rank}`,
+    bomb: (rank) => `bombë ${rank}`,
+    straight: (start, end) => `drejtë ${start}-${end}`,
+    flush: (count) => `ngjyrë me ${count} letra`,
+    fullHouse: () => 'shtëpi e plotë',
+    straightFlush: () => 'drejtë e ngjyrës'
+  }
+});
+
 const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
 
 const FRAME_RATE_OPTIONS = Object.freeze([
@@ -1970,20 +2040,20 @@ export default function MurlanRoyaleArena({ search }) {
     const previousActionId = snapshot.lastActionId;
     const previousStatus = snapshot.status;
     const players = gameState.players || [];
+    const languageKey = resolveMurlanLanguageKey(activeCommentaryPreset?.language ?? commentaryPresetId);
 
     const resolvePlayerName = (index) => {
       const player = players[index];
-      if (!player) return `Player ${index + 1}`;
-      return player.name || `Player ${index + 1}`;
+      return resolveLocalizedPlayerName(player, index, languageKey);
     };
 
     const resolveOpponentName = (index) => {
       const opponent =
         players.find((p, idx) => idx !== index && !p.finished) ||
         players.find((p, idx) => idx !== index);
-      if (!opponent) return 'the table';
+      if (!opponent) return getCommentaryFallbackLabel('table', languageKey) || 'the table';
       const opponentIndex = players.indexOf(opponent);
-      return opponent.name || `Player ${opponentIndex >= 0 ? opponentIndex + 1 : ''}`.trim() || 'the table';
+      return resolveLocalizedPlayerName(opponent, opponentIndex >= 0 ? opponentIndex : 0, languageKey);
     };
 
     const resolveComboEvent = (combo) => {
@@ -2053,10 +2123,10 @@ export default function MurlanRoyaleArena({ search }) {
         const opponentName = resolveOpponentName(action.playerIndex);
         const cardsLeft = players[action.playerIndex]?.hand?.length ?? 0;
         const comboLabel = action.combo
-          ? describeCombo(action.combo, action.cards)
+          ? describeCommentaryCombo(action.combo, action.cards, languageKey)
           : action.cards?.length
-            ? action.cards.map((card) => cardLabel(card)).join(' ')
-            : 'a clean combo';
+            ? action.cards.map((card) => localizedCardLabel(card, languageKey)).join(' ')
+            : getCommentaryFallbackLabel('combo', languageKey);
         const context = {
           player: playerName,
           opponent: opponentName,
@@ -4221,6 +4291,93 @@ function flagName(flag) {
     return names.of(region) || `Player ${flag}`;
   } catch (error) {
     return `Player ${flag}`;
+  }
+}
+
+function flagNameForLocale(flag, languageKey) {
+  if (!flag) return '';
+  const base = 0x1f1e6;
+  const codePoints = [...flag].map((c) => c.codePointAt(0) - base + 65);
+  try {
+    const region = String.fromCharCode(...codePoints);
+    const locale = languageKey && languageKey !== 'en' ? languageKey : 'en';
+    const names = new Intl.DisplayNames([locale], { type: 'region' });
+    return names.of(region) || '';
+  } catch (error) {
+    return '';
+  }
+}
+
+function getCommentaryFallbackLabel(kind, languageKey) {
+  const localized = COMMENTARY_FALLBACK_LABELS[languageKey];
+  return localized?.[kind] || COMMENTARY_FALLBACK_LABELS.en?.[kind] || '';
+}
+
+function resolveLocalizedPlayerName(player, index, languageKey) {
+  if (!player) {
+    const fallback = getCommentaryFallbackLabel('player', languageKey) || 'Player';
+    return `${fallback} ${index + 1}`.trim();
+  }
+  if (player.isHuman) return player.name || `${getCommentaryFallbackLabel('player', languageKey)} ${index + 1}`.trim();
+  if (player.avatar) {
+    const localizedFlag = flagNameForLocale(player.avatar, languageKey);
+    if (localizedFlag) return localizedFlag;
+  }
+  const translated = AI_NAME_TRANSLATIONS[languageKey]?.[player.name];
+  return translated || player.name || `${getCommentaryFallbackLabel('player', languageKey)} ${index + 1}`.trim();
+}
+
+function localizedCardLabel(card, languageKey) {
+  if (!card) return '';
+  if (card.rank === 'JR') {
+    if (languageKey === 'zh') return '红色鬼牌';
+    if (languageKey === 'hi') return 'लाल जोकर';
+    if (languageKey === 'ru') return 'красный джокер';
+    if (languageKey === 'es') return 'comodín rojo';
+    if (languageKey === 'fr') return 'joker rouge';
+    if (languageKey === 'ar') return 'جوكر أحمر';
+    if (languageKey === 'sq') return 'xhoker i kuq';
+    return 'Red Joker';
+  }
+  if (card.rank === 'JB') {
+    if (languageKey === 'zh') return '黑色鬼牌';
+    if (languageKey === 'hi') return 'काला जोकर';
+    if (languageKey === 'ru') return 'черный джокер';
+    if (languageKey === 'es') return 'comodín negro';
+    if (languageKey === 'fr') return 'joker noir';
+    if (languageKey === 'ar') return 'جوكر أسود';
+    if (languageKey === 'sq') return 'xhoker i zi';
+    return 'Black Joker';
+  }
+  return `${card.rank}`;
+}
+
+function describeCommentaryCombo(combo, cards, languageKey) {
+  if (!cards?.length) return '';
+  const labels = COMMENTARY_COMBO_LABELS[languageKey] || COMMENTARY_COMBO_LABELS.en;
+  const cardNames = cards.map((card) => localizedCardLabel(card, languageKey));
+  if (!combo) {
+    return cardNames.join(' ');
+  }
+  switch (combo.type) {
+    case ComboType.SINGLE:
+      return labels.single(cardNames[0]);
+    case ComboType.PAIR:
+      return labels.pair(combo.keyRank);
+    case ComboType.TRIPS:
+      return labels.trips(combo.keyRank);
+    case ComboType.BOMB_4K:
+      return labels.bomb(combo.keyRank);
+    case ComboType.STRAIGHT:
+      return labels.straight(cardNames[0], cardNames[cardNames.length - 1]);
+    case ComboType.FLUSH:
+      return labels.flush(cards.length);
+    case ComboType.FULL_HOUSE:
+      return labels.fullHouse();
+    case ComboType.STRAIGHT_FLUSH:
+      return labels.straightFlush();
+    default:
+      return cardNames.join(' ');
   }
 }
 
