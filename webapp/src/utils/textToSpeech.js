@@ -95,8 +95,7 @@ const findDistinctVoice = (voices, hints = [], usedVoices = new Set()) => {
     const match = candidates.find((voice) => !usedVoices.has(voice));
     if (match) return match;
   }
-  const unused = voices.find((voice) => !usedVoices.has(voice));
-  return unused || null;
+  return voices[0] || null;
 };
 
 const resolveHintedLanguage = (hints = [], fallback) => {
@@ -143,14 +142,7 @@ export const speakCommentaryLines = async (lines, {
     const speaker = line.speaker || 'Mason';
     const settings = speakerSettings[speaker] || DEFAULT_SPEAKER_SETTINGS.Mason;
     const utterance = new SpeechSynthesisUtterance(line.text);
-    let voice = speakerVoices[speaker];
-    if (!voice) {
-      voice = findDistinctVoice(voices, voiceHints[speaker] || voiceHints.Mason, usedVoices);
-      if (voice) {
-        usedVoices.add(voice);
-        speakerVoices[speaker] = voice;
-      }
-    }
+    const voice = speakerVoices[speaker] || findVoiceMatch(voices, voiceHints[speaker] || voiceHints.Mason);
     const fallbackLang = resolveHintedLanguage(voiceHints[speaker] || voiceHints.Mason);
 
     if (voice) {
