@@ -143,26 +143,28 @@ export default function LudoBattleRoyalLobby() {
     let tgId;
     let accountId;
     try {
-      accountId = await ensureAccountId();
-      const balRes = await getAccountBalance(accountId);
-      if ((balRes.balance || 0) < stake.amount) {
-        alert('Insufficient balance');
-        return;
-      }
       tgId = getTelegramId();
-      await addTransaction(tgId, -stake.amount, 'stake', {
-        game: 'ludobattle',
-        players: table.capacity,
-        accountId
-      });
+      accountId = await ensureAccountId();
+      if (mode === 'online') {
+        const balRes = await getAccountBalance(accountId);
+        if ((balRes.balance || 0) < stake.amount) {
+          alert('Insufficient balance');
+          return;
+        }
+        await addTransaction(tgId, -stake.amount, 'stake', {
+          game: 'ludobattle',
+          players: table.capacity,
+          accountId
+        });
+      }
     } catch {}
 
     const params = new URLSearchParams();
     const initData = window.Telegram?.WebApp?.initData;
     if (table?.id) params.set('table', table.id);
     if (table?.capacity) params.set('capacity', String(table.capacity));
-    if (stake.token) params.set('token', stake.token);
-    if (stake.amount) params.set('amount', stake.amount);
+    if (mode === 'online' && stake.token) params.set('token', stake.token);
+    if (mode === 'online' && stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
@@ -182,7 +184,7 @@ export default function LudoBattleRoyalLobby() {
     navigate(`/games/ludobattleroyal?${params.toString()}`);
   };
 
-  const disabled = !stake || !stake.token || !stake.amount;
+  const disabled = mode === 'online' && (!stake || !stake.token || !stake.amount);
 
   return (
     <div className="relative min-h-screen bg-[#070b16] text-text">
@@ -306,18 +308,30 @@ export default function LudoBattleRoyalLobby() {
           </div>
         </div>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">Select Stake</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">TPC</span>
+        {mode === 'online' ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-white">Select Stake</h3>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">TPC</span>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+              <p className="text-center text-white/60 text-xs mt-3">
+                Staking is handled via the on-chain contract.
+              </p>
+            </div>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-            <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-            <p className="text-center text-white/60 text-xs mt-3">
-              Staking is handled via the on-chain contract.
-            </p>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-white">Stake</h3>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Free</span>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow text-center text-sm text-white/70">
+              Local AI matches are free — no stake required.
+            </div>
           </div>
-        </div>
+        )}
 
         <button
           onClick={startGame}

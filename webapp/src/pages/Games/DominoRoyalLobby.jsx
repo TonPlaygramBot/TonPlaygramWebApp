@@ -95,23 +95,25 @@ export default function DominoRoyalLobby() {
     let accountId;
     try {
       accountId = await ensureAccountId();
-      const balRes = await getAccountBalance(accountId);
-      if ((balRes.balance || 0) < stake.amount) {
-        alert('Insufficient balance');
-        return;
-      }
       tgId = getTelegramId();
-      await addTransaction(tgId, -stake.amount, 'stake', {
-        game: 'domino',
-        accountId,
-      });
+      if (mode !== 'local') {
+        const balRes = await getAccountBalance(accountId);
+        if ((balRes.balance || 0) < stake.amount) {
+          alert('Insufficient balance');
+          return;
+        }
+        await addTransaction(tgId, -stake.amount, 'stake', {
+          game: 'domino',
+          accountId,
+        });
+      }
     } catch {}
 
     const params = new URLSearchParams();
     params.set('mode', mode);
     params.set('players', String(totalPlayers));
-    if (stake.token) params.set('token', stake.token);
-    if (stake.amount) params.set('amount', stake.amount);
+    if (mode !== 'local' && stake.token) params.set('token', stake.token);
+    if (mode !== 'local' && stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
     params.set('uhd', '1');
     const username = getTelegramUsername();
@@ -176,25 +178,41 @@ export default function DominoRoyalLobby() {
           <p className="mt-3 text-xs text-white/60">Your lobby choices persist into the domino match start.</p>
         </div>
 
-        <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-yellow-400/40 to-orange-500/40 p-[1px]">
-              <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
-                💰
+        {mode === 'local' ? (
+          <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-400/40 to-sky-500/40 p-[1px]">
+                <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
+                  🎯
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">Stake</h3>
+                <p className="text-xs text-white/60">Local AI matches are free — no stake required.</p>
               </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-white">Stake</h3>
-              <p className="text-xs text-white/60">Lock your entry with TPC.</p>
+          </div>
+        ) : (
+          <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-yellow-400/40 to-orange-500/40 p-[1px]">
+                <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
+                  💰
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">Stake</h3>
+                <p className="text-xs text-white/60">Lock your entry with TPC.</p>
+              </div>
             </div>
+            <div className="mt-3">
+              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+            </div>
+            <p className="text-center text-white/60 text-xs">
+              Start bet: {startBet.toLocaleString('en-US')} TPC • Pot max: {stake.amount.toLocaleString('en-US')} TPC
+            </p>
           </div>
-          <div className="mt-3">
-            <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-          </div>
-          <p className="text-center text-white/60 text-xs">
-            Start bet: {startBet.toLocaleString('en-US')} TPC • Pot max: {stake.amount.toLocaleString('en-US')} TPC
-          </p>
-        </div>
+        )}
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">

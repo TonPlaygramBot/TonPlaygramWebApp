@@ -21,7 +21,6 @@ import {
   ensureAccountId,
   getTelegramId
 } from '../../utils/telegram.js';
-import { canStartGame } from '../../utils/lobby.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { runSnakeOnlineFlow } from './snakeOnlineFlow.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
@@ -386,24 +385,9 @@ export default function Lobby() {
     } else if (game === 'snake' && table?.id === 'single') {
       localStorage.removeItem(`snakeGameState_${aiCount}`);
       params.set('ai', aiCount);
-      params.set('token', 'TPC');
       if (flagOverride.length) {
         params.set('flags', flagOverride.join(','));
       }
-      if (stake.amount) params.set('amount', stake.amount);
-      try {
-        const accountId = await ensureAccountId();
-        const balRes = await getAccountBalance(accountId);
-        if ((balRes.balance || 0) < stake.amount) {
-          alert('Insufficient balance');
-          return;
-        }
-        const tgId = getTelegramId();
-        await addTransaction(tgId, -stake.amount, 'stake', {
-          game: 'snake-ai',
-          players: aiCount + 1
-        });
-      } catch {}
     } else {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
@@ -421,8 +405,10 @@ export default function Lobby() {
     navigate(`/games/${game}?${params.toString()}`);
   };
 
+  const requiresStake = !(game === 'snake' && table?.id === 'single');
+  const hasStake = !!(stake && stake.token && stake.amount);
   const disabled =
-    !stake || !stake.token || !stake.amount ||
+    (requiresStake && !hasStake) ||
     (game === 'snake' && table?.id === 'single' && !aiCount) ||
     matching ||
     isSearching;
@@ -548,25 +534,41 @@ export default function Lobby() {
             </div>
           </div>
 
-          <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-yellow-400/40 to-orange-500/40 p-[1px]">
-                <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
-                  💰
+          {isLocalMatch ? (
+            <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-400/40 to-sky-500/40 p-[1px]">
+                  <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
+                    🎯
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Stake</h3>
+                  <p className="text-xs text-white/60">Local AI matches are free — no stake required.</p>
                 </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-white">Select Stake</h3>
-                <p className="text-xs text-white/60">Stake your TPC to reserve the board.</p>
+            </div>
+          ) : (
+            <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-yellow-400/40 to-orange-500/40 p-[1px]">
+                  <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
+                    💰
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Select Stake</h3>
+                  <p className="text-xs text-white/60">Stake your TPC to reserve the board.</p>
+                </div>
               </div>
+              <div className="mt-3">
+                <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+              </div>
+              <p className="text-center text-white/60 text-xs">
+                Staking uses your TPC account as escrow for each match.
+              </p>
             </div>
-            <div className="mt-3">
-              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-            </div>
-            <p className="text-center text-white/60 text-xs">
-              Staking uses your TPC account as escrow for each match.
-            </p>
-          </div>
+          )}
 
           {table?.id !== 'single' && (
             <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
