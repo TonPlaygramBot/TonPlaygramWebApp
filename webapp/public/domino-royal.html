@@ -606,114 +606,154 @@ const COMMENTARY_QUEUE_LIMIT = 4;
 const COMMENTARY_MIN_INTERVAL_MS = 1000;
 const COMMENTARY_PRESETS = [
   {
-    id: 'atlas',
-    name: 'Atlas',
-    tone: 'Strategist',
-    voiceHints: ['en-US', 'english', 'male', 'alex', 'david', 'google'],
-    rate: 0.96,
-    pitch: 0.88
+    id: 'atlas-luna',
+    name: 'Atlas & Luna',
+    tone: 'Strategist + Cheer Captain',
+    voices: [
+      {
+        id: 'atlas',
+        role: 'playByPlay',
+        voiceHints: ['en-US', 'english', 'male', 'alex', 'david', 'google'],
+        rate: 0.96,
+        pitch: 0.88
+      },
+      {
+        id: 'luna',
+        role: 'color',
+        voiceHints: ['en-US', 'female', 'samantha', 'victoria', 'zira', 'google'],
+        rate: 1.02,
+        pitch: 1.18
+      }
+    ]
   },
   {
-    id: 'luna',
-    name: 'Luna',
-    tone: 'Cheer Captain',
-    voiceHints: ['en-US', 'female', 'samantha', 'victoria', 'zira', 'google'],
-    rate: 1.02,
-    pitch: 1.18
+    id: 'sage-nova',
+    name: 'Sage & Nova',
+    tone: 'Tactical Coach + Cyber Analyst',
+    voices: [
+      {
+        id: 'sage',
+        role: 'playByPlay',
+        voiceHints: ['en-GB', 'en-US', 'daniel', 'mark', 'google'],
+        rate: 0.98,
+        pitch: 0.96
+      },
+      {
+        id: 'nova',
+        role: 'color',
+        voiceHints: ['en-US', 'female', 'neural', 'assistant', 'google'],
+        rate: 1.0,
+        pitch: 1.06
+      }
+    ]
   },
   {
-    id: 'sage',
-    name: 'Sage',
-    tone: 'Tactical Coach',
-    voiceHints: ['en-GB', 'en-US', 'daniel', 'mark', 'google'],
-    rate: 0.98,
-    pitch: 0.96
-  },
-  {
-    id: 'blaze',
-    name: 'Blaze',
-    tone: 'Arena Hype',
-    voiceHints: ['en-US', 'guy', 'ryan', 'ben', 'google'],
-    rate: 1.06,
-    pitch: 1.04
-  },
-  {
-    id: 'nova',
-    name: 'Nova',
-    tone: 'Cyber Analyst',
-    voiceHints: ['en-US', 'female', 'neural', 'assistant', 'google'],
-    rate: 1.0,
-    pitch: 1.06
-  },
-  {
-    id: 'echo',
-    name: 'Echo',
-    tone: 'Calm Ref',
-    voiceHints: ['en-AU', 'en-GB', 'audrey', 'oliver', 'google'],
-    rate: 0.94,
-    pitch: 0.9
+    id: 'blaze-echo',
+    name: 'Blaze & Echo',
+    tone: 'Arena Hype + Calm Ref',
+    voices: [
+      {
+        id: 'blaze',
+        role: 'playByPlay',
+        voiceHints: ['en-US', 'guy', 'ryan', 'ben', 'google'],
+        rate: 1.06,
+        pitch: 1.04
+      },
+      {
+        id: 'echo',
+        role: 'color',
+        voiceHints: ['en-AU', 'en-GB', 'audrey', 'oliver', 'google'],
+        rate: 0.94,
+        pitch: 0.9
+      }
+    ]
   }
 ];
 const COMMENTARY_LINES = {
   greeting: [
     'Welcome to Domino Battle Royal. Let us rule the table.',
     'Domino Battle Royal is live. Keep the chain moving.',
-    'New arena online. Domino Battle Royal begins.'
+    'New arena online. Domino Battle Royal begins.',
+    'The table is set. Time for domino control.',
+    'Welcome back. Let us see who commands the chain.',
+    'Fresh arena lights. Domino Battle Royal is underway.'
   ],
   startRound: [
     'Fresh round. Watch the opening tile.',
     'New deal. Set your tempo early.',
-    'Round reset. Chain control is everything.'
+    'Round reset. Chain control is everything.',
+    'New round. Read the ends and plan ahead.',
+    'Another round begins. Keep your options open.'
   ],
   yourTurn: [
     'Your move. Find the match.',
     'You are on the clock. Keep the chain alive.',
-    'Your turn. Time to drop a tile.'
+    'Your turn. Time to drop a tile.',
+    'Your move. Check the ends.',
+    'Your turn. Pick the strongest lane.'
   ],
   opponentTurn: [
     '{name} is lining up a play.',
     '{name} is thinking.',
-    'Eyes on {name}.'
+    'Eyes on {name}.',
+    '{name} is studying the ends.',
+    '{name} wants a clean drop.'
   ],
   playTile: [
     '{name} drops {tile}.',
     '{name} plays {tile}.',
-    '{name} sends {tile} to the chain.'
+    '{name} sends {tile} to the chain.',
+    '{name} keeps the line alive with {tile}.',
+    '{name} answers with {tile}.'
   ],
   playDouble: [
     'Double down from {name}.',
     '{name} slams a double!',
-    'Power play. {name} drops a double.'
+    'Power play. {name} drops a double.',
+    '{name} locks in a double.',
+    'Double on the table by {name}.'
   ],
   draw: [
     '{name} draws from the boneyard.',
     '{name} reloads with a draw.',
-    '{name} digs into the stock.'
+    '{name} digs into the stock.',
+    '{name} pulls a fresh tile.',
+    '{name} taps the boneyard for help.'
   ],
   pass: [
     '{name} passes. No match.',
     '{name} skips the turn.',
-    '{name} has to pass.'
+    '{name} has to pass.',
+    '{name} is blocked and passes.',
+    '{name} cannot move. Pass.'
   ],
   nearWin: [
-    '{name} is down to one tile!',
+    '{name} is down to {countLabel}!',
     '{name} is on match point!',
-    'Pressure rising. {name} holds one tile.'
+    'Pressure rising. {name} holds {countLabel}.',
+    '{name} is one play from closing.',
+    '{name} is nearly out of tiles.'
   ],
   blocked: [
     'Blocked table. Tally the pips.',
     'No moves left. Count the hands.',
-    'Stalemate. Lowest pips win.'
+    'Stalemate. Lowest pips win.',
+    'The chain is sealed. Count the totals.',
+    'No plays remain. Time to score it.'
   ],
   win: [
-    'Victory secured. Great control.',
-    'You ruled the chain. Victory!',
-    'That is game. Well played.'
+    '{name} claims the win. Great control.',
+    '{name} ruled the chain. Victory!',
+    'That is game. {name} takes it.',
+    '{name} closes the round in style.',
+    'Victory to {name}.'
   ],
   lose: [
-    'Tough finish. Reset and strike back.',
+    '{name} takes this one. Reset and strike back.',
     'Game over. Reload for the next round.',
-    'Close one. You will get the next.'
+    'Close one. You will get the next.',
+    '{name} edges the finish. Next round soon.',
+    'That round goes to {name}.'
   ]
 };
 
@@ -728,6 +768,24 @@ let commentaryReady = false;
 let commentaryLastEventAt = 0;
 let commentaryGreetingPlayed = false;
 let lastAnnouncedTurn = null;
+let commentaryVoiceCycleIndex = 0;
+let commentaryUnlocked = false;
+let commentaryVoicesRetryTimer = null;
+const lastCommentaryLineByKind = new Map();
+const COMMENTARY_VOICE_BY_KIND = {
+  greeting: 'color',
+  startRound: 'color',
+  yourTurn: 'playByPlay',
+  opponentTurn: 'playByPlay',
+  playTile: 'playByPlay',
+  playDouble: 'playByPlay',
+  draw: 'color',
+  pass: 'color',
+  nearWin: 'color',
+  blocked: 'color',
+  win: 'color',
+  lose: 'color'
+};
 
 function readCommentaryPrefs() {
   if (typeof window === 'undefined') return;
@@ -756,17 +814,21 @@ function refreshCommentaryVoices() {
   commentaryReady = true;
 }
 
-function findVoiceMatch(voices, hints = []) {
+function findVoiceMatch(voices, hints = [], excludeNames = []) {
   if (!voices.length) return null;
   const normalizedHints = hints.map((hint) => String(hint || '').toLowerCase()).filter(Boolean);
+  const filteredVoices = excludeNames.length
+    ? voices.filter((voice) => !excludeNames.includes(voice.name))
+    : voices;
   if (!normalizedHints.length) return voices[0];
   return (
-    voices.find((voice) =>
+    filteredVoices.find((voice) =>
       normalizedHints.some((hint) => voice.name.toLowerCase().includes(hint))
     ) ||
-    voices.find((voice) =>
+    filteredVoices.find((voice) =>
       normalizedHints.some((hint) => voice.lang.toLowerCase().includes(hint))
     ) ||
+    filteredVoices[0] ||
     voices[0]
   );
 }
@@ -775,9 +837,28 @@ function getActiveCommentaryPreset() {
   return COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) || COMMENTARY_PRESETS[0];
 }
 
-function resolveCommentaryVoice() {
+function resolveCommentaryVoice(profile, excludeNames = []) {
+  if (!profile) return findVoiceMatch(commentaryVoices, [], excludeNames);
+  return findVoiceMatch(commentaryVoices, profile.voiceHints || [], excludeNames);
+}
+
+function getCommentaryVoiceProfiles() {
   const preset = getActiveCommentaryPreset();
-  return findVoiceMatch(commentaryVoices, preset?.voiceHints || []);
+  if (Array.isArray(preset?.voices) && preset.voices.length) return preset.voices;
+  return preset ? [preset] : [];
+}
+
+function getVoiceProfileForKind(kind) {
+  const profiles = getCommentaryVoiceProfiles();
+  if (!profiles.length) return null;
+  const desiredRole = COMMENTARY_VOICE_BY_KIND[kind];
+  if (desiredRole) {
+    const matched = profiles.find((profile) => profile.role === desiredRole || profile.id === desiredRole);
+    if (matched) return matched;
+  }
+  const profile = profiles[commentaryVoiceCycleIndex % profiles.length];
+  commentaryVoiceCycleIndex = (commentaryVoiceCycleIndex + 1) % profiles.length;
+  return profile;
 }
 
 function clearCommentaryQueue() {
@@ -800,14 +881,23 @@ function setCommentaryMuted(next) {
 function setCommentaryPresetId(next) {
   if (!next || commentaryPresetId === next) return;
   commentaryPresetId = next;
+  commentaryVoiceCycleIndex = 0;
   persistCommentaryPrefs();
   refreshConfigUI();
 }
 
 function formatSeatName(index) {
-  if (index === human) return 'You';
   const names = getSeatUsernames(N);
+  if (index === human) {
+    return names[index] || seatAvatarUsername || 'You';
+  }
   return names[index] || `Player ${index + 1}`;
+}
+
+function formatTileCount(count) {
+  if (!Number.isFinite(count)) return '';
+  if (count === 1) return '1 tile';
+  return `${count} tiles`;
 }
 
 function formatTileName(tile) {
@@ -825,27 +915,82 @@ function pickRandom(list = []) {
 }
 
 function buildCommentaryLine(kind, context = {}) {
-  const template = pickRandom(COMMENTARY_LINES[kind] || []);
+  const templates = COMMENTARY_LINES[kind] || [];
+  if (!templates.length) return '';
+  const lastLine = lastCommentaryLineByKind.get(kind);
+  let template = pickRandom(templates);
+  if (lastLine && templates.length > 1) {
+    let tries = 0;
+    while (template === lastLine && tries < 5) {
+      template = pickRandom(templates);
+      tries += 1;
+    }
+  }
+  lastCommentaryLineByKind.set(kind, template);
   if (!template) return '';
   return template
     .replace('{name}', context.name || formatSeatName(context.player ?? human))
-    .replace('{tile}', context.tileLabel || formatTileName(context.tile));
+    .replace('{tile}', context.tileLabel || formatTileName(context.tile))
+    .replace('{count}', Number.isFinite(context.tilesLeft) ? String(context.tilesLeft) : '')
+    .replace('{countLabel}', formatTileCount(context.tilesLeft));
 }
 
-function speakCommentary(text, { interrupt = false, priority = false } = {}) {
+function ensureSpeechUnlocked() {
+  if (!speechSynth || commentaryUnlocked) return;
+  try {
+    speechSynth.resume();
+  } catch {}
+  try {
+    const warmup = new SpeechSynthesisUtterance('.');
+    warmup.volume = 0;
+    warmup.rate = 1;
+    warmup.pitch = 1;
+    warmup.onend = () => {
+      commentaryUnlocked = true;
+    };
+    warmup.onerror = () => {
+      commentaryUnlocked = true;
+    };
+    speechSynth.speak(warmup);
+  } catch (error) {
+    console.warn('Failed to unlock speech synthesis', error);
+  }
+}
+
+function scheduleCommentaryVoicesRetry() {
+  if (!speechSynth || commentaryVoicesRetryTimer) return;
+  commentaryVoicesRetryTimer = window.setTimeout(() => {
+    commentaryVoicesRetryTimer = null;
+    refreshCommentaryVoices();
+    if (!commentaryVoices.length) {
+      scheduleCommentaryVoicesRetry();
+    }
+  }, 600);
+}
+
+function speakCommentary(text, { interrupt = false, priority = false, kind = '' } = {}) {
   if (!speechSynth || commentaryMuted || !text) return;
   if (!commentaryReady) {
     refreshCommentaryVoices();
   }
+  if (!commentaryVoices.length) {
+    scheduleCommentaryVoicesRetry();
+  }
+  ensureSpeechUnlocked();
   const now = performance.now();
   if (!priority && now - commentaryLastEventAt < COMMENTARY_MIN_INTERVAL_MS) return;
   if (!priority && commentaryQueue.length >= COMMENTARY_QUEUE_LIMIT) return;
-  const preset = getActiveCommentaryPreset();
+  const profile = getVoiceProfileForKind(kind);
   const utterance = new SpeechSynthesisUtterance(text);
-  const voice = resolveCommentaryVoice();
-  if (voice) utterance.voice = voice;
-  utterance.rate = preset?.rate ?? 1;
-  utterance.pitch = preset?.pitch ?? 1;
+  const primaryVoice = resolveCommentaryVoice(profile);
+  const secondaryVoice = resolveCommentaryVoice(
+    getCommentaryVoiceProfiles().find((voiceProfile) => voiceProfile !== profile),
+    primaryVoice?.name ? [primaryVoice.name] : []
+  );
+  const activeVoice = primaryVoice || secondaryVoice;
+  if (activeVoice) utterance.voice = activeVoice;
+  utterance.rate = profile?.rate ?? 1;
+  utterance.pitch = profile?.pitch ?? 1;
   utterance.onend = () => {
     commentarySpeaking = false;
     const next = commentaryQueue.shift();
@@ -865,28 +1010,43 @@ function speakCommentary(text, { interrupt = false, priority = false } = {}) {
     if (interrupt) {
       speechSynth.cancel();
     } else {
-      commentaryQueue.push({ text, options: { interrupt, priority } });
+      commentaryQueue.push({ text, options: { interrupt, priority, kind } });
       return;
     }
   }
   commentarySpeaking = true;
-  speechSynth.speak(utterance);
+  try {
+    speechSynth.speak(utterance);
+  } catch (error) {
+    commentarySpeaking = false;
+    console.warn('Commentary failed to speak', error);
+  }
 }
 
 function announceCommentary(kind, context = {}, options = {}) {
   if (commentaryMuted || !speechSynth) return;
   const line = buildCommentaryLine(kind, context);
   if (!line) return;
-  speakCommentary(line, options);
+  speakCommentary(line, { ...options, kind });
 }
 
 if (speechSynth) {
   readCommentaryPrefs();
   refreshCommentaryVoices();
   speechSynth.onvoiceschanged = () => refreshCommentaryVoices();
+  scheduleCommentaryVoicesRetry();
 } else {
   readCommentaryPrefs();
 }
+
+function unlockInteractiveAudio() {
+  ensureAudioContext();
+  ensureSpeechUnlocked();
+}
+
+['pointerdown', 'touchstart', 'keydown'].forEach((eventName) => {
+  window.addEventListener(eventName, unlockInteractiveAudio, { once: true, passive: true });
+});
 
 function isSoundEnabled() {
   return !!feedbackSettings.sound;
@@ -925,17 +1085,28 @@ function triggerHaptics(kind) {
 }
 
 /* ---------- Audio (SFX) ---------- */
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let audioCtx = null;
 
 function ensureAudioContext() {
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextCtor) return null;
+  if (!audioCtx) {
+    try {
+      audioCtx = new AudioContextCtor();
+    } catch (error) {
+      console.warn('Failed to create AudioContext', error);
+      audioCtx = null;
+      return null;
+    }
+  }
   if (audioCtx.state === 'suspended') {
-    void audioCtx.resume();
+    audioCtx.resume().catch(() => {});
   }
   return audioCtx;
 }
 
-function createBuffer(durationSeconds, sampleFn) {
-  const ctx = ensureAudioContext();
+function createBuffer(ctx, durationSeconds, sampleFn) {
+  if (!ctx) return null;
   const length = Math.max(1, Math.floor(ctx.sampleRate * durationSeconds));
   const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
   const data = buffer.getChannelData(0);
@@ -948,8 +1119,9 @@ function createBuffer(durationSeconds, sampleFn) {
 
 function playBuffer(buffer, { gain = 0.5, playbackRate = 1 } = {}) {
   const gainMultiplier = getSoundGainMultiplier();
-  if (gainMultiplier <= 0) return;
+  if (gainMultiplier <= 0 || !buffer) return;
   const ctx = ensureAudioContext();
+  if (!ctx) return;
   const src = ctx.createBufferSource();
   src.buffer = buffer;
   src.playbackRate.value = playbackRate;
@@ -963,6 +1135,7 @@ function playGlide({ startFreq = 420, endFreq = 140, duration = 0.35, gain = 0.2
   const gainMultiplier = getSoundGainMultiplier();
   if (gainMultiplier <= 0) return;
   const ctx = ensureAudioContext();
+  if (!ctx) return;
   const now = ctx.currentTime;
   const osc = ctx.createOscillator();
   const g = ctx.createGain();
@@ -981,6 +1154,7 @@ function playChimeSequence(notes, { gain = 0.32, type = 'triangle' } = {}) {
   const gainMultiplier = getSoundGainMultiplier();
   if (gainMultiplier <= 0) return;
   const ctx = ensureAudioContext();
+  if (!ctx) return;
   const now = ctx.currentTime;
   notes.forEach(({ time, freq, length = 0.18 }) => {
     const osc = ctx.createOscillator();
@@ -999,43 +1173,60 @@ function playChimeSequence(notes, { gain = 0.32, type = 'triangle' } = {}) {
 const KNOCK_SFX_URL = encodeURI('/assets/sounds/domino-pieces-1-32112 (mp3cut.net).mp3');
 
 const sfxBuffers = {
-  placeFallback: createBuffer(0.36, (t, i) => {
-    const strikeEnv = Math.exp(-t * 72);
-    const bodyEnv = Math.exp(-t * 14);
-    const click = Math.sin((i + 11) * 0.22) * strikeEnv * 0.52;
-    const rasp = ((Math.sin(i * 12.9898) * 43758.5453) % 1 - 0.5) * strikeEnv * 0.24;
-    const knock = Math.sin(2 * Math.PI * 128 * t) * bodyEnv * 0.46;
-    const woodBody = Math.sin(2 * Math.PI * 188 * t) * Math.exp(-t * 9.5) * 0.28;
-    const lowThump = Math.sin(2 * Math.PI * 64 * t) * Math.exp(-t * 7.5) * 0.32;
-    return (click + rasp + knock + woodBody + lowThump) * 0.88;
-  }),
-  draw: createBuffer(0.26, (t, i, length) => {
-    const env = Math.exp(-t * 16);
-    const swirl = Math.sin(2 * Math.PI * (240 + 220 * Math.sin(t * 5.8)) * t) * 0.42;
-    const breath = (Math.sin((i + 13) * 0.19) * 0.5 + Math.sin((length - i) * 0.013)) * 0.18;
-    return (swirl + breath) * env;
-  }),
-  block: createBuffer(0.32, (t, i) => {
-    const env = Math.exp(-t * 8.5);
-    const detune = 1 + Math.sin(t * 7) * 0.18;
-    const rumble = Math.sin(2 * Math.PI * 74 * t * detune) * 0.34;
-    const scrape = Math.sin((i + 5) * 0.091) * Math.exp(-t * 18) * 0.22;
-    return (rumble + scrape) * env;
-  })
+  placeFallback: null,
+  draw: null,
+  block: null
 };
 
 let placeBufferPromise = null;
 
+function ensureSfxBuffers() {
+  if (getSoundGainMultiplier() <= 0) return;
+  const ctx = ensureAudioContext();
+  if (!ctx) return;
+  if (!sfxBuffers.placeFallback) {
+    sfxBuffers.placeFallback = createBuffer(ctx, 0.36, (t, i) => {
+      const strikeEnv = Math.exp(-t * 72);
+      const bodyEnv = Math.exp(-t * 14);
+      const click = Math.sin((i + 11) * 0.22) * strikeEnv * 0.52;
+      const rasp = ((Math.sin(i * 12.9898) * 43758.5453) % 1 - 0.5) * strikeEnv * 0.24;
+      const knock = Math.sin(2 * Math.PI * 128 * t) * bodyEnv * 0.46;
+      const woodBody = Math.sin(2 * Math.PI * 188 * t) * Math.exp(-t * 9.5) * 0.28;
+      const lowThump = Math.sin(2 * Math.PI * 64 * t) * Math.exp(-t * 7.5) * 0.32;
+      return (click + rasp + knock + woodBody + lowThump) * 0.88;
+    });
+    sfxBuffers.draw = createBuffer(ctx, 0.26, (t, i, length) => {
+      const env = Math.exp(-t * 16);
+      const swirl = Math.sin(2 * Math.PI * (240 + 220 * Math.sin(t * 5.8)) * t) * 0.42;
+      const breath = (Math.sin((i + 13) * 0.19) * 0.5 + Math.sin((length - i) * 0.013)) * 0.18;
+      return (swirl + breath) * env;
+    });
+    sfxBuffers.block = createBuffer(ctx, 0.32, (t, i) => {
+      const env = Math.exp(-t * 8.5);
+      const detune = 1 + Math.sin(t * 7) * 0.18;
+      const rumble = Math.sin(2 * Math.PI * 74 * t * detune) * 0.34;
+      const scrape = Math.sin((i + 5) * 0.091) * Math.exp(-t * 18) * 0.22;
+      return (rumble + scrape) * env;
+    });
+  }
+}
+
 function loadPlaceBuffer() {
   if (placeBufferPromise) return placeBufferPromise;
+  const ctx = ensureAudioContext();
+  if (!ctx) {
+    placeBufferPromise = Promise.resolve(null);
+    return placeBufferPromise;
+  }
   placeBufferPromise = fetch(KNOCK_SFX_URL)
     .then((res) => {
       if (!res?.ok) throw new Error(`Failed to fetch knock SFX: ${res?.status}`);
       return res.arrayBuffer();
     })
-    .then((data) => ensureAudioContext().decodeAudioData(data))
+    .then((data) => ctx.decodeAudioData(data))
     .catch((error) => {
       console.warn('Domino SFX: falling back to procedural knock', error);
+      ensureSfxBuffers();
       return sfxBuffers.placeFallback;
     });
   return placeBufferPromise;
@@ -1043,12 +1234,14 @@ function loadPlaceBuffer() {
 
 const SFX = {
   place() {
+    ensureSfxBuffers();
     loadPlaceBuffer().then((buffer) =>
       playBuffer(buffer || sfxBuffers.placeFallback, { gain: 0.55, playbackRate: 1.02 })
     );
     triggerHaptics('place');
   },
   drawTile() {
+    ensureSfxBuffers();
     playBuffer(sfxBuffers.draw, { gain: 0.5, playbackRate: 1.08 });
     triggerHaptics('draw');
   },
@@ -1069,6 +1262,7 @@ const SFX = {
     triggerHaptics('win');
   },
   drawGame() {
+    ensureSfxBuffers();
     playBuffer(sfxBuffers.block, { gain: 0.36, playbackRate: 0.92 });
     triggerHaptics('block');
   }
@@ -4875,7 +5069,7 @@ function refreshConfigUI() {
   const commentaryWrapper = document.createElement('div');
   commentaryWrapper.className = 'config-section';
   const commentaryLabel = document.createElement('h4');
-  commentaryLabel.textContent = 'Voice commentary';
+  commentaryLabel.textContent = 'Commentary crew (2 voices)';
   commentaryWrapper.appendChild(commentaryLabel);
   const commentaryGrid = document.createElement('div');
   commentaryGrid.className = 'config-options';
@@ -6333,7 +6527,7 @@ renderer.domElement.addEventListener('pointerdown',ev=>{
     if (playedTile) {
       announceCommentary(playedTile.a === playedTile.b ? 'playDouble' : 'playTile', { player: human, tile: playedTile });
       if (players[human].hand.length === 1) {
-        announceCommentary('nearWin', { player: human }, { priority: true });
+        announceCommentary('nearWin', { player: human, tilesLeft: players[human].hand.length }, { priority: true });
       }
     }
     selectedTile=null; clearMarkers(); renderHands(); nextTurn(); return;
@@ -6540,7 +6734,7 @@ function cpuPlay(){
       renderHands();
       announceCommentary(picked.a === picked.b ? 'playDouble' : 'playTile', { player: current, tile: picked });
       if (player.hand.length === 1) {
-        announceCommentary('nearWin', { player: current }, { priority: true });
+        announceCommentary('nearWin', { player: current, tilesLeft: player.hand.length }, { priority: true });
       }
       if(player.hand.length===0){
         finishGame({ winner: current, reason: current === human ? 'You won!' : `Player ${current+1} won!` });
