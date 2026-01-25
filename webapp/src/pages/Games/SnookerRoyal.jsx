@@ -36,11 +36,7 @@ import {
   buildSnookerCommentaryLine,
   createSnookerMatchCommentaryScript
 } from '../../utils/snookerRoyalCommentary.js';
-import {
-  getSpeechSynthesis,
-  primeSpeechSynthesis,
-  speakCommentaryLines
-} from '../../utils/textToSpeech.js';
+import { getSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
 import {
   createBallPreviewDataUrl,
   getBallMaterial as getBilliardBallMaterial
@@ -12270,42 +12266,21 @@ function SnookerRoyalGame({
           synth.getVoices();
         } catch {}
       }
-      void primeSpeechSynthesis();
       const pending = pendingCommentaryLinesRef.current;
       if (pending) {
         pendingCommentaryLinesRef.current = null;
         enqueueCommentaryLines(pending, { priority: true });
       }
     };
-    const isTelegram = isTelegramWebView();
-    const maybeDoc = typeof document !== 'undefined' ? document : null;
-    const listenerOptions = { passive: true };
-    const telegramBridge = window.Telegram?.WebApp;
-    let telegramUnlockTimeout = null;
-
-    window.addEventListener('pointerdown', unlockCommentary, listenerOptions);
+    window.addEventListener('pointerdown', unlockCommentary);
     window.addEventListener('keydown', unlockCommentary);
-    window.addEventListener('touchstart', unlockCommentary, listenerOptions);
+    window.addEventListener('touchstart', unlockCommentary);
     window.addEventListener('click', unlockCommentary);
-    maybeDoc?.addEventListener('pointerdown', unlockCommentary, listenerOptions);
-    maybeDoc?.addEventListener('touchstart', unlockCommentary, listenerOptions);
-    maybeDoc?.addEventListener('click', unlockCommentary);
-    if (isTelegram) {
-      telegramUnlockTimeout = window.setTimeout(unlockCommentary, 800);
-      telegramBridge?.onEvent?.('viewportChanged', unlockCommentary);
-    }
     return () => {
-      window.removeEventListener('pointerdown', unlockCommentary, listenerOptions);
+      window.removeEventListener('pointerdown', unlockCommentary);
       window.removeEventListener('keydown', unlockCommentary);
-      window.removeEventListener('touchstart', unlockCommentary, listenerOptions);
+      window.removeEventListener('touchstart', unlockCommentary);
       window.removeEventListener('click', unlockCommentary);
-      maybeDoc?.removeEventListener('pointerdown', unlockCommentary, listenerOptions);
-      maybeDoc?.removeEventListener('touchstart', unlockCommentary, listenerOptions);
-      maybeDoc?.removeEventListener('click', unlockCommentary);
-      if (telegramUnlockTimeout) {
-        window.clearTimeout(telegramUnlockTimeout);
-      }
-      telegramBridge?.offEvent?.('viewportChanged', unlockCommentary);
     };
   }, [enqueueCommentaryLines]);
   useEffect(() => {
