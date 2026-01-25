@@ -66,29 +66,25 @@ export default function GoalRushLobby() {
   }, []);
 
   const startGame = async () => {
+    const shouldStake = playType !== 'training' && mode === 'online';
     let tgId;
     let accountId;
-    if (playType !== 'training') {
-      try {
-        accountId = await ensureAccountId();
+    try {
+      tgId = getTelegramId();
+      accountId = await ensureAccountId();
+      if (shouldStake) {
         const balRes = await getAccountBalance(accountId);
         if ((balRes.balance || 0) < stake.amount) {
           alert('Insufficient balance');
           return;
         }
-        tgId = getTelegramId();
         await addTransaction(tgId, -stake.amount, 'stake', {
           game: 'goalrush',
           players: playType === 'tournament' ? players : 2,
           accountId,
         });
-      } catch {}
-    } else {
-      try {
-        tgId = getTelegramId();
-        accountId = await ensureAccountId();
-      } catch {}
-    }
+      }
+    } catch {}
 
     const params = new URLSearchParams(search);
     params.set('target', goal);
@@ -96,7 +92,7 @@ export default function GoalRushLobby() {
     if (playType !== 'training') params.set('mode', mode);
     if (playType === 'tournament') params.set('players', players);
     const initData = window.Telegram?.WebApp?.initData;
-    if (playType !== 'training') {
+    if (shouldStake) {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
     }
@@ -315,7 +311,7 @@ export default function GoalRushLobby() {
           </div>
         )}
 
-        {playType !== 'training' && (
+        {playType !== 'training' && mode === 'online' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-white">Stake</h3>
@@ -323,6 +319,17 @@ export default function GoalRushLobby() {
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
               <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+            </div>
+          </div>
+        )}
+        {playType !== 'training' && mode === 'ai' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-white">Stake</h3>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Free</span>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow text-center text-sm text-white/70">
+              Local AI matches are free — no stake required.
             </div>
           </div>
         )}

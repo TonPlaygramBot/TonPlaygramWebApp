@@ -66,29 +66,25 @@ export default function AirHockeyLobby() {
   }, []);
 
   const startGame = async () => {
+    const shouldStake = playType !== 'training' && mode === 'online';
     let tgId;
     let accountId;
-    if (playType !== 'training') {
-      try {
-        accountId = await ensureAccountId();
+    try {
+      tgId = getTelegramId();
+      accountId = await ensureAccountId();
+      if (shouldStake) {
         const balRes = await getAccountBalance(accountId);
         if ((balRes.balance || 0) < stake.amount) {
           alert('Insufficient balance');
           return;
         }
-        tgId = getTelegramId();
         await addTransaction(tgId, -stake.amount, 'stake', {
           game: 'airhockey',
           players: playType === 'tournament' ? players : 2,
           accountId
         });
-      } catch {}
-    } else {
-      try {
-        tgId = getTelegramId();
-        accountId = await ensureAccountId();
-      } catch {}
-    }
+      }
+    } catch {}
 
     const params = new URLSearchParams(search);
     params.set('target', goal);
@@ -96,7 +92,7 @@ export default function AirHockeyLobby() {
     if (playType !== 'training') params.set('mode', mode);
     if (playType === 'tournament') params.set('players', players);
     const initData = window.Telegram?.WebApp?.initData;
-    if (playType !== 'training') {
+    if (shouldStake) {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
     }
@@ -326,7 +322,7 @@ export default function AirHockeyLobby() {
           </div>
         )}
 
-        {playType !== 'training' && (
+        {playType !== 'training' && mode === 'online' && (
           <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-cyan-400/40 to-blue-500/40 p-[1px]">
@@ -341,6 +337,21 @@ export default function AirHockeyLobby() {
             </div>
             <div className="mt-3">
               <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+            </div>
+          </div>
+        )}
+        {playType !== 'training' && mode === 'ai' && (
+          <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-400/40 to-sky-500/40 p-[1px]">
+                <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
+                  🎯
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">Stake</h3>
+                <p className="text-xs text-white/60">Local AI matches are free — no stake required.</p>
+              </div>
             </div>
           </div>
         )}
