@@ -673,7 +673,7 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'arena-captain',
     label: 'Arena Captain',
-    description: 'Commanding stadium lead, bright analyst',
+    description: 'Commanding stadium duo, bold English booth',
     language: 'en',
     voiceHints: {
       [MURLAN_ROYALE_SPEAKERS.lead]: [
@@ -687,33 +687,34 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
       ],
       [MURLAN_ROYALE_SPEAKERS.analyst]: [
         'en-GB',
+        'en-US',
         'English',
-        'female',
-        'Sonia',
-        'Hazel',
-        'Kate',
-        'Emma'
+        'male',
+        'Guy',
+        'Daniel',
+        'Alex',
+        'Ryan'
       ]
     },
     speakerSettings: {
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.9, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.12, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 0.95, volume: 1 }
     }
   },
   {
     id: 'skyline-duo',
     label: 'Skyline Duo',
-    description: 'Energetic hostess with steady co-host',
+    description: 'Energetic English booth with twin leads',
     language: 'en',
     voiceHints: {
       [MURLAN_ROYALE_SPEAKERS.lead]: [
         'en-US',
         'English',
-        'female',
-        'Zira',
-        'Aria',
-        'Jenny',
-        'Natasha'
+        'male',
+        'David',
+        'Mark',
+        'Ryan',
+        'Matthew'
       ],
       [MURLAN_ROYALE_SPEAKERS.analyst]: [
         'en-US',
@@ -726,7 +727,7 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
       ]
     },
     speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.06, pitch: 1.12, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.04, pitch: 0.98, volume: 1 },
       [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 0.98, volume: 1 }
     }
   },
@@ -791,31 +792,43 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'arabic-spotlight',
     label: 'Arabic Spotlight',
-    description: 'Arabic duo with crisp cadence',
+    description: 'Arabic booth with crisp cadence',
     language: 'ar',
     voiceHints: {
       [MURLAN_ROYALE_SPEAKERS.lead]: [
         'ar-SA',
         'ar-EG',
-        'Arabic',
-        'female',
-        'Salma',
-        'Aisha',
-        'Noor'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: [
-        'ar-SA',
-        'ar-EG',
+        'ar',
         'Arabic',
         'male',
         'Omar',
         'Khalid',
-        'Hassan'
+        'Hassan',
+        'en-US',
+        'English',
+        'male',
+        'David',
+        'Alex'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: [
+        'ar-SA',
+        'ar-EG',
+        'ar',
+        'Arabic',
+        'male',
+        'Omar',
+        'Khalid',
+        'Hassan',
+        'en-GB',
+        'English',
+        'male',
+        'Guy',
+        'Daniel'
       ]
     },
     speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 1.12, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 0.98, pitch: 0.98, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 0.98, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
     }
   },
   {
@@ -826,24 +839,36 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     voiceHints: {
       [MURLAN_ROYALE_SPEAKERS.lead]: [
         'sq-AL',
+        'sq',
         'Albanian',
         'male',
         'Arben',
         'Ilir',
-        'Dritan'
+        'Dritan',
+        'en-US',
+        'English',
+        'male',
+        'David',
+        'Alex'
       ],
       [MURLAN_ROYALE_SPEAKERS.analyst]: [
         'sq-AL',
+        'sq',
         'Albanian',
-        'female',
-        'Elira',
-        'Besa',
-        'Mira'
+        'male',
+        'Besar',
+        'Erion',
+        'Gent',
+        'en-GB',
+        'English',
+        'male',
+        'Guy',
+        'Daniel'
       ]
     },
     speakerSettings: {
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.98, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.08, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 0.96, volume: 1 }
     }
   }
 ]);
