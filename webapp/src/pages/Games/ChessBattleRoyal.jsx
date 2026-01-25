@@ -24,6 +24,12 @@ import {
 } from '../../utils/telegram.js';
 import { bombSound, chatBeep, timerBeep } from '../../assets/soundData.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
+import {
+  buildChessCommentaryLine,
+  CHESS_BATTLE_SPEAKERS,
+  createChessMatchCommentaryScript
+} from '../../utils/chessBattleCommentary.js';
+import { getSpeechSynthesis, primeSpeechSynthesis, speakCommentaryLines } from '../../utils/textToSpeech.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { TABLE_WOOD_OPTIONS, TABLE_CLOTH_OPTIONS, TABLE_BASE_OPTIONS } from '../../utils/tableCustomizationOptions.js';
 import {
@@ -348,6 +354,10 @@ function detectRefreshRateHint() {
 }
 
 const GRAPHICS_STORAGE_KEY = 'chessBattleRoyalGraphics';
+const COMMENTARY_PRESET_STORAGE_KEY = 'chessBattleRoyalCommentaryPreset';
+const COMMENTARY_MUTE_STORAGE_KEY = 'chessBattleRoyalCommentaryMute';
+const COMMENTARY_QUEUE_LIMIT = 4;
+const COMMENTARY_MIN_INTERVAL_MS = 1200;
 const GRAPHICS_OPTIONS = Object.freeze([
   {
     id: 'hd50',
@@ -401,6 +411,33 @@ const GRAPHICS_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_GRAPHICS_ID = 'uhd120';
+const CHESS_BATTLE_COMMENTARY_PRESETS = Object.freeze([
+  {
+    id: 'english',
+    label: 'English',
+    description: 'Male voice, English',
+    language: 'en',
+    voiceHints: {
+      [CHESS_BATTLE_SPEAKERS.lead]: ['en-US', 'en-GB', 'English', 'male', 'Daniel', 'Alex', 'David', 'Guy'],
+      [CHESS_BATTLE_SPEAKERS.analyst]: ['en-US', 'en-GB', 'English', 'female', 'Emma', 'Olivia', 'Sophie', 'Ava']
+    },
+    speakerSettings: {
+      [CHESS_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [CHESS_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 1.02, volume: 1 }
+    }
+  }
+]);
+const DEFAULT_COMMENTARY_PRESET_ID = CHESS_BATTLE_COMMENTARY_PRESETS[0]?.id || 'english';
+const PIECE_LABELS = Object.freeze({
+  P: 'pawn',
+  N: 'knight',
+  B: 'bishop',
+  R: 'rook',
+  Q: 'queen',
+  K: 'king'
+});
+const FILE_LABELS = 'abcdefgh';
+const resolveChessSquare = (r, c) => `${FILE_LABELS[c] || '?'}${8 - r}`;
 
 function resolveDefaultGraphicsId() {
   const hint = detectRefreshRateHint();
@@ -5884,8 +5921,39 @@ function Chess3D({
   const initialBlackTimeRef = useRef(5);
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [commentaryPresetId] = useState(() => {
+    if (typeof window === 'undefined') return DEFAULT_COMMENTARY_PRESET_ID;
+    try {
+      const stored = window.localStorage?.getItem(COMMENTARY_PRESET_STORAGE_KEY);
+      if (stored && CHESS_BATTLE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
+        return stored;
+      }
+    } catch {}
+    return DEFAULT_COMMENTARY_PRESET_ID;
+  });
+  const [commentaryMuted, setCommentaryMuted] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.localStorage?.getItem(COMMENTARY_MUTE_STORAGE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
   const [isMuted, setIsMuted] = useState(() => isGameMuted());
   const effectiveSoundEnabled = soundEnabled && !isMuted;
+  const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
+  const commentaryMutedRef = useRef(commentaryMuted);
+  const commentaryReadyRef = useRef(false);
+  const commentaryQueueRef = useRef([]);
+  const commentarySpeakingRef = useRef(false);
+  const commentaryLastEventAtRef = useRef(0);
+  const pendingCommentaryLinesRef = useRef(null);
+  const commentaryIntroPlayedRef = useRef(false);
+  const commentaryOutroPlayedRef = useRef(false);
+  const commentarySpeakerIndexRef = useRef(0);
+  const commentaryPresetRef = useRef(null);
+  const playersRef = useRef([]);
+  const moveCountRef = useRef(0);
   const [showHighlights, setShowHighlights] = useState(true);
   const [graphicsId, setGraphicsId] = useState(() => {
     const fallback = resolveDefaultGraphicsId();
@@ -5921,9 +5989,42 @@ function Chess3D({
       GRAPHICS_OPTIONS[0],
     [graphicsId]
   );
+  const activeCommentaryPreset = useMemo(
+    () =>
+      CHESS_BATTLE_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ||
+      CHESS_BATTLE_COMMENTARY_PRESETS[0],
+    [commentaryPresetId]
+  );
   useEffect(() => {
     uiRef.current = ui;
   }, [ui]);
+
+  useEffect(() => {
+    commentaryMutedRef.current = commentaryMuted;
+    if (commentaryMuted) {
+      commentaryQueueRef.current = [];
+      commentarySpeakingRef.current = false;
+      pendingCommentaryLinesRef.current = null;
+    }
+  }, [commentaryMuted]);
+
+  useEffect(() => {
+    commentaryPresetRef.current = activeCommentaryPreset;
+  }, [activeCommentaryPreset]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage?.setItem(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
+    } catch {}
+  }, [commentaryPresetId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage?.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
+    } catch {}
+  }, [commentaryMuted]);
 
   useEffect(() => {
     if (!onlineRef.current.enabled || !accountId) {
@@ -6282,6 +6383,128 @@ function Chess3D({
       })),
     [players, opponent, resolvedAccountId]
   );
+
+  useEffect(() => {
+    playersRef.current = players;
+  }, [players]);
+
+  const resolveChessSideName = useCallback((isWhite) => {
+    const [whitePlayer, blackPlayer] = playersRef.current || [];
+    return isWhite ? whitePlayer?.name || 'White' : blackPlayer?.name || 'Black';
+  }, []);
+
+  const resolveCommentarySpeaker = useCallback(() => {
+    const speakers = [CHESS_BATTLE_SPEAKERS.lead, CHESS_BATTLE_SPEAKERS.analyst];
+    const idx = commentarySpeakerIndexRef.current;
+    commentarySpeakerIndexRef.current = idx + 1;
+    return speakers[idx % speakers.length] || CHESS_BATTLE_SPEAKERS.lead;
+  }, []);
+
+  const playNextCommentary = useCallback(async () => {
+    if (commentarySpeakingRef.current) return;
+    const next = commentaryQueueRef.current.shift();
+    if (!next) return;
+    const synth = getSpeechSynthesis();
+    if (!synth) return;
+    commentarySpeakingRef.current = true;
+    try {
+      synth.cancel();
+    } catch {}
+    await speakCommentaryLines(next.lines, {
+      speakerSettings: next.preset?.speakerSettings,
+      voiceHints: next.preset?.voiceHints
+    });
+    commentarySpeakingRef.current = false;
+    if (commentaryQueueRef.current.length) {
+      playNextCommentary();
+    }
+  }, []);
+
+  const enqueueChessCommentary = useCallback(
+    (lines, { priority = false, preset = commentaryPresetRef.current } = {}) => {
+      if (!Array.isArray(lines) || lines.length === 0) return;
+      if (commentaryMutedRef.current || isGameMuted()) return;
+      if (!commentaryReadyRef.current) {
+        pendingCommentaryLinesRef.current = { lines, priority, preset };
+        return;
+      }
+      const now = performance.now();
+      if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
+      if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
+      if (priority) {
+        commentaryQueueRef.current.unshift({ lines, preset });
+      } else {
+        commentaryQueueRef.current.push({ lines, preset });
+      }
+      if (!commentarySpeakingRef.current) {
+        playNextCommentary();
+      }
+      commentaryLastEventAtRef.current = now;
+    },
+    [playNextCommentary]
+  );
+
+  const enqueueChessCommentaryEvent = useCallback(
+    (event, context = {}, options = {}) => {
+      const speaker = options.speaker ?? resolveCommentarySpeaker();
+      const text = buildChessCommentaryLine({
+        event,
+        speaker,
+        language: commentaryPresetRef.current?.language ?? commentaryPresetId,
+        context: {
+          arena: 'Chess Battle Royal arena',
+          ...context
+        }
+      });
+      enqueueChessCommentary([{ speaker, text }], options);
+    },
+    [commentaryPresetId, enqueueChessCommentary, resolveCommentarySpeaker]
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    if (!commentarySupported) return undefined;
+    const unlockCommentary = () => {
+      if (commentaryReadyRef.current) return;
+      primeSpeechSynthesis();
+      const synth = getSpeechSynthesis();
+      synth?.getVoices?.();
+      commentaryReadyRef.current = true;
+      const pending = pendingCommentaryLinesRef.current;
+      if (pending) {
+        pendingCommentaryLinesRef.current = null;
+        enqueueChessCommentary(pending.lines, pending);
+      }
+    };
+    if (navigator?.userActivation?.hasBeenActive) {
+      unlockCommentary();
+    }
+    window.addEventListener('pointerdown', unlockCommentary);
+    window.addEventListener('click', unlockCommentary);
+    window.addEventListener('touchstart', unlockCommentary);
+    window.addEventListener('keydown', unlockCommentary);
+    return () => {
+      window.removeEventListener('pointerdown', unlockCommentary);
+      window.removeEventListener('click', unlockCommentary);
+      window.removeEventListener('touchstart', unlockCommentary);
+      window.removeEventListener('keydown', unlockCommentary);
+    };
+  }, [commentarySupported, enqueueChessCommentary]);
+
+  useEffect(() => {
+    if (commentaryIntroPlayedRef.current) return;
+    if (!commentarySupported || commentaryMutedRef.current || isGameMuted()) return;
+    const [whitePlayer, blackPlayer] = players || [];
+    if (!whitePlayer || !blackPlayer) return;
+    commentaryIntroPlayedRef.current = true;
+    const script = createChessMatchCommentaryScript({
+      players: { white: whitePlayer.name, black: blackPlayer.name },
+      commentators: [CHESS_BATTLE_SPEAKERS.lead, CHESS_BATTLE_SPEAKERS.analyst],
+      language: commentaryPresetRef.current?.language ?? commentaryPresetId,
+      arena: 'Chess Battle Royal arena'
+    });
+    enqueueChessCommentary(script, { priority: true });
+  }, [commentaryPresetId, commentarySupported, enqueueChessCommentary, players]);
 
   useEffect(() => {
     updateSandTimerPlacement(ui.turnWhite);
@@ -8288,6 +8511,12 @@ function Chess3D({
         finalizeAiMove();
         return;
       }
+      const movingPiece = board[sel.r][sel.c];
+      const capturedPiece = board[rr][cc];
+      const movingPieceLabel = PIECE_LABELS[movingPiece?.t] || 'piece';
+      const capturedPieceLabel = capturedPiece ? PIECE_LABELS[capturedPiece.t] || 'piece' : null;
+      const fromSquare = resolveChessSquare(sel.r, sel.c);
+      const toSquare = resolveChessSquare(rr, cc);
       // capture mesh if any
       const targetMesh = pieceMeshes[rr][cc];
       if (targetMesh) {
@@ -8320,7 +8549,7 @@ function Chess3D({
         pieceMeshes[rr][cc] = null;
       }
       // move board
-      const movedPiece = board[sel.r][sel.c];
+      const movedPiece = movingPiece;
       if (movedPiece && typeof movedPiece.hasMoved !== 'boolean') movedPiece.hasMoved = false;
       const movedFromPawn = movedPiece?.t === 'P';
       const isCastlingMove =
@@ -8440,6 +8669,51 @@ function Chess3D({
       }
 
       applyStatus(nextWhite, status, winner);
+
+      const moverIsWhite = movedPiece?.w ?? true;
+      const playerName = resolveChessSideName(moverIsWhite);
+      const opponentName = resolveChessSideName(!moverIsWhite);
+      const winnerName =
+        winner === 'White'
+          ? resolveChessSideName(true)
+          : winner === 'Black'
+            ? resolveChessSideName(false)
+            : playerName;
+      moveCountRef.current += 1;
+      const pieceCount = board.flat().filter(Boolean).length;
+      const context = {
+        player: playerName,
+        opponent: opponentName,
+        piece: movingPieceLabel,
+        fromSquare,
+        toSquare,
+        capturedPiece: capturedPieceLabel,
+        castleSide: isCastlingMove ? (cc > sel.c ? 'king-side' : 'queen-side') : 'king-side',
+        winner: winnerName
+      };
+      let event = 'move';
+      if (!hasMove) {
+        event = inCheck ? 'checkmate' : 'stalemate';
+      } else if (inCheck) {
+        event = 'check';
+      } else if (promoted) {
+        event = 'promotion';
+      } else if (isCastlingMove) {
+        event = 'castle';
+      } else if (capturedPieceLabel) {
+        event = 'capture';
+      } else if (moveCountRef.current <= 4) {
+        event = 'opening';
+      } else if (pieceCount <= 10) {
+        event = 'endgame';
+      }
+      const priority = event === 'checkmate' || event === 'stalemate';
+      enqueueChessCommentaryEvent(event, context, { priority });
+      if (priority && !commentaryOutroPlayedRef.current) {
+        commentaryOutroPlayedRef.current = true;
+        enqueueChessCommentaryEvent('outro', context, { priority: true });
+      }
+
       if (onlineRef.current.enabled && onlineRef.current.tableId) {
         const movePayload = {
           lastMove: { from: { r: sel.r, c: sel.c }, to: { r: rr, c: cc } },
@@ -8969,6 +9243,36 @@ function Chess3D({
                     onChange={(event) => setShowHighlights(event.target.checked)}
                   />
                 </label>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary</p>
+                  <button
+                    type="button"
+                    onClick={() => setCommentaryMuted((prev) => !prev)}
+                    aria-pressed={commentaryMuted}
+                    disabled={!commentarySupported}
+                    className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                      commentaryMuted
+                        ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                        : 'bg-white/10 text-white/80 hover:bg-white/20'
+                    } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                  >
+                    <span>Mute commentary</span>
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
+                        commentaryMuted
+                          ? 'border-black/30 text-black/70'
+                          : 'border-white/30 text-white/70'
+                      }`}
+                    >
+                      {commentaryMuted ? 'On' : 'Off'}
+                    </span>
+                  </button>
+                  {!commentarySupported && (
+                    <p className="mt-2 text-[0.65rem] text-white/60">
+                      Voice commentary requires Web Speech support.
+                    </p>
+                  )}
+                </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
