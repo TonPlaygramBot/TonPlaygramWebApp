@@ -1,12 +1,17 @@
+export const POOL_ROYALE_SPEAKERS = Object.freeze({
+  lead: 'Mason',
+  analyst: 'Lena'
+});
+
 const SPEAKER_PROFILES = Object.freeze({
-  Steven: {
-    id: 'steven',
-    name: 'Steven',
+  Mason: {
+    id: 'mason',
+    name: 'Mason',
     style: 'Play-by-play'
   },
-  John: {
-    id: 'john',
-    name: 'John',
+  Lena: {
+    id: 'lena',
+    name: 'Lena',
     style: 'Color analyst'
   }
 });
@@ -237,13 +242,15 @@ const resolveVariantData = (variantId) => {
   return TEMPLATES.nineBall;
 };
 
-export const buildCommentaryLine = ({ event, variant = '9ball', speaker = 'Steven', context = {} }) => {
+export const buildCommentaryLine = ({ event, variant = '9ball', speaker = 'Mason', context = {} }) => {
   const resolvedVariant = resolveVariantData(variant);
   const mergedContext = {
     ...DEFAULT_CONTEXT,
     ...context,
     speaker,
-    partner: speaker === 'Steven' ? 'John' : 'Steven',
+    partner: speaker === POOL_ROYALE_SPEAKERS.lead
+      ? POOL_ROYALE_SPEAKERS.analyst
+      : POOL_ROYALE_SPEAKERS.lead,
     variantName: resolvedVariant.variantName
   };
 
@@ -257,7 +264,7 @@ export const createMatchCommentaryScript = ({
   variant = '9ball',
   ballSet = 'uk',
   players = { A: 'Player A', B: 'Player B' },
-  commentators = ['Steven', 'John'],
+  commentators = [POOL_ROYALE_SPEAKERS.lead, POOL_ROYALE_SPEAKERS.analyst],
   scoreline = 'level at 0-0',
   scores = { A: 0, B: 0 },
   pots = { A: 0, B: 0 },

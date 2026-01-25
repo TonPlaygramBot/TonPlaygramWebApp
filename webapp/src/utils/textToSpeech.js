@@ -1,11 +1,11 @@
 const DEFAULT_VOICE_HINTS = {
-  Steven: ['en-GB', 'English', 'Male', 'Google UK English Male'],
-  John: ['en-US', 'English', 'Male', 'Google US English']
+  Mason: ['en-US', 'English', 'Male', 'Google US English Male', 'David', 'Guy'],
+  Lena: ['en-GB', 'English', 'Female', 'Google UK English Female', 'Sonia', 'Hazel']
 };
 
 const DEFAULT_SPEAKER_SETTINGS = {
-  Steven: { rate: 1, pitch: 0.95, volume: 1 },
-  John: { rate: 1.02, pitch: 1.05, volume: 1 }
+  Mason: { rate: 1, pitch: 0.95, volume: 1 },
+  Lena: { rate: 1.02, pitch: 1.05, volume: 1 }
 };
 
 export const getSpeechSynthesis = () =>
@@ -69,7 +69,7 @@ const findDistinctVoice = (voices, hints = [], usedVoices = new Set()) => {
 
 export const resolveVoiceForSpeaker = (speaker, voices = []) => {
   if (!voices.length) return null;
-  const hints = DEFAULT_VOICE_HINTS[speaker] || DEFAULT_VOICE_HINTS.Steven;
+  const hints = DEFAULT_VOICE_HINTS[speaker] || DEFAULT_VOICE_HINTS.Mason;
   return findVoiceMatch(voices, hints);
 };
 
@@ -81,10 +81,10 @@ export const speakCommentaryLines = async (lines, {
   if (!synth || !Array.isArray(lines) || lines.length === 0) return;
 
   const voices = await loadVoices(synth);
-  const uniqueSpeakers = [...new Set(lines.map((line) => line.speaker || 'Steven'))];
+  const uniqueSpeakers = [...new Set(lines.map((line) => line.speaker || 'Mason'))];
   const usedVoices = new Set();
   const speakerVoices = uniqueSpeakers.reduce((acc, speaker) => {
-    const voice = findDistinctVoice(voices, voiceHints[speaker] || voiceHints.Steven, usedVoices);
+    const voice = findDistinctVoice(voices, voiceHints[speaker] || voiceHints.Mason, usedVoices);
     if (voice) {
       usedVoices.add(voice);
       acc[speaker] = voice;
@@ -99,10 +99,10 @@ export const speakCommentaryLines = async (lines, {
   }
 
   for (const line of lines) {
-    const speaker = line.speaker || 'Steven';
-    const settings = speakerSettings[speaker] || DEFAULT_SPEAKER_SETTINGS.Steven;
+    const speaker = line.speaker || 'Mason';
+    const settings = speakerSettings[speaker] || DEFAULT_SPEAKER_SETTINGS.Mason;
     const utterance = new SpeechSynthesisUtterance(line.text);
-    const voice = speakerVoices[speaker] || findVoiceMatch(voices, voiceHints[speaker] || voiceHints.Steven);
+    const voice = speakerVoices[speaker] || findVoiceMatch(voices, voiceHints[speaker] || voiceHints.Mason);
 
     if (voice) {
       utterance.voice = voice;
