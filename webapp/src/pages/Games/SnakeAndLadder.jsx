@@ -95,6 +95,12 @@ import GiftPopup from "../../components/GiftPopup.jsx";
 import { giftSounds } from "../../utils/giftSounds.js";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 import { getSnakeInventory, isSnakeOptionUnlocked, snakeAccountId } from "../../utils/snakeInventory.js";
+import {
+  buildSnakeCommentaryLine,
+  createSnakeMatchCommentaryScript,
+  SNAKE_LADDER_SPEAKERS
+} from "../../utils/snakeAndLadderCommentary.js";
+import { getSpeechSynthesis, primeSpeechSynthesis, speakCommentaryLines } from "../../utils/textToSpeech.js";
 
 const TOKEN_COLOR_OPTIONS = Object.freeze(
   SNAKE_TOKEN_COLOR_OPTIONS.map((option) => ({
@@ -168,6 +174,111 @@ const PLAYERS = 4;
 const FINAL_TILE = BOARD_FINAL_TILE;
 const TURN_TIME = 15;
 const DEFAULT_CAPACITY = 4;
+const COMMENTARY_PRESET_STORAGE_KEY = 'snakeCommentaryPreset';
+const COMMENTARY_MUTE_STORAGE_KEY = 'snakeCommentaryMute';
+const COMMENTARY_QUEUE_LIMIT = 4;
+const COMMENTARY_MIN_INTERVAL_MS = 1200;
+const SNAKE_COMMENTARY_PRESETS = Object.freeze([
+  {
+    id: 'english',
+    label: 'English',
+    description: 'Male voice, English',
+    language: 'en',
+    voiceHints: {
+      [SNAKE_LADDER_SPEAKERS.lead]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+      [SNAKE_LADDER_SPEAKERS.analyst]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex']
+    },
+    speakerSettings: {
+      [SNAKE_LADDER_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [SNAKE_LADDER_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
+  },
+  {
+    id: 'mandarin',
+    label: 'Mandarin',
+    description: 'Male voice, 中文',
+    language: 'zh',
+    voiceHints: {
+      [SNAKE_LADDER_SPEAKERS.lead]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male'],
+      [SNAKE_LADDER_SPEAKERS.analyst]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male']
+    },
+    speakerSettings: {
+      [SNAKE_LADDER_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [SNAKE_LADDER_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
+    }
+  },
+  {
+    id: 'hindi',
+    label: 'Hindi',
+    description: 'Male voice, हिंदी',
+    language: 'hi',
+    voiceHints: {
+      [SNAKE_LADDER_SPEAKERS.lead]: ['hi-IN', 'Hindi', 'India', 'male'],
+      [SNAKE_LADDER_SPEAKERS.analyst]: ['hi-IN', 'Hindi', 'India', 'male']
+    },
+    speakerSettings: {
+      [SNAKE_LADDER_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [SNAKE_LADDER_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
+  },
+  {
+    id: 'spanish',
+    label: 'Spanish',
+    description: 'Male voice, Español',
+    language: 'es',
+    voiceHints: {
+      [SNAKE_LADDER_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male'],
+      [SNAKE_LADDER_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male']
+    },
+    speakerSettings: {
+      [SNAKE_LADDER_SPEAKERS.lead]: { rate: 1, pitch: 0.97, volume: 1 },
+      [SNAKE_LADDER_SPEAKERS.analyst]: { rate: 1, pitch: 0.97, volume: 1 }
+    }
+  },
+  {
+    id: 'french',
+    label: 'French',
+    description: 'Male voice, Français',
+    language: 'fr',
+    voiceHints: {
+      [SNAKE_LADDER_SPEAKERS.lead]: ['fr-FR', 'French', 'Français', 'male'],
+      [SNAKE_LADDER_SPEAKERS.analyst]: ['fr-FR', 'French', 'Français', 'male']
+    },
+    speakerSettings: {
+      [SNAKE_LADDER_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [SNAKE_LADDER_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
+  },
+  {
+    id: 'arabic',
+    label: 'Arabic',
+    description: 'Male voice, العربية',
+    language: 'ar',
+    voiceHints: {
+      [SNAKE_LADDER_SPEAKERS.lead]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male'],
+      [SNAKE_LADDER_SPEAKERS.analyst]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male']
+    },
+    speakerSettings: {
+      [SNAKE_LADDER_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [SNAKE_LADDER_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
+    }
+  },
+  {
+    id: 'albanian',
+    label: 'Shqip',
+    description: 'Zë mashkulli, shqip.',
+    language: 'sq',
+    voiceHints: {
+      [SNAKE_LADDER_SPEAKERS.lead]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male'],
+      [SNAKE_LADDER_SPEAKERS.analyst]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male']
+    },
+    speakerSettings: {
+      [SNAKE_LADDER_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [SNAKE_LADDER_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+    }
+  }
+]);
+const DEFAULT_COMMENTARY_PRESET_ID = SNAKE_COMMENTARY_PRESETS[0]?.id || 'english';
 const SEAT_LAYOUTS = {
   1: [0],
   2: [0, 2],
@@ -1074,6 +1185,23 @@ export default function SnakeAndLadder() {
   const [showInfo, setShowInfo] = useState(false);
   const [showExactHelp, setShowExactHelp] = useState(false);
   const [muted, setMuted] = useState(isGameMuted());
+  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
+      if (stored && SNAKE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_COMMENTARY_PRESET_ID;
+  });
+  const [commentaryMuted, setCommentaryMuted] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(COMMENTARY_MUTE_STORAGE_KEY);
+      if (stored === '1') return true;
+      if (stored === '0') return false;
+    }
+    return false;
+  });
   const [showConfig, setShowConfig] = useState(false);
   const [showTrailEnabled, setShowTrailEnabled] = useState(true);
   const [appearance, setAppearance] = useState(() => {
@@ -1147,6 +1275,23 @@ export default function SnakeAndLadder() {
     [frameRateId]
   );
   const frameRateValue = activeFrameRateOption?.fps ?? DEFAULT_FRAME_RATE_OPTION?.fps ?? 90;
+  const activeCommentaryPreset = useMemo(
+    () =>
+      SNAKE_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
+      SNAKE_COMMENTARY_PRESETS[0],
+    [commentaryPresetId]
+  );
+  const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
+  const commentaryMutedRef = useRef(commentaryMuted);
+  const commentaryReadyRef = useRef(false);
+  const commentaryQueueRef = useRef([]);
+  const commentarySpeakingRef = useRef(false);
+  const commentaryLastEventAtRef = useRef(0);
+  const commentarySpeakerIndexRef = useRef(0);
+  const commentaryScriptRef = useRef({ start: [], end: [] });
+  const commentaryIntroPlayedRef = useRef(false);
+  const commentaryOutroPlayedRef = useRef(false);
+  const pendingCommentaryLinesRef = useRef(null);
 
   useEffect(() => {
     setAppearance((prev) => {
@@ -1185,6 +1330,29 @@ export default function SnakeAndLadder() {
       window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
     } catch {}
   }, [frameRateId]);
+
+  useEffect(() => {
+    commentaryMutedRef.current = commentaryMuted;
+    if (commentaryMuted) {
+      const synth = getSpeechSynthesis();
+      synth?.cancel?.();
+      commentaryQueueRef.current = [];
+      commentarySpeakingRef.current = false;
+      pendingCommentaryLinesRef.current = null;
+    }
+  }, [commentaryMuted]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
+    }
+  }, [commentaryPresetId]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
+    }
+  }, [commentaryMuted]);
   const playersRef = useRef([]);
   const refreshPlayersNeeded = useCallback(
     (playersList = playersRef.current, capacityValue) => {
@@ -1337,15 +1505,18 @@ export default function SnakeAndLadder() {
     return () => clearInterval(id);
   }, [rollCooldown]);
 
-  const getPlayerName = (idx) => {
-    if (idx === 0) return myName;
-    if (isMultiplayer) {
-      return mpPlayers[idx]?.name || `Player ${idx + 1}`;
-    }
-    const avatar = aiAvatars[idx - 1];
-    const name = avatarToName(avatar);
-    return name || `AI ${idx}`;
-  };
+  const getPlayerName = useCallback(
+    (idx) => {
+      if (idx === 0) return myName;
+      if (isMultiplayer) {
+        return mpPlayers[idx]?.name || `Player ${idx + 1}`;
+      }
+      const avatar = aiAvatars[idx - 1];
+      const name = avatarToName(avatar);
+      return name || `AI ${idx}`;
+    },
+    [aiAvatars, isMultiplayer, mpPlayers, myName]
+  );
 
   const playerName = (idx) => (
     <span style={{ color: playerColors[idx] }}>{getPlayerName(idx)}</span>
@@ -1358,6 +1529,182 @@ export default function SnakeAndLadder() {
     }
     return aiAvatars[idx - 1] || '';
   };
+
+  const commentarySpeakers = useMemo(
+    () => [SNAKE_LADDER_SPEAKERS.lead, SNAKE_LADDER_SPEAKERS.analyst],
+    []
+  );
+  const pickCommentarySpeaker = useCallback(() => {
+    const index = commentarySpeakerIndexRef.current;
+    commentarySpeakerIndexRef.current = index + 1;
+    return commentarySpeakers[index % commentarySpeakers.length] || SNAKE_LADDER_SPEAKERS.lead;
+  }, [commentarySpeakers]);
+  const buildCommentaryLine = useCallback(
+    (event, context = {}, options = {}) => {
+      const speaker = options.speaker ?? pickCommentarySpeaker();
+      const text = buildSnakeCommentaryLine({
+        event,
+        speaker,
+        language: options.language ?? activeCommentaryPreset?.language ?? commentaryPresetId,
+        context: {
+          arena: 'Snake & Ladder arena',
+          ...context
+        }
+      });
+      if (!text) return null;
+      return { speaker, text };
+    },
+    [activeCommentaryPreset?.language, commentaryPresetId, pickCommentarySpeaker]
+  );
+  const playNextCommentary = useCallback(async () => {
+    if (commentarySpeakingRef.current) return;
+    const next = commentaryQueueRef.current.shift();
+    if (!next) return;
+    const synth = getSpeechSynthesis();
+    if (!synth) return;
+    commentarySpeakingRef.current = true;
+    try {
+      synth.cancel();
+    } catch {}
+    await speakCommentaryLines(next.lines, {
+      speakerSettings: next.preset?.speakerSettings,
+      voiceHints: next.preset?.voiceHints
+    });
+    commentarySpeakingRef.current = false;
+    if (commentaryQueueRef.current.length) {
+      playNextCommentary();
+    }
+  }, []);
+  const enqueueCommentaryLines = useCallback(
+    (lines, { priority = false, preset = activeCommentaryPreset } = {}) => {
+      if (!Array.isArray(lines) || lines.length === 0) return;
+      if (commentaryMutedRef.current || isGameMuted()) return;
+      if (!commentaryReadyRef.current) {
+        pendingCommentaryLinesRef.current = { lines, priority, preset };
+        return;
+      }
+      const now = performance.now();
+      if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
+      if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
+      if (priority) {
+        commentaryQueueRef.current.unshift({ lines, preset });
+      } else {
+        commentaryQueueRef.current.push({ lines, preset });
+      }
+      if (!commentarySpeakingRef.current) {
+        playNextCommentary();
+      }
+      commentaryLastEventAtRef.current = now;
+    },
+    [activeCommentaryPreset, playNextCommentary]
+  );
+  const enqueueSnakeCommentaryEvent = useCallback(
+    (event, context = {}, options = {}) => {
+      const line = buildCommentaryLine(event, context, {
+        speaker: options.speaker,
+        language: options.language
+      });
+      if (!line) return;
+      enqueueCommentaryLines([line], options);
+    },
+    [buildCommentaryLine, enqueueCommentaryLines]
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const unlockCommentary = () => {
+      if (commentaryReadyRef.current) return;
+      primeSpeechSynthesis();
+      const synth = getSpeechSynthesis();
+      synth?.getVoices?.();
+      commentaryReadyRef.current = true;
+      const pending = pendingCommentaryLinesRef.current;
+      if (pending) {
+        pendingCommentaryLinesRef.current = null;
+        enqueueCommentaryLines(pending.lines, pending);
+      }
+    };
+    window.addEventListener('pointerdown', unlockCommentary);
+    window.addEventListener('click', unlockCommentary);
+    window.addEventListener('touchstart', unlockCommentary);
+    window.addEventListener('keydown', unlockCommentary);
+    return () => {
+      window.removeEventListener('pointerdown', unlockCommentary);
+      window.removeEventListener('click', unlockCommentary);
+      window.removeEventListener('touchstart', unlockCommentary);
+      window.removeEventListener('keydown', unlockCommentary);
+    };
+  }, [enqueueCommentaryLines]);
+
+  useEffect(() => {
+    const selfIndex = isMultiplayer
+      ? mpPlayers.findIndex((player) => player.id === accountId)
+      : 0;
+    const resolvedSelfIndex = selfIndex >= 0 ? selfIndex : 0;
+    const opponentNames = isMultiplayer
+      ? mpPlayers
+          .map((player, idx) => ({ name: player.name || `Player ${idx + 1}`, idx }))
+          .filter((entry) => entry.idx !== resolvedSelfIndex)
+          .map((entry) => entry.name)
+      : [];
+    const opponentLabel = isMultiplayer
+      ? opponentNames.length === 1
+        ? opponentNames[0]
+        : opponentNames.length === 2
+          ? `${opponentNames[0]} and ${opponentNames[1]}`
+          : opponentNames.length > 2
+            ? `${opponentNames.length} opponents`
+            : 'the field'
+      : ai === 1
+        ? getPlayerName(1)
+        : ai > 1
+          ? `${ai} rivals`
+          : 'the field';
+    const script = createSnakeMatchCommentaryScript({
+      players: {
+        A: getPlayerName(resolvedSelfIndex),
+        B: opponentLabel
+      },
+      commentators: commentarySpeakers,
+      language: activeCommentaryPreset?.language ?? commentaryPresetId,
+      arena: 'Snake & Ladder arena'
+    });
+    commentaryScriptRef.current = script;
+    commentaryIntroPlayedRef.current = false;
+    commentaryOutroPlayedRef.current = false;
+    commentarySpeakerIndexRef.current = 0;
+    pendingCommentaryLinesRef.current = null;
+    commentaryQueueRef.current = [];
+  }, [
+    accountId,
+    activeCommentaryPreset?.language,
+    ai,
+    commentaryPresetId,
+    commentarySpeakers,
+    getPlayerName,
+    isMultiplayer,
+    mpPlayers
+  ]);
+
+  useEffect(() => {
+    if (setupPhase || gameOver) return;
+    if (commentaryIntroPlayedRef.current) return;
+    if (commentaryMutedRef.current || isGameMuted()) return;
+    const startLines = commentaryScriptRef.current.start || [];
+    if (!startLines.length) return;
+    commentaryIntroPlayedRef.current = true;
+    enqueueCommentaryLines(startLines, { priority: true });
+  }, [enqueueCommentaryLines, gameOver, setupPhase]);
+
+  useEffect(() => {
+    if (!gameOver) return;
+    if (commentaryOutroPlayedRef.current) return;
+    if (commentaryMutedRef.current || isGameMuted()) return;
+    const endLines = commentaryScriptRef.current.end || [];
+    if (!endLines.length) return;
+    commentaryOutroPlayedRef.current = true;
+    enqueueCommentaryLines(endLines, { priority: true });
+  }, [enqueueCommentaryLines, gameOver]);
 
   const capturePieces = (cell, mover) => {
     const victims = [];
@@ -1393,6 +1740,7 @@ export default function SnakeAndLadder() {
         }, 1000);
       });
     }
+    return victims;
   };
 
   const moveSoundRef = useRef(null);
@@ -2155,8 +2503,10 @@ export default function SnakeAndLadder() {
       ? values.some((v) => Number(v) === 6)
       : Number(value) === 6;
     const doubleSix = Array.isArray(values) && values[0] === 6 && values[1] === 6;
+    const playerLabel = getPlayerName(0);
 
     setRollColor(playerColors[0] || '#fff');
+    enqueueSnakeCommentaryEvent('roll', { player: playerLabel, roll: value });
 
     // Predict capture for laugh sound
     let preview = pos;
@@ -2206,6 +2556,7 @@ export default function SnakeAndLadder() {
           setMessage("Six rolled! One die removed.");
         } else {
           setMessage("");
+          enqueueSnakeCommentaryEvent('needSix', { player: playerLabel });
         }
         setTurnMessage("Your turn");
         setDiceVisible(true);
@@ -2216,6 +2567,7 @@ export default function SnakeAndLadder() {
           target = FINAL_TILE;
         } else {
           setMessage("Need a 1 to win!");
+          enqueueSnakeCommentaryEvent('exactNeeded', { player: playerLabel, need: 1 });
           setTurnMessage("");
           setDiceVisible(false);
           const next = getPreviousTurn(currentTurn);
@@ -2233,6 +2585,7 @@ export default function SnakeAndLadder() {
         }
         else {
           setMessage("");
+          enqueueSnakeCommentaryEvent('startBlocked', { player: playerLabel });
           setTurnMessage("");
           setDiceVisible(false);
           const next = getPreviousTurn(currentTurn);
@@ -2248,6 +2601,7 @@ export default function SnakeAndLadder() {
       } else {
         setMessage("Need exact roll!");
         setShowExactHelp(true);
+        enqueueSnakeCommentaryEvent('exactNeeded', { player: playerLabel, need: FINAL_TILE - current });
         setTurnMessage("");
         setDiceVisible(false);
         const next = getPreviousTurn(currentTurn);
@@ -2300,15 +2654,36 @@ export default function SnakeAndLadder() {
       };
 
       const applyEffect = (startPos) =>
-        applyEffectHelper(startPos, ctx, finalizeMove);
+        applyEffectHelper(startPos, ctx, (finalPos, type) => finalizeMove(finalPos, type, startPos));
 
-      const finalizeMove = (finalPos, type) => {
+      const finalizeMove = (finalPos, type, effectStart) => {
+        const effectOrigin = Number.isFinite(effectStart) ? effectStart : finalPos;
         setPos(finalPos);
         setHighlight({ cell: finalPos, type });
         setTrail([]);
         setTokenType(type);
         setTimeout(() => setHighlight(null), 2300);
-        capturePieces(finalPos, 0);
+        const victims = capturePieces(finalPos, 0);
+        if (victims.length) {
+          const victimLabel = getPlayerName(victims[0]);
+          enqueueSnakeCommentaryEvent('capture', { player: playerLabel, victim: victimLabel });
+        }
+        if (type === 'ladder') {
+          enqueueSnakeCommentaryEvent('ladder', {
+            player: playerLabel,
+            from: effectOrigin,
+            to: finalPos,
+            delta: finalPos - effectOrigin
+          });
+        }
+        if (type === 'snake') {
+          enqueueSnakeCommentaryEvent('snake', {
+            player: playerLabel,
+            from: effectOrigin,
+            to: finalPos,
+            delta: effectOrigin - finalPos
+          });
+        }
         if (finalPos === FINAL_TILE && !ranking.some((r) => r.name === 'You')) {
           const first = ranking.length === 0;
           const total = pot * (ai + 1);
@@ -2327,6 +2702,7 @@ export default function SnakeAndLadder() {
           if (first) setGameOver(true);
           setMessage(`You win ${winAmt} ${token}!`);
           setMessageColor("");
+          enqueueSnakeCommentaryEvent('win', { player: playerLabel });
           if (!muted) winSoundRef.current?.play().catch(() => {});
           coinConfetti();
           setCelebrate(true);
@@ -2357,10 +2733,12 @@ export default function SnakeAndLadder() {
             yabbaSoundRef.current?.play().catch(() => {});
           }
           setTimeout(() => setRewardDice(0), 1000);
+          enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
         } else if (doubleSix) {
           setTurnMessage('Double six! Roll again');
           setBonusDice(0);
           extraTurn = true;
+          enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
         } else {
           setTurnMessage("Your turn");
           setBonusDice(0);
@@ -2394,7 +2772,9 @@ export default function SnakeAndLadder() {
       ? vals.some((v) => Number(v) === 6)
       : Number(value) === 6;
     const doubleSix = Array.isArray(vals) && vals[0] === 6 && vals[1] === 6;
+    const playerLabel = getPlayerName(index);
     setRollColor(playerColors[index] || '#fff');
+    enqueueSnakeCommentaryEvent('roll', { player: playerLabel, roll: value });
 
     let preview = aiPositions[index - 1];
     if (preview === 0) {
@@ -2433,6 +2813,8 @@ export default function SnakeAndLadder() {
       if (rolledSix) {
         target = 1;
         if (!muted) cheerSoundRef.current?.play().catch(() => {});
+      } else {
+        enqueueSnakeCommentaryEvent('startBlocked', { player: playerLabel });
       }
     } else if (current === 100 && playerDiceCounts[index] === 2) {
       if (rolledSix) {
@@ -2448,6 +2830,7 @@ export default function SnakeAndLadder() {
         return;
       } else {
         setTurnMessage(`${getPlayerName(index)} needs a 6`);
+        enqueueSnakeCommentaryEvent('needSix', { player: playerLabel });
         setDiceVisible(false);
         const next = getPreviousTurn(currentTurn);
         setTimeout(() => {
@@ -2460,6 +2843,7 @@ export default function SnakeAndLadder() {
     } else if (current === 100 && playerDiceCounts[index] === 1) {
       if (value === 1) target = FINAL_TILE;
       else {
+        enqueueSnakeCommentaryEvent('exactNeeded', { player: playerLabel, need: 1 });
         setTurnMessage('');
         setDiceVisible(false);
         const next = getPreviousTurn(currentTurn);
@@ -2472,6 +2856,8 @@ export default function SnakeAndLadder() {
       }
     } else if (current + value <= FINAL_TILE) {
       target = current + value;
+    } else if (current !== 0) {
+      enqueueSnakeCommentaryEvent('exactNeeded', { player: playerLabel, need: FINAL_TILE - current });
     }
 
     let predicted = target;
@@ -2516,12 +2902,33 @@ export default function SnakeAndLadder() {
         })
     };
 
-    const finalizeMove = async (finalPos, type) => {
+    const finalizeMove = async (finalPos, type, effectStart) => {
+      const effectOrigin = Number.isFinite(effectStart) ? effectStart : finalPos;
       positions[index - 1] = finalPos;
       setAiPositions([...positions]);
       setHighlight({ cell: finalPos, type });
       setTrail([]);
-      capturePieces(finalPos, index);
+      const victims = capturePieces(finalPos, index);
+      if (victims.length) {
+        const victimLabel = getPlayerName(victims[0]);
+        enqueueSnakeCommentaryEvent('capture', { player: playerLabel, victim: victimLabel });
+      }
+      if (type === 'ladder') {
+        enqueueSnakeCommentaryEvent('ladder', {
+          player: playerLabel,
+          from: effectOrigin,
+          to: finalPos,
+          delta: finalPos - effectOrigin
+        });
+      }
+      if (type === 'snake') {
+        enqueueSnakeCommentaryEvent('snake', {
+          player: playerLabel,
+          from: effectOrigin,
+          to: finalPos,
+          delta: effectOrigin - finalPos
+        });
+      }
       setTimeout(() => setHighlight(null), 2300);
       if (finalPos === FINAL_TILE && !ranking.some((r) => r.name === getPlayerName(index))) {
         const first = ranking.length === 0;
@@ -2534,6 +2941,7 @@ export default function SnakeAndLadder() {
           setGameOver(true);
         }
         setMessage(`${name} wins!`);
+        enqueueSnakeCommentaryEvent('win', { player: playerLabel });
         setPlayerDiceCounts(arr => {
           const copy = [...arr];
           copy[index] = 2;
@@ -2560,8 +2968,10 @@ export default function SnakeAndLadder() {
           yabbaSoundRef.current?.play().catch(() => {});
         }
         setTimeout(() => setRewardDice(0), 1000);
+        enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
       } else if (doubleSix) {
         extraTurn = true;
+        enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
       }
       const next = extraTurn ? index : getPreviousTurn(index);
       if (next === 0) setTurnMessage('Your turn');
@@ -2574,7 +2984,8 @@ export default function SnakeAndLadder() {
       }
     };
 
-    const applyEffect = (startPos) => applyEffectHelper(startPos, ctx, finalizeMove);
+    const applyEffect = (startPos) =>
+      applyEffectHelper(startPos, ctx, (finalPos, type) => finalizeMove(finalPos, type, startPos));
 
     moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
     }, 2000);
@@ -3149,6 +3560,60 @@ export default function SnakeAndLadder() {
                     onChange={(event) => setShowTrailEnabled(event.target.checked)}
                   />
                 </label>
+              </div>
+              <div className="mt-4 space-y-2">
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-white/60">Commentary language</h3>
+                <div className="grid gap-2">
+                  {SNAKE_COMMENTARY_PRESETS.map((preset) => {
+                    const active = preset.id === commentaryPresetId;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => setCommentaryPresetId(preset.id)}
+                        aria-pressed={active}
+                        disabled={!commentarySupported}
+                        className={`w-full rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                      >
+                        <span className="block">{preset.label}</span>
+                        <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.18em] text-white/60">
+                          {preset.description}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCommentaryMuted((prev) => !prev)}
+                  aria-pressed={commentaryMuted}
+                  disabled={!commentarySupported}
+                  className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                    commentaryMuted
+                      ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                      : 'bg-white/10 text-white/80 hover:bg-white/20'
+                  } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                >
+                  <span>Mute commentary</span>
+                  <span
+                    className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
+                      commentaryMuted
+                        ? 'border-black/30 text-black/70'
+                        : 'border-white/30 text-white/70'
+                    }`}
+                  >
+                    {commentaryMuted ? 'On' : 'Off'}
+                  </span>
+                </button>
+                {!commentarySupported && (
+                  <p className="text-[10px] text-white/50">
+                    Voice commentary requires a browser with Web Speech support.
+                  </p>
+                )}
               </div>
               <div className="mt-4 space-y-2">
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-white/60">Graphics</h3>
