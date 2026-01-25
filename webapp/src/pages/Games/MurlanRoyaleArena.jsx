@@ -644,12 +644,82 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     description: 'Male voice, English',
     language: 'en',
     voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex']
+      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Matthew', 'Mark'],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-GB', 'English', 'male', 'Alex', 'Brian', 'George', 'James', 'Ryan']
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.99, pitch: 0.97, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.01, pitch: 0.98, volume: 1 }
+    }
+  },
+  {
+    id: 'broadcast-uk',
+    label: 'UK Broadcast',
+    description: 'British male pairing',
+    language: 'en-GB',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-GB', 'English', 'male', 'Brian', 'George', 'Oliver', 'Arthur'],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-GB', 'English', 'male', 'James', 'Thomas', 'Harry', 'Edward']
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.95, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.97, volume: 0.98 }
+    }
+  },
+  {
+    id: 'us-stadium',
+    label: 'US Stadium',
+    description: 'American male voices',
+    language: 'en-US',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-US', 'English', 'male', 'Michael', 'John', 'Google US English'],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-US', 'English', 'male', 'Alex', 'Evan', 'Fred', 'Jacob']
     },
     speakerSettings: {
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 0.98, volume: 0.98 }
+    }
+  },
+  {
+    id: 'aussie-rink',
+    label: 'Aussie Rink',
+    description: 'Australian male accent',
+    language: 'en-AU',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-AU', 'English', 'male', 'William', 'Liam', 'Google Australian English'],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-AU', 'English', 'male', 'Jack', 'Noah', 'Oliver']
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.99, pitch: 0.96, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.01, pitch: 0.99, volume: 0.98 }
+    }
+  },
+  {
+    id: 'canadian-pro',
+    label: 'Canadian Pro',
+    description: 'Canadian male broadcast',
+    language: 'en-CA',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-CA', 'English', 'male', 'Andrew', 'Simon', 'Nathan'],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-CA', 'English', 'male', 'Liam', 'Benjamin', 'Lucas']
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.99, pitch: 0.97, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.99, volume: 0.98 }
+    }
+  },
+  {
+    id: 'south-asia',
+    label: 'South Asia',
+    description: 'Indian male commentary',
+    language: 'en-IN',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-IN', 'English', 'male', 'Ravi', 'Arjun', 'Prakash'],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-IN', 'English', 'male', 'Rahul', 'Vikram', 'Dev']
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.98, volume: 0.98 }
     }
   }
 ]);
@@ -1251,7 +1321,7 @@ export default function MurlanRoyaleArena({ search }) {
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
-  const [commentaryPresetId] = useState(() => {
+  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
       if (stored && MURLAN_ROYALE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
@@ -1577,6 +1647,11 @@ export default function MurlanRoyaleArena({ search }) {
       if (commentaryReadyRef.current) return;
       primeSpeechSynthesis();
       const synth = getSpeechSynthesis();
+      if (typeof synth?.resume === 'function') {
+        try {
+          synth.resume();
+        } catch {}
+      }
       synth?.getVoices?.();
       commentaryReadyRef.current = true;
       const pending = pendingCommentaryLinesRef.current;
@@ -1586,16 +1661,42 @@ export default function MurlanRoyaleArena({ search }) {
       }
     };
     window.addEventListener('pointerdown', unlockCommentary);
+    window.addEventListener('pointerup', unlockCommentary);
     window.addEventListener('click', unlockCommentary);
     window.addEventListener('touchstart', unlockCommentary);
+    window.addEventListener('touchend', unlockCommentary);
     window.addEventListener('keydown', unlockCommentary);
     return () => {
       window.removeEventListener('pointerdown', unlockCommentary);
+      window.removeEventListener('pointerup', unlockCommentary);
       window.removeEventListener('click', unlockCommentary);
       window.removeEventListener('touchstart', unlockCommentary);
+      window.removeEventListener('touchend', unlockCommentary);
       window.removeEventListener('keydown', unlockCommentary);
     };
   }, [enqueueMurlanCommentary]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (commentaryMutedRef.current) return;
+      primeSpeechSynthesis();
+      const synth = getSpeechSynthesis();
+      if (typeof synth?.resume === 'function') {
+        try {
+          synth.resume();
+        } catch {}
+      }
+      synth?.getVoices?.();
+    };
+    window.addEventListener('focus', handleVisibility);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', handleVisibility);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
 
   useEffect(() => {
     if (!gameState) return;
@@ -3324,6 +3425,39 @@ export default function MurlanRoyaleArena({ search }) {
                         {commentaryMuted ? 'On' : 'Off'}
                       </span>
                     </button>
+                    <div className="grid gap-2">
+                      {MURLAN_ROYALE_COMMENTARY_PRESETS.map((preset) => {
+                        const active = preset.id === commentaryPresetId;
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => setCommentaryPresetId(preset.id)}
+                            aria-pressed={active}
+                            disabled={!commentarySupported}
+                            className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              active
+                                ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)] text-white'
+                                : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                            } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                          >
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="text-[11px] font-semibold uppercase tracking-[0.26em]">
+                                {preset.label}
+                              </span>
+                              {active && (
+                                <span className="text-[10px] uppercase tracking-[0.3em] text-sky-100">Active</span>
+                              )}
+                            </span>
+                            {preset.description && (
+                              <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                                {preset.description}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                     {!commentarySupported && (
                       <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">
                         Voice commentary needs Web Speech support.
