@@ -69,16 +69,18 @@ export default function TexasHoldemLobby() {
     let accountId;
     try {
       accountId = await ensureAccountId();
-      const balRes = await getAccountBalance(accountId);
-      if ((balRes.balance || 0) < stake.amount) {
-        alert('Insufficient balance');
-        return;
-      }
       tgId = getTelegramId();
-      await addTransaction(tgId, -stake.amount, 'stake', {
-        game: 'texasholdem',
-        accountId,
-      });
+      if (mode === 'online') {
+        const balRes = await getAccountBalance(accountId);
+        if ((balRes.balance || 0) < stake.amount) {
+          alert('Insufficient balance');
+          return;
+        }
+        await addTransaction(tgId, -stake.amount, 'stake', {
+          game: 'texasholdem',
+          accountId,
+        });
+      }
     } catch {}
 
     const params = new URLSearchParams();
