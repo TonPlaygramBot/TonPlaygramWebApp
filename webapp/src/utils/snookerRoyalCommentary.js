@@ -37,149 +37,150 @@ const EVENT_POOLS = Object.freeze({
 
 const TEMPLATES = Object.freeze({
   intro: [
-    'Welcome to {arena}. {player} and {opponent} are set for {frameNumber}.',
-    'We are live at {arena}. {player} versus {opponent}, and the table is ready.',
-    'Good evening from {arena}. {player} and {opponent} prepare to open {frameNumber}.',
-    'It is match time at {arena}. {player} takes on {opponent} in {frameNumber}.',
-    'Hello from {arena}. The clash is {player} against {opponent} in {frameNumber}.'
+    '{frameNumber} underway. {player} to break.',
+    'Frame starts now. {player} on the break-off.',
+    'Opening shot coming up from {player}.',
+    '{player} to open this frame.',
+    '{player} steps up for the break.'
   ],
   introReply: [
-    'The atmosphere is buzzing and the table looks perfect.',
-    'Everything is set for a sharp tactical frame.',
-    'Plenty of intrigue in this matchup. Let us see who settles first.',
-    'Great to be with you as these two start their battle.'
+    'Table is set. Early safety expected.',
+    'We are live. First visit will set the tone.',
+    'Tactical opening here.',
+    'First shot is about control.'
   ],
   breakOff: [
-    'Here comes the break-off from {player}. All about control and the baulk line.',
-    '{player} to break the pack. The cue ball needs to stay safe in baulk.',
-    '{player} steps in for the opener. Gentle break, heavy on precision.',
-    '{player} with the opening strike, looking for a tight safety.',
-    'Break-off time for {player}. Cue ball control is everything.'
+    '{player} breaks off, looking to keep it safe.',
+    'Break-off from {player}. Cue ball to baulk.',
+    '{player} opens with a controlled break.',
+    '{player} sends the cue ball into baulk.',
+    'Measured break from {player}.'
   ],
   redPot: [
-    'Red down for {player}. The break is alive.',
-    '{player} drops a red and stays in position.',
-    'That red is clean. {player} keeps the visit going.',
-    '{player} sinks the red and keeps the cue ball close.',
-    'Solid red pot by {player}. This visit continues.'
+    'Red down. {player} stays at the table.',
+    '{player} pots a red and holds position.',
+    'Clean red for {player}.',
+    '{player} drops the red. Good cue ball.',
+    'Red potted by {player}. Visit continues.'
   ],
   multiRed: [
-    'Multiple reds fall and {player} opens the table.',
-    '{player} with a double red. That is a strong start.',
-    'Two reds drop and {player} has options.',
-    '{player} clears more than one red and spreads the pack nicely.',
-    'A flurry of reds for {player}. The table is loosening up.'
+    'Multiple reds fall. {player} opens the pack.',
+    'Two reds down for {player}.',
+    '{player} splits reds and stays in.',
+    'Reds open up. {player} stays in control.',
+    'A pair of reds for {player}.'
   ],
   colorPot: [
-    '{color} goes in for {player}. The cue ball is right in the lane.',
-    'Nice color from {player}. That should reset on the spot.',
-    '{player} lands the {color}. This break is building.',
-    'Smooth on the {color}. {player} keeps the scoring touch.',
-    '{player} pockets the {color} and stays in control.'
+    '{color} potted by {player}.',
+    '{player} lands the {color}.',
+    'Color down. {player} keeps the break.',
+    '{player} takes the {color} clean.',
+    '{color} in. {player} stays in position.'
   ],
   colorOrder: [
-    '{color} disappears in order. {player} clears through the colors.',
-    '{player} pots the {color} as the clearance continues.',
-    'That is the {color}, and the colors are now in sequence.',
-    '{player} ticks off the {color} with the clearance still alive.',
-    'Sequence shot on the {color}. {player} stays in rhythm.'
+    '{color} taken in order by {player}.',
+    '{player} clears the {color}.',
+    'That is the {color}. Clearance continues.',
+    '{player} ticks off the {color}.',
+    'Sequence shot on the {color}.'
   ],
   respot: [
-    '{color} drops and returns to its spot. {player} keeps the rhythm.',
-    'Color down and back on its mark. {player} stays on the attack.',
-    '{player} slots the {color}; it will be respotted for the next shot.',
-    '{player} takes the {color} cleanly. It goes back to the spot.',
-    'Great on the {color}. Respotted and the break continues.'
+    '{color} down and respotted.',
+    '{player} pots the {color}. It returns to the spot.',
+    'Color potted. Back on the mark.',
+    '{color} drops and is re-spotted.',
+    '{player} takes the {color}. Respotted.'
   ],
   safety: [
-    'A patient safety from {player}. Tucking the cue ball tight.',
-    '{player} chooses the safety route. Pressure shifts to {opponent}.',
-    'Good containment. {player} leaves {opponent} long and awkward.',
-    '{player} rolls in the safety. {opponent} has work to do.',
-    '{player} nudges it safe. Tough angle for {opponent} now.'
+    '{player} lays a safety.',
+    'Safety from {player}. {opponent} back to work.',
+    '{player} tucks the cue ball safe.',
+    'Containment shot from {player}.',
+    '{player} nudges it safe.'
   ],
   snooker: [
-    'That is a proper snooker. {opponent} can barely see the ball on.',
-    '{player} hides the cue ball. {opponent} is in trouble now.',
-    'Excellent snooker. {opponent} will need a clever escape.',
-    '{player} leaves {opponent} snookered. A big tactical moment.',
-    'Severe snooker laid by {player}. {opponent} is boxed in.'
+    '{player} leaves {opponent} snookered.',
+    'Tight snooker. {opponent} has a tough escape.',
+    '{player} hides the cue ball. Snooker on.',
+    'Excellent snooker from {player}.',
+    '{opponent} is forced to kick at it.'
   ],
   freeBall: [
-    'Free ball on. {player} can turn this into a big visit.',
-    'Free ball opportunity for {player}. That changes the table.',
-    '{player} gets the free ball. Expect a tactical swing.',
-    'Free ball called. {player} can punish from here.',
-    'With a free ball, {player} has a golden opening.'
+    'Free ball called. {player} to take it.',
+    '{player} has a free ball chance.',
+    'Free ball on. {player} can build here.',
+    'Free ball opportunity for {player}.',
+    '{player} with the free ball option.'
   ],
   foul: [
-    'Foul from {player}. {points} points to {opponent}.',
-    '{player} commits a foul, giving {opponent} {points}.',
-    'That is a foul: {foulReason}. {opponent} collects {points}.',
-    'Foul called on {player}. {opponent} takes {points}.',
-    'That will cost {player}. {points} to {opponent}.'
+    'Foul. {points} to {opponent}.',
+    '{player} fouls. {opponent} gains {points}.',
+    'Foul: {foulReason}. {points} to {opponent}.',
+    '{points} points to {opponent} after the foul.',
+    'Foul against {player}. {opponent} scores {points}.'
   ],
   miss: [
-    'That one slides by. {player} misses the pot.',
-    'Just off line for {player}. Chance swings to {opponent}.',
-    '{player} cannot convert. A look now for {opponent}.',
-    'A miss from {player}. {opponent} is back to the table.',
-    '{player} just misses. That opens a door for {opponent}.'
+    '{player} misses. Chance for {opponent}.',
+    'Missed pot. {opponent} comes in.',
+    '{player} overcuts. {opponent} to the table.',
+    'Just off for {player}.',
+    '{player} fails to convert.'
   ],
   breakBuild: [
-    '{player} is building a break of {breakTotal}. Great cueing.',
-    'Break at {breakTotal} for {player}. This is real momentum.',
-    '{player} is in the groove with {breakTotal} on the run.',
-    '{player} moves to {breakTotal}. Composed and confident.',
-    '{breakTotal} on the board for {player}. This is a tidy visit.'
+    '{player} moves to {breakTotal}.',
+    'Break at {breakTotal} for {player}.',
+    '{breakTotal} on the visit for {player}.',
+    '{player} reaches {breakTotal}.',
+    '{player} builds to {breakTotal}.'
   ],
   century: [
-    'That is a century! {player} hits {breakTotal}.',
-    '{player} reaches the hundred. A beautiful snooker break.',
-    'Century break for {player}. {arena} appreciates the class.',
-    '{player} posts a century. That is elite control.',
-    'One hundred for {player}. The crowd loves it.'
+    'Century break. {player} hits {breakTotal}.',
+    '{player} reaches one hundred.',
+    'Hundred up for {player}.',
+    '{player} posts {breakTotal}. Century confirmed.',
+    'Century for {player}.'
   ],
   colorsOrder: [
-    'Reds are gone. Colors in order from here.',
-    'Now into the colors sequence. Every shot is vital.',
-    'Colors phase begins. Precision only from here.',
-    'We are down to the colors. One by one from here.',
-    'Only the colors remain. This is where frames are won.'
+    'Reds gone. Colors in sequence.',
+    'Into the colors now.',
+    'Colors phase starts.',
+    'Only the colors remain.',
+    'Colors in order from here.'
   ],
   frameBall: [
-    'This could be frame ball for {player}.',
-    'Frame ball moment for {player}. Big pressure shot.',
-    '{player} looking at the frame ball. One more clean strike.',
-    'Frame ball on. {player} can close this out.',
-    'It is frame ball for {player}. The pressure is real.'
+    'Frame ball for {player}.',
+    '{player} on the frame ball.',
+    'Frame ball chance here.',
+    '{player} can close the frame.',
+    'Frame ball on.'
   ],
   frameWin: [
-    '{player} takes the frame. Scoreline {scoreline}.',
-    'Frame secured by {player}. A composed finish.',
-    '{player} closes it out. The frame is theirs.',
-    '{player} seals the frame. Score now {scoreline}.',
-    'That is the frame to {player}. Big result there.'
+    '{player} wins the frame. {scoreline}.',
+    'Frame secured by {player}.',
+    '{player} closes it out. {scoreline}.',
+    'Frame to {player}.',
+    '{player} takes it. {scoreline}.'
   ],
   outro: [
-    'That concludes {frameNumber} at {arena}. Thanks for watching.',
-    'From {arena}, that is the end of the frame. Great play.',
-    'Match coverage wraps here at {arena}. Appreciate you joining us.',
-    'That is all for {frameNumber} from {arena}.',
-    'We will close it there at {arena}. Thanks for being with us.'
+    '{frameNumber} ends. Score {scoreline}.',
+    'Frame over. Score {scoreline}.',
+    'End of the frame. {scoreline}.',
+    '{frameNumber} complete. {scoreline}.',
+    'That is the frame. {scoreline}.'
   ],
   outroReply: [
-    'A fine display from both players. Until next time.',
-    'Great moments throughout that frame. See you again soon.',
-    'That was a fantastic battle. Thanks for watching.',
-    'Plenty to take from that. We will catch you in the next one.'
+    'Next frame setup underway.',
+    'Resetting for the next frame.',
+    'Players reset for the next visit.',
+    'Re-rack and reset.',
+    'Ready to go again.'
   ],
   turn: [
-    'Over to {player} now.',
-    '{player} steps in for the next visit.',
-    'Next shot belongs to {player}.',
-    '{player} is back at the table.',
-    '{player} now with the chance.'
+    '{player} to play.',
+    'Turn to {player}.',
+    '{player} at the table.',
+    '{player} to the shot.',
+    '{player} in for the next visit.'
   ]
 });
 
