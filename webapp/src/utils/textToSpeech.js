@@ -104,7 +104,10 @@ export const speakCommentaryLines = async (lines, {
     const utterance = new SpeechSynthesisUtterance(line.text);
     const voice = speakerVoices[speaker] || findVoiceMatch(voices, voiceHints[speaker] || voiceHints.Steven);
 
-    if (voice) utterance.voice = voice;
+    if (voice) {
+      utterance.voice = voice;
+      if (voice.lang) utterance.lang = voice.lang;
+    }
     utterance.rate = settings.rate;
     utterance.pitch = settings.pitch;
     utterance.volume = settings.volume;
