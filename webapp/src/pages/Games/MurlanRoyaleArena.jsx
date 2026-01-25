@@ -671,9 +671,39 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     }
   },
   {
-    id: 'broadcast',
-    label: 'Broadcast',
-    description: 'Broadcast duo, mixed',
+    id: 'arena-captain',
+    label: 'Arena Captain',
+    description: 'Commanding stadium lead, bright analyst',
+    language: 'en',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: [
+        'en-US',
+        'English',
+        'male',
+        'Bruce',
+        'Ralph',
+        'Fred',
+        'Matthew'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: [
+        'en-GB',
+        'English',
+        'female',
+        'Sonia',
+        'Hazel',
+        'Kate',
+        'Emma'
+      ]
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.9, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.12, volume: 1 }
+    }
+  },
+  {
+    id: 'skyline-duo',
+    label: 'Skyline Duo',
+    description: 'Energetic hostess with steady co-host',
     language: 'en',
     voiceHints: {
       [MURLAN_ROYALE_SPEAKERS.lead]: [
@@ -696,102 +726,124 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
       ]
     },
     speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.04, pitch: 1.08, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.06, pitch: 1.12, volume: 1 },
       [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 0.98, volume: 1 }
     }
   },
   {
-    id: 'deep-studio',
-    label: 'Deep Studio',
-    description: 'Deep studio with contrast',
-    language: 'en',
+    id: 'latin-pulse',
+    label: 'Latin Pulse',
+    description: 'Spanish play-by-play with lively color',
+    language: 'es',
     voiceHints: {
       [MURLAN_ROYALE_SPEAKERS.lead]: [
-        'en-GB',
-        'English',
+        'es-ES',
+        'es-MX',
+        'Spanish',
         'male',
-        'Piper',
-        'Coqui',
-        'George',
-        'Brian'
+        'Jorge',
+        'Carlos',
+        'Miguel'
       ],
       [MURLAN_ROYALE_SPEAKERS.analyst]: [
-        'en-AU',
-        'English',
+        'es-ES',
+        'es-MX',
+        'Spanish',
         'female',
-        'Piper',
-        'Coqui',
-        'Karen',
-        'Nicole'
+        'Isabella',
+        'Lucia',
+        'Camila'
       ]
     },
     speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.9, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 1.08, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.05, pitch: 1, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.1, volume: 1 }
     }
   },
   {
-    id: 'clear-analyst',
-    label: 'Clear Analyst',
-    description: 'Clear analyst focus',
-    language: 'en',
+    id: 'francophone-booth',
+    label: 'Francophone Booth',
+    description: 'French broadcast pairing',
+    language: 'fr',
     voiceHints: {
       [MURLAN_ROYALE_SPEAKERS.lead]: [
-        'en-AU',
-        'English',
+        'fr-FR',
+        'French',
         'male',
-        'Alex',
-        'Daniel',
-        'Microsoft Guy'
+        'Henri',
+        'Louis',
+        'Paul'
       ],
       [MURLAN_ROYALE_SPEAKERS.analyst]: [
-        'en-US',
-        'English',
+        'fr-FR',
+        'French',
         'female',
-        'Ava',
-        'Allison',
-        'Samantha',
-        'Google US English'
+        'Amelie',
+        'Marie',
+        'Charlotte'
       ]
     },
     speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 1, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.06, pitch: 1.08, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
   },
   {
-    id: 'gritty-arena',
-    label: 'Gritty Arena',
-    description: 'Gritty arena voices',
-    language: 'en',
-    voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-US', 'English', 'male', 'Bruce', 'Ralph', 'Fred'],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-GB', 'English', 'female', 'Susan', 'Moira', 'Sally']
-    },
-    speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.96, pitch: 0.92, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 1.04, volume: 1 }
-    }
-  },
-  {
-    id: 'warm-story',
-    label: 'Warm Story',
-    description: 'Warm storyteller mix',
-    language: 'en',
+    id: 'arabic-spotlight',
+    label: 'Arabic Spotlight',
+    description: 'Arabic duo with crisp cadence',
+    language: 'ar',
     voiceHints: {
       [MURLAN_ROYALE_SPEAKERS.lead]: [
-        'en-GB',
-        'English',
+        'ar-SA',
+        'ar-EG',
+        'Arabic',
         'female',
-        'Google UK English Female',
-        'Serena',
-        'Olivia'
+        'Salma',
+        'Aisha',
+        'Noor'
       ],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-US', 'English', 'male', 'Oliver', 'Liam', 'Michael']
+      [MURLAN_ROYALE_SPEAKERS.analyst]: [
+        'ar-SA',
+        'ar-EG',
+        'Arabic',
+        'male',
+        'Omar',
+        'Khalid',
+        'Hassan'
+      ]
     },
     speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 1.08, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 1.04, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 1.12, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 0.98, pitch: 0.98, volume: 1 }
+    }
+  },
+  {
+    id: 'balkan-beat',
+    label: 'Balkan Beat',
+    description: 'Albanian booth with warm timing',
+    language: 'sq',
+    voiceHints: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: [
+        'sq-AL',
+        'Albanian',
+        'male',
+        'Arben',
+        'Ilir',
+        'Dritan'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: [
+        'sq-AL',
+        'Albanian',
+        'female',
+        'Elira',
+        'Besa',
+        'Mira'
+      ]
+    },
+    speakerSettings: {
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.98, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.08, volume: 1 }
     }
   }
 ]);
