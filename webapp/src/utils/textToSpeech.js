@@ -119,3 +119,32 @@ export const speakCommentaryLines = async (lines, {
     });
   }
 };
+
+export const primeSpeechSynthesis = async () => {
+  const synth = getSpeechSynthesis();
+  if (!synth || typeof SpeechSynthesisUtterance === 'undefined') return false;
+  try {
+    synth.resume?.();
+  } catch {}
+  try {
+    const utterance = new SpeechSynthesisUtterance(' ');
+    utterance.volume = 0;
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    await new Promise((resolve) => {
+      let settled = false;
+      const finalize = () => {
+        if (settled) return;
+        settled = true;
+        resolve(true);
+      };
+      utterance.onend = finalize;
+      utterance.onerror = finalize;
+      synth.speak(utterance);
+      setTimeout(finalize, 250);
+    });
+    return true;
+  } catch {
+    return false;
+  }
+};
