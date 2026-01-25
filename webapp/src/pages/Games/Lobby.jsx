@@ -66,6 +66,7 @@ export default function Lobby() {
   const matchTimeoutRef = useRef(null);
   const seatTimeoutRef = useRef(null);
   const isOnlineMatch = table?.id && table.id !== 'single';
+  const isLocalMatch = table?.id === 'single';
 
   useEffect(() => {
     cleanupRef.current?.({ keepError: true });
@@ -113,6 +114,34 @@ export default function Lobby() {
     }
     const onlineTable = tables.find((entry) => entry.id !== 'single');
     if (onlineTable) setTable(onlineTable);
+  };
+
+  const multiplayerTables = tables.filter((entry) => entry.id !== 'single');
+  const fallbackCapacities = [
+    { id: 'snake-2', capacity: 2 },
+    { id: 'snake-3', capacity: 3 },
+    { id: 'snake-4', capacity: 4 }
+  ];
+  const capacityOptions = multiplayerTables.length ? multiplayerTables : fallbackCapacities;
+  const localTableOptions = capacityOptions.map((entry) => ({
+    ...entry,
+    id: `local-${entry.capacity}`,
+    label: `${entry.capacity} Players`,
+    subtitle: 'AI opponents'
+  }));
+  const displayedTables = isLocalMatch ? localTableOptions : multiplayerTables;
+  const selectedTable = isLocalMatch
+    ? localTableOptions.find((entry) => entry.capacity === aiCount + 1) || localTableOptions[0]
+    : table;
+
+  const handleTableSelect = (selectedOption) => {
+    if (isLocalMatch || selectedOption.id.startsWith('local-')) {
+      const singleTable = tables.find((entry) => entry.id === 'single');
+      if (singleTable) setTable(singleTable);
+      setAiCount(Math.max((selectedOption.capacity || 2) - 1, 1));
+      return;
+    }
+    setTable(selectedOption);
   };
 
   useEffect(() => {
@@ -511,7 +540,11 @@ export default function Lobby() {
               <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-              <TableSelector tables={tables} selected={table} onSelect={setTable} />
+              <TableSelector
+                tables={displayedTables}
+                selected={selectedTable}
+                onSelect={handleTableSelect}
+              />
             </div>
           </div>
 
