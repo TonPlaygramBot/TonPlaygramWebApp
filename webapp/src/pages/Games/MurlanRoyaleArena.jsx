@@ -636,89 +636,161 @@ const FRAME_RATE_STORAGE_KEY = 'murlanFrameRate';
 const COMMENTARY_PRESET_STORAGE_KEY = 'murlanRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'murlanRoyaleCommentaryMute';
 const COMMENTARY_QUEUE_LIMIT = 4;
-const COMMENTARY_MIN_INTERVAL_MS = 1400;
+const COMMENTARY_MIN_INTERVAL_MS = 900;
+const COMMENTARY_MAX_LATENCY_MS = 2200;
+const COMMENTARY_PRIORITY_MAX_LATENCY_MS = 6000;
 const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'english',
     label: 'English',
-    description: 'Male voice, English',
+    description: 'Mixed voices, classic English',
     language: 'en',
     voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex']
+      [MURLAN_ROYALE_SPEAKERS.lead]: [
+        'en-US',
+        'English',
+        'male',
+        'David',
+        'Guy',
+        'Daniel',
+        'Alex'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: [
+        'en-GB',
+        'English',
+        'female',
+        'Sonia',
+        'Hazel',
+        'Kate',
+        'Emma'
+      ]
     },
     speakerSettings: {
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
   },
   {
     id: 'broadcast',
     label: 'Broadcast',
-    description: 'Male voice, broadcast tone (open-source friendly)',
+    description: 'Broadcast duo, mixed',
     language: 'en',
     voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-US', 'English', 'male', 'Microsoft David', 'David', 'Guy'],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-US', 'English', 'male', 'Microsoft Mark', 'Mark', 'Ryan', 'Matthew']
+      [MURLAN_ROYALE_SPEAKERS.lead]: [
+        'en-US',
+        'English',
+        'female',
+        'Zira',
+        'Aria',
+        'Jenny',
+        'Natasha'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: [
+        'en-US',
+        'English',
+        'male',
+        'Microsoft Mark',
+        'Mark',
+        'Ryan',
+        'Matthew'
+      ]
     },
     speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.94, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.04, pitch: 1.08, volume: 1 },
       [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 0.98, volume: 1 }
     }
   },
   {
     id: 'deep-studio',
     label: 'Deep Studio',
-    description: 'Male voice, deep studio (Piper/Coqui style)',
+    description: 'Deep studio with contrast',
     language: 'en',
     voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-GB', 'English', 'male', 'Piper', 'Coqui', 'George', 'Brian'],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-US', 'English', 'male', 'Piper', 'Coqui', 'James', 'William']
+      [MURLAN_ROYALE_SPEAKERS.lead]: [
+        'en-GB',
+        'English',
+        'male',
+        'Piper',
+        'Coqui',
+        'George',
+        'Brian'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: [
+        'en-AU',
+        'English',
+        'female',
+        'Piper',
+        'Coqui',
+        'Karen',
+        'Nicole'
+      ]
     },
     speakerSettings: {
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.9, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 1.08, volume: 1 }
     }
   },
   {
     id: 'clear-analyst',
     label: 'Clear Analyst',
-    description: 'Male voice, clear analyst (open-source friendly)',
+    description: 'Clear analyst focus',
     language: 'en',
     voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-AU', 'English', 'male', 'Alex', 'Daniel', 'Microsoft Guy'],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-US', 'English', 'male', 'Justin', 'Scott', 'Google US English']
+      [MURLAN_ROYALE_SPEAKERS.lead]: [
+        'en-AU',
+        'English',
+        'male',
+        'Alex',
+        'Daniel',
+        'Microsoft Guy'
+      ],
+      [MURLAN_ROYALE_SPEAKERS.analyst]: [
+        'en-US',
+        'English',
+        'female',
+        'Ava',
+        'Allison',
+        'Samantha',
+        'Google US English'
+      ]
     },
     speakerSettings: {
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 1, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.02, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.06, pitch: 1.08, volume: 1 }
     }
   },
   {
     id: 'gritty-arena',
     label: 'Gritty Arena',
-    description: 'Male voice, gritty arena (open-source friendly)',
+    description: 'Gritty arena voices',
     language: 'en',
     voiceHints: {
       [MURLAN_ROYALE_SPEAKERS.lead]: ['en-US', 'English', 'male', 'Bruce', 'Ralph', 'Fred'],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-GB', 'English', 'male', 'Tony', 'Albert', 'Graham']
+      [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-GB', 'English', 'female', 'Susan', 'Moira', 'Sally']
     },
     speakerSettings: {
       [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.96, pitch: 0.92, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.94, volume: 1 }
+      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 1.04, volume: 1 }
     }
   },
   {
     id: 'warm-story',
     label: 'Warm Story',
-    description: 'Male voice, warm storyteller (open-source friendly)',
+    description: 'Warm storyteller mix',
     language: 'en',
     voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: ['en-GB', 'English', 'male', 'Google UK English Male', 'Matthew', 'Sam'],
+      [MURLAN_ROYALE_SPEAKERS.lead]: [
+        'en-GB',
+        'English',
+        'female',
+        'Google UK English Female',
+        'Serena',
+        'Olivia'
+      ],
       [MURLAN_ROYALE_SPEAKERS.analyst]: ['en-US', 'English', 'male', 'Oliver', 'Liam', 'Michael']
     },
     speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 1.02, volume: 1 },
+      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 1.08, volume: 1 },
       [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.02, pitch: 1.04, volume: 1 }
     }
   }
@@ -1567,7 +1639,14 @@ export default function MurlanRoyaleArena({ search }) {
 
   const playNextCommentary = useCallback(async () => {
     if (commentarySpeakingRef.current) return;
-    const next = commentaryQueueRef.current.shift();
+    const now = performance.now();
+    let next = commentaryQueueRef.current.shift();
+    while (next) {
+      const age = now - (next.createdAt ?? now);
+      const maxDelay = next.maxDelay ?? COMMENTARY_MAX_LATENCY_MS;
+      if (age <= maxDelay) break;
+      next = commentaryQueueRef.current.shift();
+    }
     if (!next) return;
     const synth = getSpeechSynthesis();
     if (!synth) return;
@@ -1589,17 +1668,29 @@ export default function MurlanRoyaleArena({ search }) {
     (lines, { priority = false, preset = activeCommentaryPreset } = {}) => {
       if (!Array.isArray(lines) || lines.length === 0) return;
       if (commentaryMutedRef.current || isGameMuted()) return;
+      const now = performance.now();
       if (!commentaryReadyRef.current) {
-        pendingCommentaryLinesRef.current = { lines, priority, preset };
+        pendingCommentaryLinesRef.current = {
+          lines,
+          priority,
+          preset,
+          createdAt: now,
+          maxDelay: priority ? COMMENTARY_PRIORITY_MAX_LATENCY_MS : COMMENTARY_MAX_LATENCY_MS
+        };
         return;
       }
-      const now = performance.now();
       if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
       if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
+      const entry = {
+        lines,
+        preset,
+        createdAt: now,
+        maxDelay: priority ? COMMENTARY_PRIORITY_MAX_LATENCY_MS : COMMENTARY_MAX_LATENCY_MS
+      };
       if (priority) {
-        commentaryQueueRef.current.unshift({ lines, preset });
+        commentaryQueueRef.current.unshift(entry);
       } else {
-        commentaryQueueRef.current.push({ lines, preset });
+        commentaryQueueRef.current.push(entry);
       }
       if (!commentarySpeakingRef.current) {
         playNextCommentary();
@@ -3913,7 +4004,7 @@ function cardLabel(card) {
   if (!card) return '';
   if (card.rank === 'JR') return 'Red Joker';
   if (card.rank === 'JB') return 'Black Joker';
-  return `${card.rank}${card.suit}`;
+  return `${card.rank}`;
 }
 
 function buildPlayers(search) {
