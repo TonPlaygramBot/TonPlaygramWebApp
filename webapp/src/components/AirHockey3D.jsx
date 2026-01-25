@@ -114,90 +114,6 @@ const AIR_HOCKEY_COMMENTARY_PRESETS = Object.freeze([
       [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
       [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
     }
-  },
-  {
-    id: 'mandarin',
-    label: 'Mandarin',
-    description: 'Male voice, 中文',
-    language: 'zh',
-    voiceHints: {
-      [AIR_HOCKEY_SPEAKERS.lead]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male'],
-      [AIR_HOCKEY_SPEAKERS.analyst]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male']
-    },
-    speakerSettings: {
-      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
-      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
-    }
-  },
-  {
-    id: 'hindi',
-    label: 'Hindi',
-    description: 'Male voice, हिंदी',
-    language: 'hi',
-    voiceHints: {
-      [AIR_HOCKEY_SPEAKERS.lead]: ['hi-IN', 'Hindi', 'India', 'male'],
-      [AIR_HOCKEY_SPEAKERS.analyst]: ['hi-IN', 'Hindi', 'India', 'male']
-    },
-    speakerSettings: {
-      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
-    }
-  },
-  {
-    id: 'spanish',
-    label: 'Spanish',
-    description: 'Male voice, Español',
-    language: 'es',
-    voiceHints: {
-      [AIR_HOCKEY_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male'],
-      [AIR_HOCKEY_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male']
-    },
-    speakerSettings: {
-      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1, pitch: 0.97, volume: 1 },
-      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1, pitch: 0.97, volume: 1 }
-    }
-  },
-  {
-    id: 'french',
-    label: 'French',
-    description: 'Male voice, Français',
-    language: 'fr',
-    voiceHints: {
-      [AIR_HOCKEY_SPEAKERS.lead]: ['fr-FR', 'French', 'Français', 'male'],
-      [AIR_HOCKEY_SPEAKERS.analyst]: ['fr-FR', 'French', 'Français', 'male']
-    },
-    speakerSettings: {
-      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
-    }
-  },
-  {
-    id: 'arabic',
-    label: 'Arabic',
-    description: 'Male voice, العربية',
-    language: 'ar',
-    voiceHints: {
-      [AIR_HOCKEY_SPEAKERS.lead]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male'],
-      [AIR_HOCKEY_SPEAKERS.analyst]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male']
-    },
-    speakerSettings: {
-      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
-      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
-    }
-  },
-  {
-    id: 'albanian',
-    label: 'Shqip',
-    description: 'Zë mashkulli, shqip.',
-    language: 'sq',
-    voiceHints: {
-      [AIR_HOCKEY_SPEAKERS.lead]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male'],
-      [AIR_HOCKEY_SPEAKERS.analyst]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male']
-    },
-    speakerSettings: {
-      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
-    }
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = AIR_HOCKEY_COMMENTARY_PRESETS[0]?.id || 'english';
@@ -551,7 +467,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
-  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
+  const [commentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
       if (stored && AIR_HOCKEY_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
@@ -2423,14 +2339,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     }
   }, [selections]);
 
-  const handleCommentaryPresetSelect = useCallback(
-    (preset) => {
-      if (!preset?.id) return;
-      setCommentaryPresetId(preset.id);
-    },
-    []
-  );
-
   const renderOptionRow = (label, key) => {
     const options = (AIR_HOCKEY_CUSTOMIZATION[key] || []).filter((option) =>
       isAirHockeyOptionUnlocked(key, option.id, airInventory)
@@ -2656,31 +2564,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
             </div>
             <div className="rounded-xl border border-white/10 bg-white/5 p-3">
               <div>
-                <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary language</p>
-                <p className="mt-1 text-[0.7rem] text-white/60">Select the voice crew for air hockey.</p>
-              </div>
-              <div className="mt-2 grid gap-2">
-                {AIR_HOCKEY_COMMENTARY_PRESETS.map((preset) => {
-                  const active = preset.id === commentaryPresetId;
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => handleCommentaryPresetSelect(preset)}
-                      aria-pressed={active}
-                      className={`w-full rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                        active
-                          ? 'border-sky-300 bg-sky-300/15 text-sky-100 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
-                          : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                      }`}
-                    >
-                      <span className="block">{preset.label}</span>
-                      <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.18em] text-white/60">
-                        {preset.description}
-                      </span>
-                    </button>
-                  );
-                })}
+                <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary</p>
               </div>
               <button
                 type="button"

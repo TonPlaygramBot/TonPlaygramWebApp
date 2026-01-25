@@ -934,90 +934,6 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
       [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
       [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
     }
-  },
-  {
-    id: 'mandarin',
-    label: 'Mandarin',
-    description: 'Male voice, 中文',
-    language: 'zh',
-    voiceHints: {
-      [POOL_ROYALE_SPEAKERS.lead]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male'],
-      [POOL_ROYALE_SPEAKERS.analyst]: ['zh-CN', 'zh', 'Chinese', 'Mandarin', 'male']
-    },
-    speakerSettings: {
-      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
-      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
-    }
-  },
-  {
-    id: 'hindi',
-    label: 'Hindi',
-    description: 'Male voice, हिंदी',
-    language: 'hi',
-    voiceHints: {
-      [POOL_ROYALE_SPEAKERS.lead]: ['hi-IN', 'Hindi', 'India', 'male'],
-      [POOL_ROYALE_SPEAKERS.analyst]: ['hi-IN', 'Hindi', 'India', 'male']
-    },
-    speakerSettings: {
-      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
-    }
-  },
-  {
-    id: 'spanish',
-    label: 'Spanish',
-    description: 'Male voice, Español',
-    language: 'es',
-    voiceHints: {
-      [POOL_ROYALE_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male'],
-      [POOL_ROYALE_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'Español', 'male']
-    },
-    speakerSettings: {
-      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.97, volume: 1 },
-      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.97, volume: 1 }
-    }
-  },
-  {
-    id: 'french',
-    label: 'French',
-    description: 'Male voice, Français',
-    language: 'fr',
-    voiceHints: {
-      [POOL_ROYALE_SPEAKERS.lead]: ['fr-FR', 'French', 'Français', 'male'],
-      [POOL_ROYALE_SPEAKERS.analyst]: ['fr-FR', 'French', 'Français', 'male']
-    },
-    speakerSettings: {
-      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
-    }
-  },
-  {
-    id: 'arabic',
-    label: 'Arabic',
-    description: 'Male voice, العربية',
-    language: 'ar',
-    voiceHints: {
-      [POOL_ROYALE_SPEAKERS.lead]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male'],
-      [POOL_ROYALE_SPEAKERS.analyst]: ['ar-SA', 'ar-EG', 'Arabic', 'العربية', 'male']
-    },
-    speakerSettings: {
-      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
-      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.95, volume: 1 }
-    }
-  },
-  {
-    id: 'albanian',
-    label: 'Shqip',
-    description: 'Zë mashkulli, shqip.',
-    language: 'sq',
-    voiceHints: {
-      [POOL_ROYALE_SPEAKERS.lead]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male'],
-      [POOL_ROYALE_SPEAKERS.analyst]: ['sq-AL', 'sq', 'Albanian', 'Shqip', 'male']
-    },
-    speakerSettings: {
-      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
-    }
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
@@ -10834,7 +10750,7 @@ function PoolRoyaleGame({
     }
     return false;
   });
-  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
+  const [commentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
       if (stored && POOL_ROYALE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
@@ -13218,13 +13134,6 @@ const powerRef = useRef(hud.power);
     };
   }, [enqueuePoolCommentary]);
 
-  const handleCommentaryPresetSelect = useCallback(
-    (preset) => {
-      if (!preset?.id) return;
-      setCommentaryPresetId(preset.id);
-    },
-    []
-  );
   useEffect(() => {
     document.title = 'Pool Royale 3D';
   }, []);
@@ -26371,31 +26280,8 @@ const powerRef = useRef(hud.power);
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Commentary language
+                  Commentary
                 </h3>
-                <div className="mt-2 grid grid-cols-1 gap-2">
-                  {POOL_ROYALE_COMMENTARY_PRESETS.map((preset) => {
-                    const active = preset.id === commentaryPresetId;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => handleCommentaryPresetSelect(preset)}
-                        aria-pressed={active}
-                        className={`rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="block">{preset.label}</span>
-                        <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.18em] text-white/60">
-                          {preset.description}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
                 <button
                   type="button"
                   onClick={() => setCommentaryMuted((prev) => !prev)}
