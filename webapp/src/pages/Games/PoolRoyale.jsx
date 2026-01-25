@@ -131,7 +131,7 @@ function applyTablePhysicsSpec(meta) {
       : DEFAULT_SIDE_CUSHION_CUT_ANGLE;
   SIDE_CUSHION_CUT_ANGLE = sideCushionAngle;
   SIDE_POCKET_PHYSICS_CUT_ANGLE = clamp(
-    SIDE_CUSHION_CUT_ANGLE,
+    SIDE_CUSHION_CUT_ANGLE + 7,
     MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE,
     MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE
   );
@@ -611,7 +611,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1; // allow the plate ends to r
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.982; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.06; // pull the middle chrome plates slightly toward table center while keeping the rounded cut position unchanged
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0; // keep the middle fascia centered so trims remove evenly from inside and outside edges
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.095; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
@@ -1570,10 +1570,10 @@ const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // match the corner-cushion cut angle on both sides of the corner pockets
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = VISUAL_SIDE_CUSHION_CUT_ANGLE;
-const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 45;
-const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 45;
-const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = VISUAL_SIDE_CUSHION_CUT_ANGLE;
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
+const MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE = 32;
+const MAX_SIDE_POCKET_PHYSICS_CUT_ANGLE = 38;
+const DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE = 34;
 const VISUAL_SIDE_CUSHION_CUT_ANGLE = 45;
 const SIDE_POCKET_CUT_ANGLE_DEG = VISUAL_SIDE_CUSHION_CUT_ANGLE;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -20180,45 +20180,6 @@ const powerRef = useRef(hud.power);
         }
         return clamped;
       };
-      const resolveInHandPlacement = (
-        point,
-        { clearanceMultiplier = 2.05, maxRadius = BALL_R * 3.2 } = {}
-      ) => {
-        const clamped = clampInHandPosition(point);
-        if (!clamped) return null;
-        if (isSpotFree(clamped, clearanceMultiplier)) return clamped;
-        const step = Math.max(BALL_R * 0.35, 0.002);
-        const ringCount = Math.max(1, Math.ceil(maxRadius / step));
-        const angleSteps = 16;
-        let best = null;
-        let bestClearance = -Infinity;
-        for (let ring = 1; ring <= ringCount; ring += 1) {
-          const radius = step * ring;
-          for (let i = 0; i < angleSteps; i += 1) {
-            const angle = (Math.PI * 2 * i) / angleSteps;
-            TMP_VEC2_A.set(
-              clamped.x + Math.cos(angle) * radius,
-              clamped.y + Math.sin(angle) * radius
-            );
-            const candidate = clampInHandPosition(TMP_VEC2_A);
-            if (!candidate) continue;
-            if (isSpotFree(candidate, clearanceMultiplier)) {
-              return candidate;
-            }
-            let minDist = Infinity;
-            for (const ball of balls) {
-              if (!ball.active || ball === cue) continue;
-              const dist = candidate.distanceTo(ball.pos);
-              if (dist < minDist) minDist = dist;
-            }
-            if (minDist > bestClearance) {
-              bestClearance = minDist;
-              best = candidate.clone();
-            }
-          }
-        }
-        return best;
-      };
       const defaultInHandPosition = () =>
         clampInHandPosition(
           new THREE.Vector2(0, allowFullTableInHand() ? 0 : baulkZ)
@@ -20243,23 +20204,24 @@ const powerRef = useRef(hud.power);
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return false;
-        const clamped = resolveInHandPlacement(raw);
+        const clamped = clampInHandPosition(raw);
         if (!clamped) return false;
+        if (!isSpotFree(clamped)) return false;
         cue.active = false;
         updateCuePlacement(clamped);
         inHandDrag.lastPos = clamped;
-        if (commit) {
-          cue.active = true;
-          inHandDrag.lastPos = null;
-          cueBallPlacedFromHandRef.current = true;
-          if (hudRef.current?.inHand) {
-            const nextHud = { ...hudRef.current, inHand: false };
-            hudRef.current = nextHud;
-            setHud(nextHud);
-          }
+      if (commit) {
+        cue.active = true;
+        inHandDrag.lastPos = null;
+        cueBallPlacedFromHandRef.current = true;
+        if (hudRef.current?.inHand) {
+          const nextHud = { ...hudRef.current, inHand: false };
+          hudRef.current = nextHud;
+          setHud(nextHud);
         }
-        return true;
-      };
+      }
+      return true;
+    };
       const findAiInHandPlacement = () => {
         const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
         const forwardBias = Math.max(baulkZ - BALL_R * 0.6, -PLAY_H / 2 + BALL_R);
@@ -20331,10 +20293,10 @@ const powerRef = useRef(hud.power);
         for (const clearance of clearanceLevels) {
           for (const group of candidateGroups) {
             for (const raw of group) {
-              const resolved = resolveInHandPlacement(raw, {
-                clearanceMultiplier: clearance
-              });
-              if (resolved) return resolved;
+              const clamped = clampInHandPosition(raw);
+              if (!clamped) continue;
+              if (!isSpotFree(clamped, clearance)) continue;
+              return clamped;
             }
           }
         }
@@ -20373,11 +20335,12 @@ const powerRef = useRef(hud.power);
                 offset.set(1, 0);
               }
               offset.setLength(BALL_R * 2.05);
-              const nudged = resolveInHandPlacement(
-                nearest.pos.clone().add(offset),
-                { clearanceMultiplier: 2.02 }
+              const nudged = clampInHandPosition(
+                nearest.pos.clone().add(offset)
               );
-              if (nudged) return nudged;
+              if (nudged && isSpotFree(nudged, 2.02)) {
+                return nudged;
+              }
             }
             const searchDirs = [
               [1, 0],
@@ -20396,10 +20359,11 @@ const powerRef = useRef(hud.power);
                 TMP_VEC2_A.copy(best);
                 TMP_VEC2_A.x += dx * stepSize * stepIdx;
                 TMP_VEC2_A.y += dz * stepSize * stepIdx;
-                const candidate = resolveInHandPlacement(TMP_VEC2_A, {
-                  clearanceMultiplier: 2.02
-                });
-                if (candidate) return candidate;
+                const candidate = clampInHandPosition(TMP_VEC2_A);
+                if (!candidate) continue;
+                if (isSpotFree(candidate, 2.02)) {
+                  return candidate;
+                }
               }
             }
           } else {
@@ -20409,23 +20373,14 @@ const powerRef = useRef(hud.power);
         const fallback = allowFullTableInHand()
           ? defaultInHandPosition()
           : clampInHandPosition(new THREE.Vector2(0, forwardBias));
-        const fallbackResolved = resolveInHandPlacement(fallback, {
-          clearanceMultiplier: 2.0,
-          maxRadius: BALL_R * 4
-        });
-        if (fallbackResolved) return fallbackResolved;
+        if (fallback && isSpotFree(fallback, 2.0)) {
+          return fallback;
+        }
         const baulkCenter = defaultInHandPosition();
-        const baulkResolved = resolveInHandPlacement(baulkCenter, {
-          clearanceMultiplier: 2.0,
-          maxRadius: BALL_R * 4
-        });
-        if (baulkResolved) return baulkResolved;
-        return resolveInHandPlacement(
-          allowFullTableInHand()
-            ? new THREE.Vector2(0, 0)
-            : new THREE.Vector2(0, baulkZ),
-          { clearanceMultiplier: 1.7, maxRadius: BALL_R * 5 }
-        );
+        if (baulkCenter && isSpotFree(baulkCenter, 2.0)) {
+          return baulkCenter;
+        }
+        return null;
       };
       const autoPlaceAiCueBall = () => {
         const currentHud = hudRef.current;
@@ -27213,7 +27168,7 @@ const powerRef = useRef(hud.power);
             </span>
           </div>
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
-            Tap or drag to place
+            Tap and hold, then slide to place
           </span>
         </div>
       )}
