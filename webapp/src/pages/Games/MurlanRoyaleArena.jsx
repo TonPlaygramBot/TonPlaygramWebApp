@@ -759,72 +759,6 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
     }
   },
   {
-    id: 'mandarin-glow',
-    label: 'Chinese Broadcast',
-    description: 'Mandarin booth with crisp calls',
-    language: 'zh',
-    voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: [
-        'zh-CN',
-        'zh',
-        'Chinese',
-        'Mandarin',
-        'male',
-        'Li',
-        'Wei',
-        'Chen',
-        'Microsoft Kangkang',
-        'Microsoft Yunxi'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: [
-        'zh-CN',
-        'zh',
-        'Chinese',
-        'Mandarin',
-        'female',
-        'Mei',
-        'Xia',
-        'Lin',
-        'Microsoft Xiaoxiao',
-        'Microsoft Yaoyao'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.hype]: [
-        'zh-CN',
-        'zh',
-        'Chinese',
-        'male',
-        'Bo',
-        'Jia',
-        'Haoyu'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.tactician]: [
-        'zh-CN',
-        'zh',
-        'Chinese',
-        'female',
-        'Xue',
-        'Na',
-        'Jing'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.veteran]: [
-        'zh-CN',
-        'zh',
-        'Chinese',
-        'male',
-        'Guo',
-        'Shun',
-        'Hong'
-      ]
-    },
-    speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 1, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.05, pitch: 1.06, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.08, pitch: 1.08, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 1, pitch: 0.98, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.veteran]: { rate: 0.97, pitch: 0.95, volume: 1 }
-    }
-  },
-  {
     id: 'moscow-mics',
     label: 'Russian Booth',
     description: 'Russian commentary with steady cadence',
@@ -1128,6 +1062,10 @@ const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = MURLAN_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
+const COMMENTARY_PRIMARY_SPEAKERS = Object.freeze({
+  english: MURLAN_ROYALE_SPEAKERS.analyst,
+  'latin-pulse': MURLAN_ROYALE_SPEAKERS.analyst
+});
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tables', label: 'Table Model', options: TABLE_THEMES },
   { key: 'tableFinish', label: 'Table Finish', options: MURLAN_TABLE_FINISHES },
@@ -2085,21 +2023,27 @@ export default function MurlanRoyaleArena({ search }) {
     [commentaryPresetId]
   );
   const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
-  const commentarySpeakers = useMemo(
-    () => [
+  const commentarySpeakers = useMemo(() => {
+    const base = [
       MURLAN_ROYALE_SPEAKERS.lead,
       MURLAN_ROYALE_SPEAKERS.analyst,
       MURLAN_ROYALE_SPEAKERS.hype,
       MURLAN_ROYALE_SPEAKERS.tactician,
       MURLAN_ROYALE_SPEAKERS.veteran
-    ],
-    []
-  );
+    ];
+    const primary = COMMENTARY_PRIMARY_SPEAKERS[activeCommentaryPreset?.id];
+    if (!primary) return base;
+    return [primary, ...base.filter((speaker) => speaker !== primary)];
+  }, [activeCommentaryPreset?.id]);
   const pickCommentarySpeaker = useCallback(() => {
+    const primary = COMMENTARY_PRIMARY_SPEAKERS[activeCommentaryPreset?.id];
+    if (primary) {
+      return primary;
+    }
     const index = commentarySpeakerIndexRef.current;
     commentarySpeakerIndexRef.current = index + 1;
     return commentarySpeakers[index % commentarySpeakers.length] || MURLAN_ROYALE_SPEAKERS.analyst;
-  }, [commentarySpeakers]);
+  }, [activeCommentaryPreset?.id, commentarySpeakers]);
 
   useEffect(() => {
     commentaryMutedRef.current = commentaryMuted;
