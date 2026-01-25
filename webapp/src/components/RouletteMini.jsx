@@ -109,7 +109,7 @@ export default function RouletteMini() {
   const [remaining, setRemaining] = useState(0);
   const spinTimeoutRef = useRef(null);
   const spinSoundRef = useRef(null);
-  const targetRotationRef = useRef(0);
+  const targetIndexRef = useRef(0);
 
   const wheelBackground = useMemo(() => {
     const parts = ROULETTE_ORDER.map((num, idx) => {
@@ -180,13 +180,6 @@ export default function RouletteMini() {
     if (spinTimeoutRef.current) clearTimeout(spinTimeoutRef.current);
   }, []);
 
-  const resolveWinningIndex = (rotation) => {
-    const normalized = ((-rotation - SEGMENT_ANGLE / 2) % 360 + 360) % 360;
-    const index =
-      Math.round(normalized / SEGMENT_ANGLE) % ROULETTE_ORDER.length;
-    return index;
-  };
-
   const startSpin = () => {
     if (spinning) return;
     const index = Math.floor(Math.random() * ROULETTE_ORDER.length);
@@ -199,7 +192,7 @@ export default function RouletteMini() {
     setOutcome(null);
     setAdWatched(false);
     setSpinState({ totalSpins, rotation });
-    targetRotationRef.current = rotation;
+    targetIndexRef.current = index;
     if (spinSoundRef.current) {
       spinSoundRef.current.currentTime = 0;
       spinSoundRef.current.play().catch(() => {});
@@ -209,7 +202,7 @@ export default function RouletteMini() {
       setSpinning(false);
       spinSoundRef.current?.pause();
       if (spinSoundRef.current) spinSoundRef.current.currentTime = 0;
-      const resolvedIndex = resolveWinningIndex(targetRotationRef.current);
+      const resolvedIndex = targetIndexRef.current;
       const resolvedNumber = ROULETTE_ORDER[resolvedIndex];
       const resolvedPrize = PRIZE_MAP[resolvedNumber];
       setOutcome({ number: resolvedNumber, prize: resolvedPrize });
@@ -270,12 +263,12 @@ export default function RouletteMini() {
       />
       <h3 className="text-lg font-bold text-white">Roulette Spin</h3>
       <div className="relative mx-auto w-72 h-72 sm:w-80 sm:h-80">
-        <div className="absolute left-1/2 -translate-x-1/2 -top-3 z-20 flex flex-col items-center">
-          <div className="w-0 h-0 border-l-[10px] border-r-[10px] border-b-[18px] border-l-transparent border-r-transparent border-b-yellow-400 drop-shadow" />
-          <div className="w-2 h-2 bg-white rounded-full mt-1 shadow ring-1 ring-gray-300" />
+        <div className="absolute left-1/2 -translate-x-1/2 -top-2 z-20 flex flex-col items-center">
+          <div className="w-0 h-0 border-l-[10px] border-r-[10px] border-t-[18px] border-l-transparent border-r-transparent border-t-yellow-400 drop-shadow" />
+          <div className="w-2 h-2 bg-white rounded-full -mt-1 shadow ring-1 ring-gray-300" />
         </div>
         <div
-          className="relative w-full h-full rounded-full border-[3px] border-yellow-400/80 shadow-inner flex items-center justify-center overflow-hidden [--roulette-label-radius:120px] sm:[--roulette-label-radius:136px] will-change-transform"
+          className="relative w-full h-full rounded-full border-[3px] border-yellow-400/80 shadow-inner flex items-center justify-center overflow-hidden [--roulette-label-radius:132px] sm:[--roulette-label-radius:150px] will-change-transform"
           style={{
             background: wheelBackground,
             transform: `translateZ(0) rotate(${spinState.rotation}deg)`,
@@ -312,13 +305,23 @@ export default function RouletteMini() {
               </div>
             );
           })}
-          <div className="absolute inset-[28%] rounded-full bg-surface/85 border border-yellow-400/80 flex flex-col items-center justify-center text-xs text-subtext space-y-1">
-            <span className="uppercase tracking-wide">TPC Rewards</span>
-            <span className="text-sm font-semibold text-white">
-              {outcome ? `+${formatPrize(outcome.prize)} TPC` : 'Spin to win'}
-            </span>
-          </div>
         </div>
+        <div className="absolute inset-[28%] rounded-full bg-surface/85 border border-yellow-400/80 flex flex-col items-center justify-center text-xs text-subtext space-y-1 pointer-events-none">
+          <span className="uppercase tracking-wide">TPC Rewards</span>
+          <span className="text-sm font-semibold text-white">
+            {outcome ? `+${formatPrize(outcome.prize)} TPC` : 'Spin to win'}
+          </span>
+        </div>
+        {outcome && !spinning && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="roulette-prize-beam" />
+            <div className="roulette-prize-pop">
+              <div className="roulette-prize-value">
+                +{formatPrize(outcome.prize)} TPC
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <div className="space-y-2">
         <button
