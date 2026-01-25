@@ -1051,8 +1051,8 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
   },
   {
     id: 'albanian',
-    label: 'Albanian',
-    description: 'Male play-by-play in Albanian.',
+    label: 'Shqip',
+    description: 'Komentim mashkullor në shqip.',
     language: 'sq',
     voiceHints: {
       [COMMENTARY_SPEAKER_LEAD]: ['sq-AL', 'sq', 'albanian', 'male', 'google'],
