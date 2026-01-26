@@ -225,7 +225,7 @@ const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.28;
 const PIECE_SCALE_FACTOR = 0.92;
 const PIECE_FOOTPRINT_RATIO = 0.86;
-const BOARD_GROUP_Y_OFFSET = -0.05;
+const BOARD_GROUP_Y_OFFSET = -0.09;
 const BOARD_MODEL_Y_OFFSET = -0.12;
 const BOARD_VISUAL_Y_OFFSET = -0.08;
 const BOARD_SURFACE_DROP = 0.05;
@@ -9147,7 +9147,7 @@ function Chess3D({
             type="button"
             onClick={() => setConfigOpen((open) => !open)}
             aria-expanded={configOpen}
-            className="pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
+            className="icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -9187,7 +9187,7 @@ function Chess3D({
               type="button"
               onClick={() => replayLastMoveRef.current?.()}
               disabled={!canReplay}
-              className={`flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 focus:outline-none ${
+              className={`icon-only-button flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 focus:outline-none ${
                 canReplay ? 'hover:text-white' : 'cursor-not-allowed text-white/40'
               }`}
             >
@@ -9211,7 +9211,7 @@ function Chess3D({
             <button
               type="button"
               onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
-              className="flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
+              className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             >
               {viewMode === '3d' ? '2D' : '3D'}
             </button>
@@ -9534,7 +9534,7 @@ function Chess3D({
             showInfo={false}
             showMute={false}
             className="fixed left-3 bottom-4 z-50 flex flex-col gap-4"
-            buttonClassName="pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
+            buttonClassName="icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             iconClassName="text-[1.5rem] leading-none"
             labelClassName="sr-only"
             chatIcon="💬"
@@ -9545,7 +9545,7 @@ function Chess3D({
             showChat={false}
             showGift={false}
             className="fixed right-3 bottom-4 z-50 flex flex-col"
-            buttonClassName="pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
+            buttonClassName="icon-only-button pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             iconClassName="text-[1.5rem] leading-none"
             labelClassName="sr-only"
             muteIconOn="🔇"

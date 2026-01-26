@@ -111,6 +111,23 @@ button {
   @apply px-2 py-1 bg-primary hover:bg-primary-hover text-white text-outline-black text-sm rounded;
 }
 
+.icon-only-button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+  border-radius: 9999px;
+  -webkit-text-stroke-width: 0;
+  text-shadow: none;
+}
+
+.icon-only-button:hover,
+.icon-only-button:focus {
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+}
+
 body.mining-page button {
   @apply text-white-shadow;
 }
