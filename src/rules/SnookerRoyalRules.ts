@@ -1,4 +1,4 @@
-import { BallColor, FrameState, Player, ShotContext, ShotEvent } from '../types';
+import { Ball, BallColor, FrameState, Player, ShotContext, ShotEvent } from '../types';
 
 type HudInfo = {
   next: string;
@@ -25,12 +25,70 @@ const COLOR_VALUES: Record<BallColor, number> = {
 };
 
 const COLOR_ORDER: BallColor[] = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
+const RED_BALL_COUNT = 15;
 
 function basePlayers(playerA: string, playerB: string): { A: Player; B: Player } {
   return {
     A: { id: 'A', name: playerA, score: 0 },
     B: { id: 'B', name: playerB, score: 0 }
   };
+}
+
+function buildInitialBalls(): Ball[] {
+  const balls: Ball[] = [];
+  for (let i = 0; i < RED_BALL_COUNT; i += 1) {
+    balls.push({
+      id: `RED_${i + 1}`,
+      color: 'RED',
+      onTable: true,
+      potted: false
+    });
+  }
+  COLOR_ORDER.forEach((color) => {
+    balls.push({
+      id: color,
+      color,
+      onTable: true,
+      potted: false
+    });
+  });
+  balls.push({
+    id: 'CUE',
+    color: 'CUE',
+    onTable: true,
+    potted: false
+  });
+  return balls;
+}
+
+function cloneBalls(balls: Ball[]): Ball[] {
+  return balls.map((ball) => ({ ...ball }));
+}
+
+function ensureBalls(state: FrameState): Ball[] {
+  if (Array.isArray(state.balls) && state.balls.length > 0) {
+    return cloneBalls(state.balls);
+  }
+  return buildInitialBalls();
+}
+
+function setBallOnTable(balls: Ball[], color: BallColor, onTable: boolean) {
+  const ball = balls.find((entry) => entry.color === color);
+  if (!ball) return;
+  ball.onTable = onTable;
+  ball.potted = !onTable;
+}
+
+function potReds(balls: Ball[], count: number): number {
+  let remaining = count;
+  balls.forEach((ball) => {
+    if (remaining <= 0) return;
+    if (ball.color !== 'RED' || !ball.onTable) return;
+    ball.onTable = false;
+    ball.potted = true;
+    remaining -= 1;
+  });
+  return count - remaining;
 }
 
 function normalizeColor(value: unknown): BallColor | null {
@@ -102,12 +160,12 @@ export class SnookerRoyalRules {
 
   getInitialFrame(playerA: string, playerB: string): FrameState {
     const base: FrameState = {
-      balls: [],
+      balls: buildInitialBalls(),
       activePlayer: 'A',
       players: basePlayers(playerA, playerB),
       currentBreak: 0,
       phase: 'REDS_AND_COLORS',
-      redsRemaining: 15,
+      redsRemaining: RED_BALL_COUNT,
       ballOn: ['RED'],
       frameOver: false,
       colorOnAfterRed: false,
@@ -148,6 +206,12 @@ export class SnookerRoyalRules {
     const pottedNonCue = potted.filter((color) => color !== 'CUE');
     const pottedReds = pottedNonCue.filter((color) => color === 'RED');
     const pottedColors = pottedNonCue.filter((color) => color !== 'RED');
+    const balls = ensureBalls(state);
+    let redsRemaining = state.redsRemaining ?? RED_BALL_COUNT;
+    if (pottedReds.length) {
+      const removedReds = potReds(balls, pottedReds.length);
+      redsRemaining = Math.max(0, redsRemaining - removedReds);
+    }
 
     const freeBallActive = Boolean(state.freeBall || context.freeBall);
     const nominatedFreeBall = freeBallActive ? nominatedBall ?? null : null;
@@ -237,14 +301,25 @@ export class SnookerRoyalRules {
       foulReason = 'no cushion';
     }
 
+    const respotColor = (color: BallColor | null) => {
+      if (!color || color === 'RED' || color === 'CUE') return;
+      setBallOnTable(balls, color, true);
+    };
+    const removeColor = (color: BallColor | null) => {
+      if (!color || color === 'RED' || color === 'CUE') return;
+      setBallOnTable(balls, color, false);
+    };
     let nextActivePlayer = state.activePlayer;
     let nextBreak = state.currentBreak ?? 0;
-    let redsRemaining = state.redsRemaining ?? 15;
+    let nextRedsRemaining = redsRemaining;
     let nextPhase = state.phase;
     let colorOnAfterRed = state.colorOnAfterRed ?? false;
     let nextFreeBall = false;
     let frameOver = false;
     let winner: 'A' | 'B' | 'TIE' | undefined;
+    let legalColorPotAfterRed = false;
+    let legalColorPotInOrder = false;
+    let targetColor: BallColor | null = null;
     const scores = {
       A: state.players.A.score,
       B: state.players.B.score
@@ -260,6 +335,10 @@ export class SnookerRoyalRules {
       nextActivePlayer = opponent;
       nextBreak = 0;
       nextFreeBall = Boolean(context.snookered);
+      colorOnAfterRed = false;
+      if (nextRedsRemaining === 0) {
+        nextPhase = 'COLORS_ORDER';
+      }
       if (
         state.phase === 'COLORS_ORDER' &&
         colorsRemaining.length === 1 &&
@@ -274,7 +353,7 @@ export class SnookerRoyalRules {
       nextActivePlayer = state.activePlayer === 'A' ? 'B' : 'A';
       nextBreak = 0;
       if (state.phase === 'REDS_AND_COLORS') {
-        if (redsRemaining === 0 && !state.colorOnAfterRed) {
+        if (nextRedsRemaining === 0 && !state.colorOnAfterRed) {
           nextPhase = 'COLORS_ORDER';
           colorOnAfterRed = false;
         } else {
@@ -285,7 +364,6 @@ export class SnookerRoyalRules {
       if (onRed) {
         const freeBallScore = freeBallPotted && ballOnValue ? COLOR_VALUES[ballOnValue] : 0;
         const scored = pottedReds.length * COLOR_VALUES.RED + freeBallScore;
-        redsRemaining = Math.max(0, redsRemaining - pottedReds.length);
         scores[state.activePlayer] += scored;
         nextBreak = (state.currentBreak ?? 0) + scored;
         if (pottedReds.length > 0 || freeBallPotted) {
@@ -302,13 +380,15 @@ export class SnookerRoyalRules {
           const scored = COLOR_VALUES[ballOnValue ?? scoredColor] || 0;
           scores[state.activePlayer] += scored;
           nextBreak = (state.currentBreak ?? 0) + scored;
+          legalColorPotAfterRed = true;
         }
         colorOnAfterRed = false;
-        if (redsRemaining === 0) {
+        if (nextRedsRemaining === 0) {
           nextPhase = 'COLORS_ORDER';
         }
       } else if (inColorsOrder) {
         const target = colorsRemaining[0] ?? null;
+        targetColor = target;
         const targetPotted = Boolean(target && pottedNonCue.includes(target));
         const targetScore = target && targetPotted ? COLOR_VALUES[target] || 0 : 0;
         const freeBallScore =
@@ -321,6 +401,7 @@ export class SnookerRoyalRules {
           nextBreak = (state.currentBreak ?? 0) + totalScore;
         }
         if (target && targetPotted) {
+          legalColorPotInOrder = true;
           colorsRemaining.shift();
           if (!colorsRemaining.length) {
             frameOver = true;
@@ -336,6 +417,33 @@ export class SnookerRoyalRules {
       nextActivePlayer = state.activePlayer;
     }
 
+    if (cuePotted) {
+      setBallOnTable(balls, 'CUE', true);
+    }
+    if (foulReason) {
+      pottedColors.forEach((color) => respotColor(color));
+      if (freeBallPotted && nominatedFreeBall) {
+        respotColor(nominatedFreeBall);
+      }
+    } else if (onRed) {
+      if (freeBallPotted && nominatedFreeBall) {
+        respotColor(nominatedFreeBall);
+      }
+    } else if (onColorAfterRed) {
+      if (legalColorPotAfterRed) {
+        respotColor(freeBallActive ? nominatedFreeBall : declaredBall);
+      } else if (freeBallPotted && nominatedFreeBall) {
+        respotColor(nominatedFreeBall);
+      }
+    } else if (inColorsOrder) {
+      if (legalColorPotInOrder) {
+        removeColor(targetColor);
+      }
+      if (freeBallPotted && nominatedFreeBall && nominatedFreeBall !== targetColor) {
+        respotColor(nominatedFreeBall);
+      }
+    }
+
     const nextState: FrameState = {
       ...state,
       activePlayer: nextActivePlayer,
@@ -345,9 +453,10 @@ export class SnookerRoyalRules {
       },
       currentBreak: nextBreak,
       phase: nextPhase,
-      redsRemaining,
+      redsRemaining: nextRedsRemaining,
       colorOnAfterRed,
       freeBall: nextFreeBall,
+      balls,
       ballOn: resolveBallOn({ ...state, phase: nextPhase, colorOnAfterRed }, colorsRemaining),
       frameOver,
       winner,
@@ -365,7 +474,14 @@ export class SnookerRoyalRules {
         colorsRemaining,
         freeBall: nextFreeBall,
         hud: buildHud(
-          { ...state, phase: nextPhase, colorOnAfterRed, ballOn, redsRemaining, freeBall: nextFreeBall },
+          {
+            ...state,
+            phase: nextPhase,
+            colorOnAfterRed,
+            ballOn,
+            redsRemaining: nextRedsRemaining,
+            freeBall: nextFreeBall
+          },
           scores,
           resolveBallOn({ ...state, phase: nextPhase, colorOnAfterRed }, colorsRemaining)
         )

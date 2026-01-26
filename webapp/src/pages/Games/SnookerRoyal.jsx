@@ -1045,7 +1045,7 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
   const TABLE_BASE_SCALE = 1.2;
-  const TABLE_WIDTH_SCALE = 1.25;
+  const TABLE_WIDTH_SCALE = 1.3;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE = {
@@ -4916,7 +4916,7 @@ const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
-const RAIL_LIMIT_PADDING = 0.1;
+const RAIL_LIMIT_PADDING = 0;
 const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR, // start the intro framing closer to the table surface
   phi: CAMERA.maxPhi - 0.01
@@ -7476,11 +7476,13 @@ function Table3D(
     mesh.material.needsUpdate = true;
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(alignedRailSurface);
-  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.07; // push the cushions further outward so they meet the wooden rails without a gap
+  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.085; // push the cushions slightly farther outward to match the physical rail edge
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.26; // shorten the corner cushions more so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK *0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.34; // shorten the long-rail cushions slightly more so the noses stay clear of the pocket openings
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
+  const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.55; // reduce long-rail cushion reach further to keep noses out of pocket perimeters
+  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.28; // lightly trim short-rail cushions to match the new pocket clearance
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
@@ -7526,7 +7528,7 @@ function Table3D(
   );
   const horizontalCushionLength = Math.max(
     MICRO_EPS,
-    PLAY_W - 2 * cornerCushionClearance
+    PLAY_W - 2 * cornerCushionClearance - LONG_RAIL_CUSHION_LENGTH_TRIM
   );
   const sideLineX =
     halfW - CUSHION_RAIL_FLUSH - CUSHION_LONG_RAIL_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH;
@@ -7540,7 +7542,10 @@ function Table3D(
   );
   const verticalCushionLength = Math.max(
     MICRO_EPS,
-    Math.max(0, cornerIntersectionZ - adjustedSidePocketReach)
+    Math.max(
+      0,
+      cornerIntersectionZ - adjustedSidePocketReach - SHORT_RAIL_CUSHION_LENGTH_TRIM
+    )
   );
   const verticalCushionCenter =
     adjustedSidePocketReach +
@@ -10119,111 +10124,6 @@ function Table3D(
     table.add(marker);
     table.userData.pockets.push(marker);
   });
-
-  const mappingLineLift = Math.max(MICRO_EPS * 8, TABLE.THICK * 0.002);
-  const mappingLineY = clothPlaneWorld + mappingLineLift;
-  const mappingGroup = new THREE.Group();
-  mappingGroup.name = 'tableMappingOverlay';
-  const fieldLineMaterial = new THREE.LineBasicMaterial({
-    color: 0xf5d547,
-    transparent: true,
-    opacity: 0.9,
-    depthTest: false,
-    depthWrite: false
-  });
-  const cushionLineMaterial = new THREE.LineBasicMaterial({
-    color: 0xff3b30,
-    transparent: true,
-    opacity: 0.9,
-    depthTest: false,
-    depthWrite: false
-  });
-  const pocketLineMaterial = new THREE.LineBasicMaterial({
-    color: 0x2f7bff,
-    transparent: true,
-    opacity: 0.9,
-    depthTest: false,
-    depthWrite: false
-  });
-  const registerMappingLine = (line) => {
-    line.renderOrder = 6;
-    line.frustumCulled = false;
-    mappingGroup.add(line);
-  };
-  const makeLine = (points, material, loop = false) => {
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    return loop ? new THREE.LineLoop(geometry, material) : new THREE.Line(geometry, material);
-  };
-  const fieldExtents = table.userData.pockets.reduce(
-    (acc, marker) => {
-      if (!marker) return acc;
-      const radius = marker.userData?.captureRadius ?? CAPTURE_R;
-      acc.halfW = Math.max(acc.halfW, Math.abs(marker.position.x) + radius);
-      acc.halfH = Math.max(acc.halfH, Math.abs(marker.position.z) + radius);
-      return acc;
-    },
-    { halfW, halfH }
-  );
-  const fieldPoints = [
-    new THREE.Vector3(-fieldExtents.halfW, mappingLineY, -fieldExtents.halfH),
-    new THREE.Vector3(fieldExtents.halfW, mappingLineY, -fieldExtents.halfH),
-    new THREE.Vector3(fieldExtents.halfW, mappingLineY, fieldExtents.halfH),
-    new THREE.Vector3(-fieldExtents.halfW, mappingLineY, fieldExtents.halfH)
-  ];
-  registerMappingLine(makeLine(fieldPoints, fieldLineMaterial, true));
-  if (table.userData?.cushions?.length) {
-    table.userData.cushions.forEach((cushion) => {
-      if (!cushion) return;
-      const data = cushion.userData || {};
-      if (typeof data.horizontal !== 'boolean' || !data.side) return;
-      const box = new THREE.Box3().setFromObject(cushion);
-      const cutEnds = data.cutEnds || {};
-      const minCut = Math.max(0, cutEnds.min || 0);
-      const maxCut = Math.max(0, cutEnds.max || 0);
-      const points = [];
-      const pushPoint = (x, z) => {
-        const last = points[points.length - 1];
-        if (!last || last.x !== x || last.z !== z) {
-          points.push(new THREE.Vector3(x, mappingLineY, z));
-        }
-      };
-      if (data.horizontal) {
-        const innerZ = data.side < 0 ? box.max.z : box.min.z;
-        const outerZ = data.side < 0 ? box.min.z : box.max.z;
-        pushPoint(box.min.x, outerZ);
-        pushPoint(box.min.x + minCut, innerZ);
-        pushPoint(box.max.x - maxCut, innerZ);
-        pushPoint(box.max.x, outerZ);
-        registerMappingLine(makeLine(points, cushionLineMaterial));
-      } else {
-        const innerX = data.side < 0 ? box.max.x : box.min.x;
-        const outerX = data.side < 0 ? box.min.x : box.max.x;
-        pushPoint(outerX, box.min.z);
-        pushPoint(innerX, box.min.z + minCut);
-        pushPoint(innerX, box.max.z - maxCut);
-        pushPoint(outerX, box.max.z);
-        registerMappingLine(makeLine(points, cushionLineMaterial));
-      }
-    });
-  }
-  table.userData.pockets.forEach((marker) => {
-    if (!marker) return;
-    const radius = marker.userData?.captureRadius ?? CAPTURE_R;
-    const points = [];
-    const segments = 72;
-    for (let i = 0; i < segments; i += 1) {
-      const theta = (i / segments) * Math.PI * 2;
-      points.push(
-        new THREE.Vector3(
-          marker.position.x + Math.cos(theta) * radius,
-          mappingLineY,
-          marker.position.z + Math.sin(theta) * radius
-        )
-      );
-    }
-    registerMappingLine(makeLine(points, pocketLineMaterial, true));
-  });
-  table.add(mappingGroup);
 
   pocketMeshes.forEach((mesh) => {
     const lift = mesh?.userData?.verticalLift || 0;
