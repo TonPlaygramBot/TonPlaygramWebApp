@@ -20,8 +20,11 @@
   #railControls button{background:#121d33;color:#fff;font-size:.95rem;padding:.65rem 1rem;border-radius:10px;border:1px solid var(--panel-border);box-shadow:0 8px 18px rgba(0,0,0,.35);backdrop-filter:blur(8px);}
   #draw{font-size:1rem;padding:.7rem 1.15rem;background:linear-gradient(135deg, rgba(34,197,94,.95), rgba(12,180,75,.9));color:#041204;border:1px solid rgba(34,197,94,.6);}
   #pass{background:rgba(37,45,71,.92);color:#e5e7eb;border:1px solid rgba(35,48,80,.85);} 
-  #btnRules{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));right:calc(0.75rem + env(safe-area-inset-right,0px));width:2.75rem;height:2.75rem;border-radius:999px;background:rgba(0,0,0,.58);color:#fff;display:grid;place-items:center;font-size:1.3rem;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(6px);padding:0;}
+  #topRightActions{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));right:calc(0.75rem + env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:.6rem;z-index:6;pointer-events:auto;}
+  #topRightActions .top-action{width:2.75rem;height:2.75rem;border-radius:999px;background:rgba(0,0,0,.58);color:#fff;display:grid;place-items:center;font-size:1.3rem;box-shadow:0 6px 18px rgba(0,0,0,.35);backdrop-filter:blur(6px);padding:0;border:1px solid rgba(255,255,255,.18);}
+  #btnRules{font-size:1.3rem;}
   #btnRules span{pointer-events:none;}
+  .visually-hidden{position:absolute !important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
   #configButton{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));left:calc(0.75rem + env(safe-area-inset-left,0px));width:3rem;height:3rem;border-radius:999px;background:rgba(0,0,0,.7);color:#fff;border:1px solid rgba(255,255,255,.18);display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(8px);padding:0;transition:background .2s ease, border-color .2s ease;}
   #configButton:hover{background:rgba(0,0,0,.6);border-color:rgba(148,197,255,.45);}
   #configButton svg{width:1.4rem;height:1.4rem;}
@@ -121,9 +124,15 @@
   <h3 id="configTitle">Table Setup</h3>
   <div id="configSections"></div>
 </div>
-<button id="btnRules" type="button" aria-label="Rules" title="Rules">
-  <span aria-hidden="true">ℹ️</span>
-</button>
+<div id="topRightActions" aria-label="Top actions">
+  <button id="btnRules" class="top-action" type="button" aria-label="Rules" title="Rules">
+    <span aria-hidden="true">ℹ️</span>
+  </button>
+  <button id="muteButton" class="top-action" type="button" aria-label="Mute" title="Mute">
+    <span class="icon" id="muteIcon" aria-hidden="true">🔊</span>
+    <span id="muteLabel" class="visually-hidden">Mute</span>
+  </button>
+</div>
 <div id="railControls" aria-label="Game controls">
   <button id="draw" type="button">Draw</button>
   <button id="pass" type="button">Pass</button>
@@ -137,14 +146,6 @@
   <button class="quick-action" type="button" data-action="gift">
     <span class="icon" aria-hidden="true">🎁</span>
     <span>Gift</span>
-  </button>
-  <button class="quick-action" type="button" data-action="info">
-    <span class="icon" aria-hidden="true">ℹ️</span>
-    <span>Info</span>
-  </button>
-  <button class="quick-action" type="button" data-action="mute">
-    <span class="icon" id="muteIcon" aria-hidden="true">🔊</span>
-    <span id="muteLabel">Mute</span>
   </button>
 </div>
 <div id="rules">
@@ -5640,6 +5641,7 @@ const giftPlayersEl = document.getElementById('giftPlayers');
 const giftTiersEl = document.getElementById('giftTiers');
 const giftSend = document.getElementById('giftSend');
 const giftClose = document.getElementById('giftClose');
+const muteButton = document.getElementById('muteButton');
 const muteIcon = document.getElementById('muteIcon');
 const muteLabel = document.getElementById('muteLabel');
 
@@ -6808,7 +6810,7 @@ function cpuPlay(){
   }
 }
 
-/* ---------- Quick actions: chat, gift, info, mute ---------- */
+/* ---------- Quick actions: chat, gift ---------- */
 const QUICK_MESSAGES = [
   'Nice bro 😀',
   'Well done 👍',
@@ -6869,10 +6871,17 @@ function toggleModal(modal, open = true) {
 }
 
 function updateQuickActionMute() {
-  if (!muteLabel || !muteIcon) return;
+  if (!muteIcon) return;
   const muted = !isSoundEnabled();
   muteIcon.textContent = muted ? '🔇' : '🔊';
-  muteLabel.textContent = muted ? 'Unmute' : 'Mute';
+  if (muteLabel) {
+    muteLabel.textContent = muted ? 'Unmute' : 'Mute';
+  }
+  if (muteButton) {
+    const label = muted ? 'Unmute' : 'Mute';
+    muteButton.setAttribute('aria-label', label);
+    muteButton.setAttribute('title', label);
+  }
 }
 
 function showToast(message) {
@@ -7081,11 +7090,12 @@ if (quickActions) {
       openChatModal();
     } else if (action === 'gift') {
       openGiftModal();
-    } else if (action === 'info') {
-      panelRules.style.display = 'flex';
-    } else if (action === 'mute') {
-      setFeedbackSettings({ sound: !feedbackSettings.sound });
     }
+  });
+}
+if (muteButton) {
+  muteButton.addEventListener('click', () => {
+    setFeedbackSettings({ sound: !feedbackSettings.sound });
   });
 }
 if (chatModal) {
