@@ -1226,8 +1226,8 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 0.78; // damp angled-cushion rebounds so they feel less punchy than straight rails
-const CUSHION_CUT_FRICTION_SCALE = 1.25; // add a touch more grab on angled cuts to prevent over-bouncy jaw rebounds
+const CUSHION_CUT_RESTITUTION_SCALE = 0.7; // damp angled-cushion rebounds so they feel noticeably softer than straight rails
+const CUSHION_CUT_FRICTION_SCALE = 1.35; // add more grab on angled cuts to keep returns tighter and less springy
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
 let SIDE_POCKET_SPAN =
@@ -4888,6 +4888,14 @@ const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
+const DEFAULT_CUSHION_LAYOUT = Object.freeze({
+  horizontalLength: null,
+  verticalLength: null,
+  verticalCenter: null
+});
+let cushionLayout = { ...DEFAULT_CUSHION_LAYOUT };
+let cushionSegmentCache = null;
+let cushionSegmentKey = '';
 const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR, // start the intro framing closer to the table surface
   phi: CAMERA.maxPhi - 0.01
@@ -5814,83 +5822,205 @@ function makeWoodTexture({
   texture.needsUpdate = true;
   return texture;
 }
-function reflectRails(ball) {
+
+function resolveCushionSegments() {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
-  const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-  const cornerCos = Math.cos(cornerRad);
-  const cornerSin = Math.sin(cornerRad);
-  const pocketGuard = POCKET_GUARD_RADIUS;
+  const horizontalLength = cushionLayout.horizontalLength ?? limX * 2;
+  const verticalLength = cushionLayout.verticalLength ?? limY * 2;
+  const verticalCenter = Number.isFinite(cushionLayout.verticalCenter)
+    ? cushionLayout.verticalCenter
+    : 0;
+  const key = [
+    limX,
+    limY,
+    horizontalLength,
+    verticalLength,
+    verticalCenter,
+    CUSHION_CUT_ANGLE,
+    SIDE_POCKET_PHYSICS_CUT_ANGLE
+  ].join('|');
+  if (cushionSegmentCache && key === cushionSegmentKey) return cushionSegmentCache;
+  const rails = [];
+  const cuts = [];
+  const horizontalHalf = Math.max(0, horizontalLength * 0.5);
+  const verticalHalf = Math.max(0, verticalLength * 0.5);
+  const verticalCenterAbs = Math.abs(verticalCenter);
+  const hasSplitVertical = verticalCenterAbs > verticalHalf + MICRO_EPS;
+  const tangentX = new THREE.Vector2(1, 0);
+  const tangentY = new THREE.Vector2(0, 1);
+
+  if (horizontalHalf > MICRO_EPS) {
+    [-1, 1].forEach((signY) => {
+      rails.push({
+        center: new THREE.Vector2(0, signY * limY),
+        normal: new THREE.Vector2(0, -signY),
+        tangent: tangentX.clone(),
+        halfLength: horizontalHalf,
+        axis: 'y'
+      });
+    });
+  }
+
+  if (verticalHalf > MICRO_EPS) {
+    const centers = hasSplitVertical ? [-verticalCenterAbs, verticalCenterAbs] : [0];
+    [-1, 1].forEach((signX) => {
+      centers.forEach((centerY) => {
+        rails.push({
+          center: new THREE.Vector2(signX * limX, centerY),
+          normal: new THREE.Vector2(-signX, 0),
+          tangent: tangentY.clone(),
+          halfLength: verticalHalf,
+          axis: 'x',
+          signX,
+          signY: Math.sign(centerY || 1)
+        });
+      });
+    });
+  }
+
+  if (horizontalHalf > MICRO_EPS && verticalHalf > MICRO_EPS) {
+    [-1, 1].forEach((signX) => {
+      [-1, 1].forEach((signY) => {
+        const horizontalEnd = new THREE.Vector2(signX * horizontalHalf, signY * limY);
+        const verticalEnd = new THREE.Vector2(
+          signX * limX,
+          signY * ((hasSplitVertical ? verticalCenterAbs : 0) + verticalHalf)
+        );
+        const dir = verticalEnd.clone().sub(horizontalEnd);
+        if (dir.lengthSq() <= MICRO_EPS) return;
+        const tangent = dir.clone().normalize();
+        const normal = new THREE.Vector2(-tangent.y, tangent.x);
+        const towardCenter = new THREE.Vector2().subVectors(new THREE.Vector2(0, 0), horizontalEnd);
+        if (towardCenter.dot(normal) < 0) normal.multiplyScalar(-1);
+        cuts.push({
+          point: horizontalEnd,
+          normal,
+          tangent: new THREE.Vector2(-normal.y, normal.x),
+          type: 'corner'
+        });
+      });
+    });
+  }
+
+  const sideCenters = getSidePocketCenters();
+  if (sideCenters.length && verticalHalf > MICRO_EPS && hasSplitVertical) {
+    const cutRad = THREE.MathUtils.degToRad(SIDE_POCKET_PHYSICS_CUT_ANGLE);
+    const cos = Math.cos(cutRad);
+    const sin = Math.sin(cutRad);
+    [-1, 1].forEach((signX) => {
+      const pocketCenter = sideCenters.find((center) => Math.sign(center.x || 1) === signX);
+      [-1, 1].forEach((signY) => {
+        const endOffset = -signY * verticalHalf;
+        const endPoint = new THREE.Vector2(
+          signX * limX,
+          signY * verticalCenterAbs + endOffset
+        );
+        const normal = new THREE.Vector2(-signX * cos, signY * sin);
+        cuts.push({
+          point: endPoint,
+          normal,
+          tangent: new THREE.Vector2(-normal.y, normal.x),
+          type: 'side',
+          pocketCenter
+        });
+      });
+    });
+  }
+
+  cushionSegmentCache = { rails, cuts };
+  cushionSegmentKey = key;
+  return cushionSegmentCache;
+}
+
+function resolveRailIntersection(start, dir) {
+  const segments = resolveCushionSegments();
+  let tHit = Infinity;
+  let hitNormal = null;
+  const sidePocketGuard = SIDE_POCKET_GUARD_RADIUS;
+
+  const checkLine = (linePoint, lineNormal, lineTangent, halfLength, guard) => {
+    const denom = lineNormal.dot(dir);
+    if (Math.abs(denom) < 1e-8) return;
+    TMP_VEC2_A.copy(linePoint).sub(start);
+    const t = TMP_VEC2_A.dot(lineNormal) / denom;
+    if (t < 0 || t >= tHit) return;
+    TMP_VEC2_B.copy(dir).multiplyScalar(t).add(start);
+    TMP_VEC2_C.copy(TMP_VEC2_B).sub(linePoint);
+    const lateral = Math.abs(TMP_VEC2_C.dot(lineTangent));
+    if (Number.isFinite(halfLength) && lateral > halfLength) return;
+    if (guard && guard(lateral, TMP_VEC2_B)) return;
+    tHit = t;
+    hitNormal = lineNormal.clone();
+  };
+
+  const cornerGuard = (lateral) => lateral < POCKET_GUARD_CLEARANCE;
+  const sideGuard = (lateral, point, pocketCenter) => {
+    if (lateral < SIDE_POCKET_GUARD_CLEARANCE) return true;
+    if (!pocketCenter) return false;
+    TMP_VEC2_D.copy(point).sub(pocketCenter);
+    return TMP_VEC2_D.lengthSq() < sidePocketGuard * sidePocketGuard;
+  };
+
+  segments.cuts.forEach((cut) => {
+    if (cut.type === 'corner') {
+      checkLine(cut.point, cut.normal, cut.tangent, Infinity, cornerGuard);
+    } else if (cut.type === 'side') {
+      checkLine(cut.point, cut.normal, cut.tangent, Infinity, (lateral, point) =>
+        sideGuard(lateral, point, cut.pocketCenter)
+      );
+    }
+  });
+
+  segments.rails.forEach((rail) => {
+    checkLine(rail.center, rail.normal, rail.tangent, rail.halfLength);
+  });
+
+  if (!hitNormal || !Number.isFinite(tHit)) return null;
+  return { t: tHit, normal: hitNormal };
+}
+
+function reflectRails(ball) {
   const guardClearance = POCKET_GUARD_CLEARANCE;
   const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
   let preImpactVel = null;
-  for (const { sx, sy } of CORNER_SIGNS) {
-    TMP_VEC2_C.set(sx * limX, sy * limY);
-    TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
-    TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
-    const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
+  const sidePocketGuard = SIDE_POCKET_GUARD_RADIUS;
+  const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
+  const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
+  const segments = resolveCushionSegments();
+  for (const cut of segments.cuts) {
+    TMP_VEC2_A.copy(ball.pos).sub(cut.point);
+    const distNormal = TMP_VEC2_A.dot(cut.normal);
     if (distNormal >= BALL_R) continue;
-    TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-    const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
-    if (lateral < guardClearance) continue;
-    if (distNormal < -cornerDepthLimit) continue;
+    if (ball.vel.dot(cut.normal) >= 0) continue;
+    const lateral = Math.abs(TMP_VEC2_A.dot(cut.tangent));
+    if (cut.type === 'corner') {
+      if (lateral < guardClearance) continue;
+      if (distNormal < -cornerDepthLimit) continue;
+    } else if (cut.type === 'side') {
+      if (lateral < sideGuardClearance) continue;
+      if (distNormal < -sideDepthLimit) continue;
+      if (cut.pocketCenter) {
+        TMP_VEC2_LIMIT.copy(ball.pos).sub(cut.pocketCenter);
+        const distToCenterSq = TMP_VEC2_LIMIT.lengthSq();
+        if (distToCenterSq < sidePocketGuard * sidePocketGuard) continue;
+      }
+    }
     const push = BALL_R - distNormal;
-    ball.pos.addScaledVector(TMP_VEC2_B, push);
+    ball.pos.addScaledVector(cut.normal, push);
     preImpactVel = ball.vel.clone();
     const stamp =
       typeof performance !== 'undefined' && performance.now
         ? performance.now()
         : Date.now();
     ball.lastRailHitAt = stamp;
-    ball.lastRailHitType = 'corner';
+    ball.lastRailHitType = cut.type === 'corner' ? 'corner' : 'cut';
     return {
-      type: 'corner',
-      normal: TMP_VEC2_B.clone(),
-      tangent: TMP_VEC2_D.clone(),
+      type: cut.type === 'corner' ? 'corner' : 'cut',
+      normal: cut.normal.clone(),
+      tangent: cut.tangent.clone(),
       preImpactVel
     };
-  }
-
-  const sideSpan = SIDE_POCKET_SPAN;
-  const sidePocketGuard = SIDE_POCKET_GUARD_RADIUS;
-  const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
-  const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
-  const sidePocketCenters = getSidePocketCenters();
-  const sideCutRad = THREE.MathUtils.degToRad(SIDE_POCKET_PHYSICS_CUT_ANGLE);
-  const sideCutCos = Math.cos(sideCutRad);
-  const sideCutSin = Math.sin(sideCutRad);
-  for (const center of sidePocketCenters) {
-    TMP_VEC2_A.copy(ball.pos).sub(center);
-    const distToCenterSq = TMP_VEC2_A.lengthSq();
-    if (distToCenterSq < sidePocketGuard * sidePocketGuard) continue;
-    const signX = center.x >= 0 ? 1 : -1;
-    for (const signY of SIDE_POCKET_CUT_SIGNS) {
-      if (TMP_VEC2_A.y * signY < 0) continue;
-      TMP_VEC2_C.set(signX * limX, center.y + signY * sideSpan);
-      TMP_VEC2_B.set(-signX * sideCutCos, signY * sideCutSin);
-      TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-      TMP_VEC2_LIMIT.copy(ball.pos).sub(TMP_VEC2_C);
-      const distNormal = TMP_VEC2_LIMIT.dot(TMP_VEC2_B);
-      if (distNormal >= BALL_R) continue;
-      if (distNormal < -sideDepthLimit) continue;
-      const lateral = Math.abs(TMP_VEC2_LIMIT.dot(TMP_VEC2_D));
-      if (lateral < sideGuardClearance) continue;
-      const push = BALL_R - distNormal;
-      ball.pos.addScaledVector(TMP_VEC2_B, push);
-      preImpactVel = ball.vel.clone();
-      const stamp =
-        typeof performance !== 'undefined' && performance.now
-          ? performance.now()
-          : Date.now();
-      ball.lastRailHitAt = stamp;
-      ball.lastRailHitType = 'cut';
-      return {
-        type: 'cut',
-        normal: TMP_VEC2_B.clone(),
-        tangent: TMP_VEC2_D.clone(),
-        preImpactVel
-      };
-    }
   }
 
   // If the ball is entering a pocket capture zone, skip straight rail reflections
@@ -5900,48 +6030,28 @@ function reflectRails(ball) {
     (c) => ball.pos.distanceTo(c) < nearPocketRadius
   );
   if (nearPocket) return null;
-  let collided = null;
-  let collisionNormal = null;
-  if (ball.pos.x < -limX && ball.vel.x < 0) {
+  for (const rail of segments.rails) {
+    TMP_VEC2_A.copy(ball.pos).sub(rail.center);
+    const distNormal = TMP_VEC2_A.dot(rail.normal);
+    if (distNormal >= BALL_R) continue;
+    if (ball.vel.dot(rail.normal) >= 0) continue;
+    const lateral = Math.abs(TMP_VEC2_A.dot(rail.tangent));
+    if (lateral > rail.halfLength) continue;
+    const push = BALL_R - distNormal;
+    ball.pos.addScaledVector(rail.normal, push);
     preImpactVel = ball.vel.clone();
-    const overshoot = -limX - ball.pos.x;
-    ball.pos.x = -limX + overshoot;
-    collided = 'rail';
-    collisionNormal = new THREE.Vector2(1, 0);
-  }
-  if (ball.pos.x > limX && ball.vel.x > 0) {
-    preImpactVel = ball.vel.clone();
-    const overshoot = ball.pos.x - limX;
-    ball.pos.x = limX - overshoot;
-    collided = 'rail';
-    collisionNormal = new THREE.Vector2(-1, 0);
-  }
-  if (ball.pos.y < -limY && ball.vel.y < 0) {
-    preImpactVel = ball.vel.clone();
-    const overshoot = -limY - ball.pos.y;
-    ball.pos.y = -limY + overshoot;
-    collided = 'rail';
-    collisionNormal = new THREE.Vector2(0, 1);
-  }
-  if (ball.pos.y > limY && ball.vel.y > 0) {
-    preImpactVel = ball.vel.clone();
-    const overshoot = ball.pos.y - limY;
-    ball.pos.y = limY - overshoot;
-    collided = 'rail';
-    collisionNormal = new THREE.Vector2(0, -1);
-  }
-  if (collided) {
     const stamp =
       typeof performance !== 'undefined' && performance.now
         ? performance.now()
         : Date.now();
     ball.lastRailHitAt = stamp;
-    ball.lastRailHitType = collided;
-  }
-  if (collided) {
-    const normal = collisionNormal ?? new THREE.Vector2(0, 1);
-    const tangent = new THREE.Vector2(-normal.y, normal.x);
-    return { type: collided, normal, tangent, preImpactVel };
+    ball.lastRailHitType = 'rail';
+    return {
+      type: 'rail',
+      normal: rail.normal.clone(),
+      tangent: rail.tangent.clone(),
+      preImpactVel
+    };
   }
   return null;
 }
@@ -6183,24 +6293,12 @@ function calcTarget(cue, dir, balls) {
   let targetBall = null;
   let railNormal = null;
 
-  const limX = RAIL_LIMIT_X;
-  const limY = RAIL_LIMIT_Y;
-  const checkRail = (t, normal) => {
-    if (t >= 0 && t < tHit) {
-      tHit = t;
-      railNormal = normal;
-      targetBall = null;
-    }
-  };
-
-  if (dirNorm.x < -1e-8)
-    checkRail((-limX - cuePos.x) / dirNorm.x, new THREE.Vector2(1, 0));
-  if (dirNorm.x > 1e-8)
-    checkRail((limX - cuePos.x) / dirNorm.x, new THREE.Vector2(-1, 0));
-  if (dirNorm.y < -1e-8)
-    checkRail((-limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, 1));
-  if (dirNorm.y > 1e-8)
-    checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
+  const railImpact = resolveRailIntersection(cuePos, dirNorm);
+  if (railImpact) {
+    tHit = railImpact.t;
+    railNormal = railImpact.normal;
+    targetBall = null;
+  }
 
   const contactRadius = BALL_R * 2;
   const contactRadius2 = contactRadius * contactRadius;
@@ -7531,6 +7629,14 @@ export function Table3D(
     );
     SIDE_POCKET_SPAN = Math.max(MICRO_EPS, resolvedSpan);
   }
+
+  cushionLayout = {
+    horizontalLength: horizontalCushionLength,
+    verticalLength: verticalCushionLength,
+    verticalCenter: verticalCushionCenter
+  };
+  cushionSegmentCache = null;
+  cushionSegmentKey = '';
 
   const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // mirror snooker fascia thickness using rail height as the driver
   const sideChromePlateThickness = chromePlateThickness * CHROME_SIDE_PLATE_THICKNESS_BOOST; // match middle-pocket fascia depth to snooker
