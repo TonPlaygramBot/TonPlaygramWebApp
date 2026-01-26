@@ -3462,7 +3462,7 @@ export default function SnakeAndLadder() {
             type="button"
             aria-label={showConfig ? 'Close game settings' : 'Open game settings'}
             onClick={() => setShowConfig((prev) => !prev)}
-            className="p-2 text-lg text-gray-100 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            className="bg-transparent p-2 text-lg text-gray-100 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
             ⚙️
           </button>
@@ -3672,7 +3672,7 @@ export default function SnakeAndLadder() {
             showChat={false}
             showGift={false}
             order={['info', 'mute']}
-            buttonClassName="flex flex-col items-center text-white/90 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            buttonClassName="flex flex-col items-center bg-transparent p-0 text-white/90 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             iconClassName="text-2xl leading-none"
             labelClassName="sr-only"
           />
@@ -3690,7 +3690,7 @@ export default function SnakeAndLadder() {
             showInfo={false}
             showMute={false}
             order={['chat', 'gift']}
-            buttonClassName="flex flex-col items-center text-white/90 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            buttonClassName="flex flex-col items-center bg-transparent p-0 text-white/90 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             iconClassName="text-2xl leading-none"
             labelClassName="sr-only"
           />
