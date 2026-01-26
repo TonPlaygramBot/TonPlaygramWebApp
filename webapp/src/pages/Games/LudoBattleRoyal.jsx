@@ -433,15 +433,71 @@ const LUDO_BATTLE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'english',
     label: 'English',
-    description: 'Male voice, English',
+    description: 'Mixed voices, classic English',
     language: 'en',
     voiceHints: {
-      [LUDO_BATTLE_SPEAKERS.lead]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
-      [LUDO_BATTLE_SPEAKERS.analyst]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex']
+      [LUDO_BATTLE_SPEAKERS.lead]: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma']
     },
     speakerSettings: {
       [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
+    }
+  },
+  {
+    id: 'saffron-table',
+    label: 'Indian Table',
+    description: 'Hindi commentary with lively pacing',
+    language: 'hi',
+    voiceHints: {
+      [LUDO_BATTLE_SPEAKERS.lead]: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha']
+    },
+    speakerSettings: {
+      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1.06, pitch: 1.02, volume: 1 },
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.08, volume: 1 }
+    }
+  },
+  {
+    id: 'moscow-mics',
+    label: 'Russian Booth',
+    description: 'Russian commentary with steady cadence',
+    language: 'ru',
+    voiceHints: {
+      [LUDO_BATTLE_SPEAKERS.lead]: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga']
+    },
+    speakerSettings: {
+      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.03, pitch: 1.02, volume: 1 }
+    }
+  },
+  {
+    id: 'latin-pulse',
+    label: 'Latin Pulse',
+    description: 'Spanish play-by-play with lively color',
+    language: 'es',
+    voiceHints: {
+      [LUDO_BATTLE_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila']
+    },
+    speakerSettings: {
+      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1.05, pitch: 1, volume: 1 },
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.1, volume: 1 }
+    }
+  },
+  {
+    id: 'francophone-booth',
+    label: 'Francophone Booth',
+    description: 'French broadcast pairing',
+    language: 'fr',
+    voiceHints: {
+      [LUDO_BATTLE_SPEAKERS.lead]: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte']
+    },
+    speakerSettings: {
+      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
   }
 ]);
