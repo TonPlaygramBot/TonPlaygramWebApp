@@ -968,71 +968,15 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'english',
     label: 'English',
-    description: 'Mixed voices, classic English',
+    description: 'Male play-by-play in English.',
     language: 'en',
     voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma']
+      [COMMENTARY_SPEAKER_LEAD]: ['en-GB', 'en-US', 'english', 'male', 'google'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['en-GB', 'en-US', 'english', 'male', 'google']
     },
     speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 1, pitch: 0.96, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.04, pitch: 1.06, volume: 1 }
-    }
-  },
-  {
-    id: 'saffron-table',
-    label: 'Indian Table',
-    description: 'Hindi commentary with lively pacing',
-    language: 'hi',
-    voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha']
-    },
-    speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 1.06, pitch: 1.02, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.08, pitch: 1.08, volume: 1 }
-    }
-  },
-  {
-    id: 'moscow-mics',
-    label: 'Russian Booth',
-    description: 'Russian commentary with steady cadence',
-    language: 'ru',
-    voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga']
-    },
-    speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 1, pitch: 0.95, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.03, pitch: 1.02, volume: 1 }
-    }
-  },
-  {
-    id: 'latin-pulse',
-    label: 'Latin Pulse',
-    description: 'Spanish play-by-play with lively color',
-    language: 'es',
-    voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila']
-    },
-    speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 1.05, pitch: 1, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.08, pitch: 1.1, volume: 1 }
-    }
-  },
-  {
-    id: 'francophone-booth',
-    label: 'Francophone Booth',
-    description: 'French broadcast pairing',
-    language: 'fr',
-    voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte']
-    },
-    speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 0.98, pitch: 0.96, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.04, pitch: 1.06, volume: 1 }
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 0.98, pitch: 0.92, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.02, pitch: 0.98, volume: 0.98 }
     }
   }
 ]);

@@ -716,71 +716,15 @@
     {
       id: 'english',
       label: 'English',
-      description: 'Mixed voices, classic English',
+      description: 'Broadcast-style commentary',
       language: 'en',
       voiceHints: {
-        Kai: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
-        Sofia: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma']
+        Kai: ['en-US', 'english', 'male', 'google'],
+        Sofia: ['en-GB', 'english', 'female', 'google']
       },
       speakerSettings: {
-        Kai: { rate: 1, pitch: 0.96, volume: 1 },
-        Sofia: { rate: 1.04, pitch: 1.06, volume: 1 }
-      }
-    },
-    {
-      id: 'saffron-table',
-      label: 'Indian Table',
-      description: 'Hindi commentary with lively pacing',
-      language: 'hi',
-      voiceHints: {
-        Kai: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
-        Sofia: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha']
-      },
-      speakerSettings: {
-        Kai: { rate: 1.06, pitch: 1.02, volume: 1 },
-        Sofia: { rate: 1.08, pitch: 1.08, volume: 1 }
-      }
-    },
-    {
-      id: 'moscow-mics',
-      label: 'Russian Booth',
-      description: 'Russian commentary with steady cadence',
-      language: 'ru',
-      voiceHints: {
-        Kai: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
-        Sofia: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga']
-      },
-      speakerSettings: {
-        Kai: { rate: 1, pitch: 0.95, volume: 1 },
-        Sofia: { rate: 1.03, pitch: 1.02, volume: 1 }
-      }
-    },
-    {
-      id: 'latin-pulse',
-      label: 'Latin Pulse',
-      description: 'Spanish play-by-play with lively color',
-      language: 'es',
-      voiceHints: {
-        Kai: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
-        Sofia: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila']
-      },
-      speakerSettings: {
-        Kai: { rate: 1.05, pitch: 1, volume: 1 },
-        Sofia: { rate: 1.08, pitch: 1.1, volume: 1 }
-      }
-    },
-    {
-      id: 'francophone-booth',
-      label: 'Francophone Booth',
-      description: 'French broadcast pairing',
-      language: 'fr',
-      voiceHints: {
-        Kai: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
-        Sofia: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte']
-      },
-      speakerSettings: {
-        Kai: { rate: 0.98, pitch: 0.96, volume: 1 },
-        Sofia: { rate: 1.04, pitch: 1.06, volume: 1 }
+        Kai: { rate: 0.98, pitch: 0.95, volume: 1 },
+        Sofia: { rate: 1.02, pitch: 1.02, volume: 0.98 }
       }
     }
   ]);
@@ -792,12 +736,8 @@
 
   const resolveLanguageKey = (language = 'en') => {
     const normalized = String(language || '').toLowerCase();
-    if (normalized.startsWith('hi')) return 'hi';
-    if (normalized.startsWith('ru')) return 'ru';
-    if (normalized.startsWith('es')) return 'es';
-    if (normalized.startsWith('fr')) return 'fr';
     if (normalized.startsWith('en')) return 'en';
-    return normalized || 'en';
+    return 'en';
   };
 
   const pickRandom = (pool) => pool[Math.floor(Math.random() * pool.length)];
