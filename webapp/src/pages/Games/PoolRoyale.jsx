@@ -9377,6 +9377,47 @@ export function Table3D(
   const gapStripePad = TABLE.THICK * 0.005;
   const gapStripeOutwardShift = TABLE.THICK * 0.03;
 
+  function computeCushionCutLengths(len, horizontal, cutAngles = {}) {
+    const thicknessScale = horizontal ? FACE_SHRINK_LONG : FACE_SHRINK_SHORT;
+    const baseRailWidth = horizontal ? longRailW : endRailW;
+    const baseThickness = baseRailWidth * thicknessScale;
+    const noseThickness = baseThickness * NOSE_REDUCTION;
+    const defaultCutAngle =
+      typeof cutAngles?.cutAngle === 'number' ? cutAngles.cutAngle : CUSHION_CUT_ANGLE;
+    const leftCutAngle =
+      typeof cutAngles?.leftCutAngle === 'number' ? cutAngles.leftCutAngle : defaultCutAngle;
+    const rightCutAngle =
+      typeof cutAngles?.rightCutAngle === 'number' ? cutAngles.rightCutAngle : defaultCutAngle;
+    const minCutLength = baseThickness * 0.25;
+
+    const computeCut = (angleDeg) => {
+      const rad = THREE.MathUtils.degToRad(angleDeg);
+      const tan = Math.tan(rad);
+      const rawCut = tan > MICRO_EPS ? noseThickness / tan : minCutLength;
+      return Math.max(minCutLength, rawCut);
+    };
+
+    let leftCut = computeCut(leftCutAngle);
+    let rightCut = computeCut(rightCutAngle);
+    const straightEdgeCut = baseThickness * 0.12;
+    const leftStraightEdge = Boolean(cutAngles?.leftStraightEdge);
+    const rightStraightEdge = Boolean(cutAngles?.rightStraightEdge);
+    if (leftStraightEdge) {
+      leftCut = Math.min(leftCut, straightEdgeCut);
+    }
+    if (rightStraightEdge) {
+      rightCut = Math.min(rightCut, straightEdgeCut);
+    }
+    const maxTotalCut = Math.max(MICRO_EPS, len - MICRO_EPS);
+    const totalCut = leftCut + rightCut;
+    if (totalCut > maxTotalCut) {
+      const scale = maxTotalCut / totalCut;
+      leftCut *= scale;
+      rightCut *= scale;
+    }
+    return { leftCut, rightCut };
+  }
+
   function cushionProfileAdvanced(len, horizontal, cutAngles = {}) {
     const halfLen = len / 2;
     const thicknessScale = horizontal ? FACE_SHRINK_LONG : FACE_SHRINK_SHORT;
@@ -9516,6 +9557,7 @@ export function Table3D(
             : CUSHION_CUT_ANGLE
         }
       : undefined;
+    const cutLengths = computeCushionCutLengths(len, horizontal, sidePocketCuts);
     const geo = cushionProfileAdvanced(len, horizontal, sidePocketCuts);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
@@ -9579,6 +9621,18 @@ export function Table3D(
     group.userData = group.userData || {};
     group.userData.horizontal = horizontal;
     group.userData.side = side;
+    group.userData.cutLengths = cutLengths;
+    group.userData.length = len;
+    group.updateMatrixWorld(true);
+    const leftLocal = new THREE.Vector3(-halfLen, 0, 0);
+    const rightLocal = new THREE.Vector3(halfLen, 0, 0);
+    const leftWorld = leftLocal.clone().applyMatrix4(group.matrixWorld);
+    const rightWorld = rightLocal.clone().applyMatrix4(group.matrixWorld);
+    const leftIsMin = horizontal ? leftWorld.x <= rightWorld.x : leftWorld.z <= rightWorld.z;
+    group.userData.cutEnds = {
+      min: leftIsMin ? cutLengths.leftCut : cutLengths.rightCut,
+      max: leftIsMin ? cutLengths.rightCut : cutLengths.leftCut
+    };
     table.add(group);
     table.userData.cushions.push(group);
   }
@@ -10192,11 +10246,21 @@ export function Table3D(
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     return loop ? new THREE.LineLoop(geometry, material) : new THREE.Line(geometry, material);
   };
+  const fieldExtents = table.userData.pockets.reduce(
+    (acc, marker) => {
+      if (!marker) return acc;
+      const radius = marker.userData?.captureRadius ?? CAPTURE_R;
+      acc.halfW = Math.max(acc.halfW, Math.abs(marker.position.x) + radius);
+      acc.halfH = Math.max(acc.halfH, Math.abs(marker.position.z) + radius);
+      return acc;
+    },
+    { halfW, halfH }
+  );
   const fieldPoints = [
-    new THREE.Vector3(-halfW, mappingLineY, -halfH),
-    new THREE.Vector3(halfW, mappingLineY, -halfH),
-    new THREE.Vector3(halfW, mappingLineY, halfH),
-    new THREE.Vector3(-halfW, mappingLineY, halfH)
+    new THREE.Vector3(-fieldExtents.halfW, mappingLineY, -fieldExtents.halfH),
+    new THREE.Vector3(fieldExtents.halfW, mappingLineY, -fieldExtents.halfH),
+    new THREE.Vector3(fieldExtents.halfW, mappingLineY, fieldExtents.halfH),
+    new THREE.Vector3(-fieldExtents.halfW, mappingLineY, fieldExtents.halfH)
   ];
   registerMappingLine(makeLine(fieldPoints, fieldLineMaterial, true));
   if (table.userData?.cushions?.length) {
@@ -10205,19 +10269,31 @@ export function Table3D(
       const data = cushion.userData || {};
       if (typeof data.horizontal !== 'boolean' || !data.side) return;
       const box = new THREE.Box3().setFromObject(cushion);
+      const cutEnds = data.cutEnds || {};
+      const minCut = Math.max(0, cutEnds.min || 0);
+      const maxCut = Math.max(0, cutEnds.max || 0);
+      const points = [];
+      const pushPoint = (x, z) => {
+        const last = points[points.length - 1];
+        if (!last || last.x !== x || last.z !== z) {
+          points.push(new THREE.Vector3(x, mappingLineY, z));
+        }
+      };
       if (data.horizontal) {
         const innerZ = data.side < 0 ? box.max.z : box.min.z;
-        const points = [
-          new THREE.Vector3(box.min.x, mappingLineY, innerZ),
-          new THREE.Vector3(box.max.x, mappingLineY, innerZ)
-        ];
+        const outerZ = data.side < 0 ? box.min.z : box.max.z;
+        pushPoint(box.min.x, outerZ);
+        pushPoint(box.min.x + minCut, innerZ);
+        pushPoint(box.max.x - maxCut, innerZ);
+        pushPoint(box.max.x, outerZ);
         registerMappingLine(makeLine(points, cushionLineMaterial));
       } else {
         const innerX = data.side < 0 ? box.max.x : box.min.x;
-        const points = [
-          new THREE.Vector3(innerX, mappingLineY, box.min.z),
-          new THREE.Vector3(innerX, mappingLineY, box.max.z)
-        ];
+        const outerX = data.side < 0 ? box.min.x : box.max.x;
+        pushPoint(outerX, box.min.z);
+        pushPoint(innerX, box.min.z + minCut);
+        pushPoint(innerX, box.max.z - maxCut);
+        pushPoint(outerX, box.max.z);
         registerMappingLine(makeLine(points, cushionLineMaterial));
       }
     });
