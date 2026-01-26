@@ -58,10 +58,18 @@
 
     .hint{position:fixed;inset:0;display:none;align-items:center;justify-content:center;margin:auto;max-width:680px;background:rgba(10,16,34,.6);backdrop-filter:blur(6px);border:1px solid #1f2944;border-radius:12px;padding:8px 12px;text-align:center;font-size:.9rem}
 
-    #quickActions{position:fixed;left:calc(0.75rem + env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 1rem);display:flex;flex-direction:column;gap:.6rem;z-index:6;pointer-events:auto;}
-    #quickActions .quick-action{width:3.15rem;height:3.15rem;border-radius:14px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.18);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;box-shadow:0 8px 18px rgba(0,0,0,.35);backdrop-filter:blur(8px);padding:0;}
-    #quickActions .quick-action span{font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;}
-    #quickActions .quick-action .icon{font-size:1.1rem;line-height:1;}
+    .quick-action-slot{position:fixed;z-index:6;pointer-events:auto;}
+    #quickActionChat{left:calc(env(safe-area-inset-left,0px) + 0.75rem);bottom:calc(env(safe-area-inset-bottom,0px) + 0.9rem);}
+    #quickActionGift{right:calc(env(safe-area-inset-right,0px) + 0.75rem);bottom:calc(env(safe-area-inset-bottom,0px) + 0.9rem);}
+    #quickActionInfo{right:calc(env(safe-area-inset-right,0px) + 0.2rem);top:calc(env(safe-area-inset-top,0px) + 0.6rem);}
+    #quickActionMute{right:calc(env(safe-area-inset-right,0px) + 0.2rem);top:calc(env(safe-area-inset-top,0px) + 3.3rem);}
+    #quickActionAudio{left:calc(env(safe-area-inset-left,0px) + 0.2rem);top:calc(env(safe-area-inset-top,0px) + 0.6rem);}
+    .quick-action{width:3.15rem;height:3.15rem;border-radius:14px;background:transparent;border:none;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;box-shadow:none;padding:0;}
+    #quickActionInfo .quick-action{width:2.6rem;height:2.6rem;}
+    .quick-action span{font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;}
+    #quickActionInfo .quick-action span{font-size:.52rem;}
+    .quick-action .icon{font-size:1.1rem;line-height:1;}
+    #quickActionInfo .quick-action .icon{font-size:.95rem;}
     .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:7;}
     .modal-overlay.active{display:flex;}
     .modal-card{width:min(340px, 88vw);background:#0b1220;border:1px solid #233050;border-radius:16px;padding:1rem;color:#e5e7eb;box-shadow:0 18px 40px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:.75rem;}
@@ -131,26 +139,34 @@
         </div>
       </div>
     </div>
-    <div id="quickActions" aria-label="Quick actions">
-      <button class="quick-action" type="button" data-action="chat">
+    <div id="quickActionChat" class="quick-action-slot" aria-label="Chat">
+      <button class="quick-action" id="quickActionChatButton" type="button" data-action="chat">
         <span class="icon" aria-hidden="true">💬</span>
         <span>Chat</span>
       </button>
+    </div>
+    <div id="quickActionGift" class="quick-action-slot" aria-label="Gift">
       <button class="quick-action" type="button" data-action="gift">
         <span class="icon" aria-hidden="true">🎁</span>
         <span>Gift</span>
       </button>
+    </div>
+    <div id="quickActionInfo" class="quick-action-slot" aria-label="Info">
       <button class="quick-action" type="button" data-action="info">
         <span class="icon" aria-hidden="true">ℹ️</span>
         <span>Info</span>
       </button>
-      <button class="quick-action" type="button" data-action="commentary">
-        <span class="icon" aria-hidden="true">🎙️</span>
-        <span>Audio</span>
-      </button>
+    </div>
+    <div id="quickActionMute" class="quick-action-slot" aria-label="Mute">
       <button class="quick-action" type="button" data-action="mute">
         <span class="icon" id="muteIcon" aria-hidden="true">🔊</span>
         <span id="muteLabel">Mute</span>
+      </button>
+    </div>
+    <div id="quickActionAudio" class="quick-action-slot" aria-label="Audio">
+      <button class="quick-action" type="button" data-action="commentary">
+        <span class="icon" aria-hidden="true">🎙️</span>
+        <span>Audio</span>
       </button>
     </div>
     <div class="canvasWrap">
@@ -1199,16 +1215,24 @@
     label.textContent = text;
     bubble.appendChild(label);
     document.body.appendChild(bubble);
-    const targets = [p1AvatarTop, p2AvatarTop];
-    const badge = targets[playerIndex];
-    if (badge) {
-      const rect = badge.getBoundingClientRect();
-      bubble.style.left = `${rect.left + rect.width / 2}px`;
-      bubble.style.top = `${rect.top - 12}px`;
-      bubble.style.transform = 'translate(-50%, -100%)';
+    const chatButton = document.getElementById('quickActionChatButton');
+    if (chatButton) {
+      const rect = chatButton.getBoundingClientRect();
+      bubble.style.left = `${rect.right + 12}px`;
+      bubble.style.top = `${rect.top + rect.height / 2}px`;
+      bubble.style.transform = 'translate(0, -50%)';
     } else {
-      bubble.style.left = '1rem';
-      bubble.style.bottom = '5.5rem';
+      const targets = [p1AvatarTop, p2AvatarTop];
+      const badge = targets[playerIndex];
+      if (badge) {
+        const rect = badge.getBoundingClientRect();
+        bubble.style.left = `${rect.left + rect.width / 2}px`;
+        bubble.style.top = `${rect.top - 12}px`;
+        bubble.style.transform = 'translate(-50%, -100%)';
+      } else {
+        bubble.style.left = '1rem';
+        bubble.style.bottom = '5.5rem';
+      }
     }
     setTimeout(() => bubble.remove(), 3000);
   }
