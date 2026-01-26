@@ -167,47 +167,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       ]
     }
   },
-  ru: {
-    ...ENGLISH_TEMPLATES,
-    common: {
-      intro: [
-        'Добро пожаловать на {arena}. {speaker} и {partner} с вами. {player} против {opponent}.'
-      ],
-      introReply: [
-        'Спасибо {speaker}. Быстрая гонка: лестницы поднимают, змеи наказывают.'
-      ],
-      roll: [
-        '{player} бросает {roll}.'
-      ],
-      ladder: [
-        '{player} поднимается с {from} на {to}, рывок {delta}.'
-      ],
-      snake: [
-        '{player} попадает на змею: с {from} на {to}.'
-      ],
-      bonus: [
-        '{player} получает бонусный бросок.'
-      ],
-      capture: [
-        '{player} отправляет {victim} назад на старт.'
-      ],
-      exactNeeded: [
-        '{player} нужен точный {need}, чтобы финишировать.'
-      ],
-      startBlocked: [
-        '{player} нужна шестёрка, чтобы войти.'
-      ],
-      needSix: [
-        '{player} нужна шестёрка.'
-      ],
-      win: [
-        '{player} достигает финиша и побеждает!'
-      ],
-      outro: [
-        'Это была гонка на {arena}. Спасибо за просмотр.'
-      ]
-    }
-  },
   es: {
     ...ENGLISH_TEMPLATES,
     common: {
@@ -383,7 +342,6 @@ const resolveLanguageKey = (language = 'en') => {
   const normalized = String(language || '').toLowerCase();
   if (normalized.startsWith('zh')) return 'zh';
   if (normalized.startsWith('hi')) return 'hi';
-  if (normalized.startsWith('ru')) return 'ru';
   if (normalized.startsWith('es')) return 'es';
   if (normalized.startsWith('fr')) return 'fr';
   if (normalized.startsWith('ar')) return 'ar';
