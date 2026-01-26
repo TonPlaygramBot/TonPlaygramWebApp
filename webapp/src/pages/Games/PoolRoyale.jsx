@@ -585,7 +585,7 @@ const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirror
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
 const CHROME_CORNER_WIDTH_SCALE = 0.978; // shave the chrome plate slightly so it ends at the jaw line on the long rail
 const CHROME_CORNER_HEIGHT_SCALE = 0.962; // mirror the trim on the short rail so the fascia meets the jaw corner without overlap
-const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.045; // pull the corner fascia slightly closer to the table center
+const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.06; // pull the corner fascia slightly closer to the table center
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
@@ -614,7 +614,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1; // allow the plate ends to r
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.982; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.11; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.14; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.095; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
@@ -1274,14 +1274,14 @@ const SIDE_POCKET_INTERIOR_CAPTURE_R =
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the true bowl opening
 const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.16; // give middle pockets a touch more capture so shots don't hang in the jaws
 const POCKET_GUARD_RADIUS = Math.max(0, POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04); // align the rail guard to the playable capture bowl instead of the visual rim
-const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // shrink the safety margin so angled cushion cuts register sooner
+const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.12); // shrink the safety margin so angled cushion cuts register sooner
 const CORNER_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
 const SIDE_POCKET_GUARD_RADIUS =
   SIDE_CAPTURE_R - BALL_R * 0.1; // use the middle-pocket bowl to gate reflections with a tighter inset
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
-  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
+  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.02
 );
 const CUSHION_CUT_RESTITUTION_SCALE = 0.76; // damp angled-cushion rebounds so they feel less punchy than straight rails
 const CUSHION_CUT_FRICTION_SCALE = 1.2; // add a touch more grab on angled cuts to prevent over-bouncy jaw rebounds
@@ -4947,8 +4947,8 @@ let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0;
 const RAIL_CONTACT_RADIUS = BALL_R * 0.985;
 const CUSHION_CUT_CONTACT_RADIUS = BALL_R * 0.945;
-const CUSHION_COLLISION_OUTSET = BALL_R * 0.12; // push collision segments outward so impacts occur exactly on the cushion faces
-const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
+const CUSHION_COLLISION_OUTSET = BALL_R * 0.04; // push collision segments outward so impacts occur exactly on the cushion faces
+const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.45;
 let CUSHION_SEGMENTS = [];
 const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR, // start the intro framing closer to the table surface
@@ -24749,6 +24749,58 @@ const powerRef = useRef(hud.power);
           const pull = computeCuePull(desiredPull, maxPull, { preserveLarger: true });
           const visualPull = applyVisualPullCompensation(pull, dir);
           const planSpin = activeAiPlan.spin ?? spinRef.current ?? { x: 0, y: 0 };
+          const spinX = THREE.MathUtils.clamp(planSpin.x ?? 0, -1, 1);
+          const spinY = THREE.MathUtils.clamp(planSpin.y ?? 0, -1, 1);
+          const { side, vert, hasSpin } = computeSpinOffsets(
+            { x: spinX, y: spinY },
+            ranges
+          );
+          const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
+          clampCueTipOffset(spinWorld);
+          const obstructionStrength = resolveCueObstruction(
+            dir,
+            pull,
+            activeRenderCameraRef.current ?? cameraRef.current ?? camera,
+            spinWorld
+          );
+          const { obstructionTilt, obstructionTiltFromLift } =
+            resolveCueObstructionTilt(obstructionStrength);
+          const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
+          const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
+          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
+          applyCueButtTilt(
+            cueStick,
+            extraTilt + obstructionTilt + obstructionTiltFromLift
+          );
+          if (tipGroupRef.current) {
+            tipGroupRef.current.position.set(0, 0, -cueLen / 2);
+          }
+          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
+          applyCueStickTransform(tipTarget);
+          clampCueButtAboveCushion(tipTarget);
+          cueStick.visible = true;
+        } else if (canShowCue && (aiCueViewActive || isAiTurn)) {
+          aim.visible = false;
+          tick.visible = false;
+          target.visible = false;
+          cueAfter.visible = false;
+          impactRing.visible = false;
+          updateChalkVisibility(null);
+          const planDir = aimDir.clone();
+          if (planDir.lengthSq() < 1e-6) {
+            planDir.set(0, 1);
+          } else {
+            planDir.normalize();
+          }
+          const dir = new THREE.Vector3(planDir.x, 0, planDir.y).normalize();
+          const perp = new THREE.Vector3(-dir.z, 0, dir.x);
+          if (perp.lengthSq() > 1e-8) perp.normalize();
+          const powerTarget = THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1);
+          const maxPull = CUE_PULL_BASE;
+          const desiredPull = computePullTargetFromPower(powerTarget, maxPull);
+          const pull = computeCuePull(desiredPull, maxPull, { preserveLarger: true });
+          const visualPull = applyVisualPullCompensation(pull, dir);
+          const planSpin = spinRef.current ?? { x: 0, y: 0 };
           const spinX = THREE.MathUtils.clamp(planSpin.x ?? 0, -1, 1);
           const spinY = THREE.MathUtils.clamp(planSpin.y ?? 0, -1, 1);
           const { side, vert, hasSpin } = computeSpinOffsets(
