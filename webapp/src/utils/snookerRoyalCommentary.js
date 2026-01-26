@@ -234,30 +234,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
     outroReply: ['अगला फ्रेम तैयार।'],
     turn: ['अब {player} की बारी।']
   },
-  ru: {
-    ...ENGLISH_TEMPLATES,
-    intro: ['{frameNumber} начинается. {player} на разбо́е.'],
-    introReply: ['Тактическое начало; контроль битка решит многое.'],
-    breakOff: ['{player} выполняет разбой, стараясь сыграть безопасно.'],
-    redPot: ['Красный в лузе, {player} остается у стола.'],
-    multiRed: ['Несколько красных падают — позиция раскрывается.'],
-    colorPot: ['{player} кладет {color} и держит позицию.'],
-    colorOrder: ['Цвета по порядку, {player} контролирует стол.'],
-    respot: ['{color} забит и возвращен на точку.'],
-    safety: ['{player} играет защиту и прячет биток.'],
-    snooker: ['{player} ставит {opponent} в снукер.'],
-    freeBall: ['Свободный шар для {player}.'],
-    foul: ['Фол у {player}. {points} для {opponent}.'],
-    miss: ['{player} промахивается; шанс у {opponent}.'],
-    breakBuild: ['Серия {player} достигает {breakTotal}.'],
-    century: ['Сотенная серия: {player} набирает {breakTotal}.'],
-    colorsOrder: ['Красные закончились; цвета по порядку.'],
-    frameBall: ['Фреймбол для {player}.'],
-    frameWin: ['{player} берет фрейм. {scoreline}.'],
-    outro: ['{frameNumber} завершен. {scoreline}.'],
-    outroReply: ['Подготовка следующего фрейма.'],
-    turn: ['Ход {player}.']
-  },
   es: {
     ...ENGLISH_TEMPLATES,
     intro: ['{frameNumber} en marcha. {player} abre.'],
@@ -365,7 +341,6 @@ const resolveLanguageKey = (language = 'en') => {
   const normalized = String(language || '').toLowerCase();
   if (normalized.startsWith('zh')) return 'zh';
   if (normalized.startsWith('hi')) return 'hi';
-  if (normalized.startsWith('ru')) return 'ru';
   if (normalized.startsWith('es')) return 'es';
   if (normalized.startsWith('fr')) return 'fr';
   if (normalized.startsWith('ar')) return 'ar';

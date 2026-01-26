@@ -372,90 +372,6 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       blackBall: ['ब्लैक बॉल आ गई, एंगल बहुत जरूरी है।']
     }
   },
-  ru: {
-    ...ENGLISH_TEMPLATES,
-    common: {
-      intro: [
-        'Добро пожаловать на {arena}. {speaker} в эфире. {player} против {opponent}, {scoreline}, {variantName}.'
-      ],
-      introReply: [
-        'Спасибо, {speaker}. Контроль битка и позиция решат исход.'
-      ],
-      breakShot: [
-        '{player} готовит разбой; важно раскрыть пирамиду и удержать биток.'
-      ],
-      breakResult: [
-        'Хороший разбой — стол открыт, линии видны.'
-      ],
-      openTable: [
-        'Стол открыт; {player} ищет естественные углы и позицию.'
-      ],
-      safety: [
-        '{player} играет в защиту и прячет биток.'
-      ],
-      pressure: [
-        'Удар под давлением; мягкое касание и точный винт обязательны.'
-      ],
-      pot: [
-        '{player} кладет {targetBall} в {pocket} и сохраняет позицию.'
-      ],
-      combo: [
-        '{player} делает комбинацию: {targetBall} в {pocket}.'
-      ],
-      bank: [
-        '{player} бьет с борта и кладет {targetBall} в {pocket}.'
-      ],
-      kick: [
-        '{player} вынужден играть кик, чтобы найти шар.'
-      ],
-      jump: [
-        '{player} исполняет джамп, обходя блок.'
-      ],
-      miss: [
-        '{player} мажет, шанс у {opponent}.'
-      ],
-      foul: [
-        'Фол у {player}.'
-      ],
-      inHand: [
-        'Биток с руки у {opponent}.'
-      ],
-      runout: [
-        '{player} может закрыть стол, если удержит контроль.'
-      ],
-      hillHill: [
-        'Решающая партия — максимальное напряжение.'
-      ],
-      frameWin: [
-        '{player} забирает этот фрейм.'
-      ],
-      matchWin: [
-        'Матч окончен. {player} побеждает {playerScore}-{opponentScore}.'
-      ],
-      outro: [
-        'Из {arena} — спасибо, что были с нами.'
-      ]
-    },
-    nineBall: {
-      variantName: 'американский 9-болл',
-      rotation: ['В 9-болле нужно бить по самому младшему шару первым.'],
-      goldenBreak: ['Если девятка падает с разбоя — партия заканчивается.'],
-      comboNine: ['{player} нацеливается на комбинацию в девятку — большой шанс.'],
-      pushOut: ['{player} использует пуш-аут для лучшей позиции.']
-    },
-    eightBallUs: {
-      variantName: 'американский 8-болл',
-      groupCall: ['Открытый стол между {groupPrimary} и {groupSecondary}.'],
-      inHand: ['{opponent} с битком в руке — серьёзное преимущество.'],
-      eightBall: ['Теперь 8-й шар в игре; позиция решает всё.']
-    },
-    eightBallUk: {
-      variantName: 'британский 8-болл',
-      groupCall: ['Правила UK: {groupPrimary} и {groupSecondary} ещё открыты.'],
-      freeBall: ['{player} получает свободный шар и два визита.'],
-      blackBall: ['Чёрный шар в игре — нужен идеальный угол.']
-    }
-  },
   es: {
     ...ENGLISH_TEMPLATES,
     common: {
@@ -840,7 +756,6 @@ const resolveLanguageKey = (language = 'en') => {
   const normalized = String(language || '').toLowerCase();
   if (normalized.startsWith('zh')) return 'zh';
   if (normalized.startsWith('hi')) return 'hi';
-  if (normalized.startsWith('ru')) return 'ru';
   if (normalized.startsWith('es')) return 'es';
   if (normalized.startsWith('fr')) return 'fr';
   if (normalized.startsWith('ar')) return 'ar';
