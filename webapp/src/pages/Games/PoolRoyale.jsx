@@ -4944,6 +4944,7 @@ const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
+let CORNER_CUT_LINES = null;
 const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR, // start the intro framing closer to the table surface
   phi: CAMERA.maxPhi - 0.01
@@ -5876,17 +5877,28 @@ function reflectRails(ball) {
   const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
   const cornerCos = Math.cos(cornerRad);
   const cornerSin = Math.sin(cornerRad);
+  const cornerLines = CORNER_CUT_LINES;
   const pocketGuard = POCKET_GUARD_RADIUS;
   const guardClearance = POCKET_GUARD_CLEARANCE;
   const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
   let preImpactVel = null;
   for (const { sx, sy } of CORNER_SIGNS) {
-    TMP_VEC2_C.set(sx * limX, sy * limY);
-    TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
+    const lineEntry = cornerLines?.get?.(`${sx}:${sy}`) ?? null;
+    if (lineEntry?.anchor && lineEntry?.normal) {
+      TMP_VEC2_C.copy(lineEntry.anchor);
+      TMP_VEC2_B.copy(lineEntry.normal);
+    } else {
+      TMP_VEC2_C.set(sx * limX, sy * limY);
+      TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
+    }
     TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
     const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
     if (distNormal >= BALL_R) continue;
-    TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
+    if (lineEntry?.tangent) {
+      TMP_VEC2_D.copy(lineEntry.tangent);
+    } else {
+      TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
+    }
     const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
     if (lateral < guardClearance) continue;
     if (distNormal < -cornerDepthLimit) continue;
@@ -6402,7 +6414,10 @@ function alignRailsToCushions(table, frame, railMeshes = null) {
 }
 
 function updateRailLimitsFromTable(table) {
-  if (!table?.userData?.cushions?.length) return;
+  if (!table?.userData?.cushions?.length) {
+    CORNER_CUT_LINES = null;
+    return;
+  }
   table.updateMatrixWorld(true);
   let minAbsX = Infinity;
   let minAbsZ = Infinity;
@@ -6410,12 +6425,18 @@ function updateRailLimitsFromTable(table) {
     const data = cushion.userData || {};
     if (typeof data.horizontal !== 'boolean' || !data.side) continue;
     const box = new THREE.Box3().setFromObject(cushion);
+    let innerEdge = null;
     if (data.horizontal) {
       const inner = data.side < 0 ? box.max.z : box.min.z;
+      innerEdge = inner;
       minAbsZ = Math.min(minAbsZ, Math.abs(inner));
     } else {
       const inner = data.side < 0 ? box.max.x : box.min.x;
+      innerEdge = inner;
       minAbsX = Math.min(minAbsX, Math.abs(inner));
+    }
+    if (innerEdge != null) {
+      cushion.userData.innerEdge = innerEdge;
     }
   }
   if (minAbsX !== Infinity) {
@@ -6430,6 +6451,94 @@ function updateRailLimitsFromTable(table) {
       RAIL_LIMIT_Y = Math.min(DEFAULT_RAIL_LIMIT_Y, computedZ);
     }
   }
+  updateCornerCutLinesFromTable(table);
+}
+
+function updateCornerCutLinesFromTable(table) {
+  if (!table?.userData?.cushions?.length) {
+    CORNER_CUT_LINES = null;
+    return;
+  }
+  const cushions = table.userData.cushions;
+  const horizontalBySide = new Map();
+  cushions.forEach((cushion) => {
+    const data = cushion?.userData;
+    if (!data || !data.horizontal) return;
+    if (typeof data.side !== 'number') return;
+    horizontalBySide.set(data.side, cushion);
+  });
+  const pickVerticalCushion = (sx, sy) => {
+    const candidates = cushions.filter(
+      (cushion) =>
+        cushion?.userData &&
+        !cushion.userData.horizontal &&
+        cushion.userData.side === sx
+    );
+    if (!candidates.length) return null;
+    let best = candidates[0];
+    let bestScore = -Infinity;
+    candidates.forEach((cushion) => {
+      const posZ = cushion.position?.z ?? 0;
+      const score = sy * posZ;
+      if (score > bestScore) {
+        bestScore = score;
+        best = cushion;
+      }
+    });
+    return best;
+  };
+  const lineMap = new Map();
+  CORNER_SIGNS.forEach(({ sx, sy }) => {
+    const horizontal = horizontalBySide.get(sy);
+    const vertical = pickVerticalCushion(sx, sy);
+    if (!horizontal || !vertical) return;
+    const horizontalData = horizontal.userData || {};
+    const verticalData = vertical.userData || {};
+    const horizontalCut =
+      sx < 0 ? horizontalData.cutEnds?.min : horizontalData.cutEnds?.max;
+    const verticalCut =
+      sy < 0 ? verticalData.cutEnds?.min : verticalData.cutEnds?.max;
+    if (!Number.isFinite(horizontalCut) || !Number.isFinite(verticalCut)) return;
+    const horizontalLen = horizontalData.length;
+    const verticalLen = verticalData.length;
+    if (!Number.isFinite(horizontalLen) || !Number.isFinite(verticalLen)) return;
+    const horizontalLocal = new THREE.Vector3(
+      (sx < 0 ? -1 : 1) * (horizontalLen / 2 - horizontalCut),
+      0,
+      0
+    );
+    const verticalLocal = new THREE.Vector3(
+      (sy < 0 ? -1 : 1) * (verticalLen / 2 - verticalCut),
+      0,
+      0
+    );
+    const horizontalWorld = horizontalLocal.applyMatrix4(horizontal.matrixWorld);
+    const verticalWorld = verticalLocal.applyMatrix4(vertical.matrixWorld);
+    if (Number.isFinite(horizontalData.innerEdge)) {
+      horizontalWorld.z = horizontalData.innerEdge;
+    }
+    if (Number.isFinite(verticalData.innerEdge)) {
+      verticalWorld.x = verticalData.innerEdge;
+    }
+    const horizontalPoint = new THREE.Vector2(horizontalWorld.x, horizontalWorld.z);
+    const verticalPoint = new THREE.Vector2(verticalWorld.x, verticalWorld.z);
+    const lineDir = verticalPoint.clone().sub(horizontalPoint);
+    if (lineDir.lengthSq() < MICRO_EPS * MICRO_EPS) return;
+    lineDir.normalize();
+    const normalA = new THREE.Vector2(lineDir.y, -lineDir.x).normalize();
+    const normalB = normalA.clone().multiplyScalar(-1);
+    const midPoint = horizontalPoint.clone().add(verticalPoint).multiplyScalar(0.5);
+    const toCenter = midPoint.clone().multiplyScalar(-1);
+    const normal =
+      normalA.dot(toCenter) >= normalB.dot(toCenter) ? normalA : normalB;
+    const tangent = new THREE.Vector2(-normal.y, normal.x);
+    lineMap.set(`${sx}:${sy}`, {
+      anchor: midPoint,
+      normal,
+      tangent
+    });
+  });
+  CORNER_CUT_LINES = lineMap.size ? lineMap : null;
 }
 
 // --------------------------------------------------
@@ -18405,6 +18514,7 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = shotRecording;
           applyBallSnapshot(shotRecording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
+          applyReplayCueStroke(replayPlayback, 0);
           const path = replayPlayback.cuePath ?? [];
           if (!LOCK_REPLAY_CAMERA) {
             const initialCamera = trimmed.frames?.[0]?.camera ?? null;
@@ -21426,6 +21536,14 @@ const powerRef = useRef(hud.power);
             earlyPocketView.pendingActivation = holdActive;
             if (holdActive) {
               queuedPocketView = earlyPocketView;
+              if (actionView) {
+                actionView.pendingActivation = false;
+                actionView.activationDelay = null;
+                actionView.activationTravel = 0;
+                suspendedActionView = null;
+                activeShotView = actionView;
+                updateCamera();
+              }
               pocketViewActivated = true;
             } else {
               queuedPocketView = null;
@@ -25002,8 +25120,12 @@ const powerRef = useRef(hud.power);
         if (pocketHoldActive && activeShotView?.mode === 'pocket') {
           queuedPocketView = activeShotView;
           queuedPocketView.pendingActivation = true;
-          activeShotView = null;
+          const resumeView = queuedPocketView.resumeAction ?? null;
+          activeShotView = resumeView;
           updatePocketCameraState(false);
+          if (resumeView) {
+            updateCamera();
+          }
         }
         if (
           !suppressPocketCameras &&
