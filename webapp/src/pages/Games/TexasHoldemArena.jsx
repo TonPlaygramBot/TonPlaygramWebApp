@@ -272,15 +272,71 @@ const TEXAS_HOLDEM_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'english',
     label: 'English',
-    description: 'Male voice, English',
+    description: 'Mixed voices, classic English',
     language: 'en',
     voiceHints: {
-      [TEXAS_HOLDEM_SPEAKERS.lead]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex']
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma']
     },
     speakerSettings: {
       [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
+    }
+  },
+  {
+    id: 'saffron-table',
+    label: 'Indian Table',
+    description: 'Hindi commentary with lively pacing',
+    language: 'hi',
+    voiceHints: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha']
+    },
+    speakerSettings: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1.06, pitch: 1.02, volume: 1 },
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.08, volume: 1 }
+    }
+  },
+  {
+    id: 'moscow-mics',
+    label: 'Russian Booth',
+    description: 'Russian commentary with steady cadence',
+    language: 'ru',
+    voiceHints: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga']
+    },
+    speakerSettings: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1.03, pitch: 1.02, volume: 1 }
+    }
+  },
+  {
+    id: 'latin-pulse',
+    label: 'Latin Pulse',
+    description: 'Spanish play-by-play with lively color',
+    language: 'es',
+    voiceHints: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila']
+    },
+    speakerSettings: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1.05, pitch: 1, volume: 1 },
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.1, volume: 1 }
+    }
+  },
+  {
+    id: 'francophone-booth',
+    label: 'Francophone Booth',
+    description: 'French broadcast pairing',
+    language: 'fr',
+    voiceHints: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte']
+    },
+    speakerSettings: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
   }
 ]);
