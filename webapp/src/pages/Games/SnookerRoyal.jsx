@@ -1510,7 +1510,7 @@ const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 4.5;
 const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
-const TABLE_HEIGHT_REDUCTION = 1;
+const TABLE_HEIGHT_REDUCTION = 0.82;
 const TABLE_HEIGHT_SCALE = 1.56;
 const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION * TABLE_HEIGHT_SCALE;
 const TABLE_LIFT =
@@ -1536,12 +1536,14 @@ const PORTAL_LEG_CENTER_PULL = TABLE.WALL * 1.08; // slide open-portal legs furt
 const PORTAL_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.46; // pull portal uprights toward the visual centre of the short rail
 const SKIRT_DROP_MULTIPLIER = 0; // remove the apron/skirt drop so the table body stays tight to the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
-const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
-const BASE_HEIGHT_FILL = 0.94; // grow bases upward so the stance stays consistent with the shorter skirt
+const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.095; // raise the apron further so it fully meets the lowered rails
+const BASE_HEIGHT_FILL = 1; // grow bases upward so the stance stays consistent with the shorter skirt
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
-const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
+const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.18; // lower the full table assembly by 18%
+const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
+const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
+const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.28; // keep orbit height aligned with the cue while leaving a tighter buffer at cue-top level
 const CUE_TIP_CLEARANCE = BALL_R * 0.22; // widen the visible air gap so the blue tip never kisses the cue ball
@@ -4840,12 +4842,12 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.86; // raise the standing orbit a touch for a clearer overview
+const STANDING_VIEW_PHI = 0.82; // match Pool Royale standing orbit coordinates
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0012; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
-const CAMERA_ABS_MIN_PHI = 0.1;
-const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.14; // let the cue view drop to the same rail-hugging height used by AI shots while staying above the cue
+const CAMERA_ABS_MIN_PHI = 0.08;
+const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.22; // keep the cue view a touch higher while staying above the cue
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
@@ -4854,8 +4856,9 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0013;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.0011;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.97;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.95;
+const STANDING_VIEW_DISTANCE_SCALE = 0.54; // pull the standing camera slightly closer while keeping the angle unchanged
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -4919,14 +4922,14 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.15; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera a touch to ensure full end-rail coverage
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI * 0.45, CAMERA.minPhi * 0.22); // reduce angle toward a flatter overhead
-const TOP_VIEW_RADIUS_SCALE = 1.26; // lift the 2D top view slightly higher so the overhead camera clears the rails on portrait
-const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI * 0.5);
+const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.04; // raise the camera a touch to ensure full end-rail coverage
+const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
+const TOP_VIEW_RADIUS_SCALE = 1.04; // lower the 2D top view slightly to keep framing consistent after the table shrink
+const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: PLAY_W * 0.006, // bias the top view so the table sits slightly lower on screen
-  z: PLAY_H * 0.006 // bias the top view so the table sits slightly more to the right
+  x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
+  z: PLAY_H * -0.078 // keep the existing vertical alignment
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4943,7 +4946,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 0.9; // pull the broadcast overhead camera closer to the table like the original framing
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.05; // pull the broadcast overhead camera back for fuller table framing
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -4953,7 +4956,7 @@ const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
 );
-const CUE_VIEW_PHI_LIFT = 0.075; // nudge the cue camera lower so the stroke and cue pull stay in frame
+const CUE_VIEW_PHI_LIFT = 0.06; // keep the cue camera slightly higher before it bottoms out
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -4969,7 +4972,7 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
-const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.22; // nudge forward slightly at the floor of the cue view, then stop
+const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.32; // nudge forward slightly at the floor of the cue view, then stop
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
@@ -4980,7 +4983,7 @@ const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while
 const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-ball follow line toward a draw path
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
-const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
+const POCKET_VIEW_SMOOTH_TIME = 0.08; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
@@ -15801,7 +15804,11 @@ const powerRef = useRef(hud.power);
         CAMERA.maxPhi
       );
       const standingRadius = clamp(
-        fitRadius(camera, STANDING_VIEW.margin * zoomProfile.margin),
+        fitRadius(
+          camera,
+          STANDING_VIEW.margin * zoomProfile.margin,
+          STANDING_VIEW_DISTANCE_SCALE
+        ),
         CAMERA.minR,
         CAMERA.maxR
       );
@@ -16971,7 +16978,7 @@ const powerRef = useRef(hud.power);
                 : null;
             const baseRadius = (() => {
               const fallback = clamp(
-                fitRadius(camera, STANDING_VIEW.margin),
+                fitRadius(camera, STANDING_VIEW.margin, STANDING_VIEW_DISTANCE_SCALE),
                 CAMERA.minR,
                 CAMERA.maxR
               );
