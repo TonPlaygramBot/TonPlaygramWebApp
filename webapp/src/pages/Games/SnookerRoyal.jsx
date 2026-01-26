@@ -7477,7 +7477,7 @@ function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.01; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.004; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.26; // shorten the corner cushions more so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK *0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.05; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
