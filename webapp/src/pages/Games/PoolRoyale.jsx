@@ -1000,6 +1000,7 @@ const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylind
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
+const ENABLE_TABLE_MAPPING_LINES = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const REPLAY_CUE_STICK_HOLD_MS = 620;
@@ -4945,6 +4946,8 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0;
 const RAIL_CONTACT_RADIUS = BALL_R * 0.985;
+const CUSHION_CUT_CONTACT_RADIUS = BALL_R * 0.945;
+const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
 const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR, // start the intro framing closer to the table surface
@@ -5876,6 +5879,7 @@ function reflectRails(ball) {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
   const railRadius = RAIL_CONTACT_RADIUS;
+  const cutRadius = Math.min(railRadius, CUSHION_CUT_CONTACT_RADIUS);
   const railLimitX = limX + (BALL_R - railRadius);
   const railLimitY = limY + (BALL_R - railRadius);
   const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
@@ -5887,7 +5891,7 @@ function reflectRails(ball) {
   let preImpactVel = null;
   if (Array.isArray(CUSHION_SEGMENTS) && CUSHION_SEGMENTS.length > 0) {
     const nearPocketRadius =
-      Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 0.22;
+      Math.max(CAPTURE_R, SIDE_CAPTURE_R) + CUSHION_CUT_NEAR_POCKET_BUFFER;
     const centers = pocketCenters();
     let nearestPocketDist = Infinity;
     let nearestCaptureRadius = CAPTURE_R;
@@ -5916,9 +5920,10 @@ function reflectRails(ball) {
       TMP_VEC2_C.copy(segment.start).addScaledVector(TMP_VEC2_A, t);
       TMP_VEC2_D.copy(ball.pos).sub(TMP_VEC2_C);
       const distSq = TMP_VEC2_D.lengthSq();
-      if (distSq >= railRadius * railRadius) continue;
+      const contactRadius = segment.type === 'cut' ? cutRadius : railRadius;
+      if (distSq >= contactRadius * contactRadius) continue;
       const dist = Math.sqrt(distSq);
-      const penetration = railRadius - dist;
+      const penetration = contactRadius - dist;
       if (penetration <= 0) continue;
       if (penetration > bestPenetration) {
         bestPenetration = penetration;
@@ -6513,24 +6518,33 @@ function updateCushionSegmentsFromTable(table) {
     const cutEnds = data.cutEnds || {};
     const minCut = Math.max(0, cutEnds.min || 0);
     const maxCut = Math.max(0, cutEnds.max || 0);
+    const cutInsetBase = RAIL_CONTACT_RADIUS * 0.55;
+    const minInset = Math.min(minCut, cutInsetBase);
+    const maxInset = Math.min(maxCut, cutInsetBase);
+    const minInner = minCut + minInset;
+    const maxInner = maxCut + maxInset;
     if (data.horizontal) {
       const innerZ = data.side < 0 ? box.max.z : box.min.z;
       const outerZ = data.side < 0 ? box.min.z : box.max.z;
-      const leftInner = new THREE.Vector2(box.min.x + minCut, innerZ);
-      const rightInner = new THREE.Vector2(box.max.x - maxCut, innerZ);
+      const leftInner = new THREE.Vector2(box.min.x + minInner, innerZ);
+      const rightInner = new THREE.Vector2(box.max.x - maxInner, innerZ);
       const leftOuter = new THREE.Vector2(box.min.x, outerZ);
       const rightOuter = new THREE.Vector2(box.max.x, outerZ);
-      addSegment(leftInner, rightInner, 'rail');
+      if (rightInner.x - leftInner.x > MICRO_EPS) {
+        addSegment(leftInner, rightInner, 'rail');
+      }
       addSegment(leftOuter, leftInner, 'cut');
       addSegment(rightOuter, rightInner, 'cut');
     } else {
       const innerX = data.side < 0 ? box.max.x : box.min.x;
       const outerX = data.side < 0 ? box.min.x : box.max.x;
-      const bottomInner = new THREE.Vector2(innerX, box.min.z + minCut);
-      const topInner = new THREE.Vector2(innerX, box.max.z - maxCut);
+      const bottomInner = new THREE.Vector2(innerX, box.min.z + minInner);
+      const topInner = new THREE.Vector2(innerX, box.max.z - maxInner);
       const bottomOuter = new THREE.Vector2(outerX, box.min.z);
       const topOuter = new THREE.Vector2(outerX, box.max.z);
-      addSegment(bottomInner, topInner, 'rail');
+      if (topInner.y - bottomInner.y > MICRO_EPS) {
+        addSegment(bottomInner, topInner, 'rail');
+      }
       addSegment(bottomOuter, bottomInner, 'cut');
       addSegment(topOuter, topInner, 'cut');
     }
@@ -10335,113 +10349,115 @@ export function Table3D(
     table.userData.pockets.push(marker);
   });
 
-  const mappingLineLift = Math.max(MICRO_EPS * 8, TABLE.THICK * 0.002);
-  const mappingLineY = clothPlaneWorld + mappingLineLift;
-  const SHORT_RAIL_MAPPING_OUTSET = TABLE.THICK * 0.02;
-  const mappingGroup = new THREE.Group();
-  mappingGroup.name = 'tableMappingOverlay';
-  const fieldLineMaterial = new THREE.LineBasicMaterial({
-    color: 0xf5d547,
-    transparent: true,
-    opacity: 0.9,
-    depthTest: false,
-    depthWrite: false
-  });
-  const cushionLineMaterial = new THREE.LineBasicMaterial({
-    color: 0xff3b30,
-    transparent: true,
-    opacity: 0.9,
-    depthTest: false,
-    depthWrite: false
-  });
-  const pocketLineMaterial = new THREE.LineBasicMaterial({
-    color: 0x2f7bff,
-    transparent: true,
-    opacity: 0.9,
-    depthTest: false,
-    depthWrite: false
-  });
-  const registerMappingLine = (line) => {
-    line.renderOrder = 6;
-    line.frustumCulled = false;
-    mappingGroup.add(line);
-  };
-  const makeLine = (points, material, loop = false) => {
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    return loop ? new THREE.LineLoop(geometry, material) : new THREE.Line(geometry, material);
-  };
-  const fieldExtents = table.userData.pockets.reduce(
-    (acc, marker) => {
-      if (!marker) return acc;
-      const radius = marker.userData?.captureRadius ?? CAPTURE_R;
-      acc.halfW = Math.max(acc.halfW, Math.abs(marker.position.x) + radius);
-      acc.halfH = Math.max(acc.halfH, Math.abs(marker.position.z) + radius);
-      return acc;
-    },
-    { halfW, halfH }
-  );
-  const fieldPoints = [
-    new THREE.Vector3(-fieldExtents.halfW, mappingLineY, -fieldExtents.halfH),
-    new THREE.Vector3(fieldExtents.halfW, mappingLineY, -fieldExtents.halfH),
-    new THREE.Vector3(fieldExtents.halfW, mappingLineY, fieldExtents.halfH),
-    new THREE.Vector3(-fieldExtents.halfW, mappingLineY, fieldExtents.halfH)
-  ];
-  registerMappingLine(makeLine(fieldPoints, fieldLineMaterial, true));
-  if (table.userData?.cushions?.length) {
-    table.userData.cushions.forEach((cushion) => {
-      if (!cushion) return;
-      const data = cushion.userData || {};
-      if (typeof data.horizontal !== 'boolean' || !data.side) return;
-      const box = new THREE.Box3().setFromObject(cushion);
-      const cutEnds = data.cutEnds || {};
-      const minCut = Math.max(0, cutEnds.min || 0);
-      const maxCut = Math.max(0, cutEnds.max || 0);
-      const points = [];
-      const pushPoint = (x, z) => {
-        const last = points[points.length - 1];
-        if (!last || last.x !== x || last.z !== z) {
-          points.push(new THREE.Vector3(x, mappingLineY, z));
-        }
-      };
-      if (data.horizontal) {
-        const shortRailOutset =
-          data.side < 0 ? -SHORT_RAIL_MAPPING_OUTSET : SHORT_RAIL_MAPPING_OUTSET;
-        const innerZ = (data.side < 0 ? box.max.z : box.min.z) + shortRailOutset;
-        const outerZ = (data.side < 0 ? box.min.z : box.max.z) + shortRailOutset;
-        pushPoint(box.min.x, outerZ);
-        pushPoint(box.min.x + minCut, innerZ);
-        pushPoint(box.max.x - maxCut, innerZ);
-        pushPoint(box.max.x, outerZ);
-        registerMappingLine(makeLine(points, cushionLineMaterial));
-      } else {
-        const innerX = data.side < 0 ? box.max.x : box.min.x;
-        const outerX = data.side < 0 ? box.min.x : box.max.x;
-        pushPoint(outerX, box.min.z);
-        pushPoint(innerX, box.min.z + minCut);
-        pushPoint(innerX, box.max.z - maxCut);
-        pushPoint(outerX, box.max.z);
-        registerMappingLine(makeLine(points, cushionLineMaterial));
-      }
+  if (ENABLE_TABLE_MAPPING_LINES) {
+    const mappingLineLift = Math.max(MICRO_EPS * 8, TABLE.THICK * 0.002);
+    const mappingLineY = clothPlaneWorld + mappingLineLift;
+    const SHORT_RAIL_MAPPING_OUTSET = TABLE.THICK * 0.02;
+    const mappingGroup = new THREE.Group();
+    mappingGroup.name = 'tableMappingOverlay';
+    const fieldLineMaterial = new THREE.LineBasicMaterial({
+      color: 0xf5d547,
+      transparent: true,
+      opacity: 0.9,
+      depthTest: false,
+      depthWrite: false
     });
-  }
-  table.userData.pockets.forEach((marker) => {
-    if (!marker) return;
-    const radius = marker.userData?.captureRadius ?? CAPTURE_R;
-    const points = [];
-    const segments = 72;
-    for (let i = 0; i < segments; i += 1) {
-      const theta = (i / segments) * Math.PI * 2;
-      points.push(
-        new THREE.Vector3(
-          marker.position.x + Math.cos(theta) * radius,
-          mappingLineY,
-          marker.position.z + Math.sin(theta) * radius
-        )
-      );
+    const cushionLineMaterial = new THREE.LineBasicMaterial({
+      color: 0xff3b30,
+      transparent: true,
+      opacity: 0.9,
+      depthTest: false,
+      depthWrite: false
+    });
+    const pocketLineMaterial = new THREE.LineBasicMaterial({
+      color: 0x2f7bff,
+      transparent: true,
+      opacity: 0.9,
+      depthTest: false,
+      depthWrite: false
+    });
+    const registerMappingLine = (line) => {
+      line.renderOrder = 6;
+      line.frustumCulled = false;
+      mappingGroup.add(line);
+    };
+    const makeLine = (points, material, loop = false) => {
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      return loop ? new THREE.LineLoop(geometry, material) : new THREE.Line(geometry, material);
+    };
+    const fieldExtents = table.userData.pockets.reduce(
+      (acc, marker) => {
+        if (!marker) return acc;
+        const radius = marker.userData?.captureRadius ?? CAPTURE_R;
+        acc.halfW = Math.max(acc.halfW, Math.abs(marker.position.x) + radius);
+        acc.halfH = Math.max(acc.halfH, Math.abs(marker.position.z) + radius);
+        return acc;
+      },
+      { halfW, halfH }
+    );
+    const fieldPoints = [
+      new THREE.Vector3(-fieldExtents.halfW, mappingLineY, -fieldExtents.halfH),
+      new THREE.Vector3(fieldExtents.halfW, mappingLineY, -fieldExtents.halfH),
+      new THREE.Vector3(fieldExtents.halfW, mappingLineY, fieldExtents.halfH),
+      new THREE.Vector3(-fieldExtents.halfW, mappingLineY, fieldExtents.halfH)
+    ];
+    registerMappingLine(makeLine(fieldPoints, fieldLineMaterial, true));
+    if (table.userData?.cushions?.length) {
+      table.userData.cushions.forEach((cushion) => {
+        if (!cushion) return;
+        const data = cushion.userData || {};
+        if (typeof data.horizontal !== 'boolean' || !data.side) return;
+        const box = new THREE.Box3().setFromObject(cushion);
+        const cutEnds = data.cutEnds || {};
+        const minCut = Math.max(0, cutEnds.min || 0);
+        const maxCut = Math.max(0, cutEnds.max || 0);
+        const points = [];
+        const pushPoint = (x, z) => {
+          const last = points[points.length - 1];
+          if (!last || last.x !== x || last.z !== z) {
+            points.push(new THREE.Vector3(x, mappingLineY, z));
+          }
+        };
+        if (data.horizontal) {
+          const shortRailOutset =
+            data.side < 0 ? -SHORT_RAIL_MAPPING_OUTSET : SHORT_RAIL_MAPPING_OUTSET;
+          const innerZ = (data.side < 0 ? box.max.z : box.min.z) + shortRailOutset;
+          const outerZ = (data.side < 0 ? box.min.z : box.max.z) + shortRailOutset;
+          pushPoint(box.min.x, outerZ);
+          pushPoint(box.min.x + minCut, innerZ);
+          pushPoint(box.max.x - maxCut, innerZ);
+          pushPoint(box.max.x, outerZ);
+          registerMappingLine(makeLine(points, cushionLineMaterial));
+        } else {
+          const innerX = data.side < 0 ? box.max.x : box.min.x;
+          const outerX = data.side < 0 ? box.min.x : box.max.x;
+          pushPoint(outerX, box.min.z);
+          pushPoint(innerX, box.min.z + minCut);
+          pushPoint(innerX, box.max.z - maxCut);
+          pushPoint(outerX, box.max.z);
+          registerMappingLine(makeLine(points, cushionLineMaterial));
+        }
+      });
     }
-    registerMappingLine(makeLine(points, pocketLineMaterial, true));
-  });
-  table.add(mappingGroup);
+    table.userData.pockets.forEach((marker) => {
+      if (!marker) return;
+      const radius = marker.userData?.captureRadius ?? CAPTURE_R;
+      const points = [];
+      const segments = 72;
+      for (let i = 0; i < segments; i += 1) {
+        const theta = (i / segments) * Math.PI * 2;
+        points.push(
+          new THREE.Vector3(
+            marker.position.x + Math.cos(theta) * radius,
+            mappingLineY,
+            marker.position.z + Math.sin(theta) * radius
+          )
+        );
+      }
+      registerMappingLine(makeLine(points, pocketLineMaterial, true));
+    });
+    table.add(mappingGroup);
+  }
 
   pocketMeshes.forEach((mesh) => {
     const lift = mesh?.userData?.verticalLift || 0;
@@ -21543,6 +21559,12 @@ const powerRef = useRef(hud.power);
           };
           const idlePos = buildCuePosition(0);
           const pullPos = buildCuePosition(visualPull);
+          const followThroughTarget = Math.max(
+            CUE_FOLLOW_THROUGH_MIN,
+            Math.min(CUE_FOLLOW_THROUGH_MAX, visualPull * 0.28)
+          );
+          const impactPos = buildCuePosition(-followThroughTarget);
+          const settlePos = buildCuePosition(-followThroughTarget * 0.35);
           cueStick.position.copy(idlePos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
@@ -21560,10 +21582,12 @@ const powerRef = useRef(hud.power);
             ? AI_CUE_PULLBACK_DURATION_MS
             : Math.max(180, forwardDuration);
           const settleDuration = isAiStroke ? 80 : 60;
+          const returnDuration = REPLAY_CUE_RETURN_WINDOW_MS;
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
           const settleTime = impactTime + settleDuration;
+          const returnTime = settleTime + returnDuration;
           const forwardPreviewHold =
             impactTime +
             Math.min(
@@ -21634,51 +21658,37 @@ const powerRef = useRef(hud.power);
             shotRecording.cueStroke = {
               warmup: serializeVector3Snapshot(idlePos),
               start: serializeVector3Snapshot(pullPos),
-              impact: serializeVector3Snapshot(idlePos),
-              settle: serializeVector3Snapshot(idlePos),
+              impact: serializeVector3Snapshot(impactPos),
+              settle: serializeVector3Snapshot(settlePos),
               idle: serializeVector3Snapshot(idlePos),
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
               pullbackDuration,
               forwardDuration,
               settleDuration,
+              returnDuration,
               startOffset: strokeStartOffset
             };
           }
           if (ENABLE_CUE_STROKE_ANIMATION) {
-            const animateStroke = (now) => {
-              if (now <= pullEndTime) {
-                const t = pullbackDuration > 0
-                  ? THREE.MathUtils.clamp((now - startTime) / pullbackDuration, 0, 1)
-                  : 1;
-                const eased = easeOutCubic(t);
-                cueStick.position.lerpVectors(idlePos, pullPos, eased);
-              } else if (now <= impactTime) {
-                const t = forwardDuration > 0
-                  ? THREE.MathUtils.clamp((now - pullEndTime) / forwardDuration, 0, 1)
-                  : 1;
-                const eased = easeOutCubic(t);
-                cueStick.position.lerpVectors(pullPos, idlePos, eased);
-              } else if (now <= settleTime) {
-                cueStick.position.copy(idlePos);
-              } else {
-                cueStick.visible = false;
-                cueAnimating = false;
-                cuePullCurrentRef.current = 0;
-                cuePullTargetRef.current = 0;
-                if (cameraRef.current && sphRef.current) {
-                  topViewRef.current = false;
-                  topViewLockedRef.current = false;
-                  setIsTopDownView(false);
-                  const sph = sphRef.current;
-                  sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-                  updateCamera();
-                }
-                return;
-              }
-              requestAnimationFrame(animateStroke);
+            cueStrokeStateRef.current = {
+              startTime,
+              pullEndTime,
+              impactTime,
+              settleTime,
+              returnTime,
+              warmupPos: idlePos.clone(),
+              startPos: pullPos.clone(),
+              impactPos: impactPos.clone(),
+              settlePos: settlePos.clone(),
+              idlePos: idlePos.clone(),
+              pullbackDuration,
+              forwardDuration,
+              settleDuration,
+              returnDuration,
+              shotApplied: true,
+              onImpact: null
             };
-            requestAnimationFrame(animateStroke);
           } else {
             cueStick.visible = false;
             cueAnimating = false;
