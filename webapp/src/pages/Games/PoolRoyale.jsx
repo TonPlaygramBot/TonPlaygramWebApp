@@ -9579,6 +9579,8 @@ export function Table3D(
     group.userData = group.userData || {};
     group.userData.horizontal = horizontal;
     group.userData.side = side;
+    group.userData.length = len;
+    group.userData.cutAngles = sidePocketCuts;
     table.add(group);
     table.userData.cushions.push(group);
   }
@@ -10192,6 +10194,37 @@ export function Table3D(
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     return loop ? new THREE.LineLoop(geometry, material) : new THREE.Line(geometry, material);
   };
+  const resolveCushionMappingPoints = (cushion) => {
+    const data = cushion.userData || {};
+    const len = data.length;
+    if (!Number.isFinite(len) || len <= 0) return null;
+    const baseThickness = SIDE_RAIL_INNER_THICKNESS;
+    const frontY = -baseThickness * CUSHION_FACE_INSET;
+    const backY = 0;
+    const halfLen = len / 2;
+    const toRadians = (deg) => (deg * Math.PI) / 180;
+    const computeCut = (angleDeg) => {
+      const angle = toRadians(angleDeg || 0);
+      const tan = Math.tan(angle);
+      if (!Number.isFinite(tan) || Math.abs(tan) <= MICRO_EPS) return 0;
+      return Math.min(baseThickness / tan, len);
+    };
+    const leftCut = computeCut(data.cutAngles?.leftCutAngle ?? CUSHION_CUT_ANGLE);
+    const rightCut = computeCut(data.cutAngles?.rightCutAngle ?? CUSHION_CUT_ANGLE);
+    const leftFrontX = -halfLen + leftCut;
+    const rightFrontX = halfLen - rightCut;
+    const localPoints = [
+      new THREE.Vector3(-halfLen, 0, backY),
+      new THREE.Vector3(leftFrontX, 0, frontY),
+      new THREE.Vector3(rightFrontX, 0, frontY),
+      new THREE.Vector3(halfLen, 0, backY)
+    ];
+    return localPoints.map((point) => {
+      const worldPoint = cushion.localToWorld(point.clone());
+      worldPoint.y = mappingLineY;
+      return worldPoint;
+    });
+  };
   const fieldPoints = [
     new THREE.Vector3(-halfW, mappingLineY, -halfH),
     new THREE.Vector3(halfW, mappingLineY, -halfH),
@@ -10202,24 +10235,29 @@ export function Table3D(
   if (table.userData?.cushions?.length) {
     table.userData.cushions.forEach((cushion) => {
       if (!cushion) return;
+      const points = resolveCushionMappingPoints(cushion);
+      if (points && points.length > 1) {
+        registerMappingLine(makeLine(points, cushionLineMaterial));
+        return;
+      }
       const data = cushion.userData || {};
       if (typeof data.horizontal !== 'boolean' || !data.side) return;
       const box = new THREE.Box3().setFromObject(cushion);
       if (data.horizontal) {
         const innerZ = data.side < 0 ? box.max.z : box.min.z;
-        const points = [
+        const fallback = [
           new THREE.Vector3(box.min.x, mappingLineY, innerZ),
           new THREE.Vector3(box.max.x, mappingLineY, innerZ)
         ];
-        registerMappingLine(makeLine(points, cushionLineMaterial));
-      } else {
-        const innerX = data.side < 0 ? box.max.x : box.min.x;
-        const points = [
-          new THREE.Vector3(innerX, mappingLineY, box.min.z),
-          new THREE.Vector3(innerX, mappingLineY, box.max.z)
-        ];
-        registerMappingLine(makeLine(points, cushionLineMaterial));
+        registerMappingLine(makeLine(fallback, cushionLineMaterial));
+        return;
       }
+      const innerX = data.side < 0 ? box.max.x : box.min.x;
+      const fallback = [
+        new THREE.Vector3(innerX, mappingLineY, box.min.z),
+        new THREE.Vector3(innerX, mappingLineY, box.max.z)
+      ];
+      registerMappingLine(makeLine(fallback, cushionLineMaterial));
     });
   }
   table.userData.pockets.forEach((marker) => {
