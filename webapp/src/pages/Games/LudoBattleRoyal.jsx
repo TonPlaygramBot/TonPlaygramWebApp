@@ -5411,14 +5411,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     >
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3">
-          <div className="flex items-center gap-3 pointer-events-auto">
+          <div className="pointer-events-auto">
             <button
               type="button"
               onClick={() => setConfigOpen((prev) => !prev)}
               aria-expanded={configOpen}
-              className={`flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                configOpen ? 'bg-black/60' : 'hover:bg-black/60'
-              }`}
+              className="flex h-10 w-10 items-center justify-center bg-transparent text-white/90 shadow-none transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -5438,15 +5436,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               </svg>
               <span className="sr-only">Open table customization</span>
             </button>
-            <BottomLeftIcons
-              onInfo={() => setShowInfo(true)}
-              onChat={() => setShowChat(true)}
-              onGift={() => setShowGift(true)}
-              className="flex items-center gap-3"
-              buttonClassName="flex flex-col items-center text-[0.65rem]"
-              iconClassName="text-xl"
-              labelClassName="text-[0.6rem]"
-            />
           </div>
           <div className="rounded bg-white/10 px-3 py-2 text-xs">
             <div className="font-semibold">{ui.status}</div>
@@ -5640,6 +5629,36 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             </div>
           )}
         </div>
+        <BottomLeftIcons
+          onInfo={() => setShowInfo(true)}
+          className="absolute right-4 top-20 z-20 flex flex-col items-center gap-3 pointer-events-auto"
+          showChat={false}
+          showGift={false}
+          order={['info', 'mute']}
+          buttonClassName="flex items-center justify-center bg-transparent p-2 text-white/90 shadow-none transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          iconClassName="text-2xl"
+          labelClassName="sr-only"
+        />
+        <BottomLeftIcons
+          onChat={() => setShowChat(true)}
+          className="absolute bottom-6 left-4 z-20 flex flex-col items-center gap-3 pointer-events-auto"
+          showInfo={false}
+          showGift={false}
+          showMute={false}
+          buttonClassName="flex items-center justify-center bg-transparent p-2 text-white/90 shadow-none transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          iconClassName="text-2xl"
+          labelClassName="sr-only"
+        />
+        <BottomLeftIcons
+          onGift={() => setShowGift(true)}
+          className="absolute bottom-6 right-4 z-20 flex flex-col items-center gap-3 pointer-events-auto"
+          showInfo={false}
+          showChat={false}
+          showMute={false}
+          buttonClassName="flex items-center justify-center bg-transparent p-2 text-white/90 shadow-none transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          iconClassName="text-2xl"
+          labelClassName="sr-only"
+        />
         <div className="absolute inset-0 z-10 pointer-events-none">
           {players.map((player) => {
             const anchor = seatAnchorMap.get(player.index);
