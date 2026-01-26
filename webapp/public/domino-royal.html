@@ -575,23 +575,107 @@ const COMMENTARY_QUEUE_LIMIT = 4;
 const COMMENTARY_MIN_INTERVAL_MS = 1000;
 const COMMENTARY_PRESETS = [
   {
-    id: 'atlas-luna',
-    name: 'Atlas & Luna',
-    tone: 'Strategist + Cheer Captain',
+    id: 'english',
+    name: 'English Booth',
+    tone: 'Mixed voices, classic English',
     voices: [
       {
         id: 'atlas',
         role: 'playByPlay',
-        voiceHints: ['en-US', 'english', 'male', 'alex', 'david', 'google'],
-        rate: 0.96,
-        pitch: 0.88
+        voiceHints: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+        rate: 1,
+        pitch: 0.96
       },
       {
         id: 'luna',
         role: 'color',
-        voiceHints: ['en-US', 'female', 'samantha', 'victoria', 'zira', 'google'],
-        rate: 1.02,
-        pitch: 1.18
+        voiceHints: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma'],
+        rate: 1.04,
+        pitch: 1.06
+      }
+    ]
+  },
+  {
+    id: 'saffron-table',
+    name: 'Indian Table',
+    tone: 'Hindi commentary with lively pacing',
+    voices: [
+      {
+        id: 'atlas',
+        role: 'playByPlay',
+        voiceHints: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
+        rate: 1.06,
+        pitch: 1.02
+      },
+      {
+        id: 'luna',
+        role: 'color',
+        voiceHints: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha'],
+        rate: 1.08,
+        pitch: 1.08
+      }
+    ]
+  },
+  {
+    id: 'moscow-mics',
+    name: 'Russian Booth',
+    tone: 'Russian commentary with steady cadence',
+    voices: [
+      {
+        id: 'atlas',
+        role: 'playByPlay',
+        voiceHints: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
+        rate: 1,
+        pitch: 0.95
+      },
+      {
+        id: 'luna',
+        role: 'color',
+        voiceHints: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga'],
+        rate: 1.03,
+        pitch: 1.02
+      }
+    ]
+  },
+  {
+    id: 'latin-pulse',
+    name: 'Latin Pulse',
+    tone: 'Spanish play-by-play with lively color',
+    voices: [
+      {
+        id: 'atlas',
+        role: 'playByPlay',
+        voiceHints: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
+        rate: 1.05,
+        pitch: 1
+      },
+      {
+        id: 'luna',
+        role: 'color',
+        voiceHints: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila'],
+        rate: 1.08,
+        pitch: 1.1
+      }
+    ]
+  },
+  {
+    id: 'francophone-booth',
+    name: 'Francophone Booth',
+    tone: 'French broadcast pairing',
+    voices: [
+      {
+        id: 'atlas',
+        role: 'playByPlay',
+        voiceHints: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
+        rate: 0.98,
+        pitch: 0.96
+      },
+      {
+        id: 'luna',
+        role: 'color',
+        voiceHints: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte'],
+        rate: 1.04,
+        pitch: 1.06
       }
     ]
   }
@@ -5032,10 +5116,35 @@ function refreshConfigUI() {
   const commentaryGrid = document.createElement('div');
   commentaryGrid.className = 'config-options';
   const commentarySupported = Boolean(speechSynth);
+  COMMENTARY_PRESETS.forEach((preset) => {
+    const presetButton = document.createElement('button');
+    presetButton.type = 'button';
+    presetButton.className = 'config-option';
+    presetButton.disabled = !commentarySupported;
+    if (preset.id === commentaryPresetId) {
+      presetButton.classList.add('active');
+    }
+    const presetLabel = document.createElement('span');
+    presetLabel.textContent = preset.name;
+    presetButton.appendChild(presetLabel);
+    const presetTone = document.createElement('div');
+    presetTone.textContent = preset.tone;
+    presetTone.style.fontSize = '0.7rem';
+    presetTone.style.color = 'rgba(226,232,240,0.78)';
+    presetTone.style.fontWeight = '600';
+    presetTone.style.lineHeight = '1.35';
+    presetButton.appendChild(presetTone);
+    presetButton.addEventListener('click', () => {
+      if (!commentarySupported) return;
+      setCommentaryPresetId(preset.id);
+    });
+    commentaryGrid.appendChild(presetButton);
+  });
   const muteButton = document.createElement('button');
   muteButton.type = 'button';
   muteButton.className = 'config-option';
   muteButton.setAttribute('aria-pressed', String(commentaryMuted));
+  muteButton.disabled = !commentarySupported;
   if (commentaryMuted) {
     muteButton.classList.add('active');
   }

@@ -104,15 +104,71 @@ const AIR_HOCKEY_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'english',
     label: 'English',
-    description: 'Male voice, English',
+    description: 'Mixed voices, classic English',
     language: 'en',
     voiceHints: {
-      [AIR_HOCKEY_SPEAKERS.lead]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
-      [AIR_HOCKEY_SPEAKERS.analyst]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex']
+      [AIR_HOCKEY_SPEAKERS.lead]: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+      [AIR_HOCKEY_SPEAKERS.analyst]: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma']
     },
     speakerSettings: {
       [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
+    }
+  },
+  {
+    id: 'saffron-table',
+    label: 'Indian Table',
+    description: 'Hindi commentary with lively pacing',
+    language: 'hi',
+    voiceHints: {
+      [AIR_HOCKEY_SPEAKERS.lead]: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
+      [AIR_HOCKEY_SPEAKERS.analyst]: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha']
+    },
+    speakerSettings: {
+      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1.06, pitch: 1.02, volume: 1 },
+      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.08, volume: 1 }
+    }
+  },
+  {
+    id: 'moscow-mics',
+    label: 'Russian Booth',
+    description: 'Russian commentary with steady cadence',
+    language: 'ru',
+    voiceHints: {
+      [AIR_HOCKEY_SPEAKERS.lead]: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
+      [AIR_HOCKEY_SPEAKERS.analyst]: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga']
+    },
+    speakerSettings: {
+      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1.03, pitch: 1.02, volume: 1 }
+    }
+  },
+  {
+    id: 'latin-pulse',
+    label: 'Latin Pulse',
+    description: 'Spanish play-by-play with lively color',
+    language: 'es',
+    voiceHints: {
+      [AIR_HOCKEY_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
+      [AIR_HOCKEY_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila']
+    },
+    speakerSettings: {
+      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 1.05, pitch: 1, volume: 1 },
+      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.1, volume: 1 }
+    }
+  },
+  {
+    id: 'francophone-booth',
+    label: 'Francophone Booth',
+    description: 'French broadcast pairing',
+    language: 'fr',
+    voiceHints: {
+      [AIR_HOCKEY_SPEAKERS.lead]: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
+      [AIR_HOCKEY_SPEAKERS.analyst]: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte']
+    },
+    speakerSettings: {
+      [AIR_HOCKEY_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
+      [AIR_HOCKEY_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
   }
 ]);
@@ -467,7 +523,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
-  const [commentaryPresetId] = useState(() => {
+  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
       if (stored && AIR_HOCKEY_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
@@ -506,6 +562,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       AIR_HOCKEY_COMMENTARY_PRESETS[0],
     [commentaryPresetId]
   );
+  const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
   const initialProfile = useMemo(() => selectPerformanceProfile(activeGraphicsOption), [activeGraphicsOption]);
   const targetRef = useRef(Number(target) || 3);
   const gameOverRef = useRef(false);
@@ -2566,15 +2623,47 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
               <div>
                 <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary</p>
               </div>
+              <div className="mt-2 grid gap-2">
+                {AIR_HOCKEY_COMMENTARY_PRESETS.map((preset) => {
+                  const active = preset.id === commentaryPresetId;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setCommentaryPresetId(preset.id)}
+                      aria-pressed={active}
+                      disabled={!commentarySupported}
+                      className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                        active
+                          ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                          : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                      } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
+                        {active && (
+                          <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
+                            Active
+                          </span>
+                        )}
+                      </span>
+                      <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                        {preset.description}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
               <button
                 type="button"
                 onClick={() => setCommentaryMuted((prev) => !prev)}
                 aria-pressed={commentaryMuted}
+                disabled={!commentarySupported}
                 className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                   commentaryMuted
                     ? 'bg-sky-300 text-slate-900 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
                     : 'bg-white/10 text-white/80 hover:bg-white/20'
-                }`}
+                } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
               >
                 <span>Mute commentary</span>
                 <span
@@ -2585,6 +2674,11 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
                   {commentaryMuted ? 'On' : 'Off'}
                 </span>
               </button>
+              {!commentarySupported && (
+                <p className="mt-2 text-[0.65rem] text-white/60">
+                  Voice commentary needs Web Speech support.
+                </p>
+              )}
             </div>
             {renderOptionRow('Field Surface', 'field')}
             {renderOptionRow('Cushion Cloth', 'cushionCloth')}
