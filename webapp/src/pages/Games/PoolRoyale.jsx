@@ -5078,7 +5078,6 @@ const AI_CAMERA_SETTLE_MS = 320; // allow time for the cue view to settle before
 const AI_CAMERA_DROP_LEAD_MS =
   AI_CAMERA_DROP_DURATION_MS + AI_CAMERA_SETTLE_MS; // start lowering into cue view early enough to finish before the stroke begins
 const AI_CUE_VIEW_HOLD_MS = 180;
-const AI_SPIN_ADJUST_DELAY_MS = 2000;
 // Ease the AI camera just partway toward cue view (still above the stick) so the shot preview
 // lingers in a mid-angle frame for a few seconds before firing.
 const AI_CAMERA_DROP_BLEND = 0.65;
@@ -12548,7 +12547,7 @@ const powerRef = useRef(hud.power);
     const playerTurn = (hud.turn ?? 0) === 0;
     const placing = Boolean(hud.inHand && playerTurn);
     setInHandPlacementMode(placing);
-    if (hud.inHand) {
+    if (placing) {
       cueBallPlacedFromHandRef.current = false;
     }
   }, [hud.inHand, hud.turn]);
@@ -12566,7 +12565,6 @@ const powerRef = useRef(hud.power);
   const aiShotCueViewRef = useRef(false);
   const aiCueViewBlendRef = useRef(AI_CAMERA_DROP_BLEND);
   const aiRetryTimeoutRef = useRef(null);
-  const aiSpinAdjustRef = useRef(null);
   const aiShotWindowRef = useRef({ startedAt: 0, duration: AI_MIN_SHOT_TIME_MS });
   const [aiTakingShot, setAiTakingShot] = useState(false);
   const cameraBlendTweenRef = useRef(null);
@@ -12576,13 +12574,6 @@ const powerRef = useRef(hud.power);
       cameraBlendTweenRef.current = null;
     }
   }, []);
-  const cancelAiSpinAdjust = useCallback(() => {
-    if (aiSpinAdjustRef.current) {
-      cancelAnimationFrame(aiSpinAdjustRef.current);
-      aiSpinAdjustRef.current = null;
-    }
-  }, []);
-
   useEffect(() => () => {
     if (aiRetryTimeoutRef.current) {
       clearTimeout(aiRetryTimeoutRef.current);
@@ -12624,12 +12615,11 @@ const powerRef = useRef(hud.power);
       clearTimeout(aiShotCueDropTimeoutRef.current);
       aiShotCueDropTimeoutRef.current = null;
     }
-    cancelAiSpinAdjust();
     cancelCameraBlendTween();
     aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
     setAiShotPreviewActive(false);
     setAiShotCueViewActive(false);
-  }, [setAiShotPreviewActive, setAiShotCueViewActive, cancelCameraBlendTween, cancelAiSpinAdjust]);
+  }, [setAiShotPreviewActive, setAiShotCueViewActive, cancelCameraBlendTween]);
   const clearEarlyAiShot = useCallback(() => {
     const intent = aiEarlyShotIntentRef.current;
     if (intent?.timeout) {
@@ -21490,14 +21480,23 @@ const powerRef = useRef(hud.power);
             return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
-          const idlePos = buildCuePosition(0);
-          const pullPos = buildCuePosition(visualPull);
-          cueStick.position.copy(idlePos);
+          const startPos = buildCuePosition(visualPull);
+          cueStick.position.copy(startPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           cueStick.visible = true;
+          cueStick.position.copy(startPos);
           const powerStrength = THREE.MathUtils.clamp(clampedPower ?? 0, 0, 1);
           const forwardBlend = Math.pow(powerStrength, PLAYER_CUE_FORWARD_EASE);
+          const topspinFactor = Math.max(0, appliedSpin?.y ?? 0);
+          const baseFollowThrough =
+            CUE_FOLLOW_THROUGH_MIN + powerStrength * BALL_R * 0.45;
+          const spinFollowThrough = topspinFactor * powerStrength * BALL_R * 0.4;
+          const followThrough = Math.min(
+            CUE_FOLLOW_THROUGH_MAX,
+            Math.max(baseFollowThrough, spinFollowThrough)
+          );
+          const followThroughPos = buildCuePosition(-followThrough);
           const forwardDuration = isAiStroke
             ? AI_CUE_FORWARD_DURATION_MS
             : THREE.MathUtils.lerp(
@@ -21505,13 +21504,9 @@ const powerRef = useRef(hud.power);
                 PLAYER_CUE_FORWARD_MIN_MS,
                 forwardBlend
               );
-          const pullbackDuration = isAiStroke
-            ? AI_CUE_PULLBACK_DURATION_MS
-            : Math.max(120, forwardDuration * 0.65);
-          const settleDuration = isAiStroke ? 80 : 60;
+          const settleDuration = isAiStroke ? 40 : 50;
           const startTime = performance.now();
-          const pullEndTime = startTime + pullbackDuration;
-          const impactTime = pullEndTime + forwardDuration;
+          const impactTime = startTime + forwardDuration;
           const settleTime = impactTime + settleDuration;
           const forwardPreviewHold =
             impactTime +
@@ -21581,14 +21576,12 @@ const powerRef = useRef(hud.power);
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
             const strokeStartOffset = Math.max(0, startTime - (shotRecording.startTime ?? startTime));
             shotRecording.cueStroke = {
-              warmup: serializeVector3Snapshot(idlePos),
-              start: serializeVector3Snapshot(pullPos),
-              impact: serializeVector3Snapshot(idlePos),
-              settle: serializeVector3Snapshot(idlePos),
-              idle: serializeVector3Snapshot(idlePos),
+              warmup: serializeVector3Snapshot(startPos),
+              start: serializeVector3Snapshot(startPos),
+              impact: serializeVector3Snapshot(followThroughPos),
+              settle: serializeVector3Snapshot(followThroughPos),
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
-              pullbackDuration,
               forwardDuration,
               settleDuration,
               startOffset: strokeStartOffset
@@ -21596,20 +21589,14 @@ const powerRef = useRef(hud.power);
           }
           if (ENABLE_CUE_STROKE_ANIMATION) {
             const animateStroke = (now) => {
-              if (now <= pullEndTime) {
-                const t = pullbackDuration > 0
-                  ? THREE.MathUtils.clamp((now - startTime) / pullbackDuration, 0, 1)
-                  : 1;
-                const eased = easeOutCubic(t);
-                cueStick.position.lerpVectors(idlePos, pullPos, eased);
-              } else if (now <= impactTime) {
+              if (now <= impactTime) {
                 const t = forwardDuration > 0
-                  ? THREE.MathUtils.clamp((now - pullEndTime) / forwardDuration, 0, 1)
+                  ? THREE.MathUtils.clamp((now - startTime) / forwardDuration, 0, 1)
                   : 1;
                 const eased = easeOutCubic(t);
-                cueStick.position.lerpVectors(pullPos, idlePos, eased);
+                cueStick.position.lerpVectors(startPos, followThroughPos, eased);
               } else if (now <= settleTime) {
-                cueStick.position.copy(idlePos);
+                cueStick.position.copy(followThroughPos);
               } else {
                 cueStick.visible = false;
                 cueAnimating = false;
@@ -23234,39 +23221,6 @@ const powerRef = useRef(hud.power);
         startAiThinkingRef.current = startAiThinking;
         startUserSuggestionRef.current = updateUserSuggestion;
 
-        const animateAiSpinAdjustment = (targetSpin, durationMs, aimDir) => {
-          cancelAiSpinAdjust();
-          const startTime = performance.now();
-          const startSpin = spinRef.current ?? { x: 0, y: 0 };
-          const resolvedTarget = {
-            x: targetSpin?.x ?? 0,
-            y: targetSpin?.y ?? 0
-          };
-          const resolvedAim = aimDir?.clone?.() ?? aimDirRef.current?.clone?.();
-          const fallbackAim = resolvedAim && resolvedAim.lengthSq?.() > 1e-6
-            ? resolvedAim
-            : new THREE.Vector2(0, 1);
-          const animate = (now) => {
-            const t = durationMs > 0
-              ? THREE.MathUtils.clamp((now - startTime) / durationMs, 0, 1)
-              : 1;
-            const eased = 1 - Math.pow(1 - t, 3);
-            const nextSpin = {
-              x: THREE.MathUtils.lerp(startSpin.x ?? 0, resolvedTarget.x, eased),
-              y: THREE.MathUtils.lerp(startSpin.y ?? 0, resolvedTarget.y, eased)
-            };
-            spinRequestRef.current = nextSpin;
-            spinRef.current = nextSpin;
-            applySpinConstraints(fallbackAim, true);
-            if (t < 1) {
-              aiSpinAdjustRef.current = requestAnimationFrame(animate);
-            } else {
-              aiSpinAdjustRef.current = null;
-            }
-          };
-          aiSpinAdjustRef.current = requestAnimationFrame(animate);
-        };
-
         aiShoot.current = () => {
           if (!aiOpponentEnabled) return;
           if (aiRetryTimeoutRef.current) {
@@ -23346,9 +23300,9 @@ const powerRef = useRef(hud.power);
             powerRef.current = aiPower;
             setHud((s) => ({ ...s, power: aiPower }));
             const spinToApply = plan.spin ?? { x: 0, y: 0 };
-            spinRef.current = { x: 0, y: 0 };
-            spinRequestRef.current = { x: 0, y: 0 };
-            applySpinConstraints(dir, true);
+            spinRef.current = { ...spinToApply };
+            spinRequestRef.current = { ...spinToApply };
+            resetSpinRef.current?.();
             if (aiShotTimeoutRef.current) {
               clearTimeout(aiShotTimeoutRef.current);
               aiShotTimeoutRef.current = null;
@@ -23361,14 +23315,13 @@ const powerRef = useRef(hud.power);
             const dropDelay = Math.max(0, previewDelayMs - AI_CAMERA_DROP_LEAD_MS);
             const shotDelay = Math.max(
               previewDelayMs,
-              dropDelay + AI_CAMERA_SETTLE_MS + AI_CUE_VIEW_HOLD_MS + AI_SPIN_ADJUST_DELAY_MS
+              dropDelay + AI_CAMERA_SETTLE_MS + AI_CUE_VIEW_HOLD_MS
             );
             const beginCueView = () => {
               setAiShotCueViewActive(true);
               setAiShotPreviewActive(false);
               aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
               tweenCameraBlend(aiCueViewBlendRef.current, AI_CAMERA_DROP_DURATION_MS);
-              animateAiSpinAdjustment(spinToApply, AI_SPIN_ADJUST_DELAY_MS, dir);
               if (aiShotTimeoutRef.current) {
                 clearTimeout(aiShotTimeoutRef.current);
               }
