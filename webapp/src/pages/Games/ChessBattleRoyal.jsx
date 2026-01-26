@@ -41,6 +41,7 @@ import {
   CHESS_CHAIR_OPTIONS,
   CHESS_TABLE_OPTIONS
 } from '../../config/chessBattleInventoryConfig.js';
+import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import {
   chessBattleAccountId,
   getChessBattleInventory,
@@ -225,7 +226,7 @@ const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.28;
 const PIECE_SCALE_FACTOR = 0.92;
 const PIECE_FOOTPRINT_RATIO = 0.86;
-const BOARD_GROUP_Y_OFFSET = -0.09;
+const BOARD_GROUP_Y_OFFSET = 0;
 const BOARD_MODEL_Y_OFFSET = -0.12;
 const BOARD_VISUAL_Y_OFFSET = -0.08;
 const BOARD_SURFACE_DROP = 0.05;
@@ -1611,6 +1612,14 @@ function alignGroupToFloorY(group, floorY = 0) {
   return offset;
 }
 
+function alignBoardGroupToTableSurface(boardGroup, tableInfo) {
+  if (!boardGroup) return 0;
+  const surfaceY = Number.isFinite(tableInfo?.surfaceY)
+    ? tableInfo.surfaceY
+    : TABLE_HEIGHT;
+  return alignGroupToFloorY(boardGroup, surfaceY + BOARD_GROUP_Y_OFFSET);
+}
+
 function alignArenaContentsToRoom(groups = [], roomHalfWidth, roomHalfDepth) {
   const box = new THREE.Box3();
   let hasObject = false;
@@ -1678,6 +1687,7 @@ const FALLBACK_FLAG = '🇺🇸';
 const DEFAULT_APPEARANCE = {
   chairColor: 0,
   tables: 0,
+  tableFinish: 0,
   boardColor: 0,
   whitePieceStyle: 0,
   blackPieceStyle: 1,
@@ -1688,7 +1698,9 @@ const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
 const CHAIR_COLOR_OPTIONS = Object.freeze([...CHESS_CHAIR_OPTIONS]);
 const TABLE_THEME_OPTIONS = Object.freeze([...CHESS_TABLE_OPTIONS]);
 
-const DEFAULT_WOOD_OPTION = TABLE_WOOD_OPTIONS[0];
+const TABLE_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES]);
+const DEFAULT_TABLE_FINISH = TABLE_FINISH_OPTIONS[0];
+const DEFAULT_WOOD_OPTION = DEFAULT_TABLE_FINISH?.woodOption ?? TABLE_WOOD_OPTIONS[0];
 const DEFAULT_CLOTH_OPTION = TABLE_CLOTH_OPTIONS[0];
 const DEFAULT_BASE_OPTION = TABLE_BASE_OPTIONS[0];
 const DEFAULT_TABLE_SHAPE_OPTION =
@@ -1698,6 +1710,7 @@ const PRESERVE_NATIVE_PIECE_IDS = new Set([BEAUTIFUL_GAME_SWAP_SET_ID]);
 
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tables', label: 'Table Model', options: TABLE_THEME_OPTIONS },
+  { key: 'tableFinish', label: 'Table Finish', options: TABLE_FINISH_OPTIONS },
   { key: 'chairColor', label: 'Chairs', options: CHAIR_COLOR_OPTIONS },
   { key: 'environmentHdri', label: 'HDR Environment', options: CHESS_HDRI_OPTIONS }
 ];
@@ -1709,6 +1722,7 @@ function normalizeAppearance(value = {}) {
     : null;
   const entries = [
     ['tables', TABLE_THEME_OPTIONS.length],
+    ['tableFinish', TABLE_FINISH_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
     ['environmentHdri', CHESS_HDRI_OPTIONS.length]
   ];
@@ -6251,6 +6265,7 @@ function Chess3D({
       const normalized = normalizeAppearance(value);
       const map = {
         tables: TABLE_THEME_OPTIONS,
+        tableFinish: TABLE_FINISH_OPTIONS,
         chairColor: CHAIR_COLOR_OPTIONS,
         environmentHdri: CHESS_HDRI_OPTIONS
       };
@@ -6313,6 +6328,17 @@ function Chess3D({
         );
       }
       return <span className={swatchClass} style={{ background: '#4b5563' }} />;
+    }
+    if (key === 'tableFinish') {
+      const swatches = Array.isArray(option.swatches) && option.swatches.length >= 2
+        ? option.swatches
+        : [option.swatches?.[0] || '#7c5e45', option.swatches?.[1] || '#3f2e23'];
+      return (
+        <span
+          className={swatchClass}
+          style={{ background: `linear-gradient(90deg, ${swatches[0]}, ${swatches[1]})` }}
+        />
+      );
     }
     if (key === 'chairColor') {
       return dualSwatch(option.primary || '#1f2937', option.accent || option.highlight || '#38bdf8');
@@ -6777,7 +6803,8 @@ function Chess3D({
       PIECE_STYLE_OPTIONS[normalized.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
     const nextPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
     const isBeautifulGameSet = (arena.activePieceSetId || nextPieceSetId || '').startsWith('beautifulGame');
-    const woodOption = DEFAULT_WOOD_OPTION;
+    const tableFinish = TABLE_FINISH_OPTIONS[normalized.tableFinish] ?? DEFAULT_TABLE_FINISH;
+    const woodOption = tableFinish?.woodOption ?? DEFAULT_WOOD_OPTION;
     const clothOption = DEFAULT_CLOTH_OPTION;
     const baseOption = DEFAULT_BASE_OPTION;
     const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
@@ -6826,8 +6853,8 @@ function Chess3D({
           nextTable.surfaceY += tableFloorOffset;
         }
         if (boardGroup && nextTable?.group) {
-          boardGroup.position.set(0, nextTable.surfaceY + 0.004 + BOARD_GROUP_Y_OFFSET, 0);
           nextTable.group.add(boardGroup);
+          alignBoardGroupToTableSurface(boardGroup, nextTable);
         }
         arena.tableInfo?.dispose?.();
         arena.tableInfo = nextTable;
@@ -7072,7 +7099,9 @@ function Chess3D({
         (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
       const initialAiFlagValue =
         aiFlag || initialAiFlag || getAIOpponentFlag(initialPlayerFlag || FALLBACK_FLAG);
-      const woodOption = DEFAULT_WOOD_OPTION;
+      const tableFinish =
+        TABLE_FINISH_OPTIONS[normalizedAppearance.tableFinish] ?? DEFAULT_TABLE_FINISH;
+      const woodOption = tableFinish?.woodOption ?? DEFAULT_WOOD_OPTION;
       const clothOption = DEFAULT_CLOTH_OPTION;
       const baseOption = DEFAULT_BASE_OPTION;
       const chairOption = CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
@@ -7444,9 +7473,9 @@ function Chess3D({
 
     const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
     const boardGroup = new THREE.Group();
-    boardGroup.position.set(0, tableSurfaceY + 0.004 + BOARD_GROUP_Y_OFFSET, 0);
     boardGroup.scale.setScalar(BOARD_SCALE);
     tableInfo.group.add(boardGroup);
+    alignBoardGroupToTableSurface(boardGroup, tableInfo);
     const boardVisualGroup = new THREE.Group();
     boardVisualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
     boardGroup.add(boardVisualGroup);
@@ -8130,6 +8159,7 @@ function Chess3D({
         setProceduralBoardVisible();
         currentBoardModel = null;
       }
+      alignBoardGroupToTableSurface(boardGroup, arenaRef.current?.tableInfo ?? tableInfo);
       if (piecePrototypes) {
         currentPiecePrototypes = piecePrototypes;
         if (!preserveOriginalMaterials) {
