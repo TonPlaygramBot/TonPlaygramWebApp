@@ -1075,9 +1075,7 @@
       if (preset.id === commentaryPresetId) {
         button.classList.add('active');
       }
-      button.disabled = !commentarySupported;
       button.addEventListener('click', () => {
-        if (!commentarySupported) return;
         commentaryPresetId = preset.id;
         try { localStorage.setItem(COMMENTARY_PRESET_STORAGE_KEY, preset.id); } catch {}
         populateCommentaryOptions();
