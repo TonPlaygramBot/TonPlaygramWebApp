@@ -968,15 +968,71 @@ const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'english',
     label: 'English',
-    description: 'Male play-by-play in English.',
+    description: 'Mixed voices, classic English',
     language: 'en',
     voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['en-GB', 'en-US', 'english', 'male', 'google'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['en-GB', 'en-US', 'english', 'male', 'google']
+      [COMMENTARY_SPEAKER_LEAD]: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma']
     },
     speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 0.98, pitch: 0.92, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.02, pitch: 0.98, volume: 0.98 }
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 1, pitch: 0.96, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.04, pitch: 1.06, volume: 1 }
+    }
+  },
+  {
+    id: 'saffron-table',
+    label: 'Indian Table',
+    description: 'Hindi commentary with lively pacing',
+    language: 'hi',
+    voiceHints: {
+      [COMMENTARY_SPEAKER_LEAD]: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha']
+    },
+    speakerSettings: {
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 1.06, pitch: 1.02, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.08, pitch: 1.08, volume: 1 }
+    }
+  },
+  {
+    id: 'moscow-mics',
+    label: 'Russian Booth',
+    description: 'Russian commentary with steady cadence',
+    language: 'ru',
+    voiceHints: {
+      [COMMENTARY_SPEAKER_LEAD]: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga']
+    },
+    speakerSettings: {
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 1, pitch: 0.95, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.03, pitch: 1.02, volume: 1 }
+    }
+  },
+  {
+    id: 'latin-pulse',
+    label: 'Latin Pulse',
+    description: 'Spanish play-by-play with lively color',
+    language: 'es',
+    voiceHints: {
+      [COMMENTARY_SPEAKER_LEAD]: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila']
+    },
+    speakerSettings: {
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 1.05, pitch: 1, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.08, pitch: 1.1, volume: 1 }
+    }
+  },
+  {
+    id: 'francophone-booth',
+    label: 'Francophone Booth',
+    description: 'French broadcast pairing',
+    language: 'fr',
+    voiceHints: {
+      [COMMENTARY_SPEAKER_LEAD]: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
+      [COMMENTARY_SPEAKER_ANALYST]: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte']
+    },
+    speakerSettings: {
+      [COMMENTARY_SPEAKER_LEAD]: { rate: 0.98, pitch: 0.96, volume: 1 },
+      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
   }
 ]);
@@ -10723,7 +10779,7 @@ function SnookerRoyalGame({
     }
     return false;
   });
-  const [commentaryPresetId] = useState(() => {
+  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = safeLocalStorageGet(COMMENTARY_PRESET_STORAGE_KEY);
       if (stored && SNOOKER_ROYAL_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
@@ -25890,6 +25946,37 @@ const powerRef = useRef(hud.power);
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Commentary
                 </h3>
+                <div className="mt-2 grid gap-2">
+                  {SNOOKER_ROYAL_COMMENTARY_PRESETS.map((preset) => {
+                    const active = preset.id === commentaryPresetId;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => setCommentaryPresetId(preset.id)}
+                        aria-pressed={active}
+                        disabled={!commentarySupported}
+                        className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/15 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
+                            : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                        } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
+                          {active && (
+                            <span className="rounded-full border border-emerald-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-emerald-100">
+                              Active
+                            </span>
+                          )}
+                        </span>
+                        <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                          {preset.description}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
                 <button
                   type="button"
                   onClick={() => setCommentaryMuted((prev) => !prev)}

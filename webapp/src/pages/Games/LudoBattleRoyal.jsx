@@ -433,15 +433,71 @@ const LUDO_BATTLE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'english',
     label: 'English',
-    description: 'Male voice, English',
+    description: 'Mixed voices, classic English',
     language: 'en',
     voiceHints: {
-      [LUDO_BATTLE_SPEAKERS.lead]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
-      [LUDO_BATTLE_SPEAKERS.analyst]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex']
+      [LUDO_BATTLE_SPEAKERS.lead]: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma']
     },
     speakerSettings: {
       [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
+    }
+  },
+  {
+    id: 'saffron-table',
+    label: 'Indian Table',
+    description: 'Hindi commentary with lively pacing',
+    language: 'hi',
+    voiceHints: {
+      [LUDO_BATTLE_SPEAKERS.lead]: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha']
+    },
+    speakerSettings: {
+      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1.06, pitch: 1.02, volume: 1 },
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.08, volume: 1 }
+    }
+  },
+  {
+    id: 'moscow-mics',
+    label: 'Russian Booth',
+    description: 'Russian commentary with steady cadence',
+    language: 'ru',
+    voiceHints: {
+      [LUDO_BATTLE_SPEAKERS.lead]: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga']
+    },
+    speakerSettings: {
+      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.03, pitch: 1.02, volume: 1 }
+    }
+  },
+  {
+    id: 'latin-pulse',
+    label: 'Latin Pulse',
+    description: 'Spanish play-by-play with lively color',
+    language: 'es',
+    voiceHints: {
+      [LUDO_BATTLE_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila']
+    },
+    speakerSettings: {
+      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 1.05, pitch: 1, volume: 1 },
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.1, volume: 1 }
+    }
+  },
+  {
+    id: 'francophone-booth',
+    label: 'Francophone Booth',
+    description: 'French broadcast pairing',
+    language: 'fr',
+    voiceHints: {
+      [LUDO_BATTLE_SPEAKERS.lead]: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
+      [LUDO_BATTLE_SPEAKERS.analyst]: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte']
+    },
+    speakerSettings: {
+      [LUDO_BATTLE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
+      [LUDO_BATTLE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
   }
 ]);
@@ -2651,7 +2707,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, [resolvedAccountId]);
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(() => !isGameMuted());
-  const [commentaryPresetId] = useState(() => {
+  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage?.getItem(COMMENTARY_PRESET_STORAGE_KEY);
       if (stored && LUDO_BATTLE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
@@ -5502,6 +5558,37 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                       <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">
                         Commentary
                       </h3>
+                      <div className="mt-2 grid gap-2">
+                        {LUDO_BATTLE_COMMENTARY_PRESETS.map((preset) => {
+                          const active = preset.id === commentaryPresetId;
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() => setCommentaryPresetId(preset.id)}
+                              aria-pressed={active}
+                              disabled={!commentarySupported}
+                              className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                active
+                                  ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                                  : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                              } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                            >
+                              <span className="flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
+                                {active && (
+                                  <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
+                                    Active
+                                  </span>
+                                )}
+                              </span>
+                              <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                                {preset.description}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
                       <button
                         type="button"
                         onClick={() => setCommentaryMuted((prev) => !prev)}
