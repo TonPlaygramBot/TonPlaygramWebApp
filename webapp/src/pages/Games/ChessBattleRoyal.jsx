@@ -6363,25 +6363,6 @@ function Chess3D({
   const activeCustomizationSection =
     customizationSections.find(({ key }) => key === activeCustomizationKey) ?? customizationSections[0];
 
-  const handleZoom = useCallback((direction) => {
-    const arena = arenaRef.current;
-    const controls = controlsRef.current;
-    if (!arena?.camera || !arena?.boardLookTarget) return;
-    const camera = arena.camera;
-    const target = arena.boardLookTarget;
-    const minDistance = controls?.minDistance ?? CAMERA_3D_MIN_RADIUS;
-    const maxDistance = controls?.maxDistance ?? CAMERA_3D_MAX_RADIUS;
-    const currentRadius = camera.position.distanceTo(target);
-    const step = Math.max(0.1, (maxDistance - minDistance) * 0.12);
-    const nextRadius = clamp(currentRadius + direction * step, minDistance, maxDistance);
-    const dir = camera.position.clone().sub(target).normalize();
-    camera.position.copy(target).addScaledVector(dir, nextRadius);
-    camera.lookAt(target);
-    controls?.update();
-    controls?.dispatchEvent?.({ type: 'change' });
-    arena.syncSkyboxToCamera?.();
-  }, []);
-
   const updateSandTimerPlacement = useCallback(
     (_turnWhiteValue = uiRef.current?.turnWhite ?? true) => {
       const arena = arenaRef.current;
@@ -9162,9 +9143,30 @@ function Chess3D({
     <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
-          <div className="pointer-events-none rounded bg-white/10 px-3 py-2 text-xs">
-            <div className="font-semibold">{ui.status}</div>
-          </div>
+          <button
+            type="button"
+            onClick={() => setConfigOpen((open) => !open)}
+            aria-expanded={configOpen}
+            className="pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className="h-6 w-6"
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
+              />
+            </svg>
+            <span className="sr-only">Open chess settings</span>
+          </button>
           {onlineStatus !== 'offline' && (
             <div className="pointer-events-none rounded border border-emerald-300/40 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-100/90 shadow-lg backdrop-blur">
               <div className="font-semibold uppercase tracking-wide text-[10px]">Online Match</div>
@@ -9180,41 +9182,13 @@ function Chess3D({
           )}
         </div>
         <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
-          <div className="pointer-events-auto flex gap-2">
-            <button
-              type="button"
-              onClick={() => setConfigOpen((open) => !open)}
-              aria-expanded={configOpen}
-              className={`flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                configOpen ? 'bg-black/60' : 'hover:bg-black/60'
-              }`}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="h-6 w-6"
-                aria-hidden="true"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
-                />
-              </svg>
-              <span className="sr-only">Open chess settings</span>
-            </button>
+          <div className="pointer-events-auto flex flex-col items-end gap-3">
             <button
               type="button"
               onClick={() => replayLastMoveRef.current?.()}
               disabled={!canReplay}
-              className={`flex h-12 w-12 items-center justify-center rounded-full border shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                canReplay
-                  ? 'border-emerald-300/40 bg-emerald-400/20 text-white hover:bg-emerald-400/25'
-                  : 'border-white/10 bg-white/5 text-white/50 cursor-not-allowed'
+              className={`flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 focus:outline-none ${
+                canReplay ? 'hover:text-white' : 'cursor-not-allowed text-white/40'
               }`}
             >
               <svg
@@ -9237,28 +9211,10 @@ function Chess3D({
             <button
               type="button"
               onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
-              className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 px-3 text-[0.8rem] font-semibold uppercase tracking-[0.08em] text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              className="flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             >
               {viewMode === '3d' ? '2D' : '3D'}
             </button>
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => handleZoom(-1)}
-                aria-label="Zoom in"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/70 text-lg font-semibold text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-              >
-                +
-              </button>
-              <button
-                type="button"
-                onClick={() => handleZoom(1)}
-                aria-label="Zoom out"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/70 text-lg font-semibold text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-              >
-                −
-              </button>
-            </div>
           </div>
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
@@ -9573,18 +9529,28 @@ function Chess3D({
         </div>
         <div className="pointer-events-auto">
           <BottomLeftIcons
-            onInfo={() => setShowInfo(true)}
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
-            className="fixed left-3 bottom-4 z-50 flex flex-col gap-2.5"
-            buttonClassName="pointer-events-auto flex h-[3.15rem] w-[3.15rem] flex-col items-center justify-center gap-1 rounded-[14px] border border-white/20 bg-black/60 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur"
-            iconClassName="text-[1.1rem] leading-none"
-            labelClassName="text-[0.6rem] font-extrabold uppercase tracking-[0.08em]"
+            showInfo={false}
+            showMute={false}
+            className="fixed left-3 bottom-4 z-50 flex flex-col gap-4"
+            buttonClassName="pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
+            iconClassName="text-[1.5rem] leading-none"
+            labelClassName="sr-only"
             chatIcon="💬"
             giftIcon="🎁"
-            infoIcon="ℹ️"
+          />
+          <BottomLeftIcons
+            showInfo={false}
+            showChat={false}
+            showGift={false}
+            className="fixed right-3 bottom-4 z-50 flex flex-col"
+            buttonClassName="pointer-events-auto flex h-10 w-10 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
+            iconClassName="text-[1.5rem] leading-none"
+            labelClassName="sr-only"
             muteIconOn="🔇"
             muteIconOff="🔊"
+            order={['mute']}
           />
         </div>
         <div className="absolute inset-0 z-10 pointer-events-none">
