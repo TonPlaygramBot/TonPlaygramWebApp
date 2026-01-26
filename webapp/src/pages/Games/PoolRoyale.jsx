@@ -10158,15 +10158,6 @@ export function Table3D(
     table.userData.pockets.push(marker);
   });
 
-  pocketMeshes.forEach((mesh) => {
-    const lift = mesh?.userData?.verticalLift || 0;
-    mesh.position.y = pocketTopY - TABLE.THICK / 2 + lift;
-  });
-
-  alignRailsToCushions(table, railsGroup, finishParts.railMeshes);
-  table.updateMatrixWorld(true);
-  updateRailLimitsFromTable(table);
-
   const mappingLineLift = Math.max(MICRO_EPS * 8, TABLE.THICK * 0.002);
   const mappingLineY = clothPlaneWorld + mappingLineLift;
   const mappingGroup = new THREE.Group();
@@ -10208,36 +10199,7 @@ export function Table3D(
     new THREE.Vector3(-halfW, mappingLineY, halfH)
   ];
   registerMappingLine(makeLine(fieldPoints, fieldLineMaterial, true));
-
-  const addCutSegment = (origin, direction, pocketCenter, radius) => {
-    if (!origin || !direction || !pocketCenter || !Number.isFinite(radius)) return;
-    const dir = direction.clone().normalize();
-    const toCenter = pocketCenter.clone().sub(origin);
-    const proj = toCenter.dot(dir);
-    const closest = origin.clone().add(dir.clone().multiplyScalar(proj));
-    const distSq = closest.distanceToSquared(pocketCenter);
-    const radiusSq = radius * radius;
-    if (distSq > radiusSq) return;
-    const offset = Math.sqrt(radiusSq - distSq);
-    const candidates = [proj - offset, proj + offset].filter((t) => t >= 0);
-    if (!candidates.length) return;
-    const tHit = Math.min(...candidates);
-    const end = origin.clone().add(dir.clone().multiplyScalar(tHit));
-    registerMappingLine(
-      makeLine(
-        [
-          new THREE.Vector3(origin.x, mappingLineY, origin.y),
-          new THREE.Vector3(end.x, mappingLineY, end.y)
-        ],
-        cushionLineMaterial
-      )
-    );
-  };
-
   if (table.userData?.cushions?.length) {
-    const horizontalEnds = { top: null, bottom: null };
-    const verticalEnds = { left: [], right: [] };
-
     table.userData.cushions.forEach((cushion) => {
       if (!cushion) return;
       const data = cushion.userData || {};
@@ -10245,100 +10207,21 @@ export function Table3D(
       const box = new THREE.Box3().setFromObject(cushion);
       if (data.horizontal) {
         const innerZ = data.side < 0 ? box.max.z : box.min.z;
-        const endpoints = {
-          left: new THREE.Vector2(box.min.x, innerZ),
-          right: new THREE.Vector2(box.max.x, innerZ)
-        };
-        const key = data.side < 0 ? 'bottom' : 'top';
-        horizontalEnds[key] = endpoints;
         const points = [
-          new THREE.Vector3(endpoints.left.x, mappingLineY, endpoints.left.y),
-          new THREE.Vector3(endpoints.right.x, mappingLineY, endpoints.right.y)
+          new THREE.Vector3(box.min.x, mappingLineY, innerZ),
+          new THREE.Vector3(box.max.x, mappingLineY, innerZ)
         ];
         registerMappingLine(makeLine(points, cushionLineMaterial));
       } else {
         const innerX = data.side < 0 ? box.max.x : box.min.x;
-        const endpoints = {
-          min: new THREE.Vector2(innerX, box.min.z),
-          max: new THREE.Vector2(innerX, box.max.z)
-        };
-        const sideKey = data.side < 0 ? 'left' : 'right';
-        verticalEnds[sideKey].push(endpoints);
         const points = [
-          new THREE.Vector3(endpoints.min.x, mappingLineY, endpoints.min.y),
-          new THREE.Vector3(endpoints.max.x, mappingLineY, endpoints.max.y)
+          new THREE.Vector3(innerX, mappingLineY, box.min.z),
+          new THREE.Vector3(innerX, mappingLineY, box.max.z)
         ];
         registerMappingLine(makeLine(points, cushionLineMaterial));
       }
     });
-
-    const resolveVerticalCornerEnd = (sideKey, signZ) => {
-      const candidates = verticalEnds[sideKey] || [];
-      if (!candidates.length) return null;
-      let best = null;
-      candidates.forEach((entry) => {
-        const corner =
-          Math.abs(entry.max.y) >= Math.abs(entry.min.y) ? entry.max : entry.min;
-        if (Math.sign(corner.y) !== signZ) return;
-        best = corner;
-      });
-      return best;
-    };
-
-    const cornerPocketCenters = pocketCenters().slice(0, 4);
-    const cornerSigns = [
-      { sx: -1, sy: -1, key: 'bottom', sideKey: 'left', pocketIndex: 0 },
-      { sx: 1, sy: -1, key: 'bottom', sideKey: 'right', pocketIndex: 1 },
-      { sx: -1, sy: 1, key: 'top', sideKey: 'left', pocketIndex: 2 },
-      { sx: 1, sy: 1, key: 'top', sideKey: 'right', pocketIndex: 3 }
-    ];
-    const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-    const cornerCos = Math.cos(cornerRad);
-    const cornerSin = Math.sin(cornerRad);
-    cornerSigns.forEach(({ sx, sy, key, sideKey, pocketIndex }) => {
-      const horizontal = horizontalEnds[key];
-      const horizontalEnd = horizontal ? (sx < 0 ? horizontal.left : horizontal.right) : null;
-      const verticalEnd = resolveVerticalCornerEnd(sideKey, sy);
-      if (horizontalEnd && verticalEnd) {
-        registerMappingLine(
-          makeLine(
-            [
-              new THREE.Vector3(horizontalEnd.x, mappingLineY, horizontalEnd.y),
-              new THREE.Vector3(verticalEnd.x, mappingLineY, verticalEnd.y)
-            ],
-            cushionLineMaterial
-          )
-        );
-      }
-      const origin = new THREE.Vector2(sx * RAIL_LIMIT_X, sy * RAIL_LIMIT_Y);
-      const normal = new THREE.Vector2(-sx * cornerCos, -sy * cornerSin);
-      let tangent = new THREE.Vector2(-normal.y, normal.x);
-      const center = cornerPocketCenters[pocketIndex];
-      if (center) {
-        const towardPocket = center.clone().sub(origin);
-        if (towardPocket.dot(tangent) < 0) tangent.multiplyScalar(-1);
-        addCutSegment(origin, tangent, center, POCKET_GUARD_RADIUS);
-      }
-    });
-
-    const sidePocketCenters = getSidePocketCenters();
-    const sideCutRad = THREE.MathUtils.degToRad(SIDE_POCKET_PHYSICS_CUT_ANGLE);
-    const sideCutCos = Math.cos(sideCutRad);
-    const sideCutSin = Math.sin(sideCutRad);
-    sidePocketCenters.forEach((center) => {
-      if (!center) return;
-      const signX = center.x >= 0 ? 1 : -1;
-      for (const signY of SIDE_POCKET_CUT_SIGNS) {
-        const origin = new THREE.Vector2(signX * RAIL_LIMIT_X, center.y + signY * SIDE_POCKET_SPAN);
-        const normal = new THREE.Vector2(-signX * sideCutCos, signY * sideCutSin);
-        let tangent = new THREE.Vector2(-normal.y, normal.x);
-        const towardPocket = center.clone().sub(origin);
-        if (towardPocket.dot(tangent) < 0) tangent.multiplyScalar(-1);
-        addCutSegment(origin, tangent, center, SIDE_POCKET_GUARD_RADIUS);
-      }
-    });
   }
-
   table.userData.pockets.forEach((marker) => {
     if (!marker) return;
     const radius = marker.userData?.captureRadius ?? CAPTURE_R;
@@ -10357,6 +10240,15 @@ export function Table3D(
     registerMappingLine(makeLine(points, pocketLineMaterial, true));
   });
   table.add(mappingGroup);
+
+  pocketMeshes.forEach((mesh) => {
+    const lift = mesh?.userData?.verticalLift || 0;
+    mesh.position.y = pocketTopY - TABLE.THICK / 2 + lift;
+  });
+
+  alignRailsToCushions(table, railsGroup, finishParts.railMeshes);
+  table.updateMatrixWorld(true);
+  updateRailLimitsFromTable(table);
 
   table.position.y = TABLE_Y;
   table.userData.cushionTopLocal = cushionTopLocal;
