@@ -1,6 +1,6 @@
-const BASE_TABLE_SCALE = 1.46;
-const BASE_TABLE_MOBILE_SCALE = 1.52;
-const BASE_TABLE_COMPACT_SCALE = 1.36;
+const BASE_TABLE_SCALE = 2.88;
+const BASE_TABLE_MOBILE_SCALE = 2.88;
+const BASE_TABLE_COMPACT_SCALE = 2.88;
 const BASE_PLAYFIELD_WIDTH_MM = 3556; // reference 12 ft match table width
 
 const TABLE_PHYSICAL_SPECS = Object.freeze({
@@ -8,31 +8,31 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
     id: '12ft',
     label: '12 ft (Championship)',
     playfield: Object.freeze({ widthMm: 3556, heightMm: 1778 }), // 12' x 6'
-    ballDiameterMm: 52.5,
+    ballDiameterMm: 57.15,
     pocketMouthMm: Object.freeze({
       corner: 114.3,
       side: 127
     }),
     cushionCutAngleDeg: 27,
-    sideCushionCutAngleDeg: 45,
+    sideCushionCutAngleDeg: 27,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
     scaleOverrides: Object.freeze({
-      scale: 1.56,
-      mobileScale: 1.68,
-      compactScale: 1.48
+      scale: 3.12,
+      mobileScale: 3.44,
+      compactScale: 2.96
     })
   },
   '10ft': {
     id: '10ft',
     label: '10 ft (Club)',
     playfield: Object.freeze({ widthMm: 3048, heightMm: 1524 }), // 10' x 5'
-    ballDiameterMm: 52.5,
+    ballDiameterMm: 57.15,
     pocketMouthMm: Object.freeze({
       corner: 114.3,
       side: 127
     }),
     cushionCutAngleDeg: 27,
-    sideCushionCutAngleDeg: 45,
+    sideCushionCutAngleDeg: 27,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
   }
 });
