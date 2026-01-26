@@ -21587,12 +21587,6 @@ const powerRef = useRef(hud.power);
           };
           const idlePos = buildCuePosition(0);
           const pullPos = buildCuePosition(visualPull);
-          const followThroughTarget = Math.max(
-            CUE_FOLLOW_THROUGH_MIN,
-            Math.min(CUE_FOLLOW_THROUGH_MAX, visualPull * 0.28)
-          );
-          const impactPos = buildCuePosition(-followThroughTarget);
-          const settlePos = buildCuePosition(-followThroughTarget * 0.35);
           cueStick.position.copy(idlePos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
@@ -21608,14 +21602,12 @@ const powerRef = useRef(hud.power);
               );
           const pullbackDuration = isAiStroke
             ? AI_CUE_PULLBACK_DURATION_MS
-            : Math.max(180, forwardDuration);
+            : Math.max(120, forwardDuration * 0.65);
           const settleDuration = isAiStroke ? 80 : 60;
-          const returnDuration = REPLAY_CUE_RETURN_WINDOW_MS;
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
           const impactTime = pullEndTime + forwardDuration;
           const settleTime = impactTime + settleDuration;
-          const returnTime = settleTime + returnDuration;
           const forwardPreviewHold =
             impactTime +
             Math.min(
@@ -21686,37 +21678,51 @@ const powerRef = useRef(hud.power);
             shotRecording.cueStroke = {
               warmup: serializeVector3Snapshot(idlePos),
               start: serializeVector3Snapshot(pullPos),
-              impact: serializeVector3Snapshot(impactPos),
-              settle: serializeVector3Snapshot(settlePos),
+              impact: serializeVector3Snapshot(idlePos),
+              settle: serializeVector3Snapshot(idlePos),
               idle: serializeVector3Snapshot(idlePos),
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
               pullbackDuration,
               forwardDuration,
               settleDuration,
-              returnDuration,
               startOffset: strokeStartOffset
             };
           }
           if (ENABLE_CUE_STROKE_ANIMATION) {
-            cueStrokeStateRef.current = {
-              startTime,
-              pullEndTime,
-              impactTime,
-              settleTime,
-              returnTime,
-              warmupPos: idlePos.clone(),
-              startPos: pullPos.clone(),
-              impactPos: impactPos.clone(),
-              settlePos: settlePos.clone(),
-              idlePos: idlePos.clone(),
-              pullbackDuration,
-              forwardDuration,
-              settleDuration,
-              returnDuration,
-              shotApplied: true,
-              onImpact: null
+            const animateStroke = (now) => {
+              if (now <= pullEndTime) {
+                const t = pullbackDuration > 0
+                  ? THREE.MathUtils.clamp((now - startTime) / pullbackDuration, 0, 1)
+                  : 1;
+                const eased = easeOutCubic(t);
+                cueStick.position.lerpVectors(idlePos, pullPos, eased);
+              } else if (now <= impactTime) {
+                const t = forwardDuration > 0
+                  ? THREE.MathUtils.clamp((now - pullEndTime) / forwardDuration, 0, 1)
+                  : 1;
+                const eased = easeOutCubic(t);
+                cueStick.position.lerpVectors(pullPos, idlePos, eased);
+              } else if (now <= settleTime) {
+                cueStick.position.copy(idlePos);
+              } else {
+                cueStick.visible = false;
+                cueAnimating = false;
+                cuePullCurrentRef.current = 0;
+                cuePullTargetRef.current = 0;
+                if (cameraRef.current && sphRef.current) {
+                  topViewRef.current = false;
+                  topViewLockedRef.current = false;
+                  setIsTopDownView(false);
+                  const sph = sphRef.current;
+                  sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+                  updateCamera();
+                }
+                return;
+              }
+              requestAnimationFrame(animateStroke);
             };
+            requestAnimationFrame(animateStroke);
           } else {
             cueStick.visible = false;
             cueAnimating = false;
@@ -21730,9 +21736,6 @@ const powerRef = useRef(hud.power);
               sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
               updateCamera();
             }
-          }
-          if (shotRecording && cueStick) {
-            recordReplayFrame(performance.now());
           }
         };
         let aiThinkingHandle = null;
@@ -27700,9 +27703,9 @@ const powerRef = useRef(hud.power);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute right-0 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          className={`absolute right-1 ${showPlayerControls ? '' : 'pointer-events-none'}`}
           style={{
-            bottom: `${10 + chromeUiLiftPx}px`,
+            bottom: `${6 + chromeUiLiftPx}px`,
             transform: `scale(${uiScale * 0.88})`,
             transformOrigin: 'bottom right'
           }}
