@@ -4943,6 +4943,7 @@ const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
+let CUSHION_COLLISION_SEGMENTS = null;
 const RAIL_LIMIT_PADDING = 0.1;
 const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR, // start the intro framing closer to the table surface
@@ -5871,6 +5872,51 @@ function makeWoodTexture({
   return texture;
 }
 function reflectRails(ball) {
+  if (CUSHION_COLLISION_SEGMENTS) {
+    const resolveSegmentImpact = (segmentList) => {
+      for (const segment of segmentList) {
+        TMP_VEC2_A.copy(ball.pos).sub(segment.a);
+        const proj = TMP_VEC2_A.dot(segment.dir);
+        if (proj < 0 || proj > segment.length) continue;
+        const distNormal = TMP_VEC2_A.dot(segment.normal);
+        if (distNormal >= BALL_R) continue;
+        if (segment.guardCenter && segment.guardRadius) {
+          TMP_VEC2_B.copy(ball.pos).sub(segment.guardCenter);
+          if (TMP_VEC2_B.lengthSq() < segment.guardRadius * segment.guardRadius) {
+            continue;
+          }
+        }
+        const push = BALL_R - distNormal;
+        ball.pos.addScaledVector(segment.normal, push);
+        const preImpactVel = ball.vel.clone();
+        const stamp =
+          typeof performance !== 'undefined' && performance.now
+            ? performance.now()
+            : Date.now();
+        ball.lastRailHitAt = stamp;
+        ball.lastRailHitType = segment.type;
+        return {
+          type: segment.type,
+          normal: segment.normal.clone(),
+          tangent: segment.tangent.clone(),
+          preImpactVel
+        };
+      }
+      return null;
+    };
+
+    const cutImpact = resolveSegmentImpact(CUSHION_COLLISION_SEGMENTS.cut);
+    if (cutImpact) return cutImpact;
+    const nearPocketRadius =
+      Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 0.22;
+    const nearPocket = pocketCenters().some(
+      (c) => ball.pos.distanceTo(c) < nearPocketRadius
+    );
+    if (nearPocket) return null;
+    const railImpact = resolveSegmentImpact(CUSHION_COLLISION_SEGMENTS.rail);
+    if (railImpact) return railImpact;
+  }
+
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
   const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
@@ -6430,6 +6476,86 @@ function updateRailLimitsFromTable(table) {
       RAIL_LIMIT_Y = Math.min(DEFAULT_RAIL_LIMIT_Y, computedZ);
     }
   }
+}
+
+function updateCushionCollisionSegments(table) {
+  if (!table?.userData?.cushions?.length) {
+    CUSHION_COLLISION_SEGMENTS = null;
+    return;
+  }
+  table.updateMatrixWorld(true);
+  const segments = { cut: [], rail: [] };
+  const ensureSegment = (a, b, type, guardCenter = null, guardRadius = null) => {
+    const dir = b.clone().sub(a);
+    const length = dir.length();
+    if (length <= MICRO_EPS) return;
+    dir.multiplyScalar(1 / length);
+    const normal = new THREE.Vector2(-dir.y, dir.x);
+    const mid = a.clone().add(b).multiplyScalar(0.5);
+    const toCenter = mid.clone().multiplyScalar(-1);
+    if (normal.dot(toCenter) < 0) {
+      normal.multiplyScalar(-1);
+    }
+    const tangent = new THREE.Vector2(-normal.y, normal.x);
+    segments[type].push({
+      a,
+      b,
+      dir,
+      normal,
+      tangent,
+      length,
+      guardCenter,
+      guardRadius,
+      type
+    });
+  };
+  const sideCenters = getSidePocketCenters();
+  table.userData.cushions.forEach((cushion) => {
+    if (!cushion) return;
+    const data = cushion.userData || {};
+    if (typeof data.horizontal !== 'boolean' || !data.side) return;
+    const box = new THREE.Box3().setFromObject(cushion);
+    const cutEnds = data.cutEnds || {};
+    const minCut = Math.max(0, cutEnds.min || 0);
+    const maxCut = Math.max(0, cutEnds.max || 0);
+    if (data.horizontal) {
+      const innerZ = data.side < 0 ? box.max.z : box.min.z;
+      const outerZ = data.side < 0 ? box.min.z : box.max.z;
+      const leftInner = new THREE.Vector2(box.min.x + minCut, innerZ);
+      const rightInner = new THREE.Vector2(box.max.x - maxCut, innerZ);
+      const leftOuter = new THREE.Vector2(box.min.x, outerZ);
+      const rightOuter = new THREE.Vector2(box.max.x, outerZ);
+      const signZ = data.side < 0 ? -1 : 1;
+      const leftCorner = cornerPocketCenter(-1, signZ);
+      const rightCorner = cornerPocketCenter(1, signZ);
+      ensureSegment(leftOuter, leftInner, 'corner', leftCorner, POCKET_GUARD_RADIUS);
+      ensureSegment(rightInner, rightOuter, 'corner', rightCorner, POCKET_GUARD_RADIUS);
+      ensureSegment(leftInner, rightInner, 'rail');
+    } else {
+      const innerX = data.side < 0 ? box.max.x : box.min.x;
+      const outerX = data.side < 0 ? box.min.x : box.max.x;
+      const lowerInner = new THREE.Vector2(innerX, box.min.z + minCut);
+      const upperInner = new THREE.Vector2(innerX, box.max.z - maxCut);
+      const lowerOuter = new THREE.Vector2(outerX, box.min.z);
+      const upperOuter = new THREE.Vector2(outerX, box.max.z);
+      const lowerCloserToCenter = Math.abs(box.min.z) < Math.abs(box.max.z);
+      const signX = data.side < 0 ? -1 : 1;
+      const sideCenter =
+        sideCenters.find((center) => Math.sign(center.x) === signX) ||
+        new THREE.Vector2(signX * (PLAY_W / 2 + sidePocketShift), 0);
+      const lowerCorner = cornerPocketCenter(signX, Math.sign(box.min.z || 1));
+      const upperCorner = cornerPocketCenter(signX, Math.sign(box.max.z || 1));
+      if (lowerCloserToCenter) {
+        ensureSegment(lowerOuter, lowerInner, 'cut', sideCenter, SIDE_POCKET_GUARD_RADIUS);
+        ensureSegment(upperInner, upperOuter, 'corner', upperCorner, POCKET_GUARD_RADIUS);
+      } else {
+        ensureSegment(lowerOuter, lowerInner, 'corner', lowerCorner, POCKET_GUARD_RADIUS);
+        ensureSegment(upperInner, upperOuter, 'cut', sideCenter, SIDE_POCKET_GUARD_RADIUS);
+      }
+      ensureSegment(lowerInner, upperInner, 'rail');
+    }
+  });
+  CUSHION_COLLISION_SEGMENTS = segments;
 }
 
 // --------------------------------------------------
@@ -10328,6 +10454,7 @@ export function Table3D(
   alignRailsToCushions(table, railsGroup, finishParts.railMeshes);
   table.updateMatrixWorld(true);
   updateRailLimitsFromTable(table);
+  updateCushionCollisionSegments(table);
 
   table.position.y = TABLE_Y;
   table.userData.cushionTopLocal = cushionTopLocal;
@@ -17537,8 +17664,11 @@ const powerRef = useRef(hud.power);
             shotPrediction?.ballId === ballId &&
             predictedAlignment != null &&
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
+          const anchorPocketId = pocketIdFromCenter(best.center);
+          const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
+          const forceEarlyAllowed = forceEarly && !isSidePocket;
           const allowEarly =
-            forceEarly &&
+            forceEarlyAllowed &&
             bestScore >= POCKET_EARLY_ALIGNMENT;
           if (!isGuaranteedPocket && !allowEarly) return null;
           const predictedTravelForBall =
@@ -17552,7 +17682,6 @@ const powerRef = useRef(hud.power);
           ) {
             return null;
           }
-          const anchorPocketId = pocketIdFromCenter(best.center);
           const approachDir = best.pocketDir.clone();
           const anchorId = resolvePocketCameraAnchor(
             anchorPocketId,
@@ -17561,8 +17690,8 @@ const powerRef = useRef(hud.power);
             pos
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
-          const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
-          const forcedEarly = forceEarly && shotPrediction?.ballId === ballId;
+          const forcedEarly =
+            forceEarlyAllowed && shotPrediction?.ballId === ballId;
           if (best.dist > POCKET_CAM.triggerDist && !forcedEarly) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
           const shortPocketHeightMultiplier =
@@ -23796,11 +23925,15 @@ const powerRef = useRef(hud.power);
             const alpha = frameB
               ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
               : 0;
+            const cueStroke = playback?.cueStroke;
+            const preferCueStroke =
+              Boolean(cueStroke) &&
+              targetTime >= (cueStroke?.startOffset ?? 0);
             const hasCueSnapshot = applyReplayFrame(
               frameA,
               frameB,
               alpha,
-              Boolean(playback?.cueStroke)
+              preferCueStroke
             );
             if (!hasCueSnapshot) {
               applyReplayCueStroke(playback, targetTime);
