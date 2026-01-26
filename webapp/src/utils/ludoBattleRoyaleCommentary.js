@@ -126,6 +126,23 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       outro: ['{arena} से यही अपडेट। धन्यवाद।']
     }
   },
+  ru: {
+    ...ENGLISH_TEMPLATES,
+    common: {
+      intro: ['Добро пожаловать на {arena}. {speaker} в эфире: {player} против {opponent}.'],
+      introReply: ['Спасибо {speaker}. Безопасные клетки и захваты зададут темп.'],
+      diceRoll: ['{player} бросает {roll}. Варианты открываются.'],
+      extraTurn: ['Шестёрка для {player} — ещё один ход.'],
+      enter: ['{player} вводит фишку в игру.'],
+      move: ['{player} продвигается на {roll} клеток.'],
+      capture: ['{player} берет {opponent} и отправляет в базу.'],
+      safe: ['{player} встает на безопасную клетку.'],
+      homeStretch: ['{player} в финишной зоне, {tokensHome} фишек дома.'],
+      goal: ['{player} приводит ещё одну фишку домой. Всего {tokensHome}.'],
+      win: ['Матч окончен: {player} побеждает.'],
+      outro: ['Это всё с {arena}. Спасибо за просмотр.']
+    }
+  },
   es: {
     ...ENGLISH_TEMPLATES,
     common: {
@@ -220,6 +237,7 @@ const resolveLanguageKey = (language = 'en') => {
   const normalized = String(language || '').toLowerCase();
   if (normalized.startsWith('zh')) return 'zh';
   if (normalized.startsWith('hi')) return 'hi';
+  if (normalized.startsWith('ru')) return 'ru';
   if (normalized.startsWith('es')) return 'es';
   if (normalized.startsWith('fr')) return 'fr';
   if (normalized.startsWith('ar')) return 'ar';

@@ -176,6 +176,28 @@ const LOCALIZED_TEMPLATES = Object.freeze({
       outro: ['यहाँ से विदा, धन्यवाद।']
     }
   },
+  ru: {
+    ...ENGLISH_TEMPLATES,
+    common: {
+      intro: ['Добро пожаловать на {arena}. {speaker} и {partner} в эфире.'],
+      introReply: ['Спасибо {speaker}. Терпение и позиция решают всё.'],
+      newHand: ['Новая раздача начинается.'],
+      blinds: ['Блайнды поставлены, действие за {player}.'],
+      flop: ['Флоп на столе — новая текстура.'],
+      turn: ['Терн открыт, давление растет.'],
+      river: ['Ривер на столе, финальные решения.'],
+      check: ['{player} чек.'],
+      call: ['{player} коллирует {amount}.'],
+      bet: ['{player} ставит {amount}.'],
+      raise: ['{player} повышает до {amount}.'],
+      fold: ['{player} фолдит.'],
+      allIn: ['{player} идет олл-ин на {amount}.'],
+      showdown: ['Переходим к шоудауну.'],
+      potWin: ['{player} забирает банк {pot}.'],
+      potSplit: ['Банк делится, {player} делят {pot}.'],
+      outro: ['Сессия завершена, спасибо за просмотр.']
+    }
+  },
   es: {
     ...ENGLISH_TEMPLATES,
     common: {
@@ -275,6 +297,7 @@ const resolveLanguageKey = (language = 'en') => {
   const normalized = String(language || '').toLowerCase();
   if (normalized.startsWith('zh')) return 'zh';
   if (normalized.startsWith('hi')) return 'hi';
+  if (normalized.startsWith('ru')) return 'ru';
   if (normalized.startsWith('es')) return 'es';
   if (normalized.startsWith('fr')) return 'fr';
   if (normalized.startsWith('ar')) return 'ar';
