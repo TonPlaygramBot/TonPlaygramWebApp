@@ -1,4 +1,4 @@
-import { Ball, BallColor, FrameState, Player, ShotContext, ShotEvent } from '../types';
+import { BallColor, FrameState, Player, ShotContext, ShotEvent } from '../types';
 
 type HudInfo = {
   next: string;
@@ -25,51 +25,6 @@ const COLOR_VALUES: Record<BallColor, number> = {
 };
 
 const COLOR_ORDER: BallColor[] = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
-const REDS_COUNT = 15;
-
-function createInitialBalls(): Ball[] {
-  const reds = Array.from({ length: REDS_COUNT }, (_, index) => ({
-    id: `red_${index + 1}`,
-    color: 'RED' as BallColor,
-    onTable: true,
-    potted: false
-  }));
-  const colors = COLOR_ORDER.map((color) => ({
-    id: color.toLowerCase(),
-    color,
-    onTable: true,
-    potted: false
-  }));
-  const cue = {
-    id: 'cue',
-    color: 'CUE' as BallColor,
-    onTable: true,
-    potted: false
-  };
-  return [...reds, ...colors, cue];
-}
-
-function cloneBalls(balls: Ball[] | undefined): Ball[] {
-  if (Array.isArray(balls) && balls.length > 0) {
-    return balls.map((ball) => ({ ...ball }));
-  }
-  return createInitialBalls();
-}
-
-function findBallForPot(
-  balls: Ball[],
-  color: BallColor,
-  ballId?: unknown
-): Ball | undefined {
-  if (ballId != null) {
-    const id = String(ballId);
-    const direct = balls.find((ball) => String(ball.id) === id);
-    if (direct) return direct;
-  }
-  const onTableMatch = balls.find((ball) => ball.color === color && ball.onTable);
-  if (onTableMatch) return onTableMatch;
-  return balls.find((ball) => ball.color === color);
-}
 
 function basePlayers(playerA: string, playerB: string): { A: Player; B: Player } {
   return {
@@ -147,12 +102,12 @@ export class SnookerRoyalRules {
 
   getInitialFrame(playerA: string, playerB: string): FrameState {
     const base: FrameState = {
-      balls: createInitialBalls(),
+      balls: [],
       activePlayer: 'A',
       players: basePlayers(playerA, playerB),
       currentBreak: 0,
       phase: 'REDS_AND_COLORS',
-      redsRemaining: REDS_COUNT,
+      redsRemaining: 15,
       ballOn: ['RED'],
       frameOver: false,
       colorOnAfterRed: false,
@@ -181,23 +136,13 @@ export class SnookerRoyalRules {
     const firstContact = normalizeColor(hitEvent?.firstContact ?? hitEvent?.ballId);
     const nominatedBall = normalizeColor(context.declaredBall ?? context.nominatedBall);
     const declaredBall = nominatedBall ?? null;
-    const pottedEvents = events.filter((event) => event.type === 'POTTED') as Array<{
-      type: 'POTTED';
-      ball?: unknown;
-      ballId?: unknown;
-    }>;
-    const potted = pottedEvents
-      .map((event) => normalizeColor(event.ball ?? event.ballId))
+    const potted = events
+      .filter((event) => event.type === 'POTTED')
+      .map((event) => normalizeColor((event as { ball?: unknown; ballId?: unknown }).ball ?? (event as { ballId?: unknown }).ballId))
       .filter(Boolean) as BallColor[];
     const explicitFoul = events.find((event) => event.type === 'FOUL') as
       | { type: 'FOUL'; reason?: string; ball?: BallColor }
       | undefined;
-    const nextBalls = cloneBalls(state.balls);
-    const setBallState = (ball: Ball | undefined, onTable: boolean) => {
-      if (!ball) return;
-      ball.onTable = onTable;
-      ball.potted = !onTable;
-    };
 
     const cuePotted = Boolean(context.cueBallPotted) || potted.includes('CUE');
     const pottedNonCue = potted.filter((color) => color !== 'CUE');
@@ -387,48 +332,12 @@ export class SnookerRoyalRules {
       }
     }
 
-    const shouldRespotColor = (color: BallColor): boolean => {
-      if (color === 'RED' || color === 'CUE') return false;
-      if (foulReason) return true;
-      if (freeBallPotted && nominatedFreeBall === color) return true;
-      if (onRed || onColorAfterRed) return true;
-      return false;
-    };
-
-    pottedEvents.forEach((event) => {
-      const color = normalizeColor(event.ball ?? event.ballId);
-      if (!color) return;
-      if (color === 'CUE') {
-        setBallState(findBallForPot(nextBalls, 'CUE', event.ballId), true);
-        return;
-      }
-      if (color === 'RED') {
-        setBallState(findBallForPot(nextBalls, 'RED', event.ballId), false);
-        return;
-      }
-      setBallState(findBallForPot(nextBalls, color, event.ballId), shouldRespotColor(color));
-    });
-
-    if (cuePotted) {
-      setBallState(findBallForPot(nextBalls, 'CUE', 'cue'), true);
-    }
-
-    const recalculatedReds = nextBalls.filter(
-      (ball) => ball.color === 'RED' && ball.onTable
-    ).length;
-    redsRemaining = Number.isFinite(recalculatedReds) ? recalculatedReds : redsRemaining;
-    const resolvedColorsRemaining = COLOR_ORDER.filter((color) => {
-      const ball = nextBalls.find((entry) => entry.color === color);
-      return ball ? ball.onTable !== false : true;
-    });
-
     if (!foulReason && pottedNonCue.length) {
       nextActivePlayer = state.activePlayer;
     }
 
     const nextState: FrameState = {
       ...state,
-      balls: nextBalls,
       activePlayer: nextActivePlayer,
       players: {
         A: { ...state.players.A, score: scores.A },
@@ -439,10 +348,7 @@ export class SnookerRoyalRules {
       redsRemaining,
       colorOnAfterRed,
       freeBall: nextFreeBall,
-      ballOn: resolveBallOn(
-        { ...state, phase: nextPhase, colorOnAfterRed },
-        resolvedColorsRemaining
-      ),
+      ballOn: resolveBallOn({ ...state, phase: nextPhase, colorOnAfterRed }, colorsRemaining),
       frameOver,
       winner,
       foul: foulReason
@@ -456,12 +362,12 @@ export class SnookerRoyalRules {
         : undefined,
       meta: {
         variant: 'snooker',
-        colorsRemaining: resolvedColorsRemaining,
+        colorsRemaining,
         freeBall: nextFreeBall,
         hud: buildHud(
           { ...state, phase: nextPhase, colorOnAfterRed, ballOn, redsRemaining, freeBall: nextFreeBall },
           scores,
-          resolveBallOn({ ...state, phase: nextPhase, colorOnAfterRed }, resolvedColorsRemaining)
+          resolveBallOn({ ...state, phase: nextPhase, colorOnAfterRed }, colorsRemaining)
         )
       } satisfies SnookerMeta
     };
