@@ -616,7 +616,7 @@ const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width furth
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.14; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.095; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.12; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
@@ -1348,14 +1348,14 @@ const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 7.6); // stretch the holder run so it comfortably fits 7 balls
-const POCKET_GUIDE_DROP = BALL_R * 0.12;
+const POCKET_GUIDE_DROP = BALL_R * 0.08;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.1; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.02; // lift the chrome holder rails so the short L segments meet the ring
-const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.01; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.11; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
 const POCKET_HOLDER_REST_PULLBACK = BALL_R * 4.78; // keep the ball rest point unchanged while the chrome guides extend
@@ -1368,7 +1368,7 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.34; // align strap height with Snooker Royal for identical potted-ball rests
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.42; // align strap height with Snooker Royal for identical potted-ball rests
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -1563,8 +1563,8 @@ const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.22; // widen the visible air gap so the blue tip never kisses the cue ball
-const CUE_TIP_GAP = BALL_R * 1.08 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
+const CUE_TIP_CLEARANCE = BALL_R * 0.18; // widen the visible air gap so the blue tip never kisses the cue ball
+const CUE_TIP_GAP = BALL_R * 1.02 + CUE_TIP_CLEARANCE; // pull the blue tip into the cue-ball centre line while leaving a safe buffer
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -4946,7 +4946,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0;
 const RAIL_CONTACT_RADIUS = BALL_R;
-const CUSHION_CUT_CONTACT_RADIUS = BALL_R;
+const CUSHION_CUT_CONTACT_RADIUS = BALL_R * 0.92;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
 const BREAK_VIEW = Object.freeze({
@@ -6518,7 +6518,7 @@ function updateCushionSegmentsFromTable(table) {
     const cutEnds = data.cutEnds || {};
     const minCut = Math.max(0, cutEnds.min || 0);
     const maxCut = Math.max(0, cutEnds.max || 0);
-    const cutInsetBase = RAIL_CONTACT_RADIUS * 0.18;
+    const cutInsetBase = RAIL_CONTACT_RADIUS * 0.12;
     const minInset = Math.min(minCut, cutInsetBase);
     const maxInset = Math.min(maxCut, cutInsetBase);
     const minInner = minCut + minInset;
@@ -25384,7 +25384,8 @@ const powerRef = useRef(hud.power);
               b.swervePowerStrength = 0;
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
-              if (b.mesh && table) {
+              const isCueBall = b.id === 'cue';
+              if (b.mesh && table && !isCueBall) {
                 const popupMesh = new THREE.Mesh(BALL_GEOMETRY, b.mesh.material);
                 popupMesh.position.set(
                   c.x,
@@ -25459,40 +25460,44 @@ const powerRef = useRef(hud.power);
                 );
               const restY =
                 railRunStart.y - POCKET_HOLDER_REST_DROP - tiltDrop;
-              const dropEntry = {
-                start: dropStart,
-                fromY: BALL_CENTER_Y,
-                currentY: BALL_CENTER_Y,
-                targetY: restY,
-                fromX: ringAnchor.x,
-                fromZ: ringAnchor.z,
-                toX: targetX,
-                toZ: targetZ,
-                runFromX: railRunStart.x,
-                runFromZ: railRunStart.z,
-                mesh: b.mesh,
-                entrySpeed,
-                velocityY:
-                  -Math.max(Math.abs(POCKET_DROP_ENTRY_VELOCITY), entrySpeed * 0.08),
-                runSpeed: THREE.MathUtils.clamp(
-                  entrySpeed * 0.8 + POCKET_HOLDER_RUN_ENTRY_SCALE,
-                  POCKET_HOLDER_RUN_SPEED_MIN,
-                  POCKET_HOLDER_RUN_SPEED_MAX
-                ),
-                holderDir,
-                restDistance,
-                settledAt: null,
-                rollStartAt: null,
-                rollProgress: 0,
-                pocketId,
-                resting: false
-              };
-              if (b.mesh) {
-                b.mesh.visible = true;
-                b.mesh.scale.set(1, 1, 1);
-                b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
+              if (!isCueBall) {
+                const dropEntry = {
+                  start: dropStart,
+                  fromY: BALL_CENTER_Y,
+                  currentY: BALL_CENTER_Y,
+                  targetY: restY,
+                  fromX: ringAnchor.x,
+                  fromZ: ringAnchor.z,
+                  toX: targetX,
+                  toZ: targetZ,
+                  runFromX: railRunStart.x,
+                  runFromZ: railRunStart.z,
+                  mesh: b.mesh,
+                  entrySpeed,
+                  velocityY:
+                    -Math.max(Math.abs(POCKET_DROP_ENTRY_VELOCITY), entrySpeed * 0.08),
+                  runSpeed: THREE.MathUtils.clamp(
+                    entrySpeed * 0.8 + POCKET_HOLDER_RUN_ENTRY_SCALE,
+                    POCKET_HOLDER_RUN_SPEED_MIN,
+                    POCKET_HOLDER_RUN_SPEED_MAX
+                  ),
+                  holderDir,
+                  restDistance,
+                  settledAt: null,
+                  rollStartAt: null,
+                  rollProgress: 0,
+                  pocketId,
+                  resting: false
+                };
+                if (b.mesh) {
+                  b.mesh.visible = true;
+                  b.mesh.scale.set(1, 1, 1);
+                  b.mesh.position.set(fromX, BALL_CENTER_Y, fromZ);
+                }
+                pocketDropRef.current.set(b.id, dropEntry);
+              } else {
+                removePocketDropEntry(b.id);
               }
-              pocketDropRef.current.set(b.id, dropEntry);
               const mappedColor = toBallColorId(b.id);
               const colorId =
                 mappedColor ?? (typeof b.id === 'string' ? b.id.toUpperCase() : 'UNKNOWN');
