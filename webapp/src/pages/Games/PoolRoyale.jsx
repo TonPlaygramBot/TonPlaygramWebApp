@@ -4943,7 +4943,8 @@ const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
-const RAIL_LIMIT_PADDING = 0.1;
+const RAIL_LIMIT_PADDING = 0;
+const RAIL_CONTACT_RADIUS = BALL_R * 0.985;
 let CUSHION_SEGMENTS = [];
 const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR, // start the intro framing closer to the table surface
@@ -5874,6 +5875,9 @@ function makeWoodTexture({
 function reflectRails(ball) {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
+  const railRadius = RAIL_CONTACT_RADIUS;
+  const railLimitX = limX + (BALL_R - railRadius);
+  const railLimitY = limY + (BALL_R - railRadius);
   const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
   const cornerCos = Math.cos(cornerRad);
   const cornerSin = Math.sin(cornerRad);
@@ -5912,9 +5916,9 @@ function reflectRails(ball) {
       TMP_VEC2_C.copy(segment.start).addScaledVector(TMP_VEC2_A, t);
       TMP_VEC2_D.copy(ball.pos).sub(TMP_VEC2_C);
       const distSq = TMP_VEC2_D.lengthSq();
-      if (distSq >= BALL_R * BALL_R) continue;
+      if (distSq >= railRadius * railRadius) continue;
       const dist = Math.sqrt(distSq);
-      const penetration = BALL_R - dist;
+      const penetration = railRadius - dist;
       if (penetration <= 0) continue;
       if (penetration > bestPenetration) {
         bestPenetration = penetration;
@@ -5942,12 +5946,12 @@ function reflectRails(ball) {
     TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
     TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
     const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
-    if (distNormal >= BALL_R) continue;
+    if (distNormal >= railRadius) continue;
     TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
     const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
     if (lateral < guardClearance) continue;
     if (distNormal < -cornerDepthLimit) continue;
-    const push = BALL_R - distNormal;
+    const push = railRadius - distNormal;
     ball.pos.addScaledVector(TMP_VEC2_B, push);
     preImpactVel = ball.vel.clone();
     const stamp =
@@ -5984,11 +5988,11 @@ function reflectRails(ball) {
       TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
       TMP_VEC2_LIMIT.copy(ball.pos).sub(TMP_VEC2_C);
       const distNormal = TMP_VEC2_LIMIT.dot(TMP_VEC2_B);
-      if (distNormal >= BALL_R) continue;
+      if (distNormal >= railRadius) continue;
       if (distNormal < -sideDepthLimit) continue;
       const lateral = Math.abs(TMP_VEC2_LIMIT.dot(TMP_VEC2_D));
       if (lateral < sideGuardClearance) continue;
-      const push = BALL_R - distNormal;
+      const push = railRadius - distNormal;
       ball.pos.addScaledVector(TMP_VEC2_B, push);
       preImpactVel = ball.vel.clone();
       const stamp =
@@ -6015,31 +6019,31 @@ function reflectRails(ball) {
   if (nearPocket) return null;
   let collided = null;
   let collisionNormal = null;
-  if (ball.pos.x < -limX && ball.vel.x < 0) {
+  if (ball.pos.x < -railLimitX && ball.vel.x < 0) {
     preImpactVel = ball.vel.clone();
-    const overshoot = -limX - ball.pos.x;
-    ball.pos.x = -limX + overshoot;
+    const overshoot = -railLimitX - ball.pos.x;
+    ball.pos.x = -railLimitX + overshoot;
     collided = 'rail';
     collisionNormal = new THREE.Vector2(1, 0);
   }
-  if (ball.pos.x > limX && ball.vel.x > 0) {
+  if (ball.pos.x > railLimitX && ball.vel.x > 0) {
     preImpactVel = ball.vel.clone();
-    const overshoot = ball.pos.x - limX;
-    ball.pos.x = limX - overshoot;
+    const overshoot = ball.pos.x - railLimitX;
+    ball.pos.x = railLimitX - overshoot;
     collided = 'rail';
     collisionNormal = new THREE.Vector2(-1, 0);
   }
-  if (ball.pos.y < -limY && ball.vel.y < 0) {
+  if (ball.pos.y < -railLimitY && ball.vel.y < 0) {
     preImpactVel = ball.vel.clone();
-    const overshoot = -limY - ball.pos.y;
-    ball.pos.y = -limY + overshoot;
+    const overshoot = -railLimitY - ball.pos.y;
+    ball.pos.y = -railLimitY + overshoot;
     collided = 'rail';
     collisionNormal = new THREE.Vector2(0, 1);
   }
-  if (ball.pos.y > limY && ball.vel.y > 0) {
+  if (ball.pos.y > railLimitY && ball.vel.y > 0) {
     preImpactVel = ball.vel.clone();
-    const overshoot = ball.pos.y - limY;
-    ball.pos.y = limY - overshoot;
+    const overshoot = ball.pos.y - railLimitY;
+    ball.pos.y = railLimitY - overshoot;
     collided = 'rail';
     collisionNormal = new THREE.Vector2(0, -1);
   }
@@ -17682,6 +17686,7 @@ const powerRef = useRef(hud.power);
           );
           const anchorOutward = getPocketCameraOutward(anchorId);
           const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
+          if (isSidePocket) return null;
           const forcedEarly = forceEarly && shotPrediction?.ballId === ballId;
           if (best.dist > POCKET_CAM.triggerDist && !forcedEarly) return null;
           const baseHeightOffset = POCKET_CAM.heightOffset;
