@@ -10214,6 +10214,7 @@ export function Table3D(
 
   const mappingLineLift = Math.max(MICRO_EPS * 8, TABLE.THICK * 0.002);
   const mappingLineY = clothPlaneWorld + mappingLineLift;
+  const SHORT_RAIL_MAPPING_OUTSET = TABLE.THICK * 0.02;
   const mappingGroup = new THREE.Group();
   mappingGroup.name = 'tableMappingOverlay';
   const fieldLineMaterial = new THREE.LineBasicMaterial({
@@ -10280,8 +10281,10 @@ export function Table3D(
         }
       };
       if (data.horizontal) {
-        const innerZ = data.side < 0 ? box.max.z : box.min.z;
-        const outerZ = data.side < 0 ? box.min.z : box.max.z;
+        const shortRailOutset =
+          data.side < 0 ? -SHORT_RAIL_MAPPING_OUTSET : SHORT_RAIL_MAPPING_OUTSET;
+        const innerZ = (data.side < 0 ? box.max.z : box.min.z) + shortRailOutset;
+        const outerZ = (data.side < 0 ? box.min.z : box.max.z) + shortRailOutset;
         pushPoint(box.min.x, outerZ);
         pushPoint(box.min.x + minCut, innerZ);
         pushPoint(box.max.x - maxCut, innerZ);
