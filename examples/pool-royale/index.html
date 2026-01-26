@@ -43,6 +43,10 @@
         height: 100%;
         pointer-events: none;
       }
+      .table-mapping {
+        stroke-linejoin: round;
+        stroke-linecap: round;
+      }
       .cloth-shadow {
         position: absolute;
         top: var(--cloth-top);
@@ -188,6 +192,42 @@
         alt="Pool table"
       />
       <div id="cloth-shadow" class="cloth-shadow" aria-hidden="true"></div>
+      <svg
+        class="overlay table-mapping"
+        viewBox="0 0 1600 900"
+        aria-label="Pool table mapping"
+      >
+        <rect
+          x="200"
+          y="160"
+          width="1200"
+          height="580"
+          rx="60"
+          ry="60"
+          fill="none"
+          stroke="#f5d64e"
+          stroke-width="4"
+        />
+        <rect
+          x="120"
+          y="90"
+          width="1360"
+          height="720"
+          rx="90"
+          ry="90"
+          fill="none"
+          stroke="#e53935"
+          stroke-width="4"
+        />
+        <g fill="none" stroke="#1e88e5" stroke-width="4">
+          <circle cx="200" cy="160" r="60" />
+          <circle cx="800" cy="160" r="64" />
+          <circle cx="1400" cy="160" r="60" />
+          <circle cx="200" cy="740" r="60" />
+          <circle cx="800" cy="740" r="64" />
+          <circle cx="1400" cy="740" r="60" />
+        </g>
+      </svg>
       <svg id="frame" class="overlay debug-marker" viewBox="0 0 1000 1500"></svg>
       <div class="ball-layer">
         <div id="aim-line" class="aim-line debug-marker"></div>
