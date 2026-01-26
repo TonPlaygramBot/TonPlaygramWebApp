@@ -12394,7 +12394,6 @@ function PoolRoyaleGame({
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
-  const primeInHandPlacementRef = useRef(() => false);
 const initialHudInHand = useMemo(
   () => deriveInHandFromFrame(initialFrame),
   [initialFrame]
@@ -12551,7 +12550,6 @@ const powerRef = useRef(hud.power);
     setInHandPlacementMode(placing);
     if (hud.inHand) {
       cueBallPlacedFromHandRef.current = false;
-      primeInHandPlacementRef.current?.();
     }
   }, [hud.inHand, hud.turn]);
   const [shotActive, setShotActive] = useState(false);
@@ -18025,7 +18023,7 @@ const powerRef = useRef(hud.power);
           }
         };
 
-        const applyReplayFrame = (frameA, frameB, alpha, preferCueStroke = false) => {
+        const applyReplayFrame = (frameA, frameB, alpha) => {
           if (!frameA) return false;
           const aMap = new Map(frameA.balls.map((entry) => [entry.id, entry]));
           const bMap = frameB ? new Map(frameB.balls.map((entry) => [entry.id, entry])) : null;
@@ -18102,8 +18100,7 @@ const powerRef = useRef(hud.power);
           });
           const cueStateA = frameA.cue ?? null;
           const cueStateB = frameB?.cue ?? cueStateA;
-          const allowCueSnapshot = !preferCueStroke && (cueStateA || cueStateB);
-          if (cueStick && allowCueSnapshot) {
+          if (cueStick && (cueStateA || cueStateB)) {
             const posA = normalizeVector3Snapshot(cueStateA?.position);
             const posB = normalizeVector3Snapshot(cueStateB?.position, posA);
             if (posA && posB) {
@@ -20611,6 +20608,45 @@ const powerRef = useRef(hud.power);
         }
         return clamped;
       };
+      const resolveInHandPlacement = (
+        point,
+        { clearanceMultiplier = 2.05, maxRadius = BALL_R * 3.2 } = {}
+      ) => {
+        const clamped = clampInHandPosition(point);
+        if (!clamped) return null;
+        if (isSpotFree(clamped, clearanceMultiplier)) return clamped;
+        const step = Math.max(BALL_R * 0.35, 0.002);
+        const ringCount = Math.max(1, Math.ceil(maxRadius / step));
+        const angleSteps = 16;
+        let best = null;
+        let bestClearance = -Infinity;
+        for (let ring = 1; ring <= ringCount; ring += 1) {
+          const radius = step * ring;
+          for (let i = 0; i < angleSteps; i += 1) {
+            const angle = (Math.PI * 2 * i) / angleSteps;
+            TMP_VEC2_A.set(
+              clamped.x + Math.cos(angle) * radius,
+              clamped.y + Math.sin(angle) * radius
+            );
+            const candidate = clampInHandPosition(TMP_VEC2_A);
+            if (!candidate) continue;
+            if (isSpotFree(candidate, clearanceMultiplier)) {
+              return candidate;
+            }
+            let minDist = Infinity;
+            for (const ball of balls) {
+              if (!ball.active || ball === cue) continue;
+              const dist = candidate.distanceTo(ball.pos);
+              if (dist < minDist) minDist = dist;
+            }
+            if (minDist > bestClearance) {
+              bestClearance = minDist;
+              best = candidate.clone();
+            }
+          }
+        }
+        return best;
+      };
       const defaultInHandPosition = () =>
         clampInHandPosition(
           new THREE.Vector2(0, allowFullTableInHand() ? 0 : baulkZ)
@@ -20635,25 +20671,24 @@ const powerRef = useRef(hud.power);
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return false;
-        const clamped = clampInHandPosition(raw);
+        const clamped = resolveInHandPlacement(raw);
         if (!clamped) return false;
-        if (!isSpotFree(clamped)) return false;
         cue.active = false;
         updateCuePlacement(clamped);
         inHandDrag.lastPos = clamped;
-      if (commit) {
-        cue.active = true;
-        inHandDrag.lastPos = null;
-        cueBallPlacedFromHandRef.current = true;
-        if (hudRef.current?.inHand) {
-          const nextHud = { ...hudRef.current, inHand: false };
-          hudRef.current = nextHud;
-          setHud(nextHud);
+        if (commit) {
+          cue.active = true;
+          inHandDrag.lastPos = null;
+          cueBallPlacedFromHandRef.current = true;
+          if (hudRef.current?.inHand) {
+            const nextHud = { ...hudRef.current, inHand: false };
+            hudRef.current = nextHud;
+            setHud(nextHud);
+          }
         }
-      }
-      return true;
-    };
-      const findInHandPlacement = () => {
+        return true;
+      };
+      const findAiInHandPlacement = () => {
         const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
         const forwardBias = Math.max(baulkZ - BALL_R * 0.6, -PLAY_H / 2 + BALL_R);
         const baseCandidates = [];
@@ -20724,10 +20759,10 @@ const powerRef = useRef(hud.power);
         for (const clearance of clearanceLevels) {
           for (const group of candidateGroups) {
             for (const raw of group) {
-              const clamped = clampInHandPosition(raw);
-              if (!clamped) continue;
-              if (!isSpotFree(clamped, clearance)) continue;
-              return clamped;
+              const resolved = resolveInHandPlacement(raw, {
+                clearanceMultiplier: clearance
+              });
+              if (resolved) return resolved;
             }
           }
         }
@@ -20766,12 +20801,11 @@ const powerRef = useRef(hud.power);
                 offset.set(1, 0);
               }
               offset.setLength(BALL_R * 2.05);
-              const nudged = clampInHandPosition(
-                nearest.pos.clone().add(offset)
+              const nudged = resolveInHandPlacement(
+                nearest.pos.clone().add(offset),
+                { clearanceMultiplier: 2.02 }
               );
-              if (nudged && isSpotFree(nudged, 2.02)) {
-                return nudged;
-              }
+              if (nudged) return nudged;
             }
             const searchDirs = [
               [1, 0],
@@ -20790,11 +20824,10 @@ const powerRef = useRef(hud.power);
                 TMP_VEC2_A.copy(best);
                 TMP_VEC2_A.x += dx * stepSize * stepIdx;
                 TMP_VEC2_A.y += dz * stepSize * stepIdx;
-                const candidate = clampInHandPosition(TMP_VEC2_A);
-                if (!candidate) continue;
-                if (isSpotFree(candidate, 2.02)) {
-                  return candidate;
-                }
+                const candidate = resolveInHandPlacement(TMP_VEC2_A, {
+                  clearanceMultiplier: 2.02
+                });
+                if (candidate) return candidate;
               }
             }
           } else {
@@ -20804,27 +20837,23 @@ const powerRef = useRef(hud.power);
         const fallback = allowFullTableInHand()
           ? defaultInHandPosition()
           : clampInHandPosition(new THREE.Vector2(0, forwardBias));
-        if (fallback && isSpotFree(fallback, 2.0)) {
-          return fallback;
-        }
+        const fallbackResolved = resolveInHandPlacement(fallback, {
+          clearanceMultiplier: 2.0,
+          maxRadius: BALL_R * 4
+        });
+        if (fallbackResolved) return fallbackResolved;
         const baulkCenter = defaultInHandPosition();
-        if (baulkCenter && isSpotFree(baulkCenter, 2.0)) {
-          return baulkCenter;
-        }
-        return null;
-      };
-      const primeInHandPlacement = () => {
-        const currentHud = hudRef.current;
-        if (!currentHud?.inHand || !cue) return false;
-        const placement =
-          findInHandPlacement() || defaultInHandPosition();
-        if (!placement) return false;
-        cue.active = false;
-        updateCuePlacement(placement);
-        cue.active = true;
-        cue.mesh.visible = true;
-        cueBallPlacedFromHandRef.current = true;
-        return true;
+        const baulkResolved = resolveInHandPlacement(baulkCenter, {
+          clearanceMultiplier: 2.0,
+          maxRadius: BALL_R * 4
+        });
+        if (baulkResolved) return baulkResolved;
+        return resolveInHandPlacement(
+          allowFullTableInHand()
+            ? new THREE.Vector2(0, 0)
+            : new THREE.Vector2(0, baulkZ),
+          { clearanceMultiplier: 1.7, maxRadius: BALL_R * 5 }
+        );
       };
       const autoPlaceAiCueBall = () => {
         const currentHud = hudRef.current;
@@ -20834,7 +20863,7 @@ const powerRef = useRef(hud.power);
         if (!allStopped(balls)) return false;
         const fallbackTarget = defaultInHandPosition();
         const fallbackClamped = fallbackTarget ? clampInHandPosition(fallbackTarget) : null;
-        const pos = findInHandPlacement() || fallbackClamped;
+        const pos = findAiInHandPlacement() || fallbackClamped;
         if (!pos) return false;
         cue.active = false;
         updateCuePlacement(pos);
@@ -20845,7 +20874,6 @@ const powerRef = useRef(hud.power);
         setHud((prev) => ({ ...prev, inHand: false }));
         return true;
       };
-      primeInHandPlacementRef.current = primeInHandPlacement;
       const handleInHandDown = (e) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return;
@@ -23984,12 +24012,7 @@ const powerRef = useRef(hud.power);
             const alpha = frameB
               ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
               : 0;
-            const hasCueSnapshot = applyReplayFrame(
-              frameA,
-              frameB,
-              alpha,
-              Boolean(playback?.cueStroke)
-            );
+            const hasCueSnapshot = applyReplayFrame(frameA, frameB, alpha);
             if (!hasCueSnapshot) {
               applyReplayCueStroke(playback, targetTime);
             }
