@@ -4944,6 +4944,7 @@ const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
+let CUSHION_SEGMENTS = [];
 const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR, // start the intro framing closer to the table surface
   phi: CAMERA.maxPhi - 0.01
@@ -5880,6 +5881,62 @@ function reflectRails(ball) {
   const guardClearance = POCKET_GUARD_CLEARANCE;
   const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
   let preImpactVel = null;
+  if (Array.isArray(CUSHION_SEGMENTS) && CUSHION_SEGMENTS.length > 0) {
+    const nearPocketRadius =
+      Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 0.22;
+    const centers = pocketCenters();
+    let nearestPocketDist = Infinity;
+    let nearestCaptureRadius = CAPTURE_R;
+    centers.forEach((center, index) => {
+      const dist = ball.pos.distanceTo(center);
+      if (dist < nearestPocketDist) {
+        nearestPocketDist = dist;
+        nearestCaptureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+      }
+    });
+    const nearPocket = nearestPocketDist < nearPocketRadius;
+    const inCaptureZone = nearestPocketDist < nearestCaptureRadius;
+    let bestImpact = null;
+    let bestPenetration = 0;
+    for (const segment of CUSHION_SEGMENTS) {
+      if (!segment?.normal || !segment?.start || !segment?.end) continue;
+      if (nearPocket && segment.type === 'rail') continue;
+      if (inCaptureZone && segment.type === 'cut') continue;
+      const velocityToward = ball.vel.dot(segment.normal);
+      if (velocityToward >= 0) continue;
+      TMP_VEC2_A.copy(segment.end).sub(segment.start);
+      const lenSq = TMP_VEC2_A.lengthSq();
+      if (lenSq < 1e-8) continue;
+      TMP_VEC2_B.copy(ball.pos).sub(segment.start);
+      const t = THREE.MathUtils.clamp(TMP_VEC2_B.dot(TMP_VEC2_A) / lenSq, 0, 1);
+      TMP_VEC2_C.copy(segment.start).addScaledVector(TMP_VEC2_A, t);
+      TMP_VEC2_D.copy(ball.pos).sub(TMP_VEC2_C);
+      const distSq = TMP_VEC2_D.lengthSq();
+      if (distSq >= BALL_R * BALL_R) continue;
+      const dist = Math.sqrt(distSq);
+      const penetration = BALL_R - dist;
+      if (penetration <= 0) continue;
+      if (penetration > bestPenetration) {
+        bestPenetration = penetration;
+        bestImpact = {
+          type: segment.type === 'cut' ? 'cut' : 'rail',
+          normal: segment.normal.clone(),
+          tangent: new THREE.Vector2(-segment.normal.y, segment.normal.x)
+        };
+      }
+    }
+    if (bestImpact) {
+      ball.pos.addScaledVector(bestImpact.normal, bestPenetration);
+      preImpactVel = ball.vel.clone();
+      const stamp =
+        typeof performance !== 'undefined' && performance.now
+          ? performance.now()
+          : Date.now();
+      ball.lastRailHitAt = stamp;
+      ball.lastRailHitType = bestImpact.type;
+      return { ...bestImpact, preImpactVel };
+    }
+  }
   for (const { sx, sy } of CORNER_SIGNS) {
     TMP_VEC2_C.set(sx * limX, sy * limY);
     TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
@@ -6430,6 +6487,68 @@ function updateRailLimitsFromTable(table) {
       RAIL_LIMIT_Y = Math.min(DEFAULT_RAIL_LIMIT_Y, computedZ);
     }
   }
+}
+
+function updateCushionSegmentsFromTable(table) {
+  if (!table?.userData?.cushions?.length) {
+    CUSHION_SEGMENTS = [];
+    return;
+  }
+  table.updateMatrixWorld(true);
+  const segments = [];
+  const addSegment = (start, end, type) => {
+    if (!start || !end) return;
+    const dir = end.clone().sub(start);
+    if (dir.lengthSq() < 1e-6) return;
+    segments.push({ start, end, type });
+  };
+  table.userData.cushions.forEach((cushion) => {
+    const data = cushion.userData || {};
+    if (typeof data.horizontal !== 'boolean' || !data.side) return;
+    const box = new THREE.Box3().setFromObject(cushion);
+    const cutEnds = data.cutEnds || {};
+    const minCut = Math.max(0, cutEnds.min || 0);
+    const maxCut = Math.max(0, cutEnds.max || 0);
+    if (data.horizontal) {
+      const innerZ = data.side < 0 ? box.max.z : box.min.z;
+      const outerZ = data.side < 0 ? box.min.z : box.max.z;
+      const leftInner = new THREE.Vector2(box.min.x + minCut, innerZ);
+      const rightInner = new THREE.Vector2(box.max.x - maxCut, innerZ);
+      const leftOuter = new THREE.Vector2(box.min.x, outerZ);
+      const rightOuter = new THREE.Vector2(box.max.x, outerZ);
+      addSegment(leftInner, rightInner, 'rail');
+      addSegment(leftOuter, leftInner, 'cut');
+      addSegment(rightOuter, rightInner, 'cut');
+    } else {
+      const innerX = data.side < 0 ? box.max.x : box.min.x;
+      const outerX = data.side < 0 ? box.min.x : box.max.x;
+      const bottomInner = new THREE.Vector2(innerX, box.min.z + minCut);
+      const topInner = new THREE.Vector2(innerX, box.max.z - maxCut);
+      const bottomOuter = new THREE.Vector2(outerX, box.min.z);
+      const topOuter = new THREE.Vector2(outerX, box.max.z);
+      addSegment(bottomInner, topInner, 'rail');
+      addSegment(bottomOuter, bottomInner, 'cut');
+      addSegment(topOuter, topInner, 'cut');
+    }
+  });
+  const tableCenter = new THREE.Vector2(0, 0);
+  segments.forEach((segment) => {
+    const dir = TMP_VEC2_A.copy(segment.end).sub(segment.start);
+    const normal = TMP_VEC2_B.set(-dir.y, dir.x);
+    if (normal.lengthSq() < 1e-8) return;
+    normal.normalize();
+    const midpoint = TMP_VEC2_C
+      .copy(segment.start)
+      .add(segment.end)
+      .multiplyScalar(0.5);
+    const toCenter = TMP_VEC2_D.copy(tableCenter).sub(midpoint);
+    if (normal.dot(toCenter) < 0) {
+      normal.multiplyScalar(-1);
+    }
+    segment.normal = normal.clone();
+  });
+  CUSHION_SEGMENTS = segments;
+  table.userData.cushionSegments = segments;
 }
 
 // --------------------------------------------------
@@ -10328,6 +10447,7 @@ export function Table3D(
   alignRailsToCushions(table, railsGroup, finishParts.railMeshes);
   table.updateMatrixWorld(true);
   updateRailLimitsFromTable(table);
+  updateCushionSegmentsFromTable(table);
 
   table.position.y = TABLE_Y;
   table.userData.cushionTopLocal = cushionTopLocal;
@@ -18376,6 +18496,55 @@ const powerRef = useRef(hud.power);
           updateCamera();
         };
 
+        const primeReplayCueStick = (playback) => {
+          if (!cueStick) return;
+          const stroke = playback?.cueStroke ?? null;
+          if (stroke) {
+            const warmupSnap =
+              normalizeVector3Snapshot(stroke.warmup, stroke.start) ??
+              normalizeVector3Snapshot(stroke.start);
+            if (warmupSnap) {
+              cueStick.position.set(warmupSnap.x, warmupSnap.y, warmupSnap.z);
+              if (Number.isFinite(stroke.rotationY)) {
+                cueStick.rotation.y = stroke.rotationY;
+              }
+              if (Number.isFinite(stroke.rotationX)) {
+                cueStick.rotation.x = stroke.rotationX;
+              }
+              cueStick.visible = true;
+              cueAnimating = true;
+              syncCueShadow();
+              return;
+            }
+          }
+          const cueSnapshot = playback?.frames?.[0]?.cue ?? null;
+          if (cueSnapshot?.position) {
+            const pos = normalizeVector3Snapshot(cueSnapshot.position);
+            if (pos) {
+              cueStick.position.set(pos.x, pos.y, pos.z);
+              const quat = normalizeQuaternionSnapshot(cueSnapshot.rotation);
+              if (quat) {
+                cueStick.quaternion.set(quat.x, quat.y, quat.z, quat.w);
+              }
+              cueStick.visible = cueSnapshot.visible ?? true;
+              cueAnimating = cueStick.visible;
+              syncCueShadow();
+              return;
+            }
+          }
+          const cuePath = playback?.cuePath ?? [];
+          if (cuePath.length > 0) {
+            const cuePos = cuePath[0].pos?.clone?.();
+            if (cuePos) {
+              cuePos.y = CUE_Y;
+              cueStick.position.copy(cuePos);
+              cueStick.visible = true;
+              cueAnimating = true;
+              syncCueShadow();
+            }
+          }
+        };
+
         const startShotReplay = (postShotSnapshot) => {
           if (replayPlaybackRef.current) return;
           if (!shotRecording || !shotRecording.frames?.length) return;
@@ -18405,6 +18574,7 @@ const powerRef = useRef(hud.power);
           shotReplayRef.current = shotRecording;
           applyBallSnapshot(shotRecording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
+          primeReplayCueStick(replayPlayback);
           const path = replayPlayback.cuePath ?? [];
           if (!LOCK_REPLAY_CAMERA) {
             const initialCamera = trimmed.frames?.[0]?.camera ?? null;
