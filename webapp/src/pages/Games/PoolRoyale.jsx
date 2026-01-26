@@ -5144,6 +5144,9 @@ const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
 const TMP_VEC3_TOP_VIEW = new THREE.Vector3();
 const TMP_VEC3_CAM_DIR = new THREE.Vector3();
 const TMP_VEC3_CUE_DIR = new THREE.Vector3();
+let CUSHION_PHYSICS_MAP = null;
+let CUSHION_SEGMENTS_CACHE = null;
+let CUSHION_SEGMENTS_KEY = '';
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -5815,6 +5818,57 @@ function makeWoodTexture({
   return texture;
 }
 function reflectRails(ball) {
+  const segments = buildCushionSegments();
+  if (segments) {
+    let preImpactVel = null;
+    const stampImpact = (type) => {
+      const stamp =
+        typeof performance !== 'undefined' && performance.now
+          ? performance.now()
+          : Date.now();
+      ball.lastRailHitAt = stamp;
+      ball.lastRailHitType = type;
+    };
+    const resolveImpact = (segment) => {
+      TMP_VEC2_A.copy(ball.pos).sub(segment.start);
+      const distNormal = TMP_VEC2_A.dot(segment.normal);
+      if (distNormal >= BALL_R) return null;
+      if (
+        Number.isFinite(segment.maxDepth) &&
+        distNormal < -segment.maxDepth
+      ) {
+        return null;
+      }
+      const lateral = TMP_VEC2_A.dot(segment.tangent);
+      if (lateral < -BALL_R || lateral > segment.length + BALL_R) return null;
+      if (ball.vel.dot(segment.normal) >= 0) return null;
+      const push = BALL_R - distNormal;
+      ball.pos.addScaledVector(segment.normal, push);
+      preImpactVel = ball.vel.clone();
+      stampImpact(segment.type);
+      return {
+        type: segment.type,
+        normal: segment.normal.clone(),
+        tangent: segment.tangent.clone(),
+        preImpactVel
+      };
+    };
+    for (const cut of segments.cuts) {
+      const impact = resolveImpact(cut);
+      if (impact) return impact;
+    }
+    const nearPocketRadius =
+      Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 0.22;
+    const nearPocket = pocketCenters().some(
+      (c) => ball.pos.distanceTo(c) < nearPocketRadius
+    );
+    if (nearPocket) return null;
+    for (const rail of segments.rails) {
+      const impact = resolveImpact(rail);
+      if (impact) return impact;
+    }
+    return null;
+  }
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
   const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
@@ -6374,6 +6428,195 @@ function updateRailLimitsFromTable(table) {
       RAIL_LIMIT_Y = Math.min(DEFAULT_RAIL_LIMIT_Y, computedZ);
     }
   }
+}
+
+function registerCushionPhysicsMap(map) {
+  if (!map) return;
+  CUSHION_PHYSICS_MAP = map;
+  CUSHION_SEGMENTS_CACHE = null;
+  CUSHION_SEGMENTS_KEY = '';
+}
+
+function resolveCushionSegmentCacheKey(map) {
+  if (!map) return '';
+  return [
+    RAIL_LIMIT_X.toFixed(4),
+    RAIL_LIMIT_Y.toFixed(4),
+    (map.horizontalLength ?? 0).toFixed(4),
+    (map.verticalLength ?? 0).toFixed(4),
+    (map.verticalCenter ?? 0).toFixed(4),
+    sidePocketShift.toFixed(4)
+  ].join('|');
+}
+
+function resolveLineCircleIntersection(start, tangent, center, radius) {
+  TMP_VEC2_A.copy(start).sub(center);
+  const b = 2 * TMP_VEC2_A.dot(tangent);
+  const c = TMP_VEC2_A.lengthSq() - radius * radius;
+  const disc = b * b - 4 * c;
+  if (disc < 0) return null;
+  const sqrt = Math.sqrt(disc);
+  const t1 = (-b - sqrt) / 2;
+  const t2 = (-b + sqrt) / 2;
+  TMP_VEC2_B.copy(center).sub(start);
+  const sign = Math.sign(TMP_VEC2_B.dot(tangent)) || 1;
+  const candidates = [t1, t2].filter(
+    (t) => Math.sign(t) === sign || Math.abs(t) < 1e-6
+  );
+  if (candidates.length) {
+    return candidates.sort((a, b) => Math.abs(a) - Math.abs(b))[0];
+  }
+  return Math.abs(t1) < Math.abs(t2) ? t1 : t2;
+}
+
+function buildSegment(start, end, type, maxDepth = null) {
+  TMP_VEC2_A.copy(end).sub(start);
+  const length = TMP_VEC2_A.length();
+  if (length < MICRO_EPS) return null;
+  TMP_VEC2_A.multiplyScalar(1 / length);
+  TMP_VEC2_B.set(-TMP_VEC2_A.y, TMP_VEC2_A.x);
+  TMP_VEC2_C.copy(start).add(end).multiplyScalar(0.5);
+  TMP_VEC2_D.copy(TMP_VEC2_C).multiplyScalar(-1);
+  if (TMP_VEC2_B.dot(TMP_VEC2_D) < 0) TMP_VEC2_B.multiplyScalar(-1);
+  return {
+    type,
+    start: start.clone(),
+    end: end.clone(),
+    tangent: TMP_VEC2_A.clone(),
+    normal: TMP_VEC2_B.clone(),
+    length,
+    maxDepth
+  };
+}
+
+function buildCushionSegments() {
+  if (!CUSHION_PHYSICS_MAP) return null;
+  const key = resolveCushionSegmentCacheKey(CUSHION_PHYSICS_MAP);
+  if (CUSHION_SEGMENTS_CACHE && key === CUSHION_SEGMENTS_KEY) {
+    return CUSHION_SEGMENTS_CACHE;
+  }
+  const horizontalLength = CUSHION_PHYSICS_MAP.horizontalLength;
+  const verticalLength = CUSHION_PHYSICS_MAP.verticalLength;
+  const verticalCenter = Math.abs(CUSHION_PHYSICS_MAP.verticalCenter);
+  if (!horizontalLength || !verticalLength) return null;
+  const limX = RAIL_LIMIT_X;
+  const limY = RAIL_LIMIT_Y;
+  const halfH = horizontalLength / 2;
+  const halfV = verticalLength / 2;
+  const segments = { rails: [], cuts: [] };
+  const addRail = (start, end, normal) => {
+    const seg = buildSegment(start, end, 'rail');
+    if (!seg) return;
+    seg.normal.copy(normal).normalize();
+    seg.tangent.set(-seg.normal.y, seg.normal.x).normalize();
+    seg.length = start.distanceTo(end);
+    segments.rails.push(seg);
+  };
+  addRail(
+    new THREE.Vector2(-halfH, limY),
+    new THREE.Vector2(halfH, limY),
+    new THREE.Vector2(0, -1)
+  );
+  addRail(
+    new THREE.Vector2(-halfH, -limY),
+    new THREE.Vector2(halfH, -limY),
+    new THREE.Vector2(0, 1)
+  );
+  addRail(
+    new THREE.Vector2(-limX, verticalCenter - halfV),
+    new THREE.Vector2(-limX, verticalCenter + halfV),
+    new THREE.Vector2(1, 0)
+  );
+  addRail(
+    new THREE.Vector2(-limX, -verticalCenter - halfV),
+    new THREE.Vector2(-limX, -verticalCenter + halfV),
+    new THREE.Vector2(1, 0)
+  );
+  addRail(
+    new THREE.Vector2(limX, verticalCenter - halfV),
+    new THREE.Vector2(limX, verticalCenter + halfV),
+    new THREE.Vector2(-1, 0)
+  );
+  addRail(
+    new THREE.Vector2(limX, -verticalCenter - halfV),
+    new THREE.Vector2(limX, -verticalCenter + halfV),
+    new THREE.Vector2(-1, 0)
+  );
+
+  const cornerPairs = [
+    {
+      start: new THREE.Vector2(-limX, verticalCenter + halfV),
+      end: new THREE.Vector2(-halfH, limY)
+    },
+    {
+      start: new THREE.Vector2(limX, verticalCenter + halfV),
+      end: new THREE.Vector2(halfH, limY)
+    },
+    {
+      start: new THREE.Vector2(-limX, -verticalCenter - halfV),
+      end: new THREE.Vector2(-halfH, -limY)
+    },
+    {
+      start: new THREE.Vector2(limX, -verticalCenter - halfV),
+      end: new THREE.Vector2(halfH, -limY)
+    }
+  ];
+  cornerPairs.forEach(({ start, end }) => {
+    const seg = buildSegment(start, end, 'corner', CORNER_POCKET_DEPTH_LIMIT);
+    if (seg) segments.cuts.push(seg);
+  });
+
+  const sideCenters = getSidePocketCenters();
+  const leftCenter = sideCenters.find((center) => center.x < 0) ?? null;
+  const rightCenter = sideCenters.find((center) => center.x > 0) ?? null;
+  const sideCutRad = THREE.MathUtils.degToRad(SIDE_POCKET_PHYSICS_CUT_ANGLE);
+  const sideCutCos = Math.cos(sideCutRad);
+  const sideCutSin = Math.sin(sideCutRad);
+  const buildSideCut = (start, signX, signY, center) => {
+    TMP_VEC2_A.set(-signX * sideCutCos, signY * sideCutSin);
+    TMP_VEC2_B.set(-TMP_VEC2_A.y, TMP_VEC2_A.x).normalize();
+    if (center) {
+      TMP_VEC2_C.copy(center).sub(start);
+      if (TMP_VEC2_C.dot(TMP_VEC2_B) < 0) TMP_VEC2_B.multiplyScalar(-1);
+    }
+    let cutLength = SIDE_POCKET_GUARD_RADIUS;
+    if (center) {
+      const t = resolveLineCircleIntersection(start, TMP_VEC2_B, center, SIDE_POCKET_GUARD_RADIUS);
+      if (Number.isFinite(t)) cutLength = Math.abs(t);
+    }
+    TMP_VEC2_D.copy(start).addScaledVector(TMP_VEC2_B, cutLength);
+    const seg = buildSegment(start, TMP_VEC2_D, 'cut', SIDE_POCKET_DEPTH_LIMIT);
+    if (seg) segments.cuts.push(seg);
+  };
+
+  buildSideCut(
+    new THREE.Vector2(-limX, verticalCenter - halfV),
+    -1,
+    1,
+    leftCenter
+  );
+  buildSideCut(
+    new THREE.Vector2(-limX, -verticalCenter + halfV),
+    -1,
+    -1,
+    leftCenter
+  );
+  buildSideCut(
+    new THREE.Vector2(limX, verticalCenter - halfV),
+    1,
+    1,
+    rightCenter
+  );
+  buildSideCut(
+    new THREE.Vector2(limX, -verticalCenter + halfV),
+    1,
+    -1,
+    rightCenter
+  );
+
+  CUSHION_SEGMENTS_CACHE = segments;
+  CUSHION_SEGMENTS_KEY = key;
+  return segments;
 }
 
 // --------------------------------------------------
@@ -9539,6 +9782,14 @@ export function Table3D(
   addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
   addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
   addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
+
+  const cushionPhysics = {
+    horizontalLength: horizontalCushionLength,
+    verticalLength: verticalCushionLength,
+    verticalCenter: verticalCushionCenter
+  };
+  table.userData.cushionPhysics = cushionPhysics;
+  registerCushionPhysicsMap(cushionPhysics);
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
