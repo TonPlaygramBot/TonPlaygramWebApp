@@ -1598,7 +1598,7 @@ const SPIN_DECORATION_OFFSET_PERCENT = 58;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
 const DEFAULT_CUSHION_CUT_ANGLE = 27;
 // middle pocket cushion cuts match the Pool Royale spec for identical cushion angles
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 45;
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 27;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -10055,111 +10055,6 @@ function Table3D(
     table.add(marker);
     table.userData.pockets.push(marker);
   });
-
-  const mappingLineLift = Math.max(MICRO_EPS * 8, TABLE.THICK * 0.002);
-  const mappingLineY = clothPlaneWorld + mappingLineLift;
-  const mappingGroup = new THREE.Group();
-  mappingGroup.name = 'tableMappingOverlay';
-  const fieldLineMaterial = new THREE.LineBasicMaterial({
-    color: 0xf5d547,
-    transparent: true,
-    opacity: 0.9,
-    depthTest: false,
-    depthWrite: false
-  });
-  const cushionLineMaterial = new THREE.LineBasicMaterial({
-    color: 0xff3b30,
-    transparent: true,
-    opacity: 0.9,
-    depthTest: false,
-    depthWrite: false
-  });
-  const pocketLineMaterial = new THREE.LineBasicMaterial({
-    color: 0x2f7bff,
-    transparent: true,
-    opacity: 0.9,
-    depthTest: false,
-    depthWrite: false
-  });
-  const registerMappingLine = (line) => {
-    line.renderOrder = 6;
-    line.frustumCulled = false;
-    mappingGroup.add(line);
-  };
-  const makeLine = (points, material, loop = false) => {
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    return loop ? new THREE.LineLoop(geometry, material) : new THREE.Line(geometry, material);
-  };
-  const fieldExtents = table.userData.pockets.reduce(
-    (acc, marker) => {
-      if (!marker) return acc;
-      const radius = marker.userData?.captureRadius ?? CAPTURE_R;
-      acc.halfW = Math.max(acc.halfW, Math.abs(marker.position.x) + radius);
-      acc.halfH = Math.max(acc.halfH, Math.abs(marker.position.z) + radius);
-      return acc;
-    },
-    { halfW, halfH }
-  );
-  const fieldPoints = [
-    new THREE.Vector3(-fieldExtents.halfW, mappingLineY, -fieldExtents.halfH),
-    new THREE.Vector3(fieldExtents.halfW, mappingLineY, -fieldExtents.halfH),
-    new THREE.Vector3(fieldExtents.halfW, mappingLineY, fieldExtents.halfH),
-    new THREE.Vector3(-fieldExtents.halfW, mappingLineY, fieldExtents.halfH)
-  ];
-  registerMappingLine(makeLine(fieldPoints, fieldLineMaterial, true));
-  if (table.userData?.cushions?.length) {
-    table.userData.cushions.forEach((cushion) => {
-      if (!cushion) return;
-      const data = cushion.userData || {};
-      if (typeof data.horizontal !== 'boolean' || !data.side) return;
-      const box = new THREE.Box3().setFromObject(cushion);
-      const cutEnds = data.cutEnds || {};
-      const minCut = Math.max(0, cutEnds.min || 0);
-      const maxCut = Math.max(0, cutEnds.max || 0);
-      const points = [];
-      const pushPoint = (x, z) => {
-        const last = points[points.length - 1];
-        if (!last || last.x !== x || last.z !== z) {
-          points.push(new THREE.Vector3(x, mappingLineY, z));
-        }
-      };
-      if (data.horizontal) {
-        const innerZ = data.side < 0 ? box.max.z : box.min.z;
-        const outerZ = data.side < 0 ? box.min.z : box.max.z;
-        pushPoint(box.min.x, outerZ);
-        pushPoint(box.min.x + minCut, innerZ);
-        pushPoint(box.max.x - maxCut, innerZ);
-        pushPoint(box.max.x, outerZ);
-        registerMappingLine(makeLine(points, cushionLineMaterial));
-      } else {
-        const innerX = data.side < 0 ? box.max.x : box.min.x;
-        const outerX = data.side < 0 ? box.min.x : box.max.x;
-        pushPoint(outerX, box.min.z);
-        pushPoint(innerX, box.min.z + minCut);
-        pushPoint(innerX, box.max.z - maxCut);
-        pushPoint(outerX, box.max.z);
-        registerMappingLine(makeLine(points, cushionLineMaterial));
-      }
-    });
-  }
-  table.userData.pockets.forEach((marker) => {
-    if (!marker) return;
-    const radius = marker.userData?.captureRadius ?? CAPTURE_R;
-    const points = [];
-    const segments = 72;
-    for (let i = 0; i < segments; i += 1) {
-      const theta = (i / segments) * Math.PI * 2;
-      points.push(
-        new THREE.Vector3(
-          marker.position.x + Math.cos(theta) * radius,
-          mappingLineY,
-          marker.position.z + Math.sin(theta) * radius
-        )
-      );
-    }
-    registerMappingLine(makeLine(points, pocketLineMaterial, true));
-  });
-  table.add(mappingGroup);
 
   pocketMeshes.forEach((mesh) => {
     const lift = mesh?.userData?.verticalLift || 0;
