@@ -291,6 +291,12 @@ export class SnookerRoyalRules {
       nextActivePlayer = opponent;
       nextBreak = 0;
       nextFreeBall = Boolean(context.snookered);
+      if (state.phase === 'REDS_AND_COLORS') {
+        colorOnAfterRed = false;
+        if (redsRemaining === 0) {
+          nextPhase = 'COLORS_ORDER';
+        }
+      }
       if (
         state.phase === 'COLORS_ORDER' &&
         colorsRemaining.length === 1 &&
@@ -305,12 +311,10 @@ export class SnookerRoyalRules {
       nextActivePlayer = state.activePlayer === 'A' ? 'B' : 'A';
       nextBreak = 0;
       if (state.phase === 'REDS_AND_COLORS') {
-        if (redsRemaining === 0 && !state.colorOnAfterRed) {
+        if (redsRemaining === 0) {
           nextPhase = 'COLORS_ORDER';
-          colorOnAfterRed = false;
-        } else {
-          colorOnAfterRed = state.colorOnAfterRed ?? false;
         }
+        colorOnAfterRed = false;
       }
     } else {
       if (onRed) {
