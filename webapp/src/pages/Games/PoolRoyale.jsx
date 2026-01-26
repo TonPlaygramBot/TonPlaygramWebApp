@@ -927,15 +927,71 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   {
     id: 'english',
     label: 'English',
-    description: 'Male voice, English',
+    description: 'Mixed voices, classic English',
     language: 'en',
     voiceHints: {
-      [POOL_ROYALE_SPEAKERS.lead]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
-      [POOL_ROYALE_SPEAKERS.analyst]: ['en-US', 'en-GB', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex']
+      [POOL_ROYALE_SPEAKERS.lead]: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma']
     },
     speakerSettings: {
       [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1, pitch: 0.96, volume: 1 }
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
+    }
+  },
+  {
+    id: 'saffron-table',
+    label: 'Indian Table',
+    description: 'Hindi commentary with lively pacing',
+    language: 'hi',
+    voiceHints: {
+      [POOL_ROYALE_SPEAKERS.lead]: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha']
+    },
+    speakerSettings: {
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1.06, pitch: 1.02, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.08, volume: 1 }
+    }
+  },
+  {
+    id: 'moscow-mics',
+    label: 'Russian Booth',
+    description: 'Russian commentary with steady cadence',
+    language: 'ru',
+    voiceHints: {
+      [POOL_ROYALE_SPEAKERS.lead]: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga']
+    },
+    speakerSettings: {
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.03, pitch: 1.02, volume: 1 }
+    }
+  },
+  {
+    id: 'latin-pulse',
+    label: 'Latin Pulse',
+    description: 'Spanish play-by-play with lively color',
+    language: 'es',
+    voiceHints: {
+      [POOL_ROYALE_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila']
+    },
+    speakerSettings: {
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1.05, pitch: 1, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.1, volume: 1 }
+    }
+  },
+  {
+    id: 'francophone-booth',
+    label: 'Francophone Booth',
+    description: 'French broadcast pairing',
+    language: 'fr',
+    voiceHints: {
+      [POOL_ROYALE_SPEAKERS.lead]: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte']
+    },
+    speakerSettings: {
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
     }
   }
 ]);
@@ -10851,7 +10907,7 @@ function PoolRoyaleGame({
     }
     return false;
   });
-  const [commentaryPresetId] = useState(() => {
+  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
       if (stored && POOL_ROYALE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
@@ -11024,6 +11080,7 @@ function PoolRoyaleGame({
       POOL_ROYALE_COMMENTARY_PRESETS[0],
     [commentaryPresetId]
   );
+  const commentarySupported = useMemo(() => Boolean(getSpeechSynthesis()), []);
   const availableTableFinishes = useMemo(
     () =>
       TABLE_FINISH_OPTIONS.filter((option) =>
@@ -26405,15 +26462,47 @@ const powerRef = useRef(hud.power);
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Commentary
                 </h3>
+                <div className="mt-2 grid gap-2">
+                  {POOL_ROYALE_COMMENTARY_PRESETS.map((preset) => {
+                    const active = preset.id === commentaryPresetId;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => setCommentaryPresetId(preset.id)}
+                        aria-pressed={active}
+                        disabled={!commentarySupported}
+                        className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/15 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
+                            : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                        } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
+                          {active && (
+                            <span className="rounded-full border border-emerald-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-emerald-100">
+                              Active
+                            </span>
+                          )}
+                        </span>
+                        <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                          {preset.description}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
                 <button
                   type="button"
                   onClick={() => setCommentaryMuted((prev) => !prev)}
                   aria-pressed={commentaryMuted}
+                  disabled={!commentarySupported}
                   className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                     commentaryMuted
                       ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
                       : 'bg-white/10 text-white/80 hover:bg-white/20'
-                  }`}
+                  } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
                 >
                   <span>Mute commentary</span>
                   <span
@@ -26426,6 +26515,11 @@ const powerRef = useRef(hud.power);
                     {commentaryMuted ? 'On' : 'Off'}
                   </span>
                 </button>
+                {!commentarySupported && (
+                  <p className="mt-2 text-[0.65rem] text-white/60">
+                    Voice commentary requires Web Speech support.
+                  </p>
+                )}
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
