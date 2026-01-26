@@ -8,24 +8,75 @@ const DEFAULT_SPEAKER_SETTINGS = {
   Lena: { rate: 1.02, pitch: 1.05, volume: 1 }
 };
 
-export const getSpeechSynthesis = () => {
+let audioContext;
+let audioContextUnlocked = false;
+
+const ensureAudioContext = () => {
   if (typeof window === 'undefined') return null;
-  return window.speechSynthesis || window.webkitSpeechSynthesis || null;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  if (!audioContext) {
+    try {
+      audioContext = new AudioContextClass();
+    } catch (error) {
+      audioContext = null;
+    }
+  }
+  return audioContext;
 };
 
-export const primeSpeechSynthesis = () => {
-  const synth = getSpeechSynthesis();
-  if (!synth || synth.speaking || synth.pending) return;
-  if (typeof synth.getVoices === 'function') {
-    try {
-      synth.getVoices();
-    } catch {}
+const unlockAudioContext = () => {
+  const ctx = ensureAudioContext();
+  if (!ctx || audioContextUnlocked) return;
+  const resumeContext = typeof ctx.resume === 'function' ? ctx.resume() : Promise.resolve();
+  Promise.resolve(resumeContext)
+    .catch(() => {})
+    .finally(() => {
+      if (!ctx || audioContextUnlocked) return;
+      try {
+        const buffer = ctx.createBuffer(1, 1, 22050);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(0);
+        if (typeof source.stop === 'function') {
+          source.stop(0);
+        }
+        audioContextUnlocked = true;
+      } catch {
+        audioContextUnlocked = false;
+      }
+    });
+};
+
+export const getSpeechSynthesis = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.speechSynthesis || window.webkitSpeechSynthesis || null;
+  } catch {
+    return null;
   }
+};
+
+const ensureSpeechUnlocked = (synth) => {
+  if (!synth) return;
+  unlockAudioContext();
   if (typeof synth.resume === 'function') {
     try {
       synth.resume();
     } catch {}
   }
+  if (typeof synth.getVoices === 'function') {
+    try {
+      synth.getVoices();
+    } catch {}
+  }
+};
+
+export const primeSpeechSynthesis = () => {
+  const synth = getSpeechSynthesis();
+  if (!synth || synth.speaking || synth.pending) return;
+  ensureSpeechUnlocked(synth);
   const utterance = new SpeechSynthesisUtterance('.');
   utterance.volume = 0.01;
   utterance.rate = 1;
@@ -137,11 +188,7 @@ export const speakCommentaryLines = async (
     return acc;
   }, {});
 
-  if (typeof synth.resume === 'function') {
-    try {
-      synth.resume();
-    } catch {}
-  }
+  ensureSpeechUnlocked(synth);
 
   for (const line of lines) {
     const speaker = line.speaker || 'Mason';
@@ -177,14 +224,13 @@ export const speakCommentaryLines = async (
         clearTimeout(timeoutId);
         finish();
       };
-      synth.speak(utterance);
-      if (typeof synth.resume === 'function') {
-        setTimeout(() => {
-          try {
-            synth.resume();
-          } catch {}
-        }, 0);
+      if (synth.speaking || synth.pending) {
+        try {
+          synth.cancel();
+        } catch {}
       }
+      synth.speak(utterance);
+      setTimeout(() => ensureSpeechUnlocked(synth), 0);
     });
   }
 };
