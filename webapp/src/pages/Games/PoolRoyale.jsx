@@ -585,7 +585,7 @@ const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirror
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
 const CHROME_CORNER_WIDTH_SCALE = 0.978; // shave the chrome plate slightly so it ends at the jaw line on the long rail
 const CHROME_CORNER_HEIGHT_SCALE = 0.962; // mirror the trim on the short rail so the fascia meets the jaw corner without overlap
-const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.02; // align corner fascia offset with the snooker chrome plates
+const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.055; // pull the corner fascia inward toward the table centre while keeping the chrome cut fixed
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
@@ -614,7 +614,7 @@ const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1; // allow the plate ends to r
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.982; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.07; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.14; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.095; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
@@ -4945,8 +4945,8 @@ const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0;
-const RAIL_CONTACT_RADIUS = BALL_R * 0.985;
-const CUSHION_CUT_CONTACT_RADIUS = BALL_R * 0.945;
+const RAIL_CONTACT_RADIUS = BALL_R;
+const CUSHION_CUT_CONTACT_RADIUS = BALL_R;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
 const BREAK_VIEW = Object.freeze({
@@ -6518,7 +6518,7 @@ function updateCushionSegmentsFromTable(table) {
     const cutEnds = data.cutEnds || {};
     const minCut = Math.max(0, cutEnds.min || 0);
     const maxCut = Math.max(0, cutEnds.max || 0);
-    const cutInsetBase = RAIL_CONTACT_RADIUS * 0.55;
+    const cutInsetBase = RAIL_CONTACT_RADIUS * 0.18;
     const minInset = Math.min(minCut, cutInsetBase);
     const maxInset = Math.min(maxCut, cutInsetBase);
     const minInner = minCut + minInset;
@@ -21702,6 +21702,9 @@ const powerRef = useRef(hud.power);
               sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
               updateCamera();
             }
+          }
+          if (shotRecording && cueStick) {
+            recordReplayFrame(performance.now());
           }
         };
         let aiThinkingHandle = null;
