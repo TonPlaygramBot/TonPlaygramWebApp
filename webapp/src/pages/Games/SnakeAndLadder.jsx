@@ -3450,13 +3450,19 @@ export default function SnakeAndLadder() {
           frameRate={frameRateValue}
         />
       </div>
-      <div className="absolute top-3 right-3 z-30 pointer-events-auto">
+      <div
+        className="absolute z-30 pointer-events-auto"
+        style={{
+          top: 'calc(0.75rem + env(safe-area-inset-top, 0px))',
+          left: 'calc(0.75rem + env(safe-area-inset-left, 0px))'
+        }}
+      >
         <div className="relative">
           <button
             type="button"
             aria-label={showConfig ? 'Close game settings' : 'Open game settings'}
             onClick={() => setShowConfig((prev) => !prev)}
-            className="rounded-full bg-black/70 p-2 text-lg text-gray-100 shadow-lg backdrop-blur transition hover:bg-black/60"
+            className="bg-transparent p-2 text-lg text-gray-100 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
             ⚙️
           </button>
@@ -3655,10 +3661,25 @@ export default function SnakeAndLadder() {
         </div>
       </div>
       <div className="relative z-10 flex flex-col justify-end items-center w-full h-full p-4 pb-32 space-y-4 pointer-events-none">
-        {/* Bottom left controls */}
         <div className="pointer-events-auto w-full">
           <BottomLeftIcons
             onInfo={() => setShowInfo(true)}
+            style={{
+              right: 'calc(0.75rem + env(safe-area-inset-right, 0px))',
+              top: 'calc(4.5rem + env(safe-area-inset-top, 0px))'
+            }}
+            className="fixed z-30 flex flex-col items-center gap-2"
+            showChat={false}
+            showGift={false}
+            order={['info', 'mute']}
+            buttonClassName="flex flex-col items-center bg-transparent p-0 text-white/90 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            iconClassName="text-2xl leading-none"
+            labelClassName="sr-only"
+          />
+        </div>
+        {/* Bottom left controls */}
+        <div className="pointer-events-auto w-full">
+          <BottomLeftIcons
             onChat={() => setShowChat(true)}
             onGift={() => setShowGift(true)}
             style={{
@@ -3666,9 +3687,12 @@ export default function SnakeAndLadder() {
               bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)'
             }}
             className="fixed z-20 flex flex-col items-center gap-2"
-            buttonClassName="w-[3.15rem] h-[3.15rem] rounded-[14px] bg-black/60 border border-white/20 text-white flex flex-col items-center justify-center gap-1 shadow-[0_8px_18px_rgba(0,0,0,0.35)] backdrop-blur-md"
-            iconClassName="text-[1.1rem] leading-none"
-            labelClassName="text-[0.6rem] font-extrabold tracking-[0.08em] uppercase"
+            showInfo={false}
+            showMute={false}
+            order={['chat', 'gift']}
+            buttonClassName="flex flex-col items-center bg-transparent p-0 text-white/90 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            iconClassName="text-2xl leading-none"
+            labelClassName="sr-only"
           />
         </div>
         {/* Player photos stacked vertically */}
