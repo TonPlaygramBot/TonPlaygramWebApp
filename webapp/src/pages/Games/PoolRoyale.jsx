@@ -1349,13 +1349,13 @@ const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 7.6); // stretch the holder run so it comfortably fits 7 balls
-const POCKET_GUIDE_DROP = BALL_R * 0.12;
+const POCKET_GUIDE_DROP = BALL_R * 0.1;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.03; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
@@ -1369,7 +1369,7 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.26; // lift the leather strap so it meets the raised holder rails
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -1500,7 +1500,6 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 const SHOT_POWER_REDUCTION = 0.6375; // reduce overall shot strength by another 25%
 const SHOT_POWER_MULTIPLIER = 1.25;
 const SHOT_POWER_BOOST = 1.5;
-const SHOT_POWER_EXTRA = 1.2;
 const SHOT_SPEED_MULTIPLIER = 1.15;
 const SHOT_FORCE_BOOST =
   1.5 *
@@ -1511,8 +1510,7 @@ const SHOT_FORCE_BOOST =
   0.85 *
   SHOT_POWER_REDUCTION *
   SHOT_POWER_MULTIPLIER *
-  SHOT_POWER_BOOST *
-  SHOT_POWER_EXTRA;
+  SHOT_POWER_BOOST;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST * SHOT_SPEED_MULTIPLIER;
 const SHOT_MIN_FACTOR = 0.25;
@@ -1622,10 +1620,6 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.15;
 const SIDE_SPIN_MULTIPLIER = 1.5;
 const BACKSPIN_MULTIPLIER = 1.85 * 1.35 * 1.65;
 const TOPSPIN_MULTIPLIER = 1.5;
-const BACKSPIN_STUN_CENTER_BOOST = 1.12;
-const BACKSPIN_STUN_CENTER_MAX_X = 0.22;
-const BACKSPIN_STUN_CENTER_MIN_Y = -0.55;
-const BACKSPIN_STUN_CENTER_MAX_Y = -0.22;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
@@ -6155,29 +6149,6 @@ function applyRailImpulse(ball, impact) {
     );
   }
   ball.vel.set(TMP_VEC3_C.x, TMP_VEC3_C.z);
-}
-
-function resolveSpinFrame(ball) {
-  const speed = Math.max(ball?.vel?.length?.() ?? 0, 0);
-  const forward =
-    speed > 1e-6
-      ? TMP_VEC2_FORWARD.copy(ball.vel).normalize()
-      : ball?.launchDir
-        ? TMP_VEC2_FORWARD.copy(ball.launchDir).normalize()
-        : TMP_VEC2_FORWARD.set(0, 1);
-  const lateral = TMP_VEC2_LATERAL.set(-forward.y, forward.x);
-  return { forward, lateral, speed };
-}
-
-function resolveSpinWorldVector(ball, output) {
-  if (!ball?.spin) return null;
-  const { forward, lateral } = resolveSpinFrame(ball);
-  const sideSpin =
-    ball.spinMode === 'swerve' ? -(ball.spin.x || 0) : (ball.spin.x || 0);
-  const forwardSpin = ball.spin.y || 0;
-  const target = output ?? TMP_VEC2_SPIN;
-  target.copy(lateral).multiplyScalar(sideSpin).addScaledVector(forward, forwardSpin);
-  return target;
 }
 
 
@@ -21554,16 +21525,8 @@ const powerRef = useRef(hud.power);
           const baseSide = physicsSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
           let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          const isStunBackspinZone =
-            (appliedSpin?.y ?? 0) < 0 &&
-            Math.abs(appliedSpin?.x ?? 0) <= BACKSPIN_STUN_CENTER_MAX_X &&
-            (appliedSpin?.y ?? 0) >= BACKSPIN_STUN_CENTER_MIN_Y &&
-            (appliedSpin?.y ?? 0) <= BACKSPIN_STUN_CENTER_MAX_Y;
           if (physicsSpin.y < 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
-            if (isStunBackspinZone) {
-              spinTop *= BACKSPIN_STUN_CENTER_BOOST;
-            }
           } else if (physicsSpin.y > 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
           }
@@ -25075,52 +25038,6 @@ const powerRef = useRef(hud.power);
                 b.vel.x = TMP_VEC3_A.x;
                 b.vel.y = TMP_VEC3_A.z;
                 b.omega.copy(TMP_VEC3_C);
-              }
-            }
-            const hasSpin = b.spin?.lengthSq() > 1e-6;
-            if (hasSpin) {
-              const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
-              if (swerveTravel) {
-                const swerveStrength = Math.max(0, b.swerveStrength ?? 0);
-                const swervePower = Math.max(0, b.swervePowerStrength ?? 0);
-                const swervePowerScale = swerveStrength > 0 ? 0.85 + swervePower * 0.9 : 0;
-                const swerveScale =
-                  swerveStrength > 0 ? (0.6 + swerveStrength * 0.9) * swervePowerScale : 0;
-                const rollMultiplier =
-                  SWERVE_TRAVEL_MULTIPLIER * (0.9 + swerveStrength * 0.6);
-                const worldSpin = resolveSpinWorldVector(b, TMP_VEC2_SPIN);
-                if (worldSpin) {
-                  TMP_VEC2_SPIN.copy(worldSpin).multiplyScalar(
-                    SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
-                  );
-                  if (b.launchDir && b.launchDir.lengthSq() > 1e-8) {
-                    const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
-                    const forwardMag = TMP_VEC2_SPIN.dot(launchDir);
-                    TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
-                    b.vel.add(TMP_VEC2_AXIS);
-                    TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
-                    const alignedSpeed = b.vel.dot(launchDir);
-                    TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
-                    b.vel.copy(TMP_VEC2_AXIS);
-                    if (swerveScale > 0) {
-                      b.vel.addScaledVector(
-                        TMP_VEC2_LATERAL,
-                        SWERVE_PRE_IMPACT_DRIFT * swerveScale
-                      );
-                    }
-                  } else {
-                    b.vel.add(TMP_VEC2_SPIN);
-                  }
-                  const rollDecay = Math.pow(SPIN_ROLL_DECAY, stepScale);
-                  b.spin.multiplyScalar(rollDecay);
-                  if (isCue && b.swerveStrength > 0) {
-                    b.swerveStrength *= rollDecay;
-                    if (b.swerveStrength < 1e-3) {
-                      b.swerveStrength = 0;
-                      b.swervePowerStrength = 0;
-                    }
-                  }
-                }
               }
             }
             b.pos.addScaledVector(b.vel, stepScale);
