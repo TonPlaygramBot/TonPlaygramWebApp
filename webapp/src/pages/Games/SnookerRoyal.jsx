@@ -78,6 +78,11 @@ import {
   resolvePlayableTrainingLevel
 } from '../../utils/snookerRoyalTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import {
+  mapSpinForPhysics,
+  normalizeSpinInput,
+  SPIN_STUN_RADIUS
+} from './poolRoyaleSpinUtils.js';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
@@ -1057,8 +1062,10 @@ const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const ENABLE_TABLE_MAPPING_LINES = false;
   const TABLE_BASE_SCALE = 1.2;
-  const TABLE_WIDTH_SCALE = 1.3; // increase the overall table footprint to ~30% upscale while preserving proportions
-  const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
+  const TABLE_WIDTH_SCALE = 1.3; // preserve the widened snooker footprint baseline
+  const TABLE_EXPANSION_SCALE = 1.28; // widen + lengthen the table by ~28% while keeping the same proportions
+  const TABLE_SCALE =
+    TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE * TABLE_EXPANSION_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * TABLE_SIZE_MULTIPLIER,
@@ -1494,8 +1501,10 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Snooker Royal feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Snooker Royal power pass: lift overall shot strength by another 25%.
+// Snooker Royal boost: add 50% more power to every shot to match the new table scale.
 const SHOT_POWER_REDUCTION = 0.85;
 const SHOT_POWER_MULTIPLIER = 1.25;
+const SHOT_POWER_BOOST = 1.5;
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1504,7 +1513,8 @@ const SHOT_FORCE_BOOST =
   1.3 *
   0.85 *
   SHOT_POWER_REDUCTION *
-  SHOT_POWER_MULTIPLIER;
+  SHOT_POWER_MULTIPLIER *
+  SHOT_POWER_BOOST;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -1523,7 +1533,7 @@ const LEG_HEIGHT_MULTIPLIER = 4.5;
 const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
 const TABLE_HEIGHT_REDUCTION = 0.82;
-const TABLE_HEIGHT_SCALE = 1.56;
+const TABLE_HEIGHT_SCALE = 1.56 * TABLE_EXPANSION_SCALE;
 const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION * TABLE_HEIGHT_SCALE;
 const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
@@ -5213,48 +5223,8 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
-const SPIN_INPUT_DEAD_ZONE = 0.02;
+const SPIN_INPUT_DEAD_ZONE = SPIN_STUN_RADIUS;
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
-const SPIN_RESPONSE_EXPONENT = 1.65;
-
-const clampToUnitCircle = (x, y) => {
-  const L = Math.hypot(x, y);
-  if (!Number.isFinite(L) || L <= 1) {
-    return { x, y };
-  }
-  const scale = L > 1e-6 ? 1 / L : 0;
-  return { x: x * scale, y: y * scale };
-};
-const normalizeSpinInput = (spin) => {
-  const x = spin?.x ?? 0;
-  const y = spin?.y ?? 0;
-  const magnitude = Math.hypot(x, y);
-  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
-    return { x: 0, y: 0 };
-  }
-  return clampToUnitCircle(x, y);
-};
-const applySpinResponseCurve = (spin) => {
-  const x = spin?.x ?? 0;
-  const y = spin?.y ?? 0;
-  const magnitude = Math.hypot(x, y);
-  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
-    return { x: 0, y: 0 };
-  }
-  const clamped = clampToUnitCircle(x, y);
-  const clampedMag = Math.hypot(clamped.x, clamped.y);
-  if (clampedMag < 1e-6) return { x: 0, y: 0 };
-  const curvedMag = Math.pow(clampedMag, SPIN_RESPONSE_EXPONENT);
-  const scale = curvedMag / clampedMag;
-  return { x: clamped.x * scale, y: clamped.y * scale };
-};
-const mapSpinForPhysics = (spin) => {
-  const curved = applySpinResponseCurve(spin);
-  return {
-    x: curved?.x ?? 0,
-    y: -(curved?.y ?? 0)
-  };
-};
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
   return THREE.MathUtils.clamp(liftAngle / CUE_LIFT_MAX_TILT, 0, 1);
@@ -9553,6 +9523,20 @@ function Table3D(
 
     let leftCut = computeCut(leftCutAngle);
     let rightCut = computeCut(rightCutAngle);
+    const straightEdgeCut = baseThickness * 0.12;
+    const straightEdgeCurve = baseThickness * 0.12;
+    const leftStraightEdge = Boolean(cutAngles?.leftStraightEdge);
+    const rightStraightEdge = Boolean(cutAngles?.rightStraightEdge);
+    let leftCurve = 0;
+    let rightCurve = 0;
+    if (leftStraightEdge) {
+      leftCut = Math.min(leftCut, straightEdgeCut);
+      leftCurve = straightEdgeCurve;
+    }
+    if (rightStraightEdge) {
+      rightCut = Math.min(rightCut, straightEdgeCut);
+      rightCurve = straightEdgeCurve;
+    }
     const maxTotalCut = Math.max(MICRO_EPS, len - MICRO_EPS);
     const totalCut = leftCut + rightCut;
     if (totalCut > maxTotalCut) {
@@ -9562,10 +9546,20 @@ function Table3D(
     }
 
     const shape = new THREE.Shape();
+    const rightFrontX = halfLen - (rightCurve > 0 ? rightCurve : rightCut);
+    const leftFrontX = -halfLen + (leftCurve > 0 ? leftCurve : leftCut);
     shape.moveTo(-halfLen, backY);
     shape.lineTo(halfLen, backY);
-    shape.lineTo(halfLen - rightCut, frontY);
-    shape.lineTo(-halfLen + leftCut, frontY);
+    if (rightCurve > 0) {
+      shape.lineTo(halfLen, frontY + rightCurve);
+      shape.quadraticCurveTo(halfLen, frontY, rightFrontX, frontY);
+    } else {
+      shape.lineTo(rightFrontX, frontY);
+    }
+    shape.lineTo(leftFrontX, frontY);
+    if (leftCurve > 0) {
+      shape.quadraticCurveTo(-halfLen, frontY, -halfLen, frontY + leftCurve);
+    }
     shape.lineTo(-halfLen, backY);
 
     const cushionBevel = Math.min(railH, baseThickness) * 0.12;
@@ -9636,8 +9630,12 @@ function Table3D(
     const side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
     const sidePocketCuts = !horizontal
       ? {
-          leftCutAngle: leftCloserToCenter ? CUSHION_CUT_ANGLE : SIDE_CUSHION_CUT_ANGLE,
-          rightCutAngle: leftCloserToCenter ? SIDE_CUSHION_CUT_ANGLE : CUSHION_CUT_ANGLE
+          leftCutAngle: leftCloserToCenter
+            ? CUSHION_CUT_ANGLE
+            : VISUAL_SIDE_CUSHION_CUT_ANGLE,
+          rightCutAngle: leftCloserToCenter
+            ? VISUAL_SIDE_CUSHION_CUT_ANGLE
+            : CUSHION_CUT_ANGLE
         }
       : undefined;
     const cutLengths = computeCushionCutLengths(len, horizontal, sidePocketCuts);
