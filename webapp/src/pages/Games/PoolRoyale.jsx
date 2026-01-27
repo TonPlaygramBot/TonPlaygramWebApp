@@ -6279,6 +6279,23 @@ function buildSwerveAimLinePoints(
   return points;
 }
 
+function applySpinDeflectionToTargetDir(targetDir, shotDir, spin, powerStrength) {
+  if (!targetDir || !shotDir) return targetDir;
+  const sideSpin = spin?.x ?? 0;
+  if (!Number.isFinite(sideSpin) || Math.abs(sideSpin) < 1e-4) return targetDir;
+  const shotX = shotDir.x ?? 0;
+  const shotY = shotDir.y ?? shotDir.z ?? 0;
+  const shot2D = new THREE.Vector2(shotX, shotY);
+  if (shot2D.lengthSq() < 1e-6) return targetDir;
+  shot2D.normalize();
+  const perp = new THREE.Vector2(-shot2D.y, shot2D.x);
+  const power = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
+  const deflection = sideSpin * (0.14 + 0.22 * power);
+  const adjusted = targetDir.clone().add(perp.multiplyScalar(deflection));
+  if (adjusted.lengthSq() > 1e-6) adjusted.normalize();
+  return adjusted;
+}
+
 // calculate impact point and post-collision direction for aiming guide
 function calcTarget(cue, dir, balls) {
   if (!cue) {
@@ -24464,9 +24481,11 @@ const powerRef = useRef(hud.power);
           const followEnd = end
             .clone()
             .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
+          const cueLineBackspin = cueFollowDirSpinAdjusted.dot(dir) < 0;
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
+          cueAfter.material.color.setHex(cueLineBackspin ? 0xff3b30 : 0x7ce7ff);
           cueAfter.computeLineDistances();
           if (impactRingEnabled) {
             impactRing.visible = true;
@@ -24607,7 +24626,17 @@ const powerRef = useRef(hud.power);
           cueStick.visible = true;
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
-            const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
+            const adjustedTargetDir = applySpinDeflectionToTargetDir(
+              targetDir,
+              dir,
+              physicsSpin,
+              powerStrength
+            );
+            const tDir = new THREE.Vector3(
+              adjustedTargetDir.x,
+              0,
+              adjustedTargetDir.y
+            );
             if (tDir.lengthSq() > 1e-8) {
               tDir.normalize();
             } else {
@@ -24699,13 +24728,36 @@ const powerRef = useRef(hud.power);
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : baseDir.clone();
-          const cueFollowLength = BALL_R * (12 + powerStrength * 18);
+          const spinSideInfluence =
+            (remotePhysicsSpin.x || 0) * (0.4 + 0.42 * powerStrength);
+          const spinVerticalInfluence =
+            (remotePhysicsSpin.y || 0) * (0.68 + 0.45 * powerStrength);
+          const cueFollowDirSpinAdjusted = cueFollowDir
+            .clone()
+            .add(perp.clone().multiplyScalar(spinSideInfluence))
+            .add(baseDir.clone().multiplyScalar(spinVerticalInfluence * 0.16));
+          if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
+            cueFollowDirSpinAdjusted.normalize();
+          }
+          const backSpinWeight = Math.max(0, -(remotePhysicsSpin.y || 0));
+          if (backSpinWeight > 1e-8) {
+            const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
+            const drawDir = baseDir.clone().negate();
+            cueFollowDirSpinAdjusted.lerp(drawDir, drawLerp);
+            if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
+              cueFollowDirSpinAdjusted.normalize();
+            }
+          }
+          const cueFollowLength =
+            BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
           const followEnd = end
             .clone()
-            .add(cueFollowDir.clone().multiplyScalar(cueFollowLength));
+            .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
+          const cueLineBackspin = cueFollowDirSpinAdjusted.dot(baseDir) < 0;
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
+          cueAfter.material.color.setHex(cueLineBackspin ? 0xff3b30 : 0x7ce7ff);
           cueAfter.computeLineDistances();
           impactRing.visible = false;
           const maxPull = CUE_PULL_BASE;
@@ -24745,7 +24797,17 @@ const powerRef = useRef(hud.power);
           updateChalkVisibility(null);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
-            const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
+            const adjustedTargetDir = applySpinDeflectionToTargetDir(
+              targetDir,
+              baseDir,
+              remotePhysicsSpin,
+              powerStrength
+            );
+            const tDir = new THREE.Vector3(
+              adjustedTargetDir.x,
+              0,
+              adjustedTargetDir.y
+            );
             if (tDir.lengthSq() > 1e-8) {
               tDir.normalize();
             } else {
