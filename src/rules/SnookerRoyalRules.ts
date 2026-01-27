@@ -77,6 +77,15 @@ function normalizeColor(value: unknown): BallColor | null {
   return null;
 }
 
+function deriveColorsRemaining(ballsState: Ball[]): BallColor[] {
+  const onTableColors = new Set(
+    ballsState
+      .filter((ball) => ball.onTable && ball.color !== 'RED' && ball.color !== 'CUE')
+      .map((ball) => ball.color)
+  );
+  return COLOR_ORDER.filter((color) => onTableColors.has(color));
+}
+
 function resolveBallOn(state: FrameState, colorsRemaining: BallColor[]): BallColor[] {
   if (state.phase === 'COLORS_ORDER') {
     return colorsRemaining.length ? [colorsRemaining[0]] : [];
@@ -151,12 +160,15 @@ export class SnookerRoyalRules {
 
   applyShot(state: FrameState, events: ShotEvent[], context: ShotContext = {}): FrameState {
     const meta = state.meta as SnookerMeta | undefined;
-    const colorsRemaining = Array.isArray(meta?.colorsRemaining)
-      ? [...meta.colorsRemaining]
-      : [...COLOR_ORDER];
     const ballsState = Array.isArray(state.balls) && state.balls.length
       ? state.balls.map((ball) => ({ ...ball }))
       : buildInitialBalls();
+    const inferredColorsRemaining = deriveColorsRemaining(ballsState);
+    const colorsRemaining = Array.isArray(meta?.colorsRemaining) && meta.colorsRemaining.length
+      ? COLOR_ORDER.filter(
+        (color) => meta.colorsRemaining.includes(color) && inferredColorsRemaining.includes(color)
+      )
+      : inferredColorsRemaining;
     const ballOn = resolveBallOn(state, colorsRemaining);
 
     const hitEvent = events.find((event) => event.type === 'HIT') as
@@ -424,6 +436,7 @@ export class SnookerRoyalRules {
       respotColor(nominatedFreeBall);
     }
 
+    const updatedColorsRemaining = deriveColorsRemaining(ballsState);
     const nextState: FrameState = {
       ...state,
       activePlayer: nextActivePlayer,
@@ -436,7 +449,7 @@ export class SnookerRoyalRules {
       redsRemaining,
       colorOnAfterRed,
       freeBall: nextFreeBall,
-      ballOn: resolveBallOn({ ...state, phase: nextPhase, colorOnAfterRed }, colorsRemaining),
+      ballOn: resolveBallOn({ ...state, phase: nextPhase, colorOnAfterRed }, updatedColorsRemaining),
       frameOver,
       winner,
       foul: foulReason
@@ -451,12 +464,12 @@ export class SnookerRoyalRules {
       balls: ballsState,
       meta: {
         variant: 'snooker',
-        colorsRemaining,
+        colorsRemaining: updatedColorsRemaining,
         freeBall: nextFreeBall,
         hud: buildHud(
           { ...state, phase: nextPhase, colorOnAfterRed, ballOn, redsRemaining, freeBall: nextFreeBall },
           scores,
-          resolveBallOn({ ...state, phase: nextPhase, colorOnAfterRed }, colorsRemaining)
+          resolveBallOn({ ...state, phase: nextPhase, colorOnAfterRed }, updatedColorsRemaining)
         )
       } satisfies SnookerMeta
     };
