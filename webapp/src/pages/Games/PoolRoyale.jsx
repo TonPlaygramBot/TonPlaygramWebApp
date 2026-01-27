@@ -1354,7 +1354,7 @@ const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails jus
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.03; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
@@ -1368,7 +1368,7 @@ const POCKET_EDGE_STOP_EXTRA_DROP = TABLE.THICK * 0.14; // push the cloth sleeve
 const POCKET_HOLDER_L_LEG = BALL_DIAMETER * 0.92; // extend the short L section so it reaches the ring and guides balls like the reference trays
 const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER * 5.2); // longer tray section that actually holds the balls
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
-const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.22; // lift the leather strap so it meets the raised holder rails
+const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.26; // lift the leather strap so it meets the raised holder rails
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
 const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
@@ -6529,7 +6529,7 @@ function updateCushionSegmentsFromTable(table) {
     const cutTypes = data.cutTypes || {};
     const minTypeScale = cutTypes.min === 'side' ? 0.2 : 1;
     const maxTypeScale = cutTypes.max === 'side' ? 0.2 : 1;
-    const cutInsetBase = RAIL_CONTACT_RADIUS * 0.12;
+    const cutInsetBase = RAIL_CONTACT_RADIUS * 0.02;
     const minInset = Math.min(minCut, cutInsetBase * minTypeScale);
     const maxInset = Math.min(maxCut, cutInsetBase * maxTypeScale);
     const cutAngles = data.cutAngles || {};
@@ -21449,14 +21449,18 @@ const powerRef = useRef(hud.power);
           const liftAngle = resolveUserCueLift();
           const liftStrength = normalizeCueLift(liftAngle);
           const physicsSpin = mapSpinForPhysics(appliedSpin);
+          const calibratedSpin = {
+            x: physicsSpin.x,
+            y: -physicsSpin.y
+          };
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const baseSide = physicsSpin.x * (ranges.side ?? 0);
+          const baseSide = calibratedSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (physicsSpin.y < 0) {
+          let spinTop = calibratedSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+          if (calibratedSpin.y < 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (physicsSpin.y > 0) {
+          } else if (calibratedSpin.y > 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
           }
           cue.vel.copy(base);
@@ -21467,7 +21471,7 @@ const powerRef = useRef(hud.power);
           cue.spinMode =
             spinAppliedRef.current?.mode === 'swerve' ? 'swerve' : 'standard';
           const swerveSettings = resolveSwerveSettings(
-            physicsSpin,
+            calibratedSpin,
             clampedPower,
             cue.spinMode === 'swerve',
             liftStrength
@@ -21482,7 +21486,7 @@ const powerRef = useRef(hud.power);
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
-          const topSpinWeight = Math.max(0, physicsSpin.y || 0);
+          const topSpinWeight = Math.max(0, calibratedSpin.y || 0);
           if (
             clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
             liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
