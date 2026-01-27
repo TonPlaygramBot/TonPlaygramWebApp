@@ -1157,6 +1157,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Snooker table inner ratio must match the widened 1.83:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / (WIDTH_REF * TABLE_FIELD_EXPANSION);
+const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_SIZE_SCALE = 0.97; // match Pool Royale ball sizing
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
@@ -1180,9 +1181,9 @@ const CHALK_PRECISION_SLOW_MULTIPLIER = 0.25;
 const CHALK_AIM_LERP_SLOW = 0.08;
 const CHALK_TARGET_RING_RADIUS = BALL_R * 2;
 const CHALK_RING_OPACITY = 0.18;
-const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
-const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
-const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
+const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MARKINGS_MM_TO_UNITS;
+const D_RADIUS = D_RADIUS_REF * MARKINGS_MM_TO_UNITS;
+const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MARKINGS_MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
 const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.97; // match Pool Royale middle pocket mouth width
 const POCKET_SIDE_MOUTH_SCALE =
@@ -1502,7 +1503,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Snooker Royal feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Snooker Royal power pass: lift overall shot strength by another 25%.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 1.875; // +50% shot power
+const SHOT_POWER_MULTIPLIER = 2.8125; // +50% more shot power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -4835,9 +4836,10 @@ function applySnookerScaling({
     if (Array.isArray(markings.spots) && markings.spots.length >= 6) {
       const [yellow, brown, green, blue, pink, black] = markings.spots;
       const spotY = yellow?.position?.y ?? markingY;
-      if (yellow) yellow.position.set(-D_RADIUS, spotY, baulkZ);
+      const dRadius = D_RADIUS_REF * mmToUnits;
+      if (yellow) yellow.position.set(-dRadius, spotY, baulkZ);
       if (brown) brown.position.set(0, spotY, baulkZ);
-      if (green) green.position.set(D_RADIUS, spotY, baulkZ);
+      if (green) green.position.set(dRadius, spotY, baulkZ);
       if (blue) blue.position.set(0, spotY, center.z);
       const topCushion = halfWidth;
       const pinkZ = (topCushion + center.z) / 2;
@@ -25602,8 +25604,8 @@ const powerRef = useRef(hud.power);
       const cx = clientX ?? rect.left + rect.width / 2;
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
-      let ny = ((cy - rect.top) / rect.height) * 2 - 1;
-      setSpin(nx, -ny);
+      let ny = -(((cy - rect.top) / rect.height) * 2 - 1);
+      setSpin(nx, ny);
     };
 
     const scaleBox = (value) => {
