@@ -132,7 +132,7 @@ function applyTablePhysicsSpec(meta) {
   SIDE_CUSHION_CUT_ANGLE = sideCushionAngle;
   const sidePocketPhysicsAngle = Number.isFinite(meta?.sidePocketCutAngleDeg)
     ? meta.sidePocketCutAngleDeg
-    : sideCushionAngle;
+    : VISUAL_SIDE_CUSHION_CUT_ANGLE;
   SIDE_POCKET_PHYSICS_CUT_ANGLE = clamp(
     sidePocketPhysicsAngle,
     MIN_SIDE_POCKET_PHYSICS_CUT_ANGLE,
@@ -5945,34 +5945,31 @@ function reflectRails(ball) {
       return { ...bestImpact, preImpactVel };
     }
   }
-  const useLegacyCuts = !Array.isArray(CUSHION_SEGMENTS) || CUSHION_SEGMENTS.length === 0;
-  if (useLegacyCuts) {
-    for (const { sx, sy } of CORNER_SIGNS) {
-      TMP_VEC2_C.set(sx * limX, sy * limY);
-      TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
-      TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
-      const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
-      if (distNormal >= railRadius) continue;
-      TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-      const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
-      if (lateral < guardClearance) continue;
-      if (distNormal < -cornerDepthLimit) continue;
-      const push = railRadius - distNormal;
-      ball.pos.addScaledVector(TMP_VEC2_B, push);
-      preImpactVel = ball.vel.clone();
-      const stamp =
-        typeof performance !== 'undefined' && performance.now
-          ? performance.now()
-          : Date.now();
-      ball.lastRailHitAt = stamp;
-      ball.lastRailHitType = 'corner';
-      return {
-        type: 'corner',
-        normal: TMP_VEC2_B.clone(),
-        tangent: TMP_VEC2_D.clone(),
-        preImpactVel
-      };
-    }
+  for (const { sx, sy } of CORNER_SIGNS) {
+    TMP_VEC2_C.set(sx * limX, sy * limY);
+    TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
+    TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
+    const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
+    if (distNormal >= railRadius) continue;
+    TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
+    const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
+    if (lateral < guardClearance) continue;
+    if (distNormal < -cornerDepthLimit) continue;
+    const push = railRadius - distNormal;
+    ball.pos.addScaledVector(TMP_VEC2_B, push);
+    preImpactVel = ball.vel.clone();
+    const stamp =
+      typeof performance !== 'undefined' && performance.now
+        ? performance.now()
+        : Date.now();
+    ball.lastRailHitAt = stamp;
+    ball.lastRailHitType = 'corner';
+    return {
+      type: 'corner',
+      normal: TMP_VEC2_B.clone(),
+      tangent: TMP_VEC2_D.clone(),
+      preImpactVel
+    };
   }
 
   const sideSpan = SIDE_POCKET_SPAN;
@@ -5983,39 +5980,37 @@ function reflectRails(ball) {
   const sideCutRad = THREE.MathUtils.degToRad(SIDE_POCKET_PHYSICS_CUT_ANGLE);
   const sideCutCos = Math.cos(sideCutRad);
   const sideCutSin = Math.sin(sideCutRad);
-  if (useLegacyCuts) {
-    for (const center of sidePocketCenters) {
-      TMP_VEC2_A.copy(ball.pos).sub(center);
-      const distToCenterSq = TMP_VEC2_A.lengthSq();
-      if (distToCenterSq < sidePocketGuard * sidePocketGuard) continue;
-      const signX = center.x >= 0 ? 1 : -1;
-      for (const signY of SIDE_POCKET_CUT_SIGNS) {
-        if (TMP_VEC2_A.y * signY < 0) continue;
-        TMP_VEC2_C.set(signX * limX, center.y + signY * sideSpan);
-        TMP_VEC2_B.set(-signX * sideCutCos, signY * sideCutSin);
-        TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-        TMP_VEC2_LIMIT.copy(ball.pos).sub(TMP_VEC2_C);
-        const distNormal = TMP_VEC2_LIMIT.dot(TMP_VEC2_B);
-        if (distNormal >= railRadius) continue;
-        if (distNormal < -sideDepthLimit) continue;
-        const lateral = Math.abs(TMP_VEC2_LIMIT.dot(TMP_VEC2_D));
-        if (lateral < sideGuardClearance) continue;
-        const push = railRadius - distNormal;
-        ball.pos.addScaledVector(TMP_VEC2_B, push);
-        preImpactVel = ball.vel.clone();
-        const stamp =
-          typeof performance !== 'undefined' && performance.now
-            ? performance.now()
-            : Date.now();
-        ball.lastRailHitAt = stamp;
-        ball.lastRailHitType = 'cut';
-        return {
-          type: 'cut',
-          normal: TMP_VEC2_B.clone(),
-          tangent: TMP_VEC2_D.clone(),
-          preImpactVel
-        };
-      }
+  for (const center of sidePocketCenters) {
+    TMP_VEC2_A.copy(ball.pos).sub(center);
+    const distToCenterSq = TMP_VEC2_A.lengthSq();
+    if (distToCenterSq < sidePocketGuard * sidePocketGuard) continue;
+    const signX = center.x >= 0 ? 1 : -1;
+    for (const signY of SIDE_POCKET_CUT_SIGNS) {
+      if (TMP_VEC2_A.y * signY < 0) continue;
+      TMP_VEC2_C.set(signX * limX, center.y + signY * sideSpan);
+      TMP_VEC2_B.set(-signX * sideCutCos, signY * sideCutSin);
+      TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
+      TMP_VEC2_LIMIT.copy(ball.pos).sub(TMP_VEC2_C);
+      const distNormal = TMP_VEC2_LIMIT.dot(TMP_VEC2_B);
+      if (distNormal >= railRadius) continue;
+      if (distNormal < -sideDepthLimit) continue;
+      const lateral = Math.abs(TMP_VEC2_LIMIT.dot(TMP_VEC2_D));
+      if (lateral < sideGuardClearance) continue;
+      const push = railRadius - distNormal;
+      ball.pos.addScaledVector(TMP_VEC2_B, push);
+      preImpactVel = ball.vel.clone();
+      const stamp =
+        typeof performance !== 'undefined' && performance.now
+          ? performance.now()
+          : Date.now();
+      ball.lastRailHitAt = stamp;
+      ball.lastRailHitType = 'cut';
+      return {
+        type: 'cut',
+        normal: TMP_VEC2_B.clone(),
+        tangent: TMP_VEC2_D.clone(),
+        preImpactVel
+      };
     }
   }
 
@@ -9712,11 +9707,11 @@ export function Table3D(
     const cutConfig = !horizontal
       ? {
           leftCutAngle: leftCloserToCenter
-            ? SIDE_CUSHION_CUT_ANGLE
-            : CUSHION_CUT_ANGLE,
-          rightCutAngle: leftCloserToCenter
             ? CUSHION_CUT_ANGLE
-            : SIDE_CUSHION_CUT_ANGLE
+            : VISUAL_SIDE_CUSHION_CUT_ANGLE,
+          rightCutAngle: leftCloserToCenter
+            ? VISUAL_SIDE_CUSHION_CUT_ANGLE
+            : CUSHION_CUT_ANGLE
         }
       : {};
     const resolvedCutAngles = {
