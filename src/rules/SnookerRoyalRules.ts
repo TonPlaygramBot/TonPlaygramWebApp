@@ -239,7 +239,7 @@ export class SnookerRoyalRules {
       : inColorsOrder
         ? colorsRemaining[0] ?? null
         : onColorAfterRed
-          ? declaredBall ?? null
+          ? declaredBall
           : 'RED';
     const foulBallOn = freeBallActive && nominatedFreeBall
       ? [nominatedFreeBall]
@@ -254,15 +254,13 @@ export class SnookerRoyalRules {
     } else if (context.contactMade === false || !firstContact) {
       foulReason = 'no contact';
     } else {
-      const requiresNomination = freeBallActive;
+      const requiresNomination = freeBallActive || onColorAfterRed;
       if (requiresNomination && !nominatedBall) {
         foulReason = 'no nomination';
       } else if (freeBallActive && onRed && nominatedBall === 'RED') {
         foulReason = 'invalid nomination';
       } else if (onColorAfterRed && declaredBall === 'RED') {
         foulReason = 'invalid nomination';
-      } else if (onColorAfterRed && !declaredBall && firstContact === 'RED') {
-        foulReason = 'wrong ball';
       } else if (requiredFirstContact && firstContact !== requiredFirstContact) {
         foulReason = 'wrong ball';
       }
@@ -369,12 +367,12 @@ export class SnookerRoyalRules {
         }
       } else if (onColorAfterRed) {
         const legalColor = freeBallActive ? nominatedFreeBall : declaredBall;
-        const scoredColor = legalColor
-          ? (pottedColorsExcludingFreeBall.some((entry) => entry.color === legalColor) ||
+        const scoredColor =
+          legalColor &&
+          (pottedColorsExcludingFreeBall.some((entry) => entry.color === legalColor) ||
             freeBallPotted)
             ? legalColor
-            : null
-          : pottedColorsExcludingFreeBall[0]?.color ?? null;
+            : null;
         if (scoredColor) {
           const scored = COLOR_VALUES[ballOnValue ?? scoredColor] || 0;
           scores[state.activePlayer] += scored;
@@ -438,8 +436,12 @@ export class SnookerRoyalRules {
         if (colorsOrderTarget && pottedNonCueColors.includes(colorsOrderTarget)) {
           removeColor(colorsOrderTarget);
         }
+      } else {
+        pottedColors.forEach((entry) => {
+          if (entry.color !== 'RED') restoreBallState(entry.ball);
+        });
       }
-    } else if (!foulReason) {
+    } else {
       pottedColors.forEach((entry) => {
         if (entry.color !== 'RED') restoreBallState(entry.ball);
       });
