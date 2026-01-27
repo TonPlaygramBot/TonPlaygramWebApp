@@ -86,6 +86,7 @@ import {
 } from '../../utils/poolRoyaleTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
+  clampToUnitCircle,
   mapSpinForPhysics,
   normalizeSpinInput,
   SPIN_STUN_RADIUS
@@ -5945,6 +5946,37 @@ function reflectRails(ball) {
       ball.lastRailHitAt = stamp;
       ball.lastRailHitType = bestImpact.type;
       return { ...bestImpact, preImpactVel };
+    }
+    for (let i = 0; i < centers.length; i++) {
+      const center = centers[i];
+      if (!center) continue;
+      const captureRadius = i >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+      const jawBaseRadius = i >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
+      const jawRadius = jawBaseRadius * POCKET_VISUAL_EXPANSION;
+      TMP_VEC2_A.copy(ball.pos).sub(center);
+      const distSq = TMP_VEC2_A.lengthSq();
+      if (distSq <= 1e-10) continue;
+      const dist = Math.sqrt(distSq);
+      if (dist <= captureRadius || dist >= jawRadius + railRadius) continue;
+      TMP_VEC2_A.multiplyScalar(1 / dist);
+      const velocityToward = ball.vel.dot(TMP_VEC2_A);
+      if (velocityToward <= 0) continue;
+      const penetration = jawRadius + railRadius - dist;
+      if (penetration <= 0) continue;
+      ball.pos.addScaledVector(TMP_VEC2_A, penetration);
+      preImpactVel = ball.vel.clone();
+      const stamp =
+        typeof performance !== 'undefined' && performance.now
+          ? performance.now()
+          : Date.now();
+      ball.lastRailHitAt = stamp;
+      ball.lastRailHitType = 'jaw';
+      return {
+        type: 'jaw',
+        normal: TMP_VEC2_A.clone(),
+        tangent: new THREE.Vector2(-TMP_VEC2_A.y, TMP_VEC2_A.x),
+        preImpactVel
+      };
     }
   }
   if (!hasCushionSegments) {
@@ -12919,7 +12951,8 @@ const powerRef = useRef(hud.power);
     const scaledY = (displayY * maxVertical) / largest;
     dot.style.left = `${50 + scaledX * 50}%`;
     dot.style.top = `${50 + scaledY * 50}%`;
-    const magnitude = Math.hypot(x, y);
+    const applied = spinRef.current || { x, y };
+    const magnitude = Math.hypot(applied.x ?? x, applied.y ?? y);
     const showBlocked = blocked ?? spinLegalityRef.current?.blocked;
     dot.style.backgroundColor =
       magnitude >= SWERVE_THRESHOLD ? '#facc15' : '#dc2626';
@@ -18796,15 +18829,13 @@ const powerRef = useRef(hud.power);
           exit: (immediate = true) => exitTopView(immediate)
         };
         cameraUpdateRef.current = () => updateCamera();
-        const clampSpinToLimits = () => {
+        const clampSpinToLimits = (input) => {
           const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
-          const current = spinRef.current || { x: 0, y: 0 };
-          const clamped = {
+          const current = input || spinRequestRef.current || spinRef.current || { x: 0, y: 0 };
+          return {
             x: clamp(current.x ?? 0, limits.minX, limits.maxX),
             y: clamp(current.y ?? 0, limits.minY, limits.maxY)
           };
-          spinRef.current = clamped;
-          return clamped;
         };
         const applySpinConstraints = (aimVec, updateUi = false) => {
           const cueBall = cueRef.current || cue;
@@ -18827,16 +18858,19 @@ const powerRef = useRef(hud.power);
             });
             spinLegalityRef.current = legality;
           }
-          const applied = clampSpinToLimits();
-          const normalized = normalizeSpinInput(applied);
+          const clampedRequest = clampSpinToLimits();
+          spinRequestRef.current = clampedRequest;
+          const normalized = normalizeSpinInput(clampedRequest);
           if (
-            normalized.x !== applied.x ||
-            normalized.y !== applied.y
+            normalized.x !== clampedRequest.x ||
+            normalized.y !== clampedRequest.y
           ) {
             spinRef.current = normalized;
+          } else {
+            spinRef.current = clampedRequest;
           }
           if (updateUi) {
-            updateSpinDotPosition(normalized, legality.blocked);
+            updateSpinDotPosition(clampedRequest, legality.blocked);
           }
           const result = legality.blocked ? { x: 0, y: 0 } : normalized;
           const magnitude = Math.hypot(result.x ?? 0, result.y ?? 0);
@@ -22799,8 +22833,8 @@ const powerRef = useRef(hud.power);
             .slice()
             .sort((a, b) => a.id - b.id)
             .map((ball) => {
-              const x = Math.round(ball.x * 10);
-              const y = Math.round(ball.y * 10);
+              const x = Math.round(ball.x * 100);
+              const y = Math.round(ball.y * 100);
               return `${ball.id}:${ball.colour}:${ball.pocketed ? 1 : 0}:${x}:${y}`;
             })
             .join('|');
@@ -22810,7 +22844,7 @@ const powerRef = useRef(hud.power);
             aiState.isOpenTable ? '1' : '0',
             aiState.shotsRemaining ?? '0',
             aiState.mustPlayFromBaulk ? '1' : '0',
-            Math.round((aiState.baulkLineX ?? 0) * 10)
+            Math.round((aiState.baulkLineX ?? 0) * 100)
           ].join('::');
         };
 
@@ -26195,11 +26229,12 @@ const powerRef = useRef(hud.power);
     };
 
     const setSpin = (nx, ny) => {
-      const normalized = normalizeSpinInput({ x: nx, y: ny });
-      spinRequestRef.current = normalized;
-      const limited = clampToLimits(normalized.x, normalized.y);
-      const limitedNormalized = normalizeSpinInput(limited);
-      spinRef.current = limitedNormalized;
+      const raw = clampToUnitCircle(nx, ny);
+      spinRequestRef.current = raw;
+      const limited = clampToLimits(raw.x, raw.y);
+      const clamped = clampToUnitCircle(limited.x, limited.y);
+      const normalized = normalizeSpinInput(clamped);
+      spinRef.current = normalized;
       const cueBall = cueRef.current;
       const ballsList = ballsRef.current?.length
         ? ballsRef.current
@@ -26212,7 +26247,7 @@ const powerRef = useRef(hud.power);
         : null;
       const legality = checkSpinLegality2D(
         cueBall,
-        normalized,
+        clamped,
         ballsList || [],
         {
           axes,
@@ -26220,7 +26255,7 @@ const powerRef = useRef(hud.power);
         }
       );
       spinLegalityRef.current = legality;
-      updateSpinDotPosition(limitedNormalized, legality.blocked);
+      updateSpinDotPosition(clamped, legality.blocked);
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();

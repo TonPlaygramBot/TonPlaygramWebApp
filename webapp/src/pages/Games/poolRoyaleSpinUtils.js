@@ -11,6 +11,7 @@ export const SPIN_LEVEL2_MAG = 0.42 * MAX_SPIN_OFFSET;
 export const SPIN_LEVEL3_MAG = 0.82 * MAX_SPIN_OFFSET;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
 export const STUN_TOPSPIN_BIAS = 0;
+export const SPIN_RESPONSE_POWER = 1.35;
 
 export const SPIN_DIRECTIONS = [
   {
@@ -134,10 +135,20 @@ export const normalizeSpinInput = (spin) => {
   let x = clamp(spin?.x ?? 0, -1, 1);
   let y = clamp(spin?.y ?? 0, -1, 1);
   const distance = Math.hypot(x, y);
-  if (distance <= Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE)) {
+  const deadzone = Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE);
+  if (distance <= deadzone) {
     return { x: 0, y: STUN_TOPSPIN_BIAS };
   }
-  return computeQuantizedOffsetScaled(x, y);
+  const clamped = clampToUnitCircle(x, y);
+  const clampedDistance = Math.min(1, Math.hypot(clamped.x, clamped.y));
+  const normalizedDistance = clamp(
+    (clampedDistance - deadzone) / Math.max(1 - deadzone, 1e-6),
+    0,
+    1
+  );
+  const eased = Math.pow(normalizedDistance, SPIN_RESPONSE_POWER);
+  const scale = eased / Math.max(clampedDistance, 1e-6);
+  return { x: clamped.x * scale, y: clamped.y * scale };
 };
 
 export const mapUiOffsetToCueFrame = (
