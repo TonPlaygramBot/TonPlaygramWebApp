@@ -148,7 +148,16 @@ export const normalizeSpinInput = (spin) => {
   );
   const eased = Math.pow(normalizedDistance, SPIN_RESPONSE_POWER);
   const scale = eased / Math.max(clampedDistance, 1e-6);
-  return { x: clamped.x * scale, y: clamped.y * scale };
+  const result = { x: clamped.x * scale, y: clamped.y * scale };
+  if (result.y < 0) {
+    const centerWeight = clamp(1 - Math.abs(clamped.x) / 0.25, 0, 1);
+    const ringWeight = clamp((0.5 - clampedDistance) / 0.5, 0, 1);
+    const boost = 0.08 * centerWeight * ringWeight;
+    if (boost > 0) {
+      result.y = clamp(result.y - boost, -1, 1);
+    }
+  }
+  return result;
 };
 
 export const mapUiOffsetToCueFrame = (
