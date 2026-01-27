@@ -655,16 +655,18 @@ const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so 
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.95; // push the side fascia farther along the arch so it blankets the larger chrome reveal
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.62; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.32; // trim fascia span further so the middle plates finish before intruding into the pocket zone while keeping the rounded edge intact
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.42; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
-const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.982; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.6; // trim fascia span so the middle plates shave off a little on both sides
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.12; // reduce the outer fascia extension so the outside edge trims back slightly
+const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 0.9; // pull the plate ends back from the pocket entry
+const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.07; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.14; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
+const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.008; // trim the outer fascia edge just a touch for a tighter outside finish
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.095; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // open the rounded chrome cut slightly wider on the middle pockets only
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
@@ -958,7 +960,8 @@ const TABLE_FOOTPRINT_SCALE = 0.82; // match the Pool Royale footprint scaling b
 const TABLE_SIZE_MULTIPLIER = 2; // snooker table is double the pool table size
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.88; // pull the entire table set ~12% closer so the arena feels more intimate without distorting proportions
+const TABLE_DISPLAY_SCALE = 0.92; // pull the entire table set closer so the arena feels larger while keeping proportions intact
+const CAMERA_DISPLAY_SCALE = TABLE_DISPLAY_SCALE / 0.88;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -4906,8 +4909,13 @@ const CAMERA = {
   fov: STANDING_VIEW_FOV,
   near: 0.04,
   far: 4000,
-  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * PLAYER_CAMERA_DISTANCE_FACTOR,
-  maxR: 260 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * BROADCAST_RADIUS_LIMIT_MULTIPLIER,
+  minR: 18 * TABLE_SCALE * GLOBAL_SIZE_FACTOR * PLAYER_CAMERA_DISTANCE_FACTOR * CAMERA_DISPLAY_SCALE,
+  maxR:
+    260 *
+    TABLE_SCALE *
+    GLOBAL_SIZE_FACTOR *
+    BROADCAST_RADIUS_LIMIT_MULTIPLIER *
+    CAMERA_DISPLAY_SCALE,
   minPhi: CAMERA_MIN_PHI,
   // keep the camera slightly above the horizontal plane but allow a lower sweep
   maxPhi: CAMERA_MAX_PHI
@@ -4963,7 +4971,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const halfLength = PLAY_H / 2 + BROADCAST_MARGIN_LENGTH;
   const widthDistance = (halfWidth / Math.tan(halfHorizontal)) * TOP_VIEW_RADIUS_SCALE;
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
-  return Math.max(widthDistance, lengthDistance);
+  return Math.max(widthDistance, lengthDistance) * CAMERA_DISPLAY_SCALE;
 };
 const RAIL_OVERHEAD_DISTANCE_BIAS = 1.05; // pull the broadcast overhead camera back for fuller table framing
 const SHORT_RAIL_CAMERA_DISTANCE =
@@ -7751,6 +7759,7 @@ function Table3D(
   );
   const chromeCornerEdgeTrim = TABLE.THICK * CHROME_CORNER_EDGE_TRIM_SCALE;
   const chromeOuterFlushTrim = TABLE.THICK * CHROME_OUTER_FLUSH_TRIM_SCALE;
+  const chromeSideOuterFlushTrim = TABLE.THICK * CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE;
   const chromePlateWidth = Math.max(
     MICRO_EPS,
     chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE -
@@ -7793,7 +7802,7 @@ function Table3D(
     Math.min(sidePlatePocketWidth, sidePlateMaxWidth) -
       TABLE.THICK * CHROME_SIDE_PLATE_CENTER_TRIM_SCALE +
       sideChromePlateWidthExpansion -
-      chromeOuterFlushTrim * 2
+      chromeSideOuterFlushTrim * 2
   );
   sideChromePlateWidth = Math.max(
     MICRO_EPS,
@@ -7807,10 +7816,15 @@ function Table3D(
   );
   const sidePlateHeightByCushion = Math.max(
     MICRO_EPS,
-    Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
+    Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) *
+      2 *
+      CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE
   );
   const sideChromePlateHeight = Math.min(
-    Math.max(MICRO_EPS, chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeOuterFlushTrim * 2),
+    Math.max(
+      MICRO_EPS,
+      chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeSideOuterFlushTrim * 2
+    ),
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
   const sideChromePlateRadius = Math.min(
