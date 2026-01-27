@@ -1510,7 +1510,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Snooker Royal feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Snooker Royal power pass: lift overall shot strength by another 25%.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 2.8125; // +50% more shot power
+const SHOT_POWER_MULTIPLIER = 4.21875; // +50% more shot power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -6527,6 +6527,28 @@ const resolveSnookerRespotPosition = (colorId, spots, balls, reserved = []) => {
     if (!coords) continue;
     const candidatePos = { x: coords[0], z: coords[1] };
     if (isRespotPositionClear(candidatePos, balls, reserved)) {
+      return candidatePos;
+    }
+  }
+  const minDistance = BALL_R * 2.02;
+  let closestBlockingBall = null;
+  let closestDistanceSq = Infinity;
+  for (const ball of balls) {
+    if (!ball?.active) continue;
+    const dx = ball.pos.x - baseSpot.x;
+    const dz = ball.pos.y - baseSpot.z;
+    const distSq = dx * dx + dz * dz;
+    if (distSq < minDistance * minDistance && distSq < closestDistanceSq) {
+      closestDistanceSq = distSq;
+      closestBlockingBall = ball;
+    }
+  }
+  if (closestBlockingBall) {
+    const candidatePos = {
+      x: baseSpot.x,
+      z: closestBlockingBall.pos.y + minDistance
+    };
+    if (isRespotPositionClear(candidatePos, balls, reserved, closestBlockingBall.id)) {
       return candidatePos;
     }
   }
@@ -23169,8 +23191,9 @@ const powerRef = useRef(hud.power);
           };
         }
         const shouldRespotColours =
-          (currentState?.phase ?? frameState?.phase) === 'REDS_AND_COLORS' &&
-          (currentState?.redsRemaining ?? frameState?.redsRemaining ?? 0) > 0 &&
+          (safeState?.phase ?? frameState?.phase) === 'REDS_AND_COLORS' &&
+          (safeState?.redsRemaining ?? frameState?.redsRemaining ?? 0) > 0 &&
+          !safeState?.foul &&
           (!isTraining || trainingRulesRef.current);
         if (shouldRespotColours && potted.length) {
           const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
