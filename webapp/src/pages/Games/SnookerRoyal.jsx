@@ -1267,8 +1267,15 @@ if (BALL_SHADOW_MATERIAL) {
   BALL_SHADOW_MATERIAL.polygonOffsetUnits = -0.5;
 }
 // Match the snooker build so pace and rebound energy stay consistent between modes.
+const PHYSICS_PROFILE = Object.freeze({
+  restitution: 0.985,
+  mu: 0.421,
+  spinDecay: 2.0,
+  airSpinDecay: 0.6,
+  maxTipOffsetRatio: 0.9
+});
 const FRICTION = 0.993;
-const DEFAULT_CUSHION_RESTITUTION = 0.985;
+const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
 const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
@@ -1298,14 +1305,14 @@ const SIDE_POCKET_INTERIOR_CAPTURE_R =
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the true bowl opening
 const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now mirrors the bowl radius
 const POCKET_GUARD_RADIUS = Math.max(0, POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.04); // align the rail guard to the playable capture bowl instead of the visual rim
-const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.08); // keep a slim safety margin so clean entries aren't rejected
+const POCKET_GUARD_CLEARANCE = Math.max(0, POCKET_GUARD_RADIUS - BALL_R * 0.18); // keep a slim safety margin so clean entries aren't rejected
 const CORNER_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION; // clamp corner reflections to the actual pocket depth
 const SIDE_POCKET_GUARD_RADIUS =
   SIDE_POCKET_INTERIOR_CAPTURE_R - BALL_R * 0.06; // use the middle-pocket bowl to gate reflections with a tighter inset
 const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
-  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.08
+  SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.18
 );
 const SIDE_POCKET_DEPTH_LIMIT =
   POCKET_VIS_R * 1.52 * POCKET_VISUAL_EXPANSION; // reduce the invisible pocket wall so rail-first cuts fall naturally
@@ -1603,7 +1610,7 @@ const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(5.2);
 const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.6;
 const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.45;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
-const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.9;
+const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_SIDE = MAX_SPIN_CONTACT_OFFSET * 0.5;
 const MAX_SPIN_VERTICAL = MAX_SPIN_CONTACT_OFFSET;
@@ -4950,7 +4957,7 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = 0.1;
 const RAIL_CONTACT_RADIUS = BALL_R;
-const CUSHION_CUT_CONTACT_RADIUS = BALL_R;
+const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.04;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
 const BREAK_VIEW = Object.freeze({
@@ -5848,7 +5855,9 @@ function reflectRails(ball) {
   const pocketGuard = POCKET_GUARD_RADIUS;
   const guardClearance = POCKET_GUARD_CLEARANCE;
   const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
-  if (Array.isArray(CUSHION_SEGMENTS) && CUSHION_SEGMENTS.length > 0) {
+  const hasCushionSegments =
+    Array.isArray(CUSHION_SEGMENTS) && CUSHION_SEGMENTS.length > 0;
+  if (hasCushionSegments) {
     const nearPocketRadius =
       Math.max(CAPTURE_R, SIDE_CAPTURE_R) + CUSHION_CUT_NEAR_POCKET_BUFFER;
     const centers = pocketCenters();
@@ -5923,78 +5932,26 @@ function reflectRails(ball) {
       };
     }
   }
-  for (const { sx, sy } of CORNER_SIGNS) {
-    TMP_VEC2_C.set(sx * limX, sy * limY);
-    TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
-    TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
-    const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
-    if (distNormal >= railRadius) continue;
-    TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-    const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
-    if (lateral < guardClearance) continue;
-    if (distNormal < -cornerDepthLimit) continue;
-    const push = railRadius - distNormal;
-    ball.pos.addScaledVector(TMP_VEC2_B, push);
-    const vn = ball.vel.dot(TMP_VEC2_B);
-    if (vn < 0) {
-      const restitution = CUSHION_RESTITUTION;
-      ball.vel.addScaledVector(TMP_VEC2_B, -(1 + restitution) * vn);
-      const vt = TMP_VEC2_D.copy(ball.vel).sub(
-        TMP_VEC2_B.clone().multiplyScalar(ball.vel.dot(TMP_VEC2_B))
-      );
-      const tangentDamping = 0.96;
-      ball.vel
-        .sub(vt)
-        .add(vt.multiplyScalar(tangentDamping));
-    }
-    if (ball.spin?.lengthSq() > 0) {
-      applySpinImpulse(ball, 0.6);
-    }
-    const stamp =
-      typeof performance !== 'undefined' && performance.now
-        ? performance.now()
-        : Date.now();
-    ball.lastRailHitAt = stamp;
-    ball.lastRailHitType = 'corner';
-    return {
-      type: 'corner',
-      normal: TMP_VEC2_B.clone(),
-      tangent: TMP_VEC2_D.clone()
-    };
-  }
-
-  const sideSpan = SIDE_POCKET_SPAN;
-  const sidePocketGuard = SIDE_POCKET_GUARD_RADIUS;
-  const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
-  const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
-  const sidePocketCenters = pocketCenters().slice(4);
-  const sideCutRad = THREE.MathUtils.degToRad(SIDE_POCKET_PHYSICS_CUT_ANGLE);
-  const sideCutCos = Math.cos(sideCutRad);
-  const sideCutSin = Math.sin(sideCutRad);
-  for (const center of sidePocketCenters) {
-    TMP_VEC2_A.copy(ball.pos).sub(center);
-    const distToCenterSq = TMP_VEC2_A.lengthSq();
-    if (distToCenterSq < sidePocketGuard * sidePocketGuard) continue;
-    const signX = center.x >= 0 ? 1 : -1;
-    for (const signY of SIDE_POCKET_CUT_SIGNS) {
-      if (TMP_VEC2_A.y * signY < 0) continue;
-      TMP_VEC2_C.set(signX * limX, center.y + signY * sideSpan);
-      TMP_VEC2_B.set(-signX * sideCutCos, signY * sideCutSin);
-      TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-      TMP_VEC2_LIMIT.copy(ball.pos).sub(TMP_VEC2_C);
-      const distNormal = TMP_VEC2_LIMIT.dot(TMP_VEC2_B);
+  if (!hasCushionSegments) {
+    for (const { sx, sy } of CORNER_SIGNS) {
+      TMP_VEC2_C.set(sx * limX, sy * limY);
+      TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
+      TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
+      const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
       if (distNormal >= railRadius) continue;
-      if (distNormal < -sideDepthLimit) continue;
-      const lateral = Math.abs(TMP_VEC2_LIMIT.dot(TMP_VEC2_D));
-      if (lateral < sideGuardClearance) continue;
+      TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
+      const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
+      if (lateral < guardClearance) continue;
+      if (distNormal < -cornerDepthLimit) continue;
       const push = railRadius - distNormal;
       ball.pos.addScaledVector(TMP_VEC2_B, push);
       const vn = ball.vel.dot(TMP_VEC2_B);
       if (vn < 0) {
         const restitution = CUSHION_RESTITUTION;
         ball.vel.addScaledVector(TMP_VEC2_B, -(1 + restitution) * vn);
-        TMP_VEC2_LIMIT.copy(TMP_VEC2_B).multiplyScalar(ball.vel.dot(TMP_VEC2_B));
-        const vt = TMP_VEC2_D.copy(ball.vel).sub(TMP_VEC2_LIMIT);
+        const vt = TMP_VEC2_D.copy(ball.vel).sub(
+          TMP_VEC2_B.clone().multiplyScalar(ball.vel.dot(TMP_VEC2_B))
+        );
         const tangentDamping = 0.96;
         ball.vel
           .sub(vt)
@@ -6008,64 +5965,118 @@ function reflectRails(ball) {
           ? performance.now()
           : Date.now();
       ball.lastRailHitAt = stamp;
-      ball.lastRailHitType = 'cut';
+      ball.lastRailHitType = 'corner';
       return {
-        type: 'cut',
+        type: 'corner',
         normal: TMP_VEC2_B.clone(),
         tangent: TMP_VEC2_D.clone()
       };
     }
-  }
 
-  // If the ball is entering a pocket capture zone, skip straight rail reflections
-  const nearPocketRadius =
-    Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 0.22;
-  const nearPocket = pocketCenters().some(
-    (c) => ball.pos.distanceTo(c) < nearPocketRadius
-  );
-  if (nearPocket) return null;
-  let collided = null;
-  let collisionNormal = null;
-  if (ball.pos.x < -railLimitX && ball.vel.x < 0) {
-    const overshoot = -railLimitX - ball.pos.x;
-    ball.pos.x = -railLimitX + overshoot;
-    ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
-    collided = 'rail';
-    collisionNormal = new THREE.Vector2(1, 0);
-  }
-  if (ball.pos.x > railLimitX && ball.vel.x > 0) {
-    const overshoot = ball.pos.x - railLimitX;
-    ball.pos.x = railLimitX - overshoot;
-    ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
-    collided = 'rail';
-    collisionNormal = new THREE.Vector2(-1, 0);
-  }
-  if (ball.pos.y < -railLimitY && ball.vel.y < 0) {
-    const overshoot = -railLimitY - ball.pos.y;
-    ball.pos.y = -railLimitY + overshoot;
-    ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
-    collided = 'rail';
-    collisionNormal = new THREE.Vector2(0, 1);
-  }
-  if (ball.pos.y > railLimitY && ball.vel.y > 0) {
-    const overshoot = ball.pos.y - railLimitY;
-    ball.pos.y = railLimitY - overshoot;
-    ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
-    collided = 'rail';
-    collisionNormal = new THREE.Vector2(0, -1);
-  }
-  if (collided) {
-    const stamp =
-      typeof performance !== 'undefined' && performance.now
-        ? performance.now()
-        : Date.now();
-    ball.lastRailHitAt = stamp;
-    ball.lastRailHitType = collided;
-  }
-  if (collided) {
-    const normal = collisionNormal ?? new THREE.Vector2(0, 1);
-    const tangent = new THREE.Vector2(-normal.y, normal.x);
-    return { type: collided, normal, tangent };
+    const sideSpan = SIDE_POCKET_SPAN;
+    const sidePocketGuard = SIDE_POCKET_GUARD_RADIUS;
+    const sideGuardClearance = SIDE_POCKET_GUARD_CLEARANCE;
+    const sideDepthLimit = SIDE_POCKET_DEPTH_LIMIT;
+    const sidePocketCenters = pocketCenters().slice(4);
+    const sideCutRad = THREE.MathUtils.degToRad(SIDE_POCKET_PHYSICS_CUT_ANGLE);
+    const sideCutCos = Math.cos(sideCutRad);
+    const sideCutSin = Math.sin(sideCutRad);
+    for (const center of sidePocketCenters) {
+      TMP_VEC2_A.copy(ball.pos).sub(center);
+      const distToCenterSq = TMP_VEC2_A.lengthSq();
+      if (distToCenterSq < sidePocketGuard * sidePocketGuard) continue;
+      const signX = center.x >= 0 ? 1 : -1;
+      for (const signY of SIDE_POCKET_CUT_SIGNS) {
+        if (TMP_VEC2_A.y * signY < 0) continue;
+        TMP_VEC2_C.set(signX * limX, center.y + signY * sideSpan);
+        TMP_VEC2_B.set(-signX * sideCutCos, signY * sideCutSin);
+        TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
+        TMP_VEC2_LIMIT.copy(ball.pos).sub(TMP_VEC2_C);
+        const distNormal = TMP_VEC2_LIMIT.dot(TMP_VEC2_B);
+        if (distNormal >= railRadius) continue;
+        if (distNormal < -sideDepthLimit) continue;
+        const lateral = Math.abs(TMP_VEC2_LIMIT.dot(TMP_VEC2_D));
+        if (lateral < sideGuardClearance) continue;
+        const push = railRadius - distNormal;
+        ball.pos.addScaledVector(TMP_VEC2_B, push);
+        const vn = ball.vel.dot(TMP_VEC2_B);
+        if (vn < 0) {
+          const restitution = CUSHION_RESTITUTION;
+          ball.vel.addScaledVector(TMP_VEC2_B, -(1 + restitution) * vn);
+          TMP_VEC2_LIMIT.copy(TMP_VEC2_B).multiplyScalar(ball.vel.dot(TMP_VEC2_B));
+          const vt = TMP_VEC2_D.copy(ball.vel).sub(TMP_VEC2_LIMIT);
+          const tangentDamping = 0.96;
+          ball.vel
+            .sub(vt)
+            .add(vt.multiplyScalar(tangentDamping));
+        }
+        if (ball.spin?.lengthSq() > 0) {
+          applySpinImpulse(ball, 0.6);
+        }
+        const stamp =
+          typeof performance !== 'undefined' && performance.now
+            ? performance.now()
+            : Date.now();
+        ball.lastRailHitAt = stamp;
+        ball.lastRailHitType = 'cut';
+        return {
+          type: 'cut',
+          normal: TMP_VEC2_B.clone(),
+          tangent: TMP_VEC2_D.clone()
+        };
+      }
+    }
+
+    // If the ball is entering a pocket capture zone, skip straight rail reflections
+    const nearPocketRadius =
+      Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 0.22;
+    const nearPocket = pocketCenters().some(
+      (c) => ball.pos.distanceTo(c) < nearPocketRadius
+    );
+    if (nearPocket) return null;
+    let collided = null;
+    let collisionNormal = null;
+    if (ball.pos.x < -railLimitX && ball.vel.x < 0) {
+      const overshoot = -railLimitX - ball.pos.x;
+      ball.pos.x = -railLimitX + overshoot;
+      ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
+      collided = 'rail';
+      collisionNormal = new THREE.Vector2(1, 0);
+    }
+    if (ball.pos.x > railLimitX && ball.vel.x > 0) {
+      const overshoot = ball.pos.x - railLimitX;
+      ball.pos.x = railLimitX - overshoot;
+      ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
+      collided = 'rail';
+      collisionNormal = new THREE.Vector2(-1, 0);
+    }
+    if (ball.pos.y < -railLimitY && ball.vel.y < 0) {
+      const overshoot = -railLimitY - ball.pos.y;
+      ball.pos.y = -railLimitY + overshoot;
+      ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
+      collided = 'rail';
+      collisionNormal = new THREE.Vector2(0, 1);
+    }
+    if (ball.pos.y > railLimitY && ball.vel.y > 0) {
+      const overshoot = ball.pos.y - railLimitY;
+      ball.pos.y = railLimitY - overshoot;
+      ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
+      collided = 'rail';
+      collisionNormal = new THREE.Vector2(0, -1);
+    }
+    if (collided) {
+      const stamp =
+        typeof performance !== 'undefined' && performance.now
+          ? performance.now()
+          : Date.now();
+      ball.lastRailHitAt = stamp;
+      ball.lastRailHitType = collided;
+    }
+    if (collided) {
+      const normal = collisionNormal ?? new THREE.Vector2(0, 1);
+      const tangent = new THREE.Vector2(-normal.y, normal.x);
+      return { type: collided, normal, tangent };
+    }
   }
   return null;
 }
