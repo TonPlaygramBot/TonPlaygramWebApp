@@ -1349,13 +1349,13 @@ const POCKET_NET_HEX_REPEAT = 3;
 const POCKET_NET_HEX_RADIUS_RATIO = 0.085;
 const POCKET_GUIDE_RADIUS = BALL_R * 0.075; // slimmer chrome rails so potted balls visibly ride the three thin holders
 const POCKET_GUIDE_LENGTH = Math.max(POCKET_NET_DEPTH * 1.35, BALL_DIAMETER * 7.6); // stretch the holder run so it comfortably fits 7 balls
-const POCKET_GUIDE_DROP = BALL_R * 0.1;
+const POCKET_GUIDE_DROP = BALL_R * 0.12;
 const POCKET_GUIDE_SPREAD = BALL_R * 0.48;
 const POCKET_GUIDE_RING_CLEARANCE = BALL_R * 0.08; // start the chrome rails just outside the ring to keep the mouth open
 const POCKET_GUIDE_RING_OVERLAP = POCKET_NET_RING_TUBE_RADIUS * 1.05; // allow the L-arms to peek past the ring without blocking the pocket mouth
 const POCKET_GUIDE_STEM_DEPTH = BALL_DIAMETER * 1.18; // lengthen the elbow so each rail meets the ring with a ball-length guide
 const POCKET_GUIDE_FLOOR_DROP = BALL_R * 0.14; // drop the centre rail to form the floor of the holder
-const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.03; // lift the chrome holder rails so the short L segments meet the ring
+const POCKET_GUIDE_VERTICAL_DROP = BALL_R * 0.06; // lift the chrome holder rails so the short L segments meet the ring
 const POCKET_GUIDE_RING_TOWARD_STRAP = BALL_R * 0.08; // nudge the L segments toward the leather strap
 const POCKET_DROP_RING_HOLD_MS = 120; // brief pause on the ring so the fall looks natural before rolling along the holder
 const POCKET_HOLDER_REST_SPACING = BALL_DIAMETER * 1.02; // tighter spacing so potted balls touch on the holder rails
@@ -1500,7 +1500,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 const SHOT_POWER_REDUCTION = 0.6375; // reduce overall shot strength by another 25%
 const SHOT_POWER_MULTIPLIER = 1.25;
 const SHOT_POWER_BOOST = 1.5;
-const SHOT_SPEED_MULTIPLIER = 1.15;
+const SHOT_SPEED_MULTIPLIER = 1.38;
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -21360,7 +21360,24 @@ const powerRef = useRef(hud.power);
         } else {
           aimDir.normalize();
         }
-        const prediction = calcTarget(cue, aimDir.clone(), balls);
+        const clampedPower = clampPower(powerRef.current, 0);
+        const appliedSpin = applySpinConstraints(aimDir, true);
+        const liftAngle = resolveUserCueLift();
+        const liftStrength = normalizeCueLift(liftAngle);
+        const physicsSpin = mapSpinForPhysics(appliedSpin);
+        const swerveActive = spinAppliedRef.current?.mode === 'swerve';
+        const guideAimDir2D = resolveSwerveAimDir(
+          aimDir.clone(),
+          physicsSpin,
+          clampedPower,
+          swerveActive,
+          liftStrength
+        );
+        const shotAimDir =
+          guideAimDir2D && guideAimDir2D.lengthSq() > 1e-8
+            ? guideAimDir2D.clone().normalize()
+            : aimDir.clone();
+        const prediction = calcTarget(cue, shotAimDir.clone(), balls);
         const predictedTravelRaw = prediction.targetBall
           ? cue.pos.distanceTo(prediction.targetBall.pos)
           : prediction.tHit;
@@ -21403,7 +21420,6 @@ const powerRef = useRef(hud.power);
             pocketSwitchIntentRef.current = null;
           }
           lastPocketBallRef.current = null;
-          const clampedPower = clampPower(powerRef.current, 0);
           const curvedPower = Math.pow(clampedPower, CUE_POWER_GAMMA);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
@@ -21433,7 +21449,7 @@ const powerRef = useRef(hud.power);
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * curvedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
-          const base = aimDir
+          const base = shotAimDir
             .clone()
             .multiplyScalar(speedBase * powerScale);
           const predictedCueSpeed = base.length();
@@ -21516,10 +21532,6 @@ const powerRef = useRef(hud.power);
             const storedTarget = lastCameraTargetRef.current?.clone();
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
-          const appliedSpin = applySpinConstraints(aimDir, true);
-          const liftAngle = resolveUserCueLift();
-          const liftStrength = normalizeCueLift(liftAngle);
-          const physicsSpin = mapSpinForPhysics(appliedSpin);
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
           const baseSide = physicsSpin.x * (ranges.side ?? 0);
@@ -21536,7 +21548,7 @@ const powerRef = useRef(hud.power);
           }
           if (cue.omega) {
             cue.omega.set(0, 0, 0);
-            TMP_VEC3_A.set(aimDir.x, 0, aimDir.y);
+            TMP_VEC3_A.set(shotAimDir.x, 0, shotAimDir.y);
             if (TMP_VEC3_A.lengthSq() > 1e-8) TMP_VEC3_A.normalize();
             TMP_VEC3_B.set(-TMP_VEC3_A.z, 0, TMP_VEC3_A.x);
             if (TMP_VEC3_B.lengthSq() > 1e-8) TMP_VEC3_B.normalize();
@@ -21562,7 +21574,7 @@ const powerRef = useRef(hud.power);
           cueLiftRef.current.lift = 0;
           cueLiftRef.current.startLift = 0;
           cue.impacted = false;
-          cue.launchDir = aimDir.clone().normalize();
+          cue.launchDir = shotAimDir.clone().normalize();
           maxPowerLiftTriggered = false;
           cue.lift = 0;
           cue.liftVel = 0;
