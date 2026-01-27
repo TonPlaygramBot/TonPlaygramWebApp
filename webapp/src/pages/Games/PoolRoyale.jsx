@@ -608,15 +608,15 @@ const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually ab
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.62; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.6; // trim fascia span so the middle plates shave off a little on both sides
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.12; // reduce the outer fascia extension so the outside edge trims back slightly
-const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 0.9; // pull the plate ends back from the pocket entry
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.52; // trim fascia span so the middle plates finish at the side rail edge
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.04; // reduce the outer fascia extension so the outside edge trims back slightly
+const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 0.96; // extend the plate ends slightly toward the corner pockets
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
-const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
+const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.12; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.14; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.16; // nudge the middle fascia further inward so it sits closer to the table center without moving the pocket cut
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.008; // trim the outer fascia edge just a touch for a tighter outside finish
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.12; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.14; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
@@ -21095,13 +21095,14 @@ const powerRef = useRef(hud.power);
         return vec;
       };
       const computeSpinOffsets = (spin, ranges) => {
+        const normalizedSpin = normalizeSpinInput(spin);
         const offsetSide = ranges?.offsetSide ?? 0;
         const offsetVertical = ranges?.offsetVertical ?? 0;
-        const magnitude = Math.hypot(spin?.x ?? 0, spin?.y ?? 0);
+        const magnitude = Math.hypot(normalizedSpin?.x ?? 0, normalizedSpin?.y ?? 0);
         const hasSpin = magnitude > 1e-4;
-        const sideInput = spin?.x ?? 0;
+        const sideInput = normalizedSpin?.x ?? 0;
         let side = hasSpin ? sideInput * offsetSide : 0;
-        let vert = hasSpin ? spin.y * offsetVertical : 0;
+        let vert = hasSpin ? (normalizedSpin?.y ?? 0) * offsetVertical : 0;
         if (hasSpin) {
           vert = THREE.MathUtils.clamp(vert, -MAX_SPIN_VISUAL_LIFT, MAX_SPIN_VISUAL_LIFT);
         }
@@ -24016,7 +24017,9 @@ const powerRef = useRef(hud.power);
               ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1)
               : 0;
             const hasCueSnapshot = applyReplayFrame(frameA, frameB, alpha);
-            if (!hasCueSnapshot) {
+            if (playback?.cueStroke) {
+              applyReplayCueStroke(playback, targetTime);
+            } else if (!hasCueSnapshot) {
               applyReplayCueStroke(playback, targetTime);
             }
             updateReplayTrail(playback.cuePath, targetTime);
@@ -24759,10 +24762,9 @@ const powerRef = useRef(hud.power);
           const dir = new THREE.Vector3(planDir.x, 0, planDir.y).normalize();
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
-          const powerTarget = THREE.MathUtils.clamp(activeAiPlan.power ?? powerRef.current ?? 0, 0, 1);
           const maxPull = CUE_PULL_BASE;
-          const desiredPull = computePullTargetFromPower(powerTarget, maxPull);
-          const pull = computeCuePull(desiredPull, maxPull, { preserveLarger: true });
+          const desiredPull = 0;
+          const pull = computeCuePull(desiredPull, maxPull, { preserveLarger: false, instant: true });
           const visualPull = applyVisualPullCompensation(pull, dir);
           const planSpin = activeAiPlan.spin ?? spinRef.current ?? { x: 0, y: 0 };
           const spinX = THREE.MathUtils.clamp(planSpin.x ?? 0, -1, 1);
