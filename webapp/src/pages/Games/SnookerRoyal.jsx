@@ -1510,7 +1510,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Snooker Royal feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Snooker Royal power pass: lift overall shot strength by another 25%.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 2.8125; // +50% more shot power
+const SHOT_POWER_MULTIPLIER = 4.21875; // +50% more shot power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1866,6 +1866,9 @@ function deriveInHandFromFrame(frame) {
   }
   if (meta.variant === 'uk' && meta.state) {
     return Boolean(meta.state.mustPlayFromBaulk);
+  }
+  if (meta.variant === 'snooker' && meta.state) {
+    return Boolean(meta.state.ballInHand);
   }
   return false;
 }
@@ -6521,22 +6524,57 @@ const resolveSnookerRespotPosition = (colorId, spots, balls, reserved = []) => {
   if (isRespotPositionClear(baseSpot, balls, reserved)) {
     return baseSpot;
   }
+  const spotCandidates = [];
   for (const candidate of SNOOKER_SPOT_PRIORITY) {
+    if (candidate === colorId) continue;
     const candidateKey = resolveSnookerSpotKey(candidate);
     const coords = candidateKey ? spots[candidateKey] : null;
     if (!coords) continue;
-    const candidatePos = { x: coords[0], z: coords[1] };
+    spotCandidates.push({ x: coords[0], z: coords[1] });
+  }
+  for (const candidatePos of spotCandidates) {
     if (isRespotPositionClear(candidatePos, balls, reserved)) {
       return candidatePos;
     }
   }
+  const minDistance = BALL_R * 2.02;
+  const blockers = balls.filter((ball) => {
+    if (!ball?.active) return false;
+    const dx = ball.pos.x - baseSpot.x;
+    const dz = ball.pos.y - baseSpot.z;
+    return dx * dx + dz * dz < minDistance * minDistance;
+  });
+  const blocker = blockers.reduce((closest, ball) => {
+    if (!ball) return closest;
+    if (!closest) return ball;
+    const distA =
+      (ball.pos.x - baseSpot.x) * (ball.pos.x - baseSpot.x) +
+      (ball.pos.y - baseSpot.z) * (ball.pos.y - baseSpot.z);
+    const distB =
+      (closest.pos.x - baseSpot.x) * (closest.pos.x - baseSpot.x) +
+      (closest.pos.y - baseSpot.z) * (closest.pos.y - baseSpot.z);
+    return distA < distB ? ball : closest;
+  }, null);
   const maxZ = RAIL_LIMIT_Y - BALL_R * 0.25;
-  const maxDistance = Math.max(0, maxZ - baseSpot.z);
-  const step = BALL_R * 0.2;
-  for (let distance = step; distance <= maxDistance + 1e-6; distance += step) {
-    const candidatePos = { x: baseSpot.x, z: baseSpot.z + distance };
-    if (isRespotPositionClear(candidatePos, balls, reserved)) {
-      return candidatePos;
+  const startZ = Math.min(
+    maxZ,
+    Math.max(baseSpot.z, blocker?.pos?.y ?? baseSpot.z) + minDistance
+  );
+  const step = BALL_R * 0.25;
+  const xCandidates = [];
+  const anchorX = blocker?.pos?.x ?? baseSpot.x;
+  xCandidates.push(anchorX);
+  xCandidates.push(baseSpot.x);
+  xCandidates.push(anchorX + BALL_R * 0.6);
+  xCandidates.push(anchorX - BALL_R * 0.6);
+  xCandidates.push(anchorX + BALL_R * 1.1);
+  xCandidates.push(anchorX - BALL_R * 1.1);
+  for (let z = startZ; z <= maxZ + 1e-6; z += step) {
+    for (const x of xCandidates) {
+      const candidatePos = { x, z };
+      if (isRespotPositionClear(candidatePos, balls, reserved)) {
+        return candidatePos;
+      }
     }
   }
   return baseSpot;
@@ -20887,6 +20925,8 @@ const powerRef = useRef(hud.power);
             placedFromHand = Boolean(meta.state.ballInHand);
           } else if (meta.variant === 'uk' && meta.state) {
             placedFromHand = Boolean(meta.state.mustPlayFromBaulk);
+          } else if (meta.variant === 'snooker' && meta.state) {
+            placedFromHand = Boolean(meta.state.ballInHand);
           }
         }
         shotContextRef.current = {
@@ -23171,6 +23211,7 @@ const powerRef = useRef(hud.power);
         const shouldRespotColours =
           (currentState?.phase ?? frameState?.phase) === 'REDS_AND_COLORS' &&
           (currentState?.redsRemaining ?? frameState?.redsRemaining ?? 0) > 0 &&
+          !safeState?.foul &&
           (!isTraining || trainingRulesRef.current);
         if (shouldRespotColours && potted.length) {
           const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;

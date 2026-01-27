@@ -11,6 +11,9 @@ type SnookerMeta = {
   colorsRemaining: BallColor[];
   freeBall: boolean;
   hud: HudInfo;
+  state: {
+    ballInHand: boolean;
+  };
 };
 
 const COLOR_VALUES: Record<BallColor, number> = {
@@ -82,7 +85,7 @@ function resolveBallOn(state: FrameState, colorsRemaining: BallColor[]): BallCol
     return colorsRemaining.length ? [colorsRemaining[0]] : [];
   }
   if (state.colorOnAfterRed) {
-    return [...COLOR_ORDER];
+    return colorsRemaining.length ? [...colorsRemaining] : [...COLOR_ORDER];
   }
   return ['RED'];
 }
@@ -144,7 +147,10 @@ export class SnookerRoyalRules {
       variant: 'snooker',
       colorsRemaining: [...COLOR_ORDER],
       freeBall: false,
-      hud: buildHud(base, scores, base.ballOn)
+      hud: buildHud(base, scores, base.ballOn),
+      state: {
+        ballInHand: false
+      }
     } satisfies SnookerMeta;
     return base;
   }
@@ -239,7 +245,7 @@ export class SnookerRoyalRules {
       : inColorsOrder
         ? colorsRemaining[0] ?? null
         : onColorAfterRed
-          ? declaredBall
+          ? null
           : 'RED';
     const foulBallOn = freeBallActive && nominatedFreeBall
       ? [nominatedFreeBall]
@@ -254,13 +260,15 @@ export class SnookerRoyalRules {
     } else if (context.contactMade === false || !firstContact) {
       foulReason = 'no contact';
     } else {
-      const requiresNomination = freeBallActive || onColorAfterRed;
+      const requiresNomination = freeBallActive;
       if (requiresNomination && !nominatedBall) {
         foulReason = 'no nomination';
       } else if (freeBallActive && onRed && nominatedBall === 'RED') {
         foulReason = 'invalid nomination';
       } else if (onColorAfterRed && declaredBall === 'RED') {
         foulReason = 'invalid nomination';
+      } else if (onColorAfterRed && firstContact === 'RED') {
+        foulReason = 'wrong ball';
       } else if (requiredFirstContact && firstContact !== requiredFirstContact) {
         foulReason = 'wrong ball';
       }
@@ -314,6 +322,7 @@ export class SnookerRoyalRules {
     let nextPhase = state.phase;
     let colorOnAfterRed = state.colorOnAfterRed ?? false;
     let nextFreeBall = false;
+    let nextBallInHand = false;
     let frameOver = false;
     let winner: 'A' | 'B' | 'TIE' | undefined;
     const scores = {
@@ -331,6 +340,7 @@ export class SnookerRoyalRules {
       nextActivePlayer = opponent;
       nextBreak = 0;
       nextFreeBall = Boolean(context.snookered);
+      nextBallInHand = true;
       if (state.phase === 'REDS_AND_COLORS') {
         colorOnAfterRed = false;
         if (redsRemaining === 0) {
@@ -366,7 +376,10 @@ export class SnookerRoyalRules {
           colorOnAfterRed = true;
         }
       } else if (onColorAfterRed) {
-        const legalColor = freeBallActive ? nominatedFreeBall : declaredBall;
+        const legalColor =
+          freeBallActive
+            ? nominatedFreeBall
+            : declaredBall ?? pottedColorsExcludingFreeBall[0]?.color ?? null;
         const scoredColor =
           legalColor &&
           (pottedColorsExcludingFreeBall.some((entry) => entry.color === legalColor) ||
@@ -436,18 +449,28 @@ export class SnookerRoyalRules {
         if (colorsOrderTarget && pottedNonCueColors.includes(colorsOrderTarget)) {
           removeColor(colorsOrderTarget);
         }
-      } else {
-        pottedColors.forEach((entry) => {
-          if (entry.color !== 'RED') restoreBallState(entry.ball);
-        });
       }
-    } else {
+    } else if (!foulReason) {
       pottedColors.forEach((entry) => {
         if (entry.color !== 'RED') restoreBallState(entry.ball);
       });
     }
     if (freeBallPotted && nominatedFreeBall) {
       respotColor(nominatedFreeBall);
+    }
+    if (foulReason && pottedColors.length) {
+      const removed = new Set(
+        pottedColors
+          .map((entry) => entry.color)
+          .filter((color) => color && color !== 'RED')
+      );
+      if (removed.size) {
+        for (let index = colorsRemaining.length - 1; index >= 0; index -= 1) {
+          if (removed.has(colorsRemaining[index])) {
+            colorsRemaining.splice(index, 1);
+          }
+        }
+      }
     }
 
     const nextState: FrameState = {
@@ -483,7 +506,10 @@ export class SnookerRoyalRules {
           { ...state, phase: nextPhase, colorOnAfterRed, ballOn, redsRemaining, freeBall: nextFreeBall },
           scores,
           resolveBallOn({ ...state, phase: nextPhase, colorOnAfterRed }, colorsRemaining)
-        )
+        ),
+        state: {
+          ballInHand: nextBallInHand
+        }
       } satisfies SnookerMeta
     };
 
