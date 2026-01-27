@@ -83,6 +83,11 @@ import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import { chatBeep } from '../../assets/soundData.js';
+import {
+  mapSpinForPhysics,
+  normalizeSpinInput,
+  SPIN_STUN_RADIUS
+} from './poolRoyaleSpinUtils.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
@@ -1056,8 +1061,9 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const ENABLE_TABLE_MAPPING_LINES = false;
-  const TABLE_BASE_SCALE = 1.2;
-  const TABLE_WIDTH_SCALE = 1.3; // increase the overall table footprint to ~30% upscale while preserving proportions
+  const TABLE_SIZE_BOOST = 1.28; // expand the snooker table footprint by ~28% to make the table wider and taller
+  const TABLE_BASE_SCALE = 1.2 * TABLE_SIZE_BOOST;
+  const TABLE_WIDTH_SCALE = 1.3; // maintain the existing wide snooker proportions
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE = {
@@ -1495,7 +1501,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Snooker Royal feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 // Snooker Royal power pass: lift overall shot strength by another 25%.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_MULTIPLIER = 1.25;
+const SHOT_POWER_MULTIPLIER = 1.875; // +50% shot power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -5213,48 +5219,8 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
-const SPIN_INPUT_DEAD_ZONE = 0.02;
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
-const SPIN_RESPONSE_EXPONENT = 1.65;
-
-const clampToUnitCircle = (x, y) => {
-  const L = Math.hypot(x, y);
-  if (!Number.isFinite(L) || L <= 1) {
-    return { x, y };
-  }
-  const scale = L > 1e-6 ? 1 / L : 0;
-  return { x: x * scale, y: y * scale };
-};
-const normalizeSpinInput = (spin) => {
-  const x = spin?.x ?? 0;
-  const y = spin?.y ?? 0;
-  const magnitude = Math.hypot(x, y);
-  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
-    return { x: 0, y: 0 };
-  }
-  return clampToUnitCircle(x, y);
-};
-const applySpinResponseCurve = (spin) => {
-  const x = spin?.x ?? 0;
-  const y = spin?.y ?? 0;
-  const magnitude = Math.hypot(x, y);
-  if (!Number.isFinite(magnitude) || magnitude < SPIN_INPUT_DEAD_ZONE) {
-    return { x: 0, y: 0 };
-  }
-  const clamped = clampToUnitCircle(x, y);
-  const clampedMag = Math.hypot(clamped.x, clamped.y);
-  if (clampedMag < 1e-6) return { x: 0, y: 0 };
-  const curvedMag = Math.pow(clampedMag, SPIN_RESPONSE_EXPONENT);
-  const scale = curvedMag / clampedMag;
-  return { x: clamped.x * scale, y: clamped.y * scale };
-};
-const mapSpinForPhysics = (spin) => {
-  const curved = applySpinResponseCurve(spin);
-  return {
-    x: curved?.x ?? 0,
-    y: -(curved?.y ?? 0)
-  };
-};
+const SPIN_VIEW_BLOCK_THRESHOLD = -0.18;
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
   return THREE.MathUtils.clamp(liftAngle / CUE_LIFT_MAX_TILT, 0, 1);
@@ -5333,7 +5299,7 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
   const sx = spinVec?.x ?? 0;
   const sy = spinVec?.y ?? 0;
   const magnitude = Math.hypot(sx, sy);
-  if (magnitude < SPIN_INPUT_DEAD_ZONE) {
+  if (magnitude <= SPIN_STUN_RADIUS) {
     return { blocked: false, reason: '' };
   }
   const axes = options.axes;
@@ -5345,6 +5311,17 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
     return { blocked: false, reason: '' };
   }
   TMP_VEC2_SPIN.normalize();
+  const view = options.view;
+  if (view) {
+    TMP_VEC2_VIEW.set(view.x ?? 0, view.y ?? 0);
+    if (TMP_VEC2_VIEW.lengthSq() > 1e-8) {
+      TMP_VEC2_VIEW.normalize();
+      const viewDot = TMP_VEC2_VIEW.dot(TMP_VEC2_SPIN);
+      if (viewDot < SPIN_VIEW_BLOCK_THRESHOLD) {
+        return { blocked: true, reason: 'Strike point not visible' };
+      }
+    }
+  }
   const contact = cueBall.pos
     .clone()
     .add(TMP_VEC2_SPIN.clone().multiplyScalar(BALL_R));
@@ -5355,16 +5332,6 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
     Math.abs(contact.y) > cushionClearY
   ) {
     return { blocked: true, reason: 'Cushion blocks that strike point' };
-  }
-  const view = options.view;
-  if (view) {
-    TMP_VEC2_LIMIT.set(view.x ?? 0, view.y ?? 0);
-    if (TMP_VEC2_LIMIT.lengthSq() > 1e-8) {
-      TMP_VEC2_LIMIT.normalize();
-      if (TMP_VEC2_SPIN.dot(TMP_VEC2_LIMIT) <= 0) {
-        return { blocked: true, reason: 'Contact point not visible' };
-      }
-    }
   }
   const blockingRadius = BALL_R + CUE_TIP_RADIUS * 1.05;
   const blockingRadiusSq = blockingRadius * blockingRadius;
@@ -9636,8 +9603,12 @@ function Table3D(
     const side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
     const sidePocketCuts = !horizontal
       ? {
-          leftCutAngle: leftCloserToCenter ? CUSHION_CUT_ANGLE : SIDE_CUSHION_CUT_ANGLE,
-          rightCutAngle: leftCloserToCenter ? SIDE_CUSHION_CUT_ANGLE : CUSHION_CUT_ANGLE
+          leftCutAngle: leftCloserToCenter
+            ? CUSHION_CUT_ANGLE
+            : VISUAL_SIDE_CUSHION_CUT_ANGLE,
+          rightCutAngle: leftCloserToCenter
+            ? VISUAL_SIDE_CUSHION_CUT_ANGLE
+            : CUSHION_CUT_ANGLE
         }
       : undefined;
     const cutLengths = computeCushionCutLengths(len, horizontal, sidePocketCuts);
