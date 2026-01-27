@@ -134,10 +134,20 @@ export const normalizeSpinInput = (spin) => {
   let x = clamp(spin?.x ?? 0, -1, 1);
   let y = clamp(spin?.y ?? 0, -1, 1);
   const distance = Math.hypot(x, y);
-  if (distance <= Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE)) {
+  const deadzone = Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE);
+  if (distance <= deadzone) {
     return { x: 0, y: STUN_TOPSPIN_BIAS };
   }
-  return computeQuantizedOffsetScaled(x, y);
+  const clamped = clampToUnitCircle(x, y);
+  const clampedDistance = Math.hypot(clamped.x, clamped.y);
+  const range = Math.max(1 - deadzone, 1e-6);
+  const t = clamp((clampedDistance - deadzone) / range, 0, 1);
+  if (t <= 1e-6 || clampedDistance <= 1e-6) {
+    return { x: 0, y: STUN_TOPSPIN_BIAS };
+  }
+  const dirX = clamped.x / clampedDistance;
+  const dirY = clamped.y / clampedDistance;
+  return { x: dirX * t, y: dirY * t };
 };
 
 export const mapUiOffsetToCueFrame = (
