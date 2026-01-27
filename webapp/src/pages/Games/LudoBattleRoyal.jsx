@@ -236,12 +236,12 @@ function detectPreferredFrameRateId() {
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
-    return 'hd50';
+    return 'fhd60';
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
-      return 'hd50';
+      return 'fhd60';
     }
     if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
       return 'uhd120';
@@ -506,52 +506,43 @@ const DEFAULT_COMMENTARY_PRESET_ID = LUDO_BATTLE_COMMENTARY_PRESETS[0]?.id || 'e
 const FRAME_RATE_STORAGE_KEY = 'ludoFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'hd50',
-    label: 'HD Performance (50 Hz)',
-    fps: 50,
-    renderScale: 1,
-    pixelRatioCap: 1.4,
-    resolution: 'HD render • DPR 1.4 cap',
-    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
-  },
-  {
     id: 'fhd60',
-    label: 'Full HD (60 Hz)',
+    label: 'Balanced (60 Hz)',
     fps: 60,
-    renderScale: 1.1,
-    pixelRatioCap: 1.5,
-    resolution: 'Full HD render • DPR 1.5 cap',
-    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
+    renderScale: 0.9,
+    pixelRatioCap: 1.25,
+    resolution: 'HD+ render • DPR 1.25 cap',
+    description: 'Balanced profile tuned for smooth play on mid-range devices.'
   },
   {
     id: 'qhd90',
-    label: 'Quad HD (90 Hz)',
+    label: 'Enhanced (90 Hz)',
     fps: 90,
-    renderScale: 1.25,
-    pixelRatioCap: 1.7,
-    resolution: 'QHD render • DPR 1.7 cap',
-    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    renderScale: 0.95,
+    pixelRatioCap: 1.4,
+    resolution: 'QHD render • DPR 1.4 cap',
+    description: 'Sharper output with tighter GPU load for 90 Hz displays.'
   },
   {
     id: 'uhd120',
-    label: 'Ultra HD (120 Hz)',
+    label: 'Ultra (120 Hz)',
     fps: 120,
-    renderScale: 1.35,
-    pixelRatioCap: 2,
-    resolution: 'Ultra HD render • DPR 2.0 cap',
-    description: '4K-oriented profile for 120 Hz flagships and desktops.'
+    renderScale: 1,
+    pixelRatioCap: 1.6,
+    resolution: 'UHD render • DPR 1.6 cap',
+    description: 'High refresh preset with moderated clarity for fast devices.'
   },
   {
     id: 'ultra144',
-    label: 'Ultra HD+ (144 Hz)',
+    label: 'Ultra+ (144 Hz)',
     fps: 144,
-    renderScale: 1.5,
-    pixelRatioCap: 2.2,
-    resolution: 'Ultra HD+ render • DPR 2.2 cap',
-    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+    renderScale: 1,
+    pixelRatioCap: 1.8,
+    resolution: 'UHD+ render • DPR 1.8 cap',
+    description: 'Highest detail preset for strong GPUs at 144 Hz.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'uhd120';
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((option) => option.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
@@ -2728,6 +2719,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
+  const [commentaryText, setCommentaryText] = useState('');
   const settingsRef = useRef({ soundEnabled: true });
   const commentaryMutedRef = useRef(commentaryMuted);
   const commentaryReadyRef = useRef(false);
@@ -2737,6 +2729,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const pendingCommentaryLinesRef = useRef(null);
   const commentaryIntroPlayedRef = useRef(false);
   const commentarySpeakerIndexRef = useRef(0);
+  const commentaryDisplayTimeoutRef = useRef(null);
   useEffect(() => {
     const handler = () => setSoundEnabled(!isGameMuted());
     window.addEventListener('gameMuteChanged', handler);
@@ -2750,8 +2743,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       commentaryQueueRef.current = [];
       commentarySpeakingRef.current = false;
       pendingCommentaryLinesRef.current = null;
+      setCommentaryText('');
+      if (commentaryDisplayTimeoutRef.current) {
+        clearTimeout(commentaryDisplayTimeoutRef.current);
+        commentaryDisplayTimeoutRef.current = null;
+      }
     }
   }, [commentaryMuted]);
+  useEffect(() => {
+    return () => {
+      if (commentaryDisplayTimeoutRef.current) {
+        clearTimeout(commentaryDisplayTimeoutRef.current);
+      }
+    };
+  }, []);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage?.setItem(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
@@ -2990,10 +2995,24 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
   }, []);
 
+  const setCommentaryDisplay = useCallback((lines) => {
+    const lastLine = lines[lines.length - 1];
+    if (!lastLine) return;
+    const nextText = `${lastLine.speaker}: ${lastLine.text}`;
+    setCommentaryText(nextText);
+    if (commentaryDisplayTimeoutRef.current) {
+      clearTimeout(commentaryDisplayTimeoutRef.current);
+    }
+    commentaryDisplayTimeoutRef.current = window.setTimeout(() => {
+      setCommentaryText('');
+    }, 6000);
+  }, []);
+
   const enqueueLudoCommentary = useCallback(
     (lines, { priority = false, preset = activeCommentaryPreset } = {}) => {
       if (!Array.isArray(lines) || lines.length === 0) return;
       if (commentaryMutedRef.current || isGameMuted()) return;
+      setCommentaryDisplay(lines);
       if (!commentaryReadyRef.current) {
         pendingCommentaryLinesRef.current = { lines, priority, preset };
         return;
@@ -5410,6 +5429,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       className="fixed inset-0 bg-[#0c1020] text-white touch-pan-y select-none"
     >
       <div className="absolute inset-0 pointer-events-none">
+        {commentaryText ? (
+          <div className="absolute top-4 left-1/2 z-30 -translate-x-1/2 px-4">
+            <div className="max-w-[80vw] rounded-full border border-white/15 bg-black/55 px-4 py-2 text-center text-xs font-semibold text-white/90 shadow-[0_10px_30px_rgba(0,0,0,0.45)] backdrop-blur">
+              {commentaryText}
+            </div>
+          </div>
+        ) : null}
         <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3">
           <div className="pointer-events-auto">
             <button
@@ -5631,13 +5657,34 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         </div>
         <BottomLeftIcons
           onInfo={() => setShowInfo(true)}
-          className="absolute right-4 top-20 z-20 flex flex-col items-center gap-3 pointer-events-auto"
+          className="absolute right-4 top-4 z-20 flex flex-col items-center gap-3 pointer-events-auto"
           showChat={false}
           showGift={false}
           order={['info', 'mute']}
-          buttonClassName="flex items-center justify-center bg-transparent p-2 text-white/90 shadow-none transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-          iconClassName="text-2xl"
+          buttonClassName="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/90 shadow-[0_6px_18px_rgba(0,0,0,0.35)] backdrop-blur transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          iconClassName="h-5 w-5"
           labelClassName="sr-only"
+          infoIcon={(
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 10.5v5" />
+              <path d="M12 7.5h.01" />
+            </svg>
+          )}
+          muteIconOn={(
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+              <path d="M11 5 7.5 8.5H4v7h3.5L11 19V5z" />
+              <path d="M16 9.5 20 13.5" />
+              <path d="M20 9.5 16 13.5" />
+            </svg>
+          )}
+          muteIconOff={(
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+              <path d="M11 5 7.5 8.5H4v7h3.5L11 19V5z" />
+              <path d="M15.5 8.5c1.5 1.2 2.5 2.6 2.5 4.5s-1 3.3-2.5 4.5" />
+              <path d="M18.5 6.5c2.2 1.8 3.5 3.9 3.5 6.5s-1.3 4.7-3.5 6.5" />
+            </svg>
+          )}
         />
         <BottomLeftIcons
           onChat={() => setShowChat(true)}
