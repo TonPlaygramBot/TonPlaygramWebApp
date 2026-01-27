@@ -1061,7 +1061,7 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const SHOW_SHORT_RAIL_TRIPODS = false;
 const LOCK_REPLAY_CAMERA = false;
 const ENABLE_TABLE_MAPPING_LINES = false;
-  const TABLE_FIELD_EXPANSION = 1.27; // expand the snooker playfield by ~27% to make the table wider and taller
+  const TABLE_FIELD_EXPANSION = 1.3; // expand the snooker playfield by ~30% to make the table wider and taller
   const TABLE_SIZE_BOOST = 1.28 * TABLE_FIELD_EXPANSION;
   const TABLE_BASE_SCALE = 1.2 * TABLE_SIZE_BOOST;
   const TABLE_WIDTH_SCALE = 1.3; // maintain the existing wide snooker proportions
@@ -4957,9 +4957,9 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.14; // lift the top view slightly to keep both near pockets visible on portrait
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.08; // raise the camera to keep the larger table fully framed
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.06; // match the Pool Royale 2D framing with a slight lift for the larger snooker table
 const TOP_VIEW_PHI = 0; // lock the 2D view to a straight-overhead camera
-const TOP_VIEW_RADIUS_SCALE = 1.08; // raise the 2D top view slightly to match the larger table footprint
+const TOP_VIEW_RADIUS_SCALE = 1.06; // keep Pool Royale framing while lifting the snooker 2D camera slightly
 const TOP_VIEW_RESOLVED_PHI = TOP_VIEW_PHI;
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: PLAY_W * -0.045, // shift the top view slightly left away from the power slider
@@ -13159,21 +13159,19 @@ const powerRef = useRef(hud.power);
     if (!dot) return;
     const x = clamp(value.x ?? 0, -1, 1);
     const y = clamp(value.y ?? 0, -1, 1);
+    const displayY = -y;
     const ranges = spinRangeRef.current || {};
     const maxSide = Math.max(ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET, 1e-6);
     const maxVertical = Math.max(ranges.offsetVertical ?? MAX_SPIN_VERTICAL, 1e-6);
     const largest = Math.max(maxSide, maxVertical);
     const scaledX = (x * maxSide) / largest;
-    const scaledY = (y * maxVertical) / largest;
+    const scaledY = (displayY * maxVertical) / largest;
     dot.style.left = `${50 + scaledX * 50}%`;
     dot.style.top = `${50 + scaledY * 50}%`;
     const magnitude = Math.hypot(x, y);
     const showBlocked = blocked ?? spinLegalityRef.current?.blocked;
-    dot.style.backgroundColor = showBlocked
-      ? '#9ca3af'
-      : magnitude >= SWERVE_THRESHOLD
-        ? '#facc15'
-        : '#dc2626';
+    dot.style.backgroundColor =
+      magnitude >= SWERVE_THRESHOLD ? '#facc15' : '#dc2626';
     dot.dataset.blocked = showBlocked ? '1' : '0';
   }, []);
   const captureCueStickAnchor = useCallback(() => {
@@ -20811,13 +20809,14 @@ const powerRef = useRef(hud.power);
         return vec;
       };
       const computeSpinOffsets = (spin, ranges) => {
+        const normalizedSpin = normalizeSpinInput(spin);
         const offsetSide = ranges?.offsetSide ?? 0;
         const offsetVertical = ranges?.offsetVertical ?? 0;
-        const magnitude = Math.hypot(spin?.x ?? 0, spin?.y ?? 0);
+        const magnitude = Math.hypot(normalizedSpin?.x ?? 0, normalizedSpin?.y ?? 0);
         const hasSpin = magnitude > 1e-4;
-        const sideInput = spin?.x ?? 0;
+        const sideInput = normalizedSpin?.x ?? 0;
         let side = hasSpin ? sideInput * offsetSide : 0;
-        let vert = hasSpin ? -spin.y * offsetVertical : 0;
+        let vert = hasSpin ? (normalizedSpin?.y ?? 0) * offsetVertical : 0;
         if (hasSpin) {
           vert = THREE.MathUtils.clamp(vert, -MAX_SPIN_VISUAL_LIFT, MAX_SPIN_VISUAL_LIFT);
         }
